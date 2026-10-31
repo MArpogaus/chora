@@ -34,6 +34,7 @@ use std::{
 };
 
 use chora_kit::{
+    give::{self, Give},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
@@ -286,6 +287,15 @@ impl Waiting {
     }
 }
 
+/// The grabbed bindings: the drag with the modifier, which the flavor
+/// grabs so that it shares it with the window managers of other outputs
+/// (D55), and the fly-out.
+#[derive(Clone, Copy)]
+enum Grab {
+    Drag,
+    FlyOut,
+}
+
 /// A drag with the modifier: the pane, the press and its centre then.
 struct Moving {
     name: String,
@@ -312,7 +322,7 @@ struct Flown {
 }
 
 struct Construct {
-    rt: Runtime<()>,
+    rt: Runtime<Grab>,
     settings: settings::File<Config>,
     /// Beside another flavor: no windows of its own, and a space only
     /// between `construct.load` and `construct.leave`.
@@ -535,9 +545,9 @@ fn ease(k: f64) -> f64 {
 }
 
 impl Plugin for Construct {
-    type Action = ();
+    type Action = Grab;
 
-    fn runtime(&mut self) -> &mut Runtime<()> {
+    fn runtime(&mut self) -> &mut Runtime<Grab> {
         &mut self.rt
     }
 
@@ -673,7 +683,7 @@ impl Plugin for Construct {
                 let pane = self.show(&entry).map_err(rejected)?;
                 Ok(json!({"pane": pane}))
             }
-            "window.give" => {
+            give::METHOD => {
                 let Give { surface, to } = runtime::params(params)?;
                 let surface = surface
                     .or_else(|| self.flown.as_ref().map(|f| f.surface.clone()))
@@ -704,10 +714,7 @@ impl Plugin for Construct {
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
-        self.rt.ungrab_all().map_err(rejected)?;
-        if self.flown.is_some() {
-            self.grab_fly_out().map_err(rejected)?;
-        }
+        self.regrab().map_err(rejected)?;
         self.frame().map_err(rejected)
     }
 }
@@ -737,45 +744,32 @@ impl Construct {
                 state: PressState::Pressed,
                 ..
             } => return self.fly_out(),
+            // The grabbed drag comes in scene coordinates, also over the
+            // other outputs; the window flown into keeps its presses.
+            Event::InputButton {
+                state, position, ..
+            } if self.flown.is_none() => {
+                let at = self.local(position);
+                return match state {
+                    PressState::Pressed => self.press(at, true),
+                    PressState::Released => self.release(at),
+                };
+            }
+            Event::InputMoved { position, .. } => return self.moved(self.local(position)),
             Event::PointerPressed {
                 node,
                 position,
                 modifiers,
                 ..
             } if node == LOOK => {
-                // A window of an overlay may have taken the keyboard; a
-                // press on the space takes it back.
-                if self.overlay && self.flown.is_none() {
-                    self.rt.conn.apply(vec![Command::FocusNode {
-                        node: Some(LOOK.into()),
-                    }])?;
-                }
                 let held = modifiers.contains(&self.settings.value.modifier);
-                if let Some(i) = self.pane_at(position).filter(|_| held) {
-                    let pane = &self.panes[i];
-                    self.moving = Some(Moving {
-                        name: pane.name.clone(),
-                        from: position,
-                        at: pane.at,
-                    });
-                } else {
-                    self.drag = Some((position, self.pose, false));
-                }
+                return self.press(position, held);
             }
             Event::PointerMoved { node, position, .. } if node == LOOK => {
-                if self.moving.is_some() {
-                    return self.drag_pane(position);
-                }
-                return self.look(position);
+                return self.moved(position);
             }
             Event::PointerReleased { node, position, .. } if node == LOOK => {
-                if self.moving.take().is_some() {
-                    return Ok(());
-                }
-                let click = self.drag.take().is_some_and(|(_, _, moved)| !moved);
-                if let Some(i) = self.pane_at(position).filter(|_| click) {
-                    self.fly_in(i);
-                }
+                return self.release(position);
             }
             Event::PointerScroll {
                 node,
@@ -793,6 +787,100 @@ impl Construct {
             _ => {}
         }
         Ok(())
+    }
+
+    /// A press on the space at a point of the output: with the modifier
+    /// on a pane, it starts to move the pane; else a drag looks around.
+    fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
+        // A window of an overlay may have taken the keyboard; a press on
+        // the space takes it back.
+        if self.overlay && self.flown.is_none() {
+            self.rt.conn.apply(vec![Command::FocusNode {
+                node: Some(LOOK.into()),
+            }])?;
+        }
+        if let Some(i) = self.pane_at(at).filter(|_| held) {
+            let pane = &self.panes[i];
+            self.moving = Some(Moving {
+                name: pane.name.clone(),
+                from: at,
+                at: pane.at,
+            });
+        } else {
+            self.drag = Some((at, self.pose, false));
+        }
+        Ok(())
+    }
+
+    fn moved(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+        if self.moving.is_some() {
+            return self.drag_pane(at);
+        }
+        self.look(at)
+    }
+
+    /// The end of a press: a moved pane drops, a click flies in.
+    fn release(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+        if let Some(moving) = self.moving.take() {
+            return self.drop_pane(&moving, at);
+        }
+        let click = self.drag.take().is_some_and(|(_, _, moved)| !moved);
+        if let Some(i) = self.pane_at(at).filter(|_| click) {
+            self.fly_in(i);
+        }
+        Ok(())
+    }
+
+    /// The top left corner of the output in the scene.
+    fn origin(&self) -> [f64; 2] {
+        (self.output.as_ref()).map_or([0.0; 2], |o| o.position.map(f64::from))
+    }
+
+    /// A point of the scene in the coordinates of the output.
+    fn local(&self, [x, y]: [f64; 2]) -> [f64; 2] {
+        let [ox, oy] = self.origin();
+        [x - ox, y - oy]
+    }
+
+    /// The drop of a moved pane at a point of the output (D55). Over a
+    /// plugin pane, its window goes to that plugin; off the output, the
+    /// pane goes back to where it was, and its window to the window
+    /// manager whose claim holds the point. A window of another client
+    /// goes back to its owner instead. A refused window stays a pane.
+    fn drop_pane(&mut self, moving: &Moving, at: [f64; 2]) -> Result<(), ClientError> {
+        let Ok(i) = self.pane_named(&moving.name) else {
+            return Ok(());
+        };
+        if self.overlay {
+            return Ok(());
+        }
+        let inside = (0.0..self.lens.w).contains(&at[0]) && (0.0..self.lens.h).contains(&at[1]);
+        let to = if inside {
+            let plugin =
+                |p: &Pane| p.name != moving.name && matches!(p.content, Content::Plugin { .. });
+            match self.pane_hit(at, plugin).map(|k| &self.panes[k].content) {
+                Some(Content::Plugin { plugin, .. }) => Some(plugin.clone()),
+                _ => None,
+            }
+        } else {
+            self.panes[i].at = moving.at;
+            let [ox, oy] = self.origin();
+            (self.rt.conn)
+                .claimant_at([at[0] + ox, at[1] + oy])
+                .map_err(ClientError::Rpc)?
+        };
+        let pane = &self.panes[i];
+        if let (Some(to), Some(surface)) = (to, pane.window().map(String::from)) {
+            let given = if pane.taken {
+                self.forget(&surface)
+            } else {
+                self.give(&surface, &to)
+            };
+            if let Err(err) = given {
+                eprintln!("chora-construct: {surface} stays: {err}");
+            }
+        }
+        self.frame()
     }
 
     /// The keys and the clicks of the open window list; whether it took
@@ -935,6 +1023,7 @@ impl Construct {
         }
         self.active = true;
         self.build()?;
+        self.regrab()?;
         for node in self.rt.conn.query("kind:surface")? {
             let ours = node.to.as_deref().is_none_or(|t| t == NAME);
             if node.owner.is_none() && ours {
@@ -1367,7 +1456,13 @@ impl Construct {
 
     /// The pane under a point of the output, the nearest one.
     fn pane_at(&self, p: [f64; 2]) -> Option<usize> {
+        self.pane_hit(p, |_| true)
+    }
+
+    /// The nearest pane under a point of the output of those that `keep`.
+    fn pane_hit(&self, p: [f64; 2], keep: impl Fn(&Pane) -> bool) -> Option<usize> {
         (self.panes.iter().enumerate())
+            .filter(|(_, pane)| keep(pane))
             .filter_map(|(i, pane)| {
                 space::hit(&self.lens, &self.pose, p, pane.at, pane.size).map(|t| (i, t))
             })
@@ -1479,14 +1574,31 @@ impl Construct {
         };
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);
-        self.grab_fly_out()
+        self.regrab()
     }
 
-    fn grab_fly_out(&mut self) -> Result<(), ClientError> {
-        let binding = self.settings.value.fly_out.parse().map_err(|e| {
-            ClientError::Rpc(RpcError::new(RpcError::INVALID_PARAMS, format!("{e}")))
-        })?;
-        self.rt.grab(binding, ()).map(drop)
+    /// Grabs the drag with the modifier as the flavor, and the fly-out
+    /// binding while the camera is in a pane. Without the grab of the
+    /// drag, which another client may hold or the core refuses for Shift
+    /// (D45), the presses on the space still move panes.
+    fn regrab(&mut self) -> Result<(), ClientError> {
+        let parse = |b: String| {
+            b.parse().map_err(|e| {
+                ClientError::Rpc(RpcError::new(RpcError::INVALID_PARAMS, format!("{b}: {e}")))
+            })
+        };
+        self.rt.ungrab_all()?;
+        if self.active && !self.overlay {
+            let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
+            if let Err(err) = self.rt.grab(drag, Grab::Drag) {
+                eprintln!("chora-construct: the drag: {err}");
+            }
+        }
+        if self.flown.is_some() {
+            let fly_out = parse(self.settings.value.fly_out.clone())?;
+            self.rt.grab(fly_out, Grab::FlyOut)?;
+        }
+        Ok(())
     }
 
     /// Hides the window again and gives the keys back to the walk.
@@ -1517,7 +1629,7 @@ impl Construct {
             );
         }
         self.rt.conn.try_apply(commands)?;
-        self.rt.ungrab_all()
+        self.regrab()
     }
 
     fn fly_out(&mut self) -> Result<(), ClientError> {
@@ -2005,14 +2117,12 @@ impl Construct {
         Ok(managers)
     }
 
-    /// Gives an own window to the window manager `to` (D55): its pane
-    /// goes, and the core reserves the window for `to`, with its props
-    /// back to the defaults.
+    /// Gives an own window to the client `to`, a window manager or a
+    /// plugin such as mc (D55): the core reserves the window for `to`,
+    /// with its props back to the defaults, and the pane goes. The core
+    /// refuses a `to` without a connection, and the pane stays.
     fn give(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
-        if !self.managers()?.iter().any(|m| m == to) {
-            return refuse(format!("{to} is no window manager that runs"));
-        }
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(surface)) else {
             return refuse(format!("{surface} is no pane"));
         };
@@ -2022,11 +2132,8 @@ impl Construct {
                 pane.name
             ));
         }
-        self.forget(surface)?;
-        self.rt.conn.apply(vec![Command::Remove {
-            id: surface.into(),
-            to: Some(to.into()),
-        }])
+        self.rt.conn.give(surface, to).map_err(ClientError::Rpc)?;
+        self.forget(surface)
     }
 
     /// How a pane holds a window that the construct started.
@@ -2210,14 +2317,6 @@ struct Named {
     name: String,
 }
 
-/// Parameters of `window.give`.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Give {
-    surface: Option<String>,
-    to: String,
-}
-
 /// Parameters of `pane.move`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -2309,9 +2408,10 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["name"],
         ),
         runtime::method(
-            "window.give",
-            "Gives a window that the construct owns to the window manager TO (D55); \
-             without a surface, the window of the pane flown into or ahead. Its pane goes.",
+            give::METHOD,
+            "Gives a window that the construct owns to the client TO, a window manager \
+             or a plugin such as mc (D55); without a surface, the window of the pane \
+             flown into or ahead. Its pane goes.",
             json!({"surface": {"type": "string"}, "to": {"type": "string"}}),
             &["to"],
         ),
