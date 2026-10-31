@@ -27,7 +27,7 @@ The hooks run:
   complexity guards. Split a function instead of raising a limit.
 - `ruff check` and `ruff format` on `services/voice/`. `ruff.toml`
   selects the rules and the complexity guards.
-- file hygiene, YAML and TOML formatting, `codespell` and `typos` (allowed
+- file hygiene, YAML and TOML formatting, and `typos` (allowed
   words are in `_typos.toml`)
 - `shellcheck` on all shell scripts (`.shellcheckrc` sets the source path).
   Fix a finding, or add `# shellcheck disable=SCxxxx` with a reason

@@ -59,15 +59,6 @@ repos:
     args: [--autofix]
     exclude: ^Cargo\.lock$   # cargo owns this file
 
-- repo: https://github.com/codespell-project/codespell
-  rev: v2.4.3
-  hooks:
-  # wit: the WebAssembly Interface Type language; ags: Aylur's GTK Shell
-  - id: codespell
-    args: [-L, 'wit,ags']
-    # The German logs of one overnight run, kept as a record.
-    exclude: ^tests/battle/reviews/
-
 # .shellcheckrc sets the source path. The session scripts have no suffix.
 - repo: https://github.com/shellcheck-py/shellcheck-py
   rev: v0.11.0.1
