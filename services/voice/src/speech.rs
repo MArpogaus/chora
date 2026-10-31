@@ -564,7 +564,10 @@ mod tests {
             assert_eq!(played, after, "skip={skip}: {log:?}");
             // The player may name the sentence once before the pause, as
             // it names a sentence when it writes it.
-            let said: Vec<_> = log[stop..].iter().filter(|l| l.starts_with("said")).collect();
+            let said: Vec<_> = log[stop..]
+                .iter()
+                .filter(|l| l.starts_with("said"))
+                .collect();
             let want: &[&str] = if skip {
                 &["said Vier. 300"]
             } else {
