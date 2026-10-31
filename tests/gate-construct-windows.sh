@@ -1,5 +1,5 @@
 #!/bin/bash
-# Gate of step K2b of the construct track: the window list, windows of
+# Gate of the window list of the construct track (D66): windows of
 # other clients as panes on request, and the hand-over back (F29-F31).
 # No window gets lost: after each step, every surface that exists shows
 # on the output (with an owner, visible, opaque and of a nonzero size) or

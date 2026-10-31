@@ -422,7 +422,7 @@ with `settings.reload`:
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
   `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
-  the built-in scenes also use `data` and `mono`. The
+  the built-in scenes also use `data`, `mono` and `lead`. The
   [style guide](mc-style.md) gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package `texlive-tex-gyre`, whose
@@ -615,8 +615,9 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ## chora-construct (experimental)
 
 !!! warning "Experimental"
-    `chora-construct` is step K3 of the construct track (D66). The
-    packages install it, but its settings and files change without notice.
+    `chora-construct` grows along the construct track of the roadmap
+    (D66): steps K1 and K2a are done, K2b (GNOME and prompt panes) and K3
+    are open. The packages install it, but its settings and files change without notice.
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
