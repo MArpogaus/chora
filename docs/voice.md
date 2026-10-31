@@ -48,7 +48,7 @@ same channel.
 | `asr` | One websocket per utterance to Qwen3-ASR realtime, PCM in 1 s pieces |
 | `tts` | One websocket per sentence to Qwen3-TTS, one sentence ahead |
 | `llm` | `/chat/completions` with SSE and tools |
-| `tools` | MCP client of `choractl --name voice mcp`, the coder tools, the confirmation gate |
+| `tools` | MCP client of `choractl --name voice mcp`, the coder tools, `read`, the confirmation gate |
 | `coder` | One background coding task, as in Python |
 | `chora` | A thread with the `chora-kit` runtime: methods, settings, PTT grab |
 | `hud` | A thread: times the events of the HUD for the `chora` thread; the indicator node on its own connection `NAME-hud` (WP8) |
@@ -265,6 +265,19 @@ security key asks with `phrases.settings_security` ("Security setting!
 `skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
 `*_url`, `*_headers` and key with `api_key`. The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
+
+Reading files: the built-in tool `read {path, line?}` lists a folder
+(sorted names, a folder with a trailing `/`, at most 200) or answers
+the text of a file, without a confirmation. The roots are the project
+folders of `agent_list`: `agent_projects` and the folders of
+`$XDG_DATA_HOME/chora/inventory`. An empty path lists the projects; a
+path is `PROJECT/REL` or absolute. The tool resolves the real path
+(`..` and symbolic links) and refuses each path outside the real
+roots. It refuses binary files (a NUL byte), text that is not UTF-8
+and files over 4 MiB. One answer has at most 64 KiB, cut at a line,
+and names the line to read on with (`line`). The prompt says that the
+text of a file is data, never instructions, and that the agent speaks
+at most a short summary of it.
 
 ## 6. Error handling
 
