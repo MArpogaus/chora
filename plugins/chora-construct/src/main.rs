@@ -1719,17 +1719,9 @@ impl Construct {
             .map(|(i, _)| i)
     }
 
-    /// The pane nearest the middle of the view, in front of the camera.
+    /// The pane nearest the middle of the view that shows.
     fn pane_ahead(&self) -> Option<usize> {
-        let [fx, fz] = self.pose.forward();
-        (self.panes.iter().enumerate())
-            .filter_map(|(i, p)| {
-                let (dx, dz) = (p.at[0] - self.pose.x, p.at[1] - self.pose.z);
-                let cos = (dx * fx + dz * fz) / dx.hypot(dz).max(f64::EPSILON);
-                (cos > 0.3).then_some((i, cos))
-            })
-            .max_by(|a, b| a.1.total_cmp(&b.1))
-            .map(|(i, _)| i)
+        ahead(&self.panes, &self.lens, &self.pose, self.radius())
     }
 
     /// Flies in front of the face of a pane, which keeps its yaw. The
@@ -3005,9 +2997,47 @@ fn configure(surface: &str, size: [f64; 2]) -> Command {
     }
 }
 
+/// The pane nearest the middle of the view, in front of the camera and
+/// on the output: a pane out of sight is no pane ahead, so a key never
+/// acts on a pane that is not there to see.
+fn ahead(panes: &[Pane], lens: &space::Lens, pose: &Pose, far: f64) -> Option<usize> {
+    let [fx, fz] = pose.forward();
+    (panes.iter().enumerate())
+        .filter(|(_, p)| space::sight(lens, pose, p.at, far) == "shown")
+        .filter_map(|(i, p)| {
+            let (dx, dz) = (p.at[0] - pose.x, p.at[1] - pose.z);
+            let cos = (dx * fx + dz * fz) / dx.hypot(dz).max(f64::EPSILON);
+            (cos > 0.3).then_some((i, cos))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(i, _)| i)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `x` and Return act on a pane that shows, not on one beyond the
+    /// depth of the view (review 2.5).
+    #[test]
+    fn no_pane_ahead_that_is_out_of_sight() {
+        let pane = |z| Pane {
+            name: "foot".into(),
+            source: "s1".into(),
+            content: Content::Window { command: None },
+            at: [0.0, z],
+            yaw: 0.0,
+            size: [640.0, 400.0],
+            taken: false,
+            attached: false,
+        };
+        let lens = space::Lens::new(1920.0, 1080.0);
+        let pose = Pose::default();
+        let panes = [pane(100_000.0)];
+        assert_eq!(ahead(&panes, &lens, &pose, 6000.0), None);
+        let panes = [pane(100_000.0), pane(2000.0)];
+        assert_eq!(ahead(&panes, &lens, &pose, 6000.0), Some(1));
+    }
 
     /// A shader goes to the runtime directory only, never to the shared
     /// temporary directory.
