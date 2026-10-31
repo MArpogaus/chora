@@ -1329,7 +1329,9 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
   not end in <code>.yaml</code>, because such a name is a path. The file
   <code>NAME.yaml</code> must name the same view.</li>
 <li><code>choractl view load</code> also takes the path of a YAML file; the MCP tools
-  take names only.</li>
+  take names only. From the MCP tools, <code>input</code>, plugin starts and
+  <code>config</code> need grants of <code>view-NAME</code> (see
+  <a href="../api/#plugins">Plugins</a>).</li>
 <li><code>input</code> sets the input devices of the whole session through
   <code>input.configure</code>, so the core reads no file for them (D35).
   <code>keyboard</code> has <code>repeat_rate</code> and <code>repeat_delay</code>. <code>touchpad</code> and

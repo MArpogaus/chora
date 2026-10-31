@@ -1617,7 +1617,8 @@ A keyword-spotting model can replace this later.</p>
 <code>apply_commands</code>, by <code>argv0</code> of <code>run_program</code>, or by <code>method</code> (glob) of
 <code>call_method</code>. The agent speaks the <code>prompt</code> of the rule, with the
 program of <code>run_program</code> in place of <code>{program}</code>, and waits for
-yes or no. The method <code>confirm</code> answers from a key or the HUD (WP5),
+yes or no. The method <code>confirm</code> answers from a key or the HUD (WP5;
+privileged, so a confined client needs <code>methods.privileged</code>),
 the spoken yes and no since WP6; two unclear answers are a no. No
 answer within <code>confirm_timeout_ms</code> is a no. A no gives the LLM the result "declined by
 the user; nothing happened".</p>
@@ -1931,7 +1932,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>skipped_tools</code> (globs)</td>
-<td><code>[subscribe_events, wait_events, capture, "voice.*"]</code></td>
+<td><code>[subscribe_events, wait_events, capture, "voice.*"]</code>; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through <code>call_method</code></td>
 </tr>
 <tr>
 <td><code>playback_buffer_ms</code></td>
@@ -2024,7 +2025,7 @@ both a key variable and a key file for one server.</p>
 <td>PTT from another client, for example <code>chora-mc</code></td>
 </tr>
 <tr>
-<td><code>confirm</code> (WP5)</td>
+<td><code>confirm</code> (WP5, privileged)</td>
 <td><code>answer: yes\|no</code></td>
 <td>the new state record</td>
 </tr>
@@ -2069,8 +2070,10 @@ state, task, said, voice, plan, question, log}</code>, and <code>voice.remove
 The <code>hud</code> thread waits for the sound of a sentence and hands the events
 to the <code>chora</code> thread, which emits them on the connection of the
 methods: only that connection has the name <code>voice</code>. The <code>chora</code> thread
-looks for them every 50 ms between the events of chora. A refused event,
-for example over the rate limit of the core, logs at debug level.</p>
+looks for them every 50 ms between the events of chora. Over the rate
+limit of the core (D65), the last <code>state</code> or <code>remove</code> of each name
+waits 1 s and goes again, with the states that come meanwhile; a
+refused <code>say</code> is gone. Another refused event logs at debug level.</p>
 <h2 id="11-logging-and-latency">11. Logging and latency<a class="headerlink" href="#11-logging-and-latency" title="Permanent link">&para;</a></h2>
 <p><code>tracing</code> with timestamps to stderr (journald), without colors when
 stderr is no terminal. <code>RUST_LOG</code> filters; the default is
@@ -2886,16 +2889,21 @@ stdin and stdout of the agent, one message per line. Module <code>agents.rs</cod
 <li>Speech: at the end of a turn, its last message is spoken in the voice
   of the agent (<code>agent_voices</code> in turn, or the <code>voice</code> of
   <code>agent_start</code>), queued as the coder results: never over the user.
+  At most 8 texts wait; more drop the oldest. A new question of an
+  agent replaces its question that waits, and a question that the
+  agent dropped is not spoken.
   More than <code>agent_said_chars</code> characters speak the first sentence and
   <code>phrases.details</code>. The history of the LLM gets the spoken text.</li>
 <li>Questions: a permission request is spoken as <code>agent_asks</code> ("Atlas
   möchte notes.txt ändern. Erlauben?": the file name of a path title
-  and a verb for the kind). It waits from when it is spoken; the state
-  is <code>confirming</code>. Yes and no words, <code>voice.confirm</code>, or "NAME, ja"
+  and a verb for the kind). It waits from when it is spoken, so it
+  also waits while the agent sleeps; the state is <code>confirming</code>. Yes and no words, <code>voice.confirm</code>, or "NAME, ja"
   answer it; two unclear answers or <code>agent_permission_s</code> without one
-  are a no. Yes picks an <code>allow_once</code> option (else <code>allow_always</code>), no
-  a <code>reject_once</code> one; without a fitting option the outcome is
-  <code>cancelled</code>.</li>
+  are a no. Yes picks an <code>allow_once</code> option, no a <code>reject_once</code> one;
+  without a fitting option the outcome is <code>cancelled</code>. A request whose
+  only allowing option is <code>allow_always</code> is spoken as "Atlas wants to
+  edit notes.txt. Always allow?" ("… Immer erlauben?" with
+  <code>reply_language: de</code>), and only then a yes picks <code>allow_always</code>.</li>
 <li>Routing: the LLM gets <code>agent_list</code>, <code>agent_start {project, name?,
   voice?}</code>, <code>agent_say {name, text}</code>, <code>agent_stop {name}</code> and
   <code>agent_status {name?}</code>, and a part of the prompt. <code>agent_start</code> asks
@@ -2914,7 +2922,9 @@ stdin and stdout of the agent, one message per line. Module <code>agents.rs</cod
   and every message (<code>&gt;</code> sent, <code>&lt;</code> received).</li>
 <li>Lifetime: <code>agent_stop</code> and the end of the voice agent (an error,
   <code>SIGTERM</code>, <code>SIGINT</code>) send <code>TERM</code> to the process group of each agent
-  and <code>KILL</code> after 5 s. The agents do not survive a restart.</li>
+  and <code>KILL</code> after 5 s. At the end, the voice agent waits until no
+  process of these groups and of the coder runs; a zombie counts as
+  ended. The agents do not survive a restart.</li>
 </ul>
 <p>Tests: <code>tests/fake-acp.sh</code> is a fake agent (plan, tool call, question,
 long answer); the unit test of <code>agents.rs</code> runs it through a prompt, a
