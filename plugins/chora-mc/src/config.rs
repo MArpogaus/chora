@@ -363,16 +363,9 @@ impl Config {
     }
 }
 
-impl Settings for Config {
-    fn check(&self) -> Result<(), String> {
-        for (name, colors) in [("light", &self.themes.light), ("dark", &self.themes.dark)] {
-            if colors.values().flatten().any(|c| !(0.0..=1.0).contains(c)) {
-                return Err(format!("themes.{name}: each color from 0 to 1"));
-            }
-            if !colors.contains_key("background") {
-                return Err(format!("themes.{name}: a background"));
-            }
-        }
+impl Config {
+    /// The scale, the page, the grid and the least size of a panel.
+    fn check_layout(&self) -> Result<(), String> {
         let Scale {
             base,
             ratio,
@@ -390,6 +383,21 @@ impl Settings for Config {
         if self.min_panel.iter().any(|m| !(1.0..=200.0).contains(m)) {
             return Err("min_panel: a width and a height from 1 to 200".into());
         }
+        Ok(())
+    }
+}
+
+impl Settings for Config {
+    fn check(&self) -> Result<(), String> {
+        for (name, colors) in [("light", &self.themes.light), ("dark", &self.themes.dark)] {
+            if colors.values().flatten().any(|c| !(0.0..=1.0).contains(c)) {
+                return Err(format!("themes.{name}: each color from 0 to 1"));
+            }
+            if !colors.contains_key("background") {
+                return Err(format!("themes.{name}: a background"));
+            }
+        }
+        self.check_layout()?;
         for name in NEEDED {
             if !self.styles.contains_key(name) {
                 return Err(format!("styles: no {name}"));

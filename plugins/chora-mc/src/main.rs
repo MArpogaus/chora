@@ -289,6 +289,8 @@ struct Mc {
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
     solo: Option<Solo>,
+    /// How far the page of a scene scrolled down, by scene.
+    scroll: BTreeMap<String, f64>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -369,6 +371,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         agents: Vec::new(),
         agent_focus: None,
         solo: None,
+        scroll: BTreeMap::new(),
     };
     mc.keep_texts();
     mc.start(methods)?;
@@ -376,8 +379,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events; `voice.*` are those of the voice agent (D65).
-const EVENTS: [&str; 8] = [
+const EVENTS: [&str; 9] = [
     "voice.*",
+    "pointer.scroll",
     "animation.done",
     "surface.created",
     "surface.destroyed",
@@ -601,6 +605,7 @@ impl Plugin for Mc {
                 client,
                 data,
             } => self.follow(&event, &client, data),
+            Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             _ => Ok(()),
         }
     }
@@ -798,6 +803,11 @@ fn scene_id(name: &str) -> String {
 /// The id of the group of the panels of a scene.
 fn panels_id(name: &str) -> String {
     format!("mc-s-{name}-panels")
+}
+
+/// The id of the rect under the page of a scene that takes the wheel.
+fn wheel_id(name: &str) -> String {
+    format!("mc-s-{name}-wheel")
 }
 
 /// The id of a part of the head of a scene.
@@ -1233,12 +1243,35 @@ impl Mc {
         let Some(scene) = self.scenes.get(name) else {
             return Vec::new();
         };
-        let mut commands = vec![create(
-            &panels_id(name),
-            NodeKind::Group,
-            &scene_id(name),
-            PropsUpdate::default(),
-        )];
+        // A page between the header and the footer that clips the panels
+        // and takes the wheel; the panels move up in it as it scrolls.
+        let [w, h] = (self.output.as_ref()).map_or([0.0; 2], |o| o.size.map(f64::from));
+        let b = self.settings.value.scale.baseline;
+        let page = format!("{}-page", scene_id(name));
+        let scroll = self.scroll.get(name).copied().unwrap_or_default();
+        let mut commands = vec![
+            create(
+                &page,
+                NodeKind::Group,
+                &scene_id(name),
+                PropsUpdate {
+                    transform: Some(translate(0.0, 2.0 * b)),
+                    size: Some([w, (h - 4.0 * b).max(b)]),
+                    clip: Some(Some(chora_scene::Clip { radius: 0.0 })),
+                    ..PropsUpdate::default()
+                },
+            ),
+            region::rect(&wheel_id(name), &page, [0.0, 0.0, w, h], [0.0; 4]),
+            create(
+                &panels_id(name),
+                NodeKind::Group,
+                &page,
+                PropsUpdate {
+                    transform: Some(translate(0.0, -2.0 * b - scroll)),
+                    ..PropsUpdate::default()
+                },
+            ),
+        ];
         commands.extend(self.chapter(name, scene));
         for panel in &scene.panels {
             commands.extend(self.panel(name, panel));
@@ -1445,8 +1478,9 @@ impl Mc {
             (flowed[at], [fit, flowed_rows])
         };
         let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
-        let n = f64::from(grid[1]);
-        Some(scene::place(cell, grid, [x, y, w, row * n + gap[1] * (n - 1.0)], gap))
+        let shown = f64::from(grid[1]);
+        let height = row * shown + gap[1] * (shown - 1.0);
+        Some(scene::place(cell, grid, [x, y, w, height], gap))
     }
 
     /// The top of the lines of a panel, below its title.
@@ -1461,7 +1495,10 @@ impl Mc {
     /// The height of a panel cut to whole lines of its text, so that its
     /// clip never cuts through a line.
     fn whole_lines(&self, panel: &Panel, h: f64) -> f64 {
-        let (top, line) = (self.lines_top(panel), self.ty("body", panel.style.as_ref()).line);
+        let (top, line) = (
+            self.lines_top(panel),
+            self.ty("body", panel.style.as_ref()).line,
+        );
         (top + ((h - top) / line).floor() * line).clamp(0.0, h)
     }
 
@@ -1582,6 +1619,29 @@ impl Mc {
         self.apply(commands)
     }
 
+    /// Scrolls the page of the current scene by `dy`, from its top to its
+    /// last panel at the bottom of the text block.
+    fn scroll_page(&mut self, node: &str, dy: f64) -> Result<(), ClientError> {
+        let Some(name) = self.current.clone().filter(|n| wheel_id(n) == node) else {
+            return Ok(());
+        };
+        let (Some(scene), Some(geo)) = (self.scenes.get(&name), self.geometry(&name)) else {
+            return Ok(());
+        };
+        let bottom = (scene.panels.iter())
+            .filter_map(|p| self.place(&name, p).map(|[_, y, _, h]| y + h))
+            .fold(0.0, f64::max);
+        let most = (bottom - geo.text[1] - geo.text[3]).max(0.0);
+        let old = self.scroll.get(&name).copied().unwrap_or_default();
+        let new = (old + dy).clamp(0.0, most);
+        if (new - old).abs() < f64::EPSILON {
+            return Ok(());
+        }
+        self.scroll.insert(name.clone(), new);
+        let b = self.settings.value.scale.baseline;
+        self.apply(vec![move_to(panels_id(&name), 0.0, -2.0 * b - new)])
+    }
+
     /// The rect that the core lays out a node at: x, y, width, height.
     fn rect(&mut self, id: &str) -> Result<Option<[f64; 4]>, ClientError> {
         let nodes: Vec<Value> =
@@ -1638,7 +1698,10 @@ impl Mc {
                         .collect(),
                 )
             };
-            let Some(h) = self.place(name, panel).map(|r| self.whole_lines(panel, r[3])) else {
+            let Some(h) = self
+                .place(name, panel)
+                .map(|r| self.whole_lines(panel, r[3]))
+            else {
                 continue;
             };
             // ponytail: a line that wraps writes with the last line; the

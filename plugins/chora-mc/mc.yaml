@@ -123,7 +123,7 @@ grid: [4, 3]
 # the panels that do not fit wrap into new rows, in reading order; a row
 # is never lower than the height. A page longer than the output scrolls
 # with the wheel.
-min_panel: [14, 6]
+min_panel: [14, 8]
 # New text writes itself: first its outline line by line, then its fill.
 write:
   enabled: true
