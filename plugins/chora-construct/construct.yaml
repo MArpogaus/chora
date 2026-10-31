@@ -19,9 +19,11 @@ pane_distance: 2000
 # forward, back, left, right (steps aside), turn_left, turn_right,
 # look_up, look_down, home (back to the start point), fly_in (into the
 # pane nearest the middle of the view), terminal (starts the terminal),
-# launcher (starts the launcher) or close (asks the window of the pane
-# nearest the middle of the view to close). The space takes the
-# keyboard, so the keys need no modifier.
+# launcher (starts the launcher), close (asks the window of the pane
+# nearest the middle of the view to close) or windows (opens and closes
+# the window list). The space takes the keyboard, so the keys need no
+# modifier. In the window list, Up and Down move the selection, Return
+# chooses, and Escape or the windows key closes it.
 keys:
   w: forward
   s: back
@@ -40,6 +42,7 @@ keys:
   t: terminal
   space: launcher
   x: close
+  Tab: windows
 # The shell command of the key terminal; its window becomes a pane in
 # the view direction.
 terminal: foot

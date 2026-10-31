@@ -31,6 +31,8 @@ pub enum Action {
     Launcher,
     /// Asks the window of the pane in the middle of the view to close.
     Close,
+    /// Opens or closes the window list (F29).
+    Windows,
 }
 
 /// Light or dark.
@@ -50,6 +52,11 @@ pub struct Palette {
     pub ground: [f64; 3],
     /// The fine dots on the ground.
     pub dust: [f64; 3],
+    /// The window list in the colours of mc (docs/mc-style.md): the
+    /// ground, the text and the muted notes.
+    pub paper: [f64; 3],
+    pub text: [f64; 3],
+    pub muted: [f64; 3],
 }
 
 impl Theme {
@@ -61,12 +68,18 @@ impl Theme {
                 horizon: [1.0, 1.0, 1.0],
                 ground: [0.865, 0.85, 0.825],
                 dust: [0.62, 0.6, 0.57],
+                paper: [0.97, 0.96, 0.93],
+                text: [0.16, 0.15, 0.14],
+                muted: [0.50, 0.48, 0.45],
             },
             Self::Dark => Palette {
                 sky: [0.0, 0.0, 0.0],
                 horizon: [0.15, 0.15, 0.16],
                 ground: [0.06, 0.06, 0.065],
                 dust: [0.24, 0.24, 0.26],
+                paper: [0.11, 0.11, 0.11],
+                text: [0.85, 0.83, 0.79],
+                muted: [0.55, 0.54, 0.51],
             },
         }
     }
@@ -132,5 +145,6 @@ mod tests {
         config.check().unwrap();
         assert_eq!(config.keys["Return"], Action::FlyIn);
         assert_eq!(config.keys["space"], Action::Launcher);
+        assert_eq!(config.keys["Tab"], Action::Windows);
     }
 }

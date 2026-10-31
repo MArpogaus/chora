@@ -10,6 +10,12 @@
 //! (`screen:NAME`), so that no camera changes hands (F20); its program
 //! panes show windows of the other flavor, which gets the keyboard
 //! requests for them (D31).
+//!
+//! Step K2b: a window list shows the windows without a visible pane, and
+//! a choice flies to the pane or takes the window of another client as a
+//! pane (F29, F30). Such a window only shows through a node texture; the
+//! construct changes none of its props, so its owner, any window manager,
+//! has it back in full when the pane or the construct goes (F31).
 
 #![allow(
     clippy::print_stderr,
@@ -34,7 +40,7 @@ use chora_kit::{
 use chora_scene::{
     Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, PropsUpdate, ToplevelState,
     Transform, Uniform,
-    ipc::{ClientError, ExportMethod, PressState, RpcError},
+    ipc::{ClientError, ExportMethod, Filter, PressState, Query, RpcError},
     overlay_id,
 };
 use clap::Parser;
@@ -67,6 +73,13 @@ const WINDOWS: &str = "construct-windows";
 /// A clear rect over the space: it takes the drags, clicks, the wheel
 /// and, through `focus_node`, the keys of the walk.
 const LOOK: &str = "construct-look";
+/// The window list over the space, and the prefix of its rows (F29).
+const LIST: &str = "construct-list";
+const LIST_ROW: &str = "construct-list-row-";
+/// The rows that the list shows at most, its width and its line.
+const LIST_ROWS: usize = 12;
+const LIST_WIDTH: f64 = 560.0;
+const LIST_LINE: f64 = 24.0;
 const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
@@ -131,6 +144,70 @@ struct Pane {
     at: [f64; 2],
     /// The size in logical pixels.
     size: [f64; 2],
+    /// A window of another client, taken on request (F30): the pane goes
+    /// without a close request, and the window stays with its owner.
+    taken: bool,
+    /// A window that the flavor attached and hides under the space.
+    attached: bool,
+}
+
+/// A window of the window list (F29): the label, the surface, its owner
+/// and where its pane is: `shown`, `behind`, `far`, `aside` or `none`.
+struct Entry {
+    name: String,
+    surface: String,
+    owner: Option<String>,
+    pane: &'static str,
+    size: Option<[f64; 2]>,
+}
+
+impl Entry {
+    fn json(&self) -> Value {
+        json!({"name": self.name, "surface": self.surface, "owner": self.owner, "pane": self.pane})
+    }
+}
+
+/// How a pane holds its window.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Hold {
+    /// The construct owns the window and hides it under the space.
+    Own,
+    /// A window that the construct started beside another flavor, which
+    /// owns it; the pane only shows it.
+    Shown,
+    /// A window of another client, taken on request (F30): the pane only
+    /// shows it, and goes without a close request.
+    Taken,
+}
+
+/// A row of the window list: a window, or a window manager to give the
+/// window of the list to.
+struct Row {
+    label: String,
+    note: String,
+    /// The surface, or the client name of the window manager.
+    target: String,
+}
+
+/// The open window list: the selected row, and the surface to give, for
+/// the rows of the window managers.
+struct ListState {
+    sel: usize,
+    give: Option<String>,
+}
+
+/// A unique label from `base`, at most 32 characters, with `-2`, `-3`
+/// and on after it.
+fn unique(base: &str, taken: impl Fn(&str) -> bool) -> String {
+    let base: String = base.trim().chars().take(32).collect();
+    let base = if base.is_empty() { "pane".into() } else { base };
+    if !taken(&base) {
+        return base;
+    }
+    (2..=10_000)
+        .map(|k| format!("{base}-{k}"))
+        .find(|n| !taken(n))
+        .unwrap_or_default()
 }
 
 impl Pane {
@@ -230,6 +307,8 @@ struct Glide {
 struct Flown {
     surface: String,
     back: Pose,
+    /// Whether the window is attached, so that it shows itself.
+    attached: bool,
 }
 
 struct Construct {
@@ -265,6 +344,10 @@ struct Construct {
     flown: Option<Flown>,
     /// The press of a drag: where, the pose then, and whether it moved.
     drag: Option<([f64; 2], Pose, bool)>,
+    list: Option<ListState>,
+    /// The window that had the keyboard when an overlay took the output;
+    /// it gets it back on leave (F31).
+    focus_before: Option<String>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -323,6 +406,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         order: Vec::new(),
         flown: None,
         drag: None,
+        list: None,
+        focus_before: None,
     };
     construct.start()?;
     construct.serve()?;
@@ -470,10 +555,7 @@ impl Plugin for Construct {
                 let label = app_id.or(title).unwrap_or_default();
                 self.created(&surface, &label, to.as_deref(), pid, token.as_deref())
             }
-            Event::SurfaceDetached { surface } if !self.overlay => {
-                self.forget(&surface)?;
-                self.adopt(&surface, "", None)
-            }
+            Event::SurfaceDetached { surface } => self.detached(&surface),
             Event::SurfaceDestroyed { surface }
                 if self.launcher_window.as_deref() == Some(&surface) =>
             {
@@ -570,6 +652,39 @@ impl Plugin for Construct {
                 self.remove_pane(i).map_err(rejected)?;
                 Ok(Value::Null)
             }
+            "window.list" => {
+                let windows = self.windows().map_err(rejected)?;
+                Ok(json!({"windows": windows.iter().map(Entry::json).collect::<Vec<_>>()}))
+            }
+            "window.show" => {
+                let Named { name } = runtime::params(params)?;
+                if !self.active {
+                    return Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "no construct shows; construct.load first",
+                    ));
+                }
+                let windows = self.windows().map_err(rejected)?;
+                let entry = (windows.into_iter())
+                    .find(|e| e.name == name || e.surface == name)
+                    .ok_or_else(|| {
+                        invalid(format!("no window {name:?}; window.list names them"))
+                    })?;
+                let pane = self.show(&entry).map_err(rejected)?;
+                Ok(json!({"pane": pane}))
+            }
+            "window.give" => {
+                let Give { surface, to } = runtime::params(params)?;
+                let surface = surface
+                    .or_else(|| self.flown.as_ref().map(|f| f.surface.clone()))
+                    .or_else(|| {
+                        let i = self.pane_ahead()?;
+                        self.panes[i].window().map(String::from)
+                    })
+                    .ok_or_else(|| invalid("no surface, and no window pane ahead".into()))?;
+                self.give(&surface, &to).map_err(rejected)?;
+                Ok(Value::Null)
+            }
             "pane.fly" => {
                 let Named { name } = runtime::params(params)?;
                 let i = self.pane_named(&name)?;
@@ -601,6 +716,9 @@ impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn input(&mut self, event: Event) -> Result<(), ClientError> {
+        if self.list_input(&event)? {
+            return Ok(());
+        }
         match event {
             Event::NodeKey {
                 node,
@@ -611,6 +729,7 @@ impl Construct {
                 Some(Action::Terminal) => self.start_terminal(),
                 Some(Action::Launcher) => self.start_launcher(),
                 Some(Action::Close) => return self.close_ahead(),
+                Some(Action::Windows) => return self.open_list(),
                 Some(&action) => self.act(action),
                 None => {}
             },
@@ -676,6 +795,46 @@ impl Construct {
         Ok(())
     }
 
+    /// The keys and the clicks of the open window list; whether it took
+    /// the event. A press on the space closes the list and goes on.
+    fn list_input(&mut self, event: &Event) -> Result<bool, ClientError> {
+        let Some(sel) = self.list.as_ref().map(|l| l.sel) else {
+            return Ok(false);
+        };
+        match event {
+            Event::NodeKey {
+                node,
+                key,
+                state: PressState::Pressed,
+                ..
+            } if node == LOOK => {
+                let toggle = self.settings.value.keys.get(key) == Some(&Action::Windows);
+                match key.as_str() {
+                    "Escape" => self.close_list(),
+                    _ if toggle => self.close_list(),
+                    "Up" => self.select(sel.saturating_sub(1)),
+                    "Down" => self.select(sel + 1),
+                    "Return" | "KP_Enter" => self.choose(sel),
+                    "g" => self.give_menu(sel),
+                    _ => Ok(()),
+                }?;
+            }
+            Event::PointerPressed { node, .. } if node.starts_with(LIST) => {
+                let row =
+                    (node.strip_prefix(LIST_ROW)).and_then(|r| r.split('-').next()?.parse().ok());
+                if let Some(k) = row {
+                    self.choose(k)?;
+                }
+            }
+            Event::PointerPressed { node, .. } if node == LOOK => {
+                self.close_list()?;
+                return Ok(false);
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
     /// A drag with the modifier moves a pane: sideways along its face,
     /// and up the screen away from the camera, at the pace of the
     /// pointer at the pane's depth.
@@ -729,7 +888,7 @@ impl Construct {
             .map(|s| (s * scale).round().clamp(PANE_MIN, PANE_MAX));
         pane.size = size;
         let mut commands = resized(pane);
-        if let Some(surface) = pane.window().filter(|_| !self.overlay) {
+        if let Some(surface) = pane.window().filter(|_| pane.attached) {
             commands.push(configure(surface, size));
         }
         self.rt.conn.apply(commands)?;
@@ -741,6 +900,11 @@ impl Construct {
     /// flavor's owner gets it through `node.requested`. The pane goes
     /// when the window does: a window that refuses stays a pane.
     fn remove_pane(&mut self, i: usize) -> Result<(), ClientError> {
+        if self.panes[i].taken {
+            // A taken window goes back to its owner as it was (F31).
+            let surface = self.panes[i].source.clone();
+            return self.forget(&surface);
+        }
         let Some(surface) = self.panes[i].window().map(String::from) else {
             let pane = self.panes.remove(i);
             self.order.retain(|n| *n != pane.node());
@@ -776,7 +940,7 @@ impl Construct {
             if node.owner.is_none() && ours {
                 let info = node.surface.unwrap_or_default();
                 let label = info.app_id.or(info.title).unwrap_or_default();
-                self.adopt(&node.id, &label, None)?;
+                self.adopt(&node.id, &label, None, Hold::Own)?;
             }
         }
         let start = self.settings.value.start.clone();
@@ -877,16 +1041,7 @@ impl Construct {
     /// A unique label from `base`: the app id or title of a window, or
     /// the scene of a plugin pane, with `-2`, `-3` and on after it.
     fn label(&self, base: &str) -> String {
-        let base: String = base.trim().chars().take(32).collect();
-        let base = if base.is_empty() { "pane".into() } else { base };
-        let taken = |n: &str| self.panes.iter().any(|p| p.name == n);
-        if !taken(&base) {
-            return base;
-        }
-        (2..=self.panes.len() + 2)
-            .map(|k| format!("{base}-{k}"))
-            .find(|n| !taken(n))
-            .unwrap_or_default()
+        unique(base, |n| self.panes.iter().any(|p| p.name == n))
     }
 
     /// The place of a new pane of `width` (C7), or the place of its file.
@@ -935,14 +1090,15 @@ impl Construct {
     }
 
     /// A new window becomes a pane, ahead of the camera or where its file
-    /// puts it. A flavor hides the window under the space, and its pane
-    /// shows it through a node texture; an overlay only shows the window
-    /// of the other flavor.
+    /// puts it. The construct hides its own window under the space, and
+    /// the pane shows it through a node texture; a window of another owner
+    /// only shows.
     fn adopt(
         &mut self,
         surface: &str,
         label: &str,
         file: Option<&PaneFile>,
+        hold: Hold,
     ) -> Result<(), ClientError> {
         if !self.active || self.panes.iter().any(|p| p.window() == Some(surface)) {
             return Ok(());
@@ -956,9 +1112,11 @@ impl Construct {
             },
             at: self.place(file.and_then(|f| f.at), size[0]),
             size,
+            taken: hold == Hold::Taken,
+            attached: hold == Hold::Own,
         };
         let mut commands = Vec::new();
-        if !self.overlay {
+        if pane.attached {
             commands = vec![
                 Command::Attach {
                     surface: surface.into(),
@@ -1006,7 +1164,7 @@ impl Construct {
             if !launchers_own(pid, launcher_pid) {
                 // fuzzel passes its own token on to the program it starts.
                 self.launched = None;
-                return self.adopt(surface, label, None);
+                return self.adopt(surface, label, None, self.started());
             }
             if free && !self.overlay {
                 return self.show_launcher(surface);
@@ -1021,7 +1179,7 @@ impl Construct {
         // A flavor takes the free windows; an overlay only shows those of
         // its construct, which the other flavor takes.
         if pane.is_some() || launched || (free && !self.overlay) {
-            return self.adopt(surface, label, pane.as_ref());
+            return self.adopt(surface, label, pane.as_ref(), self.started());
         }
         Ok(())
     }
@@ -1093,7 +1251,7 @@ impl Construct {
         }
         pane.size = size;
         let mut commands = resized(pane);
-        if !self.overlay && self.flown.as_ref().is_some_and(|f| f.surface == surface) {
+        if (self.flown.as_ref()).is_some_and(|f| f.surface == surface && f.attached) {
             commands.push(self.snap_place(size, surface));
         }
         self.rt.conn.apply(commands)?;
@@ -1166,7 +1324,7 @@ impl Construct {
                 return self.glide_to(home, FLY_MS, None);
             }
             // input() handles them.
-            Action::Terminal | Action::Launcher | Action::Close => return,
+            Action::Terminal | Action::Launcher | Action::Close | Action::Windows => return,
             Action::FlyIn => {
                 if let Some(i) = self.pane_ahead() {
                     self.fly_in(i);
@@ -1241,6 +1399,7 @@ impl Construct {
         let into = (pane.window()).map(|surface| Flown {
             surface: surface.into(),
             back,
+            attached: pane.attached,
         });
         self.glide_to(to, FLY_MS, into);
     }
@@ -1279,7 +1438,7 @@ impl Construct {
 
     /// The end of a fly-in: the window itself shows over the space,
     /// takes the pointer and the keyboard, and the fly-out key is grabbed.
-    /// An overlay leaves the window where its owner has it: the pane
+    /// A window of another owner stays where its owner has it: the pane
     /// shows it at 1:1, and the owner gets the request for the keyboard
     /// (D31).
     fn snap(&mut self, flown: Flown) -> Result<(), ClientError> {
@@ -1287,11 +1446,7 @@ impl Construct {
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(&surface)) else {
             return Ok(());
         };
-        let commands = if self.overlay {
-            vec![Command::Focus {
-                surface: Some(surface),
-            }]
-        } else {
+        let commands = if pane.attached {
             vec![
                 self.snap_place(pane.size, &surface),
                 update(
@@ -1317,6 +1472,10 @@ impl Construct {
                     surface: Some(surface.clone()),
                 },
             ]
+        } else {
+            vec![Command::Focus {
+                surface: Some(surface),
+            }]
         };
         self.rt.conn.apply(commands)?;
         self.flown = Some(flown);
@@ -1365,7 +1524,7 @@ impl Construct {
         let Some(flown) = self.flown.take() else {
             return Ok(());
         };
-        self.unsnap((!self.overlay).then_some(&flown.surface))?;
+        self.unsnap(flown.attached.then_some(&flown.surface))?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
     }
@@ -1489,6 +1648,10 @@ impl Construct {
         if self.flown.is_some() {
             self.fly_out()?;
         }
+        self.close_list()?;
+        if self.overlay && !self.active {
+            self.focus_before = self.focused_surface()?;
+        }
         self.glide = None;
         let gone: Vec<Pane> = if self.overlay {
             std::mem::take(&mut self.panes)
@@ -1525,8 +1688,9 @@ impl Construct {
         self.frame()
     }
 
-    /// Gives the output back (F20): the space goes, and the keyboard goes
-    /// back to the window that had it. The windows stay with their owner.
+    /// Gives the output back (F20, F31): the space goes, and the keyboard
+    /// goes back to the window that had it, through its owner (D31). The
+    /// windows stay with their owner, which the construct never changed.
     fn leave(&mut self) -> Result<(), ClientError> {
         if !self.active {
             return Ok(());
@@ -1538,6 +1702,13 @@ impl Construct {
                 to: None,
             },
         ])?;
+        if let Some(surface) = self.focus_before.take() {
+            // The window may have closed in between.
+            self.rt.conn.try_apply(vec![Command::Focus {
+                surface: Some(surface),
+            }])?;
+        }
+        self.list = None;
         self.rt.ungrab_all()?;
         self.active = false;
         self.current = None;
@@ -1571,6 +1742,8 @@ impl Construct {
             content: Content::Plugin { plugin, scene },
             at: self.place(file.at, size[0]),
             size,
+            taken: false,
+            attached: false,
         };
         self.rt.conn.apply(self.pane_nodes(&pane).into())?;
         self.panes.push(pane);
@@ -1616,6 +1789,10 @@ impl Construct {
         let panes: Vec<Value> = (self.panes.iter())
             .map(|p| {
                 let mut v = json!({"name": p.name, "at": p.at, "size": p.size});
+                if let Some(surface) = p.window() {
+                    v["surface"] = json!(surface);
+                    v["taken"] = json!(p.taken);
+                }
                 match &p.content {
                     Content::Window { command } => {
                         v["kind"] = json!("program");
@@ -1642,11 +1819,403 @@ impl Construct {
     }
 }
 
+impl Construct {
+    /// The surface with the keyboard, as the core has it.
+    fn focused_surface(&mut self) -> Result<Option<String>, ClientError> {
+        let query = Query {
+            selector: "kind:surface".into(),
+            filter: Some(Filter {
+                focused: true,
+                ..Filter::default()
+            }),
+        };
+        let nodes: Vec<Value> = self.rt.conn.call("scene.query", query)?;
+        Ok((nodes.first()).and_then(|n| Some(n["id"].as_str()?.to_owned())))
+    }
+
+    /// All windows (F29): the panes first, then the windows of any
+    /// owner that have no pane, but not the launcher's own window.
+    fn windows(&mut self) -> Result<Vec<Entry>, ClientError> {
+        let nodes = self.rt.conn.query("kind:surface")?;
+        let far = self.radius();
+        let mut out: Vec<Entry> = (self.panes.iter())
+            .filter_map(|p| {
+                let surface = p.window()?;
+                let node = nodes.iter().find(|n| n.id == surface);
+                Some(Entry {
+                    name: p.name.clone(),
+                    surface: surface.into(),
+                    owner: node.and_then(|n| n.owner.clone()),
+                    pane: space::sight(&self.lens, &self.pose, p.at, far),
+                    size: None,
+                })
+            })
+            .collect();
+        for node in nodes {
+            let paned = out.iter().any(|e| e.surface == node.id);
+            if paned || self.launcher_window.as_deref() == Some(&node.id) {
+                continue;
+            }
+            let info = node.surface.unwrap_or_default();
+            let base = (info.app_id.or(info.title)).unwrap_or_else(|| node.id.clone());
+            out.push(Entry {
+                name: unique(&base, |n| out.iter().any(|e| e.name == n)),
+                surface: node.id,
+                owner: node.owner,
+                pane: "none",
+                size: info.size.map(|s| s.map(f64::from)),
+            });
+        }
+        Ok(out)
+    }
+
+    /// The windows without a visible pane: the rows of the list.
+    fn hidden(&mut self) -> Result<Vec<Entry>, ClientError> {
+        Ok((self.windows()?.into_iter())
+            .filter(|e| e.pane != "shown")
+            .collect())
+    }
+
+    /// Flies to the pane of a window, or takes the window of another
+    /// client as a pane at its own size first (F30). Answers the pane.
+    fn show(&mut self, entry: &Entry) -> Result<String, ClientError> {
+        if entry.pane == "none" {
+            let file = PaneFile {
+                kind: Kind::Program,
+                command: None,
+                plugin: None,
+                scene: None,
+                at: None,
+                size: entry.size,
+            };
+            self.adopt(&entry.surface, &entry.name, Some(&file), Hold::Taken)?;
+        }
+        let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(&entry.surface)) else {
+            return Err(ClientError::Rpc(RpcError::new(
+                RpcError::REJECTED,
+                format!("the window {} did not become a pane", entry.name),
+            )));
+        };
+        if self.flown.is_some() {
+            self.fly_out()?;
+        }
+        self.fly_in(i);
+        Ok(self.panes[i].name.clone())
+    }
+
+    fn open_list(&mut self) -> Result<(), ClientError> {
+        if self.list.is_some() {
+            return self.close_list();
+        }
+        self.list = Some(ListState { sel: 0, give: None });
+        self.draw_list()
+    }
+
+    fn select(&mut self, sel: usize) -> Result<(), ClientError> {
+        if let Some(list) = &mut self.list {
+            list.sel = sel;
+        }
+        self.draw_list()
+    }
+
+    /// The rows of the window managers to give the window of row `sel`
+    /// to; only a window that the construct owns can go.
+    fn give_menu(&mut self, sel: usize) -> Result<(), ClientError> {
+        let Some(row) = self.rows()?.into_iter().nth(sel) else {
+            return Ok(());
+        };
+        let own = (self.panes.iter()).any(|p| p.window() == Some(&row.target) && p.attached);
+        if let Some(list) = self.list.as_mut().filter(|l| own && l.give.is_none()) {
+            *list = ListState {
+                sel: 0,
+                give: Some(row.target),
+            };
+            return self.draw_list();
+        }
+        Ok(())
+    }
+
+    /// The rows of the open list: the windows without a visible pane, or
+    /// the window managers to give a window to.
+    fn rows(&mut self) -> Result<Vec<Row>, ClientError> {
+        if self.list.as_ref().is_some_and(|l| l.give.is_some()) {
+            return Ok((self.managers()?.into_iter())
+                .map(|m| Row {
+                    label: format!("give to {m}"),
+                    note: "window manager".into(),
+                    target: m,
+                })
+                .collect());
+        }
+        Ok((self.hidden()?.into_iter())
+            .map(|e| {
+                let owner = e.owner.as_deref().unwrap_or("no owner");
+                let place = if e.pane == "none" { "no pane" } else { e.pane };
+                Row {
+                    label: e.name,
+                    note: format!("{owner} \u{b7} {place}"),
+                    target: e.surface,
+                }
+            })
+            .collect())
+    }
+
+    fn close_list(&mut self) -> Result<(), ClientError> {
+        if self.list.take().is_some() {
+            self.rt.conn.try_apply(vec![Command::Remove {
+                id: LIST.into(),
+                to: None,
+            }])?;
+        }
+        Ok(())
+    }
+
+    /// Closes the list and shows the window of row `k`, or gives the
+    /// window to the window manager of row `k`.
+    fn choose(&mut self, k: usize) -> Result<(), ClientError> {
+        let rows = self.rows()?;
+        let give = self.list.as_ref().and_then(|l| l.give.clone());
+        self.close_list()?;
+        let Some(row) = rows.into_iter().nth(k) else {
+            return Ok(());
+        };
+        // A window that closed in between, or refuses, stays as it is.
+        let done = match give {
+            Some(surface) => self.give(&surface, &row.target),
+            None => match self.hidden()?.into_iter().find(|e| e.surface == row.target) {
+                Some(entry) => self.show(&entry).map(drop),
+                None => Ok(()),
+            },
+        };
+        if let Err(err) = done {
+            eprintln!("chora-construct: window list: {err}");
+        }
+        Ok(())
+    }
+
+    /// The other window managers: the clients with a claim (D55).
+    fn managers(&mut self) -> Result<Vec<String>, ClientError> {
+        let mut managers: Vec<String> = (self.rt.conn.query("")?.into_iter())
+            .filter(|n| n.props.claim.is_some())
+            .filter_map(|n| n.owner)
+            .filter(|o| o != NAME)
+            .collect();
+        managers.sort();
+        managers.dedup();
+        Ok(managers)
+    }
+
+    /// Gives an own window to the window manager `to` (D55): its pane
+    /// goes, and the core reserves the window for `to`, with its props
+    /// back to the defaults.
+    fn give(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
+        let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
+        if !self.managers()?.iter().any(|m| m == to) {
+            return refuse(format!("{to} is no window manager that runs"));
+        }
+        let Some(pane) = self.panes.iter().find(|p| p.window() == Some(surface)) else {
+            return refuse(format!("{surface} is no pane"));
+        };
+        if !pane.attached {
+            return refuse(format!(
+                "the window {} belongs to another client, which gives it",
+                pane.name
+            ));
+        }
+        self.forget(surface)?;
+        self.rt.conn.apply(vec![Command::Remove {
+            id: surface.into(),
+            to: Some(to.into()),
+        }])
+    }
+
+    /// How a pane holds a window that the construct started.
+    fn started(&self) -> Hold {
+        if self.overlay { Hold::Shown } else { Hold::Own }
+    }
+
+    /// A window that is free again, or that another window manager gives
+    /// to the construct (D55). The flavor takes both; an overlay only a
+    /// window given to it, so that it never takes a window on its own
+    /// (F30). It owns such a window, and its leave frees it again.
+    fn detached(&mut self, surface: &str) -> Result<(), ClientError> {
+        let node = self.rt.conn.query(&format!("id:{surface}"))?.pop();
+        let Some(node) = node else {
+            return Ok(());
+        };
+        if self.overlay && node.to.as_deref() != Some(NAME) {
+            return Ok(());
+        }
+        let info = node.surface.unwrap_or_default();
+        let label = info.app_id.or(info.title).unwrap_or_default();
+        self.forget(surface)?;
+        self.adopt(surface, &label, None, Hold::Own)
+    }
+
+    /// The window list as a panel in the middle of the output, in the
+    /// style of mc (docs/mc-style.md): a label of spaced capitals, then
+    /// one row per window with its label, and its owner and the place of
+    /// its pane as a muted note. A hairline marks the selected row.
+    #[allow(clippy::cast_precision_loss, reason = "a dozen rows")]
+    #[allow(clippy::too_many_lines, reason = "one node after the other")]
+    fn draw_list(&mut self) -> Result<(), ClientError> {
+        let Some(sel) = self.list.as_ref().map(|l| l.sel) else {
+            return Ok(());
+        };
+        let rows = self.rows()?;
+        let sel = sel.min(rows.len().saturating_sub(1));
+        let giving = self.list.as_mut().is_some_and(|l| {
+            l.sel = sel;
+            l.give.is_some()
+        });
+        let palette = self.settings.value.theme.palette();
+        let rgba = |c: [f64; 3], a| Some([c[0], c[1], c[2], a]);
+        let pad = LIST_LINE;
+        // ponytail: a window of 12 rows that follows the selection; a
+        // scroll bar when lists grow long.
+        let first = (sel + 1).saturating_sub(LIST_ROWS);
+        let shown = rows.len().saturating_sub(first).clamp(1, LIST_ROWS);
+        let h = pad * 2.0 + LIST_LINE * (shown as f64 + 1.5);
+        let x = ((self.lens.w - LIST_WIDTH) / 2.0).round();
+        let y = ((self.lens.h - h) / 2.0).round();
+        let at = |x: f64, y: f64| Some(Transform::translate(x, y, 0.0));
+        let text = |id: &str, text: &str, pos: [f64; 2], size: f64, color: [f64; 3]| {
+            create(
+                id,
+                NodeKind::Text,
+                LIST,
+                PropsUpdate {
+                    transform: at(pos[0], pos[1]),
+                    text: Some(text.into()),
+                    family: Some("Inter".into()),
+                    font_size: Some(size),
+                    color: rgba(color, 1.0),
+                    ..PropsUpdate::default()
+                },
+            )
+        };
+        let mut commands = vec![
+            Command::Remove {
+                id: LIST.into(),
+                to: None,
+            },
+            create(
+                LIST,
+                NodeKind::Group,
+                NAME,
+                PropsUpdate {
+                    transform: at(x, y),
+                    ..PropsUpdate::default()
+                },
+            ),
+            create(
+                "construct-list-ground",
+                NodeKind::Rect,
+                LIST,
+                PropsUpdate {
+                    size: Some([LIST_WIDTH, h]),
+                    color: rgba(palette.paper, 0.96),
+                    ..PropsUpdate::default()
+                },
+            ),
+            create(
+                "construct-list-label",
+                NodeKind::Text,
+                LIST,
+                PropsUpdate {
+                    transform: at(pad, pad),
+                    text: Some(if giving { "GIVE TO" } else { "WINDOWS" }.into()),
+                    family: Some("Inter".into()),
+                    font_size: Some(10.0),
+                    weight: Some(500),
+                    letter_spacing: Some(0.2),
+                    color: rgba(palette.muted, 1.0),
+                    ..PropsUpdate::default()
+                },
+            ),
+        ];
+        if rows.is_empty() {
+            let pos = [pad, pad + LIST_LINE * 1.5];
+            commands.push(text(
+                &format!("{LIST_ROW}none"),
+                if giving {
+                    "no other window manager runs"
+                } else {
+                    "every window shows"
+                },
+                pos,
+                15.0,
+                palette.muted,
+            ));
+        }
+        for (k, row_of) in rows.iter().enumerate().skip(first).take(LIST_ROWS) {
+            let top = pad + LIST_LINE * (1.5 + (k - first) as f64);
+            let row = format!("{LIST_ROW}{k}");
+            commands.push(create(
+                &row,
+                NodeKind::Rect,
+                LIST,
+                PropsUpdate {
+                    transform: at(0.0, top),
+                    size: Some([LIST_WIDTH, LIST_LINE]),
+                    color: Some([0.0; 4]),
+                    ..PropsUpdate::default()
+                },
+            ));
+            let color = if k == sel {
+                palette.text
+            } else {
+                palette.muted
+            };
+            commands.push(text(
+                &format!("{row}-name"),
+                &row_of.label,
+                [pad, top],
+                15.0,
+                color,
+            ));
+            commands.push(text(
+                &format!("{row}-note"),
+                &row_of.note,
+                [LIST_WIDTH * 0.62, top + 3.0],
+                12.0,
+                palette.muted,
+            ));
+            if k == sel {
+                commands.push(create(
+                    "construct-list-mark",
+                    NodeKind::Rect,
+                    LIST,
+                    PropsUpdate {
+                        transform: at(pad - 10.0, top + 4.0),
+                        size: Some([1.0, LIST_LINE - 8.0]),
+                        color: rgba(palette.text, 1.0),
+                        ..PropsUpdate::default()
+                    },
+                ));
+            }
+        }
+        // The first draw has no list to remove.
+        if self.rt.conn.query(&format!("id:{LIST}"))?.is_empty() {
+            commands.remove(0);
+        }
+        self.rt.conn.apply(commands)
+    }
+}
+
 /// Parameters with a name.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Named {
     name: String,
+}
+
+/// Parameters of `window.give`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Give {
+    surface: Option<String>,
+    to: String,
 }
 
 /// Parameters of `pane.move`.
@@ -1670,6 +2239,7 @@ struct ResizePane {
 
 /// The methods; those that start programs or write files are privileged
 /// (D62).
+#[allow(clippy::too_many_lines, reason = "one entry per method")]
 fn exported_methods() -> Vec<ExportMethod> {
     let name = || json!({"name": {"type": "string"}});
     vec![
@@ -1723,6 +2293,29 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["name"],
         ),
         runtime::method(
+            "window.list",
+            "Answers all windows: the label, the surface, the owner and the pane, which \
+             is shown, behind, far, aside or none. Panes that do not show and windows \
+             without a pane are the window list of the key Tab.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "window.show",
+            "Flies to the window NAME (a label or a surface of window.list); a window of \
+             another client becomes a pane first, and goes back to it when the pane or \
+             the construct goes.",
+            name(),
+            &["name"],
+        ),
+        runtime::method(
+            "window.give",
+            "Gives a window that the construct owns to the window manager TO (D55); \
+             without a surface, the window of the pane flown into or ahead. Its pane goes.",
+            json!({"surface": {"type": "string"}, "to": {"type": "string"}}),
+            &["to"],
+        ),
+        runtime::method(
             "pane.fly",
             "Flies into a pane by its name, until it covers the output at 1:1.",
             name(),
@@ -1766,6 +2359,8 @@ mod tests {
             content,
             at: [-750.125, 2300.5],
             size: [1200.0, 768.0],
+            taken: false,
+            attached: false,
         };
         let started = pane(Content::Window {
             command: Some("foot".into()),

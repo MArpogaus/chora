@@ -171,6 +171,29 @@ pub fn depth(pose: &Pose, at: [f64; 2]) -> f64 {
     v[2][0] * at[0] + v[2][2] * at[1] + v[2][3]
 }
 
+/// Where a pane at `at` is for the camera: `shown` when its centre is on
+/// the output, else `behind` the eye, `far` beyond the depth `far`, or
+/// `aside` out of the view (F29).
+#[must_use]
+pub fn sight(lens: &Lens, pose: &Pose, at: [f64; 2], far: f64) -> &'static str {
+    let v = view(pose);
+    let cam = |r: usize| v[r][0] * at[0] + v[r][2] * at[1] + v[r][3];
+    let d = cam(2);
+    if d <= lens.focal * 0.1 {
+        return "behind";
+    }
+    if d > far {
+        return "far";
+    }
+    let x = lens.w / 2.0 + lens.focal * cam(0) / d;
+    let y = lens.h / 2.0 - lens.focal * cam(1) / d;
+    if (0.0..=lens.w).contains(&x) && (0.0..=lens.h).contains(&y) {
+        "shown"
+    } else {
+        "aside"
+    }
+}
+
 /// The leash: a step from `from`, slowed in the outer quarter of the
 /// radius `r` when it leads outwards, and cut at `r`.
 #[must_use]
@@ -400,6 +423,17 @@ mod tests {
         assert!(hit(&LENS, &pose, [640.0, 190.0], at, size).is_none());
         let behind = Pose { yaw: 3.0, ..pose };
         assert!(hit(&LENS, &behind, [640.0, 400.0], at, size).is_none());
+    }
+
+    #[test]
+    fn the_sight_tells_where_a_pane_is() {
+        let pose = Pose::default();
+        assert_eq!(sight(&LENS, &pose, [0.0, 2000.0], 6000.0), "shown");
+        assert_eq!(sight(&LENS, &pose, [0.0, -2000.0], 6000.0), "behind");
+        assert_eq!(sight(&LENS, &pose, [0.0, 9000.0], 6000.0), "far");
+        assert_eq!(sight(&LENS, &pose, [4000.0, 2000.0], 6000.0), "aside");
+        let up = Pose { pitch: 1.0, ..pose };
+        assert_eq!(sight(&LENS, &up, [0.0, 2000.0], 6000.0), "aside");
     }
 
     #[test]
