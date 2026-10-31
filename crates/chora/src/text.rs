@@ -6,7 +6,7 @@
 //! lays out again; a new scale rasterizes again.
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     sync::{Mutex, PoisonError},
     thread::JoinHandle,
 };
@@ -86,6 +86,20 @@ impl Default for Cache {
 struct Fonts {
     system: FontSystem,
     swash: SwashCache,
+    /// The families that no font has, each warned about once.
+    missing: HashSet<String>,
+}
+
+impl Fonts {
+    /// Whether no font of the database has this family; true only the
+    /// first time, so that the core warns once. Without it a text node
+    /// shows in a fallback font, and a change of its family to another
+    /// missing one shows nothing.
+    fn newly_missing(&mut self, family: &str) -> bool {
+        let known = (self.system.db().faces())
+            .any(|face| face.families.iter().any(|(name, _)| name == family));
+        !known && self.missing.insert(family.to_owned())
+    }
 }
 
 /// The layout and the rasters of one node.
@@ -112,10 +126,20 @@ impl Cache {
                 .and_then(|thread| thread.join().ok())
                 .unwrap_or_else(Fonts::new)
         });
-        let fresh = |fonts: &mut Fonts, key: Key| Entry {
-            size: layout(fonts, &key, 1.0).map(|(_, size, _)| size),
-            key,
-            rasters: HashMap::new(),
+        let fresh = |fonts: &mut Fonts, key: Key| {
+            if let Some(family) = &key.family
+                && fonts.newly_missing(family)
+            {
+                tracing::warn!(
+                    family,
+                    "no font has this family, text shows in a fallback; see CHORA_FONT_DIRS"
+                );
+            }
+            Entry {
+                size: layout(fonts, &key, 1.0).map(|(_, size, _)| size),
+                key,
+                rasters: HashMap::new(),
+            }
         };
         let entry = self
             .nodes
@@ -260,6 +284,7 @@ impl Fonts {
         Self {
             system,
             swash: SwashCache::new(),
+            missing: HashSet::new(),
         }
     }
 }
@@ -644,6 +669,7 @@ mod tests {
                 cosmic_text::fontdb::Database::new(),
             ),
             swash: cosmic_text::SwashCache::new(),
+            missing: std::collections::HashSet::new(),
         };
         let node = text_node(Props {
             text: Some("Hi".into()),
@@ -651,6 +677,23 @@ mod tests {
         });
         let key = super::props_key(&node).expect("the props of a text node");
         assert!(super::layout(&mut fonts, &key, 1.0).is_none());
+    }
+
+    /// A family that no font has is found missing, once, so that the
+    /// core warns once instead of silently drawing a fallback.
+    #[test]
+    fn a_missing_family_is_found_once() {
+        let mut fonts = super::Fonts {
+            system: cosmic_text::FontSystem::new_with_locale_and_db(
+                "en-US".into(),
+                cosmic_text::fontdb::Database::new(),
+            ),
+            swash: cosmic_text::SwashCache::new(),
+            missing: std::collections::HashSet::new(),
+        };
+        assert!(fonts.newly_missing("TeX Gyre Pagella"));
+        assert!(!fonts.newly_missing("TeX Gyre Pagella"), "warned once");
+        assert!(fonts.newly_missing("Inter"));
     }
 
     #[test]
