@@ -8,7 +8,9 @@ rest open. Source: the interview of
 
 A spatial desktop for chora. The user stands in a light, foggy space
 with a bright horizon. There is no grid and no floor pattern.
-Content floats in the space as **panes**. Each pane faces the camera.
+Content floats in the space as **panes**. Each pane stands in the space
+as a real object: it faces the camera where it is placed, and keeps
+that orientation while the user walks.
 A pane can hold a plugin, a program, a nested desktop session, or a
 prompt in which an agent builds a program or game live.
 
@@ -27,7 +29,7 @@ the prototype into a real plugin.
 | C4 | Leash | A soft border at radius R around the origin. Panes can stand anywhere inside it. |
 | C5 | Use of a pane | Both: use it in the space (focus follows the pane under the pointer or gaze), and fly in for focused work (1:1 pixels, full screen, Alt+Escape flies out by default). |
 | C6 | Persistence | A construct is a YAML file: panes with kind, content and pose. Mouse, voice and API change it live, and it can be saved. Like the mc scenes. |
-| C7 | New panes | They appear in the view direction at a fixed distance and face the camera. If that spot is taken, they go a little to the side, nearer or farther, but only where the whole pane stays in the view and covers no other pane. With no free spot in the view, the window becomes no pane: it waits in the window list, and the HUD says so. The user can move them later. |
+| C7 | New panes | They appear in the view direction at a fixed distance and face the camera position there; then they keep that yaw (F8). If that spot is taken, they go a little to the side, nearer or farther, but only where the whole pane stays in the view and covers no other pane. With no free spot in the view, the window becomes no pane: it waits in the window list, and the HUD says so. The user can move them later. |
 | C8 | Nested sessions | A nested GNOME session as a pane is a must for v1. |
 | C9 | Prompt input | By voice and by typing in the pane. |
 | C10 | Core work | The plugin builds on the core as it is. The user allows a core change for the keyboard focus of panes (#27) if the existing focus rules leave a gap; work package 0 checks this first. Other missing features are documented limits. |
@@ -108,8 +110,13 @@ The host keymap (#12) stays a limit of v1.
 
 ### 5.3 Panes
 
-- **F8** Each pane faces the camera. Its surface normal points to the
-  camera centre. Billboard rotation follows the camera continuously.
+- **F8** Each pane keeps a fixed orientation in the space: a yaw about
+  the vertical axis. The yaw is set so that the pane faces the camera's
+  position when the pane is placed, when the user moves it (Super drag,
+  `pane.move`), and in a construct file. It does not turn while the user
+  walks or looks around: walking past a pane shows it at an angle, and
+  that parallax helps orientation. A fly-in goes in front of the pane's
+  fixed face. The construct file stores the yaw with the position.
 - **F9** A pane has a pose (position, size) and a kind. The size is in
   logical pixels of its content at 1:1.
 - **F10** Kinds:
@@ -300,7 +307,7 @@ window manager (D55), and the construct takes windows given to it.
    GNOME pane, as flavor and as overlay over tiling. A core change, with
    a decision record, only for a gap that this test shows.
 1. Space and camera: fog shader, walk with leash, home.
-2. Panes: billboard poses, program panes with node textures, pointer
+2. Panes: fixed poses (F8), program panes with node textures, pointer
    mapping, move and resize.
 3. Fly-in and fly-out, 1:1 snapping, focus by click.
 4. Constructs: file format, load, save, live change, flavor and overlay.

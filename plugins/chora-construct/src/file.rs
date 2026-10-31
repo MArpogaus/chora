@@ -36,6 +36,10 @@ pub struct PaneFile {
     /// of the camera (C7).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub at: Option<[f64; 2]>,
+    /// The turn of its face about the y axis, in radians (F8); without
+    /// it, the pane faces the camera where it comes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yaw: Option<f64>,
     /// The size in logical pixels; without it, the size of the output or
     /// of the plugin's node.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -219,6 +223,7 @@ mod tests {
                     plugin: None,
                     scene: None,
                     at: Some([1.0 / 3.0, 2000.0]),
+                    yaw: Some(-2.5),
                     size: Some([1280.0, 800.0]),
                 },
                 PaneFile {
@@ -227,6 +232,7 @@ mod tests {
                     plugin: Some("mc".into()),
                     scene: Some("mission".into()),
                     at: Some([-1408.7, 1999.9]),
+                    yaw: None,
                     size: None,
                 },
             ],

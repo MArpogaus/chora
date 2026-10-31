@@ -25,7 +25,7 @@ terms and no synonyms.
 | **Plugin** | A client that reacts to events, changes the scene and can export methods. A window manager, a layout, an animation set and a keybinding set are plugins. |
 | **Service** | A process in a container, outside the core. Examples are speech recognition, a local LLM and a development environment. |
 | **Construct** | A YAML file of `chora-construct` with the start pose of the camera, the leash radius and the panes of one space (D66). |
-| **Pane** | A flat area that floats in the space of `chora-construct` and faces the camera. It holds a program, a plugin, a nested desktop session or a prompt. "Pane" is not "view": a view is a declarative arrangement of the configuration (D66). |
+| **Pane** | A flat area that stands in the space of `chora-construct` with a fixed turn, set to face the camera where it is placed or moved. It holds a program, a plugin, a nested desktop session or a prompt. "Pane" is not "view": a view is a declarative arrangement of the configuration (D66). |
 | **Flavor** | A preconfigured bundle of views, plugins and services, for example "classic", "tiling" or "agentic". |
 | **Coordinator** | The party that installs and connects plugins, services and flavors. First the user, later an agent with special permissions. |
 | **Inventory** | A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core. |

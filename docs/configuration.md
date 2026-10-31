@@ -629,8 +629,10 @@ at grazing angles, and a broad soft light band glints in it and turns
 with the view. Each pane has a soft shadow on the floor under it, and a
 clear mirror image that fades downwards and with the distance. A new
 window becomes a pane in the view direction, at the size of the output.
-A pane turns to face the camera and shows the window through its node
-texture. A new pane goes ahead at `pane_distance` when it is free there.
+A pane faces the camera where it comes and shows the window through its
+node texture. It keeps that turn while you walk, so you see it at an
+angle when you walk past it; a move turns it to the camera again, and a
+fly-in goes in front of its face. A new pane goes ahead at `pane_distance` when it is free there.
 Else it goes a little to the side, nearer or farther, but only to a spot
 where its whole face shows in the view and covers no other pane. When no
 spot in the view is free, the window becomes no pane: it waits in the
@@ -716,10 +718,11 @@ start pose of the camera, the leash radius R and the panes. A pane has a
 which starts with `choractl run`. A plugin pane has a `plugin`, the client
 name, and a `scene`. It shows the node that the plugin tags
 `meta:pane=SCENE` through its node texture, for example the page of an mc
-scene. The pose is `at`, the centre on the ground as `[x, z]`, and
-`size`, in logical pixels. Without `at`, the pane goes ahead of the
-camera; without `size`, a program pane has the size of the output and a
-plugin pane the size of the node.
+scene. The pose is `at`, the centre on the ground as `[x, z]`, `yaw`,
+the turn of its face in radians (0 faces along +z), and `size`, in
+logical pixels. Without `at`, the pane goes ahead of the camera; without
+`yaw`, it faces the camera where it comes; without `size`, a program
+pane has the size of the output and a plugin pane the size of the node.
 
 ```yaml
 camera: {x: 0, z: 0, yaw: 0, pitch: 0}
@@ -728,6 +731,7 @@ panes:
 - kind: program
   command: foot
   at: [-650, 2000]
+  yaw: 0.3
   size: [1000, 640]
 - kind: plugin
   plugin: mc
@@ -756,9 +760,9 @@ windows of the other flavor.
 |--------|------------|
 | `construct.load` | privileged. `name`: loads the file and starts its programs. An overlay takes the output; the flavor keeps its windows as panes. The panes of the construct before go. Answers as `construct.list` |
 | `construct.save` | privileged. `name`: writes the camera, R and the panes. A window that the construct did not start has no command and stays out |
-| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at` and `size`, and the panes that still wait |
+| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at`, `yaw` and `size`, and the panes that still wait |
 | `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
-| `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash; answers the new `at` |
+| `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash. The pane then faces the camera; answers the new `at` |
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |

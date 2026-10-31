@@ -1,5 +1,5 @@
 //! chora-construct, steps K1 and K2a (D66): a light, foggy space with a
-//! horizon, a walk on a leash, and panes that face the camera: windows,
+//! horizon, a walk on a leash, and panes that stand in it: windows,
 //! and node trees of other plugins such as mc scenes. A click or a key
 //! flies into a pane until it covers the output at 1:1; then the window
 //! itself shows, sharp, with the keyboard. A binding flies out again.
@@ -149,6 +149,10 @@ struct Pane {
     content: Content,
     /// The centre on the ground, (x, z).
     at: [f64; 2],
+    /// The turn of its face about the y axis (F8): it faces the camera
+    /// where the pane was placed, moved or flown into, and stays when
+    /// the camera walks or looks around.
+    yaw: f64,
     /// The size in logical pixels.
     size: [f64; 2],
     /// A window of another client, taken on request (F30): the pane goes
@@ -234,6 +238,12 @@ impl Pane {
         [self.node(), self.mirror()].map(|id| Command::Remove { id, to: None })
     }
 
+    /// Puts the pane at `at`, its face to the camera at `eye`.
+    fn put(&mut self, at: [f64; 2], eye: [f64; 2]) {
+        self.at = at;
+        self.yaw = space::facing(eye, at);
+    }
+
     fn window(&self) -> Option<&str> {
         matches!(self.content, Content::Window { .. }).then_some(self.source.as_str())
     }
@@ -256,6 +266,7 @@ impl Pane {
             plugin,
             scene,
             at: Some(self.at),
+            yaw: Some(self.yaw),
             size: Some(self.size),
         })
     }
@@ -530,6 +541,15 @@ fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
             node: Some(LOOK.into()),
         },
     ]
+}
+
+/// The last value of a shadow uniform of fog.frag: the lift in whole
+/// pixels, and the yaw in the fraction.
+// ponytail: two values in one float, as the core passes at most 16
+// uniforms; about 4e-4 rad of yaw at a lift of 1000 px, with highp.
+fn shadow_w(lift: f64, yaw: f64) -> f64 {
+    let turn = (yaw / std::f64::consts::TAU + 0.5).rem_euclid(1.0);
+    lift.floor() + turn * 0.99
 }
 
 /// The uniforms of a pane; an update replaces all of them, so each
@@ -1097,11 +1117,12 @@ impl Construct {
     fn move_pane(&mut self, i: usize, to: [f64; 2]) -> Result<(), ClientError> {
         let len = to[0].hypot(to[1]);
         let r = self.radius();
-        self.panes[i].at = if len > r {
+        let to = if len > r {
             [to[0] * r / len, to[1] * r / len]
         } else {
             to
         };
+        self.panes[i].put(to, [self.pose.x, self.pose.z]);
         self.frame()
     }
 
@@ -1300,12 +1321,17 @@ impl Construct {
     /// (C7); with `force`, ahead also when the view is full.
     fn place(&self, at: Option<[f64; 2]>, size: [f64; 2], force: bool) -> Option<[f64; 2]> {
         let distance = self.settings.value.pane_distance;
-        let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size)).collect();
+        let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size, p.yaw)).collect();
         at.or_else(|| space::place(&self.lens, &self.pose, distance, size, &others))
             .or_else(|| {
-                let widths: Vec<_> = others.iter().map(|(at, size)| (*at, size[0])).collect();
+                let widths: Vec<_> = others.iter().map(|(at, size, _)| (*at, size[0])).collect();
                 force.then(|| space::beside(&self.pose, distance, size[0], &widths))
             })
+    }
+
+    /// The yaw of a new pane at `at`: its file's, else facing the camera.
+    fn yaw_at(&self, file: Option<&PaneFile>, at: [f64; 2]) -> f64 {
+        (file.and_then(|f| f.yaw)).unwrap_or_else(|| space::facing([self.pose.x, self.pose.z], at))
     }
 
     /// The shader nodes of a new pane: the pane and its mirror image,
@@ -1373,6 +1399,7 @@ impl Construct {
                 command: file.and_then(|f| f.command.clone()),
             },
             at,
+            yaw: self.yaw_at(file, at),
             size,
             taken: hold == Hold::Taken,
             attached: hold == Hold::Own,
@@ -1481,6 +1508,7 @@ impl Construct {
             plugin: None,
             scene: None,
             at: None,
+            yaw: None,
             size: None,
         };
         self.waiting.push(Waiting {
@@ -1643,7 +1671,7 @@ impl Construct {
         (self.panes.iter().enumerate())
             .filter(|(_, pane)| keep(pane))
             .filter_map(|(i, pane)| {
-                space::hit(&self.lens, &self.pose, p, pane.at, pane.size).map(|t| (i, t))
+                space::hit(&self.lens, &self.pose, p, pane.at, pane.size, pane.yaw).map(|t| (i, t))
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(i, _)| i)
@@ -1662,12 +1690,13 @@ impl Construct {
             .map(|(i, _)| i)
     }
 
-    /// Flies in front of a pane. The window of a window pane then takes
-    /// over; a plugin pane stays a pane, at 1:1. A fly-in from inside a
-    /// pane, or during a fly-in, keeps the pose of the first to go back to.
+    /// Flies in front of the face of a pane, which keeps its yaw. The
+    /// window of a window pane then takes over; a plugin pane stays a
+    /// pane, at 1:1. A fly-in from inside a pane, or during a fly-in,
+    /// keeps the pose of the first to go back to.
     fn fly_in(&mut self, i: usize) {
         let pane = &self.panes[i];
-        let to = space::fly_in(&self.lens, [self.pose.x, self.pose.z], pane.at);
+        let to = space::fly_in(&self.lens, pane.at, pane.yaw);
         let gliding_in = self.glide.as_ref().and_then(|g| g.into.as_ref());
         let back = (self.flown.as_ref().or(gliding_in)).map_or_else(|| self.target(), |f| f.back);
         let into = (pane.window()).map(|surface| Flown {
@@ -1855,7 +1884,7 @@ impl Construct {
         for k in 0..SHADOWS {
             let shadow = near.get(k).map_or(vec![0.0; 4], |p| {
                 let lift = (self.lens.ground - p.size[1] / 2.0).max(0.0);
-                vec![p.at[0], p.at[1], p.size[0] / 2.0, lift]
+                vec![p.at[0], p.at[1], p.size[0] / 2.0, shadow_w(lift, p.yaw)]
             });
             uniforms.insert(format!("s{k}"), Uniform::Vector(shadow));
         }
@@ -1916,7 +1945,8 @@ impl Construct {
             };
             let mut mirror = props.clone();
             if shown {
-                let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size);
+                let matrix =
+                    space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
                 let far = (depth - self.lens.focal).max(0.0) / radius;
                 // The focused pane shows clear, with an accent edge of
                 // about 1.5 pixels on the output.
@@ -1937,7 +1967,8 @@ impl Construct {
                     glow = Some(self.focus_glow(pane, px));
                 }
                 let k = pane.size[0] / mirror_size(pane.size)[0];
-                let matrix = space::mirror_matrix(&self.lens, &self.pose, pane.at, pane.size, k);
+                let matrix =
+                    space::mirror_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw, k);
                 mirror.transform = Some(Transform::from_matrix(matrix));
                 // Fresnel: the floor mirrors more at a grazing view.
                 let grazing = 1.0 - self.lens.ground / self.lens.ground.hypot(*depth);
@@ -2008,6 +2039,7 @@ impl Construct {
             &self.pose,
             pane.at,
             pane.size,
+            pane.yaw,
             reach,
             FOCUS_SCALE,
         );
@@ -2113,11 +2145,13 @@ impl Construct {
         let size = (file.size)
             .or(node.props.size)
             .unwrap_or([self.lens.w, self.lens.h]);
+        let at = self.place(file.at, size, true).unwrap_or_default();
         let pane = Pane {
             name: self.label(&scene),
             source: node.id.clone(),
             content: Content::Plugin { plugin, scene },
-            at: self.place(file.at, size, true).unwrap_or_default(),
+            at,
+            yaw: self.yaw_at(Some(&file), at),
             size,
             taken: false,
             attached: false,
@@ -2166,7 +2200,7 @@ impl Construct {
     fn list(&self) -> Value {
         let panes: Vec<Value> = (self.panes.iter())
             .map(|p| {
-                let mut v = json!({"name": p.name, "at": p.at, "size": p.size});
+                let mut v = json!({"name": p.name, "at": p.at, "yaw": p.yaw, "size": p.size});
                 if let Some(surface) = p.window() {
                     v["surface"] = json!(surface);
                     v["taken"] = json!(p.taken);
@@ -2265,6 +2299,7 @@ impl Construct {
                 plugin: None,
                 scene: None,
                 at: None,
+                yaw: None,
                 size: entry.size,
             };
             // A free window, such as one that found no room, becomes the
@@ -2654,7 +2689,7 @@ impl Construct {
         let pane = &self.panes[k];
         let fresh = self.labelled.is_none();
         let (label, pill) = self.styled().label(&pane.name, fresh);
-        let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size);
+        let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
         let [x, y] = space::project(&matrix, pane.size[0] / 2.0, pane.size[1]);
         let unit = self.settings.value.style.unit;
         let place = Transform::translate((x - pill / 2.0).round(), (y + unit).round(), 0.0);
@@ -2816,6 +2851,7 @@ mod tests {
             source: "s1".into(),
             content,
             at: [-750.125, 2300.5],
+            yaw: 0.25,
             size: [1200.0, 768.0],
             taken: false,
             attached: false,
@@ -2826,8 +2862,8 @@ mod tests {
         let saved = started.file().unwrap();
         assert_eq!(saved.kind, Kind::Program);
         assert_eq!(
-            (saved.at, saved.size),
-            (Some(started.at), Some(started.size))
+            (saved.at, saved.yaw, saved.size),
+            (Some(started.at), Some(started.yaw), Some(started.size))
         );
         let text = serde_saphyr::to_string(&file::File {
             panes: vec![saved.clone()],
@@ -2842,6 +2878,51 @@ mod tests {
         });
         assert_eq!(plugin.node(), "construct-plugin-foot");
         assert_eq!(plugin.file().unwrap().scene.as_deref(), Some("mission"));
+    }
+
+    /// A pane keeps its yaw while the camera walks and looks around
+    /// (live bug: the panes turned with the camera), and a move turns
+    /// its face to the camera.
+    #[test]
+    fn a_walk_keeps_the_yaw_and_a_move_refaces() {
+        let mut pane = Pane {
+            name: "foot".into(),
+            source: "s1".into(),
+            content: Content::Window { command: None },
+            at: [0.0, 0.0],
+            yaw: 0.0,
+            size: [640.0, 400.0],
+            taken: false,
+            attached: false,
+        };
+        pane.put([0.0, 2000.0], [0.0, 0.0]);
+        assert!(pane.yaw.abs() < 1e-12);
+        let mut pose = Pose::default();
+        for _ in 0..20 {
+            [pose.x, pose.z] = space::leash([pose.x, pose.z], [150.0, 40.0], 6000.0);
+            turn(&mut pose, None, 30.0, 4.0);
+        }
+        assert!(pane.yaw.abs() < 1e-12, "the walk turned the pane");
+        pane.put([1000.0, 2000.0], [pose.x, pose.z]);
+        let face = space::facing([pose.x, pose.z], [1000.0, 2000.0]);
+        assert!((pane.yaw - face).abs() < 1e-12);
+        assert!(face.abs() > 0.1, "the move turned it: {face}");
+    }
+
+    /// The shadow uniform gives the lift and the yaw back as fog.frag
+    /// reads them.
+    #[test]
+    fn the_shadow_packs_the_lift_and_the_yaw() {
+        for (lift, yaw) in [(0.0, 0.0), (412.7, 3.0), (999.0, -3.1), (5.0, 7.0)] {
+            let w = shadow_w(lift, yaw);
+            assert!((w.floor() - lift.floor()).abs() < f64::EPSILON);
+            let back = (w.fract() / 0.99 - 0.5) * std::f64::consts::TAU;
+            let diff = (back - yaw).rem_euclid(std::f64::consts::TAU);
+            assert!(
+                diff.min(std::f64::consts::TAU - diff) < 1e-9,
+                "{lift} {yaw} {back}"
+            );
+        }
     }
 
     /// A walk during a drag stays: the drag turns only (live bug: the
@@ -2919,6 +3000,7 @@ mod tests {
             plugin: None,
             scene: None,
             at: None,
+            yaw: None,
             size: None,
         };
         let old = |kind| Waiting {

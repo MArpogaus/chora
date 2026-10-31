@@ -17,8 +17,10 @@ uniform vec3 sky;
 uniform vec3 fog;     // the band at the horizon
 uniform vec3 ground;
 uniform vec3 sheen;   // the light that glints in the floor
-// The panes' shadows: centre x and z, half width, lift above the ground;
-// a half width of 0 is no pane. The core passes at most 16 uniforms.
+// The panes' shadows: centre x and z, half width, and the lift above the
+// ground in whole pixels plus the yaw of the pane as the fraction
+// (yaw / 2pi + 0.5) * 0.99; a half width of 0 is no pane. The core
+// passes at most 16 uniforms.
 uniform vec4 s0;
 uniform vec4 s1;
 uniform vec4 s2;
@@ -31,12 +33,12 @@ varying vec2 v_uv;
 
 // A soft oval under a pane, across its face; wider, fainter and softer
 // the higher the pane floats.
-float shadow(vec4 s, vec2 g, vec2 eye, float height) {
+float shadow(vec4 s, vec2 g, float height) {
     if (s.z <= 0.0) return 0.0;
-    vec2 to = s.xy - eye;
-    vec2 f = to / max(length(to), 1.0);
+    float yaw = (fract(s.w) / 0.99 - 0.5) * 6.2831853;
+    vec2 f = vec2(sin(yaw), cos(yaw));
     vec2 d = g - s.xy;
-    float lift = s.w / height;
+    float lift = floor(s.w) / height;
     float a = dot(d, vec2(f.y, -f.x)) / (s.z * (0.8 + 0.3 * lift));
     float b = dot(d, f) / (s.z * (0.2 + 0.2 * lift));
     return exp(-(a * a + b * b) * 2.0) / (1.0 + 1.5 * lift);
@@ -78,8 +80,8 @@ void main() {
         float da = atan(sin(az), cos(az));
         float de = -e - 0.16;
         base += sheen * 0.22 * exp(-da * da * 1.2 - de * de * 60.0);
-        float shade = shadow(s0, g, pose.zw, height) + shadow(s1, g, pose.zw, height) + shadow(s2, g, pose.zw, height) + shadow(s3, g, pose.zw, height)
-                    + shadow(s4, g, pose.zw, height) + shadow(s5, g, pose.zw, height) + shadow(s6, g, pose.zw, height) + shadow(s7, g, pose.zw, height);
+        float shade = shadow(s0, g, height) + shadow(s1, g, height) + shadow(s2, g, height) + shadow(s3, g, height)
+                    + shadow(s4, g, height) + shadow(s5, g, height) + shadow(s6, g, height) + shadow(s7, g, height);
         base *= 1.0 - 0.3 * min(shade, 1.0);
         // A little softer far away, into the edge of the floor.
         float far = 1.0 - exp(-dist / 60000.0);
