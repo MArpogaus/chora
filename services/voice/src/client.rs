@@ -307,12 +307,6 @@ fn exported_methods() -> Vec<ExportMethod> {
             "indicator.claim",
             "Hides the state dot of the agent while the calling client is connected: the \
              caller shows the state itself. Call it again after the voice client connects.",
-            none.clone(),
-            &[],
-        ),
-        runtime::method(
-            "restart",
-            "Reads the settings file again, for example after an edit by hand.",
             none,
             &[],
         ),
@@ -409,13 +403,6 @@ impl Plugin for Client {
             "mute" => {
                 let Mute { mic, speaker } = runtime::params(params)?;
                 Call::Mute { mic, speaker }
-            }
-            "restart" => {
-                let path = self.settings.file().to_owned();
-                self.settings =
-                    load(path).map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e))?;
-                self.apply()?;
-                return Ok(self.settings.get());
             }
             _ => return Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),
         };
@@ -519,5 +506,18 @@ mod tests {
             })
             .collect();
         assert_eq!(privileged, ["confirm", "agent"]);
+    }
+
+    /// Review rc3 round 2, 3.2: no unprivileged `restart` beside the
+    /// privileged `settings.reload`.
+    #[test]
+    fn there_is_no_restart() {
+        let names: Vec<String> = (super::exported_methods().into_iter())
+            .map(|m| match m {
+                ExportMethod::Described(d) => d.name,
+                ExportMethod::Plain(n) => n,
+            })
+            .collect();
+        assert!(!names.iter().any(|n| n == "restart"), "{names:?}");
     }
 }

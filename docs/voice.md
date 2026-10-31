@@ -370,7 +370,7 @@ at most a short summary of it.
 |---|---|---|
 | Mic | Capture command exits | Restart, backoff 0.5 s to 5 s, error earcon once |
 | VAD | Model does not load | Exit 1; systemd restarts |
-| Settings | The settings file is broken | At start: exit 1 with an error that names the file. On `restart`: the error, and the settings stay. A new connection to chora fails until the file is fixed. The agent never takes the defaults instead |
+| Settings | The settings file is broken | At start: exit 1 with an error that names the file. On `settings.reload`: the error, and the settings stay. A new connection to chora fails until the file is fixed. The agent never takes the defaults instead |
 | ASR | Error or timeout | One retry with the same audio, then earcon and `phrases.asr_failed` ("I did not understand you.") when the agent listens again; a wake word asleep only sounds the earcon |
 | TTS | Error or timeout | Earcon once per reply; the text stays in the history, in `last_reply` and on the HUD; the tool loop goes on; for the backoff of the TTS (1 s, doubling to 30 s), its sentences skip without a try |
 | LLM | Connect error | One retry, then `phrases.llm_down` ("The language model does not answer.") |
@@ -459,7 +459,7 @@ TTS (`/v1/audio/speech/stream`, voice `aiden`):
 File `$XDG_CONFIG_HOME/chora/chora-voice.yaml`. A missing key takes its
 default, so an empty file is valid. `settings.set` applies at once (a
 new `capture_cmd` restarts capture, a new `ptt_key` grabs again; WP5: a
-new prompt warms the cache). Edits by hand apply on `voice.restart`. The
+new prompt warms the cache). Edits by hand apply on `voice.settings.reload`. The
 client name is the flag `--name` (default `voice`). `chora-voice
 --print-config` prints all defaults.
 
@@ -582,8 +582,7 @@ both a key variable and a key file for one server.
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` | `mic: bool`, `speaker: bool`, each optional | the new state record |
 | `indicator.claim` | none | `{}`; hides the dot while the caller is connected |
-| `restart` | none | reads the settings file again |
-| `settings.get`, `settings.set` | D62 | D62 |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.reload` reads the file again after an edit by hand |
 | `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record |
 | `health` (WP8) | none | the health record of section 6 |

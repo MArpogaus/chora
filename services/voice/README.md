@@ -121,7 +121,7 @@ The settings are in `~/.config/chora/chora-voice.yaml`. A missing key
 keeps its default, so an empty file is valid. `chora-voice
 --print-config` prints all keys with their defaults; `docs/voice.md`
 (section 9) explains them. `choractl call voice settings.set` changes
-them at once; after an edit by hand, run `choractl call voice restart`.
+them at once; after an edit by hand, run `choractl call voice settings.reload`.
 For example, the models of another host:
 
 ```yaml
