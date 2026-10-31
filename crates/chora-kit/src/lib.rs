@@ -55,6 +55,58 @@ pub fn launch(command: &str) -> Option<(String, Option<u32>)> {
     Some((answer["token"].as_str()?.into(), pid))
 }
 
+/// Writes a file through a new temporary file of mode 0600 next to it,
+/// then renames it, so that a crash leaves the old file or the new one,
+/// never a part. The temporary file is new: a symlink or a file of that
+/// name is never opened. A symlink at `path`, for example into a dotfiles
+/// repository, stays: the file that it points to takes the data.
+///
+/// # Errors
+///
+/// The directory, the temporary file or the rename fails.
+pub fn write_file(path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
+    use std::io::Write as _;
+    let dir = path.parent().unwrap_or(std::path::Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let target = std::fs::canonicalize(path).unwrap_or_else(|_| {
+        // A dangling symlink still names its target.
+        std::fs::read_link(path).map_or_else(|_| path.to_path_buf(), |l| dir.join(l))
+    });
+    let (tmp, mut file) = new_temp(&target)?;
+    let done = file
+        .write_all(data)
+        .and_then(|()| file.sync_all())
+        .and_then(|()| std::fs::rename(&tmp, &target));
+    if done.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    done
+}
+
+/// Creates a temporary file of mode 0600 with a new name next to `path`;
+/// an existing file of the name is never opened.
+fn new_temp(path: &std::path::Path) -> std::io::Result<(std::path::PathBuf, std::fs::File)> {
+    use std::{
+        os::unix::fs::OpenOptionsExt as _,
+        sync::atomic::{AtomicU64, Ordering},
+    };
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    loop {
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let tmp = path.with_file_name(format!(".{name}.{}.{n}.tmp", std::process::id()));
+        let open = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&tmp);
+        match open {
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            open => return open.map(|file| (tmp, file)),
+        }
+    }
+}
+
 /// The most bytes of a picture file that a plugin reads.
 pub const MAX_PICTURE: u64 = 64 << 20;
 /// The most bytes of a text file, such as settings, that a plugin reads.

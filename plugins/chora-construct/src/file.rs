@@ -3,10 +3,7 @@
 //! there is the user's own, as an mc scene file: its program panes start
 //! their commands without a question (N5).
 
-use std::{
-    io::Write as _,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -163,22 +160,14 @@ pub fn load(dir: &Path, name: &str) -> Result<File, String> {
     parse(&text).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// Writes the construct `name` in `dir`, through a temporary file, so
-/// that a crash never leaves half a file.
+/// Writes the construct `name` in `dir` with [`chora_kit::write_file`],
+/// so that a crash never leaves half a file.
 pub fn save(dir: &Path, name: &str, file: &File) -> Result<(), String> {
     check_name(name)?;
     file.check()?;
     let text = serde_saphyr::to_string(file).map_err(|e| e.to_string())?;
     let path = dir.join(format!("{name}.yaml"));
-    let tmp = dir.join(format!(".{name}.yaml.tmp"));
-    let write = || -> std::io::Result<()> {
-        std::fs::create_dir_all(dir)?;
-        let mut out = std::fs::File::create(&tmp)?;
-        out.write_all(text.as_bytes())?;
-        out.sync_all()?;
-        std::fs::rename(&tmp, &path)
-    };
-    write().map_err(|e| format!("{}: {e}", path.display()))
+    chora_kit::write_file(&path, text.as_bytes()).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The names of the constructs in `dir`, sorted.
@@ -246,6 +235,28 @@ mod tests {
         assert_eq!(load(&dir, "desk").unwrap(), file);
         save(&dir, "empty", &File::default()).unwrap();
         assert_eq!(list(&dir), ["desk", "empty"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A save never writes through a symlink planted as the temporary
+    /// file, and the file has mode 0600 whatever the umask.
+    #[test]
+    fn a_save_ignores_a_planted_temp_file() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = temp_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        let victim = dir.join("victim");
+        std::fs::write(&victim, "mine").unwrap();
+        std::os::unix::fs::symlink(&victim, dir.join(".desk.yaml.tmp")).unwrap();
+        save(&dir, "desk", &File::default()).unwrap();
+        assert_eq!(std::fs::read_to_string(&victim).unwrap(), "mine");
+        let mode = dir
+            .join("desk.yaml")
+            .metadata()
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

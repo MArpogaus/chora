@@ -25,12 +25,7 @@
 //! changed map whole, and `null` for an option that the user cleared. A
 //! key that an update removes or renames then stays out of most files.
 
-use std::{
-    io::Write as _,
-    os::unix::fs::OpenOptionsExt as _,
-    path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::path::{Path, PathBuf};
 
 use chora_scene::ipc::{DescribedMethod, ExportMethod, RpcError};
 use serde::{Serialize, de::DeserializeOwned};
@@ -200,34 +195,15 @@ impl<S: Settings> File<S> {
         ]
     }
 
-    /// Writes a new temporary file of mode 0600 next to the file and
-    /// renames it, so that a crash leaves the old file or the new one,
-    /// never a part. A symlink, for example into a dotfiles repository,
-    /// stays: the file that it points to takes the settings.
+    /// Writes the changes with [`crate::write_file`].
     fn write(&self) -> Result<(), String> {
         let value = serde_json::to_value(&self.value).map_err(|e| e.to_string())?;
         let default = serde_json::to_value(parse::<S>(self.default)?).map_err(|e| e.to_string())?;
         let schema = schema::<S>();
         let text = serde_saphyr::to_string(&diff(value, &default, &schema, &schema))
             .map_err(|e| e.to_string())?;
-        let write = || -> std::io::Result<()> {
-            let dir = self.path.parent().unwrap_or(Path::new("."));
-            std::fs::create_dir_all(dir)?;
-            let target = std::fs::canonicalize(&self.path).unwrap_or_else(|_| {
-                // A dangling symlink still names its target.
-                std::fs::read_link(&self.path).map_or_else(|_| self.path.clone(), |l| dir.join(l))
-            });
-            let (tmp, mut file) = new_temp(&target)?;
-            let done = file
-                .write_all(text.as_bytes())
-                .and_then(|()| file.sync_all())
-                .and_then(|()| std::fs::rename(&tmp, &target));
-            if done.is_err() {
-                let _ = std::fs::remove_file(&tmp);
-            }
-            done
-        };
-        write().map_err(|e| format!("{}: {e}", self.path.display()))
+        crate::write_file(&self.path, text.as_bytes())
+            .map_err(|e| format!("{}: {e}", self.path.display()))
     }
 }
 
@@ -288,26 +264,6 @@ fn read<S: Settings>(path: &Path, default: &str) -> Result<S, String> {
         .map_err(|e| e.to_string())
         .and_then(|v| complete(v, default))
         .map_err(|e| format!("{}: {e}", path.display()))
-}
-
-/// Creates a temporary file of mode 0600 with a new name next to `path`;
-/// an existing file of the name is never opened.
-fn new_temp(path: &Path) -> std::io::Result<(PathBuf, std::fs::File)> {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    let name = path.file_name().unwrap_or_default().to_string_lossy();
-    loop {
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let tmp = path.with_file_name(format!(".{name}.{}.{n}.tmp", std::process::id()));
-        let open = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&tmp);
-        match open {
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            open => return open.map(|file| (tmp, file)),
-        }
-    }
 }
 
 /// Parses settings in YAML and checks them.

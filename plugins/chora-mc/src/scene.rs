@@ -2,7 +2,7 @@
 //! panels, or one app whose window fills its text block. Each scene is a YAML
 //! file `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`.
 
-use std::{collections::BTreeMap, io::Write as _, path::Path};
+use std::{collections::BTreeMap, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -280,15 +280,7 @@ pub fn save(dir: &Path, name: &str, scene: &Scene) -> Result<(), String> {
     scene.check()?;
     let text = serde_saphyr::to_string(scene).map_err(|e| e.to_string())?;
     let path = dir.join(format!("{name}.yaml"));
-    let tmp = dir.join(format!(".{name}.yaml.tmp"));
-    let write = || -> std::io::Result<()> {
-        std::fs::create_dir_all(dir)?;
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(text.as_bytes())?;
-        file.sync_all()?;
-        std::fs::rename(&tmp, &path)
-    };
-    write().map_err(|e| format!("{}: {e}", path.display()))
+    chora_kit::write_file(&path, text.as_bytes()).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The box `[x, y, w, h]` of a cell in the `area` `[x, y, w, h]`, with
