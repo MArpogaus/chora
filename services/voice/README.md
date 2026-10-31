@@ -300,7 +300,9 @@ echo level over the played level.
 
 The LLM gets the tools of `choractl --name voice-mcp mcp`, except the
 event tools, `capture` and the methods of the agent itself
-(`skipped_tools`). `chora_mcp` is the command of `choractl`, so that the
+(`skipped_tools`). `skipped_tools` only hides tools: the agent itself
+refuses a call of its own clients `voice`, `voice-hud` and `voice-mcp`,
+also through `call_method`. `chora_mcp` is the command of `choractl`, so that the
 tools run in another place, for example `[podman, exec, -i, NAME,
 choractl]` in a container. Its programs then start in the container.
 When the LLM reads images and `voice-mcp` has the grant

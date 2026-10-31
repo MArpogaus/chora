@@ -331,7 +331,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sandbox_cmd`, `unsandboxed` | `[agent-sandbox.sh]`, `false` (`coder_cmd` and `agent_cmd` run in the sandbox) |
 | `agent_cmd`, `agent_projects` | `[]` (no agents; else an ACP command, `{dir}` and `{project}` replaced), `{}` (name: directory, besides the inventory) |
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
-| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]` |
+| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method` |
 | `playback_buffer_ms` | `1000` |
 | `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |

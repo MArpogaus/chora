@@ -45,6 +45,9 @@ pub struct Tools {
     pub coder: Option<Coder>,
     /// The tools of the ACP agents, when `agent_cmd` has a command.
     pub agents: Option<Agents>,
+    /// The client name of the agent: the LLM calls no method of it, nor
+    /// of `NAME-hud` and `NAME-mcp`, whatever `skipped` hides.
+    pub own: String,
 }
 
 /// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
@@ -87,7 +90,26 @@ impl Tools {
             retry_at: Instant::now(),
             coder: None,
             agents: None,
+            own: String::new(),
         }
+    }
+
+    /// Whether a call of `tool` (its MCP name) reaches a client of the
+    /// agent itself: by `call_method` or as a plugin tool `CLIENT.METHOD`.
+    fn own_client(&self, tool: &str, args: &serde_json::Map<String, Value>) -> bool {
+        if self.own.is_empty() {
+            return false;
+        }
+        let own = &self.own;
+        let names = [own.clone(), format!("{own}-hud"), format!("{own}-mcp")];
+        if tool == "call_method" {
+            let client = args.get("client").and_then(Value::as_str);
+            return client.is_some_and(|c| names.iter().any(|n| n == c));
+        }
+        (names.iter()).any(|n| {
+            tool.strip_prefix(n.as_str())
+                .is_some_and(|r| r.starts_with('.'))
+        })
     }
 
     fn connected(&self) -> Option<&Service> {
@@ -179,6 +201,13 @@ impl Tools {
         let Value::Object(args) = args.clone() else {
             return "error: the arguments are no JSON object".into();
         };
+        if self.own_client(&name, &args) {
+            return format!(
+                "error: the agent calls no method of its own client {}",
+                self.own
+            )
+            .into();
+        }
         if let Some(coder) = &self.coder
             && crate::coder::TOOLS.contains(&name.as_str())
         {
@@ -346,6 +375,7 @@ pub mod tests {
                 "quit",
                 "tiling.set_layout",
                 "capture",
+                "call_method",
             ]
             .map(|name| Tool::new(name, format!("the tool {name}"), schema.clone()));
             std::future::ready(Ok(ListToolsResult::with_all_items(tools.to_vec())))
@@ -419,6 +449,26 @@ pub mod tests {
         (tools, calls)
     }
 
+    /// The LLM calls no method of the agent itself, also not through
+    /// `call_method`; other clients it calls.
+    #[tokio::test]
+    async fn the_agent_calls_no_method_of_its_own_clients() {
+        let (mut tools, calls) = fake(0);
+        tools.own = "tiling".into();
+        tools.refresh().await;
+        for client in ["tiling", "tiling-hud", "tiling-mcp"] {
+            let answer = tools
+                .call("call_method", &json!({"client": client, "method": "x"}))
+                .await;
+            assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        }
+        let answer = tools.call("tiling__set_layout", &json!({})).await;
+        assert!(answer.as_str().unwrap().starts_with("error:"), "{answer}");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        let args = json!({"client": "tilingx", "method": "x"});
+        assert_eq!(tools.call("call_method", &args).await, args.to_string());
+    }
+
     #[tokio::test]
     async fn tools_load_without_the_skipped_and_dots_become_two_underscores() {
         let (mut tools, _) = fake(0);
@@ -430,7 +480,14 @@ pub mod tests {
             .collect();
         assert_eq!(
             names,
-            ["echo", "sleep", "picture", "quit", "tiling__set_layout"]
+            [
+                "echo",
+                "sleep",
+                "picture",
+                "quit",
+                "tiling__set_layout",
+                "call_method"
+            ]
         );
         assert_eq!(
             tools.mcp_name("tiling__set_layout"),
@@ -454,11 +511,11 @@ pub mod tests {
         );
         tools.coder = Some(coder.clone());
         tools.refresh().await;
-        assert_eq!(tools.specs.len(), 5, "no harness, no coding tools");
+        assert_eq!(tools.specs.len(), 6, "no harness, no coding tools");
         coder.set_cmd(vec!["true".into()]);
         tools.refresh().await;
         tools.refresh().await;
-        let names: Vec<_> = tools.specs[5..]
+        let names: Vec<_> = tools.specs[6..]
             .iter()
             .map(|s| s["function"]["name"].as_str().unwrap())
             .collect();
