@@ -418,7 +418,7 @@ or `agent.set`.
 The settings of D62 are in `chora/chora-mc.yaml`. Edits by hand apply
 with `settings.reload`:
 
-- `theme` (`light` or `dark`) and the colors of each theme by name, at
+- `theme` (`light` or `dark`) and `themes`, the colors of each theme by name, at
   least a `background`. A color that a theme lacks comes from the
   default theme of the same name in `mc.yaml`.
 - `scale`: the font sizes as steps of a modular scale (`base`, `ratio`),

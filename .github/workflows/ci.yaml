@@ -114,6 +114,8 @@ jobs:
     - run: install -m755 /usr/bin/sway /usr/local/bin/sway
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
     - run: cargo build --workspace --locked
+    - name: every default setting is in the docs
+      run: tests/settings-docs.sh target/debug
     - name: the units of the session and the flavors are valid
       run: tests/gate-0.9-session-units.sh
     - name: the watchdog thread logs a shader hang and aborts the core
