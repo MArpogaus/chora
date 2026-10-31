@@ -4,8 +4,12 @@
 //! to 7).
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -106,6 +110,33 @@ fn announces(answer: &str) -> bool {
             .any(|f| at(f, k).is_some_and(|next| next.is_some_and(|n| !NO_ACTION.contains(n))))
             || GERMAN.iter().any(|f| at(f, k).is_some())
     })
+}
+
+/// What a yes with an always word allows for the session: the settings
+/// keys of the agent, the program of `run_program`, the method
+/// `CLIENT.METHOD`, or the tool. None for a security setting and for
+/// `settings.set` of another plugin: they always ask.
+fn session_key(tool: &str, patch: Option<&Value>, args: &Value) -> Option<String> {
+    if let Some(patch) = patch {
+        let keys: Vec<&String> = patch.as_object()?.keys().collect();
+        if keys.iter().any(|k| crate::config::security_key(k)) {
+            return None;
+        }
+        return Some(format!(
+            "settings {}",
+            keys.iter()
+                .map(|k| k.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    let method = match tool {
+        "run_program" => return Some(format!("run_program {}", tools::program(args)?)),
+        "call_method" => format!("{}.{}", args["client"].as_str()?, args["method"].as_str()?),
+        _ if tool.contains('.') => tool.to_owned(),
+        _ => return Some(tool.to_owned()),
+    };
+    (!method.ends_with(".settings.set")).then_some(method)
 }
 
 /// The full command or value of a call that asks, for the screen: the
@@ -230,6 +261,8 @@ pub enum Event {
         prompt: String,
         /// The full command or value, uncut, for the screen.
         detail: String,
+        /// The core sets it before a yes with an always word.
+        always: Arc<AtomicBool>,
         answer: oneshot::Sender<Option<bool>>,
     },
     /// A text of the user from the inbox went into the turn.
@@ -289,6 +322,8 @@ pub struct Chat {
     pub inbox: Option<UnboundedReceiver<String>>,
     /// The texts of the inbox that wait for the next round.
     heard: Vec<String>,
+    /// The actions that an always word allowed until the agent restarts.
+    allowed: HashSet<String>,
 }
 
 impl Chat {
@@ -340,6 +375,7 @@ impl Chat {
             answer: None,
             inbox: None,
             heard: Vec::new(),
+            allowed: HashSet::new(),
         };
         chat.system = chat.prompt()?;
         Ok(chat)
@@ -846,6 +882,11 @@ impl Chat {
         } else {
             return Ok(());
         };
+        let key = session_key(&name, own, args);
+        if key.as_ref().is_some_and(|k| self.allowed.contains(k)) {
+            crate::log::info(&format!("confirm {name}: allowed for the session"));
+            return Ok(());
+        }
         // New words of the user come first: the question would answer
         // what they no longer ask; the next round hears them.
         if self.take_inbox() {
@@ -854,10 +895,32 @@ impl Chat {
             ));
             return Err(SAID_NEW.into());
         }
+        let (result, always) = self.ask(&name, prompt, detail, out).await;
+        // A security setting or the settings of another plugin take an
+        // always word as a single yes.
+        if let (Ok(()), true, Some(key)) = (&result, always, key) {
+            crate::log::info(&format!("confirm {name}: allowed for the session as {key}"));
+            self.allowed.insert(key);
+            out(Event::Sentence(self.config.phrases.allowed.clone()));
+        }
+        result
+    }
+
+    /// Asks the user and waits for the answer; answers whether it had
+    /// an always word.
+    async fn ask(
+        &self,
+        name: &str,
+        prompt: String,
+        detail: String,
+        out: &(impl Fn(Event) + Sync),
+    ) -> (Result<(), String>, bool) {
         let (answer, rx) = oneshot::channel();
+        let always = Arc::new(AtomicBool::new(false));
         out(Event::Confirm {
             prompt,
             detail,
+            always: always.clone(),
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
@@ -878,7 +941,7 @@ impl Chat {
             "confirm {name}: {}",
             result.as_ref().map_or_else(String::as_str, |()| "yes")
         ));
-        result
+        (result, always.load(Ordering::Relaxed))
     }
 
     /// Whether each command of `kinds` (each command when empty) in the
@@ -1348,6 +1411,77 @@ mod tests {
         {
             let _ = tx.send(a);
         }
+    }
+
+    /// An always word allows the same action until the agent restarts.
+    #[tokio::test]
+    async fn an_always_yes_allows_the_action_for_the_session() {
+        let script = [Reply::Tool("echo", "{}"), Reply::Text("Gut.")].repeat(2);
+        let server = fake::llm(script).await;
+        let (tools, calls) = tools::tests::fake(0);
+        let config = Config {
+            llm_url: server.url.clone(),
+            confirm: vec![Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        let events = Mutex::new(Vec::new());
+        chat.turn("Echo.", &|event| {
+            if let Event::Confirm { always, answer, .. } = event {
+                always.store(true, Ordering::SeqCst);
+                let _ = answer.send(Some(true));
+            } else if let Event::Sentence(s) = event {
+                events.lock().unwrap().push(s);
+            }
+        })
+        .await;
+        let said = events.into_inner().unwrap();
+        assert!(
+            said.contains(&"Allowed for this session.".to_owned()),
+            "{said:?}"
+        );
+        let (_, events) = turn(&mut chat, "Noch mal.", false).await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    /// Security settings and the settings of other plugins always ask.
+    #[test]
+    fn what_always_and_allow_cover() {
+        let key =
+            |tool, patch: Option<Value>, args: Value| session_key(tool, patch.as_ref(), &args);
+        let patch = |k: &str| Some(json!({ k: 1 }));
+        assert_eq!(
+            key("x", patch("barge_in_ms"), json!({})).as_deref(),
+            Some("settings barge_in_ms")
+        );
+        for k in ["llm_url", "confirm", "always_words"] {
+            assert_eq!(key("x", patch(k), json!({})), None, "{k}");
+        }
+        let run = json!({"argv": ["/usr/bin/foot", "-e", "sh"]});
+        assert_eq!(
+            key("run_program", None, run.clone()).as_deref(),
+            Some("run_program foot")
+        );
+        let set = json!({"client": "xp", "method": "settings.set"});
+        assert_eq!(key("call_method", None, set), None);
+        assert_eq!(key("xp.settings.set", None, json!({})), None);
+        let open = json!({"client": "mc", "method": "app.open"});
+        assert_eq!(
+            key("call_method", None, open.clone()).as_deref(),
+            Some("mc.app.open")
+        );
     }
 
     #[tokio::test]
@@ -1886,6 +2020,7 @@ mod tests {
             answer: None,
             inbox: None,
             heard: Vec::new(),
+            allowed: HashSet::new(),
         };
         chat.shrink();
         let args =

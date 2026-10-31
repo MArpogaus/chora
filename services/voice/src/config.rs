@@ -99,6 +99,8 @@ pub struct Phrases {
     /// Said once the agent is ready after its start: the LLM read the
     /// prompt. Empty: silent.
     pub ready: String,
+    /// Said after an always word allowed an action for the session.
+    pub allowed: String,
 }
 
 impl Default for Phrases {
@@ -117,6 +119,7 @@ impl Default for Phrases {
             heard: "Heard: {text}".into(),
             ack: "One moment.".into(),
             ready: "Ready.".into(),
+            allowed: "Allowed for this session.".into(),
         }
     }
 }
@@ -206,6 +209,8 @@ pub struct Config {
     pub cancel_words: Vec<String>,
     pub code_cancel_words: Vec<String>,
     pub yes_words: Vec<String>,
+    /// A yes that allows the same action for the rest of the session.
+    pub always_words: Vec<String>,
     pub no_words: Vec<String>,
     pub filler_words: Vec<String>,
     pub confirm: Vec<Confirm>,
@@ -451,6 +456,7 @@ impl Config {
             &mut p.heard,
             &mut p.ack,
             &mut p.ready,
+            &mut p.allowed,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -546,8 +552,9 @@ fn spoken(v: &serde_json::Value) -> String {
 
 /// Whether a settings key decides what the agent may do or run, or
 /// where its data goes.
-fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 17] = [
+pub fn security_key(key: &str) -> bool {
+    const KEYS: [&str; 18] = [
+        "always_words",
         "confirm",
         "agent_projects",
         "yes_words",
@@ -573,8 +580,9 @@ fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 22] = [
+const GERMAN: [(&str, &str); 23] = [
     ("One moment.", "Moment."),
+    ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
     ("Heard: {text}", "Gehört: {text}"),
     (
@@ -769,6 +777,7 @@ impl Default for Config {
                 "yes", "yeah", "yep", "yup", "okay", "ok", "do it", "please", "sure", "go ahead",
                 "ja", "jo", "jap", "jep", "klar", "gern", "gerne", "genau", "mach das", "bitte",
             ]),
+            always_words: words(&["immer", "ja immer", "always", "yes always"]),
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
@@ -809,13 +818,14 @@ impl Default for Config {
 
 impl Config {
     /// The word lists by key, for the checks.
-    fn word_lists(&self) -> [(&'static str, &[String]); 7] {
+    fn word_lists(&self) -> [(&'static str, &[String]); 8] {
         [
             ("sleep_words", &self.sleep_words),
             ("wake_words", &self.wake_words),
             ("cancel_words", &self.cancel_words),
             ("code_cancel_words", &self.code_cancel_words),
             ("yes_words", &self.yes_words),
+            ("always_words", &self.always_words),
             ("no_words", &self.no_words),
             ("filler_words", &self.filler_words),
         ]
@@ -888,7 +898,7 @@ impl Config {
         }
         let mut seen = BTreeMap::new();
         for (key, list) in self.word_lists() {
-            if list.is_empty() && key != "filler_words" {
+            if list.is_empty() && !["filler_words", "always_words"].contains(&key) {
                 return Err(format!("{key}: at least one word"));
             }
             for word in list {

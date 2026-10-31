@@ -279,6 +279,16 @@ reason as the result:
 "The user declined the spoken confirmation", "The user did not answer
 the spoken confirmation in time (15 s)" or "The answer to the spoken
 confirmation was not understood", each with "; nothing happened".
+
+A yes with an `always_words` phrase ("Ja, immer.", "Always.") allows
+the same action until the agent restarts. Then the agent says
+`phrases.allowed` ("Allowed for this session."). The same action is
+the same program (`argv0`) of `run_program`, the same `CLIENT.METHOD`,
+the same keys of the agent's own settings, or else the same tool. A
+security setting and `settings.set` of another plugin always ask: for
+them, an always word is a single yes. A question of a sub-agent takes
+an always word as a yes.
+
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`. `detail` is the full command or value, never cut: the
 settings keys and values, the program and its arguments, or the method
@@ -308,7 +318,7 @@ Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
 Shall I set llm url? The full value is on the screen."). The security
-keys are `confirm`, `agent_projects`, `yes_words`, `no_words`,
+keys are `confirm`, `agent_projects`, `yes_words`, `always_words`, `no_words`,
 `phrases`, `record_dir`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
 `coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
 `skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
@@ -453,6 +463,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
+| `always_words` | `[immer, ja immer, always, yes always]` (a yes for the session; may be empty) |
 | `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
@@ -471,7 +482,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire

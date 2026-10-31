@@ -4,7 +4,11 @@
 
 use std::{
     collections::{BTreeMap, VecDeque},
-    sync::mpsc::Sender,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc::Sender,
+    },
     time::{Duration, Instant},
 };
 
@@ -269,6 +273,8 @@ pub struct Core {
     /// The answer of the confirmation that waits, and the unclear
     /// answers so far.
     confirm: Option<oneshot::Sender<Option<bool>>>,
+    /// Set before a yes with an always word to the confirmation.
+    confirm_always: Arc<AtomicBool>,
     unclear: u32,
     /// The question of the confirmation, and until when it waits:
     /// `confirm_timeout_ms` from the end of its sound.
@@ -361,6 +367,7 @@ impl Core {
             request: String::new(),
             doing: State::Thinking,
             confirm: None,
+            confirm_always: Arc::default(),
             unclear: 0,
             confirm_prompt: String::new(),
             confirm_until: now,
@@ -669,7 +676,7 @@ impl Core {
             Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
                 .chain(self.earcon(Earcon::Cancel))
                 .collect(),
-            Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
+            Some(yes @ (Word::Yes | Word::Always | Word::No)) => self.yes_no(yes != Word::No),
             _ if rest.is_empty() => Vec::new(),
             _ => vec![Effect::AgentPrompt { name, text: rest }],
         }
@@ -837,8 +844,12 @@ impl Core {
             Reply::Chat(chat::Event::Confirm {
                 prompt,
                 detail,
+                always,
                 answer,
-            }) => return self.asked(prompt, detail, answer),
+            }) => {
+                self.confirm_always = always;
+                return self.asked(prompt, detail, answer);
+            }
             Reply::Failed if self.tts_failed != Some(reply) => {
                 self.tts_failed = Some(reply);
                 return self.earcon(Earcon::Error).into_iter().collect();
@@ -979,9 +990,19 @@ impl Core {
             }
             Some(Word::Sleep) => self.sleep(),
             Some(Word::Wake) => Vec::new(),
+            Some(Word::Always) => self.always(),
             Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
             None => self.text(text, answers),
         }
+    }
+
+    /// A yes with an always word; a question of a sub-agent takes it as
+    /// a yes.
+    fn always(&mut self) -> Vec<Effect> {
+        if self.confirm.is_some() {
+            self.confirm_always.store(true, Ordering::Relaxed);
+        }
+        self.yes_no(true)
     }
 
     /// A spoken yes or no: the cut prompt does not play again.
@@ -1519,6 +1540,7 @@ mod tests {
             chat::Event::Confirm {
                 prompt: "Wirklich?".into(),
                 detail: String::new(),
+                always: std::sync::Arc::default(),
                 answer,
             },
         ));
@@ -1553,6 +1575,7 @@ mod tests {
                 chat::Event::Confirm {
                     prompt: "Wirklich?".into(),
                     detail: String::new(),
+                    always: std::sync::Arc::default(),
                     answer,
                 },
             ));
@@ -1735,6 +1758,7 @@ mod tests {
         let event = chat::Event::Confirm {
             prompt: prompt.into(),
             detail: String::new(),
+            always: std::sync::Arc::default(),
             answer,
         };
         core.handle(reply(1, event));
@@ -1795,6 +1819,7 @@ mod tests {
         let confirm = chat::Event::Confirm {
             prompt: prompt.into(),
             detail: String::new(),
+            always: std::sync::Arc::default(),
             answer,
         };
         core.handle(reply(1, confirm));
@@ -1850,6 +1875,7 @@ mod tests {
         let event = chat::Event::Confirm {
             prompt: "Soll ich das Fenster schließen?".into(),
             detail: String::new(),
+            always: std::sync::Arc::default(),
             answer,
         };
         core.handle(reply(1, event));
@@ -1878,6 +1904,7 @@ mod tests {
         let event = chat::Event::Confirm {
             prompt: "Soll ich das Programm foot starten?".into(),
             detail: "foot -e sh".into(),
+            always: std::sync::Arc::default(),
             answer,
         };
         let effects = core.handle(reply(1, event));

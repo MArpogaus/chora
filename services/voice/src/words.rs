@@ -11,6 +11,8 @@ pub enum Word {
     Sleep,
     Wake,
     Yes,
+    /// A yes that allows the action for the session.
+    Always,
     No,
 }
 
@@ -100,6 +102,7 @@ pub fn matches(config: &Config, text: &str, speech_ms: u32, confirming: bool) ->
         .map(|(word, _)| word);
     command.or_else(|| match answer(config, text) {
         Answer::Yes if confirming => Some(Word::Yes),
+        Answer::Always if confirming => Some(Word::Always),
         Answer::No if confirming => Some(Word::No),
         _ => None,
     })
@@ -109,6 +112,8 @@ pub fn matches(config: &Config, text: &str, speech_ms: u32, confirming: bool) ->
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Answer {
     Yes,
+    /// A yes with an always word: "Ja, immer."
+    Always,
     No,
     /// At most two words without a pure yes or no.
     Unclear,
@@ -119,7 +124,7 @@ pub enum Answer {
 impl Answer {
     /// A pure yes or no.
     pub fn pure(self) -> bool {
-        matches!(self, Self::Yes | Self::No)
+        matches!(self, Self::Yes | Self::Always | Self::No)
     }
 }
 
@@ -145,26 +150,30 @@ fn has_at(words: &[String], at: usize, list: &[String]) -> usize {
 
 /// The answer in `text`. Only a pure yes or no answers: one or two yes
 /// or no phrases and filler words ("Ja, bitte.", "Ja, mach das.",
-/// "Nein, lieber nicht."). Any other text of at most two words is
+/// "Nein, lieber nicht."); an always word makes a yes `Always` ("Ja,
+/// immer."). Any other text of at most two words is
 /// unclear, a longer one is a request ("Mach das andere Fenster zu.").
 pub fn answer(config: &Config, text: &str) -> Answer {
     let mut words = content(config, text);
     if words.is_empty() {
         words = normalize(text);
     }
-    let (mut at, mut yes, mut no) = (0, 0, 0);
+    let (mut at, mut yes, mut no, mut always) = (0, 0, 0, false);
     while at < words.len() {
         let y = has_at(&words, at, &config.yes_words);
+        let a = has_at(&words, at, &config.always_words);
         let n = has_at(&words, at, &config.no_words);
-        match (y, n) {
+        match (y.max(a), n) {
             (0, 0) => break,
             (y, n) if y >= n => yes += 1,
             _ => no += 1,
         }
-        at += y.max(n);
+        always |= a > 0 && a >= y && a >= n;
+        at += y.max(a).max(n);
     }
     let whole = at == words.len() && yes + no <= 2;
     match (whole, yes, no) {
+        (true, 1.., 0) if always => Answer::Always,
         (true, 1.., 0) => Answer::Yes,
         (true, 0, 1..) => Answer::No,
         _ if normalize(text).len() <= 2 => Answer::Unclear,
@@ -307,6 +316,27 @@ mod tests {
         ] {
             assert_eq!(a(text), want, "{text}");
         }
+    }
+
+    #[test]
+    fn an_always_word_is_a_yes_for_the_session() {
+        let config = Config::default();
+        let a = |text| answer(&config, text);
+        for text in [
+            "Immer.",
+            "Ja, immer.",
+            "Always.",
+            "Yes, always.",
+            "Ja, immer, bitte.",
+        ] {
+            assert_eq!(a(text), Answer::Always, "{text}");
+        }
+        assert_eq!(a("Nein, immer."), Answer::Unclear);
+        assert_eq!(a("Immer das Gleiche hier."), Answer::Request);
+        assert_eq!(
+            matches(&config, "Ja, immer.", 900, true),
+            Some(Word::Always)
+        );
     }
 
     #[test]
