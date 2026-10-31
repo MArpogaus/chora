@@ -331,6 +331,7 @@ at most a short summary of it.
 |---|---|---|
 | Mic | Capture command exits | Restart, backoff 0.5 s to 5 s, error earcon once |
 | VAD | Model does not load | Exit 1; systemd restarts |
+| Settings | The settings file is broken at start | Exit 1 with an error that names the file; the agent never runs with the defaults instead |
 | ASR | Error or timeout | One retry with the same audio, then earcon and `phrases.asr_failed` ("I did not understand you.") when the agent listens again; a wake word asleep only sounds the earcon |
 | TTS | Error or timeout | Earcon once per reply; the text stays in the history, in `last_reply` and on the HUD; the tool loop goes on; for the backoff of the TTS (1 s, doubling to 30 s), its sentences skip without a try |
 | LLM | Connect error | One retry, then `phrases.llm_down` ("The language model does not answer.") |

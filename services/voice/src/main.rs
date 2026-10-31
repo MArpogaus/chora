@@ -120,6 +120,19 @@ enum Command {
     Levels,
 }
 
+/// The settings, unless their file is broken: the agent fails closed.
+/// chora-kit takes the defaults for a broken file, but the user's rules
+/// may ask more than the defaults (review 0.9.0-rc.3).
+fn unbroken(settings: settings::File<Config>) -> Result<settings::File<Config>, String> {
+    match settings.broken() {
+        Some(err) => Err(format!(
+            "the settings file {} is broken; fix it and start again: {err}",
+            settings.file().display()
+        )),
+        None => Ok(settings),
+    }
+}
+
 #[allow(
     clippy::print_stdout,
     clippy::expect_used,
@@ -145,6 +158,7 @@ fn main() -> ExitCode {
     }
     let result = settings::File::<Config>::path(args.config.clone(), "chora-voice")
         .and_then(|path| settings::File::load(path, "{}"))
+        .and_then(unbroken)
         .and_then(|settings: settings::File<Config>| {
             let config = settings.value.localized();
             match &args.command {
@@ -690,6 +704,21 @@ mod tests {
         fake,
         gate::Frame,
     };
+
+    /// Review 0.9.0-rc.3: a broken settings file stops the agent with
+    /// its name, instead of the defaults.
+    #[test]
+    fn a_broken_settings_file_fails_closed() {
+        let path = std::env::temp_dir().join(format!("chora-voice-broken-{}", std::process::id()));
+        std::fs::write(&path, "confirm: [").unwrap();
+        let settings = settings::File::<Config>::load(path.clone(), "{}").unwrap();
+        let err = unbroken(settings).err().unwrap();
+        assert!(err.contains(&path.display().to_string()), "{err}");
+        std::fs::write(&path, "earcons: false").unwrap();
+        let settings = settings::File::<Config>::load(path.clone(), "{}").unwrap();
+        assert!(!unbroken(settings).unwrap().value.earcons);
+        std::fs::remove_file(&path).unwrap();
+    }
 
     /// The frames of a corpus clip from `from` s on, with their speech
     /// probability.
