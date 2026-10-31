@@ -1112,3 +1112,32 @@ fn the_same_create_gives_back_revoked_capabilities() {
     drop(core);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// A confined client with a claim shares no button grab: it would take
+/// the presses of the binding from the window manager (4.6).
+#[test]
+fn a_client_socket_shares_no_button_grab() {
+    let (mut core, dir, mut agent, _) = agent_ipc("shared-grab");
+    let mut wm = core.named("wm");
+    let claim = |id: &str, claim: [f64; 4]| {
+        apply(
+            &json!([{"create": {"id": id, "kind": "group", "parent": "root",
+            "props": {"claim": claim}}}]),
+        )
+    };
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        claim("wm", [0.0, 0.0, 800.0, 600.0]),
+    );
+    agent.ok(
+        &mut core,
+        "scene.apply",
+        claim("agent", [1.0, 1.0, 798.0, 598.0]),
+    );
+    let grab = json!({"binding": "Super+BTN_LEFT"});
+    wm.ok(&mut core, "input.grab", grab.clone());
+    let (_, message) = agent.fails(&mut core, "input.grab", grab);
+    assert_eq!(message, "Super+BTN_LEFT is grabbed already");
+    let _ = std::fs::remove_dir_all(dir);
+}

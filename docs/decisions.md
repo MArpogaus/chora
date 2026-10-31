@@ -160,9 +160,12 @@ owner of the smallest other claim that holds the drop point; without one
 there, the surface stays with A.
 
 **Shared pointer bindings.** Window managers that each hold a claim can
-grab the same pointer button binding, and a press goes to the grab of the
-smallest claim under the pointer, else to the first grab, with its moves
-and release; key bindings keep one owner.
+grab the same pointer button binding, but only on the main socket: a
+client of a client socket may set a claim for its own windows, and with
+a claim a little smaller than an output it would win every press. A
+press of a shared binding goes to the grab of the smallest claim under
+the pointer, else to the first grab, with its moves and release; key
+bindings keep one owner.
 
 **Out of scope for now.**
 

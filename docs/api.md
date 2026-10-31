@@ -460,7 +460,7 @@ answers every request.
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
 | `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
-| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; window managers with claims can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
@@ -559,7 +559,8 @@ A key binding needs Ctrl, Alt or Super, so that typing still works, unless
 the client holds `input.grab-any` (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
 F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
-owner too, unless each client that grabs it holds a claim (D55): then a
+owner too, unless each client that grabs it holds a claim and is on the
+main socket (D55): then a
 press goes to the client of the smallest claim that contains the pointer,
 as for a new toplevel, else to the first grab, and the moves and the
 release of that press go to the same client. Revoking

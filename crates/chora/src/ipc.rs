@@ -1281,7 +1281,12 @@ impl State {
         }
         // A button binding may have several grabs while each client holds a
         // claim; a press then goes by the claim under the pointer (D55).
-        let claims = |c: u64| self.ipc.name(c).is_some_and(|n| self.scene.holds_claim(n));
+        // Only on the main socket: a confined client could claim a little
+        // less than an output and so take every press of the binding.
+        let claims = |c: u64| {
+            self.ipc.fixed(c).is_none()
+                && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
+        };
         // Each window manager gets the moves of its own windows.
         let own = trigger == Trigger::Move;
         let mut holders = (self.ipc.grabs.iter())
