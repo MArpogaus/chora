@@ -1255,6 +1255,13 @@ impl Mc {
         let [w, h] = output.size.map(f64::from);
         let [x, y] = output.position.map(f64::from);
         let background = self.settings.value.background();
+        // The claim is the work area, below the header and above the
+        // footer: another manager on the same output has the smaller
+        // claim only if mc's is not the whole output (review 2.10).
+        let config = &self.settings.value;
+        let line = |r| config.regions.get(r).size * config.scale.baseline;
+        let (head, foot) = (line(Region::Header), line(Region::Footer));
+        let work = [x, y + head, w, (h - head - foot).max(0.0)];
         commands.push(create(
             NAME,
             NodeKind::Group,
@@ -1263,7 +1270,7 @@ impl Mc {
                 transform: Some(translate(x, y)),
                 // mc manages the windows of its output: only a window
                 // manager with a claim receives windows (D55).
-                claim: Some(Some([x, y, w, h])),
+                claim: Some(Some(work)),
                 ..PropsUpdate::default()
             },
         ));
@@ -2584,7 +2591,7 @@ mod tests {
         assert!(!super::alive(u32::MAX));
     }
 
-    /// mc claims its output, so that other window managers can give it
+    /// mc claims the work area of its output, so that other window managers can give it
     /// windows (D55).
     #[test]
     fn mc_claims_its_output() {
@@ -2597,7 +2604,9 @@ mod tests {
             .unwrap()
             .props
             .claim;
-        assert_eq!(claim, Some([0.0, 0.0, 1920.0, 1080.0]));
+        let [x, y, w, h] = claim.unwrap();
+        assert_eq!([x, w], [0.0, 1920.0]);
+        assert!(y > 0.0 && y + h < 1080.0, "below the header, above the footer");
     }
 
     /// The claim of the indicator of the voice agent goes out at the
