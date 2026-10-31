@@ -139,6 +139,20 @@ fn session_key(tool: &str, patch: Option<&Value>, args: &Value) -> Option<String
     (!method.ends_with(".settings.set")).then_some(method)
 }
 
+/// Whether `allow` lists the program of `run_program` or the method
+/// `CLIENT.METHOD` of a call.
+fn listed(allow: &[String], tool: &str, args: &Value) -> bool {
+    let entry = match tool {
+        "run_program" => tools::program(args).map(str::to_owned),
+        "call_method" => (args["client"].as_str())
+            .zip(args["method"].as_str())
+            .map(|(c, m)| format!("{c}.{m}")),
+        _ if tool.contains('.') => Some(tool.to_owned()),
+        _ => None,
+    };
+    entry.is_some_and(|e| allow.contains(&e))
+}
+
 /// The full command or value of a call that asks, for the screen: the
 /// settings keys and their values, the program and its arguments, the
 /// method and its parameters, or the tool and its arguments.
@@ -883,6 +897,10 @@ impl Chat {
             return Ok(());
         };
         let key = session_key(&name, own, args);
+        if own.is_none() && listed(&self.config.allow, &name, args) {
+            crate::log::info(&format!("confirm {name}: in allow, no question"));
+            return Ok(());
+        }
         if key.as_ref().is_some_and(|k| self.allowed.contains(k)) {
             crate::log::info(&format!("confirm {name}: allowed for the session"));
             return Ok(());
@@ -1466,7 +1484,7 @@ mod tests {
             key("x", patch("barge_in_ms"), json!({})).as_deref(),
             Some("settings barge_in_ms")
         );
-        for k in ["llm_url", "confirm", "always_words"] {
+        for k in ["allow", "llm_url", "confirm", "always_words"] {
             assert_eq!(key("x", patch(k), json!({})), None, "{k}");
         }
         let run = json!({"argv": ["/usr/bin/foot", "-e", "sh"]});
@@ -1482,6 +1500,18 @@ mod tests {
             key("call_method", None, open.clone()).as_deref(),
             Some("mc.app.open")
         );
+    }
+
+    #[test]
+    fn allow_lists_programs_and_methods() {
+        let run = json!({"argv": ["/usr/bin/foot", "-e", "sh"]});
+        let open = json!({"client": "mc", "method": "app.open"});
+        let allow = ["foot".to_owned(), "mc.app.open".to_owned()];
+        assert!(listed(&allow, "run_program", &run));
+        assert!(listed(&allow, "call_method", &open));
+        assert!(listed(&allow, "mc.app.open", &json!({})));
+        assert!(!listed(&allow, "mc.scene.save", &json!({})));
+        assert!(!listed(&allow, "run_program", &json!({"argv": ["sh"]})));
     }
 
     #[tokio::test]

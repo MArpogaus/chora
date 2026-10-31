@@ -289,6 +289,12 @@ security setting and `settings.set` of another plugin always ask: for
 them, an always word is a single yes. A question of a sub-agent takes
 an always word as a yes.
 
+The setting `allow` lists the actions that never ask: program names
+(`argv0`), such as `foot`, and methods `CLIENT.METHOD`, such as
+`mc.scene.show`. An entry matches exactly. The agent refuses a glob
+(`*`, `?`, `[`) at load, so `*.settings.set` cannot go in. `allow`
+does not apply to the agent's own settings, which always ask.
+
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`. `detail` is the full command or value, never cut: the
 settings keys and values, the program and its arguments, or the method
@@ -318,7 +324,7 @@ Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
 Shall I set llm url? The full value is on the screen."). The security
-keys are `confirm`, `agent_projects`, `yes_words`, `always_words`, `no_words`,
+keys are `allow`, `confirm`, `agent_projects`, `yes_words`, `always_words`, `no_words`,
 `phrases`, `record_dir`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
 `coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
 `skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
@@ -463,6 +469,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
+| `allow` | `[]` (programs and `CLIENT.METHOD` that never ask; no glob) |
 | `always_words` | `[immer, ja immer, always, yes always]` (a yes for the session; may be empty) |
 | `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |

@@ -214,6 +214,9 @@ pub struct Config {
     pub no_words: Vec<String>,
     pub filler_words: Vec<String>,
     pub confirm: Vec<Confirm>,
+    /// Programs (`argv0`, such as `foot`) and methods (`CLIENT.METHOD`,
+    /// such as `mc.scene.show`) that never ask; no glob.
+    pub allow: Vec<String>,
     pub confirm_timeout_ms: u32,
     pub earcons: bool,
     /// From 0 to 1.
@@ -553,7 +556,8 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, or
 /// where its data goes.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 18] = [
+    const KEYS: [&str; 19] = [
+        "allow",
         "always_words",
         "confirm",
         "agent_projects",
@@ -781,6 +785,7 @@ impl Default for Config {
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
+            allow: Vec::new(),
             confirm_timeout_ms: 15_000,
             earcons: true,
             earcon_volume: 0.3,
@@ -915,6 +920,14 @@ impl Config {
                 }
             }
         }
+        // A glob would allow whole groups, such as `*.settings.set`.
+        if let Some(entry) =
+            (self.allow.iter()).find(|a| a.trim().is_empty() || a.contains(['*', '?', '[']))
+        {
+            return Err(format!(
+                "allow: {entry:?} is no program or CLIENT.METHOD; globs are refused"
+            ));
+        }
         if let Some(rule) = self.confirm.iter().find(|r| r.prompt.trim().is_empty()) {
             return Err(format!("confirm: the rule of {} has no prompt", rule.tool));
         }
@@ -962,6 +975,19 @@ mod tests {
     use chora_kit::settings::parse;
 
     use super::*;
+
+    #[test]
+    fn allow_takes_programs_and_methods_but_no_globs() {
+        let allow = parse::<Config>("allow: [foot, mc.scene.show]")
+            .unwrap()
+            .allow;
+        assert_eq!(allow, ["foot", "mc.scene.show"]);
+        for yaml in ["allow: ['*.settings.set']", "allow: [mc.?]", "allow: ['']"] {
+            let err = parse::<Config>(yaml).unwrap_err();
+            assert!(err.contains("allow"), "{yaml}: {err}");
+        }
+        assert!(security_key("allow") && security_key("always_words"));
+    }
 
     #[test]
     fn the_indicator_is_off_on_or_placed() {
