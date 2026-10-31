@@ -14,6 +14,8 @@ creatd = "creatd"
 dokument = "dokument"
 ein = "ein"
 ende = "ende"
+# A glob in a test of allow_programs.
+fo = "fo"
 habe = "habe"
 ist = "ist"
 # Pixel box names in the icon code (iy), and PNGs split at the s (pn).
