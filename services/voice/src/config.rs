@@ -131,6 +131,8 @@ pub struct Config {
     pub barge_in_vad_threshold: f64,
     pub barge_in_ms: u32,
     pub barge_in_echo_ratio: f64,
+    /// A fixed level floor of the barge-in; 0: 40 % of the level of the
+    /// user's last turns.
     pub barge_in_min_rms: f64,
     /// The echo level over the played level at the start; the agent
     /// learns it while it speaks. The default assumes the echo canceller
@@ -530,7 +532,7 @@ impl Default for Config {
             barge_in_vad_threshold: 0.7,
             barge_in_ms: 250,
             barge_in_echo_ratio: 2.0,
-            barge_in_min_rms: 300.0,
+            barge_in_min_rms: 0.0,
             barge_in_coupling: 0.1,
             word_max_ms: 2000,
             sleep_words: words(&["sleep", "go to sleep", "schlaf", "schlaf jetzt"]),

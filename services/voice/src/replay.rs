@@ -173,7 +173,10 @@ pub fn detect(config: &Config, rec: &Recording) -> Result<Marks, String> {
         match gate.push(&frame, !playing, false) {
             Some(gate::Event::Onset) => start = Some(now - onset_s),
             Some(gate::Event::Noise { .. }) => start = None,
-            Some(gate::Event::End { end_wait_ms, .. }) => {
+            Some(gate::Event::End {
+                end_wait_ms, pcm, ..
+            }) => {
+                barge.heard(&pcm);
                 if let Some(start) = start.take() {
                     found.turns.push((start, now - seconds(end_wait_ms)));
                 }
@@ -330,7 +333,12 @@ pub fn run(config: &Config, dirs: &[&Path]) -> Result<(Vec<String>, Metrics), St
         #[allow(clippy::cast_precision_loss)]
         let played_s = played as f64 / f64::from(RATE);
         let m = Metrics::new(&rec.labels, &found, played_s);
-        lines.push(format!("{}: {m}", dir.display()));
+        let at: Vec<String> = found.barges.iter().map(|t| format!("{t:.2}")).collect();
+        lines.push(format!(
+            "{}: {m} barges_at=[{}]",
+            dir.display(),
+            at.join(" ")
+        ));
         all.add(m);
     }
     lines.push(format!("all: {all}"));
@@ -380,6 +388,58 @@ mod tests {
         assert!((mean_abs_ms(&m.offset_errors) - 300.0).abs() < 1e-6);
         assert!((mean_abs_ms(&m.barge_latencies) - 250.0).abs() < 1e-6);
         assert!((m.false_barges_per_min() - 2.0).abs() < 1e-9);
+    }
+
+    /// The live test of 2026-10-31: the echo canceller leaves nearly no
+    /// echo, and the user's speech has an RMS of about 30. Built from the
+    /// corpus: a minute of quiet mic, the turns of turns-noise at 1/80 of
+    /// their level, then the agent speaks and the user starts the turn
+    /// again over it.
+    #[test]
+    fn quiet_speech_over_a_cancelled_echo_barges_in() {
+        let corpus = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/corpus");
+        let turns = Recording::load(&corpus.join("turns-noise")).unwrap();
+        let played = Recording::load(&corpus.join("echo-barge")).unwrap().played;
+        #[allow(clippy::cast_possible_truncation)]
+        let quiet = |x: i16| (f64::from(x) / 80.0).round() as i16;
+        let mut seed = 7u32;
+        let mut mic: Vec<i16> = (0..60 * RATE)
+            .map(|_| {
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                i16::try_from(seed >> 30).unwrap() - 1
+            })
+            .collect();
+        mic.extend(turns.mic.iter().copied().map(quiet));
+        let rate = f64::from(RATE);
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let at = |s: f64| (s * rate) as usize;
+        let (start, end) = turns.labels.turns[0];
+        let speech = &turns.mic[at(start - 0.2)..at(end + 0.2)];
+        let play = mic.len()..mic.len() + at(2.3);
+        mic.resize(play.end + at(1.5), 0);
+        let barge = play.start + at(0.5);
+        for (m, s) in mic[barge..].iter_mut().zip(speech) {
+            *m += quiet(*s);
+        }
+        let rec = Recording {
+            mic,
+            plays: vec![(play, 0)],
+            played,
+            labels: Marks::default(),
+        };
+        #[allow(clippy::cast_precision_loss)]
+        let barge_s = barge as f64 / rate + 0.2;
+        let found = detect(&Config::default(), &rec).unwrap();
+        let late: Vec<f64> = found.barges.iter().map(|b| b - barge_s).collect();
+        assert!(
+            late.len() == 1 && (BARGE_WINDOW.0..=BARGE_WINDOW.1).contains(&late[0]),
+            "{late:?}"
+        );
+        let fixed = Config {
+            barge_in_min_rms: 300.0,
+            ..Config::default()
+        };
+        assert_eq!(detect(&fixed, &rec).unwrap().barges, Vec::<f64>::new());
     }
 
     /// The CI corpus of tests/data/corpus (written by tests/corpus.py):

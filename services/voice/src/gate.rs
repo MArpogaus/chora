@@ -204,6 +204,24 @@ const LEARN_FROM: f64 = 200.0;
 /// counts as speech.
 const LEARN_STEP: f64 = 1.05;
 const LEARN_STEP_SPEECH: f64 = 1.01;
+/// The lowest coupling: the `PipeWire` echo canceller leaves an echo of
+/// RMS 0.1 for a played level of 4000 (live recording 2026-10-31).
+const MIN_COUPLING: f64 = 0.000_01;
+
+/// The adaptive level floor of the barge-in: this part of the median
+/// level of the last `TURNS` turns, at least `MIN_FLOOR`; `FIRST_FLOOR`
+/// before the first turn.
+const FLOOR_PART: f64 = 0.4;
+const TURNS: usize = 5;
+const MIN_FLOOR: f64 = 5.0;
+const FIRST_FLOOR: f64 = 15.0;
+
+/// The median; none for no values.
+fn median(values: impl IntoIterator<Item = f64>) -> Option<f64> {
+    let mut v: Vec<f64> = values.into_iter().collect();
+    v.sort_by(f64::total_cmp);
+    v.get(v.len() / 2).copied()
+}
 
 /// The barge-in gate (docs/voice.md section 4): speech over the agent's
 /// own sound. The echo level is the played level (the loudest frame of
@@ -217,6 +235,8 @@ pub struct BargeIn {
     /// speaks.
     coupling: f64,
     run: u32,
+    /// The median frame level of the user's last turns.
+    turns: VecDeque<f64>,
 }
 
 impl BargeIn {
@@ -228,14 +248,34 @@ impl BargeIn {
             frames: c.barge_in_ms.div_ceil(FRAME_MS).max(1),
             coupling: c.barge_in_coupling,
             run: 0,
+            turns: VecDeque::new(),
         }
     }
 
-    /// Takes new settings; the learned coupling stays.
+    /// Takes new settings; the learned coupling and levels stay.
     pub fn configure(&mut self, c: &Config) {
-        let coupling = self.coupling;
+        let (coupling, turns) = (self.coupling, std::mem::take(&mut self.turns));
         *self = Self::new(c);
-        self.coupling = coupling;
+        (self.coupling, self.turns) = (coupling, turns);
+    }
+
+    /// Learns the level of the user's speech from the PCM of a turn.
+    pub fn heard(&mut self, pcm: &[i16]) {
+        if let Some(level) = median(pcm.chunks(crate::audio::FRAME).map(crate::pcm::rms)) {
+            self.turns.push_back(level);
+            if self.turns.len() > TURNS {
+                self.turns.pop_front();
+            }
+        }
+    }
+
+    /// The level that speech must pass besides the echo:
+    /// `barge_in_min_rms`, or else adaptive.
+    pub fn floor(&self) -> f64 {
+        if self.min_rms > 0.0 {
+            return self.min_rms;
+        }
+        median(self.turns.iter().copied()).map_or(FIRST_FLOOR, |m| (m * FLOOR_PART).max(MIN_FLOOR))
     }
 
     /// The learned coupling.
@@ -249,7 +289,7 @@ impl BargeIn {
         let rms = crate::pcm::rms(&frame.samples);
         let echo = self.coupling * played;
         let speech =
-            f64::from(frame.prob) > self.threshold && rms > self.min_rms.max(echo * self.ratio);
+            f64::from(frame.prob) > self.threshold && rms > self.floor().max(echo * self.ratio);
         // ponytail: a median tracker of mic over played level. Frames
         // that count as speech raise it only slowly: the user's words
         // until the barge-in, or echo over a coupling that is still too
@@ -260,7 +300,7 @@ impl BargeIn {
                 (true, false) => LEARN_STEP,
                 (true, true) => LEARN_STEP_SPEECH,
             };
-            self.coupling = (self.coupling * step).clamp(0.001, 10.0);
+            self.coupling = (self.coupling * step).clamp(MIN_COUPLING, 10.0);
         }
         self.run = if speech { self.run + 1 } else { 0 };
         self.run == self.frames
@@ -400,18 +440,36 @@ mod tests {
         assert_eq!(speech_ms, 64, "the open frame and one of speech");
     }
 
+    /// The frames of `level` until a barge-in fires, of `n`.
+    fn fires(barge: &mut BargeIn, prob: f32, level: i16, played: f64, n: usize) -> usize {
+        (0..n)
+            .filter(|_| barge.push(&frame(prob, level), played))
+            .count()
+    }
+
     #[test]
-    fn barge_in_needs_loud_speech_for_barge_in_ms() {
-        let mut barge = BargeIn::new(&Config {
+    fn the_barge_in_floor_follows_the_level_of_the_turns() {
+        let b = &mut BargeIn::new(&Config {
             barge_in_ms: 96,
             ..Config::default()
         });
-        let fires = |barge: &mut BargeIn, prob, level, played, n| {
-            (0..n)
-                .filter(|_| barge.push(&frame(prob, level), played))
-                .count()
-        };
-        let b = &mut barge;
+        assert_eq!(fires(b, 0.9, 12, 0.0, 10), 0, "under the first floor");
+        // Quiet turns (RMS 30) lower the floor to 12.
+        for _ in 0..3 {
+            b.heard(&[30; 768 * 4]);
+        }
+        assert!((b.floor() - 12.0).abs() < 1e-9, "{}", b.floor());
+        assert_eq!(fires(b, 0.9, 20, 0.0, 10), 1, "quiet speech");
+        assert_eq!(fires(b, 0.9, 11, 0.0, 10), 0, "under the floor");
+    }
+
+    #[test]
+    fn barge_in_needs_loud_speech_for_barge_in_ms() {
+        let b = &mut BargeIn::new(&Config {
+            barge_in_ms: 96,
+            barge_in_min_rms: 300.0,
+            ..Config::default()
+        });
         assert_eq!(fires(b, 0.9, 200, 0.0, 10), 0, "under barge_in_min_rms");
         assert_eq!(fires(b, 0.9, 1000, 0.0, 10), 1, "once, after 3 frames");
         // Echo that Silero calls speech teaches a coupling of 0.2.

@@ -985,6 +985,7 @@ impl Core {
             }) => {
                 self.turn += 1;
                 self.ended = now;
+                self.barge.heard(&pcm);
                 let length_ms =
                     u32::try_from(pcm.len() * 1000 / crate::pcm::RATE as usize).unwrap_or(u32::MAX);
                 self.pending.push(Pending {

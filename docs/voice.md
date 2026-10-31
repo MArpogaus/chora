@@ -168,8 +168,15 @@ little later than it is written). The coupling starts at
 learned during playback: a median tracker of mic RMS over played level
 (steps of 5 % per frame; only 1 % up on a frame that counts as speech).
 Barge-in needs probability over `barge_in_vad_threshold` and RMS over
-`max(barge_in_min_rms, echo level × barge_in_echo_ratio)` for
-`barge_in_ms`. Its utterance keeps that speech and `preroll_ms` before
+`max(floor, echo level × barge_in_echo_ratio)` for `barge_in_ms`. The
+floor is `barge_in_min_rms` when it is above 0; else it adapts: 40 % of
+the median of the last five turns' median frame RMS, at least 5, and 15
+before the first turn. The learned coupling goes down to 0.00001: the
+PipeWire echo canceller left an echo of RMS 0.1 under played sound of
+RMS 4000, and the user's speech had an RMS of 20-70 (live test
+2026-10-31). Silero hears such quiet speech late or not at all, so the
+VAD (not the gate or the ASR) gets the mic with a gain that lifts its
+recent peak level to 1000: at most 33×, the peak halves in about 30 s. Its utterance keeps that speech and `preroll_ms` before
 it: with 100 ms, the ASR heard "verbrechen" for "Abbrechen" (WP6 live).
 A transcript whose words match more than 80 % of the words spoken in the
 last 3 s is echo.
@@ -320,7 +327,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `silence_ms`, `min_speech_ms`, `max_turn_ms` | `800`, `200`, `30000` |
 | `preroll_ms` | `300` |
 | `barge_in_vad_threshold`, `barge_in_ms` | `0.7`, `250` |
-| `barge_in_echo_ratio`, `barge_in_min_rms` | `2.0`, `300` |
+| `barge_in_echo_ratio`, `barge_in_min_rms` | `2.0`, `0` (adaptive; above 0: a fixed floor) |
 | `barge_in_coupling` | `0.1` (start of the learned echo coupling) |
 | `word_max_ms` | `2000` |
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
