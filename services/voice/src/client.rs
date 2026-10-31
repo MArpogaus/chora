@@ -115,9 +115,10 @@ pub fn start(
     });
 }
 
-/// Reads the settings file again.
+/// Reads the settings file again; a broken file is an error, never the
+/// defaults.
 fn load(path: PathBuf) -> Result<settings::File<Config>, String> {
-    settings::File::load(path, "{}")
+    settings::File::load(path, "{}").and_then(crate::unbroken)
 }
 
 fn session(
