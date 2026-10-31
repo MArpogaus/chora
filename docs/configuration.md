@@ -757,6 +757,37 @@ The name of a pane is a short label for voice: the app id or the title of
 the window, or the scene of a plugin pane, with `-2`, `-3` for a second
 and a third. `tests/gate-construct-k2a.sh` checks the step.
 
+### Window managers in panes
+
+chora runs nested as a Wayland client. So a window manager, or a whole
+flavor, shows in a program pane: the command `chora -- chora-tiling` or
+`chora -- chora-xp --theme flavors/xp/theme` starts a nested chora. It
+opens its own window, and that window becomes a pane. The nested chora
+takes the next free Wayland socket (`wayland-2`, `wayland-3` ...) and its
+own IPC socket next to it. It gives its window manager its own
+`WAYLAND_DISPLAY` and `CHORA_SOCKET`, so the variables of the outer
+session do not reach it. A fly-in gives the nested session the keyboard;
+the programs that its window manager shows get the keys.
+
+```yaml
+radius: 5000
+panes:
+- kind: program
+  command: chora -- chora-tiling
+  at: [-700, 2000]
+  size: [1280, 800]
+- kind: program
+  command: chora -- chora-xp --theme /usr/share/chora/flavors/xp/theme
+  at: [700, 2200]
+  size: [1280, 800]
+```
+
+The nested session translates the keys with the keymap of the outer
+session (#12). The pane takes the title of the window, which is
+`Smithay` for now. `tests/gate-construct-nested.sh` checks that a nested
+tiling and a nested chora-xp become panes, and that typed text reaches a
+terminal inside them.
+
 ### The window list
 
 In the construct, every window is a pane. `Tab`, the key `windows`,
