@@ -459,6 +459,9 @@ impl Chat {
             }
         };
         self.llm = Llm::new(&self.config);
+        if self.config.chora_mcp != old.chora_mcp {
+            self.tools.restart(self.config.chora_mcp.clone(), &self.name);
+        }
         if let Some(coder) = &self.tools.coder {
             coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
         }
@@ -1695,6 +1698,32 @@ mod tests {
         chat.allowed.insert("mc.app.open {}".into());
         chat.configure(config).unwrap();
         assert!(chat.allowed.is_empty());
+    }
+
+    /// A changed `chora_mcp` ends the running tool process: the next
+    /// refresh starts the new command (live 2026-10-31: tools kept
+    /// running on the host after the fix).
+    #[tokio::test]
+    async fn a_new_chora_mcp_restarts_the_tool_process() {
+        let server = fake::llm(Vec::new()).await;
+        let (tools, calls) = tools::tests::fake(0);
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config.clone(), "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        chat.configure(config.clone()).unwrap();
+        assert_eq!(chat.tools.call("echo", &json!({})).await, "{}");
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        let new = Config {
+            chora_mcp: vec!["/nonexistent/choractl".into()],
+            ..config
+        };
+        chat.configure(new).unwrap();
+        let answer = chat.tools.call("echo", &json!({})).await;
+        assert!(answer.as_str().unwrap().contains("not connected"), "{answer}");
     }
 
     /// Review rc3 round 2, 1.4 and 4.1: "always" covers the same full

@@ -159,6 +159,16 @@ impl Tools {
         names.iter().any(|n| n == client) && !self.own_settings(client, method)
     }
 
+    /// A new `chora_mcp`: the running child ends and the next refresh
+    /// starts the new command.
+    pub fn restart(&mut self, cmd: Vec<String>, name: &str) {
+        crate::log::info(&format!("mcp: restart with {cmd:?}"));
+        self.connect = child(cmd, name.to_owned());
+        self.service = None;
+        self.backoff = Duration::ZERO;
+        self.retry_at = Instant::now();
+    }
+
     fn connected(&self) -> Option<&Service> {
         self.service.as_ref().filter(|s| !s.is_transport_closed())
     }
