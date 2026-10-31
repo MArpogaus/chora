@@ -163,6 +163,15 @@ These are no announcement: a question, "let me know", a negation ("I will
 not", "nicht", "kein"), and a German verb of the past or of a state
 ("Ich habe ...", "Ich bin ...", "Ich kann ...", "Ich höre ...").
 
+An answer that ends with `stop`, calls no tool, and whose words do not
+end with `.`, `!`, `?` or `…` (also before a closing quote) is cut: Gufo
+0.27 ended rounds after 3-12 tokens ("I’m setting the", "I’ll apply",
+2026-10-31), and the same request again gave the whole answer. Its last
+words after the last spoken sentence do not play and do not go into the
+history; one more round runs with the same history, once per turn. That
+round does not say again the sentences that already played. The check
+comes before the announcement check.
+
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
 history gets the words that played, cut back to the last whole
@@ -208,12 +217,24 @@ RMS 4000, and the user's speech had an RMS of 20-70 (live test
 VAD (not the gate or the ASR) gets the mic with a gain that lifts its
 recent peak level to 1000: at most 33×, the peak halves in about 30 s. Its utterance keeps that speech and `preroll_ms` before
 it: with 100 ms, the ASR heard "verbrechen" for "Abbrechen" (WP6 live).
+Each utterance, the pre-roll included, goes to the ASR scaled so that
+its peak is at -3 dBFS: at most 40 dB, never down, without clipping.
+In the live test of 2026-10-31 the utterances had a peak of 4-63 (RMS
+1-8) behind the echo canceller. `pipewire/echo-cancel.conf` turns on the
+digital gain control of WebRTC and turns off its noise suppression,
+the likely cause of the digital zero between the words (not yet
+verified on PipeWire).
 A transcript whose words match more than 80 % of the words spoken in the
 last 3 s is echo.
 
 Word matcher (no LLM):
 
-1. Only utterances up to `word_max_ms` and four words count.
+1. Only utterances with up to `word_max_ms` of speech and four words
+   count. The speech is the VAD frames, without `preroll_ms` and the
+   end wait: "Schlaf jetzt." had 1856 ms of speech in an utterance of
+   2848 ms and went to the LLM with the old limit on the length
+   (live 2026-10-31). A command word acts at once, also while a reply
+   thinks, runs tools or speaks.
 2. Normalize: lowercase, no punctuation, `ä→ae`, `ö→oe`, `ü→ue`, `ß→ss`.
 3. Remove `filler_words`.
 4. The rest must equal a phrase. Words of four letters or more may
@@ -399,7 +420,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `barge_in_vad_threshold`, `barge_in_ms` | `0.7`, `250` |
 | `barge_in_echo_ratio`, `barge_in_min_rms` | `2.0`, `0` (adaptive; above 0: a fixed floor) |
 | `barge_in_coupling` | `0.1` (start of the learned echo coupling) |
-| `word_max_ms` | `2000` |
+| `word_max_ms` | `3000` (speech, without pre-roll and end wait) |
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
