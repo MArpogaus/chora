@@ -68,6 +68,14 @@ repos:
     # The German logs of one overnight run, kept as a record.
     exclude: ^tests/battle/reviews/
 
+# .shellcheckrc sets the source path. The session scripts have no suffix.
+- repo: https://github.com/shellcheck-py/shellcheck-py
+  rev: v0.11.0.1
+  hooks:
+  - id: shellcheck
+    types: [file]
+    files: ^(.*\.sh|dist/session/(chora-session|chora-flavor|chora-xwayland|env-chora))$
+
 - repo: https://github.com/rhysd/actionlint
   rev: v1.7.12
   hooks:
