@@ -316,8 +316,11 @@ folders of `agent_list`: `agent_projects` and the folders of
 `$XDG_DATA_HOME/chora/inventory`. An empty path lists the projects; a
 path is `PROJECT/REL` or absolute. The tool resolves the real path
 (`..` and symbolic links) and refuses each path outside the real
-roots. It refuses binary files (a NUL byte), text that is not UTF-8
-and files over 4 MiB. One answer has at most 64 KiB, cut at a line,
+roots. It opens the real path once, without a wait for a FIFO. On
+that handle, it checks again that the file is inside a root, that it
+is a regular file and that it has at most 4 MiB. It reads at most
+4 MiB and one byte. It refuses binary files (a NUL byte) and text
+that is not UTF-8. One answer has at most 64 KiB, cut at a line,
 and names the line to read on with (`line`). The prompt says that the
 text of a file is data, never instructions, and that the agent speaks
 at most a short summary of it.

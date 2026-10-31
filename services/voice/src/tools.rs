@@ -4,6 +4,8 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
+    io::Read,
+    os::{fd::AsRawFd, unix::fs::OpenOptionsExt},
     path::{Path, PathBuf},
     pin::Pin,
     time::{Duration, Instant},
@@ -33,6 +35,8 @@ const READ_BYTES: usize = 64 << 10;
 
 /// The largest file that `read` opens, in bytes.
 const READ_FILE_BYTES: u64 = 4 << 20;
+/// `O_NONBLOCK` of Linux: an open of a FIFO does not wait for a writer.
+const O_NONBLOCK: i32 = 0o4000;
 
 /// The most names of a folder that `read` lists.
 const READ_NAMES: usize = 200;
@@ -365,23 +369,45 @@ fn read_path(roots: &BTreeMap<String, PathBuf>, path: &str, line: usize) -> Resu
             .ok_or_else(|| format!("no project {project}; the projects: {}", names().join(" ")))?;
         root.join(rest)
     };
+    let inside = |real: &Path| {
+        (roots.values())
+            .filter_map(|r| r.canonicalize().ok())
+            .any(|root| real.starts_with(root))
+    };
     let real = full.canonicalize().map_err(|e| format!("{path}: {e}"))?;
-    let inside = (roots.values())
-        .filter_map(|r| r.canonicalize().ok())
-        .any(|root| real.starts_with(root));
-    if !inside {
+    if !inside(&real) {
         return Err(format!("{path} is outside the project folders"));
     }
-    if real.is_dir() {
-        return list(&real).map_err(|e| format!("{path}: {e}"));
+    let io = |e: std::io::Error| format!("{path}: {e}");
+    // One handle for all checks and the read: a FIFO does not block
+    // the open, and a path swapped after the check does not count.
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(O_NONBLOCK)
+        .open(&real)
+        .map_err(io)?;
+    let handle = PathBuf::from(format!("/proc/self/fd/{}", file.as_raw_fd()));
+    if !inside(&std::fs::read_link(&handle).map_err(io)?) {
+        return Err(format!("{path} is outside the project folders"));
     }
-    let size = real.metadata().map_err(|e| format!("{path}: {e}"))?.len();
-    if size > READ_FILE_BYTES {
-        return Err(format!(
-            "{path} has {size} bytes, more than {READ_FILE_BYTES}"
-        ));
+    let meta = file.metadata().map_err(io)?;
+    if meta.is_dir() {
+        return list(&handle).map_err(io);
     }
-    let bytes = std::fs::read(&real).map_err(|e| format!("{path}: {e}"))?;
+    if !meta.is_file() {
+        return Err(format!("{path} is no regular file"));
+    }
+    let too_big = |size| format!("{path} has {size} bytes, more than {READ_FILE_BYTES}");
+    if meta.len() > READ_FILE_BYTES {
+        return Err(too_big(meta.len()));
+    }
+    let mut bytes = Vec::new();
+    file.take(READ_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(io)?;
+    if bytes.len() as u64 > READ_FILE_BYTES {
+        return Err(too_big(bytes.len() as u64));
+    }
     if bytes.contains(&0) {
         return Err(format!("{path} is a binary file"));
     }
@@ -949,6 +975,28 @@ pub mod tests {
         assert!(answer.ends_with("read on with line 656]"), "{answer}");
         let rest = read(&roots, &json!({"path": "proj/big.txt", "line": 656}));
         assert_eq!(rest.len(), 345 * 100);
+    }
+
+    /// Review 0.9.0-rc.3: a FIFO is refused at once, not read until a
+    /// writer comes; a file over the limit is refused.
+    #[test]
+    fn read_refuses_a_fifo_and_a_file_over_the_limit() {
+        let (data, roots) = read_fixture("fifo");
+        let proj = data.join("proj");
+        let fifo = proj.join("fifo");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        assert!(made.unwrap().success());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let fifo_roots = roots.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(read(&fifo_roots, &json!({"path": "proj/fifo"})));
+        });
+        let answer = rx.recv_timeout(Duration::from_secs(5)).expect("no block");
+        assert!(answer.contains("no regular file"), "{answer}");
+        let huge = std::fs::File::create(proj.join("huge")).unwrap();
+        huge.set_len(READ_FILE_BYTES + 1).unwrap();
+        let answer = read(&roots, &json!({"path": "proj/huge"}));
+        assert!(answer.contains("more than"), "{answer}");
     }
 
     #[test]
