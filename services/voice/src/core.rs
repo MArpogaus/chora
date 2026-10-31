@@ -209,6 +209,11 @@ struct Key {
 /// up between sentences, still counts as speaking.
 const SOUND_GAP: Duration = Duration::from_millis(1500);
 
+/// After the question of a confirmation, only the echo of its end: then
+/// the speech gate hears a short yes (live 2026-10-31: a quick "Ja" fell
+/// into `SOUND_GAP`, where only the barge-in gate listens, and was lost).
+const ECHO_TAIL: Duration = Duration::from_millis(250);
+
 /// A question of the reply that is not yet said waits at most this long
 /// besides `confirm_timeout_ms`, for example when its TTS fails.
 const UNSPOKEN: Duration = Duration::from_secs(30);
@@ -1002,10 +1007,16 @@ impl Core {
     }
 
     /// Whether the reply speaks: its sound plays, or ran dry between
-    /// two sentences a moment ago.
+    /// two sentences a moment ago. A question that waits for its answer
+    /// is the last sentence: only its echo tail counts.
     fn sounding(&self, now: Instant) -> bool {
         // ponytail: a fixed gap; the speech could report its queue.
-        self.sound_end.is_some_and(|end| now < end + SOUND_GAP)
+        let gap = if self.confirm.is_some() {
+            ECHO_TAIL
+        } else {
+            SOUND_GAP
+        };
+        self.sound_end.is_some_and(|end| now < end + gap)
     }
 
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
@@ -1666,6 +1677,29 @@ mod tests {
         core.handle(frame(0.0));
         assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
         assert_eq!(core.state(), State::Thinking);
+    }
+
+    /// A short yes (224 ms) right after the sound of the question ends
+    /// answers it: the speech gate hears it, not only the barge-in gate.
+    #[test]
+    fn a_short_yes_right_after_the_question_answers_it() {
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let confirm = chat::Event::Confirm {
+            prompt: "Shall I change the screen?".into(),
+            answer,
+        };
+        core.handle(reply(1, confirm));
+        core.sound_end = Instant::now().checked_sub(Duration::from_millis(300));
+        let mut effects = speak(&mut core, 7);
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects.iter().find_map(|e| match e {
+            Effect::Utterance { turn, .. } => Some(*turn),
+            _ => None,
+        });
+        let turn = turn.expect("the speech gate heard the yes");
+        core.handle(text(turn, false, Ok("Ja.")));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
     }
 
     #[test]
