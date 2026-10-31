@@ -608,7 +608,7 @@ impl Tiling {
         let Some((surface, _)) = self.dragged.take() else {
             return;
         };
-        if self.claimed.is_some_and(|c| inside(c, point)) {
+        if self.wm.output_at(point).is_some() {
             return;
         }
         let given = match self.rt.conn.claimant_at(point) {

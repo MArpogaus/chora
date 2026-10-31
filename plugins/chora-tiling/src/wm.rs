@@ -802,9 +802,20 @@ impl Wm {
         }
     }
 
+    /// The output of tiling under a point in scene coordinates. The claim
+    /// is one box around all outputs and may hold outputs of other window
+    /// managers in between, so a drop tests the outputs themselves.
+    pub fn output_at(&self, [px, py]: [f64; 2]) -> Option<usize> {
+        self.outputs.iter().position(|o| {
+            let [x, y, w, h] = o.full.map(f64::from);
+            (x..x + w).contains(&px) && (y..y + h).contains(&py)
+        })
+    }
+
     /// The claim of the plugin (D55): the box around the work areas of
     /// its outputs. ponytail: one box, so the gaps between outputs of
-    /// another shape count too; a claim per output if that ever matters.
+    /// another shape count too, for new toplevels under the pointer; a
+    /// drop uses [`Wm::output_at`].
     pub fn claim(&self) -> Option<[f64; 4]> {
         let areas = self.outputs.iter().map(|o| o.area);
         let [x0, y0] = [
@@ -1420,5 +1431,16 @@ mod tests {
         assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]));
         wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
         assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
+    }
+
+    /// Tiling on outputs 1 and 3, another window manager on 2: a drop on
+    /// 2 lies in the claim of tiling, but on no output of it (2.3).
+    #[test]
+    fn a_drop_between_the_outputs_of_tiling_is_on_none_of_them() {
+        let mut wm = wm(&[]);
+        wm.set_output("C", [200, 0, 100, 80], [200, 0, 100, 80]);
+        assert_eq!(wm.output_at([150.0, 10.0]), None);
+        assert_eq!(wm.output_at([50.0, 70.0]), Some(0), "the panel too");
+        assert_eq!(wm.output_at([250.0, 10.0]), Some(1));
     }
 }

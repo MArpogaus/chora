@@ -274,7 +274,10 @@ TO [--surface ID]` calls `window.give` of the owner of the window, by
 default of the focused one. A window dropped outside the claim of its
 window manager goes to the owner of the smallest other claim that holds
 the drop point, as for a new toplevel; `chora_kit::give` finds it in
-the claims of `scene.query`.
+the claims of `scene.query`. chora-tiling claims one box around all its
+outputs, so it tests a drop against the outputs themselves: a drop on an
+output of another window manager between two tiling outputs hands the
+window over.
 
 ## Selectors
 
