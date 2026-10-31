@@ -47,6 +47,12 @@ impl Conn {
         })
     }
 
+    /// The client name of the plugin.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Sends a request and waits for its response.
     ///
     /// # Errors

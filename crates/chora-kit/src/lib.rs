@@ -10,6 +10,7 @@
 )]
 pub mod conn;
 pub mod desktop_entry;
+pub mod give;
 pub mod icons;
 pub mod lamp;
 pub mod runtime;
