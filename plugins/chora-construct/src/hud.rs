@@ -92,6 +92,9 @@ pub const LINGER: Duration = Duration::from_secs(2);
 const NOTICE: Duration = Duration::from_secs(4);
 /// The most bytes of a text node (api.md).
 const CHUNK: usize = 4096;
+/// The most of a confirm detail the screen shows.
+const DETAIL_LINES: usize = 400;
+const DETAIL_BYTES: usize = 64 * 1024;
 /// The most characters of a spoken sentence: two lines of 480.
 const SAY_CHARS: usize = 100;
 
@@ -267,6 +270,25 @@ pub fn chunks(detail: &str) -> Vec<&str> {
     }
     out.push(rest);
     out
+}
+
+/// The part of a detail the screen shows: at most `DETAIL_LINES` lines
+/// and `DETAIL_BYTES` bytes, with an ellipsis when it is cut. The event
+/// keeps the whole text.
+#[must_use]
+pub fn shown_detail(detail: &str) -> String {
+    let mut end = detail.len();
+    if let Some((at, _)) = detail.match_indices('\n').nth(DETAIL_LINES - 1) {
+        end = at;
+    }
+    end = end.min(DETAIL_BYTES);
+    while !detail.is_char_boundary(end) {
+        end -= 1;
+    }
+    if end == detail.len() {
+        return detail.into();
+    }
+    format!("{}\n\u{2026}", detail[..end].trim_end())
 }
 
 /// What the builders need of the settings.
@@ -1256,7 +1278,8 @@ impl Voice {
         ));
         y += look.size(Role::Text, &ask.prompt, Some(wrap))[1] + u;
         if !ask.detail.is_empty() {
-            for (k, piece) in chunks(&ask.detail).into_iter().enumerate() {
+            let detail = shown_detail(&ask.detail);
+            for (k, piece) in chunks(&detail).into_iter().enumerate() {
                 let id = format!("construct-ask-detail-{k}");
                 body.push(text(&id, Role::Data, piece, look.colors.text, y));
                 y += look.size(Role::Data, piece, Some(wrap))[1];
@@ -1761,5 +1784,15 @@ mod tests {
         assert!(glows < 1.5 * 1024.0 * 1024.0, "{glows}");
         assert!(sum < 2.75 * 1024.0 * 1024.0, "{sum}");
         assert!(sum > 500_000.0, "the question counts: {sum}");
+    }
+
+    #[test]
+    fn a_long_detail_is_cut_on_screen() {
+        assert_eq!(shown_detail("a\nb"), "a\nb");
+        let lines = shown_detail(&"x\n".repeat(4000));
+        assert_eq!(lines.lines().count(), DETAIL_LINES + 1);
+        assert!(lines.ends_with('\u{2026}'));
+        let bytes = shown_detail(&"\u{e9}".repeat(100_000));
+        assert!(bytes.len() <= DETAIL_BYTES + 4 && bytes.ends_with('\u{2026}'));
     }
 }
