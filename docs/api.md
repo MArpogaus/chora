@@ -598,7 +598,9 @@ windows. When a client asks for a move during a press, for example
 `xdg_toplevel.move` from its title bar, the owner of the window gets the
 press, the moves and the release as `input.button` and `input.moved`
 with the binding `move`, and the window gets a leave. Without a grab of
-`move`, the press stays with the client.
+`move`, the press stays with the client. The serial of the move must be
+the one of the press that still holds the pointer on that window; a move
+with an old serial does nothing.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs (see

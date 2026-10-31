@@ -648,11 +648,25 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
 /// button is down on the window: an owner of the window that grabbed
 /// `move` gets the press, the moves and the release as the events of a
 /// button grab with the binding `move`, and the window gets a leave.
-pub fn start_move(state: &mut State, surface: &str) {
+///
+/// The press of `serial` must still hold the pointer, on `toplevel` or one
+/// of its subsurfaces: a stale serial of a window in the background does
+/// not cut off a drag in another window.
+pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial: Serial) {
     let pointer = state.pointer();
-    let Some(button) = pointer.grab_start_data().map(|g| g.button) else {
+    if !pointer.has_grab(serial) {
+        return;
+    }
+    let Some(start) = pointer.grab_start_data() else {
         return;
     };
+    let on_it = start
+        .focus
+        .is_some_and(|(focus, _)| crate::handlers::root_surface(&focus) == *toplevel);
+    if !on_it {
+        return;
+    }
+    let button = start.button;
     if state.button_grab.is_some() || state.lock.is_some() {
         return;
     }
@@ -1400,6 +1414,37 @@ mod tests {
         click(&mut core, false);
         let pressed = named(&events(&mut wm, &mut core), "pointer.pressed");
         assert_eq!(pressed[0]["node"], "s1");
+    }
+
+    /// A client that kept the serial of an old press cannot cut off a drag
+    /// in another window with a move (4.7).
+    #[test]
+    fn a_move_with_a_stale_serial_starts_no_drag() {
+        let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        apply(&mut xp, &mut core, &json!([{"remove": {"id": "menu"}}]));
+        let mut other = Wayland::connect(&mut core);
+        let second = other.toplevel(&mut core, "two");
+        apply(
+            &mut wm,
+            &mut core,
+            &json!([{"attach": {"surface": "s2", "parent": "root"}},
+                {"update": {"id": "s2", "props": {"transform": {"translate": [300, 300]}}}}]),
+        );
+        other.attach(&mut core, &second, (100, 100));
+        wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        move_to(&mut core, 50.0, 50.0);
+        click(&mut core, true);
+        let stale = last_press(&core, "s1");
+        click(&mut core, false);
+        // The user holds the button on the other window.
+        move_to(&mut core, 350.0, 350.0);
+        click(&mut core, true);
+        wayland.request_move(&mut core, &window, stale);
+        move_to(&mut core, 360.0, 370.0);
+        click(&mut core, false);
+        assert_eq!(buttons(&mut wm, &mut core), Vec::<String>::new());
     }
 
     #[test]
