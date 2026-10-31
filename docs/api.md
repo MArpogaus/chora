@@ -63,7 +63,7 @@ This table is the one list of node properties.
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
-| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
+| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
 | `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a `size` and a `clip`; the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 | `line_height`, `weight`, `style`, `letter_spacing`, `features` | text | `line_height`: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; `weight`: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; `style`: `normal` or `italic`, slanted when the family has no italic; `letter_spacing`: extra space after each character in em, from -1 to 1, also after the last one; `features`: at most 32 OpenType features by their tag of four ASCII characters and their value, for example `{"smcp": 1, "onum": 1}` for small caps and old-style figures; a feature that the font lacks changes nothing; an update of `features` replaces all |
 
@@ -73,8 +73,11 @@ the client for a new size.
 A shader node draws its shader over its size, as a layer. Its children
 render into `uniform sampler2D tex`, and the shader gets the same inputs as
 an effect. A node texture shows the node without its transform, at its size
-or, for a surface, at the size of the window. A node with opacity 0 hides
-in the scene and still shows in a node texture. Inside a node texture,
+or, for a surface, at the size of the window. The node may belong to another
+client, so a plugin can show a node tree of another plugin. A node with
+opacity 0 hides in the scene and still shows in a node texture. A node
+texture of a node with `visible: false` stays empty; the visibility of its
+ancestors does not count. Inside a node texture,
 shader nodes get no node textures of their own, so that two shader nodes
 that read each other do not recurse.
 
