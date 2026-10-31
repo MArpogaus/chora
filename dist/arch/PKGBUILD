@@ -8,8 +8,9 @@ pkgdesc='Wayland compositor without policy, programmable by plugins and agents'
 arch=(x86_64)
 url='https://github.com/MArpogaus/chora'
 # The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
-# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md).
-license=('GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0')
+# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md),
+# chora-voice the MIT model of Silero VAD.
+license=('GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND MIT AND OFL-1.1 AND CC-BY-SA-4.0')
 depends=(gcc-libs glibc libdisplay-info libdrm libinput libxkbcommon mesa seatd systemd-libs wayland)
 makedepends=(cargo pkgconf)
 optdepends=(
@@ -29,6 +30,8 @@ optdepends=(
   'inter-font: the labels of chora-mc (experimental)'
   'tex-gyre-fonts: the text of chora-mc, TeX Gyre Pagella'
   'python: the collectors of chora-mc'
+  'pipewire: the microphone and the speaker of chora-voice (pw-record, pw-play)'
+  'podman: the Gufo model servers of chora-voice'
 )
 backup=(etc/xdg/uwsm/env-chora etc/xdg/xdg-desktop-portal-wlr/chora)
 options=(!lto !debug)
@@ -41,7 +44,7 @@ build() {
 package() {
   cd "$CHORA_SOURCE"
   local bin
-  for bin in chora choractl chora-tiling chora-xp chora-mc; do
+  for bin in chora choractl chora-tiling chora-xp chora-mc chora-voice; do
     install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
@@ -55,7 +58,19 @@ package() {
     "$pkgdir/etc/xdg/xdg-desktop-portal-wlr/chora"
   install -Dm644 dist/session/chora@.service dist/session/chora-shutdown.target \
     -t "$pkgdir/usr/lib/systemd/user/"
-  install -Dm644 LICENSE LICENSES/MIT-Smithay.txt -t "$pkgdir/usr/share/licenses/chora/"
+  # The unit of the checkout starts ~/.cargo/bin/chora-voice.
+  sed 's|^ExecStart=%h/\.cargo/bin/chora-voice$|ExecStart=/usr/bin/chora-voice|' \
+    services/voice/systemd/chora-voice.service >"$srcdir/chora-voice.service"
+  grep -qx 'ExecStart=/usr/bin/chora-voice' "$srcdir/chora-voice.service"
+  install -Dm644 "$srcdir/chora-voice.service" -t "$pkgdir/usr/lib/systemd/user/"
+  # The Gufo model servers and the echo canceller, as examples
+  # (services/voice/README.md).
+  install -Dm644 services/voice/systemd/*.container services/voice/systemd/*.network \
+    -t "$pkgdir/usr/share/chora/voice/quadlets/"
+  install -Dm644 services/voice/pipewire/echo-cancel.conf -t "$pkgdir/usr/share/chora/voice/pipewire/"
+  install -Dm644 services/voice/README.md -t "$pkgdir/usr/share/doc/chora/voice/"
+  install -Dm644 LICENSE LICENSES/MIT-Smithay.txt LICENSES/MIT-silero-vad.txt \
+    -t "$pkgdir/usr/share/licenses/chora/"
   install -Dm644 README.md -t "$pkgdir/usr/share/doc/chora/"
   install -Dm644 flavors/tiling/*.service flavors/tiling/*.target \
     -t "$pkgdir/usr/share/chora/flavors/tiling/"

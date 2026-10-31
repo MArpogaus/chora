@@ -47,6 +47,16 @@ assets = [
   { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644" },
   { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true },
   { source = "../../LICENSES/MIT-Smithay.txt", dest = "/usr/share/licenses/chora/MIT-Smithay.txt", mode = "644" },
+  { source = "target/release/chora-voice", dest = "/usr/bin/chora-voice", mode = "755" },
+  { source = "../../LICENSES/MIT-silero-vad.txt", dest = "/usr/share/licenses/chora/MIT-silero-vad.txt", mode = "644" },
+  # dist/build-rpm.sh writes the unit with ExecStart=/usr/bin/chora-voice.
+  { source = "../../target/dist/chora-voice.service", dest = "/usr/lib/systemd/user/chora-voice.service", mode = "644" },
+  # The Gufo model servers and the echo canceller, as examples
+  # (services/voice/README.md).
+  { source = "../../services/voice/systemd/*.container", dest = "/usr/share/chora/voice/quadlets/", mode = "644" },
+  { source = "../../services/voice/systemd/*.network", dest = "/usr/share/chora/voice/quadlets/", mode = "644" },
+  { source = "../../services/voice/pipewire/echo-cancel.conf", dest = "/usr/share/chora/voice/pipewire/echo-cancel.conf", mode = "644" },
+  { source = "../../services/voice/README.md", dest = "/usr/share/doc/chora/voice/README.md", mode = "644", doc = true },
   { source = "../../dist/session/chora.desktop", dest = "/usr/share/wayland-sessions/chora.desktop", mode = "644" },
   { source = "../../dist/session/chora-xp.desktop", dest = "/usr/share/wayland-sessions/chora-xp.desktop", mode = "644" },
   { source = "../../dist/session/chora-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-uwsm.desktop", mode = "644" },
@@ -74,12 +84,14 @@ assets = [
 ]
 auto-req = "auto"
 # The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
-# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md).
-license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0"
+# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md),
+# chora-voice the MIT model of Silero VAD.
+license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND MIT AND OFL-1.1 AND CC-BY-SA-4.0"
 # uwsm for the sessions it manages (D50; not in Fedora 44 yet), the tools
 # of the tiling flavor (D51), X11 programs, and the portals for screen
-# sharing (D37) and the rest, and the fonts of chora-mc.
-recommends = { uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
+# sharing (D37) and the rest, the fonts of chora-mc, and pw-record,
+# pw-play and the Gufo quadlets of chora-voice.
+recommends = { pipewire-utils = "*", podman = "*", uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
 summary = "Wayland compositor without policy, programmable by plugins and agents"
