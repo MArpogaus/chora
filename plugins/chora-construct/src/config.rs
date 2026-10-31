@@ -33,7 +33,28 @@ pub enum Action {
     Close,
     /// Opens or closes the window list (F29).
     Windows,
+    /// Shows or hides the help panel with the bindings.
+    Help,
 }
+
+/// The actions in the order of the help panel, with what each does.
+const HELP: [(Action, &str); 15] = [
+    (Action::Forward, "walk forward"),
+    (Action::Back, "walk back"),
+    (Action::Left, "step left"),
+    (Action::Right, "step right"),
+    (Action::TurnLeft, "turn left"),
+    (Action::TurnRight, "turn right"),
+    (Action::LookUp, "look up"),
+    (Action::LookDown, "look down"),
+    (Action::Home, "back to the start"),
+    (Action::FlyIn, "fly into the pane ahead"),
+    (Action::Terminal, "start the terminal"),
+    (Action::Launcher, "start the launcher"),
+    (Action::Close, "close the pane ahead"),
+    (Action::Windows, "open the window list"),
+    (Action::Help, "show or hide this help"),
+];
 
 /// Light or dark.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -234,6 +255,31 @@ impl Settings for Config {
 }
 
 impl Config {
+    /// The rows of the help panel: the keys of each action, the fly-out
+    /// binding, and the drag and the wheel with the modifier.
+    #[must_use]
+    pub fn help(&self) -> Vec<(String, String)> {
+        let mut rows: Vec<(String, String)> = (HELP.iter())
+            .filter_map(|(action, what)| {
+                let keys: Vec<&str> = (self.keys.iter())
+                    .filter(|(_, a)| *a == action)
+                    .map(|(k, _)| k.as_str())
+                    .collect();
+                (!keys.is_empty()).then(|| (keys.join(" / "), (*what).to_owned()))
+            })
+            .collect();
+        let m = &self.modifier;
+        rows.extend([
+            (self.fly_out.clone(), "fly out of a pane".to_owned()),
+            (
+                format!("{m}+drag"),
+                "move a pane, or give it away".to_owned(),
+            ),
+            (format!("{m}+wheel"), "resize a pane".to_owned()),
+        ]);
+        rows
+    }
+
     fn check_style(&self) -> Result<(), String> {
         let style = &self.style;
         let colors = [&style.themes.light, &style.themes.dark];
@@ -293,5 +339,25 @@ mod tests {
         let mut out = config;
         out.style.accent = [1.2, 0.5, 0.5];
         assert!(out.check().is_err());
+    }
+
+    /// The help lists the bindings of the settings, also changed ones.
+    #[test]
+    fn the_help_follows_the_settings() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let rows = config.help();
+        let row = |rows: &[(String, String)], what: &str| {
+            (rows.iter())
+                .find(|(_, w)| w == what)
+                .map(|(k, _)| k.clone())
+        };
+        assert_eq!(row(&rows, "walk forward").as_deref(), Some("Up / w"));
+        assert_eq!(row(&rows, "show or hide this help").as_deref(), Some("F1"));
+        assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Super+wheel"));
+        config.modifier = "Alt".into();
+        config.keys.remove("h");
+        let rows = config.help();
+        assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Alt+wheel"));
+        assert_eq!(row(&rows, "back to the start"), None);
     }
 }

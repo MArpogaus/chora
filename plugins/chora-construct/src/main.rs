@@ -386,6 +386,8 @@ struct Construct {
     voice: Voice,
     /// The sizes of the texts over the space, as the core measures them.
     metrics: Metrics,
+    /// Whether the help panel shows.
+    help: bool,
     claim: Claim,
     glass: Glass,
     /// The last point of the pointer over the space that the core told:
@@ -458,6 +460,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         focus_before: None,
         voice: Voice::default(),
         metrics: Metrics::default(),
+        help: false,
         claim: Claim { due: true },
         glass: Glass::default(),
         pointer: None,
@@ -787,6 +790,16 @@ impl Plugin for Construct {
                 let Give { surface, to } = runtime::params(params)?;
                 self.give(&surface, &to).map_err(rejected)
             }
+            "help.toggle" => {
+                if !self.active {
+                    return Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "no construct shows; construct.load first",
+                    ));
+                }
+                self.toggle_help().map_err(rejected)?;
+                Ok(json!({"shown": self.help}))
+            }
             "pane.fly" => {
                 let Named { name } = runtime::params(params)?;
                 let i = self.pane_named(&name)?;
@@ -884,6 +897,7 @@ impl Construct {
                 Some(Action::Launcher) => self.start_launcher(),
                 Some(Action::Close) => return self.close_ahead(),
                 Some(Action::Windows) => return self.open_list(),
+                Some(Action::Help) => return self.toggle_help(),
                 Some(&action) => self.act(action),
                 None => {}
             },
@@ -1621,7 +1635,11 @@ impl Construct {
                 return self.glide_to(home, FLY_MS, None);
             }
             // input() handles them.
-            Action::Terminal | Action::Launcher | Action::Close | Action::Windows => return,
+            Action::Terminal
+            | Action::Launcher
+            | Action::Close
+            | Action::Windows
+            | Action::Help => return,
             Action::FlyIn => {
                 if let Some(i) = self.pane_ahead() {
                     self.fly_in(i);
@@ -2639,7 +2657,38 @@ impl Construct {
         if self.list.is_some() {
             self.draw_list(true)?;
         }
+        self.draw_help(false)
+    }
+
+    /// Shows or hides the help panel.
+    fn toggle_help(&mut self) -> Result<(), ClientError> {
+        self.help = !self.help;
+        if self.help {
+            return self.draw_help(true);
+        }
+        self.rt
+            .conn
+            .try_apply(vec![hud::fade(hud::HELP, 0.0, hud::FADE_OUT)])?;
         Ok(())
+    }
+
+    /// The help panel anew, with the bindings of the settings, while it
+    /// shows.
+    fn draw_help(&mut self, fresh: bool) -> Result<(), ClientError> {
+        if !self.help || !self.active {
+            return Ok(());
+        }
+        let rows = self.settings.value.help();
+        let out = [self.lens.w, self.lens.h];
+        let mut commands = vec![Command::Remove {
+            id: hud::HELP.into(),
+            to: None,
+        }];
+        if self.rt.conn.query(&format!("id:{}", hud::HELP))?.is_empty() {
+            commands.clear();
+        }
+        commands.extend(self.fitted(|s| s.styled().help(&rows, out, fresh))?);
+        self.rt.conn.apply(commands)
     }
 
     /// Asks the voice agent to hide its dot while the HUD shows its
@@ -2886,6 +2935,13 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["name"],
         ),
         give::method(),
+        runtime::method(
+            "help.toggle",
+            "Shows or hides the help panel with the key bindings of the construct; \
+             answers whether it shows.",
+            json!({}),
+            &[],
+        ),
         runtime::method(
             "pane.fly",
             "Flies into a pane by its name, until it covers the output at 1:1.",

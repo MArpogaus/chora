@@ -675,7 +675,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close` or `windows` |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help` |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -766,6 +766,7 @@ windows of the other flavor.
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
+| `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
 | `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |
@@ -804,6 +805,14 @@ session (#12). The pane takes the title of the window, which is
 `Smithay` for now. `tests/gate-construct-nested.sh` checks that a nested
 tiling and a nested chora-xp become panes, and that typed text reaches a
 terminal inside them.
+
+### The help panel
+
+`F1`, the key `help`, shows a glass panel in the middle of the output
+with the bindings of the settings: the keys of each action, the fly-out
+binding, and the drag and the wheel with the `modifier`. A change of the
+settings, for example `modifier: Alt`, shows at once. `F1` again hides
+it. The voice agent shows it with the method `help.toggle`.
 
 ### The window list
 

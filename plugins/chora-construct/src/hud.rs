@@ -40,6 +40,11 @@ pub const LIST_LABEL: &str = "construct-list-label";
 /// The rows of the list, made anew on each change.
 pub const LIST_ROWS_GROUP: &str = "construct-list-rows";
 pub const ASK: &str = "construct-ask";
+/// The help panel with the bindings.
+pub const HELP: &str = "construct-help";
+const HELP_GLASS: &str = "construct-help-glass";
+const HELP_GLOW: &str = "construct-help-glow";
+const HELP_WIDTH: f64 = 480.0;
 /// The glass of a question takes the wheel that scrolls it.
 pub const ASK_GLASS: &str = "construct-ask-glass";
 pub const ASK_GLOW: &str = "construct-ask-glow";
@@ -627,6 +632,90 @@ impl Look<'_> {
             commands.push(fade(LIST, 1.0, FADE_IN));
             commands.extend(self.glow_update(LIST_GLOW, size, [0.0; 4], 0.0, true));
         }
+        commands
+    }
+
+    /// The help panel in the middle of an output of `out`, made anew: the
+    /// label `KEYS`, then a row per binding, its keys in data and what
+    /// it does, each on one line within the panel. `fresh` fades it in.
+    #[must_use]
+    pub fn help(&self, rows: &[(String, String)], out: [f64; 2], fresh: bool) -> Vec<Command> {
+        let (u, pad) = (self.style.unit, self.pad());
+        let w = HELP_WIDTH.min(out[0] - 8.0 * u).max(16.0 * u);
+        let keys_w = ((w - 2.0 * pad) * 0.4).floor();
+        let what_w = w - 2.0 * pad - keys_w - 2.0 * u;
+        let text = |id: String, role, text: &str, color, x: f64, y: f64| {
+            create(
+                &id,
+                NodeKind::Text,
+                HELP,
+                PropsUpdate {
+                    transform: at(x, y),
+                    ..self.text_props(role, text, color)
+                },
+            )
+        };
+        let mut body = vec![text(
+            format!("{HELP}-label"),
+            Role::Label,
+            "KEYS",
+            self.colors.muted,
+            pad,
+            pad,
+        )];
+        let mut y = pad + 16.0 + u;
+        for (k, (keys, what)) in rows.iter().enumerate() {
+            let keys = self.one_line(Role::Data, keys, keys_w);
+            let what = self.one_line(Role::Text, what, what_w);
+            let id = format!("{HELP}-row-{k}");
+            body.push(text(
+                format!("{id}-keys"),
+                Role::Data,
+                &keys,
+                self.colors.text,
+                pad,
+                y + 4.0,
+            ));
+            let x = pad + keys_w + 2.0 * u;
+            body.push(text(
+                format!("{id}-what"),
+                Role::Text,
+                &what,
+                self.colors.muted,
+                x,
+                y,
+            ));
+            y += LIST_LINE;
+        }
+        let h = (y + pad).ceil();
+        let mut commands = vec![
+            create(
+                HELP,
+                NodeKind::Group,
+                crate::NAME,
+                PropsUpdate {
+                    transform: at(
+                        ((out[0] - w) / 2.0).round(),
+                        ((out[1] - h) / 2.0).round().max(0.0),
+                    ),
+                    input: Some(InputMode::Pass),
+                    opacity: Some(if fresh { 0.0 } else { 1.0 }),
+                    ..PropsUpdate::default()
+                },
+            ),
+            self.glass(HELP_GLASS, HELP, None),
+            update(
+                HELP_GLASS,
+                PropsUpdate {
+                    size: Some([w, h]),
+                    ..PropsUpdate::default()
+                },
+            ),
+        ];
+        commands.extend(self.glow(HELP_GLOW, HELP));
+        commands.extend(body);
+        commands.push(fade(HELP, 1.0, FADE_IN));
+        commands.extend(self.glow_update(HELP_GLOW, [w, h], [0.0; 4], 0.0, true));
         commands
     }
 
