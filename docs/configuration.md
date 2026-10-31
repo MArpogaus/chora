@@ -650,6 +650,9 @@ pane nearest the middle of the view to close, as a close button does, so
 a program can ask about unsaved work first; the pane goes when the
 window closes. `tests/gate-construct-keys.sh` checks the three keys.
 
+The elements over the space, such as the window list, follow the
+[construct style guide](construct-style.md).
+
 The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 `chora-construct --print-config` prints the default with comments:
 
