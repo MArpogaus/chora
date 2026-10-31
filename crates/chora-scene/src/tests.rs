@@ -1434,6 +1434,32 @@ fn the_meta_data_of_a_node_has_limits() {
     assert!(matches!(error(&mut scene, create), SceneError::Invalid(_)));
 }
 
+/// Only window managers receive windows (D55): a `remove` with `to`
+/// needs a claim of `to`.
+#[test]
+fn a_remove_to_a_client_without_a_claim_is_refused() {
+    let mut scene = scene_with_surface();
+    scene.apply("a", &[attach("s1", ROOT)]).unwrap();
+    let remove = || Command::Remove {
+        id: "s1".into(),
+        to: Some("b".into()),
+    };
+    let error = scene.apply("a", &[remove()]).unwrap_err().error;
+    assert!(matches!(error, SceneError::Invalid(m) if m.contains("no claim")));
+    let claim = Command::Create {
+        id: "b".into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 10.0, 10.0])),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("b", &[claim]).unwrap();
+    scene.apply("a", &[remove()]).unwrap();
+    assert_eq!(scene.node("s1").and_then(|n| n.to.as_deref()), Some("b"));
+}
+
 #[test]
 fn the_smallest_claim_under_a_point_wins() {
     let mut scene = Scene::default();

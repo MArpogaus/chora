@@ -148,7 +148,7 @@ path.
 | `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. A confined client socket may send this request too. |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
-| `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
+| `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection and hold a claim (D55). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with `node.requested` to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -259,7 +259,10 @@ connection of the client closes, the reservation ends with
 `surface.detached`. With `resume`, it ends at the end of the grace time.
 When a window manager removes its last claim, its reservations end too. A
 `remove` with `to` hands a surface to another window manager in the same
-way.
+way; `to` must hold a claim, because only window managers receive
+windows. A reservation that its window manager does not attach within 5
+seconds ends too, and all clients get `surface.detached`, so that no
+window stays hidden.
 
 Every window manager of the repository exports `window.give` with `to`
 and an optional `surface`, by default its focused window. It hands the
@@ -302,7 +305,7 @@ by default; a timeout exits 1 with the reason on stderr.
 |-------|------|
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). `pid` is the process of the client as the socket reports it, a hint that a pid namespace can hide; `token` is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit. An activation in the same batch of requests counts too, as in foot. The core sends the event at the end of that batch. |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
-| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
+| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, or does not attach the surface within 5 seconds, the surface is free again, and all clients get `surface.detached`. With `resume`, a disconnect frees it at the end of the grace time. |
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |

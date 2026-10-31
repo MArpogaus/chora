@@ -115,8 +115,10 @@ Window manager A hands surface `s1` to window manager B:
 
 1. A owns `s1`, for example at the end of a drag out of its area. A knows
    B by a fixed name or by a `meta` tag on the root group of B.
-2. A sends `remove: {id: s1, to: B}`. `to` must name a connected client.
-   As at every `remove`, the surface becomes detached and loses the
+2. A sends `remove: {id: s1, to: B}`. `to` must name a connected client
+   that holds a claim, because only window managers receive windows, and
+   a reservation that B does not attach within 5 seconds ends as in
+   item 5. As at every `remove`, the surface becomes detached and loses the
    keyboard focus.
 3. The core reserves `s1` for B and sends `surface.detached`, which
    carries the surface alone. An `attach` of another client fails.

@@ -142,6 +142,11 @@ pub enum Suppressed {
 /// run.
 const POINTER_REFRESH: std::time::Duration = std::time::Duration::from_millis(8);
 
+/// How long a surface stays reserved for a window manager that does not
+/// attach it (D55). Then the reservation ends and every client hears
+/// `surface.detached`, so that no window stays hidden.
+pub const RESERVATION: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
 pub struct State {
@@ -217,6 +222,9 @@ pub struct State {
     /// Toplevels after their first commit whose `surface.created` waits
     /// for the end of the batch of requests, with their window manager.
     pub unannounced: Vec<(String, Option<String>)>,
+    /// The deadline of each reservation of a surface for a window manager
+    /// (D55); see [`RESERVATION`].
+    reserved_until: HashMap<String, Instant>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -353,6 +361,7 @@ impl State {
             activation_state: XdgActivationState::new::<Self>(&dh),
             early_requests: HashMap::new(),
             unannounced: Vec::new(),
+            reserved_until: HashMap::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             pending_activations: Vec::new(),
@@ -507,6 +516,31 @@ impl State {
         })
     }
 
+    /// Starts the deadline of a reservation of a surface, see
+    /// [`RESERVATION`].
+    pub fn reserved(&mut self, surface: &str) {
+        let deadline = self.time.now() + RESERVATION;
+        self.reserved_until.insert(surface.to_owned(), deadline);
+        let _ = self.expire_at(deadline);
+    }
+
+    /// Ends the reservations whose deadline passed and that no window
+    /// manager attached: every client hears `surface.detached`.
+    pub fn expire_reservations(&mut self, now: Instant) {
+        let due: Vec<String> = (self.reserved_until.iter())
+            .filter(|(_, deadline)| **deadline <= now)
+            .map(|(surface, _)| surface.clone())
+            .collect();
+        for surface in due {
+            self.reserved_until.remove(&surface);
+            let waits = (self.scene.node(&surface)).is_some_and(|n| n.to.is_some());
+            if waits {
+                self.scene.reserve(&surface, None);
+                self.emit(&Event::SurfaceDetached { surface });
+            }
+        }
+    }
+
     /// Sends an event to all subscribed clients.
     pub fn emit(&mut self, event: &Event) {
         let scene = &self.scene;
@@ -535,6 +569,7 @@ impl State {
                     if self.focused_surface() == Some(surface.as_str()) {
                         self.focus(None);
                     }
+                    self.reserved(&surface);
                     let scene = &self.scene;
                     let event = Event::SurfaceDetached { surface };
                     (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));

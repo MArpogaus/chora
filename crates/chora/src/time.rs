@@ -37,7 +37,8 @@ impl Time {
 impl crate::state::State {
     /// Ends what passed its deadline: connections without `hello`, grace
     /// times, method calls without an answer, transactions whose clients
-    /// did not commit in time, and unused activation tokens of no client.
+    /// did not commit in time, reservations that no window manager
+    /// attached, and unused activation tokens of no client.
     pub fn expire(&mut self) {
         let now = self.time.now();
         for conn in self.ipc.silent(now) {
@@ -54,6 +55,7 @@ impl crate::state::State {
             self.end_call(call, Err(rejected("the method gave no answer in time")));
         }
         self.complete_transactions();
+        self.expire_reservations(now);
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
     }
 

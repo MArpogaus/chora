@@ -2753,11 +2753,34 @@ mod tests {
             "hello",
             json!({"name": "agent", "keep_nodes": true}),
         );
+        let group = json!({"commands": [{"create": {"id": "agent", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
+        agent.ok(&mut core, "scene.apply", group);
         let mut other = core.named("other");
         other.ok(&mut core, "events.subscribe", json!({"events": []}));
         wm.ok(&mut core, "scene.apply", remove_s1_to("agent"));
         drop(agent);
         core.dispatch();
+        let names = other.event_names(&mut core);
+        assert!(names.contains(&"surface.detached".to_owned()), "{names:?}");
+        other.ok(&mut core, "scene.apply", attach_s1("root"));
+    }
+
+    /// A window manager that never attaches a surface given to it does not
+    /// hide it for good: the reservation ends after a while (D55).
+    #[test]
+    fn a_reservation_that_nobody_attaches_ends() {
+        let mut core = Core::new();
+        core.state.time.stop();
+        let (mut wm, _wayland) = resumable(&mut core);
+        let _wm2 = claimer(&mut core, "wm2", [0.0, 0.0, 10.0, 10.0]);
+        let mut other = core.named("other");
+        other.ok(&mut core, "events.subscribe", json!({"events": []}));
+        wm.ok(&mut core, "scene.apply", remove_s1_to("wm2"));
+        core.advance(crate::state::RESERVATION / 2);
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("wm2"));
+        core.advance(crate::state::RESERVATION);
+        assert_eq!(reserved_for(&core, "s1"), None);
         let names = other.event_names(&mut core);
         assert!(names.contains(&"surface.detached".to_owned()), "{names:?}");
         other.ok(&mut core, "scene.apply", attach_s1("root"));
@@ -2771,13 +2794,13 @@ mod tests {
         wm.ok(&mut core, "scene.apply", focus);
         let mut b = core.named("b");
         b.ok(&mut core, "events.subscribe", json!({"events": []}));
-        let group =
-            json!({"commands": [{"create": {"id": "bg", "kind": "group", "parent": "root"}}]});
+        let group = json!({"commands": [{"create": {"id": "bg", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
         b.ok(&mut core, "scene.apply", group);
-        let mut other = core.named("other");
+        let mut other = claimer(&mut core, "other", [0.0, 0.0, 20.0, 20.0]);
         other.ok(&mut core, "events.subscribe", json!({"events": []}));
         let (_, message) = wm.fails(&mut core, "scene.apply", remove_s1_to("nobody"));
-        assert!(message.contains("no connection"), "{message}");
+        assert!(message.contains("no claim"), "{message}");
         wm.ok(&mut core, "scene.apply", remove_s1_to("b"));
         let heard = |events: Vec<Value>| {
             events.iter().any(|e| {

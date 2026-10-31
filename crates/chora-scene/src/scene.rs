@@ -418,6 +418,12 @@ impl Scene {
             }
             Command::Remove { id, to: Some(to) } => {
                 self.owned_surface(owner, id)?;
+                // Only window managers receive windows (D55).
+                if !self.holds_claim(to) {
+                    return Err(SceneError::Invalid(format!(
+                        "{to:?} holds no claim; only a window manager receives a window"
+                    )));
+                }
                 self.remove_subtree(id);
                 self.reserve(id, Some(to));
                 effects.push(Effect::Reserved(id.clone(), to.clone()));
