@@ -39,6 +39,9 @@ pub const TOOLS: [&str; 5] = [
 /// The lines of the transcript that mc gets, and their length.
 const LOG_LINES: usize = 20;
 const LOG_CHARS: usize = 300;
+/// The most bytes of the words of the agent between two tool calls; the
+/// rest is cut.
+const MESSAGE_BYTES: usize = 16 * 1024;
 
 /// What an agent tells the core.
 #[derive(Debug)]
@@ -939,7 +942,13 @@ impl Actor {
         match update["sessionUpdate"].as_str() {
             Some("agent_message_chunk") => {
                 if let Some(text) = update["content"]["text"].as_str() {
-                    session.message.push_str(text);
+                    let room = MESSAGE_BYTES.saturating_sub(session.message.len());
+                    let end = (text.char_indices().map(|(i, _)| i))
+                        .chain([text.len()])
+                        .take_while(|&i| i <= room)
+                        .last()
+                        .unwrap_or(0);
+                    session.message.push_str(&text[..end]);
                 }
             }
             Some("tool_call") => {
@@ -1111,6 +1120,26 @@ mod tests {
             outcome(&options[..2], false)["outcome"]["outcome"],
             "cancelled"
         );
+    }
+
+    /// The words of an agent that talks on and on are cut.
+    #[test]
+    fn a_long_message_is_cut() {
+        let (tx, _rx) = mpsc::channel();
+        let agents = Agents::new(&Config::default(), std::env::temp_dir(), tx);
+        let actor = Actor {
+            agents,
+            name: "a".into(),
+            id: 1,
+            permission: Duration::from_secs(1),
+        };
+        let mut session = Session::default();
+        let chunk = json!({"sessionUpdate": "agent_message_chunk",
+            "content": {"type": "text", "text": "ä".repeat(1000)}});
+        for _ in 0..20 {
+            actor.update(&mut session, &chunk);
+        }
+        assert_eq!(session.message.len(), MESSAGE_BYTES);
     }
 
     /// A yes allows always only when the question said so.
