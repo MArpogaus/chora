@@ -107,11 +107,13 @@ are booleans, so `no` stays the string `no`.
 ### A broken settings file
 
 The plugins `chora-tiling`, `chora-xp`, `chora-mc` and `chora-construct`
-read their settings file (D62) as strict YAML too. If the file does not
-parse or check, for example because an update removed a key, the plugin
-does not stop. It starts with its default settings, writes the error to
-its log and does not change the file. `chora-mc` also shows the error as
-a critical notification.
+and the service `chora-voice` read their settings file (D62) as strict
+YAML too. If the file does not parse or check, for example because an
+update removed a key, the plugin does not stop. It starts with its
+default settings, writes the error to its log and does not change the
+file. `chora-mc` also shows the error as a critical notification.
+`chora-voice` does not start on a broken file. It writes the error to
+its log.
 
 While the file is broken, `settings.set` and each other save of the
 settings fail with an error that names the file. Thus no save writes the
@@ -193,7 +195,7 @@ default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file holds the
 settings of D62: `settings.set` changes them at once and writes the file
 again, without its comments (see [API](api.md#plugin-methods)). The
-plugin writes only the options that differ from the defaults. Edits by
+plugin writes only the settings that differ from the defaults. Edits by
 hand apply with `settings.reload` or `MOD+Ctrl+r`, or at the next start
 of the plugin. The
 default file lists every option. A file can leave options out, and they
@@ -322,11 +324,11 @@ All scenes share the `page` of the settings, so that the text block
 and the head stay in place from scene to scene. A scene may set its own
 `grid`, and `chapter.layout`, also `none` for a scene without a head.
 Columns of a grid leave room for the margin of the column to their
-right. A panel may
-set a `rule`, a color of the theme for a hairline left of it (none at
-the left edge of the text block and none beside an empty panel), an
-`opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
-context that steps back (`plugins/chora-mc/blur.frag`).
+right. A panel may set a `rule`, a color of the theme for a hairline left
+of it. There is no rule at the left edge of the text block and none
+beside an empty panel. For context that steps back, a panel may also set
+an `opacity` from 0 to 1 and a `blur` radius in pixels up to 16
+(`plugins/chora-mc/blur.frag`).
 
 The methods marked privileged start programs: a caller on a client
 socket needs `methods.privileged` besides `methods.call`.
@@ -428,10 +430,10 @@ with `settings.reload`:
   output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `order`: the scenes in their order (default `agenda`, `morning`,
-  `agents`, `mission`, `terminal`). The number of a scene is its place:
-  first the scenes of the list, then the others, such as new scenes and
-  those of `app.open`, in the order they appear, so that the numbers
-  before them stay. `Super+Right` and `Super+Left` follow the order. A
+  `agents`, `mission`, `terminal`, `overview`). The number of a scene is
+  its place. First come the scenes of the list. The others follow in the
+  order they appear, such as new scenes and those of `app.open`, so that
+  the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
@@ -653,10 +655,11 @@ is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
 after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
-Ctrl with a drag on a pane moves it: sideways along its face, and away
-or nearer as the pointer goes up or down. Ctrl with the wheel over a pane
-resizes it. A window of the flavor gets the new size, so that it stays at
-1:1; other panes stretch. The key is the setting `modifier`.
+The key of the setting `modifier` with a drag on a pane moves the pane.
+It moves sideways along its face, and away or nearer as the pointer goes
+up or down. The same key with the wheel over a pane resizes it. A window
+of the flavor gets the new size, so that it stays at 1:1. Other panes
+stretch.
 
 ### Constructs
 
