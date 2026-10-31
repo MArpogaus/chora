@@ -761,10 +761,7 @@ impl Mc {
             ..PropsUpdate::default()
         };
         let mut probes = vec![create(PROBE, NodeKind::Group, REGIONS, hidden)];
-        let mut updates = vec![Command::Remove {
-            id: PROBE.into(),
-            to: None,
-        }];
+        let mut updates = Vec::new();
         for (region, (region_items, _)) in items {
             let width = boxes.regions[region][2];
             for item in region_items {
@@ -781,9 +778,11 @@ impl Mc {
         }
         self.apply(probes)?;
         let moves = self.arrange(items, boxes, true);
-        if moves.is_err() {
-            self.apply(updates.drain(..1).collect())?;
-        }
+        // In a transaction of its own: the caller's may be refused.
+        self.apply(vec![Command::Remove {
+            id: PROBE.into(),
+            to: None,
+        }])?;
         updates.extend(moves?);
         Ok(updates)
     }
@@ -1330,6 +1329,18 @@ mod tests {
         // A side that does not leave a column of text still hides.
         let (mc, _) = crate::testing::mc("tiny", [700, 700]);
         assert_eq!(mc.side_widths("agenda"), [0.0, 0.0]);
+    }
+
+    /// The probe of an update whose transaction the caller drops, as
+    /// the core refuses it, must not stay: every later update failed with
+    /// Exists.
+    #[test]
+    fn the_probe_goes_also_when_the_update_is_dropped() {
+        let (mut mc, model) = crate::testing::mc("probe", [1920, 1080]);
+        mc.show("agenda").unwrap();
+        let dropped = mc.regions().unwrap();
+        assert!(!dropped.is_empty(), "an update of the same regions");
+        assert!(!crate::testing::has(&model, PROBE));
     }
 
     #[test]
