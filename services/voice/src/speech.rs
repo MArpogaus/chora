@@ -8,7 +8,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
     audio::Speaker,
-    chat::{Chat, Event, Report},
+    chat::{self, Chat, Event, Report},
     config::Config,
     core::Reply,
     pcm::RATE,
@@ -31,11 +31,18 @@ pub struct Splitter {
 }
 
 impl Splitter {
-    /// Adds words; answers the sentences that they end.
+    /// Adds words; answers the sentences that they end. A note of the
+    /// history that the LLM copied is never spoken: words that may start
+    /// one wait.
     pub fn push(&mut self, words: &str) -> Vec<String> {
         self.buffer.push_str(words);
+        self.buffer = chat::strip_notes(&self.buffer);
         let mut out = Vec::new();
-        while let Some(end) = self.boundary() {
+        loop {
+            let safe = self.buffer.len() - chat::note_start(&self.buffer);
+            let Some(end) = self.boundary(&self.buffer[..safe]) else {
+                break;
+            };
             let rest = self.buffer.split_off(end);
             let sentence = std::mem::replace(&mut self.buffer, rest);
             self.give(&sentence, &mut out);
@@ -46,7 +53,7 @@ impl Splitter {
     /// The rest, when the words end.
     pub fn finish(&mut self) -> Option<String> {
         let mut out = Vec::new();
-        let rest = std::mem::take(&mut self.buffer);
+        let rest = chat::strip_notes(&std::mem::take(&mut self.buffer));
         self.give(&rest, &mut out);
         out.pop()
     }
@@ -63,8 +70,7 @@ impl Splitter {
 
     /// The end of the first sentence in the buffer: after `.!?:;` and a
     /// space, or at a line break.
-    fn boundary(&self) -> Option<usize> {
-        let text = &self.buffer;
+    fn boundary(&self, text: &str) -> Option<usize> {
         let mut chars = text.char_indices().peekable();
         while let Some((i, c)) = chars.next() {
             if c == '\n' {

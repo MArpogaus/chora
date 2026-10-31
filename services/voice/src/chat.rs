@@ -108,8 +108,59 @@ const AGENTS: &str = "# Agents\n\n\
 /// its base64 text.
 const PICTURE_CHARS: usize = 4000;
 
-/// The note in the history for a turn that the user stopped.
+/// The result of a tool call that the user stopped.
 pub const CANCELLED: &str = "cancelled by the user; result unknown";
+
+/// The note after an answer that the user stopped. It is a message of
+/// the user of its own: in the answer, the LLM copied it into its next
+/// answer.
+pub const STOPPED: &str = "[Note of the agent: the user stopped the answer before this note; \
+     the result of what it started is unknown. Do not repeat this note.]";
+
+/// The notes that the LLM may copy; the agent never speaks or keeps them.
+/// The note of the answer comes before `CANCELLED`, which it holds.
+const NOTES: [&str; 3] = [
+    STOPPED,
+    "(cancelled by the user; result unknown)",
+    CANCELLED,
+];
+
+/// The played words up to the last whole sentence, else without the
+/// last word, which may be cut: the LLM copied answers that end mid-word
+/// and then ended its own there.
+fn complete(played: &str) -> &str {
+    let ends = |c: char| ".!?".contains(c);
+    if played.ends_with(ends) {
+        return played;
+    }
+    let sentence = played
+        .char_indices()
+        .rev()
+        .find(|&(i, c)| ends(c) && played[i + 1..].starts_with(char::is_whitespace));
+    if let Some((i, _)) = sentence {
+        return &played[..=i];
+    }
+    played
+        .rsplit_once(char::is_whitespace)
+        .map_or("", |(words, _)| {
+            words.trim_end_matches([',', ';', ':', '-', '–', ' '])
+        })
+}
+
+/// `text` without the notes of `NOTES`.
+pub fn strip_notes(text: &str) -> String {
+    NOTES.iter().fold(text.to_owned(), |t, n| t.replace(n, ""))
+}
+
+/// The length of the end of `text` that may begin a note: the words that
+/// stream must wait for the rest.
+pub fn note_start(text: &str) -> usize {
+    NOTES
+        .iter()
+        .flat_map(|n| (1..n.len()).filter(|&k| n.is_char_boundary(k) && text.ends_with(&n[..k])))
+        .max()
+        .unwrap_or(0)
+}
 
 /// What a turn tells the agent while it runs.
 #[derive(Debug)]
@@ -459,25 +510,30 @@ impl Chat {
     }
 
     /// Closes the last turn, which the user stopped: the words that
-    /// played and the note `CANCELLED`, also as the result of each tool
-    /// call in flight. A turn whose words were all there but did not all
-    /// play keeps only the played words.
+    /// played up to the last whole sentence, then the note `STOPPED` as a message of the user, or
+    /// `CANCELLED` as the result of each tool call in flight. A turn whose
+    /// words were all there but did not all play keeps only the played
+    /// words.
     pub fn cancelled(&mut self, played: &str) {
-        let played = played.trim();
-        let note = if played.is_empty() {
-            format!("({CANCELLED})")
-        } else {
-            format!("{played} ({CANCELLED})")
-        };
+        let played = complete(played.trim());
+        let note = json!({"role": "user", "content": STOPPED});
         let calls = match (self.open.take(), self.answer.take()) {
             (Some(calls), _) if !calls.is_empty() => calls,
+            (None, Some(i)) if played.is_empty() => {
+                self.history[i] = note;
+                return;
+            }
             (None, Some(i)) => {
-                self.history[i]["content"] = note.into();
+                self.history[i]["content"] = played.into();
+                self.history.insert(i + 1, note);
                 return;
             }
             _ => {
-                self.history
-                    .push(json!({"role": "assistant", "content": note}));
+                if !played.is_empty() {
+                    self.history
+                        .push(json!({"role": "assistant", "content": played}));
+                }
+                self.history.push(note);
                 return;
             }
         };
@@ -512,10 +568,11 @@ impl Chat {
         out: &impl Fn(Event),
     ) -> &'static str {
         crate::log::info(&format!("llm: {} {:?}", round.finish, round.text));
-        if !round.text.is_empty() {
+        let text = strip_notes(&round.text);
+        if !text.trim().is_empty() {
             self.answer = Some(self.history.len());
             self.history
-                .push(json!({"role": "assistant", "content": round.text}));
+                .push(json!({"role": "assistant", "content": text.trim()}));
         }
         if !last {
             return "answered";
@@ -541,7 +598,7 @@ impl Chat {
         let results = self.calls(&round.calls, out).await;
         self.open = Some(Vec::new());
         self.history.push(json!({"role": "assistant",
-            "content": round.text, "tool_calls": calls}));
+            "content": strip_notes(&round.text).trim(), "tool_calls": calls}));
         self.history.extend(results);
         u32::try_from(calls.len()).unwrap_or(u32::MAX)
     }
@@ -1001,7 +1058,8 @@ mod tests {
         let script = vec![
             Reply::Tool("sleep", "{}"),
             Reply::Silent,
-            Reply::Text("Gut."),
+            // The LLM copied the old note of the answer.
+            Reply::Text("Gut. Ich warte (cancelled by the user; result unknown)"),
         ];
         let (mut chat, server) = chat(script, Config::default()).await;
         let stop = Duration::from_millis(150);
@@ -1009,8 +1067,10 @@ mod tests {
             let cut = tokio::time::timeout(stop, turn(&mut chat, text, true)).await;
             assert!(cut.is_err(), "the turn hangs in the tool, then in the LLM");
         }
-        chat.cancelled("Ich warte");
-        turn(&mut chat, "Und?", true).await;
+        chat.cancelled("Ich warte. Auf de");
+        let (report, events) = turn(&mut chat, "Und?", true).await;
+        assert_eq!(events, ["thinking", "say Gut.", "say Ich warte"], "no note");
+        assert_eq!(report.reply, "Gut. Ich warte");
         let seen = server.seen.lock().unwrap();
         let messages = &seen.last().unwrap()["messages"].as_array().unwrap()[1..];
         let roles: Vec<_> = messages
@@ -1019,14 +1079,36 @@ mod tests {
             .collect();
         assert_eq!(
             roles,
-            ["user", "assistant", "tool", "user", "assistant", "user"]
+            [
+                "user",
+                "assistant",
+                "tool",
+                "user",
+                "assistant",
+                "user",
+                "user"
+            ]
         );
         assert_eq!(messages[1]["tool_calls"][0]["function"]["name"], "sleep");
         assert_eq!(messages[2]["content"], CANCELLED);
         assert_eq!(
-            messages[4]["content"],
-            "Ich warte (cancelled by the user; result unknown)"
+            messages[4]["content"], "Ich warte.",
+            "the whole played sentences"
         );
+        assert_eq!(messages[5]["content"], STOPPED);
+        assert_eq!(chat.history.last().unwrap()["content"], "Gut. Ich warte");
+    }
+
+    #[test]
+    fn a_stopped_answer_keeps_only_whole_sentences_or_words() {
+        assert_eq!(complete("Gut. Die Blö"), "Gut.");
+        assert_eq!(
+            complete("Ich mache die Blöcke kräftiger:"),
+            "Ich mache die Blöcke"
+        );
+        assert_eq!(complete("I'm not stuck, I"), "I'm not stuck");
+        assert_eq!(complete("Fertig!"), "Fertig!");
+        assert_eq!(complete("Aktual"), "");
     }
 
     #[tokio::test]

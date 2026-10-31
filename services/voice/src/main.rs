@@ -838,10 +838,8 @@ mod tests {
             messages,
             [
                 ("user", "Wie spät ist es?"),
-                (
-                    "assistant",
-                    "Es ist zehn Uhr. (cancelled by the user; result unknown)"
-                ),
+                ("assistant", "Es ist zehn Uhr."),
+                ("user", chat::STOPPED),
                 ("user", "Und morgen?"),
             ]
         );

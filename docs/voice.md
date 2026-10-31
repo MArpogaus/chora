@@ -158,10 +158,14 @@ with a note to call it or to say that it will not.
 
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
-history gets the words that played and the note "cancelled by the user;
-result unknown" (for a call in flight, as its tool result; for a reply
-whose words were all there but did not all play, in place of its
-words), and playback stops. A cancel word does not
+history gets the words that played, cut back to the last whole
+sentence (else without the last word, which may be cut), and a note:
+for a call in flight "cancelled by the user; result unknown" as its tool
+result, else `chat::STOPPED` as a message of the user of its own. The
+LLM copied a note at the end of its own answer into the next answer, and
+it copied answers that end mid-word. The agent never speaks or keeps
+these notes: they go from the stream of the LLM and from the stored
+answer. Playback stops. A cancel word does not
 stop a coding task. A code cancel word ("Coding-Aufgabe abbrechen")
 stops it. Coding results wait for `listening` or `working`, and also go
 into the history.
