@@ -66,12 +66,45 @@ pub enum Theme {
 }
 
 /// The colors of both themes, RGBA from 0 to 1, by name. Each theme has
-/// a `background`.
+/// a `background`. A color that a theme of a file lacks comes from the
+/// theme of the same name in `mc.yaml`.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, from = "Colors")]
 pub struct Themes {
     pub light: BTreeMap<String, [f64; 4]>,
     pub dark: BTreeMap<String, [f64; 4]>,
+}
+
+/// The colors of both themes as a file has them.
+#[derive(Clone, Default, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Colors {
+    light: BTreeMap<String, [f64; 4]>,
+    dark: BTreeMap<String, [f64; 4]>,
+}
+
+impl From<Colors> for Themes {
+    fn from(colors: Colors) -> Self {
+        #[derive(Deserialize)]
+        struct File {
+            themes: Colors,
+        }
+        static DEFAULT_COLORS: std::sync::OnceLock<Colors> = std::sync::OnceLock::new();
+        let default = DEFAULT_COLORS.get_or_init(|| {
+            (serde_saphyr::from_str::<File>(DEFAULT))
+                .map_or_else(|_| Colors::default(), |f| f.themes)
+        });
+        let fill = |mut own: BTreeMap<String, [f64; 4]>, all: &BTreeMap<String, [f64; 4]>| {
+            for (name, rgba) in all {
+                own.entry(name.clone()).or_insert(*rgba);
+            }
+            own
+        };
+        Self {
+            light: fill(colors.light, &default.light),
+            dark: fill(colors.dark, &default.dark),
+        }
+    }
 }
 
 /// A color of a theme by its name, or RGBA from 0 to 1.
@@ -481,6 +514,15 @@ mod tests {
 
     #[test]
     fn both_themes_fill_every_color_of_the_terminal() {
+        // A file whose themes lack magenta, and cyan in the dark one.
+        let text = DEFAULT.replace("    magenta: [0.52, 0.25, 0.50, 1.0]\n", "");
+        let text = text.replace("    cyan: [0.52, 0.76, 0.76, 1.0]\n", "");
+        assert!(!text.contains("magenta: [0.52") && !text.contains("cyan: [0.52"));
+        let config = parse::<Config>(&text).unwrap();
+        let shell = region::command(&config.contents["shell"].command, &config.themes.light);
+        assert!(!shell.contains('{'), "{shell}");
+        assert_eq!(config.themes.dark["cyan"], [0.52, 0.76, 0.76, 1.0]);
+
         let config = parse::<Config>(DEFAULT).unwrap();
         for colors in [&config.themes.light, &config.themes.dark] {
             let command = region::command(&config.contents["shell"].command, colors);
