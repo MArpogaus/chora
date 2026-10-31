@@ -1882,12 +1882,14 @@ impl Mc {
             return Ok(());
         };
         self.starting.insert(token, Target::Scene(name.into()));
+        self.pids.insert(name.into(), pid);
         self.launched.push((name.into(), pid));
         self.apply(vec![wait()])
     }
 
     /// An app of a scene that ended without a window leaves its scene
-    /// empty: the scene before it shows again (W11).
+    /// empty: the scene before it shows again (W11), and the scene of
+    /// `app.open` goes.
     fn look_at_launched(&mut self) -> Result<(), ClientError> {
         let windows = &self.windows;
         self.launched
@@ -1901,14 +1903,15 @@ impl Mc {
             // The next show of the scene starts the app again.
             let target = Target::Scene(name.clone());
             self.starting.retain(|_, t| *t != target);
-            if self.current.as_deref() != Some(&name) || self.windows.contains_key(&name) {
+            if self.windows.contains_key(&name) {
                 continue;
             }
-            let back = (self.previous.clone())
-                .filter(|p| *p != name && self.scenes.contains_key(p))
-                .unwrap_or_else(|| self.settings.value.default_scene.clone());
-            if let Err(err) = self.show(&back) {
-                eprintln!("chora-mc: {back}: {}", err.message);
+            // The scene of app.open goes with its app, also of one such as
+            // ls that never had a window.
+            if self.transient.contains(&name) {
+                self.remove_scene(&name)?;
+            } else {
+                self.leave(&name);
             }
         }
         if self.launched.is_empty() {
@@ -1936,18 +1939,11 @@ impl Mc {
         }
         self.add_scene(&name, Scene::app(command));
         self.transient.insert(name.clone());
-        let group = create(
-            &scene_id(&name),
-            NodeKind::Group,
-            NAME,
-            PropsUpdate {
-                visible: Some(false),
-                opacity: Some(0.0),
-                ..PropsUpdate::default()
-            },
-        );
-        self.apply(vec![group, regions_on_top()])
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        // The group with the head, which the build of a scene has too.
+        let mut commands = self.scene_commands(&name);
+        commands.push(regions_on_top());
+        self.apply(commands).map_err(rejected)?;
+        self.renumber().map_err(rejected)?;
         Ok(name)
     }
 
@@ -1996,11 +1992,16 @@ impl Mc {
                 name
             }
         };
+        let new = !commands.is_empty();
         commands.extend(self.place_window(&name, surface, true));
         self.apply(commands)?;
         self.windows.insert(name.clone(), surface.into());
         if let Err(err) = self.show(&name) {
             eprintln!("chora-mc: {name}: {}", err.message);
+        }
+        if new {
+            // The overview lists the new scene.
+            self.renumber()?;
         }
         Ok(())
     }
@@ -2072,8 +2073,9 @@ impl Mc {
         self.adopt(surface, None, None)
     }
 
-    /// A window closed: a scene that only held it goes, and the default
-    /// scene shows instead of a scene without its window.
+    /// A window closed: the scene before shows instead of a scene without
+    /// its window, and the scene of `app.open` or of a window that no
+    /// scene started goes once its app ended.
     fn forget(&mut self, surface: &str) -> Result<(), ClientError> {
         if self.fitting.remove(surface).is_some() {
             return Ok(());
@@ -2104,22 +2106,17 @@ impl Mc {
             return Ok(());
         };
         self.windows.remove(&name);
-        if self.current.as_deref() == Some(&name) {
-            let default = self.settings.value.default_scene.clone();
-            if let Err(err) = self.show(&default) {
-                eprintln!("chora-mc: {default}: {}", err.message);
-            }
+        self.leave(&name);
+        if !self.transient.contains(&name) {
+            return Ok(());
         }
-        if self.scenes[&name].app.is_none() && self.scenes[&name].panels.is_empty() {
-            self.scenes.remove(&name);
-            self.apply(vec![Command::Remove {
-                id: scene_id(&name),
-                to: None,
-            }])?;
-            // The scenes after it move up.
-            self.renumber()?;
+        // The scene goes when the app ended too; until then it waits.
+        let pid = self.pids.get(&name).copied().flatten();
+        if pid.is_some_and(alive) {
+            self.launched.push((name, pid));
+            return self.apply(vec![wait()]);
         }
-        Ok(())
+        self.remove_scene(&name)
     }
 
     /// Keeps the lines of the text contents that stay, and takes those of

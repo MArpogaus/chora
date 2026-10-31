@@ -108,6 +108,40 @@ impl Mc {
         self.render()
     }
 
+    /// Shows the scene before `name`, or the default scene, when `name`
+    /// shows.
+    pub fn leave(&mut self, name: &str) {
+        if self.current.as_deref() != Some(name) {
+            return;
+        }
+        let back = (self.previous.clone())
+            .filter(|p| p != name && self.scenes.contains_key(p))
+            .unwrap_or_else(|| self.settings.value.default_scene.clone());
+        if let Err(err) = self.show(&back) {
+            eprintln!("chora-mc: {back}: {}", err.message);
+        }
+    }
+
+    /// Removes a scene whose app ended, with its nodes; the scenes after
+    /// it move up.
+    pub fn remove_scene(&mut self, name: &str) -> Result<(), ClientError> {
+        self.leave(name);
+        self.scenes.remove(name);
+        self.appeared.retain(|n| n != name);
+        self.transient.remove(name);
+        self.pids.remove(name);
+        self.scroll.remove(name);
+        self.windows.remove(name);
+        if self.previous.as_deref() == Some(name) {
+            self.previous = None;
+        }
+        self.apply(vec![Command::Remove {
+            id: crate::scene_id(name),
+            to: None,
+        }])?;
+        self.renumber()
+    }
+
     /// A click on a line of the overview shows that scene.
     #[allow(
         clippy::cast_possible_truncation,
@@ -350,5 +384,29 @@ mod tests {
         let line = mc.ty("body", None).line;
         mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line]);
         assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// The scene of app.open has its head at once, with the next number;
+    /// it goes when its app ended: ls without a window, foot after its
+    /// window closed. A scene of a file stays.
+    #[test]
+    fn an_app_scene_has_a_head_and_goes_with_its_app() {
+        let (mut mc, model) = testing::mc("apps", [1920, 1080]);
+        let ls = mc.app_scene("ls -l").unwrap();
+        let number = testing::text(&model, &chapter_id(&ls, "number"));
+        assert_eq!(number.as_deref(), Some("7"));
+        assert!(testing::has(&model, &chapter_id(&ls, "title")));
+        mc.launched.push((ls.clone(), None));
+        mc.look_at_launched().unwrap();
+        assert!(!mc.scenes.contains_key(&ls) && !testing::has(&model, &scene_id(&ls)));
+        assert!(!mc.order().contains(&ls));
+        let foot = mc.app_scene("foot").unwrap();
+        assert_eq!(mc.number(&foot), "7", "the place of ls is free again");
+        mc.windows.insert(foot.clone(), "s1".into());
+        mc.forget("s1").unwrap();
+        assert!(!mc.scenes.contains_key(&foot) && !testing::has(&model, &scene_id(&foot)));
+        mc.windows.insert("terminal".into(), "s2".into());
+        mc.forget("s2").unwrap();
+        assert!(mc.scenes.contains_key("terminal"));
     }
 }

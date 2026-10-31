@@ -333,7 +333,7 @@ clients use `agent.set` and `hud.say`.
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
-| `app.open` | privileged. `command`: a shell command that starts in a scene of its own |
+| `app.open` | privileged. `command`: a shell command that starts in a scene of its own, with a head and the next number. The scene goes when the program has no window left and has ended, so `ls` leaves no scene behind |
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
@@ -354,7 +354,7 @@ again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
 
 A window that no scene started, for example from a launcher, gets a scene
-of its own. The settings of D62 are in `chora/chora-mc.yaml`; edits by
+of its own without a head, which goes with the window. The settings of D62 are in `chora/chora-mc.yaml`; edits by
 hand apply with `settings.reload`:
 
 - `theme` (`light` or `dark`) and the colors of each theme by name, at
