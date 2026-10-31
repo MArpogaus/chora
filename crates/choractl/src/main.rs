@@ -1,5 +1,13 @@
 //! Command line client for the chora IPC socket.
 
+// Some modules still unwrap; they are cleaned in the follow-up package.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "choractl answers on stdout and reports errors on stderr"
+)]
+
 #[cfg(test)]
 mod docs;
 mod events;
