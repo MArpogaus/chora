@@ -484,8 +484,12 @@ impl Core {
             self.sub_confirm = None;
         }
         // A question of the reply without an answer in time: the dropped
-        // answer tells the LLM so.
-        if self.confirm.is_some() && Instant::now() >= self.confirm_until {
+        // answer tells the LLM so. Speech that started in time still
+        // answers while it records or waits for its text.
+        let until = self.confirm_until;
+        let in_time = (self.gate.pcm().is_some() && self.onset <= until)
+            || self.pending.iter().any(|p| p.onset <= until);
+        if self.confirm.is_some() && Instant::now() >= until && !in_time {
             crate::log::info("confirm: no answer in time");
             self.confirm = None;
             self.doing = State::Thinking;
@@ -1857,6 +1861,25 @@ mod tests {
         });
         let turn = turn.expect("the speech gate heard the yes");
         core.handle(text(turn, false, Ok("Ja.")));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// Review rc3 round 2, 1.5: a yes that starts before the deadline
+    /// answers, although its text comes after it.
+    #[test]
+    fn a_yes_that_starts_in_time_answers_after_the_deadline() {
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.sound_end = Instant::now().checked_sub(Duration::from_millis(300));
+        let mut effects = speak(&mut core, 7);
+        core.confirm_until = Instant::now();
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects.iter().find_map(|e| match e {
+            Effect::Utterance { turn, .. } => Some(*turn),
+            _ => None,
+        });
+        assert!(!effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))));
+        core.handle(text(turn.expect("an utterance"), false, Ok("Ja.")));
         assert_eq!(rx.try_recv(), Ok(Some(true)));
     }
 
