@@ -1557,6 +1557,36 @@ mod tests {
         assert_eq!(core.state(), State::Listening);
     }
 
+    /// After a barge-in the utterance goes on until the user's sentence
+    /// ends: a pause shorter than `silence_ms` makes no second turn, and
+    /// the utterance starts with the barge-in speech and its pre-roll.
+    #[test]
+    fn a_barge_in_records_the_whole_sentence() {
+        let mut core = Core::new(Config {
+            barge_in_ms: 96,
+            ..Config::default()
+        });
+        say(&mut core, "hallo");
+        core.handle(sound(1, 5000));
+        (0..20).for_each(|_| drop(core.handle(frame(0.0))));
+        let mut effects: Vec<_> = (0..11).flat_map(|_| core.handle(loud())).collect();
+        effects.extend(quiet(&mut core, 15));
+        effects.extend((0..10).flat_map(|_| core.handle(loud())));
+        effects.extend(quiet(&mut core, 26));
+        let lengths: Vec<usize> = (effects.iter())
+            .filter_map(|e| match e {
+                Effect::Utterance { pcm, .. } => Some(pcm.len() / 768),
+                _ => None,
+            })
+            .collect();
+        // 11 + 15 + 10 + 25 frames after the barge-in frame, and up to
+        // `preroll_ms` (10 frames) before.
+        let [frames] = lengths[..] else {
+            panic!("one utterance: {lengths:?}");
+        };
+        assert!((60..=72).contains(&frames), "{frames}");
+    }
+
     /// The HUD shows a heard text before the agent acts on it.
     #[test]
     fn the_hud_shows_a_heard_text() {
