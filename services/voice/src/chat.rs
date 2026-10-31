@@ -339,7 +339,8 @@ pub struct Chat {
     pub inbox: Option<UnboundedReceiver<String>>,
     /// The texts of the inbox that wait for the next round.
     heard: Vec<String>,
-    /// The actions that an always word allowed until the agent restarts.
+    /// The actions that an always word allowed until the agent restarts
+    /// or takes settings.
     allowed: HashSet<String>,
 }
 
@@ -398,8 +399,10 @@ impl Chat {
         Ok(chat)
     }
 
-    /// Takes new settings; answers whether the prompt changed, which asks
-    /// for a new warm-up.
+    /// Takes new settings, also the same ones again on `settings.reload`
+    /// and on each new connection to chora; answers whether the prompt
+    /// changed, which asks for a new warm-up. The always words of the
+    /// session end: new rules or lists may be stricter.
     ///
     /// # Errors
     ///
@@ -427,6 +430,7 @@ impl Chat {
         }
         let changed = system != self.system;
         self.system = system;
+        self.allowed.clear();
         Ok(changed)
     }
 
@@ -1546,6 +1550,24 @@ mod tests {
             "{events:?}"
         );
         assert_eq!(calls.load(Ordering::SeqCst), 3);
+    }
+
+    /// Review rc3 round 2, 1.3: new settings, or the same ones read
+    /// again, end the always words of the session.
+    #[tokio::test]
+    async fn settings_end_the_always_words() {
+        let server = fake::llm(Vec::new()).await;
+        let (tools, _) = tools::tests::fake(0);
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config.clone(), "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        chat.allowed.insert("mc.app.open {}".into());
+        chat.configure(config).unwrap();
+        assert!(chat.allowed.is_empty());
     }
 
     /// Review rc3 round 2, 1.4 and 4.1: "always" covers the same full

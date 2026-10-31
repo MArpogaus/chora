@@ -287,7 +287,9 @@ the spoken confirmation in time (15 s)" or "The answer to the spoken
 confirmation was not understood", each with "; nothing happened".
 
 A yes with an `always_words` phrase ("Ja, immer.", "Always.") allows
-the same action until the agent restarts. Then the agent says
+the same action until the agent restarts or takes settings: each
+`settings.set`, each `settings.reload` and each new connection to
+chora ends all of them, so a stricter `confirm` applies at once. Then the agent says
 `phrases.allowed` ("Allowed for this session."). The same action is
 the same full argv of `run_program`, or the same method `CLIENT.METHOD`
 with the same parameters (as canonical JSON, keys sorted). For every
