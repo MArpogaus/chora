@@ -320,9 +320,10 @@ impl Tools {
         {
             return read(&agents.roots(), &Value::Object(args)).into();
         }
-        // The plugin tool of the own settings takes `{"patch": ...}`.
+        // The plugin tool of the own settings takes `{"patch": ...}`;
+        // `call_method` keeps its own arguments.
         let args = match self.own_settings_set(&name, &Value::Object(args.clone())) {
-            Some(Value::Object(patch)) => patch.clone(),
+            Some(Value::Object(patch)) if name != "call_method" => patch.clone(),
             _ => args,
         };
         let secret = self.own_settings_call(&name, &args);
