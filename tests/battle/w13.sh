@@ -240,6 +240,48 @@ done
 no_lost "flavor kill -9 construct"
 shot_wm flavor-killed
 alive "flavor kill -9"
+session_stop
+
+# --- 3. an mc pane: a key binding of mc after the fly-in -----------------
+# The keyboard of a flown-in pane belongs to the pane; the bindings that
+# mc grabbed (Super+Right: next_scene) must still reach mc. This needs
+# `pane.focus` of chora-construct; until that is on dev the step is an
+# expected failure: it writes a note ("XFAIL"), no finding.
+wm_session 1280x800 || exit 1
+bg "$bin/chora-mc"
+ctl wait --timeout 20 owner:mc > /dev/null || finding "W13: mc does not start" breaks "chora-mc"
+cat > "$XDG_CONFIG_HOME/chora/constructs/mcpane.yaml" <<EOF
+panes:
+- kind: plugin
+  plugin: mc
+  scene: mission
+  at: [0, 2000]
+EOF
+bg "$bin/chora-construct"
+construct_pid=$bgpid
+ctl wait --timeout 15 id:construct-look > /dev/null || finding "W13: the flavor shows no space (mc pane)" breaks "chora-construct"
+call construct.load '{"name": "mcpane"}' > /dev/null || finding "W13: construct.load mcpane refused" breaks "construct.load"
+expect "the mc pane does not show" breaks 'ctl query id:construct-plugin-mission | grep -q construct-plugin-mission' 20
+sleep 1
+mc_scene() { ctl call mc scene.list 2> /dev/null | py 'import json, sys; print(json.load(sys.stdin).get("current"))'; }
+scene0=$(mc_scene)
+call pane.fly '{"name": "mission"}' > /dev/null || finding "W13: pane.fly mission refused" breaks "pane.fly on the mc pane"
+sleep 2
+key Super+Right
+sleep 1.5
+scene1=$(mc_scene)
+if [ -z "$scene0" ] || [ -z "$scene1" ]; then
+  finding "W13: mc answers no scene.list with the mc pane (before '$scene0', after '$scene1')" breaks "mc scene.list after pane.fly on the mc pane"
+elif [ "$scene1" != "$scene0" ]; then
+  step "mc pane: Super+Right moved mc from $scene0 to $scene1 (XPASS if pane.focus is missing)"
+elif grep -q '"pane.focus"' plugins/chora-construct/src/main.rs; then
+  finding "W13: in a flown-in mc pane a key binding of mc does nothing (scene stays $scene0)" breaks "pane.fly the mc pane, Super+Right"
+else
+  step "XFAIL (expected, no pane.focus on this branch): in a flown-in mc pane Super+Right did not reach mc, scene stays $scene0"
+fi
+no_lost "mc pane flown in"
+shot_wm mc-pane
+alive "mc pane"
 rss_note end
 rss_growth "$c0" "$(rss chora)" chora
 log_scan
