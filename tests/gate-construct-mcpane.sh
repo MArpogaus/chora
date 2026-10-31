@@ -34,7 +34,7 @@ panes:
 EOF
 
 session_start 1280x720 -- "$bin/chora-mc"
-spid=${pids[-1]}
+# shellcheck disable=SC2154 # the trap sets s itself
 trap 's=$?; gate_cleanup $s' EXIT
 grant screen.capture input.inject
 ctl wait --timeout 10 'owner:mc meta:pane=agenda' >/dev/null || fail "mc tags no pane"

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016 # jq programs and code a helper evaluates later
 # W15 voice HUD: tests/fake-voice.py stands in for the voice agent. In
 # the construct flavor, in mc and in xp: the states, a normal and a
 # physical `voice.confirm`, an answer by key (Alt+y reaches the grabber)
@@ -123,7 +124,7 @@ plugin_round() {
     sleep 0.5
     shot_wm "$plugin-physical-$how"
     if [ $how = click ]; then
-      click_node $yes_id || finding "W15: $plugin: cannot click the Yes button" breaks "click $yes_id"
+      click_node "$yes_id" || finding "W15: $plugin: cannot click the Yes button" breaks "click $yes_id"
       expect "$plugin: a click on Yes gave $(cat "$work/claims.answers" 2>/dev/null)" breaks 'grep -qx "{\"id\": \"43\", \"yes\": true}" "$work/claims.answers"' 8
     else
       key Alt+y

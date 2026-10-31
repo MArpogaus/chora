@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016 # jq programs and code a helper evaluates later
 # W13 construct: chora-construct as an overlay over tiling and as a
 # flavor. Panes, fly in and out, the window list (Tab), F1 help, adopt
 # and give back, a nested `chora -- chora-tiling` pane, and kill -9 of a

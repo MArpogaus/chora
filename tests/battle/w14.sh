@@ -66,6 +66,7 @@ settled tiling
 
 # 2. a round of gives between all window managers (with the flavor too)
 for pair in "tiling xp" "xp mc" "mc tiling" "tiling construct" "construct xp" "xp tiling" "tiling mc" "mc construct" "construct mc" "mc xp"; do
+  # shellcheck disable=SC2086 # split the pair on purpose
   set -- $pair
   step_name="window.give $1 -> $2"
   out=$(give "$1" "$2" "$w") || { finding "W14: window.give $1 -> $2 refused: ${out:0:140}" endangers "$step_name"; no_lost "$step_name refused"; continue; }

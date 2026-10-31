@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016 # jq programs and code a helper evaluates later
 # W16 voice agent, for real: the real chora-voice (not tests/fake-voice.py)
 # in a headless session beside chora-mc, with a fake ASR, TTS and LLM
 # (tests/battle/w16-fakes.py: the Rust fakes of services/voice/src/fake.rs

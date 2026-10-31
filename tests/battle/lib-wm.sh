@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016 # jq programs and code a helper evaluates later
 # Helpers of W13-W15 (construct, hand-over, voice HUD). Source lib.sh
 # first. Where the gates (tests/gate-construct-windows.sh) stop at the
 # first failure, these helpers write a finding and go on. Severities:
