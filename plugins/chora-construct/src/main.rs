@@ -352,8 +352,9 @@ struct Construct {
     /// The pane nodes from the back to the front, as last sent.
     order: Vec<String>,
     flown: Option<Flown>,
-    /// The press of a drag: where, the pose then, and whether it moved.
-    drag: Option<([f64; 2], Pose, bool)>,
+    /// The press of a drag: where, the point of the last move, and
+    /// whether it moved.
+    drag: Option<Drag>,
     list: Option<ListState>,
     /// The window that had the keyboard when an overlay took the output;
     /// it gets it back on leave (F31).
@@ -537,6 +538,28 @@ fn mirror_uniforms(source: &str, gloss: f64) -> BTreeMap<String, Uniform> {
 
 fn mirror_size(size: [f64; 2]) -> [f64; 2] {
     size.map(|s| (s / MIRROR_SCALE).ceil())
+}
+
+/// A drag with the button held, in output coordinates.
+struct Drag {
+    press: [f64; 2],
+    last: [f64; 2],
+    moved: bool,
+}
+
+/// Turns the pose by a drag of `dx`, `dy`, and a running glide with it,
+/// so that a walk during the drag goes on. Only the yaw and the pitch
+/// change.
+fn turn(pose: &mut Pose, glide: Option<&mut Glide>, dx: f64, dy: f64) {
+    let by = |p: &mut Pose| {
+        p.yaw += dx * LOOK_RATE;
+        p.pitch = (p.pitch - dy * LOOK_RATE).clamp(-1.2, 1.2);
+    };
+    by(pose);
+    if let Some(glide) = glide {
+        by(&mut glide.from);
+        by(&mut glide.to);
+    }
 }
 
 /// The eased share of a glide after `k` of its time.
@@ -807,7 +830,11 @@ impl Construct {
                 at: pane.at,
             });
         } else {
-            self.drag = Some((at, self.pose, false));
+            self.drag = Some(Drag {
+                press: at,
+                last: at,
+                moved: false,
+            });
         }
         Ok(())
     }
@@ -824,7 +851,7 @@ impl Construct {
         if let Some(moving) = self.moving.take() {
             return self.drop_pane(&moving, at);
         }
-        let click = self.drag.take().is_some_and(|(_, _, moved)| !moved);
+        let click = self.drag.take().is_some_and(|d| !d.moved);
         if let Some(i) = self.pane_at(at).filter(|_| click) {
             self.fly_in(i);
         }
@@ -1436,21 +1463,23 @@ impl Construct {
         self.glide_to(t, STEP_MS, None);
     }
 
-    /// A drag looks around: sideways turns, up and down tilts.
+    /// A drag looks around: sideways turns, up and down tilts. It turns
+    /// by the move since the last event and keeps the place, so a walk
+    /// during the drag stays.
     fn look(&mut self, p: [f64; 2]) -> Result<(), ClientError> {
-        let Some((from, pose, moved)) = &mut self.drag else {
+        let Some(drag) = &mut self.drag else {
             return Ok(());
         };
-        let (dx, dy) = (p[0] - from[0], p[1] - from[1]);
-        *moved |= dx.abs() + dy.abs() >= 4.0;
-        if !*moved {
+        let (dx, dy) = (p[0] - drag.press[0], p[1] - drag.press[1]);
+        drag.moved |= dx.abs() + dy.abs() >= 4.0;
+        if !drag.moved {
             return Ok(());
         }
-        let mut to = *pose;
-        to.yaw += dx * LOOK_RATE;
-        to.pitch = (to.pitch - dy * LOOK_RATE).clamp(-1.2, 1.2);
-        self.glide = None;
-        self.pose = to;
+        let (dx, dy) = (p[0] - drag.last[0], p[1] - drag.last[1]);
+        drag.last = p;
+        // A fly-in ends at its pane; a drag stops it.
+        self.glide.take_if(|g| g.into.is_some());
+        turn(&mut self.pose, self.glide.as_mut(), dx, dy);
         self.frame()
     }
 
@@ -2485,6 +2514,35 @@ mod tests {
         });
         assert_eq!(plugin.node(), "construct-plugin-foot");
         assert_eq!(plugin.file().unwrap().scene.as_deref(), Some("mission"));
+    }
+
+    /// A walk during a drag stays: the drag turns only (live bug: the
+    /// camera jumped back to the press when the key `w` was released).
+    #[test]
+    fn a_walk_during_a_drag_keeps_its_place() {
+        let mut pose = Pose::default();
+        turn(&mut pose, None, 50.0, 0.0);
+        // The key w: a glide forward.
+        let mut to = pose;
+        to.x += 90.0 * pose.yaw.sin();
+        to.z += 90.0 * pose.yaw.cos();
+        let mut glide = Glide {
+            from: pose,
+            to,
+            start: Instant::now(),
+            ms: STEP_MS,
+            into: None,
+        };
+        turn(&mut pose, Some(&mut glide), 10.0, -5.0);
+        pose = glide.from.lerp(&glide.to, 1.0);
+        // w released, the drag moves on.
+        turn(&mut pose, None, 10.0, 0.0);
+        assert!(
+            (pose.x - to.x).abs() < 1e-9 && (pose.z - to.z).abs() < 1e-9,
+            "{pose:?}"
+        );
+        assert!((pose.yaw - 70.0 * LOOK_RATE).abs() < 1e-9);
+        assert!((pose.pitch - 5.0 * LOOK_RATE).abs() < 1e-9);
     }
 
     /// The launcher's token on the window of another process is the

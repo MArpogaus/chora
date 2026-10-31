@@ -3,7 +3,8 @@
 # text after a fly-in, pixel-sharp at 1:1. chora starts into
 # chora-construct; foot becomes a pane; keys walk; Return flies into the
 # pane; the injected text reaches foot; the output then shows the window
-# pixel for pixel as a capture of the window alone; Alt+Escape flies out.
+# pixel for pixel as a capture of the window alone; Alt+Escape flies out;
+# a walk during a drag keeps its place.
 #
 # Usage: tests/gate-construct-k1.sh   BIN: directory with the binaries
 #   THEME  light (default) or dark
@@ -91,6 +92,20 @@ echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "pressed
   {"pointer_move": {"position": [160, 700]}}, {"button": {"state": "released"}}]' | ctl inject ||
     fail "inject drag"
 sleep 0.3
+# A walk during a drag stays: drag right, walk with w, drag back. The
+# view turns back, and the pane is nearer, so wider, than before.
+width() { node "id:$pane" 'round(list(n[0]["rects"].values())[0][2])'; }
+wide=$(width)
+echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "pressed"}},
+  {"pointer_move": {"position": [130, 700]}}]' | ctl inject || fail "inject drag"
+key w
+key w
+sleep 0.5
+echo '[{"pointer_move": {"position": [100, 700]}}, {"button": {"state": "released"}}]' | ctl inject ||
+    fail "inject drag back"
+sleep 0.3
+[ "$(width)" -gt "$wide" ] || fail "the walk during the drag was lost: width $wide, then $(width)"
+ok "a walk during a drag stays: the pane grew from $wide to $(width)"
 centre=$(node "id:$pane" '"%d, %d" % (lambda r: (r[0] + r[2] / 2, r[1] + r[3] / 2))(list(n[0]["rects"].values())[0])')
 [ -n "$centre" ] || fail "the pane left the view after the drag"
 echo "[{\"pointer_move\": {\"position\": [$centre]}}, {\"click\": {}}]" | ctl inject || fail "inject click"
