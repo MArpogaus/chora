@@ -61,6 +61,8 @@ assets = [
   { source = "../../dist/session/chora-xp.desktop", dest = "/usr/share/wayland-sessions/chora-xp.desktop", mode = "644" },
   { source = "../../dist/session/chora-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-uwsm.desktop", mode = "644" },
   { source = "../../dist/session/chora-xp-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-xp-uwsm.desktop", mode = "644" },
+  { source = "../../dist/session/chora-construct.desktop", dest = "/usr/share/wayland-sessions/chora-construct.desktop", mode = "644" },
+  { source = "../../dist/session/chora-construct-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-construct-uwsm.desktop", mode = "644" },
   { source = "../../dist/session/env-chora", dest = "/etc/xdg/uwsm/env-chora", mode = "644", config = "noreplace" },
   { source = "../../dist/portal/chora-portals.conf", dest = "/usr/share/xdg-desktop-portal/chora-portals.conf", mode = "644" },
   { source = "../../dist/portal/xdg-desktop-portal-wlr", dest = "/etc/xdg/xdg-desktop-portal-wlr/chora", mode = "644", config = "noreplace" },
