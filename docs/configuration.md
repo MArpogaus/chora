@@ -541,6 +541,44 @@ choractl call mc notify.push '{"title": "CI", "body": "dev failed", "urgency": "
 choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ```
 
+## chora-construct (experimental)
+
+!!! warning "Experimental"
+    `chora-construct` is step K1 of the construct track (D66). It is not
+    in the packages, and its settings change without notice.
+
+`chora-construct` connects with the client name `construct`. It is a
+flavor: `chora -- chora-construct` starts into it, and the directory
+`flavors/construct/` holds its target and service. The first output shows
+a space without a grid: white with a foggy horizon in the light theme, a
+black void with dark fog in the dark theme. Each new window becomes a
+pane ahead of the camera, at the size of the output. A pane turns to face
+the camera and shows the window through its node texture. A new pane
+moves aside, right first, from the panes in its way.
+
+The space has the keyboard, so its keys need no modifier. A drag looks
+around, and the wheel walks. A walk slows down in the outer quarter of
+the leash radius and stops at it. A click on a pane, or `Return` for the
+pane nearest the middle of the view, flies into the pane. At the end of
+the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
+and the pointer. `Alt+Escape` flies back to the pose before.
+
+The settings file is `~/.config/chora/chora-construct.yaml` (D62);
+`chora-construct --print-config` prints the default with comments:
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `theme` | `light` | `light` or `dark` |
+| `radius` | `6000` | the leash radius R around the start point, in logical pixels |
+| `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home` or `fly_in` |
+| `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
+
+While the camera is in a pane, the window has the keyboard, so `fly_out`
+is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
+after `choractl grant construct input.grab-any`; then the program in the
+pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
+
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a
