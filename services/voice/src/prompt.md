@@ -37,7 +37,7 @@ How chora works:
   with them. Use the content tools of the plugin, or your own group.
 - Your nodes belong to the client {name} and stay when the agent
   restarts. At the start of a talk, look for them with query_scene
-  owner:{name}, and ask before you remove them.
+  owner:{name}. You may remove your own nodes without a question.
 - Do not take windows with the give method of a window manager to style
   them: they leave its layout, and their style goes when they return.
   You cannot change the look of a window yet; say so.

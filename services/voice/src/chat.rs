@@ -175,12 +175,8 @@ pub const STOPPED: &str = "[Note of the agent: the user stopped the answer befor
      the result of what it started is unknown. Do not repeat this note.]";
 
 /// The notes that the LLM may copy; the agent never speaks or keeps them.
-/// The note of the answer comes before `CANCELLED`, which it holds.
-const NOTES: [&str; 3] = [
-    STOPPED,
-    "(cancelled by the user; result unknown)",
-    CANCELLED,
-];
+/// The longer note first.
+const NOTES: [&str; 2] = [STOPPED, CANCELLED];
 
 /// The played words up to the last whole sentence, else without the
 /// last word, which may be cut: the LLM copied answers that end mid-word
@@ -1201,8 +1197,8 @@ mod tests {
         let script = vec![
             Reply::Tool("sleep", "{}"),
             Reply::Silent,
-            // The LLM copied the old note of the answer.
-            Reply::Text("Gut. Ich warte. (cancelled by the user; result unknown)"),
+            // The LLM copied the note of a cancelled call.
+            Reply::Text("Gut. Ich warte. cancelled by the user; result unknown"),
         ];
         let (mut chat, server) = chat(script, Config::default()).await;
         let stop = Duration::from_millis(150);
