@@ -390,7 +390,8 @@ key Return
 until_ok 'test "$(owner "$probe_id")" = tiling' || fail "the give row did not give the probe to tiling: $(owner "$probe_id")"
 no_lost "flavor give probe"
 f1=$(surface f1)
-call window.give "{\"surface\": \"$f1\", \"to\": \"tiling\"}" >/dev/null || fail "window.give f1"
+given=$(call window.give "{\"surface\": \"$f1\", \"to\": \"tiling\"}") || fail "window.give f1"
+[ "$given" = "\"$f1\"" ] || fail "window.give answered $given, not the surface id"
 until_ok 'test "$(owner "$f1")" = tiling' || fail "f1 is not with tiling: $(owner "$f1")"
 panes | grep -qw f1 && fail "f1 stays a pane"
 no_lost "flavor give f1"
