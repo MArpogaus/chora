@@ -44,6 +44,9 @@ pub struct Window {
     pub urgent: bool,
     /// The size that the client chose.
     pub size: Option<[i32; 2]>,
+    /// Where a drag put a window that does not tile; centered without.
+    #[serde(default)]
+    pub at: Option<[i32; 2]>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -182,6 +185,7 @@ impl Wm {
             if !names.contains(&window.output) {
                 window.output = name.into();
                 window.tags = 1;
+                window.at = None;
             }
         }
     }
@@ -201,6 +205,7 @@ impl Wm {
             for window in self.windows.iter_mut().filter(|w| w.output == name) {
                 window.output.clone_from(&target);
                 window.tags = tags;
+                window.at = None;
             }
         }
     }
@@ -223,6 +228,7 @@ impl Wm {
             on_top: false,
             urgent: false,
             size: None,
+            at: None,
         };
         match self.config.new_window {
             NewWindow::Master => self.windows.insert(0, window),
@@ -251,6 +257,16 @@ impl Wm {
         let changed = window.size != Some(size);
         window.size = Some(size);
         changed && floats
+    }
+
+    /// Puts a window that does not tile at a point, for a drag. False for a
+    /// window that tiles.
+    pub fn place(&mut self, id: &str, at: [i32; 2]) -> bool {
+        if self.window(id).is_none_or(|w| self.tiles(w)) {
+            return false;
+        }
+        self.window_mut(id)
+            .is_some_and(|w| w.at.replace(at) != Some(at))
     }
 
     /// The focused window: the top window of the current output.
@@ -701,7 +717,7 @@ impl Wm {
         let Some(window) = self.window_mut(&id) else {
             return;
         };
-        (window.output, window.tags) = (name, tags);
+        (window.output, window.tags, window.at) = (name, tags, None);
         self.focus(&id);
     }
 
@@ -931,7 +947,10 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
     let [sw, sh] = window.size.unwrap_or([aw / 2, ah / 2]);
     let (mx, my) = window.maximized;
     let (w, h) = (if mx { aw } else { sw }, if my { ah } else { sh });
-    let at = [ax + (aw - w) / 2, ay + (ah - h) / 2];
+    let at = match window.at {
+        Some(at) if !(mx || my) => at,
+        _ => [ax + (aw - w) / 2, ay + (ah - h) / 2],
+    };
     let states = States {
         maximized: mx && my,
         activated,
@@ -1233,6 +1252,16 @@ mod tests {
         assert!(wm.set_size("a", [40, 20]));
         let placed = wm.arrange().pop().unwrap();
         assert_eq!((placed.at, placed.size), (Some([30, 20]), None));
+    }
+
+    #[test]
+    fn a_drag_places_only_a_window_that_does_not_tile() {
+        let mut wm = wm(&["a"]);
+        assert!(!wm.place("a", [5, 6]), "a tiles");
+        wm.act(&Action::ToggleFloating);
+        assert!(wm.place("a", [5, 6]));
+        assert!(!wm.place("a", [5, 6]), "no change");
+        assert_eq!(wm.arrange().pop().unwrap().at, Some([5, 6]));
     }
 
     #[test]

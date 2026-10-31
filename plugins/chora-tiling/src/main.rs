@@ -20,7 +20,7 @@ use std::{
 };
 
 use chora_kit::{
-    give::{self, Give},
+    give::{self, Give, MOVE},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
@@ -121,8 +121,9 @@ struct Tiling {
     saved: HashMap<String, BTreeMap<String, String>>,
     /// The claim that the core has (D55).
     claimed: Option<[f64; 4]>,
-    /// The window that the binding of `drag` holds.
-    dragged: Option<String>,
+    /// The window that the binding of `drag` or a move of its client
+    /// holds, and the pointer relative to the window.
+    dragged: Option<(String, [f64; 2])>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -257,7 +258,6 @@ impl Tiling {
             };
             self.call_apply(vec![group])?;
         }
-        self.grab_all()?;
         // Free surfaces, and those the core reserved for tiling, for example
         // during the grace time of a restart.
         for node in self.query("kind:surface")? {
@@ -266,7 +266,10 @@ impl Tiling {
                 self.adopt(id)?;
             }
         }
-        self.relayout()
+        self.relayout()?;
+        // After the claim: with a claim, a pointer binding can be shared
+        // with another window manager (D55).
+        self.grab_all()
     }
 
     /// Rebuilds the model from the meta of the kept nodes. A kept window
@@ -310,6 +313,9 @@ impl Tiling {
                 .expect("the configuration checks its bindings");
             self.rt.grab(binding, action)?;
         }
+        // The title bars of the clients drag as `drag` does.
+        let moves = MOVE.parse().expect("move is a binding");
+        self.rt.grab(moves, Action::Drag)?;
         Ok(())
     }
 
@@ -326,6 +332,7 @@ impl Tiling {
         self.rt.conn.call("scene.query", Query::new(selector))
     }
 
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             // The start adopts surfaces that the events then announce.
@@ -368,6 +375,10 @@ impl Tiling {
                 position,
                 ..
             } => self.drag(&binding, state, position),
+            // A window that follows the pointer.
+            Event::InputMoved {
+                binding, position, ..
+            } if self.drag_to(&binding, position) => {}
             Event::PointerEntered { node, moved } => {
                 if !self.pointer_focus(&node, false, moved) {
                     return Ok(());
@@ -571,19 +582,29 @@ impl Tiling {
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
     }
 
-    /// The binding of `drag`: the press takes the window under the
-    /// pointer, and a release outside the claim of tiling hands it to the
-    /// window manager whose claim holds the point (D55). Without one
-    /// there, the window stays.
+    /// Whether a binding drags: the one of `drag`, or `move`, the
+    /// interactive move of a client, for example from its title bar.
+    fn drags(&self, binding: &str) -> bool {
+        matches!(self.rt.action(binding), Some(Action::Drag))
+    }
+
+    /// A drag: the press takes the window under the pointer, and a release
+    /// outside the claim of tiling hands it to the window manager whose
+    /// claim holds the point (D55). Without one there, the window stays.
     fn drag(&mut self, binding: &str, state: PressState, point: [f64; 2]) {
-        if !matches!(self.rt.action(binding), Some(Action::Drag)) {
+        if !self.drags(binding) {
             return;
         }
         if state == PressState::Pressed {
-            self.dragged = self.window_at(point);
+            self.dragged = self.window_at(point).map(|id| {
+                let [x, y] = (self.sent.get(&id))
+                    .and_then(|p| p.at)
+                    .map_or(point, |at| at.map(f64::from));
+                (id, [point[0] - x, point[1] - y])
+            });
             return;
         }
-        let Some(surface) = self.dragged.take() else {
+        let Some((surface, _)) = self.dragged.take() else {
             return;
         };
         if self.claimed.is_some_and(|c| inside(c, point)) {
@@ -597,6 +618,17 @@ impl Tiling {
         if let Err(err) = given {
             eprintln!("chora-tiling: {surface} stays: {}", err.message);
         }
+    }
+
+    /// A move of a drag: a window that does not tile follows the pointer.
+    /// True when it moved.
+    #[allow(clippy::cast_possible_truncation, reason = "scene coordinates")]
+    fn drag_to(&mut self, binding: &str, [px, py]: [f64; 2]) -> bool {
+        let Some((id, [dx, dy])) = self.dragged.clone().filter(|_| self.drags(binding)) else {
+            return false;
+        };
+        let at = [(px - dx).round() as i32, (py - dy).round() as i32];
+        self.wm.place(&id, at)
     }
 
     /// The topmost shown window at a point in scene coordinates.
