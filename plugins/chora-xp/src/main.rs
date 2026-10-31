@@ -10,6 +10,7 @@
 )]
 
 mod apps;
+mod assistant;
 mod balloon;
 mod cascade;
 mod config;
@@ -136,6 +137,7 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
         let until = wm
             .notes_due(Instant::now())
             .map_or(until, |due| until.min(due));
+        let until = wm.assistant_due().map_or(until, |due| until.min(due));
         if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
             let (event, next) = last_move(wm, event)?;
             runtime::dispatch(wm, event)?;
@@ -146,6 +148,7 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
         let now = Instant::now();
         wm.menu_rest(now)?;
         wm.notifications(now)?;
+        wm.assistant_step(now)?;
         if wm.animating() && now >= frame {
             wm.frame(now)?;
             frame = now + FRAME;

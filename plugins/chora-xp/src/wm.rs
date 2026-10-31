@@ -8,6 +8,7 @@ mod effects;
 mod items;
 mod resize;
 mod restart;
+mod voice;
 
 use std::{
     collections::HashMap,
@@ -31,6 +32,7 @@ use serde_json::{Value, json};
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
+    assistant::Assistant,
     balloon::{self, Balloon, Queue},
     config::{Config, Picture, Wallpaper},
     context::{self, Act},
@@ -84,7 +86,7 @@ const FADE: Duration = Duration::from_millis(1500);
 const HANDOVER: &str = "tiling";
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 21] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -104,6 +106,9 @@ const EVENTS: [&str; 19] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
+    "client.disconnected",
+    // The events of the voice agent (D65).
+    "voice.*",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -263,6 +268,11 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
+    /// The paperclip of the voice agent, while it shows.
+    assistant: Option<Assistant>,
+    /// The client name of the voice agent and its pose, while it is
+    /// connected and awake.
+    voice: Option<(String, crate::assistant::Pose)>,
 }
 
 impl Plugin for Wm {
@@ -347,6 +357,8 @@ impl Wm {
             system_key: None,
             cube_grab: None,
             kept: HashMap::new(),
+            assistant: None,
+            voice: None,
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -357,6 +369,7 @@ impl Wm {
         // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
+        wm.ask_voice()?;
         Ok(wm)
     }
 
@@ -572,10 +585,24 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::OutputChanged { output } => {
-                [self.rescale()?, self.output_changed(&output)].concat()
-            }
-            Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
+            Event::OutputChanged { output } => [
+                self.rescale()?,
+                self.output_changed(&output),
+                self.replace_assistant(),
+            ]
+            .concat(),
+            Event::OutputRemoved { name } => [
+                self.rescale()?,
+                self.output_removed(&name),
+                self.replace_assistant(),
+            ]
+            .concat(),
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } => self.voice_event(&event, &client, &data),
+            Event::ClientDisconnected { name } => self.voice_gone(&name),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -1565,6 +1592,9 @@ impl Wm {
         if Balloon::owns(node) {
             return self.press_balloon(node);
         }
+        if Assistant::owns(node) {
+            return self.press_assistant();
+        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
@@ -2461,6 +2491,7 @@ impl Wm {
             &mut self.theme,
             &mut self.icons,
         ));
+        commands.extend(self.sync_assistant(Instant::now()));
         commands
     }
 

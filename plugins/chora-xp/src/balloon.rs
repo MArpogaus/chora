@@ -21,6 +21,8 @@ use crate::{
 
 /// The widest line of the text.
 const MAX_TEXT: f64 = 300.0;
+/// The widest line of the assistant's speech.
+const MAX_SPEECH: f64 = 220.0;
 const PAD: i32 = 10;
 const TOP: i32 = 8;
 const ICON: i32 = 16;
@@ -221,6 +223,31 @@ fn shape([w, h]: [i32; 2], tail: i32) -> String {
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{}"><path d="{path}" fill="#FFFFE1" stroke="#000" stroke-width="1"/></svg>"##,
         h + TAIL
     )
+}
+
+/// A balloon with text only, as the assistant speaks: its picture and its
+/// top-left corner, for a tail tip at a point of a screen of a width.
+pub fn speech(theme: &mut Theme, text: &str, tip: [i32; 2], screen: i32) -> (Picture, [i32; 2]) {
+    let width = |s: &str| theme.text_width(s, Font::Ui);
+    let lines = wrap(text, MAX_SPEECH, width);
+    let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
+    #[allow(clippy::cast_possible_truncation)]
+    let w = (PAD + text_width.ceil() as i32 + PAD).max(MIN_WIDTH);
+    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + PAD;
+    let (origin, tail) = place([w, h], tip, screen);
+    let file = theme
+        .cache_file(&format!("balloon-{w}x{h}-{tail}.svg"), &shape([w, h], tail))
+        .unwrap_or_default();
+    let mut picture = Picture::new(w, h + TAIL).file(&file, [0, 0, w, h + TAIL]);
+    for (line, y) in lines.iter().zip((PAD..).step_by(LINE as usize)) {
+        picture = picture.text(Text::new(
+            line,
+            Font::Ui,
+            BLACK,
+            [PAD, y, w - 2 * PAD, LINE],
+        ));
+    }
+    (picture, origin)
 }
 
 /// A balloon on the overlay root of an output.

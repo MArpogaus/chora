@@ -7,7 +7,7 @@ use chora_kit::settings::Settings;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{control::Toggles, taskbar, theme::Theme, wallpaper};
+use crate::{assistant, control::Toggles, taskbar, theme::Theme, wallpaper};
 
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../xp.yaml");
@@ -115,6 +115,8 @@ pub struct Config {
     pub taskbar: taskbar::Settings,
     pub effects: Toggles,
     pub session: Session,
+    /// The paperclip of the voice agent.
+    pub assistant: assistant::Settings,
 }
 
 impl Settings for Config {
