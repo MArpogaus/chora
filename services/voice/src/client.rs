@@ -395,7 +395,7 @@ mod tests {
         now: Instant,
         refuse: bool,
     ) -> Vec<(String, Value)> {
-        let mut sent = Vec::new();
+        let mut sent: Vec<(String, Value)> = Vec::new();
         held.emit(new.into_iter(), now, |event, data| {
             if refuse {
                 let e = RpcError::new(RpcError::LIMIT_REACHED, "too many");
@@ -413,6 +413,7 @@ mod tests {
     #[test]
     fn refused_states_go_again_after_the_wait() {
         let mut held = Held::default();
+        let none: Vec<(String, Value)> = Vec::new();
         let t0 = Instant::now();
         let state = |name: &str, s: &str| ("state", json!({"name": name, "state": s}));
         let burst = vec![
@@ -422,11 +423,11 @@ mod tests {
             ("remove", json!({"name": "b"})),
             ("state", json!({"state": "listening"})),
         ];
-        assert!(emit(&mut held, burst, t0, true).is_empty());
+        assert_eq!(emit(&mut held, burst, t0, true), none);
         // Within the wait a new state waits behind the others.
-        assert!(emit(&mut held, vec![state("a", "done")], t0, false).is_empty());
-        let before = t0 + RESEND - Duration::from_millis(1);
-        assert!(emit(&mut held, vec![], before, false).is_empty());
+        assert_eq!(emit(&mut held, vec![state("a", "done")], t0, false), none);
+        let before = t0 + RESEND.saturating_sub(Duration::from_millis(1));
+        assert_eq!(emit(&mut held, vec![], before, false), none);
         let mut sent = emit(&mut held, vec![], t0 + RESEND, false);
         sent.sort_by_key(|(_, d)| d.to_string());
         let want = [
@@ -437,7 +438,7 @@ mod tests {
         let mut want: Vec<(String, Value)> = want.map(|(e, d)| (e.to_owned(), d)).into();
         want.sort_by_key(|(_, d)| d.to_string());
         assert_eq!(sent, want);
-        assert!(emit(&mut held, vec![], t0 + RESEND * 2, false).is_empty());
+        assert_eq!(emit(&mut held, vec![], t0 + RESEND * 2, false), none);
     }
 
     /// A yes and the agent tools start programs: a confined client needs

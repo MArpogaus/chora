@@ -1241,7 +1241,7 @@ mod tests {
         core.handle(Input::Reply(1, Reply::Done("Darf ich?".into())));
         assert_eq!(core.state(), State::Confirming);
         let wait = Duration::from_secs(core.config.agent_permission_s.into());
-        assert!(core.sub_until > Instant::now() + wait - Duration::from_secs(1));
+        assert!(core.sub_until + Duration::from_secs(1) > Instant::now() + wait);
         core.sub_until = Instant::now();
         core.handle(Input::MicDown);
         assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));

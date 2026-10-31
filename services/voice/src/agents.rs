@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex, mpsc::Sender},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use serde_json::{Value, json};
@@ -1058,7 +1058,7 @@ async fn command_of_user(rpc: &mut Rpc, session: &mut Session, cmd: Cmd) -> Resu
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc;
+    use std::{sync::mpsc, time::Duration};
 
     use super::*;
 
