@@ -286,6 +286,38 @@ pub enum Event {
     Heard(String),
 }
 
+/// The note after the second failure of a call the same way (live log
+/// 2026-10-31: the same `apply_commands` failed 8 times in one turn).
+pub const FAILED_TWICE: &str =
+    "This failed twice the same way; stop and tell the user what failed.";
+
+/// The last failed call of a turn: its tool, its arguments, its error,
+/// and how often in a row a call failed the same way.
+struct Failed {
+    tool: String,
+    args: Value,
+    error: String,
+    times: u32,
+}
+
+impl Failed {
+    /// Whether a call of `tool` with `args` is nearly the same: the same
+    /// tool with the same form, the same keys and types, whatever the
+    /// values.
+    fn like(&self, tool: &str, args: &Value) -> bool {
+        fn form(v: &Value) -> Value {
+            match v {
+                Value::Object(m) => m.iter().map(|(k, v)| (k.clone(), form(v))).collect(),
+                Value::Array(a) => a.iter().map(form).collect(),
+                Value::String(_) => "s".into(),
+                Value::Number(_) => 0.into(),
+                other => other.clone(),
+            }
+        }
+        self.tool == tool && form(&self.args) == form(args)
+    }
+}
+
 /// The tool result of a call whose question the agent skipped: the user
 /// said something new while the turn ran.
 pub const SAID_NEW: &str = "Not confirmed: the user said something new";
@@ -339,6 +371,8 @@ pub struct Chat {
     pub inbox: Option<UnboundedReceiver<String>>,
     /// The texts of the inbox that wait for the next round.
     heard: Vec<String>,
+    /// The last failed call of the turn.
+    failed: Option<Failed>,
     /// The actions that an always word allowed until the agent restarts
     /// or takes settings.
     allowed: HashSet<String>,
@@ -393,6 +427,7 @@ impl Chat {
             answer: None,
             inbox: None,
             heard: Vec::new(),
+            failed: None,
             allowed: HashSet::new(),
         };
         chat.system = chat.prompt()?;
@@ -580,6 +615,7 @@ impl Chat {
         self.requests.push(text.to_owned());
         self.save();
         self.heard.clear();
+        self.failed = None;
     }
 
     /// Whether an answer needs one more round: the user said more while
@@ -889,25 +925,58 @@ impl Chat {
             } else {
                 serde_json::from_str(&call.args).unwrap_or(Value::Null)
             };
+            let again =
+                (self.failed.as_ref()).is_some_and(|f| f.times >= 2 && f.like(&call.name, &args));
             let content = if args.is_null() {
                 Value::from(format!("error: the arguments are no JSON: {}", call.args))
+            } else if again {
+                crate::log::info(&format!("tool {}: not run, it failed twice", call.name));
+                Value::from(format!("error: not run. {FAILED_TWICE}"))
             } else if let Err(no) = self.confirmed(&call.name, &args, out).await {
                 Value::from(format!("{no}; nothing happened"))
             } else {
                 out(Event::Tool(call.name.clone()));
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
-                let (args, result) = journal(&call.name, &args, &text_of(&content));
+                let (logged, result) = journal(&call.name, &args, &text_of(&content));
                 crate::log::info(&format!(
-                    "tool {} {args} {}ms -> {result}",
+                    "tool {} {logged} {}ms -> {result}",
                     call.name,
                     start.elapsed().as_millis(),
                 ));
-                content
+                self.guard(&call.name, &args, content)
             };
             results.push(json!({"role": "tool", "tool_call_id": call.id, "content": content}));
         }
         results
+    }
+
+    /// Notes a failed call and adds `FAILED_TWICE` to its error when the
+    /// call before failed the same way: with the same error, or as the
+    /// same tool with nearly the same arguments. The error stays whole,
+    /// so the LLM can correct the form.
+    fn guard(&mut self, tool: &str, args: &Value, content: Value) -> Value {
+        let Some(error) = content.as_str().filter(|t| t.starts_with("error:")) else {
+            self.failed = None;
+            return content;
+        };
+        let times = match &self.failed {
+            Some(f) if f.error == error || f.like(tool, args) => f.times + 1,
+            _ => 1,
+        };
+        let error = error.to_owned();
+        let content = if times >= 2 {
+            format!("{error}\n{FAILED_TWICE}").into()
+        } else {
+            content
+        };
+        self.failed = Some(Failed {
+            tool: tool.to_owned(),
+            args: args.clone(),
+            error,
+            times,
+        });
+        content
     }
 
     /// Asks the user when a rule of `confirm` matches, and before each
@@ -1550,6 +1619,38 @@ mod tests {
             "{events:?}"
         );
         assert_eq!(calls.load(Ordering::SeqCst), 3);
+    }
+
+    /// Live log 2026-10-31: a call that fails the same way twice gets a
+    /// note to stop, and a third one does not run. The error reaches the
+    /// LLM whole.
+    #[tokio::test]
+    async fn a_call_that_fails_twice_the_same_way_stops() {
+        let script = vec![
+            Reply::Tool("echo", r#"{"fail": 1, "commands": [{"create": {"id": "a"}}]}"#),
+            Reply::Tool("echo", r#"{"fail": 1, "commands": [{"create": {"id": "b"}}]}"#),
+            Reply::Tool("echo", r#"{"fail": 1, "commands": [{"create": {"id": "c"}}]}"#),
+            Reply::Text("Das ging nicht."),
+        ];
+        let server = fake::llm(script).await;
+        let (tools, calls) = tools::tests::fake(0);
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        turn(&mut chat, "Mach einen Knoten.", true).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "the third does not run");
+        let results: Vec<String> = (chat.history.iter())
+            .filter(|m| m["role"] == "tool")
+            .map(|m| m["content"].as_str().unwrap().to_owned())
+            .collect();
+        let error = format!("error: {}", tools::tests::FAIL);
+        assert_eq!(results[0], error, "whole");
+        assert_eq!(results[1], format!("{error}\n{FAILED_TWICE}"));
+        assert_eq!(results[2], format!("error: not run. {FAILED_TWICE}"));
     }
 
     /// Review rc3 round 2, 1.3: new settings, or the same ones read
@@ -2292,6 +2393,7 @@ mod tests {
             answer: None,
             inbox: None,
             heard: Vec::new(),
+            failed: None,
             allowed: HashSet::new(),
         };
         chat.shrink();

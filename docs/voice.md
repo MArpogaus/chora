@@ -380,6 +380,7 @@ at most a short summary of it.
 | LLM | Three cut answers in a row | A retry with a note after the first, the emergency brake after the second, `phrases.lost` after the third (section 3) |
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
+| Tool | A call fails the same way twice in a row in a turn: the same error, or the same tool with arguments of the same form (keys and types) | The error stays whole, plus "This failed twice the same way; stop and tell the user what failed."; a third such call does not run and gets that note as its error |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
 | Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 

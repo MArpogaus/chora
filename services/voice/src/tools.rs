@@ -627,6 +627,10 @@ pub mod tests {
                     std::future::pending().await
                 }
                 "query_scene" => vec![ContentBlock::text(SCENE)],
+                _ if args.get("fail").is_some() => {
+                    let error = vec![ContentBlock::text(FAIL)];
+                    return Ok(CallToolResult::error(error).into());
+                }
                 "picture" => vec![
                     ContentBlock::image("UE5H", "image/png"),
                     ContentBlock::text("a screen"),
@@ -645,6 +649,11 @@ pub mod tests {
 
     /// Tools on a fake server in this process; each connect is a new
     /// session, the first `fail` connects fail.
+    /// The long error of a fake tool called with `fail`.
+    pub const FAIL: &str = "commands[0].create: missing field `kind`; expected one of rect, \
+        text, image, group, surface, mirror, shader, at line 1 column 31 of the JSON of the \
+        commands, which the scene refuses as a whole before it changes any node.";
+
     pub fn fake(fail: usize) -> (Tools, Arc<AtomicUsize>) {
         let calls = Arc::<AtomicUsize>::default();
         let fake = Fake {
