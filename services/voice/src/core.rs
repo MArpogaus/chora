@@ -133,6 +133,14 @@ pub enum Input {
     Claimed(bool),
     /// A key of `confirm_keys`: yes or no.
     ConfirmKey(bool),
+    /// A button of a HUD that claimed the indicator (`confirm.answer`):
+    /// yes or no to the question `id`. Whether `id` was the open question
+    /// goes to the channel.
+    ConfirmButton {
+        id: u64,
+        yes: bool,
+        open: Sender<bool>,
+    },
 }
 
 /// What the core asks the other actors to do.
@@ -525,6 +533,7 @@ impl Core {
             }
             Input::PttDown => self.key(true),
             Input::ConfirmKey(yes) => self.confirm_key(yes),
+            Input::ConfirmButton { id, yes, open } => self.confirm_button(id, yes, &open),
             Input::PttUp => self.key(false),
             Input::Call(call, reply) => {
                 let effects = self.call(call);
@@ -1041,6 +1050,19 @@ impl Core {
             return Vec::new();
         }
         crate::log::info("confirm: by the key");
+        self.answered(yes)
+    }
+
+    /// A button answers the question on the screen, also one that waits
+    /// for a key: a click is a physical act as a key press is. Another
+    /// id, such as that of a question that ended, answers nothing.
+    fn confirm_button(&mut self, id: u64, yes: bool, open: &Sender<bool>) -> Vec<Effect> {
+        let is_open = self.confirming() && self.shown == Some(id);
+        let _ = open.send(is_open);
+        if !is_open {
+            return Vec::new();
+        }
+        crate::log::info("confirm: by a button");
         self.answered(yes)
     }
 
@@ -1940,6 +1962,39 @@ mod tests {
         assert!(rx.try_recv().is_err());
         say(&mut core, "Ja.");
         assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// A button of a HUD answers the question on the screen by its id,
+    /// also one that waits for a key; a stale id answers nothing.
+    #[test]
+    fn a_button_answers_the_open_question_by_its_id() {
+        let button = |core: &mut Core, id: u64, yes: bool| {
+            let (open, rx) = std::sync::mpsc::channel();
+            core.handle(Input::ConfirmButton { id, yes, open });
+            rx.recv().unwrap()
+        };
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Security setting! Shall I set allow programs?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        let Some(&Effect::Confirm { id, .. }) = effects.first() else {
+            panic!("{effects:?}");
+        };
+        assert!(!button(&mut core, id + 1, true), "another id");
+        assert!(rx.try_recv().is_err());
+        assert!(button(&mut core, id, true));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+        assert!(!button(&mut core, id, false), "the question ended");
+        // A normal question takes a button too.
+        let mut rx = confirm(&mut core, "Wirklich?");
+        assert!(button(&mut core, id + 1, false));
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
     }
 
     /// Review rc3 round 2, 1.5: a yes that starts before the deadline

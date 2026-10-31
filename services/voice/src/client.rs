@@ -97,6 +97,43 @@ struct ConfirmParams {
     answer: Answer,
 }
 
+/// The parameters of `confirm.answer`: the id as `voice.confirm` sends it.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ButtonParams {
+    id: String,
+    yes: bool,
+}
+
+/// `confirm.answer` of `caller`: only a client that claimed the indicator,
+/// a HUD plugin, may answer, and only the open question.
+fn confirm_answer(
+    claims: &Claims,
+    tx: &Sender<Input>,
+    caller: &str,
+    params: Value,
+) -> Result<Value, RpcError> {
+    if !claims.0.contains(caller) {
+        return Err(RpcError::new(
+            RpcError::REJECTED,
+            "confirm.answer: only a client that holds indicator.claim",
+        ));
+    }
+    let ButtonParams { id, yes } = runtime::params(params)?;
+    let id = (id.parse()).map_err(|_| RpcError::new(RpcError::INVALID_PARAMS, "id: a number"))?;
+    let (open, rx) = mpsc::channel();
+    let gone = || RpcError::new(RpcError::REJECTED, "the core does not answer");
+    (tx.send(Input::ConfirmButton { id, yes, open })).map_err(|_| gone())?;
+    match rx.recv_timeout(ANSWER) {
+        Ok(true) => Ok(json!({})),
+        Ok(false) => Err(RpcError::new(
+            RpcError::REJECTED,
+            format!("confirm.answer: no open question {id}"),
+        )),
+        Err(_) => Err(gone()),
+    }
+}
+
 /// The parameters of `talk`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -191,6 +228,15 @@ fn serve(
             }) if method == "indicator.claim" => {
                 let _ = client.tx.send(Input::Claimed(client.claims.claim(&caller)));
                 client.rt.conn.answer(call, Ok(json!({})))?;
+            }
+            Some(Event::MethodCalled {
+                call,
+                caller,
+                method,
+                params,
+            }) if method == "confirm.answer" => {
+                let answer = confirm_answer(&client.claims, &client.tx, &caller, params);
+                client.rt.conn.answer(call, answer)?;
             }
             // Any client may read the settings: without the header values.
             Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
@@ -329,6 +375,15 @@ fn exported_methods() -> Vec<ExportMethod> {
              declines it.",
             json!({"answer": {"type": "string", "enum": ["yes", "no"]}}),
             &["answer"],
+        )),
+        // Privileged, and only a claimer of the indicator: a yes runs
+        // programs and changes security settings.
+        runtime::privileged(runtime::method(
+            "confirm.answer",
+            "The Yes or No button of a HUD that holds indicator.claim: answers the question \
+             of voice.confirm with this id, also one that waits for a key.",
+            json!({"id": {"type": "string"}, "yes": {"type": "boolean"}}),
+            &["id", "yes"],
         )),
         runtime::privileged(runtime::method(
             "talk",
@@ -499,7 +554,8 @@ mod tests {
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
-    use super::{Claims, Held, RESEND, without_headers};
+    use super::{Claims, Held, RESEND, confirm_answer, without_headers};
+    use crate::core::Input;
 
     #[test]
     fn only_the_client_voice_emits() {
@@ -530,6 +586,39 @@ mod tests {
         assert!(claims.gone("mc"), "xp still claims");
         assert!(claims.gone("other"), "not a claimer");
         assert!(!claims.gone("xp"));
+    }
+
+    /// Only a claimer of the indicator reaches the core with
+    /// `confirm.answer`; the core's no to a stale id is a refusal.
+    #[test]
+    fn only_a_claimer_answers_by_button() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        claims.claim("mc");
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, "evil", params.clone()).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
+        let core = std::thread::spawn(move || {
+            for open in [true, false] {
+                let Ok(Input::ConfirmButton {
+                    id: 4,
+                    yes: true,
+                    open: tx,
+                }) = rx.recv()
+                else {
+                    panic!("no button");
+                };
+                tx.send(open).unwrap();
+            }
+        });
+        assert_eq!(
+            confirm_answer(&claims, &tx, "mc", params.clone()),
+            Ok(json!({}))
+        );
+        let err = confirm_answer(&claims, &tx, "mc", params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED, "stale");
+        core.join().unwrap();
     }
 
     /// Emits `new` at `now`; the core takes them or refuses them over its
@@ -599,7 +688,14 @@ mod tests {
             .collect();
         assert_eq!(
             privileged,
-            ["mute", "confirm", "talk", "agent", "indicator.claim"]
+            [
+                "mute",
+                "confirm",
+                "confirm.answer",
+                "talk",
+                "agent",
+                "indicator.claim"
+            ]
         );
     }
 
