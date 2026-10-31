@@ -82,7 +82,9 @@ input:
   not end in `.yaml`, because such a name is a path. The file
   `NAME.yaml` must name the same view.
 - `choractl view load` also takes the path of a YAML file; the MCP tools
-  take names only.
+  take names only. From the MCP tools, `input`, plugin starts and
+  `config` need grants of `view-NAME` (see
+  [Plugins](api.md#plugins)).
 - `input` sets the input devices of the whole session through
   `input.configure`, so the core reads no file for them (D35).
   `keyboard` has `repeat_rate` and `repeat_delay`. `touchpad` and

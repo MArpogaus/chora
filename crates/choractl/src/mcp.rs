@@ -577,7 +577,7 @@ fn view_tools() -> Vec<Tool> {
     vec![
         tool(
             "load_view",
-            "Load a view: start and configure its plugins and apply its nodes.",
+            "Load a view: start and configure its plugins and apply its nodes. Its input settings, plugin starts and configs need the grants of the client view-NAME.",
             &json!({"name": name}),
             &["name"],
         ),
@@ -681,10 +681,11 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
             // An agent loads views by name only, not any file by path.
             let name = string("name")?;
             view::check_name(&name)?;
-            Ok(vec![json_text(&view::load(&name)?)])
+            // Confined as the server: see `view::connect`.
+            Ok(vec![json_text(&view::load(&name, true)?)])
         }
-        "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None)?)]),
-        "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?)?)]),
+        "save_view" => Ok(vec![json_text(&view::save(&string("name")?, None, true)?)]),
+        "unload_view" => Ok(vec![json_text(&view::unload(&string("name")?, true)?)]),
         "run_program" => run_program(core, args),
         "put_asset" => put_asset(core, args),
         "reserve_space" => reserve_space(core, args),
