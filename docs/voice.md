@@ -91,7 +91,9 @@ The agent starts in `listening` (awake). The core derives the state from
 what goes on, in this order: an utterance in progress is `recording`;
 an utterance whose text waits is `transcribing` (not while asleep); a
 reply is `confirming` while a question waits, `speaking` while its sound
-plays or ran dry less than 1.5 s ago, else `thinking` or `tool`; else
+plays or ran dry less than 1.5 s ago (0.25 s after a question that waits
+for its answer, so that the speech gate hears a short "Ja"), else
+`thinking` or `tool`; else
 `listening` or `sleeping`. So speech during a reply shows as
 `recording` and `transcribing`, and the state of the reply comes back
 after it.
@@ -128,14 +130,31 @@ Barge-in while `speaking`: speech over the barge-in gate (section 4) for
 queued. A cancel word drops them and cancels the turn. Empty text or
 echo plays them from the cut sentence; a spoken yes or no to a question
 skips the cut question. Other text ends the reply; the history keeps
-only the played text, and the new text starts a reply.
+only the played text, and the new text starts a reply. The utterance of
+a barge-in starts with the barge-in speech and `preroll_ms` before it,
+and ends as any other after `silence_ms` of quiet, so a short pause
+makes no second turn. Text that is not echo ends the reply the same way
+while its sound plays, also when it came without a barge-in.
+
+Each heard text that is not a command word shows first in the HUD, as
+`phrases.heard` ("Heard: ...") through the `say` event.
 
 Speech while `thinking`, `tool` or `confirming`: each utterance goes to
 the ASR at once. A cancel word cancels. In `confirming`, the text is the
-answer. Other text waits in a queue and starts the next reply, together
-with the texts before it (`queued` in the state record). No speech is
-dropped. Deviation: queued text does not go into the history before the
-next LLM round of the running reply.
+answer. Other text goes into the next LLM round of the running reply,
+as a user message (`Inject`; the chat reports it back as `Heard`). This
+also holds after the answer of a round: when new words came while the
+LLM answered, one more round hears them. A yes or no waits in the queue
+for a question. A call that would ask does not ask while new words wait:
+it does not run, and its result is "Not confirmed: the user said
+something new; nothing happened". Texts that no round heard start the
+next reply together, as one message (`queued` in the state record). No
+speech is dropped.
+
+A turn whose first round calls tools without words says `phrases.ack`
+("One moment.") once. An answer whose last sentence announces an action
+("let me ...") and names a tool, but calls none, gets one more round
+with a note to call it or to say that it will not.
 
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
@@ -213,10 +232,29 @@ both or none ("Bitte nicht" is a no; a text of fillers only, such as
 text without a yes or no word is a new request: a no, and the text
 starts the next turn. A yes or no text queued while the reply thought
 answers the question when it comes. No answer within
-`confirm_timeout_ms` is a no. The LLM gets the reason as the result:
+`confirm_timeout_ms` from the end of the sound of the question is a no
+(a question that is never said waits 30 s longer). The LLM gets the
+reason as the result:
 "The user declined the spoken confirmation", "The user did not answer
-the spoken confirmation in time (8 s)" or "The answer to the spoken
+the spoken confirmation in time (15 s)" or "The answer to the spoken
 confirmation was not understood", each with "; nothing happened".
+
+The rule of `apply_commands` with `remove` asks only when a target is
+not a node of the agent's own client (`NAME-mcp`), or has a node of
+another client under it; the agent reads the owners and parents with
+`query_scene`, and any doubt asks. `close` always asks.
+
+Own settings: the LLM may call `settings.get`, `settings.set` and
+`settings.reload` of the agent's own client NAME, also when
+`skipped_tools` hides NAME; no other method of NAME, NAME-hud or
+NAME-mcp. Each `settings.set` asks with its keys and values
+(`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
+security key asks with `phrases.settings_security` ("Security setting!
+..."): `confirm`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
+`coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
+`skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
+`*_url`, `*_headers` and key with `api_key`. The client `NAME-mcp`
+needs `methods.privileged` for `settings.set` and `settings.reload`.
 
 ## 6. Error handling
 
@@ -335,7 +373,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
 | `yes_words`, `no_words` | `[yes, okay, ok, do it, please, sure, go ahead, ja, genau, mach, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
-| `confirm`, `confirm_timeout_ms` | rules below, `8000` |
+| `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`) |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
@@ -349,9 +387,9 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sandbox_cmd`, `unsandboxed` | `[agent-sandbox.sh]`, `false` (`coder_cmd` and `agent_cmd` run in the sandbox) |
 | `agent_cmd`, `agent_projects` | `[]` (no agents; else an ACP command, `{dir}` and `{project}` replaced), `{}` (name: directory, besides the inventory) |
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
-| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method` |
+| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
