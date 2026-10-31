@@ -334,8 +334,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let rt = Runtime::connect(NAME, Vec::new())?;
     let mut mc = Mc {
         rt,
+        scenes: scene::load(&dir, settings.value.grid),
         settings,
-        scenes: scene::load(&dir),
         dir,
         windows: HashMap::new(),
         starting: HashMap::new(),
@@ -617,7 +617,7 @@ impl Plugin for Mc {
             })),
             "scene.save" => {
                 let Save { name, scene } = runtime::params(params)?;
-                scene::save(&self.dir, &name, &scene).map_err(invalid)?;
+                scene::save(&self.dir, &name, &scene, self.settings.value.grid).map_err(invalid)?;
                 self.scenes.insert(name.clone(), scene);
                 self.build().map_err(rejected)?;
                 Ok(Value::Null)
@@ -655,6 +655,11 @@ impl Plugin for Mc {
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
+        // A new grid of the settings may leave a cell of a scene outside.
+        for (name, scene) in &self.scenes {
+            (scene.check(self.settings.value.grid))
+                .map_err(|e| RpcError::new(RpcError::REJECTED, format!("scene {name}: {e}")))?;
+        }
         self.keep_texts();
         let contents = &self.settings.value.contents;
         (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));

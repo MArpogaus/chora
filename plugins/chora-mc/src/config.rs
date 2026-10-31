@@ -9,6 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::region::{self, Content, Preset, Region, Regions, Rule};
+use crate::scene;
 
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../mc.yaml");
@@ -382,7 +383,7 @@ impl Settings for Config {
                 "scale: a base from 4 to 128, a ratio from 1 to 3, a baseline from 4 to 256".into(),
             );
         }
-        self.page.check().and(crate::scene::check_grid(self.grid))?;
+        (self.page.check()).and(scene::check_default_grid(self.grid))?;
         for name in NEEDED {
             if !self.styles.contains_key(name) {
                 return Err(format!("styles: no {name}"));
