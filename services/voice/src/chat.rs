@@ -10,7 +10,7 @@ use std::{
 };
 
 use serde_json::{Value, json};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc::UnboundedReceiver, oneshot};
 
 use crate::{
     config::Config,
@@ -96,7 +96,13 @@ pub enum Event {
         prompt: String,
         answer: oneshot::Sender<Option<bool>>,
     },
+    /// A text of the user from the inbox went into the turn.
+    Heard(String),
 }
+
+/// The tool result of a call whose question the agent skipped: the user
+/// said something new while the turn ran.
+pub const SAID_NEW: &str = "Not confirmed: the user said something new";
 
 /// What a turn did, for the log.
 #[derive(Debug, Default)]
@@ -132,6 +138,11 @@ pub struct Chat {
     open: Option<Vec<Value>>,
     /// The answer of the last turn in the history, until the next turn.
     answer: Option<usize>,
+    /// The texts that the user says while the turn runs; each goes into
+    /// its next round.
+    pub inbox: Option<UnboundedReceiver<String>>,
+    /// The texts of the inbox that wait for the next round.
+    heard: Vec<String>,
 }
 
 impl Chat {
@@ -181,6 +192,8 @@ impl Chat {
             config,
             open: None,
             answer: None,
+            inbox: None,
+            heard: Vec::new(),
         };
         chat.system = chat.prompt()?;
         Ok(chat)
@@ -306,10 +319,12 @@ impl Chat {
         self.tools.refresh().await;
         self.requests.push(text.to_owned());
         self.save();
+        self.heard.clear();
         let mut report = Report::default();
         let rounds = self.config.tool_rounds;
         for round in 0..=rounds {
             let last = round == rounds;
+            self.listen(out);
             out(Event::Thinking);
             report.rounds += 1;
             let (said, result) = self.round(last, out).await;
@@ -327,6 +342,11 @@ impl Chat {
             }
             if last || r.round.calls.is_empty() {
                 report.outcome = self.answered(&r.round, last, said.is_empty(), out);
+                // The user said more while the LLM answered: one more
+                // round hears it.
+                if !last && self.take_inbox() {
+                    continue;
+                }
                 break;
             }
             let tools_start = Instant::now();
@@ -335,6 +355,33 @@ impl Chat {
         }
         self.open = None;
         report
+    }
+
+    /// Moves the texts of the inbox to `heard`; answers whether texts
+    /// wait there.
+    fn take_inbox(&mut self) -> bool {
+        if let Some(inbox) = &mut self.inbox {
+            while let Ok(text) = inbox.try_recv() {
+                self.heard.push(text);
+            }
+        }
+        !self.heard.is_empty()
+    }
+
+    /// Puts the texts that the user said meanwhile into the turn, as
+    /// user messages.
+    fn listen(&mut self, out: &impl Fn(Event)) {
+        self.take_inbox();
+        if self.heard.is_empty() {
+            return;
+        }
+        for text in std::mem::take(&mut self.heard) {
+            crate::log::info(&format!("heard in the turn: {text:?}"));
+            self.history.push(json!({"role": "user", "content": text}));
+            self.requests.push(text.clone());
+            out(Event::Heard(text));
+        }
+        self.save();
     }
 
     /// Says a text of the agent's own, such as the result of a coding
@@ -565,22 +612,30 @@ impl Chat {
     /// change of the agent's own settings; else, or on a no, the reason
     /// for the LLM.
     async fn confirmed(
-        &self,
+        &mut self,
         function: &str,
         args: &Value,
         out: &(impl Fn(Event) + Sync),
     ) -> Result<(), String> {
-        let Some(name) = self.tools.mcp_name(function) else {
+        let Some(name) = self.tools.mcp_name(function).map(str::to_owned) else {
             return Ok(());
         };
-        let prompt = if let Some(patch) = self.tools.own_settings_set(name, args) {
+        let prompt = if let Some(patch) = self.tools.own_settings_set(&name, args) {
             self.config.settings_question(patch)
-        } else if let Some(rule) = tools::rule(&self.config.confirm, name, args) {
+        } else if let Some(rule) = tools::rule(&self.config.confirm, &name, args) {
             let program = tools::program(args).unwrap_or_default();
             rule.prompt.replace("{program}", program)
         } else {
             return Ok(());
         };
+        // New words of the user come first: the question would answer
+        // what they no longer ask; the next round hears them.
+        if self.take_inbox() {
+            crate::log::info(&format!(
+                "confirm {name}: skipped, the user said something new"
+            ));
+            return Err(SAID_NEW.into());
+        }
         let (answer, rx) = oneshot::channel();
         out(Event::Confirm { prompt, answer });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
@@ -819,6 +874,7 @@ mod tests {
                     Event::Thinking => "thinking".into(),
                     Event::Tool(name) => format!("tool {name}"),
                     Event::Sentence(s) => format!("say {s}"),
+                    Event::Heard(s) => format!("heard {s}"),
                     Event::Confirm { prompt, answer } => {
                         let _ = answer.send(Some(yes));
                         format!("confirm {prompt}")
@@ -1009,6 +1065,106 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 
+    /// Runs a turn whose user says `said` when `when` matches an event;
+    /// answers each confirmation with yes.
+    async fn interrupted(chat: &mut Chat, when: &str, said: &str) -> Vec<String> {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        chat.inbox = Some(rx);
+        let events = Mutex::new(Vec::new());
+        let sent = std::sync::atomic::AtomicBool::new(false);
+        chat.turn("Mach was.", &|event| {
+            let line = match event {
+                Event::Thinking => "thinking".into(),
+                Event::Tool(name) => format!("tool {name}"),
+                Event::Sentence(s) => format!("say {s}"),
+                Event::Heard(s) => format!("heard {s}"),
+                Event::Confirm { prompt, answer } => {
+                    let _ = answer.send(Some(true));
+                    format!("confirm {prompt}")
+                }
+            };
+            if line == when && !sent.swap(true, Ordering::SeqCst) {
+                tx.send(said.into()).unwrap();
+            }
+            events.lock().unwrap().push(line);
+        })
+        .await;
+        events.into_inner().unwrap()
+    }
+
+    /// The last user message of request `i` to the LLM.
+    fn last_user(server: &fake::Server, i: usize) -> Value {
+        let seen = server.seen.lock().unwrap();
+        let messages = seen[i]["messages"].as_array().unwrap();
+        let user = messages.iter().rev().find(|m| m["role"] == "user");
+        user.unwrap()["content"].clone()
+    }
+
+    /// Words of the user while the turn runs go into its next round,
+    /// after a tool call and after an answer (log 2026-10-31: they waited
+    /// up to 84 s for the end of the reply).
+    #[tokio::test]
+    async fn words_during_a_turn_go_into_its_next_round() {
+        let script = vec![
+            Reply::Tool("echo", "{}"),
+            Reply::Text("Gut."),
+            Reply::Text("Eins."),
+            Reply::Text("Zwei."),
+        ];
+        let (mut chat, server) = chat(script, Config::default()).await;
+        let events = interrupted(&mut chat, "tool echo", "Und größer.").await;
+        assert_eq!(
+            events,
+            [
+                "thinking",
+                "tool echo",
+                "heard Und größer.",
+                "thinking",
+                "say Gut."
+            ]
+        );
+        assert_eq!(last_user(&server, 1), "Und größer.");
+        let events = interrupted(&mut chat, "say Eins.", "Nein, rot.").await;
+        assert_eq!(
+            events,
+            [
+                "thinking",
+                "say Eins.",
+                "heard Nein, rot.",
+                "thinking",
+                "say Zwei."
+            ]
+        );
+        assert_eq!(last_user(&server, 3), "Nein, rot.");
+    }
+
+    /// New words of the user before a question skip it: the call does
+    /// not run, the LLM learns why and hears the words.
+    #[tokio::test]
+    async fn new_words_skip_the_question_of_a_call() {
+        let script = vec![Reply::Tool("echo", "{}"), Reply::Text("Gut.")];
+        let config = Config {
+            confirm: vec![Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let (mut chat, server) = chat(script, config).await;
+        let events = interrupted(&mut chat, "thinking", "Lass das.").await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        assert!(!events.contains(&"tool echo".to_owned()), "{events:?}");
+        let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
+        assert_eq!(result["content"], format!("{SAID_NEW}; nothing happened"));
+        assert_eq!(last_user(&server, 1), "Lass das.");
+    }
+
     /// Each change of the agent's own settings asks with its key and
     /// value; a security setting says so (log 2026-10-31: "set the
     /// barge-in RMS to 15").
@@ -1126,6 +1282,8 @@ mod tests {
             earlier: Vec::new(),
             open: None,
             answer: None,
+            inbox: None,
+            heard: Vec::new(),
         };
         chat.shrink();
         let args =

@@ -270,7 +270,11 @@ struct Agent {
     chat: Arc<tokio::sync::Mutex<Chat>>,
     /// The reply in progress: the control of its speech, and its stop
     /// with the words that played.
-    reply: Option<(UnboundedSender<Control>, oneshot::Sender<String>)>,
+    reply: Option<(
+        UnboundedSender<Control>,
+        oneshot::Sender<String>,
+        UnboundedSender<String>,
+    )>,
     /// The reports to the HUD, and the last reports of the agent and of
     /// its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
@@ -463,13 +467,14 @@ impl Agent {
             }
             ask @ Effect::Ask { .. } => self.ask(ask),
             Effect::Stop(played) => {
-                if let Some((_, stop)) = self.reply.take() {
+                if let Some((_, stop, _)) = self.reply.take() {
                     let _ = stop.send(played);
                 }
                 self.speaker.stop();
             }
+            Effect::Inject(text) => drop(self.reply.as_ref().map(|(.., inject)| inject.send(text))),
             Effect::Speech(control) => {
-                if let Some((speech, _)) = &self.reply {
+                if let Some((speech, ..)) = &self.reply {
                     let _ = speech.send(control);
                 }
             }
@@ -510,11 +515,13 @@ impl Agent {
         let speaker = speak.then(|| self.speaker.clone());
         let (speech, control) = tokio::sync::mpsc::unbounded_channel();
         let (stop, mut stopped) = oneshot::channel::<String>();
+        let (inject, inbox) = tokio::sync::mpsc::unbounded_channel();
         self.net.spawn(async move {
             let mut chat = tokio::select! {
                 chat = chat.lock() => chat,
                 _ = &mut stopped => return,
             };
+            chat.inbox = Some(inbox);
             let on = |reply| drop(tx.send(Input::Reply(id, reply)));
             let reply = speech::reply(
                 &mut chat,
@@ -548,7 +555,7 @@ impl Agent {
             ));
             on(Reply::Done(report.reply));
         });
-        self.reply = Some((speech, stop));
+        self.reply = Some((speech, stop, inject));
     }
 
     /// A prompt for a sub-agent said to it by name; none cancels.

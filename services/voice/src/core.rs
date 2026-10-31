@@ -159,6 +159,9 @@ pub enum Effect {
     /// Stops the reply in progress and its sound; the words that played
     /// go into its note in the history.
     Stop(String),
+    /// A text of the user for the next LLM round of the reply in
+    /// progress.
+    Inject(String),
     /// Pauses or resumes the speech of the reply: a barge-in.
     Speech(Control),
     /// Stops the coding task.
@@ -209,6 +212,9 @@ const SOUND_GAP: Duration = Duration::from_millis(1500);
 /// A question of the reply that is not yet said waits at most this long
 /// besides `confirm_timeout_ms`, for example when its TTS fails.
 const UNSPOKEN: Duration = Duration::from_secs(30);
+
+/// How long the HUD shows a heard text.
+const HEARD_LEN: Duration = Duration::from_secs(3);
 
 /// Words that played within this time count for the echo filter.
 const ECHO_MEMORY: Duration = Duration::from_secs(3);
@@ -403,18 +409,7 @@ impl Core {
     /// The state from what goes on: an utterance first, then its text,
     /// then the reply.
     fn refresh(&mut self) {
-        // A question of a sub-agent that timed out is gone: a no.
-        let late = Instant::now() >= self.sub_until;
-        if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
-            self.sub_confirm = None;
-        }
-        // A question of the reply without an answer in time: the dropped
-        // answer tells the LLM so.
-        if self.confirm.is_some() && Instant::now() >= self.confirm_until {
-            crate::log::info("confirm: no answer in time");
-            self.confirm = None;
-            self.doing = State::Thinking;
-        }
+        self.expire();
         let working =
             self.code.1 == "working" || self.subs.values().any(|s| s["state"] == "working");
         let state = if self.gate.pcm().is_some() {
@@ -439,6 +434,22 @@ impl Core {
             State::Sleeping
         };
         self.set(state);
+    }
+
+    /// Drops the questions that waited too long: a no.
+    fn expire(&mut self) {
+        // A question of a sub-agent that timed out is gone: a no.
+        let late = Instant::now() >= self.sub_until;
+        if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
+            self.sub_confirm = None;
+        }
+        // A question of the reply without an answer in time: the dropped
+        // answer tells the LLM so.
+        if self.confirm.is_some() && Instant::now() >= self.confirm_until {
+            crate::log::info("confirm: no answer in time");
+            self.confirm = None;
+            self.doing = State::Thinking;
+        }
     }
 
     fn earcon(&self, kind: Earcon) -> Option<Effect> {
@@ -703,6 +714,36 @@ impl Core {
         self.earcon(Earcon::Wake).into_iter().collect()
     }
 
+    /// The reply asks for a confirmation.
+    fn asked(&mut self, prompt: String, answer: oneshot::Sender<Option<bool>>) {
+        self.confirm = Some(answer);
+        self.unclear = 0;
+        // The wait starts when the question is said; until then, or
+        // without its sound, at most `UNSPOKEN` longer.
+        let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
+        let unspoken = if self.muted.speaker {
+            Duration::ZERO
+        } else {
+            UNSPOKEN
+        };
+        self.confirm_until = Instant::now() + wait + unspoken;
+        self.confirm_prompt = prompt;
+        // A yes or no said while the reply thought answers it.
+        let at = (self.queue.iter()).rposition(|t| {
+            matches!(
+                words::answer(&self.config, t),
+                words::Answer::Yes | words::Answer::No
+            )
+        });
+        if let Some(at) = at {
+            let text = self.queue.remove(at);
+            crate::log::info(&format!("confirm: the queued answer {text:?}"));
+            self.answer(Some(
+                words::answer(&self.config, &text) == words::Answer::Yes,
+            ));
+        }
+    }
+
     fn reply(&mut self, reply: u64, event: Reply) -> Vec<Effect> {
         // A late event of a stopped reply; a dropped confirmation is a no.
         if self.asking != Some(reply) {
@@ -711,37 +752,15 @@ impl Core {
         match event {
             Reply::Chat(chat::Event::Thinking) => self.doing = State::Thinking,
             Reply::Chat(chat::Event::Tool(_)) => self.doing = State::Tool,
-            Reply::Chat(chat::Event::Confirm { prompt, answer }) => {
-                self.confirm = Some(answer);
-                self.unclear = 0;
-                // The wait starts when the question is said; until then,
-                // or without its sound, at most `UNSPOKEN` longer.
-                let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
-                let unspoken = if self.muted.speaker {
-                    Duration::ZERO
-                } else {
-                    UNSPOKEN
-                };
-                self.confirm_until = Instant::now() + wait + unspoken;
-                self.confirm_prompt = prompt;
-                // A yes or no said while the reply thought answers it.
-                let at = (self.queue.iter()).rposition(|t| {
-                    matches!(
-                        words::answer(&self.config, t),
-                        words::Answer::Yes | words::Answer::No
-                    )
-                });
-                if let Some(at) = at {
-                    let text = self.queue.remove(at);
-                    crate::log::info(&format!("confirm: the queued answer {text:?}"));
-                    self.answer(Some(
-                        words::answer(&self.config, &text) == words::Answer::Yes,
-                    ));
-                }
-            }
+            Reply::Chat(chat::Event::Confirm { prompt, answer }) => self.asked(prompt, answer),
             Reply::Failed if self.tts_failed != Some(reply) => {
                 self.tts_failed = Some(reply);
                 return self.earcon(Earcon::Error).into_iter().collect();
+            }
+            Reply::Chat(chat::Event::Heard(text)) => {
+                if let Some(at) = self.queue.iter().position(|t| *t == text) {
+                    self.queue.remove(at);
+                }
             }
             Reply::Chat(chat::Event::Sentence(_)) | Reply::Failed => {}
             Reply::Played { at, pcm } => {
@@ -910,19 +929,35 @@ impl Core {
                 return Vec::new();
             }
         }
+        // The HUD shows the text before the agent acts on it.
+        let mut effects = vec![Effect::Say {
+            text: self.config.phrases.heard.replace("{text}", &text),
+            at: Instant::now(),
+            len: HEARD_LEN,
+        }];
         if self.asking.is_none() {
-            return self.ask(text, false);
-        }
-        if self.paused {
-            // A barge-in with new words: the reply ends, the words start
-            // the next one.
-            let mut effects = self.stop(None);
             effects.extend(self.ask(text, false));
             return effects;
         }
+        if self.paused || self.sounding(Instant::now()) {
+            // New words over the agent's speech, with or without a
+            // barge-in: the reply ends, the words and those that wait
+            // start the next one.
+            crate::log::info(&format!("over the reply: {text:?}"));
+            let queued = std::mem::take(&mut self.queue);
+            effects.extend(self.stop(None));
+            self.queue = queued;
+            effects.extend(self.ask(text, false));
+            return effects;
+        }
+        // While the reply thinks or runs tools, a request goes into its
+        // next round; a yes or no waits for a question.
         crate::log::info(&format!("queued: {text:?}"));
+        if words::answer(&self.config, &text) == words::Answer::Request {
+            effects.push(Effect::Inject(text.clone()));
+        }
         self.queue.push(text);
-        Vec::new()
+        effects
     }
 
     fn call(&mut self, call: Call) -> Vec<Effect> {
@@ -1358,6 +1393,7 @@ mod tests {
         assert_eq!(core.state(), State::Transcribing);
         let effects = core.handle(text(1, false, Ok(" hallo ")));
         let [
+            Effect::Say { .. },
             Effect::Ask {
                 reply, text, speak, ..
             },
@@ -1480,7 +1516,7 @@ mod tests {
         (0..11).for_each(|_| drop(core.handle(loud())));
         quiet(&mut core, 26);
         let effects = core.handle(text(3, false, Ok("Und morgen?")));
-        assert_eq!(effects[0], stop());
+        assert_eq!(effects[1], stop());
         assert_eq!(asks(&effects), [(2, "Und morgen?")]);
         // A muted mic barges in nowhere.
         call(
@@ -1508,6 +1544,54 @@ mod tests {
         say(&mut core, "Vergiss es.");
         assert_eq!(call(&mut core, Call::State).1["queued"], 0);
         assert_eq!(core.state(), State::Listening);
+    }
+
+    /// The HUD shows a heard text before the agent acts on it.
+    #[test]
+    fn the_hud_shows_a_heard_text() {
+        let mut core = Core::new(Config::default());
+        let effects = say(&mut core, "Wie spät ist es?");
+        assert!(
+            effects.iter().any(
+                |e| matches!(e, Effect::Say { text, .. } if text == "Heard: Wie spät ist es?")
+            ),
+            "{effects:?}"
+        );
+    }
+
+    /// A request while the reply thinks or runs tools goes into its next
+    /// round; once the turn heard it, it no longer waits in the queue. A
+    /// yes waits for a question.
+    #[test]
+    fn a_request_during_a_reply_goes_into_its_next_round() {
+        let mut core = asking();
+        core.handle(reply(1, chat::Event::Tool("query".into())));
+        let effects = say(&mut core, "Zeig mir lieber die Agenda.");
+        assert!(effects.contains(&Effect::Inject("Zeig mir lieber die Agenda.".into())));
+        let effects = say(&mut core, "Ja.");
+        assert!(!effects.iter().any(|e| matches!(e, Effect::Inject(_))));
+        core.handle(reply(
+            1,
+            chat::Event::Heard("Zeig mir lieber die Agenda.".into()),
+        ));
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+        let effects = core.handle(Input::Reply(1, Reply::Done("Rot.".into())));
+        assert_eq!(asks(&effects), [(2, "Ja.")]);
+    }
+
+    /// New words while the agent speaks stop the reply as a barge-in
+    /// does, and start the next turn with the words that wait (log
+    /// 2026-10-31: they waited until the reply ended).
+    #[test]
+    fn new_words_over_the_speech_stop_the_reply() {
+        let mut core = asking();
+        say(&mut core, "Mach es rot.");
+        core.handle(sound(1, 5000));
+        assert_eq!(core.state(), State::Speaking);
+        let effects = core.handle(text(9, false, Ok("Und größer.")));
+        assert!(effects.contains(&stop()), "{effects:?}");
+        assert_eq!(asks(&effects), [(2, "Mach es rot. Und größer.")]);
+        assert_eq!(core.state(), State::Thinking);
     }
 
     #[test]
