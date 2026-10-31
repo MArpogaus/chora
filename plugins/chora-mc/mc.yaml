@@ -48,28 +48,42 @@ scale:
 # example /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre.
 # Inter is in the package rsms-inter-fonts. Without a family, a system
 # font shows.
+# docs/mc-style.md has the rules that these styles follow.
 styles:
+  # Text to read: Pagella with old-style figures.
   body:
     family: TeX Gyre Pagella
     line_height: 1.5
     features: {onum: 1}
+  # The title of a panel: spaced small caps, one step up, muted.
   heading:
     base: body
-    color: accent
-    letter_spacing: 0.08
+    step: 1
+    line_height: 1.0
+    color: muted
+    letter_spacing: 0.06
     features: {smcp: 1, c2sc: 1, onum: 1}
+  # The title of a scene: spaced capitals with lining figures, the one
+  # accent of the page.
   chapter:
-    base: heading
-    step: 6
-    letter_spacing: 0.14
-  # The number and the bar of the head, on the baseline of the title.
-  # Lining figures stand as tall as its caps.
-  chapter_number:
-    family: TeX Gyre Pagella
-    step: 6
-    line_height: 1.5
-    color: faint
+    base: body
+    step: 3
+    line_height: 1.2
+    color: accent
+    uppercase: true
+    letter_spacing: 0.12
     features: {lnum: 1}
+  # The number and the bar of the head, on the baseline of the title.
+  chapter_number:
+    base: chapter
+    color: muted
+    letter_spacing: 0
+  # Machine data in a panel: hosts, loads, units.
+  data:
+    family: Inter
+    line_height: 1.5
+  # Labels of the regions: spaced capitals of Inter, as tall as the
+  # lowercase of margin.
   running_head:
     family: Inter
     weight: 500
@@ -77,6 +91,7 @@ styles:
     color: muted
     letter_spacing: 0.2
     uppercase: true
+  # Notes in the margin, the regions and the HUD, with tabular figures.
   margin:
     family: Inter
     step: -1
@@ -87,9 +102,9 @@ styles:
   mono:
     family: DejaVu Sans Mono
     step: -1
-# The head of each scene: number ("3 | Agenda" at the left edge of the
-# text column, the number and the bar faint, the title in small caps) or
-# none.
+# The head of each scene: number ("3 | AGENDA" at the left edge of the
+# text column: the number, a hairline bar and the title in spaced
+# capitals, all on one baseline) or none.
 chapter:
   layout: number
 # The text block of every scene: the width of one column of the grid,

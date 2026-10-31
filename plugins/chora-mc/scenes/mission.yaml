@@ -3,21 +3,21 @@
 # collectors/system.py fills the panels every few seconds.
 chapter: {title: Mission Control}
 panels:
-- {id: load, cell: [0, 0, 1, 2], title: Load, style: {family: Inter, features: {tnum: 1}}}
-- {id: top, cell: [1, 0, 1, 2], title: Busy, rule: faint, style: {family: Inter, features: {tnum: 1}}}
+- {id: load, cell: [0, 0, 1, 2], title: Load, style: {base: data}}
+- {id: top, cell: [1, 0, 1, 2], title: Busy, rule: faint, style: {base: data}}
 - id: errors
   cell: [2, 0, 2, 2]
   title: Journal, errors today
   rule: faint
   title_style: {base: heading, color: red}
-  style: {family: Inter, features: {tnum: 1}}
-- {id: units, cell: [0, 2, 2, 1], title: Units, style: {family: Inter, features: {tnum: 1}}}
-- {id: host, cell: [2, 2, 1, 1], title: Host, rule: faint, style: {family: Inter, features: {tnum: 1}}}
+  style: {base: data}
+- {id: units, cell: [0, 2, 2, 1], title: Units, style: {base: data}}
+- {id: host, cell: [2, 2, 1, 1], title: Host, rule: faint, style: {base: data}}
 - id: read
   cell: [3, 2, 1, 1]
   title: Read from
   rule: faint
-  style: {base: margin}
+  style: {base: mono, color: muted}
   lines:
   - /proc/stat, /proc/meminfo, /proc/net/dev
   - ps -eo comm,%cpu,rss --sort=-%cpu
