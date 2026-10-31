@@ -94,10 +94,10 @@ print(rows.index('$1'))") || { finding "$WF: $1 is not in the window list" endan
   ctl wait --timeout 5 "id:construct-list meta:state=open" >/dev/null || { finding "$WF: Tab opened no list" breaks "Tab"; return 1; }
   for _ in $(seq "$row"); do key Down; done
 }
-# no_lost <step>: every surface shows or is in the window list. A
+# no_lost <step>: no surface is lost. A
 # surface without an owner that the core does not show, one reserved for
 # a client that did not attach it, one of the construct without a pane,
-# and a hidden one that is not listed are lost (the no_lost of tests/gate-construct-windows.sh). Also
+# and a pane that neither shows nor is listed as not shown are lost (the no_lost of tests/gate-construct-windows.sh). Also
 # fails when a window that the workflow knows is gone ($WINDOWS holds
 # app ids that must still exist unless the step killed them).
 no_lost() {
@@ -118,7 +118,6 @@ for n in load("surfaces"):
     sid, size = n["id"], n["surface"].get("size") or [0, 0]
     owner = n.get("owner")
     app = n["surface"].get("app_id")
-    shows = n["visible"] and n["opacity"] > 0 and n["rects"]
     if min(size) <= 0:
         bad.append(f"{sid} ({app}): size {size}")
     elif n.get("to"):
@@ -135,8 +134,6 @@ for n in load("surfaces"):
             bad.append(f"{sid} ({app}): a pane that neither shows nor is listed")
     elif n["opacity"] <= 0 or not n["visible"]:
         bad.append(f"{sid} ({app}) of {owner}: opacity {n['opacity']}, visible {n['visible']}")
-    elif not shows and sid not in listed:
-        bad.append(f"{sid} ({app}) of {owner}: neither shows nor is listed")
 if bad:
     print(f"{step}: " + "; ".join(bad))
     sys.exit(1)

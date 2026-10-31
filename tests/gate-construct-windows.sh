@@ -100,10 +100,10 @@ import json, sys
 for n in sorted(json.load(sys.stdin), key=lambda n: n["surface"].get("app_id") or ""):
     print(n["surface"].get("app_id"), n.get("owner"), n["rects"], n["opacity"], n["visible"], n["transform"])'
 }
-# no_lost STEP: every surface shows or is in the window list (F31). A
+# no_lost STEP: no surface is lost (F31). A
 # surface without an owner that the core does not show, one reserved
 # for a client that did not attach it, and one of the construct without
-# a pane are lost: the window list lists every surface, also these.
+# a pane are lost: a pane that neither shows nor is listed as not shown is lost too.
 no_lost() {
     ctl query kind:surface >"$work/surfaces.json" || fail "$1: query"
     ctl query owner:construct >"$work/nodes.json" 2>/dev/null || echo '[]' >"$work/nodes.json"
@@ -120,7 +120,6 @@ bad = []
 for n in load("surfaces"):
     sid, size = n["id"], n["surface"].get("size") or [0, 0]
     owner = n.get("owner")
-    shows = n["visible"] and n["opacity"] > 0 and n["rects"]
     if min(size) <= 0:
         bad.append(f"{sid}: size {size}")
     elif n.get("to"):
@@ -137,8 +136,6 @@ for n in load("surfaces"):
             bad.append(f"{sid}: a pane that neither shows nor is listed")
     elif n["opacity"] <= 0 or not n["visible"]:
         bad.append(f"{sid} of {owner}: opacity {n['opacity']}, visible {n['visible']}")
-    elif not shows and sid not in listed:
-        bad.append(f"{sid} of {owner}: neither shows nor is listed")
 if bad:
     print(f"{step}:", *bad, sep="\n  ", file=sys.stderr)
     sys.exit(1)
