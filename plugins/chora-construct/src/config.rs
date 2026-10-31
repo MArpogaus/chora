@@ -35,13 +35,33 @@ pub enum Theme {
     Dark,
 }
 
+/// The colours of a theme, RGB.
+pub struct Palette {
+    /// The sky overhead.
+    pub sky: [f64; 3],
+    /// The band at the horizon, into which far panes fade.
+    pub horizon: [f64; 3],
+    pub ground: [f64; 3],
+    /// The fine dots on the ground.
+    pub dust: [f64; 3],
+}
+
 impl Theme {
-    /// The colour of the empty space and the colour of the fog, RGB.
     #[must_use]
-    pub fn colors(self) -> ([f64; 3], [f64; 3]) {
+    pub fn palette(self) -> Palette {
         match self {
-            Self::Light => ([1.0, 1.0, 1.0], [0.84, 0.86, 0.88]),
-            Self::Dark => ([0.0, 0.0, 0.0], [0.13, 0.13, 0.14]),
+            Self::Light => Palette {
+                sky: [0.915, 0.93, 0.95],
+                horizon: [1.0, 1.0, 1.0],
+                ground: [0.865, 0.85, 0.825],
+                dust: [0.62, 0.6, 0.57],
+            },
+            Self::Dark => Palette {
+                sky: [0.0, 0.0, 0.0],
+                horizon: [0.15, 0.15, 0.16],
+                ground: [0.06, 0.06, 0.065],
+                dust: [0.24, 0.24, 0.26],
+            },
         }
     }
 }

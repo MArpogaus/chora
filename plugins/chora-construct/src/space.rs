@@ -4,7 +4,8 @@
 //!
 //! The world has x to the right, y up and z forward at yaw 0. One unit is
 //! one logical pixel. The eye and the centres of the panes sit at y = 0,
-//! so a pane that faces the camera turns about the y axis only.
+//! so a pane that faces the camera turns about the y axis only. The
+//! ground lies at y = -`Lens::ground`.
 #![allow(clippy::many_single_char_names, reason = "the names of the math")]
 
 /// A 4x4 matrix, row by row.
@@ -51,6 +52,8 @@ pub struct Lens {
     pub h: f64,
     /// In logical pixels: a pane at this distance shows at 1:1.
     pub focal: f64,
+    /// The height of the eye above the ground.
+    pub ground: f64,
 }
 
 impl Lens {
@@ -61,6 +64,7 @@ impl Lens {
             w,
             h,
             focal: w * 0.65,
+            ground: h * 0.7,
         }
     }
 }
@@ -118,16 +122,39 @@ fn billboard(at: [f64; 2], size: [f64; 2], eye: [f64; 2]) -> Mat {
 /// divides by w.
 #[must_use]
 pub fn pane_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2]) -> [f64; 16] {
+    to_screen(lens, pose, &billboard(at, size, [pose.x, pose.z]))
+}
+
+/// The matrix of the mirror image of a pane in the ground, for a node of
+/// the pane's size divided by `k`: the node's top row is the pane's top
+/// row, deepest below the ground.
+#[must_use]
+pub fn mirror_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], k: f64) -> [f64; 16] {
+    let flip = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, -1.0, 0.0, -2.0 * lens.ground],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    let scale = [
+        [k, 0.0, 0.0, 0.0],
+        [0.0, k, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    let pane = billboard(at, size, [pose.x, pose.z]);
+    to_screen(lens, pose, &mul(&flip, &mul(&pane, &scale)))
+}
+
+/// The projection of a model to the output, column-major.
+fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
     let proj = [
         [lens.focal, 0.0, lens.w / 2.0, 0.0],
         [0.0, -lens.focal, lens.h / 2.0, 0.0],
         [0.0, 0.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
     ];
-    let m = mul(
-        &proj,
-        &mul(&view(pose), &billboard(at, size, [pose.x, pose.z])),
-    );
+    let m = mul(&proj, &mul(&view(pose), model));
     let mut out = [0.0; 16];
     for (c, column) in out.as_chunks_mut::<4>().0.iter_mut().enumerate() {
         for (r, cell) in column.iter_mut().enumerate() {
@@ -245,6 +272,7 @@ mod tests {
         w: 1280.0,
         h: 800.0,
         focal: 832.0,
+        ground: 560.0,
     };
 
     fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
@@ -303,6 +331,19 @@ mod tests {
         let m = pane_matrix(&LENS, &pose, at, [800.0, 600.0]);
         assert!(close(project(&m, 0.0, 0.0), [240.0, 100.0]));
         assert!(close(project(&m, 800.0, 600.0), [1040.0, 700.0]));
+    }
+
+    /// The mirror image hangs under the ground: the pane's bottom row
+    /// shows as deep below the ground as the pane floats above it, the
+    /// top row deeper still.
+    #[test]
+    fn the_mirror_image_hangs_under_the_ground() {
+        let at = [0.0, 2000.0];
+        let m = mirror_matrix(&LENS, &Pose::default(), at, [1280.0, 800.0], 4.0);
+        // The world point (0, y, 2000) shows at 400 - y * 832 / 2000.
+        let screen = |y: f64| [640.0, 400.0 - y * 832.0 / 2000.0];
+        assert!(close(project(&m, 160.0, 200.0), screen(-1120.0 + 400.0)));
+        assert!(close(project(&m, 160.0, 0.0), screen(-1120.0 - 400.0)));
     }
 
     #[test]

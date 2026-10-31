@@ -42,7 +42,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    config::{Action, Config},
+    config::{Action, Config, Theme},
     file::{Kind, PaneFile},
     space::{Lens, Pose},
 };
@@ -56,6 +56,12 @@ const SKY: &str = "construct-sky";
 /// The fog renders at this fraction of the output and scales up: it is
 /// soft, and a full-size shader is too slow for software rendering.
 const FOG_SCALE: f64 = 4.0;
+/// The mirror images of the panes in the ground, under the panes.
+const MIRRORS: &str = "construct-mirrors";
+/// A mirror image renders at this fraction of its pane: it is blurred.
+const MIRROR_SCALE: f64 = 4.0;
+/// The fog shader draws the shadows of this many panes, the nearest.
+const SHADOWS: usize = 8;
 const PANES: &str = "construct-panes";
 const WINDOWS: &str = "construct-windows";
 /// A clear rect over the space: it takes the drags, clicks, the wheel
@@ -63,6 +69,7 @@ const WINDOWS: &str = "construct-windows";
 const LOOK: &str = "construct-look";
 const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
+const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 /// One step of a walk key, in logical pixels, and one turn, in radians.
 const STEP: f64 = 90.0;
 const TURN: f64 = 0.06;
@@ -128,6 +135,15 @@ impl Pane {
             Content::Window { .. } => format!("construct-pane-{}", self.source),
             Content::Plugin { .. } => format!("construct-plugin-{}", self.name),
         }
+    }
+
+    fn mirror(&self) -> String {
+        format!("{}-mirror", self.node())
+    }
+
+    /// The commands that remove the nodes of the pane.
+    fn remove(&self) -> [Command; 2] {
+        [self.node(), self.mirror()].map(|id| Command::Remove { id, to: None })
     }
 
     fn window(&self) -> Option<&str> {
@@ -203,6 +219,7 @@ struct Construct {
     moving: Option<Moving>,
     fog_shader: String,
     pane_shader: String,
+    mirror_shader: String,
     output: Option<OutputInfo>,
     lens: Lens,
     pose: Pose,
@@ -260,6 +277,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         moving: None,
         fog_shader: shader_file("fog.frag", FOG_SHADER)?,
         pane_shader: shader_file("pane.frag", PANE_SHADER)?,
+        mirror_shader: shader_file("mirror.frag", MIRROR_SHADER)?,
         output: None,
         lens: Lens::new(1280.0, 800.0),
         pose: start,
@@ -310,8 +328,8 @@ fn vec3(c: [f64; 3]) -> Uniform {
 }
 
 /// The nodes of the space on the screen root of an output, bottom
-/// first: the sky, the fog, the panes, the windows and the look rect,
-/// which takes the keys of the walk.
+/// first: the sky, the fog, the mirror images, the panes, the windows and
+/// the look rect, which takes the keys of the walk.
 fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
     let group = |input| PropsUpdate {
         input,
@@ -329,6 +347,7 @@ fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
                 ..PropsUpdate::default()
             },
         ),
+        create(MIRRORS, NodeKind::Group, NAME, group(Some(InputMode::Pass))),
         create(PANES, NodeKind::Group, NAME, group(Some(InputMode::Pass))),
         create(WINDOWS, NodeKind::Group, NAME, group(None)),
         create(
@@ -357,6 +376,35 @@ fn pane_uniforms(source: &str, haze: f64, fog: [f64; 3]) -> BTreeMap<String, Uni
         ("haze".into(), Uniform::Float(haze)),
         ("fog".into(), vec3(fog)),
     ])
+}
+
+/// The new size of a pane and of its mirror image.
+fn resized(pane: &Pane) -> Vec<Command> {
+    let size = |id: &str, size| {
+        update(
+            id,
+            PropsUpdate {
+                size: Some(size),
+                ..PropsUpdate::default()
+            },
+        )
+    };
+    vec![
+        size(&pane.node(), pane.size),
+        size(&pane.mirror(), mirror_size(pane.size)),
+    ]
+}
+
+/// The uniforms of a mirror image: the pane's node and the strength.
+fn mirror_uniforms(source: &str, gloss: f64) -> BTreeMap<String, Uniform> {
+    let win = Uniform::Texture(NodeTexture {
+        node: source.into(),
+    });
+    BTreeMap::from([("win".into(), win), ("gloss".into(), Uniform::Float(gloss))])
+}
+
+fn mirror_size(size: [f64; 2]) -> [f64; 2] {
+    size.map(|s| (s / MIRROR_SCALE).ceil())
 }
 
 /// The eased share of a glide after `k` of its time.
@@ -639,14 +687,7 @@ impl Construct {
             .size
             .map(|s| (s * scale).round().clamp(PANE_MIN, PANE_MAX));
         pane.size = size;
-        let node = pane.node();
-        let mut commands = vec![update(
-            &node,
-            PropsUpdate {
-                size: Some(size),
-                ..PropsUpdate::default()
-            },
-        )];
+        let mut commands = resized(pane);
         if let Some(surface) = pane.window().filter(|_| !self.overlay) {
             commands.push(configure(surface, size));
         }
@@ -659,11 +700,9 @@ impl Construct {
     /// flavor's owner gets it through `node.requested`.
     fn remove_pane(&mut self, i: usize) -> Result<(), ClientError> {
         let Some(surface) = self.panes[i].window().map(String::from) else {
-            let node = self.panes.remove(i).node();
-            self.order.retain(|n| *n != node);
-            self.rt
-                .conn
-                .apply(vec![Command::Remove { id: node, to: None }])?;
+            let pane = self.panes.remove(i);
+            self.order.retain(|n| *n != pane.node());
+            self.rt.conn.apply(pane.remove().into())?;
             return self.frame();
         };
         self.forget(&surface)?;
@@ -818,20 +857,40 @@ impl Construct {
         })
     }
 
-    /// The shader node of a new pane.
-    fn pane_node(&self, pane: &Pane) -> Command {
-        let fog = self.settings.value.theme.colors().1;
-        create(
-            &pane.node(),
-            NodeKind::Shader,
-            PANES,
-            PropsUpdate {
-                size: Some(pane.size),
-                shader: Some(self.pane_shader.clone()),
-                uniforms: Some(pane_uniforms(&pane.source, 0.0, fog)),
-                ..PropsUpdate::default()
-            },
-        )
+    /// The shader nodes of a new pane: the pane and its mirror image,
+    /// both hidden until the frame.
+    fn pane_nodes(&self, pane: &Pane) -> [Command; 2] {
+        let fog = self.settings.value.theme.palette().horizon;
+        let node = |id: &str, parent, size, shader: &String, uniforms| {
+            create(
+                id,
+                NodeKind::Shader,
+                parent,
+                PropsUpdate {
+                    size: Some(size),
+                    shader: Some(shader.clone()),
+                    uniforms: Some(uniforms),
+                    visible: Some(false),
+                    ..PropsUpdate::default()
+                },
+            )
+        };
+        [
+            node(
+                &pane.mirror(),
+                MIRRORS,
+                mirror_size(pane.size),
+                &self.mirror_shader,
+                mirror_uniforms(&pane.source, 0.0),
+            ),
+            node(
+                &pane.node(),
+                PANES,
+                pane.size,
+                &self.pane_shader,
+                pane_uniforms(&pane.source, 0.0, fog),
+            ),
+        ]
     }
 
     /// A new window becomes a pane, ahead of the camera or where its file
@@ -874,7 +933,7 @@ impl Construct {
                 configure(surface, size),
             ];
         }
-        commands.push(self.pane_node(&pane));
+        commands.extend(self.pane_nodes(&pane));
         // The surface may have closed in between; the frame then fixes
         // nothing up, and the destroy event removes the pane.
         if let Some(err) = self.rt.conn.try_apply(commands)? {
@@ -893,14 +952,7 @@ impl Construct {
             return Ok(());
         }
         pane.size = size;
-        let node = pane.node();
-        let mut commands = vec![update(
-            &node,
-            PropsUpdate {
-                size: Some(size),
-                ..PropsUpdate::default()
-            },
-        )];
+        let mut commands = resized(pane);
         if !self.overlay && self.flown.as_ref().is_some_and(|f| f.surface == surface) {
             commands.push(self.snap_place(size, surface));
         }
@@ -915,11 +967,8 @@ impl Construct {
             return Ok(());
         };
         let pane = self.panes.remove(i);
-        let node = pane.node();
-        self.order.retain(|n| *n != node);
-        self.rt
-            .conn
-            .apply(vec![Command::Remove { id: node, to: None }])?;
+        self.order.retain(|n| *n != pane.node());
+        self.rt.conn.apply(pane.remove().into())?;
         if let Some(flown) = self.flown.take_if(|f| f.surface == surface) {
             self.unsnap(None)?;
             self.pose = flown.back;
@@ -1172,25 +1221,42 @@ impl Construct {
         self.frame()
     }
 
-    /// The sky and the fog for the pose.
-    fn space_frame(&self) -> Vec<Command> {
-        let (sky, fog) = self.settings.value.theme.colors();
+    /// The sky, the ground and the fog for the pose, with the shadows of
+    /// the nearest panes, `near` first.
+    fn space_frame(&self, near: &[&Pane]) -> Vec<Command> {
+        let palette = self.settings.value.theme.palette();
         let edge = (self.pose.x.hypot(self.pose.z) / self.radius).min(1.0);
-        let uniforms = BTreeMap::from([
+        let mut uniforms = BTreeMap::from([
             (
                 "view".into(),
                 Uniform::Vector(vec![self.lens.w, self.lens.h]),
             ),
             (
-                "cam".into(),
-                Uniform::Vector(vec![self.pose.yaw, self.pose.pitch]),
+                "pose".into(),
+                Uniform::Vector(vec![
+                    self.pose.yaw,
+                    self.pose.pitch,
+                    self.pose.x,
+                    self.pose.z,
+                ]),
             ),
-            ("focal".into(), Uniform::Float(self.lens.focal)),
-            ("sky".into(), vec3(sky)),
-            ("fog".into(), vec3(fog)),
-            ("edge".into(), Uniform::Float(edge)),
+            (
+                "lens".into(),
+                Uniform::Vector(vec![self.lens.focal, self.lens.ground, FOG_SCALE, edge]),
+            ),
+            ("sky".into(), vec3(palette.sky)),
+            ("fog".into(), vec3(palette.horizon)),
+            ("ground".into(), vec3(palette.ground)),
+            ("dust".into(), vec3(palette.dust)),
         ]);
-        let color = Some([sky[0], sky[1], sky[2], 1.0]);
+        for k in 0..SHADOWS {
+            let shadow = near.get(k).map_or(vec![0.0; 4], |p| {
+                let lift = (self.lens.ground - p.size[1] / 2.0).max(0.0);
+                vec![p.at[0], p.at[1], p.size[0] / 2.0, lift]
+            });
+            uniforms.insert(format!("s{k}"), Uniform::Vector(shadow));
+        }
+        let color = Some([palette.sky[0], palette.sky[1], palette.sky[2], 1.0]);
         vec![
             update(
                 SKY,
@@ -1209,19 +1275,30 @@ impl Construct {
         ]
     }
 
-    /// Sends the pose: the matrix and the haze of each pane, back to
-    /// front, and the camera of the fog.
+    /// Sends the pose: the matrix and the haze of each pane and its
+    /// mirror image, back to front, and the camera of the fog.
     fn frame(&mut self) -> Result<(), ClientError> {
         if self.output.is_none() || !self.active {
             return Ok(());
         }
-        let fog = self.settings.value.theme.colors().1;
+        let theme = self.settings.value.theme;
+        let fog = theme.palette().horizon;
+        let gloss = match theme {
+            Theme::Light => 0.13,
+            Theme::Dark => 0.3,
+        };
         let radius = self.radius;
-        let mut commands = self.space_frame();
         let mut sorted: Vec<(&Pane, f64)> = (self.panes.iter())
             .map(|p| (p, space::depth(&self.pose, p.at)))
             .collect();
         sorted.sort_by(|a, b| b.1.total_cmp(&a.1));
+        // ponytail: the shadows of the 8 nearest panes in front; a
+        // uniform array when the core passes arrays.
+        let near: Vec<&Pane> = (sorted.iter().rev())
+            .filter(|(_, depth)| *depth > 0.0)
+            .map(|(p, _)| *p)
+            .collect();
+        let mut commands = self.space_frame(&near);
         for (pane, depth) in &sorted {
             // A pane at or behind the eye does not show.
             let shown = *depth > self.lens.focal * 0.1;
@@ -1229,14 +1306,20 @@ impl Construct {
                 visible: Some(shown),
                 ..PropsUpdate::default()
             };
+            let mut mirror = props.clone();
             if shown {
                 let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size);
                 let far = (depth - self.lens.focal).max(0.0) / radius;
                 let haze = (1.0 - (-far * 1.5).exp()) * 0.9;
                 props.transform = Some(Transform::from_matrix(matrix));
                 props.uniforms = Some(pane_uniforms(&pane.source, haze, fog));
+                let k = pane.size[0] / mirror_size(pane.size)[0];
+                let matrix = space::mirror_matrix(&self.lens, &self.pose, pane.at, pane.size, k);
+                mirror.transform = Some(Transform::from_matrix(matrix));
+                mirror.uniforms = Some(mirror_uniforms(&pane.source, gloss * (1.0 - haze)));
             }
             commands.push(update(&pane.node(), props));
+            commands.push(update(&pane.mirror(), mirror));
         }
         let order: Vec<String> = sorted.iter().map(|(p, _)| p.node()).collect();
         if order != self.order {
@@ -1267,12 +1350,7 @@ impl Construct {
             self.panes = windows;
             plugins
         };
-        let commands: Vec<Command> = (gone.iter())
-            .map(|p| Command::Remove {
-                id: p.node(),
-                to: None,
-            })
-            .collect();
+        let commands: Vec<Command> = gone.iter().flat_map(Pane::remove).collect();
         self.rt.conn.apply(commands)?;
         self.active = true;
         self.order.clear();
@@ -1343,7 +1421,7 @@ impl Construct {
             at: self.place(file.at, size[0]),
             size,
         };
-        self.rt.conn.apply(vec![self.pane_node(&pane)])?;
+        self.rt.conn.apply(self.pane_nodes(&pane).into())?;
         self.panes.push(pane);
         Ok(None)
     }
