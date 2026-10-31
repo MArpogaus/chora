@@ -158,7 +158,7 @@ OpenRouter:
 
 ```yaml
 llm_url: https://openrouter.ai/api/v1
-llm_model: anthropic/claude-haiku-4.5
+llm_model: anthropic/claude-haiku-5.5
 llm_api_key_env: OPENROUTER_API_KEY
 llm_headers: {HTTP-Referer: "https://github.com/MArpogaus/chora", X-Title: chora}
 reasoning_effort: ""
