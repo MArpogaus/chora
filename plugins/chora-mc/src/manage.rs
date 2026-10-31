@@ -124,20 +124,18 @@ impl Mc {
         }
     }
 
-    /// `window.give`: hands the window of a scene, the focused one by
-    /// default, to another window manager (D55). The scene of an app goes
-    /// with it; another scene stays without its window.
+    /// `window.give`: hands the window of a scene to another window
+    /// manager (D55). The scene of an app goes with it; another scene
+    /// stays without its window.
     pub fn give(&mut self, give: Give) -> Result<Value, RpcError> {
         let Give { surface, to } = give;
-        let surface = (surface.or_else(|| self.focused.clone()))
-            .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no focused window"))?;
         let name = (self.windows.iter())
             .find(|(_, s)| **s == surface)
             .map(|(n, _)| n.clone())
             .ok_or_else(|| {
                 RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
             })?;
-        self.rt.conn.give(&surface, &to)?;
+        let answer = self.rt.conn.give(&surface, &to)?;
         self.windows.remove(&name);
         if self.focused.as_deref() == Some(surface.as_str()) {
             self.focused = None;
@@ -147,7 +145,7 @@ impl Mc {
         if self.transient.contains(&name) {
             self.remove_scene(&name).map_err(rejected)?;
         }
-        Ok(Value::String(surface))
+        Ok(answer)
     }
 
     /// Removes a scene whose app ended, with its nodes; the scenes after

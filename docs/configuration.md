@@ -238,7 +238,7 @@ the gap of the file again.
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
-| `window.give` | `to`: a client name; `surface`, the focused window without it | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
+| `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
@@ -388,10 +388,9 @@ texture; chora-construct does so for a plugin pane.
 A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window. So does a window
 that another window manager gives to `mc` (D55): mc claims its whole
-output, as a window manager does. `window.give` with
-`to` and an optional `surface`, by default the focused window, hands the
-window of a scene to another window manager. The scene of the window
-goes with it, and the scene before shows, without the keyboard.
+output, as a window manager does. `window.give` with `surface` and `to`
+hands the window of a scene to another window manager. The scene of the
+window goes with it, and the scene before shows, without the keyboard.
 `--output NAME` puts the scenes on that output instead of the first
 one, and leaves the others to other window managers.
 
@@ -762,7 +761,7 @@ windows of the other flavor.
 | `pane.fly` | `name`: flies into the pane |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
-| `window.give` | `to`, a window manager or a plugin such as mc, and `surface`, else the window flown into or ahead: gives an own window to `to` (D55); its pane goes |
+| `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |
 
 The name of a pane is a short label for voice: the app id or the title of
 the window, or the scene of a plugin pane, with `-2`, `-3` for a second
@@ -1394,7 +1393,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
-| `window.give` | `to`: a client name; `surface`, the focused window without it | a drag of the window out of the work areas: hands it to `to` (D55) |
+| `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
 | Option | Default | Meaning |

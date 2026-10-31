@@ -762,15 +762,7 @@ impl Plugin for Construct {
             }
             give::METHOD => {
                 let Give { surface, to } = runtime::params(params)?;
-                let surface = surface
-                    .or_else(|| self.flown.as_ref().map(|f| f.surface.clone()))
-                    .or_else(|| {
-                        let i = self.pane_ahead()?;
-                        self.panes[i].window().map(String::from)
-                    })
-                    .ok_or_else(|| invalid("no surface, and no window pane ahead".into()))?;
-                self.give(&surface, &to).map_err(rejected)?;
-                Ok(Value::Null)
+                self.give(&surface, &to).map_err(rejected)
             }
             "pane.fly" => {
                 let Named { name } = runtime::params(params)?;
@@ -1020,7 +1012,7 @@ impl Construct {
             let given = if pane.taken {
                 self.forget(&surface)
             } else {
-                self.give(&surface, &to)
+                self.give(&surface, &to).map(drop)
             };
             if let Err(err) = given {
                 eprintln!("chora-construct: {surface} stays: {err}");
@@ -2376,7 +2368,7 @@ impl Construct {
         };
         // A window that closed in between, or refuses, stays as it is.
         let done = match give {
-            Some(surface) => self.give(&surface, &row.target),
+            Some(surface) => self.give(&surface, &row.target).map(drop),
             None => match self.hidden()?.into_iter().find(|e| e.surface == row.target) {
                 Some(entry) => self.show(&entry).map(drop),
                 None => Ok(()),
@@ -2404,7 +2396,7 @@ impl Construct {
     /// plugin such as mc (D55): the core reserves the window for `to`,
     /// with its props back to the defaults, and the pane goes. The core
     /// refuses a `to` without a connection, and the pane stays.
-    fn give(&mut self, surface: &str, to: &str) -> Result<(), ClientError> {
+    fn give(&mut self, surface: &str, to: &str) -> Result<Value, ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(surface)) else {
             return refuse(format!("{surface} is no pane"));
@@ -2415,8 +2407,9 @@ impl Construct {
                 pane.name
             ));
         }
-        self.rt.conn.give(surface, to).map_err(ClientError::Rpc)?;
-        self.forget(surface)
+        let answer = self.rt.conn.give(surface, to).map_err(ClientError::Rpc)?;
+        self.forget(surface)?;
+        Ok(answer)
     }
 
     /// How a pane holds a window that the construct started.
@@ -2782,14 +2775,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             name(),
             &["name"],
         ),
-        runtime::method(
-            give::METHOD,
-            "Gives a window that the construct owns to the client TO, a window manager \
-             or a plugin such as mc (D55); without a surface, the window of the pane \
-             flown into or ahead. Its pane goes.",
-            json!({"surface": {"type": "string"}, "to": {"type": "string"}}),
-            &["to"],
-        ),
+        give::method(),
         runtime::method(
             "pane.fly",
             "Flies into a pane by its name, until it covers the output at 1:1.",

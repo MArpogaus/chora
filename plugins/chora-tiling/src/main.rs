@@ -559,27 +559,25 @@ impl Tiling {
         ))
     }
 
-    /// `window.give`: hands a window, the focused one by default, to
-    /// another window manager, and answers with its id.
+    /// `window.give`: hands a window to another window manager, and
+    /// answers with its id.
     fn give(&mut self, params: Value) -> Result<Value, RpcError> {
         let Give { surface, to } = runtime::params(params)?;
-        let surface = surface
-            .or_else(|| self.wm.focused().map(String::from))
-            .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no focused window"))?;
-        self.hand(&surface, &to)?;
-        Ok(Value::String(surface))
+        self.hand(&surface, &to)
     }
 
     /// Hands a window to the window manager `to` with a remove with `to`
-    /// (D55); the receiver gives it the focus.
-    fn hand(&mut self, surface: &str, to: &str) -> Result<(), RpcError> {
+    /// (D55); the receiver gives it the focus. The answer of
+    /// `window.give`.
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         only(self.wm.has(surface), || {
             format!("tiling has no window {surface}")
         })?;
-        self.rt.conn.give(surface, to)?;
+        let answer = self.rt.conn.give(surface, to)?;
         self.forget_window(surface);
         self.relayout()
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(answer)
     }
 
     /// Whether a binding drags: the one of `drag`, or `move`, the
@@ -611,7 +609,7 @@ impl Tiling {
             return;
         }
         let given = match self.rt.conn.claimant_at(point) {
-            Ok(Some(to)) => self.hand(&surface, &to),
+            Ok(Some(to)) => self.hand(&surface, &to).map(drop),
             Ok(None) => Err(RpcError::new(RpcError::REJECTED, "no claim there")),
             Err(err) => Err(err),
         };

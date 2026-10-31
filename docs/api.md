@@ -264,12 +264,12 @@ windows. A reservation that its window manager does not attach within 5
 seconds ends too, and all clients get `surface.detached`, so that no
 window stays hidden.
 
-Every window manager of the repository exports `window.give` with `to`
-and an optional `surface`, by default its focused window. The method is
+Every window manager of the repository exports `window.give` with
+`surface` and `to`, and answers with the surface id. The method is
 privileged, because the receiver can focus, close or configure the
-window. It hands the
-window over with a `remove` with `to`, and the receiver focuses it. A
-`to` that is not connected fails, and the window stays. `choractl give
+window. It hands the window over with a `remove` with `to`, and the
+receiver focuses it. A `to` that is not connected or holds no claim
+fails, and the window stays. `choractl give
 TO [--surface ID]` calls `window.give` of the owner of the window, by
 default of the focused one. A window dropped outside the claim of its
 window manager goes to the owner of the smallest other claim that holds
@@ -1016,7 +1016,7 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
-| `window.give` | `to`: a client name; `surface`, the focused window of tiling without it | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
+| `window.give` | `surface`, and `to`: a client name | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
 
 A plugin with settings exports `settings.get`, `settings.set` and
 `settings.reload` through the runtime of `chora-kit` (D62). `settings.get`

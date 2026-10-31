@@ -103,8 +103,8 @@ settled tiling
 shot 1-drag
 ok "1. a drag from xp to the tiling output: tiling owns $w"
 
-# 2. window.give of tiling, for the focused window.
-ctl call tiling window.give '{"to": "xp"}' >/dev/null || fail "tiling window.give"
+# 2. window.give of tiling.
+ctl call tiling window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null || fail "tiling window.give"
 settled xp
 shot 2-give
 ok "2. window.give of tiling to xp: xp owns $w"

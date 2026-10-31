@@ -6,7 +6,7 @@ use chora_scene::{
     ipc::{ExportMethod, RpcError},
 };
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::{conn::Conn, runtime};
 
@@ -19,8 +19,8 @@ pub use chora_scene::MOVE;
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Give {
-    /// The window; the focused window of the window manager without it.
-    pub surface: Option<String>,
+    /// The surface id of the window.
+    pub surface: String,
     /// The client name of the window manager that gets it.
     pub to: String,
 }
@@ -32,12 +32,12 @@ pub struct Give {
 pub fn method() -> ExportMethod {
     runtime::privileged(runtime::method(
         METHOD,
-        "Hands a window to another window manager (D55). Without surface: the focused window.",
+        "Hands a window to another window manager (D55), and answers with its surface id.",
         json!({
             "surface": {"type": "string", "description": "The surface id of the window."},
             "to": {"type": "string", "description": "The client name of the window manager."},
         }),
-        &["to"],
+        &["surface", "to"],
     ))
 }
 
@@ -57,13 +57,14 @@ impl Conn {
     }
 
     /// Hands a surface of the plugin to the window manager `to` with a
-    /// `remove` with `to`. The core refuses a `to` that is not connected,
-    /// and the surface then stays with the plugin.
+    /// `remove` with `to`, and returns the answer of `window.give`: the
+    /// surface id. The core refuses a `to` that is not connected or holds
+    /// no claim, and the surface then stays with the plugin.
     ///
     /// # Errors
     ///
     /// `to` is the plugin itself, the core refuses, or the socket fails.
-    pub fn give(&mut self, surface: &str, to: &str) -> Result<(), RpcError> {
+    pub fn give(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
         if to == self.name() {
             return Err(RpcError::new(
                 RpcError::INVALID_PARAMS,
@@ -76,7 +77,7 @@ impl Conn {
         };
         match self.try_apply(vec![remove]).map_err(rejected)? {
             Some(err) => Err(err),
-            None => Ok(()),
+            None => Ok(Value::String(surface.into())),
         }
     }
 }
@@ -92,5 +93,17 @@ mod tests {
     #[test]
     fn window_give_is_privileged() {
         assert!(matches!(super::method(), ExportMethod::Described(d) if d.privileged));
+    }
+
+    /// `choractl give` always names the surface, so the schema needs it.
+    #[test]
+    fn window_give_needs_a_surface() {
+        let ExportMethod::Described(d) = super::method() else {
+            panic!("a described method");
+        };
+        let required = &d.input_schema.unwrap()["required"];
+        assert_eq!(required, &serde_json::json!(["surface", "to"]));
+        let params = serde_json::json!({"to": "xp"});
+        assert!(serde_json::from_value::<super::Give>(params).is_err());
     }
 }

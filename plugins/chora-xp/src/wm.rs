@@ -665,11 +665,11 @@ impl Wm {
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
             Call::Give(give::Give { surface, to }) => {
-                let surface = surface
-                    .or_else(|| self.focused.clone())
-                    .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no focused window"))?;
                 known(self.index(&surface).is_some(), &surface)?;
-                self.give(&surface, &to)?
+                let (answer, commands) = self.give(&surface, &to)?;
+                self.apply(commands)
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                return Ok(answer);
             }
         };
         self.apply(commands)
@@ -2184,7 +2184,7 @@ impl Wm {
             Err(err) => Err(err),
         };
         let err = match given {
-            Ok(commands) => return commands,
+            Ok((_, commands)) => return commands,
             Err(err) => err,
         };
         eprintln!("chora-xp: {surface} stays: {}", err.message);
@@ -2197,15 +2197,15 @@ impl Wm {
     }
 
     /// Hands a window to the window manager `to` (D55), which gives it the
-    /// focus.
-    fn give(&mut self, surface: &str, to: &str) -> Result<Vec<Command>, RpcError> {
-        self.rt.conn.give(surface, to)?;
+    /// focus: the answer of `window.give`, and the commands.
+    fn give(&mut self, surface: &str, to: &str) -> Result<(Value, Vec<Command>), RpcError> {
+        let answer = self.rt.conn.give(surface, to)?;
         // No window of chora-xp takes the focus.
         if self.is_active(surface) {
             self.focused = None;
             self.grab_system_key(false);
         }
-        Ok(self.forget(surface))
+        Ok((answer, self.forget(surface)))
     }
 
     /// A button acts when the pointer goes up on it.
