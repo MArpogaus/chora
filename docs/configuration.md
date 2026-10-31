@@ -324,7 +324,7 @@ clients use `agent.set` and `hud.say`.
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
-| `scene.list` | none; answers `scenes` and `current` |
+| `scene.list` | none; answers `scenes` in their order and `current` |
 | `scene.save` | privileged. `name`, `grid`, `panels` or `app`: a shell command or the name of a content of kind `app`, such as `shell`; writes the file |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
@@ -383,6 +383,12 @@ hand apply with `settings.reload`:
   never lower than the least height. A page that is longer than the
   output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
+- `order`: the scenes in their order (default `agenda`, `morning`,
+  `agents`, `mission`, `terminal`). The number of a scene is its place:
+  first the scenes of the list, then the others, such as new scenes and
+  those of `app.open`, in the order they appear, so that the numbers
+  before them stay. `Super+Right` and `Super+Left` follow the order. A
+  scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
   `solo: {content: NAME, region: REGION}` (as `region.solo`; the default

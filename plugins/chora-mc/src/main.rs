@@ -14,6 +14,7 @@
 
 mod agent;
 mod config;
+mod manage;
 mod region;
 mod scene;
 #[cfg(test)]
@@ -236,6 +237,9 @@ struct Mc {
     /// The directory of the scene files.
     dir: PathBuf,
     scenes: BTreeMap<String, Scene>,
+    /// The names of the scenes in the order they appeared; `order` of
+    /// the settings goes before it.
+    appeared: Vec<String>,
     /// The window of an app scene, by scene.
     windows: HashMap<String, String>,
     /// Where an app that starts goes, by its activation token.
@@ -352,9 +356,11 @@ impl Mc {
         dir: PathBuf,
         [shader, blur]: [PathBuf; 2],
     ) -> Self {
+        let scenes = scene::load(&dir);
         let mut mc = Self {
             rt,
-            scenes: scene::load(&dir),
+            appeared: scenes.keys().cloned().collect(),
+            scenes,
             settings,
             dir,
             windows: HashMap::new(),
@@ -635,13 +641,13 @@ impl Plugin for Mc {
                 Ok(Value::Null)
             }
             "scene.list" => Ok(json!({
-                "scenes": self.scenes.keys().collect::<Vec<_>>(),
+                "scenes": self.order(),
                 "current": self.current,
             })),
             "scene.save" => {
                 let Save { name, scene } = runtime::params(params)?;
                 scene::save(&self.dir, &name, &scene).map_err(invalid)?;
-                self.scenes.insert(name.clone(), scene);
+                self.add_scene(&name, scene);
                 self.build().map_err(rejected)?;
                 Ok(Value::Null)
             }
@@ -1010,7 +1016,7 @@ impl Mc {
         self.rt.announce(&EVENTS, methods)?;
         self.grab_all()?;
         self.build()?;
-        let first = self.scenes.keys().next().cloned();
+        let first = self.order().into_iter().next();
         let default = Some(self.settings.value.default_scene.clone())
             .filter(|v| self.scenes.contains_key(v))
             .or(first);
@@ -1142,6 +1148,12 @@ impl Mc {
             },
         ));
         commands.extend(self.parked());
+        if let Some(panel) = self.overview_panel()
+            && let Some(scene) = self.scenes.get_mut(manage::OVERVIEW)
+        {
+            scene.panels.retain(|p| p.id != panel.id);
+            scene.panels.push(panel);
+        }
         let scenes = (self.scenes.keys())
             .map(|name| (name.clone(), self.scene_commands(name)))
             .collect();
@@ -1412,7 +1424,7 @@ impl Mc {
         let [x, _, _, _] = geo.text;
         let b = geo.baseline;
         let chapter = &scene.chapter;
-        let number = self.number(name, scene);
+        let number = self.number(name);
         let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
         let mut commands = Vec::new();
         match self.layout(scene) {
@@ -1449,16 +1461,6 @@ impl Mc {
             Layout::None => {}
         }
         commands
-    }
-
-    /// The number of a scene: its own, or its place among the scenes of
-    /// panels.
-    fn number(&self, name: &str, scene: &Scene) -> String {
-        scene.chapter.number.clone().unwrap_or_else(|| {
-            let numbered = self.scenes.iter().filter(|(_, s)| Self::has_chapter(s));
-            let at = numbered.take_while(|(n, _)| *n != name).count();
-            (at + 1).to_string()
-        })
     }
 
     /// The box of a panel on the screen, without its margin.
@@ -1899,7 +1901,7 @@ impl Mc {
                 None => break,
             }
         }
-        self.scenes.insert(name.clone(), Scene::app(command));
+        self.add_scene(&name, Scene::app(command));
         let group = create(
             &scene_id(&name),
             NodeKind::Group,
@@ -1944,7 +1946,7 @@ impl Mc {
                 if self.scenes.contains_key(&name) {
                     name = format!("{name}-{surface}");
                 }
-                self.scenes.insert(name.clone(), Scene::default());
+                self.add_scene(&name, Scene::default());
                 commands.push(create(
                     &scene_id(&name),
                     NodeKind::Group,
@@ -2079,6 +2081,8 @@ impl Mc {
                 id: scene_id(&name),
                 to: None,
             }])?;
+            // The scenes after it move up.
+            self.renumber()?;
         }
         Ok(())
     }
@@ -2273,7 +2277,7 @@ impl Mc {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
         };
-        let names: Vec<String> = self.scenes.keys().cloned().collect();
+        let names = self.order();
         let at = self
             .current
             .as_ref()

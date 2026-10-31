@@ -482,18 +482,15 @@ impl Mc {
     }
 
     /// The running head of a scene: the one of its chapter, or its number
-    /// and title; the name of an app.
+    /// and title.
     fn head(&self, name: &str) -> String {
         let Some(scene) = self.scenes.get(name) else {
             return String::new();
         };
-        if !Self::has_chapter(scene) {
-            return title_of(name);
-        }
         let chapter = &scene.chapter;
         chapter.running_head.clone().unwrap_or_else(|| {
             let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
-            format!("{}  {title}", self.number(name, scene))
+            format!("{}  {title}", self.number(name))
         })
     }
 

@@ -129,6 +129,10 @@ write:
   duration_ms: 900
 # The scene at the start.
 default_scene: agenda
+# The order of the scenes, and so their numbers. The scenes that the list
+# leaves out, such as new ones and those of app.open, follow in the order
+# they appear. The method scene.move changes the list.
+order: [agenda, morning, agents, mission, terminal]
 # A binding and its action: next_scene, previous_scene, {scene: NAME},
 # {run: COMMAND}, which starts a shell command whose window gets a scene
 # of its own, {toggle: REGION}, which shows or hides a region; a docked

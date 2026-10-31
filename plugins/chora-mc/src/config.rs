@@ -269,6 +269,9 @@ pub struct Config {
     pub write: Write,
     /// The scene at the start.
     pub default_scene: String,
+    /// The order of the scenes, and so their numbers; the other scenes
+    /// follow in the order they appeared.
+    pub order: Vec<String>,
     /// The states of the agents of `agent.set`, by name.
     pub states: BTreeMap<String, State>,
     /// A binding and its action.
@@ -418,6 +421,12 @@ impl Settings for Config {
             let colors = [&self.themes.light, &self.themes.dark];
             if colors.iter().any(|c| !c.contains_key(&state.color)) {
                 return Err(format!("states.{name}: no color {}", state.color));
+            }
+        }
+        for (i, name) in self.order.iter().enumerate() {
+            crate::scene::check_name(name).map_err(|e| format!("order: {e}"))?;
+            if self.order[..i].contains(name) {
+                return Err(format!("order: {name} twice"));
             }
         }
         let presets = (self.preset.as_str(), &self.presets);

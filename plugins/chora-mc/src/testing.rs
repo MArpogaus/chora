@@ -119,3 +119,8 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
 pub fn has(model: &Model, id: &str) -> bool {
     model.lock().unwrap().node(id).is_some()
 }
+
+/// The text of a text node of the model.
+pub fn text(model: &Model, id: &str) -> Option<String> {
+    model.lock().unwrap().node(id)?.props.text.clone()
+}
