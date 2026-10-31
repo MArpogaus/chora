@@ -15,7 +15,8 @@ use crate::scene;
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 6] = [
+const NEEDED: [&str; 7] = [
+    "chapter_number",
     "chapter",
     "running_head",
     "heading",

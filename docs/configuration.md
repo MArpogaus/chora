@@ -358,15 +358,16 @@ hand apply with `settings.reload`:
   (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
-  `uppercase`. The plugin uses `chapter`, `running_head`, `heading`, `body`, `margin` and `hud`.
+  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package `texlive-tex-gyre`, whose
   directory `/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre`
   must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
   running head, the notes and the HUD.
-- `chapter.layout`: `number` (the number, a bar and the title in spaced
-  small caps on one line, such as `3 | Agenda`, at the left edge of the
-  text column) or `none`.
+- `chapter.layout`: `number` (the number and a bar in the style
+  `chapter_number`, then the title in spaced small caps on the same
+  baseline, such as `3 | Agenda`, at the left edge of the text column) or
+  `none`.
 - `page`: the `measure` of a column of the grid, the `margin` column and
   the `gap`, in em of `scale.base`.
 - `grid`: the columns and rows of every scene without its own (default

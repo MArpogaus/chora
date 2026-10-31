@@ -60,10 +60,16 @@ styles:
     features: {smcp: 1, c2sc: 1, onum: 1}
   chapter:
     base: heading
-    step: 4
+    step: 6
     letter_spacing: 0.14
-    # Lining figures: the number stands on the baseline of the caps.
-    features: {smcp: 1, c2sc: 1, lnum: 1}
+  # The number and the bar of the head, on the baseline of the title.
+  # Lining figures stand as tall as its caps.
+  chapter_number:
+    family: TeX Gyre Pagella
+    step: 6
+    line_height: 1.5
+    color: faint
+    features: {lnum: 1}
   running_head:
     family: Inter
     weight: 500
@@ -81,8 +87,9 @@ styles:
   mono:
     family: DejaVu Sans Mono
     step: -1
-# The head of each scene: number ("3 | Agenda" in small caps, one line at
-# the left edge of the text column) or none.
+# The head of each scene: number ("3 | Agenda" at the left edge of the
+# text column, the number and the bar faint, the title in small caps) or
+# none.
 chapter:
   layout: number
 # The text block of every scene: the width of one column of the grid,

@@ -1315,18 +1315,28 @@ impl Mc {
         let mut commands = Vec::new();
         match self.layout(scene) {
             Layout::Number => {
-                let props = PropsUpdate {
-                    transform: Some(translate(x, HEAD * b)),
-                    ..self
-                        .ty("chapter", None)
-                        .props(&format!("{number} | {title}"))
-                };
-                commands.push(create(
-                    &chapter_id(name, "title"),
-                    NodeKind::Text,
-                    &panels_id(name),
-                    props,
-                ));
+                // The title starts after the number and its bar; `align`
+                // moves it there once the core knows their width.
+                let (number_ty, title_ty) =
+                    (self.ty("chapter_number", None), self.ty("chapter", None));
+                let chars: f64 = number.chars().map(|_| 1.0).sum::<f64>() + 2.0;
+                let guess = x + 0.6 * number_ty.size * chars;
+                let parts = [
+                    ("number", number_ty, format!("{number} |"), x),
+                    ("title", title_ty, title, guess),
+                ];
+                for (part, ty, text, x) in parts {
+                    let props = PropsUpdate {
+                        transform: Some(translate(x, HEAD * b)),
+                        ..ty.props(&text)
+                    };
+                    commands.push(create(
+                        &chapter_id(name, part),
+                        NodeKind::Text,
+                        &panels_id(name),
+                        props,
+                    ));
+                }
             }
             Layout::None => {}
         }
@@ -1423,8 +1433,9 @@ impl Mc {
         commands
     }
 
-    /// Moves what the core lays out to its place: the notes of the panels
-    /// of a scene flush right to the margin.
+    /// Moves what the core lays out to its place: the title of the head
+    /// after the number, the notes of the panels of a scene flush right to
+    /// the margin.
     fn align(&mut self, name: &str) -> Result<(), ClientError> {
         let Some(scene) = self.scenes.get(name).cloned() else {
             return Ok(());
@@ -1434,6 +1445,15 @@ impl Mc {
         };
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
+        if Self::has_chapter(&scene)
+            && self.layout(&scene) == Layout::Number
+            && let Some([_, _, width, _]) = self.rect(&chapter_id(name, "number"))?
+        {
+            // A word space of the title after the bar.
+            let space = 0.25 * self.ty("chapter", None).size;
+            let x = (geo.text[0] + width + space).round();
+            commands.push(move_to(chapter_id(name, "title"), x, HEAD * geo.baseline));
+        }
         for panel in &scene.panels {
             let Some(rows) = panel.columns() else {
                 continue;
