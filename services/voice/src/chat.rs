@@ -313,20 +313,11 @@ struct Failed {
 }
 
 impl Failed {
-    /// Whether a call of `tool` with `args` is nearly the same: the same
-    /// tool with the same form, the same keys and types, whatever the
-    /// values.
+    /// Whether a call of `tool` with `args` is the same call: the same
+    /// tool with the same values. A retry with another value runs
+    /// (review rc3 round 3, 2.8).
     fn like(&self, tool: &str, args: &Value) -> bool {
-        fn form(v: &Value) -> Value {
-            match v {
-                Value::Object(m) => m.iter().map(|(k, v)| (k.clone(), form(v))).collect(),
-                Value::Array(a) => a.iter().map(form).collect(),
-                Value::String(_) => "s".into(),
-                Value::Number(_) => 0.into(),
-                other => other.clone(),
-            }
-        }
-        self.tool == tool && form(&self.args) == form(args)
+        self.tool == tool && self.args == *args
     }
 }
 
@@ -1698,7 +1689,11 @@ mod tests {
             ),
             Reply::Tool(
                 "echo",
-                r#"{"fail": 1, "commands": [{"create": {"id": "c"}}]}"#,
+                r#"{"fail": 1, "commands": [{"create": {"id": "b"}}]}"#,
+            ),
+            Reply::Tool(
+                "echo",
+                r#"{"fail": 2, "commands": [{"create": {"id": "c"}}]}"#,
             ),
             Reply::Text("Das ging nicht."),
         ];
@@ -1712,7 +1707,9 @@ mod tests {
             .await
             .unwrap();
         turn(&mut chat, "Mach einen Knoten.", true).await;
-        assert_eq!(calls.load(Ordering::SeqCst), 2, "the third does not run");
+        // The same call a third time does not run; one with other values
+        // does (review rc3 round 3, 2.8).
+        assert_eq!(calls.load(Ordering::SeqCst), 3);
         let results: Vec<String> = (chat.history.iter())
             .filter(|m| m["role"] == "tool")
             .map(|m| m["content"].as_str().unwrap().to_owned())
@@ -1721,6 +1718,8 @@ mod tests {
         assert_eq!(results[0], error, "whole");
         assert_eq!(results[1], format!("{error}\n{FAILED_TWICE}"));
         assert_eq!(results[2], format!("error: not run. {FAILED_TWICE}"));
+        assert!(results[3].starts_with("error: "), "{}", results[3]);
+        assert!(!results[3].contains("not run"), "{}", results[3]);
     }
 
     /// Review rc3 round 2, 1.3: new settings, or the same ones read
