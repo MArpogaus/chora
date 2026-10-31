@@ -13,6 +13,9 @@
 #    while voice is away.
 # 6. Flown into a pane, the HUD sits at the bottom right; flown out, at
 #    the bottom centre again.
+# 7. Long German words and a long command stay inside their panels: the
+#    spoken sentence (at most two lines), the question, the rows of the
+#    window list and the pane label.
 # Then, with CHORA_FRAME_BUDGET_US=1, the watchdog takes the shaders: the
 # HUD panel and its label stay, and the glow comes back with no shader.
 # Last, with a pane that fills the view, a new window waits in the window
@@ -21,7 +24,8 @@
 # Usage: tests/gate-construct-hud.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as
 #          construct-hud-THEME-SIZE-CASE.png
-#   SIZES  the outputs (default "1920x1080 1280x720")
+#   SIZES  the outputs (default "1920x1080 1280x720 1920x1080@1.5
+#          1280x720@1.5")
 #   THEMES the themes (default "light dark")
 # shellcheck disable=SC2016 # until_ok evaluates its code later
 set -u
@@ -48,6 +52,20 @@ until_ok() {
     done
     return 1
 }
+# fits TEXT GLASS: the rect of the text node lies inside the rect of the
+# glass node, on the output.
+fits() {
+    ctl query owner:construct | python3 -I -c "
+import json, sys
+nodes = {n['id']: n for n in json.load(sys.stdin)}
+def rect(i):
+    r = list(nodes[i]['rects'].values())
+    return r[0] if r else None
+t, g = rect('$1'), rect('$2')
+ok = t and g and t[0] >= g[0] - 0.5 and t[1] >= g[1] - 0.5 and t[0] + t[2] <= g[0] + g[2] + 0.5 and t[1] + t[3] <= g[1] + g[3] + 0.5
+sys.exit(not ok and print(f'$1 {t} not inside $2 {g}', file=sys.stderr) is None)"
+}
+long=Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen
 # The fake voice agent reads its events from a fifo on fd 3.
 voice_start() {
     rm -f "$work/voice.in" "$work/claims"
@@ -186,6 +204,45 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
     until_ok 'test "$(hud_x)" -lt "$((w / 2))"' || fail "$tag: flown out, the HUD stays at $(hud_x)"
     ok "$tag: flown in, the HUD moved from $centre to the bottom right, and back"
 
+    state speaking
+    say "Ich habe die Datei $long-Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz.txt geöffnet, und jetzt starte ich den Build mit make -j8 install." 6000
+    sleep 0.6
+    fits construct-hud-say construct-hud-glass || fail "$tag: the sentence runs out of the HUD"
+    lines=$(node id:construct-hud-say 'round(list(n[0]["rects"].values())[0][3] / 24)')
+    [ "$lines" -le 2 ] || fail "$tag: the sentence shows $lines lines"
+    shot "$shots/construct-hud-overflow-$tag-say.png"
+    state question
+    emit voice.confirm "$(python3 -I -c 'import json, sys; print(json.dumps({"id": 42, "prompt": f"Soll ich die {sys.argv[1]} mit foot -e sh -c \"cd /home/user/projekte/{sys.argv[1]} && make -j8 install\" starten?", "detail": f"foot -e sh -c \"cd /home/user/projekte/{sys.argv[1]}/{sys.argv[1]} && make -j8 install\""}))' "$long")"
+    until_ok 'test -n "$(node id:construct-ask-hint "n[0][\"id\"]")"' || fail "$tag: no long question"
+    sleep 0.4
+    for t in construct-ask-prompt construct-ask-detail-0 construct-ask-hint; do
+        fits "$t" construct-ask-glass || fail "$tag: $t runs out of the question"
+    done
+    shot "$shots/construct-hud-overflow-$tag-question.png"
+    emit voice.confirm '{"id": 42, "done": true}'
+    until_ok 'test -z "$(node id:construct-ask "n[0][\"id\"]")"' || fail "$tag: the long question stays"
+    state listening
+    foot -a "$long-$long" -f "$font" sh -c 'sleep 600' &
+    pids+=($!)
+    until_ok "ctl call construct window.list | grep -q Donaudampf" || fail "$tag: no long window"
+    sleep 0.5
+    if [ "$(node id:construct-label-glass 'n[0]["visible"]')" = True ]; then
+        fits construct-label-text construct-label-glass || fail "$tag: the label runs out of its pill"
+    fi
+    shot "$shots/construct-hud-overflow-$tag-label.png"
+    # Behind the camera, its pane is a row of the list.
+    long_pane=$(ctl call construct construct.list | python3 -I -c 'import json, sys; print(next(p["name"] for p in json.load(sys.stdin)["panes"] if p["name"].startswith("Donau")))')
+    call pane.move "{\"name\": \"$long_pane\", \"ahead\": -4000}"
+    sleep 0.5
+    key Tab
+    until_ok 'test "$(node id:construct-list "n[0][\"opacity\"]")" = 1.0' || fail "$tag: Tab opened no list"
+    for row in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-list-row-") and n["id"].endswith(("-name", "-note"))])'); do
+        fits "$row" construct-list-glass || fail "$tag: $row runs out of the list"
+    done
+    shot "$shots/construct-hud-overflow-$tag-list.png"
+    key Escape
+    ok "$tag: long words and commands stay inside the HUD, the question, the list and the label"
+
     voice_stop
     until_ok 'test "$(node id:construct-hud "n[0][\"visible\"]")" = False' || fail "$tag: the HUD stays without voice"
     voice_start
@@ -197,7 +254,7 @@ print("\n".join(nodes[f"construct-ask-detail-{k}"] for k in range(len(nodes))))'
 }
 
 for theme in ${THEMES:-light dark}; do
-    for size in ${SIZES:-1920x1080 1280x720}; do
+    for size in ${SIZES:-1920x1080 1280x720 1920x1080@1.5 1280x720@1.5}; do
         round "$theme" "$size"
     done
 done
@@ -271,7 +328,7 @@ foot -a third -f "$font" sh -c 'sleep 600' &
 pids+=($!)
 listed() { ctl call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "third"), "missing"))'; }
 until_ok 'test "$(listed)" = none' || fail "the third window is not in the list: $(listed)"
-[ "$(label)" = NOTICE ] || fail "the HUD gives no notice: $(label)"
+until_ok 'test "$(label)" = NOTICE' || fail "the HUD gives no notice: $(label)"
 sleep 0.3
 shot "$shots/construct-hud-light-1280x720-noroom.png"
 call window.show '{"name": "third"}'

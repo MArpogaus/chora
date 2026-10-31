@@ -12,7 +12,8 @@
 )]
 
 use std::{
-    collections::BTreeMap,
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
     time::{Duration, Instant},
 };
 
@@ -46,7 +47,7 @@ const ASK_VIEW: &str = "construct-ask-view";
 pub const ASK_BODY: &str = "construct-ask-body";
 
 /// The three roles of type (rule 2): the size and the line.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Role {
     Label,
     Data,
@@ -102,10 +103,110 @@ pub fn mode(state: &str) -> (f64, &'static str) {
     }
 }
 
-/// The estimated width of a text, as the core gives no metrics before a
-/// query. Labels are capitals with their spacing.
-// ponytail: an average advance per character; measure with scene.query
-// if a long label overflows its pill.
+/// The width of the pill of a pane label at most.
+const LABEL_MAX: f64 = 320.0;
+/// The most characters of a single line that the fit tries: more never
+/// fits a panel of the guide.
+const LINE_CHARS: usize = 120;
+/// The ellipsis of a cut text (rule 11).
+const ELLIPSIS: char = '\u{2026}';
+
+/// A text that the core measures: its role, the text, and the width it
+/// wraps at, as the bits of the f64.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Probe {
+    pub role: Role,
+    pub text: String,
+    pub wrap: Option<u64>,
+}
+
+impl Probe {
+    #[must_use]
+    pub fn wrap(&self) -> Option<f64> {
+        self.wrap.map(f64::from_bits)
+    }
+}
+
+/// The sizes of texts as the core lays them out, from probe text nodes
+/// (`main.rs`), and the texts that a builder asked for but are not
+/// measured yet. A builder then uses the estimate of [`width`], and the
+/// caller measures the misses and builds again.
+#[derive(Default)]
+pub struct Metrics {
+    sizes: RefCell<HashMap<Probe, [f64; 2]>>,
+    misses: RefCell<Vec<Probe>>,
+}
+
+impl Metrics {
+    /// The size of `text` in `role`, wrapped at `wrap`: measured, or
+    /// estimated and noted as a miss.
+    fn size(&self, role: Role, text: &str, wrap: Option<f64>) -> [f64; 2] {
+        let probe = Probe {
+            role,
+            text: text.into(),
+            wrap: wrap.map(f64::to_bits),
+        };
+        if let Some(size) = self.sizes.borrow().get(&probe) {
+            return *size;
+        }
+        let (_, line) = role.size();
+        let w = width(role, text);
+        let size = wrap.map_or([w, line], |wrap| {
+            [w.min(wrap), lines(role, text, wrap) * line]
+        });
+        let mut misses = self.misses.borrow_mut();
+        if !misses.contains(&probe) {
+            misses.push(probe);
+        }
+        size
+    }
+
+    /// The texts to measure, once.
+    #[must_use]
+    pub fn take_misses(&self) -> Vec<Probe> {
+        std::mem::take(&mut self.misses.borrow_mut())
+    }
+
+    /// A measured size.
+    pub fn insert(&self, probe: Probe, size: [f64; 2]) {
+        let mut sizes = self.sizes.borrow_mut();
+        // ponytail: forget all at 4096 texts; an LRU if that churns.
+        if sizes.len() >= 4096 {
+            sizes.clear();
+        }
+        sizes.insert(probe, size);
+    }
+}
+
+/// The ways to show `text` on one line, longest first: whole, then cut
+/// at each character with an ellipsis.
+fn cuts(text: &str) -> Vec<String> {
+    let text: String = text.chars().take(LINE_CHARS).collect();
+    let ends: Vec<usize> = text.char_indices().map(|(i, _)| i).skip(1).collect();
+    let mut out = vec![text.clone()];
+    out.extend((ends.into_iter().rev()).map(|i| format!("{}{ELLIPSIS}", text[..i].trim_end())));
+    out
+}
+
+/// The ways to show the end of `text`, longest first: whole, then from
+/// each later word after an ellipsis, then from each later character for
+/// a word longer than the panel.
+fn ends(text: &str) -> Vec<String> {
+    let starts: Vec<usize> = text.char_indices().map(|(i, _)| i).skip(1).collect();
+    let after_space = |i: &usize| text[..*i].ends_with(' ');
+    let words = starts.iter().filter(|i| after_space(i));
+    let chars = starts.iter().filter(|i| !after_space(i));
+    let mut out = vec![text.to_owned()];
+    out.extend(
+        words
+            .chain(chars)
+            .map(|&i| format!("{ELLIPSIS}{}", text[i..].trim_start())),
+    );
+    out
+}
+
+/// The estimated width of a text, the fallback until the core measured
+/// it. Labels are capitals with their spacing.
 #[allow(clippy::cast_precision_loss, reason = "short texts")]
 fn width(role: Role, text: &str) -> f64 {
     let k = match role {
@@ -168,6 +269,8 @@ pub struct Look<'a> {
     pub plain: bool,
     /// The path of `glass.frag`.
     pub shader: &'a str,
+    /// The sizes of the texts.
+    pub metrics: &'a Metrics,
 }
 
 fn rgba(c: [f64; 3], a: f64) -> Option<[f64; 4]> {
@@ -213,6 +316,48 @@ pub fn fade(id: &str, to: f64, ms: f64) -> Command {
 impl Look<'_> {
     fn pad(&self) -> f64 {
         self.style.unit * 2.0
+    }
+
+    /// The size of a text on one line, or wrapped at `wrap`.
+    #[must_use]
+    pub fn size(&self, role: Role, text: &str, wrap: Option<f64>) -> [f64; 2] {
+        self.metrics.size(role, text, wrap)
+    }
+
+    /// `text` on one line within `max`: whole, or cut with an ellipsis
+    /// (rule 11). Asks for the sizes of all cuts at once.
+    #[must_use]
+    pub fn one_line(&self, role: Role, text: &str, max: f64) -> String {
+        let cuts = cuts(text);
+        let fits: Vec<bool> = (cuts.iter())
+            .map(|t| self.size(role, t, None)[0] <= max)
+            .collect();
+        (cuts.iter().zip(fits))
+            .find(|(_, fits)| *fits)
+            .map_or_else(|| ELLIPSIS.to_string(), |(t, _)| t.clone())
+    }
+
+    /// The end of `text` that fits `lines` lines wrapped at `wrap`: the
+    /// earlier lines scroll away behind an ellipsis.
+    #[must_use]
+    pub fn last_lines(&self, role: Role, text: &str, wrap: f64, lines: f64) -> String {
+        let ends = ends(text);
+        let max = lines * role.size().1 + 0.5;
+        let fits: Vec<bool> = (ends.iter())
+            .map(|t| self.size(role, t, Some(wrap))[1] <= max)
+            .collect();
+        (ends.iter().zip(fits))
+            .find(|(_, fits)| *fits)
+            .map_or_else(|| ELLIPSIS.to_string(), |(t, _)| t.clone())
+    }
+
+    /// The props of a text node of a probe; `main.rs` measures with them.
+    #[must_use]
+    pub fn probe_props(&self, probe: &Probe) -> PropsUpdate {
+        PropsUpdate {
+            max_width: probe.wrap(),
+            ..self.text_props(probe.role, &probe.text, self.colors.text)
+        }
     }
 
     /// A text node in a role.
@@ -404,8 +549,9 @@ impl Look<'_> {
     /// the fade from 0. Answers the width of the pill.
     #[must_use]
     pub fn label(&self, name: &str, fresh: bool) -> (Vec<Command>, f64) {
-        let text = name.to_uppercase();
-        let w = width(Role::Label, &text) + self.pad() * 2.0;
+        let pad = self.pad();
+        let text = self.one_line(Role::Label, &name.to_uppercase(), LABEL_MAX - pad * 2.0);
+        let w = (self.size(Role::Label, &text, None)[0] + pad * 2.0).ceil();
         let start = PropsUpdate {
             visible: Some(true),
             opacity: fresh.then_some(0.0),
@@ -469,7 +615,11 @@ impl Look<'_> {
                 LIST_LABEL,
                 PropsUpdate {
                     transform: at(self.pad(), self.pad()),
-                    ..self.text_props(Role::Label, label, self.colors.muted)
+                    ..self.text_props(
+                        Role::Label,
+                        &self.one_line(Role::Label, label, size[0] - 2.0 * self.pad()),
+                        self.colors.muted,
+                    )
                 },
             ),
         ];
@@ -486,6 +636,8 @@ impl Look<'_> {
     #[must_use]
     pub fn row(&self, id: &str, top: f64, name: &str, note: &str, selected: bool) -> Vec<Command> {
         let pad = self.pad();
+        let name = self.one_line(Role::Text, name, LIST_WIDTH * 0.6 - pad);
+        let note = self.one_line(Role::Data, note, LIST_WIDTH * 0.38 - pad);
         let color = if selected {
             self.colors.text
         } else {
@@ -509,8 +661,7 @@ impl Look<'_> {
                 LIST_ROWS_GROUP,
                 PropsUpdate {
                     transform: at(pad, top),
-                    max_width: Some(LIST_WIDTH * 0.6 - pad),
-                    ..self.text_props(Role::Text, name, color)
+                    ..self.text_props(Role::Text, &name, color)
                 },
             ),
         ];
@@ -521,7 +672,7 @@ impl Look<'_> {
                 LIST_ROWS_GROUP,
                 PropsUpdate {
                     transform: at(LIST_WIDTH * 0.62, top + 4.0),
-                    ..self.text_props(Role::Data, note, self.colors.muted)
+                    ..self.text_props(Role::Data, &note, self.colors.muted)
                 },
             ));
         }
@@ -766,14 +917,20 @@ impl Voice {
         };
         let ringless = look.plain || ring_mode < 0.0;
         let (u, pad) = (look.style.unit, look.pad());
-        let line = self.line(compact);
         let slot = if ringless { 0.0 } else { RING + 2.0 * u };
-        let (line_w, line_h) = line.map_or((0.0, 0.0), |(t, _)| {
-            let w = width(Role::Text, t).min(SAY_WIDTH);
-            (w, lines(Role::Text, t, SAY_WIDTH).min(2.0) * 24.0)
-        });
+        // The sentence wraps within the panel, and at most two lines show
+        // (rule 11); on a narrow output the panel shrinks to it.
+        let wrap = SAY_WIDTH
+            .min(out[0] - 8.0 * u - pad * 2.0 - slot)
+            .max(u * 8.0);
+        let line = (self.line(compact))
+            .map(|(t, muted)| (look.last_lines(Role::Text, t, wrap, 2.0), muted));
+        let label = look.one_line(Role::Label, &label, wrap);
+        let [line_w, line_h] =
+            (line.as_ref()).map_or([0.0; 2], |(t, _)| look.size(Role::Text, t, Some(wrap)));
         let content = 16.0 + line_h;
-        let w = (pad * 2.0 + slot + width(Role::Label, &label).max(line_w)).ceil();
+        let label_w = look.size(Role::Label, &label, None)[0];
+        let w = (pad * 2.0 + slot + label_w.max(line_w)).ceil();
         let h = pad * 2.0 + content.max(if ringless { 0.0 } else { RING });
         let x = if compact {
             out[0] - 4.0 * u - w
@@ -808,16 +965,16 @@ impl Voice {
                 },
             ),
         ];
-        let say = match line {
+        let say = match &line {
             Some((text, muted)) => {
-                let color = if muted {
+                let color = if *muted {
                     look.colors.muted
                 } else {
                     look.colors.text
                 };
                 PropsUpdate {
                     transform: at(pad + slot, top + 16.0),
-                    max_width: Some(SAY_WIDTH),
+                    max_width: Some(wrap),
                     visible: Some(true),
                     opacity: Some(1.0),
                     ..look.text_props(Role::Text, text, color)
@@ -849,7 +1006,9 @@ impl Voice {
             return commands;
         };
         let (u, pad) = (look.style.unit, look.pad());
-        let w = ASK_WIDTH + pad * 2.0;
+        // The panel keeps 32 to each side of a narrow output.
+        let wrap = ASK_WIDTH.min(out[0] - 8.0 * u - pad * 2.0).max(u * 8.0);
+        let w = wrap + pad * 2.0;
         let text = |id: &str, role, text: &str, color, y: f64| {
             create(
                 id,
@@ -857,7 +1016,7 @@ impl Voice {
                 ASK_BODY,
                 PropsUpdate {
                     transform: at(pad, y),
-                    max_width: Some(ASK_WIDTH),
+                    max_width: Some(wrap),
                     ..look.text_props(role, text, color)
                 },
             )
@@ -872,12 +1031,12 @@ impl Voice {
             look.colors.text,
             y,
         ));
-        y += lines(Role::Text, &ask.prompt, ASK_WIDTH) * 24.0 + u;
+        y += look.size(Role::Text, &ask.prompt, Some(wrap))[1] + u;
         if !ask.detail.is_empty() {
             for (k, piece) in chunks(&ask.detail).into_iter().enumerate() {
                 let id = format!("construct-ask-detail-{k}");
                 body.push(text(&id, Role::Data, piece, look.colors.text, y));
-                y += lines(Role::Data, piece, ASK_WIDTH) * 16.0;
+                y += look.size(Role::Data, piece, Some(wrap))[1];
             }
             y += u;
         }
@@ -991,12 +1150,13 @@ mod tests {
         serde_saphyr::from_str(DEFAULT).unwrap()
     }
 
-    fn look(config: &Config) -> Look<'_> {
+    fn look<'a>(config: &'a Config, metrics: &'a Metrics) -> Look<'a> {
         Look {
             style: &config.style,
             colors: &config.style.themes.light,
             plain: false,
             shader: "/glass.frag",
+            metrics,
         }
     }
 
@@ -1044,7 +1204,8 @@ mod tests {
         assert!(detail.len() > 10 * 1024 - 1000);
         let ask = json!({"id": 7, "prompt": "Run it?", "detail": detail});
         assert!(voice.follow("confirm", ask, now).unwrap().ask);
-        let commands = voice.ask(&look(&config), [1920.0, 1080.0], true);
+        let metrics = Metrics::default();
+        let commands = voice.ask(&look(&config, &metrics), [1920.0, 1080.0], true);
         let pieces: Vec<&str> = (commands.iter())
             .filter_map(|c| match c {
                 Command::Create { id, props, .. } if id.starts_with("construct-ask-detail-") => {
@@ -1065,6 +1226,110 @@ mod tests {
         assert!(voice.ask.is_some(), "another id");
         assert!(voice.follow("confirm", done(7), now).unwrap().ask);
         assert!(voice.ask.is_none());
+    }
+
+    /// Measures every miss as the core would with a monospace advance
+    /// of 10 per character and wraps by character, then builds again.
+    fn measured<T>(metrics: &Metrics, mut build: impl FnMut() -> T) -> T {
+        for _ in 0..3 {
+            let out = build();
+            let misses = metrics.take_misses();
+            if misses.is_empty() {
+                return out;
+            }
+            for probe in misses {
+                #[allow(clippy::cast_precision_loss, reason = "short texts")]
+                let w = probe.text.chars().count() as f64 * 10.0;
+                let line = probe.role.size().1;
+                let size = probe.wrap().map_or([w, line], |wrap| {
+                    [w.min(wrap), (w / wrap).ceil().max(1.0) * line]
+                });
+                metrics.insert(probe, size);
+            }
+        }
+        panic!("the misses do not end");
+    }
+
+    fn text_of<'a>(commands: &'a [Command], node: &str) -> Option<&'a str> {
+        commands.iter().rev().find_map(|c| match c {
+            Command::Create { id, props, .. } | Command::Update { id, props } if id == node => {
+                props.text.as_deref()
+            }
+            _ => None,
+        })
+    }
+
+    /// A list row, a pane label and the HUD keep their texts inside
+    /// their panels, by the sizes that the core measures: a row and a
+    /// label end with an ellipsis, the sentence keeps its last two lines.
+    #[test]
+    fn every_text_fits_its_panel() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let long = "Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen";
+        let row = measured(&metrics, || look.row("r", 0.0, long, long, true));
+        let name = text_of(&row, "r-name").unwrap();
+        assert!(name.ends_with(ELLIPSIS), "{name}");
+        let pad = look.pad();
+        assert!(metrics.size(Role::Text, name, None)[0] <= LIST_WIDTH * 0.6 - pad);
+        let note = text_of(&row, "r-note").unwrap();
+        assert!(metrics.size(Role::Data, note, None)[0] <= LIST_WIDTH * 0.38 - pad);
+        let (label, w) = measured(&metrics, || look.label(long, true));
+        assert!(w <= LABEL_MAX, "{w}");
+        assert!(text_of(&label, LABEL_TEXT).unwrap().ends_with(ELLIPSIS));
+        let mut voice = Voice::default();
+        let now = Instant::now();
+        voice
+            .follow("state", json!({"state": "speaking"}), now)
+            .unwrap();
+        let sentence = format!("Ich starte jetzt {long} und danach {long} für dich.");
+        voice
+            .follow("say", json!({"text": sentence, "duration_ms": 1}), now)
+            .unwrap();
+        for out in [[1280.0, 720.0], [480.0, 720.0]] {
+            let hud = measured(&metrics, || voice.hud(&look, out, false, 0.0, true));
+            let say = text_of(&hud, HUD_SAY).unwrap();
+            assert!(
+                say.starts_with(ELLIPSIS) && say.ends_with("für dich."),
+                "{say}"
+            );
+            let glass = hud.iter().find_map(|c| match c {
+                Command::Update { id, props } if id == HUD_GLASS => props.size,
+                _ => None,
+            });
+            let [w, h] = glass.unwrap();
+            assert!(w <= out[0] - 8.0 * config.style.unit, "{out:?}: {w}");
+            assert!(h <= 2.0 * pad + 16.0 + 48.0, "{out:?}: {h}");
+        }
+    }
+
+    /// The question grows with its prompt as the core wraps it.
+    #[test]
+    fn the_question_grows_with_its_prompt() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let mut voice = Voice::default();
+        let now = Instant::now();
+        let height = |voice: &mut Voice| {
+            let commands = measured(&metrics, || voice.ask(&look, [1280.0, 720.0], true));
+            commands.iter().find_map(|c| match c {
+                Command::Update { id, props } if id == ASK_GLASS => props.size.map(|s| s[1]),
+                _ => None,
+            })
+        };
+        voice
+            .follow("confirm", json!({"id": "a", "prompt": "Ja?"}), now)
+            .unwrap();
+        let short = height(&mut voice).unwrap();
+        let prompt = "Soll ich Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz \
+            öffnen und foot -e sh -c 'make -j8 install' starten?";
+        voice
+            .follow("confirm", json!({"id": "b", "prompt": prompt}), now)
+            .unwrap();
+        let tall = height(&mut voice).unwrap();
+        assert!(tall >= short + 24.0, "{short} {tall}");
     }
 
     #[test]
@@ -1142,7 +1407,8 @@ mod tests {
     #[test]
     fn the_elements_keep_to_the_layer_budget() {
         let config = config();
-        let look = look(&config);
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
         let out = [1920.0, 1080.0];
         let mut voice = Voice::default();
         let now = Instant::now();

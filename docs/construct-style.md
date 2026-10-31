@@ -92,8 +92,13 @@ rule 5. `plans/construct-hud.md` adds the section.
     that point, not a projected one, so it stays sharp. Only the pane
     ahead and the pane under the pointer show a label.
 11. **Text only on glass.** Text never sits on the bare space or on a
-    pane. A spoken sentence wraps at 480 and shows at most two lines.
-    Longer text keeps its end and starts with an ellipsis.
+    pane. Every text stays inside its panel, within the padding, as
+    the core measures it. A spoken sentence wraps at 480, or narrower on
+    a small output, and shows at most two lines. Longer text keeps its
+    end and starts with an ellipsis. A question wraps, and its panel
+    grows with it. A text that must stay on one line, such as a row of
+    the window list or a pane label (at most 320 wide), ends with an
+    ellipsis.
 
 ## Motion
 
