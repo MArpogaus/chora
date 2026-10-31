@@ -1,0 +1,7 @@
+# The construct flavor (experimental, D66): chora-construct, a white
+# space with a foggy horizon where the windows float as panes.
+[Unit]
+Description=The construct flavor of chora
+BindsTo=graphical-session.target
+After=graphical-session.target
+Wants=chora-construct.service
