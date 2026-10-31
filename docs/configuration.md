@@ -263,7 +263,8 @@ scenes through methods; the plugin reads no sources itself.
 
 A scene of `chora-mc` is not a view of D35. It is a YAML file
 `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`: a grid of panels, each
-with a title and lines, or one app whose window fills the text block below the head, without
+with a title and lines, or one app (a shell command, or a content of kind `app`) whose window
+fills the text block below the head, without
 a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
 (Mission Control), `morning` (the morning paper) and `terminal`. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and
@@ -288,8 +289,8 @@ panels:
   title: Agents
 ```
 
-Each scene of panels has a head in the style of the LaTeX package
-classicthesis: the running head in the header (see the regions below),
+Each scene of panels or of an app has a head in the style of the LaTeX
+package classicthesis: the running head in the header (see the regions below),
 and the number and the title of the scene as `chapter.layout` sets. The panels
 share the text block, one column of `page.measure` per column of the
 grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
@@ -324,7 +325,7 @@ clients use `agent.set` and `hud.say`.
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
 | `scene.list` | none; answers `scenes` and `current` |
-| `scene.save` | privileged. `name`, `grid`, `panels` or `app`; writes the file |
+| `scene.save` | privileged. `name`, `grid`, `panels` or `app`: a shell command or the name of a content of kind `app`, such as `shell`; writes the file |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |

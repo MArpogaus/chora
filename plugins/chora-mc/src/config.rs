@@ -201,7 +201,8 @@ pub enum Layout {
     /// The number, a bar and the title on one line at the left edge of
     /// the text column.
     Number,
-    /// No head: the panels start under the header.
+    /// No number and no title: the panels or the window start where the
+    /// head would stand.
     None,
 }
 

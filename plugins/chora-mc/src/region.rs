@@ -625,10 +625,11 @@ impl Mc {
         } else {
             0.0
         };
-        // A scene without a head: the text block of a page of one column,
-        // so that the lines stay where they are between scenes.
-        let app = (self.scenes.get(name)).is_none_or(|s| !Self::has_chapter(s));
-        let geo = if app {
+        // A scene without a head, such as of a window that no scene
+        // started: the text block of an empty page, so that the lines
+        // stay where they are between scenes.
+        let headless = (self.scenes.get(name)).is_none_or(|s| !Self::has_chapter(s));
+        let geo = if headless {
             self.geometry_of(name, &Scene::default())?
         } else {
             self.geometry(name)?
@@ -637,7 +638,7 @@ impl Mc {
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
         // Over the text of a page, else over the whole app.
-        let (lx, lw) = if app {
+        let (lx, lw) = if headless {
             (2.0 * b, w - 4.0 * b)
         } else {
             (x, width)
@@ -648,10 +649,10 @@ impl Mc {
         let drawer_top = h - foot - drawer;
         regions.insert(Region::Drawer, [frame[0], drawer_top, frame[1], drawer]);
         let [lw, rw] = self.side_widths(name);
-        let side_top = if app { head + b } else { top };
+        let side_top = if headless { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
-        if app {
+        if headless {
             // Each side has a box, also one that fades out.
             regions.insert(Region::Left, [b, side_top, lw, side_h]);
             regions.insert(Region::Right, [w - b - rw, side_top, rw, side_h]);

@@ -434,7 +434,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "name": {"type": "string"},
                 "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows, by default [4, 3]"},
                 "panels": panels,
-                "app": {"type": "string", "description": "a shell command whose window fills the text block"},
+                "app": {"type": "string", "description": "a shell command whose window fills the text block, or the name of a content of kind app, such as shell"},
             }),
             &["name"],
         )),
