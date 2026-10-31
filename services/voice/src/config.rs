@@ -33,13 +33,18 @@ pub struct Confirm {
 #[serde(untagged)]
 pub enum Indicator {
     On(bool),
-    At {
-        #[serde(default)]
-        corner: Corner,
-        /// The distance of the dot from the corner, in pixels.
-        #[serde(default = "default_offset")]
-        offset: [i32; 2],
-    },
+    At(At),
+}
+
+/// The place of the dot; a typo of a key is an error.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct At {
+    #[serde(default)]
+    corner: Corner,
+    /// The distance of the dot from the corner, in pixels.
+    #[serde(default = "default_offset")]
+    offset: [i32; 2],
 }
 
 /// A corner of the first output.
@@ -63,7 +68,7 @@ impl Indicator {
         match self {
             Self::On(false) => None,
             Self::On(true) => Some((Corner::default(), default_offset())),
-            Self::At { corner, offset } => Some((corner, offset)),
+            Self::At(At { corner, offset }) => Some((corner, offset)),
         }
     }
 }
@@ -1017,6 +1022,8 @@ mod tests {
             Ok(Some((Corner::BottomLeft, [12, 12])))
         );
         assert!(place("indicator: {corner: middle}").is_err());
+        // Review rc3 round 2, 1.7.
+        assert!(place("indicator: {corne: top-left}").is_err());
     }
 
     #[test]
