@@ -1073,6 +1073,17 @@ dismisses it too. If another server, such as GNOME Shell, owns the name
 on the bus, `chora-xp` logs one line and shows no balloons; it never
 takes the name from its owner.
 
+While the voice agent is connected and awake, a paperclip with eyes and
+eyebrows stands above the right end of the taskbar of the first output.
+`chora-xp` subscribes to `voice.*` (D65): the paperclip blinks while the
+agent is idle, leans in while it listens, looks up and sways while it
+thinks, bounces while it speaks and raises its eyebrows when it asks. Each
+sentence of `voice.say` shows in a balloon above it, which fades out three
+seconds after the sentence ends. A click on the paperclip mutes the mic of
+the agent through its method `mute`, and a second click unmutes it. The
+paperclip goes when the agent sleeps or disconnects, and `assistant:
+{enabled: false}` turns it off.
+
 The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:
 
@@ -1144,6 +1155,7 @@ that the file leaves out takes its default:
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
+| `assistant` | on | `enabled`: the paperclip of the voice agent |
 
 `settings.set` merges its object into the settings (see
 [API](api.md#plugin-methods)), so a change of the wallpaper names only
