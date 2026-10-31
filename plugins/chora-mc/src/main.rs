@@ -383,7 +383,34 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("chora-mc: notify: {err}");
         }
     }
-    Ok(runtime::serve(&mut mc)?)
+    loop {
+        let event = mc.rt.conn.next_event()?;
+        if let Some((call, err)) = spoofs_voice(&event) {
+            mc.rt.conn.answer(call, Err(err))?;
+            continue;
+        }
+        runtime::dispatch(&mut mc, event)?;
+    }
+}
+
+/// A call of `agent.set` or `agent.remove` for the agent `voice` from
+/// another client: its call and the refusal. Only the voice agent sets
+/// the state that mc shows in place of its dot (review 4.9).
+fn spoofs_voice(event: &Event) -> Option<(u64, RpcError)> {
+    let Event::MethodCalled {
+        call,
+        caller,
+        method,
+        params,
+    } = event
+    else {
+        return None;
+    };
+    let agent = matches!(method.as_str(), "agent.set" | "agent.remove");
+    (agent && params["name"] == VOICE && caller != VOICE).then(|| {
+        let err = format!("only the voice agent sets the agent {VOICE}");
+        (*call, RpcError::new(RpcError::REJECTED, err))
+    })
 }
 
 impl Mc {
@@ -695,11 +722,13 @@ impl Plugin for Mc {
                 self.act(&binding);
                 Ok(())
             }
+            // `voice.*` also matches a client named `voice.evil`: only
+            // the agent itself shows its state (review 4.9).
             Event::Emitted {
                 event,
                 client,
                 data,
-            } => self.follow(&event, &client, data),
+            } if client == VOICE => self.follow(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             Event::PointerPressed { node, position, .. } => self.click(&node, position),
             _ => Ok(()),
@@ -2589,6 +2618,32 @@ mod tests {
         chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
         assert_eq!(claims(), 2);
         assert!(!mc.claim_due);
+    }
+
+    /// Only the voice agent sets the agent `voice`, by its events or by
+    /// agent.set; a client named `voice.evil` or any other caller cannot.
+    #[test]
+    fn only_voice_sets_the_voice_agent() {
+        let call = |caller: &str, method: &str, name: &str| chora_scene::Event::MethodCalled {
+            call: 3,
+            caller: caller.into(),
+            method: method.into(),
+            params: serde_json::json!({"name": name, "state": "listening"}),
+        };
+        assert!(super::spoofs_voice(&call("evil", "agent.set", "voice")).is_some());
+        assert!(super::spoofs_voice(&call("voice.evil", "agent.remove", "voice")).is_some());
+        assert!(super::spoofs_voice(&call("voice", "agent.set", "voice")).is_none());
+        assert!(super::spoofs_voice(&call("evil", "agent.set", "ada")).is_none());
+        let (mut mc, _) = crate::testing::mc("spoof", [1920, 1080]);
+        let emitted = |client: &str| chora_scene::Event::Emitted {
+            event: format!("{client}.state"),
+            client: client.into(),
+            data: serde_json::json!({"name": "voice", "state": "listening"}),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, emitted("voice.evil")).unwrap();
+        assert!(mc.agents.is_empty(), "a client voice.evil set the agent");
+        chora_kit::runtime::Plugin::event(&mut mc, emitted("voice")).unwrap();
+        assert_eq!(mc.agents.len(), 1);
     }
 
     /// A client with `methods.call` alone ran commands through app.open and
