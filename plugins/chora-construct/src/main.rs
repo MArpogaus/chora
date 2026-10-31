@@ -215,9 +215,10 @@ struct Construct {
     overlay: bool,
     /// Whether the space shows.
     active: bool,
-    /// The loaded construct and its leash radius.
+    /// The loaded construct, and the leash radius that its file sets;
+    /// without one, the settings give it.
     current: Option<String>,
-    radius: f64,
+    radius: Option<f64>,
     waiting: Vec<Waiting>,
     moving: Option<Moving>,
     fog_shader: String,
@@ -273,14 +274,13 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     let rt = Runtime::connect(NAME, Vec::new())?;
     let start = Pose::default();
-    let radius = settings.value.radius;
     let mut construct = Construct {
         rt,
         settings,
         overlay: args.overlay,
         active: false,
         current: None,
-        radius,
+        radius: None,
         waiting: Vec::new(),
         moving: None,
         fog_shader: shader_file("fog.frag", FOG_SHADER)?,
@@ -683,7 +683,7 @@ impl Construct {
     /// Moves a pane to `to`, inside the leash (C4).
     fn move_pane(&mut self, i: usize, to: [f64; 2]) -> Result<(), ClientError> {
         let len = to[0].hypot(to[1]);
-        let r = self.radius;
+        let r = self.radius();
         self.panes[i].at = if len > r {
             [to[0] * r / len, to[1] * r / len]
         } else {
@@ -1085,6 +1085,11 @@ impl Construct {
         self.frame()
     }
 
+    /// The leash radius: the construct file's, or the settings'.
+    fn radius(&self) -> f64 {
+        self.radius.unwrap_or(self.settings.value.radius)
+    }
+
     /// The target of the walk: the end of the glide, or the pose.
     fn target(&self) -> Pose {
         self.glide.as_ref().map_or(self.pose, |g| g.to)
@@ -1142,7 +1147,7 @@ impl Construct {
         let mut t = self.target();
         let [fx, fz] = t.forward();
         let step = [fx * ahead + fz * aside, fz * ahead - fx * aside];
-        [t.x, t.z] = space::leash([t.x, t.z], step, self.radius);
+        [t.x, t.z] = space::leash([t.x, t.z], step, self.radius());
         self.glide_to(t, STEP_MS, None);
     }
 
@@ -1331,7 +1336,7 @@ impl Construct {
     /// the nearest panes, `near` first.
     fn space_frame(&self, near: &[&Pane]) -> Vec<Command> {
         let palette = self.settings.value.theme.palette();
-        let edge = (self.pose.x.hypot(self.pose.z) / self.radius).min(1.0);
+        let edge = (self.pose.x.hypot(self.pose.z) / self.radius()).min(1.0);
         let mut uniforms = BTreeMap::from([
             (
                 "view".into(),
@@ -1393,7 +1398,7 @@ impl Construct {
             Theme::Light => 0.13,
             Theme::Dark => 0.3,
         };
-        let radius = self.radius;
+        let radius = self.radius();
         let mut sorted: Vec<(&Pane, f64)> = (self.panes.iter())
             .map(|p| (p, space::depth(&self.pose, p.at)))
             .collect();
@@ -1462,7 +1467,7 @@ impl Construct {
         self.order.clear();
         self.waiting.clear();
         self.build()?;
-        self.radius = file.radius.unwrap_or(self.settings.value.radius);
+        self.radius = file.radius;
         self.pose = file.camera;
         self.current = Some(name.into());
         for pane in file.panes {
@@ -1497,6 +1502,7 @@ impl Construct {
         self.rt.ungrab_all()?;
         self.active = false;
         self.current = None;
+        self.radius = None;
         self.panes.clear();
         self.waiting.clear();
         self.order.clear();
@@ -1560,7 +1566,7 @@ impl Construct {
             .collect();
         file::File {
             camera,
-            radius: Some(self.radius),
+            radius: self.radius,
             panes,
         }
     }

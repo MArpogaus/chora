@@ -4,7 +4,8 @@
 # launcher, whose own window shows without a pane, and the program that
 # it starts becomes a pane; after the launcher the walk has the keyboard
 # again; x asks the window of the pane ahead to close, and its pane goes;
-# pane.remove asks as well, and a window that refuses stays a pane.
+# pane.remove asks as well, and a window that refuses stays a pane; a
+# radius of settings.set leashes the panes at once.
 # The launcher here is a foot window that starts a second foot.
 #
 # Usage: tests/gate-construct-keys.sh   BIN: directory with the binaries
@@ -71,3 +72,12 @@ ctl call construct pane.remove '{"name": "chora-probe"}' >/dev/null || fail "pan
 sleep 1
 panes | grep -qw chora-probe || fail "pane.remove dropped the pane of a window that stays: $(panes)"
 ok "pane.remove asked chora-probe to close; it refused and stays a pane"
+
+# A radius of settings.set leashes at once, without a construct file.
+ctl call construct settings.set '{"radius": 1000}' >/dev/null || fail "settings.set radius"
+ctl call construct pane.move '{"name": "chora-probe", "ahead": 50000}' >/dev/null || fail "pane.move"
+far=$(ctl call construct construct.list | python3 -I -c '
+import json, math, sys
+print(round(next(math.hypot(*p["at"]) for p in json.load(sys.stdin)["panes"] if p["name"] == "chora-probe")))')
+[ "$far" -le 1000 ] || fail "settings.set radius 1000 did not leash: a pane at $far"
+ok "settings.set radius 1000 leashed the pane at $far"
