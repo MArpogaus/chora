@@ -147,11 +147,11 @@ fn listed(config: &Config, tool: &str, args: &Value) -> bool {
     let has = |list: &[String], entry: &str| list.iter().any(|e| e == entry);
     match tool {
         "run_program" => args["argv"].as_array().is_some_and(|argv| {
-            let argv: Vec<&str> = argv.iter().filter_map(Value::as_str).collect();
+            let words: Vec<&str> = argv.iter().filter_map(Value::as_str).collect();
             // An entry is the whole argv: a bare name only allows the
             // program without arguments (`foot -e sh` is a shell).
-            (config.allow_programs.iter()).any(|e| e.split(' ').eq(argv.iter().copied()))
-                && argv.first().is_some_and(|p| !p.contains('/'))
+            (config.allow_programs.iter()).any(|e| e.split(' ').eq(words.iter().copied()))
+                && words.first().is_some_and(|p| !p.contains('/'))
         }),
         "call_method" => (args["client"].as_str())
             .zip(args["method"].as_str())
@@ -459,7 +459,8 @@ impl Chat {
         };
         self.llm = Llm::new(&self.config);
         if self.config.chora_mcp != old.chora_mcp {
-            self.tools.restart(self.config.chora_mcp.clone(), &self.name);
+            self.tools
+                .restart(self.config.chora_mcp.clone(), &self.name);
         }
         if let Some(coder) = &self.tools.coder {
             coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
@@ -1323,9 +1324,14 @@ fn text_of(content: &Value) -> String {
 /// `call_method`, where the params of `settings.set` are the patch itself:
 /// `{"patch": {...}}` there becomes `{...}`.
 fn unwrap_patch(args: &mut Value) {
-    if args["method"].as_str().is_some_and(|m| m.ends_with("settings.set"))
+    if args["method"]
+        .as_str()
+        .is_some_and(|m| m.ends_with("settings.set"))
         && let Some(params) = args.get_mut("params")
-        && let Some(patch) = params.as_object().filter(|p| p.len() == 1).and_then(|p| p.get("patch"))
+        && let Some(patch) = params
+            .as_object()
+            .filter(|p| p.len() == 1)
+            .and_then(|p| p.get("patch"))
         && patch.is_object()
     {
         *params = patch.clone();
@@ -1777,7 +1783,10 @@ mod tests {
         };
         chat.configure(new).unwrap();
         let answer = chat.tools.call("echo", &json!({})).await;
-        assert!(answer.as_str().unwrap().contains("not connected"), "{answer}");
+        assert!(
+            answer.as_str().unwrap().contains("not connected"),
+            "{answer}"
+        );
     }
 
     /// Review rc3 round 2, 1.4 and 4.1: "always" covers the same full
@@ -2344,6 +2353,7 @@ mod tests {
             .await
             .unwrap();
         assert!(chat.system.contains("voice.settings.set changes keys"));
+        assert!(chat.system.contains("only after describe_screen or"));
         let (_, events) = turn(&mut chat, "Setz den Barge-in auf 15.", true).await;
         let asked: Vec<_> = events.iter().filter(|e| e.starts_with("confirm")).collect();
         assert_eq!(
@@ -2371,7 +2381,10 @@ mod tests {
         assert!(args.contains("http://x"), "{args}");
         let answer = r#"{"llm_headers":{"X-Key":"sk-3"},"asr_url":"http://x"}"#;
         let (_, result) = journal("voice__settings__set", &set, answer);
-        assert!(!result.contains("sk-3") && result.contains("http://x"), "{result}");
+        assert!(
+            !result.contains("sk-3") && result.contains("http://x"),
+            "{result}"
+        );
     }
 
     /// Review rc3 round 2, 4.4, the user's decision: a security setting
@@ -2433,7 +2446,8 @@ mod tests {
             "params": {"patch": {"font_size": 12}}});
         unwrap_patch(&mut args);
         assert_eq!(args["params"], json!({"font_size": 12}));
-        let mut other = json!({"client": "mc", "method": "scene.set", "params": {"patch": {"a": 1}}});
+        let mut other =
+            json!({"client": "mc", "method": "scene.set", "params": {"patch": {"a": 1}}});
         let same = other.clone();
         unwrap_patch(&mut other);
         assert_eq!(other, same);
@@ -2465,19 +2479,19 @@ mod tests {
         let file = temp("reload.yaml");
         chat.settings_file = Some(file.clone());
         let asked = Mutex::new(Vec::new());
+        let on = |event: Event| {
+            if let Event::Confirm {
+                physical, answer, ..
+            } = event
+            {
+                asked.lock().unwrap().push(physical);
+                let _ = answer.send(Some(true));
+            }
+        };
         let url = chat.config.llm_url.clone();
         for yaml in ["allow_programs: [sh]", "barge_in_ms: 300"] {
-            std::fs::write(&file, format!("{{llm_url: '{url}', {}}}", &yaml)).unwrap();
-            chat.turn("Lade neu.", &|event| {
-                if let Event::Confirm {
-                    physical, answer, ..
-                } = event
-                {
-                    asked.lock().unwrap().push(physical);
-                    let _ = answer.send(Some(true));
-                }
-            })
-            .await;
+            std::fs::write(&file, format!("{{llm_url: '{url}', {yaml}}}")).unwrap();
+            chat.turn("Lade neu.", &on).await;
         }
         assert_eq!(asked.into_inner().unwrap(), [true, false]);
     }
