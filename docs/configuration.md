@@ -896,8 +896,8 @@ The login screen shows a session per flavor, twice:
 
 | Session | Starts |
 |---------|--------|
-| chora (uwsm), chora (Windows XP, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
-| chora, chora (Windows XP) | `chora-session <name>`, without uwsm |
+| chora (uwsm), chora (Windows XP, uwsm), chora (construct, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
+| chora, chora (Windows XP), chora (construct) | `chora-session <name>`, without uwsm |
 
 The uwsm sessions show only when uwsm is installed. uwsm is not in
 Fedora 44, so there the sessions without uwsm are the fallback (D50).

@@ -12,7 +12,11 @@ trap 'rm -rf "$work"' EXIT
 # pkgver takes no hyphen; pacman sorts 0.6.0rc.1 before 0.6.0.
 sed "s/@VERSION@/${version//-/}/" dist/arch/PKGBUILD >"$work/PKGBUILD"
 (cd "$work" && CHORA_SOURCE=$root makepkg --nodeps --noconfirm --force)
-# Every file of the RPM is in the package too.
+# Every file of the RPM is in the package too, but one:
+# /etc/fonts/conf.d/09-chora-tex-gyre.conf. Fedora's texlive-tex-gyre puts
+# the fonts in a TeX directory that fontconfig does not read, so the RPM
+# adds it; Arch's tex-gyre-fonts installs them to /usr/share/fonts, where
+# fontconfig finds them without a snippet.
 package=$(ls "$work"/chora-*.pkg.tar.zst)
 for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/bin/chora-mc usr/share/chora/mc/collectors/agenda.sh \
@@ -20,6 +24,7 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/share/chora/voice/quadlets/gufo-llm.container \
     usr/bin/chora-construct usr/share/chora/flavors/construct/chora-construct.target \
     usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
+    usr/share/wayland-sessions/chora-construct.desktop \
     etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \
     usr/share/xdg-desktop-portal/chora-portals.conf etc/xdg/xdg-desktop-portal-wlr/chora \
     usr/share/chora/flavors/xp/theme/winxp \
