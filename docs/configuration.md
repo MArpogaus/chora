@@ -378,15 +378,20 @@ texture; chora-construct does so for a plugin pane.
 A window that no scene started, for example from a launcher, gets a scene
 of its own without a head, which goes with the window.
 
-Only the user moves the keyboard: a binding that shows a scene gives it
-to the window of that scene, or to none; so does a click on a line of
-the overview. A click on a window or a docked app gives it that window,
-a toggle or a solo by key gives it to the docked app or back, and the
-first window of a `run` binding takes it. Methods and events never take
-the keyboard from a window: not `scene.show`, `app.open`, `agent.focus`,
-`region.toggle`, `region.solo`, `content.set`, `hud.say` or
-`agent.set`. A window of `app.open` takes the keyboard with a click. The settings of D62 are in `chora/chora-mc.yaml`; edits by
-hand apply with `settings.reload`:
+A new window takes the keyboard. The exception is a window that an
+`app.open` call started: voice and agents make these calls, and such a
+window takes the keyboard only with a click. A binding that shows a
+scene gives the keyboard to the window of that scene, or to none. A
+click on a line of the overview does the same. When a window closes,
+the scene that shows next takes the keyboard. A click on a window or a
+docked app gives it the keyboard. A toggle or a solo by key gives the
+keyboard to the docked app or back. Other methods never move the
+keyboard themselves: not `scene.show`, `agent.focus`,
+`region.toggle`, `region.solo`, `region.put`, `content.set`, `hud.say`
+or `agent.set`.
+
+The settings of D62 are in `chora/chora-mc.yaml`. Edits by hand apply
+with `settings.reload`:
 
 - `theme` (`light` or `dark`) and the colors of each theme by name, at
   least a `background`.

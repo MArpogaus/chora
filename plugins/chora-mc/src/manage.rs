@@ -109,7 +109,7 @@ impl Mc {
     }
 
     /// Shows the scene before `name`, or the default scene, when `name`
-    /// shows.
+    /// shows; that scene takes the keyboard.
     pub fn leave(&mut self, name: &str) {
         if self.current.as_deref() != Some(name) {
             return;
@@ -117,7 +117,7 @@ impl Mc {
         let back = (self.previous.clone())
             .filter(|p| p != name && self.scenes.contains_key(p))
             .unwrap_or_else(|| self.settings.value.default_scene.clone());
-        if let Err(err) = self.show(&back, false) {
+        if let Err(err) = self.show(&back, true) {
             eprintln!("chora-mc: {back}: {}", err.message);
         }
     }
@@ -399,6 +399,45 @@ mod tests {
         mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line])
             .unwrap();
         assert_eq!(mc.current.as_deref(), Some("agenda"));
+    }
+
+    /// Live: a key that switched to the terminal, an app of the launcher
+    /// and the scene after a closed window had no keyboard. A new window
+    /// takes it, except one of app.open; the scene after a closed window
+    /// takes it too.
+    #[test]
+    fn a_new_window_takes_the_keyboard_unless_app_open_started_it() {
+        let (mut mc, model) = testing::mc("keyboard", [1920, 1080]);
+        let surface = |id: &str| {
+            let info = chora_scene::SurfaceInfo::default();
+            model.lock().unwrap().scene.add_surface(id, info);
+        };
+        let last = || model.lock().unwrap().focuses.last().cloned().flatten();
+        mc.show("agenda", true).unwrap();
+        // A key started the terminal of its scene.
+        surface("s1");
+        mc.starting
+            .insert("t1".into(), crate::Target::Scene("terminal".into()));
+        mc.adopt("s1", Some("foot"), Some("t1")).unwrap();
+        assert_eq!(last().as_deref(), Some("s1"));
+        // The launcher, without a token.
+        surface("s2");
+        mc.adopt("s2", Some("firefox"), None).unwrap();
+        assert_eq!(last().as_deref(), Some("s2"));
+        // app.open of voice or an agent.
+        let count = model.lock().unwrap().focuses.len();
+        let open = mc.app_scene("foot -e top").unwrap();
+        mc.starting
+            .insert("t3".into(), crate::Target::Scene(open.clone()));
+        mc.quiet.insert("t3".into());
+        surface("s3");
+        mc.adopt("s3", Some("foot"), Some("t3")).unwrap();
+        assert_eq!(mc.current.as_deref(), Some(open.as_str()));
+        assert_eq!(model.lock().unwrap().focuses.len(), count);
+        // Its window closes: the scene before it takes the keyboard.
+        mc.forget("s3").unwrap();
+        assert_eq!(mc.current.as_deref(), Some("firefox"));
+        assert_eq!(last().as_deref(), Some("s2"));
     }
 
     /// The scene of app.open has its head at once, with the next number;

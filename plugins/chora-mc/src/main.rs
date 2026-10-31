@@ -290,9 +290,9 @@ struct Mc {
     shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
-    /// The activation tokens of the apps that the user started with a
-    /// binding: their first window takes the keyboard.
-    focus_tokens: BTreeSet<String>,
+    /// The activation tokens of the apps of `app.open`: voice and agents
+    /// start them, and their first window does not take the keyboard.
+    quiet: BTreeSet<String>,
     /// The docked app that the user started with a toggle: it takes the
     /// keyboard when its window fits.
     dock_focus: Option<String>,
@@ -411,7 +411,7 @@ impl Mc {
             shape: None,
             rendered: None,
             focused: None,
-            focus_tokens: BTreeSet::new(),
+            quiet: BTreeSet::new(),
             dock_focus: None,
             clocks: BTreeMap::new(),
             texts: BTreeMap::new(),
@@ -721,6 +721,9 @@ impl Plugin for Mc {
                 let Open { command } = runtime::params(params)?;
                 let name = self.app_scene(&command)?;
                 self.show(&name, false)?;
+                let target = Target::Scene(name.clone());
+                let tokens = (self.starting.iter()).filter(|(_, t)| **t == target);
+                self.quiet.extend(tokens.map(|(token, _)| token.clone()));
                 Ok(json!({"scene": name}))
             }
             _ => self.region_method(method, params),
@@ -1828,9 +1831,9 @@ impl Mc {
         commands
     }
 
-    /// Shows a scene. Only a switch of the user, by a binding or a click,
-    /// gives the keyboard to the window of the scene, or to none: a
-    /// method or an event never takes it from a window.
+    /// Shows a scene. A switch of the user, a new window or the scene
+    /// after a closed window gives the keyboard to the window of the
+    /// scene, or to none: a method never takes it from a window.
     fn show(&mut self, name: &str, user: bool) -> Result<(), RpcError> {
         let Some(scene) = self.scenes.get(name) else {
             return Err(invalid(format!("no scene {name}")));
@@ -1926,6 +1929,8 @@ impl Mc {
             // The next show of the scene starts the app again.
             let target = Target::Scene(name.clone());
             self.starting.retain(|_, t| *t != target);
+            let starting = &self.starting;
+            self.quiet.retain(|t| starting.contains_key(t));
             if self.windows.contains_key(&name) {
                 continue;
             }
@@ -1986,7 +1991,8 @@ impl Mc {
             return Ok(());
         }
         let started = token.and_then(|t| self.starting.remove(t));
-        let user = token.is_some_and(|t| self.focus_tokens.remove(t));
+        // A new window takes the keyboard, except one of app.open.
+        let user = !token.is_some_and(|t| self.quiet.remove(t));
         if let Some(Target::Dock(content)) = &started
             && !self.docks.contains_key(content)
         {
@@ -2352,9 +2358,8 @@ impl Mc {
             Action::PreviousScene => names[(at + names.len() - 1) % names.len()].clone(),
             Action::Scene(name) => name,
             Action::Run(command) => {
-                if let Some((token, _)) = launch(&command) {
-                    self.focus_tokens.insert(token);
-                }
+                // The new window takes the keyboard.
+                let _ = launch(&command);
                 return;
             }
             Action::Toggle(region) => {
