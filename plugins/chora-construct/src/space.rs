@@ -239,11 +239,89 @@ pub fn fly_in(lens: &Lens, eye: [f64; 2], at: [f64; 2]) -> Pose {
     }
 }
 
-/// The place of a new pane of `width`: `distance` ahead of the camera,
-/// or beside the panes in the way, right first, then left (C7). `others`
-/// are the centres and widths of the panes.
+/// The box of a pane on the output: left, top, right, bottom; `None`
+/// when a corner lies at or behind the eye.
+fn screen_box(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2]) -> Option<[f64; 4]> {
+    if depth(pose, at) <= lens.focal * 0.1 {
+        return None;
+    }
+    let m = pane_matrix(lens, pose, at, size);
+    let corners = [
+        [0.0, 0.0],
+        [size[0], 0.0],
+        [0.0, size[1]],
+        [size[0], size[1]],
+    ];
+    let mut b = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
+    for [u, v] in corners {
+        let w = m[3] * u + m[7] * v + m[15];
+        if w <= 0.0 {
+            return None;
+        }
+        let [x, y] = project(&m, u, v);
+        b = [b[0].min(x), b[1].min(y), b[2].max(x), b[3].max(y)];
+    }
+    Some(b)
+}
+
+/// The place of a new pane of `size` in the view direction (C7): ahead
+/// at `distance`, else shifted sideways, nearer or farther, but always
+/// with its whole face in the view, clear of the other panes on the
+/// output and on the ground. `others` are the centres and sizes of the
+/// panes. `None` when no spot in the view is free.
 #[must_use]
-pub fn place(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]) -> [f64; 2] {
+pub fn place(
+    lens: &Lens,
+    pose: &Pose,
+    distance: f64,
+    size: [f64; 2],
+    others: &[([f64; 2], [f64; 2])],
+) -> Option<[f64; 2]> {
+    let [fx, fz] = pose.forward();
+    let boxes: Vec<[f64; 4]> = (others.iter())
+        .filter_map(|(at, size)| screen_box(lens, pose, *at, *size))
+        .collect();
+    let gap = 8.0;
+    let free = |p: [f64; 2]| {
+        let Some(b) = screen_box(lens, pose, p, size) else {
+            return false;
+        };
+        let inside = b[0] >= 0.0 && b[1] >= 0.0 && b[2] <= lens.w && b[3] <= lens.h;
+        let clear = boxes.iter().all(|o| {
+            b[2] + gap <= o[0] || o[2] + gap <= b[0] || b[3] + gap <= o[1] || o[3] + gap <= b[1]
+        });
+        let apart = (others.iter())
+            .all(|(q, s)| (p[0] - q[0]).hypot(p[1] - q[1]) >= f64::midpoint(size[0], s[0]));
+        inside && clear && apart
+    };
+    // ponytail: a fixed grid of 7 depths and 17 shifts of 1/16 of the
+    // output; a finer search if panes get packed tight.
+    [1.0, 0.8, 1.25, 1.6, 2.0, 2.5, 3.0]
+        .into_iter()
+        .flat_map(|k| {
+            (0..17_i32).map(move |i| {
+                let lateral = f64::from((i + 1) / 2) * if i % 2 == 1 { 1.0 } else { -1.0 };
+                (distance * k, lateral)
+            })
+        })
+        .map(|(z, side)| {
+            let shift = side * lens.w / 16.0 * z / lens.focal;
+            [pose.x + fx * z + fz * shift, pose.z + fz * z - fx * shift]
+        })
+        .find(|&p| free(p))
+}
+
+/// The place of a pane of `width` that must come although no spot in
+/// the view is free, such as a pane of a construct file: `distance`
+/// ahead of the camera, or beside the panes in the way, right first,
+/// then left. `others` are the centres and widths of the panes.
+#[must_use]
+pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]) -> [f64; 2] {
     let [fx, fz] = pose.forward();
     let ahead = [pose.x + fx * distance, pose.z + fz * distance];
     let gap = width * 0.1;
@@ -403,21 +481,29 @@ mod tests {
         assert!(p[0].hypot(p[1]) <= r + 1e-9);
     }
 
+    /// A new pane goes ahead if it is free, else to a spot in the view;
+    /// with the view full, nowhere.
     #[test]
-    fn a_new_pane_goes_ahead_or_beside_the_panes_in_the_way() {
-        let pose = Pose {
-            x: 0.0,
-            z: 0.0,
-            yaw: 0.0,
-            pitch: 0.0,
-        };
-        assert_eq!(place(&pose, 2000.0, 1000.0, &[]), [0.0, 2000.0]);
-        let first = [([0.0, 2000.0], 1000.0)];
-        let right = place(&pose, 2000.0, 1000.0, &first);
-        assert!((right[0] - 1100.0).abs() < 1e-9 && (right[1] - 2000.0).abs() < 1e-9);
-        let two = [first[0], (right, 1000.0)];
-        let left = place(&pose, 2000.0, 1000.0, &two);
-        assert!((left[0] + 1100.0).abs() < 1e-9, "{left:?}");
+    fn a_new_pane_goes_into_the_view_or_nowhere() {
+        let pose = Pose::default();
+        let size = [640.0, 400.0];
+        assert_eq!(place(&LENS, &pose, 2000.0, size, &[]), Some([0.0, 2000.0]));
+        let first = [([0.0, 2000.0], size)];
+        let spot = place(&LENS, &pose, 2000.0, size, &first).unwrap();
+        assert_ne!(spot, [0.0, 2000.0]);
+        let b = screen_box(&LENS, &pose, spot, size).unwrap();
+        assert!(
+            b[0] >= 0.0 && b[2] <= LENS.w && b[1] >= 0.0 && b[3] <= LENS.h,
+            "{b:?}"
+        );
+        let a = screen_box(&LENS, &pose, first[0].0, size).unwrap();
+        assert!(
+            b[0] >= a[2] || b[2] <= a[0] || b[1] >= a[3] || b[3] <= a[1],
+            "{a:?} {b:?}"
+        );
+        // A pane that fills the view leaves no room.
+        let full = [([0.0, 800.0], [1400.0, 900.0])];
+        assert_eq!(place(&LENS, &pose, 2000.0, size, &full), None);
     }
 
     #[test]

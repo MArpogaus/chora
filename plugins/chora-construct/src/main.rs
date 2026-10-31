@@ -82,6 +82,8 @@ const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 const GLASS_SHADER: &str = include_str!("../glass.frag");
+/// The notice of a window that finds no room in the view.
+const NO_ROOM: &str = "No room in view: in the window list (Tab)";
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
 /// How long after the launcher starts its first new window becomes a
@@ -262,6 +264,9 @@ struct Waiting {
     token: Option<String>,
     pane: PaneFile,
     since: Instant,
+    /// A program of a key, not of a file: its pane comes only when the
+    /// view has room (C7).
+    key: bool,
 }
 
 impl Waiting {
@@ -270,6 +275,7 @@ impl Waiting {
             token,
             pane,
             since: Instant::now(),
+            key: false,
         }
     }
 
@@ -1156,7 +1162,7 @@ impl Construct {
             if node.owner.is_none() && ours {
                 let info = node.surface.unwrap_or_default();
                 let label = info.app_id.or(info.title).unwrap_or_default();
-                self.adopt(&node.id, &label, None, Hold::Own)?;
+                self.adopt(&node.id, &label, None, Hold::Own, false)?;
             }
         }
         let start = self.settings.value.start.clone();
@@ -1271,13 +1277,16 @@ impl Construct {
         unique(base, |n| self.panes.iter().any(|p| p.name == n))
     }
 
-    /// The place of a new pane of `width` (C7), or the place of its file.
-    fn place(&self, at: Option<[f64; 2]>, width: f64) -> [f64; 2] {
-        at.unwrap_or_else(|| {
-            let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
-            let distance = self.settings.value.pane_distance;
-            space::place(&self.pose, distance, width, &others)
-        })
+    /// The place of its file, or of a new pane of `size` in the view
+    /// (C7); with `force`, ahead also when the view is full.
+    fn place(&self, at: Option<[f64; 2]>, size: [f64; 2], force: bool) -> Option<[f64; 2]> {
+        let distance = self.settings.value.pane_distance;
+        let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size)).collect();
+        at.or_else(|| space::place(&self.lens, &self.pose, distance, size, &others))
+            .or_else(|| {
+                let widths: Vec<_> = others.iter().map(|(at, size)| (*at, size[0])).collect();
+                force.then(|| space::beside(&self.pose, distance, size[0], &widths))
+            })
     }
 
     /// The shader nodes of a new pane: the pane and its mirror image,
@@ -1320,24 +1329,31 @@ impl Construct {
     /// puts it. The construct hides its own window under the space, and
     /// the pane shows it through a node texture; a window of another owner
     /// only shows.
+    #[allow(clippy::too_many_arguments, reason = "the window and how it comes")]
     fn adopt(
         &mut self,
         surface: &str,
         label: &str,
         file: Option<&PaneFile>,
         hold: Hold,
+        force: bool,
     ) -> Result<(), ClientError> {
         if !self.active || self.panes.iter().any(|p| p.window() == Some(surface)) {
             return Ok(());
         }
         let size = (file.and_then(|f| f.size)).unwrap_or([self.lens.w, self.lens.h]);
+        let Some(at) = self.place(file.and_then(|f| f.at), size, force) else {
+            // No room in the view: the window waits in the window list.
+            self.voice.notice(NO_ROOM, Instant::now());
+            return self.draw_hud();
+        };
         let pane = Pane {
             name: self.label(label),
             source: surface.into(),
             content: Content::Window {
                 command: file.and_then(|f| f.command.clone()),
             },
-            at: self.place(file.and_then(|f| f.at), size[0]),
+            at,
             size,
             taken: hold == Hold::Taken,
             attached: hold == Hold::Own,
@@ -1391,7 +1407,7 @@ impl Construct {
             if !launchers_own(pid, launcher_pid) {
                 // fuzzel passes its own token on to the program it starts.
                 self.launched = None;
-                return self.adopt(surface, label, None, self.started());
+                return self.adopt(surface, label, None, self.started(), false);
             }
             if free && !self.overlay {
                 return self.show_launcher(surface);
@@ -1399,14 +1415,17 @@ impl Construct {
             return Ok(());
         }
         let i = (self.waiting.iter()).position(|w| token.is_some() && w.token.as_deref() == token);
-        let pane = i.map(|i| self.waiting.remove(i).pane);
+        let waited = i.map(|i| self.waiting.remove(i));
+        // A pane of a construct file comes also when the view is full.
+        let force = waited.as_ref().is_some_and(|w| !w.key);
+        let pane = waited.map(|w| w.pane);
         // The first other window after the launcher is its program.
         let launched =
             pane.is_none() && (self.launched.take()).is_some_and(|t| t.elapsed() < LAUNCHED);
         // A flavor takes the free windows; an overlay only shows those of
         // its construct, which the other flavor takes.
         if pane.is_some() || launched || (free && !self.overlay) {
-            return self.adopt(surface, label, pane.as_ref(), self.started());
+            return self.adopt(surface, label, pane.as_ref(), self.started(), force);
         }
         Ok(())
     }
@@ -1437,17 +1456,18 @@ impl Construct {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
         let token = chora_kit::launch(&command).map(|(t, _)| t);
-        self.waiting.push(Waiting::new(
-            token,
-            PaneFile {
-                kind: Kind::Program,
-                command: Some(command),
-                plugin: None,
-                scene: None,
-                at: None,
-                size: None,
-            },
-        ));
+        let pane = PaneFile {
+            kind: Kind::Program,
+            command: Some(command),
+            plugin: None,
+            scene: None,
+            at: None,
+            size: None,
+        };
+        self.waiting.push(Waiting {
+            key: true,
+            ..Waiting::new(token, pane)
+        });
     }
 
     /// Starts the launcher. Its own window, if it has one and the
@@ -2002,7 +2022,7 @@ impl Construct {
             name: self.label(&scene),
             source: node.id.clone(),
             content: Content::Plugin { plugin, scene },
-            at: self.place(file.at, size[0]),
+            at: self.place(file.at, size, true).unwrap_or_default(),
             size,
             taken: false,
             attached: false,
@@ -2019,9 +2039,10 @@ impl Construct {
             .partition(|w| w.pane.kind == Kind::Plugin);
         self.waiting = programs;
         let mut shown = false;
-        for Waiting { token, pane, since } in plugins {
+        for waiting in plugins {
+            let Waiting { pane, .. } = waiting;
             match self.show_plugin(pane)? {
-                Some(pane) => self.waiting.push(Waiting { token, pane, since }),
+                Some(pane) => self.waiting.push(Waiting { pane, ..waiting }),
                 None => shown = true,
             }
         }
@@ -2142,6 +2163,7 @@ impl Construct {
     /// client as a pane at its own size first (F30). Answers the pane.
     fn show(&mut self, entry: &Entry) -> Result<String, ClientError> {
         if entry.pane == "none" {
+            // A choice makes the pane also when the view is full.
             let file = PaneFile {
                 kind: Kind::Program,
                 command: None,
@@ -2150,7 +2172,13 @@ impl Construct {
                 at: None,
                 size: entry.size,
             };
-            self.adopt(&entry.surface, &entry.name, Some(&file), Hold::Taken)?;
+            // A free window, such as one that found no room, becomes the
+            // flavor's own.
+            let hold = match entry.owner {
+                None if !self.overlay => Hold::Own,
+                _ => Hold::Taken,
+            };
+            self.adopt(&entry.surface, &entry.name, Some(&file), hold, true)?;
         }
         let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(&entry.surface)) else {
             return Err(ClientError::Rpc(RpcError::new(
@@ -2305,7 +2333,7 @@ impl Construct {
         let info = node.surface.unwrap_or_default();
         let label = info.app_id.or(info.title).unwrap_or_default();
         self.forget(surface)?;
-        self.adopt(surface, &label, None, Hold::Own)
+        self.adopt(surface, &label, None, Hold::Own, false)
     }
 
     /// The window list as a glass panel in the middle of the output

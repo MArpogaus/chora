@@ -624,11 +624,19 @@ dark theme, a black void lies over a black glossy floor. A crisp
 horizon line separates floor and sky. The floor mirrors the sky, more
 at grazing angles, and a broad soft light band glints in it and turns
 with the view. Each pane has a soft shadow on the floor under it, and a
-clear mirror image that fades downwards and with the distance. Each new
-window becomes a
-pane ahead of the camera, at the size of the output. A pane turns to face
-the camera and shows the window through its node texture. A new pane
-moves aside, right first, from the panes in its way. The space lies on
+clear mirror image that fades downwards and with the distance. A new
+window becomes a pane in the view direction, at the size of the output.
+A pane turns to face the camera and shows the window through its node
+texture. A new pane goes ahead at `pane_distance` when it is free there.
+Else it goes a little to the side, nearer or farther, but only to a spot
+where its whole face shows in the view and covers no other pane. When no
+spot in the view is free, the window becomes no pane: it waits in the
+window list, and the HUD shows "No room in view: in the window list
+(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys `t`
+and `space` and a window that another window manager gives to the
+construct follow the same rule. A pane of a construct file and a choice
+in the window list come also when the view is full, beside the panes in
+the way. The space lies on
 the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.

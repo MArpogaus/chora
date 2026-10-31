@@ -3,6 +3,7 @@
 //! the window list. Pure builders of commands, without a connection;
 //! `main.rs` sends them.
 #![allow(
+    clippy::cognitive_complexity,
     clippy::many_single_char_names,
     clippy::too_many_arguments,
     clippy::too_many_lines,
@@ -78,6 +79,8 @@ const GLOW_IN: f64 = 240.0;
 pub const FADE_OUT: f64 = 120.0;
 /// How long a spoken sentence stays after its end.
 pub const LINGER: Duration = Duration::from_secs(2);
+/// How long a notice shows.
+const NOTICE: Duration = Duration::from_secs(4);
 /// The most bytes of a text node (api.md).
 const CHUNK: usize = 4096;
 /// The most characters of a spoken sentence: two lines of 480.
@@ -688,6 +691,15 @@ impl Voice {
         }
     }
 
+    /// Shows a short notice in the text line for a few seconds, also
+    /// without the voice agent.
+    pub fn notice(&mut self, text: &str, now: Instant) {
+        self.say = Some(text.into());
+        self.say_until = None;
+        self.fade_at = Some(now + NOTICE);
+        self.drop_at = None;
+    }
+
     /// The next deadline of the sentence.
     #[must_use]
     pub fn deadline(&self) -> Option<Instant> {
@@ -729,25 +741,26 @@ impl Voice {
         level: f64,
         glow: bool,
     ) -> Vec<Command> {
-        let Some(state) = &self.state else {
-            return Vec::new();
+        // Without the agent, only a notice shows, without a ring.
+        let (ring_mode, label) = match &self.state {
+            Some(state) => match mode(state) {
+                (ring, "") => (ring, state.to_uppercase()),
+                (ring, label) => (ring, label.into()),
+            },
+            None if self.say.is_some() => (-1.0, "NOTICE".into()),
+            None => return vec![fade(HUD, 0.0, FADE_OUT)],
         };
-        let (ring_mode, label) = mode(state);
-        let label = if label.is_empty() {
-            state.to_uppercase()
-        } else {
-            label.into()
-        };
+        let ringless = look.plain || ring_mode < 0.0;
         let (u, pad) = (look.style.unit, look.pad());
         let line = self.line(compact);
-        let slot = if look.plain { 0.0 } else { RING + 2.0 * u };
+        let slot = if ringless { 0.0 } else { RING + 2.0 * u };
         let (line_w, line_h) = line.map_or((0.0, 0.0), |(t, _)| {
             let w = width(Role::Text, t).min(SAY_WIDTH);
             (w, lines(Role::Text, t, SAY_WIDTH).min(2.0) * 24.0)
         });
         let content = 16.0 + line_h;
         let w = (pad * 2.0 + slot + width(Role::Label, &label).max(line_w)).ceil();
-        let h = pad * 2.0 + content.max(if look.plain { 0.0 } else { RING });
+        let h = pad * 2.0 + content.max(if ringless { 0.0 } else { RING });
         let x = if compact {
             out[0] - 4.0 * u - w
         } else {
@@ -802,7 +815,8 @@ impl Voice {
             },
         };
         commands.push(update(HUD_SAY, say));
-        let ring = [pad + RING / 2.0, h / 2.0, RING, ring_mode];
+        let diameter = if ringless { 0.0 } else { RING };
+        let ring = [pad + RING / 2.0, h / 2.0, diameter, ring_mode];
         commands.extend(look.glow_update(HUD_GLOW, [w, h], ring, level, glow));
         commands
     }

@@ -27,7 +27,7 @@ the prototype into a real plugin.
 | C4 | Leash | A soft border at radius R around the origin. Panes can stand anywhere inside it. |
 | C5 | Use of a pane | Both: use it in the space (focus follows the pane under the pointer or gaze), and fly in for focused work (1:1 pixels, full screen, Alt+Escape flies out by default). |
 | C6 | Persistence | A construct is a YAML file: panes with kind, content and pose. Mouse, voice and API change it live, and it can be saved. Like the mc scenes. |
-| C7 | New panes | They appear in the view direction at a fixed distance and face the camera. They move aside to the left or right of panes in the way. The user can move them later. |
+| C7 | New panes | They appear in the view direction at a fixed distance and face the camera. If that spot is taken, they go a little to the side, nearer or farther, but only where the whole pane stays in the view and covers no other pane. With no free spot in the view, the window becomes no pane: it waits in the window list, and the HUD says so. The user can move them later. |
 | C8 | Nested sessions | A nested GNOME session as a pane is a must for v1. |
 | C9 | Prompt input | By voice and by typing in the pane. |
 | C10 | Core work | The plugin builds on the core as it is. The user allows a core change for the keyboard focus of panes (#27) if the existing focus rules leave a gap; work package 0 checks this first. Other missing features are documented limits. |
@@ -119,8 +119,8 @@ The host keymap (#12) stays a limit of v1.
   - **session**: a nested desktop session (GNOME in v1) as a Wayland
     client.
   - **prompt**: section 5.6.
-- **F11** New panes appear as in C7. If the user looks at an existing
-  pane, the new pane goes beside it.
+- **F11** New panes appear as in C7: in the view, beside, before or
+  behind the panes there, or in the window list when the view is full.
 - **F12** Move and resize a pane with the mouse while a modifier key is
   held, and by voice ("move the terminal to the left"). K2a: a drag with
   the modifier (Ctrl by default) moves the pane sideways along its face

@@ -15,6 +15,8 @@
 #    the bottom centre again.
 # Then, with CHORA_FRAME_BUDGET_US=1, the watchdog takes the shaders: the
 # HUD panel and its label stay, and the glow comes back with no shader.
+# Last, with a pane that fills the view, a new window waits in the window
+# list with a notice in the HUD, and window.show makes its pane.
 #
 # Usage: tests/gate-construct-hud.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the captures as
@@ -222,3 +224,27 @@ for theme in ${THEMES:-light dark}; do
     kill "$session"
     wait "$session" 2>/dev/null
 done
+
+# No room in view (C7): a pane fills the view, so a new window becomes no
+# pane; it waits in the window list, the HUD says so, and window.show
+# makes its pane. No window gets lost.
+printf 'theme: light\n' >"$work/chora/chora-construct.yaml"
+CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
+session=${pids[-1]}
+grant screen.capture input.inject
+ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+foot_pane first ffffff 14181e 'the first pane'
+foot_pane second 000000 eceef2 'the second pane'
+call pane.move '{"name": "first", "ahead": -1300}'
+foot -a third -f "$font" sh -c 'sleep 600' &
+pids+=($!)
+listed() { ctl call construct window.list | python3 -I -c 'import json, sys; print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["name"] == "third"), "missing"))'; }
+until_ok 'test "$(listed)" = none' || fail "the third window is not in the list: $(listed)"
+[ "$(label)" = NOTICE ] || fail "the HUD gives no notice: $(label)"
+sleep 0.3
+shot "$shots/construct-hud-light-1280x720-noroom.png"
+call window.show '{"name": "third"}'
+until_ok 'ctl call construct construct.list | grep -q "\"name\": \"third\""' || fail "window.show made no pane"
+ok "with the view full, a new window waited in the list, and window.show made its pane"
+kill "$session"
+wait "$session" 2>/dev/null

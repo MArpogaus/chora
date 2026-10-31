@@ -294,7 +294,14 @@ session
 construct flavor
 ctl wait --timeout 10 id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$work/construct-flavor.log")"
 call construct.load '{"name": "flav"}' >/dev/null || fail "construct.load flav"
-until_ok 'test "$(panes)" = "chora-probe f1 f2 f3 f4 f5 f6"' 80 || fail "flav: the panes are $(panes); windows: $(geometry)"
+until_ok 'test "$(panes)" = "f1 f2 f3 f4 f5 f6"' 80 || fail "flav: the panes are $(panes); windows: $(geometry)"
+# The probe comes without the token of the file, as a free window; the
+# view is full, so it waits in the window list (C7) until a choice.
+until_ok 'test "$(state chora-probe)" = none' || fail "the probe is $(state chora-probe), not in the list"
+call window.show '{"name": "chora-probe"}' >/dev/null || fail "window.show chora-probe"
+sleep 1.5
+key Alt+Escape
+until_ok 'test "$(panes)" = "chora-probe f1 f2 f3 f4 f5 f6"' || fail "flav: the panes are $(panes)"
 sleep 1
 no_lost "flavor load"
 call pane.move '{"name": "f1", "ahead": -6000}' >/dev/null || fail "pane.move f1"
