@@ -289,7 +289,9 @@ The history commits per LLM round; an audio failure never rolls it back.
 report), with the last error and its Unix time `error_at`. Each actor
 reports its successes and failures. At start, the agent warms the LLM
 cache, again with the backoff of the LLM until it answers, so the cache
-is warm when the LLM comes back. A probe connects to the websockets of
+is warm when the LLM comes back. Then it says `phrases.ready`
+("Ready.") once, also on the HUD, when it listens; empty turns it off.
+A failed warm-up says nothing new. A probe connects to the websockets of
 the ASR and the TTS, without a request, at start, after a new URL, every
 30 s, and at the end of the backoff of a server that is down. Earcons
 are synthesized tones: wake, sleep, cancel, error.
@@ -399,7 +401,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire

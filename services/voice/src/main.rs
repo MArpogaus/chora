@@ -317,17 +317,19 @@ impl Agent {
     }
 
     /// Lets the LLM read the prompt; tries again with the backoff of the
-    /// LLM until it answers, so that the cache is warm when it is back.
-    /// Starts the health probes of the ASR and the TTS.
+    /// LLM until it answers, so that the cache is warm when it is back,
+    /// and then says that the agent is ready. Starts the health probes of
+    /// the ASR and the TTS.
     fn warm(&self) {
         let config = self.core.config();
         let _ = self.probe.send_replace([config.asr(), config.tts()]);
         self.net.spawn(health::probe(self.probe.subscribe()));
-        let chat = self.chat.clone();
+        let (chat, tx) = (self.chat.clone(), self.tx.clone());
         self.net.spawn(async move {
             while !chat.lock().await.warm().await {
                 tokio::time::sleep(health::wait("llm")).await;
             }
+            let _ = tx.send(Input::Ready);
         });
     }
 

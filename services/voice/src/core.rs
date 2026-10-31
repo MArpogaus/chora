@@ -117,6 +117,9 @@ pub enum Input {
     Code(coder::Event),
     /// An ACP agent.
     Agent(agents::Event),
+    /// The LLM read the prompt after the start: the agent says
+    /// `phrases.ready`.
+    Ready,
     /// A signal: the agent stops its sub-agents and exits.
     Quit,
     /// The method `agent`: a tool of the ACP agents and its arguments;
@@ -498,6 +501,7 @@ impl Core {
             Input::Reply(reply, event) => self.reply(reply, event),
             Input::Code(event) => self.code(event),
             Input::Agent(event) => self.sub(event),
+            Input::Ready => self.ready(),
             // The loop of the agent takes them before.
             Input::Quit | Input::AgentCall(..) => Vec::new(),
         };
@@ -537,6 +541,14 @@ impl Core {
         while self.notes.len() > NOTES {
             self.notes.pop_front();
         }
+    }
+
+    /// Says `phrases.ready` when the agent listens.
+    fn ready(&mut self) -> Vec<Effect> {
+        if !self.config.phrases.ready.is_empty() {
+            self.note(self.config.phrases.ready.clone().into());
+        }
+        Vec::new()
     }
 
     /// The next text to say; a question that its agent dropped, for

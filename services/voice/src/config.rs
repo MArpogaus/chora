@@ -55,6 +55,9 @@ pub struct Phrases {
     pub heard: String,
     /// Said before the first tool round of a turn without words.
     pub ack: String,
+    /// Said once the agent is ready after its start: the LLM read the
+    /// prompt. Empty: silent.
+    pub ready: String,
 }
 
 impl Default for Phrases {
@@ -71,6 +74,7 @@ impl Default for Phrases {
             settings_security: "Security setting! Shall I set {key} to {value}?".into(),
             heard: "Heard: {text}".into(),
             ack: "One moment.".into(),
+            ready: "Ready.".into(),
         }
     }
 }
@@ -376,6 +380,7 @@ impl Config {
             &mut p.settings_security,
             &mut p.heard,
             &mut p.ack,
+            &mut p.ready,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -473,8 +478,9 @@ fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 20] = [
+const GERMAN: [(&str, &str); 21] = [
     ("One moment.", "Moment."),
+    ("Ready.", "Bereit."),
     ("Heard: {text}", "Gehört: {text}"),
     (
         "The language model does not answer.",
@@ -950,6 +956,7 @@ mod tests {
         assert_eq!(de.phrases.agent_asks, "{name} möchte {what}. Erlauben?");
         assert_eq!(de.phrases.llm_slow, "Zu langsam.", "the user's own");
         assert!(de.confirm.iter().all(|r| r.prompt.starts_with("Soll ich")));
+        assert_eq!(de.phrases.ready, "Bereit.");
         assert_eq!(
             config.code_said("The coding task in demo-1 is done. All good."),
             "Die Programmieraufgabe in demo-1 ist fertig. All good."
