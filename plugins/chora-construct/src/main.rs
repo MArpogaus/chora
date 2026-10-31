@@ -342,6 +342,10 @@ struct Flown {
     back: Pose,
     /// Whether the window is attached, so that it shows itself.
     attached: bool,
+    /// For a plugin pane: the plugin and its scene, which get the
+    /// keyboard while the camera is in the pane. `surface` is then the
+    /// node of the pane's source.
+    plugin: Option<(String, String)>,
 }
 
 struct Construct {
@@ -1194,6 +1198,14 @@ impl Construct {
             let pane = self.panes.remove(i);
             self.order.retain(|n| *n != pane.node());
             self.rt.conn.apply(pane.remove().into())?;
+            // The keyboard goes back to the walk with the pane.
+            if self
+                .flown
+                .as_ref()
+                .is_some_and(|f| f.plugin.is_some() && f.surface == pane.source)
+            {
+                return self.fly_out();
+            }
             return self.frame();
         };
         if let Some(err) = self.rt.conn.try_apply(vec![Command::Close { surface }])? {
@@ -1733,11 +1745,20 @@ impl Construct {
         let to = space::fly_in(&self.lens, pane.at, pane.yaw);
         let gliding_in = self.glide.as_ref().and_then(|g| g.into.as_ref());
         let back = (self.flown.as_ref().or(gliding_in)).map_or_else(|| self.target(), |f| f.back);
-        let into = (pane.window()).map(|surface| Flown {
-            surface: surface.into(),
-            back,
-            attached: pane.attached,
-        });
+        let into = match &pane.content {
+            Content::Window { .. } => Some(Flown {
+                surface: pane.source.clone(),
+                back,
+                attached: pane.attached,
+                plugin: None,
+            }),
+            Content::Plugin { plugin, scene } => Some(Flown {
+                surface: pane.source.clone(),
+                back,
+                attached: false,
+                plugin: Some((plugin.clone(), scene.clone())),
+            }),
+        };
         self.glide_to(to, FLY_MS, into);
     }
 
@@ -1779,6 +1800,19 @@ impl Construct {
     /// shows it at 1:1, and the owner gets the request for the keyboard
     /// (D31).
     fn snap(&mut self, flown: Flown) -> Result<(), ClientError> {
+        if let Some((plugin, scene)) = &flown.plugin {
+            // A texture has no input: the plugin takes the keyboard for
+            // the page itself. A plugin without the method keeps the
+            // walk's keys.
+            let call = json!({"client": plugin, "method": "pane.focus", "params": {"name": scene}});
+            if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+                eprintln!("chora-construct: {plugin} pane.focus: {err}");
+            }
+            self.flown = Some(flown);
+            self.draw_hud()?;
+            self.frame()?;
+            return self.regrab();
+        }
         let surface = flown.surface.clone();
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(&surface)) else {
             return Ok(());

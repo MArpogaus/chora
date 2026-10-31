@@ -565,6 +565,13 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["text", "duration_ms"],
         ),
+        runtime::method(
+            "pane.focus",
+            "Gives the keyboard to the app of the scene NAME, else to its page; a plugin that \
+             shows the page as a pane calls it while the user flies into the pane.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        ),
         runtime::privileged(runtime::method(
             "app.open",
             "Starts a shell command as an app in a full-screen scene of its own.",
@@ -741,6 +748,12 @@ impl Plugin for Mc {
             "scene.show" => {
                 let Show { name } = runtime::params(params)?;
                 self.show(&name, false)?;
+                Ok(Value::Null)
+            }
+            "pane.focus" => {
+                let Show { name } = runtime::params(params)?;
+                self.focus_scene(&name)
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 Ok(Value::Null)
             }
             "scene.list" => Ok(json!({
@@ -1182,6 +1195,19 @@ impl Mc {
             self.rt.grab(binding, action)?;
         }
         Ok(())
+    }
+
+    /// The keyboard goes to the window of a scene, else to its page.
+    fn focus_scene(&mut self, name: &str) -> Result<(), ClientError> {
+        let command = match self.windows.get(name) {
+            Some(surface) => Command::Focus {
+                surface: Some(surface.clone()),
+            },
+            None => Command::FocusNode {
+                node: Some(page_id(name)),
+            },
+        };
+        self.apply(vec![command])
     }
 
     fn apply(&mut self, commands: Vec<Command>) -> Result<(), ClientError> {
