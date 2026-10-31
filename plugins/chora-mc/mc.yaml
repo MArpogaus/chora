@@ -118,6 +118,12 @@ page:
 # The columns and rows of the panels of every scene. A scene file can set
 # its own grid and page, but then its text and its number move.
 grid: [4, 3]
+# The least width and height of a panel, in em of scale.base. Where the
+# columns of the grid would be narrower, the page shows fewer of them and
+# the panels that do not fit wrap into new rows, in reading order; a row
+# is never lower than the height. A page longer than the output scrolls
+# with the wheel.
+min_panel: [14, 6]
 # New text writes itself: first its outline line by line, then its fill.
 write:
   enabled: true

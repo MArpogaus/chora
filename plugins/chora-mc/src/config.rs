@@ -265,6 +265,9 @@ pub struct Config {
     pub page: Page,
     /// Columns and rows of the grid of each scene without its own.
     pub grid: [u32; 2],
+    /// The least width and height of a panel, in em of `scale.base`. A
+    /// narrow output shows fewer columns, a short one scrolls.
+    pub min_panel: [f64; 2],
     pub write: Write,
     /// The scene at the start.
     pub default_scene: String,
@@ -384,6 +387,9 @@ impl Settings for Config {
             );
         }
         (self.page.check()).and(scene::check_default_grid(self.grid))?;
+        if self.min_panel.iter().any(|m| !(1.0..=200.0).contains(m)) {
+            return Err("min_panel: a width and a height from 1 to 200".into());
+        }
         for name in NEEDED {
             if !self.styles.contains_key(name) {
                 return Err(format!("styles: no {name}"));

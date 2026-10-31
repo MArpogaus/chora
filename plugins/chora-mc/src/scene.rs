@@ -312,6 +312,29 @@ pub fn place(cell: [u32; 4], grid: [u32; 2], area: [f64; 4], gap: [f64; 2]) -> [
     ]
 }
 
+/// The cells of panels on a grid of `cols` columns: in reading order,
+/// each at most `cols` wide, at the top-most, then left-most place below
+/// the panels before it. Answers the cells and the number of rows.
+pub fn flow(cells: &[[u32; 4]], cols: u32) -> (Vec<[u32; 4]>, u32) {
+    let cols = cols.max(1);
+    let mut order: Vec<usize> = (0..cells.len()).collect();
+    order.sort_by_key(|&i| (cells[i][1], cells[i][0]));
+    let mut tops = vec![0; cols as usize];
+    let mut flowed = cells.to_vec();
+    for i in order {
+        let [_, _, w, h] = cells[i];
+        let w = w.clamp(1, cols);
+        let top = |x: u32| tops[x as usize..(x + w) as usize].iter().copied().max();
+        let (y, x) = (0..=cols - w)
+            .filter_map(|x| Some((top(x)?, x)))
+            .min()
+            .unwrap_or_default();
+        tops[x as usize..(x + w) as usize].fill(y + h);
+        flowed[i] = [x, y, w, h];
+    }
+    (flowed, tops.into_iter().max().unwrap_or_default())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -421,5 +444,32 @@ mod tests {
             place([0, 1, 1, 1], [1, 2], area, [20.0, 20.0]),
             [20.0, 260.0, 960.0, 220.0]
         );
+    }
+
+    #[test]
+    fn panels_that_do_not_fit_wrap_in_reading_order() {
+        // The morning scene on two columns: the lead, then the rest below.
+        let cells = [
+            [0, 0, 2, 2],
+            [2, 0, 1, 1],
+            [3, 0, 1, 2],
+            [2, 1, 1, 1],
+            [0, 2, 2, 1],
+            [2, 2, 2, 1],
+        ];
+        let (flowed, rows) = flow(&cells, 2);
+        assert_eq!(
+            flowed,
+            [
+                [0, 0, 2, 2],
+                [0, 2, 1, 1],
+                [1, 2, 1, 2],
+                [0, 3, 1, 1],
+                [0, 4, 2, 1],
+                [0, 5, 2, 1],
+            ]
+        );
+        assert_eq!(rows, 6);
+        assert_eq!(flow(&cells, 4).0, cells);
     }
 }

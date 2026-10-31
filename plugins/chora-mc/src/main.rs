@@ -1252,6 +1252,10 @@ impl Mc {
     fn rule(&self, name: &str, panel: &Panel) -> Option<Command> {
         let color = self.settings.value.colors().get(panel.rule.as_ref()?)?;
         let ([x, y, _, h], geo) = (self.place(name, panel)?, self.geometry(name)?);
+        // No rule at the left edge of the text block.
+        if x <= geo.text[0] {
+            return None;
+        }
         let line = [(x - geo.note - 1.5 * geo.gap).round(), y, 1.0, h];
         let id = format!("{}-rule", panel_id(name, &panel.id));
         Some(region::rect(&id, &panels_id(name), line, *color))
@@ -1416,15 +1420,33 @@ impl Mc {
     }
 
     /// The box of a panel on the screen, without its margin.
+    /// As many columns as fit at the least width of a panel; the panels
+    /// wrap into new rows, which keep at least the least height.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a few columns"
+    )]
     fn place(&self, name: &str, panel: &Panel) -> Option<[f64; 4]> {
         let scene = self.scenes.get(name)?;
         let geo = self.geometry(name)?;
-        Some(scene::place(
-            panel.cell,
-            self.grid(scene),
-            geo.text,
-            [geo.columns(), geo.baseline],
-        ))
+        let config = &self.settings.value;
+        let [min_w, min_h] = config.min_panel.map(|m| m * config.scale.base);
+        let gap = [geo.columns(), geo.baseline];
+        let [x, y, w, h] = geo.text;
+        let [cols, rows] = self.grid(scene);
+        let fit = ((w + gap[0]) / (min_w + gap[0])).floor().max(1.0) as u32;
+        let (cell, grid) = if fit >= cols {
+            (panel.cell, [cols, rows])
+        } else {
+            let cells: Vec<_> = scene.panels.iter().map(|p| p.cell).collect();
+            let (flowed, flowed_rows) = scene::flow(&cells, fit);
+            let at = scene.panels.iter().position(|p| p.id == panel.id)?;
+            (flowed[at], [fit, flowed_rows])
+        };
+        let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
+        let n = f64::from(grid[1]);
+        Some(scene::place(cell, grid, [x, y, w, row * n + gap[1] * (n - 1.0)], gap))
     }
 
     /// The top of the lines of a panel, below its title.
