@@ -302,7 +302,7 @@ The setting `allow` lists the actions that never ask: program names
 does not apply to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
-detail, id}`. `detail` is the full command or value, never cut: the
+detail, id}`; `id` is a text, such as `"3"`. `detail` is the full command or value, never cut: the
 settings keys and values, the program and its arguments, or the method
 and its parameters. A question of a sub-agent has its prompt as
 `detail`. When the question gets its answer, ends or times out, the

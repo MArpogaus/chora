@@ -48,7 +48,8 @@ pub enum Report {
         at: Instant,
         len: Duration,
     },
-    /// A question waits: `voice.confirm {prompt, detail, id}`; with
+    /// A question waits: `voice.confirm {prompt, detail, id}`, the id as a
+    /// text; with
     /// `hud`, the HUD of the agent shows it too.
     Confirm {
         id: u64,
@@ -158,14 +159,15 @@ impl Reporter {
                     if hud {
                         self.question(Some(&format!("{prompt}\n{detail}")));
                     }
-                    let data = json!({"id": id, "prompt": prompt, "detail": detail});
+                    // chora-mc reads the id as a text.
+                    let data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
                     let _ = self.emits.send(("confirm", data));
                 }
                 Some(Report::ConfirmDone(id)) => {
                     self.question(None);
                     let _ = self
                         .emits
-                        .send(("confirm", json!({"id": id, "done": true})));
+                        .send(("confirm", json!({"id": id.to_string(), "done": true})));
                 }
                 None => {
                     let Some((at, text, len)) = says.pop_front() else {
@@ -356,10 +358,11 @@ mod tests {
             hud: false,
         };
         reports.send(confirm).unwrap();
-        let shown = json!({"id": 3, "prompt": "Wirklich?", "detail": detail});
+        // Review rc3 round 2, 1.1: the id is a text, as chora-mc reads it.
+        let shown = json!({"id": "3", "prompt": "Wirklich?", "detail": detail});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
         reports.send(Report::ConfirmDone(3)).unwrap();
-        let done = json!({"id": 3, "done": true});
+        let done = json!({"id": "3", "done": true});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", done));
     }
 }
