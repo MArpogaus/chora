@@ -176,6 +176,10 @@ The host keymap (#12) stays a limit of v1.
   "fly to the terminal" works.
 - **F27** Voice knows which pane is in front of the user, for
   "this pane".
+- **F28** The construct draws its own voice HUD from the `voice.*`
+  events (D65): a holographic HUD in the style of a science fiction
+  game, with a waveform, a state ring and the spoken text in the
+  space. It belongs to step K3.
 
 ## 6. Non-functional requirements
 
