@@ -457,6 +457,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn both_themes_fill_every_color_of_the_terminal() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for colors in [&config.themes.light, &config.themes.dark] {
+            let command = region::command(&config.contents["shell"].command, colors);
+            assert!(!command.contains('{'), "{command}");
+            assert!(command.contains("colors-dark.regular5="), "{command}");
+        }
+    }
+
     fn sheet() -> Config {
         let mut config = parse::<Config>(DEFAULT).unwrap();
         config.scale = Scale {
