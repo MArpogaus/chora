@@ -205,12 +205,12 @@ the user; nothing happened".
 |---|---|---|
 | Mic | Capture command exits | Restart, backoff 0.5 s to 5 s, error earcon once |
 | VAD | Model does not load | Exit 1; systemd restarts |
-| ASR | Error or timeout | One retry with the same audio, then earcon and `phrases.asr_failed` ("Ich habe dich nicht verstanden.") when the agent listens again; a wake word asleep only sounds the earcon |
+| ASR | Error or timeout | One retry with the same audio, then earcon and `phrases.asr_failed` ("I did not understand you.") when the agent listens again; a wake word asleep only sounds the earcon |
 | TTS | Error or timeout | Earcon once per reply; the text stays in the history, in `last_reply` and on the HUD; the tool loop goes on; for the backoff of the TTS (1 s, doubling to 30 s), its sentences skip without a try |
-| LLM | Connect error | One retry, then "Das Sprachmodell antwortet nicht." |
+| LLM | Connect error | One retry, then `phrases.llm_down` ("The language model does not answer.") |
 | LLM | First token, idle or total timeout | Abort, keep the rounds so far, say so |
 | LLM | Context error | Trim the history to half the budget, one retry |
-| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the language of the user; without words, `phrases.tool_rounds`; history stays |
+| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the reply language; without words, `phrases.tool_rounds`; history stays |
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
@@ -290,11 +290,16 @@ client name is the flag `--name` (default `voice`). `chora-voice
 
 | Key | Default |
 |---|---|
-| `asr_url` | `ws://127.0.0.1:8881/v1/realtime?intent=transcription` |
-| `tts_url` | `ws://127.0.0.1:8882/v1/audio/speech/stream` |
-| `llm_url` | `http://127.0.0.1:8888/v1` |
-| `model`, `voice` | `gufo`, `aiden` |
-| `language`, `tts_language` | `de`, `""` (follows `language`: `de` gives `German`) |
+| `asr_url`, `asr_model` | `ws://127.0.0.1:8881/v1/realtime?intent=transcription`, `gufo` |
+| `tts_url`, `tts_model` | `ws://127.0.0.1:8882/v1/audio/speech/stream`, `gufo` |
+| `llm_url`, `llm_model` | `http://127.0.0.1:8888/v1`, `gufo` |
+| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key) |
+| `asr_api_key_file`, `tts_api_key_file`, `llm_api_key_file` | `""` (no key; else the file with the key, `%d` is `$CREDENTIALS_DIRECTORY`) |
+| `asr_headers`, `tts_headers`, `llm_headers` | `{}` (extra headers, name: value) |
+| `asr_language` | `auto` (the ASR finds the language; else a code such as `de`) |
+| `asr_prompt` | `Chora, Coder` (plus the wake, sleep and stop words and the projects; `""`: no prompt) |
+| `reply_language` | `en` (the language of the answers; `de` also gives German phrases and prompts) |
+| `voice`, `tts_language` | `aiden`, `""` (follows `reply_language`: `en` gives `English`) |
 | `asr_interim_ms` | `0` (off) |
 | `capture_cmd` | `[pw-record, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
 | `playback_cmd` | `[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
@@ -306,11 +311,11 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `barge_in_echo_ratio`, `barge_in_min_rms` | `2.0`, `300` |
 | `barge_in_coupling` | `0.1` (start of the learned echo coupling) |
 | `word_max_ms` | `2000` |
-| `sleep_words`, `wake_words` | `[schlaf, schlaf jetzt]`, `[hör zu, hallo chora]` |
-| `cancel_words` | `[stopp, stop, abbrechen, halt, vergiss es]` |
-| `code_cancel_words` | `[coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `yes_words`, `no_words` | `[ja, okay, genau, mach das]`, `[nein, nicht, lieber nicht]` |
-| `filler_words` | `[bitte, jetzt, mal]` |
+| `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
+| `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
+| `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
+| `yes_words`, `no_words` | `[yes, okay, do it, ja, genau, mach das]`, `[no, rather not, nein, nicht, lieber nicht]` |
+| `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `8000` |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`) |
@@ -318,7 +323,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
 | `tool_rounds`, `old_tool_chars`, `saved_requests` | `10`, `500`, `20` |
-| `reasoning_effort` | `none` |
+| `reasoning_effort` | `none` (`""`: not in the request) |
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
 | `chora_mcp`, `coder_cmd` | `[choractl]`, `[]` (no coding tools; the task is the last argument) |
@@ -327,7 +332,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]` |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`: German sentences |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -335,19 +340,42 @@ device.
 
 ```yaml
 confirm:
-  - {tool: apply_commands, commands: [remove, close], prompt: "Soll ich das entfernen?"}
-  - {tool: unload_view, prompt: "Soll ich die Ansicht entfernen?"}
-  - {tool: inject_input, prompt: "Soll ich tippen oder klicken?"}
-  - {tool: code_task, prompt: "Soll ich die Programmieraufgabe starten?"}
-  - {tool: agent_start, prompt: "Soll ich den Agenten starten?"}
-  - {tool: run_program, prompt: "Soll ich das Programm {program} starten?"}
-  - {tool: configure_output, prompt: "Soll ich den Bildschirm ändern?"}
-  - {tool: "*.restart", prompt: "Soll ich das Plugin neu starten?"}
-  - {tool: call_method, method: "*.restart", prompt: "Soll ich das Plugin neu starten?"}
+  - {tool: apply_commands, commands: [remove, close], prompt: "Shall I remove that?"}
+  - {tool: unload_view, prompt: "Shall I remove the view?"}
+  - {tool: inject_input, prompt: "Shall I type or click?"}
+  - {tool: code_task, prompt: "Shall I start the coding task?"}
+  - {tool: agent_start, prompt: "Shall I start the agent?"}
+  - {tool: run_program, prompt: "Shall I start the program {program}?"}
+  - {tool: configure_output, prompt: "Shall I change the screen?"}
+  - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
+  - {tool: call_method, method: "*.restart", prompt: "Shall I restart the plugin?"}
 ```
 
+Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
+that each one can move to another provider. The key comes from the
+variable of `*_api_key_env` or the file of `*_api_key_file`, never from
+the settings file, and goes into `Authorization: Bearer KEY`: over HTTP
+for the LLM, and in the websocket handshake of the ASR and the TTS, as
+the realtime API of OpenAI takes it. The health probes and the live
+commands use the same settings. The LLM must speak the OpenAI chat
+completions API; other protocols come later. The build has no TLS yet:
+only `http://` and `ws://` URLs work, so a provider on `https://` needs
+a local proxy until TLS comes in.
+
+The ASR gets no language with `asr_language: auto`, and `asr_prompt`
+with the wake, sleep and stop words and the project names as the
+`transcription.prompt` of the session. Gufo honors the prompt: without
+it, a TTS clip of "Hallo Chora" came back as "Hello, Cora", with it as
+"Hello, Chora" (3 of 3 tries each, 2026-10-31). The system prompt ends
+with a rule to answer in `reply_language`. With `reply_language: de`,
+each phrase, confirm prompt, verb of an agent question and coding result
+that keeps its English default is German; other languages keep the
+English phrases until the settings set them. The default word lists
+hold English and German words.
+
 `check()` rejects wrong ranges, empty commands and word lists, a word in
-two lists, a `ptt_key` that does not parse, and a rule without a prompt.
+two lists, a `ptt_key` that does not parse, a rule without a prompt, and
+both a key variable and a key file for one server.
 
 ## 10. Methods and events
 

@@ -120,6 +120,93 @@ tts_url: ws://HOST:8882/v1/audio/speech/stream
 llm_url: http://HOST:8888/v1
 ```
 
+### Servers and providers
+
+Each server has its own settings: `asr_url`, `asr_model`, `tts_url`,
+`tts_model`, `llm_url` and `llm_model`, an API key and extra headers.
+The defaults are the local Gufo servers. Do not put a key into the
+settings file. Give the name of an environment variable
+(`llm_api_key_env`) or the path of a file (`llm_api_key_file`); `%d` in
+the path is the credentials directory of systemd. The agent sends the key
+as `Authorization: Bearer KEY`. `llm_headers`, `asr_headers` and
+`tts_headers` add headers, for example the app name for OpenRouter.
+
+The LLM must have an OpenAI-compatible `/chat/completions` endpoint.
+`reasoning_effort: ""` leaves that key out, for a server that refuses
+it. Note: the agent has no TLS yet. It connects only to `http://` and
+`ws://` URLs. For a provider on `https://`, run a local TLS proxy and
+point `llm_url` at it, until TLS comes in.
+
+A local llama.cpp server (`llama-server -m MODEL.gguf --port 8080
+--jinja`; `--jinja` enables tool calls):
+
+```yaml
+llm_url: http://127.0.0.1:8080/v1
+llm_model: local             # llama-server serves one model under any name
+```
+
+Ollama:
+
+```yaml
+llm_url: http://127.0.0.1:11434/v1
+llm_model: qwen3:8b          # a model of `ollama list` with tool support
+reasoning_effort: ""
+```
+
+OpenRouter (through a TLS proxy on port 8443, see the note above):
+
+```yaml
+llm_url: http://127.0.0.1:8443/api/v1   # proxy to https://openrouter.ai
+llm_model: anthropic/claude-sonnet-4.5
+llm_api_key_env: OPENROUTER_API_KEY
+llm_headers: {HTTP-Referer: "https://github.com/MArpogaus/chora", X-Title: chora}
+reasoning_effort: ""
+```
+
+OpenAI (through a TLS proxy to `https://api.openai.com`):
+
+```yaml
+llm_url: http://127.0.0.1:8444/v1
+llm_model: gpt-4.1-mini
+llm_api_key_env: OPENAI_API_KEY
+reasoning_effort: ""
+```
+
+For the systemd unit, keep the key in a credential instead of the
+environment: `LoadCredential=llm-key:%h/.config/chora/llm-key` in a
+drop-in of `chora-voice.service`, and `llm_api_key_file: "%d/llm-key"`.
+
+A Claude Pro or Max subscription is not an API key, and this agent
+cannot use it. For a Claude model here, use an API key: from OpenRouter
+as above, or from the Anthropic API through an OpenAI-compatible
+endpoint. Coding agents over ACP (`agent_cmd`, such as Claude Code) are
+different: they run as their own program and log in with their own
+account, so Claude Code can use the subscription there.
+
+### Languages
+
+The ASR finds the language of the speaker (`asr_language: auto`); set a
+code such as `de` to fix it. `asr_prompt` tells the ASR the words that it
+must know, by default "Chora, Coder"; the agent adds the wake, sleep and
+stop words and the names of the projects. An empty `asr_prompt` sends no
+prompt. Gufo honors it: without it, "Hallo Chora" came back as "Hello,
+Cora".
+
+The agent answers in `reply_language` (`en`), also to a question in
+another language, unless you ask for another one. The TTS speaks that
+language unless `tts_language` is set. With `reply_language: de`, the
+spoken errors, the confirm prompts and the questions of the agents are
+German; any other language keeps them English unless `phrases` and
+`confirm` set them. The word lists hold English and German words.
+
+### From 0.9.0-rc.1
+
+`model` is now `llm_model`, and `language` is now `asr_language`; an old
+key stops the agent with an error. The agent now answers in English: set
+`reply_language: de` for German answers and phrases. To keep the old ASR
+behavior, set `asr_language: de`. `asr_model` and `tts_model` keep
+`gufo`.
+
 The built-in system prompt explains chora and the limits of the tools.
 The context documents (`context_docs`) follow it: `README.md`,
 `docs/glossary.md` and sections of `docs/api.md`. The agent sends the
@@ -143,11 +230,11 @@ fine, so the ASR's "Hallo Cora" is "Hallo Chora".
 
 | Words | Effect |
 |---|---|
-| `stopp`, `abbrechen`, `halt`, `vergiss es` | Stops the current turn: the reply, its sound and its tool call |
-| `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
-| `hör zu`, `hallo chora` | The agent wakes up |
-| `ja`, `okay`, `genau`, `mach das` / `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
-| `coding-aufgabe abbrechen` | Stops the coding task |
+| `stop`, `cancel`, `never mind`, `stopp`, `abbrechen`, `halt`, `vergiss es` | Stops the current turn: the reply, its sound and its tool call |
+| `sleep`, `go to sleep`, `schlaf`, `schlaf jetzt` | The agent sleeps: it hears only its wake words and the key |
+| `hey chora`, `listen`, `hallo chora`, `hör zu` | The agent wakes up |
+| `yes`, `okay`, `do it`, `ja`, `genau`, `mach das` / `no`, `rather not`, `nein`, `nicht`, `lieber nicht` | The answer to a question before a tool call |
+| `cancel the coding task`, `coding-aufgabe abbrechen` | Stops the coding task |
 
 While the agent speaks, you can talk over it (barge-in): the sound
 pauses, and your words decide. A stop word ends the reply. Echo of the
@@ -177,7 +264,7 @@ its latency and one summary per reply.
 `mcp` and `chora`) as `ok`, `down` or `unknown`, with its last error.
 The agent probes the websockets of the ASR and the TTS every 30 s, and
 sooner while one is down. When a server fails, you hear it: the ASR
-sounds the error earcon and says "Ich habe dich nicht verstanden.", the
+sounds the error earcon and says "I did not understand you.", the
 LLM says that it does not answer, and the TTS sounds the error earcon;
 its text still goes to the HUD. A TTS that is down gets no request for
 1 s to 30 s.
@@ -329,10 +416,10 @@ Use it like this:
   wait. Requests to a busy agent wait for its turn.
 - The answer of an agent is spoken in its voice when you and the voice
   agent are quiet. A long answer speaks its first sentence and
-  `phrases.details` ("Details auf dem Bildschirm."); chora-mc shows all
+  `phrases.details` ("Details on the screen."); chora-mc shows all
   of it.
-- A permission request of an agent is spoken as "Atlas möchte
-  notes.txt ändern. Erlauben?". Say yes or no (or "Atlas, ja"), or call
+- A permission request of an agent is spoken as "Atlas wants to edit
+  notes.txt. Allow?". Say yes or no (or "Atlas, yes"), or call
   `voice.confirm`. No answer within `agent_permission_s` (120 s) is a no.
 - "Was macht Atlas?" The LLM calls `agent_status`: state, task, plan,
   question and last words. `agent_stop` ends the agent.
