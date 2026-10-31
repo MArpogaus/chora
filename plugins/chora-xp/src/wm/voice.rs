@@ -120,18 +120,10 @@ impl Wm {
             let mute = !state["muted"]["mic"].as_bool().unwrap_or(false);
             self.voice_call("mute", &json!({"mic": mute})).map(|_| mute)
         });
-        let mute = match toggled {
-            Ok(mute) => mute,
-            Err(err) => {
-                eprintln!("chora-xp: voice: {err}");
-                return Vec::new();
-            }
-        };
-        let text = if mute {
-            "The microphone is off. Click me to turn it on."
-        } else {
-            "The microphone is on."
-        };
+        if let Err(err) = &toggled {
+            eprintln!("chora-xp: voice: {err}");
+        }
+        let text = mic_text(toggled.ok());
         let now = Instant::now();
         self.assistant.as_mut().map_or_else(Vec::new, |a| {
             a.say(&mut self.theme, text, Duration::ZERO, now)
@@ -143,5 +135,24 @@ impl Wm {
         let client = self.voice.as_ref().map_or(VOICE, |(c, _)| c.as_str());
         let call = json!({"client": client, "method": method, "params": params});
         self.rt.conn.call("methods.call", call)
+    }
+}
+
+/// What the balloon says after a click on the paperclip: the new state
+/// of the mic, or `None` when the state or mute call failed.
+fn mic_text(mute: Option<bool>) -> &'static str {
+    match mute {
+        Some(true) => "The microphone is off. Click me to turn it on.",
+        Some(false) => "The microphone is on.",
+        None => "I could not switch the microphone.",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_failed_call_says_so_in_the_balloon() {
+        assert_eq!(super::mic_text(None), "I could not switch the microphone.");
+        assert!(super::mic_text(Some(true)).contains("off"));
     }
 }

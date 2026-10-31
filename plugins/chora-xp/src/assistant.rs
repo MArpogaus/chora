@@ -71,7 +71,7 @@ pub fn pose(state: &str) -> Option<Pose> {
         "listening" | "recording" => Pose::Listening,
         "transcribing" | "thinking" | "tool" | "working" => Pose::Thinking,
         "speaking" => Pose::Speaking,
-        "asking" | "question" | "confirming" => Pose::Asking,
+        "question" | "confirming" => Pose::Asking,
         _ => Pose::Idle,
     })
 }
@@ -400,7 +400,6 @@ mod tests {
             ("thinking", Some(Pose::Thinking)),
             ("working", Some(Pose::Thinking)),
             ("speaking", Some(Pose::Speaking)),
-            ("asking", Some(Pose::Asking)),
             ("question", Some(Pose::Asking)),
             ("confirming", Some(Pose::Asking)),
             ("sleeping", None),
