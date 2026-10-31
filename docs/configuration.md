@@ -192,7 +192,8 @@ stays closed.
 default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file holds the
 settings of D62: `settings.set` changes them at once and writes the file
-again, without its comments (see [API](api.md#plugin-methods)). Edits by
+again, without its comments (see [API](api.md#plugin-methods)). The
+plugin writes only the options that differ from the defaults. Edits by
 hand apply with `settings.reload` or `MOD+Ctrl+r`, or at the next start
 of the plugin. The
 default file lists every option. A file can leave options out, and they
