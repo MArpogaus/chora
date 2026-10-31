@@ -1752,9 +1752,9 @@ impl Mc {
     }
 
     /// Puts a window into the text block of its scene, below the head,
-    /// without a frame.
+    /// without a frame, at the box that the render gives it too.
     fn place_window(&self, name: &str, surface: &str, attach: bool) -> Vec<Command> {
-        let (Some(output), Some(geo)) = (&self.output, self.geometry(name)) else {
+        let (Some(output), Some(window)) = (&self.output, self.window_box(name)) else {
             return Vec::new();
         };
         let parent = scene_id(name);
@@ -1771,7 +1771,7 @@ impl Mc {
             }
         };
         let mut commands = vec![put];
-        commands.extend(region::place(surface, geo.text, output.size));
+        commands.extend(region::place(surface, window, output.size));
         commands
     }
 

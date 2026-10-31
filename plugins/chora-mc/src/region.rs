@@ -675,9 +675,21 @@ impl Mc {
     /// The regions that show in the current scene.
     fn visible(&self, items: &Plan) -> Vec<Region> {
         let name = self.current.clone().unwrap_or_default();
+        self.visible_in(&name, items)
+    }
+
+    /// The regions with `items` that show in a scene.
+    fn visible_in(&self, name: &str, items: &Plan) -> Vec<Region> {
         (items.keys().copied())
-            .filter(|r| self.shown(*r, &name))
+            .filter(|r| self.shown(*r, name))
             .collect()
+    }
+
+    /// The box of the window of an app scene: below its head, free of
+    /// the regions that show in it.
+    pub fn window_box(&self, name: &str) -> Option<[f64; 4]> {
+        let visible = self.visible_in(name, &self.items(name));
+        Some(self.boxes(name, &visible)?.window)
     }
 
     /// Draws the regions of the current scene anew.
