@@ -19,7 +19,10 @@ use chora_kit::conn::Conn;
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
 
-use crate::{config::Corner, core::State};
+use crate::{
+    config::{ConfirmKeys, Corner},
+    core::State,
+};
 
 /// An event for the `chora` thread: the name after `NAME.` and the data.
 pub type Emit = (&'static str, Value);
@@ -56,6 +59,8 @@ pub enum Report {
         prompt: String,
         detail: String,
         hud: bool,
+        /// Only these keys answer: `physical: true` and `keys` go out.
+        keys: Option<ConfirmKeys>,
     },
     /// The question `id` is over: `voice.confirm {id, done: true}`.
     ConfirmDone(u64),
@@ -150,19 +155,7 @@ impl Reporter {
                 }
                 Some(Report::Say { text, at, len }) => says.push_back((at, text, len)),
                 Some(Report::State(state)) => self.indicate(state),
-                Some(Report::Confirm {
-                    id,
-                    prompt,
-                    detail,
-                    hud,
-                }) => {
-                    if hud {
-                        self.question(Some(&format!("{prompt}\n{detail}")));
-                    }
-                    // chora-mc reads the id as a text.
-                    let data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
-                    let _ = self.emits.send(("confirm", data));
-                }
+                Some(confirm @ Report::Confirm { .. }) => self.confirm(confirm),
                 Some(Report::ConfirmDone(id)) => {
                     self.question(None);
                     let _ = self
@@ -181,6 +174,33 @@ impl Reporter {
                 }
             }
         }
+    }
+
+    /// Shows a question on the own HUD with `hud`, and emits it.
+    fn confirm(&mut self, report: Report) {
+        let Report::Confirm {
+            id,
+            prompt,
+            detail,
+            hud,
+            keys,
+        } = report
+        else {
+            return;
+        };
+        if hud {
+            let keys = (keys.as_ref())
+                .map(|k| format!("\n{} = yes, {} = no", k.yes, k.no))
+                .unwrap_or_default();
+            self.question(Some(&format!("{prompt}\n{detail}{keys}")));
+        }
+        // chora-mc reads the id as a text.
+        let mut data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
+        if let Some(keys) = keys {
+            data["physical"] = true.into();
+            data["keys"] = json!({"yes": keys.yes, "no": keys.no});
+        }
+        let _ = self.emits.send(("confirm", data));
     }
 
     /// Calls a method of the core on the connection, which it opens at
@@ -356,6 +376,7 @@ mod tests {
             prompt: "Wirklich?".into(),
             detail: detail.clone(),
             hud: false,
+            keys: None,
         };
         reports.send(confirm).unwrap();
         // Review rc3 round 2, 1.1: the id is a text, as chora-mc reads it.
@@ -364,5 +385,17 @@ mod tests {
         reports.send(Report::ConfirmDone(3)).unwrap();
         let done = json!({"id": "3", "done": true});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", done));
+        // A question about a security setting names its keys.
+        let confirm = Report::Confirm {
+            id: 4,
+            prompt: "Sicher?".into(),
+            detail: "allow_programs: [sh]".into(),
+            hud: false,
+            keys: Some(crate::config::ConfirmKeys::default()),
+        };
+        reports.send(confirm).unwrap();
+        let shown = json!({"id": "4", "prompt": "Sicher?", "detail": "allow_programs: [sh]",
+            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}});
+        assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
     }
 }

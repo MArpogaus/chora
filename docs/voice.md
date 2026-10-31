@@ -309,7 +309,8 @@ without a `.`. So `*.settings.set` cannot go in. Neither list applies
 to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
-detail, id}`; `id` is a text, such as `"3"`. `detail` is the full command or value, never cut: the
+detail, id}`; `id` is a text, such as `"3"`. A question about a
+security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut: the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
@@ -339,25 +340,40 @@ LLM narrate; the agent hands the patch on and the client checks it.
 Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
-Shall I set llm url? The full value is on the screen."). The security
-keys are `agent_projects`, `yes_words`, `always_words`, `no_words`,
-`phrases`, `record_dir`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
-`coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
-`skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`,
-`indicator`, `earcons`, `confirm_timeout_ms`, `ptt_key`, `wake_words`,
-`sleep_words`, each `*_url`, `*_headers` and each key with `api_key`.
-The agent never cuts a security value. The question says only the key
-and that the full value is on the screen. The screen shows it through
-the `voice.confirm` event (secrets hidden, see above). Only other
-values are cut to 60
+Shall I set llm url? The full value is on the screen. Press Alt+y for
+yes or Alt+n for no."). The security keys are `allow_programs`,
+`allow_methods`, `confirm`, `confirm_keys`, `agent_projects`,
+`yes_words`, `always_words`, `no_words`, `phrases`, `record_dir`,
+`sandbox_cmd`, `unsandboxed`, `agent_cmd`, `coder_cmd`, `chora_mcp`,
+`capture_cmd`, `playback_cmd`, `skipped_tools`, `system_prompt`,
+`prompt_file`, `context_docs`, `indicator`, `earcons`,
+`confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
+`*_url`, `*_headers` and each key with `api_key`. The agent never cuts
+a security value. The question says only the key and that the full
+value is on the screen. The screen shows it through the `voice.confirm`
+event (secrets hidden, see above). Only other values are cut to 60
 characters for speech.
 
-The LLM cannot change `allow_programs`, `allow_methods` or `confirm`:
-a wider list would let injected text skip every later question. The
-agent does not ask; it says `phrases.settings_file` ("I do not change
-allow programs by voice. Edit the settings file."), and the LLM gets
-the refusal as the result. The user edits the file and calls
-`voice.settings.reload`. The client `NAME-mcp`
+Security keys take a key press, never a voice (the user's decision,
+review rc3 round 2, 4.4). A voice can be played from a speaker, and a
+text that the LLM reads can steer it, so a spoken yes is no proof that
+the user agrees:
+
+- While such a question waits, the client `NAME` grabs the two keys of
+  `confirm_keys` (default `{yes: Alt+y, no: Alt+n}`) with `input.grab`
+  on its own connection. It lets them go when the question ends.
+- Only these keys answer it. A spoken yes, an always word and a yes of
+  the method `voice.confirm` count as nothing. A spoken no, a new
+  request, two unclear answers or `voice.confirm no` are a no.
+- No key press within `confirm_timeout_ms` is a no.
+- The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
+  so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
+  shows that line too.
+- An injected key could answer the question. So the agent refuses
+  `inject_input` while such a question waits. Besides, `inject_input`
+  always asks by the default rules and never takes an always word.
+
+The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
 Its own `settings.reload` asks with the rule of `*.settings.reload`.
 
@@ -508,6 +524,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
 | `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
+| `confirm_keys` | `{yes: Alt+y, no: Alt+n}` (the only answer to a question about a security key, section 5; two keys, other than `ptt_key`) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`); `false` turns it off; `{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}` places it, `true` is `{corner: bottom-right, offset: [12, 12]}` |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
@@ -523,7 +540,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `settings_file`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -598,7 +615,7 @@ both a key variable and a key file for one server.
 | `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record |
+| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 

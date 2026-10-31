@@ -131,6 +131,8 @@ pub enum Input {
     AgentCall(String, Value, Sender<Value>),
     /// Whether a plugin that shows the state claimed the indicator.
     Claimed(bool),
+    /// A key of `confirm_keys`: yes or no.
+    ConfirmKey(bool),
 }
 
 /// What the core asks the other actors to do.
@@ -189,11 +191,13 @@ pub enum Effect {
         len: Duration,
     },
     /// A question waits: its spoken prompt and the full command or
-    /// value, for the screen (`voice.confirm`).
+    /// value, for the screen (`voice.confirm`); `physical` when only a
+    /// key of `confirm_keys` answers it.
     Confirm {
         id: u64,
         prompt: String,
         detail: String,
+        physical: bool,
     },
     /// The question `id` got its answer or timed out.
     ConfirmDone(u64),
@@ -247,6 +251,8 @@ const ECHO_MEMORY: Duration = Duration::from_secs(3);
 /// drops the oldest.
 const NOTES: usize = 8;
 
+// ponytail: the flags of the state machine; one state enum if they grow.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Core {
     config: Config,
     gate: Gate,
@@ -275,6 +281,9 @@ pub struct Core {
     confirm: Option<oneshot::Sender<Option<bool>>>,
     /// Set before a yes with an always word to the confirmation.
     confirm_always: Arc<AtomicBool>,
+    /// Only a key of `confirm_keys` answers the confirmation: a voice,
+    /// a client and an injected text cannot.
+    physical: bool,
     unclear: u32,
     /// The question of the confirmation, and until when it waits:
     /// `confirm_timeout_ms` from the end of its sound.
@@ -368,6 +377,7 @@ impl Core {
             doing: State::Thinking,
             confirm: None,
             confirm_always: Arc::default(),
+            physical: false,
             unclear: 0,
             confirm_prompt: String::new(),
             confirm_until: now,
@@ -514,6 +524,7 @@ impl Core {
                 self.earcon(Earcon::Error).into_iter().collect()
             }
             Input::PttDown => self.key(true),
+            Input::ConfirmKey(yes) => self.confirm_key(yes),
             Input::PttUp => self.key(false),
             Input::Call(call, reply) => {
                 let effects = self.call(call);
@@ -571,7 +582,7 @@ impl Core {
             // The question waits from when it is spoken.
             if note.ask.is_some() {
                 self.confirm_from = Some(Instant::now());
-                effects.extend(self.show(text.clone(), text));
+                effects.extend(self.show(text.clone(), text, false));
             }
             self.sub_confirm = note.ask;
             self.sub_until =
@@ -584,7 +595,7 @@ impl Core {
 
     /// Shows a new question on the screen, after the end of the one
     /// before.
-    fn show(&mut self, prompt: String, detail: String) -> Vec<Effect> {
+    fn show(&mut self, prompt: String, detail: String, physical: bool) -> Vec<Effect> {
         let mut effects: Vec<Effect> = self
             .shown
             .take()
@@ -597,6 +608,7 @@ impl Core {
             id: self.confirms,
             prompt,
             detail,
+            physical,
         });
         effects
     }
@@ -807,9 +819,11 @@ impl Core {
         &mut self,
         prompt: String,
         detail: String,
+        physical: bool,
         answer: oneshot::Sender<Option<bool>>,
     ) -> Vec<Effect> {
         self.confirm = Some(answer);
+        self.physical = physical;
         self.unclear = 0;
         // The wait starts when the question is said; until then, or
         // without its sound, at most `UNSPOKEN` longer.
@@ -825,7 +839,7 @@ impl Core {
         // text never does (review 0.9.0-rc.3). Without its sound, the
         // question shows now.
         self.confirm_from = self.muted.speaker.then(Instant::now);
-        self.show(prompt, detail)
+        self.show(prompt, detail, physical)
     }
 
     /// Whether speech that started at `onset` answers the confirmation
@@ -849,10 +863,11 @@ impl Core {
                 prompt,
                 detail,
                 always,
+                physical,
                 answer,
             }) => {
                 self.confirm_always = always;
-                return self.asked(prompt, detail, answer);
+                return self.asked(prompt, detail, physical, answer);
             }
             Reply::Failed if self.tts_failed != Some(reply) => {
                 self.tts_failed = Some(reply);
@@ -1009,8 +1024,27 @@ impl Core {
         self.yes_no(true)
     }
 
-    /// A spoken yes or no: the cut prompt does not play again.
+    /// A spoken yes or no, or one of `voice.confirm`: the cut prompt
+    /// does not play again. A yes does not answer a question that waits
+    /// for a key.
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
+        if yes && self.confirm.is_some() && self.physical {
+            crate::log::info("confirm: a yes without the key counts as nothing");
+            return Vec::new();
+        }
+        self.answered(yes)
+    }
+
+    /// A key of `confirm_keys` answers the question that waits for it.
+    fn confirm_key(&mut self, yes: bool) -> Vec<Effect> {
+        if self.confirm.is_none() || !self.physical {
+            return Vec::new();
+        }
+        crate::log::info("confirm: by the key");
+        self.answered(yes)
+    }
+
+    fn answered(&mut self, yes: bool) -> Vec<Effect> {
         self.answer(Some(yes));
         if !self.paused {
             return Vec::new();
@@ -1545,6 +1579,7 @@ mod tests {
                 prompt: "Wirklich?".into(),
                 detail: String::new(),
                 always: std::sync::Arc::default(),
+                physical: false,
                 answer,
             },
         ));
@@ -1580,6 +1615,7 @@ mod tests {
                     prompt: "Wirklich?".into(),
                     detail: String::new(),
                     always: std::sync::Arc::default(),
+                    physical: false,
                     answer,
                 },
             ));
@@ -1763,6 +1799,7 @@ mod tests {
             prompt: prompt.into(),
             detail: String::new(),
             always: std::sync::Arc::default(),
+            physical: false,
             answer,
         };
         core.handle(reply(1, event));
@@ -1824,6 +1861,7 @@ mod tests {
             prompt: prompt.into(),
             detail: String::new(),
             always: std::sync::Arc::default(),
+            physical: false,
             answer,
         };
         core.handle(reply(1, confirm));
@@ -1864,6 +1902,46 @@ mod tests {
         assert_eq!(rx.try_recv(), Ok(Some(true)));
     }
 
+    /// The user's decision on 4.4: a question about a security setting
+    /// takes no spoken yes and no yes of `voice.confirm`, only the key.
+    #[test]
+    fn only_the_key_answers_a_physical_question() {
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let prompt = "Security setting! Shall I set allow programs?";
+        let event = chat::Event::Confirm {
+            prompt: prompt.into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        assert!(
+            matches!(effects[..], [Effect::Confirm { physical: true, .. }]),
+            "{effects:?}"
+        );
+        let said = Reply::Said {
+            text: prompt.into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(1, said));
+        say(&mut core, "Ja.");
+        say(&mut core, "Ja, immer.");
+        call(&mut core, Call::Confirm(true));
+        assert!(rx.try_recv().is_err(), "no answer without the key");
+        assert_eq!(core.state(), State::Confirming);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+        // A key answers no other question.
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.handle(Input::ConfirmKey(true));
+        assert!(rx.try_recv().is_err());
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
     /// Review rc3 round 2, 1.5: a yes that starts before the deadline
     /// answers, although its text comes after it.
     #[test]
@@ -1899,6 +1977,7 @@ mod tests {
             prompt: "Soll ich das Fenster schließen?".into(),
             detail: String::new(),
             always: std::sync::Arc::default(),
+            physical: false,
             answer,
         };
         core.handle(reply(1, event));
@@ -1928,6 +2007,7 @@ mod tests {
             prompt: "Soll ich das Programm foot starten?".into(),
             detail: "foot -e sh".into(),
             always: std::sync::Arc::default(),
+            physical: false,
             answer,
         };
         let effects = core.handle(reply(1, event));
@@ -1935,6 +2015,7 @@ mod tests {
             id: 1,
             prompt: "Soll ich das Programm foot starten?".into(),
             detail: "foot -e sh".into(),
+            physical: false,
         };
         assert_eq!(effects, [shown]);
         let said = Reply::Said {

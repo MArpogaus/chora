@@ -285,6 +285,8 @@ pub enum Event {
         detail: String,
         /// The core sets it before a yes with an always word.
         always: Arc<AtomicBool>,
+        /// Only a key of `confirm_keys` answers: a security setting.
+        physical: bool,
         answer: oneshot::Sender<Option<bool>>,
     },
     /// A text of the user from the inbox went into the turn.
@@ -997,27 +999,10 @@ impl Chat {
             return Ok(());
         };
         let own = self.tools.own_settings_set(&name, args);
-        let keys = own
+        // A security setting takes only a key press (`confirm_keys`).
+        let physical = own
             .and_then(Value::as_object)
-            .into_iter()
-            .flat_map(|p| p.keys());
-        let file_only: Vec<&str> = keys
-            .map(String::as_str)
-            .filter(|k| crate::config::FILE_ONLY.contains(k))
-            .collect();
-        if !file_only.is_empty() {
-            let keys = file_only.join(", ");
-            crate::log::info(&format!("confirm {name}: refused, {keys} only by the file"));
-            let said = self
-                .config
-                .phrases
-                .settings_file
-                .replace("{key}", &keys.replace('_', " "));
-            out(Event::Sentence(said));
-            return Err(format!(
-                "Refused: {keys} change only in the settings file, which the user edits"
-            ));
-        }
+            .is_some_and(|p| p.keys().any(|k| crate::config::security_key(k)));
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
@@ -1048,7 +1033,11 @@ impl Chat {
             ));
             return Err(SAID_NEW.into());
         }
-        let (result, always) = self.ask(&name, prompt, detail, out).await;
+        let (result, always) = self.ask(prompt, detail, physical, out).await;
+        crate::log::info(&format!(
+            "confirm {name}: {}",
+            result.as_ref().map_or_else(String::as_str, |()| "yes")
+        ));
         // A call without a session key takes an always word as a single
         // yes.
         if let (Ok(()), true, Some(key)) = (&result, always, key) {
@@ -1063,17 +1052,19 @@ impl Chat {
     /// an always word.
     async fn ask(
         &self,
-        name: &str,
         prompt: String,
         detail: String,
+        physical: bool,
         out: &(impl Fn(Event) + Sync),
     ) -> (Result<(), String>, bool) {
         let (answer, rx) = oneshot::channel();
         let always = Arc::new(AtomicBool::new(false));
+        self.tools.physical.store(physical, Ordering::Relaxed);
         out(Event::Confirm {
             prompt,
             detail,
             always: always.clone(),
+            physical,
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
@@ -1090,10 +1081,7 @@ impl Chat {
                 wait.as_secs()
             )),
         };
-        crate::log::info(&format!(
-            "confirm {name}: {}",
-            result.as_ref().map_or_else(String::as_str, |()| "yes")
-        ));
+        self.tools.physical.store(false, Ordering::Relaxed);
         (result, always.load(Ordering::Relaxed))
     }
 
@@ -1738,6 +1726,14 @@ mod tests {
             key("run_program", None, json!({"argv": ["foot"]})),
             key("run_program", None, json!({"argv": ["foot", "-e", "sh"]}))
         );
+    }
+
+    /// Review rc3 round 2, 1.4: a method is keyed with its canonical
+    /// parameters; settings methods take an always word as a single yes.
+    #[test]
+    fn always_keys_methods_with_their_parameters() {
+        let key =
+            |tool, patch: Option<Value>, args: Value| session_key(tool, patch.as_ref(), &args);
         for method in ["settings.set", "settings.reload"] {
             let call = json!({"client": "xp", "method": method});
             assert_eq!(key("call_method", None, call), None);
@@ -2253,7 +2249,8 @@ mod tests {
             asked,
             [
                 "confirm Shall I set barge in min rms to 15?",
-                "confirm Security setting! Shall I set llm url? The full value is on the screen."
+                "confirm Security setting! Shall I set llm url? The full value is on the screen. \
+                 Press Alt+y for yes or Alt+n for no."
             ]
         );
         assert_eq!(calls.load(Ordering::SeqCst), 2);
@@ -2273,20 +2270,20 @@ mod tests {
         assert!(args.contains("http://x"), "{args}");
     }
 
-    /// Review rc3 round 2, 4.4: the LLM cannot widen what runs without a
-    /// question; the agent says to edit the file and does not ask.
+    /// Review rc3 round 2, 4.4, the user's decision: a security setting
+    /// asks for a key press, never for a spoken yes.
     #[tokio::test]
-    async fn allow_and_confirm_change_only_in_the_file() {
+    async fn a_security_setting_asks_for_a_key() {
         let script = vec![
             Reply::Tool(
                 "voice__settings__set",
                 r#"{"patch": {"allow_programs": ["sh"]}}"#,
             ),
-            Reply::Tool("voice__settings__set", r#"{"patch": {"confirm": []}}"#),
-            Reply::Text("Geht nicht."),
+            Reply::Tool("voice__settings__set", r#"{"patch": {"barge_in_ms": 300}}"#),
+            Reply::Text("Erledigt."),
         ];
         let server = fake::llm(script).await;
-        let (mut tools, calls) = tools::tests::fake(0);
+        let (mut tools, _) = tools::tests::fake(0);
         tools.own = "voice".into();
         let config = Config {
             llm_url: server.url.clone(),
@@ -2295,15 +2292,23 @@ mod tests {
         let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
             .await
             .unwrap();
-        let (_, events) = turn(&mut chat, "Erlaube sh.", true).await;
-        assert!(
-            !events.iter().any(|e| e.starts_with("confirm")),
-            "{events:?}"
-        );
-        assert!(events.contains(
-            &"say I do not change allow programs by voice. Edit the settings file.".to_owned()
-        ));
-        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        let asked = Mutex::new(Vec::new());
+        let open = chat.tools.physical.clone();
+        chat.turn("Erlaube sh.", &|event| {
+            if let Event::Confirm {
+                physical, answer, ..
+            } = event
+            {
+                asked
+                    .lock()
+                    .unwrap()
+                    .push((physical, open.load(Ordering::SeqCst)));
+                let _ = answer.send(Some(true));
+            }
+        })
+        .await;
+        assert_eq!(asked.into_inner().unwrap(), [(true, true), (false, false)]);
+        assert!(!chat.tools.physical.load(Ordering::SeqCst));
         for key in [
             "indicator",
             "earcons",

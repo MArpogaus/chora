@@ -518,11 +518,17 @@ impl Agent {
         let report = match effect {
             Effect::Say { text, at, len } => mc::Report::Say { text, at, len },
             // A plugin that claimed the dot shows the question.
-            Effect::Confirm { id, prompt, detail } => mc::Report::Confirm {
+            Effect::Confirm {
+                id,
+                prompt,
+                detail,
+                physical,
+            } => mc::Report::Confirm {
                 id,
                 prompt,
                 detail,
                 hud: !self.claimed,
+                keys: physical.then(|| self.core.config().confirm_keys.clone()),
             },
             Effect::ConfirmDone(id) => mc::Report::ConfirmDone(id),
             _ => return,

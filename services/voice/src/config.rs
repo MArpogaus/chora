@@ -27,6 +27,24 @@ pub struct Confirm {
     pub prompt: String,
 }
 
+/// The keys that answer a question about a security setting: a voice,
+/// an injected text or a client cannot press them.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct ConfirmKeys {
+    pub yes: String,
+    pub no: String,
+}
+
+impl Default for ConfirmKeys {
+    fn default() -> Self {
+        Self {
+            yes: "Alt+y".into(),
+            no: "Alt+n".into(),
+        }
+    }
+}
+
 /// The state dot: `false` hides it, `true` shows it at its default
 /// place, and `{corner, offset}` places it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -95,11 +113,9 @@ pub struct Phrases {
     /// The question before a change of the agent's own settings: `{key}`
     /// and `{value}`.
     pub settings_set: String,
-    /// The same for a security setting, such as `confirm` or a URL.
+    /// The same for a security setting, such as `confirm` or a URL: only
+    /// a key answers it, `{yes}` or `{no}` of `confirm_keys`.
     pub settings_security: String,
-    /// Said instead of a question when the LLM changes a key that only
-    /// the settings file changes: `{key}`.
-    pub settings_file: String,
     /// A text of the user in the HUD before the agent handles it: `{text}`.
     pub heard: String,
     /// Said before the first tool round of a turn without words.
@@ -125,8 +141,9 @@ impl Default for Phrases {
             agent_ended: "{name} has ended.".into(),
             settings_set: "Shall I set {key} to {value}?".into(),
             settings_security:
-                "Security setting! Shall I set {key}? The full value is on the screen.".into(),
-            settings_file: "I do not change {key} by voice. Edit the settings file.".into(),
+                "Security setting! Shall I set {key}? The full value is on the screen. \
+                 Press {yes} for yes or {no} for no."
+                    .into(),
             heard: "Heard: {text}".into(),
             ack: "One moment.".into(),
             ready: "Ready.".into(),
@@ -233,6 +250,8 @@ pub struct Config {
     /// no glob.
     pub allow_methods: Vec<String>,
     pub confirm_timeout_ms: u32,
+    /// The keys that answer a question about a security setting.
+    pub confirm_keys: ConfirmKeys,
     pub earcons: bool,
     /// From 0 to 1.
     pub earcon_volume: f64,
@@ -484,7 +503,6 @@ impl Config {
             &mut p.agent_ended,
             &mut p.settings_set,
             &mut p.settings_security,
-            &mut p.settings_file,
             &mut p.heard,
             &mut p.ack,
             &mut p.ready,
@@ -536,6 +554,8 @@ impl Config {
         template
             .replace("{key}", &keys.join(", "))
             .replace("{value}", &values.join(", "))
+            .replace("{yes}", &self.confirm_keys.yes)
+            .replace("{no}", &self.confirm_keys.no)
     }
 }
 
@@ -583,14 +603,10 @@ fn spoken(v: &serde_json::Value) -> String {
     short
 }
 
-/// The keys that widen what runs without a question: only the settings
-/// file changes them, never the LLM (review rc3 round 2, 4.4).
-pub const FILE_ONLY: [&str; 3] = ["allow_programs", "allow_methods", "confirm"];
-
 /// Whether a settings key decides what the agent may do or run, where
 /// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 26] = [
+    const KEYS: [&str; 27] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -617,6 +633,7 @@ pub fn security_key(key: &str) -> bool {
         "ptt_key",
         "wake_words",
         "sleep_words",
+        "confirm_keys",
     ];
     KEYS.contains(&key)
         || key.ends_with("_url")
@@ -625,7 +642,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 25] = [
+const GERMAN: [(&str, &str); 24] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -661,12 +678,10 @@ const GERMAN: [(&str, &str); 25] = [
         "Soll ich {key} auf {value} setzen?",
     ),
     (
-        "Security setting! Shall I set {key}? The full value is on the screen.",
-        "Sicherheitseinstellung! Soll ich {key} setzen? Der volle Wert steht auf dem Bildschirm.",
-    ),
-    (
-        "I do not change {key} by voice. Edit the settings file.",
-        "Ich ändere {key} nicht per Sprache. Bearbeite die Einstellungsdatei.",
+        "Security setting! Shall I set {key}? The full value is on the screen. \
+         Press {yes} for yes or {no} for no.",
+        "Sicherheitseinstellung! Soll ich {key} setzen? Der volle Wert steht auf dem \
+         Bildschirm. Drück {yes} für ja oder {no} für nein.",
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
     (
@@ -834,6 +849,7 @@ impl Default for Config {
             no_words: words(&["no", "rather not", "nein", "nicht", "lieber nicht"]),
             filler_words: words(&["please", "now", "bitte", "jetzt", "mal"]),
             confirm: default_confirm(),
+            confirm_keys: ConfirmKeys::default(),
             allow_programs: Vec::new(),
             allow_methods: Vec::new(),
             confirm_timeout_ms: 15_000,
@@ -948,6 +964,14 @@ impl Config {
     /// The key, the words and the rules.
     fn check_words(&self) -> Result<(), String> {
         let key: Binding = self.ptt_key.parse().map_err(|e| format!("ptt_key: {e}"))?;
+        let ConfirmKeys { yes, no } = &self.confirm_keys;
+        let keys = [yes, no].map(|k| k.parse::<Binding>().map(|b| b.to_string()));
+        let [Ok(yes), Ok(no)] = keys else {
+            return Err("confirm_keys: yes and no need a key, such as Alt+y".into());
+        };
+        if yes == no || [&yes, &no].contains(&&key.to_string()) {
+            return Err("confirm_keys: two keys, other than ptt_key".into());
+        }
         // chora reports the release of a key with its modifier only.
         if !(key.mods.ctrl || key.mods.alt || key.mods.logo) {
             return Err("ptt_key: needs Ctrl, Alt or Super".into());
@@ -1061,6 +1085,24 @@ mod tests {
             assert!(err.contains("allow"), "{yaml}: {err}");
         }
         assert!(security_key("allow_programs") && security_key("allow_methods"));
+    }
+
+    /// The keys of a security question: two, other than the
+    /// push-to-talk key.
+    #[test]
+    fn confirm_keys_are_two_other_keys() {
+        let keys = parse::<Config>("confirm_keys: {yes: Ctrl+F1, no: Ctrl+F2}").unwrap();
+        assert_eq!(keys.confirm_keys.yes, "Ctrl+F1");
+        for yaml in [
+            "confirm_keys: {yes: Alt+y, no: Alt+y}",
+            "confirm_keys: {yes: Super+v, no: Alt+n}",
+            "confirm_keys: {yes: nope+x, no: Alt+n}",
+            "confirm_keys: {yes: Alt+n}",
+        ] {
+            let err = parse::<Config>(yaml).unwrap_err();
+            assert!(err.contains("confirm_keys"), "{yaml}: {err}");
+        }
+        assert!(security_key("confirm_keys"));
     }
 
     #[test]

@@ -46,11 +46,21 @@ const EMIT_POLL: Duration = Duration::from_millis(50);
 /// counts its rate per second.
 const RESEND: Duration = Duration::from_secs(1);
 
+/// What a grabbed key does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Key {
+    Ptt,
+    /// A key of `confirm_keys`: yes or no.
+    Confirm(bool),
+}
+
 struct Client {
-    rt: Runtime<()>,
+    rt: Runtime<Key>,
     settings: settings::File<Config>,
     tx: Sender<Input>,
     claims: Claims,
+    /// The keys of `confirm_keys` are grabbed.
+    confirming: bool,
 }
 
 /// The clients that show the state of the agent themselves and claimed
@@ -145,6 +155,7 @@ fn session(
         settings,
         tx: tx.clone(),
         claims: Claims::default(),
+        confirming: false,
     };
     // The claims of the session before are gone.
     let _ = tx.send(Input::Claimed(false));
@@ -189,8 +200,15 @@ fn serve(
             Some(event) => runtime::dispatch(client, event)?,
             None => {}
         }
-        let new = emits.try_iter().filter(|_| hud_client(name));
-        held.emit(new, Instant::now(), |event, data| {
+        let new: Vec<crate::mc::Emit> = emits.try_iter().collect();
+        for (event, data) in &new {
+            if *event == "confirm" {
+                client.confirm_keys(data)?;
+            }
+        }
+        let new = new.into_iter().filter(|_| hud_client(name));
+        let new: Vec<crate::mc::Emit> = new.collect();
+        held.emit(new.into_iter(), Instant::now(), |event, data| {
             let emit = Emit {
                 event: format!("{VOICE}.{event}"),
                 data: data.clone(),
@@ -353,8 +371,28 @@ impl Client {
     fn grab(&mut self) -> Result<(), ClientError> {
         let key = &self.settings.value.ptt_key;
         let binding = key.parse().expect("the settings check the key");
-        if !self.rt.grab(binding, ())? {
+        if !self.rt.grab(binding, Key::Ptt)? {
             crate::log::warn(&format!("no push-to-talk key {key}"));
+        }
+        Ok(())
+    }
+
+    /// Grabs the keys of `confirm_keys` while a question waits for them
+    /// (`physical`), and lets them go when a question ends.
+    fn confirm_keys(&mut self, data: &Value) -> Result<(), ClientError> {
+        if data["physical"] == true && !self.confirming {
+            self.confirming = true;
+            let keys = self.settings.value.confirm_keys.clone();
+            for (key, yes) in [(&keys.yes, true), (&keys.no, false)] {
+                let binding = key.parse().expect("the settings check the keys");
+                if !self.rt.grab(binding, Key::Confirm(yes))? {
+                    crate::log::warn(&format!("no confirm key {key}"));
+                }
+            }
+        } else if data["done"] == true && self.confirming {
+            self.confirming = false;
+            self.rt.ungrab_all()?;
+            self.grab()?;
         }
         Ok(())
     }
@@ -380,9 +418,9 @@ impl Client {
 }
 
 impl Plugin for Client {
-    type Action = ();
+    type Action = Key;
 
-    fn runtime(&mut self) -> &mut Runtime<()> {
+    fn runtime(&mut self) -> &mut Runtime<Key> {
         &mut self.rt
     }
 
@@ -393,11 +431,13 @@ impl Plugin for Client {
             let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
         }
         if let Event::InputKey { binding, state } = event
-            && self.rt.action(&binding).is_some()
+            && let Some(&key) = self.rt.action(&binding)
         {
-            let input = match state {
-                PressState::Pressed => Input::PttDown,
-                PressState::Released => Input::PttUp,
+            let input = match (key, state) {
+                (Key::Ptt, PressState::Pressed) => Input::PttDown,
+                (Key::Ptt, PressState::Released) => Input::PttUp,
+                (Key::Confirm(yes), PressState::Pressed) => Input::ConfirmKey(yes),
+                (Key::Confirm(_), PressState::Released) => return Ok(()),
             };
             // The core is gone only when the process ends.
             let _ = self.tx.send(input);
