@@ -45,6 +45,10 @@ pub enum Report {
     Agent(Value),
     /// A sub-agent is gone.
     Gone(String),
+    /// How the agent listens: `voice.listen {listen}`. It is no field of
+    /// `voice.state`, whose data chora-mc reads as the parameters of
+    /// `agent.set`.
+    Listen(crate::config::Listen),
     /// A sentence that plays from `at` for `len`.
     Say {
         text: String,
@@ -149,6 +153,9 @@ impl Reporter {
             match report {
                 Some(Report::Agent(params)) => {
                     let _ = self.emits.send(("state", params));
+                }
+                Some(Report::Listen(listen)) => {
+                    let _ = self.emits.send(("listen", json!({"listen": listen})));
                 }
                 Some(Report::Gone(name)) => {
                     let _ = self.emits.send(("remove", json!({"name": name})));

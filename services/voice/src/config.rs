@@ -65,6 +65,18 @@ pub struct At {
     offset: [i32; 2],
 }
 
+/// When the agent listens.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Listen {
+    /// Speech opens the gate, the ptt key too.
+    #[default]
+    Always,
+    /// Only the held ptt key opens the gate: no wake word, no VAD, no
+    /// barge-in without it.
+    PushToTalk,
+}
+
 /// A corner of the first output.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
@@ -204,6 +216,9 @@ pub struct Config {
     /// The sound that playback holds back before it starts, unless the
     /// sentence ends first: the TTS can be slower than real time.
     pub playback_buffer_ms: u32,
+    /// `always`: the agent hears speech at any time and the ptt key adds
+    /// a way to talk; `push_to_talk`: it hears only while the key is held.
+    pub listen: Listen,
     /// The push-to-talk key, for example `Super+v`.
     pub ptt_key: String,
     /// The speech probability from which speech starts.
@@ -811,6 +826,7 @@ impl Default for Config {
             capture_cmd: pcm_cmd("pw-record"),
             playback_cmd: pcm_cmd("pw-play"),
             playback_buffer_ms: 1000,
+            listen: Listen::Always,
             ptt_key: "Super+v".into(),
             vad_threshold: 0.5,
             vad_release: 0.35,

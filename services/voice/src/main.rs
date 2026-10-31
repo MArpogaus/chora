@@ -297,6 +297,7 @@ struct Agent {
     /// its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
     reported: [Option<serde_json::Value>; 2],
+    reported_listen: Option<crate::config::Listen>,
     /// The last reports of the sub-agents.
     reported_subs: std::collections::BTreeMap<String, serde_json::Value>,
     /// The state that the indicator shows and its place; none without it.
@@ -328,6 +329,7 @@ impl Agent {
             reply: None,
             mc: None,
             reported: [None, None],
+            reported_listen: None,
             reported_subs: std::collections::BTreeMap::new(),
             dot: None,
             claimed: false,
@@ -386,6 +388,10 @@ impl Agent {
                 let _ = mc.send(mc::Report::Agent(report.clone()));
                 *reported = Some(report);
             }
+        }
+        let listen = self.core.config().listen;
+        if self.reported_listen.replace(listen) != Some(listen) {
+            let _ = mc.send(mc::Report::Listen(listen));
         }
         let subs = self.core.subs();
         for (name, record) in subs {

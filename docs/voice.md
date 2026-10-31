@@ -518,6 +518,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_interim_ms` | `0` (off) |
 | `capture_cmd` | `[pw-record, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
 | `playback_cmd` | `[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
+| `listen` | `always` (the agent hears speech at any time, and the ptt key adds a way to talk); `push_to_talk`: the gate opens only while the ptt key is held, with no wake word, no VAD start and no barge-in without the key. No security key: a spoken yes changes it |
 | `ptt_key` | `Super+v` |
 | `vad_threshold`, `vad_release`, `onset_ms` | `0.5`, `0.35`, `96` |
 | `silence_ms`, `min_speech_ms`, `max_turn_ms` | `800`, `200`, `30000` |
@@ -638,7 +639,7 @@ The plugins chora-mc, chora-xp and chora-construct connect to the main
 socket, which may call privileged methods.
 
 The state record: `state`, `since_ms` (time in the state), `seq` (one
-more per change), `awake`, `muted: {mic, speaker}`, `turn`,
+more per change), `awake`, `listen` (`always` or `push_to_talk`), `muted: {mic, speaker}`, `turn`,
 `last_transcript`, `last_reply`, `queued` (texts that wait), `coder`
 (the parameters of `agent.set` for the coder, or null before the first
 task), `agents` (the parameters of `agent.set` of each ACP agent) and
@@ -669,7 +670,7 @@ name `voice`, or when it gets its first `voice.*` event.
 The events (D65): `voice.state {state, task, said}` on each change
 (`state` mapped to the states of mc: `asleep`, `listening`, `thinking`,
 `working`, `question`, `speaking`; `task` the request, `said` the last
-reply), and `voice.say {state: speaking, text, duration_ms}` for each
+reply), `voice.listen {listen}` when the mode changes and once at the start (not a field of `voice.state`, whose data go to `agent.set` of chora-mc, which refuses unknown fields), and `voice.say {state: speaking, text, duration_ms}` for each
 sentence when its sound starts, with the length of its PCM (a late
 sentence gets the rest of its length). The data are the parameters of
 `mc agent.set` and `mc hud.say`, and chora-mc subscribes to `voice.*`.

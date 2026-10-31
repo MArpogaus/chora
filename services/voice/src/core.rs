@@ -21,7 +21,7 @@ use crate::{
     agents,
     asr::Transcript,
     chat, coder,
-    config::Config,
+    config::{Config, Listen},
     earcon::Earcon,
     gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Frame, Gate},
     speech::Control,
@@ -448,6 +448,7 @@ impl Core {
             "since_ms": u64::try_from(self.since.elapsed().as_millis()).unwrap_or(u64::MAX),
             "seq": self.seq,
             "awake": self.awake,
+            "listen": self.config.listen,
             "muted": self.muted,
             "turn": self.turn,
             "last_transcript": self.last_transcript,
@@ -1213,10 +1214,12 @@ impl Core {
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
         let now = Instant::now();
         let playing = self.asking.is_some() && !self.paused && self.sounding(now);
+        // Push to talk: no speech opens the gate, only the key does.
+        let vad = !self.muted.mic && self.config.listen == Listen::Always;
         if playing && self.gate.pcm().is_none() && !self.key.down {
             // Only the barge-in gate listens over the agent's sound.
             let level = self.played_level(now);
-            if !self.muted.mic && self.barge.push(frame, level) {
+            if vad && self.barge.push(frame, level) {
                 return self.barge_in(now, level);
             }
             // The gate keeps its pre-roll.
@@ -1225,7 +1228,7 @@ impl Core {
         }
         self.barge.reset();
         self.key.used |= self.key.down;
-        match self.gate.push(frame, !self.muted.mic, self.key.down) {
+        match self.gate.push(frame, vad, self.key.down) {
             None => self.interim().into_iter().collect(),
             Some(gate::Event::Onset) => {
                 self.onset = now;
@@ -2353,6 +2356,26 @@ mod tests {
         assert_eq!(record["muted"], json!({"mic": false, "speaker": true}));
         let (effects, _) = call(&mut core, Call::Sleep);
         assert!(effects.is_empty(), "a muted speaker plays no earcon");
+    }
+
+    /// `listen: push_to_talk`: speech outside the key starts nothing and
+    /// the key still does; the record tells the mode.
+    #[test]
+    fn push_to_talk_listens_only_while_the_key_is_held() {
+        let mut core = Core::new(Config {
+            listen: Listen::PushToTalk,
+            ..Config::default()
+        });
+        assert!(speak(&mut core, 10).is_empty(), "speech alone starts no turn");
+        assert!(quiet(&mut core, 30).is_empty());
+        core.handle(Input::PttDown);
+        assert_eq!(speak(&mut core, 1), [Effect::Mark("onset")]);
+        core.handle(Input::PttUp);
+        let (_, record) = call(&mut core, Call::State);
+        assert_eq!(record["listen"], "push_to_talk");
+        let mut core = Core::new(Config::default());
+        let (_, record) = call(&mut core, Call::State);
+        assert_eq!(record["listen"], "always");
     }
 
     #[test]

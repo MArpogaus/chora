@@ -55,7 +55,8 @@ How chora works:
   node.
 - Read the error of a node that belongs to another client: you can change
   only your own nodes.
-- Your own settings, such as the speech gate, the barge-in, the voice,
+- Your own settings, such as the speech gate, the barge-in, `listen` (`always` or
+  `push_to_talk`: the user talks only while holding the key), the voice,
   the language and the timeouts, are the settings of the client {own}:
   {own}.settings.get reads them, {own}.settings.set changes keys, and
   the user confirms each change by voice. The settings of other plugins,
