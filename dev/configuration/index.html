@@ -16,7 +16,7 @@
         <link rel="prev" href="../api/">
       
       
-        <link rel="next" href="../project-structure/">
+        <link rel="next" href="../mc-style/">
       
       
         
@@ -638,6 +638,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#a-broken-settings-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A broken settings file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#plugin-manifests" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -692,6 +703,45 @@
     <span class="md-ellipsis">
       
         Regions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chora-construct-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chora-construct (experimental)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="chora-construct (experimental)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constructs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-window-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The window list
       
     </span>
   </a>
@@ -790,6 +840,62 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mc-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-mc style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../construct-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-construct style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1090,6 +1196,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#a-broken-settings-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A broken settings file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#plugin-manifests" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1144,6 +1261,45 @@
     <span class="md-ellipsis">
       
         Regions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chora-construct-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chora-construct (experimental)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="chora-construct (experimental)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constructs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-window-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The window list
       
     </span>
   </a>
@@ -1348,6 +1504,21 @@ font in <code>~/.local/share/fonts</code> needs no setting at all.</p>
 <p><code>choractl</code> reads views and manifests with <code>serde-saphyr</code> (D41). Unknown
 keys, duplicate keys and unknown tags are errors. Only <code>true</code> and <code>false</code>
 are booleans, so <code>no</code> stays the string <code>no</code>.</p>
+<h3 id="a-broken-settings-file">A broken settings file<a class="headerlink" href="#a-broken-settings-file" title="Permanent link">&para;</a></h3>
+<p>The plugins <code>chora-tiling</code>, <code>chora-xp</code>, <code>chora-mc</code> and <code>chora-construct</code>
+and the service <code>chora-voice</code> read their settings file (D62) as strict
+YAML too. If the file does not parse or check, for example because an
+update removed a key, the plugin does not stop. It starts with its
+default settings, writes the error to its log and does not change the
+file. <code>chora-mc</code> also shows the error as a critical notification.
+<code>chora-voice</code> does not start on a broken file. It writes the error to
+its log.</p>
+<p>While the file is broken, <code>settings.set</code> and each other save of the
+settings fail with an error that names the file. Thus no save writes the
+defaults over your edits. Correct the file and call <code>settings.reload</code>.
+When the reload succeeds, the plugin applies the file and saves again. A
+<code>settings.reload</code> of a broken file keeps the running settings, returns
+the error and also stops the saves until the file is correct.</p>
 <h3 id="plugin-manifests">Plugin manifests<a class="headerlink" href="#plugin-manifests" title="Permanent link">&para;</a></h3>
 <p>A manifest tells <code>choractl</code> how to start and how to configure a plugin. It
 lives in <code>plugins/NAME.yaml</code> of the same directories:</p>
@@ -1445,7 +1616,8 @@ stays closed.</p>
 default <code>~/.config</code>, or the file of <code>--config</code>. Without a file, it uses its
 default, which <code>chora-tiling --print-config</code> prints. The file holds the
 settings of D62: <code>settings.set</code> changes them at once and writes the file
-again, without its comments (see <a href="../api/#plugin-methods">API</a>). Edits by
+again, without its comments (see <a href="../api/#plugin-methods">API</a>). The
+plugin writes only the settings that differ from the defaults. Edits by
 hand apply with <code>settings.reload</code> or <code>MOD+Ctrl+r</code>, or at the next start
 of the plugin. The
 default file lists every option. A file can leave options out, and they
@@ -1503,8 +1675,12 @@ A window can be on several tags, and an output can show several tags. A
 floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
-<code>MOD+Ctrl+r</code> reads the file again. Mouse moves and resizes of floating
-windows do not exist.</p>
+<code>MOD+Ctrl+r</code> reads the file again. <code>MOD+BTN_LEFT</code> (<code>drag</code>) holds the
+window under the pointer, and a floating window follows the pointer. A
+title bar of a client-side decoration drags in the same way. A drop
+outside the claim of tiling hands the window to the window manager whose
+claim holds the drop point (D55). Without one there, the window stays.
+Mouse resizes of floating windows do not exist.</p>
 <p><code>chora-tiling</code> exports methods for other clients (see
 <a href="../api/#plugin-methods">Plugin methods</a>). Every method but <code>get_layout</code>
 and <code>get_tags</code> changes something and answers with the layout info of the current tag,
@@ -1531,9 +1707,9 @@ the gap of the file again.</p>
 <td>the tags of each output, for a panel</td>
 </tr>
 <tr>
-<td><code>give</code></td>
-<td><code>to</code>: a client name</td>
-<td>handing the focused window to another client</td>
+<td><code>window.give</code></td>
+<td><code>to</code>: a client name; <code>surface</code>, the focused window without it</td>
+<td><code>MOD+BTN_LEFT</code> with a drop on another window manager: hands the window to <code>to</code> (D55), and answers with its id</td>
 </tr>
 <tr>
 <td><code>view_tag</code></td>
@@ -1592,7 +1768,7 @@ tiling needs <code>modifier: Super</code>: with <code>Alt</code>, tiling grabs A
 <h2 id="chora-mc-experimental">chora-mc (experimental)<a class="headerlink" href="#chora-mc-experimental" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Experimental</p>
-<p><code>chora-mc</code> is an experiment. It is not in the packages, and its
+<p><code>chora-mc</code> is an experiment. The packages install it, but its
 methods and files change without notice.</p>
 </div>
 <p><code>chora-mc</code> connects with the client name <code>mc</code>. It is a voice-first
@@ -1603,14 +1779,18 @@ docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.</p>
 <p>A scene of <code>chora-mc</code> is not a view of D35. It is a YAML file
 <code>NAME.yaml</code> in <code>$XDG_CONFIG_HOME/chora/mc/scenes/</code>: a grid of panels, each
-with a title and lines, or one app whose window fills the screen without
+with a title and lines, or one app (a shell command, or a content of kind <code>app</code>) whose window
+fills the text block below the head, without
 a frame. The plugin has the built-in scenes <code>agenda</code>, <code>agents</code>, <code>mission</code>
-(Mission Control), <code>morning</code> (the morning paper) and <code>terminal</code>. A file of
+(Mission Control), <code>morning</code> (the morning paper), <code>overview</code> (all
+scenes in their order as <code>N | Title</code>; <code>Super+o</code> shows it, and a click on
+a line shows that scene) and <code>terminal</code>. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and
-rows. A wrong file, or a scene that the core refuses, is left out with a
-line in the log; the other scenes stay.</p>
+rows; without <code>grid</code>, a scene has 4 columns and 3 rows. A wrong file, or
+a scene that the core refuses, is left out with a line in the log; the
+other scenes stay.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.config/chora/mc/scenes/day.yaml</span>
-<span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># columns and rows</span>
+<span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># optional: columns and rows, [4, 3] without it</span>
 <span class="nt">chapter</span><span class="p">:</span><span class="w">              </span><span class="c1"># all optional: the place, the name, the date</span>
 <span class="w">  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="s">"2"</span>
 <span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Day</span>
@@ -1624,8 +1804,8 @@ line in the log; the other scenes stay.</p>
 <span class="w">  </span><span class="nt">cell</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Agents</span>
 </code></pre></div>
-<p>Each scene of panels has a head in the style of the LaTeX package
-classicthesis: the running head in the header (see the regions below),
+<p>Each scene of panels or of an app has a head in the style of the LaTeX
+package classicthesis: the running head in the header (see the regions below),
 and the number and the title of the scene as <code>chapter.layout</code> sets. The panels
 share the text block, one column of <code>page.measure</code> per column of the
 grid. A line <code>TIME&lt;tab&gt;TEXT</code> puts the time in the margin column left of
@@ -1633,13 +1813,15 @@ the text, flush right, and the text wraps under it. A panel names the
 styles of its lines, its title and its notes with <code>style</code>, <code>title_style</code>
 and <code>note_style</code>; each takes a <code>base</code> (by default <code>body</code>, <code>heading</code> and
 <code>margin</code>) and changes single fields.</p>
-<p>A scene may set its own <code>page</code> (<code>measure</code>, <code>margin</code> and <code>gap</code>, as in the
-settings), for example narrow columns side by side on a wide screen, and
-<code>chapter.layout</code>, also <code>none</code> for a scene without a head. Columns of a
-grid leave room for the margin of the column to their right. A panel may
-set a <code>rule</code>, a color of the theme for a hairline left of it, an
-<code>opacity</code> from 0 to 1 and a <code>blur</code> radius in pixels up to 16, for
-context that steps back (<code>plugins/chora-mc/blur.frag</code>).</p>
+<p>All scenes share the <code>page</code> of the settings, so that the text block
+and the head stay in place from scene to scene. A scene may set its own
+<code>grid</code>, and <code>chapter.layout</code>, also <code>none</code> for a scene without a head.
+Columns of a grid leave room for the margin of the column to their
+right. A panel may set a <code>rule</code>, a color of the theme for a hairline left
+of it. There is no rule at the left edge of the text block and none
+beside an empty panel. For context that steps back, a panel may also set
+an <code>opacity</code> from 0 to 1 and a <code>blur</code> radius in pixels up to 16
+(<code>plugins/chora-mc/blur.frag</code>).</p>
 <p>The methods marked privileged start programs: a caller on a client
 socket needs <code>methods.privileged</code> besides <code>methods.call</code>.</p>
 <p>mc also follows the events of the voice agent (D65); it subscribes to
@@ -1647,7 +1829,11 @@ socket needs <code>methods.privileged</code> besides <code>methods.call</code>.<
 the sub-agent that the <code>name</code> of its data names, such as <code>coder</code> or an
 ACP agent of the voice agent; <code>voice.remove {name}</code> removes such a
 sub-agent.
-<code>voice.say</code> shows a sentence as <code>hud.say</code> does. Data that mc does not
+<code>voice.say</code> shows a sentence as <code>hud.say</code> does. <code>voice.confirm</code> shows its
+<code>prompt</code> and its whole <code>detail</code> in mono alone in the drawer until the
+event with <code>done</code> and the same <code>id</code>. At its start and after the agent
+connects, mc calls the method <code>indicator.claim</code> of the agent, so that the
+agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 <table>
@@ -1664,11 +1850,19 @@ clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 </tr>
 <tr>
 <td><code>scene.list</code></td>
-<td>none; answers <code>scenes</code> and <code>current</code></td>
+<td>none; answers <code>scenes</code> in their order and <code>current</code></td>
 </tr>
 <tr>
 <td><code>scene.save</code></td>
-<td>privileged. <code>name</code>, <code>grid</code>, <code>panels</code> or <code>app</code>; writes the file</td>
+<td>privileged. <code>name</code>, <code>grid</code>, <code>panels</code> or <code>app</code>: a shell command or the name of a content of kind <code>app</code>, such as <code>shell</code>; writes the file</td>
+</tr>
+<tr>
+<td><code>scene.rename</code></td>
+<td>privileged. <code>name</code> and <code>to</code>: renames the scene file and its entry in <code>order</code>; a built-in scene without a file has none to rename</td>
+</tr>
+<tr>
+<td><code>scene.move</code></td>
+<td>privileged. <code>name</code> and <code>to</code>, the new number from 1: the scene moves there in <code>order</code>, which the settings file keeps, and every number shows anew at once. The scene of an app stays at the end</td>
 </tr>
 <tr>
 <td><code>panel.set</code></td>
@@ -1684,7 +1878,7 @@ clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 </tr>
 <tr>
 <td><code>app.open</code></td>
-<td>privileged. <code>command</code>: a shell command that starts in a scene of its own</td>
+<td>privileged. <code>command</code>: a shell command that starts in a scene of its own, with a head and the next number. The scene goes when the program has no window left and has ended, so <code>ls</code> leaves no scene behind</td>
 </tr>
 <tr>
 <td><code>region.list</code></td>
@@ -1712,7 +1906,7 @@ clients use <code>agent.set</code> and <code>hud.say</code>.</p>
 </tr>
 <tr>
 <td><code>agent.set</code></td>
-<td><code>name</code> and optional <code>state</code>, <code>task</code>, <code>said</code>, <code>voice</code>, <code>plan</code> (lines), <code>question</code> and <code>log</code> (the last lines of its transcript): adds an agent or changes it; a missing field stays. The <code>state</code> is a name of <code>states</code>. The <code>agents</code> scene shows the state, the question, the task, the plan and the last words</td>
+<td><code>name</code> and optional <code>state</code>, <code>task</code>, <code>said</code>, <code>voice</code>, <code>plan</code> (lines), <code>question</code> and <code>log</code> (the last lines of its transcript): adds an agent or changes it; a missing field stays. The <code>state</code> is a name of <code>states</code>. The <code>agents</code> scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each</td>
 </tr>
 <tr>
 <td><code>agent.focus</code></td>
@@ -1741,30 +1935,72 @@ outlines line by line, and the fill follows. This happens when a scene
 shows and when <code>panel.set</code> changes the text of a panel; the same text
 again changes nothing. The effect is <code>plugins/chora-mc/write.frag</code>, and
 the <code>animate</code> of the core moves its uniform <code>progress</code> from 0 to 1.</p>
+<p>The page of each scene, with its head and its panels, carries the tag
+<code>meta:pane=NAME</code>, also while the scene is hidden. Another plugin finds it
+with the selector <code>owner:mc meta:pane=NAME</code> and shows it through its node
+texture; chora-construct does so for a plugin pane.</p>
 <p>A window that no scene started, for example from a launcher, gets a scene
-of its own. The settings of D62 are in <code>chora/chora-mc.yaml</code>; edits by
-hand apply with <code>settings.reload</code>:</p>
+of its own without a head, which goes with the window. So does a window
+that another window manager gives to <code>mc</code> (D55). <code>window.give</code> with
+<code>to</code> and an optional <code>surface</code>, by default the focused window, hands the
+window of a scene to another window manager. The scene of the window
+goes with it, and the scene before shows, without the keyboard.
+<code>--output NAME</code> puts the scenes on that output instead of the first
+one, and leaves the others to other window managers.</p>
+<p>A new window takes the keyboard. The exception is a window that an
+<code>app.open</code> call started: voice and agents make these calls, and such a
+window takes the keyboard only with a click. A binding that shows a
+scene gives the keyboard to the window of that scene, or to none. A
+click on a line of the overview does the same. When a window closes,
+the scene that shows next takes the keyboard. A click on a window or a
+docked app gives it the keyboard. A toggle or a solo by key gives the
+keyboard to the docked app or back. Other methods never move the
+keyboard themselves: not <code>scene.show</code>, <code>agent.focus</code>,
+<code>region.toggle</code>, <code>region.solo</code>, <code>region.put</code>, <code>content.set</code>, <code>hud.say</code>
+or <code>agent.set</code>.</p>
+<p>The settings of D62 are in <code>chora/chora-mc.yaml</code>. Edits by hand apply
+with <code>settings.reload</code>:</p>
 <ul>
 <li><code>theme</code> (<code>light</code> or <code>dark</code>) and the colors of each theme by name, at
-  least a <code>background</code>.</li>
+  least a <code>background</code>. A color that a theme lacks comes from the
+  default theme of the same name in <code>mc.yaml</code>.</li>
 <li><code>scale</code>: the font sizes as steps of a modular scale (<code>base</code>, <code>ratio</code>),
   and the <code>baseline</code> grid; each line of text is whole lines of the grid.</li>
 <li><code>styles</code>: named styles with <code>base</code>, <code>family</code>, <code>weight</code>, <code>style</code>
-  (<code>normal</code> or <code>italic</code>), <code>size</code> or <code>step</code>, <code>color</code> (a name of the theme
+  (<code>normal</code> or <code>italic</code>), <code>size</code> in pixels, <code>em</code> of <code>scale.base</code> or
+  <code>step</code> of the scale, <code>color</code> (a name of the theme
   or RGBA), <code>line_height</code>, <code>letter_spacing</code> in em, OpenType <code>features</code> and
-  <code>uppercase</code>. The plugin uses <code>chapter_number</code>, <code>chapter</code>,
-  <code>chapter_large</code>, <code>running_head</code>, <code>heading</code>, <code>body</code>, <code>margin</code> and <code>hud</code>.
+  <code>uppercase</code>. The plugin uses <code>chapter</code>, <code>chapter_number</code>, <code>running_head</code>, <code>heading</code>, <code>body</code>, <code>margin</code> and <code>hud</code>;
+  the built-in scenes also use <code>data</code> and <code>mono</code>. The
+  <a href="../mc-style/">style guide</a> gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package <code>texlive-tex-gyre</code>, whose
   directory <code>/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre</code>
-  must be in <code>CHORA_FONT_DIRS</code>, and Inter with tabular figures for the
-  running head, the notes and the HUD.</li>
-<li><code>chapter.layout</code>: <code>number</code> (a large light number, the title in spaced
-  small caps below), <code>caps</code> (the title only), <code>large</code> (one large light
-  title) or <code>none</code>.</li>
-<li><code>page</code>: the <code>measure</code> of a column of text, the <code>margin</code> column and the
-  <code>gap</code>, in em of <code>scale.base</code>.</li>
+  is not a font directory. The RPM adds it to fontconfig with
+  <code>/etc/fonts/conf.d/09-chora-tex-gyre.conf</code>; without the RPM, add it to
+  <code>CHORA_FONT_DIRS</code>. On Arch Linux, <code>tex-gyre-fonts</code> needs neither. Inter
+  with tabular figures (<code>rsms-inter-fonts</code>, on Arch <code>inter-font</code>) sets
+  the running head, the notes and the HUD.</li>
+<li><code>chapter.layout</code>: <code>number</code> (the number in the style
+  <code>chapter_number</code>, a hairline bar from the baseline to the capitals,
+  then the title in spaced capitals on the same baseline, such as
+  <code>3 | AGENDA</code>, at the left edge of the text column) or <code>none</code>.</li>
+<li><code>page</code>: the <code>measure</code> of a column of the grid, the <code>margin</code> column and
+  the <code>gap</code>, in em of <code>scale.base</code>. All scenes share it.</li>
+<li><code>min_panel</code>: the least width and height of a panel, in em of
+  <code>scale.base</code> (default <code>[14, 8]</code>). Where the columns of the grid would
+  be narrower, the page shows fewer columns and the panels wrap into new
+  rows in reading order, each at the top-most, then left-most place
+  below the panels before it; an empty panel takes no room. A row is
+  never lower than the least height. A page that is longer than the
+  output scrolls with the wheel between the header and the footer.</li>
 <li><code>write</code>: <code>enabled</code> (default <code>true</code>) and <code>duration_ms</code> (default 900).</li>
+<li><code>order</code>: the scenes in their order (default <code>agenda</code>, <code>morning</code>,
+  <code>agents</code>, <code>mission</code>, <code>terminal</code>, <code>overview</code>). The number of a scene is
+  its place. First come the scenes of the list. The others follow in the
+  order they appear, such as new scenes and those of <code>app.open</code>, so that
+  the numbers before them stay. <code>Super+Right</code> and <code>Super+Left</code> follow the order. A
+  scene file may set its own <code>chapter.number</code>.</li>
 <li><code>default_scene</code>, and the <code>bindings</code> with the actions <code>next_scene</code>,
   <code>previous_scene</code>, <code>scene: NAME</code>, <code>run: COMMAND</code>, <code>toggle: REGION</code> and
   <code>solo: {content: NAME, region: REGION}</code> (as <code>region.solo</code>; the default
@@ -1804,7 +2040,8 @@ region. The page itself never moves when a region shows.</p>
   contents one under the other with a title in the style <code>running_head</code>.
   The page leaves room for a side that has contents, so that its text
   never moves; where both sides would leave the text less than three
-  quarters of its measure, the sides do not show.</li>
+  quarters of the measure of one column, the sides do not show. The
+  columns of the grid that do not fit wrap into new rows.</li>
 <li><code>drawer</code> is a sheet of <code>size</code> lines over the bottom of the page, with a
   hairline above it, for a docked app.</li>
 </ul>
@@ -1929,6 +2166,7 @@ the scene <code>agenda</code>, with <code>emacs --batch</code>: the entries with
 tasks scheduled or due today, each as a time in the margin and a text.
 It leaves out overdue, upcoming and done tasks. <code>ORG_TODO</code> sets the TODO
 keywords, by default <code>PROJ TODO NEXT WAIT | DONE KILL</code>.</p>
+<p>The packages install the collectors in <code>/usr/share/chora/mc/collectors/</code>.</p>
 <p>The other collectors in <code>plugins/chora-mc/collectors/</code> are Python 3
 scripts without dependencies. They only read their sources, and a source
 that is missing leaves a short note or nothing. Each takes <code>--print</code> to
@@ -1970,6 +2208,251 @@ scene file with more columns shows more agents.</p>
 choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> </span>notify.push<span class="w"> </span><span class="s1">'{"title": "CI", "body": "dev failed", "urgency": "critical"}'</span>
 choractl<span class="w"> </span>call<span class="w"> </span>mc<span class="w"> </span>region.solo<span class="w"> </span><span class="s1">'{"content": "overlay", "region": "drawer"}'</span>
 </code></pre></div>
+<h2 id="chora-construct-experimental">chora-construct (experimental)<a class="headerlink" href="#chora-construct-experimental" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Experimental</p>
+<p><code>chora-construct</code> is step K2b of the construct track (D66). The
+packages install it, but its settings and files change without notice.</p>
+</div>
+<p><code>chora-construct</code> connects with the client name <code>construct</code>. It is a
+flavor: <code>chora -- chora-construct</code> starts into it, and the directory
+<code>flavors/construct/</code> holds its target and service. The first output shows
+a space without a grid and without lines. In the light theme, a pale sky
+lies over a smooth, white, glossy floor, as in a photo studio. In the
+dark theme, a black void lies over a black glossy floor. A crisp
+horizon line separates floor and sky. The floor mirrors the sky, more
+at grazing angles, and a broad soft light band glints in it and turns
+with the view. Each pane has a soft shadow on the floor under it, and a
+clear mirror image that fades downwards and with the distance. Each new
+window becomes a
+pane ahead of the camera, at the size of the output. A pane turns to face
+the camera and shows the window through its node texture. A new pane
+moves aside, right first, from the panes in its way. The space lies on
+the screen root of the output (<code>screen:NAME</code>), not under <code>root</code>, so it
+needs no camera. As the flavor, it claims the output (D55), so that new
+windows come to it also when another window manager runs beside it.</p>
+<p>The space has the keyboard, so its keys need no modifier. A drag looks
+around, and the wheel walks. A walk slows down in the outer quarter of
+the leash radius and stops at it. A click on a pane, or <code>Return</code> for the
+pane nearest the middle of the view, flies into the pane. At the end of
+the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
+and the pointer. <code>Alt+Escape</code> flies back to the pose before.</p>
+<p><code>t</code> starts the terminal, and its window becomes a pane in the view
+direction. <code>space</code> starts the launcher. The launcher itself is no pane:
+a layer-shell launcher such as fuzzel shows over the space, and a
+launcher window that maps with the activation token of its start shows
+in the middle of the output. The first other window after the launcher
+becomes a pane, also beside another flavor. <code>x</code> asks the window of the
+pane nearest the middle of the view to close, as a close button does, so
+a program can ask about unsaved work first; the pane goes when the
+window closes. <code>tests/gate-construct-keys.sh</code> checks the three keys.</p>
+<p>The elements over the space, such as the window list, follow the
+<a href="../construct-style/">construct style guide</a>.</p>
+<p>The settings file is <code>~/.config/chora/chora-construct.yaml</code> (D62);
+<code>chora-construct --print-config</code> prints the default with comments:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start</code></td>
+<td>empty</td>
+<td>the construct that the flavor starts into; empty for an empty space</td>
+</tr>
+<tr>
+<td><code>theme</code></td>
+<td><code>light</code></td>
+<td><code>light</code> or <code>dark</code></td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td><code>6000</code></td>
+<td>the leash radius R around the start point, in logical pixels, for a construct without its own</td>
+</tr>
+<tr>
+<td><code>pane_distance</code></td>
+<td><code>2000</code></td>
+<td>how far ahead a new pane appears, in logical pixels</td>
+</tr>
+<tr>
+<td><code>keys</code></td>
+<td><code>w a s d</code>, arrows, <code>q e</code>, <code>r f</code>, <code>h</code>, <code>Return</code>, <code>t</code>, <code>space</code>, <code>x</code>, <code>Tab</code></td>
+<td>keysym name to <code>forward</code>, <code>back</code>, <code>left</code>, <code>right</code>, <code>turn_left</code>, <code>turn_right</code>, <code>look_up</code>, <code>look_down</code>, <code>home</code>, <code>fly_in</code>, <code>terminal</code>, <code>launcher</code>, <code>close</code> or <code>windows</code></td>
+</tr>
+<tr>
+<td><code>terminal</code></td>
+<td><code>foot</code></td>
+<td>the shell command of the key <code>terminal</code>; its window becomes a pane</td>
+</tr>
+<tr>
+<td><code>launcher</code></td>
+<td><code>fuzzel</code></td>
+<td>the shell command of the key <code>launcher</code>; the first window that it starts becomes a pane</td>
+</tr>
+<tr>
+<td><code>fly_out</code></td>
+<td><code>Alt+Escape</code></td>
+<td>the binding that flies out of a pane</td>
+</tr>
+<tr>
+<td><code>modifier</code></td>
+<td><code>Super</code></td>
+<td><code>Ctrl</code>, <code>Alt</code>, <code>Shift</code> or <code>Super</code>: with a drag it moves a pane, with the wheel it resizes one</td>
+</tr>
+</tbody>
+</table>
+<p>While the camera is in a pane, the window has the keyboard, so <code>fly_out</code>
+is a grab. A grab needs Ctrl, Alt or Super (D45). <code>Escape</code> alone works
+after <code>choractl grant construct input.grab-any</code>; then the program in the
+pane never gets <code>Escape</code>. <code>tests/gate-construct-k1.sh</code> checks the step.</p>
+<p>The key of the setting <code>modifier</code> with a drag on a pane moves the pane.
+It moves sideways along its face, and away or nearer as the pointer goes
+up or down. The same key with the wheel over a pane resizes it. A window
+of the flavor gets the new size, so that it stays at 1:1. Other panes
+stretch. The default <code>Super</code> is the drag modifier of tiling and chora-xp.</p>
+<p>The flavor grabs the modifier with the left button, so that it shares
+the binding with the window managers on other outputs (D55). A drop of
+a window pane hands the window over:</p>
+<ul>
+<li>On a plugin pane, for example an mc scene, the window goes to that
+  plugin. mc shows it as a scene of its own.</li>
+<li>Off the output of the construct, the window goes to the window
+  manager whose claim holds the drop point. The pane goes back to where
+  it was if no window manager is there.</li>
+<li>On empty space, the pane only moves.</li>
+</ul>
+<p>A window of another client, which the window list took as a pane, goes
+back to its owner on such a drop. If the target refuses the window, the
+pane stays. An overlay does not hand over windows.
+<code>tests/gate-construct-windows.sh</code> checks the drops.</p>
+<h3 id="constructs">Constructs<a class="headerlink" href="#constructs" title="Permanent link">&para;</a></h3>
+<p>A construct is a file <code>~/.config/chora/constructs/NAME.yaml</code> with the
+start pose of the camera, the leash radius R and the panes. A pane has a
+<code>kind</code>, its content and its pose. A program pane has a shell <code>command</code>,
+which starts with <code>choractl run</code>. A plugin pane has a <code>plugin</code>, the client
+name, and a <code>scene</code>. It shows the node that the plugin tags
+<code>meta:pane=SCENE</code> through its node texture, for example the page of an mc
+scene. The pose is <code>at</code>, the centre on the ground as <code>[x, z]</code>, and
+<code>size</code>, in logical pixels. Without <code>at</code>, the pane goes ahead of the
+camera; without <code>size</code>, a program pane has the size of the output and a
+plugin pane the size of the node.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">camera</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">x</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> z</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> yaw</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> pitch</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}</span>
+<span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5000</span>
+<span class="nt">panes</span><span class="p">:</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">program</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">foot</span>
+<span class="w">  </span><span class="nt">at</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">-650</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2000</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1000</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">640</span><span class="p p-Indicator">]</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plugin</span>
+<span class="w">  </span><span class="nt">plugin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mc</span>
+<span class="w">  </span><span class="nt">scene</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mission</span>
+<span class="w">  </span><span class="nt">at</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">700</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2200</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>A file in this directory is the user's own, as an mc scene file is: its
+program panes start without a question. So <code>construct.load</code> and
+<code>construct.save</code> are privileged. The flavor starts into the construct of
+the setting <code>start</code>. A plugin pane whose node is missing, for example
+because mc starts later, waits and shows when the node comes.</p>
+<p>With <code>--overlay</code>, <code>chora-construct</code> runs beside another flavor, such as
+tiling or mc, and shows nothing until <code>construct.load</code>. Then the space
+covers the first output from its screen root and takes the keyboard. No
+camera changes hands: D40 lets only the admin socket or a reset take a
+camera from its owner, and the screen root needs none. Its program panes
+show the windows that the other flavor takes; a fly-in asks that flavor
+for the keyboard with <code>focus</code> (<code>node.requested</code>, D31). A click on the
+space takes the keyboard back. <code>construct.leave</code> removes the space and
+gives the keyboard back; the programs of the construct keep running as
+windows of the other flavor.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>construct.load</code></td>
+<td>privileged. <code>name</code>: loads the file and starts its programs. An overlay takes the output; the flavor keeps its windows as panes. The panes of the construct before go. Answers as <code>construct.list</code></td>
+</tr>
+<tr>
+<td><code>construct.save</code></td>
+<td>privileged. <code>name</code>: writes the camera, R and the panes. A window that the construct did not start has no command and stays out</td>
+</tr>
+<tr>
+<td><code>construct.list</code></td>
+<td>none; answers <code>constructs</code>, the <code>current</code> one, <code>overlay</code>, <code>shown</code>, the <code>panes</code> with <code>name</code>, <code>kind</code>, content, <code>at</code> and <code>size</code>, and the panes that still wait</td>
+</tr>
+<tr>
+<td><code>construct.leave</code></td>
+<td>none; an overlay gives the output and the keyboard back. The flavor refuses it</td>
+</tr>
+<tr>
+<td><code>pane.move</code></td>
+<td><code>name</code>, <code>right</code> and <code>ahead</code> in logical pixels as the camera looks; inside the leash</td>
+</tr>
+<tr>
+<td><code>pane.resize</code></td>
+<td><code>name</code> and <code>scale</code>, for example 1.25</td>
+</tr>
+<tr>
+<td><code>pane.remove</code></td>
+<td><code>name</code>; the window of the pane gets a close request, through its owner</td>
+</tr>
+<tr>
+<td><code>pane.fly</code></td>
+<td><code>name</code>: flies into the pane</td>
+</tr>
+<tr>
+<td><code>window.list</code></td>
+<td>none; answers all <code>windows</code> with <code>name</code>, <code>surface</code>, <code>owner</code> and <code>pane</code>: <code>shown</code>, <code>behind</code>, <code>far</code>, <code>aside</code> or <code>none</code></td>
+</tr>
+<tr>
+<td><code>window.show</code></td>
+<td><code>name</code>, a label or a surface of <code>window.list</code>: flies to the pane of the window; a window without a pane becomes one first</td>
+</tr>
+<tr>
+<td><code>window.give</code></td>
+<td><code>to</code>, a window manager or a plugin such as mc, and <code>surface</code>, else the window flown into or ahead: gives an own window to <code>to</code> (D55); its pane goes</td>
+</tr>
+</tbody>
+</table>
+<p>The name of a pane is a short label for voice: the app id or the title of
+the window, or the scene of a plugin pane, with <code>-2</code>, <code>-3</code> for a second
+and a third. <code>tests/gate-construct-k2a.sh</code> checks the step.</p>
+<h3 id="the-window-list">The window list<a class="headerlink" href="#the-window-list" title="Permanent link">&para;</a></h3>
+<p>In the construct, every window is a pane. <code>Tab</code>, the key <code>windows</code>,
+opens the window list over the space. It shows the windows that have no
+visible pane: a pane behind the camera, beyond the leash radius, or out
+of the view, and every window without a pane, of any owner. Each row has
+the label of the window, its owner and the place of its pane. <code>Up</code> and
+<code>Down</code> move the selection, and <code>Return</code> or a click chooses. A choice
+flies to the pane. A window of another client, such as tiling, xp or mc,
+first becomes a pane at its own size. <code>Escape</code> or <code>Tab</code> closes the list.
+<code>g</code> on an own window shows the other window managers, the clients with a
+claim (D55); <code>Return</code> gives the window to the one selected.</p>
+<p>A load never makes panes for the windows of other clients: they become
+panes only from the list or by <code>window.show</code>. Such a pane shows the
+window only through its node texture, and the keyboard goes to it
+through its owner (<code>node.requested</code>, D31). The construct changes no prop
+of such a window, so the owner has it back in full when the pane goes,
+when the construct leaves or loads another construct, and when the
+construct ends or crashes. <code>pane.remove</code> and <code>x</code> give such a window back
+without a close request. <code>construct.leave</code> also gives the keyboard back
+to the window that had it before the load. The windows that an overlay
+starts belong to the other flavor from the start and stay there. A
+window that another window manager gives to the construct (<code>remove</code> with
+<code>to</code>, D55) becomes a pane in the view direction; on a leave or a crash
+the core frees it again, and a window manager takes it.</p>
+<p>The construct works with any window manager; the construct changes only
+what it gives back. <code>tests/gate-construct-windows.sh</code> checks the list,
+the hand-over over tiling, xp and mc, and that no window gets lost when
+a pane goes in any way.</p>
 <h2 id="flavors">Flavors<a class="headerlink" href="#flavors" title="Permanent link">&para;</a></h2>
 <p>A flavor is a directory with views, plugin manifests and services, plus a
 systemd user target <code>chora-&lt;name&gt;.target</code>. <code>chora-flavor &lt;name&gt;</code> looks for
@@ -2171,8 +2654,9 @@ reads the insets of a slice in pixels of the file. The pictures:</p>
 <p>A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. <code>chora-xp</code> claims the box around the work areas
 of its outputs (D55). <code>--output NAME</code> limits it to some outputs. A window
-dragged out of these work areas goes to the window manager <code>tiling</code> with
-<code>remove</code> and <code>to</code>. Without <code>tiling</code>, the window stays. A drag of the border of the frame
+dragged out of these work areas goes to the window manager whose claim
+holds the drop point, with <code>remove</code> and <code>to</code>. Without one there, or when
+the core refuses, the window stays. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the
@@ -2447,6 +2931,20 @@ invokes the action <code>default</code> of the notification, if it has one, and
 dismisses it too. If another server, such as GNOME Shell, owns the name
 on the bus, <code>chora-xp</code> logs one line and shows no balloons; it never
 takes the name from its owner.</p>
+<p>While the voice agent is connected and awake, a paperclip with eyes and
+eyebrows stands above the right end of the taskbar of the first output.
+<code>chora-xp</code> subscribes to <code>voice.*</code> (D65): the paperclip blinks while the
+agent is idle, leans in while it listens, looks up and sways while it
+thinks, bounces while it speaks and raises its eyebrows when it asks. Each
+sentence of <code>voice.say</code> shows in a balloon above it, which fades out three
+seconds after the sentence ends. The balloon shows the <code>prompt</code> and the
+<code>detail</code> of <code>voice.confirm</code> until the event with <code>done</code> and the same <code>id</code>.
+While the paperclip is enabled, <code>chora-xp</code> calls <code>indicator.claim</code> of the
+agent at its start and after the agent connects.
+A click on the paperclip mutes the mic of
+the agent through its method <code>mute</code>, and a second click unmutes it. The
+paperclip goes when the agent sleeps or disconnects, and <code>assistant:
+{enabled: false}</code> turns it off.</p>
 <p>The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:</p>
 <ul>
@@ -2549,6 +3047,11 @@ these bindings, Super+Ctrl with the arrows stands in.</p>
 <td>a click on the desktop button</td>
 </tr>
 <tr>
+<td><code>window.give</code></td>
+<td><code>to</code>: a client name; <code>surface</code>, the focused window without it</td>
+<td>a drag of the window out of the work areas: hands it to <code>to</code> (D55)</td>
+</tr>
+<tr>
 <td><code>settings.get</code>, <code>settings.set</code>, <code>settings.reload</code></td>
 <td>see <a href="../api/#plugin-methods">API</a></td>
 <td>the dialogs and an edit of the file with <code>restart</code></td>
@@ -2646,6 +3149,11 @@ that the file leaves out takes its default:</p>
 <td><code>session</code></td>
 <td>see above</td>
 <td>the commands of <code>turn_off</code>, <code>restart</code>, <code>stand_by</code> and <code>log_off</code>; <code>null</code> for none</td>
+</tr>
+<tr>
+<td><code>assistant</code></td>
+<td>on</td>
+<td><code>enabled</code>: the paperclip of the voice agent</td>
 </tr>
 </tbody>
 </table>

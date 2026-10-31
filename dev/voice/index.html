@@ -572,6 +572,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../mc-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-mc style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../construct-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-construct style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../project-structure/" class="md-nav__link">
         
   
@@ -1354,7 +1410,7 @@ same channel.</p>
 </tr>
 <tr>
 <td><code>tools</code></td>
-<td>MCP client of <code>choractl --name voice mcp</code>, the coder tools, the confirmation gate</td>
+<td>MCP client of <code>choractl --name voice mcp</code>, the coder tools, <code>read</code>, the confirmation gate</td>
 </tr>
 <tr>
 <td><code>coder</code></td>
@@ -1441,7 +1497,9 @@ exits with 1.</p>
 what goes on, in this order: an utterance in progress is <code>recording</code>;
 an utterance whose text waits is <code>transcribing</code> (not while asleep); a
 reply is <code>confirming</code> while a question waits, <code>speaking</code> while its sound
-plays or ran dry less than 1.5 s ago, else <code>thinking</code> or <code>tool</code>; else
+plays or ran dry less than 1.5 s ago (0.25 s after a question that waits
+for its answer, so that the speech gate hears a short "Ja"), else
+<code>thinking</code> or <code>tool</code>; else
 <code>listening</code> or <code>sleeping</code>. So speech during a reply shows as
 <code>recording</code> and <code>transcribing</code>, and the state of the reply comes back
 after it.</p>
@@ -1526,8 +1584,8 @@ after it.</p>
 </tr>
 <tr>
 <td><code>confirming</code></td>
-<td>No, two unclear answers, or timeout</td>
-<td><code>thinking</code>; result "declined by the user"</td>
+<td>No, two unclear answers, a new request, or timeout</td>
+<td><code>thinking</code>; the result says which</td>
 </tr>
 <tr>
 <td><code>speaking</code></td>
@@ -1560,19 +1618,57 @@ the agent sleeps again after the reply.</p>
 queued. A cancel word drops them and cancels the turn. Empty text or
 echo plays them from the cut sentence; a spoken yes or no to a question
 skips the cut question. Other text ends the reply; the history keeps
-only the played text, and the new text starts a reply.</p>
+only the played text, and the new text starts a reply. The utterance of
+a barge-in starts with the barge-in speech and <code>preroll_ms</code> before it,
+and ends as any other after <code>silence_ms</code> of quiet, so a short pause
+makes no second turn. Text that is not echo ends the reply the same way
+while its sound plays, also when it came without a barge-in.</p>
+<p>Each heard text that is not a command word shows first in the HUD, as
+<code>phrases.heard</code> ("Heard: ...") through the <code>say</code> event.</p>
 <p>Speech while <code>thinking</code>, <code>tool</code> or <code>confirming</code>: each utterance goes to
 the ASR at once. A cancel word cancels. In <code>confirming</code>, the text is the
-answer. Other text waits in a queue and starts the next reply, together
-with the texts before it (<code>queued</code> in the state record). No speech is
-dropped. Deviation: queued text does not go into the history before the
-next LLM round of the running reply.</p>
+answer, but only speech that starts after the question starts to
+play. Other text goes into the next LLM round of the running reply,
+as a user message (<code>Inject</code>; the chat reports it back as <code>Heard</code>). This
+also holds after the answer of a round: when new words came while the
+LLM answered, one more round hears them. After the last round of
+<code>tool_rounds</code>, new words get <code>tool_rounds</code> more rounds in the same turn;
+they do not wait until the reply is said. Short text goes in too
+("Und größer.", "Nein, rot."). Only a pure yes or no waits in the queue.
+It never answers a question. A call that would ask does not ask while new words wait:
+it does not run, and its result is "Not confirmed: the user said
+something new; nothing happened". Texts that no round heard start the
+next reply together, as one message (<code>queued</code> in the state record). No
+speech is dropped.</p>
+<p>A turn whose first round calls tools without words says <code>phrases.ack</code>
+("One moment.") once. An answer whose last sentence announces an action
+in the first person, but calls no tool, gets one more round per turn
+with a note to call it or to say that it will not. A turn that already
+ran a tool gets no such round. Only explicit forms announce: "let me
+...", or "I'll", "I will" or "I'm going to" before a verb of action.
+In German, these are "ich werde ...", "lass mich ..." and "ich schaue
+nach", "mal" or "kurz". These are no announcement: a question, "let me
+know", "I'll be here", a negation ("I will not", "nicht", "kein"), and
+other German "ich" sentences ("Ich helfe dir gern.", "Ich starte den
+Loader.").</p>
+<p>An answer that ends with <code>stop</code>, calls no tool, and whose words do not
+end with <code>.</code>, <code>!</code>, <code>?</code> or <code>…</code> (also before a closing quote) is cut: Gufo
+0.27 ended rounds after 3-12 tokens ("I’m setting the", "I’ll apply",
+2026-10-31), and the same request again gave the whole answer. Its last
+words after the last spoken sentence do not play and do not go into the
+history; one more round runs with the same history, once per turn. That
+round does not say again the sentences that already played. The check
+comes before the announcement check.</p>
 <p>Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends <code>notifications/cancelled</code>), the
-history gets the words that played and the note "cancelled by the user;
-result unknown" (for a call in flight, as its tool result; for a reply
-whose words were all there but did not all play, in place of its
-words), and playback stops. A cancel word does not
+history gets the words that played, cut back to the last whole
+sentence (else without the last word, which may be cut), and a note:
+for a call in flight "cancelled by the user; result unknown" as its tool
+result, else <code>chat::STOPPED</code> as a message of the user of its own. The
+LLM copied a note at the end of its own answer into the next answer, and
+it copied answers that end mid-word. The agent never speaks or keeps
+these notes: they go from the stream of the LLM and from the stored
+answer. Playback stops. A cancel word does not
 stop a coding task. A code cancel word ("Coding-Aufgabe abbrechen")
 stops it. Coding results wait for <code>listening</code> or <code>working</code>, and also go
 into the history.</p>
@@ -1594,21 +1690,41 @@ little later than it is written). The coupling starts at
 learned during playback: a median tracker of mic RMS over played level
 (steps of 5 % per frame; only 1 % up on a frame that counts as speech).
 Barge-in needs probability over <code>barge_in_vad_threshold</code> and RMS over
-<code>max(barge_in_min_rms, echo level × barge_in_echo_ratio)</code> for
-<code>barge_in_ms</code>. Its utterance keeps that speech and <code>preroll_ms</code> before
+<code>max(floor, echo level × barge_in_echo_ratio)</code> for <code>barge_in_ms</code>. The
+floor is <code>barge_in_min_rms</code> when it is above 0; else it adapts: 40 % of
+the median of the last five turns' median frame RMS, at least 5, and 15
+before the first turn. The learned coupling goes down to 0.00001: the
+PipeWire echo canceller left an echo of RMS 0.1 under played sound of
+RMS 4000, and the user's speech had an RMS of 20-70 (live test
+2026-10-31). Silero hears such quiet speech late or not at all, so the
+VAD (not the gate or the ASR) gets the mic with a gain that lifts its
+recent peak level to 1000: at most 33×, the peak halves in about 30 s. Its utterance keeps that speech and <code>preroll_ms</code> before
 it: with 100 ms, the ASR heard "verbrechen" for "Abbrechen" (WP6 live).
+Each utterance, the pre-roll included, goes to the ASR scaled so that
+its peak is at -3 dBFS: at most 40 dB, never down, without clipping.
+In the live test of 2026-10-31 the utterances had a peak of 4-63 (RMS
+1-8) behind the echo canceller. <code>pipewire/echo-cancel.conf</code> turns on the
+digital gain control of WebRTC and turns off its noise suppression,
+the likely cause of the digital zero between the words (not yet
+verified on PipeWire).
 A transcript whose words match more than 80 % of the words spoken in the
 last 3 s is echo.</p>
 <p>Word matcher (no LLM):</p>
 <ol>
-<li>Only utterances up to <code>word_max_ms</code> and four words count.</li>
+<li>Only utterances with up to <code>word_max_ms</code> of speech and four words
+   count. The speech is the VAD frames, without <code>preroll_ms</code> and the
+   end wait: "Schlaf jetzt." had 1856 ms of speech in an utterance of
+   2848 ms and went to the LLM with the old limit on the length
+   (live 2026-10-31). A command word acts at once, also while a reply
+   thinks, runs tools or speaks.</li>
 <li>Normalize: lowercase, no punctuation, <code>ä→ae</code>, <code>ö→oe</code>, <code>ü→ue</code>, <code>ß→ss</code>.</li>
 <li>Remove <code>filler_words</code>.</li>
 <li>The rest must equal a phrase. Words of four letters or more may
    differ by one edit; words written together also match
    ("Codingaufgabe").</li>
 <li>Order: code cancel, cancel, sleep, wake, yes, no. Yes and no count
-   only in <code>confirming</code>.</li>
+   only in <code>confirming</code>, by the answer rules of section 5 and without
+   the limits of rule 1.</li>
 </ol>
 <p>While asleep, each short utterance goes to the ASR to find a wake word.
 A keyword-spotting model can replace this later.</p>
@@ -1616,12 +1732,94 @@ A keyword-spotting model can replace this later.</p>
 <p>A rule matches by <code>tool</code> (glob), and optionally by the command kinds of
 <code>apply_commands</code>, by <code>argv0</code> of <code>run_program</code>, or by <code>method</code> (glob) of
 <code>call_method</code>. The agent speaks the <code>prompt</code> of the rule, with the
-program of <code>run_program</code> in place of <code>{program}</code>, and waits for
+program of <code>run_program</code> in place of <code>{program}</code>, the argument <code>NAME</code>
+in place of <code>{NAME}</code> (a missing one stays as it is) and all text,
+number and boolean arguments in place of <code>{args}</code> ("Shall I change the
+screen to output winit, scale 1.5?"), and waits for
 yes or no. The method <code>confirm</code> answers from a key or the HUD (WP5;
 privileged, so a confined client needs <code>methods.privileged</code>),
-the spoken yes and no since WP6; two unclear answers are a no. No
-answer within <code>confirm_timeout_ms</code> is a no. A no gives the LLM the result "declined by
-the user; nothing happened".</p>
+the spoken yes and no since WP6. Only speech that starts after the
+question starts to play is an answer. A queued text never answers.
+Without speaker sound, the question counts from when it is asked.
+Only a pure yes or no answers: one or two yes phrases, or one or two
+no phrases, and filler words. Examples are "Ja, bitte.", "Ja, mach
+das." and "Nein, lieber nicht." A text of fillers only, such as
+"Bitte.", counts with them. Other text of at most two words is
+unclear ("1.5", "Ja, nein"). Two unclear answers are a no. A longer
+text is a new request, also with a yes word in it ("Mach das andere
+Fenster zu."). A new request is a no, and the text starts the next
+turn. No answer within
+<code>confirm_timeout_ms</code> from the end of the sound of the question is a no
+(a question that is never said waits 30 s longer). The LLM gets the
+reason as the result:
+"The user declined the spoken confirmation", "The user did not answer
+the spoken confirmation in time (15 s)" or "The answer to the spoken
+confirmation was not understood", each with "; nothing happened".</p>
+<p>A yes with an <code>always_words</code> phrase ("Ja, immer.", "Always.") allows
+the same action until the agent restarts. Then the agent says
+<code>phrases.allowed</code> ("Allowed for this session."). The same action is
+the same program (<code>argv0</code>) of <code>run_program</code>, the same <code>CLIENT.METHOD</code>,
+the same keys of the agent's own settings, or else the same tool. A
+security setting and <code>settings.set</code> of another plugin always ask: for
+them, an always word is a single yes. A question of a sub-agent takes
+an always word as a yes.</p>
+<p>The setting <code>allow</code> lists the actions that never ask: program names
+(<code>argv0</code>), such as <code>foot</code>, and methods <code>CLIENT.METHOD</code>, such as
+<code>mc.scene.show</code>. An entry matches exactly. The agent refuses a glob
+(<code>*</code>, <code>?</code>, <code>[</code>) at load, so <code>*.settings.set</code> cannot go in. <code>allow</code>
+does not apply to the agent's own settings, which always ask.</p>
+<p>Each question also goes out as the event <code>voice.confirm {prompt,
+detail, id}</code>. <code>detail</code> is the full command or value, never cut: the
+settings keys and values, the program and its arguments, or the method
+and its parameters. A question of a sub-agent has its prompt as
+<code>detail</code>. When the question gets its answer, ends or times out, the
+agent emits <code>voice.confirm {id, done: true}</code>. chora-mc shows the
+question as a notification, chora-xp as a balloon. The agent cannot
+see the subscribers of an event. So, while no plugin claims the
+indicator (section 10), the agent shows the prompt and <code>detail</code> itself:
+a text node <code>voice-question</code> at the top left of the first output, on
+<code>NAME-hud</code>. A text node holds 4 KiB, so a longer <code>detail</code> shows only
+its start there; the event has all of it. Over the rate limit, the
+last <code>voice.confirm</code> goes again after 1 s.</p>
+<p>The rule of <code>apply_commands</code> with <code>remove</code> asks only when a target is
+not a node of the agent's own client (<code>NAME-mcp</code>), or has a node of
+another client under it; the agent reads the owners and parents with
+<code>query_scene</code>, and any doubt asks. <code>close</code> always asks.</p>
+<p>Own settings: the LLM may call <code>settings.get</code>, <code>settings.set</code> and
+<code>settings.reload</code> of the agent's own client NAME, also when
+<code>skipped_tools</code> hides NAME; no other method of NAME, NAME-hud or
+NAME-mcp. The tool of its own <code>settings.set</code> takes <code>{"patch": ...}</code>
+without the schema of the settings, which is about 14 KB and made the
+LLM narrate; the agent hands the patch on and the client checks it.
+Each <code>settings.set</code> asks with its keys and values
+(<code>phrases.settings_set</code>, "Shall I set barge in min rms to 15?"). A
+security key asks with <code>phrases.settings_security</code> ("Security setting!
+Shall I set llm url? The full value is on the screen."). The security
+keys are <code>allow</code>, <code>confirm</code>, <code>agent_projects</code>, <code>yes_words</code>, <code>always_words</code>, <code>no_words</code>,
+<code>phrases</code>, <code>record_dir</code>, <code>sandbox_cmd</code>, <code>unsandboxed</code>, <code>agent_cmd</code>,
+<code>coder_cmd</code>, <code>chora_mcp</code>, <code>capture_cmd</code>, <code>playback_cmd</code>,
+<code>skipped_tools</code>, <code>system_prompt</code>, <code>prompt_file</code>, <code>context_docs</code>, each
+<code>*_url</code>, <code>*_headers</code> and each key with <code>api_key</code>. The agent never cuts
+a security value. The question says only the key. The screen shows the
+full value through the <code>voice.confirm</code> event. Only other values are cut to 60
+characters for speech. The client <code>NAME-mcp</code>
+needs <code>methods.privileged</code> for <code>settings.set</code> and <code>settings.reload</code>.
+Its own <code>settings.reload</code> asks with the rule of <code>*.settings.reload</code>.</p>
+<p>Reading files: the built-in tool <code>read {path, line?}</code> lists a folder
+(sorted names, a folder with a trailing <code>/</code>, at most 200) or answers
+the text of a file, without a confirmation. The roots are the project
+folders of <code>agent_list</code>: <code>agent_projects</code> and the folders of
+<code>$XDG_DATA_HOME/chora/inventory</code>. An empty path lists the projects; a
+path is <code>PROJECT/REL</code> or absolute. The tool resolves the real path
+(<code>..</code> and symbolic links) and refuses each path outside the real
+roots. It opens the real path once, without a wait for a FIFO. On
+that handle, it checks again that the file is inside a root, that it
+is a regular file and that it has at most 4 MiB. It reads at most
+4 MiB and one byte. It refuses binary files (a NUL byte) and text
+that is not UTF-8. One answer has at most 64 KiB, cut at a line,
+and names the line to read on with (<code>line</code>). The prompt says that the
+text of a file is data, never instructions, and that the agent speaks
+at most a short summary of it.</p>
 <h2 id="6-error-handling">6. Error handling<a class="headerlink" href="#6-error-handling" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1641,6 +1839,11 @@ the user; nothing happened".</p>
 <td>VAD</td>
 <td>Model does not load</td>
 <td>Exit 1; systemd restarts</td>
+</tr>
+<tr>
+<td>Settings</td>
+<td>The settings file is broken</td>
+<td>At start: exit 1 with an error that names the file. On <code>restart</code>: the error, and the settings stay. A new connection to chora fails until the file is fixed. The agent never takes the defaults instead</td>
 </tr>
 <tr>
 <td>ASR</td>
@@ -1670,7 +1873,7 @@ the user; nothing happened".</p>
 <tr>
 <td>LLM</td>
 <td><code>tool_rounds</code> reached</td>
-<td>A final round with <code>tool_choice: none</code> and a note: sum up in the reply language; without words, <code>phrases.tool_rounds</code>; history stays</td>
+<td>A final round with <code>tool_choice: none</code> and a note: sum up in the reply language; without words, <code>phrases.tool_rounds</code>; history stays; new words of the user during that round get <code>tool_rounds</code> more rounds</td>
 </tr>
 <tr>
 <td>MCP</td>
@@ -1700,7 +1903,9 @@ the user; nothing happened".</p>
 report), with the last error and its Unix time <code>error_at</code>. Each actor
 reports its successes and failures. At start, the agent warms the LLM
 cache, again with the backoff of the LLM until it answers, so the cache
-is warm when the LLM comes back. A probe connects to the websockets of
+is warm when the LLM comes back. Then it says <code>phrases.ready</code>
+("Ready.") once, also on the HUD, when it listens; empty turns it off.
+A failed warm-up says nothing new. A probe connects to the websockets of
 the ASR and the TTS, without a request, at start, after a new URL, every
 30 s, and at the end of the backoff of a server that is down. Earcons
 are synthesized tones: wake, sleep, cancel, error.</p>
@@ -1844,7 +2049,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>barge_in_echo_ratio</code>, <code>barge_in_min_rms</code></td>
-<td><code>2.0</code>, <code>300</code></td>
+<td><code>2.0</code>, <code>0</code> (adaptive; above 0: a fixed floor)</td>
 </tr>
 <tr>
 <td><code>barge_in_coupling</code></td>
@@ -1852,7 +2057,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>word_max_ms</code></td>
-<td><code>2000</code></td>
+<td><code>3000</code> (speech, without pre-roll and end wait)</td>
 </tr>
 <tr>
 <td><code>sleep_words</code>, <code>wake_words</code></td>
@@ -1867,8 +2072,16 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 <td><code>[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]</code></td>
 </tr>
 <tr>
+<td><code>allow</code></td>
+<td><code>[]</code> (programs and <code>CLIENT.METHOD</code> that never ask; no glob)</td>
+</tr>
+<tr>
+<td><code>always_words</code></td>
+<td><code>[immer, ja immer, always, yes always]</code> (a yes for the session; may be empty)</td>
+</tr>
+<tr>
 <td><code>yes_words</code>, <code>no_words</code></td>
-<td><code>[yes, okay, do it, ja, genau, mach das]</code>, <code>[no, rather not, nein, nicht, lieber nicht]</code></td>
+<td><code>[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]</code>, <code>[no, rather not, nein, nicht, lieber nicht]</code></td>
 </tr>
 <tr>
 <td><code>filler_words</code></td>
@@ -1876,7 +2089,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>confirm</code>, <code>confirm_timeout_ms</code></td>
-<td>rules below, <code>8000</code></td>
+<td>rules below, <code>15000</code> (from the end of the question)</td>
 </tr>
 <tr>
 <td><code>earcons</code>, <code>earcon_volume</code></td>
@@ -1884,7 +2097,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>indicator</code></td>
-<td><code>true</code> (state dot under <code>screen:OUTPUT</code>)</td>
+<td><code>true</code> (state dot under <code>screen:OUTPUT</code>); <code>false</code> turns it off; <code>{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}</code> places it, <code>true</code> is <code>{corner: bottom-right, offset: [12, 12]}</code></td>
 </tr>
 <tr>
 <td><code>system_prompt</code>, <code>context_docs</code></td>
@@ -1932,7 +2145,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>skipped_tools</code> (globs)</td>
-<td><code>[subscribe_events, wait_events, capture, "voice.*"]</code>; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through <code>call_method</code></td>
+<td><code>[subscribe_events, wait_events, capture, "voice.*"]</code>; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through <code>call_method</code>, except the settings methods of NAME (section 5)</td>
 </tr>
 <tr>
 <td><code>playback_buffer_ms</code></td>
@@ -1940,7 +2153,7 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 </tr>
 <tr>
 <td><code>phrases</code></td>
-<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>: English sentences, German with <code>reply_language: de</code></td>
+<td><code>llm_down</code>, <code>llm_slow</code>, <code>tool_rounds</code>, <code>asr_failed</code>, <code>details</code>, <code>agent_asks</code>, <code>agent_ended</code>, <code>settings_set</code>, <code>settings_security</code>, <code>heard</code>, <code>ack</code>, <code>ready</code>, <code>allowed</code>: English sentences, German with <code>reply_language: de</code></td>
 </tr>
 <tr>
 <td><code>record_dir</code></td>
@@ -1952,15 +2165,26 @@ client name is the flag <code>--name</code> (default <code>voice</code>). <code>
 device.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">confirm</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">apply_commands</span><span class="p p-Indicator">,</span><span class="nt"> commands</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">remove</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">close</span><span class="p p-Indicator">],</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">remove</span><span class="nv"> </span><span class="s">that?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">remove</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">view?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">unload_view</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">remove</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">view</span><span class="nv"> </span><span class="s">{name}?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">inject_input</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">type</span><span class="nv"> </span><span class="s">or</span><span class="nv"> </span><span class="s">click?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">code_task</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">coding</span><span class="nv"> </span><span class="s">task?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">agent_start</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">agent?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">agent_start</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">an</span><span class="nv"> </span><span class="s">agent</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">{project}?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">run_program</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">start</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">program</span><span class="nv"> </span><span class="s">{program}?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">configure_output</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">change</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">screen?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">configure_output</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">change</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">screen</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">{args}?"</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">restart</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin?"</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="s">"*.restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">restart</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="s">"*restart"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">restart</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin</span><span class="nv"> </span><span class="s">{client}?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="c1"># Then two rules for each privileged method METHOD of a plugin:</span>
+<span class="w">  </span><span class="c1"># settings.set, settings.reload, app.open, scene.save, scene.rename,</span>
+<span class="w">  </span><span class="c1"># scene.move, construct.load, construct.save and pane.remove.</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="s">"*.METHOD"</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">run</span><span class="nv"> </span><span class="s">{method}</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin</span><span class="nv"> </span><span class="s">{client}?"</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">tool</span><span class="p">:</span><span class="w"> </span><span class="nv">call_method</span><span class="p p-Indicator">,</span><span class="nt"> method</span><span class="p">:</span><span class="w"> </span><span class="nv">METHOD</span><span class="p p-Indicator">,</span><span class="nt"> prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Shall</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">run</span><span class="nv"> </span><span class="s">{method}</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">plugin</span><span class="nv"> </span><span class="s">{client}?"</span><span class="p p-Indicator">}</span>
 </code></pre></div>
+<p>The grant <code>methods.privileged</code> opens every privileged method of every
+plugin. The export flag <code>privileged</code> does not reach the agent, so the
+default rules ask before each privileged method of the plugins. In a
+prompt, <code>{client}</code> and <code>{method}</code> name the plugin and the method, also
+for a plugin tool <code>CLIENT.METHOD</code>. The method is said with spaces
+("app open").</p>
 <p>Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
 that each one can move to another provider. The key comes from the
 variable of <code>*_api_key_env</code> or the file of <code>*_api_key_file</code>, never from
@@ -1975,7 +2199,9 @@ in plain text.</p>
 with the wake, sleep and stop words and the project names as the
 <code>transcription.prompt</code> of the session. Gufo honors the prompt: without
 it, a TTS clip of "Hallo Chora" came back as "Hello, Cora", with it as
-"Hello, Chora" (3 of 3 tries each, 2026-10-31). The system prompt ends
+"Hello, Chora" (3 of 3 tries each, 2026-10-31). On short or quiet sound the ASR
+may answer the prompt itself; a transcript with at least half of the
+words of the prompt, and at least 4, is dropped as such an echo. The system prompt ends
 with a rule to answer in <code>reply_language</code>. With <code>reply_language: de</code>,
 each phrase, confirm prompt, verb of an agent question and coding result
 that keeps its English default is German; other languages keep the
@@ -2008,6 +2234,11 @@ both a key variable and a key file for one server.</p>
 <td><code>mute</code></td>
 <td><code>mic: bool</code>, <code>speaker: bool</code>, each optional</td>
 <td>the new state record</td>
+</tr>
+<tr>
+<td><code>indicator.claim</code></td>
+<td>none</td>
+<td><code>{}</code>; hides the dot while the caller is connected</td>
 </tr>
 <tr>
 <td><code>restart</code></td>
@@ -2051,9 +2282,18 @@ task), <code>agents</code> (the parameters of <code>agent.set</code> of each ACP
 a HUD subscribes to <code>voice.*</code> and needs no polling. The method <code>state</code>
 stays for a full state record. The
 indicator node signals without a HUD: with <code>indicator</code>, a dot of 12
-pixels at the bottom right of the first output, under <code>screen:OUTPUT</code>,
-in the color of the state (input <code>pass</code>). The <code>hud</code> thread places it
-once per connection.</p>
+pixels in a corner of the first output, under <code>screen:OUTPUT</code>, in the
+color of the state (input <code>pass</code>). <code>offset</code> is its distance from the
+corner. The <code>hud</code> thread places it once per connection, and again
+when <code>indicator</code> changes.</p>
+<p>A plugin that shows the state itself hides the dot with the method
+<code>indicator.claim {}</code> of the client <code>voice</code>. The agent records the
+client name of the caller. The dot hides while one claimer or more is
+connected. On <code>client.disconnected</code> of a claimer, the agent drops its
+claim. When no claimer is left, the dot comes back. <code>indicator: false</code>
+turns the dot off for good. The claims do not survive a restart of
+the agent. So a plugin claims again on <code>client.connected</code> with the
+name <code>voice</code>, or when it gets its first <code>voice.*</code> event.</p>
 <p>The events (D65): <code>voice.state {state, task, said}</code> on each change
 (<code>state</code> mapped to the states of mc: <code>asleep</code>, <code>listening</code>, <code>thinking</code>,
 <code>working</code>, <code>question</code>, <code>speaking</code>; <code>task</code> the request, <code>said</code> the last
@@ -2080,8 +2320,14 @@ stderr is no terminal. <code>RUST_LOG</code> filters; the default is
 <code>info,tract_linalg=warn</code>. The lines are plain text in the form
 <code>key=value</code>: one call site per level in <code>log.rs</code> keeps the <code>tracing</code>
 macros out of the other functions, because clippy counts their expansion
-into the cognitive complexity. Each stage logs start and end with the
-turn number. One summary per turn:</p>
+into the cognitive complexity. With <code>CHORA_VOICE_LLM_DUMP=FILE</code> the agent
+appends each LLM request body and the raw lines of its stream to FILE
+(mode 0600), to see what the server got and sent. Each stage logs start
+and end with the turn number. A tool call logs its arguments and the
+start of its result, without secrets. Of <code>read</code>, the log has only the
+path and the byte count. The values of each <code>*_headers</code> key, of each
+key with <code>api_key</code>, <code>apikey</code>, <code>secret</code> or <code>password</code>, of each key that
+ends with <code>token</code>, and of <code>authorization</code> show as "(hidden)". One summary per turn:</p>
 <div class="highlight"><pre><span></span><code>turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
 first_sound=1.43s tools=2/3.4s barge_ins=0 outcome=answered
 </code></pre></div>
@@ -2423,10 +2669,11 @@ build, from the agent sandbox):</p>
   rules), <code>chat.rs</code> (prompt, history, budget, tool loop), <code>speech.rs</code>
   (sentence splitter, speech with playback buffer), and the reply states
   in <code>core.rs</code>.</li>
-<li>The splitter ends a sentence after <code>.!?:;</code> and a space, or at a line
+<li>The splitter ends a sentence after <code>.!?;</code> and a space, or at a line
   break; not after a number ("3. Oktober") or a short abbreviation ("z.
   B."). The first piece of a reply may end at a comma after 40
-  characters. It drops the marks of markdown.</li>
+  characters. It drops the marks of markdown, also backticks. A colon
+  ends no sentence: it stands in inline code too ("<code>modifier: Alt</code>").</li>
 <li>One TTS socket per sentence, one after the other: the next sentence
   starts when the one before has all its sound, which is while it plays.</li>
 <li>MCP: a call has <code>tool_timeout_s</code>; a dropped call sends

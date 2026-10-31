@@ -570,6 +570,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../mc-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-mc style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../construct-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-construct style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../project-structure/" class="md-nav__link">
         
   
@@ -1410,12 +1466,12 @@ that the code does not implement yet.</p>
 </tr>
 <tr>
 <td>D62</td>
-<td>Each plugin exports <code>settings.get</code> and <code>settings.set</code> through the plugin runtime of <code>chora-kit</code>, with a schema in <code>methods.export</code>. The plugin checks the values, applies them at once and then saves them in its YAML file in <code>$XDG_CONFIG_HOME/chora/</code>, for example <code>chora-tiling.yaml</code> and <code>chora-xp.yaml</code>; a change that cannot be applied is not saved, and a change that cannot be saved stays applied with an error to the caller. The plugin is the only writer of its file. A save renames a new file of mode 0600 over the old one; through a symlink, the save replaces the file that the symlink points to, so the symlink stays. Edits by hand apply with <code>settings.reload</code>, which the runtime exports with the other two methods and which reads the file again, or at the next start. <code>settings.set</code> takes a JSON merge patch (RFC 7386): structs and maps merge, other values replace, and <code>null</code> removes a map entry or resets a setting to its default. A setting that the file leaves out takes its default. The file replaces the command-line flags of <code>chora-xp</code> except <code>--theme</code>, <code>--config</code>, <code>--slow-motion</code> and <code>--output</code>. On a client socket, <code>settings.set</code> and <code>settings.reload</code> need the capability <code>methods.privileged</code> besides <code>methods.call</code>, because the settings hold commands that the plugin runs; so does each method that its export marks <code>"privileged": true</code>, such as <code>app.open</code> and <code>scene.save</code> of <code>chora-mc</code>, which start programs. <code>choractl mcp</code> confines its connection of the main socket with <code>hello {confined: true}</code>, so these rules and <code>activation.token</code> hold for an MCP agent too until the user grants its name. A generic settings form is not part of 0.8</td>
+<td>Each plugin exports <code>settings.get</code> and <code>settings.set</code> through the plugin runtime of <code>chora-kit</code>, with a schema in <code>methods.export</code>. The plugin checks the values, applies them at once and then saves them in its YAML file in <code>$XDG_CONFIG_HOME/chora/</code>, for example <code>chora-tiling.yaml</code> and <code>chora-xp.yaml</code>; a change that cannot be applied is not saved, and a change that cannot be saved stays applied with an error to the caller. The plugin is the only writer of its file. A save renames a new file of mode 0600 over the old one; through a symlink, the save replaces the file that the symlink points to, so the symlink stays. Edits by hand apply with <code>settings.reload</code>, which the runtime exports with the other two methods and which reads the file again, or at the next start. <code>settings.set</code> takes a JSON merge patch (RFC 7386): structs and maps merge, other values replace, and <code>null</code> removes a map entry or resets a setting to its default. A setting that the file leaves out takes its default. A save writes only the settings that differ from the defaults: a changed map whole, and <code>null</code> for an option that the user cleared. A file that does not parse or check does not stop the plugin: it starts with the defaults, logs the error and leaves the file as it is, and <code>settings.set</code> and every other save refuse until a <code>settings.reload</code> succeeds. The file replaces the command-line flags of <code>chora-xp</code> except <code>--theme</code>, <code>--config</code>, <code>--slow-motion</code> and <code>--output</code>. On a client socket, <code>settings.set</code> and <code>settings.reload</code> need the capability <code>methods.privileged</code> besides <code>methods.call</code>, because the settings hold commands that the plugin runs; so does each method that its export marks <code>"privileged": true</code>, such as <code>app.open</code> and <code>scene.save</code> of <code>chora-mc</code>, which start programs. <code>choractl mcp</code> confines its connection of the main socket with <code>hello {confined: true}</code>, so these rules and <code>activation.token</code> hold for an MCP agent too until the user grants its name. A generic settings form is not part of 0.8</td>
 <td>One interface serves <code>choractl</code>, MCP agents and the dialogs of the plugin. The file keeps the settings.</td>
 </tr>
 <tr>
 <td>D65</td>
-<td>A client emits its own events with <code>events.emit {event, data}</code>. The name is the client name, a dot and a name of the client, for example <code>voice.state</code>; the core refuses any other name. A client whose name starts as a namespace of the core events, such as <code>surface</code> or <code>output</code>, emits nothing. The core sends the event with <code>client</code> and <code>data</code> to the connections that subscribed to its name or to a pattern <code>PREFIX.*</code>, such as <code>voice.*</code>. An empty subscription means every core event, not the events of clients. In <code>events.subscribe</code>, a name outside the core namespaces is the event of a client; a typo in a core name stays refused. The data has at most 64 KiB. A client name emits at most 32 events per second; the core refuses the rest with code 6 and does not coalesce, so a client sends the last state of a burst again. Any named client may emit, also through a client socket without capabilities, because an event only reaches subscribers. Any connection may subscribe to the events of other clients, by the same rules as core events, also a confined client socket. The voice agent emits <code>voice.state</code> (the <code>agent.set</code> fields; with <code>name</code>, a sub-agent such as <code>coder</code>) and <code>voice.say</code> (a sentence when its sound starts) on its connection <code>voice</code>; <code>chora-mc</code> subscribes to <code>voice.*</code> and keeps <code>agent.set</code> and <code>hud.say</code> for other clients</td>
+<td>A client emits its own events with <code>events.emit {event, data}</code>. The name is the client name, a dot and a name of the client, for example <code>voice.state</code>; the core refuses any other name. A client whose name starts as a namespace of the core events, such as <code>surface</code> or <code>output</code>, emits nothing. The core sends the event with <code>client</code> and <code>data</code> to the connections that subscribed to its name or to a pattern <code>PREFIX.*</code>, such as <code>voice.*</code>. An empty subscription means every core event, not the events of clients. In <code>events.subscribe</code>, a name outside the core namespaces is the event of a client; a typo in a core name stays refused. The data has at most 64 KiB. A client name emits at most 32 events per second; the core refuses the rest with code 6 and does not coalesce, so a client sends the last state of a burst again. Any named client may emit, also through a client socket without capabilities, because an event only reaches subscribers. Any connection may subscribe to the events of other clients, by the same rules as core events, also a confined client socket. The voice agent emits <code>voice.state</code> (the <code>agent.set</code> fields; with <code>name</code>, a sub-agent such as <code>coder</code>) and <code>voice.say</code> (a sentence when its sound starts) and <code>voice.confirm</code> (a question with its full command, then its end) on its connection <code>voice</code>; <code>chora-mc</code> and <code>chora-xp</code> subscribe to <code>voice.*</code>; <code>chora-mc</code> keeps <code>agent.set</code> and <code>hud.say</code> for other clients</td>
 <td>A HUD needs the state of an agent when it changes, without polling and without a method of the HUD in the agent. The prefix makes the emitter visible: no client fakes a core event or the event of another name. A name of the main socket is still taken by whoever connects first; a client socket fixes it (D33). The limits protect the 8 MiB output buffer of a subscriber. A refusal tells the emitter; a silent drop would not.</td>
 </tr>
 </tbody>
@@ -1479,6 +1535,11 @@ that the code does not implement yet.</p>
 <td>D63</td>
 <td><code>chora-xp</code> keeps the dialogs of the XP shell, pixel-perfect: Log Off, Turn Off, Display Properties, Taskbar and Start Menu Properties, Date and Time Properties and the Control Panel menu. Each button of Log Off and Turn Off runs a command from the settings (D62). The defaults are <code>systemctl poweroff</code>, <code>systemctl reboot</code> and <code>systemctl suspend</code>, and Log Off ends the chora session with <code>choractl quit</code>, which calls the core method <code>session.quit</code>. The dialogs change the settings through <code>settings.set</code>. The Explorer, the folder windows, file Properties and the Delete confirmation leave the plugin. My Documents, My Computer, folder icons and the Recycle Bin open the file manager of the settings, by default <code>thunar</code>. The tag <code>archive/xp-scene-programs</code> keeps the removed code. D63 refines D39</td>
 <td>The dialogs are the showcase and the safeguard before a poweroff. A file manager drawn in the scene cannot match real file operations.</td>
+</tr>
+<tr>
+<td>D66</td>
+<td><code>chora-construct</code> grows from the loader prototype into a Rust plugin of the core repository, both a flavor and an overlay that mc or the voice agent loads. The space of a construct is a light, foggy space without a grid. The light theme is a pale sky over a warmer ground with a bright horizon; the dark theme is a black void over a dim ground. The user walks on a leash around the start point. Panes face the camera; they hold programs, plugins, nested desktop sessions or prompts in which an ACP agent builds a program live. Constructs are YAML files. Up to 8 panes are live; the rest freeze. Several outputs show one space as a panorama. "Pane" names the floating surfaces, because "view" names the views of the configuration</td>
+<td>The loader showed that node textures, meshes, shaders and 4x4 transforms carry a 3D desktop without a change of the core. A plugin with a manifest, tests and settings replaces the untested prototype.</td>
 </tr>
 </tbody>
 </table>
@@ -1604,6 +1665,13 @@ client that asked for an activation token (D42) does not win by the token
 itself. The core
 reserves the surface for that client, as at a handover. Outside of all
 claims, any window manager can take the new surface.</p>
+<p><strong>The drop target.</strong> A drag that ends outside the claim of A goes to the
+owner of the smallest other claim that holds the drop point; without one
+there, the surface stays with A.</p>
+<p><strong>Shared pointer bindings.</strong> Window managers that each hold a claim can
+grab the same pointer button binding, and a press goes to the grab of the
+smallest claim under the pointer, else to the first grab, with its moves
+and release; key bindings keep one owner.</p>
 <p><strong>Out of scope for now.</strong></p>
 <ul>
 <li>The drop position: B places the surface by its own rules.</li>

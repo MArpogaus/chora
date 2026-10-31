@@ -817,6 +817,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../mc-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-mc style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../construct-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-construct style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../project-structure/" class="md-nav__link">
         
   
@@ -1431,7 +1487,7 @@ empties it.</p>
 <tr>
 <td><code>shader</code>, <code>uniforms</code></td>
 <td>shader</td>
-<td>the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform <code>{"node": id}</code> is a <code>sampler2D</code> with that node as it shows on its own, at most 4</td>
+<td>the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform <code>{"node": id}</code> is a <code>sampler2D</code> with that node as it shows on its own, at most 4; an update of <code>uniforms</code> replaces all uniforms of the node, so it names each one again</td>
 </tr>
 <tr>
 <td><code>text</code>, <code>family</code>, <code>font_size</code>, <code>max_width</code></td>
@@ -1450,8 +1506,11 @@ the client for a new size.</p>
 <p>A shader node draws its shader over its size, as a layer. Its children
 render into <code>uniform sampler2D tex</code>, and the shader gets the same inputs as
 an effect. A node texture shows the node without its transform, at its size
-or, for a surface, at the size of the window. A node with opacity 0 hides
-in the scene and still shows in a node texture. Inside a node texture,
+or, for a surface, at the size of the window. The node may belong to another
+client, so a plugin can show a node tree of another plugin. A node with
+opacity 0 hides in the scene and still shows in a node texture. A node
+texture of a node with <code>visible: false</code> stays empty; the visibility of its
+ancestors does not count. Inside a node texture,
 shader nodes get no node textures of their own, so that two shader nodes
 that read each other do not recurse.</p>
 <!-- parses: commands -->
@@ -1645,6 +1704,15 @@ connection of the client closes, the reservation ends with
 When a window manager removes its last claim, its reservations end too. A
 <code>remove</code> with <code>to</code> hands a surface to another window manager in the same
 way.</p>
+<p>Every window manager of the repository exports <code>window.give</code> with <code>to</code>
+and an optional <code>surface</code>, by default its focused window. It hands the
+window over with a <code>remove</code> with <code>to</code>, and the receiver focuses it. A
+<code>to</code> that is not connected fails, and the window stays. <code>choractl give
+TO [--surface ID]</code> calls <code>window.give</code> of the owner of the window, by
+default of the focused one. A window dropped outside the claim of its
+window manager goes to the owner of the smallest other claim that holds
+the drop point, as for a new toplevel; <code>chora_kit::give</code> finds it in
+the claims of <code>scene.query</code>.</p>
 <h2 id="selectors">Selectors<a class="headerlink" href="#selectors" title="Permanent link">&para;</a></h2>
 <p>A selector finds nodes: <code>id:work</code>, <code>kind:surface</code>, <code>owner:tiling</code>,
 <code>app_id:firefox</code>, <code>title:"make test"</code> (exact), <code>title~:Inbox</code> (contains),
@@ -1918,7 +1986,7 @@ answers every request.</p>
 </tr>
 <tr>
 <td><code>input.grab(binding)</code></td>
-<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
+<td>get the events of a key or a pointer button with modifiers, for example <code>Super+Return</code> or <code>Super+BTN_LEFT</code>, or <code>move</code> for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability <code>input.grab-any</code>; window managers with claims can share a button binding (D55); <code>Ctrl+Alt</code> with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as <code>input.key</code> and <code>input.button</code> name it</td>
 </tr>
 <tr>
 <td><code>input.ungrab(binding)</code></td>
@@ -2070,7 +2138,11 @@ stays. <code>choractl reserve --top 30</code> holds a reserve until it ends.</p>
 <p>A key binding needs Ctrl, Alt or Super, so that typing still works, unless
 the client holds <code>input.grab-any</code> (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
-F12, belong to no client. A binding has one owner at a time. Revoking
+F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
+owner too, unless each client that grabs it holds a claim (D55): then a
+press goes to the client of the smallest claim that contains the pointer,
+as for a new toplevel, else to the first grab, and the moves and the
+release of that press go to the same client. Revoking
 <code>input.grab-any</code> drops the registrations of grabs that need no modifier
 and ends a held one.</p>
 <p>A key grab is held from the press of its key until one of its modifiers
@@ -2094,6 +2166,13 @@ surface gets them:</p>
 </code></pre></div>
 <p>A window manager moves a window with <code>Super+BTN_LEFT</code> so, wherever the
 pointer grabs it.</p>
+<p>The binding <code>move</code> needs no modifier and takes no button from others: a
+window manager that grabs it gets the interactive moves of its own
+windows. When a client asks for a move during a press, for example
+<code>xdg_toplevel.move</code> from its title bar, the owner of the window gets the
+press, the moves and the release as <code>input.button</code> and <code>input.moved</code>
+with the binding <code>move</code>, and the window gets a leave. Without a grab of
+<code>move</code>, the press stays with the client.</p>
 <p>The core implements <code>wlr-output-management</code>, so kanshi and wlr-randr
 configure the outputs (see
 <a href="../architecture/#output-configuration">Architecture</a>). <code>output.configure</code>
@@ -2584,9 +2663,9 @@ lists all of its methods:</p>
 <td><code>outputs</code>: for each output its <code>name</code>, <code>focused</code> when it has the focus, and <code>tags</code>: for each tag its number <code>tag</code>, <code>shown</code>, <code>focused</code> (shown on the focused output), <code>occupied</code> (a window of the output is on it) and <code>urgent</code> (such a window asked for attention)</td>
 </tr>
 <tr>
-<td><code>give</code></td>
-<td><code>to</code>: a client name</td>
-<td>hands the focused window to <code>to</code> with a <code>remove</code> with <code>to</code>, and answers with its surface id</td>
+<td><code>window.give</code></td>
+<td><code>to</code>: a client name; <code>surface</code>, the focused window of tiling without it</td>
+<td>hands the window to <code>to</code> with a <code>remove</code> with <code>to</code>, and answers with its surface id</td>
 </tr>
 </tbody>
 </table>
