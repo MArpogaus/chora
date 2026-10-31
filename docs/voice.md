@@ -311,7 +311,10 @@ to the agent's own settings, which always ask.
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. `detail` is the full command or value, never cut: the
 settings keys and values, the program and its arguments, or the method
-and its parameters. A question of a sub-agent has its prompt as
+and its parameters. Every subscriber of `voice.*` gets it, so secrets
+are hidden as in the journal: the value of each `*_headers` key, of
+`authorization`, of a key that ends in `token`, and of a key with
+`api_key`, `secret` or `password` shows as `(hidden)`. A question of a sub-agent has its prompt as
 `detail`. When the question gets its answer, ends or times out, the
 agent emits `voice.confirm {id, done: true}`. chora-mc shows the
 question as a notification, chora-xp as a balloon. The agent cannot
@@ -583,7 +586,7 @@ both a key variable and a key file for one server.
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
 | `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
-| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.reload` reads the file again after an edit by hand |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record |
 | `health` (WP8) | none | the health record of section 6 |

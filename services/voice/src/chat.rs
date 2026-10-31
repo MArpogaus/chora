@@ -158,9 +158,14 @@ fn listed(config: &Config, tool: &str, args: &Value) -> bool {
 
 /// The full command or value of a call that asks, for the screen: the
 /// settings keys and their values, the program and its arguments, the
-/// method and its parameters, or the tool and its arguments.
+/// method and its parameters, or the tool and its arguments. Secrets are
+/// hidden as in the journal: each subscriber of `voice.*` gets it.
 fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
     let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
+    let (mut patch, mut args) = (patch.cloned(), args.clone());
+    patch.iter_mut().for_each(hide);
+    hide(&mut args);
+    let (patch, args) = (patch.as_ref(), &args);
     if let Some(patch) = patch {
         let keys = patch.as_object().into_iter().flatten();
         return (keys.map(|(k, v)| format!("{k}: {}", text(v))))
@@ -1281,27 +1286,6 @@ fn text_of(content: &Value) -> String {
 /// without secrets: of `read` only the path and the byte count, and no
 /// value of a key such as `llm_headers` or `tts_api_key_file`.
 fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
-    fn hide(value: &mut Value) {
-        match value {
-            Value::Object(map) => {
-                for (key, value) in map {
-                    let key = key.to_lowercase().replace('-', "_");
-                    let secret = ["api_key", "apikey", "secret", "password"];
-                    if key.ends_with("_headers")
-                        || key.ends_with("token")
-                        || key == "authorization"
-                        || secret.iter().any(|s| key.contains(s))
-                    {
-                        *value = "(hidden)".into();
-                    } else {
-                        hide(value);
-                    }
-                }
-            }
-            Value::Array(items) => items.iter_mut().for_each(hide),
-            _ => {}
-        }
-    }
     if tool == "read" {
         let path = args["path"].as_str().unwrap_or_default();
         return (path.to_owned(), format!("{} bytes", result.len()));
@@ -1309,6 +1293,30 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     let mut args = args.clone();
     hide(&mut args);
     (args.to_string(), short(result, 300))
+}
+
+/// Hides the value of each key such as `llm_headers`, `token`,
+/// `authorization` or one with `api_key`, `secret` or `password`.
+fn hide(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map {
+                let key = key.to_lowercase().replace('-', "_");
+                let secret = ["api_key", "apikey", "secret", "password"];
+                if key.ends_with("_headers")
+                    || key.ends_with("token")
+                    || key == "authorization"
+                    || secret.iter().any(|s| key.contains(s))
+                {
+                    *value = "(hidden)".into();
+                } else {
+                    hide(value);
+                }
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(hide),
+        _ => {}
+    }
 }
 
 /// The first `n` characters.
@@ -1627,9 +1635,18 @@ mod tests {
     #[tokio::test]
     async fn a_call_that_fails_twice_the_same_way_stops() {
         let script = vec![
-            Reply::Tool("echo", r#"{"fail": 1, "commands": [{"create": {"id": "a"}}]}"#),
-            Reply::Tool("echo", r#"{"fail": 1, "commands": [{"create": {"id": "b"}}]}"#),
-            Reply::Tool("echo", r#"{"fail": 1, "commands": [{"create": {"id": "c"}}]}"#),
+            Reply::Tool(
+                "echo",
+                r#"{"fail": 1, "commands": [{"create": {"id": "a"}}]}"#,
+            ),
+            Reply::Tool(
+                "echo",
+                r#"{"fail": 1, "commands": [{"create": {"id": "b"}}]}"#,
+            ),
+            Reply::Tool(
+                "echo",
+                r#"{"fail": 1, "commands": [{"create": {"id": "c"}}]}"#,
+            ),
             Reply::Text("Das ging nicht."),
         ];
         let server = fake::llm(script).await;
@@ -2233,6 +2250,18 @@ mod tests {
             assert!(!args.contains(secret), "{args}");
         }
         assert!(args.contains("http://x"), "{args}");
+    }
+
+    /// Review rc3 round 2, 4.2: the screen and the event get no secret.
+    #[test]
+    fn the_detail_hides_secrets() {
+        let patch = json!({"llm_headers": {"Authorization": "Bearer sk-1"}, "llm_url": "http://x"});
+        let shown = detail("voice.settings.set", Some(&patch), &json!({}));
+        assert!(!shown.contains("sk-1"), "{shown}");
+        assert!(shown.contains("llm_headers: (hidden)") && shown.contains("http://x"));
+        let call = json!({"client": "mc", "method": "x", "params": {"api_key": "sk-2"}});
+        let shown = detail("call_method", None, &call);
+        assert!(!shown.contains("sk-2"), "{shown}");
     }
 
     /// Review 0.9.0-rc.3: a security value is never cut; the question

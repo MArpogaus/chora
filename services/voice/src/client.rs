@@ -171,6 +171,11 @@ fn serve(
                 let _ = client.tx.send(Input::Claimed(client.claims.claim(&caller)));
                 client.rt.conn.answer(call, Ok(json!({})))?;
             }
+            // Any client may read the settings: without the header values.
+            Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
+                let settings = without_headers(client.settings.get());
+                client.rt.conn.answer(call, Ok(settings))?;
+            }
             Some(event) => runtime::dispatch(client, event)?,
             None => {}
         }
@@ -186,6 +191,21 @@ fn serve(
                 .map(drop)
         })?;
     }
+}
+
+/// The settings with each value of a `*_headers` key hidden (review rc3
+/// round 2, 4.2): a header such as `Authorization` carries a key.
+fn without_headers(mut settings: Value) -> Value {
+    for (key, headers) in settings.as_object_mut().into_iter().flatten() {
+        if key.ends_with("_headers") {
+            headers
+                .as_object_mut()
+                .into_iter()
+                .flatten()
+                .for_each(|(_, v)| *v = "(hidden)".into());
+        }
+    }
+    settings
 }
 
 /// The states that the core refused over its rate limit (D65): the last
@@ -428,7 +448,16 @@ mod tests {
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
-    use super::{Claims, Held, RESEND};
+    use super::{Claims, Held, RESEND, without_headers};
+
+    #[test]
+    fn settings_get_hides_the_header_values() {
+        let settings = json!({"llm_headers": {"Authorization": "Bearer sk-1"}, "llm_url": "u"});
+        assert_eq!(
+            without_headers(settings),
+            json!({"llm_headers": {"Authorization": "(hidden)"}, "llm_url": "u"})
+        );
+    }
 
     /// A claim hides the dot, the claimer's disconnect shows it again,
     /// and a second claimer keeps it hidden.
