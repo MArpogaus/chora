@@ -340,14 +340,24 @@ Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
 security key asks with `phrases.settings_security` ("Security setting!
 Shall I set llm url? The full value is on the screen."). The security
-keys are `allow_programs`, `allow_methods`, `confirm`, `agent_projects`, `yes_words`, `always_words`, `no_words`,
+keys are `agent_projects`, `yes_words`, `always_words`, `no_words`,
 `phrases`, `record_dir`, `sandbox_cmd`, `unsandboxed`, `agent_cmd`,
 `coder_cmd`, `chora_mcp`, `capture_cmd`, `playback_cmd`,
-`skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`, each
-`*_url`, `*_headers` and each key with `api_key`. The agent never cuts
-a security value. The question says only the key. The screen shows the
-full value through the `voice.confirm` event. Only other values are cut to 60
-characters for speech. The client `NAME-mcp`
+`skipped_tools`, `system_prompt`, `prompt_file`, `context_docs`,
+`indicator`, `earcons`, `confirm_timeout_ms`, `ptt_key`, `wake_words`,
+`sleep_words`, each `*_url`, `*_headers` and each key with `api_key`.
+The agent never cuts a security value. The question says only the key
+and that the full value is on the screen. The screen shows it through
+the `voice.confirm` event (secrets hidden, see above). Only other
+values are cut to 60
+characters for speech.
+
+The LLM cannot change `allow_programs`, `allow_methods` or `confirm`:
+a wider list would let injected text skip every later question. The
+agent does not ask; it says `phrases.settings_file` ("I do not change
+allow programs by voice. Edit the settings file."), and the LLM gets
+the refusal as the result. The user edits the file and calls
+`voice.settings.reload`. The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
 Its own `settings.reload` asks with the rule of `*.settings.reload`.
 
@@ -513,7 +523,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `settings_file`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire

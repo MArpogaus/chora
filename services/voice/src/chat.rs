@@ -997,6 +997,27 @@ impl Chat {
             return Ok(());
         };
         let own = self.tools.own_settings_set(&name, args);
+        let keys = own
+            .and_then(Value::as_object)
+            .into_iter()
+            .flat_map(|p| p.keys());
+        let file_only: Vec<&str> = keys
+            .map(String::as_str)
+            .filter(|k| crate::config::FILE_ONLY.contains(k))
+            .collect();
+        if !file_only.is_empty() {
+            let keys = file_only.join(", ");
+            crate::log::info(&format!("confirm {name}: refused, {keys} only by the file"));
+            let said = self
+                .config
+                .phrases
+                .settings_file
+                .replace("{key}", &keys.replace('_', " "));
+            out(Event::Sentence(said));
+            return Err(format!(
+                "Refused: {keys} change only in the settings file, which the user edits"
+            ));
+        }
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
@@ -2250,6 +2271,49 @@ mod tests {
             assert!(!args.contains(secret), "{args}");
         }
         assert!(args.contains("http://x"), "{args}");
+    }
+
+    /// Review rc3 round 2, 4.4: the LLM cannot widen what runs without a
+    /// question; the agent says to edit the file and does not ask.
+    #[tokio::test]
+    async fn allow_and_confirm_change_only_in_the_file() {
+        let script = vec![
+            Reply::Tool(
+                "voice__settings__set",
+                r#"{"patch": {"allow_programs": ["sh"]}}"#,
+            ),
+            Reply::Tool("voice__settings__set", r#"{"patch": {"confirm": []}}"#),
+            Reply::Text("Geht nicht."),
+        ];
+        let server = fake::llm(script).await;
+        let (mut tools, calls) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        let (_, events) = turn(&mut chat, "Erlaube sh.", true).await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        assert!(events.contains(
+            &"say I do not change allow programs by voice. Edit the settings file.".to_owned()
+        ));
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        for key in [
+            "indicator",
+            "earcons",
+            "confirm_timeout_ms",
+            "ptt_key",
+            "wake_words",
+            "sleep_words",
+        ] {
+            assert!(crate::config::security_key(key), "{key}");
+        }
     }
 
     /// Review rc3 round 2, 4.2: the screen and the event get no secret.

@@ -97,6 +97,9 @@ pub struct Phrases {
     pub settings_set: String,
     /// The same for a security setting, such as `confirm` or a URL.
     pub settings_security: String,
+    /// Said instead of a question when the LLM changes a key that only
+    /// the settings file changes: `{key}`.
+    pub settings_file: String,
     /// A text of the user in the HUD before the agent handles it: `{text}`.
     pub heard: String,
     /// Said before the first tool round of a turn without words.
@@ -123,6 +126,7 @@ impl Default for Phrases {
             settings_set: "Shall I set {key} to {value}?".into(),
             settings_security:
                 "Security setting! Shall I set {key}? The full value is on the screen.".into(),
+            settings_file: "I do not change {key} by voice. Edit the settings file.".into(),
             heard: "Heard: {text}".into(),
             ack: "One moment.".into(),
             ready: "Ready.".into(),
@@ -480,6 +484,7 @@ impl Config {
             &mut p.agent_ended,
             &mut p.settings_set,
             &mut p.settings_security,
+            &mut p.settings_file,
             &mut p.heard,
             &mut p.ack,
             &mut p.ready,
@@ -578,10 +583,14 @@ fn spoken(v: &serde_json::Value) -> String {
     short
 }
 
-/// Whether a settings key decides what the agent may do or run, or
-/// where its data goes.
+/// The keys that widen what runs without a question: only the settings
+/// file changes them, never the LLM (review rc3 round 2, 4.4).
+pub const FILE_ONLY: [&str; 3] = ["allow_programs", "allow_methods", "confirm"];
+
+/// Whether a settings key decides what the agent may do or run, where
+/// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 20] = [
+    const KEYS: [&str; 26] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -602,6 +611,12 @@ pub fn security_key(key: &str) -> bool {
         "system_prompt",
         "prompt_file",
         "context_docs",
+        "indicator",
+        "earcons",
+        "confirm_timeout_ms",
+        "ptt_key",
+        "wake_words",
+        "sleep_words",
     ];
     KEYS.contains(&key)
         || key.ends_with("_url")
@@ -610,7 +625,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 24] = [
+const GERMAN: [(&str, &str); 25] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -648,6 +663,10 @@ const GERMAN: [(&str, &str); 24] = [
     (
         "Security setting! Shall I set {key}? The full value is on the screen.",
         "Sicherheitseinstellung! Soll ich {key} setzen? Der volle Wert steht auf dem Bildschirm.",
+    ),
+    (
+        "I do not change {key} by voice. Edit the settings file.",
+        "Ich ändere {key} nicht per Sprache. Bearbeite die Einstellungsdatei.",
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
     (
