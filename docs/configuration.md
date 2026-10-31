@@ -263,7 +263,7 @@ scenes through methods; the plugin reads no sources itself.
 
 A scene of `chora-mc` is not a view of D35. It is a YAML file
 `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`: a grid of panels, each
-with a title and lines, or one app whose window fills the screen without
+with a title and lines, or one app whose window fills the text block below the head, without
 a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
 (Mission Control), `morning` (the morning paper) and `terminal`. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and

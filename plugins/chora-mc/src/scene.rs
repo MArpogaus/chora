@@ -1,5 +1,5 @@
 //! Scenes: what the whole screen shows for one task. A scene is a grid of
-//! panels, or one app whose window fills the screen. Each scene is a YAML
+//! panels, or one app whose window fills its text block. Each scene is a YAML
 //! file `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`.
 
 use std::{collections::BTreeMap, io::Write as _, path::Path};
@@ -37,10 +37,10 @@ pub struct Scene {
     pub grid: Option<[u32; 2]>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub panels: Vec<Panel>,
-    /// A shell command whose window fills the screen.
+    /// A shell command whose window fills the text block.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app: Option<String>,
-    /// The head of the scene; a scene of an app has none.
+    /// The head of the scene.
     #[serde(default, skip_serializing_if = "Chapter::is_empty")]
     pub chapter: Chapter,
     /// Whether a region shows in this scene, over the settings.

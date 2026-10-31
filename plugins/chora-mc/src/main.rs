@@ -412,7 +412,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "name": {"type": "string"},
                 "grid": {"type": "array", "items": {"type": "integer"}, "description": "columns and rows, over grid of the settings"},
                 "panels": panels,
-                "app": {"type": "string", "description": "a shell command whose window fills the screen"},
+                "app": {"type": "string", "description": "a shell command whose window fills the text block"},
             }),
             &["name"],
         )),
@@ -1230,9 +1230,9 @@ impl Mc {
             .expect("the settings check their styles")
     }
 
-    /// Whether a scene has a head: a scene of panels has one.
+    /// Whether a scene has a head: a scene of panels or of an app.
     fn has_chapter(scene: &Scene) -> bool {
-        scene.app.is_none() && !scene.panels.is_empty()
+        scene.app.is_some() || !scene.panels.is_empty()
     }
 
     /// The layout of the head of a scene: its own, else the settings.
@@ -1548,10 +1548,10 @@ impl Mc {
         commands
     }
 
-    /// Puts a window into its scene at the size of the screen, without a
-    /// frame.
+    /// Puts a window into the text block of its scene, below the head,
+    /// without a frame.
     fn place_window(&self, name: &str, surface: &str, attach: bool) -> Vec<Command> {
-        let Some(output) = &self.output else {
+        let (Some(output), Some(geo)) = (&self.output, self.geometry(name)) else {
             return Vec::new();
         };
         let parent = scene_id(name);
@@ -1567,14 +1567,9 @@ impl Mc {
                 index: None,
             }
         };
-        vec![
-            put,
-            Command::Configure {
-                surface: surface.into(),
-                size: Some(output.size),
-                states: vec![ToplevelState::Fullscreen],
-            },
-        ]
+        let mut commands = vec![put];
+        commands.extend(region::place(surface, geo.text, output.size));
+        commands
     }
 
     fn show(&mut self, name: &str) -> Result<(), RpcError> {
@@ -1637,7 +1632,7 @@ impl Mc {
         Ok(())
     }
 
-    /// Starts the app of a scene, whose window then fills it.
+    /// Starts the app of a scene, whose window then fills its text block.
     /// A command that names a content of kind app runs that content.
     fn launch_scene(&mut self, name: &str, command: &str) -> Result<(), ClientError> {
         let config = &self.settings.value;

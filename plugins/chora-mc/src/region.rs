@@ -376,9 +376,9 @@ impl Mc {
         self.put.iter().chain(settings).cloned().collect()
     }
 
-    /// Whether a scene is one of an app: no head, no panels.
+    /// Whether a scene is one of an app, or has no panels.
     pub fn is_app(&self, name: &str) -> bool {
-        self.scenes.get(name).is_none_or(|s| !Self::has_chapter(s))
+        (self.scenes.get(name)).is_none_or(|s| s.app.is_some() || s.panels.is_empty())
     }
 
     /// The contents of each region of a scene, by slot; a solo content
@@ -627,9 +627,9 @@ impl Mc {
         } else {
             0.0
         };
-        let app = self.is_app(name);
-        // The text block of the scene, or of a page of one column over an
-        // app, so that the lines stay where they are between scenes.
+        // A scene without a head: the text block of a page of one column,
+        // so that the lines stay where they are between scenes.
+        let app = (self.scenes.get(name)).is_none_or(|s| !Self::has_chapter(s));
         let geo = if app {
             self.geometry_of(name, &Scene::default())?
         } else {
@@ -663,6 +663,10 @@ impl Mc {
             let right = if on(Region::Right) { rw + 2.0 * b } else { 0.0 };
             window[2] = (w - window[0] - right).max(b);
         } else {
+            // The window of an app scene fills its text block, above the
+            // drawer.
+            let [_, _, _, height] = geo.text;
+            window = [x, top, width, height.min(drawer_top - b - top).max(b)];
             let left = x - note - 2.0 * gap - lw;
             regions.insert(Region::Left, [left, side_top, lw, side_h]);
             regions.insert(Region::Right, [x + width + gap, side_top, rw, side_h]);
@@ -714,9 +718,14 @@ impl Mc {
         let sigs: BTreeMap<Region, String> = (items.iter())
             .map(|(r, plan)| (*r, signature(plan, boxes.regions[r])))
             .collect();
+        // The window of an app scene leaves the regions free; also when
+        // the regions stay, since it may have come after them.
+        let window = (self.windows.get(&name)).map(|s| place(s, boxes.window, self.output_size()));
         if self.rendered.as_ref() == Some(&key) {
             self.sigs = sigs;
-            return self.update(&items, &boxes);
+            let mut commands = self.update(&items, &boxes)?;
+            commands.extend(window.into_iter().flatten());
+            return Ok(commands);
         }
         let old = self.rendered.is_some().then(|| set_id(self.set));
         let items = self.prepare(&name, &visible, &boxes, &sigs)?;
@@ -741,10 +750,7 @@ impl Mc {
         self.left = old.is_some().then_some(left);
         self.sigs = sigs;
         self.rendered = Some(key);
-        // The window of an app scene leaves the regions free.
-        if let Some(surface) = self.windows.get(&name) {
-            commands.extend(place(surface, boxes.window, self.output_size()));
-        }
+        commands.extend(window.into_iter().flatten());
         Ok(commands)
     }
 
@@ -1192,7 +1198,7 @@ fn park(surface: &str, parent: &str) -> Command {
 
 /// Puts a window at a box of its parent: full screen at the size of the
 /// output, else tiled.
-fn place(surface: &str, [x, y, w, h]: [f64; 4], output: [i32; 2]) -> [Command; 2] {
+pub fn place(surface: &str, [x, y, w, h]: [f64; 4], output: [i32; 2]) -> [Command; 2] {
     #[allow(clippy::cast_possible_truncation)] // pixels of a screen
     let size = [w.round() as i32, h.round() as i32];
     let full = size == output && x == 0.0 && y == 0.0;
