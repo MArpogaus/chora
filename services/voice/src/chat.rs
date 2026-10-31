@@ -141,7 +141,7 @@ fn session_key(tool: &str, patch: Option<&Value>, args: &Value) -> Option<String
 }
 
 /// Whether `allow_programs` lists the program of `run_program`, a bare
-/// name equal to its argv[0], or `allow_methods` the method
+/// name equal to its `argv[0]`, or `allow_methods` the method
 /// `CLIENT.METHOD` of a call.
 fn listed(config: &Config, tool: &str, args: &Value) -> bool {
     let has = |list: &[String], entry: &str| list.iter().any(|e| e == entry);

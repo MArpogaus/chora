@@ -244,7 +244,7 @@ pub struct Config {
     pub filler_words: Vec<String>,
     pub confirm: Vec<Confirm>,
     /// Programs that never ask: a bare name, such as `foot`, equal to
-    /// argv[0] of `run_program`; no path, no glob.
+    /// `argv[0]` of `run_program`; no path, no glob.
     pub allow_programs: Vec<String>,
     /// Methods `CLIENT.METHOD`, such as `mc.scene.show`, that never ask;
     /// no glob.
