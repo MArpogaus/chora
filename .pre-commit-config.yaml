@@ -19,6 +19,11 @@ repos:
     name: no GPL-3.0-only code (the core is GPL-3.0-or-later)
     entry: SPDX-License-Identifier:\s*GPL-3\.0(-only)?(?![-+.\w])
     language: pygrep
+  - id: no-agent-trailers
+    name: no Co-Authored-By, Claude-Session or "Generated with" in the message
+    entry: tests/no-agent-trailers.sh
+    language: script
+    stages: [commit-msg]
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit
