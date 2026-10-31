@@ -52,8 +52,8 @@ pub enum Report {
         len: Duration,
     },
     /// A question waits: `voice.confirm {prompt, detail, id}`, the id as a
-    /// text; with
-    /// `hud`, the HUD of the agent shows it too.
+    /// text; with `hud`, the HUD of the agent shows it too, else a
+    /// claimer of the indicator is connected and `buttons: true` goes out.
     Confirm {
         id: u64,
         prompt: String,
@@ -196,6 +196,10 @@ impl Reporter {
         }
         // chora-mc reads the id as a text.
         let mut data = json!({"id": id.to_string(), "prompt": prompt, "detail": detail});
+        // A claimer may answer by `confirm.answer`.
+        if !hud {
+            data["buttons"] = true.into();
+        }
         if let Some(keys) = keys {
             data["physical"] = true.into();
             data["keys"] = json!({"yes": keys.yes, "no": keys.no});
@@ -380,7 +384,7 @@ mod tests {
         };
         reports.send(confirm).unwrap();
         // Review rc3 round 2, 1.1: the id is a text, as chora-mc reads it.
-        let shown = json!({"id": "3", "prompt": "Wirklich?", "detail": detail});
+        let shown = json!({"id": "3", "prompt": "Wirklich?", "detail": detail, "buttons": true});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
         reports.send(Report::ConfirmDone(3)).unwrap();
         let done = json!({"id": "3", "done": true});
@@ -395,7 +399,7 @@ mod tests {
         };
         reports.send(confirm).unwrap();
         let shown = json!({"id": "4", "prompt": "Sicher?", "detail": "allow_programs: [sh]",
-            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}});
+            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
     }
 }
