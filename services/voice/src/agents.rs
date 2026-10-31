@@ -294,6 +294,12 @@ impl Agents {
         ]
     }
 
+    /// The project folders by name, the roots of `read`.
+    pub fn roots(&self) -> BTreeMap<String, PathBuf> {
+        let settings = self.lock().settings.clone();
+        self.projects(&settings)
+    }
+
     /// The projects: those of `agent_projects`, then the directories of
     /// the inventory.
     fn projects(&self, settings: &Settings) -> BTreeMap<String, PathBuf> {
