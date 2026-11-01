@@ -189,6 +189,17 @@ fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
     }
 }
 
+/// Most lines and bytes of a detail that the agent asks about. A
+/// longer one is refused, so that every screen shows the whole command
+/// and no question hides its tail (review rc3 round 4, 2.2).
+const DETAIL_LINES: usize = 400;
+const DETAIL_BYTES: usize = 64 * 1024;
+
+/// Whether a detail passes the cap.
+fn too_long(detail: &str) -> bool {
+    detail.len() > DETAIL_BYTES || detail.lines().count() > DETAIL_LINES
+}
+
 /// Whether an answer stops mid-sentence: its words do not end with
 /// `.!?…`, also before a closing quote. Gufo 0.27 ended rounds with
 /// `stop` after 3-12 tokens ("I’m setting the", dump 2026-10-31); the
@@ -1094,6 +1105,13 @@ impl Chat {
                 "confirm {name}: skipped, the user said something new"
             ));
             return Err(SAID_NEW.into());
+        }
+        if too_long(&detail) {
+            crate::log::info(&format!("confirm {name}: refused, the detail is too long"));
+            return Err(format!(
+                "Refused: the command is too long to show the user ({DETAIL_LINES} lines or {} KiB at most); send a shorter command",
+                DETAIL_BYTES / 1024
+            ));
         }
         let (result, always) = self.ask(prompt, detail, physical, out).await;
         crate::log::info(&format!(
@@ -2369,6 +2387,32 @@ mod tests {
         let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
         assert_eq!(result["content"], format!("{SAID_NEW}; nothing happened"));
         assert_eq!(last_user(&server, 1), "Lass das.");
+    }
+
+    /// A detail over the cap is refused without a question.
+    #[tokio::test]
+    async fn an_oversized_detail_is_refused_without_a_question() {
+        let big = format!("{{\"x\": \"{}\"}}", "a".repeat(DETAIL_BYTES));
+        let script = vec![Reply::Tool("echo", Box::leak(big.into())), Reply::Text("Gut.")];
+        let config = Config {
+            confirm: vec![Confirm {
+                tool: "echo".into(),
+                commands: Vec::new(),
+                argv0: Vec::new(),
+                method: None,
+                prompt: "Wirklich?".into(),
+            }],
+            ..Config::default()
+        };
+        let (mut chat, _server) = chat(script, config).await;
+        let (_, events) = turn(&mut chat, "Mach es.", false).await;
+        assert!(
+            !events.iter().any(|e| e.starts_with("confirm")),
+            "{events:?}"
+        );
+        assert!(!events.contains(&"tool echo".to_owned()), "{events:?}");
+        let result = chat.history.iter().find(|m| m["role"] == "tool").unwrap();
+        assert!(result["content"].as_str().unwrap().contains("shorter"));
     }
 
     /// Each change of the agent's own settings asks with its key and

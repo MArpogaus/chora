@@ -313,7 +313,7 @@ to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. A question about a
-security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut: the
+security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
