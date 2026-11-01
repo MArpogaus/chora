@@ -1022,7 +1022,10 @@ pub mod tests {
             all.insert(format!("a{i:03}"), "x".repeat(30).into());
         }
         for (i, k) in ["0_asr_headers", "0_llm_headers"].iter().enumerate() {
-            all.insert((*k).into(), json!({"Authorization": format!("Bearer sk-SECRET{i}")}));
+            all.insert(
+                (*k).into(),
+                json!({"Authorization": format!("Bearer sk-SECRET{i}")}),
+            );
         }
         let text = Value::Object(all).to_string();
         assert!(text.chars().count() > RESULT_CHARS);

@@ -2005,7 +2005,9 @@ mod tests {
         core.confirm_until = Instant::now();
         let effects = core.handle(frame(0.0));
         assert!(
-            !effects.iter().any(|e| matches!(e, Effect::Speech(Control::Cancel(_)))),
+            !effects
+                .iter()
+                .any(|e| matches!(e, Effect::Speech(Control::Cancel(_)))),
             "{effects:?}"
         );
     }

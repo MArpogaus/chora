@@ -2402,7 +2402,10 @@ mod tests {
     #[tokio::test]
     async fn an_oversized_detail_is_refused_without_a_question() {
         let big = format!("{{\"x\": \"{}\"}}", "a".repeat(DETAIL_BYTES));
-        let script = vec![Reply::Tool("echo", Box::leak(big.into())), Reply::Text("Gut.")];
+        let script = vec![
+            Reply::Tool("echo", Box::leak(big.into())),
+            Reply::Text("Gut."),
+        ];
         let config = Config {
             confirm: vec![Confirm {
                 tool: "echo".into(),
@@ -2740,7 +2743,11 @@ mod tests {
         let (body, ..) = chat.request(false, false, u32::MAX);
         let messages = body["messages"].as_array().unwrap();
         assert!(messages.iter().skip(1).all(|m| m["role"] != "system"));
-        let (_, note) = messages[0]["content"].as_str().unwrap().split_once(DROPPED_NOTE).unwrap();
+        let (_, note) = messages[0]["content"]
+            .as_str()
+            .unwrap()
+            .split_once(DROPPED_NOTE)
+            .unwrap();
         assert!(note.contains("user: Bitte 0.\nyou: Punkt eins"), "{note}");
         assert!(!note.contains("tool"), "{note}");
         assert!(note.lines().all(|l| l.chars().count() <= DROPPED_LINE + 6));
