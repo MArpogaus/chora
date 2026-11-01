@@ -848,6 +848,14 @@ impl Mc {
         match method {
             "pane.focus" => {
                 let Show { name } = runtime::params(params)?;
+                // A scene that is not shown takes no keyboard (review
+                // rc3 round 4, 2.7).
+                if self.current.as_deref() != Some(name.as_str()) {
+                    return Err(RpcError::new(
+                        RpcError::REJECTED,
+                        format!("the scene {name} is not the current one"),
+                    ));
+                }
                 self.focus_scene(&name)
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 Ok(Value::Null)
@@ -976,7 +984,6 @@ fn panels_id(name: &str) -> String {
     format!("mc-s-{name}-panels")
 }
 
-/// The id of the page of a scene: its head and its panels, clipped.
 /// The tag `pane` of the root group: the scene that shows.
 fn pane_tag(scene: Option<&str>) -> BTreeMap<String, String> {
     BTreeMap::from([("pane".into(), scene.unwrap_or_default().into())])
@@ -992,6 +999,7 @@ fn pane_tag_update(scene: &str) -> Command {
     }
 }
 
+/// The id of the page of a scene: its head and its panels, clipped.
 fn page_id(name: &str) -> String {
     format!("{}-page", scene_id(name))
 }
