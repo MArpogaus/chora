@@ -126,7 +126,8 @@ bad = []
 for n in load("surfaces"):
     sid, size = n["id"], n["surface"].get("size") or [0, 0]
     owner = n.get("owner")
-    app = n["surface"].get("app_id")
+    shows = n["visible"] and n["opacity"] > 0 and n["rects"]
+    app =n["surface"].get("app_id")
     if min(size) <= 0:
         bad.append(f"{sid} ({app}): size {size}")
     elif n.get("to"):

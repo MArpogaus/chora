@@ -120,6 +120,7 @@ bad = []
 for n in load("surfaces"):
     sid, size = n["id"], n["surface"].get("size") or [0, 0]
     owner = n.get("owner")
+    shows = n["visible"] and n["opacity"] > 0 and n["rects"]
     if min(size) <= 0:
         bad.append(f"{sid}: size {size}")
     elif n.get("to"):
