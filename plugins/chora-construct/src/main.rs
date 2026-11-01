@@ -2575,9 +2575,11 @@ impl Construct {
         let Some(node) = node else {
             return Ok(());
         };
-        // A window that has its pane is no news; dropping the pane here
-        // lost it when the view had no room to take it again.
-        if (self.panes.iter()).any(|p| p.window() == Some(surface)) {
+        // A window that the construct owns and that has its pane is no
+        // news; dropping the pane here lost it when the view had no room
+        // to take it again. A pane that only mirrors a window of another
+        // owner adopts the window handed over (review rc3 round 4, 2.8).
+        if (self.panes.iter()).any(|p| p.window() == Some(surface) && p.attached) {
             return Ok(());
         }
         if self.overlay && node.to.as_deref() != Some(NAME) {
