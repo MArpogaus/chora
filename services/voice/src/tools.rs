@@ -345,11 +345,9 @@ impl Tools {
                 "error: the connection to chora was lost; the result is unknown".into()
             }
             Ok(Err(e)) => format!("error: {e}").into(),
-            Ok(Ok(CallToolResponse::Complete(r))) => redacted(
-                trimmed(
-                    &tool,
-                    content(&r.content, r.is_error == Some(true), self.vision),
-                ),
+            Ok(Ok(CallToolResponse::Complete(r))) => for_llm(
+                &tool,
+                content(&r.content, r.is_error == Some(true), self.vision),
                 secret,
             ),
             Ok(Ok(_)) => "error: the tool asked for input, which the agent cannot give".into(),
@@ -419,6 +417,12 @@ fn trimmed(tool: &str, answer: Value) -> Value {
         }
         other => other,
     }
+}
+
+/// The answer for the LLM: hidden first, since a cut text is no JSON
+/// and would keep its header values (review rc3 round 4, 2.1).
+fn for_llm(tool: &str, answer: Value, secret: bool) -> Value {
+    trimmed(tool, redacted(answer, secret))
 }
 
 /// The answer of an own settings call without header values.
@@ -1009,6 +1013,21 @@ pub mod tests {
         let answer = answer.as_str().unwrap();
         assert!(!answer.contains("sk-9"), "{answer}");
         assert!(answer.contains("\"a\":1"), "{answer}");
+    }
+
+    #[test]
+    fn a_settings_answer_over_the_cut_hides_its_headers() {
+        let mut all = serde_json::Map::new();
+        for i in 0..300 {
+            all.insert(format!("a{i:03}"), "x".repeat(30).into());
+        }
+        for (i, k) in ["0_asr_headers", "0_llm_headers"].iter().enumerate() {
+            all.insert((*k).into(), json!({"Authorization": format!("Bearer sk-SECRET{i}")}));
+        }
+        let text = Value::Object(all).to_string();
+        assert!(text.chars().count() > RESULT_CHARS);
+        let answer = for_llm("voice.settings.set", text.into(), true);
+        assert!(!answer.as_str().unwrap().contains("sk-SECRET"));
     }
 
     #[test]
