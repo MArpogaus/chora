@@ -11,6 +11,8 @@ pub enum Word {
     Sleep,
     Wake,
     Yes,
+    /// A yes that allows the action for the session.
+    Always,
     No,
 }
 
@@ -70,33 +72,113 @@ fn phrase(words: &[String], phrase: &str) -> bool {
         || want.concat() == words.concat()
 }
 
-/// The command word of an utterance of `length_ms`, if it is one. Yes
-/// and no count only when `confirming`.
-pub fn matches(config: &Config, text: &str, length_ms: u32, confirming: bool) -> Option<Word> {
-    if length_ms > config.word_max_ms {
-        return None;
-    }
+/// The words of `text` without the filler words.
+fn content(config: &Config, text: &str) -> Vec<String> {
     let fillers: Vec<Vec<String>> = config.filler_words.iter().map(|f| normalize(f)).collect();
-    let words: Vec<String> = normalize(text)
+    normalize(text)
         .into_iter()
         .filter(|w| !fillers.iter().any(|f| f.len() == 1 && f[0] == *w))
-        .collect();
-    if words.is_empty() || words.len() > MAX_WORDS {
-        return None;
-    }
+        .collect()
+}
+
+/// The command word of an utterance with `speech_ms` of speech, if it
+/// is one. Yes and no count only when `confirming`, as the [`answer`] of
+/// any length.
+pub fn matches(config: &Config, text: &str, speech_ms: u32, confirming: bool) -> Option<Word> {
+    let words = content(config, text);
     let lists = [
         (Word::CodeCancel, &config.code_cancel_words),
         (Word::Cancel, &config.cancel_words),
         (Word::Sleep, &config.sleep_words),
         (Word::Wake, &config.wake_words),
-        (Word::Yes, &config.yes_words),
-        (Word::No, &config.no_words),
     ];
-    lists
-        .into_iter()
-        .filter(|(word, _)| confirming || !matches!(word, Word::Yes | Word::No))
-        .find(|(_, list)| list.iter().any(|p| phrase(&words, p)))
-        .map(|(word, _)| word)
+    let command = (speech_ms <= config.word_max_ms && (1..=MAX_WORDS).contains(&words.len()))
+        .then(|| {
+            lists
+                .into_iter()
+                .find(|(_, list)| list.iter().any(|p| phrase(&words, p)))
+        })
+        .flatten()
+        .map(|(word, _)| word);
+    command.or_else(|| match answer(config, text) {
+        Answer::Yes if confirming => Some(Word::Yes),
+        Answer::Always if confirming => Some(Word::Always),
+        Answer::No if confirming => Some(Word::No),
+        _ => None,
+    })
+}
+
+/// A text as the answer to a spoken confirmation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Answer {
+    Yes,
+    /// A yes with an always word: "Ja, immer."
+    Always,
+    No,
+    /// At most two words without a pure yes or no.
+    Unclear,
+    /// A longer text that is not a pure yes or no: a new request.
+    Request,
+}
+
+impl Answer {
+    /// A pure yes or no.
+    pub fn pure(self) -> bool {
+        matches!(self, Self::Yes | Self::Always | Self::No)
+    }
+}
+
+/// Whether two words are near: equal, or one edit apart from five
+/// letters on, so "mich" is not "mach".
+fn close(a: &str, b: &str) -> bool {
+    a == b || (a.chars().count().min(b.chars().count()) >= 5 && near(a, b))
+}
+
+/// The number of words of the longest phrase of `list` that starts
+/// `words` at `at`; 0 without one.
+fn has_at(words: &[String], at: usize, list: &[String]) -> usize {
+    list.iter()
+        .map(|p| normalize(p))
+        .filter(|want| {
+            words.len() >= at + want.len()
+                && want.iter().zip(&words[at..]).all(|(w, x)| close(w, x))
+        })
+        .map(|want| want.len())
+        .max()
+        .unwrap_or(0)
+}
+
+/// The answer in `text`. Only a pure yes or no answers: one or two yes
+/// or no phrases and filler words ("Ja, bitte.", "Ja, mach das.",
+/// "Nein, lieber nicht."); an always word makes a yes `Always` ("Ja,
+/// immer."). Any other text of at most two words is
+/// unclear, a longer one is a request ("Mach das andere Fenster zu.").
+pub fn answer(config: &Config, text: &str) -> Answer {
+    let mut words = content(config, text);
+    if words.is_empty() {
+        words = normalize(text);
+    }
+    let (mut at, mut yes, mut no, mut always) = (0, 0, 0, false);
+    while at < words.len() {
+        let y = has_at(&words, at, &config.yes_words);
+        let a = has_at(&words, at, &config.always_words);
+        let n = has_at(&words, at, &config.no_words);
+        match (y.max(a), n) {
+            (0, 0) => break,
+            (y, n) if y >= n => yes += 1,
+            _ => no += 1,
+        }
+        always |= a > 0 && a >= y && a >= n;
+        at += y.max(a).max(n);
+    }
+    let whole = at == words.len() && yes + no <= 2;
+    match (whole, yes, no) {
+        (true, 1.., 0) if always => Answer::Always,
+        (true, 1.., 0) => Answer::Yes,
+        (true, 0, 1..) => Answer::No,
+        _ if normalize(text).len() <= 2 => Answer::Unclear,
+        _ => Answer::Request,
+    }
 }
 
 /// The agent of `names` whose name starts `text` ("Coder, mach weiter"),
@@ -115,9 +197,6 @@ pub fn addressed<'a>(
         let head = normalize(&tokens[..n].join(" "));
         // A name word of five letters or more may differ by one edit: so
         // "oder" is not "coder".
-        let close = |w: &String, h: &String| {
-            w == h || (w.chars().count().min(h.chars().count()) >= 5 && near(w, h))
-        };
         let near_all = head.len() == n && want.iter().zip(&head).all(|(w, h)| close(w, h));
         (near_all || head.concat() == want.concat()).then(|| (name.clone(), tokens[n..].join(" ")))
     })
@@ -197,16 +276,119 @@ mod tests {
         let m = |text, confirming| matches(&config, text, 1000, confirming);
         assert_eq!(m("Ja", false), None);
         assert_eq!(m("Ja.", true), Some(Word::Yes));
-        assert_eq!(m("Ja, mach das.", true), None, "two phrases");
+        assert_eq!(m("Ja, mach das.", true), Some(Word::Yes));
         assert_eq!(m("Mach das bitte.", true), Some(Word::Yes));
         assert_eq!(m("Okay", true), Some(Word::Yes));
         assert_eq!(m("Nein.", true), Some(Word::No));
         assert_eq!(m("Lieber nicht.", true), Some(Word::No));
         assert_eq!(m("Stopp.", true), Some(Word::Cancel), "cancel comes first");
         assert_eq!(
-            matches(&config, "Stopp.", 2500, false),
+            matches(&config, "Stopp.", 3500, false),
             None,
             "longer than word_max_ms"
+        );
+    }
+
+    #[test]
+    fn only_a_pure_yes_answers_a_confirmation() {
+        let config = Config::default();
+        let a = |text| answer(&config, text);
+        for text in [
+            "Ja, bitte.",
+            "Bitte.",
+            "Yes, do it",
+            "Please.",
+            "Sure.",
+            "Go ahead.",
+            "Okay, mach das.",
+            "Genau, jetzt.",
+        ] {
+            assert_eq!(a(text), Answer::Yes, "{text}");
+        }
+        // Review 0.9.0-rc.3: a request with a yes word in it is no yes.
+        for (text, want) in [
+            ("Mach das andere Fenster zu.", Answer::Request),
+            ("Ja, die Skalierung des Bildschirms.", Answer::Request),
+            ("Ja, versuche es bitte noch mal.", Answer::Request),
+            ("Okay, mach mal.", Answer::Request),
+            ("Mach.", Answer::Unclear),
+            ("Genau so", Answer::Unclear),
+        ] {
+            assert_eq!(a(text), want, "{text}");
+        }
+    }
+
+    #[test]
+    fn an_always_word_is_a_yes_for_the_session() {
+        let config = Config::default();
+        let a = |text| answer(&config, text);
+        for text in [
+            "Immer.",
+            "Ja, immer.",
+            "Always.",
+            "Yes, always.",
+            "Ja, immer, bitte.",
+        ] {
+            assert_eq!(a(text), Answer::Always, "{text}");
+        }
+        assert_eq!(a("Nein, immer."), Answer::Unclear);
+        assert_eq!(a("Immer das Gleiche hier."), Answer::Request);
+        assert_eq!(
+            matches(&config, "Ja, immer.", 900, true),
+            Some(Word::Always)
+        );
+    }
+
+    #[test]
+    fn short_forms_of_yes_are_yes_and_near_no_no_word() {
+        let config = Config::default();
+        let short = [
+            "yeah", "yep", "yup", "jo", "jap", "jep", "klar", "gern", "gerne",
+        ];
+        for word in short {
+            for text in [format!("{word}."), format!("{word}, mach das")] {
+                assert_eq!(answer(&config, &text), Answer::Yes, "{text}");
+            }
+            for no in &config.no_words {
+                for no in normalize(no) {
+                    assert!(!close(word, &no) && !near(word, &no), "{word} {no}");
+                }
+            }
+        }
+        assert_eq!(answer(&config, "Yeah."), Answer::Yes);
+        assert_eq!(answer(&config, "Klar, aber nicht"), Answer::Request);
+    }
+
+    #[test]
+    fn an_answer_with_both_or_none_is_unclear_or_a_request() {
+        let config = Config::default();
+        let a = |text| answer(&config, text);
+        for (text, want) in [
+            ("Nein, lieber nicht", Answer::No),
+            ("No, leave the screen as it is.", Answer::Request),
+            ("Nein.", Answer::No),
+            ("Bitte nicht.", Answer::No),
+            ("Ja, nein", Answer::Unclear),
+            ("Nein, rot.", Answer::Unclear),
+            ("Und größer.", Answer::Unclear),
+            ("Ja, aber nicht", Answer::Request),
+            ("1.5", Answer::Unclear),
+            ("Lass mich kurz", Answer::Request),
+            ("Die Skalierung, ja, die vom Bildschirm.", Answer::Request),
+            ("Zeig mir die Agenda für heute.", Answer::Request),
+        ] {
+            assert_eq!(a(text), want, "{text}");
+        }
+        // As a command word in a confirmation, of any length.
+        let m = |text, ms, confirming| matches(&config, text, ms, confirming);
+        assert_eq!(
+            [
+                m("Ja, mach das.", 2500, true),
+                m("Ja, die Skalierung des Bildschirms.", 2500, true),
+                m("Bitte.", 600, true),
+                m("Bitte.", 600, false)
+            ],
+            [Some(Word::Yes), None, Some(Word::Yes), None]
         );
     }
 

@@ -1,23 +1,24 @@
 //! Scenes: what the whole screen shows for one task. A scene is a grid of
-//! panels, or one app whose window fills the screen. Each scene is a YAML
+//! panels, or one app whose window fills its text block. Each scene is a YAML
 //! file `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`.
 
-use std::{collections::BTreeMap, io::Write as _, path::Path};
+use std::{collections::BTreeMap, path::Path};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{Layout, Page, Style},
+    config::{Layout, Style},
     region::Region,
 };
 
 /// The scenes that ship with the plugin; a file of the same name replaces
 /// one.
-pub const BUILT_IN: [(&str, &str); 5] = [
+pub const BUILT_IN: [(&str, &str); 6] = [
     ("agenda", include_str!("../scenes/agenda.yaml")),
     ("agents", include_str!("../scenes/agents.yaml")),
     ("mission", include_str!("../scenes/mission.yaml")),
     ("morning", include_str!("../scenes/morning.yaml")),
+    ("overview", include_str!("../scenes/overview.yaml")),
     ("terminal", include_str!("../scenes/terminal.yaml")),
 ];
 
@@ -27,28 +28,28 @@ pub const MAX_TEXT: usize = 4096;
 /// The most columns and rows of the grid of a scene.
 pub const MAX_GRID: u32 = 24;
 
+/// The columns and rows of the grid of a scene without its own `grid`.
+pub const GRID: [u32; 2] = [4, 3];
+
 /// A scene as its file has it.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Scene {
-    /// Columns and rows of the grid of the panels.
-    #[serde(default = "one_cell")]
-    pub grid: [u32; 2],
+    /// Columns and rows of the grid of the panels, over the default
+    /// `GRID`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid: Option<[u32; 2]>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub panels: Vec<Panel>,
-    /// A shell command whose window fills the screen.
+    /// A shell command whose window fills the text block.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app: Option<String>,
-    /// The head of the scene; a scene of an app has none.
+    /// The head of the scene.
     #[serde(default, skip_serializing_if = "Chapter::is_empty")]
     pub chapter: Chapter,
     /// Whether a region shows in this scene, over the settings.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub regions: BTreeMap<Region, bool>,
-    /// The text block of this scene, over `page` of the settings: for
-    /// example narrow columns side by side on a wide screen.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub page: Option<Page>,
 }
 
 /// The head of a scene. Without them, the number is the place of the
@@ -105,20 +106,15 @@ pub struct Panel {
     pub blur: Option<f64>,
 }
 
-fn one_cell() -> [u32; 2] {
-    [1, 1]
-}
-
 /// An empty scene: the scene of a window that no scene started.
 impl Default for Scene {
     fn default() -> Self {
         Self {
-            grid: one_cell(),
+            grid: None,
             panels: Vec::new(),
             app: None,
             chapter: Chapter::default(),
             regions: BTreeMap::new(),
-            page: None,
         }
     }
 }
@@ -132,12 +128,15 @@ impl Scene {
         }
     }
 
+    /// The columns and rows of the grid: its own, else `GRID`.
+    pub fn grid(&self) -> [u32; 2] {
+        self.grid.unwrap_or(GRID)
+    }
+
     /// Checks what serde cannot.
     pub fn check(&self) -> Result<(), String> {
-        let [cols, rows] = self.grid;
-        if !(1..=MAX_GRID).contains(&cols) || !(1..=MAX_GRID).contains(&rows) {
-            return Err(format!("grid: 1 to {MAX_GRID} columns and rows"));
-        }
+        let [cols, rows] = self.grid();
+        check_grid([cols, rows])?;
         if self.app.as_deref().is_some_and(|a| a.trim().is_empty()) {
             return Err("app: an empty command".into());
         }
@@ -159,9 +158,6 @@ impl Scene {
                 return Err(format!("panel {id}: an opacity from 0 to 1, a blur to 16"));
             }
         }
-        if let Some(page) = &self.page {
-            page.check()?;
-        }
         let chapter = &self.chapter;
         let texts = [&chapter.number, &chapter.title, &chapter.running_head];
         if texts
@@ -179,6 +175,11 @@ impl Panel {
     /// The lines as one text node shows them.
     pub fn text(&self) -> String {
         self.lines.join("\n")
+    }
+
+    /// Whether the panel has neither a title nor lines.
+    pub fn is_empty(&self) -> bool {
+        self.title.is_empty() && self.lines.is_empty()
     }
 
     /// With a tab in a line, the parts before and after the first tab
@@ -202,6 +203,14 @@ impl Panel {
         }
         Ok(())
     }
+}
+
+/// A grid has 1 to `MAX_GRID` columns and rows.
+pub fn check_grid([cols, rows]: [u32; 2]) -> Result<(), String> {
+    if !(1..=MAX_GRID).contains(&cols) || !(1..=MAX_GRID).contains(&rows) {
+        return Err(format!("grid: 1 to {MAX_GRID} columns and rows"));
+    }
+    Ok(())
 }
 
 /// A name of a scene or a panel is a file name and part of a node id.
@@ -230,14 +239,14 @@ pub fn parse(text: &str) -> Result<Scene, String> {
 }
 
 /// The built-in scenes and the files in `dir`. A wrong file only logs.
-#[allow(clippy::expect_used, reason = "a test parses the built-in scenes")]
+#[allow(clippy::expect_used, reason = "a test checks the built-in scenes")]
 pub fn load(dir: &Path) -> BTreeMap<String, Scene> {
     let mut scenes: BTreeMap<String, Scene> = BUILT_IN
         .iter()
         .map(|(name, text)| {
             (
                 (*name).into(),
-                parse(text).expect("built-in scenes are valid"),
+                parse(text).expect("the built-in scenes are valid"),
             )
         })
         .collect();
@@ -271,15 +280,7 @@ pub fn save(dir: &Path, name: &str, scene: &Scene) -> Result<(), String> {
     scene.check()?;
     let text = serde_saphyr::to_string(scene).map_err(|e| e.to_string())?;
     let path = dir.join(format!("{name}.yaml"));
-    let tmp = dir.join(format!(".{name}.yaml.tmp"));
-    let write = || -> std::io::Result<()> {
-        std::fs::create_dir_all(dir)?;
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(text.as_bytes())?;
-        file.sync_all()?;
-        std::fs::rename(&tmp, &path)
-    };
-    write().map_err(|e| format!("{}: {e}", path.display()))
+    chora_kit::write_file(&path, text.as_bytes()).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The box `[x, y, w, h]` of a cell in the `area` `[x, y, w, h]`, with
@@ -298,6 +299,29 @@ pub fn place(cell: [u32; 4], grid: [u32; 2], area: [f64; 4], gap: [f64; 2]) -> [
     ]
 }
 
+/// The cells of panels on a grid of `cols` columns: in reading order,
+/// each at most `cols` wide, at the top-most, then left-most place below
+/// the panels before it. Answers the cells and the number of rows.
+pub fn flow(cells: &[[u32; 4]], cols: u32) -> (Vec<[u32; 4]>, u32) {
+    let cols = cols.max(1);
+    let mut order: Vec<usize> = (0..cells.len()).collect();
+    order.sort_by_key(|&i| (cells[i][1], cells[i][0]));
+    let mut tops = vec![0; cols as usize];
+    let mut flowed = cells.to_vec();
+    for i in order {
+        let [_, _, w, h] = cells[i];
+        let w = w.clamp(1, cols);
+        let top = |x: u32| tops[x as usize..(x + w) as usize].iter().copied().max();
+        let (y, x) = (0..=cols - w)
+            .filter_map(|x| Some((top(x)?, x)))
+            .min()
+            .unwrap_or_default();
+        tops[x as usize..(x + w) as usize].fill(y + h);
+        flowed[i] = [x, y, w, h];
+    }
+    (flowed, tops.into_iter().max().unwrap_or_default())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,7 +336,7 @@ mod tests {
     fn a_saved_scene_loads_and_replaces_a_built_in_one() {
         let dir = dir("save");
         let scene = Scene {
-            grid: [2, 1],
+            grid: Some([2, 1]),
             panels: vec![Panel {
                 id: "mail".into(),
                 cell: [1, 0, 1, 1],
@@ -331,11 +355,6 @@ mod tests {
                 ..Chapter::default()
             },
             regions: [(Region::Right, true)].into(),
-            page: Some(Page {
-                measure: 20.0,
-                margin: 0.0,
-                gap: 2.0,
-            }),
         };
         save(&dir, "agenda", &scene).unwrap();
         save(&dir, "news", &Scene::app("foot")).unwrap();
@@ -351,17 +370,23 @@ mod tests {
 
     #[test]
     fn mistakes_fail() {
+        for (name, text) in BUILT_IN {
+            assert!(parse(text).is_ok(), "{name}");
+        }
         let dir = dir("wrong");
         assert!(save(&dir, "../evil", &Scene::app("foot")).is_err());
         assert!(!dir.exists(), "a wrong scene writes nothing");
         for wrong in [
             "grid: [0, 1]\n",
-            "panels: [{id: a, cell: [0, 0, 2, 1]}]\n",
+            // Without a grid of its own, the cell is outside the default
+            // grid.
+            "panels: [{id: a, cell: [4, 0, 1, 1]}]\n",
             "panels: [{id: a, cell: [0, 0, 1, 1]}, {id: a, cell: [0, 0, 1, 1]}]\n",
             "panels: [{id: a/b, cell: [0, 0, 1, 1]}]\n",
             "app: ' '\n",
             "frame: true\n",
-            "page: {measure: 5, margin: 0, gap: 1}\n",
+            // The page is one for all scenes, in the settings.
+            "page: {measure: 20, margin: 4, gap: 1}\n",
             "panels: [{id: a, cell: [0, 0, 1, 1], opacity: 2}]\n",
             // W11: a huge grid blanked mc, a cell near u32::MAX overflowed.
             "grid: [4294967295, 4294967295]\n",
@@ -403,5 +428,32 @@ mod tests {
             place([0, 1, 1, 1], [1, 2], area, [20.0, 20.0]),
             [20.0, 260.0, 960.0, 220.0]
         );
+    }
+
+    #[test]
+    fn panels_that_do_not_fit_wrap_in_reading_order() {
+        // The morning scene on two columns: the lead, then the rest below.
+        let cells = [
+            [0, 0, 2, 2],
+            [2, 0, 1, 1],
+            [3, 0, 1, 2],
+            [2, 1, 1, 1],
+            [0, 2, 2, 1],
+            [2, 2, 2, 1],
+        ];
+        let (flowed, rows) = flow(&cells, 2);
+        assert_eq!(
+            flowed,
+            [
+                [0, 0, 2, 2],
+                [0, 2, 1, 1],
+                [1, 2, 1, 2],
+                [0, 3, 1, 1],
+                [0, 4, 2, 1],
+                [0, 5, 2, 1],
+            ]
+        );
+        assert_eq!(rows, 6);
+        assert_eq!(flow(&cells, 4).0, cells);
     }
 }

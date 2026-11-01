@@ -1,3 +1,221 @@
+## v0.9.0-rc.3 (2026-11-01)
+
+### BREAKING CHANGE
+
+- security settings no longer take a spoken yes.
+- voice restart is gone; call voice settings.reload.
+- the setting allow is gone; use allow_programs and
+allow_methods.
+- the default of modifier is Super, not Ctrl.
+
+### Feat
+
+- **mc**: tag the root group for panes, so a pane shows the regions
+- **construct**: give the keyboard to a plugin while flown into its pane
+- **chora**: name the nested window after its Wayland socket
+- **voice**: raise history_tokens to 24000 and document the notes
+- **voice**: keep a note of dropped turns and only the latest picture
+- **voice**: tell the agent that construct ignores the scene camera
+- **voice**: trim large tool results before they enter the history
+- **voice**: tell the agent to batch commands and tools per round
+- **voice**: claim a visible result only after the screen confirms it
+- **voice**: add listen: always | push_to_talk
+- **construct**: anti-alias the edges of panes and mirrors
+- **xp**: answer a question by the balloon's buttons or show its keys
+- **mc**: answer a confirmation by a click or show its keys
+- **construct**: answer a question by a button or show its keys
+- **construct**: show the key bindings in a help panel
+- **voice**: voice.confirm has buttons while a claimer is connected
+- **voice**: answer a question by the button of a HUD
+- **core**: the press of a move names the window that asked for it
+- **voice**: confirm security settings by a key press only
+- **voice**: refuse inject_input while a key question waits
+- **winit**: name the window after the startup program
+- **construct**: mark the focused pane
+- **construct**: place new panes only in the view
+- **construct**: show the voice HUD, its questions and the pane label
+- **construct**: read the style section
+- **voice**: bound the history with history_tokens
+- **voice**: start a nested chora for a window manager in a pane
+- **construct**: a smooth glossy floor with a crisp horizon
+- **construct**: Super moves and resizes panes, as in tiling and xp
+- **construct**: hand a dropped pane to the window manager or plugin under it
+- **tiling**: drags move floating windows, also from a title bar
+- **core**: the interactive move of a client becomes a drag of its window manager
+- **core**: window managers with claims share a pointer binding
+- **construct**: a window list, windows of other clients on request, and window.give
+- **choractl**: give a window to another window manager
+- **mc**: adopt given windows, give them away, and --output
+- **tiling**: window.give and a drag out to another window manager
+- **xp**: hand a dropped window to the claim under the drop point
+- **kit**: window.give and the window manager under a point
+- **voice**: an allow list of programs and methods that never ask
+- **voice**: a yes with always allows the action for the session
+- **voice**: emit each question with its full command
+- **voice**: place the indicator and let plugins claim it
+- **mc, xp**: claim the state indicator of the voice agent
+- **mc, xp**: show the spoken confirmation of voice.confirm
+- **construct**: keys for a terminal, a launcher and a close
+- **construct**: ground, horizon, dust, shadows and mirror images
+- **construct**: construct files, overlay mode and plugin panes (K2a)
+- **mc**: tag the page of each scene as meta:pane=NAME
+- **mc**: notify a broken settings file at the start
+- **xp**: a paperclip assistant shows the voice agent
+- **mc**: an overview scene of all scenes as N | Title
+- **mc**: scene.rename and scene.move
+- **mc**: order the scenes by the setting order, number them by place
+- **construct**: add the construct flavor target and service
+- **construct**: walk on a leash and fly into program panes
+- **mc**: give the agents as many columns as there are agents
+- **mc**: scroll a long page with the wheel
+- **mc**: wrap panels into new rows on a narrow output
+- **voice**: take yeah, yep, jo, klar and gerne as yes
+- **voice**: tell the LLM to read files with read, as data only
+- **voice**: read project files and folders with the read tool
+- **voice**: say when the agent is ready
+- **voice**: name the arguments in the confirmation questions
+- **voice**: dump the LLM requests and raw streams on demand
+- **mc**: set the number of the scene head faint in Pagella
+- **mc**: let the app of a scene name an app content
+- **mc**: set the scene head as "3 | Agenda" in the text column
+- **voice**: remove the agent's own nodes without a question
+- **voice**: acknowledge tool rounds and finish announced actions
+- **voice**: speech during a reply reaches it at once
+- **voice**: the agent changes its own settings after a spoken yes
+- **mc**: place the built-in scenes on the shared grid
+- **mc**: one grid and page for all scenes in the settings
+- **mc**: hang the scene number in the margin beside the title
+- **mc**: trace an inner hairline in write, fill fades in behind
+
+### Fix
+
+- **construct**: adopt a window handed over to a pane that only mirrors it
+- **mc**: refuse pane.focus for a scene that is not the current one
+- **voice**: send no Cancel for a question that a muted speaker never queued
+- **voice**: put the note of dropped turns in the first system message
+- **voice**: refuse a confirm detail over the cap, show it whole in the HUD
+- **voice**: hide header values before cutting a tool answer
+- **construct**: a window hidden for lack of room becomes an own pane
+- **mc**: claim windows only with --manage-windows
+- **construct**: attach a window that finds no room, hidden
+- **construct**: sight hides a pane as the frame does
+- **mc**: claim the work area, not the whole output
+- **construct**: cap the confirm detail on screen
+- **construct**: act only on a pane that shows
+- **voice**: keep call_method arguments for the own settings.set
+- **core**: tell a client why the watchdog disconnects it
+- **core**: hand every free window to a definite manager or show it
+- **voice**: unwrap patch in call_method settings.set
+- **voice**: an older utterance does not keep a question open
+- **voice**: block only a retry with the same values
+- **voice**: ask by key when a reload changes a security key
+- **voice**: match allow_programs against the whole argv
+- **voice**: stop the speech of a question when it is answered
+- **voice**: hide secrets in the answers of settings.set and in the journal
+- **voice**: restart the tool process when chora_mcp changes
+- **chora-xp**: find the theme of a source tree
+- **construct**: hide a pane with a corner behind the eye
+- **xp**: refuse to start without an absolute XDG_RUNTIME_DIR
+- **xp**: follow only the voice agent, and show it asleep
+- **mc**: let only the voice agent set the voice state
+- **mc**: accept a string or a number as the voice.confirm id
+- **construct,mc**: write the shaders only to the runtime directory
+- **construct**: fit every text of the HUD into its panel
+- **construct**: the panes now turn with you when you walk
+- **construct**: keep the given windows over an overlay load
+- **tiling**: grab again when the claim appears
+- **tiling**: keep floating windows inside the work area of their output
+- **tiling**: test a drop against the own outputs, not the claim box
+- **core**: share button grabs only between clients of the main socket
+- **tiling**: drag the window that asked for the move
+- **core**: a move needs the press that still holds the pointer on the window
+- window.give answers the surface id in every window manager
+- **kit**: export window.give as privileged
+- **mc**: claim the output, so that window managers can give mc windows
+- **core**: only window managers receive windows, and reservations expire
+- **voice**: emit the HUD events only as the client voice
+- **voice**: refuse allow and confirm changes by voice
+- **voice**: hide secrets in voice.confirm and settings.get
+- **voice**: stop a tool call that fails twice the same way
+- **voice**: make mute, talk and indicator.claim privileged
+- **voice**: drop the unprivileged restart method
+- **voice**: ask before the region methods and window.give
+- **voice**: end the always words of the session on new settings
+- **voice**: narrow always and split allow into programs and methods
+- **voice**: refuse unknown keys in the indicator place
+- **voice**: send the voice.confirm id as a text
+- **voice**: keep a confirmation while a yes in time is heard
+- **construct**: say that pane.move takes an offset, and answer the place
+- **render**: make node textures opaque where a window is opaque
+- **construct**: move the focus to the pane flown into
+- **construct**: mark the open window list for the gates
+- **construct**: keep a walk during a drag
+- **voice**: never speak a cut fragment; retry with a note, then brake
+- **tiling**: a window from another window manager keeps its size
+- **voice**: refuse a broken settings file on restart too
+- **voice**: end no sentence at a colon
+- **voice**: keep secrets out of the journal
+- **voice**: stop on a broken settings file
+- **voice**: read a file through one checked handle
+- **voice**: never cut a security value in a question
+- **voice**: ask before the privileged methods of the plugins
+- **voice**: nudge only after an explicit announcement
+- **voice**: only a pure yes or no after the question answers it
+- **construct**: the program of fuzzel with its token becomes a pane
+- **kit**: construct and mc scene files save through a new 0600 temp file
+- **construct**: expire program panes that wait, and never save them
+- **construct**: a radius of settings.set applies without a construct file
+- **construct**: a click inside the flown pane keeps the way back
+- **construct**: pane.remove keeps a window that refuses to close
+- **xp**: the balloon says when the mic does not switch
+- **mc**: scene.rename refuses a file that exists
+- **mc**: a color that a theme lacks comes from the default theme
+- **mc**: a new window takes the keyboard, except one of app.open
+- **voice**: run one more round after an answer that stops mid-sentence
+- **voice**: keep the user's level in the echo canceller
+- **voice**: measure command words by their speech, not their length
+- **voice**: normalise each utterance before the ASR
+- **kit**: save only the settings that differ from the defaults
+- **kit**: start with the defaults when the settings file is broken
+- **mc**: only the user moves the keyboard
+- **mc**: app scenes get their head at once and go with their app
+- **mc**: one box for the window of an app scene
+- **mc**: remove the probe of a region update right after measuring
+- **mc**: show the sides on a narrow output
+- **voice**: new words in the last tool round get rounds of their own
+- **voice**: catch any first-person announcement without a call
+- **mc**: build the page anew when a panel moves, fills or empties
+- **mc**: show whole lines in panels and let a long title wrap
+- **mc**: set the bar of the scene head as a hairline on the baseline
+- **voice**: catch announced actions without a tool name
+- **voice**: keep the note of a stopped answer out of the speech
+- **mc**: change the agent panels in place, without a write
+- **core**: warn once when no font has the family of a text node
+- **voice**: tell the LLM to speak to the user, not narrate
+- **voice**: give the LLM a lean schema for its own settings.set
+- **voice**: drop a transcript that is the ASR prompt
+- **mc**: put the window of an app scene in its text block
+- **mc**: give foot in the drawer all colors of the theme
+- **mc**: use lining figures for the number of the scene head
+- **voice**: prompt rules for short answers and safe nodes
+- **voice**: hear a short yes right after a spoken question
+- **voice**: time a confirmation from the end of its question, 15 s
+- **mc**: reject a cell outside the grid of the settings
+- **mc**: change region texts in place, without a cross-fade
+- **mc**: grow the running head with scale.base
+- **voice**: adapt the barge-in floor to the user's level
+- **voice**: lift quiet mic speech for the VAD
+- **voice**: tell the LLM why a spoken confirmation failed
+- **voice**: count a confirmation answer by its yes or no word
+
+### Refactor
+
+- **mc**: keep build, show and method under the line limit
+- one claim-under-point helper and one MOVE constant in chora-scene
+- **voice**: drop the old note and fix the prompt on own nodes
+- **kit**: one launch for mc and construct
+- **mc**: a fixed 4x3 grid per scene, one page for all scenes
+
 ## v0.9.0-rc.2 (2026-10-31)
 
 ### BREAKING CHANGE

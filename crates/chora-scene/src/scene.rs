@@ -195,6 +195,22 @@ impl Default for Scene {
     }
 }
 
+/// The owner of the smallest claim that contains `[px, py]`, among the
+/// owners that `accept` takes (D55): the window manager under a point.
+pub fn claimant_at<'a>(
+    nodes: impl IntoIterator<Item = &'a Node>,
+    [px, py]: [f64; 2],
+    accept: impl Fn(&str) -> bool,
+) -> Option<&'a str> {
+    nodes
+        .into_iter()
+        .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
+        .filter(|(owner, _)| accept(owner))
+        .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
+        .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
+        .map(|(owner, _)| owner)
+}
+
 impl Scene {
     /// The camera that a client set for an output; `None` for the default
     /// camera.
@@ -331,27 +347,16 @@ impl Scene {
         &self,
         parent: Option<&str>,
         focused: Option<&str>,
-        [px, py]: [f64; 2],
+        point: [f64; 2],
         live: impl Fn(&str) -> bool,
     ) -> Option<&str> {
         let owner = |id: Option<&str>| self.nodes.get(id?)?.owner.as_deref();
-        let claims = || {
-            self.nodes
-                .values()
-                .filter_map(|n| Some((n.owner.as_deref()?, n.props.claim?)))
-                .filter(|(owner, _)| live(owner))
-        };
         let focus = || {
             self.focused_node_owner()
                 .or_else(|| owner(focused))
-                .filter(|o| claims().any(|(c, _)| c == *o))
+                .filter(|o| live(o) && self.holds_claim(o))
         };
-        let pointer = || {
-            claims()
-                .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
-                .min_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
-                .map(|(owner, _)| owner)
-        };
+        let pointer = || claimant_at(self.nodes.values(), point, &live);
         owner(parent)
             .filter(|o| live(o))
             .or_else(focus)
@@ -359,7 +364,8 @@ impl Scene {
     }
 
     /// Whether a client name holds a claim.
-    fn holds_claim(&self, name: &str) -> bool {
+    #[must_use]
+    pub fn holds_claim(&self, name: &str) -> bool {
         self.nodes
             .values()
             .any(|n| n.owner.as_deref() == Some(name) && n.props.claim.is_some())
@@ -370,6 +376,23 @@ impl Scene {
     pub fn reserve(&mut self, surface: &str, to: Option<&str>) {
         if let Some(node) = self.nodes.get_mut(surface) {
             node.to = to.map(String::from);
+        }
+    }
+
+    /// Shows a free surface at the root without an owner, at `at`, as
+    /// the emergency reset does: no window manager took it. Any window
+    /// manager can attach it later.
+    pub fn place_free(&mut self, surface: &str, at: [f64; 2]) {
+        let free =
+            (self.nodes.get(surface)).is_some_and(|n| n.owner.is_none() && n.parent.is_none());
+        if !free {
+            return;
+        }
+        self.link(surface, ROOT, None);
+        if let Some(node) = self.nodes.get_mut(surface) {
+            node.to = None;
+            node.props = Props::default();
+            node.props.transform = Transform::translate(at[0], at[1], 0.0);
         }
     }
 
@@ -412,9 +435,19 @@ impl Scene {
             }
             Command::Remove { id, to: Some(to) } => {
                 self.owned_surface(owner, id)?;
+                // Only window managers receive windows (D55).
+                if !self.holds_claim(to) {
+                    return Err(SceneError::Invalid(format!(
+                        "{to:?} holds no claim; only a window manager receives a window"
+                    )));
+                }
                 self.remove_subtree(id);
                 self.reserve(id, Some(to));
-                effects.push(Effect::Reserved(id.clone(), to.clone()));
+                effects.push(Effect::Reserved {
+                    surface: id.clone(),
+                    to: to.clone(),
+                    from: owner.into(),
+                });
                 Ok(())
             }
             Command::Configure { .. } => self.configure_command(owner, command, effects),

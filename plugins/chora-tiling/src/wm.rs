@@ -44,6 +44,11 @@ pub struct Window {
     pub urgent: bool,
     /// The size that the client chose.
     pub size: Option<[i32; 2]>,
+    /// Where a drag put a window that does not tile, relative to the work
+    /// area of its output; centered without. The placement clamps it into
+    /// the work area, so that it never ends off-screen.
+    #[serde(default)]
+    pub at: Option<[i32; 2]>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -182,6 +187,7 @@ impl Wm {
             if !names.contains(&window.output) {
                 window.output = name.into();
                 window.tags = 1;
+                window.at = None;
             }
         }
     }
@@ -201,6 +207,7 @@ impl Wm {
             for window in self.windows.iter_mut().filter(|w| w.output == name) {
                 window.output.clone_from(&target);
                 window.tags = tags;
+                window.at = None;
             }
         }
     }
@@ -223,6 +230,7 @@ impl Wm {
             on_top: false,
             urgent: false,
             size: None,
+            at: None,
         };
         match self.config.new_window {
             NewWindow::Master => self.windows.insert(0, window),
@@ -251,6 +259,40 @@ impl Wm {
         let changed = window.size != Some(size);
         window.size = Some(size);
         changed && floats
+    }
+
+    /// Puts a window that does not tile at a point in scene coordinates,
+    /// for a drag: the output of tiling under the `pointer` takes it, else
+    /// it stays on its own. False for a window that tiles, and without a
+    /// change.
+    pub fn place(&mut self, id: &str, [x, y]: [i32; 2], pointer: [f64; 2]) -> bool {
+        let Some(window) = self.window(id).filter(|w| !self.tiles(w)) else {
+            return false;
+        };
+        let own = self.outputs.iter().position(|o| o.name == window.output);
+        let Some(output) = self.output_at(pointer).or(own).map(|i| &self.outputs[i]) else {
+            return false;
+        };
+        let (name, tags, [ax, ay, ..]) = (output.name.clone(), output.selected, output.area);
+        let Some(window) = self.window_mut(id) else {
+            return false;
+        };
+        let at = Some([x - ax, y - ay]);
+        if window.output != name {
+            (window.output, window.tags) = (name, nonzero(tags));
+        } else if window.at == at {
+            return false;
+        }
+        window.at = at;
+        true
+    }
+
+    /// Centers a window that a drag put somewhere, for example after a
+    /// hand-over that failed.
+    pub fn unplace(&mut self, id: &str) {
+        if let Some(window) = self.window_mut(id) {
+            window.at = None;
+        }
     }
 
     /// The focused window: the top window of the current output.
@@ -342,6 +384,8 @@ impl Wm {
             Action::Run(command) => return Some(Effect::Run(command.clone())),
             Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
             Action::Reload => return Some(Effect::Reload),
+            // The plugin handles the button events of a drag itself.
+            Action::Drag => return None,
             Action::FocusNext => self.focus_next(),
             Action::FocusPrevious => self.focus_prev(),
             Action::FocusBack => self.focus_back(),
@@ -699,7 +743,7 @@ impl Wm {
         let Some(window) = self.window_mut(&id) else {
             return;
         };
-        (window.output, window.tags) = (name, tags);
+        (window.output, window.tags, window.at) = (name, tags, None);
         self.focus(&id);
     }
 
@@ -784,9 +828,20 @@ impl Wm {
         }
     }
 
+    /// The output of tiling under a point in scene coordinates. The claim
+    /// is one box around all outputs and may hold outputs of other window
+    /// managers in between, so a drop tests the outputs themselves.
+    pub fn output_at(&self, [px, py]: [f64; 2]) -> Option<usize> {
+        self.outputs.iter().position(|o| {
+            let [x, y, w, h] = o.full.map(f64::from);
+            (x..x + w).contains(&px) && (y..y + h).contains(&py)
+        })
+    }
+
     /// The claim of the plugin (D55): the box around the work areas of
     /// its outputs. ponytail: one box, so the gaps between outputs of
-    /// another shape count too; a claim per output if that ever matters.
+    /// another shape count too, for new toplevels under the pointer; a
+    /// drop uses [`Wm::output_at`].
     pub fn claim(&self) -> Option<[f64; 4]> {
         let areas = self.outputs.iter().map(|o| o.area);
         let [x0, y0] = [
@@ -929,7 +984,14 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
     let [sw, sh] = window.size.unwrap_or([aw / 2, ah / 2]);
     let (mx, my) = window.maximized;
     let (w, h) = (if mx { aw } else { sw }, if my { ah } else { sh });
-    let at = [ax + (aw - w) / 2, ay + (ah - h) / 2];
+    let at = match window.at {
+        // Inside the work area; a window larger than it at its top left.
+        Some([x, y]) if !(mx || my) => [
+            (ax + x).min(ax + aw - w).max(ax),
+            (ay + y).min(ay + ah - h).max(ay),
+        ],
+        _ => [ax + (aw - w) / 2, ay + (ah - h) / 2],
+    };
     let states = States {
         maximized: mx && my,
         activated,
@@ -1234,6 +1296,41 @@ mod tests {
     }
 
     #[test]
+    fn a_drag_places_only_a_window_that_does_not_tile() {
+        let mut wm = wm(&["a"]);
+        let pointer = [10.0, 10.0];
+        assert!(!wm.place("a", [5, 6], pointer), "a tiles");
+        wm.act(&Action::ToggleFloating);
+        assert!(wm.place("a", [5, 6], pointer));
+        assert!(!wm.place("a", [5, 6], pointer), "no change");
+        assert_eq!(wm.arrange().pop().unwrap().at, Some([5, 6]));
+    }
+
+    /// A floating window stays in the work area of its output: after a
+    /// drag past its edge, a move of the output, a drag onto another
+    /// output that then goes, and a failed hand-over (2.4).
+    #[test]
+    fn a_floating_window_never_ends_off_screen() {
+        let mut wm = wm(&["a"]);
+        wm.act(&Action::ToggleFloating);
+        let at = |wm: &Wm| wm.arrange().pop().unwrap().at;
+        // 50 x 30, half the work area: dragged past the right edge.
+        wm.place("a", [500, 6], [99.0, 10.0]);
+        assert_eq!(at(&wm), Some([50, 6]));
+        wm.set_output("A", [1000, 0, 100, 60], [1000, 0, 100, 80]);
+        assert_eq!(at(&wm), Some([1050, 6]), "it moves with its output");
+        wm.set_output("B", [0, 0, 100, 60], [0, 0, 100, 80]);
+        assert!(wm.place("a", [10, 20], [20.0, 20.0]));
+        assert_eq!(wm.windows[0].output, "B");
+        assert_eq!(at(&wm), Some([10, 20]));
+        wm.remove_output("B");
+        assert_eq!(at(&wm), Some([1025, 15]), "centered on A");
+        wm.place("a", [1060, 6], [1070.0, 10.0]);
+        wm.unplace("a");
+        assert_eq!(at(&wm), Some([1025, 15]));
+    }
+
+    #[test]
     fn a_fullscreen_window_covers_others_only_with_the_focus() {
         let mut wm = wm(&["a", "b"]);
         wm.act(&Action::ToggleFullscreen);
@@ -1389,5 +1486,16 @@ mod tests {
         assert_eq!(wm.claim(), Some([0.0, 0.0, 100.0, 60.0]));
         wm.set_output("B", [100, 10, 50, 40], [100, 0, 50, 50]);
         assert_eq!(wm.claim(), Some([0.0, 0.0, 150.0, 60.0]));
+    }
+
+    /// Tiling on outputs 1 and 3, another window manager on 2: a drop on
+    /// 2 lies in the claim of tiling, but on no output of it (2.3).
+    #[test]
+    fn a_drop_between_the_outputs_of_tiling_is_on_none_of_them() {
+        let mut wm = wm(&[]);
+        wm.set_output("C", [200, 0, 100, 80], [200, 0, 100, 80]);
+        assert_eq!(wm.output_at([150.0, 10.0]), None);
+        assert_eq!(wm.output_at([50.0, 70.0]), Some(0), "the panel too");
+        assert_eq!(wm.output_at([250.0, 10.0]), Some(1));
     }
 }

@@ -14,10 +14,9 @@ use crate::region::{self, Content, Preset, Region, Regions, Rule};
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 8] = [
+const NEEDED: [&str; 7] = [
     "chapter_number",
     "chapter",
-    "chapter_large",
     "running_head",
     "heading",
     "body",
@@ -67,12 +66,45 @@ pub enum Theme {
 }
 
 /// The colors of both themes, RGBA from 0 to 1, by name. Each theme has
-/// a `background`.
+/// a `background`. A color that a theme of a file lacks comes from the
+/// theme of the same name in `mc.yaml`.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, from = "Colors")]
 pub struct Themes {
     pub light: BTreeMap<String, [f64; 4]>,
     pub dark: BTreeMap<String, [f64; 4]>,
+}
+
+/// The colors of both themes as a file has them.
+#[derive(Clone, Default, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Colors {
+    light: BTreeMap<String, [f64; 4]>,
+    dark: BTreeMap<String, [f64; 4]>,
+}
+
+impl From<Colors> for Themes {
+    fn from(colors: Colors) -> Self {
+        #[derive(Deserialize)]
+        struct File {
+            themes: Colors,
+        }
+        static DEFAULT_COLORS: std::sync::OnceLock<Colors> = std::sync::OnceLock::new();
+        let default = DEFAULT_COLORS.get_or_init(|| {
+            (serde_saphyr::from_str::<File>(DEFAULT))
+                .map_or_else(|_| Colors::default(), |f| f.themes)
+        });
+        let fill = |mut own: BTreeMap<String, [f64; 4]>, all: &BTreeMap<String, [f64; 4]>| {
+            for (name, rgba) in all {
+                own.entry(name.clone()).or_insert(*rgba);
+            }
+            own
+        };
+        Self {
+            light: fill(colors.light, &default.light),
+            dark: fill(colors.dark, &default.dark),
+        }
+    }
 }
 
 /// A color of a theme by its name, or RGBA from 0 to 1.
@@ -99,9 +131,12 @@ pub struct Style {
     pub weight: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<FontStyle>,
-    /// The font size in logical pixels; `step` without it.
+    /// The font size in logical pixels; `em` or `step` without it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<f64>,
+    /// The font size in em of `scale.base`: it grows with the base.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub em: Option<f64>,
     /// The font size as a step of the modular scale: `scale.base` times
     /// `scale.ratio` to the power of the step.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,14 +161,16 @@ pub struct Style {
 impl Style {
     /// This style over `under`: the fields that this one sets win.
     fn over(&self, under: Self) -> Self {
+        let sized = self.size.is_some() || self.em.is_some() || self.step.is_some();
         Self {
             base: None,
             family: self.family.clone().or(under.family),
             weight: self.weight.or(under.weight),
             style: self.style.or(under.style),
-            // A size and a step replace each other.
-            size: self.size.or(under.size.filter(|_| self.step.is_none())),
-            step: self.step.or(under.step),
+            // A size, an em and a step replace each other.
+            size: if sized { self.size } else { under.size },
+            em: if sized { self.em } else { under.em },
+            step: if sized { self.step } else { under.step },
             color: self.color.clone().or(under.color),
             line_height: self.line_height.or(under.line_height),
             letter_spacing: self.letter_spacing.or(under.letter_spacing),
@@ -194,13 +231,11 @@ pub struct Scale {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Layout {
-    /// A large number, the title below it in small caps.
+    /// The number, a bar and the title on one line at the left edge of
+    /// the text column.
     Number,
-    /// The title in small caps.
-    Caps,
-    /// One large title.
-    Large,
-    /// No head: the panels start under the header.
+    /// No number and no title: the panels or the window start where the
+    /// head would stand.
     None,
 }
 
@@ -261,9 +296,15 @@ pub struct Config {
     pub styles: BTreeMap<String, Style>,
     pub chapter: Chapter,
     pub page: Page,
+    /// The least width and height of a panel, in em of `scale.base`. A
+    /// narrow output shows fewer columns, a short one scrolls.
+    pub min_panel: [f64; 2],
     pub write: Write,
     /// The scene at the start.
     pub default_scene: String,
+    /// The order of the scenes, and so their numbers; the other scenes
+    /// follow in the order they appeared.
+    pub order: Vec<String>,
     /// The states of the agents of `agent.set`, by name.
     pub states: BTreeMap<String, State>,
     /// A binding and its action.
@@ -319,7 +360,9 @@ impl Config {
             ratio,
             baseline,
         } = self.scale;
-        let size = (style.size).unwrap_or_else(|| base * ratio.powi(style.step.unwrap_or(0)));
+        let size = (style.size)
+            .or(style.em.map(|em| base * em))
+            .unwrap_or_else(|| base * ratio.powi(style.step.unwrap_or(0)));
         if !(4.0..=512.0).contains(&size) {
             return Err(format!("styles.{name}: a size from 4 to 512"));
         }
@@ -354,16 +397,9 @@ impl Config {
     }
 }
 
-impl Settings for Config {
-    fn check(&self) -> Result<(), String> {
-        for (name, colors) in [("light", &self.themes.light), ("dark", &self.themes.dark)] {
-            if colors.values().flatten().any(|c| !(0.0..=1.0).contains(c)) {
-                return Err(format!("themes.{name}: each color from 0 to 1"));
-            }
-            if !colors.contains_key("background") {
-                return Err(format!("themes.{name}: a background"));
-            }
-        }
+impl Config {
+    /// The scale, the page and the least size of a panel.
+    fn check_layout(&self) -> Result<(), String> {
         let Scale {
             base,
             ratio,
@@ -378,6 +414,24 @@ impl Settings for Config {
             );
         }
         self.page.check()?;
+        if self.min_panel.iter().any(|m| !(1.0..=200.0).contains(m)) {
+            return Err("min_panel: a width and a height from 1 to 200".into());
+        }
+        Ok(())
+    }
+}
+
+impl Settings for Config {
+    fn check(&self) -> Result<(), String> {
+        for (name, colors) in [("light", &self.themes.light), ("dark", &self.themes.dark)] {
+            if colors.values().flatten().any(|c| !(0.0..=1.0).contains(c)) {
+                return Err(format!("themes.{name}: each color from 0 to 1"));
+            }
+            if !colors.contains_key("background") {
+                return Err(format!("themes.{name}: a background"));
+            }
+        }
+        self.check_layout()?;
         for name in NEEDED {
             if !self.styles.contains_key(name) {
                 return Err(format!("styles: no {name}"));
@@ -400,6 +454,12 @@ impl Settings for Config {
             let colors = [&self.themes.light, &self.themes.dark];
             if colors.iter().any(|c| !c.contains_key(&state.color)) {
                 return Err(format!("states.{name}: no color {}", state.color));
+            }
+        }
+        for (i, name) in self.order.iter().enumerate() {
+            crate::scene::check_name(name).map_err(|e| format!("order: {e}"))?;
+            if self.order[..i].contains(name) {
+                return Err(format!("order: {name} twice"));
             }
         }
         let presets = (self.preset.as_str(), &self.presets);
@@ -452,6 +512,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn both_themes_fill_every_color_of_the_terminal() {
+        // A file whose themes lack magenta, and cyan in the dark one.
+        let text = DEFAULT.replace("    magenta: [0.52, 0.25, 0.50, 1.0]\n", "");
+        let text = text.replace("    cyan: [0.52, 0.76, 0.76, 1.0]\n", "");
+        assert!(!text.contains("magenta: [0.52") && !text.contains("cyan: [0.52"));
+        let config = parse::<Config>(&text).unwrap();
+        let shell = region::command(&config.contents["shell"].command, &config.themes.light);
+        assert!(!shell.contains('{'), "{shell}");
+        assert_eq!(config.themes.dark["cyan"], [0.52, 0.76, 0.76, 1.0]);
+
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for colors in [&config.themes.light, &config.themes.dark] {
+            let command = region::command(&config.contents["shell"].command, colors);
+            assert!(!command.contains('{'), "{command}");
+            assert!(command.contains("colors-dark.regular5="), "{command}");
+        }
+    }
+
     fn sheet() -> Config {
         let mut config = parse::<Config>(DEFAULT).unwrap();
         config.scale = Scale {
@@ -485,6 +564,12 @@ mod tests {
             ..Style::default()
         };
         assert_eq!(config.resolve("margin", Some(&sized)).unwrap().size, 12.0);
+        // An em follows the base: the running head of the default.
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        let head = |c: &Config| c.resolve("running_head", None).unwrap().size;
+        assert!((head(&config) - 11.0).abs() < 0.01, "{}", head(&config));
+        config.scale.base = 27.0;
+        assert!((head(&config) - 16.5).abs() < 0.01, "{}", head(&config));
         let caps = Style {
             uppercase: Some(true),
             ..Style::default()

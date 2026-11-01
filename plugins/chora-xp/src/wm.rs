@@ -8,6 +8,7 @@ mod effects;
 mod items;
 mod resize;
 mod restart;
+mod voice;
 
 use std::{
     collections::HashMap,
@@ -16,6 +17,7 @@ use std::{
 };
 
 use chora_kit::{
+    give,
     icons::Icons,
     runtime::{Plugin, Runtime},
     settings::{self, Store},
@@ -31,6 +33,7 @@ use serde_json::{Value, json};
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
+    assistant::Assistant,
     balloon::{self, Balloon, Queue},
     config::{Config, Picture, Wallpaper},
     context::{self, Act},
@@ -79,12 +82,8 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 /// the Session Fade effect of the reference.
 const FADE: Duration = Duration::from_millis(1500);
 
-/// The window manager that a window dragged out of the work areas of
-/// `chora-xp` goes to (D55).
-const HANDOVER: &str = "tiling";
-
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 22] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -104,6 +103,10 @@ const EVENTS: [&str; 19] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
+    "client.connected",
+    "client.disconnected",
+    // The events of the voice agent (D65).
+    "voice.*",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -263,6 +266,14 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
+    /// The paperclip of the voice agent, while it shows.
+    assistant: Option<Assistant>,
+    /// The client name of the voice agent and its pose, while it is
+    /// connected and awake.
+    voice: Option<(String, crate::assistant::Pose)>,
+    /// Whether xp claims the state indicator of the voice agent at its
+    /// next event: after the start and after the agent connected.
+    claim_due: bool,
 }
 
 impl Plugin for Wm {
@@ -301,6 +312,7 @@ impl Wm {
         slow: f64,
     ) -> Result<Self, ClientError> {
         let mut methods = METHODS.map(ExportMethod::from).to_vec();
+        methods.push(give::method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
@@ -347,6 +359,9 @@ impl Wm {
             system_key: None,
             cube_grab: None,
             kept: HashMap::new(),
+            assistant: None,
+            voice: None,
+            claim_due: true,
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -357,6 +372,7 @@ impl Wm {
         // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
+        wm.ask_voice()?;
         Ok(wm)
     }
 
@@ -572,10 +588,28 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::OutputChanged { output } => {
-                [self.rescale()?, self.output_changed(&output)].concat()
+            Event::OutputChanged { output } => [
+                self.rescale()?,
+                self.output_changed(&output),
+                self.replace_assistant(),
+            ]
+            .concat(),
+            Event::OutputRemoved { name } => [
+                self.rescale()?,
+                self.output_removed(&name),
+                self.replace_assistant(),
+            ]
+            .concat(),
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } => self.voice_event(&event, &client, &data),
+            Event::ClientConnected { name } => {
+                self.voice_connected(&name);
+                Vec::new()
             }
-            Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
+            Event::ClientDisconnected { name } => self.voice_gone(&name),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -630,6 +664,13 @@ impl Wm {
                 return Ok(Value::Null);
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
+            Call::Give(give::Give { surface, to }) => {
+                known(self.index(&surface).is_some(), &surface)?;
+                let (answer, commands) = self.give(&surface, &to)?;
+                self.apply(commands)
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                return Ok(answer);
+            }
         };
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
@@ -1565,6 +1606,12 @@ impl Wm {
         if Balloon::owns(node) {
             return self.press_balloon(node);
         }
+        if Assistant::owns(node) {
+            return self.press_assistant();
+        }
+        if self.press_answer(node) {
+            return Vec::new();
+        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
@@ -2063,7 +2110,7 @@ impl Wm {
             #[allow(clippy::cast_possible_truncation)]
             let point = position.map(|p| p.floor() as i32);
             if !self.bars.iter().any(|b| b.contains(point)) {
-                return self.hand_over(&drag.surface);
+                return self.hand_over(&drag.surface, position);
             }
         }
         if let Some(group) = self
@@ -2130,30 +2177,38 @@ impl Wm {
     }
 
     /// A window dragged out of the work areas of `chora-xp` goes to the
-    /// window manager there, `tiling`, which places it by its own rules
-    /// (D55). Without that client the core refuses, and the window stays.
-    fn hand_over(&mut self, surface: &str) -> Vec<Command> {
-        let remove = vec![Command::Remove {
-            id: surface.into(),
-            to: Some(HANDOVER.into()),
-        }];
-        let result = self.try_apply(remove);
-        if let Ok(None) = result {
-            // The focus goes with the window to the other window manager;
-            // no window of chora-xp takes it.
-            if self.is_active(surface) {
-                self.focused = None;
-                self.grab_system_key(false);
-            }
-            return self.forget(surface);
-        }
-        eprintln!("chora-xp: {surface} stays: {result:?}");
+    /// window manager whose claim holds the drop point, which places it by
+    /// its own rules (D55). Without one there, or when the core refuses,
+    /// the window stays.
+    fn hand_over(&mut self, surface: &str, point: [f64; 2]) -> Vec<Command> {
+        let given = match self.rt.conn.claimant_at(point) {
+            Ok(Some(to)) => self.give(surface, &to),
+            Ok(None) => Err(RpcError::new(RpcError::REJECTED, "no claim there")),
+            Err(err) => Err(err),
+        };
+        let err = match given {
+            Ok((_, commands)) => return commands,
+            Err(err) => err,
+        };
+        eprintln!("chora-xp: {surface} stays: {}", err.message);
         // Back into a work area of chora-xp.
         let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
         match self.index(surface) {
             Some(i) => self.keep_inside(&[i], area),
             None => Vec::new(),
         }
+    }
+
+    /// Hands a window to the window manager `to` (D55), which gives it the
+    /// focus: the answer of `window.give`, and the commands.
+    fn give(&mut self, surface: &str, to: &str) -> Result<(Value, Vec<Command>), RpcError> {
+        let answer = self.rt.conn.give(surface, to)?;
+        // No window of chora-xp takes the focus.
+        if self.is_active(surface) {
+            self.focused = None;
+            self.grab_system_key(false);
+        }
+        Ok((answer, self.forget(surface)))
     }
 
     /// A button acts when the pointer goes up on it.
@@ -2461,6 +2516,7 @@ impl Wm {
             &mut self.theme,
             &mut self.icons,
         ));
+        commands.extend(self.sync_assistant(Instant::now()));
         commands
     }
 
@@ -3098,6 +3154,9 @@ enum Call {
         /// The desktop, from 0 to 3.
         desktop: usize,
     },
+    /// Hands a window to another window manager, like a drag out of the
+    /// work areas.
+    Give(give::Give),
 }
 
 /// Parameters of `xp.start_menu`.
@@ -3137,6 +3196,7 @@ fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
             surface: parse::<ForSurface>(params)?.surface,
         },
         "restart" => Call::Restart,
+        give::METHOD => Call::Give(parse(params)?),
         "turn_to" => {
             let TurnTo { desktop } = parse(params)?;
             if desktop >= DESKTOPS {

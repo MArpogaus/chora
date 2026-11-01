@@ -39,13 +39,30 @@ assets = [
   { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
   { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
   { source = "target/release/chora-xp", dest = "/usr/bin/chora-xp", mode = "755" },
+  { source = "target/release/chora-mc", dest = "/usr/bin/chora-mc", mode = "755" },
+  # chora-mc has its scenes, settings and shaders built in; the collectors
+  # that fill the scenes run from here.
+  { source = "../../plugins/chora-mc/collectors/*", dest = "/usr/share/chora/mc/collectors/", mode = "755" },
+  { source = "../../dist/fonts/09-chora-tex-gyre.conf", dest = "/etc/fonts/conf.d/09-chora-tex-gyre.conf", mode = "644", config = "noreplace" },
   { source = "../../LICENSE", dest = "/usr/share/licenses/chora/LICENSE", mode = "644" },
   { source = "../../README.md", dest = "/usr/share/doc/chora/README.md", mode = "644", doc = true },
   { source = "../../LICENSES/MIT-Smithay.txt", dest = "/usr/share/licenses/chora/MIT-Smithay.txt", mode = "644" },
+  { source = "target/release/chora-voice", dest = "/usr/bin/chora-voice", mode = "755" },
+  { source = "../../LICENSES/MIT-silero-vad.txt", dest = "/usr/share/licenses/chora/MIT-silero-vad.txt", mode = "644" },
+  # dist/build-rpm.sh writes the unit with ExecStart=/usr/bin/chora-voice.
+  { source = "../../target/dist/chora-voice.service", dest = "/usr/lib/systemd/user/chora-voice.service", mode = "644" },
+  # The Gufo model servers and the echo canceller, as examples
+  # (services/voice/README.md).
+  { source = "../../services/voice/systemd/*.container", dest = "/usr/share/chora/voice/quadlets/", mode = "644" },
+  { source = "../../services/voice/systemd/*.network", dest = "/usr/share/chora/voice/quadlets/", mode = "644" },
+  { source = "../../services/voice/pipewire/echo-cancel.conf", dest = "/usr/share/chora/voice/pipewire/echo-cancel.conf", mode = "644" },
+  { source = "../../services/voice/README.md", dest = "/usr/share/doc/chora/voice/README.md", mode = "644", doc = true },
   { source = "../../dist/session/chora.desktop", dest = "/usr/share/wayland-sessions/chora.desktop", mode = "644" },
   { source = "../../dist/session/chora-xp.desktop", dest = "/usr/share/wayland-sessions/chora-xp.desktop", mode = "644" },
   { source = "../../dist/session/chora-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-uwsm.desktop", mode = "644" },
   { source = "../../dist/session/chora-xp-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-xp-uwsm.desktop", mode = "644" },
+  { source = "../../dist/session/chora-construct.desktop", dest = "/usr/share/wayland-sessions/chora-construct.desktop", mode = "644" },
+  { source = "../../dist/session/chora-construct-uwsm.desktop", dest = "/usr/share/wayland-sessions/chora-construct-uwsm.desktop", mode = "644" },
   { source = "../../dist/session/env-chora", dest = "/etc/xdg/uwsm/env-chora", mode = "644", config = "noreplace" },
   { source = "../../dist/portal/chora-portals.conf", dest = "/usr/share/xdg-desktop-portal/chora-portals.conf", mode = "644" },
   { source = "../../dist/portal/xdg-desktop-portal-wlr", dest = "/etc/xdg/xdg-desktop-portal-wlr/chora", mode = "644", config = "noreplace" },
@@ -58,6 +75,8 @@ assets = [
   { source = "../../flavors/tiling/waybar/*", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
   { source = "../../dist/shaders/*", dest = "/usr/share/chora/shaders/", mode = "644" },
   { source = "../../dist/plugins/*", dest = "/usr/share/chora/plugins/", mode = "644" },
+  { source = "target/release/chora-construct", dest = "/usr/bin/chora-construct", mode = "755" },
+  { source = "../../flavors/construct/*", dest = "/usr/share/chora/flavors/construct/", mode = "644" },
   { source = "../../flavors/xp/chora-xp*", dest = "/usr/share/chora/flavors/xp/", mode = "644" },
   { source = "../../flavors/xp/theme/*", dest = "/usr/share/chora/flavors/xp/theme/", mode = "644" },
   { source = "../../flavors/xp/theme/expose/*", dest = "/usr/share/chora/flavors/xp/theme/expose/", mode = "644" },
@@ -69,12 +88,16 @@ assets = [
 ]
 auto-req = "auto"
 # The code is GPL-3.0-or-later; the theme of the XP flavor adds artwork,
-# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md).
-license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND OFL-1.1 AND CC-BY-SA-4.0"
+# fonts and a wallpaper under their own licenses (flavors/xp/theme/README.md),
+# chora-voice the MIT model of Silero VAD.
+license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND MIT AND OFL-1.1 AND CC-BY-SA-4.0"
 # uwsm for the sessions it manages (D50; not in Fedora 44 yet), the tools
 # of the tiling flavor (D51), X11 programs, and the portals for screen
-# sharing (D37) and the rest.
-recommends = { uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*" }
+# sharing (D37) and the rest, the fonts of chora-mc, and pw-record,
+# pw-play and the Gufo quadlets of chora-voice.
+recommends = { pipewire-utils = "*", podman = "*", uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
-summary = "Wayland compositor without policy, programmable by plugins and agents"
+# cargo-generate-rpm has no long description; the summary names the
+# experiments, whose methods and files change without notice.
+summary = "Wayland compositor without policy, programmable by plugins and agents (chora-mc and chora-construct experimental)"

@@ -32,10 +32,22 @@ fn spawn(cmd: &[String], stdin: Stdio, stdout: Stdio) -> io::Result<Child> {
         .spawn()
 }
 
+/// The VAD hears the mic with a gain that lifts its recent peak level
+/// to `VAD_PEAK`; the gain is at most `VAD_PEAK / VAD_MIN_PEAK`. The
+/// peak halves in about 30 s without louder sound.
+const VAD_PEAK: f64 = 1000.0;
+const VAD_MIN_PEAK: f64 = 30.0;
+const PEAK_DECAY: f64 = 0.999_26;
+
 /// Turns raw PCM into frames with their speech probability and level.
 pub struct Analyzer {
     vad: Vad,
     down: Downsampler,
+    /// The decaying peak level of the mic. Silero hears quiet speech
+    /// (RMS 20-70 behind an echo canceller) late or not at all.
+    // ponytail: one loud click keeps the gain at 1 for a while; a
+    // percentile of the speech levels if that matters.
+    peak: f64,
     /// Frames slower than real time since the last log line.
     slow: u32,
 }
@@ -46,6 +58,7 @@ impl Analyzer {
             vad,
             down: Downsampler::default(),
             slow: 0,
+            peak: VAD_PEAK,
         }
     }
 
@@ -62,9 +75,14 @@ impl Analyzer {
     /// The model fails.
     pub fn frame(&mut self, samples: Vec<i16>) -> Result<Frame, String> {
         let start = Instant::now();
-        let low: [f32; vad::FRAME] = self
-            .down
-            .push(&samples)
+        self.peak = (self.peak * PEAK_DECAY)
+            .max(pcm::rms(&samples))
+            .max(VAD_MIN_PEAK);
+        #[allow(clippy::cast_possible_truncation)]
+        let gain = (VAD_PEAK / self.peak).max(1.0) as f32;
+        let low: [f32; vad::FRAME] = (self.down.push(&samples).into_iter())
+            .map(|x| (x * gain).clamp(-1.0, 1.0))
+            .collect::<Vec<_>>()
             .try_into()
             .map_err(|_| "a frame of 768 samples")?;
         let prob = self.vad.probability(&low).map_err(|e| e.to_string())?;

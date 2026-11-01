@@ -96,12 +96,18 @@ impl<A> Runtime<A> {
     ///
     /// The socket fails, or the core refuses the `hello`.
     pub fn connect(name: &str, outputs: Vec<String>) -> Result<Self, ClientError> {
-        Ok(Self {
-            conn: Conn::connect(name)?,
+        Ok(Self::with(Conn::connect(name)?, name, outputs))
+    }
+
+    /// A runtime on a connection, for example of [`Conn::connect_at`].
+    #[must_use]
+    pub fn with(conn: Conn, name: &str, outputs: Vec<String>) -> Self {
+        Self {
+            conn,
             name: name.into(),
             outputs,
             grabs: Vec::new(),
-        })
+        }
     }
 
     /// Subscribes to `events` and exports `methods`. The events of the

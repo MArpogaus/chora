@@ -1,0 +1,238 @@
+#!/bin/bash
+# Gate of the handover between window managers (D55). A headless session
+# gets three outputs: xp on the first, tiling on the second, mc on the
+# third, each with `--output`. A foot window moves between them:
+#
+# 1. a drag of its title bar from xp to the tiling output: tiling owns it;
+# 2. `window.give` of tiling to xp: xp owns it;
+# 3. `choractl give mc`: mc owns it;
+# 4. `window.give` of mc to tiling, then a drag with Super and the left
+#    button from tiling to the xp output: xp owns it;
+# 5. a give to a client that does not exist is refused, and the window
+#    stays with xp;
+# 6. Super and the left button on the xp output turn the cube of xp: both
+#    window managers grab the binding, and the claim under the pointer
+#    picks one;
+# 7. a Super drag moves a floating window of tiling, and a drop on the xp
+#    output gives it to xp;
+# 8. a foot with client-side decorations drags its title bar
+#    (xdg_toplevel.move) from tiling to the xp output: xp owns it;
+# 9. tiling ends right after a give to it: the window is not lost.
+#
+# After each step every surface is attached, visible and owned, and the
+# window that moved has the keyboard focus. Captures go to SHOTS as
+# handover-*.png.
+#
+# Usage: tests/gate-handover.sh   BIN: directory with the binaries
+#   SHOTS: directory for the captures (default: a temp dir)
+# pipefail: a `ctl wait` that times out fails the `ctl ... | jq`.
+set -uo pipefail
+. "$(dirname "$0")/gate-lib.sh"
+need jq
+need foot
+need_bins chora choractl chora-tiling chora-xp chora-mc
+temp_config
+shots=${SHOTS:-$XDG_CONFIG_HOME}
+mkdir -p "$shots"
+export PATH=$bin:$PATH
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
+theme=$repo/flavors/xp/theme
+
+session_start 1280x800
+grant input.inject screen.capture methods.call
+ctl add-output 1280x800+1280+0 >/dev/null || fail "add-output"
+ctl add-output 1280x800+2560+0 >/dev/null || fail "add-output"
+mapfile -t outs < <(ctl outputs | jq -r 'sort_by(.position[0]) | .[].name')
+[ "${#outs[@]}" = 3 ] || fail "three outputs: ${outs[*]}"
+xp_out=${outs[0]} tiling_out=${outs[1]} mc_out=${outs[2]}
+
+# plugin NAME ARGS: a plugin in the background, its pid in pid_NAME.
+plugin() {
+    local name=$1
+    shift
+    "$bin/chora-$name" "$@" >"$shots/$name.log" 2>&1 &
+    pids+=($!)
+    printf -v "pid_$name" %s $!
+}
+# Both grab Super+BTN_LEFT: tiling for its drag, xp for its cube (D55).
+plugin tiling --output "$tiling_out"
+plugin xp --theme "$theme" --output "$xp_out"
+plugin mc --manage-windows --output "$mc_out"
+for c in tiling xp mc; do
+    ctl wait "owner:$c" --timeout 20 >/dev/null || fail "$c does not start: $(tail -n 3 "$shots/$c.log")"
+done
+
+# The pointer on the xp output, so that the new window goes to xp.
+inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
+inject "[{\"pointer_move\": {\"position\": [640, 300], \"output\": \"$xp_out\"}}]"
+foot -f "DejaVu Sans Mono:size=10" sh -c 'echo handover; sleep 600' >"$shots/foot.log" 2>&1 &
+run_pid $!
+w=$(ctl wait "app_id:foot kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
+    fail "foot does not show in xp"
+
+# settled OWNER [WINDOW]: within 20 s every surface is attached, visible
+# and owned, and WINDOW, $w by default, belongs to OWNER and has the focus.
+settled() {
+    local all w=${2:-$w}
+    for _ in $(seq 100); do
+        all=$(ctl query kind:surface)
+        echo "$all" | jq -e --arg w "$w" --arg o "$1" '
+            all(.[]; .owner != null and .parent != null and ((.rects // {}) | length) > 0)
+            and any(.[]; .id == $w and .owner == $o and .focused == true)' >/dev/null &&
+            return 0
+        sleep 0.2
+    done
+    fail "$w is not settled with $1: $(echo "$all" | jq -c 'map({id, owner, parent, focused, rects})')"
+}
+shot() {
+    local o
+    for o in "${outs[@]}"; do
+        ctl capture "$shots/handover-$1-$o.png" --output "$o" >/dev/null || fail "capture $1 $o"
+    done
+}
+settled xp
+shot 0-start
+ok "foot $w starts in xp"
+
+# 1. The title bar to the middle of the tiling output.
+inject "[{\"pointer_move\": {\"node\": \"xp-title-$w\", \"point\": [60, 10]}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [300, 300], \"output\": \"$xp_out\"}},
+  {\"pointer_move\": {\"position\": [640, 400], \"output\": \"$tiling_out\"}},
+  {\"button\": {\"state\": \"released\"}}]"
+settled tiling
+shot 1-drag
+ok "1. a drag from xp to the tiling output: tiling owns $w"
+
+# 2. window.give of tiling.
+ctl call tiling window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null || fail "tiling window.give"
+settled xp
+shot 2-give
+ok "2. window.give of tiling to xp: xp owns $w"
+
+# 3. choractl give finds the owner of the focused window.
+ctl give mc >/dev/null || fail "choractl give mc"
+settled mc
+shot 3-mc
+ok "3. choractl give mc: mc owns $w"
+
+# 4. mc gives it to tiling; a drag with Super to the xp output.
+ctl call mc window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||
+    fail "mc window.give"
+settled tiling
+inject "[{\"pointer_move\": {\"node\": \"$w\", \"point\": [100, 100]}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [640, 400], \"output\": \"$xp_out\"}},
+  {\"button\": {\"state\": \"released\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+settled xp
+shot 4-super-drag
+ok "4. mc to tiling by window.give, tiling to xp by a Super drag: xp owns $w"
+
+# 5. No such client: refused, and the window stays.
+if ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"nobody\"}" >/dev/null 2>&1; then
+    fail "a give to nobody was accepted"
+fi
+settled xp
+ok "5. a give to a client that does not exist is refused; xp keeps $w"
+
+# rect WINDOW: where a window shows.
+rect() { ctl query "id:$1" | jq -c '.[0].rects'; }
+# super_drag WINDOW X Y OUTPUT: a drag with Super and the left button from
+# a point of a window to a point of an output.
+super_drag() {
+    inject "[{\"pointer_move\": {\"node\": \"$1\", \"point\": [100, 60]}},
+      {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+      {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+      {\"pointer_move\": {\"position\": [$2, $3], \"output\": \"$4\"}},
+      {\"button\": {\"state\": \"released\"}},
+      {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+}
+
+# 6. The cube of xp: its faces show while Super and the button are down.
+faces() { ctl query owner:xp | jq '[.[] | select(.id | startswith("xp-face"))] | length'; }
+inject "[{\"pointer_move\": {\"position\": [1000, 150], \"output\": \"$xp_out\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [700, 150], \"output\": \"$xp_out\"}}]"
+for _ in $(seq 50); do
+    [ "$(faces)" -gt 0 ] && break
+    sleep 0.2
+done
+[ "$(faces)" -gt 0 ] || fail "Super and the button on the xp output turn no cube"
+shot 6-cube
+inject "[{\"button\": {\"state\": \"released\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+for _ in $(seq 100); do
+    [ "$(faces)" = 0 ] && break
+    sleep 0.2
+done
+[ "$(faces)" = 0 ] || fail "the cube does not end"
+settled xp
+ok "6. Super and the left button on the xp output turn the cube of xp"
+
+# 7. tiling floats its windows; a Super drag moves $w on the tiling
+# output, a second one to the xp output gives it to xp.
+ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||
+    fail "xp window.give to tiling"
+settled tiling
+ctl call tiling set_layout '{"layout": "floating"}' >/dev/null || fail "tiling set_layout"
+settled tiling
+before=$(rect "$w")
+super_drag "$w" 300 200 "$tiling_out"
+settled tiling
+after=$(rect "$w")
+[ "$before" != "$after" ] || fail "a Super drag does not move $w: $after"
+shot 7-moved
+super_drag "$w" 640 400 "$xp_out"
+settled xp
+ok "7. a Super drag moves $w in tiling ($before to $after), a drop on xp gives it to xp"
+
+# 8. A foot with client-side decorations: a press on its title bar asks
+# for an interactive move.
+foot -o csd.preferred=client -f "DejaVu Sans Mono:size=10" -a csd \
+    sh -c 'echo csd; sleep 600' >"$shots/foot-csd.log" 2>&1 &
+run_pid $!
+# The focus is with xp, so the new window goes to xp first.
+c=$(ctl wait "app_id:csd kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
+    fail "the csd foot does not show"
+ctl call xp window.give "{\"surface\": \"$c\", \"to\": \"tiling\"}" >/dev/null ||
+    fail "xp window.give of $c to tiling"
+settled tiling "$c"
+shot 8-csd
+before=$(rect "$c")
+# foot answers the press with the move request, so the pointer waits.
+inject "[{\"pointer_move\": {\"node\": \"$c\", \"point\": [150, 12]}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"
+sleep 0.5
+inject "[{\"pointer_move\": {\"position\": [500, 300], \"output\": \"$tiling_out\"}}]"
+for _ in $(seq 25); do
+    after=$(rect "$c")
+    [ "$before" != "$after" ] && break
+    sleep 0.2
+done
+shot 8-csd-drag
+[ "$before" != "$after" ] || fail "the title bar does not move $c: $after"
+inject "[{\"pointer_move\": {\"position\": [640, 400], \"output\": \"$xp_out\"}},
+  {\"button\": {\"state\": \"released\"}}]"
+settled xp "$c"
+shot 8-csd-xp
+ok "8. the title bar of a csd foot moves $c in tiling ($before to $after) and gives it to xp"
+
+# 9. The target ends right after the give. With resume its grace time of
+# 10 s keeps the window, then another window manager takes it.
+ctl call xp window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null ||
+    fail "xp window.give to tiling"
+# shellcheck disable=SC2154 # printf -v in the start sets it
+kill "$pid_tiling"
+for _ in $(seq 100); do
+    owner=$(ctl query "id:$w" | jq -r '.[0].owner')
+    [ "$owner" = xp ] || [ "$owner" = mc ] && break
+    sleep 0.2
+done
+[ "$owner" = xp ] || [ "$owner" = mc ] || fail "$w is with ${owner:-nobody} 20 s after tiling ended"
+settled "$owner"
+shot 9-killed
+ok "9. tiling ended after the give: $owner adopted $w"
+echo "ok: gate-handover; captures in $shots"

@@ -14,7 +14,7 @@ mod selector;
 mod transform;
 
 pub use animation::{Easing, MAX_DURATION};
-pub use binding::{Binding, BindingError, Modifiers};
+pub use binding::{Binding, BindingError, MOVE, Modifiers};
 pub use command::{Command, Effect, ToplevelState};
 pub use event::{Event, NAMES as EVENT_NAMES, OutputInfo, ScrollSource, SurfaceRequest};
 pub use node::{
@@ -24,7 +24,7 @@ pub use node::{
 };
 pub use scene::{
     INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, OVERLAY, Placed, Scene, SceneError,
-    TransactionError, overlay_id,
+    TransactionError, claimant_at, overlay_id,
 };
 pub use selector::{Selector, SelectorError};
 pub use transform::Transform;

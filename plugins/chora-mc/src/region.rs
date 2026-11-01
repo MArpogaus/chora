@@ -27,6 +27,13 @@ pub const REGIONS: &str = "mc-regions";
 /// a new docked app until its first size fits. Its empty animation times
 /// the wait for that size.
 pub const PARKED: &str = "mc-parked";
+/// A hidden group of copies of the items, to measure their new texts.
+const PROBE: &str = "mc-probe";
+
+/// The id of the hidden copy of an item.
+pub fn probe(id: &str) -> String {
+    format!("{id}-probe")
+}
 /// How long a new docked app waits for a size that fits, in milliseconds.
 pub const FIT_MS: f64 = 1000.0;
 /// The most lines that `content.add` keeps.
@@ -369,9 +376,9 @@ impl Mc {
         self.put.iter().chain(settings).cloned().collect()
     }
 
-    /// Whether a scene is one of an app: no head, no panels.
+    /// Whether a scene is one of an app, or has no panels.
     pub fn is_app(&self, name: &str) -> bool {
-        self.scenes.get(name).is_none_or(|s| !Self::has_chapter(s))
+        (self.scenes.get(name)).is_none_or(|s| s.app.is_some() || s.panels.is_empty())
     }
 
     /// The contents of each region of a scene, by slot; a solo content
@@ -394,12 +401,14 @@ impl Mc {
     }
 
     /// Shows a content alone in a region, or hides it again: the region
-    /// then shows as before. Answers whether it shows.
+    /// then shows as before. Answers whether it shows. Only for the user
+    /// the keyboard leaves a docked app that the solo hides.
     pub fn solo(
         &mut self,
         content: &str,
         region: Region,
         shown: Option<bool>,
+        user: bool,
     ) -> Result<bool, ClientError> {
         let on = (self.solo.as_ref()).is_some_and(|s| s.content == content && s.region == region);
         let new = shown.unwrap_or(!on);
@@ -418,10 +427,7 @@ impl Mc {
             self.toggled.insert(region, true);
             // A docked app of the region waits hidden: the keyboard goes
             // back to the scene.
-            if self
-                .focused
-                .as_ref()
-                .is_some_and(|f| self.docks.values().any(|d| d == f))
+            if user && (self.focused.as_ref()).is_some_and(|f| self.docks.values().any(|d| d == f))
             {
                 let name = self.current.clone().unwrap_or_default();
                 let window = self.windows.get(&name).cloned();
@@ -475,18 +481,15 @@ impl Mc {
     }
 
     /// The running head of a scene: the one of its chapter, or its number
-    /// and title; the name of an app.
+    /// and title.
     fn head(&self, name: &str) -> String {
         let Some(scene) = self.scenes.get(name) else {
             return String::new();
         };
-        if !Self::has_chapter(scene) {
-            return title_of(name);
-        }
         let chapter = &scene.chapter;
         chapter.running_head.clone().unwrap_or_else(|| {
             let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
-            format!("{}  {title}", self.number(name, scene))
+            format!("{}  {title}", self.number(name))
         })
     }
 
@@ -525,14 +528,12 @@ impl Mc {
             }
         }
         // The sides show only where they fit.
-        if let Some(scene) = self.scenes.get(name) {
-            let [left, right] = self.side_widths(name, scene);
-            out.retain(|region, _| match region {
-                Region::Left => left > 0.0,
-                Region::Right => right > 0.0,
-                _ => true,
-            });
-        }
+        let [left, right] = self.side_widths(name);
+        out.retain(|region, _| match region {
+            Region::Left => left > 0.0,
+            Region::Right => right > 0.0,
+            _ => true,
+        });
         out
     }
 
@@ -577,17 +578,15 @@ impl Mc {
 
     /// The widths of the left and the right side of a scene, 0 for a side
     /// without contents, and both 0 when the sides would leave the text
-    /// less than three quarters of its measure.
-    pub fn side_widths(&self, name: &str, scene: &Scene) -> [f64; 2] {
+    /// less than three quarters of the measure of a column.
+    pub fn side_widths(&self, name: &str) -> [f64; 2] {
         let Some(output) = &self.output else {
             return [0.0, 0.0];
         };
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
-        let page = self.page(scene);
+        let page = &config.page;
         let gap = page.gap * em;
-        let cols = f64::from(scene.grid[0]);
-        let want = cols * page.measure * em + (cols - 1.0) * (page.margin * em + 2.0 * gap);
         let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (page.margin * em + gap);
         let placed = self.placed(name);
         let sides = [Region::Left, Region::Right].map(|region| {
@@ -598,7 +597,9 @@ impl Mc {
             }
         });
         let need: f64 = sides.iter().filter(|w| **w > 0.0).map(|w| w + gap).sum();
-        if room - need < 0.75 * want {
+        // One column of text, since the columns of the grid wrap where
+        // they do not fit; all of them hid the sides below 1900 pixels.
+        if room - need < 0.75 * page.measure * em {
             [0.0, 0.0]
         } else {
             sides
@@ -620,10 +621,11 @@ impl Mc {
         } else {
             0.0
         };
-        let app = self.is_app(name);
-        // The text block of the scene, or of a page of one column over an
-        // app, so that the lines stay where they are between scenes.
-        let geo = if app {
+        // A scene without a head, such as of a window that no scene
+        // started: the text block of an empty page, so that the lines
+        // stay where they are between scenes.
+        let headless = (self.scenes.get(name)).is_none_or(|s| !Self::has_chapter(s));
+        let geo = if headless {
             self.geometry_of(name, &Scene::default())?
         } else {
             self.geometry(name)?
@@ -632,7 +634,7 @@ impl Mc {
         let (note, gap) = (geo.note, geo.gap);
         let mut regions = BTreeMap::new();
         // Over the text of a page, else over the whole app.
-        let (lx, lw) = if app {
+        let (lx, lw) = if headless {
             (2.0 * b, w - 4.0 * b)
         } else {
             (x, width)
@@ -642,11 +644,11 @@ impl Mc {
         let frame = [x - note - gap, width + 2.0 * (note + gap)];
         let drawer_top = h - foot - drawer;
         regions.insert(Region::Drawer, [frame[0], drawer_top, frame[1], drawer]);
-        let [lw, rw] = self.side_widths(name, self.scenes.get(name)?);
-        let side_top = if app { head + b } else { top };
+        let [lw, rw] = self.side_widths(name);
+        let side_top = if headless { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
-        if app {
+        if headless {
             // Each side has a box, also one that fades out.
             regions.insert(Region::Left, [b, side_top, lw, side_h]);
             regions.insert(Region::Right, [w - b - rw, side_top, rw, side_h]);
@@ -656,6 +658,10 @@ impl Mc {
             let right = if on(Region::Right) { rw + 2.0 * b } else { 0.0 };
             window[2] = (w - window[0] - right).max(b);
         } else {
+            // The window of an app scene fills its text block, above the
+            // drawer.
+            let [_, _, _, height] = geo.text;
+            window = [x, top, width, height.min(drawer_top - b - top).max(b)];
             let left = x - note - 2.0 * gap - lw;
             regions.insert(Region::Left, [left, side_top, lw, side_h]);
             regions.insert(Region::Right, [x + width + gap, side_top, rw, side_h]);
@@ -666,9 +672,33 @@ impl Mc {
     /// The regions that show in the current scene.
     fn visible(&self, items: &Plan) -> Vec<Region> {
         let name = self.current.clone().unwrap_or_default();
+        self.visible_in(&name, items)
+    }
+
+    /// The box of the drawer of the current scene, while it shows.
+    pub fn drawer_box(&self) -> Option<[f64; 4]> {
+        let name = self.current.clone()?;
+        let items = self.items(&name);
+        let visible = self.visible(&items);
+        visible.contains(&Region::Drawer).then_some(())?;
+        self.boxes(&name, &visible)?
+            .regions
+            .get(&Region::Drawer)
+            .copied()
+    }
+
+    /// The regions with `items` that show in a scene.
+    fn visible_in(&self, name: &str, items: &Plan) -> Vec<Region> {
         (items.keys().copied())
-            .filter(|r| self.shown(*r, &name))
+            .filter(|r| self.shown(*r, name))
             .collect()
+    }
+
+    /// The box of the window of an app scene: below its head, free of
+    /// the regions that show in it.
+    pub fn window_box(&self, name: &str) -> Option<[f64; 4]> {
+        let visible = self.visible_in(name, &self.items(name));
+        Some(self.boxes(name, &visible)?.window)
     }
 
     /// Draws the regions of the current scene anew.
@@ -696,25 +726,25 @@ impl Mc {
             return Ok(Vec::new());
         };
         items.retain(|r, _| visible.contains(r));
+        // The ids without the set, which alternates with each new set.
+        let set = format!("mc-r{}-", self.set);
         let key: Vec<String> = std::iter::once(name.clone())
             .chain(visible.iter().map(|r| r.name().into()))
-            .chain(
-                items
-                    .values()
-                    .flat_map(|(i, d)| i.iter().map(|i| i.id.clone()).chain(d.iter().cloned())),
-            )
+            .chain(items.values().flat_map(|(i, d)| {
+                (i.iter().map(|i| i.id.replacen(&set, "", 1))).chain(d.iter().cloned())
+            }))
             .collect();
         let sigs: BTreeMap<Region, String> = (items.iter())
             .map(|(r, plan)| (*r, signature(plan, boxes.regions[r])))
             .collect();
+        // The window of an app scene leaves the regions free; also when
+        // the regions stay, since it may have come after them.
+        let window = (self.windows.get(&name)).map(|s| place(s, boxes.window, self.output_size()));
         if self.rendered.as_ref() == Some(&key) {
-            let updates = (items.values().flat_map(|(i, _)| i)).map(|i| Command::Update {
-                id: i.id.clone(),
-                props: i.props.clone(),
-            });
-            self.apply(updates.collect())?;
             self.sigs = sigs;
-            return self.arrange(&items, &boxes);
+            let mut commands = self.update(&items, &boxes)?;
+            commands.extend(window.into_iter().flatten());
+            return Ok(commands);
         }
         let old = self.rendered.is_some().then(|| set_id(self.set));
         let items = self.prepare(&name, &visible, &boxes, &sigs)?;
@@ -739,11 +769,43 @@ impl Mc {
         self.left = old.is_some().then_some(left);
         self.sigs = sigs;
         self.rendered = Some(key);
-        // The window of an app scene leaves the regions free.
-        if let Some(surface) = self.windows.get(&name) {
-            commands.extend(place(surface, boxes.window, self.output_size()));
-        }
+        commands.extend(window.into_iter().flatten());
         Ok(commands)
+    }
+
+    /// The same items with new texts: measured on hidden copies first, so
+    /// that their texts change and they move in one transaction, without
+    /// a fade.
+    fn update(&mut self, items: &Plan, boxes: &Boxes) -> Result<Vec<Command>, ClientError> {
+        let hidden = PropsUpdate {
+            opacity: Some(0.0),
+            ..PropsUpdate::default()
+        };
+        let mut probes = vec![create(PROBE, NodeKind::Group, REGIONS, hidden)];
+        let mut updates = Vec::new();
+        for (region, (region_items, _)) in items {
+            let width = boxes.regions[region][2];
+            for item in region_items {
+                let props = PropsUpdate {
+                    max_width: (!region.is_line()).then_some(width),
+                    ..item.props.clone()
+                };
+                probes.push(create(&probe(&item.id), NodeKind::Text, PROBE, props));
+                updates.push(Command::Update {
+                    id: item.id.clone(),
+                    props: item.props.clone(),
+                });
+            }
+        }
+        self.apply(probes)?;
+        let moves = self.arrange(items, boxes, true);
+        // In a transaction of its own: the caller's may be refused.
+        self.apply(vec![Command::Remove {
+            id: PROBE.into(),
+            to: None,
+        }])?;
+        updates.extend(moves?);
+        Ok(updates)
     }
 
     /// Creates the new set of the regions, invisible, so that the core
@@ -797,7 +859,7 @@ impl Mc {
         boxes: &Boxes,
         sigs: &BTreeMap<Region, String>,
     ) -> Result<(Vec<Command>, Vec<String>), ClientError> {
-        let mut commands = self.arrange(items, boxes)?;
+        let mut commands = self.arrange(items, boxes, false)?;
         commands.push(Command::Update {
             id: set_id(self.set),
             props: PropsUpdate {
@@ -902,13 +964,18 @@ impl Mc {
 
     /// Moves the items of the regions to their places, as the core lays
     /// them out: side by side in a line, else one under the other.
-    fn arrange(&mut self, items: &Plan, boxes: &Boxes) -> Result<Vec<Command>, ClientError> {
+    fn arrange(
+        &mut self,
+        items: &Plan,
+        boxes: &Boxes,
+        probed: bool,
+    ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
         let mut commands = Vec::new();
         for (region, (items, _)) in items {
             let [_, _, width, height] = boxes.regions[region];
             if region.is_line() {
-                commands.extend(self.line(items, [width, height])?);
+                commands.extend(self.line(items, [width, height], probed)?);
                 continue;
             }
             let mut y = 0.0;
@@ -917,7 +984,7 @@ impl Mc {
                     y += baseline;
                 }
                 commands.push(move_to(item.id.clone(), 0.0, y));
-                let [_, _, _, item_height] = self.rect(&item.id)?.unwrap_or_default();
+                let [_, _, _, item_height] = self.measure(&item.id, probed)?;
                 y += item_height.max(baseline);
             }
         }
@@ -931,12 +998,13 @@ impl Mc {
         &mut self,
         items: &[Item],
         [width, height]: [f64; 2],
+        probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let config = &self.settings.value;
         let (baseline, gap) = (config.scale.baseline, config.page.gap * config.scale.base);
         let mut sizes = Vec::new();
         for item in items {
-            let [_, _, w, h] = self.rect(&item.id)?.unwrap_or_default();
+            let [_, _, w, h] = self.measure(&item.id, probed)?;
             sizes.push((item, w, h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
@@ -984,8 +1052,14 @@ impl Mc {
 
     /// Shows or hides a region, by key or by method. Without `shown`, a
     /// region whose docked app has no focus takes it first; a second
-    /// press hides it. Answers whether it shows.
-    pub fn toggle(&mut self, region: Region, shown: Option<bool>) -> Result<bool, ClientError> {
+    /// press hides it. Answers whether it shows. Only a toggle of the
+    /// user moves the keyboard.
+    pub fn toggle(
+        &mut self,
+        region: Region,
+        shown: Option<bool>,
+        user: bool,
+    ) -> Result<bool, ClientError> {
         let name = self.current.clone().unwrap_or_default();
         let items = self.items(&name);
         let visible = self.visible(&items).contains(&region);
@@ -996,7 +1070,8 @@ impl Mc {
                 .map(|(_, c)| c.clone())
         });
         let surface = app.as_ref().and_then(|a| self.docks.get(a)).cloned();
-        if shown.is_none()
+        if user
+            && shown.is_none()
             && visible
             && let Some(surface) = &surface
             && self.focused.as_ref() != Some(surface)
@@ -1008,11 +1083,17 @@ impl Mc {
         self.toggled.insert(region, new);
         if new && let Some(app) = &app {
             match &surface {
-                Some(surface) => self.focus(Some(surface.clone()))?,
-                None => self.start_dock(app),
+                Some(surface) if user => self.focus(Some(surface.clone()))?,
+                Some(_) => {}
+                None => {
+                    self.start_dock(app);
+                    if user {
+                        self.dock_focus = Some(app.clone());
+                    }
+                }
             }
         }
-        if !new && surface.is_some() && self.focused == surface {
+        if user && !new && surface.is_some() && self.focused == surface {
             let window = self.windows.get(&name).cloned();
             self.focus(window)?;
         }
@@ -1148,7 +1229,7 @@ fn park(surface: &str, parent: &str) -> Command {
 
 /// Puts a window at a box of its parent: full screen at the size of the
 /// output, else tiled.
-fn place(surface: &str, [x, y, w, h]: [f64; 4], output: [i32; 2]) -> [Command; 2] {
+pub fn place(surface: &str, [x, y, w, h]: [f64; 4], output: [i32; 2]) -> [Command; 2] {
     #[allow(clippy::cast_possible_truncation)] // pixels of a screen
     let size = [w.round() as i32, h.round() as i32];
     let full = size == output && x == 0.0 && y == 0.0;
@@ -1225,7 +1306,9 @@ mod tests {
         let moved = layout(&rules, &config.contents, "agenda", false);
         assert_eq!(
             names(&moved, Region::Left),
-            ["next", "notes", "notify", "outline", "overlay", "urgent"]
+            [
+                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+            ]
         );
         assert!(!moved.contains_key(&Region::Right));
         let other = layout(&rules, &config.contents, "mail", false);
@@ -1265,6 +1348,35 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    /// Live at 1156 logical pixels (scale 1.5): the right side showed
+    /// as open but drew nothing, since the sides had to leave room for
+    /// all four columns of the grid, which wrap there anyway.
+    #[test]
+    fn the_sides_show_on_a_narrow_output() {
+        let (mut mc, model) = crate::testing::mc("narrow", [1156, 1115]);
+        mc.show("agenda", true).unwrap();
+        mc.set_text("notes", None, |_| vec!["Call Lena".into()])
+            .unwrap();
+        let id = format!("{}-notes", mc.region_id(Region::Right));
+        assert!(crate::testing::has(&model, &id), "{id}");
+        assert!(mc.side_widths("agenda")[1] > 0.0);
+        // A side that does not leave a column of text still hides.
+        let (mc, _) = crate::testing::mc("tiny", [700, 700]);
+        assert_eq!(mc.side_widths("agenda"), [0.0, 0.0]);
+    }
+
+    /// The probe of an update whose transaction the caller drops, as
+    /// the core refuses it, must not stay: every later update failed with
+    /// Exists.
+    #[test]
+    fn the_probe_goes_also_when_the_update_is_dropped() {
+        let (mut mc, model) = crate::testing::mc("probe", [1920, 1080]);
+        mc.show("agenda", true).unwrap();
+        let dropped = mc.regions().unwrap();
+        assert!(!dropped.is_empty(), "an update of the same regions");
+        assert!(!crate::testing::has(&model, PROBE));
     }
 
     #[test]

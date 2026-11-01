@@ -1433,3 +1433,74 @@ fn the_meta_data_of_a_node_has_limits() {
     };
     assert!(matches!(error(&mut scene, create), SceneError::Invalid(_)));
 }
+
+/// Only window managers receive windows (D55): a `remove` with `to`
+/// needs a claim of `to`.
+#[test]
+fn a_remove_to_a_client_without_a_claim_is_refused() {
+    let mut scene = scene_with_surface();
+    scene.apply("a", &[attach("s1", ROOT)]).unwrap();
+    let remove = || Command::Remove {
+        id: "s1".into(),
+        to: Some("b".into()),
+    };
+    let error = scene.apply("a", &[remove()]).unwrap_err().error;
+    assert!(matches!(error, SceneError::Invalid(m) if m.contains("no claim")));
+    let claim = Command::Create {
+        id: "b".into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 10.0, 10.0])),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("b", &[claim]).unwrap();
+    scene.apply("a", &[remove()]).unwrap();
+    assert_eq!(scene.node("s1").and_then(|n| n.to.as_deref()), Some("b"));
+}
+
+#[test]
+fn the_smallest_claim_under_a_point_wins() {
+    let mut scene = Scene::default();
+    for (owner, claim) in [
+        ("xp", [0.0, 0.0, 1280.0, 800.0]),
+        ("tiling", [1280.0, 0.0, 1280.0, 800.0]),
+        ("mc", [1280.0, 0.0, 640.0, 400.0]),
+    ] {
+        let create = Command::Create {
+            id: owner.into(),
+            kind: NodeKind::Group,
+            parent: ROOT.into(),
+            props: PropsUpdate {
+                claim: Some(Some(claim)),
+                ..PropsUpdate::default()
+            },
+        };
+        scene.apply(owner, &[create]).unwrap();
+    }
+    let at = |point, me: &str| crate::claimant_at(scene.nodes(), point, |o| o != me);
+    assert_eq!(at([1300.0, 10.0], "xp"), Some("mc"));
+    assert_eq!(at([1300.0, 500.0], "xp"), Some("tiling"));
+    assert_eq!(at([10.0, 10.0], "xp"), None);
+    assert_eq!(at([10.0, 10.0], "tiling"), Some("xp"));
+    assert_eq!(at([3000.0, 10.0], "xp"), None);
+}
+
+/// A free surface that no window manager takes shows at the root, and a
+/// window manager can still attach it; an owned surface stays where it is.
+#[test]
+fn a_free_surface_placed_by_the_core_shows_and_stays_free_to_take() {
+    let mut scene = scene_with_surface();
+    scene.place_free("s1", [10.0, 20.0]);
+    let node = scene.node("s1").unwrap();
+    assert_eq!(
+        (node.owner.as_deref(), node.parent.as_deref()),
+        (None, Some(ROOT))
+    );
+    assert_eq!(node.props.transform, Transform::translate(10.0, 20.0, 0.0));
+    assert_eq!(scene.draw_list().len(), 1, "it shows");
+    (scene.apply("wm", &[group("a", ROOT), attach("s1", "a")])).unwrap();
+    scene.place_free("s1", [0.0, 0.0]);
+    assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("a"));
+}

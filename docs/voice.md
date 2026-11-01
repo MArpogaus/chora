@@ -48,7 +48,7 @@ same channel.
 | `asr` | One websocket per utterance to Qwen3-ASR realtime, PCM in 1 s pieces |
 | `tts` | One websocket per sentence to Qwen3-TTS, one sentence ahead |
 | `llm` | `/chat/completions` with SSE and tools |
-| `tools` | MCP client of `choractl --name voice mcp`, the coder tools, the confirmation gate |
+| `tools` | MCP client of `choractl --name voice mcp`, the coder tools, `read`, the confirmation gate |
 | `coder` | One background coding task, as in Python |
 | `chora` | A thread with the `chora-kit` runtime: methods, settings, PTT grab |
 | `hud` | A thread: times the events of the HUD for the `chora` thread; the indicator node on its own connection `NAME-hud` (WP8) |
@@ -91,7 +91,9 @@ The agent starts in `listening` (awake). The core derives the state from
 what goes on, in this order: an utterance in progress is `recording`;
 an utterance whose text waits is `transcribing` (not while asleep); a
 reply is `confirming` while a question waits, `speaking` while its sound
-plays or ran dry less than 1.5 s ago, else `thinking` or `tool`; else
+plays or ran dry less than 1.5 s ago (0.25 s after a question that waits
+for its answer, so that the speech gate hears a short "Ja"), else
+`thinking` or `tool`; else
 `listening` or `sleeping`. So speech during a reply shows as
 `recording` and `transcribing`, and the state of the reply comes back
 after it.
@@ -112,7 +114,7 @@ after it.
 | `thinking` | Other tool call | `tool` |
 | `tool` | Result or timeout | `thinking` |
 | `confirming` | Yes | `tool` |
-| `confirming` | No, two unclear answers, or timeout | `thinking`; result "declined by the user" |
+| `confirming` | No, two unclear answers, a new request, or timeout | `thinking`; the result says which |
 | `speaking` | Audio and LLM done | `listening` or `working` |
 | busy states | Cancel word, `voice.cancel`, PTT down | `listening`, earcon |
 | any | Sleep word or `voice.sleep` | `sleeping`, earcon |
@@ -128,21 +130,68 @@ Barge-in while `speaking`: speech over the barge-in gate (section 4) for
 queued. A cancel word drops them and cancels the turn. Empty text or
 echo plays them from the cut sentence; a spoken yes or no to a question
 skips the cut question. Other text ends the reply; the history keeps
-only the played text, and the new text starts a reply.
+only the played text, and the new text starts a reply. The utterance of
+a barge-in starts with the barge-in speech and `preroll_ms` before it,
+and ends as any other after `silence_ms` of quiet, so a short pause
+makes no second turn. Text that is not echo ends the reply the same way
+while its sound plays, also when it came without a barge-in.
+
+Each heard text that is not a command word shows first in the HUD, as
+`phrases.heard` ("Heard: ...") through the `say` event.
 
 Speech while `thinking`, `tool` or `confirming`: each utterance goes to
 the ASR at once. A cancel word cancels. In `confirming`, the text is the
-answer. Other text waits in a queue and starts the next reply, together
-with the texts before it (`queued` in the state record). No speech is
-dropped. Deviation: queued text does not go into the history before the
-next LLM round of the running reply.
+answer, but only speech that starts after the question starts to
+play. Other text goes into the next LLM round of the running reply,
+as a user message (`Inject`; the chat reports it back as `Heard`). This
+also holds after the answer of a round: when new words came while the
+LLM answered, one more round hears them. After the last round of
+`tool_rounds`, new words get `tool_rounds` more rounds in the same turn;
+they do not wait until the reply is said. Short text goes in too
+("Und größer.", "Nein, rot."). Only a pure yes or no waits in the queue.
+It never answers a question. A call that would ask does not ask while new words wait:
+it does not run, and its result is "Not confirmed: the user said
+something new; nothing happened". Texts that no round heard start the
+next reply together, as one message (`queued` in the state record). No
+speech is dropped.
+
+A turn whose first round calls tools without words says `phrases.ack`
+("One moment.") once. An answer whose last sentence announces an action
+in the first person, but calls no tool, gets one more round per turn
+with a note to call it or to say that it will not. A turn that already
+ran a tool gets no such round. Only explicit forms announce: "let me
+...", or "I'll", "I will" or "I'm going to" before a verb of action.
+In German, these are "ich werde ...", "lass mich ..." and "ich schaue
+nach", "mal" or "kurz". These are no announcement: a question, "let me
+know", "I'll be here", a negation ("I will not", "nicht", "kein"), and
+other German "ich" sentences ("Ich helfe dir gern.", "Ich starte den
+Loader.").
+
+An answer that ends with `stop`, calls no tool, and whose words do not
+end with `.`, `!`, `?` or `…` (also before a closing quote) is cut: Gufo
+0.27 ended rounds after 1-12 tokens ("I’m setting the", "I’ll send Alt",
+2026-10-31). Its last words after the last spoken sentence never play
+and never go into the history. One more round runs with the note
+"[Your last answer stopped mid-sentence. Answer again in full.]" at the
+end of the request; the note does not go into the history, because the
+same request gave the same fragment again. That round does not say again
+the sentences that already played, and a cut round does not count
+toward `tool_rounds`. After two cut rounds in a row, the emergency brake
+drops the history before the last words of the user, and one more round
+runs. A third cut says `phrases.lost` ("I lost the thread, please say it
+again.") and ends the turn. The cut check comes before the announcement
+check, and a cut answer never gets the announcement round.
 
 Cancel stops only the current turn: the reply task drops the SSE request
 and the MCP call in flight (rmcp sends `notifications/cancelled`), the
-history gets the words that played and the note "cancelled by the user;
-result unknown" (for a call in flight, as its tool result; for a reply
-whose words were all there but did not all play, in place of its
-words), and playback stops. A cancel word does not
+history gets the words that played, cut back to the last whole
+sentence (else without the last word, which may be cut), and a note:
+for a call in flight "cancelled by the user; result unknown" as its tool
+result, else `chat::STOPPED` as a message of the user of its own. The
+LLM copied a note at the end of its own answer into the next answer, and
+it copied answers that end mid-word. The agent never speaks or keeps
+these notes: they go from the stream of the LLM and from the stored
+answer. Playback stops. A cancel word does not
 stop a coding task. A code cancel word ("Coding-Aufgabe abbrechen")
 stops it. Coding results wait for `listening` or `working`, and also go
 into the history.
@@ -168,22 +217,42 @@ little later than it is written). The coupling starts at
 learned during playback: a median tracker of mic RMS over played level
 (steps of 5 % per frame; only 1 % up on a frame that counts as speech).
 Barge-in needs probability over `barge_in_vad_threshold` and RMS over
-`max(barge_in_min_rms, echo level × barge_in_echo_ratio)` for
-`barge_in_ms`. Its utterance keeps that speech and `preroll_ms` before
+`max(floor, echo level × barge_in_echo_ratio)` for `barge_in_ms`. The
+floor is `barge_in_min_rms` when it is above 0; else it adapts: 40 % of
+the median of the last five turns' median frame RMS, at least 5, and 15
+before the first turn. The learned coupling goes down to 0.00001: the
+PipeWire echo canceller left an echo of RMS 0.1 under played sound of
+RMS 4000, and the user's speech had an RMS of 20-70 (live test
+2026-10-31). Silero hears such quiet speech late or not at all, so the
+VAD (not the gate or the ASR) gets the mic with a gain that lifts its
+recent peak level to 1000: at most 33×, the peak halves in about 30 s. Its utterance keeps that speech and `preroll_ms` before
 it: with 100 ms, the ASR heard "verbrechen" for "Abbrechen" (WP6 live).
+Each utterance, the pre-roll included, goes to the ASR scaled so that
+its peak is at -3 dBFS: at most 40 dB, never down, without clipping.
+In the live test of 2026-10-31 the utterances had a peak of 4-63 (RMS
+1-8) behind the echo canceller. `pipewire/echo-cancel.conf` turns on the
+digital gain control of WebRTC and turns off its noise suppression,
+the likely cause of the digital zero between the words (not yet
+verified on PipeWire).
 A transcript whose words match more than 80 % of the words spoken in the
 last 3 s is echo.
 
 Word matcher (no LLM):
 
-1. Only utterances up to `word_max_ms` and four words count.
+1. Only utterances with up to `word_max_ms` of speech and four words
+   count. The speech is the VAD frames, without `preroll_ms` and the
+   end wait: "Schlaf jetzt." had 1856 ms of speech in an utterance of
+   2848 ms and went to the LLM with the old limit on the length
+   (live 2026-10-31). A command word acts at once, also while a reply
+   thinks, runs tools or speaks.
 2. Normalize: lowercase, no punctuation, `ä→ae`, `ö→oe`, `ü→ue`, `ß→ss`.
 3. Remove `filler_words`.
 4. The rest must equal a phrase. Words of four letters or more may
    differ by one edit; words written together also match
    ("Codingaufgabe").
 5. Order: code cancel, cancel, sleep, wake, yes, no. Yes and no count
-   only in `confirming`.
+   only in `confirming`, by the answer rules of section 5 and without
+   the limits of rule 1.
 
 While asleep, each short utterance goes to the ASR to find a wake word.
 A keyword-spotting model can replace this later.
@@ -193,12 +262,160 @@ A keyword-spotting model can replace this later.
 A rule matches by `tool` (glob), and optionally by the command kinds of
 `apply_commands`, by `argv0` of `run_program`, or by `method` (glob) of
 `call_method`. The agent speaks the `prompt` of the rule, with the
-program of `run_program` in place of `{program}`, and waits for
+program of `run_program` in place of `{program}`, the argument `NAME`
+in place of `{NAME}` (a missing one stays as it is) and all text,
+number and boolean arguments in place of `{args}` ("Shall I change the
+screen to output winit, scale 1.5?"), and waits for
 yes or no. The method `confirm` answers from a key or the HUD (WP5;
 privileged, so a confined client needs `methods.privileged`),
-the spoken yes and no since WP6; two unclear answers are a no. No
-answer within `confirm_timeout_ms` is a no. A no gives the LLM the result "declined by
-the user; nothing happened".
+the spoken yes and no since WP6. Only speech that starts after the
+question starts to play is an answer. A queued text never answers.
+Without speaker sound, the question counts from when it is asked.
+Only a pure yes or no answers: one or two yes phrases, or one or two
+no phrases, and filler words. Examples are "Ja, bitte.", "Ja, mach
+das." and "Nein, lieber nicht." A text of fillers only, such as
+"Bitte.", counts with them. Other text of at most two words is
+unclear ("1.5", "Ja, nein"). Two unclear answers are a no. A longer
+text is a new request, also with a yes word in it ("Mach das andere
+Fenster zu."). A new request is a no, and the text starts the next
+turn. No answer within
+`confirm_timeout_ms` from the end of the sound of the question is a no
+(a question that is never said waits 30 s longer). The LLM gets the
+reason as the result:
+"The user declined the spoken confirmation", "The user did not answer
+the spoken confirmation in time (15 s)" or "The answer to the spoken
+confirmation was not understood", each with "; nothing happened".
+
+A yes with an `always_words` phrase ("Ja, immer.", "Always.") allows
+the same action until the agent restarts or takes settings: each
+`settings.set`, each `settings.reload` and each new connection to
+chora ends all of them, so a stricter `confirm` applies at once. Then the agent says
+`phrases.allowed` ("Allowed for this session."). The same action is
+the same full argv of `run_program`, or the same method `CLIENT.METHOD`
+with the same parameters (as canonical JSON, keys sorted). For every
+other call, an always word is a single yes: `inject_input`,
+`apply_commands`, `code_task`, `agent_start`, `configure_output`, the
+other built-in tools, each `settings.set` and `settings.reload`, and
+each change of the agent's own settings. A question of a sub-agent
+takes an always word as a yes.
+
+Two settings list the actions that never ask. `allow_programs` lists
+programs. A bare name, such as `foot`, allows only the argv `["foot"]`
+with no argument: `foot -e sh -c ...` asks, as `foot -e` runs any
+command. An entry with arguments, such as `foot -e htop`, matches the
+whole argv exactly, split by single spaces. The name must be exactly
+the argv[0], so `/home/u/proj/foot` asks. `allow_methods`
+lists methods `CLIENT.METHOD`, such as `mc.scene.show`, matched
+exactly. At load, the agent refuses an empty entry, an entry with a
+leading or trailing space, a glob (`*`, `?`, `[`), a double space, a program with a `/`, and a method
+without a `.`. So `*.settings.set` cannot go in. Neither list applies
+to the agent's own settings, which always ask.
+
+Each question also goes out as the event `voice.confirm {prompt,
+detail, id}`; `id` is a text, such as `"3"`. A question about a
+security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
+settings keys and values, the program and its arguments, or the method
+and its parameters. Every subscriber of `voice.*` gets it, so secrets
+are hidden as in the journal: the value of each `*_headers` key, of
+`authorization`, of a key that ends in `token`, and of a key with
+`api_key`, `secret` or `password` shows as `(hidden)`. A question of a sub-agent has its prompt as
+`detail`. When the question gets its answer, ends or times out, the
+agent emits `voice.confirm {id, done: true}`. chora-mc shows the
+question as a notification, chora-xp as a balloon. The agent cannot
+see the subscribers of an event. So, while no plugin claims the
+indicator (section 10), the agent shows the prompt and `detail` itself:
+a text node `voice-question` at the top left of the first output, on
+`NAME-hud`. A text node holds 4 KiB, so a longer `detail` shows only
+its start there; the event has all of it. Over the rate limit, the
+last `voice.confirm` goes again after 1 s.
+
+While a claimer of the indicator (section 10) is connected, the event
+also has `buttons: true`. A HUD can then show Yes and No buttons. A
+click calls `voice.confirm.answer {id, yes}` with the `id` of the
+event. Only a client that holds `indicator.claim` may call it, and
+only for the question that is open now. An old or wrong `id` is
+refused. A click is a physical act, as a key press is. So a button
+also answers a question about a security key. The LLM never reaches
+the method: it calls no method of NAME (see "Own settings").
+
+The rule of `apply_commands` with `remove` asks only when a target is
+not a node of the agent's own client (`NAME-mcp`), or has a node of
+another client under it; the agent reads the owners and parents with
+`query_scene`, and any doubt asks. `close` always asks.
+
+Own settings: the LLM may call `settings.get`, `settings.set` and
+`settings.reload` of the agent's own client NAME, also when
+`skipped_tools` hides NAME; no other method of NAME, NAME-hud or
+NAME-mcp. The tool of its own `settings.set` takes `{"patch": ...}`
+without the schema of the settings, which is about 14 KB and made the
+LLM narrate; the agent hands the patch on and the client checks it.
+Each `settings.set` asks with its keys and values
+(`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
+security key asks with `phrases.settings_security` ("Security setting!
+Shall I set llm url? The full value is on the screen. Press Alt+y for
+yes or Alt+n for no."). The security keys are `allow_programs`,
+`allow_methods`, `confirm`, `confirm_keys`, `agent_projects`,
+`yes_words`, `always_words`, `no_words`, `phrases`, `record_dir`,
+`sandbox_cmd`, `unsandboxed`, `agent_cmd`, `coder_cmd`, `chora_mcp`,
+`capture_cmd`, `playback_cmd`, `skipped_tools`, `system_prompt`,
+`prompt_file`, `context_docs`, `indicator`, `earcons`,
+`confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
+`*_url`, `*_headers` and each key with `api_key`. The agent never cuts
+a security value. The question says only the key and that the full
+value is on the screen. The screen shows it through the `voice.confirm`
+event (secrets hidden, see above). Only other values are cut to 60
+characters for speech.
+
+Security keys take a key press, never a voice (the user's decision,
+review rc3 round 2, 4.4). A voice can be played from a speaker, and a
+text that the LLM reads can steer it, so a spoken yes is no proof that
+the user agrees:
+
+- While such a question waits, the client `NAME` grabs the two keys of
+  `confirm_keys` (default `{yes: Alt+y, no: Alt+n}`) with `input.grab`
+  on its own connection. It lets them go when the question ends.
+- Only these keys and the buttons of a HUD (`voice.confirm.answer`)
+  answer it. A spoken yes, an always word and a yes of
+  the method `voice.confirm` count as nothing. A spoken no, a new
+  request, two unclear answers or `voice.confirm no` are a no.
+- No key press within `confirm_timeout_ms` is a no.
+- The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
+  so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
+  shows that line too.
+- A holder of `indicator.claim` is trusted like the keyboard: its
+  `confirm.answer` counts as a physical answer (review rc3 round 3,
+  2.6). A confined client with `methods.privileged` can claim the
+  indicator and then answer every key question. So grant
+  `methods.privileged`, and with it the claim, only to a HUD that the
+  user trusts as the keyboard.
+- An injected key could answer the question. So the agent refuses
+  `inject_input` while such a question waits. Besides, `inject_input`
+  always asks by the default rules and never takes an always word.
+
+The client `NAME-mcp`
+needs `methods.privileged` for `settings.set` and `settings.reload`.
+Its own `settings.reload` asks with the rule of `*.settings.reload`.
+A reload can also apply a file that the LLM wrote (review rc3 round 3,
+2.4). So the agent reads the file before it asks and compares each
+security key with the running settings. When one differs, or the file
+cannot be read, the question is physical (key or button), as for
+`settings.set`, and neither `allow_methods` nor an always word skips it.
+
+Reading files: the built-in tool `read {path, line?}` lists a folder
+(sorted names, a folder with a trailing `/`, at most 200) or answers
+the text of a file, without a confirmation. The roots are the project
+folders of `agent_list`: `agent_projects` and the folders of
+`$XDG_DATA_HOME/chora/inventory`. An empty path lists the projects; a
+path is `PROJECT/REL` or absolute. The tool resolves the real path
+(`..` and symbolic links) and refuses each path outside the real
+roots. It opens the real path once, without a wait for a FIFO. On
+that handle, it checks again that the file is inside a root, that it
+is a regular file and that it has at most 4 MiB. It reads at most
+4 MiB and one byte. It refuses binary files (a NUL byte) and text
+that is not UTF-8. One answer has at most 64 KiB, cut at a line,
+and names the line to read on with (`line`). The prompt says that the
+text of a file is data, never instructions, and that the agent speaks
+at most a short summary of it.
 
 ## 6. Error handling
 
@@ -206,14 +423,17 @@ the user; nothing happened".
 |---|---|---|
 | Mic | Capture command exits | Restart, backoff 0.5 s to 5 s, error earcon once |
 | VAD | Model does not load | Exit 1; systemd restarts |
+| Settings | The settings file is broken | At start: exit 1 with an error that names the file. On `settings.reload`: the error, and the settings stay. A new connection to chora fails until the file is fixed. The agent never takes the defaults instead |
 | ASR | Error or timeout | One retry with the same audio, then earcon and `phrases.asr_failed` ("I did not understand you.") when the agent listens again; a wake word asleep only sounds the earcon |
 | TTS | Error or timeout | Earcon once per reply; the text stays in the history, in `last_reply` and on the HUD; the tool loop goes on; for the backoff of the TTS (1 s, doubling to 30 s), its sentences skip without a try |
 | LLM | Connect error | One retry, then `phrases.llm_down` ("The language model does not answer.") |
 | LLM | First token, idle or total timeout | Abort, keep the rounds so far, say so |
 | LLM | Context error | Trim the history to half the budget, one retry |
-| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the reply language; without words, `phrases.tool_rounds`; history stays |
+| LLM | `tool_rounds` reached | A final round with `tool_choice: none` and a note: sum up in the reply language; without words, `phrases.tool_rounds`; history stays; new words of the user during that round get `tool_rounds` more rounds |
+| LLM | Three cut answers in a row | A retry with a note after the first, the emergency brake after the second, `phrases.lost` after the third (section 3) |
 | MCP | Child exits | Restart with backoff; call in flight gets "connection lost, result unknown"; tools reload |
 | MCP | `tool_timeout_s` | Cancel the call; result "timeout, result unknown" |
+| Tool | A call fails the same way twice in a row in a turn: the same error, or the same tool with arguments of the same form (keys and types) | The error stays whole, plus "This failed twice the same way; stop and tell the user what failed."; a third such call does not run and gets that note as its error |
 | chora | Connection closed | Runtime reconnects and grabs PTT again; after 30 s, exit 1 |
 | Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 
@@ -223,7 +443,9 @@ The history commits per LLM round; an audio failure never rolls it back.
 report), with the last error and its Unix time `error_at`. Each actor
 reports its successes and failures. At start, the agent warms the LLM
 cache, again with the backoff of the LLM until it answers, so the cache
-is warm when the LLM comes back. A probe connects to the websockets of
+is warm when the LLM comes back. Then it says `phrases.ready`
+("Ready.") once, also on the HUD, when it listens; empty turns it off.
+A failed warm-up says nothing new. A probe connects to the websockets of
 the ASR and the TTS, without a request, at start, after a new URL, every
 30 s, and at the end of the backoff of a server that is down. Earcons
 are synthesized tones: wake, sleep, cancel, error.
@@ -237,8 +459,21 @@ are synthesized tones: wake, sleep, cancel, error.
   picture counts as 4000), divided by the characters per token of the
   last request: its length over its `usage.prompt_tokens` (3.0 at the
   start; requests with a picture teach nothing). No tokenizer.
+- `history_tokens` (default 24000) bounds the messages after the
+  system prompt, estimated as characters / 4; `0` keeps only the
+  context budget. A long session (dump 2026-10-31: 221 messages, 33k
+  tokens, full of cut answers) made the LLM copy its old answers.
+- The dropped turns stay as one system note after the system prompt: a
+  line each for the requests of the user and the final answers, cut to
+  160 characters, 3000 characters in all (oldest first out). Only the
+  latest picture of a tool stays in the history; older ones become
+  `[image dropped]`. The text of a tool answer is cut to 6000
+  characters, and `query_scene` keeps the useful fields of at most 60
+  nodes.
 - Before each request, drop the oldest whole turns until the estimate
-  fits; the turn in progress stays. Before a new turn, old tool texts
+  fits the budget and `history_tokens`; the last turn stays. A turn
+  starts at a user message, so a tool call and its results go
+  together. Before a new turn, old tool texts
   shrink to `old_tool_chars` and lose their pictures, and long arguments
   of old calls become `{"shortened": true}`; the last `put_asset` of
   each name stays whole.
@@ -285,7 +520,7 @@ TTS (`/v1/audio/speech/stream`, voice `aiden`):
 File `$XDG_CONFIG_HOME/chora/chora-voice.yaml`. A missing key takes its
 default, so an empty file is valid. `settings.set` applies at once (a
 new `capture_cmd` restarts capture, a new `ptt_key` grabs again; WP5: a
-new prompt warms the cache). Edits by hand apply on `voice.restart`. The
+new prompt warms the cache). Edits by hand apply on `voice.settings.reload`. The
 client name is the flag `--name` (default `voice`). `chora-voice
 --print-config` prints all defaults.
 
@@ -304,26 +539,30 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_interim_ms` | `0` (off) |
 | `capture_cmd` | `[pw-record, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
 | `playback_cmd` | `[pw-play, --raw, --rate, "24000", --channels, "1", --format, s16, "-"]` |
+| `listen` | `always` (the agent hears speech at any time, and the ptt key adds a way to talk); `push_to_talk`: the gate opens only while the ptt key is held, with no wake word, no VAD start and no barge-in without the key. No security key: a spoken yes changes it |
 | `ptt_key` | `Super+v` |
 | `vad_threshold`, `vad_release`, `onset_ms` | `0.5`, `0.35`, `96` |
 | `silence_ms`, `min_speech_ms`, `max_turn_ms` | `800`, `200`, `30000` |
 | `preroll_ms` | `300` |
 | `barge_in_vad_threshold`, `barge_in_ms` | `0.7`, `250` |
-| `barge_in_echo_ratio`, `barge_in_min_rms` | `2.0`, `300` |
+| `barge_in_echo_ratio`, `barge_in_min_rms` | `2.0`, `0` (adaptive; above 0: a fixed floor) |
 | `barge_in_coupling` | `0.1` (start of the learned echo coupling) |
-| `word_max_ms` | `2000` |
+| `word_max_ms` | `3000` (speech, without pre-roll and end wait) |
 | `sleep_words`, `wake_words` | `[sleep, go to sleep, schlaf, schlaf jetzt]`, `[hey chora, listen, hallo chora, hör zu]` |
 | `cancel_words` | `[stop, cancel, never mind, stopp, abbrechen, halt, vergiss es]` |
 | `code_cancel_words` | `[cancel the coding task, coding-aufgabe abbrechen, programmieraufgabe abbrechen]` |
-| `yes_words`, `no_words` | `[yes, okay, do it, ja, genau, mach das]`, `[no, rather not, nein, nicht, lieber nicht]` |
+| `allow_programs`, `allow_methods` | `[]`, `[]` (whole argvs, such as `foot` or `foot -e htop`, and `CLIENT.METHOD` that never ask; section 5) |
+| `always_words` | `[immer, ja immer, always, yes always]` (a yes for the session; may be empty) |
+| `yes_words`, `no_words` | `[yes, yeah, yep, yup, okay, ok, do it, please, sure, go ahead, ja, jo, jap, jep, klar, gern, gerne, genau, mach das, bitte]`, `[no, rather not, nein, nicht, lieber nicht]` |
 | `filler_words` | `[please, now, bitte, jetzt, mal]` |
-| `confirm`, `confirm_timeout_ms` | rules below, `8000` |
+| `confirm`, `confirm_timeout_ms` | rules below, `15000` (from the end of the question) |
+| `confirm_keys` | `{yes: Alt+y, no: Alt+n}` (the only answer to a question about a security key, section 5; two keys, other than `ptt_key`) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
-| `indicator` | `true` (state dot under `screen:OUTPUT`) |
+| `indicator` | `true` (state dot under `screen:OUTPUT`); `false` turns it off; `{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}` places it, `true` is `{corner: bottom-right, offset: [12, 12]}` |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
-| `tool_rounds`, `old_tool_chars`, `saved_requests` | `10`, `500`, `20` |
+| `tool_rounds`, `old_tool_chars`, `history_tokens`, `saved_requests` | `10`, `500`, `24000`, `20` |
 | `reasoning_effort` | `none` (`""`: not in the request) |
 | `asr_timeout_s`, `tts_timeout_s`, `tool_timeout_s` | `15`, `10`, `30` |
 | `llm_first_token_s`, `llm_idle_s`, `llm_total_s` | `30`, `20`, `120` |
@@ -331,9 +570,9 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `sandbox_cmd`, `unsandboxed` | `[agent-sandbox.sh]`, `false` (`coder_cmd` and `agent_cmd` run in the sandbox) |
 | `agent_cmd`, `agent_projects` | `[]` (no agents; else an ACP command, `{dir}` and `{project}` replaced), `{}` (name: directory, besides the inventory) |
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
-| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method` |
+| `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -342,15 +581,33 @@ device.
 ```yaml
 confirm:
   - {tool: apply_commands, commands: [remove, close], prompt: "Shall I remove that?"}
-  - {tool: unload_view, prompt: "Shall I remove the view?"}
+  - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
   - {tool: inject_input, prompt: "Shall I type or click?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
-  - {tool: agent_start, prompt: "Shall I start the agent?"}
+  - {tool: agent_start, prompt: "Shall I start an agent for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
-  - {tool: configure_output, prompt: "Shall I change the screen?"}
+  - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
-  - {tool: call_method, method: "*.restart", prompt: "Shall I restart the plugin?"}
+  - {tool: call_method, method: "*restart", prompt: "Shall I restart the plugin {client}?"}
+  # Then two rules for each privileged method METHOD of a plugin:
+  # settings.set, settings.reload, app.open, scene.save, scene.rename,
+  # scene.move, construct.load, construct.save, region.toggle,
+  # region.put and region.solo; and for window.give, agent.set and
+  # notify.push, which are not privileged.
+  - {tool: "*.METHOD", prompt: "Shall I run {method} of the plugin {client}?"}
+  - {tool: call_method, method: METHOD, prompt: "Shall I run {method} of the plugin {client}?"}
 ```
+
+The grant `methods.privileged` opens every privileged method of every
+plugin. The export flag `privileged` does not reach the agent, so the
+default rules ask before each privileged method of the plugins, from a
+list kept by hand that must follow the plugins. `window.give` also
+asks: it hides a window in another client. So do `agent.set` and
+`notify.push` of chora-mc: they show what the user trusts as the state
+of the agent or as a notification. In a
+prompt, `{client}` and `{method}` name the plugin and the method, also
+for a plugin tool `CLIENT.METHOD`. The method is said with spaces
+("app open").
 
 Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
 that each one can move to another provider. The key comes from the
@@ -367,7 +624,9 @@ The ASR gets no language with `asr_language: auto`, and `asr_prompt`
 with the wake, sleep and stop words and the project names as the
 `transcription.prompt` of the session. Gufo honors the prompt: without
 it, a TTS clip of "Hallo Chora" came back as "Hello, Cora", with it as
-"Hello, Chora" (3 of 3 tries each, 2026-10-31). The system prompt ends
+"Hello, Chora" (3 of 3 tries each, 2026-10-31). On short or quiet sound the ASR
+may answer the prompt itself; a transcript with at least half of the
+words of the prompt, and at least 4, is dropped as such an echo. The system prompt ends
 with a rule to answer in `reply_language`. With `reply_language: de`,
 each phrase, confirm prompt, verb of an agent question and coding result
 that keeps its English default is German; other languages keep the
@@ -384,33 +643,55 @@ both a key variable and a key file for one server.
 |---|---|---|
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
-| `mute` | `mic: bool`, `speaker: bool`, each optional | the new state record |
-| `restart` | none | reads the settings file again |
-| `settings.get`, `settings.set` | D62 | D62 |
-| `talk` | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record |
+| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
+| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
+| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a caller without `indicator.claim` and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 
+`mute`, `talk`, `indicator.claim` and `confirm.answer` are privileged: with them, a
+client could unmute the mic, record, or hide the dot, so that the agent
+listens without a sign. A client socket needs `methods.privileged` for
+them. The export flag cannot depend on `mic`, so muting needs it too.
+The plugins chora-mc, chora-xp and chora-construct connect to the main
+socket, which may call privileged methods.
+
 The state record: `state`, `since_ms` (time in the state), `seq` (one
-more per change), `awake`, `muted: {mic, speaker}`, `turn`,
+more per change), `awake`, `listen` (`always` or `push_to_talk`), `muted: {mic, speaker}`, `turn`,
 `last_transcript`, `last_reply`, `queued` (texts that wait), `coder`
 (the parameters of `agent.set` for the coder, or null before the first
 task), `agents` (the parameters of `agent.set` of each ACP agent) and
 `health` (section 6).
 
-HUD: the agent emits client events (D65) on its connection `NAME`, so
-a HUD subscribes to `voice.*` and needs no polling. The method `state`
+HUD: the agent emits client events (D65) on its connection `voice`, so
+a HUD subscribes to `voice.*` and needs no polling. Only the client
+named `voice` emits them; under another `--name`, the agent emits
+none. The subscription `voice.*` also matches a client such as
+`voice.evil`, so a subscriber must check that the `client` of each
+event is exactly `voice`. The method `state`
 stays for a full state record. The
 indicator node signals without a HUD: with `indicator`, a dot of 12
-pixels at the bottom right of the first output, under `screen:OUTPUT`,
-in the color of the state (input `pass`). The `hud` thread places it
-once per connection.
+pixels in a corner of the first output, under `screen:OUTPUT`, in the
+color of the state (input `pass`). `offset` is its distance from the
+corner. The `hud` thread places it once per connection, and again
+when `indicator` changes.
+
+A plugin that shows the state itself hides the dot with the method
+`indicator.claim {}` of the client `voice`. The agent records the
+client name of the caller. The dot hides while one claimer or more is
+connected. On `client.disconnected` of a claimer, the agent drops its
+claim. When no claimer is left, the dot comes back. `indicator: false`
+turns the dot off for good. The claims do not survive a restart of
+the agent. So a plugin claims again on `client.connected` with the
+name `voice`, or when it gets its first `voice.*` event.
 
 The events (D65): `voice.state {state, task, said}` on each change
 (`state` mapped to the states of mc: `asleep`, `listening`, `thinking`,
 `working`, `question`, `speaking`; `task` the request, `said` the last
-reply), and `voice.say {state: speaking, text, duration_ms}` for each
+reply), `voice.listen {listen}` when the mode changes and once at the start (not a field of `voice.state`, whose data go to `agent.set` of chora-mc, which refuses unknown fields), and `voice.say {state: speaking, text, duration_ms}` for each
 sentence when its sound starts, with the length of its PCM (a late
 sentence gets the rest of its length). The data are the parameters of
 `mc agent.set` and `mc hud.say`, and chora-mc subscribes to `voice.*`.
@@ -435,8 +716,14 @@ stderr is no terminal. `RUST_LOG` filters; the default is
 `info,tract_linalg=warn`. The lines are plain text in the form
 `key=value`: one call site per level in `log.rs` keeps the `tracing`
 macros out of the other functions, because clippy counts their expansion
-into the cognitive complexity. Each stage logs start and end with the
-turn number. One summary per turn:
+into the cognitive complexity. With `CHORA_VOICE_LLM_DUMP=FILE` the agent
+appends each LLM request body and the raw lines of its stream to FILE
+(mode 0600), to see what the server got and sent. Each stage logs start
+and end with the turn number. A tool call logs its arguments and the
+start of its result, without secrets. Of `read`, the log has only the
+path and the byte count. The values of each `*_headers` key, of each
+key with `api_key`, `apikey`, `secret` or `password`, of each key that
+ends with `token`, and of `authorization` show as "(hidden)". One summary per turn:
 
 ```
 turn=17 speech=2.1s asr=380ms llm_first=650ms tts_first=310ms
@@ -682,10 +969,11 @@ WP5, the LLM and the tool loop:
   rules), `chat.rs` (prompt, history, budget, tool loop), `speech.rs`
   (sentence splitter, speech with playback buffer), and the reply states
   in `core.rs`.
-- The splitter ends a sentence after `.!?:;` and a space, or at a line
+- The splitter ends a sentence after `.!?;` and a space, or at a line
   break; not after a number ("3. Oktober") or a short abbreviation ("z.
   B."). The first piece of a reply may end at a comma after 40
-  characters. It drops the marks of markdown.
+  characters. It drops the marks of markdown, also backticks. A colon
+  ends no sentence: it stands in inline code too ("`modifier: Alt`").
 - One TTS socket per sentence, one after the other: the next sentence
   starts when the one before has all its sound, which is while it plays.
 - MCP: a call has `tool_timeout_s`; a dropped call sends

@@ -18,6 +18,8 @@ themes:
     amber: [0.72, 0.47, 0.08, 1.0]
     blue: [0.22, 0.38, 0.58, 1.0]
     red: [0.70, 0.13, 0.12, 1.0]
+    magenta: [0.52, 0.25, 0.50, 1.0]
+    cyan: [0.16, 0.46, 0.49, 1.0]
   dark:
     background: [0.11, 0.11, 0.11, 1.0]
     text: [0.85, 0.83, 0.79, 1.0]
@@ -28,6 +30,8 @@ themes:
     amber: [0.88, 0.70, 0.38, 1.0]
     blue: [0.55, 0.69, 0.86, 1.0]
     red: [0.92, 0.42, 0.38, 1.0]
+    magenta: [0.78, 0.58, 0.78, 1.0]
+    cyan: [0.52, 0.76, 0.76, 1.0]
 # The font sizes are steps of a modular scale: base times ratio to the
 # power of the step. Each line of text is whole lines of the baseline grid.
 scale:
@@ -35,47 +39,68 @@ scale:
   ratio: 1.333
   baseline: 27
 # The styles of text. Each has a family, a weight (300 light, 400 normal,
-# 700 bold), a style (normal or italic), a size in pixels or a step of the
-# scale, a color, a line_height, a letter_spacing in em, OpenType features
-# (smcp small caps, c2sc capitals as small caps, onum old-style figures,
-# tnum tabular figures) and uppercase. A style with a base changes it.
+# 700 bold), a style (normal or italic), a size in pixels, in em of
+# scale.base or as a step of the scale, a color, a line_height, a
+# letter_spacing in em, OpenType features (smcp small caps, c2sc
+# capitals as small caps, onum old-style figures, tnum tabular figures)
+# and uppercase. A style with a base changes it.
 # TeX Gyre Pagella is in the Fedora package texlive-tex-gyre, outside the
-# font directories: add its directory to CHORA_FONT_DIRS of chora, for
-# example /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre.
-# Inter is in the package rsms-inter-fonts. Without a family, a system
-# font shows.
+# font directories. The RPM of chora adds that directory to fontconfig
+# with /etc/fonts/conf.d/09-chora-tex-gyre.conf. Without the RPM, add
+# /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre to
+# CHORA_FONT_DIRS of chora. On Arch Linux, tex-gyre-fonts needs neither.
+# Inter is in the package rsms-inter-fonts, on Arch Linux inter-font.
+# Without a family, a system font shows.
+# docs/mc-style.md has the rules that these styles follow.
 styles:
+  # Text to read: Pagella with old-style figures.
   body:
     family: TeX Gyre Pagella
     line_height: 1.5
     features: {onum: 1}
+  # The title of a panel: spaced small caps, one step up, muted.
   heading:
     base: body
-    color: accent
-    letter_spacing: 0.08
-    features: {smcp: 1, c2sc: 1, onum: 1}
-  chapter:
-    base: heading
     step: 1
-    letter_spacing: 0.14
-  chapter_number:
-    family: TeX Gyre Pagella
-    step: 5
     line_height: 1.0
-    color: faint
-  chapter_large:
+    color: muted
+    letter_spacing: 0.06
+    features: {smcp: 1, c2sc: 1, onum: 1}
+  # The title of a scene: spaced capitals with lining figures, the one
+  # accent of the page.
+  chapter:
+    base: body
+    step: 3
+    line_height: 1.2
+    color: accent
+    uppercase: true
+    letter_spacing: 0.12
+    features: {lnum: 1}
+  # The number and the bar of the head, on the baseline of the title.
+  chapter_number:
+    base: chapter
+    color: muted
+    letter_spacing: 0
+  # Machine data in a panel: hosts, loads, units.
+  data:
     family: Inter
-    weight: 200
-    step: 5
-    line_height: 1.25
-    letter_spacing: -0.02
+    line_height: 1.5
+  # Labels of the regions: spaced capitals of Inter, as tall as the
+  # lowercase of margin.
   running_head:
     family: Inter
     weight: 500
-    size: 11
+    em: 0.6112
     color: muted
     letter_spacing: 0.2
     uppercase: true
+    features: {tnum: 1}
+  # The lead of a scene: one step over the heading, at most one a page.
+  lead:
+    base: body
+    step: 2
+    line_height: 1.3
+  # Notes in the margin, the regions and the HUD, with tabular figures.
   margin:
     family: Inter
     step: -1
@@ -86,24 +111,37 @@ styles:
   mono:
     family: DejaVu Sans Mono
     step: -1
-# The head of each scene: number (a large number, the title in small caps
-# below it), caps (the title in small caps), large (one large title) or
-# none.
+# The head of each scene: number ("3 | AGENDA" at the left edge of the
+# text column: the number, a hairline bar and the title in spaced
+# capitals, all on one baseline) or none.
 chapter:
   layout: number
-# The text block: the width of a column of text, about 65 letters, the
-# margin column left of it for notes such as times, and the space between
-# them, all in em of scale.base.
+# The text block of every scene: the width of one column of the grid,
+# the margin column left of each column for notes such as times, and the
+# space between them, all in em of scale.base. All scenes share it, so
+# the text and the head stay in place from scene to scene. A grid has 4
+# columns and 3 rows; a scene file can set its own grid. On a narrow
+# output fewer columns show; see min_panel.
 page:
-  measure: 30
-  margin: 6
+  measure: 18
+  margin: 4
   gap: 1.5
+# The least width and height of a panel, in em of scale.base. Where the
+# columns of the grid would be narrower, the page shows fewer of them and
+# the panels that do not fit wrap into new rows, in reading order; a row
+# is never lower than the height. A page longer than the output scrolls
+# with the wheel.
+min_panel: [14, 8]
 # New text writes itself: first its outline line by line, then its fill.
 write:
   enabled: true
   duration_ms: 900
 # The scene at the start.
 default_scene: agenda
+# The order of the scenes, and so their numbers. The scenes that the list
+# leaves out, such as new ones and those of app.open, follow in the order
+# they appear. The method scene.move changes the list.
+order: [agenda, morning, agents, mission, terminal, overview]
 # A binding and its action: next_scene, previous_scene, {scene: NAME},
 # {run: COMMAND}, which starts a shell command whose window gets a scene
 # of its own, {toggle: REGION}, which shows or hides a region; a docked
@@ -114,6 +152,7 @@ bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
   Super+a: {scene: agenda}
+  Super+o: {scene: overview}
   Super+space: {run: fuzzel}
   Super+Return: {toggle: drawer}
   Super+n: {toggle: right}
@@ -148,9 +187,10 @@ regions:
 # words of the agent), agents (the sign and the name of each agent of
 # agent.set, in the color of its state), text (lines of content.set and
 # content.add, with a title), app (a command docked in a side or the
-# drawer; {NAME} is the color NAME of the theme as RRGGBB). Each may set a
-# style. notify.push fills the texts notify and urgent; urgent shows
-# in the middle of the footer, where the header has no room left.
+# drawer; {NAME} is the color NAME of the theme as RRGGBB; a scene's
+# app: can name such a content). Each may set a style. notify.push fills
+# the texts notify and urgent; urgent shows in the middle of the footer,
+# where the header has no room left.
 contents:
   head: {kind: head}
   clock: {kind: clock, format: '%A %-d %B  %H:%M'}
@@ -161,13 +201,30 @@ contents:
   agents: {kind: agents}
   notify: {kind: text, title: Notifications}
   urgent: {kind: text, style: {base: running_head, color: red}}
+  # A spoken confirmation of voice.confirm, alone in the drawer.
+  confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
+  # foot in the colors of the theme, also in the terminal scene. The
+  # section colors-dark needs foot 1.26 or later.
   shell:
     kind: app
-    command: foot -o pad=0x0 -o colors-dark.background={background} -o colors-dark.foreground={text}
+    command: >-
+      foot -o pad=0x0
+      -o colors-dark.background={background} -o colors-dark.foreground={text}
+      -o 'colors-dark.cursor={background} {text}'
+      -o colors-dark.selection-background={faint}
+      -o colors-dark.selection-foreground={text}
+      -o colors-dark.regular0={faint} -o colors-dark.bright0={muted}
+      -o colors-dark.regular1={red} -o colors-dark.bright1={red}
+      -o colors-dark.regular2={green} -o colors-dark.bright2={green}
+      -o colors-dark.regular3={amber} -o colors-dark.bright3={amber}
+      -o colors-dark.regular4={blue} -o colors-dark.bright4={blue}
+      -o colors-dark.regular5={magenta} -o colors-dark.bright5={magenta}
+      -o colors-dark.regular6={cyan} -o colors-dark.bright6={cyan}
+      -o colors-dark.regular7={text} -o colors-dark.bright7={text}
 # Which content goes where: the first rule that matches wins. A rule names
 # a content or a kind, optionally the scenes (names, @app or @page), a
 # region and a slot. In a line a slot below 0 goes left, 0 in the middle,

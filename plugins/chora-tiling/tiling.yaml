@@ -59,6 +59,9 @@ bindings:
   MOD+t: toggle_on_top
   MOD+n: minimize
   MOD+Ctrl+n: restore_minimized
+  # Held on a window: dropped outside tiling, in the claim of another
+  # window manager, the window goes there.
+  MOD+BTN_LEFT: drag
   # Layouts
   MOD+l: {inc_master_width: 0.05}
   MOD+h: {inc_master_width: -0.05}

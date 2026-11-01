@@ -8,7 +8,7 @@
 
 use std::{sync::atomic::Ordering, time::Duration};
 
-use chora_scene::{Binding, Event as SceneEvent, NodeKind, ScrollSource, ipc::PressState};
+use chora_scene::{Binding, Event as SceneEvent, MOVE, NodeKind, ScrollSource, ipc::PressState};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -600,7 +600,13 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
         }
         let keyboard = state.keyboard();
         let mods = keyboard.modifier_state();
-        let Some((conn, binding)) = state.ipc.button_grab_for(&mods, code) else {
+        // As for a new toplevel: without an output, the pointer is in no claim.
+        let pointer =
+            (state.spot(state.pointer_layout)).map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+        let Some((conn, binding)) = state
+            .ipc
+            .button_grab_for(&mods, code, &state.scene, pointer)
+        else {
             return false;
         };
         let binding = binding.to_string();
@@ -616,22 +622,90 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
         };
         (grab.conn, grab.binding, PressState::Released)
     };
-    let Some(spot) = state.spot(state.pointer_layout) else {
-        return true;
-    };
     let (conn, binding, press) = grab;
+    let moved = binding == MOVE;
+    send_button(state, conn, binding, press, None);
+    if moved {
+        // The press of a move reached the pointer, so its release does too,
+        // to no surface.
+        let pointer = state.pointer();
+        let event = ButtonEvent {
+            button: code,
+            state: button_state,
+            serial: SERIAL_COUNTER.next_serial(),
+            time,
+        };
+        pointer.button(state, &event);
+        pointer.frame(state);
+    }
+    // The surface under the pointer gets a leave, and an enter after the
+    // release.
+    move_pointer(state, state.pointer_layout, time);
+    true
+}
+
+/// Starts the drag of an interactive move (`xdg_toplevel.move`) while a
+/// button is down on the window: an owner of the window that grabbed
+/// `move` gets the press, the moves and the release as the events of a
+/// button grab with the binding `move`, and the window gets a leave.
+///
+/// The press of `serial` must still hold the pointer, on `toplevel` or one
+/// of its subsurfaces: a stale serial of a window in the background does
+/// not cut off a drag in another window.
+pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial: Serial) {
+    let pointer = state.pointer();
+    if !pointer.has_grab(serial) {
+        return;
+    }
+    let Some(start) = pointer.grab_start_data() else {
+        return;
+    };
+    let on_it = start
+        .focus
+        .is_some_and(|(focus, _)| crate::handlers::root_surface(&focus) == *toplevel);
+    if !on_it {
+        return;
+    }
+    let button = start.button;
+    if state.button_grab.is_some() || state.lock.is_some() {
+        return;
+    }
+    let owner = state.scene.node(surface).and_then(|n| n.owner.as_deref());
+    let Some(conn) = owner.and_then(|o| state.ipc.move_grab_of(o)) else {
+        return;
+    };
+    // The click of the client ends here; the core keeps the button.
+    pointer.unset_grab(state, SERIAL_COUNTER.next_serial(), InputTime::now());
+    state.button_grab = Some(ButtonGrab {
+        conn,
+        binding: MOVE.into(),
+        button,
+    });
+    send_button(state, conn, MOVE.into(), PressState::Pressed, Some(surface));
+    move_pointer(state, state.pointer_layout, InputTime::now());
+}
+
+/// Sends `input.button` to the connection of a button grab, with the
+/// window of a move.
+fn send_button(
+    state: &mut State,
+    conn: u64,
+    binding: String,
+    press: PressState,
+    surface: Option<&str>,
+) {
+    let Some(spot) = state.spot(state.pointer_layout) else {
+        return;
+    };
     let event = SceneEvent::InputButton {
         binding,
         state: press,
         position: [spot.scene.x, spot.scene.y],
         output: spot.output.name(),
         local: [spot.local.x, spot.local.y],
+        surface: surface.map(String::from),
     };
     state.ipc.send_to(conn, &event);
-    // The surface under the pointer gets a leave, and an enter after the
-    // release.
-    move_pointer(state, state.pointer_layout, time);
-    true
 }
 
 /// Scrolls by logical pixels, as a touchpad does.
@@ -1215,6 +1289,177 @@ mod tests {
         click(&mut core, false);
         let pressed = named(&events(&mut wm, &mut core), "pointer.pressed");
         assert_eq!(pressed[0]["node"], "s1");
+    }
+
+    /// A window manager whose group claims an area.
+    fn claimer(core: &mut Core, name: &str, claim: [f64; 4]) -> Client {
+        let mut wm = core.named(name);
+        apply(
+            &mut wm,
+            core,
+            &json!([{"create": {"id": name, "kind": "group", "parent": "root",
+                "props": {"claim": claim}}}]),
+        );
+        wm.ok(core, "events.subscribe", json!({"events": []}));
+        wm
+    }
+
+    /// The `state` of the `input.button` events and the moves of a client.
+    fn buttons(client: &mut Client, core: &mut Core) -> Vec<String> {
+        events(client, core)
+            .iter()
+            .filter(|e| e["event"] == "input.button" || e["event"] == "input.moved")
+            .map(|e| e["state"].as_str().unwrap_or("moved").to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_shared_button_grab_goes_to_the_claim_under_the_pointer() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grab = json!({"binding": "Super+BTN_LEFT"});
+        let mut left = claimer(&mut core, "left", [0.0, 0.0, 400.0, 600.0]);
+        let mut right = claimer(&mut core, "right", [400.0, 0.0, 400.0, 600.0]);
+        let mut inner = claimer(&mut core, "inner", [500.0, 100.0, 100.0, 100.0]);
+        left.ok(&mut core, "input.grab", grab.clone());
+        right.ok(&mut core, "input.grab", grab.clone());
+        inner.ok(&mut core, "input.grab", grab.clone());
+        let drag = |core: &mut Core, from: (f64, f64), to: (f64, f64)| {
+            move_to(core, from.0, from.1);
+            press(core, SUPER, true);
+            click(core, true);
+            move_to(core, to.0, to.1);
+            click(core, false);
+            press(core, SUPER, false);
+        };
+        let all = ["pressed", "moved", "released"];
+        // The drag stays with the client of the press, across claims.
+        drag(&mut core, (100.0, 100.0), (700.0, 500.0));
+        assert_eq!(buttons(&mut left, &mut core), all);
+        assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+        drag(&mut core, (700.0, 500.0), (100.0, 100.0));
+        assert_eq!(buttons(&mut right, &mut core), all);
+        assert_eq!(buttons(&mut left, &mut core), Vec::<String>::new());
+        // The smallest claim wins.
+        drag(&mut core, (550.0, 150.0), (560.0, 160.0));
+        assert_eq!(buttons(&mut inner, &mut core), all);
+        assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+        // No claim under the pointer: the first grab.
+        apply(
+            &mut right,
+            &mut core,
+            &json!([{"update": {"id": "right", "props": {"claim": null}}}]),
+        );
+        drag(&mut core, (700.0, 500.0), (710.0, 510.0));
+        assert_eq!(buttons(&mut left, &mut core), all);
+        assert_eq!(buttons(&mut right, &mut core), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_button_grab_without_a_claim_has_one_owner() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grab = json!({"binding": "Super+BTN_LEFT"});
+        let mut plain = core.named("plain");
+        let mut claimed = claimer(&mut core, "claimed", [0.0, 0.0, 400.0, 600.0]);
+        let mut other = claimer(&mut core, "other", [400.0, 0.0, 400.0, 600.0]);
+        // A first grab without a claim keeps the binding to itself.
+        plain.ok(&mut core, "input.grab", grab.clone());
+        let (_, message) = claimed.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(message, "Super+BTN_LEFT is grabbed already");
+        plain.ok(&mut core, "input.ungrab", grab.clone());
+        // A second grab needs a claim too.
+        claimed.ok(&mut core, "input.grab", grab.clone());
+        let (_, message) = plain.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(message, "Super+BTN_LEFT is grabbed already");
+        other.ok(&mut core, "input.grab", grab);
+        // Key bindings stay with the first grab, claims or not.
+        let key = json!({"binding": "Super+a"});
+        claimed.ok(&mut core, "input.grab", key.clone());
+        let (_, message) = other.fails(&mut core, "input.grab", key);
+        assert_eq!(message, "Super+a is grabbed already");
+    }
+
+    /// The serial of the last press that the client of a window got.
+    fn last_press(core: &Core, window: &str) -> u32 {
+        let surface = core.state.windows[window].toplevel().unwrap().wl_surface();
+        let id = smithay::reexports::wayland_server::Resource::id(surface);
+        let client = core.state.display_handle.get_client(id).unwrap();
+        let data = client.get_data::<super::ClientState>().unwrap();
+        data.last_press.load(super::Ordering::Relaxed)
+    }
+
+    #[test]
+    fn a_move_of_a_client_is_a_drag_of_the_window_manager_that_grabbed_move() {
+        let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        apply(&mut xp, &mut core, &json!([{"remove": {"id": "menu"}}]));
+        move_to(&mut core, 50.0, 50.0);
+        let drag = |core: &mut Core, wayland: &mut Wayland| {
+            click(core, true);
+            let serial = last_press(core, "s1");
+            wayland.request_move(core, &window, serial);
+            move_to(core, 60.0, 70.0);
+            click(core, false);
+            move_to(core, 50.0, 50.0);
+        };
+        // Without the grab of move, the client keeps its press.
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        drag(&mut core, &mut wayland);
+        assert_eq!(buttons(&mut wm, &mut core), Vec::<String>::new());
+        assert_eq!(
+            wm.ok(&mut core, "input.grab", json!({"binding": "move"})),
+            "move"
+        );
+        drag(&mut core, &mut wayland);
+        let grabbed = events(&mut wm, &mut core);
+        let grabbed: Vec<&Value> = (grabbed.iter())
+            .filter(|e| e["event"] == "input.button" || e["event"] == "input.moved")
+            .collect();
+        let states: Vec<&str> = (grabbed.iter())
+            .map(|e| e["state"].as_str().unwrap_or("moved"))
+            .collect();
+        assert_eq!(states, ["pressed", "moved", "released"]);
+        // The press names the window that asked for the move.
+        assert_eq!(grabbed[0]["surface"], "s1");
+        assert!(grabbed[2].get("surface").is_none());
+        assert!(pointer_focused(&core), "the window gets an enter");
+        // A second press works as before.
+        click(&mut core, true);
+        click(&mut core, false);
+        let pressed = named(&events(&mut wm, &mut core), "pointer.pressed");
+        assert_eq!(pressed[0]["node"], "s1");
+    }
+
+    /// A client that kept the serial of an old press cannot cut off a drag
+    /// in another window with a move (4.7).
+    #[test]
+    fn a_move_with_a_stale_serial_starts_no_drag() {
+        let (mut core, mut wayland, window, mut wm, mut xp) = window_and_menu();
+        wayland.attach(&mut core, &window, (100, 100));
+        apply(&mut xp, &mut core, &json!([{"remove": {"id": "menu"}}]));
+        let mut other = Wayland::connect(&mut core);
+        let second = other.toplevel(&mut core, "two");
+        apply(
+            &mut wm,
+            &mut core,
+            &json!([{"attach": {"surface": "s2", "parent": "root"}},
+                {"update": {"id": "s2", "props": {"transform": {"translate": [300, 300]}}}}]),
+        );
+        other.attach(&mut core, &second, (100, 100));
+        wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        move_to(&mut core, 50.0, 50.0);
+        click(&mut core, true);
+        let stale = last_press(&core, "s1");
+        click(&mut core, false);
+        // The user holds the button on the other window.
+        move_to(&mut core, 350.0, 350.0);
+        click(&mut core, true);
+        wayland.request_move(&mut core, &window, stale);
+        move_to(&mut core, 360.0, 370.0);
+        click(&mut core, false);
+        assert_eq!(buttons(&mut wm, &mut core), Vec::<String>::new());
     }
 
     #[test]

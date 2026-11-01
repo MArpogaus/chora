@@ -4,7 +4,11 @@
 
 use std::{
     collections::{BTreeMap, VecDeque},
-    sync::mpsc::Sender,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc::Sender,
+    },
     time::{Duration, Instant},
 };
 
@@ -17,7 +21,7 @@ use crate::{
     agents,
     asr::Transcript,
     chat, coder,
-    config::Config,
+    config::{Config, Listen},
     earcon::Earcon,
     gate::{self, BargeIn, ECHO_WINDOW, FRAME_MS, Frame, Gate},
     speech::Control,
@@ -117,11 +121,26 @@ pub enum Input {
     Code(coder::Event),
     /// An ACP agent.
     Agent(agents::Event),
+    /// The LLM read the prompt after the start: the agent says
+    /// `phrases.ready`.
+    Ready,
     /// A signal: the agent stops its sub-agents and exits.
     Quit,
     /// The method `agent`: a tool of the ACP agents and its arguments;
     /// the text of its answer goes to the channel.
     AgentCall(String, Value, Sender<Value>),
+    /// Whether a plugin that shows the state claimed the indicator.
+    Claimed(bool),
+    /// A key of `confirm_keys`: yes or no.
+    ConfirmKey(bool),
+    /// A button of a HUD that claimed the indicator (`confirm.answer`):
+    /// yes or no to the question `id`. Whether `id` was the open question
+    /// goes to the channel.
+    ConfirmButton {
+        id: u64,
+        yes: bool,
+        open: Sender<bool>,
+    },
 }
 
 /// What the core asks the other actors to do.
@@ -159,6 +178,9 @@ pub enum Effect {
     /// Stops the reply in progress and its sound; the words that played
     /// go into its note in the history.
     Stop(String),
+    /// A text of the user for the next LLM round of the reply in
+    /// progress.
+    Inject(String),
     /// Pauses or resumes the speech of the reply: a barge-in.
     Speech(Control),
     /// Stops the coding task.
@@ -176,6 +198,17 @@ pub enum Effect {
         at: Instant,
         len: Duration,
     },
+    /// A question waits: its spoken prompt and the full command or
+    /// value, for the screen (`voice.confirm`); `physical` when only a
+    /// key of `confirm_keys` answers it.
+    Confirm {
+        id: u64,
+        prompt: String,
+        detail: String,
+        physical: bool,
+    },
+    /// The question `id` got its answer or timed out.
+    ConfirmDone(u64),
     Exit,
 }
 
@@ -189,9 +222,11 @@ pub struct Muted {
 /// An utterance whose final text waits.
 struct Pending {
     turn: u64,
-    length_ms: u32,
+    speech_ms: u32,
     /// Awake or by the key: the text is a request, not only a wake word.
     heard: bool,
+    /// When the speech started.
+    onset: Instant,
 }
 
 /// The push-to-talk key.
@@ -206,12 +241,26 @@ struct Key {
 /// up between sentences, still counts as speaking.
 const SOUND_GAP: Duration = Duration::from_millis(1500);
 
+/// After the question of a confirmation, only the echo of its end: then
+/// the speech gate hears a short yes (live 2026-10-31: a quick "Ja" fell
+/// into `SOUND_GAP`, where only the barge-in gate listens, and was lost).
+const ECHO_TAIL: Duration = Duration::from_millis(250);
+
+/// A question of the reply that is not yet said waits at most this long
+/// besides `confirm_timeout_ms`, for example when its TTS fails.
+const UNSPOKEN: Duration = Duration::from_secs(30);
+
+/// How long the HUD shows a heard text.
+const HEARD_LEN: Duration = Duration::from_secs(3);
+
 /// Words that played within this time count for the echo filter.
 const ECHO_MEMORY: Duration = Duration::from_secs(3);
 /// The most texts that wait to be said: a flood of a looping sub-agent
 /// drops the oldest.
 const NOTES: usize = 8;
 
+// ponytail: the flags of the state machine; one state enum if they grow.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Core {
     config: Config,
     gate: Gate,
@@ -237,8 +286,24 @@ pub struct Core {
     doing: State,
     /// The answer of the confirmation that waits, and the unclear
     /// answers so far.
-    confirm: Option<oneshot::Sender<bool>>,
+    confirm: Option<oneshot::Sender<Option<bool>>>,
+    /// Set before a yes with an always word to the confirmation.
+    confirm_always: Arc<AtomicBool>,
+    /// Only a key of `confirm_keys` answers the confirmation: a voice,
+    /// a client and an injected text cannot.
+    physical: bool,
     unclear: u32,
+    /// The question of the confirmation, and until when it waits:
+    /// `confirm_timeout_ms` from the end of its sound.
+    confirm_prompt: String,
+    /// The prompt of a question that ended: its speech stops.
+    cancel_prompt: Option<String>,
+    confirm_until: Instant,
+    /// When the question of the confirmation that waits started to play:
+    /// only speech from then on answers it.
+    confirm_from: Option<Instant>,
+    /// When the speech of the utterance in progress started.
+    onset: Instant,
     /// The utterances whose final text waits.
     pending: Vec<Pending>,
     /// A barge-in paused the speech.
@@ -275,6 +340,9 @@ pub struct Core {
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
     sub_until: Instant,
+    /// The questions so far, and the one on the screen.
+    confirms: u64,
+    shown: Option<u64>,
 }
 
 /// A text to say when the agent listens.
@@ -318,7 +386,14 @@ impl Core {
             request: String::new(),
             doing: State::Thinking,
             confirm: None,
+            confirm_always: Arc::default(),
+            physical: false,
             unclear: 0,
+            confirm_prompt: String::new(),
+            cancel_prompt: None,
+            confirm_until: now,
+            confirm_from: None,
+            onset: now,
             pending: Vec::new(),
             paused: false,
             levels: VecDeque::new(),
@@ -335,6 +410,8 @@ impl Core {
             subs: BTreeMap::new(),
             sub_confirm: None,
             sub_until: now,
+            confirms: 0,
+            shown: None,
         }
     }
 
@@ -371,6 +448,7 @@ impl Core {
             "since_ms": u64::try_from(self.since.elapsed().as_millis()).unwrap_or(u64::MAX),
             "seq": self.seq,
             "awake": self.awake,
+            "listen": self.config.listen,
             "muted": self.muted,
             "turn": self.turn,
             "last_transcript": self.last_transcript,
@@ -393,11 +471,7 @@ impl Core {
     /// The state from what goes on: an utterance first, then its text,
     /// then the reply.
     fn refresh(&mut self) {
-        // A question of a sub-agent that timed out is gone: a no.
-        let late = Instant::now() >= self.sub_until;
-        if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
-            self.sub_confirm = None;
-        }
+        self.expire();
         let working =
             self.code.1 == "working" || self.subs.values().any(|s| s["state"] == "working");
         let state = if self.gate.pcm().is_some() {
@@ -424,6 +498,31 @@ impl Core {
         self.set(state);
     }
 
+    /// Drops the questions that waited too long: a no.
+    fn expire(&mut self) {
+        // A question of a sub-agent that timed out is gone: a no.
+        let late = Instant::now() >= self.sub_until;
+        if (self.sub_confirm.as_ref()).is_some_and(|(_, a)| late || a.is_closed()) {
+            self.sub_confirm = None;
+        }
+        // A question of the reply without an answer in time: the dropped
+        // answer tells the LLM so. Speech that started in time still
+        // answers while it records or waits for its text.
+        let until = self.confirm_until;
+        // It also started after the question did: an older text, still
+        // in the ASR, answers nothing and keeps nothing open.
+        let from = self.confirm_from;
+        let in_time = |onset: Instant| from.is_some_and(|f| onset >= f) && onset <= until;
+        let in_time = (self.gate.pcm().is_some() && in_time(self.onset))
+            || self.pending.iter().any(|p| in_time(p.onset));
+        if self.confirm.is_some() && Instant::now() >= until && !in_time {
+            crate::log::info("confirm: no answer in time");
+            self.confirm = None;
+            self.cancel_prompt = Some(self.confirm_prompt.clone());
+            self.doing = State::Thinking;
+        }
+    }
+
     fn earcon(&self, kind: Earcon) -> Option<Effect> {
         (self.config.earcons && !self.muted.speaker).then_some(Effect::Earcon(kind))
     }
@@ -442,6 +541,8 @@ impl Core {
                 self.earcon(Earcon::Error).into_iter().collect()
             }
             Input::PttDown => self.key(true),
+            Input::ConfirmKey(yes) => self.confirm_key(yes),
+            Input::ConfirmButton { id, yes, open } => self.confirm_button(id, yes, &open),
             Input::PttUp => self.key(false),
             Input::Call(call, reply) => {
                 let effects = self.call(call);
@@ -465,8 +566,9 @@ impl Core {
             Input::Reply(reply, event) => self.reply(reply, event),
             Input::Code(event) => self.code(event),
             Input::Agent(event) => self.sub(event),
+            Input::Ready => self.ready(),
             // The loop of the agent takes them before.
-            Input::Quit | Input::AgentCall(..) => Vec::new(),
+            Input::Quit | Input::AgentCall(..) | Input::Claimed(_) => Vec::new(),
         };
         // A barge-in that came to nothing: the speech goes on.
         if self.paused && self.gate.pcm().is_none() && self.pending.is_empty() {
@@ -474,23 +576,66 @@ impl Core {
             effects.push(Effect::Speech(Control::Resume { skip: false }));
         }
         self.refresh();
-        // A coding result waits for the agent to listen: it cuts no
-        // speech of the user.
+        // The question that ended is not read on: not its sound, not
+        // its sentence in the queue.
+        // A muted speaker never queued the sentence; a Cancel would wait
+        // in the player and skip the same question later (review rc3
+        // round 4, 2.6).
+        if let Some(prompt) = self.cancel_prompt.take().filter(|_| !self.muted.speaker) {
+            effects.insert(0, Effect::Speech(Control::Cancel(prompt)));
+        }
+        effects.extend(self.say_note());
+        if let Some(id) = self.shown.filter(|_| !self.confirming()) {
+            self.shown = None;
+            effects.push(Effect::ConfirmDone(id));
+        }
+        effects
+    }
+
+    /// Says the next note when the agent listens: a coding result waits,
+    /// so it cuts no speech of the user.
+    fn say_note(&mut self) -> Vec<Effect> {
+        let mut effects = Vec::new();
         if matches!(self.state, State::Listening | State::Working)
             && let Some(note) = self.next_note()
         {
+            let text = note.text.clone();
             let mut ask = self.ask(note.text, true);
             if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
                 *voice = note.voice;
             }
             effects.extend(ask);
             // The question waits from when it is spoken.
+            if note.ask.is_some() {
+                self.confirm_from = Some(Instant::now());
+                effects.extend(self.show(text.clone(), text, false));
+            }
             self.sub_confirm = note.ask;
             self.sub_until =
                 Instant::now() + Duration::from_secs(self.config.agent_permission_s.into());
             self.unclear = 0;
             self.refresh();
         }
+        effects
+    }
+
+    /// Shows a new question on the screen, after the end of the one
+    /// before.
+    fn show(&mut self, prompt: String, detail: String, physical: bool) -> Vec<Effect> {
+        let mut effects: Vec<Effect> = self
+            .shown
+            .take()
+            .map(Effect::ConfirmDone)
+            .into_iter()
+            .collect();
+        self.confirms += 1;
+        self.shown = Some(self.confirms);
+        effects.push(Effect::Confirm {
+            id: self.confirms,
+            prompt,
+            detail,
+            physical,
+        });
         effects
     }
 
@@ -504,6 +649,14 @@ impl Core {
         while self.notes.len() > NOTES {
             self.notes.pop_front();
         }
+    }
+
+    /// Says `phrases.ready` when the agent listens.
+    fn ready(&mut self) -> Vec<Effect> {
+        if !self.config.phrases.ready.is_empty() {
+            self.note(self.config.phrases.ready.clone().into());
+        }
+        Vec::new()
     }
 
     /// The next text to say; a question that its agent dropped, for
@@ -565,7 +718,7 @@ impl Core {
             Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
                 .chain(self.earcon(Earcon::Cancel))
                 .collect(),
-            Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
+            Some(yes @ (Word::Yes | Word::Always | Word::No)) => self.yes_no(yes != Word::No),
             _ if rest.is_empty() => Vec::new(),
             _ => vec![Effect::AgentPrompt { name, text: rest }],
         }
@@ -646,16 +799,26 @@ impl Core {
         self.confirm.is_some() || self.sub_confirm.is_some()
     }
 
-    /// Answers the confirmation that waits; that of the reply first.
-    fn answer(&mut self, yes: bool) {
-        let said = if yes { "yes" } else { "no" };
+    /// Answers the confirmation that waits, that of the reply first: yes,
+    /// no, or unclear (`None`, a no to a sub-agent).
+    fn answer(&mut self, yes: Option<bool>) {
+        let said = match yes {
+            Some(true) => "yes",
+            Some(false) => "no",
+            None => "unclear",
+        };
         if let Some(answer) = self.confirm.take() {
             crate::log::info(&format!("confirm: {said}"));
             let _ = answer.send(yes);
-            self.doing = if yes { State::Tool } else { State::Thinking };
+            self.cancel_prompt = Some(self.confirm_prompt.clone());
+            self.doing = if yes == Some(true) {
+                State::Tool
+            } else {
+                State::Thinking
+            };
         } else if let Some((name, answer)) = self.sub_confirm.take() {
             crate::log::info(&format!("confirm {name}: {said}"));
-            let _ = answer.send(yes);
+            let _ = answer.send(yes == Some(true));
         }
     }
 
@@ -677,6 +840,44 @@ impl Core {
         self.earcon(Earcon::Wake).into_iter().collect()
     }
 
+    /// The reply asks for a confirmation; the screen shows the full
+    /// command or value (`detail`) while it waits.
+    fn asked(
+        &mut self,
+        prompt: String,
+        detail: String,
+        physical: bool,
+        answer: oneshot::Sender<Option<bool>>,
+    ) -> Vec<Effect> {
+        self.confirm = Some(answer);
+        self.physical = physical;
+        self.unclear = 0;
+        // The wait starts when the question is said; until then, or
+        // without its sound, at most `UNSPOKEN` longer.
+        let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
+        let unspoken = if self.muted.speaker {
+            Duration::ZERO
+        } else {
+            UNSPOKEN
+        };
+        self.confirm_until = Instant::now() + wait + unspoken;
+        self.confirm_prompt.clone_from(&prompt);
+        // Only speech after the question started answers it: a queued
+        // text never does (review 0.9.0-rc.3). Without its sound, the
+        // question shows now.
+        self.confirm_from = self.muted.speaker.then(Instant::now);
+        self.show(prompt, detail, physical)
+    }
+
+    /// Whether speech that started at `onset` answers the confirmation
+    /// that waits.
+    fn answers(&self, onset: Option<Instant>) -> bool {
+        self.confirming()
+            && (self.confirm_from)
+                .zip(onset)
+                .is_some_and(|(from, onset)| onset >= from)
+    }
+
     fn reply(&mut self, reply: u64, event: Reply) -> Vec<Effect> {
         // A late event of a stopped reply; a dropped confirmation is a no.
         if self.asking != Some(reply) {
@@ -685,13 +886,24 @@ impl Core {
         match event {
             Reply::Chat(chat::Event::Thinking) => self.doing = State::Thinking,
             Reply::Chat(chat::Event::Tool(_)) => self.doing = State::Tool,
-            Reply::Chat(chat::Event::Confirm { answer, .. }) => {
-                self.confirm = Some(answer);
-                self.unclear = 0;
+            Reply::Chat(chat::Event::Confirm {
+                prompt,
+                detail,
+                always,
+                physical,
+                answer,
+            }) => {
+                self.confirm_always = always;
+                return self.asked(prompt, detail, physical, answer);
             }
             Reply::Failed if self.tts_failed != Some(reply) => {
                 self.tts_failed = Some(reply);
                 return self.earcon(Earcon::Error).into_iter().collect();
+            }
+            Reply::Chat(chat::Event::Heard(text)) => {
+                if let Some(at) = self.queue.iter().position(|t| *t == text) {
+                    self.queue.remove(at);
+                }
             }
             Reply::Chat(chat::Event::Sentence(_)) | Reply::Failed => {}
             Reply::Played { at, pcm } => {
@@ -704,6 +916,11 @@ impl Core {
                 }
             }
             Reply::Said { text, at, len } => {
+                if self.confirm.is_some() && text == self.confirm_prompt {
+                    let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
+                    self.confirm_until = at + len + wait;
+                    self.confirm_from.get_or_insert(at);
+                }
                 self.said.push_back((at + len, text.clone()));
                 self.played.push_str(&text);
                 self.played.push(' ');
@@ -771,9 +988,9 @@ impl Core {
         // The final text of an older utterance still counts: no speech is
         // dropped.
         let at = self.pending.iter().position(|p| p.turn == turn);
-        let (length_ms, heard) = at.map_or((u32::MAX, self.awake), |at| {
+        let (speech_ms, heard, onset) = at.map_or((u32::MAX, self.awake, None), |at| {
             let p = self.pending.remove(at);
-            (p.length_ms, p.heard)
+            (p.speech_ms, p.heard, Some(p.onset))
         });
         let text = match result {
             Ok(t) => {
@@ -796,7 +1013,8 @@ impl Core {
                 return self.earcon(Earcon::Error).into_iter().collect();
             }
         };
-        let word = words::matches(&self.config, &text, length_ms, self.confirming());
+        let answers = self.answers(onset);
+        let word = words::matches(&self.config, &text, speech_ms, answers);
         if let Some(word) = word {
             crate::log::info(&format!("turn={turn} word={word:?}"));
         }
@@ -818,14 +1036,56 @@ impl Core {
             }
             Some(Word::Sleep) => self.sleep(),
             Some(Word::Wake) => Vec::new(),
+            Some(Word::Always) => self.always(),
             Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
-            None => self.text(text),
+            None => self.text(text, answers),
         }
     }
 
-    /// A spoken yes or no: the cut prompt does not play again.
+    /// A yes with an always word; a question of a sub-agent takes it as
+    /// a yes.
+    fn always(&mut self) -> Vec<Effect> {
+        if self.confirm.is_some() {
+            self.confirm_always.store(true, Ordering::Relaxed);
+        }
+        self.yes_no(true)
+    }
+
+    /// A spoken yes or no, or one of `voice.confirm`: the cut prompt
+    /// does not play again. A yes does not answer a question that waits
+    /// for a key.
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
-        self.answer(yes);
+        if yes && self.confirm.is_some() && self.physical {
+            crate::log::info("confirm: a yes without the key counts as nothing");
+            return Vec::new();
+        }
+        self.answered(yes)
+    }
+
+    /// A key of `confirm_keys` answers the question that waits for it.
+    fn confirm_key(&mut self, yes: bool) -> Vec<Effect> {
+        if self.confirm.is_none() || !self.physical {
+            return Vec::new();
+        }
+        crate::log::info("confirm: by the key");
+        self.answered(yes)
+    }
+
+    /// A button answers the question on the screen, also one that waits
+    /// for a key: a click is a physical act as a key press is. Another
+    /// id, such as that of a question that ended, answers nothing.
+    fn confirm_button(&mut self, id: u64, yes: bool, open: &Sender<bool>) -> Vec<Effect> {
+        let is_open = self.confirming() && self.shown == Some(id);
+        let _ = open.send(is_open);
+        if !is_open {
+            return Vec::new();
+        }
+        crate::log::info("confirm: by a button");
+        self.answered(yes)
+    }
+
+    fn answered(&mut self, yes: bool) -> Vec<Effect> {
+        self.answer(Some(yes));
         if !self.paused {
             return Vec::new();
         }
@@ -834,7 +1094,7 @@ impl Core {
     }
 
     /// A text without a command word.
-    fn text(&mut self, text: String) -> Vec<Effect> {
+    fn text(&mut self, text: String, answers: bool) -> Vec<Effect> {
         if text.is_empty() || self.echo(&text) {
             crate::log::info("empty or echo");
             return Vec::new();
@@ -842,27 +1102,49 @@ impl Core {
         if let Some((name, rest)) = words::addressed(&text, self.subs.keys()) {
             return self.address(name, rest);
         }
-        if self.confirming() {
-            self.unclear += 1;
-            crate::log::info(&format!("confirm: unclear answer {}", self.unclear));
-            if self.unclear >= 2 {
-                self.answer(false);
+        if answers {
+            if words::answer(&self.config, &text) == words::Answer::Request {
+                // A new request: a no, and the text starts the next turn.
+                crate::log::info("confirm: a new request");
+                self.answer(Some(false));
+            } else {
+                self.unclear += 1;
+                crate::log::info(&format!("confirm: unclear answer {}", self.unclear));
+                if self.unclear >= 2 {
+                    self.answer(None);
+                }
+                return Vec::new();
             }
-            return Vec::new();
         }
+        // The HUD shows the text before the agent acts on it.
+        let mut effects = vec![Effect::Say {
+            text: self.config.phrases.heard.replace("{text}", &text),
+            at: Instant::now(),
+            len: HEARD_LEN,
+        }];
         if self.asking.is_none() {
-            return self.ask(text, false);
-        }
-        if self.paused {
-            // A barge-in with new words: the reply ends, the words start
-            // the next one.
-            let mut effects = self.stop(None);
             effects.extend(self.ask(text, false));
             return effects;
         }
+        if self.paused || self.sounding(Instant::now()) {
+            // New words over the agent's speech, with or without a
+            // barge-in: the reply ends, the words and those that wait
+            // start the next one.
+            crate::log::info(&format!("over the reply: {text:?}"));
+            let queued = std::mem::take(&mut self.queue);
+            effects.extend(self.stop(None));
+            self.queue = queued;
+            effects.extend(self.ask(text, false));
+            return effects;
+        }
+        // While the reply thinks or runs tools, any text but a pure yes
+        // or no goes into its next round ("Und größer.", "Nein, rot.").
         crate::log::info(&format!("queued: {text:?}"));
+        if !words::answer(&self.config, &text).pure() {
+            effects.push(Effect::Inject(text.clone()));
+        }
         self.queue.push(text);
-        Vec::new()
+        effects
     }
 
     fn call(&mut self, call: Call) -> Vec<Effect> {
@@ -907,30 +1189,45 @@ impl Core {
     }
 
     /// Whether the reply speaks: its sound plays, or ran dry between
-    /// two sentences a moment ago.
+    /// two sentences a moment ago. A question that waits for its answer
+    /// is the last sentence: only its echo tail counts.
     fn sounding(&self, now: Instant) -> bool {
         // ponytail: a fixed gap; the speech could report its queue.
-        self.sound_end.is_some_and(|end| now < end + SOUND_GAP)
+        let gap = if self.confirm.is_some() {
+            ECHO_TAIL
+        } else {
+            SOUND_GAP
+        };
+        self.sound_end.is_some_and(|end| now < end + gap)
+    }
+
+    /// Speech over the agent's sound pauses it and starts an utterance.
+    fn barge_in(&mut self, now: Instant, level: f64) -> Vec<Effect> {
+        crate::log::info(&format!(
+            "barge-in played={level:.0} coupling={:.3}",
+            self.barge.coupling()
+        ));
+        self.paused = true;
+        self.sound_end = Some(now);
+        let barge = Duration::from_millis(self.config.barge_in_ms.into());
+        self.onset = now.checked_sub(barge).unwrap_or(now);
+        // The speech that made the barge-in, and the pre-roll before it.
+        self.gate
+            .open(self.config.barge_in_ms + self.config.preroll_ms);
+        self.recorded = 0;
+        vec![Effect::Speech(Control::Pause), Effect::Mark("barge")]
     }
 
     fn frame(&mut self, frame: &Frame) -> Vec<Effect> {
         let now = Instant::now();
         let playing = self.asking.is_some() && !self.paused && self.sounding(now);
+        // Push to talk: no speech opens the gate, only the key does.
+        let vad = !self.muted.mic && self.config.listen == Listen::Always;
         if playing && self.gate.pcm().is_none() && !self.key.down {
             // Only the barge-in gate listens over the agent's sound.
             let level = self.played_level(now);
-            if !self.muted.mic && self.barge.push(frame, level) {
-                crate::log::info(&format!(
-                    "barge-in played={level:.0} coupling={:.3}",
-                    self.barge.coupling()
-                ));
-                self.paused = true;
-                self.sound_end = Some(now);
-                // The speech that made the barge-in, and the pre-roll before it.
-                self.gate
-                    .open(self.config.barge_in_ms + self.config.preroll_ms);
-                self.recorded = 0;
-                return vec![Effect::Speech(Control::Pause), Effect::Mark("barge")];
+            if vad && self.barge.push(frame, level) {
+                return self.barge_in(now, level);
             }
             // The gate keeps its pre-roll.
             self.gate.push(frame, false, false);
@@ -938,9 +1235,10 @@ impl Core {
         }
         self.barge.reset();
         self.key.used |= self.key.down;
-        match self.gate.push(frame, !self.muted.mic, self.key.down) {
+        match self.gate.push(frame, vad, self.key.down) {
             None => self.interim().into_iter().collect(),
             Some(gate::Event::Onset) => {
+                self.onset = now;
                 self.recorded = 0;
                 vec![Effect::Mark("onset")]
             }
@@ -956,12 +1254,12 @@ impl Core {
             }) => {
                 self.turn += 1;
                 self.ended = now;
-                let length_ms =
-                    u32::try_from(pcm.len() * 1000 / crate::pcm::RATE as usize).unwrap_or(u32::MAX);
+                self.barge.heard(&pcm);
                 self.pending.push(Pending {
                     turn: self.turn,
-                    length_ms,
+                    speech_ms,
                     heard: self.awake || std::mem::take(&mut self.key.used),
+                    onset: self.onset,
                 });
                 vec![
                     Effect::Mark("end"),
@@ -1167,6 +1465,7 @@ mod tests {
                 say: true,
                 ..
             },
+            Effect::Confirm { id: 1, .. },
         ] = &effects[..]
         else {
             panic!("{effects:?}");
@@ -1297,6 +1596,7 @@ mod tests {
         assert_eq!(core.state(), State::Transcribing);
         let effects = core.handle(text(1, false, Ok(" hallo ")));
         let [
+            Effect::Say { .. },
             Effect::Ask {
                 reply, text, speak, ..
             },
@@ -1319,14 +1619,23 @@ mod tests {
             1,
             chat::Event::Confirm {
                 prompt: "Wirklich?".into(),
+                detail: String::new(),
+                always: std::sync::Arc::default(),
+                physical: false,
                 answer,
             },
         ));
         assert_eq!(core.state(), State::Confirming);
         let (effects, record) = call(&mut core, Call::Confirm(true));
-        assert_eq!(effects, []);
+        assert_eq!(
+            effects,
+            [
+                Effect::Speech(Control::Cancel("Wirklich?".into())),
+                Effect::ConfirmDone(1)
+            ]
+        );
         assert_eq!(record["state"], "tool");
-        assert_eq!(rx.try_recv(), Ok(true));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
         core.handle(sound(1, 2000));
         assert_eq!(core.state(), State::Speaking, "the sound plays");
         core.handle(reply(1, chat::Event::Thinking));
@@ -1352,11 +1661,15 @@ mod tests {
                 1,
                 chat::Event::Confirm {
                     prompt: "Wirklich?".into(),
+                    detail: String::new(),
+                    always: std::sync::Arc::default(),
+                    physical: false,
                     answer,
                 },
             ));
             let effects = core.handle(input);
-            assert_eq!(effects, [stop(), Effect::Earcon(Earcon::Cancel)]);
+            let done = Effect::ConfirmDone(1);
+            assert_eq!(effects, [stop(), Effect::Earcon(Earcon::Cancel), done]);
             assert_eq!(core.state(), State::Listening);
             assert!(rx.try_recv().is_err(), "a dropped answer is a no");
             core.handle(sound(1, 1000));
@@ -1419,7 +1732,7 @@ mod tests {
         (0..11).for_each(|_| drop(core.handle(loud())));
         quiet(&mut core, 26);
         let effects = core.handle(text(3, false, Ok("Und morgen?")));
-        assert_eq!(effects[0], stop());
+        assert_eq!(effects[1], stop());
         assert_eq!(asks(&effects), [(2, "Und morgen?")]);
         // A muted mic barges in nowhere.
         call(
@@ -1449,33 +1762,452 @@ mod tests {
         assert_eq!(core.state(), State::Listening);
     }
 
+    /// After a barge-in the utterance goes on until the user's sentence
+    /// ends: a pause shorter than `silence_ms` makes no second turn, and
+    /// the utterance starts with the barge-in speech and its pre-roll.
+    #[test]
+    fn a_barge_in_records_the_whole_sentence() {
+        let mut core = Core::new(Config {
+            barge_in_ms: 96,
+            ..Config::default()
+        });
+        say(&mut core, "hallo");
+        core.handle(sound(1, 5000));
+        (0..20).for_each(|_| drop(core.handle(frame(0.0))));
+        let mut effects: Vec<_> = (0..11).flat_map(|_| core.handle(loud())).collect();
+        effects.extend(quiet(&mut core, 15));
+        effects.extend((0..10).flat_map(|_| core.handle(loud())));
+        effects.extend(quiet(&mut core, 26));
+        let lengths: Vec<usize> = (effects.iter())
+            .filter_map(|e| match e {
+                Effect::Utterance { pcm, .. } => Some(pcm.len() / 768),
+                _ => None,
+            })
+            .collect();
+        // 11 + 15 + 10 + 25 frames after the barge-in frame, and up to
+        // `preroll_ms` (10 frames) before.
+        let [frames] = lengths[..] else {
+            panic!("one utterance: {lengths:?}");
+        };
+        assert!((60..=72).contains(&frames), "{frames}");
+    }
+
+    /// The HUD shows a heard text before the agent acts on it.
+    #[test]
+    fn the_hud_shows_a_heard_text() {
+        let mut core = Core::new(Config::default());
+        let effects = say(&mut core, "Wie spät ist es?");
+        assert!(
+            effects.iter().any(
+                |e| matches!(e, Effect::Say { text, .. } if text == "Heard: Wie spät ist es?")
+            ),
+            "{effects:?}"
+        );
+    }
+
+    /// A request while the reply thinks or runs tools goes into its next
+    /// round; once the turn heard it, it no longer waits in the queue. A
+    /// yes waits for a question.
+    #[test]
+    fn a_request_during_a_reply_goes_into_its_next_round() {
+        let mut core = asking();
+        core.handle(reply(1, chat::Event::Tool("query".into())));
+        let effects = say(&mut core, "Zeig mir lieber die Agenda.");
+        assert!(effects.contains(&Effect::Inject("Zeig mir lieber die Agenda.".into())));
+        let effects = say(&mut core, "Ja.");
+        assert!(!effects.iter().any(|e| matches!(e, Effect::Inject(_))));
+        core.handle(reply(
+            1,
+            chat::Event::Heard("Zeig mir lieber die Agenda.".into()),
+        ));
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+        let effects = core.handle(Input::Reply(1, Reply::Done("Rot.".into())));
+        assert_eq!(asks(&effects), [(2, "Ja.")]);
+    }
+
+    /// New words while the agent speaks stop the reply as a barge-in
+    /// does, and start the next turn with the words that wait (log
+    /// 2026-10-31: they waited until the reply ended).
+    #[test]
+    fn new_words_over_the_speech_stop_the_reply() {
+        let mut core = asking();
+        say(&mut core, "Mach es rot.");
+        core.handle(sound(1, 5000));
+        assert_eq!(core.state(), State::Speaking);
+        let effects = core.handle(text(9, false, Ok("Und größer.")));
+        assert!(effects.contains(&stop()), "{effects:?}");
+        assert_eq!(asks(&effects), [(2, "Mach es rot. Und größer.")]);
+        assert_eq!(core.state(), State::Thinking);
+    }
+
+    /// Reply 1 asks `prompt`, and its sound starts now.
+    fn confirm(core: &mut Core, prompt: &str) -> oneshot::Receiver<Option<bool>> {
+        let (answer, rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: prompt.into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: false,
+            answer,
+        };
+        core.handle(reply(1, event));
+        let said = Reply::Said {
+            text: prompt.into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(1, said));
+        rx
+    }
+
     #[test]
     fn spoken_yes_and_no_answer_and_two_unclear_answers_are_a_no() {
-        let confirming = |core: &mut Core| {
-            let (answer, rx) = oneshot::channel();
-            core.handle(reply(
-                1,
-                chat::Event::Confirm {
-                    prompt: "Wirklich?".into(),
-                    answer,
-                },
-            ));
-            rx
-        };
         let mut core = asking();
-        let mut rx = confirming(&mut core);
-        say(&mut core, "Ja, bitte.");
-        assert_eq!(rx.try_recv(), Ok(true));
-        assert_eq!(core.state(), State::Tool);
-        let mut rx = confirming(&mut core);
-        say(&mut core, "Lieber nicht.");
-        assert_eq!(rx.try_recv(), Ok(false));
-        let mut rx = confirming(&mut core);
-        say(&mut core, "Was meinst du?");
+        for text in ["Ja, bitte.", "Bitte.", "Ja, mach das."] {
+            let mut rx = confirm(&mut core, "Wirklich?");
+            say(&mut core, text);
+            assert_eq!(rx.try_recv(), Ok(Some(true)), "{text}");
+            assert_eq!(core.state(), State::Tool);
+        }
+        let mut rx = confirm(&mut core, "Wirklich?");
+        say(&mut core, "Nein, lieber nicht.");
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
+        let mut rx = confirm(&mut core, "Wirklich?");
+        say(&mut core, "1.5");
         assert!(rx.try_recv().is_err(), "one unclear answer waits");
         say(&mut core, "Keine Ahnung.");
-        assert_eq!(rx.try_recv(), Ok(false));
+        assert_eq!(rx.try_recv(), Ok(None), "two: not understood");
         assert_eq!(call(&mut core, Call::State).1["queued"], 0);
+    }
+
+    /// A new request is a no and the next turn, also with a yes word in
+    /// it (review 0.9.0-rc.3).
+    #[test]
+    fn a_new_request_in_a_confirmation_is_a_no() {
+        let mut core = asking();
+        for text in [
+            "Zeig mir lieber die Agenda für heute.",
+            "Ja, die Skalierung des Bildschirms.",
+        ] {
+            let mut rx = confirm(&mut core, "Wirklich?");
+            say(&mut core, text);
+            assert_eq!(rx.try_recv(), Ok(Some(false)), "{text}");
+            assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+            core.queue.clear();
+        }
+    }
+
+    /// The confirmation waits `confirm_timeout_ms` from the end of the
+    /// spoken question, not from when the reply asks (log 2026-10-31: the
+    /// question played for 3 s of the 8 s), then it is no answer.
+    #[test]
+    fn the_confirmation_times_out_from_the_end_of_its_question() {
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let prompt = "Soll ich das entfernen?";
+        let confirm = chat::Event::Confirm {
+            prompt: prompt.into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: false,
+            answer,
+        };
+        core.handle(reply(1, confirm));
+        let wait = Duration::from_millis(core.config.confirm_timeout_ms.into());
+        assert_eq!(wait, Duration::from_secs(15));
+        assert!(core.confirm_until > Instant::now() + wait, "not yet said");
+        let at = Instant::now() + Duration::from_secs(2);
+        let len = Duration::from_secs(3);
+        let said = Reply::Said {
+            text: prompt.into(),
+            at,
+            len,
+        };
+        core.handle(Input::Reply(1, said));
+        assert_eq!(core.confirm_until, at + len + wait);
+        assert_eq!(core.state(), State::Confirming);
+        core.confirm_until = Instant::now();
+        core.handle(frame(0.0));
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+        assert_eq!(core.state(), State::Thinking);
+    }
+
+    /// A short yes (224 ms) right after the sound of the question ends
+    /// answers it: the speech gate hears it, not only the barge-in gate.
+    #[test]
+    fn a_short_yes_right_after_the_question_answers_it() {
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Shall I change the screen?");
+        core.sound_end = Instant::now().checked_sub(Duration::from_millis(300));
+        let mut effects = speak(&mut core, 7);
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects.iter().find_map(|e| match e {
+            Effect::Utterance { turn, .. } => Some(*turn),
+            _ => None,
+        });
+        let turn = turn.expect("the speech gate heard the yes");
+        core.handle(text(turn, false, Ok("Ja.")));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// The user's decision on 4.4: a question about a security setting
+    /// takes no spoken yes and no yes of `voice.confirm`, only the key.
+    #[test]
+    fn only_the_key_answers_a_physical_question() {
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let prompt = "Security setting! Shall I set allow programs?";
+        let event = chat::Event::Confirm {
+            prompt: prompt.into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        assert!(
+            matches!(effects[..], [Effect::Confirm { physical: true, .. }]),
+            "{effects:?}"
+        );
+        let said = Reply::Said {
+            text: prompt.into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(1, said));
+        say(&mut core, "Ja.");
+        say(&mut core, "Ja, immer.");
+        call(&mut core, Call::Confirm(true));
+        assert!(rx.try_recv().is_err(), "no answer without the key");
+        assert_eq!(core.state(), State::Confirming);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+        // A key answers no other question.
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.handle(Input::ConfirmKey(true));
+        assert!(rx.try_recv().is_err());
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// A muted speaker queued no sentence, so the answer cancels none.
+    #[test]
+    fn an_answer_with_a_muted_speaker_cancels_no_speech() {
+        let mut core = asking();
+        call(
+            &mut core,
+            Call::Mute {
+                mic: None,
+                speaker: Some(true),
+            },
+        );
+        confirm(&mut core, "Wirklich?");
+        core.confirm_until = Instant::now();
+        let effects = core.handle(frame(0.0));
+        assert!(
+            !effects
+                .iter()
+                .any(|e| matches!(e, Effect::Speech(Control::Cancel(_)))),
+            "{effects:?}"
+        );
+    }
+
+    /// An answer, by button, key or voice, stops the speech of the
+    /// question at once.
+    #[test]
+    fn an_answer_cancels_the_speech_of_the_question() {
+        let mut core = asking();
+        let (answer, _rx) = oneshot::channel();
+        let prompt = "Shall I set allow programs?";
+        let event = chat::Event::Confirm {
+            prompt: prompt.into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        let id = effects.iter().find_map(|e| match e {
+            Effect::Confirm { id, .. } => Some(*id),
+            _ => None,
+        });
+        let (open, _) = std::sync::mpsc::channel();
+        let effects = core.handle(Input::ConfirmButton {
+            id: id.unwrap(),
+            yes: false,
+            open,
+        });
+        assert_eq!(
+            effects.first(),
+            Some(&Effect::Speech(Control::Cancel(prompt.into()))),
+            "{effects:?}"
+        );
+    }
+
+    /// A button of a HUD answers the question on the screen by its id,
+    /// also one that waits for a key; a stale id answers nothing.
+    #[test]
+    fn a_button_answers_the_open_question_by_its_id() {
+        let button = |core: &mut Core, id: u64, yes: bool| {
+            let (open, rx) = std::sync::mpsc::channel();
+            core.handle(Input::ConfirmButton { id, yes, open });
+            rx.recv().unwrap()
+        };
+        let mut core = asking();
+        let (answer, mut rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Security setting! Shall I set allow programs?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        let Some(&Effect::Confirm { id, .. }) = effects.first() else {
+            panic!("{effects:?}");
+        };
+        assert!(!button(&mut core, id + 1, true), "another id");
+        assert!(rx.try_recv().is_err());
+        assert!(button(&mut core, id, true));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+        assert!(!button(&mut core, id, false), "the question ended");
+        // A normal question takes a button too.
+        let mut rx = confirm(&mut core, "Wirklich?");
+        assert!(button(&mut core, id + 1, false));
+        assert_eq!(rx.try_recv(), Ok(Some(false)));
+    }
+
+    /// Review rc3 round 2, 1.5: a yes that starts before the deadline
+    /// answers, although its text comes after it.
+    #[test]
+    fn a_yes_that_starts_in_time_answers_after_the_deadline() {
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.sound_end = Instant::now().checked_sub(Duration::from_millis(300));
+        let mut effects = speak(&mut core, 7);
+        core.confirm_until = Instant::now();
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects.iter().find_map(|e| match e {
+            Effect::Utterance { turn, .. } => Some(*turn),
+            _ => None,
+        });
+        assert!(!effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))));
+        core.handle(text(turn.expect("an utterance"), false, Ok("Ja.")));
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// Review rc3 round 3, 2.12: a text said before the question, still
+    /// in the ASR, does not keep the question open after its deadline.
+    #[test]
+    fn an_older_utterance_does_not_keep_a_question_open() {
+        let mut core = asking();
+        speak(&mut core, 10);
+        quiet(&mut core, 26);
+        assert_eq!(core.pending.len(), 1);
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.confirm_until = Instant::now();
+        let effects = core.handle(frame(0.0));
+        assert!(
+            effects.iter().any(|e| matches!(e, Effect::ConfirmDone(_))),
+            "{effects:?}"
+        );
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+    }
+
+    /// Review 0.9.0-rc.3: a text said before the question plays never
+    /// answers it, queued or still in the ASR.
+    #[test]
+    fn speech_before_the_question_plays_does_not_answer_it() {
+        let mut core = asking();
+        say(&mut core, "Ja.");
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+        let mut rx = confirm(&mut core, "Soll ich den Bildschirm ändern?");
+        assert!(rx.try_recv().is_err(), "the queued yes waits");
+        assert_eq!(call(&mut core, Call::State).1["queued"], 1);
+        // Asked, not yet said: nothing answers.
+        let (answer, mut rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Soll ich das Fenster schließen?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: false,
+            answer,
+        };
+        core.handle(reply(1, event));
+        say(&mut core, "Ja.");
+        assert!(rx.try_recv().is_err(), "the question did not play");
+        // Speech that started before the question played.
+        let mut effects = speak(&mut core, 10);
+        let mut rx = confirm(&mut core, "Wirklich?");
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects.iter().find_map(|e| match e {
+            Effect::Utterance { turn, .. } => Some(*turn),
+            _ => None,
+        });
+        core.handle(text(turn.unwrap(), false, Ok("Mach das.")));
+        assert!(rx.try_recv().is_err(), "said before the question");
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// Each question goes out with its full command, and its end when
+    /// it is answered or dropped.
+    #[test]
+    fn a_question_shows_its_full_command_until_it_ends() {
+        let mut core = asking();
+        let (answer, _rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Soll ich das Programm foot starten?".into(),
+            detail: "foot -e sh".into(),
+            always: std::sync::Arc::default(),
+            physical: false,
+            answer,
+        };
+        let effects = core.handle(reply(1, event));
+        let shown = Effect::Confirm {
+            id: 1,
+            prompt: "Soll ich das Programm foot starten?".into(),
+            detail: "foot -e sh".into(),
+            physical: false,
+        };
+        assert_eq!(effects, [shown]);
+        let said = Reply::Said {
+            text: "Soll ich das Programm foot starten?".into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(1, said));
+        let effects = say(&mut core, "Ja.");
+        assert!(effects.contains(&Effect::ConfirmDone(1)), "{effects:?}");
+        // A timeout ends it too.
+        let mut rx = confirm(&mut core, "Wirklich?");
+        core.confirm_until = Instant::now();
+        let effects = core.handle(frame(0.0));
+        assert_eq!(
+            effects,
+            [
+                Effect::Speech(Control::Cancel("Wirklich?".into())),
+                Effect::ConfirmDone(2)
+            ]
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    /// Review 0.9.0-rc.3: any text but a pure yes or no goes into the
+    /// next round of the reply that thinks.
+    #[test]
+    fn short_texts_go_into_the_next_round() {
+        let mut core = asking();
+        for text in [
+            "Und größer.",
+            "Nein, rot.",
+            "Zeig mir nicht die Agenda, sondern den Kalender.",
+        ] {
+            let effects = say(&mut core, text);
+            assert!(effects.contains(&Effect::Inject(text.into())), "{text}");
+        }
+        let effects = say(&mut core, "Ja.");
+        assert!(!effects.iter().any(|e| matches!(e, Effect::Inject(_))));
     }
 
     #[test]
@@ -1493,6 +2225,27 @@ mod tests {
         let effects = say(&mut core, "Coding-Aufgabe abbrechen.");
         assert!(effects.contains(&Effect::StopCode), "{effects:?}");
         assert!(no_ask(&effects), "{effects:?}");
+    }
+
+    #[test]
+    fn a_slow_sleep_word_during_a_reply_acts_at_once() {
+        // Live 2026-10-31: 1856 ms of speech in 2848 ms went to the LLM.
+        let mut core = asking();
+        let mut effects = speak(&mut core, 58);
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects
+            .iter()
+            .find_map(|e| match e {
+                Effect::Utterance { turn, .. } => Some(*turn),
+                _ => None,
+            })
+            .expect("an utterance");
+        let effects = core.handle(text(turn, false, Ok("Schlaf jetzt.")));
+        assert!(effects.contains(&stop()), "{effects:?}");
+        assert!(effects.contains(&Effect::Earcon(Earcon::Sleep)));
+        assert!(!effects.iter().any(|e| matches!(e, Effect::Inject(_))));
+        assert_eq!(core.state(), State::Sleeping);
+        assert_eq!(call(&mut core, Call::State).1["queued"], 0);
     }
 
     #[test]
@@ -1650,6 +2403,29 @@ mod tests {
         assert_eq!(record["muted"], json!({"mic": false, "speaker": true}));
         let (effects, _) = call(&mut core, Call::Sleep);
         assert!(effects.is_empty(), "a muted speaker plays no earcon");
+    }
+
+    /// `listen: push_to_talk`: speech outside the key starts nothing and
+    /// the key still does; the record tells the mode.
+    #[test]
+    fn push_to_talk_listens_only_while_the_key_is_held() {
+        let mut core = Core::new(Config {
+            listen: Listen::PushToTalk,
+            ..Config::default()
+        });
+        assert!(
+            speak(&mut core, 10).is_empty(),
+            "speech alone starts no turn"
+        );
+        assert_eq!(quiet(&mut core, 30), vec![]);
+        core.handle(Input::PttDown);
+        assert_eq!(speak(&mut core, 1), [Effect::Mark("onset")]);
+        core.handle(Input::PttUp);
+        let (_, record) = call(&mut core, Call::State);
+        assert_eq!(record["listen"], "push_to_talk");
+        let mut core = Core::new(Config::default());
+        let (_, record) = call(&mut core, Call::State);
+        assert_eq!(record["listen"], "always");
     }
 
     #[test]

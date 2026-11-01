@@ -8,7 +8,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
     audio::Speaker,
-    chat::{Chat, Event, Report},
+    chat::{self, Chat, Event, Report},
     config::Config,
     core::Reply,
     pcm::RATE,
@@ -31,11 +31,18 @@ pub struct Splitter {
 }
 
 impl Splitter {
-    /// Adds words; answers the sentences that they end.
+    /// Adds words; answers the sentences that they end. A note of the
+    /// history that the LLM copied is never spoken: words that may start
+    /// one wait.
     pub fn push(&mut self, words: &str) -> Vec<String> {
         self.buffer.push_str(words);
+        self.buffer = chat::strip_notes(&self.buffer);
         let mut out = Vec::new();
-        while let Some(end) = self.boundary() {
+        loop {
+            let safe = self.buffer.len() - chat::note_start(&self.buffer);
+            let Some(end) = self.boundary(&self.buffer[..safe]) else {
+                break;
+            };
             let rest = self.buffer.split_off(end);
             let sentence = std::mem::replace(&mut self.buffer, rest);
             self.give(&sentence, &mut out);
@@ -46,7 +53,7 @@ impl Splitter {
     /// The rest, when the words end.
     pub fn finish(&mut self) -> Option<String> {
         let mut out = Vec::new();
-        let rest = std::mem::take(&mut self.buffer);
+        let rest = chat::strip_notes(&std::mem::take(&mut self.buffer));
         self.give(&rest, &mut out);
         out.pop()
     }
@@ -61,17 +68,17 @@ impl Splitter {
         }
     }
 
-    /// The end of the first sentence in the buffer: after `.!?:;` and a
-    /// space, or at a line break.
-    fn boundary(&self) -> Option<usize> {
-        let text = &self.buffer;
+    /// The end of the first sentence in the buffer: after `.!?;` and a
+    /// space, or at a line break. A colon ends none: it stands in inline
+    /// code too ("set `modifier: Alt`", review 0.9.0-rc.3).
+    fn boundary(&self, text: &str) -> Option<usize> {
         let mut chars = text.char_indices().peekable();
         while let Some((i, c)) = chars.next() {
             if c == '\n' {
                 return Some(i + 1);
             }
             let next = chars.peek().map(|&(_, n)| n);
-            if ".!?:;".contains(c) && next.is_some_and(char::is_whitespace) {
+            if ".!?;".contains(c) && next.is_some_and(char::is_whitespace) {
                 let word = text[..i].rsplit(char::is_whitespace).next().unwrap_or("");
                 let word = word.rsplit('.').next().unwrap_or(word).to_lowercase();
                 let number = !word.is_empty() && word.chars().all(|c| c.is_ascii_digit());
@@ -122,10 +129,16 @@ pub enum Out {
 
 /// A barge-in pauses the speech; the agent then resumes it from the cut
 /// sentence, or after it with `skip`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Control {
     Pause,
-    Resume { skip: bool },
+    Resume {
+        skip: bool,
+    },
+    /// The question with this prompt got its answer: its sentence stops
+    /// at once, also its sound, and never plays again. The other
+    /// sentences go on.
+    Cancel(String),
 }
 
 /// A piece of the TTS for the player.
@@ -215,19 +228,28 @@ struct Player<F> {
     buffer: usize,
     paused: bool,
     first_sound: Option<Instant>,
+    /// Prompts of answered questions whose sentence has not started.
+    cancelled: Vec<String>,
 }
 
 impl<F: FnMut(Out)> Player<F> {
     fn piece(&mut self, piece: Piece) {
         match piece {
             Piece::Start(text) => self.sents.push(Sent {
+                skip: self
+                    .cancelled
+                    .iter()
+                    .position(|c| *c == text)
+                    .is_some_and(|i| {
+                        self.cancelled.remove(i);
+                        true
+                    }),
                 text,
                 pcm: Vec::new(),
                 done: false,
                 written: 0,
                 at: None,
                 said: false,
-                skip: false,
             }),
             Piece::Pcm(pcm) => {
                 if let Some(s) = self.sents.last_mut() {
@@ -305,8 +327,40 @@ impl<F: FnMut(Out)> Player<F> {
                     s.skip = true;
                 }
             }
+            Control::Cancel(text) => self.cancel(text),
             _ => {}
         }
+    }
+
+    /// Drops the last sentence `text` that has not played to its end, or
+    /// the one that is yet to come (ponytail: an earlier equal prompt
+    /// that played decides "nothing to drop").
+    fn cancel(&mut self, text: String) {
+        let now = Instant::now();
+        let over = |s: &Sent| s.done && s.at.is_some_and(|at| at + duration(s.pcm.len()) <= now);
+        let Some(i) = self.sents.iter().rposition(|s| s.text == text) else {
+            self.cancelled.push(text);
+            return;
+        };
+        if self.sents[i].skip || over(&self.sents[i]) {
+            return;
+        }
+        let sounding = self.sents[i].written > 0;
+        self.sents[i].skip = true;
+        if !sounding || self.paused {
+            return;
+        }
+        // As a pause: the sound stops, what was written after it plays
+        // again.
+        (self.out)(Out::Stop);
+        let cut = (self.sents.iter())
+            .position(|s| !s.skip && s.at.is_none_or(|at| at + duration(s.written) > now))
+            .unwrap_or(self.sents.len());
+        for s in &mut self.sents[cut..] {
+            (s.written, s.at, s.said) = (0, None, false);
+        }
+        self.next = cut;
+        self.end = now;
     }
 
     fn written(&self) -> bool {
@@ -335,6 +389,7 @@ pub async fn speak(
         buffer: usize::try_from(config.playback_buffer_ms * RATE / 1000).unwrap_or(usize::MAX),
         paused: false,
         first_sound: None,
+        cancelled: Vec::new(),
     };
     let play = async {
         let (mut fetching, mut controlled) = (true, true);
@@ -394,11 +449,12 @@ pub async fn reply(
         }
         chat.turn(text, &|event| match event {
             Event::Sentence(sentence) => say(sentence),
-            Event::Confirm { prompt, answer } => {
-                say(prompt.clone());
-                on(Reply::Chat(Event::Confirm { prompt, answer }));
+            event => {
+                if let Event::Confirm { prompt, .. } = &event {
+                    say(prompt.clone());
+                }
+                on(Reply::Chat(event));
             }
-            event => on(Reply::Chat(event)),
         })
         .await
     };
@@ -464,6 +520,10 @@ mod tests {
         assert_eq!(
             split(&["Eins:\nzwei; **drei**"]),
             ["Eins:", "zwei;", "drei"]
+        );
+        assert_eq!(
+            split(&["You'd need to set `modifier: Alt` in its config file."]),
+            ["You'd need to set modifier: Alt in its config file."]
         );
         assert_eq!(split(&["Ende."]), ["Ende."], "the last period ends it");
         assert_eq!(split(&["  \n "]), Vec::<String>::new());
@@ -542,6 +602,45 @@ mod tests {
         log
     }
 
+    /// A cancel stops the sound of the question and drops its sentence;
+    /// the other sentences play.
+    #[tokio::test]
+    async fn a_cancel_drops_the_question_and_keeps_the_other_sentences() {
+        let server = fake::tts(fake::Tts::Speak).await;
+        let config = Config {
+            tts_url: server.url,
+            playback_buffer_ms: 900,
+            ..Config::default()
+        };
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send("Eins zwei drei.".into()).unwrap();
+        tx.send("Vier.".into()).unwrap();
+        drop(tx);
+        let (control, controls) = tokio::sync::mpsc::unbounded_channel();
+        let mut log = Vec::new();
+        speak(&config, rx, controls, |out| {
+            if log.is_empty() {
+                control
+                    .send(Control::Cancel("Eins zwei drei.".into()))
+                    .unwrap();
+            }
+            log.push(match out {
+                Out::Pcm { pcm, .. } => format!("pcm {}", pcm.len()),
+                Out::Said { text, .. } => format!("said {text}"),
+                Out::Stop => "stop".into(),
+                Out::Failed => "failed".into(),
+            });
+        })
+        .await;
+        assert!(log.contains(&"stop".to_owned()), "{log:?}");
+        assert!(log.iter().any(|l| l == "said Vier."), "{log:?}");
+        let after: usize = log[log.iter().position(|l| l == "stop").unwrap()..]
+            .iter()
+            .filter_map(|l| l.strip_prefix("pcm ")?.parse::<usize>().ok())
+            .sum();
+        assert_eq!(after, 5 * 1440, "{log:?}");
+    }
+
     #[tokio::test]
     async fn a_pause_stops_the_sound_and_the_resume_plays_the_cut_sentence_again() {
         let server = fake::tts(fake::Tts::Speak).await;
@@ -606,7 +705,7 @@ mod tests {
         let on = |reply| {
             let line = match reply {
                 Reply::Chat(Event::Confirm { answer, .. }) => {
-                    let _ = answer.send(true);
+                    let _ = answer.send(Some(true));
                     "confirm".into()
                 }
                 Reply::Chat(event) => format!("{event:?}"),
@@ -627,7 +726,7 @@ mod tests {
         )
         .await;
         assert_eq!(report.reply, "Gut. Fertig.");
-        assert_eq!((spoken.sentences, spoken.errors), (3, 0));
+        assert_eq!((spoken.sentences, spoken.errors), (4, 0));
         let texts: Vec<_> = tts
             .seen
             .lock()
@@ -635,7 +734,7 @@ mod tests {
             .iter()
             .filter_map(|m| m["text"].as_str().map(str::to_owned))
             .collect();
-        assert_eq!(texts, ["Wirklich?", "Gut.", "Fertig."], "one socket each");
+        assert_eq!(texts[1..], ["Wirklich?", "Gut.", "Fertig."], "one each");
         let events = events.into_inner().unwrap();
         assert_eq!(events[..3], ["Thinking", "confirm", "Tool(\"echo\")"]);
         assert!(events.contains(&"sound".to_owned()), "{events:?}");

@@ -8,7 +8,7 @@ WF=w11; STOP_ON_DEATH=1; . "$(dirname "$0")/lib.sh"
 config_home
 scenes=$XDG_CONFIG_HOME/chora/mc/scenes
 mkdir -p "$scenes"
-session_start "640x480" tests/battle/keep.sh "/tmp/bt-$WF-mc.pid" "$bin/chora-mc" || exit 1
+session_start "640x480" tests/battle/keep.sh "/tmp/bt-$WF-mc.pid" "$bin/chora-mc" --manage-windows || exit 1
 ready mc scene.list '{}' || finding "W11: mc silent at start" wrong "start mc"
 rss_note start
 c0=$(rss chora); m0=$(rss chora-mc)
@@ -148,8 +148,13 @@ health "restarts with apps"
 # 8. hotplug: a bigger output comes, the first one goes, it comes back
 name=$(admin add-output "1280x800+640+0" | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])' 2>/dev/null)
 admin remove-output HEADLESS-1 >/dev/null 2>&1 || finding "W11: remove-output HEADLESS-1 failed" wrong "remove-output HEADLESS-1"
-sleep 2
-on=$(ctl query "id:mc-bg" | python3 -c 'import json,sys; x=json.load(sys.stdin); print(list(x[0]["rects"].keys()) if x else "gone")')
+# mc is busy with its scenes, slow on a debug build: wait up to 30 s for
+# it to build on the output that stays
+for _ in $(seq 30); do
+  on=$(ctl query "id:mc-bg" | python3 -c 'import json,sys; x=json.load(sys.stdin); print(list(x[0]["rects"].keys()) if x else "gone")')
+  case $on in *"$name"*) break;; esac
+  sleep 1
+done
 step "mc-bg after the first output went: $on"
 case $on in *"$name"*) ;; *) finding "W11: mc shows nothing after its output went (mc-bg rects: $on, $name stays)" wrong "add-output 1280x800, remove-output HEADLESS-1";; esac
 mc scene.show '{"name": "agenda"}' || finding "W11: scene.show refused with only $name" wrong "remove the first output, scene.show"

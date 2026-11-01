@@ -39,6 +39,16 @@ model stopped.
 
 ## Setup
 
+The packages of chora install `chora-voice` in `/usr/bin`, its unit
+`chora-voice.service` as a user unit, and the quadlets, networks and
+`pipewire/echo-cancel.conf` as examples in `/usr/share/chora/voice/`.
+With the package, link the quadlets from there and skip the build below:
+`ln -s /usr/share/chora/voice/quadlets/* ~/.config/containers/systemd/`.
+At the end, start the agent with `systemctl --user enable --now
+chora-voice`. The packages leave out `gufo.sh` and `agent-sandbox.sh`.
+`agent-sandbox.sh`, the default `sandbox_cmd`, is not part of chora. Put
+your own sandbox on the `PATH` of the unit, or set `sandbox_cmd`.
+
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
 an LLM from the [model table of
 Gufo](https://github.com/gufo-org/gufo#models-and-benchmarks). The GPU
@@ -74,8 +84,8 @@ the digest in the three quadlets. The models load for some minutes. A
 model is ready when its log, for example `journalctl --user -u
 gufo-tts`, shows `event=listening`.
 
-Then install the agent and its unit. The build needs `ar` (binutils)
-and a C compiler for the kernels of `tract`. `choractl` comes with
+Without the package, install the agent and its unit. The build needs
+`ar` (binutils) and a C compiler for the kernels of `tract`. `choractl` comes with
 chora:
 
 ```bash
@@ -111,7 +121,7 @@ The settings are in `~/.config/chora/chora-voice.yaml`. A missing key
 keeps its default, so an empty file is valid. `chora-voice
 --print-config` prints all keys with their defaults; `docs/voice.md`
 (section 9) explains them. `choractl call voice settings.set` changes
-them at once; after an edit by hand, run `choractl call voice restart`.
+them at once; after an edit by hand, run `choractl call voice settings.reload`.
 For example, the models of another host:
 
 ```yaml

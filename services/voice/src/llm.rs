@@ -169,6 +169,7 @@ impl Llm {
     pub async fn chat(&self, body: &Value, mut words: impl FnMut(&str)) -> Result<Round, Error> {
         let start = Instant::now();
         let deadline = start + self.total;
+        dump(&body.to_string());
         let request = self.post().map_err(Error::Other)?;
         let response = tokio::time::timeout(self.first, request.body(body.to_string()).send())
             .await
@@ -204,6 +205,7 @@ impl Llm {
             while let Some(end) = buffer.iter().position(|&b| b == b'\n') {
                 let line: Vec<u8> = buffer.drain(..=end).collect();
                 let line = String::from_utf8_lossy(&line);
+                dump(line.trim_end());
                 let Some(data) = line.trim().strip_prefix("data:") else {
                     continue;
                 };
@@ -254,6 +256,23 @@ impl Llm {
             return Err(refusal(status.as_u16(), &text).to_string());
         }
         Ok(start.elapsed())
+    }
+}
+
+/// Appends `line` to the file of `CHORA_VOICE_LLM_DUMP`, if set: each
+/// request body and the raw lines of its stream, to debug the LLM.
+fn dump(line: &str) {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    let Some(path) = std::env::var_os("CHORA_VOICE_LLM_DUMP") else {
+        return;
+    };
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .open(path);
+    if let Ok(mut file) = file {
+        let _ = writeln!(file, "{line}");
     }
 }
 

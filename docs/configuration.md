@@ -104,6 +104,24 @@ input:
 keys, duplicate keys and unknown tags are errors. Only `true` and `false`
 are booleans, so `no` stays the string `no`.
 
+### A broken settings file
+
+The plugins `chora-tiling`, `chora-xp`, `chora-mc` and `chora-construct`
+and the service `chora-voice` read their settings file (D62) as strict
+YAML too. If the file does not parse or check, for example because an
+update removed a key, the plugin does not stop. It starts with its
+default settings, writes the error to its log and does not change the
+file. `chora-mc` also shows the error as a critical notification.
+`chora-voice` does not start on a broken file. It writes the error to
+its log.
+
+While the file is broken, `settings.set` and each other save of the
+settings fail with an error that names the file. Thus no save writes the
+defaults over your edits. Correct the file and call `settings.reload`.
+When the reload succeeds, the plugin applies the file and saves again. A
+`settings.reload` of a broken file keeps the running settings, returns
+the error and also stops the saves until the file is correct.
+
 ### Plugin manifests
 
 A manifest tells `choractl` how to start and how to configure a plugin. It
@@ -176,7 +194,8 @@ stays closed.
 default `~/.config`, or the file of `--config`. Without a file, it uses its
 default, which `chora-tiling --print-config` prints. The file holds the
 settings of D62: `settings.set` changes them at once and writes the file
-again, without its comments (see [API](api.md#plugin-methods)). Edits by
+again, without its comments (see [API](api.md#plugin-methods)). The
+plugin writes only the settings that differ from the defaults. Edits by
 hand apply with `settings.reload` or `MOD+Ctrl+r`, or at the next start
 of the plugin. The
 default file lists every option. A file can leave options out, and they
@@ -201,8 +220,15 @@ A window can be on several tags, and an output can show several tags. A
 floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
-`MOD+Ctrl+r` reads the file again. Mouse moves and resizes of floating
-windows do not exist.
+`MOD+Ctrl+r` reads the file again. `MOD+BTN_LEFT` (`drag`) holds the
+window under the pointer, and a floating window follows the pointer
+within the work area of the tiling output under the pointer. A title bar
+of a client-side decoration drags its own window in the same way. A drop
+outside the outputs of tiling hands the window to the window manager
+whose claim holds the drop point (D55). Without one there, or when the
+hand-over fails, the window stays and goes back to the middle of its
+output.
+Mouse resizes of floating windows do not exist.
 
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
@@ -215,7 +241,7 @@ the gap of the file again.
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
-| `give` | `to`: a client name | handing the focused window to another client |
+| `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
 | `move_to_tag` | `surface`, `tag` | `MOD+Shift+1` to `MOD+Shift+9`, for this window |
 | `focus` | `surface` | a click: focuses and raises the window, and its output; a window that shows nowhere only gets the urgent mark |
@@ -251,7 +277,7 @@ tiling needs `modifier: Super`: with `Alt`, tiling grabs Alt+Space for
 ## chora-mc (experimental)
 
 !!! warning "Experimental"
-    `chora-mc` is an experiment. It is not in the packages, and its
+    `chora-mc` is an experiment. The packages install it, but its
     methods and files change without notice.
 
 `chora-mc` connects with the client name `mc`. It is a voice-first
@@ -261,18 +287,28 @@ the running head and the clock, what the voice agent does, notes and a
 docked terminal. The voice agent and small collector scripts fill the
 scenes through methods; the plugin reads no sources itself.
 
+By default mc claims no windows: it shows its scenes, for example as the
+source of a plugin pane beside chora-construct or chora-tiling. With
+`--manage-windows` it is a window manager: it claims the work area of its
+output, below the header and above the footer, and the core gives it the
+new windows there.
+
 A scene of `chora-mc` is not a view of D35. It is a YAML file
 `NAME.yaml` in `$XDG_CONFIG_HOME/chora/mc/scenes/`: a grid of panels, each
-with a title and lines, or one app whose window fills the screen without
+with a title and lines, or one app (a shell command, or a content of kind `app`) whose window
+fills the text block below the head, without
 a frame. The plugin has the built-in scenes `agenda`, `agents`, `mission`
-(Mission Control), `morning` (the morning paper) and `terminal`. A file of
+(Mission Control), `morning` (the morning paper), `overview` (all
+scenes in their order as `N | Title`; `Super+o` shows it, and a click on
+a line shows that scene) and `terminal`. A file of
 the same name replaces a built-in scene. A grid has 1 to 24 columns and
-rows. A wrong file, or a scene that the core refuses, is left out with a
-line in the log; the other scenes stay.
+rows; without `grid`, a scene has 4 columns and 3 rows. A wrong file, or
+a scene that the core refuses, is left out with a line in the log; the
+other scenes stay.
 
 ```yaml
 # ~/.config/chora/mc/scenes/day.yaml
-grid: [2, 2]          # columns and rows
+grid: [2, 2]          # optional: columns and rows, [4, 3] without it
 chapter:              # all optional: the place, the name, the date
   number: "2"
   title: Day
@@ -287,8 +323,8 @@ panels:
   title: Agents
 ```
 
-Each scene of panels has a head in the style of the LaTeX package
-classicthesis: the running head in the header (see the regions below),
+Each scene of panels or of an app has a head in the style of the LaTeX
+package classicthesis: the running head in the header (see the regions below),
 and the number and the title of the scene as `chapter.layout` sets. The panels
 share the text block, one column of `page.measure` per column of the
 grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
@@ -297,13 +333,15 @@ styles of its lines, its title and its notes with `style`, `title_style`
 and `note_style`; each takes a `base` (by default `body`, `heading` and
 `margin`) and changes single fields.
 
-A scene may set its own `page` (`measure`, `margin` and `gap`, as in the
-settings), for example narrow columns side by side on a wide screen, and
-`chapter.layout`, also `none` for a scene without a head. Columns of a
-grid leave room for the margin of the column to their right. A panel may
-set a `rule`, a color of the theme for a hairline left of it, an
-`opacity` from 0 to 1 and a `blur` radius in pixels up to 16, for
-context that steps back (`plugins/chora-mc/blur.frag`).
+All scenes share the `page` of the settings, so that the text block
+and the head stay in place from scene to scene. A scene may set its own
+`grid`, and `chapter.layout`, also `none` for a scene without a head.
+Columns of a grid leave room for the margin of the column to their
+right. A panel may set a `rule`, a color of the theme for a hairline left
+of it. There is no rule at the left edge of the text block and none
+beside an empty panel. For context that steps back, a panel may also set
+an `opacity` from 0 to 1 and a `blur` radius in pixels up to 16
+(`plugins/chora-mc/blur.frag`).
 
 The methods marked privileged start programs: a caller on a client
 socket needs `methods.privileged` besides `methods.call`.
@@ -313,26 +351,38 @@ mc also follows the events of the voice agent (D65); it subscribes to
 the sub-agent that the `name` of its data names, such as `coder` or an
 ACP agent of the voice agent; `voice.remove {name}` removes such a
 sub-agent.
-`voice.say` shows a sentence as `hud.say` does. Data that mc does not
+`voice.say` shows a sentence as `hud.say` does. `voice.confirm` shows its
+`prompt` and its whole `detail` in mono alone in the drawer until the
+event with `done` and the same `id`. With `buttons`, the words Ja and
+Nein stand flush right on its title line, each with a hairline under
+it; a click calls `voice.confirm.answer {id, yes}`. A question about a
+security key (`physical`) shows its `keys`, such as Alt+Y and Alt+N,
+before them. Only a pointer press on a word answers; no method of mc
+calls `confirm.answer`, but mc cannot tell an injected click
+(`input.inject`) from a real one. At its start and after the agent
+connects, mc calls the method `indicator.claim` of the agent, so that the
+agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
-| `scene.list` | none; answers `scenes` and `current` |
-| `scene.save` | privileged. `name`, `grid`, `panels` or `app`; writes the file |
+| `scene.list` | none; answers `scenes` in their order and `current` |
+| `scene.save` | privileged. `name`, `grid`, `panels` or `app`: a shell command or the name of a content of kind `app`, such as `shell`; writes the file |
+| `scene.rename` | privileged. `name` and `to`: renames the scene file and its entry in `order`; a built-in scene without a file has none to rename |
+| `scene.move` | privileged. `name` and `to`, the new number from 1: the scene moves there in `order`, which the settings file keeps, and every number shows anew at once. The scene of an app stays at the end |
 | `panel.set` | `scene`, `panel`, `lines` and an optional `title`; until the next start. A line with a tab puts the part before the first tab in the margin |
 | `hud.set` | `state`, for example `listening`, `thinking` or `working`, and `text`; both empty hide the line. The line shows the last 160 characters of the text, from a word on |
 | `hud.say` | `text`, `duration_ms` and an optional `state`: the text shows word by word over the duration, the time that the voice takes to speak it; past 160 characters the first words leave the line |
-| `app.open` | privileged. `command`: a shell command that starts in a scene of its own |
+| `app.open` | privileged. `command`: a shell command that starts in a scene of its own, with a head and the next number. The scene goes when the program has no window left and has ended, so `ls` leaves no scene behind |
 | `region.list` | none; answers the current `scene`, each region with `shown`, `visible` and its `contents`, and each content with its `kind`, `title`, `text` and whether its app runs |
 | `region.toggle` | privileged, because a docked app starts. `region` and an optional `shown`; without it the region flips. Answers `shown` |
 | `region.put` | privileged. `content`, `region` and an optional `slot`: the content goes there over the rules, until the next start. Without `region` the content follows the rules again |
 | `content.set` | `content`, `lines` and an optional `title` of a text content |
 | `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
-| `agent.set` | `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words |
+| `agent.set` | `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
@@ -345,30 +395,80 @@ shows and when `panel.set` changes the text of a panel; the same text
 again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
 
-A window that no scene started, for example from a launcher, gets a scene
-of its own. The settings of D62 are in `chora/chora-mc.yaml`; edits by
-hand apply with `settings.reload`:
+The page of each scene, with its head and its panels, carries the tag
+`meta:pane=NAME`, also while the scene is hidden. Another plugin finds it
+with the selector `owner:mc meta:pane=NAME` and shows it through its node
+texture; chora-construct does so for a plugin pane. The root group `mc`
+carries the same tag with the scene that shows: it holds the regions and
+the background too, so a pane of it shows the whole output of mc, and the
+construct prefers it. While such a pane is flown into, the construct calls
+`pane.focus` of mc, which gives the keyboard to the app of the scene, else
+to its page.
 
-- `theme` (`light` or `dark`) and the colors of each theme by name, at
-  least a `background`.
+A window that no scene started, for example from a launcher, gets a scene
+of its own without a head, which goes with the window. So does a window
+that another window manager gives to `mc` (D55): mc claims its whole
+output, as a window manager does. `window.give` with `surface` and `to`
+hands the window of a scene to another window manager. The scene of the
+window goes with it, and the scene before shows, without the keyboard.
+`--output NAME` puts the scenes on that output instead of the first
+one, and leaves the others to other window managers.
+
+A new window takes the keyboard. The exception is a window that an
+`app.open` call started: voice and agents make these calls, and such a
+window takes the keyboard only with a click. A binding that shows a
+scene gives the keyboard to the window of that scene, or to none. A
+click on a line of the overview does the same. When a window closes,
+the scene that shows next takes the keyboard. A click on a window or a
+docked app gives it the keyboard. A toggle or a solo by key gives the
+keyboard to the docked app or back. Other methods never move the
+keyboard themselves: not `scene.show`, `agent.focus`,
+`region.toggle`, `region.solo`, `region.put`, `content.set`, `hud.say`
+or `agent.set`.
+
+The settings of D62 are in `chora/chora-mc.yaml`. Edits by hand apply
+with `settings.reload`:
+
+- `theme` (`light` or `dark`) and `themes`, the colors of each theme by name, at
+  least a `background`. A color that a theme lacks comes from the
+  default theme of the same name in `mc.yaml`.
 - `scale`: the font sizes as steps of a modular scale (`base`, `ratio`),
   and the `baseline` grid; each line of text is whole lines of the grid.
 - `styles`: named styles with `base`, `family`, `weight`, `style`
-  (`normal` or `italic`), `size` or `step`, `color` (a name of the theme
+  (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
+  `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
-  `uppercase`. The plugin uses `chapter_number`, `chapter`,
-  `chapter_large`, `running_head`, `heading`, `body`, `margin` and `hud`.
+  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
+  the built-in scenes also use `data`, `mono` and `lead`. The
+  [style guide](mc-style.md) gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
   for the text, from the Fedora package `texlive-tex-gyre`, whose
   directory `/usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre`
-  must be in `CHORA_FONT_DIRS`, and Inter with tabular figures for the
-  running head, the notes and the HUD.
-- `chapter.layout`: `number` (a large light number, the title in spaced
-  small caps below), `caps` (the title only), `large` (one large light
-  title) or `none`.
-- `page`: the `measure` of a column of text, the `margin` column and the
-  `gap`, in em of `scale.base`.
+  is not a font directory. The RPM adds it to fontconfig with
+  `/etc/fonts/conf.d/09-chora-tex-gyre.conf`; without the RPM, add it to
+  `CHORA_FONT_DIRS`. On Arch Linux, `tex-gyre-fonts` needs neither. Inter
+  with tabular figures (`rsms-inter-fonts`, on Arch `inter-font`) sets
+  the running head, the notes and the HUD.
+- `chapter.layout`: `number` (the number in the style
+  `chapter_number`, a hairline bar from the baseline to the capitals,
+  then the title in spaced capitals on the same baseline, such as
+  `3 | AGENDA`, at the left edge of the text column) or `none`.
+- `page`: the `measure` of a column of the grid, the `margin` column and
+  the `gap`, in em of `scale.base`. All scenes share it.
+- `min_panel`: the least width and height of a panel, in em of
+  `scale.base` (default `[14, 8]`). Where the columns of the grid would
+  be narrower, the page shows fewer columns and the panels wrap into new
+  rows in reading order, each at the top-most, then left-most place
+  below the panels before it; an empty panel takes no room. A row is
+  never lower than the least height. A page that is longer than the
+  output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
+- `order`: the scenes in their order (default `agenda`, `morning`,
+  `agents`, `mission`, `terminal`, `overview`). The number of a scene is
+  its place. First come the scenes of the list. The others follow in the
+  order they appear, such as new scenes and those of `app.open`, so that
+  the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
+  scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
   `solo: {content: NAME, region: REGION}` (as `region.solo`; the default
@@ -411,7 +511,8 @@ region. The page itself never moves when a region shows.
   contents one under the other with a title in the style `running_head`.
   The page leaves room for a side that has contents, so that its text
   never moves; where both sides would leave the text less than three
-  quarters of its measure, the sides do not show.
+  quarters of the measure of one column, the sides do not show. The
+  columns of the grid that do not fit wrap into new rows.
 - `drawer` is a sheet of `size` lines over the bottom of the page, with a
   hairline above it, for a docked app.
 
@@ -501,6 +602,8 @@ tasks scheduled or due today, each as a time in the margin and a text.
 It leaves out overdue, upcoming and done tasks. `ORG_TODO` sets the TODO
 keywords, by default `PROJ TODO NEXT WAIT | DONE KILL`.
 
+The packages install the collectors in `/usr/share/chora/mc/collectors/`.
+
 The other collectors in `plugins/chora-mc/collectors/` are Python 3
 scripts without dependencies. They only read their sources, and a source
 that is missing leaves a short note or nothing. Each takes `--print` to
@@ -526,6 +629,282 @@ choractl call mc notify.push '{"title": "CI", "body": "dev failed", "urgency": "
 choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 ```
 
+## chora-construct (experimental)
+
+!!! warning "Experimental"
+    `chora-construct` grows along the construct track of the roadmap
+    (D66): steps K1 and K2a are done, K2b (GNOME and prompt panes) and K3
+    are open. The packages install it, but its settings and files change without notice.
+
+`chora-construct` connects with the client name `construct`. It is a
+flavor: `chora -- chora-construct` starts into it, and the directory
+`flavors/construct/` holds its target and service. The first output shows
+a space without a grid and without lines. In the light theme, a pale sky
+lies over a smooth, white, glossy floor, as in a photo studio. In the
+dark theme, a black void lies over a black glossy floor. A crisp
+horizon line separates floor and sky. The floor mirrors the sky, more
+at grazing angles, and a broad soft light band glints in it and turns
+with the view. Each pane has a soft shadow on the floor under it, and a
+clear mirror image that fades downwards and with the distance. A new
+window becomes a pane in the view direction, at the size of the output.
+A pane faces the camera where it comes and shows the window through its
+node texture. It keeps that turn while you walk, so you see it at an
+angle when you walk past it; a move turns it to the camera again, and a
+fly-in goes in front of its face. A new pane goes ahead at `pane_distance` when it is free there.
+Else it goes a little to the side, nearer or farther, but only to a spot
+where its whole face shows in the view and covers no other pane. When no
+spot in the view is free, the window becomes no pane: it waits in the
+window list, and the HUD shows "No room in view: in the window list
+(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys `t`
+and `space` and a window that another window manager gives to the
+construct follow the same rule. A pane of a construct file and a choice
+in the window list come also when the view is full, beside the panes in
+the way. The space lies on
+the screen root of the output (`screen:NAME`), not under `root`, so it
+needs no camera. As the flavor, it claims the output (D55), so that new
+windows come to it also when another window manager runs beside it.
+
+The space has the keyboard, so its keys need no modifier. A drag looks
+around, and the wheel walks. A walk slows down in the outer quarter of
+the leash radius and stops at it. A click on a pane, or `Return` for the
+pane nearest the middle of the view, flies into the pane. At the end of
+the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
+and the pointer. `Alt+Escape` flies back to the pose before.
+
+`t` starts the terminal, and its window becomes a pane in the view
+direction. `space` starts the launcher. The launcher itself is no pane:
+a layer-shell launcher such as fuzzel shows over the space, and a
+launcher window that maps with the activation token of its start shows
+in the middle of the output. The first other window after the launcher
+becomes a pane, also beside another flavor. `x` asks the window of the
+pane nearest the middle of the view to close, as a close button does, so
+a program can ask about unsaved work first; the pane goes when the
+window closes. `tests/gate-construct-keys.sh` checks the three keys.
+
+The elements over the space, such as the window list, follow the
+[construct style guide](construct-style.md).
+
+The settings file is `~/.config/chora/chora-construct.yaml` (D62);
+`chora-construct --print-config` prints the default with comments:
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `start` | empty | the construct that the flavor starts into; empty for an empty space |
+| `theme` | `light` | `light` or `dark` |
+| `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
+| `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help` |
+| `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
+| `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
+| `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
+| `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
+| `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
+
+While the camera is in a pane, the window has the keyboard, so `fly_out`
+is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
+after `choractl grant construct input.grab-any`; then the program in the
+pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
+
+The key of the setting `modifier` with a drag on a pane moves the pane.
+It moves sideways along its face, and away or nearer as the pointer goes
+up or down. The same key with the wheel over a pane resizes it. A window
+of the flavor gets the new size, so that it stays at 1:1. Other panes
+stretch. The default `Super` is the drag modifier of tiling and chora-xp.
+
+The flavor grabs the modifier with the left button, so that it shares
+the binding with the window managers on other outputs (D55). A drop of
+a window pane hands the window over:
+
+- On a plugin pane, for example an mc scene, the window goes to that
+  plugin. mc shows it as a scene of its own.
+- Off the output of the construct, the window goes to the window
+  manager whose claim holds the drop point. The pane goes back to where
+  it was if no window manager is there.
+- On empty space, the pane only moves.
+
+A window of another client, which the window list took as a pane, goes
+back to its owner on such a drop. If the target refuses the window, the
+pane stays. An overlay does not hand over windows.
+`tests/gate-construct-windows.sh` checks the drops.
+
+### Constructs
+
+A construct is a file `~/.config/chora/constructs/NAME.yaml` with the
+start pose of the camera, the leash radius R and the panes. A pane has a
+`kind`, its content and its pose. A program pane has a shell `command`,
+which starts with `choractl run`. A plugin pane has a `plugin`, the client
+name, and a `scene`. It shows the node that the plugin tags
+`meta:pane=SCENE` through its node texture, for example the page of an mc
+scene. The pose is `at`, the centre on the ground as `[x, z]`, `yaw`,
+the turn of its face in radians (0 faces along +z), and `size`, in
+logical pixels. Without `at`, the pane goes ahead of the camera; without
+`yaw`, it faces the camera where it comes; without `size`, a program
+pane has the size of the output and a plugin pane the size of the node.
+
+```yaml
+camera: {x: 0, z: 0, yaw: 0, pitch: 0}
+radius: 5000
+panes:
+- kind: program
+  command: foot
+  at: [-650, 2000]
+  yaw: 0.3
+  size: [1000, 640]
+- kind: plugin
+  plugin: mc
+  scene: mission
+  at: [700, 2200]
+```
+
+A file in this directory is the user's own, as an mc scene file is: its
+program panes start without a question. So `construct.load` and
+`construct.save` are privileged. The flavor starts into the construct of
+the setting `start`. A plugin pane whose node is missing, for example
+because mc starts later, waits and shows when the node comes.
+
+With `--overlay`, `chora-construct` runs beside another flavor, such as
+tiling or mc, and shows nothing until `construct.load`. Then the space
+covers the first output from its screen root and takes the keyboard. No
+camera changes hands: D40 lets only the admin socket or a reset take a
+camera from its owner, and the screen root needs none. Its program panes
+show the windows that the other flavor takes; a fly-in asks that flavor
+for the keyboard with `focus` (`node.requested`, D31). A click on the
+space takes the keyboard back. `construct.leave` removes the space and
+gives the keyboard back; the programs of the construct keep running as
+windows of the other flavor.
+
+| Method | Parameters |
+|--------|------------|
+| `construct.load` | privileged. `name`: loads the file and starts its programs. An overlay takes the output; the flavor keeps its windows as panes. The panes of the construct before go. Answers as `construct.list` |
+| `construct.save` | privileged. `name`: writes the camera, R and the panes. A window that the construct did not start has no command and stays out |
+| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at`, `yaw` and `size`, and the panes that still wait |
+| `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
+| `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash. The pane then faces the camera; answers the new `at` |
+| `pane.resize` | `name` and `scale`, for example 1.25 |
+| `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
+| `pane.fly` | `name`: flies into the pane |
+| `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
+| `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
+| `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
+| `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |
+
+The name of a pane is a short label for voice: the app id or the title of
+the window, or the scene of a plugin pane, with `-2`, `-3` for a second
+and a third. `tests/gate-construct-k2a.sh` checks the step.
+
+### Window managers in panes
+
+chora runs nested as a Wayland client. So a window manager, or a whole
+flavor, shows in a program pane: the command `chora -- chora-tiling` or
+`chora -- chora-xp --theme flavors/xp/theme` starts a nested chora. It
+opens its own window, and that window becomes a pane. The nested chora
+takes the next free Wayland socket (`wayland-2`, `wayland-3` ...) and its
+own IPC socket next to it. It gives its window manager its own
+`WAYLAND_DISPLAY` and `CHORA_SOCKET`, so the variables of the outer
+session do not reach it. A fly-in gives the nested session the keyboard;
+the programs that its window manager shows get the keys.
+
+The title of the nested window is `chora: <program> (<socket>)`, such as
+`chora: chora-tiling (wayland-2)`. A window belongs to one session and
+never moves to another; to open a program in a nested session, start it
+with that `WAYLAND_DISPLAY`.
+
+```yaml
+radius: 5000
+panes:
+- kind: program
+  command: chora -- chora-tiling
+  at: [-700, 2000]
+  size: [1280, 800]
+- kind: program
+  command: chora -- chora-xp --theme /usr/share/chora/flavors/xp/theme
+  at: [700, 2200]
+  size: [1280, 800]
+```
+
+The nested session translates the keys with the keymap of the outer
+session (#12). The pane takes the title of the window, which is
+`Smithay` for now. `tests/gate-construct-nested.sh` checks that a nested
+tiling and a nested chora-xp become panes, and that typed text reaches a
+terminal inside them.
+
+### The help panel
+
+`F1`, the key `help`, shows a glass panel in the middle of the output
+with the bindings of the settings: the keys of each action, the fly-out
+binding, and the drag and the wheel with the `modifier`. A change of the
+settings, for example `modifier: Alt`, shows at once. `F1` again hides
+it. The voice agent shows it with the method `help.toggle`.
+
+### The window list
+
+In the construct, every window is a pane. `Tab`, the key `windows`,
+opens the window list over the space. It shows the windows that have no
+visible pane: a pane behind the camera, beyond the leash radius, or out
+of the view, and every window without a pane, of any owner. Each row has
+the label of the window, its owner and the place of its pane. `Up` and
+`Down` move the selection, and `Return` or a click chooses. A choice
+flies to the pane. A window of another client, such as tiling, xp or mc,
+first becomes a pane at its own size. `Escape` or `Tab` closes the list.
+`g` on an own window shows the other window managers, the clients with a
+claim (D55); `Return` gives the window to the one selected.
+
+A load never makes panes for the windows of other clients: they become
+panes only from the list or by `window.show`. Such a pane shows the
+window only through its node texture, and the keyboard goes to it
+through its owner (`node.requested`, D31). The construct changes no prop
+of such a window, so the owner has it back in full when the pane goes,
+when the construct leaves or loads another construct, and when the
+construct ends or crashes. `pane.remove` and `x` give such a window back
+without a close request. `construct.leave` also gives the keyboard back
+to the window that had it before the load. The windows that an overlay
+starts belong to the other flavor from the start and stay there. A
+window that another window manager gives to the construct (`remove` with
+`to`, D55) becomes a pane in the view direction; on a leave or a crash
+the core frees it again, and a window manager takes it.
+
+The construct works with any window manager; the construct changes only
+what it gives back. `tests/gate-construct-windows.sh` checks the list,
+the hand-over over tiling, xp and mc, and that no window gets lost when
+a pane goes in any way.
+
+### The voice HUD
+
+With `voice_hud`, the construct shows the voice agent
+([voice](voice.md), section 10) at the bottom centre of the output, from its first
+`voice.state` on. A glass panel holds a ring in the accent and the state
+as a label: a thin, dim ring asleep, a full ring listening, a turning arc
+thinking and working, a pulse at a question, and five moving bars while
+a sentence plays. While thinking or working, the task shows under the
+label; a spoken sentence shows in two lines at most, keeps its end, and
+fades out 2 s after its sound. Flown into a pane, the HUD shrinks to the
+ring and the label at the bottom right. `voice.confirm` opens a question
+at the top centre with the prompt and the whole detail; the wheel
+scrolls a long one, and its `done` closes it. The answer is by voice.
+With `buttons`, the question has the glass buttons Ja and Nein at its
+bottom; a click calls `voice.confirm.answer {id, yes}`. A question about
+a security key (`physical`) shows the key caps of its `keys`, such as
+Alt+Y and Alt+N, beside them, after an accent mark, and says that it
+needs a key press or a click. Only a pointer press on a button answers;
+no method of the construct calls `confirm.answer`, but the construct
+cannot tell an injected click (`input.inject`) from a real one.
+The construct claims the indicator of the agent (`indicator.claim`) at
+the start and on each connection of the agent, and hides the HUD while
+the agent is away.
+
+Under the pane ahead, or under the pane where the pointer last pressed or
+let go, a pill names the pane. The core tells the pointer only from a
+press to its release, so the label does not follow a hover. That pane,
+or the pane flown into, is the focused pane: it shows clear, without the
+fog of its distance, with an accent hairline and a soft glow under it.
+
+The ring, the bars and the glow are one shader, `glass.frag`. When the
+watchdog takes the shaders (`effects.dropped`), the panels and their
+labels stay, without the ring, until the settings change.
+`tests/gate-construct-hud.sh` checks the HUD with a fake agent,
+`tests/fake-voice.py`, and captures each state in both themes.
+
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a
@@ -546,8 +925,8 @@ The login screen shows a session per flavor, twice:
 
 | Session | Starts |
 |---------|--------|
-| chora (uwsm), chora (Windows XP, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
-| chora, chora (Windows XP) | `chora-session <name>`, without uwsm |
+| chora (uwsm), chora (Windows XP, uwsm), chora (construct, uwsm) | `uwsm start -e -D chora -N chora -- chora -- chora-flavor <name>` (D50) |
+| chora, chora (Windows XP), chora (construct) | `chora-session <name>`, without uwsm |
 
 The uwsm sessions show only when uwsm is installed. uwsm is not in
 Fedora 44, so there the sessions without uwsm are the fallback (D50).
@@ -690,7 +1069,9 @@ connects with the client name `xp`.
 The session "chora (Windows XP)" on the login screen starts it with the XP
 cursors, which the package installs to `/usr/share/icons/ModernXP`.
 `theme/README.md` lists the source and the license of every file of the
-theme.
+theme. Without `--theme` or `CHORA_XP_THEME`, `chora-xp` uses this installed
+theme, else the `flavors/xp/theme` of the source tree when the binary runs
+from `target/<profile>/`.
 
 When the files of Windows XP are installed in the XDG data directory, as
 `get-microsoft-files.sh` of `kde-plasma-winxp-launcher` does, `chora-xp`
@@ -738,8 +1119,9 @@ reads the insets of a slice in pixels of the file. The pictures:
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. `chora-xp` claims the box around the work areas
 of its outputs (D55). `--output NAME` limits it to some outputs. A window
-dragged out of these work areas goes to the window manager `tiling` with
-`remove` and `to`. Without `tiling`, the window stays. A drag of the border of the frame
+dragged out of these work areas goes to the window manager whose claim
+holds the drop point, with `remove` and `to`. Without one there, or when
+the core refuses, the window stays. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the
@@ -1001,6 +1383,30 @@ dismisses it too. If another server, such as GNOME Shell, owns the name
 on the bus, `chora-xp` logs one line and shows no balloons; it never
 takes the name from its owner.
 
+While the voice agent is connected, a paperclip with eyes and eyebrows
+stands above the right end of the taskbar of the first output. While the
+agent sleeps, the paperclip shows dimmed with its eyes shut: the mic
+still listens for the wake words. Only the events of the client `voice`
+itself move it.
+`chora-xp` subscribes to `voice.*` (D65): the paperclip blinks while the
+agent is idle, leans in while it listens, looks up and sways while it
+thinks, bounces while it speaks and raises its eyebrows when it asks. Each
+sentence of `voice.say` shows in a balloon above it, which fades out three
+seconds after the sentence ends. The balloon shows the `prompt` and the
+`detail` of `voice.confirm` until the event with `done` and the same `id`.
+With `buttons`, the balloon has XP's push buttons Ja and Nein; a click
+calls `voice.confirm.answer {id, yes}`. A question about a security key
+(`physical`) shows one more line with its `keys`, such as "Alt+Y = Ja,
+Alt+N = Nein". Only a pointer press on a button answers; no method of
+xp calls `confirm.answer`, but xp cannot tell an injected click
+(`input.inject`) from a real one.
+While the paperclip is enabled, `chora-xp` calls `indicator.claim` of the
+agent at its start and after the agent connects.
+A click on the paperclip mutes the mic of
+the agent through its method `mute`, and a second click unmutes it. The
+paperclip goes when the agent disconnects, and `assistant:
+{enabled: false}` turns it off.
+
 The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:
 
@@ -1044,6 +1450,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+| `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
 | Option | Default | Meaning |
@@ -1072,6 +1479,7 @@ that the file leaves out takes its default:
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
+| `assistant` | on | `enabled`: the paperclip of the voice agent |
 
 `settings.set` merges its object into the settings (see
 [API](api.md#plugin-methods)), so a change of the wallpaper names only

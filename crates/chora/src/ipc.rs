@@ -18,7 +18,7 @@ use std::{
 };
 
 use chora_scene::{
-    Binding, Event, Node, NodeKind, Placed, Selector, Transform,
+    Binding, Event, MOVE, Modifiers, Node, NodeKind, Placed, Scene, Selector, Transform,
     ipc::{
         Apply, Capability, Edges, Emit, Grab, Hello, Message, Query, Request, RpcError, Subscribe,
     },
@@ -98,6 +98,8 @@ pub struct Ipc {
 enum Trigger {
     Key(Keysym),
     Button(u32),
+    /// The interactive moves of the own windows (`xdg_toplevel.move`).
+    Move,
 }
 
 /// The names of the pointer buttons of a binding, with their Linux codes.
@@ -111,8 +113,11 @@ const BUTTONS: [(&str, u32); 7] = [
     ("BTN_BACK", 0x116),
 ];
 
-/// The key or the button of a binding.
+/// The key or the button of a binding, or the moves of `move`.
 fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
+    if binding.key == MOVE && binding.mods == Modifiers::default() {
+        return Ok(Trigger::Move);
+    }
     if let Some((_, code)) = BUTTONS
         .iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(&binding.key))
@@ -351,8 +356,9 @@ impl Ipc {
     /// Drops the registrations of a connection for bindings without Ctrl,
     /// Alt or Super, as happens when `input.grab-any` is revoked.
     pub fn drop_free_grabs(&mut self, conn: u64) {
-        self.grabs
-            .retain(|(b, _, c)| !(*c == conn && crate::input::free_binding(b)));
+        self.grabs.retain(|(b, t, c)| {
+            !(*c == conn && *t != Trigger::Move && crate::input::free_binding(b))
+        });
     }
 
     /// The connection that grabbed the pressed binding, and the binding.
@@ -363,10 +369,33 @@ impl Ipc {
         )
     }
 
+    /// The connection of a client name that grabbed the interactive moves.
+    pub fn move_grab_of(&self, name: &str) -> Option<u64> {
+        (self.grabs.iter())
+            .find(|(_, t, c)| *t == Trigger::Move && self.name(*c) == Some(name))
+            .map(|(_, _, c)| *c)
+    }
+
     /// The connection that grabbed a pressed pointer button with the
-    /// modifiers, and the binding.
-    pub fn button_grab_for(&self, mods: &ModifiersState, button: u32) -> Option<(u64, Binding)> {
-        self.grab_of(mods, |t| t == Trigger::Button(button))
+    /// modifiers, and the binding. Of several grabs, the one whose client
+    /// holds the smallest claim under `pointer` wins, else the first (D55).
+    pub fn button_grab_for(
+        &self,
+        mods: &ModifiersState,
+        button: u32,
+        scene: &Scene,
+        pointer: [f64; 2],
+    ) -> Option<(u64, Binding)> {
+        let first = self.grab_of(mods, |t| t == Trigger::Button(button))?;
+        let grabbers: Vec<u64> = (self.grabs.iter())
+            .filter(|(b, t, _)| b.mods == first.1.mods && *t == Trigger::Button(button))
+            .map(|(_, _, conn)| *conn)
+            .collect();
+        let grabber = |name: &str| grabbers.iter().find(|c| self.name(**c) == Some(name));
+        let conn = chora_scene::claimant_at(scene.nodes(), pointer, |n| grabber(n).is_some())
+            .and_then(grabber)
+            .map_or(first.0, |c| *c);
+        Some((conn, first.1))
     }
 
     fn grab_of(
@@ -1057,7 +1086,7 @@ impl State {
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
         let effects = self.scene.disconnect(name);
-        self.execute(effects);
+        self.execute_gone(effects);
         self.ipc.uploads.drop_client(name);
     }
 
@@ -1239,22 +1268,33 @@ impl State {
             return Err(rejected("send hello first"));
         };
         let m = binding.mods;
-        if !(m.ctrl || m.alt || m.logo || self.grants.allows(&name, Capability::GrabAny)) {
+        let trigger = trigger(&binding)?;
+        let free = trigger == Trigger::Move || self.grants.allows(&name, Capability::GrabAny);
+        if !(m.ctrl || m.alt || m.logo || free) {
             return Err(RpcError::new(
                 RpcError::MISSING_CAPABILITY,
                 format!("{binding} needs Ctrl, Alt or Super or the capability input.grab-any"),
             ));
         }
-        let trigger = trigger(&binding)?;
         if m.ctrl && m.alt && matches!(trigger, Trigger::Key(sym) if is_safety_key(sym)) {
             return Err(rejected(format!("{binding} belongs to the safety layer")));
         }
-        if self
-            .ipc
-            .grabs
-            .iter()
-            .any(|(b, t, _)| b.mods == binding.mods && *t == trigger)
-        {
+        // A button binding may have several grabs while each client holds a
+        // claim; a press then goes by the claim under the pointer (D55).
+        // Only on the main socket: a confined client could claim a little
+        // less than an output and so take every press of the binding.
+        let claims = |c: u64| {
+            self.ipc.fixed(c).is_none()
+                && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
+        };
+        // Each window manager gets the moves of its own windows.
+        let own = trigger == Trigger::Move;
+        let mut holders = (self.ipc.grabs.iter())
+            .filter(|(b, t, c)| b.mods == binding.mods && *t == trigger && (!own || *c == conn))
+            .map(|(_, _, c)| *c)
+            .peekable();
+        let shared = matches!(trigger, Trigger::Button(_)) && claims(conn);
+        if holders.peek().is_some() && !(shared && holders.all(|c| c != conn && claims(c))) {
             return Err(rejected(format!("{binding} is grabbed already")));
         }
         let normal = binding.to_string();
@@ -1273,6 +1313,21 @@ impl State {
             return Err(rejected(format!("{binding} is no grab of this connection")));
         }
         Ok(Value::Null)
+    }
+
+    /// Ends a connection for good with an error: the core reads no more
+    /// of it, the client reads the error, then the connection closes
+    /// without a grace time.
+    pub fn ipc_end(&mut self, conn: u64, error: &RpcError) {
+        self.ipc
+            .respond(conn, &Message::error(Value::Null, error.clone()));
+        let Some(c) = self.ipc.conns.get_mut(&conn) else {
+            return;
+        };
+        (c.keep_nodes, c.resume) = (false, false);
+        if let Some(reader) = c.reader.take() {
+            self.loop_handle.remove(reader);
+        }
     }
 
     /// Closes a connection. Without `keep_nodes`, the nodes and the assets
@@ -1319,7 +1374,7 @@ impl State {
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
             let effects = self.scene.unreserve(&name);
-            self.execute(effects);
+            self.execute_gone(effects);
         }
         self.emit(&Event::ClientDisconnected { name });
     }
@@ -2708,6 +2763,33 @@ mod tests {
         assert_eq!(reserved_for(&core, "s3").as_deref(), Some("a"), "the focus");
     }
 
+    /// Where a surface is: `(owner, parent, reserved for)`.
+    fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
+        let node = core.state.scene.node(surface).unwrap();
+        (node.owner.clone(), node.parent.clone(), node.to.clone())
+    }
+
+    /// Whether a client heard `surface.detached` of s1.
+    fn heard_s1(client: &mut Client, core: &mut Core) -> bool {
+        client
+            .events_now(core)
+            .iter()
+            .any(|e| e["params"]["event"] == "surface.detached" && e["params"]["surface"] == "s1")
+    }
+
+    /// The core shows a free surface itself at the top left of the first
+    /// output when no window manager is left; it is still free to take.
+    fn placed_by_the_core(core: &Core) -> bool {
+        let shown = whereabouts(core, "s1") == (None, Some(chora_scene::ROOT.into()), None);
+        shown
+            && core
+                .state
+                .scene
+                .draw_list()
+                .iter()
+                .any(|p| p.node.id == "s1")
+    }
+
     #[test]
     fn a_reservation_for_a_keep_nodes_client_ends_with_it() {
         let mut core = Core::new();
@@ -2718,14 +2800,115 @@ mod tests {
             "hello",
             json!({"name": "agent", "keep_nodes": true}),
         );
+        let group = json!({"commands": [{"create": {"id": "agent", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
+        agent.ok(&mut core, "scene.apply", group);
         let mut other = core.named("other");
-        other.ok(&mut core, "events.subscribe", json!({"events": []}));
         wm.ok(&mut core, "scene.apply", remove_s1_to("agent"));
         drop(agent);
         core.dispatch();
-        let names = other.event_names(&mut core);
-        assert!(names.contains(&"surface.detached".to_owned()), "{names:?}");
+        // No window manager is left: the core shows the window.
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
         other.ok(&mut core, "scene.apply", attach_s1("root"));
+    }
+
+    /// A window manager that never attaches a surface given to it does not
+    /// hide it for good (D55): after a while it goes back to the giver,
+    /// and when the giver does not take it either, the core shows it.
+    #[test]
+    fn a_reservation_that_nobody_attaches_goes_back_to_the_giver_then_shows() {
+        let mut core = Core::new();
+        core.state.time.stop();
+        let (mut wm, _wayland) = resumable(&mut core);
+        let claim =
+            json!({"commands": [{"update": {"id": "g", "props": {"claim": [0, 0, 10, 10]}}}]});
+        wm.ok(&mut core, "scene.apply", claim);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut wm2 = claimer(&mut core, "wm2", [0.0, 0.0, 10.0, 10.0]);
+        wm2.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = claimer(&mut core, "other", [0.0, 0.0, 5.0, 5.0]);
+        other.ok(&mut core, "events.subscribe", json!({"events": []}));
+        wm.ok(&mut core, "scene.apply", remove_s1_to("wm2"));
+        assert!(heard_s1(&mut wm2, &mut core));
+        core.advance(crate::state::RESERVATION / 2);
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("wm2"));
+        core.advance(crate::state::RESERVATION);
+        assert_eq!(
+            reserved_for(&core, "s1").as_deref(),
+            Some("wm"),
+            "the giver first"
+        );
+        assert!(heard_s1(&mut wm, &mut core));
+        assert!(!heard_s1(&mut other, &mut core), "no race of all managers");
+        core.advance(crate::state::RESERVATION * 2);
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
+        other.ok(&mut core, "scene.apply", attach_s1("other"));
+    }
+
+    /// A window that no window manager takes shows after a while, also
+    /// one that never had a window manager.
+    #[test]
+    fn a_new_window_without_a_window_manager_shows() {
+        let mut core = Core::new();
+        core.state.time.stop();
+        core.add_output("A", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        assert_eq!(whereabouts(&core, "s1"), (None, None, None));
+        core.advance(crate::state::RESERVATION * 2);
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
+    }
+
+    /// A receiver that goes between the give and the attach: the window
+    /// goes back to the giver at once, not to the first manager.
+    #[test]
+    fn a_window_given_to_a_client_that_goes_returns_to_the_giver() {
+        let mut core = Core::new();
+        let (mut wm, _wayland) = resumable(&mut core);
+        let claim =
+            json!({"commands": [{"update": {"id": "g", "props": {"claim": [0, 0, 10, 10]}}}]});
+        wm.ok(&mut core, "scene.apply", claim);
+        wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = claimer(&mut core, "other", [0.0, 0.0, 5.0, 5.0]);
+        other.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let receiver = claimer(&mut core, "receiver", [0.0, 0.0, 10.0, 10.0]);
+        wm.ok(&mut core, "scene.apply", remove_s1_to("receiver"));
+        drop(receiver);
+        core.dispatch();
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("wm"));
+        assert!(heard_s1(&mut wm, &mut core));
+        assert!(!heard_s1(&mut other, &mut core));
+        wm.ok(&mut core, "scene.apply", attach_s1("g"));
+    }
+
+    /// Battle W14: several window managers die in one tick. The windows of
+    /// a dead one go only to a connected one, again when that one dies
+    /// before it attaches them, and the core shows them after the last.
+    #[test]
+    fn the_windows_of_a_dead_manager_go_to_a_live_one_until_none_is_left() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        wayland.toplevel(&mut core, "foot");
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 800.0, 600.0]);
+        a.ok(&mut core, "scene.apply", attach_s1("a"));
+        let b = claimer(&mut core, "b", [0.0, 0.0, 400.0, 600.0]);
+        let mut c = claimer(&mut core, "c", [400.0, 0.0, 400.0, 600.0]);
+        c.ok(&mut core, "events.subscribe", json!({"events": []}));
+        core.state.pointer_layout = (100.0, 100.0).into();
+        // b is under the pointer, but it dies in the same tick.
+        drop(a);
+        drop(b);
+        core.dispatch();
+        assert_eq!(
+            reserved_for(&core, "s1").as_deref(),
+            Some("c"),
+            "the live one"
+        );
+        assert!(heard_s1(&mut c, &mut core));
+        drop(c);
+        core.dispatch();
+        assert!(placed_by_the_core(&core), "{:?}", whereabouts(&core, "s1"));
     }
 
     #[test]
@@ -2736,13 +2919,13 @@ mod tests {
         wm.ok(&mut core, "scene.apply", focus);
         let mut b = core.named("b");
         b.ok(&mut core, "events.subscribe", json!({"events": []}));
-        let group =
-            json!({"commands": [{"create": {"id": "bg", "kind": "group", "parent": "root"}}]});
+        let group = json!({"commands": [{"create": {"id": "bg", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
         b.ok(&mut core, "scene.apply", group);
-        let mut other = core.named("other");
+        let mut other = claimer(&mut core, "other", [0.0, 0.0, 20.0, 20.0]);
         other.ok(&mut core, "events.subscribe", json!({"events": []}));
         let (_, message) = wm.fails(&mut core, "scene.apply", remove_s1_to("nobody"));
-        assert!(message.contains("no connection"), "{message}");
+        assert!(message.contains("no claim"), "{message}");
         wm.ok(&mut core, "scene.apply", remove_s1_to("b"));
         let heard = |events: Vec<Value>| {
             events.iter().any(|e| {

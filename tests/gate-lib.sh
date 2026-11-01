@@ -60,7 +60,10 @@ session_start() {
     grep -q CHORA_SOCKET "$env_file" || fail "no core: $(tail -n 3 "$env_file")"
     CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$env_file")
     WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$env_file")
-    export CHORA_SOCKET WAYLAND_DISPLAY
+    # The plugins that a gate starts write their shaders there, as in a
+    # session; they refuse the shared /tmp.
+    XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file")
+    export CHORA_SOCKET WAYLAND_DISPLAY XDG_RUNTIME_DIR
     sleep 2 # the plugin needs a moment before its nodes answer queries
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }

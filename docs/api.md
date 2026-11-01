@@ -63,7 +63,7 @@ This table is the one list of node properties.
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
-| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4 |
+| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
 | `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a `size` and a `clip`; the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 | `line_height`, `weight`, `style`, `letter_spacing`, `features` | text | `line_height`: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; `weight`: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; `style`: `normal` or `italic`, slanted when the family has no italic; `letter_spacing`: extra space after each character in em, from -1 to 1, also after the last one; `features`: at most 32 OpenType features by their tag of four ASCII characters and their value, for example `{"smcp": 1, "onum": 1}` for small caps and old-style figures; a feature that the font lacks changes nothing; an update of `features` replaces all |
 
@@ -73,8 +73,11 @@ the client for a new size.
 A shader node draws its shader over its size, as a layer. Its children
 render into `uniform sampler2D tex`, and the shader gets the same inputs as
 an effect. A node texture shows the node without its transform, at its size
-or, for a surface, at the size of the window. A node with opacity 0 hides
-in the scene and still shows in a node texture. Inside a node texture,
+or, for a surface, at the size of the window. The node may belong to another
+client, so a plugin can show a node tree of another plugin. A node with
+opacity 0 hides in the scene and still shows in a node texture. A node
+texture of a node with `visible: false` stays empty; the visibility of its
+ancestors does not count. Inside a node texture,
 shader nodes get no node textures of their own, so that two shader nodes
 that read each other do not recurse.
 
@@ -145,7 +148,7 @@ path.
 | `update` | change node properties. An update of only opacity, effects and meta of a node of another client answers with `node.requested` to its owner (D58), if the owner subscribes to `node.requested`; else it fails as other changes of a foreign node do, so the change is not lost unseen. An update that mixes other props with them fails with an error that names the other props. A confined client socket may send this request too. |
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
-| `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection (D55). |
+| `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection and hold a claim (D55). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with `node.requested` to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -256,7 +259,25 @@ connection of the client closes, the reservation ends with
 `surface.detached`. With `resume`, it ends at the end of the grace time.
 When a window manager removes its last claim, its reservations end too. A
 `remove` with `to` hands a surface to another window manager in the same
-way.
+way; `to` must hold a claim, because only window managers receive
+windows. A reservation that its window manager does not attach within 5
+seconds ends too, and all clients get `surface.detached`, so that no
+window stays hidden.
+
+Every window manager of the repository exports `window.give` with
+`surface` and `to`, and answers with the surface id. The method is
+privileged, because the receiver can focus, close or configure the
+window. It hands the window over with a `remove` with `to`, and the
+receiver focuses it. A `to` that is not connected or holds no claim
+fails, and the window stays. `choractl give
+TO [--surface ID]` calls `window.give` of the owner of the window, by
+default of the focused one. A window dropped outside the claim of its
+window manager goes to the owner of the smallest other claim that holds
+the drop point, as for a new toplevel; `chora_kit::give` finds it in
+the claims of `scene.query`. chora-tiling claims one box around all its
+outputs, so it tests a drop against the outputs themselves: a drop on an
+output of another window manager between two tiling outputs hands the
+window over.
 
 ## Selectors
 
@@ -289,12 +310,12 @@ by default; a timeout exits 1 with the reason on stderr.
 |-------|------|
 | `surface.created` | a toplevel waits for a plugin: surface id, `app_id`, title, and `decoration`: `server` when the client asked for a frame of the plugins through `xdg-decoration`, `client` when it draws its own. `to` names the window manager that the core reserved it for (see [Window managers](#window-managers)). `pid` is the process of the client as the socket reports it, a hint that a pid namespace can hide; `token` is the activation token that mapped the surface, when one did. A token only reaches this event when the client asked for activation before its first commit. An activation in the same batch of requests counts too, as in foot. The core sends the event at the end of that batch. |
 | `surface.changed` | surface id, `app_id`, title, size and `decoration`, after any of them changed |
-| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, the surface is free again, and all clients get `surface.detached`. With `resume`, this occurs at the end of the grace time. |
+| `surface.destroyed`, `surface.detached` | surface id. `surface.destroyed` follows only a `surface.created`. A toplevel that its client unmaps with a commit without a buffer also counts as destroyed. At its next initial commit, the core sends `surface.created` with the same id. After a `remove` with `to`, only `to` gets `surface.detached`. When `to` disconnects, or does not attach the surface within 5 seconds, the surface is free again, and all clients get `surface.detached`. With `resume`, a disconnect frees it at the end of the grace time. |
 | `focus.changed` | the focused surface changed, by a `focus` of a client or by the core: `surface`, or `null`. Window managers draw their frames from it (D55). |
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up (see [IPC methods](#ipc-methods)) |
-| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; only to the connection of the grab |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down |
@@ -442,7 +463,7 @@ answers every request.
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
 | `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
-| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
@@ -540,7 +561,12 @@ stays. `choractl reserve --top 30` holds a reserve until it ends.
 A key binding needs Ctrl, Alt or Super, so that typing still works, unless
 the client holds `input.grab-any` (D45). The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
-F12, belong to no client. A binding has one owner at a time. Revoking
+F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
+owner too, unless each client that grabs it holds a claim and is on the
+main socket (D55): then a
+press goes to the client of the smallest claim that contains the pointer,
+as for a new toplevel, else to the first grab, and the moves and the
+release of that press go to the same client. Revoking
 `input.grab-any` drops the registrations of grabs that need no modifier
 and ends a held one.
 
@@ -569,6 +595,18 @@ surface gets them:
 
 A window manager moves a window with `Super+BTN_LEFT` so, wherever the
 pointer grabs it.
+
+The binding `move` needs no modifier and takes no button from others: a
+window manager that grabs it gets the interactive moves of its own
+windows. When a client asks for a move during a press, for example
+`xdg_toplevel.move` from its title bar, the owner of the window gets the
+press, the moves and the release as `input.button` and `input.moved`
+with the binding `move`, and the window gets a leave. The press names
+the window in `surface`, so that the window manager drags that window
+and not the one under the pointer. Without a grab of
+`move`, the press stays with the client. The serial of the move must be
+the one of the press that still holds the pointer on that window; a move
+with an old serial does nothing.
 
 The core implements `wlr-output-management`, so kanshi and wlr-randr
 configure the outputs (see
@@ -986,7 +1024,7 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
-| `give` | `to`: a client name | hands the focused window to `to` with a `remove` with `to`, and answers with its surface id |
+| `window.give` | `surface`, and `to`: a client name | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
 
 A plugin with settings exports `settings.get`, `settings.set` and
 `settings.reload` through the runtime of `chora-kit` (D62). `settings.get`

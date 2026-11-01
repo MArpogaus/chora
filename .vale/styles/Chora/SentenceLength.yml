@@ -1,0 +1,6 @@
+extends: occurrence
+message: Sentence has more than 25 words (%s).
+level: warning
+scope: sentence
+max: 25
+token: \b[\w']+\b

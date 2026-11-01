@@ -120,6 +120,19 @@ enum Command {
     Levels,
 }
 
+/// The settings, unless their file is broken: the agent fails closed.
+/// chora-kit takes the defaults for a broken file, but the user's rules
+/// may ask more than the defaults (review 0.9.0-rc.3).
+fn unbroken(settings: settings::File<Config>) -> Result<settings::File<Config>, String> {
+    match settings.broken() {
+        Some(err) => Err(format!(
+            "the settings file {} is broken; fix it and start again: {err}",
+            settings.file().display()
+        )),
+        None => Ok(settings),
+    }
+}
+
 #[allow(
     clippy::print_stdout,
     clippy::expect_used,
@@ -145,6 +158,7 @@ fn main() -> ExitCode {
     }
     let result = settings::File::<Config>::path(args.config.clone(), "chora-voice")
         .and_then(|path| settings::File::load(path, "{}"))
+        .and_then(unbroken)
         .and_then(|settings: settings::File<Config>| {
             let config = settings.value.localized();
             match &args.command {
@@ -215,12 +229,13 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     tools.coder = Some(coder.clone());
     let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
     tools.agents = Some(agents.clone());
-    let chat = net.block_on(Chat::start(
+    let mut chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
         tools,
         chat::history_file(),
     ))?;
+    chat.settings_file = Some(settings.file().to_path_buf());
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
     agent.coder = Some(coder);
     agent.agents = Some(agents.clone());
@@ -242,6 +257,10 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
                 // agent_start spawns its actor on the runtime.
                 let _runtime = agent.net.enter();
                 let _ = reply.send(agents.call(&tool, &args));
+            }
+            Ok(Input::Claimed(claimed)) => {
+                agent.claimed = claimed;
+                agent.report();
             }
             Ok(input) => {
                 if let Err(e) = agent.step(input) {
@@ -270,15 +289,22 @@ struct Agent {
     chat: Arc<tokio::sync::Mutex<Chat>>,
     /// The reply in progress: the control of its speech, and its stop
     /// with the words that played.
-    reply: Option<(UnboundedSender<Control>, oneshot::Sender<String>)>,
+    reply: Option<(
+        UnboundedSender<Control>,
+        oneshot::Sender<String>,
+        UnboundedSender<String>,
+    )>,
     /// The reports to the HUD, and the last reports of the agent and of
     /// its coder.
     mc: Option<mpsc::Sender<mc::Report>>,
     reported: [Option<serde_json::Value>; 2],
+    reported_listen: Option<crate::config::Listen>,
     /// The last reports of the sub-agents.
     reported_subs: std::collections::BTreeMap<String, serde_json::Value>,
-    /// The state that the indicator shows; none without it.
-    dot: Option<core::State>,
+    /// The state that the indicator shows and its place; none without it.
+    dot: Option<(core::State, mc::Place)>,
+    /// A plugin that shows the state claimed the indicator: no dot.
+    claimed: bool,
     /// The ASR and the TTS for the health probes.
     probe: tokio::sync::watch::Sender<health::Probed>,
     coder: Option<coder::Coder>,
@@ -304,8 +330,10 @@ impl Agent {
             reply: None,
             mc: None,
             reported: [None, None],
+            reported_listen: None,
             reported_subs: std::collections::BTreeMap::new(),
             dot: None,
+            claimed: false,
             probe: tokio::sync::watch::Sender::new([Err(String::new()), Err(String::new())]),
             coder: None,
             agents: None,
@@ -313,17 +341,19 @@ impl Agent {
     }
 
     /// Lets the LLM read the prompt; tries again with the backoff of the
-    /// LLM until it answers, so that the cache is warm when it is back.
-    /// Starts the health probes of the ASR and the TTS.
+    /// LLM until it answers, so that the cache is warm when it is back,
+    /// and then says that the agent is ready. Starts the health probes of
+    /// the ASR and the TTS.
     fn warm(&self) {
         let config = self.core.config();
         let _ = self.probe.send_replace([config.asr(), config.tts()]);
         self.net.spawn(health::probe(self.probe.subscribe()));
-        let chat = self.chat.clone();
+        let (chat, tx) = (self.chat.clone(), self.tx.clone());
         self.net.spawn(async move {
             while !chat.lock().await.warm().await {
                 tokio::time::sleep(health::wait("llm")).await;
             }
+            let _ = tx.send(Input::Ready);
         });
     }
 
@@ -360,6 +390,10 @@ impl Agent {
                 *reported = Some(report);
             }
         }
+        let listen = self.core.config().listen;
+        if self.reported_listen.replace(listen) != Some(listen) {
+            let _ = mc.send(mc::Report::Listen(listen));
+        }
         let subs = self.core.subs();
         for (name, record) in subs {
             if self.reported_subs.get(name) != Some(record) {
@@ -372,7 +406,10 @@ impl Agent {
             }
         }
         self.reported_subs.clone_from(subs);
-        let dot = self.core.config().indicator.then(|| self.core.state());
+        let place = self.core.config().indicator.place();
+        let dot = place
+            .filter(|_| !self.claimed)
+            .map(|place| (self.core.state(), place));
         if dot != self.dot {
             let _ = mc.send(mc::Report::State(dot));
             self.dot = dot;
@@ -463,27 +500,49 @@ impl Agent {
             }
             ask @ Effect::Ask { .. } => self.ask(ask),
             Effect::Stop(played) => {
-                if let Some((_, stop)) = self.reply.take() {
+                if let Some((_, stop, _)) = self.reply.take() {
                     let _ = stop.send(played);
                 }
                 self.speaker.stop();
             }
+            Effect::Inject(text) => drop(self.reply.as_ref().map(|(.., inject)| inject.send(text))),
             Effect::Speech(control) => {
-                if let Some((speech, _)) = &self.reply {
+                if let Some((speech, ..)) = &self.reply {
                     let _ = speech.send(control);
                 }
             }
             Effect::StopCode => self.stop_code(),
             Effect::AgentPrompt { name, text } => self.to_agent(&name, Some(&text)),
             Effect::AgentCancel(name) => self.to_agent(&name, None),
-            Effect::Say { text, at, len } => {
-                if let Some(mc) = &self.mc {
-                    let _ = mc.send(mc::Report::Say { text, at, len });
-                }
-            }
             Effect::Exit => return Err("chora stays away".into()),
+            hud => self.hud(hud),
         }
         Ok(())
+    }
+
+    /// The effects for the HUD thread: a sentence and the questions.
+    fn hud(&self, effect: Effect) {
+        let report = match effect {
+            Effect::Say { text, at, len } => mc::Report::Say { text, at, len },
+            // A plugin that claimed the dot shows the question.
+            Effect::Confirm {
+                id,
+                prompt,
+                detail,
+                physical,
+            } => mc::Report::Confirm {
+                id,
+                prompt,
+                detail,
+                hud: !self.claimed,
+                keys: physical.then(|| self.core.config().confirm_keys.clone()),
+            },
+            Effect::ConfirmDone(id) => mc::Report::ConfirmDone(id),
+            _ => return,
+        };
+        if let Some(mc) = &self.mc {
+            let _ = mc.send(report);
+        }
     }
 }
 
@@ -510,11 +569,13 @@ impl Agent {
         let speaker = speak.then(|| self.speaker.clone());
         let (speech, control) = tokio::sync::mpsc::unbounded_channel();
         let (stop, mut stopped) = oneshot::channel::<String>();
+        let (inject, inbox) = tokio::sync::mpsc::unbounded_channel();
         self.net.spawn(async move {
             let mut chat = tokio::select! {
                 chat = chat.lock() => chat,
                 _ = &mut stopped => return,
             };
+            chat.inbox = Some(inbox);
             let on = |reply| drop(tx.send(Input::Reply(id, reply)));
             let reply = speech::reply(
                 &mut chat,
@@ -548,7 +609,7 @@ impl Agent {
             ));
             on(Reply::Done(report.reply));
         });
-        self.reply = Some((speech, stop));
+        self.reply = Some((speech, stop, inject));
     }
 
     /// A prompt for a sub-agent said to it by name; none cancels.
@@ -681,6 +742,21 @@ mod tests {
         fake,
         gate::Frame,
     };
+
+    /// Review 0.9.0-rc.3: a broken settings file stops the agent with
+    /// its name, instead of the defaults.
+    #[test]
+    fn a_broken_settings_file_fails_closed() {
+        let path = std::env::temp_dir().join(format!("chora-voice-broken-{}", std::process::id()));
+        std::fs::write(&path, "confirm: [").unwrap();
+        let settings = settings::File::<Config>::load(path.clone(), "{}").unwrap();
+        let err = unbroken(settings).err().unwrap();
+        assert!(err.contains(&path.display().to_string()), "{err}");
+        std::fs::write(&path, "earcons: false").unwrap();
+        let settings = settings::File::<Config>::load(path.clone(), "{}").unwrap();
+        assert!(!unbroken(settings).unwrap().value.earcons);
+        std::fs::remove_file(&path).unwrap();
+    }
 
     /// The frames of a corpus clip from `from` s on, with their speech
     /// probability.
@@ -831,10 +907,8 @@ mod tests {
             messages,
             [
                 ("user", "Wie spät ist es?"),
-                (
-                    "assistant",
-                    "Es ist zehn Uhr. (cancelled by the user; result unknown)"
-                ),
+                ("assistant", "Es ist zehn Uhr."),
+                ("user", chat::STOPPED),
                 ("user", "Und morgen?"),
             ]
         );

@@ -20,6 +20,7 @@ use std::{
 };
 
 use chora_kit::{
+    give::{self, Give, MOVE},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
 };
@@ -68,13 +69,6 @@ struct Args {
 struct SetLayout {
     layout: Option<Layout>,
     gap: Option<u16>,
-}
-
-/// Parameters of `tiling.give`.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Give {
-    to: String,
 }
 
 /// Parameters of `tiling.view_tag`.
@@ -127,6 +121,9 @@ struct Tiling {
     saved: HashMap<String, BTreeMap<String, String>>,
     /// The claim that the core has (D55).
     claimed: Option<[f64; 4]>,
+    /// The window that the binding of `drag` or a move of its client
+    /// holds, and the pointer relative to the window.
+    dragged: Option<(String, [f64; 2])>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -164,13 +161,14 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         focus: ShownFocus::default(),
         saved: HashMap::new(),
         claimed: None,
+        dragged: None,
     };
     tiling.start()?;
     Ok(runtime::serve(&mut tiling)?)
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 11] = [
+const EVENTS: [&str; 12] = [
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -182,6 +180,7 @@ const EVENTS: [&str; 11] = [
     "pointer.entered",
     "pointer.pressed",
     "focus.changed",
+    "input.button",
 ];
 
 impl Plugin for Tiling {
@@ -259,7 +258,6 @@ impl Tiling {
             };
             self.call_apply(vec![group])?;
         }
-        self.grab_all()?;
         // Free surfaces, and those the core reserved for tiling, for example
         // during the grace time of a restart.
         for node in self.query("kind:surface")? {
@@ -268,7 +266,13 @@ impl Tiling {
                 self.adopt(id)?;
             }
         }
-        self.relayout()
+        // The relayout grabs when it sets the claim: with a claim, a
+        // pointer binding can be shared with another window manager (D55).
+        self.relayout()?;
+        if self.claimed.is_none() {
+            self.grab_all()?;
+        }
+        Ok(())
     }
 
     /// Rebuilds the model from the meta of the kept nodes. A kept window
@@ -312,6 +316,9 @@ impl Tiling {
                 .expect("the configuration checks its bindings");
             self.rt.grab(binding, action)?;
         }
+        // The title bars of the clients drag as `drag` does.
+        let moves = MOVE.parse().expect("move is a binding");
+        self.rt.grab(moves, Action::Drag)?;
         Ok(())
     }
 
@@ -328,6 +335,7 @@ impl Tiling {
         self.rt.conn.call("scene.query", Query::new(selector))
     }
 
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             // The start adopts surfaces that the events then announce.
@@ -364,6 +372,17 @@ impl Tiling {
                 binding,
                 state: PressState::Pressed,
             } => return self.act(&binding),
+            Event::InputButton {
+                binding,
+                state,
+                position,
+                surface,
+                ..
+            } => self.drag(&binding, state, position, surface),
+            // A window that follows the pointer.
+            Event::InputMoved {
+                binding, position, ..
+            } if self.drag_to(&binding, position) => {}
             Event::PointerEntered { node, moved } => {
                 if !self.pointer_focus(&node, false, moved) {
                     return Ok(());
@@ -440,7 +459,7 @@ impl Tiling {
     /// the layout info of the current tag. A failed relayout fails the
     /// method.
     fn run(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
-        if method == "give" {
+        if method == give::METHOD {
             return self.give(params);
         }
         if method == "get_tags" {
@@ -474,7 +493,7 @@ impl Tiling {
         Ok(value)
     }
 
-    /// Changes what a method other than `give` and `get_layout` names.
+    /// Changes what a method other than `window.give` and `get_layout` names.
     /// True when the method focuses a window on its own.
     fn tune(&mut self, method: &str, params: Value) -> Result<bool, RpcError> {
         Ok(match method {
@@ -544,25 +563,91 @@ impl Tiling {
         ))
     }
 
-    /// Hands the focused window to another client with a remove with `to`,
-    /// and answers with its id.
+    /// `window.give`: hands a window to another window manager, and
+    /// answers with its id.
     fn give(&mut self, params: Value) -> Result<Value, RpcError> {
-        let Give { to } = runtime::params(params)?;
-        let surface = self
-            .wm
-            .focused()
-            .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no focused window"))?
-            .to_owned();
-        let give = Command::Remove {
-            id: surface.clone(),
-            to: Some(to),
-        };
-        self.call_apply(vec![give])
-            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        self.forget_window(&surface);
+        let Give { surface, to } = runtime::params(params)?;
+        self.hand(&surface, &to)
+    }
+
+    /// Hands a window to the window manager `to` with a remove with `to`
+    /// (D55); the receiver gives it the focus. The answer of
+    /// `window.give`.
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        only(self.wm.has(surface), || {
+            format!("tiling has no window {surface}")
+        })?;
+        let answer = self.rt.conn.give(surface, to)?;
+        self.forget_window(surface);
         self.relayout()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
-        Ok(Value::String(surface))
+        Ok(answer)
+    }
+
+    /// Whether a binding drags: the one of `drag`, or `move`, the
+    /// interactive move of a client, for example from its title bar.
+    fn drags(&self, binding: &str) -> bool {
+        matches!(self.rt.action(binding), Some(Action::Drag))
+    }
+
+    /// A drag: the press takes the window that asked for a move, else the
+    /// window under the pointer, and a release outside the claim of tiling
+    /// hands it to the window manager whose claim holds the point (D55).
+    /// Without one there, the window stays.
+    fn drag(&mut self, binding: &str, state: PressState, point: [f64; 2], asked: Option<String>) {
+        if !self.drags(binding) {
+            return;
+        }
+        if state == PressState::Pressed {
+            let grabbed = taken(asked, |id| self.wm.has(id), || self.window_at(point));
+            self.dragged = grabbed.map(|id| {
+                let [x, y] = (self.sent.get(&id))
+                    .and_then(|p| p.at)
+                    .map_or(point, |at| at.map(f64::from));
+                (id, [point[0] - x, point[1] - y])
+            });
+            return;
+        }
+        let Some((surface, _)) = self.dragged.take() else {
+            return;
+        };
+        if self.wm.output_at(point).is_some() {
+            return;
+        }
+        let given = match self.rt.conn.claimant_at(point) {
+            Ok(Some(to)) => self.hand(&surface, &to).map(drop),
+            Ok(None) => Err(RpcError::new(RpcError::REJECTED, "no claim there")),
+            Err(err) => Err(err),
+        };
+        if let Err(err) = given {
+            eprintln!("chora-tiling: {surface} stays: {}", err.message);
+            // Back from where the pointer left it.
+            self.wm.unplace(&surface);
+        }
+    }
+
+    /// A move of a drag: a window that does not tile follows the pointer.
+    /// True when it moved.
+    #[allow(clippy::cast_possible_truncation, reason = "scene coordinates")]
+    fn drag_to(&mut self, binding: &str, [px, py]: [f64; 2]) -> bool {
+        let Some((id, [dx, dy])) = self.dragged.clone().filter(|_| self.drags(binding)) else {
+            return false;
+        };
+        let at = [(px - dx).round() as i32, (py - dy).round() as i32];
+        self.wm.place(&id, at, [px, py])
+    }
+
+    /// The topmost shown window at a point in scene coordinates.
+    fn window_at(&self, [px, py]: [f64; 2]) -> Option<String> {
+        let rect = |id: &String| {
+            let placement = self.sent.get(id)?;
+            let window = self.wm.windows.iter().find(|w| &w.id == id)?;
+            let [x, y] = placement.at?;
+            let [w, h] = placement.size.or(window.size)?;
+            Some([x, y, w, h].map(f64::from))
+        };
+        let hit = |id: &&String| rect(id).is_some_and(|r| inside(r, [px, py]));
+        self.order.iter().rev().find(hit).cloned()
     }
 
     fn focus_changed(&mut self, surface: Option<&str>) {
@@ -636,11 +721,17 @@ impl Tiling {
         if self.without_outputs() {
             return self.pass_on_reserved(surface);
         }
-        let ignored = self.query(&format!("id:{surface}"))?.iter().any(|node| {
+        let nodes = self.query(&format!("id:{surface}"))?;
+        let ignored = nodes.iter().any(|node| {
             node["surface"]["app_id"]
                 .as_str()
                 .is_some_and(|app| self.ignore.iter().any(|i| i == app))
         });
+        // The size of a window that comes with one, as from another window
+        // manager: it floats at that size, centered, and a drag hits it.
+        let size = nodes
+            .first()
+            .and_then(|n| serde_json::from_value(n["surface"]["size"].clone()).ok());
         if ignored {
             return self.pass_on_reserved(surface);
         }
@@ -652,6 +743,9 @@ impl Tiling {
             Ok(()) => {
                 // A new window of tiling takes the focus.
                 self.wm.add_window(surface);
+                if let Some(size) = size {
+                    self.wm.set_size(surface, size);
+                }
                 self.focus.take();
                 self.style(surface)
             }
@@ -710,6 +804,7 @@ impl Tiling {
         if commands.is_empty() {
             return Ok(());
         }
+        let gained = self.claimed.is_none() && claim.is_some();
         self.saved = saved;
         self.claimed = claim;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
@@ -717,7 +812,15 @@ impl Tiling {
         if send_focus {
             self.focus.sent(focus);
         }
-        self.apply(commands)
+        self.apply(commands)?;
+        // A grab of a pointer binding that another window manager holds
+        // succeeds only with a claim, for example with `--output` for an
+        // output that came later (D55).
+        if gained && self.claimed.is_some() {
+            self.rt.ungrab_all()?;
+            self.grab_all()?;
+        }
+        Ok(())
     }
 
     /// The meta of the group and of each window, by node.
@@ -735,6 +838,12 @@ impl Tiling {
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);
+        // The focus on it is no longer that of tiling: when the window
+        // comes back, tiling sends it again.
+        if self.focus.surface.as_deref() == Some(id) {
+            self.focus.surface = None;
+            self.focus.sent = false;
+        }
     }
 
     /// Forgets what the core shows, so that the next transaction sends all.
@@ -799,6 +908,20 @@ impl Tiling {
             Ok(()) => Ok(true),
             Err(err) => Err(err),
         }
+    }
+}
+
+/// The window that a drag takes: the window of tiling that asked for a
+/// move, from its title bar for example, else the window `under` the
+/// pointer, which may be another window where windows overlap.
+fn taken(
+    asked: Option<String>,
+    ours: impl Fn(&str) -> bool,
+    under: impl FnOnce() -> Option<String>,
+) -> Option<String> {
+    match asked {
+        Some(id) => ours(&id).then_some(id),
+        None => under(),
     }
 }
 
@@ -999,12 +1122,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             json!({}),
             &[],
         ),
-        runtime::method(
-            "give",
-            "Hands the focused window to another client.",
-            json!({"to": field("string", "The client name.")}),
-            &["to"],
-        ),
+        give::method(),
         runtime::method(
             "view_tag",
             "Shows a tag on the current output.",
@@ -1032,6 +1150,11 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["surface"],
         ),
     ]
+}
+
+/// Whether a rect `[x, y, w, h]` holds a point.
+fn inside([x, y, w, h]: [f64; 4], [px, py]: [f64; 2]) -> bool {
+    (x..x + w).contains(&px) && (y..y + h).contains(&py)
 }
 
 /// Fails the method unless the model accepted it.
@@ -1104,7 +1227,84 @@ impl ShownFocus {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        sync::{Arc, Mutex},
+    };
+
+    use chora_kit::conn::Conn;
+
     use super::*;
+
+    /// A tiling on a fake core that answers every request, `input.grab`
+    /// with its binding, and keeps the names of the methods called.
+    fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+        let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("core.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        let methods = Arc::new(Mutex::new(Vec::new()));
+        let seen = methods.clone();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            for line in BufReader::new(&stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).unwrap();
+                let method = request["method"].as_str().unwrap_or_default().to_owned();
+                let result = match method.as_str() {
+                    "hello" => json!({"version": chora_scene::ipc::VERSION}),
+                    "input.grab" => request["params"]["binding"].clone(),
+                    _ => Value::Null,
+                };
+                seen.lock().unwrap().push(method);
+                let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
+                writeln!(writer, "{answer}").unwrap();
+            }
+        });
+        let conn = Conn::connect_at(NAME, &path).unwrap();
+        let file = dir.join("chora-tiling.yaml");
+        let settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
+        let tiling = Tiling {
+            rt: Runtime::with(conn, NAME, Vec::new()),
+            wm: Wm::new(settings.value.clone()),
+            settings,
+            ignore: Vec::new(),
+            sent: HashMap::new(),
+            order: Vec::new(),
+            focus: ShownFocus::default(),
+            saved: HashMap::new(),
+            claimed: None,
+            dragged: None,
+        };
+        (tiling, methods)
+    }
+
+    /// With `--output X` before X exists, the grab of a pointer binding
+    /// that another window manager holds fails; tiling grabs again once
+    /// its claim appears (2.7).
+    #[test]
+    fn tiling_grabs_again_when_its_claim_appears() {
+        let (mut tiling, methods) = on_fake_core("regrab");
+        let grabs = || {
+            methods
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|m| *m == "input.grab")
+                .count()
+        };
+        tiling.relayout().unwrap();
+        assert_eq!(grabs(), 0, "no output, no claim");
+        tiling.wm.set_output("X", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.relayout().unwrap();
+        assert!(tiling.claimed.is_some());
+        assert!(grabs() > 0, "the claim came, and tiling grabbed");
+        let before = grabs();
+        tiling.relayout().unwrap();
+        assert_eq!(grabs(), before, "only when the claim appears");
+    }
 
     #[test]
     fn a_window_passed_on_is_free_for_any_window_manager() {
@@ -1115,6 +1315,15 @@ mod tests {
                 Command::Remove { id, to: None },
             ] if surface == "s1" && parent == NAME && id == "s1"
         ));
+    }
+
+    #[test]
+    fn a_move_drags_the_window_that_asked_for_it() {
+        let under = || Some("s2".to_owned());
+        let ours = |id: &str| id != "x";
+        assert_eq!(taken(Some("s1".into()), ours, under).as_deref(), Some("s1"));
+        assert_eq!(taken(Some("x".into()), ours, under), None);
+        assert_eq!(taken(None, ours, under).as_deref(), Some("s2"));
     }
 
     #[test]

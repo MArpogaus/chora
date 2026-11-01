@@ -19,6 +19,22 @@ repos:
     name: no GPL-3.0-only code (the core is GPL-3.0-or-later)
     entry: SPDX-License-Identifier:\s*GPL-3\.0(-only)?(?![-+.\w])
     language: pygrep
+  - id: no-agent-trailers
+    name: no Co-Authored-By, Claude-Session or "Generated with" in the message
+    entry: tests/no-agent-trailers.sh
+    language: script
+    stages: [commit-msg]
+  - id: lychee
+    name: lychee (offline links in the Markdown files)
+    entry: lychee --config lychee.toml
+    language: system
+    files: ^(docs/.*|plans/.*|README)\.md$
+    types: [markdown]
+  - id: vale
+    name: vale (prose rules of .vale/ in docs/*.md; errors fail, see .vale.ini)
+    entry: vale --minAlertLevel=error
+    language: system
+    files: ^docs/.*\.md$
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit

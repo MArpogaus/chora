@@ -1,0 +1,6 @@
+# All scenes in their order, one line each: the number, a bar and the
+# title, as in the head of a scene. chora-mc fills the panel scenes; a
+# click on a line shows that scene.
+chapter: {title: Overview}
+panels:
+- {id: scenes, cell: [0, 0, 2, 3]}

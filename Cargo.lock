@@ -505,7 +505,7 @@ dependencies = [
 
 [[package]]
 name = "chora"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "base64",
  "calloop",
@@ -526,8 +526,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-construct"
+version = "0.9.0-rc.3"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "chora-kit"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "chora-scene",
  "libc",
@@ -539,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "chora-mc"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -552,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "chora-probe"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "rustix 1.1.5",
  "wayland-client",
@@ -563,7 +576,7 @@ dependencies = [
 
 [[package]]
 name = "chora-scene"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "imbl",
  "schemars",
@@ -574,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "chora-tiling"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -586,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "chora-voice"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "base64",
  "chora-kit",
@@ -609,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "chora-xp"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "chora-kit",
  "chora-scene",
@@ -625,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "choractl"
-version = "0.9.0-rc.2"
+version = "0.9.0-rc.3"
 dependencies = [
  "base64",
  "chora-scene",

@@ -76,10 +76,7 @@ impl CompositorHandler for State {
     fn commit(&mut self, surface: &WlSurface) {
         on_commit_buffer_handler::<Self>(surface);
         if !is_sync_subsurface(surface) {
-            let mut root = surface.clone();
-            while let Some(parent) = get_parent(&root) {
-                root = parent;
-            }
+            let root = root_surface(surface);
             if let Some(id) = self.surface_id(&root) {
                 self.windows[&id].on_commit();
                 self.toplevel_committed(&id);
@@ -97,6 +94,15 @@ impl CompositorHandler for State {
                 .expect("initial configure is always allowed");
         }
     }
+}
+
+/// The surface at the root of the subsurface tree of a surface.
+pub fn root_surface(surface: &WlSurface) -> WlSurface {
+    let mut root = surface.clone();
+    while let Some(parent) = get_parent(&root) {
+        root = parent;
+    }
+    root
 }
 
 impl State {
@@ -199,6 +205,7 @@ impl State {
                 })
                 .map(String::from);
             self.scene.reserve(id, to.as_deref());
+            self.reserved(id, None, false);
             self.list_toplevel(id);
             // A client often activates right after its first commit, in
             // the same batch, as foot does: the event waits for the end of
@@ -317,6 +324,17 @@ impl XdgShellHandler for State {
     fn fullscreen_request(&mut self, surface: ToplevelSurface, _output: Option<WlOutput>) {
         self.request(&surface, SurfaceRequest::Fullscreen);
         Self::answer(&surface);
+    }
+
+    /// An interactive move, for example from a title bar of the client:
+    /// the press becomes a drag of the owner of the window.
+    fn move_request(&mut self, surface: ToplevelSurface, _seat: WlSeat, serial: Serial) {
+        if !self.pressed(surface.wl_surface(), serial) {
+            return;
+        }
+        if let Some(id) = self.surface_id(surface.wl_surface()) {
+            crate::input::start_move(self, surface.wl_surface(), &id, serial);
+        }
     }
 
     fn unfullscreen_request(&mut self, surface: ToplevelSurface) {

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=chora (construct, uwsm)
+Comment=A programmable Wayland compositor, with the experimental construct flavor, managed by uwsm
+Exec=uwsm start -e -D chora -N chora -- chora -- chora-flavor construct
+TryExec=uwsm
+Type=Application
