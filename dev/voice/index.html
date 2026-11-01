@@ -1786,7 +1786,7 @@ without a <code>.</code>. So <code>*.settings.set</code> cannot go in. Neither l
 to the agent's own settings, which always ask.</p>
 <p>Each question also goes out as the event <code>voice.confirm {prompt,
 detail, id}</code>; <code>id</code> is a text, such as <code>"3"</code>. A question about a
-security key also has <code>physical: true</code> and <code>keys: {yes, no}</code>. <code>detail</code> is the full command or value, never cut: the
+security key also has <code>physical: true</code> and <code>keys: {yes, no}</code>. <code>detail</code> is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of <code>voice.*</code> gets it, so secrets
 are hidden as in the journal: the value of each <code>*_headers</code> key, of
