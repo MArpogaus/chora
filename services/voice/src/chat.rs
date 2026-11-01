@@ -910,11 +910,11 @@ impl Chat {
         let fixed = self.system.len() + serde_json::to_string(&tools).map_or(0, |t| t.len());
         self.drop_old_images();
         self.fit(budget, fixed);
-        let mut messages = vec![json!({"role": "system", "content": self.system})];
-        if !self.dropped.is_empty() {
-            let note = format!("{DROPPED_NOTE}\n{}", self.dropped);
-            messages.push(json!({"role": "system", "content": note}));
-        }
+        // One system message: some chat templates refuse a second one
+        // (review rc3 round 4, 2.3).
+        let note = self.note();
+        let system = format!("{}{note}", self.system);
+        let mut messages = vec![json!({"role": "system", "content": system})];
         messages.extend(self.history.iter().cloned());
         if last {
             messages.push(json!({"role": "user", "content": LAST_ROUND}));
@@ -928,7 +928,7 @@ impl Chat {
             // prompt in its cache; without them it reads it again.
             body["tool_choice"] = "none".into();
         }
-        let chars = fixed + size(&messages[1..]);
+        let chars = fixed + note.len() + size(&messages[1..]);
         (body, messages, chars)
     }
 
@@ -1213,6 +1213,15 @@ impl Chat {
             .all(|t| node(t).is_some_and(own) && nodes.iter().all(|n| own(n) || !under(n, t)))
     }
 
+    /// The note of the dropped turns, to follow the system text; empty
+    /// while nothing was dropped.
+    fn note(&self) -> String {
+        if self.dropped.is_empty() {
+            return String::new();
+        }
+        format!("\n\n{DROPPED_NOTE}\n{}", self.dropped)
+    }
+
     /// Drops the oldest whole turns until the estimate fits `budget` and
     /// the history fits `history_tokens` (characters / 4); a turn starts
     /// at a user message, so a tool call keeps its results. The last turn
@@ -1226,7 +1235,7 @@ impl Chat {
         loop {
             let history = size(&self.history);
             #[allow(clippy::cast_precision_loss)]
-            let tokens = (fixed + history) as f64 / self.chars_per_token;
+            let tokens = (fixed + self.note().len() + history) as f64 / self.chars_per_token;
             if tokens <= f64::from(budget) && history <= limit {
                 return;
             }
@@ -2643,7 +2652,7 @@ mod tests {
             Reply::Text("Drei."),
         ];
         let config = Config {
-            context_tokens: 460,
+            context_tokens: 540,
             reply_reserve_tokens: 0,
             ..Config::default()
         };
@@ -2730,8 +2739,8 @@ mod tests {
         }
         let (body, ..) = chat.request(false, false, u32::MAX);
         let messages = body["messages"].as_array().unwrap();
-        let note = messages[1]["content"].as_str().unwrap();
-        assert_eq!(messages[1]["role"], "system");
+        assert!(messages.iter().skip(1).all(|m| m["role"] != "system"));
+        let (_, note) = messages[0]["content"].as_str().unwrap().split_once(DROPPED_NOTE).unwrap();
         assert!(note.contains("user: Bitte 0.\nyou: Punkt eins"), "{note}");
         assert!(!note.contains("tool"), "{note}");
         assert!(note.lines().all(|l| l.chars().count() <= DROPPED_LINE + 6));
