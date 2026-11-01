@@ -16,11 +16,14 @@ with a stable, versioned API (D3).
 - Each milestone has a gate issue on GitHub with the checks as a task
   list. Each ticked check links to its CI run or log. The release of the
   milestone closes the issue.
-- Two tracks run in parallel to the core: the XP showroom and the voice
-  pipeline.
+- Four tracks run in parallel to the core: the XP showroom, the voice
+  pipeline, the XP split and the construct.
 - The showroom track has no milestones of its own (see
   [Track: XP showroom](#track-xp-showroom)).
-- The voice track has milestones of its own. It never blocks the core.
+- The voice, split and construct tracks have steps of their own. They
+  never block the core.
+- Core code stops during Gate 1 and opens again when `v0.9.0` is tagged.
+  The XP split and the construct change plugins only until then.
 
 ## Current state
 
@@ -59,12 +62,15 @@ of 0.9 and 1.0 measure that use, so they set the calendar time.
 | 0.7 Identity, processes and read model basics | 3,000 | 16 to 20 | 3 | 1 to 2 weeks |
 | 0.8 Lean plugins and the agent API | open | open | open | open |
 | 0.9 Daily driver | 2,500 | 20 to 30 | 8 plus daily use | 3 weeks |
-| 0.10 Renderer | 7,000 | 40 to 50 | 6 | 3 weeks |
+| 0.10 Renderer (plus the space, see below) | 7,000 | 40 to 50 | 6 | 3 weeks |
 | 1.0 Stable API | 1,500 | 12 to 16 | 4 plus daily use | 5 to 6 weeks |
 | **Total without 0.8** | **16,500** | **102 to 134** | **24** | **13 to 15 weeks** |
 
 The renderer has the largest risk. A fault on real hardware in 0.10 can
-add one to two weeks.
+add one to two weeks. The row holds the renderer only. The space adds
+about 2,500 lines and 12 to 16 agent hours with option B of the spike; the
+plane world of option A replaces part of the renderer scope, and its
+numbers wait for the spike.
 
 ## 0.6: Foundation
 
@@ -319,6 +325,22 @@ Gate:
 **Goal:** the user works in chora every day on the reference hardware
 (D60).
 
+The milestone has three stages: `v0.9.0-rc.3`, Gate 1 and the tag
+`v0.9.0`.
+
+**rc.3:** the fixes of review round 4 are in, and no finding of high or
+medium severity is open. The tag `v0.9.0-rc.3` comes from a merge commit
+with green CI.
+
+**Gate 1:** the user works 10 working days only in chora with
+`chora-tiling`. The daily session runs the rc.3 build and takes only bug
+fixes of the tiling path. A crash or an emergency reset that the user did
+not start resets the count; the fix goes into rc.4. The rc.4 fixes include
+the pointer rule for new windows (D72).
+
+**`v0.9.0`:** the tag follows when Gate 1 and every other check of the
+gate hold. Core work opens again.
+
 Scope:
 
 - The session starts through uwsm (D50). A flavor is a systemd target.
@@ -396,6 +418,13 @@ Scope:
   Wayland protocol for plugins (D54).
 - The bugs of the render quality: #34, #36, #37, #38, #46, #47, #48, #74,
   #75, #76, #78 and #79.
+- The space (D68), as the spike decides. Option A: a world of planes with
+  3D cameras in the renderer. Option B: a hit test through flat 3D
+  transforms (P1), virtual outputs (P4, D69), an output as a texture
+  source (P3) and the portal `forward` (P2, D70), on the current renderer.
+  The new-window target by activation token (D72). Damage tracking for
+  node textures, so that a node texture renders only when its source
+  changes.
 
 Gate:
 
@@ -419,6 +448,14 @@ Gate:
 8. CI runs the CI scripts of the earlier gates again. The user runs the
    hardware checks again on the reference hardware, with a log, except the
    daily-use checks (0.9 gate 1).
+9. The checks of the space hold for either option of the spike. Tests
+   check each one:
+   - The emergency reset removes all virtual outputs and puts every window
+     on a real output.
+   - A client of a client socket cannot create a virtual output or set
+     `forward`. Forwarding stops while the session is locked.
+   - A window that only a node texture or a virtual output shows keeps its
+     frame callbacks, so its pane does not freeze.
 
 ## 1.0: Stable API
 
@@ -441,6 +478,9 @@ Scope:
 - A final review loop over the whole code base until a round finds
   nothing that matters (D47).
 - All plugins of the core repository use the protocol version 1.
+- The methods and properties of the space (`output.add`, `forward`, the
+  output texture source, `animate`) are marked stable or experimental
+  before the schema is frozen.
 
 Gate:
 
@@ -467,8 +507,7 @@ the effects of the scene and serves as their test.
 
 - The showroom has no release per milestone. `tests/xp.sh` runs in the CI
   of the core.
-- After its rework in 0.8, the showroom gets fixes and the API ports of
-  the core only (D39).
+- The XP split below changes its structure (D73).
 
 ## Track: voice pipeline
 
@@ -484,28 +523,69 @@ speech to text, a language model and text to speech, served by
 | V2 Control | the voice agent drives chora through MCP | "move the terminal to the right" works in 18 of 20 tries | 0.7 (read model, text injection) |
 | V3 Views | a morning view and task views | "show my tasks for today" opens a view with the tasks of an MCP source; "open a view for the first task" opens a view with two surfaces | 0.7 |
 
+## Track: XP split
+
+`chora-xp` splits into neutral blocks and the XP gimmick (D73). The track
+runs during Gate 1, by subagents, and changes plugins only. It does not
+touch `chora-tiling`. `tests/xp.sh` and the battle workflows stay green
+after each step.
+
+| Step | Goal | Size | Check |
+|------|------|------|-------|
+| X1 Design | a short design document and the skeleton of the target crates; the asset folder of a block (D73) | S | the document is in `docs/`; the skeleton builds |
+| X2 Notify and assistant | notifications and the assistant (paperclip look stays with the gimmick) as plugins of their own | S | `tests/xp.sh` passes with both as separate units |
+| X3 Desktop | wallpaper, icons and context menu as a plugin | M | a capture shows the wallpaper from the neutral folder |
+| X4 Panel | taskbar, start menu, clock and tray as a plugin | L | the start menu starts a program; the task list shows its window |
+| X5 Stack | the plain stacking window manager, with a neutral frame | L | windows move, resize and switch with Alt+Tab |
+| X6 Kit pass-through | a function of `chora-kit` passes `update` and `animate` requests (D58) through for every window manager | S | a request of an effects plugin reaches a window of `chora-tiling` and of `chora-stack` |
+| X7 Gimmick | the XP folders, the dialogs of D63 and the paperclip look on top of the blocks | M | `tests/xp.sh` passes; a flavor without the gimmick shows a plain desktop in a capture |
+
+A crate gets its first real user with the first block that moves. No
+crate stays unused (D73).
+
 ## Track: construct
 
 `chora-construct` is a spatial flavor and overlay: a light, foggy space,
-where programs, plugins, nested sessions and agent
-prompts float as panes that face the camera (D66). It grows from the
-loader prototype in `examples/loader/`. The requirements are in
-`plans/construct-requirements.md`. It runs beside milestone 0.10 and
-needs no change of the core unless the focus check finds a gap.
+where programs, plugins, window managers, desktops and agent prompts float
+as panes (D66, D67). It grows from the loader prototype in
+`examples/loader/`. The requirements are in
+`plans/construct-requirements.md`. Steps up to K4 are plugin only and run
+beside Gate 1. Steps from K5 need the core blocks of the space (D68) and
+start after them.
 
-| Step | Goal | Gate |
-|------|------|------|
-| K1 Space | walk on a leash in the light, foggy space, fly in and out of program panes | a terminal pane takes typed text after a fly-in, pixel-sharp at 1:1 |
-| K2a Panes | program and plugin panes, constructs as files, overlay (done) | a program pane and a plugin pane show live within 10 s after the start |
-| K2b More panes | GNOME and prompt panes | four panes of the four kinds show live within 10 s after the start |
-| K3 Live | LOD, voice tools, prompt panes with ACP agents | 8 live panes at 60 fps for 60 s; "build me a snake game in a new pane" by voice shows the game running |
+The spike decides the core blocks. It runs during Gate 1, outside `dev`:
+
+| Spike | Goal | Criteria |
+|-------|------|----------|
+| S1 Plane world | one plane, a 3D camera and a ray hit test decide between option A (world of planes in the 0.10 renderer) and option B (building blocks on the current renderer) (D68) | the world wins only if all hold on the reference hardware: 8 panes at 60 fps; a popup opens and works in a tilted pane; the 2D path keeps direct scanout and its latency |
+
+| Step | Goal | Size | Needs | Check |
+|------|------|------|-------|-------|
+| K1 Space | walk on a leash in the light, foggy space, fly in and out of program panes (done) | done | none | a terminal pane takes typed text after a fly-in, pixel-sharp at 1:1 |
+| K2a Panes | program and plugin panes, constructs as files, overlay (done) | done | none | a program pane and a plugin pane show live within 10 s after the start |
+| K2b More panes | GNOME and prompt panes | M | none | four panes of the four kinds show live within 10 s after the start |
+| K3 Live | LOD, voice tools, prompt panes with ACP agents | L | none | 8 live panes at 60 fps for 60 s; "build me a snake game in a new pane" by voice shows the game running |
+| K4 Modes | use and navigate mode with one toggle key; pane resize in width and height; panes obey `update` and `animate` requests; `construct.load` without a name and one key to enter and leave from any flavor | M | none | in use mode a click on a pane does not move the view; a corner drag changes width and height |
+| K5 Direct input | pointer and keyboard in tilted panes without a fly-in | S | spike, hit test | a click on a tilted terminal pane focuses it and types, in 20 of 20 tries |
+| K6 Desktop pane | load the construct from a running tiling, xp or mc session; the session shows live in a pane; a fly-in at 1:1 leaves the construct | M | spike, portal | a tiling session shows live in a pane; fly in and back |
+| K7 WM panes | the construct starts a window manager on a virtual output and shows it as a pane; several panes with different window managers; the parent fallback: when a window manager ends, its windows go back to the one that gave them (D55) | M | K6, virtual outputs | xp and tiling run in two panes; a window opened in the xp pane lands in xp; a killed child returns its windows |
+| K8 Drop to give | drag a window from one WM pane to another; a preview shows the target; the hand-over happens on release | S | K7 | one window moves from the xp pane to the tiling pane and back |
+| K9 Cylinder and wall | a group layout: panes on the inner side of a ring, scrolled by the user; each pane is a window, a window manager or a desktop; a wall is the same ring with a flat radius | M | K7 | five panes scroll; one pane is removed; the user enters and leaves |
+| K10 Foreign desktops | GNOME, KDE or an X11 window manager as a nested session pane with direct input (D74) | S | K5 | a GNOME session shows in a pane and takes typed text |
+| K11 Cube | a group layout: the cube is `chora-xp` on four virtual outputs, one per face, with the construct as its horizon | M | K7, X7 | the cube shows four live desktops; a window moves between faces |
+
+**Gate 2:** after K7 to K11, the user works some days in the construct
+with tiling and xp panes. Only then the space counts as equal to 2D work.
+Gate 1 stays tiling only.
 
 ## After 1.0
 
 - The organization `chora-desktop` (D36). The core repository moves
   there, and `main` accepts pull requests only (D47). The plugins, the XP
   showroom and the voice pipeline move into repositories of their own.
-- Small plugins that window managers share: a panel with a task list and
-  the notifications, and a launcher (D51). Until then, shared code lives
-  in `chora-kit`.
+- A launcher as a small plugin that window managers share (D51). The
+  panel and the notifications come from the XP split. Until then, shared
+  code lives in `chora-kit`.
+- The construct layouts move to plugins of their own, if the construct has
+  grown too large (D67).
 - Conformance tests with wlcs.
