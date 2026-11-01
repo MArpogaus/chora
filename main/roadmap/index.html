@@ -568,6 +568,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../mc-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-mc style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../construct-style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    chora-construct style guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../project-structure/" class="md-nav__link">
         
   
@@ -1038,11 +1094,14 @@ with a stable, versioned API (D3).</p>
 <li>Each milestone has a gate issue on GitHub with the checks as a task
   list. Each ticked check links to its CI run or log. The release of the
   milestone closes the issue.</li>
-<li>Two tracks run in parallel to the core: the XP showroom and the voice
-  pipeline.</li>
+<li>Four tracks run in parallel to the core: the XP showroom, the voice
+  pipeline, the XP split and the construct.</li>
 <li>The showroom track has no milestones of its own (see
   <a href="#track-xp-showroom">Track: XP showroom</a>).</li>
-<li>The voice track has milestones of its own. It never blocks the core.</li>
+<li>The voice, split and construct tracks have steps of their own. They
+  never block the core.</li>
+<li>Core code stops during Gate 1 and opens again when <code>v0.9.0</code> is tagged.
+  The XP split and the construct change plugins only until then.</li>
 </ul>
 <h2 id="current-state">Current state<a class="headerlink" href="#current-state" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1111,7 +1170,7 @@ of 0.9 and 1.0 measure that use, so they set the calendar time.</p>
 <td style="text-align: right;">3 weeks</td>
 </tr>
 <tr>
-<td>0.10 Renderer</td>
+<td>0.10 Renderer (plus the space, see below)</td>
 <td style="text-align: right;">7,000</td>
 <td style="text-align: right;">40 to 50</td>
 <td style="text-align: right;">6</td>
@@ -1134,7 +1193,10 @@ of 0.9 and 1.0 measure that use, so they set the calendar time.</p>
 </tbody>
 </table>
 <p>The renderer has the largest risk. A fault on real hardware in 0.10 can
-add one to two weeks.</p>
+add one to two weeks. The row holds the renderer only. The space adds
+about 2,500 lines and 12 to 16 agent hours with option B of the spike; the
+plane world of option A replaces part of the renderer scope, and its
+numbers wait for the spike.</p>
 <h2 id="06-foundation">0.6: Foundation<a class="headerlink" href="#06-foundation" title="Permanent link">&para;</a></h2>
 <p>Released as <code>v0.6.0</code> on 2026-10-19 without the gate checks 1, 2 and 5.
 These checks moved to the gate of 0.7. Check 1 then moved to the time
@@ -1378,6 +1440,18 @@ the settings from <code>chora-tiling</code>, and then ports <code>chora-xp</code
 <h2 id="09-daily-driver">0.9: Daily driver<a class="headerlink" href="#09-daily-driver" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the user works in chora every day on the reference hardware
 (D60).</p>
+<p>The milestone has three stages: <code>v0.9.0-rc.3</code>, Gate 1 and the tag
+<code>v0.9.0</code>.</p>
+<p><strong>rc.3:</strong> the fixes of review round 4 are in, and no finding of high or
+medium severity is open. The tag <code>v0.9.0-rc.3</code> comes from a merge commit
+with green CI.</p>
+<p><strong>Gate 1:</strong> the user works 10 working days only in chora with
+<code>chora-tiling</code>. The daily session runs the rc.3 build and takes only bug
+fixes of the tiling path. A crash or an emergency reset that the user did
+not start resets the count; the fix goes into rc.4. The rc.4 fixes include
+the pointer rule for new windows (D72).</p>
+<p><strong><code>v0.9.0</code>:</strong> the tag follows when Gate 1 and every other check of the
+gate hold. Core work opens again.</p>
 <p>Scope:</p>
 <ul>
 <li>The session starts through uwsm (D50). A flavor is a systemd target.
@@ -1453,6 +1527,13 @@ and drives plugins with the frame clock (D17, D24).</p>
   Wayland protocol for plugins (D54).</li>
 <li>The bugs of the render quality: #34, #36, #37, #38, #46, #47, #48, #74,
   #75, #76, #78 and #79.</li>
+<li>The space (D68), as the spike decides. Option A: a world of planes with
+  3D cameras in the renderer. Option B: a hit test through flat 3D
+  transforms (P1), virtual outputs (P4, D69), an output as a texture
+  source (P3) and the portal <code>forward</code> (P2, D70), on the current renderer.
+  The new-window target by activation token (D72). Damage tracking for
+  node textures, so that a node texture renders only when its source
+  changes.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1476,6 +1557,14 @@ and drives plugins with the frame clock (D17, D24).</p>
 <li>CI runs the CI scripts of the earlier gates again. The user runs the
    hardware checks again on the reference hardware, with a log, except the
    daily-use checks (0.9 gate 1).</li>
+<li>The checks of the space hold for either option of the spike. Tests
+   check each one:</li>
+<li>The emergency reset removes all virtual outputs and puts every window
+     on a real output.</li>
+<li>A client of a client socket cannot create a virtual output or set
+     <code>forward</code>. Forwarding stops while the session is locked.</li>
+<li>A window that only a node texture or a virtual output shows keeps its
+     frame callbacks, so its pane does not freeze.</li>
 </ol>
 <h2 id="10-stable-api">1.0: Stable API<a class="headerlink" href="#10-stable-api" title="Permanent link">&para;</a></h2>
 <p><strong>Goal:</strong> the API is version 1 and stays compatible until 2.0.</p>
@@ -1496,6 +1585,9 @@ and drives plugins with the frame clock (D17, D24).</p>
 <li>A final review loop over the whole code base until a round finds
   nothing that matters (D47).</li>
 <li>All plugins of the core repository use the protocol version 1.</li>
+<li>The methods and properties of the space (<code>output.add</code>, <code>forward</code>, the
+  output texture source, <code>animate</code>) are marked stable or experimental
+  before the schema is frozen.</li>
 </ul>
 <p>Gate:</p>
 <ol>
@@ -1521,8 +1613,7 @@ the effects of the scene and serves as their test.</p>
 <ul>
 <li>The showroom has no release per milestone. <code>tests/xp.sh</code> runs in the CI
   of the core.</li>
-<li>After its rework in 0.8, the showroom gets fixes and the API ports of
-  the core only (D39).</li>
+<li>The XP split below changes its structure (D73).</li>
 </ul>
 <h2 id="track-voice-pipeline">Track: voice pipeline<a class="headerlink" href="#track-voice-pipeline" title="Permanent link">&para;</a></h2>
 <p>The voice pipeline lives in <code>services/voice/</code> of the core repository and
@@ -1560,14 +1651,202 @@ speech to text, a language model and text to speech, served by
 </tr>
 </tbody>
 </table>
+<h2 id="track-xp-split">Track: XP split<a class="headerlink" href="#track-xp-split" title="Permanent link">&para;</a></h2>
+<p><code>chora-xp</code> splits into neutral blocks and the XP gimmick (D73). The track
+runs during Gate 1, by subagents, and changes plugins only. It does not
+touch <code>chora-tiling</code>. <code>tests/xp.sh</code> and the battle workflows stay green
+after each step.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Goal</th>
+<th>Size</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>X1 Design</td>
+<td>a short design document and the skeleton of the target crates; the asset folder of a block (D73)</td>
+<td>S</td>
+<td>the document is in <code>docs/</code>; the skeleton builds</td>
+</tr>
+<tr>
+<td>X2 Notify and assistant</td>
+<td>notifications and the assistant (paperclip look stays with the gimmick) as plugins of their own</td>
+<td>S</td>
+<td><code>tests/xp.sh</code> passes with both as separate units</td>
+</tr>
+<tr>
+<td>X3 Desktop</td>
+<td>wallpaper, icons and context menu as a plugin</td>
+<td>M</td>
+<td>a capture shows the wallpaper from the neutral folder</td>
+</tr>
+<tr>
+<td>X4 Panel</td>
+<td>taskbar, start menu, clock and tray as a plugin</td>
+<td>L</td>
+<td>the start menu starts a program; the task list shows its window</td>
+</tr>
+<tr>
+<td>X5 Stack</td>
+<td>the plain stacking window manager, with a neutral frame</td>
+<td>L</td>
+<td>windows move, resize and switch with Alt+Tab</td>
+</tr>
+<tr>
+<td>X6 Kit pass-through</td>
+<td>a function of <code>chora-kit</code> passes <code>update</code> and <code>animate</code> requests (D58) through for every window manager</td>
+<td>S</td>
+<td>a request of an effects plugin reaches a window of <code>chora-tiling</code> and of <code>chora-stack</code></td>
+</tr>
+<tr>
+<td>X7 Gimmick</td>
+<td>the XP folders, the dialogs of D63 and the paperclip look on top of the blocks</td>
+<td>M</td>
+<td><code>tests/xp.sh</code> passes; a flavor without the gimmick shows a plain desktop in a capture</td>
+</tr>
+</tbody>
+</table>
+<p>A crate gets its first real user with the first block that moves. No
+crate stays unused (D73).</p>
+<h2 id="track-construct">Track: construct<a class="headerlink" href="#track-construct" title="Permanent link">&para;</a></h2>
+<p><code>chora-construct</code> is a spatial flavor and overlay: a light, foggy space,
+where programs, plugins, window managers, desktops and agent prompts float
+as panes (D66, D67). It grows from the loader prototype in
+<code>examples/loader/</code>. The requirements are in
+<code>plans/construct-requirements.md</code>. Steps up to K4 are plugin only and run
+beside Gate 1. Steps from K5 need the core blocks of the space (D68) and
+start after them.</p>
+<p>The spike decides the core blocks. It runs during Gate 1, outside <code>dev</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Spike</th>
+<th>Goal</th>
+<th>Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1 Plane world</td>
+<td>one plane, a 3D camera and a ray hit test decide between option A (world of planes in the 0.10 renderer) and option B (building blocks on the current renderer) (D68)</td>
+<td>the world wins only if all hold on the reference hardware: 8 panes at 60 fps; a popup opens and works in a tilted pane; the 2D path keeps direct scanout and its latency</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Goal</th>
+<th>Size</th>
+<th>Needs</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>K1 Space</td>
+<td>walk on a leash in the light, foggy space, fly in and out of program panes (done)</td>
+<td>done</td>
+<td>none</td>
+<td>a terminal pane takes typed text after a fly-in, pixel-sharp at 1:1</td>
+</tr>
+<tr>
+<td>K2a Panes</td>
+<td>program and plugin panes, constructs as files, overlay (done)</td>
+<td>done</td>
+<td>none</td>
+<td>a program pane and a plugin pane show live within 10 s after the start</td>
+</tr>
+<tr>
+<td>K2b More panes</td>
+<td>GNOME and prompt panes</td>
+<td>M</td>
+<td>none</td>
+<td>four panes of the four kinds show live within 10 s after the start</td>
+</tr>
+<tr>
+<td>K3 Live</td>
+<td>LOD, voice tools, prompt panes with ACP agents</td>
+<td>L</td>
+<td>none</td>
+<td>8 live panes at 60 fps for 60 s; "build me a snake game in a new pane" by voice shows the game running</td>
+</tr>
+<tr>
+<td>K4 Modes</td>
+<td>use and navigate mode with one toggle key; pane resize in width and height; panes obey <code>update</code> and <code>animate</code> requests; <code>construct.load</code> without a name and one key to enter and leave from any flavor</td>
+<td>M</td>
+<td>none</td>
+<td>in use mode a click on a pane does not move the view; a corner drag changes width and height</td>
+</tr>
+<tr>
+<td>K5 Direct input</td>
+<td>pointer and keyboard in tilted panes without a fly-in</td>
+<td>S</td>
+<td>spike, hit test</td>
+<td>a click on a tilted terminal pane focuses it and types, in 20 of 20 tries</td>
+</tr>
+<tr>
+<td>K6 Desktop pane</td>
+<td>load the construct from a running tiling, xp or mc session; the session shows live in a pane; a fly-in at 1:1 leaves the construct</td>
+<td>M</td>
+<td>spike, portal</td>
+<td>a tiling session shows live in a pane; fly in and back</td>
+</tr>
+<tr>
+<td>K7 WM panes</td>
+<td>the construct starts a window manager on a virtual output and shows it as a pane; several panes with different window managers; the parent fallback: when a window manager ends, its windows go back to the one that gave them (D55)</td>
+<td>M</td>
+<td>K6, virtual outputs</td>
+<td>xp and tiling run in two panes; a window opened in the xp pane lands in xp; a killed child returns its windows</td>
+</tr>
+<tr>
+<td>K8 Drop to give</td>
+<td>drag a window from one WM pane to another; a preview shows the target; the hand-over happens on release</td>
+<td>S</td>
+<td>K7</td>
+<td>one window moves from the xp pane to the tiling pane and back</td>
+</tr>
+<tr>
+<td>K9 Cylinder and wall</td>
+<td>a group layout: panes on the inner side of a ring, scrolled by the user; each pane is a window, a window manager or a desktop; a wall is the same ring with a flat radius</td>
+<td>M</td>
+<td>K7</td>
+<td>five panes scroll; one pane is removed; the user enters and leaves</td>
+</tr>
+<tr>
+<td>K10 Foreign desktops</td>
+<td>GNOME, KDE or an X11 window manager as a nested session pane with direct input (D74)</td>
+<td>S</td>
+<td>K5</td>
+<td>a GNOME session shows in a pane and takes typed text</td>
+</tr>
+<tr>
+<td>K11 Cube</td>
+<td>a group layout: the cube is <code>chora-xp</code> on four virtual outputs, one per face, with the construct as its horizon</td>
+<td>M</td>
+<td>K7, X7</td>
+<td>the cube shows four live desktops; a window moves between faces</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Gate 2:</strong> after K7 to K11, the user works some days in the construct
+with tiling and xp panes. Only then the space counts as equal to 2D work.
+Gate 1 stays tiling only.</p>
 <h2 id="after-10">After 1.0<a class="headerlink" href="#after-10" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The organization <code>chora-desktop</code> (D36). The core repository moves
   there, and <code>main</code> accepts pull requests only (D47). The plugins, the XP
   showroom and the voice pipeline move into repositories of their own.</li>
-<li>Small plugins that window managers share: a panel with a task list and
-  the notifications, and a launcher (D51). Until then, shared code lives
-  in <code>chora-kit</code>.</li>
+<li>A launcher as a small plugin that window managers share (D51). The
+  panel and the notifications come from the XP split. Until then, shared
+  code lives in <code>chora-kit</code>.</li>
+<li>The construct layouts move to plugins of their own, if the construct has
+  grown too large (D67).</li>
 <li>Conformance tests with wlcs.</li>
 </ul>
 
