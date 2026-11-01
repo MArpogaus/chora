@@ -578,7 +578,10 @@ impl Core {
         self.refresh();
         // The question that ended is not read on: not its sound, not
         // its sentence in the queue.
-        if let Some(prompt) = self.cancel_prompt.take() {
+        // A muted speaker never queued the sentence; a Cancel would wait
+        // in the player and skip the same question later (review rc3
+        // round 4, 2.6).
+        if let Some(prompt) = self.cancel_prompt.take().filter(|_| !self.muted.speaker) {
             effects.insert(0, Effect::Speech(Control::Cancel(prompt)));
         }
         effects.extend(self.say_note());
@@ -1985,6 +1988,26 @@ mod tests {
         assert!(rx.try_recv().is_err());
         say(&mut core, "Ja.");
         assert_eq!(rx.try_recv(), Ok(Some(true)));
+    }
+
+    /// A muted speaker queued no sentence, so the answer cancels none.
+    #[test]
+    fn an_answer_with_a_muted_speaker_cancels_no_speech() {
+        let mut core = asking();
+        call(
+            &mut core,
+            Call::Mute {
+                mic: None,
+                speaker: Some(true),
+            },
+        );
+        confirm(&mut core, "Wirklich?");
+        core.confirm_until = Instant::now();
+        let effects = core.handle(frame(0.0));
+        assert!(
+            !effects.iter().any(|e| matches!(e, Effect::Speech(Control::Cancel(_)))),
+            "{effects:?}"
+        );
     }
 
     /// An answer, by button, key or voice, stops the speech of the
