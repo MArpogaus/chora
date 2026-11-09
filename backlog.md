@@ -7,18 +7,13 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
-T1. `tests/gate-construct-windows.sh` and `gate-construct-keys.sh` wait
-   with `ctl wait ... focused:true`, which is not a valid selector: the
-   wait fails at once and a sleep does the real work. Use the
-   `has_focus` helper of `gate-handover-matrix.sh` (move it into a shared
-   test lib), and make an invalid selector fail the gate visibly.
-
-0. SECURITY (voice split review, 11-09): ACP permission requests take a
-   weaker question path: a spoken yes answers them (services/voice/src/
-   core.rs:819) and "always" counts as yes (core.rs:1047), while every
-   other security question needs a physical key or the HUD. Route them
-   through the same gate (step 5 of design/split-review-voice.md), with a
-   test that fails first. Then the policy crate steps 1 to 4.
+0. DONE 2026-11-09, merge 103ce6f (claude/acp-gate): ACP permission
+   requests that run or write take only a key or a HUD button; a spoken
+   yes no longer answers them and "always" counts as no (was SECURITY,
+   voice split review, core.rs:819 and core.rs:1047). Tests added with the
+   fix; opus review: no high finding, medium and low findings fixed
+   (state.md, Done). Still open from this item: the policy crate steps 1
+   to 4 of design/split-review-voice.md.
 
 1. Security check of the voice agent paths, attacker view (owner's notes
    2026-10-31; charter section 1 item 11). Running 11-09.
@@ -61,12 +56,14 @@ T1. `tests/gate-construct-windows.sh` and `gate-construct-keys.sh` wait
     X1, one at a time, sonnet for the analysis, opus only for voice.
 
 13. HARD REQUIREMENT, measured 11-09 by the matrix gate
-    (claude/handover-guard): 46 of 84 cells pass. Gaps by lever: (a)
-    construct does not focus a window it adopts: 19 cells; (b) no give
-    key in tiling, xp, mc: 9 cells, and one key reaches only one target,
-    so a `give: NAME` binding per target is needed; (c) mc cannot give
-    by drag: 3 cells; (d) `choractl give` without `--surface` finds no
-    focused window in construct: 3 cells. Bug: after an mc drag onto the
+    (`tests/gate-handover-matrix.sh`): 69 of 85 cells pass, 12 gaps, 4
+    skips (46 of 84 at first; the construct adoption fix 674a7a9 and
+    later fixes lifted it by 23 cells, and a 85th cell, the pane leak
+    check "mc construct leak", was added). Gaps left: (b) no give key
+    in tiling, xp, mc: 9 cells, and one key reaches only one target, so a
+    `give: NAME` binding per target is needed; (c) mc cannot give by
+    drag: 3 cells. Levers (a) construct focus on adoption and (d)
+    `choractl give` without `--surface` in construct are closed. Bug: after an mc drag onto the
     construct output, construct loses its panes (`pane: none`); the gate
     repairs it in setup with `window.show`; needs its own fix and issue.
     Earlier text: window handover between all window managers by
@@ -102,11 +99,15 @@ T1. `tests/gate-construct-windows.sh` and `gate-construct-keys.sh` wait
     adopted window; the user must fly out first (Alt+Escape). Decide
     whether Super+drag should work from inside (POLS).
 
-19. Extraction (split reviews of 11-09): the `voice.confirm` wire types
-    and the `confirm.answer` call exist three times (mc agent.rs:86-165,
-    construct hud.rs:933-975, assistant voice.rs:216-272); move them to
-    `chora_kit::voice`, one switch-over commit per plugin. Security
-    relevant: it is the answer path hardened today. Also the /proc
+19. H1b (extraction of split reviews of 11-09, joined to the HUD sprint
+    by the reflection of 11-09 evening, point 12): `chora-kit::ask` owns
+    the confirm wire types (`voice.confirm`) and the answer call
+    (`confirm.answer`), which exist three times today (mc
+    agent.rs:86-165, construct hud.rs:933-975, assistant
+    voice.rs:216-272). mc and construct switch to it in H9 and H10, one
+    commit per plugin, also under `voice_hud: own`, so the sprint adds no
+    fourth copy and one answer path is left to review. Security
+    relevant: it is the answer path hardened on 11-09. Also the /proc
     launcher check (construct and mc) to chora-kit.
 
 ## Track C
