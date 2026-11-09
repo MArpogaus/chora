@@ -56,24 +56,20 @@ impl Question {
         if data["done"] == true {
             return None;
         }
-        let text = |key: &str| data[key].as_str().map(str::to_owned);
+        let text = |value: &Value| value.as_str().map(str::to_owned);
         let keys = Keys {
-            yes: text_of(&data["keys"]["yes"]).unwrap_or_else(|| Keys::default().yes),
-            no: text_of(&data["keys"]["no"]).unwrap_or_else(|| Keys::default().no),
+            yes: text(&data["keys"]["yes"]).unwrap_or_else(|| Keys::default().yes),
+            no: text(&data["keys"]["no"]).unwrap_or_else(|| Keys::default().no),
         };
         Some(Self {
             id: data["id"].as_u64()?,
-            prompt: text("prompt")?,
-            detail: text("detail").unwrap_or_default(),
+            prompt: text(&data["prompt"])?,
+            detail: text(&data["detail"]).unwrap_or_default(),
             physical: data["physical"] == true,
             keys,
             agent: agent.map(str::to_owned),
         })
     }
-}
-
-fn text_of(value: &Value) -> Option<String> {
-    value.as_str().map(str::to_owned)
 }
 
 /// A key as a person reads it: `Alt+y` is `Alt+Y`.
@@ -98,13 +94,12 @@ pub fn key_line(language: Language, keys: &Keys) -> String {
     )
 }
 
-/// Where the card appeared; it never changes.
+/// Where the card stands. The host fixes it; no folder and no client
+/// chooses it, and it never changes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Place {
-    /// Inside the open chat view.
-    Chat,
-    /// At the figure.
-    Figure,
+    /// On top of every panel and of the chat view.
+    Top,
 }
 
 /// A part of the card, top to bottom; the buttons come after the last.
@@ -152,21 +147,17 @@ pub struct Card {
 }
 
 impl Card {
-    /// A card that appears now, in the chat view when the view is open.
+    /// A card that appears now, on top.
     #[must_use]
-    pub fn new(question: Question, chat_open: bool, now: Instant) -> Self {
+    pub fn new(question: Question, now: Instant) -> Self {
         Self {
             question,
-            place: if chat_open {
-                Place::Chat
-            } else {
-                Place::Figure
-            },
+            place: Place::Top,
             since: now,
         }
     }
 
-    /// Where the card appeared.
+    /// Where the card stands.
     #[must_use]
     pub fn place(&self) -> Place {
         self.place
@@ -240,7 +231,7 @@ mod tests {
     #[test]
     fn the_key_line_names_the_keys_of_the_event() {
         let now = Instant::now();
-        let card = Card::new(physical("Super+1", "Super+2"), false, now);
+        let card = Card::new(physical("Super+1", "Super+2"), now);
         let line = |language| {
             let parts = card.parts(language);
             parts
@@ -253,7 +244,7 @@ mod tests {
         let en = line(Language::En);
         assert!(en.contains("Super+1") && en.contains("Super+2"), "{en}");
         assert!(!en.contains("Alt"), "{en}");
-        let de = Card::new(physical("Alt+j", "Alt+n"), false, now)
+        let de = Card::new(physical("Alt+j", "Alt+n"), now)
             .parts(Language::De)
             .into_iter()
             .find(|(p, _)| *p == Part::KeyLine)
@@ -265,7 +256,7 @@ mod tests {
             "Press Alt+Y to allow or Alt+N to refuse."
         );
         let normal = question(&json!({"id": 8, "prompt": "Read it?"}));
-        let parts = Card::new(normal, false, now).parts(Language::En);
+        let parts = Card::new(normal, now).parts(Language::En);
         assert!(
             parts
                 .iter()
@@ -275,7 +266,7 @@ mod tests {
 
     #[test]
     fn the_parts_come_in_one_order() {
-        let card = Card::new(physical("Alt+y", "Alt+n"), false, Instant::now());
+        let card = Card::new(physical("Alt+y", "Alt+n"), Instant::now());
         let order: Vec<Part> = card.parts(Language::En).iter().map(|(p, _)| *p).collect();
         assert_eq!(
             order,
@@ -290,7 +281,7 @@ mod tests {
         assert_eq!(card.parts(Language::En)[0].1, "Question from Atlas");
         assert_eq!(Card::buttons(Language::De), ["Ja", "Nein"]);
         let bare = question(&json!({"id": 1, "prompt": "Sure?"}));
-        let parts = Card::new(bare, false, Instant::now()).parts(Language::En);
+        let parts = Card::new(bare, Instant::now()).parts(Language::En);
         assert_eq!(parts.len(), 2);
     }
 
@@ -298,7 +289,7 @@ mod tests {
     fn a_button_counts_only_400_ms_after_it_moved() {
         let start = Instant::now();
         let ms = Duration::from_millis;
-        let mut card = Card::new(physical("Alt+y", "Alt+n"), false, start);
+        let mut card = Card::new(physical("Alt+y", "Alt+n"), start);
         assert_eq!(
             card.press(Button::Yes, false, start + ms(399)),
             Press::TooSoon
@@ -325,21 +316,19 @@ mod tests {
     #[test]
     fn an_injected_press_answers_nothing() {
         let start = Instant::now();
-        let card = Card::new(physical("Alt+y", "Alt+n"), false, start);
+        let card = Card::new(physical("Alt+y", "Alt+n"), start);
         let later = start + Duration::from_secs(5);
         assert_eq!(card.press(Button::Yes, true, later), Press::Injected);
         assert_eq!(card.press(Button::Yes, true, start), Press::Injected);
     }
 
     #[test]
-    fn a_card_stays_where_it_appeared() {
+    fn a_card_is_always_on_top() {
         let now = Instant::now();
-        let mut card = Card::new(physical("Alt+y", "Alt+n"), true, now);
-        assert_eq!(card.place(), Place::Chat);
+        let mut card = Card::new(physical("Alt+y", "Alt+n"), now);
+        assert_eq!(card.place(), Place::Top);
         card.moved(now);
-        assert_eq!(card.place(), Place::Chat);
-        let other = Card::new(physical("Alt+y", "Alt+n"), false, now);
-        assert_eq!(other.place(), Place::Figure);
+        assert_eq!(card.place(), Place::Top);
     }
 
     #[test]
@@ -348,7 +337,7 @@ mod tests {
         assert!(Question::from_event(&json!({"prompt": "x"}), None).is_none());
         assert!(Question::from_event(&json!({"id": 1}), None).is_none());
         let anon = Question::from_event(&json!({"id": 1, "prompt": "x"}), None).unwrap();
-        let parts = Card::new(anon, false, Instant::now()).parts(Language::En);
+        let parts = Card::new(anon, Instant::now()).parts(Language::En);
         assert_eq!(parts[0].1, "Question for you");
     }
 }
