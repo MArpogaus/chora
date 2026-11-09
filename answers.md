@@ -121,3 +121,9 @@ Newest first. The PM reads this file at the start of each run.
 
 - Calibration: the user reports the used share of the weekly limit in
   the session chat during the first days; each report is added here.
+
+- Sharpen the plan: a UX/UI design agent sharpens every user-facing
+  design before programming starts and takes part in the review rounds.
+  User tests always report UX/UI flaws from the persona's view. Done in
+  charter sections 5, 5a, 3 (Review) and 8, `feedback/README.md` and
+  `triage.py`.

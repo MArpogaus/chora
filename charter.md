@@ -366,7 +366,10 @@ step 5 runs `review_due.py`.
 
 **Views:** every round has the view **POLS and KISS** (least surprise
 for a user and a plugin author; the simplest thing that works; no
-over-engineering, no reinvention), together with bugs and leftovers.
+over-engineering, no reinvention), together with bugs and leftovers. A round over a range that changes
+anything a user sees, hears or types (HUDs, bars, launchers, prompts,
+voice wording, keys, error messages) adds the view **UX/UI**, run by
+the UX/UI designer against its design note and fresh captures.
 The weekly round adds the view **extraction**: code in a plugin that
 can become its own small plugin or a `chora-kit` module, and code
 duplicated across plugins; findings go to `backlog.md`.
@@ -434,11 +437,37 @@ Week 0 is mostly track C and the baseline.
 | exploratory personas, panel, pitch teams | sonnet-5-5 | medium |
 | developers, test engineers, reviewers | sonnet-5-5 | medium |
 | 3D design, escalation after two failed fix rounds, final review, security review | opus-5-5 | high |
+| UX/UI designer: design pass before programming, UX/UI view in reviews | opus-5-5 for new concepts (HUDs, new interaction), sonnet-5-5 for small changes | high / medium |
 | research (audiences, channels, competitors) | sonnet-5-5 with web search | medium |
 
 If a subagent call with a model fails, use the next larger model (never
 fable-5-1) and log it in `friction.md`. Sprints run in git worktrees. Captures for agents use
 `max_side` 800 or less; images cost the most tokens.
+
+## 5a. UX/UI design before programming
+
+Asked by the user on 2026-11-09. Every user-facing change gets a design
+pass by the UX/UI designer (section 5) **before** a developer starts:
+a feature, a sprint, a HUD, a launcher, a bar item, a prompt or a voice
+reply. Bug fixes that restore designed behavior need none.
+
+The designer reads the pitch or design, the existing look
+(`docs/*-style.md`, captures) and the persona feedback, and writes
+`design/ux-NAME.md` on the session log branch:
+
+- the users and their goal, low-tech first, then the push-to-the-limit
+  persona;
+- the flow, step by step, for mouse, keyboard only and voice only;
+- every state: empty, busy, success, error, refused, offline;
+- layout sketches (ASCII or a mock capture), sizes, contrast, wording;
+- consistency across tiling, xp, mc and construct, and discoverability
+  (POLS: how does a first-time user find it);
+- acceptance checks that the tester and the personas use, each with
+  its expected answer.
+
+The developer brief links the note; a deviation found in the build goes
+back to the designer, not around it. The designer then reviews the
+result in the UX/UI view (section 3, Review).
 
 ## 6. Pitch tournament and sprints
 
@@ -622,6 +651,11 @@ strong evidence.
 **Feedback loop** (asked on 2026-11-09). Every persona reports its
 findings as issues and drafted feature requests in the form of
 `feedback/README.md`, one file per run in `feedback/`.
+Every run also reports the **UX/UI flaws** it met from the persona's
+own view (what was hard to find, read, understand, reach or undo; what
+looked broken or inconsistent), as findings of kind `ux`, or one line
+`ux: none seen, because <reason>`. `triage.py` marks a run file without
+either as MISSING UX, and such a run counts as incomplete.
 
 - **Continuous cheap runs:** each scheduled run starts two or three
   short haiku-5-5 personas (low effort) on the current build of the
