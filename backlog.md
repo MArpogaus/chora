@@ -46,6 +46,11 @@ is found (charter section 8). Started from charter section 15 on
     split, recorded as "split review:" in `state.md`. After the XP split
     X1, one at a time, sonnet for the analysis, opus only for voice.
 
+13. HARD REQUIREMENT: window handover between all window managers by
+    every input path (charter section 1 item 19). First the gap matrix
+    (`design/window-handover.md`), then the guard gate over all pairs
+    and paths, then the fixes, one window manager or path at a time.
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running

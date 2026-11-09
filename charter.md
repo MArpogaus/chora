@@ -106,6 +106,16 @@ code branches carry only code, tests and the product docs
     NAME LINES DATE"; the check returns when the unit grows by half
     again. Split reviews follow POLS and KISS: a few meaningful parts.
 
+19. **Hard requirement: windows move flawlessly between window
+    managers** (2026-11-09). A window moves between any two of tiling,
+    xp, mc and construct, and any future window manager, by key binding,
+    mouse, automation (`choractl`, MCP), voice, or any other input the
+    user wants. Its state survives the move (size where it fits, focus,
+    and what the user expects to keep). Adding a window manager or an
+    input path stays easy: one documented mechanism (D55, `window.give`,
+    `chora-kit` give). The guard is a handover gate over all pairs of
+    window managers and all input paths; it must stay green.
+
 **Overrides of the skills**, because the container of the PM session can
 be replaced between runs:
 

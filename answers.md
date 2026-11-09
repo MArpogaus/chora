@@ -4,6 +4,11 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Hard requirement: windows move flawlessly between all window
+  managers (construct, mc, xp, tiling) by key bindings, automation,
+  voice or whatever the user wants; easily extensible (charter section
+  1 item 19).
+
 - 11:48 Bangkok: 6 % of the weekly limit used. Week totals: 180,125,337
   cache read and 897,769 output tokens. Calibration updated.
 
