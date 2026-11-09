@@ -3,11 +3,11 @@
 //! title in a sunken field below. The layout follows the `winxp_alttab`
 //! switcher of `kde-plasma-winxp-launcher`.
 
-use crate::sheets;
 use std::path::PathBuf;
 
 use crate::{
     dialog::BLACK,
+    sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };

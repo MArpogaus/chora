@@ -6,12 +6,12 @@
 //! the group, for the effects, holds the whole window. The layout follows
 //! `exposerc`: 4 pixel borders, a 30 pixel title bar, 22 pixel buttons.
 
-use crate::sheets;
 use std::path::Path;
 
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
     window::GRIP,

@@ -10,13 +10,13 @@
 //! one under the pointer changes alone. Its owner builds the page from
 //! its state and shows it again after each click.
 
-use crate::sheets;
 use std::fmt::Write as _;
 
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
     decoration::{self, BORDER, Button, SHADOW, TITLE},
+    sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };

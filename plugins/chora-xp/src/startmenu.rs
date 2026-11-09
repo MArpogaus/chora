@@ -3,7 +3,6 @@
 //! The geometry follows the measurements of the reference start menu
 //! (`XpTheme.qml`): 382 pixels wide, a 64 pixel header, a 40 pixel footer.
 
-use crate::sheets;
 use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
@@ -18,7 +17,7 @@ use crate::{
     config::{Config, Program},
     context::{Key, wrap},
     control::Setting,
-    desktop_icons,
+    desktop_icons, sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
