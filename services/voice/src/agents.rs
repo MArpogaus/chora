@@ -58,6 +58,7 @@ pub enum Event {
         name: String,
         voice: String,
         prompt: String,
+        physical: bool,
         answer: oneshot::Sender<bool>,
     },
 }
@@ -603,6 +604,14 @@ fn outcome(options: &[Value], yes: bool) -> Value {
         )
 }
 
+/// Whether a permission request takes a key or a button of the HUD, as
+/// a security question of the reply does: all but a read, a search and
+/// a thought, so a command, a write, a move, a delete, a fetch and a
+/// kind that is unknown.
+fn needs_key(tool: &Value) -> bool {
+    !matches!(tool["kind"].as_str(), Some("read" | "search" | "think"))
+}
+
 /// What a permission request asks, short enough to speak: the title of
 /// its tool call, a path as its file name, and the kind as a verb.
 fn asked(tool: &Value, german: bool) -> String {
@@ -904,6 +913,7 @@ impl Actor {
         let what = asked(&params["toolCall"], german);
         let options = params["options"].as_array().cloned().unwrap_or_default();
         let prompt = question(&asks, name, &what, &options, german);
+        let physical = needs_key(&params["toolCall"]);
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
@@ -920,6 +930,7 @@ impl Actor {
             name: name.to_owned(),
             voice,
             prompt,
+            physical,
             answer,
         }));
         Ok(())
@@ -1064,6 +1075,19 @@ async fn command_of_user(rpc: &mut Rpc, session: &mut Session, cmd: Cmd) -> Resu
 
 #[cfg(test)]
 mod tests {
+    /// A permission request takes a key unless it only reads, searches
+    /// or thinks.
+    #[test]
+    fn a_permission_request_needs_a_key_unless_it_only_looks() {
+        for kind in ["execute", "edit", "delete", "move", "fetch", "other"] {
+            assert!(needs_key(&json!({"kind": kind})), "{kind}");
+        }
+        assert!(needs_key(&json!({})), "no kind");
+        for kind in ["read", "search", "think"] {
+            assert!(!needs_key(&json!({"kind": kind})), "{kind}");
+        }
+    }
+
     use std::{sync::mpsc, time::Duration};
 
     use super::*;
@@ -1320,11 +1344,13 @@ exec cat >/dev/null"#;
             name,
             voice,
             prompt,
+            physical,
             answer,
         }) = events.pop()
         else {
             unreachable!()
         };
+        assert!(physical, "a write takes a key");
         assert_eq!((name.as_str(), voice.as_str()), ("coder", "ryan"));
         assert_eq!(prompt, "Coder wants to edit notes.txt. Allow?");
         let status = agents.call("agent_status", &json!({"name": "coder"}));
