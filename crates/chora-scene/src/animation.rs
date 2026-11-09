@@ -319,6 +319,10 @@ mod tests {
             let t = animation.props().transform;
             assert!((column_length(&t) - 1.0).abs() < 1e-9, "{elapsed}");
         }
+        animation.elapsed = 200.0;
+        let end = animation.props().transform;
+        assert!((end.matrix()[0] + 1.0).abs() < 1e-9);
+        assert!(end.matrix()[1].abs() < 1e-9);
     }
 
     #[test]
