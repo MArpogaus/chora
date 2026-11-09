@@ -171,3 +171,37 @@ fn the_output_target_has_no_depth_attachment() {
     assert_ne!(color, 0, "the query reads the framebuffer of the output");
     assert_eq!((depth, stencil), (0, 0), "GL_NONE for depth and stencil");
 }
+
+#[test]
+fn a_static_2d_scene_renders_once() {
+    let (mut core, mut wm, _output) = core_with_output();
+    let (_wayland, _) = flat_scene(&mut core, &mut wm);
+    let before = stats(&core);
+    render_frames(&mut core, 60);
+    let after = stats(&core);
+    assert_eq!(after.frames - before.frames, 60);
+    assert_eq!(after.damaged_frames - before.damaged_frames, 1, "frame 1");
+    assert_eq!(after.offscreen(), before.offscreen());
+}
+
+#[test]
+fn a_rounded_rect_takes_two_offscreen_passes_per_frame() {
+    let (mut core, mut wm, output) = core_with_output();
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [40, 30], "color": [1, 0, 0, 1], "radius": 6,
+                  "transform": {"translate": [4, 4]}}}});
+    apply(&mut wm, &mut core, &[rect]);
+    assert_eq!(variants(&mut core, &output), [Variant::Mesh]);
+    for frame in 0..3 {
+        let before = stats(&core);
+        render_frames(&mut core, 1);
+        let after = stats(&core);
+        assert_eq!(
+            after.textures_rendered - before.textures_rendered,
+            1,
+            "the content, frame {frame}"
+        );
+        assert_eq!(after.passes - before.passes, 1, "the shape, frame {frame}");
+        assert_eq!(after.offscreen() - before.offscreen(), 2);
+    }
+}
