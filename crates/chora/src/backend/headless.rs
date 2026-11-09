@@ -263,7 +263,7 @@ impl State {
 
 /// One tick of the frame clock: renders the damage of every output that
 /// is on, and sends the frame callbacks.
-fn render_all(state: &mut State) {
+pub(crate) fn render_all(state: &mut State) {
     let Some(Backend::Headless(headless)) = &state.backend else {
         return;
     };
@@ -351,8 +351,13 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         .map_err(|e| format!("rendering failed: {e:?}"))?;
     // The watchdog measures the work of the renderer, as on a screen.
     let _ = result.sync.wait();
-    Ok(result.damage.is_some())
+    let damaged = result.damage.is_some();
+    parts.assets.stats.frame(damaged);
+    Ok(damaged)
 }
+
+#[cfg(test)]
+mod guard;
 
 #[cfg(test)]
 mod tests {
