@@ -163,17 +163,30 @@ def header_lines(lines):
     return found
 
 
+def renamed_from(path):
+    fields = git(
+        "diff", "--cached", "-M", "--name-status", "-z", "--diff-filter=R",
+    ).split("\0")
+    for index in range(0, len(fields) - 2, 3):
+        if fields[index + 2] == path:
+            return fields[index + 1]
+    return None
+
+
 def added_numbers(path):
+    old = renamed_from(path)
     diff = git(
-        "diff", "--cached", "-U0", "--no-color", "--no-ext-diff",
-        "--no-prefix", "--diff-filter=ACMR", "--", path,
+        "diff", "--cached", "-M", "-U0", "--no-color", "--no-ext-diff",
+        "--diff-filter=ACMR", "--", path, *([old] if old else []),
     )
     numbers = set()
     number = 0
+    in_hunk = False
     for line in diff.splitlines():
         if line.startswith("@@"):
             number = int(HUNK.match(line).group(1))
-        elif line.startswith("+") and not line.startswith("+++ "):
+            in_hunk = True
+        elif in_hunk and line.startswith("+"):
             numbers.add(number)
             number += 1
     return numbers
