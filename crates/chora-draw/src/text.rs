@@ -229,7 +229,6 @@ impl Fonts {
             return clean;
         }
         let chars: Vec<char> = clean.chars().collect();
-        // The longest prefix that fits with the ellipsis, by bisection.
         let (mut low, mut high) = (0, chars.len());
         while low < high {
             let mid = (low + high).div_ceil(2);
@@ -259,19 +258,19 @@ impl Fonts {
         (bbox.width() > 0.0).then(|| f64::from(bbox.right()))
     }
 
-    /// The `<text>` element of a line, at `x` and moved down by `dy`.
+    /// The `<text>` element of a line, at `x` and moved down by `dy`. A
+    /// window title draws without smoothing and with a thin stroke for its
+    /// weight, as XP does; a family without a bold face takes a thicker
+    /// stroke. A family without an italic face is sheared.
     fn element(&self, line: &str, text: &Text, [x, dy]: [f64; 2], color: [u8; 4]) -> String {
         let spec = self.spec(text.font);
         let [_, y, _, h] = text.rect;
         let size = f64::from(spec.size);
-        // The baseline that centers the capitals in the rectangle.
         let baseline = f64::from(y) + f64::from(h) / 2.0 + size * 0.36 + dy;
         let fill = format!("rgb({},{},{})", color[0], color[1], color[2]);
         let alpha = f64::from(color[3]) / 255.0;
         let mut out = String::new();
         if spec.slant == Slant::Sheared {
-            // skewX(-8) shears around the origin; the shift keeps the
-            // baseline in place.
             let _ = write!(
                 out,
                 r#"<g transform="translate({:.2} 0) skewX(-8)">"#,
@@ -289,10 +288,6 @@ impl Fonts {
                 "normal"
             },
         );
-        // XP draws window titles without smoothing, with stems of two
-        // pixels: no anti-aliasing, and a thin stroke for the weight. A
-        // family without a bold face takes a thicker stroke; one stroke
-        // in all, as SVG allows one attribute of a name.
         let title = text.font == Font::Title;
         if title {
             out += r#" text-rendering="optimizeSpeed""#;
@@ -432,7 +427,6 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../flavors/xp/theme/fonts"
         ));
-        // The Wine Tahoma has no bold face; Libre Franklin has no italic.
         let bold = Spec::new(&db, "Tahoma", 11, true, false);
         assert!(bold.faux_bold && bold.slant == Slant::Upright);
         let start = Spec::new(&db, "Libre Franklin", 17, true, true);
@@ -445,7 +439,6 @@ mod tests {
 
     #[test]
     fn a_title_renders_without_a_bold_face() {
-        // Only the Wine Tahoma of the theme, as without Trebuchet MS.
         let mut db = Database::new();
         db.load_fonts_dir(concat!(
             env!("CARGO_MANIFEST_DIR"),
