@@ -32,6 +32,7 @@ terms and no synonyms.
 | **Card** | The rounded rectangle in which `chora-notify` shows a notification, in a corner of an output. Its colors, corners and optional tail are values of the asset folder. |
 | **Bubble** | The rounded rectangle with an optional tail that `chora-assistant` draws around a sentence or a question of the voice agent. `chora-draw` draws its outline for the card and the bubble. |
 | **Figure** | What `chora-assistant` shows for the voice agent: the dot of the neutral asset folder, or the paperclip of the XP flavor. |
+| **HUD folder** | A folder with `hud.yaml` (version 1), SVG pictures and optional fonts that `chora-assistant` draws as the look of the voice agent and of the chat. It holds data only and runs no code. See `hud.md`. |
 | **Coordinator** | The party that installs and connects plugins, services and flavors. First the user, later an agent with special permissions. |
 | **Inventory** | A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core. |
 | **Command** | A request to change the scene, for example `create` or `update`. |
