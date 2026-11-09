@@ -28,6 +28,29 @@ verdict() {
   fi
 }
 
+hook_environment_case() {
+  [ -n "${GUARDS_NESTED:-}" ] && return
+  local outer="$work/outer"
+  git init -q "$outer"
+  git -C "$outer" config user.email guards@example.com
+  git -C "$outer" config user.name guards
+  git -C "$outer" commit -q --allow-empty -m outer
+  local head
+  head=$(git -C "$outer" rev-parse HEAD)
+  GUARDS_NESTED=1 GIT_DIR="$outer/.git" GIT_WORK_TREE="$outer" \
+    GIT_INDEX_FILE="$outer/.git/index" bash "${BASH_SOURCE[0]}" >/dev/null 2>&1
+  local nested=$? bare status
+  bare=$(git -C "$outer" config --get core.bare)
+  status=1
+  if [ "$nested" -eq 0 ] && [ "$bare" = false ] && [ "$(git -C "$outer" rev-parse HEAD)" = "$head" ] &&
+    [ -z "$(git -C "$outer" status --porcelain)" ]; then
+    status=0
+  fi
+  verdict "guards.sh leaves the repository of a hook environment alone" pass $status
+}
+
+hook_environment_case
+
 comment_case() {
   local label=$1 want=$2 path=$3 base=$4 added=$5
   new_repo
