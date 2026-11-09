@@ -352,6 +352,8 @@ struct Note {
     voice: Option<String>,
     /// A question of a sub-agent: its name and the answer.
     ask: Option<(String, oneshot::Sender<bool>)>,
+    /// What the screen shows of a question of a sub-agent.
+    detail: String,
     /// The question takes only a key or a button, as a security question.
     physical: bool,
 }
@@ -362,6 +364,7 @@ impl From<String> for Note {
             text,
             voice: None,
             ask: None,
+            detail: String::new(),
             physical: false,
         }
     }
@@ -602,8 +605,16 @@ impl Core {
         if matches!(self.state, State::Listening | State::Working)
             && let Some(note) = self.next_note()
         {
-            let text = note.text.clone();
-            let mut ask = self.ask(note.text, true);
+            let keys = &self.config.confirm_keys;
+            let text = if note.physical {
+                let line = (self.config.phrases.agent_keys)
+                    .replace("{yes}", &keys.yes)
+                    .replace("{no}", &keys.no);
+                format!("{} {line}", note.text)
+            } else {
+                note.text
+            };
+            let mut ask = self.ask(text.clone(), true);
             if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
                 *voice = note.voice;
             }
@@ -611,7 +622,7 @@ impl Core {
             // The question waits from when it is spoken.
             if note.ask.is_some() {
                 self.confirm_from = Some(Instant::now());
-                effects.extend(self.show(text.clone(), text, note.physical));
+                effects.extend(self.show(text, note.detail, note.physical));
             }
             self.physical = note.physical;
             self.sub_confirm = note.ask;
@@ -696,16 +707,19 @@ impl Core {
                 text,
                 voice: Some(voice),
                 ask: None,
+                detail: String::new(),
                 physical: false,
             }),
             agents::Event::Ask {
                 name,
                 voice,
                 prompt,
+                detail,
                 physical,
                 answer,
             } => self.note(Note {
                 text: prompt,
+                detail,
                 voice: Some(voice),
                 ask: Some((name, answer)),
                 physical,
@@ -1068,7 +1082,7 @@ impl Core {
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
         if yes && self.confirming() && self.physical {
             crate::log::info("confirm: a yes without the key counts as nothing");
-            return Vec::new();
+            return self.earcon(Earcon::Error).into_iter().collect();
         }
         self.answered(yes)
     }
@@ -1462,6 +1476,7 @@ mod tests {
             name: "coder".into(),
             voice: "ryan".into(),
             prompt: "Coder fragt: Write x. Erlauben?".into(),
+            detail: String::new(),
             physical: false,
             answer,
         };
@@ -1496,6 +1511,7 @@ mod tests {
             name: "coder".into(),
             voice: "ryan".into(),
             prompt: "Coder fragt: ls. Erlauben?".into(),
+            detail: "ls -la /home".into(),
             physical,
             answer,
         };
@@ -1535,6 +1551,38 @@ mod tests {
         assert_eq!(rx.try_recv(), Ok(true));
     }
 
+    /// A question that takes a key says which keys, shows the whole
+    /// detail, and a spoken yes that counts as nothing sounds the error.
+    #[test]
+    fn a_physical_sub_agent_question_names_its_keys() {
+        let mut core = with_coder();
+        let (answer, _rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Coder fragt: ls. Erlauben?".into(),
+            detail: "ls -la /home".into(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(Input::Agent(ask));
+        let [(reply, said)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        assert!(said.contains("Alt+y") && said.contains("Alt+n"), "{said}");
+        let detail = effects.iter().find_map(|e| match e {
+            Effect::Confirm { detail, .. } => Some(detail.as_str()),
+            _ => None,
+        });
+        assert_eq!(detail, Some("ls -la /home"));
+        core.handle(Input::Reply(reply, Reply::Done("Coder fragt".into())));
+        let effects = say(&mut core, "Ja.");
+        assert!(
+            effects.contains(&Effect::Earcon(Earcon::Error)),
+            "{effects:?}"
+        );
+    }
+
     /// An always word is no bare yes to a question of a sub-agent, and a
     /// plain yes still answers one that only looks.
     #[test]
@@ -1562,6 +1610,7 @@ mod tests {
                 name,
                 voice,
                 prompt,
+                detail: String::new(),
                 physical: false,
                 answer,
             };
@@ -1605,6 +1654,7 @@ mod tests {
             name: "coder".into(),
             voice: "ryan".into(),
             prompt: "Darf ich?".into(),
+            detail: String::new(),
             physical: false,
             answer,
         };

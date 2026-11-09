@@ -1445,7 +1445,7 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
 
 /// Hides the value of each key such as `llm_headers`, `token`,
 /// `authorization` or one with `api_key`, `secret` or `password`.
-fn hide(value: &mut Value) {
+pub(crate) fn hide(value: &mut Value) {
     match value {
         Value::Object(map) => {
             for (key, value) in map {

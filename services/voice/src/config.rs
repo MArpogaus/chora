@@ -121,6 +121,9 @@ pub struct Phrases {
     pub details: String,
     /// The question of a sub-agent: `{name}` and `{what}`.
     pub agent_asks: String,
+    /// Said after a question of a sub-agent that only a key answers:
+    /// `{yes}` and `{no}` of `confirm_keys`.
+    pub agent_keys: String,
     /// A sub-agent ended by itself: `{name}`.
     pub agent_ended: String,
     /// The question before a change of the agent's own settings: `{key}`
@@ -154,6 +157,7 @@ impl Default for Phrases {
             asr_failed: "I did not understand you.".into(),
             details: "Details on the screen.".into(),
             agent_asks: "{name} wants to {what}. Allow?".into(),
+            agent_keys: "Press {yes} for yes or {no} for no.".into(),
             agent_ended: "{name} has ended.".into(),
             settings_set: "Shall I set {key} to {value}?".into(),
             settings_security:
@@ -489,6 +493,7 @@ impl Config {
             &mut p.asr_failed,
             &mut p.details,
             &mut p.agent_asks,
+            &mut p.agent_keys,
             &mut p.agent_ended,
             &mut p.settings_set,
             &mut p.settings_security,
@@ -698,10 +703,14 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 25] = [
+const GERMAN: [(&str, &str); 26] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
+    (
+        "Press {yes} for yes or {no} for no.",
+        "Drücke {yes} für Ja oder {no} für Nein.",
+    ),
     ("Heard: {text}", "Gehört: {text}"),
     (
         "The language model does not answer.",
