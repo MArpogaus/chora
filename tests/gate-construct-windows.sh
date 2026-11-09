@@ -162,6 +162,7 @@ quit() {
     end_foots
     kill "$cpid" "$spid" 2>/dev/null
     wait "$cpid" "$spid" 2>/dev/null
+    return 0
 }
 # chora-probe refuses to close; `choractl run` starts it outside the
 # session, so it writes its pid for end_foots, as foot.sh does.
