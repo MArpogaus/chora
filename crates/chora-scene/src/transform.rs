@@ -19,6 +19,15 @@ pub struct Decomposed {
 /// The largest entry change that still counts as no shear in `decompose`.
 const DECOMPOSE_TOLERANCE: f64 = 1e-9;
 
+/// The determinant relative to the n-th power of the longest column of the
+/// linear part, under which a matrix counts as singular.
+const SINGULAR_RATIO: f64 = 1e-12;
+
+fn invertible(determinant: f64, longest: f64, size: i32) -> bool {
+    let scale = longest.powi(size);
+    determinant.is_finite() && scale.is_finite() && determinant.abs() > scale * SINGULAR_RATIO
+}
+
 /// A 4x4 transform matrix in column-major order.
 ///
 /// The JSON form is either `{"matrix": [16 numbers]}` or the short form
@@ -233,8 +242,8 @@ impl Transform {
     #[must_use]
     pub fn inverse(&self) -> Option<Self> {
         let m = DMat4::from_cols_array(&self.m);
-        let det = m.determinant();
-        if !det.is_finite() || det == 0.0 {
+        let longest = (0..3).map(|i| m.col(i).length()).fold(0.0, f64::max);
+        if !invertible(m.determinant(), longest, 4) {
             return None;
         }
         let inverse = m.inverse().to_cols_array();
@@ -257,8 +266,8 @@ impl Transform {
             DVec3::new(m[4], m[5], m[7]),
             DVec3::new(m[12], m[13], m[15]),
         );
-        let det = h.determinant();
-        if !det.is_finite() || det == 0.0 {
+        let longest = (0..2).map(|i| h.col(i).length()).fold(0.0, f64::max);
+        if !invertible(h.determinant(), longest, 3) {
             return None;
         }
         let inverse = h.inverse().to_cols_array();
@@ -432,6 +441,19 @@ mod tests {
         let t = Transform::translate(10.0, 20.0, 0.0).then(&Transform::scale(2.0, 4.0, 1.0));
         let inverse = t.plane_inverse().unwrap();
         close(&inverse, &[0.5, 0.0, 0.0, 0.0, 0.25, 0.0, -5.0, -5.0, 1.0]);
+    }
+
+    #[test]
+    fn a_nearly_edge_on_plane_has_no_plane_inverse() {
+        let (sin, cos) = 90f64.to_radians().sin_cos();
+        let mut m = *Transform::IDENTITY.matrix();
+        m[5] = cos;
+        m[6] = sin;
+        m[9] = -sin;
+        m[10] = cos;
+        assert_eq!(Transform::from_matrix(m).plane_inverse(), None);
+        assert_eq!(Transform::scale(1.0, 1e-15, 1.0).inverse(), None);
+        assert!(Transform::from_matrix(m).inverse().is_some());
     }
 
     #[test]
