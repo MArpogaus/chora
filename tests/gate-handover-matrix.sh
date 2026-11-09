@@ -24,7 +24,8 @@
 #
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
-# is lost or the run takes more than 4 minutes. It prints the matrix and
+# is lost or the whole run, startup and last cell included, takes more
+# than 4 minutes. It prints the matrix and
 # one line per cell in $SHOTS/matrix.log.
 #
 # Usage: tests/gate-handover-matrix.sh   BIN: directory with the binaries
@@ -433,4 +434,5 @@ if [ "${#mismatches[@]}" != 0 ]; then
     printf 'MISMATCH %s\n' "${mismatches[@]}" >&2
     fail "${#mismatches[@]} cells differ from EXPECTED; see $log"
 fi
+[ $SECONDS -le $time_cap ] || fail "the run took ${SECONDS}s, more than $time_cap s"
 ok "gate-handover-matrix: every cell as in EXPECTED in ${SECONDS}s"
