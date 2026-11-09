@@ -4,6 +4,22 @@ last_reviewed: df6dc69 (each branch since d443fe7 was reviewed before its merge;
 base_2d: the commit before 0153f0d (the 2D guard); no scene or renderer change since
 block: three work branches in parallel, started 11:50
 
+## Foundation gate
+
+Charter section 1 item 20, status at the end of 11-09. Not met.
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| 3D steps 0 to 4 merged with their exit criteria | 2 of 5 | step 0 (45d85f2) and step 1 (c90b2be) merged; steps 2 to 4 (about 1,500 lines in `design/3d.md` section 4) not started |
+| Handover guard green | green, with gaps | `tests/gate-handover-matrix.sh`: 69 of 85 pass, 12 gaps, 4 skips (counted in its EXPECTED table); the gate is green because it expects the gaps. Gaps: the key path in tiling, xp and mc (9 cells), the mc drag (3 cells). Open steps: give key, mc drag (`design/window-handover.md` section 6) |
+| No open finding of high or medium severity (review, feedback, baseline defects) | not met | the review round on df6dc69..HEAD is due and not run (grants step 1, XP start feedback, 674a7a9 and the design principles were not reviewed as a range); issue #102 (activation token without a press) is open and H4c would widen it; backlog items 3 to 6 (watchdog, silent core death, flaky speech test, 16 bugs) are open and items 4 and 5 have no issue |
+| XP split X2 to X5 merged | 1 of 4 | X2 merged (e5391bd); X3 to X5 not started |
+| Due split reviews done | done | xp, voice, mc and construct (see "Split reviews"); the splits themselves are not done |
+
+Order of work until the gate holds: stability and bug fixes, 3D, plugin
+separation. From 11-10 at least one foundation lane always runs and
+the sprint has at most two lanes (reflection of the evening, point 1).
+
 ## Plan of the day
 
 2026-11-09, run 1 (started by hand at 10:27 Bangkok):
@@ -33,6 +49,37 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
    tests/persona/, the security commits), per the user rule of 11-09.
 
 ## Done
+
+- 11-09 17:28: HUD gate table merged (5e92531, branch claude/hud-h0):
+  `tests/gate-hud.sh` measures 20 cells of the acceptance checks A1 to
+  A15 that a script can verify headlessly. All 20 are `missing`, as the
+  table EXPECTED says, because no HUD code exists yet; a forced wrong
+  line fails the gate, and `--self-test` shows it without a session.
+  Fixtures in `tests/hud/mine` and `tests/hud/fancy`.
+
+- 11-09 15:17: ACP permission gate merged (103ce6f, branch
+  claude/acp-gate; backlog item 0). A permission request of an ACP agent
+  that runs or writes now takes only a key of `confirm_keys` or a HUD
+  button; a spoken yes no longer answers it and an always word answers
+  none (6fafc3f). Opus security review of the branch: no high finding;
+  medium 1 and 2 (the screen showed too little of a request, and the
+  keys were not named) and low 3 to 6 were fixed in follow-up commits:
+  16a07ce (the whole title and raw input shown, secrets hidden, the
+  keys named, a spoken yes sounds the error), 089dc54 and 42826c0
+  (docs), and 84bd5eb (a request whose detail is too long to show whole
+  is rejected, and the user hears why). Tests added with the fixes:
+  `a_permission_request_needs_a_key_unless_it_only_looks`,
+  `a_physical_sub_agent_question_takes_no_spoken_yes`,
+  `an_always_word_does_not_answer_a_sub_agent_question`,
+  `a_permission_request_is_physical_unless_it_only_looks`,
+  `a_command_keeps_its_whole_title_for_the_user`,
+  `a_physical_sub_agent_question_names_its_keys`,
+  `a_request_too_long_to_show_is_rejected`. That they failed before the
+  fixes is what the agent reports said; the reports are not kept in this
+  log, so the red-first claim is not checked here. Gate before the push
+  (PM report): 918 tests, 2D guard, xp.sh, handover matrix with every
+  cell as expected. This entry was missing until the evening reflection
+  found it (point 5); it was written afterwards from the commits.
 
 - 11-09: construct adoption fixes squash-merged as 674a7a9 (gate:
   912 tests, 2D guard, xp.sh, construct windows and keys, matrix 158 s);
@@ -95,12 +142,13 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 ## Running
 
 Sprint S1 wave 1, started 17:25 Bangkok (budget left today about 6 %):
-- H0 acceptance gate `tests/gate-hud.sh` (tester, sonnet), claude/hud-h0
+- H0 acceptance gate `tests/gate-hud.sh` (tester, sonnet): merged 5e92531
 - H1 `chora-kit` hud, words, ask (sonnet), claude/hud-h1
 - H3 voice chat methods (sonnet), claude/hud-h3
-- H4c core keyboard rule for on_demand layers (sonnet; opus security
-  review before merge, critical path), claude/hud-h4c
-- Evening reflection (opus), reflections/2026-11-09.md
+- H4c core keyboard rule for on_demand layers: HELD at about 17:50, the
+  token is not bound to a press (#102); opus design check first
+  (11-10 run 1), claude/hud-h4c
+- Evening reflection (opus): done, reflections/2026-11-09.md
 H2 (pictures confined to the folder) waits for disk and budget (11-10).
 
 review_due.py at 17:23: DUE (df6dc69..HEAD, weighted 2310, 9 critical
@@ -121,6 +169,10 @@ split review: chora-construct 6530 2026-11-09 (no plugin split; split main.rs in
 
 ## Review findings
 
+Status marks added on 11-09 evening from the code at HEAD (5e92531) and
+the commit messages; "fixed" means a commit named it, not that a new
+review confirmed it. The review round on the later commits is due.
+
 Security check of 11-09 (probes in the scratchpad, `sec/`):
 
 1. medium: spoken questions hide what runs: `run_program` speaks only
@@ -128,19 +180,27 @@ Security check of 11-09 (probes in the scratchpad, `sec/`):
    type or click?", privileged calls do not name the command. Fix: speak
    the whole argv when it has more than one word or a `/`, the typed
    text, and the keys and values of `settings.set`.
+   Status: FIXED fcf70e5.
 2. medium (if voice-mcp has `methods.privileged`): the privileged list
    is a hand-kept copy (`config.rs:395-410`); `methods.list` does not
    send the privileged flag (`methods.rs:262-267`).
+   Status: FIXED 9967c60, 59c4bd2, 1788a06.
 3. low-medium: injected keys reach grabs without an "injected" mark, so
    a client with `input.inject` can answer a confirm question meant for
    a physical key.
+   Status: FIXED d443fe7.
 4. low: a confined main-socket connection skips `check_paths`,
    `confine` and the claims check (`ipc/clients.rs:262,289`,
    `ipc.rs:1287`); shader compile errors leak file content.
+   Status: FIXED e823dd9.
 5. low: the event connection of `choractl mcp` is not confined
    (`crates/choractl/src/events.rs:70-74`).
+   Status: FIXED 53803ce.
 6. low: `load_view` has no confirm rule.
+   Status: FIXED c56e26d.
 7. docs: `services/voice/README.md:343-350` is out of date.
+   Status: FIXED ee61765.
+
 Review round of 11-09 on 02cdeed..d443fe7 (five views; bugs: clean,
 187 voice tests and the new core test pass; security: nothing high or
 medium):
@@ -148,14 +208,20 @@ medium):
 8. medium (docs): `services/voice/README.md:346` still says the agent
    does not ask before privileged methods (same as security finding 7,
    open in the security agent).
+   Status: FIXED ee61765 (README now says the agent asks).
 9. low: `tests/persona/session.sh` runs `rm -rf "$dir"` on exit also when
    `$dir` is a caller-supplied `PERSONA_DIR`; delete only what it made.
+   Status: FIXED 2eb2606.
 10. low: `tests/2d-guard.sh` hard-codes `/home/user/wt/base2d`,
    `/home/user/target-base`, `/home/user/guard-cache`; make them
    overridable; the base cache ignores changes of the scenes.
+   Status: OPEN (the paths are still hard-coded in
+   `tests/2d-guard.sh`).
 11. low: the privileged question is no longer a user `confirm` rule, so a
    user cannot switch it off per method; document it in `docs/voice.md`
    (or keep a rule).
+   Status: FIXED 1788a06 (docs/voice.md names the flag and the
+   question).
 12. low: `said` and `spoken` in `services/voice/src/config.rs` duplicate
    each other; `privileged_rule` builds a throwaway `Confirm`;
    `client.rs` test doc names "finding 3 of the security review" (a
@@ -165,9 +231,14 @@ medium):
    starting with `-` needs `--`; an all-move `inject_input` is spoken
    "Shall I type or click: ?"; `docs/voice.md:271-277` is one run-on
    paragraph.
+   Status: OPEN, in part (`said` and `spoken` still both exist in
+   `config.rs`; the other points were not rechecked).
 13. low (security): `privileged_rule` fails open for a method not yet in
    the set within a turn; the spoken params are never cut (a long
    question).
+   Status: PARTLY FIXED. Spoken values are cut at 60 characters
+   (`spoken` in `config.rs`). The fail-open of `privileged_rule` for a
+   method not yet in the set was not rechecked: OPEN.
 
 Not verifiable here: `agent-sandbox.sh` is not in the repo (a writable
 `.git` in the sandbox would let an agent plant git hooks).
