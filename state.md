@@ -34,6 +34,12 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-09 15:00: XP start feedback merged (7dccda3): a missing program
+  says so at once; a slow start shows "Starting NAME" after 2 s and
+  "Cannot open" after 30 s without a window; launchers that exit 0 are
+  followed like any program. Two review regressions fixed before the
+  merge. Gate: 909 tests, 2D guard, xp.sh, matrix gate green.
+
 - 11-09 14:30: grants step 1 merged (1ce735c): confined callers cannot
   claim the indicator, answer, confirm, talk or mute; injected pointer
   presses are marked and ignored by the HUD answer buttons; docs name

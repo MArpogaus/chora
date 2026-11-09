@@ -75,6 +75,11 @@ is found (charter section 8). Started from charter section 15 on
     from a physical key or the HUD. Design first (opus), then the code.
     It restores the voice actions lost by fix (a).
 
+16. The worker has no xwayland-satellite, so X11 programs (this
+    LibreOffice has only its X11 plugin) do not run in persona sessions;
+    office tasks of personas are only meaningful on the reference
+    hardware or once xwayland is available here (owner's machine).
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running
