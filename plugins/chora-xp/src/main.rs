@@ -22,7 +22,6 @@ mod decoration;
 mod desktop_icons;
 mod dialog;
 mod display;
-mod notify;
 mod session;
 mod sheets;
 mod sound;
@@ -131,8 +130,7 @@ fn restart() -> String {
 
 /// Handles events until Turn Off. In between, the clock ticks, cascades
 /// of the start menu open where the pointer rests, and while an effect
-/// runs, frames follow each other at 60 Hz. Notifications come in and
-/// expire.
+/// runs, frames follow each other at 60 Hz.
 fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
     let mut tick = Instant::now() + TICK;
     let mut frame = Instant::now();
@@ -143,9 +141,6 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
             tick
         };
         let until = wm.menu_due().map_or(until, |due| until.min(due));
-        let until = wm
-            .notes_due(Instant::now())
-            .map_or(until, |due| until.min(due));
         let until = wm.assistant_due().map_or(until, |due| until.min(due));
         if let Some(event) = wm.conn_event(until.saturating_duration_since(Instant::now()))? {
             let (event, next) = last_move(wm, event)?;
@@ -156,7 +151,6 @@ fn event_loop(wm: &mut Wm) -> Result<(), ClientError> {
         }
         let now = Instant::now();
         wm.menu_rest(now)?;
-        wm.notifications(now)?;
         wm.assistant_step(now)?;
         if wm.animating() && now >= frame {
             wm.frame(now)?;
