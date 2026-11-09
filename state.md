@@ -139,6 +139,16 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 - 11-09: driver for simulated users (4e372b4), audience research and
   everyday task matrix (b4b7520).
 
+## Waiting for merge
+
+- claude/hud-h3 (9750224, 19b2f7b): voice chat methods, 202 voice tests,
+  gate green. Merges after the 11-10 review round, which includes this
+  branch (critical path: agents.rs, client.rs; opus security view). Open
+  for the review: the role of end and refusal notices (the developer
+  used `tool`; PM default: a role `notice`, so system text never looks
+  like a helper's or a tool's); the `client.disconnected` wiring has no
+  test; `agent.read` on an unknown agent errors, a stale `after` resyncs.
+
 ## Running
 
 Sprint S1 wave 1, started 17:25 Bangkok (budget left today about 6 %):
