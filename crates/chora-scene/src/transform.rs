@@ -308,7 +308,7 @@ impl Transform {
 
     /// The transform of a translation, a rotation and a scale.
     #[must_use]
-    pub fn compose(parts: &Decomposed) -> Self {
+    pub(crate) fn compose(parts: &Decomposed) -> Self {
         let rotation = DQuat::from_array(parts.rotation).normalize();
         let m = DMat4::from_scale_rotation_translation(
             DVec3::from_array(parts.scale),
