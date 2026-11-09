@@ -37,9 +37,6 @@ const TRAY_EMPTY: i32 = 14;
 pub const HIDDEN_STRIP: i32 = 2;
 /// How long the taskbar takes to slide away or back.
 const SLIDE_TIME: f64 = 0.15;
-/// The left edge of the point that a tail aims at in the notification
-/// area.
-const TRAY_ICON_LEFT: i32 = 10;
 /// The buttons of the desktops, left of the tray, as in the virtual
 /// desktop manager of the power toys for XP.
 const PAGER_BUTTON: i32 = 22;
@@ -373,16 +370,6 @@ impl Bar {
         )
     }
 
-    /// Where the tail of a balloon points, in the coordinates of the
-    /// output: the top of the icon of the notification area; and the
-    /// right edge of the work area.
-    pub fn tray_tip(&self) -> ([i32; 2], i32) {
-        let [x, y, w, h] = self.area;
-        let [x, y] = [x - self.position[0], y - self.position[1]];
-        let icon = x + w - self.tray_width() + TRAY_ICON_LEFT + 8;
-        ([icon, y + h - HEIGHT + 8], x + w)
-    }
-
     /// The task buttons: new ones for new windows, none for closed ones,
     /// and every button in its look and place.
     pub fn tasks(&mut self, theme: &mut Theme, tasks: &[Task<'_>]) -> Vec<Command> {
@@ -688,10 +675,5 @@ mod tests {
         });
         assert_eq!(bar.tray_width(), TRAY_EMPTY);
         assert_eq!(bar.clock_rect(), None);
-    }
-
-    #[test]
-    fn the_tray_tip_is_at_the_tray() {
-        assert_eq!(bar(0).tray_tip(), ([1280 - 82 + 18, 778], 1280));
     }
 }

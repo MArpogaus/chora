@@ -4,57 +4,60 @@
 //! chora. The core moves and scales it; the renderer draws no rotation
 //! yet, so the picture itself leans. A few frames swap the face.
 
+//! The assistant of the voice agent: a figure above the corner of the
+//! first output that follows the state of the agent (D65) and speaks its
+//! sentences in a bubble. The figure is a dot of the asset folder, or the
+//! paperclip of the XP flavor. The core moves and scales it; the renderer
+//! draws no rotation yet, so the picture itself leans. A few frames swap
+//! the face.
+
 use std::time::{Duration, Instant};
 
-use chora_scene::{Command, Easing, InputMode, NodeKind, PropsUpdate, Transform};
+use chora_draw::{
+    bubble::{Corner, Style},
+    text::{Font, Text, wrap},
+    theme::{Picture, Rect, Sheet, Theme},
+};
+use chora_scene::{Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
-    balloon,
-    dialog::{BUTTON, Control},
-    taskbar::Bar,
-    theme::{Picture, Theme},
+    config::{Figure, Values},
+    paperclip,
 };
 
 /// The group of the assistant under `screen:OUTPUT`.
-const GROUP: &str = "xp-assistant";
+const GROUP: &str = "assistant";
 /// The group that moves: leans, wobbles and bounces.
-const BODY: &str = "xp-assistant-body";
-/// The image of the paperclip, which takes the clicks.
-const CLIP: &str = "xp-assistant-clip";
+const BODY: &str = "assistant-body";
+/// The image of the figure, which takes the clicks.
+const CLIP: &str = "assistant-clip";
 /// The balloon of the spoken sentence.
-const SPEECH: &str = "xp-assistant-speech";
+const SPEECH: &str = "assistant-speech";
 /// The buttons of a question in the balloon: a click answers it with
 /// `voice.confirm.answer`.
-const YES: &str = "xp-assistant-yes";
-const NO: &str = "xp-assistant-no";
+const YES: &str = "assistant-yes";
+const NO: &str = "assistant-no";
 /// The gap between the buttons and above them.
 const BUTTON_GAP: i32 = 6;
+/// The size of a button of a question.
+const BUTTON: [i32; 2] = [73, 21];
+const PAD: i32 = 10;
+const LINE: i32 = 13;
+const MIN_WIDTH: i32 = 120;
+/// The widest line of the assistant's speech.
+const MAX_SPEECH: f64 = 220.0;
 
-/// The size of the picture.
-const SIZE: [i32; 2] = [80, 116];
-/// The point that the body turns around: the bottom of the wire.
-const PIVOT: [f64; 2] = [41.0, 110.0];
-/// The distance from the right edge of the screen, left of the column of
-/// desktop icons, and from the taskbar.
-const MARGIN: [i32; 2] = [96, 2];
-/// Where the tail of the balloon points: above the eyes.
-const HEAD: [i32; 2] = [38, 10];
+/// The sheet of the dot: one element per pose, named by [`Pose::id`].
+pub const DOT: Sheet = Sheet("dot.svg");
+/// The size of the dot.
+const DOT_SIZE: [i32; 2] = [24, 24];
+
 /// How long the eyes stay shut.
 const BLINK: Duration = Duration::from_millis(140);
 /// How long the balloon stays after its sentence ends.
 const LINGER: Duration = Duration::from_secs(3);
 /// How long the balloon takes to fade out, in milliseconds.
 const FADE: f64 = 600.0;
-
-/// The settings of the assistant.
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
-)]
-#[serde(deny_unknown_fields)]
-pub struct Settings {
-    /// The paperclip shows while the voice agent is connected.
-    pub enabled: bool,
-}
 
 /// What the paperclip does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,42 +93,22 @@ pub fn pose(state: &str) -> Pose {
     }
 }
 
-/// The face of a pose.
-struct Face {
-    /// The height of the eyes, 1 for the normal one.
-    eyes: f64,
-    /// Where the pupils look, from the middle of the eyes.
-    look: [f64; 2],
-    /// How far each eyebrow goes up, left and right.
-    brows: [f64; 2],
-}
-
 impl Pose {
-    fn face(self) -> Face {
-        let (eyes, look, brows) = match self {
-            Self::Idle => (1.0, [0.5, 1.0], [0.0, 0.0]),
-            Self::Listening => (1.18, [-1.5, 0.0], [2.0, 2.0]),
-            Self::Thinking => (1.0, [2.0, -3.6], [-1.0, 3.5]),
-            Self::Speaking => (1.0, [-2.0, 0.5], [1.0, 1.0]),
-            Self::Asking => (1.1, [0.0, -0.5], [6.0, 6.0]),
-            Self::Sleeping => (1.0, [0.0, 0.0], [-1.5, -1.5]),
-        };
-        Face { eyes, look, brows }
+    /// The id of the element of the dot for the pose.
+    fn id(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Listening => "listening",
+            Self::Thinking => "thinking",
+            Self::Speaking => "speaking",
+            Self::Asking => "asking",
+            Self::Sleeping => "sleeping",
+        }
     }
 
     /// The opacity of the picture: dimmed while the agent sleeps.
     fn opacity(self) -> f64 {
         if self == Self::Sleeping { DIM } else { 1.0 }
-    }
-
-    /// How far the picture leans, in degrees, to the right.
-    fn tilt(self) -> f64 {
-        match self {
-            Self::Listening => -6.0,
-            Self::Asking => 4.0,
-            Self::Sleeping => 3.0,
-            _ => 0.0,
-        }
     }
 
     /// The move of the body at a step of the pose: the scale, the offset
@@ -145,61 +128,45 @@ impl Pose {
     }
 }
 
-/// The wire of the paperclip: three bends, the small one inside the
-/// large one.
-const WIRE: &str =
-    "M33,48 V84 A8.5,8.5 0 0 0 50,84 V34 A14,14 0 0 0 22,34 V90 A19,19 0 0 0 60,90 V44";
-
-/// The paperclip in a pose, with its eyes open or shut.
-fn draw(pose: Pose, shut: bool) -> Picture {
-    use std::fmt::Write as _;
-    let shut = shut || pose == Pose::Sleeping;
-    let face = pose.face();
-    let (tilt, [px, py]) = (pose.tilt(), PIVOT);
-    let mut svg = format!(
-        r##"<defs><linearGradient id="xp-assistant-metal" x1="0" x2="1" y1="0" y2="0.3"><stop offset="0" stop-color="#f4f6f9"/><stop offset="0.45" stop-color="#b9c0ca"/><stop offset="1" stop-color="#8a929e"/></linearGradient></defs><ellipse cx="41" cy="111" rx="20" ry="3.2" fill="#000" opacity="0.22"/><g transform="rotate({tilt} {px} {py})"><path d="{WIRE}" fill="none" stroke="#3d434c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="{WIRE}" fill="none" stroke="url(#xp-assistant-metal)" stroke-width="4.4" stroke-linecap="round"/><path d="{WIRE}" fill="none" stroke="#fff" stroke-opacity="0.75" stroke-width="1.1" stroke-linecap="round" transform="translate(-0.9,-0.6)"/>"##
-    );
-    let [lx, ly] = face.look;
-    for ((cx, side), lift) in [(30.5, -1.0), (50.5, 1.0)].into_iter().zip(face.brows) {
-        let (cy, rx, ry) = (37.0, 8.0, 9.0 * face.eyes);
-        let _ = if shut {
-            write!(
-                svg,
-                r##"<path d="M{},{} Q{cx},{} {},{}" fill="none" stroke="#1d1f24" stroke-width="1.8" stroke-linecap="round"/>"##,
-                cx - rx + 1.0,
-                cy + 1.0,
-                cy + 6.0,
-                cx + rx - 1.0,
-                cy + 1.0
-            )
-        } else {
-            write!(
-                svg,
-                r##"<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#fff" stroke="#1d1f24" stroke-width="1.5"/><circle cx="{}" cy="{}" r="3.4" fill="#16181c"/><circle cx="{}" cy="{}" r="1.1" fill="#fff"/>"##,
-                cx + lx,
-                cy + ly + 1.0,
-                cx + lx + 1.2,
-                cy + ly - 0.2
-            )
-        };
-        // The eyebrow: its inner end towards the middle.
-        let y = cy - ry - 5.0 - lift;
-        let _ = write!(
-            svg,
-            r##"<path d="M{},{y} Q{cx},{} {},{}" fill="none" stroke="#2b2118" stroke-width="2.6" stroke-linecap="round"/>"##,
-            cx - 5.0 * side,
-            y - 3.0,
-            cx + 6.5 * side,
-            y + 1.0
-        );
+/// The figure in a pose, with its eyes open or shut.
+fn draw(look: Figure, pose: Pose, shut: bool) -> Picture {
+    match look {
+        Figure::Dot => {
+            let [w, h] = DOT_SIZE;
+            Picture::new(w, h).element(DOT, pose.id(), [0, 0, w, h])
+        }
+        Figure::Paperclip => paperclip::draw(pose, shut),
     }
-    svg.push_str("</g>");
-    Picture::new(SIZE[0], SIZE[1]).svg(svg)
+}
+
+impl Figure {
+    /// The size of the picture.
+    fn size(self) -> [i32; 2] {
+        match self {
+            Self::Dot => DOT_SIZE,
+            Self::Paperclip => paperclip::SIZE,
+        }
+    }
+
+    /// The point that the body turns around: the bottom of the figure.
+    fn pivot(self) -> [f64; 2] {
+        match self {
+            Self::Dot => [12.0, 12.0],
+            Self::Paperclip => paperclip::PIVOT,
+        }
+    }
+
+    /// Where the tail of the balloon points: above the head.
+    fn head(self) -> [i32; 2] {
+        match self {
+            Self::Dot => [12, 0],
+            Self::Paperclip => paperclip::HEAD,
+        }
+    }
 }
 
 /// The transform of the body: scaled from its foot and moved.
-fn body([sx, sy]: [f64; 2], [dx, dy]: [f64; 2]) -> Transform {
-    let [px, py] = PIVOT;
+fn body([px, py]: [f64; 2], [sx, sy]: [f64; 2], [dx, dy]: [f64; 2]) -> Transform {
     Transform::translate(px + dx, py + dy, 0.0)
         .then(&Transform::scale(sx, sy, 1.0))
         .then(&Transform::translate(-px, -py, 0.0))
@@ -210,11 +177,12 @@ fn blink_gap(blinks: u32) -> Duration {
     Duration::from_millis(2500 + u64::from(blinks.wrapping_mul(1777) % 3500))
 }
 
-/// The paperclip on the overlay root of an output.
+/// The figure on the overlay root of an output.
 pub struct Assistant {
+    values: Values,
     /// The top-left corner of the picture, in output coordinates.
     origin: [i32; 2],
-    /// The right edge of the screen.
+    /// The width of the output.
     screen: i32,
     pose: Pose,
     shut: bool,
@@ -253,16 +221,75 @@ fn key_name(key: &str) -> String {
     }
 }
 
+/// The top-left corner of a balloon of a size, and the x of its tail tip
+/// in it, for a tip at a point of a screen of a width.
+fn place(
+    style: &Style,
+    [w, h]: [i32; 2],
+    [tip_x, tip_y]: [i32; 2],
+    screen: i32,
+) -> ([i32; 2], i32) {
+    let right = (tip_x + style.tail_inset).min(screen - 2);
+    let left = (right - w).max(0);
+    let tail = (tip_x - left).clamp(style.radius + style.tail_base, w - style.radius);
+    ([left, tip_y - style.tail - h], tail)
+}
+
+/// A balloon with text only, as the assistant speaks: its picture and its
+/// top-left corner, for a tail tip at a point of a screen of a width.
+/// `room` is a width that the inside keeps at least and a height under
+/// the text, for the buttons of a question.
+fn speech(
+    theme: &mut Theme,
+    style: &Style,
+    text: &str,
+    (tip, screen): ([i32; 2], i32),
+    [room_w, room_h]: [i32; 2],
+) -> (Picture, [i32; 2]) {
+    let width = |s: &str| theme.text_width(s, Font::Ui);
+    let lines = wrap(text, MAX_SPEECH, width);
+    let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
+    #[allow(clippy::cast_possible_truncation)]
+    let w = (PAD + (text_width.ceil() as i32).max(room_w) + PAD).max(MIN_WIDTH);
+    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + room_h + PAD;
+    let (origin, tail) = place(style, [w, h], tip, screen);
+    let mut picture = Picture::new(w, h + style.tail).svg(style.shape([w, h], tail));
+    for (line, y) in lines.iter().zip((PAD..).step_by(LINE as usize)) {
+        picture = picture.text(Text::new(
+            line,
+            Font::Ui,
+            style.text_rgba(),
+            [PAD, y, w - 2 * PAD, LINE],
+        ));
+    }
+    (picture, origin)
+}
+
+/// A push button of a question: a rounded rectangle with its label.
+fn button(style: &Style, label: &str) -> Picture {
+    let [w, h] = BUTTON;
+    let flat = Style {
+        tail: 0,
+        ..style.clone()
+    };
+    let rect: Rect = [0, 0, w, h];
+    Picture::new(w, h)
+        .svg(flat.shape([w, h], 0))
+        .text(Text::new(label, Font::Ui, flat.text_rgba(), rect).centered())
+}
+
 impl Assistant {
-    /// Creates the paperclip above the right end of a taskbar.
-    pub fn new(theme: &mut Theme, bar: &Bar, pose: Pose, now: Instant) -> (Self, Vec<Command>) {
-        let ([_, tip_y], screen) = bar.tray_tip();
-        // The tip lies 8 pixels below the top of the taskbar.
-        let origin = [
-            screen - SIZE[0] - MARGIN[0],
-            tip_y - 8 - SIZE[1] - MARGIN[1],
-        ];
+    /// Creates the figure in a corner of an output.
+    pub fn new(
+        theme: &mut Theme,
+        values: &Values,
+        (output, corner): (&OutputInfo, Corner),
+        (pose, now): (Pose, Instant),
+    ) -> (Self, Vec<Command>) {
+        let screen = output.size[0];
+        let origin = corner.origin(output.size, values.figure.size(), values.margin);
         let assistant = Self {
+            values: values.clone(),
             origin,
             screen,
             pose,
@@ -289,16 +316,20 @@ impl Assistant {
         let commands = vec![
             group(
                 GROUP,
-                format!("screen:{}", bar.output),
+                format!("screen:{}", output.name),
                 Transform::translate(x, y, 0.0),
             ),
-            group(BODY, GROUP.into(), body([1.0, 1.0], [0.0, 0.0])),
+            group(
+                BODY,
+                GROUP.into(),
+                body(values.figure.pivot(), [1.0, 1.0], [0.0, 0.0]),
+            ),
             Command::Create {
                 id: CLIP.into(),
                 kind: NodeKind::Image,
                 parent: BODY.into(),
                 props: PropsUpdate {
-                    image: Some(theme.render(&draw(pose, false))),
+                    image: Some(theme.render(&draw(values.figure, pose, false))),
                     opacity: Some(pose.opacity()),
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
@@ -308,12 +339,12 @@ impl Assistant {
         (assistant, commands)
     }
 
-    /// Whether a node is the paperclip.
+    /// Whether a node is the figure.
     pub fn owns(node: &str) -> bool {
         node == CLIP
     }
 
-    /// Removes the paperclip and its balloon.
+    /// Removes the figure and its balloon.
     pub fn remove() -> Command {
         Command::Remove {
             id: GROUP.into(),
@@ -336,7 +367,7 @@ impl Assistant {
         Command::Update {
             id: CLIP.into(),
             props: PropsUpdate {
-                image: Some(theme.render(&draw(self.pose, self.shut))),
+                image: Some(theme.render(&draw(self.values.figure, self.pose, self.shut))),
                 opacity: Some(self.pose.opacity()),
                 ..PropsUpdate::default()
             },
@@ -359,13 +390,15 @@ impl Assistant {
     /// buttons of a question.
     fn balloon(&mut self, theme: &mut Theme, text: &str, buttons: bool) -> Vec<Command> {
         let [x, y] = self.origin;
-        let tip = [x + HEAD[0], y + HEAD[1]];
+        let [head_x, head_y] = self.values.figure.head();
+        let tip = [x + head_x, y + head_y];
         let room = if buttons {
             [2 * BUTTON[0] + BUTTON_GAP, BUTTON[1] + BUTTON_GAP]
         } else {
             [0, 0]
         };
-        let (picture, [bx, by]) = balloon::speech(theme, text, tip, self.screen, room);
+        let (picture, [bx, by]) =
+            speech(theme, &self.values.speech, text, (tip, self.screen), room);
         let mut commands = Vec::new();
         if std::mem::replace(&mut self.buttons, buttons) {
             commands.extend([YES, NO].map(|id| Command::Remove {
@@ -374,19 +407,18 @@ impl Assistant {
             }));
         }
         if buttons {
-            // At the bottom right inside the balloon, XP's push buttons.
-            let pad = balloon::BALLOON_PAD;
-            let top = by - y + picture.size[1] - balloon::TAIL - pad - BUTTON[1];
-            let right = bx - x + picture.size[0] - pad;
+            let tail = self.values.speech.tail;
+            let top = by - y + picture.size[1] - tail - PAD - BUTTON[1];
+            let right = bx - x + picture.size[0] - PAD;
             let lefts = [right - 2 * BUTTON[0] - BUTTON_GAP, right - BUTTON[0]];
             for ((id, label), left) in [(YES, "Ja"), (NO, "Nein")].into_iter().zip(lefts) {
-                let control = Control::push(id, label, [0, 0]);
+                let look = button(&self.values.buttons, label);
                 commands.push(Command::Create {
                     id: id.into(),
                     kind: NodeKind::Image,
                     parent: GROUP.into(),
                     props: PropsUpdate {
-                        image: Some(theme.render(&control.picture(false, false))),
+                        image: Some(theme.render(&look)),
                         transform: Some(Transform::translate(f64::from(left), f64::from(top), 0.0)),
                         input: Some(InputMode::Accept),
                         ..PropsUpdate::default()
@@ -497,7 +529,7 @@ impl Assistant {
                 commands.push(Command::Animate {
                     id: BODY.into(),
                     props: PropsUpdate {
-                        transform: Some(body(scale, offset)),
+                        transform: Some(body(self.values.figure.pivot(), scale, offset)),
                         ..PropsUpdate::default()
                     },
                     duration: ms,
@@ -558,36 +590,36 @@ mod tests {
         }
     }
 
-    /// While the agent sleeps, the paperclip stays, dimmed and with its
-    /// eyes shut, so that the mic that waits for the wake words shows.
-    #[test]
-    fn a_sleeping_agent_shows_a_dim_paperclip() {
-        let (mut theme, _) = crate::sheets::tests::theme("sleeping");
-        let bar_less = Assistant {
+    fn assistant(values: &Values, pose: Pose, now: Instant) -> Assistant {
+        Assistant {
+            values: values.clone(),
             origin: [800, 500],
             screen: 1024,
-            pose: Pose::Idle,
+            pose,
             shut: false,
             step: 0,
             blinks: 0,
             moves_at: None,
-            blinks_at: Instant::now(),
+            blinks_at: now,
             speech: false,
             fades_at: None,
             asking: None,
             buttons: false,
-        };
-        let mut a = bar_less;
-        let commands = a.set_pose(&mut theme, Pose::Sleeping, Instant::now());
+        }
+    }
+
+    /// While the agent sleeps, the figure stays, dimmed, so that the mic
+    /// that waits for the wake words shows.
+    #[test]
+    fn a_sleeping_agent_shows_a_dim_figure() {
+        let (mut theme, values, _) = crate::tests::loaded("sleeping");
+        let now = Instant::now();
+        let mut a = assistant(&values, Pose::Idle, now);
+        let commands = a.set_pose(&mut theme, Pose::Sleeping, now);
         let dim = commands
             .iter()
             .any(|c| matches!(c, Command::Update { props, .. } if props.opacity == Some(DIM)));
         assert!(dim, "{commands:?}");
-        assert_eq!(
-            draw(Pose::Sleeping, false),
-            draw(Pose::Sleeping, true),
-            "eyes shut"
-        );
     }
 
     #[test]
@@ -607,22 +639,9 @@ mod tests {
     #[test]
     #[allow(clippy::cognitive_complexity, reason = "one answer after the other")]
     fn a_confirmation_stays_until_its_answer() {
-        let (mut theme, _) = crate::sheets::tests::theme("confirm");
+        let (mut theme, values, _) = crate::tests::loaded("confirm");
         let now = Instant::now();
-        let mut a = Assistant {
-            origin: [800, 500],
-            screen: 1024,
-            pose: Pose::Asking,
-            shut: false,
-            step: 0,
-            blinks: 0,
-            moves_at: None,
-            blinks_at: now,
-            speech: false,
-            fades_at: None,
-            asking: None,
-            buttons: false,
-        };
+        let mut a = assistant(&values, Pose::Asking, now);
         let none = Offer::default();
         assert_eq!(
             a.ask(&mut theme, "c1", "Run it?\nrm -r build", &none).len(),
@@ -658,7 +677,8 @@ mod tests {
 
     #[test]
     fn the_body_grows_from_its_foot() {
-        let (x, y) = body([1.1, 1.2], [0.0, 0.0]).apply(PIVOT[0], PIVOT[1]);
-        assert!((x - PIVOT[0]).abs() < 1e-9 && (y - PIVOT[1]).abs() < 1e-9);
+        let pivot = Figure::Paperclip.pivot();
+        let (x, y) = body(pivot, [1.1, 1.2], [0.0, 0.0]).apply(pivot[0], pivot[1]);
+        assert!((x - pivot[0]).abs() < 1e-9 && (y - pivot[1]).abs() < 1e-9);
     }
 }

@@ -1,0 +1,12 @@
+# The settings of chora-assistant. It lists every option. Copy it to
+# ~/.config/chora/chora-assistant.yaml and change it there, or change it
+# with the method settings.set, which rewrites the file. Edits by hand
+# apply on the method settings.reload or restart.
+
+# The assistant shows while the voice agent is connected: its state, and
+# its sentences in a bubble; dimmed while the agent sleeps and listens for
+# its wake words. A click on it mutes or unmutes the mic.
+enabled: true
+# The corner of the first output where it shows: top_left, top_right,
+# bottom_left or bottom_right.
+position: bottom_right
