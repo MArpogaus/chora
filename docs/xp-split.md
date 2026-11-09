@@ -160,6 +160,9 @@ Notes:
   defaults turn them on.
 - Settings are the choices of the user. Values of the asset folder are the
   choices of the flavor author. The two files stay apart.
+- The default `position` of `notify` and `assistant` is `bottom_right`, where
+  the notification area and the paperclip of the XP flavor are, so that X2
+  needs no mechanism for the defaults of a flavor.
 
 ## Asset folder of a block
 
@@ -204,12 +207,16 @@ Where the XP files go:
 |-----------------------------|---------|
 | `expose/*` | `assets/stack` |
 | `winxp/winxp.svg`, `winxp/tasks.svg`, `winxp/start-flag.svg`, `winxp/cascade-arrow*.svg` | `assets/panel` |
-| `winxp/balloon-*.svg` | `assets/notify` |
+| `winxp/balloon-close*.svg` | `assets/notify`; `balloon-info.svg` went with the icon of the notification area |
 | `wallpaper/bloff.png` | `assets/desk` |
 | `winxp/dialog*.svg`, `winxp/log-off.svg`, `winxp/turn-off.svg`, `winxp/switch-user.svg`, `winxp/stand-by.svg`, `winxp/restart.svg`, `winxp/check*.svg` | the folder of the gimmick |
-| the paperclip, drawn in `assistant.rs` today | `flavors/xp/assets/assistant` as SVG files |
+| the paperclip, drawn in `paperclip.rs` of `chora-assistant` until X7 | `flavors/xp/assets/assistant` as SVG files |
 | `fonts/*` | one folder, linked into each folder that needs it |
 | `cursors/ModernXP` | `flavors/xp/cursors`, installed as today |
+
+The Arch package links the fonts of each XP folder to the theme. The RPM
+carries a copy in each folder, because `cargo-generate-rpm` cannot package a
+link.
 
 The licenses stay with their files. `theme/README.md` splits into the
 `README.md` of each folder.
@@ -275,7 +282,9 @@ Each step also:
   windows but cannot minimize them.
 - `chora-xp` as the library host of `chora-stack` makes one plugin depend on
   another in the same repository. X5 decides the surface of the library.
-- The fonts of the XP folders are 290 KB. One shared folder with links is
-  smaller than copies. X2 checks that the package keeps the links.
-- `balloon.rs` draws a tail towards the tray. The neutral card has no tail.
-  X2 decides whether the tail is a value or a picture.
+- The fonts of the XP folders are 290 KB. The RPM carries a copy for each
+  of the two folders of X2.
+- The XP balloon drew an icon in the notification area while it showed, and
+  played a sound. A notification block that calls no other block cannot do
+  either; the panel (X4) and the sounds (X7) decide whether the core or the
+  block that shows the balloon sends an event for them.
