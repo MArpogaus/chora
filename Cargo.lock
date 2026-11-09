@@ -589,9 +589,14 @@ dependencies = [
 name = "chora-notify"
 version = "0.9.0-rc.3"
 dependencies = [
+ "chora-draw",
  "chora-kit",
  "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
  "serde_json",
+ "zbus",
 ]
 
 [[package]]

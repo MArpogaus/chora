@@ -1,12 +1,11 @@
 //! The notification server of the freedesktop specification on the
-//! session bus, so that `notify-send` and programs show XP's balloons.
+//! session bus, so that `notify-send` and programs show their notifications.
 //! zbus serves the bus on its own thread; the calls reach the main loop
 //! through a channel, and the main loop sends the signals.
 
 use std::{
     collections::HashMap,
     sync::mpsc::{Receiver, Sender, channel},
-    time::Duration,
 };
 
 use zbus::{
@@ -17,9 +16,6 @@ use zbus::{
 
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
-/// XP showed a balloon for at least 10 and at most 30 seconds.
-const SHORTEST: Duration = Duration::from_secs(10);
-const LONGEST: Duration = Duration::from_secs(30);
 
 /// A notification as the main loop gets it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,8 +30,9 @@ pub struct Note {
     pub body: String,
     /// The keys of the actions, without their labels.
     pub actions: Vec<String>,
-    /// How long it shows; `None` until a click.
-    pub timeout: Option<Duration>,
+    /// The `expire_timeout` of the client in milliseconds: -1 for the
+    /// default, 0 for no end.
+    pub expire_ms: i32,
 }
 
 /// A call of a client.
@@ -65,16 +62,6 @@ pub enum Signal {
     Closed(u32, Reason),
     /// `ActionInvoked`.
     Action(u32, String),
-}
-
-/// How long a notification shows: XP's 10 seconds by default, a time of
-/// the client between XP's 10 and 30 seconds, and no end for 0.
-pub fn timeout(expire_timeout: i32) -> Option<Duration> {
-    match u64::try_from(expire_timeout) {
-        Err(_) => Some(SHORTEST),
-        Ok(0) => None,
-        Ok(ms) => Some(Duration::from_millis(ms).clamp(SHORTEST, LONGEST)),
-    }
 }
 
 /// The icon of a notification: the `image-path` hint before `app_icon`,
@@ -119,7 +106,6 @@ impl Server {
         hints: HashMap<String, OwnedValue>,
         expire_timeout: i32,
     ) -> u32 {
-        // XP's balloons do not show the name of the program.
         let _ = app_name;
         let id = if replaces_id == 0 {
             self.last = self.last.wrapping_add(1).max(1);
@@ -133,7 +119,7 @@ impl Server {
             summary,
             body,
             actions: action_keys(&actions),
-            timeout: timeout(expire_timeout),
+            expire_ms: expire_timeout,
         }));
         id
     }
@@ -149,7 +135,7 @@ impl Server {
 
     #[allow(clippy::unused_self)]
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
-        ("chora-xp", "chora", env!("CARGO_PKG_VERSION"), "1.2")
+        ("chora-notify", "chora", env!("CARGO_PKG_VERSION"), "1.2")
     }
 }
 
@@ -182,13 +168,6 @@ impl Bus {
         }
     }
 
-    /// The server, or `None` with a line in the log when it cannot run.
-    pub fn start_or_log() -> Option<Self> {
-        Self::start()
-            .map_err(|err| eprintln!("chora-xp: no notifications: {err}"))
-            .ok()
-    }
-
     /// Sends a signal to the clients.
     pub fn emit(&self, signal: &Signal) {
         let sent = match signal {
@@ -205,7 +184,7 @@ impl Bus {
             }
         };
         if let Err(err) = sent {
-            eprintln!("chora-xp: notifications: {err}");
+            eprintln!("chora-notify: {err}");
         }
     }
 }
@@ -213,15 +192,6 @@ impl Bus {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn the_time_follows_xp() {
-        assert_eq!(timeout(-1), Some(SHORTEST));
-        assert_eq!(timeout(0), None);
-        assert_eq!(timeout(3000), Some(SHORTEST));
-        assert_eq!(timeout(20_000), Some(Duration::from_secs(20)));
-        assert_eq!(timeout(60_000), Some(LONGEST));
-    }
 
     #[test]
     fn actions_come_in_pairs() {
