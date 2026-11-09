@@ -178,6 +178,10 @@ pub enum Event {
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The press came from `input.inject`, not from a pointer. A
+        /// client that takes a press for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The pointer came over a node that takes pointer input: the top one
     /// under it, a surface, a rect or an image. Not during a drag of a
