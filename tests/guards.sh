@@ -157,6 +157,20 @@ session_case() {
   verdict "no-session-files: $label" "$want" $?
 }
 
+session_message_case() {
+  new_repo
+  cd "$work/repo" || exit 1
+  printf 'x\n' >state.md
+  git add state.md
+  local output
+  output=$(pre-commit run no-session-files --files state.md \
+    -c "$tests_dir/../.pre-commit-config.yaml" 2>&1)
+  local status=1
+  case "$output" in *"belong outside the repository"*) status=0 ;; esac
+  verdict "no-session-files: message says where they belong" pass $status
+}
+
+session_message_case
 session_case "plans/autonomy" fail plans/autonomy/plan.md
 session_case "reports" fail reports/day1.md
 session_case "reflections" fail reflections/a.md

@@ -37,7 +37,7 @@ repos:
     stages: [pre-commit]
   - id: no-session-files
     name: no session logs, reports or media in the repository
-    entry: session logs, reports and media do not belong in the repository
+    entry: session logs, reports and media belong outside the repository
     language: fail
     files: ^(plans/autonomy/|reports/|reflections/|media/|drafts/|(charter|state|ledger|friction|answers|questions|backlog|HANDOFF)\.md$)
   - id: guards
