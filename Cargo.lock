@@ -554,6 +554,7 @@ dependencies = [
  "chora-kit",
  "chora-scene",
  "resvg",
+ "schemars",
  "serde",
  "serde-saphyr",
  "zune-jpeg",
