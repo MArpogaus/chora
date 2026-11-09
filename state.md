@@ -34,6 +34,10 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-09: construct gates fixed and merged (89158c7): launcher window
+  under a forking shell, two test script fixes; 3D step 0 merged
+  (8aa0529): RenderStats and 2D path tests, review clean; 859 tests.
+
 - 11-09: XP split X1 merged (97afe81): docs/xp-split.md, skeletons of
   chora-notify and chora-assistant, chora-draw as a shared library, D77
   (four repositories, amends D36); review: no high, two medium fixed;
@@ -68,10 +72,11 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- `claude/construct-gates` (worktree /home/user/wt/construct-gates):
-  the two failing construct gates.
-- `claude/3d-step0` (worktree /home/user/wt/3d-step0): 3D step 0.
-Each merges into the session branch after a review round (merge rule).
+- `claude/persona-driver`: driver gaps D1 to D3 and the old driver findings.
+- `claude/handover-guard`: the matrix gate of the hard requirement.
+- `claude/3d-step1`: glam in Transform, slerp in animate (#83, #78).
+- `claude/xp-x2`: notifications and assistant as plugins, chora-draw.
+Each merges after a review round.
 
 ## Blocked
 
