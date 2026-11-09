@@ -106,7 +106,8 @@ session_case() {
   mkdir -p "$(dirname "$path")"
   printf 'x\n' >"$path"
   git add "$path"
-  "$tests_dir/no-session-files.sh" >/dev/null 2>&1
+  pre-commit run no-session-files --files "$path" \
+    -c "$tests_dir/../.pre-commit-config.yaml" >/dev/null 2>&1
   verdict "no-session-files: $label" "$want" $?
 }
 
