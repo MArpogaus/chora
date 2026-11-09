@@ -5,11 +5,11 @@
 //! buttons, Quick Launch, hiding inactive icons, the classic start menu
 //! and the Customize buttons.
 
-use crate::sheets;
 use std::fmt::Write as _;
 
 use crate::{
     dialog::{self, Control, Dialog, Hit, Page},
+    sheets,
     taskbar::{self, Settings},
     theme::{Picture, Rect, Theme},
 };

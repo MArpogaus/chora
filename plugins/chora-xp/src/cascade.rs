@@ -3,12 +3,12 @@
 //! come from (`CascadeMenu.qml` and `CascadeMenuView.qml` of the
 //! reference).
 
-use crate::sheets;
 use std::path::{Path, PathBuf};
 
 use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };

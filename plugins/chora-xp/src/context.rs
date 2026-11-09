@@ -5,12 +5,12 @@
 //! clock and the desktop; a click outside closes them. The month list of
 //! Date and Time is one, too.
 
-use crate::sheets;
 use std::fmt::Write as _;
 
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
