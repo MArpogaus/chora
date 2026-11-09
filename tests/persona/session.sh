@@ -109,6 +109,15 @@ tiling)
 *) companions=() ;;
 esac
 
+if ((${#companions[@]})); then
+    for tool in jq setsid dbus-run-session; do
+        command -v "$tool" >/dev/null || {
+            echo "$tool is needed to start the companions of $flavor" >&2
+            exit 2
+        }
+    done
+fi
+
 out=$dir/headless.out
 session=
 companion_units=()
