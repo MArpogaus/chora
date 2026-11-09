@@ -28,9 +28,22 @@ kills the session by the pid in the file, never by name). It then removes
 its directory, so copy `actions.jsonl` and the `shots/` you want to keep
 first. Set `PERSONA_DIR` to choose the directory.
 
-The persona needs only the path in `PERSONA_ENV`. Coordinates are logical
-pixels of the output, so the size you give the session is the size of the
-screen.
+The persona needs only the path in `PERSONA_ENV`.
+
+`look` scales the capture down to `--max-side` (default 800), so the PNG
+is usually smaller than the screen. It prints the path, the size of the
+capture, the size of the screen and the scale:
+
+```console
+$ act.py look --max-side 640
+/tmp/persona.AbC123/shots/001.png capture=640x400 screen=1280x800 scale=0.5
+```
+
+The coordinates of `click`, `move` and `drag` are always pixels of the
+last capture, as the persona reads them off the picture. `act.py` keeps
+the scale of the last `look` in `$PERSONA_DIR/last_look.json` and turns
+the position into logical pixels of the output. Before the first `look`
+they are logical pixels. `scroll` takes no position and is not scaled.
 
 ## Brief for the persona subagent
 
@@ -48,13 +61,15 @@ Your only tools:
 1. Bash, for exactly this command and no other:
    PERSONA_ENV=<path> python3 -I <repo>/tests/persona/act.py ACTION ...
    look [--max-side N]       takes a picture of the screen, prints a PNG path
+                             and the size of the picture
    click X Y [--button left|right] [--double]
    move X Y
    drag X1 Y1 X2 Y2
    type TEXT
    key COMBO                 for example Super+Return, Return, Ctrl+c
    scroll DX DY
-   The screen is <W>x<H> pixels; X and Y count from the top left.
+   X and Y are pixels of the picture of your last `look`, counted from
+   its top left.
 2. Read, only to look at the PNG that `look` printed.
 Do not read any other file, run any other command, or search the web.
 

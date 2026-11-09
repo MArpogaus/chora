@@ -2,7 +2,8 @@
 """The hands and eyes of a simulated user: screen and input, nothing else.
 
 Usage: PERSONA_ENV=FILE python3 -I tests/persona/act.py ACTION ...
-  look [--max-side N]        save a capture as PNG, print its path
+  look [--max-side N]        save a capture as PNG, print its path, the
+                             size of the capture, of the screen and the scale
   click X Y [--button left|right] [--double]
   move X Y
   drag X1 Y1 X2 Y2
@@ -13,7 +14,13 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/act.py ACTION ...
 PERSONA_ENV is the session.env that tests/persona/session.sh wrote. Each
 action appends one JSON line to its PERSONA_LOG: time, action,
 arguments, ok, result. Exit status 0 on success, 1 on a failed action,
-2 on a bad command. Coordinates are logical pixels of the first output.
+2 on a bad command.
+
+Coordinates of click, move and drag are pixels of the last capture, as the
+persona sees them on the PNG; act.py scales them to the logical pixels of
+the output (the capture size divided by the scale that `look` printed).
+Before the first look they are logical pixels. Scroll takes no position and
+is never scaled.
 """
 
 import argparse
@@ -25,6 +32,7 @@ import time
 
 BUTTONS = {"left": 272, "right": 273}
 TIMEOUT = 20
+LAST_LOOK = "last_look.json"
 
 
 def load_env(path):
@@ -62,6 +70,22 @@ def choractl(env, *args, stdin=None):
     return p.returncode == 0, text
 
 
+def last_look_path(env):
+    """The file that holds the scale and origin of the last capture."""
+    return os.path.join(env["PERSONA_DIR"], LAST_LOOK)
+
+
+def to_screen(env, x, y):
+    """Turn a position on the last capture into logical pixels."""
+    try:
+        with open(last_look_path(env), encoding="utf-8") as f:
+            last = json.load(f)
+    except FileNotFoundError:
+        return x, y
+    ox, oy = last["origin"]
+    return ox + x / last["scale"], oy + y / last["scale"]
+
+
 def inject(env, events):
     """Send input events through choractl inject."""
     return choractl(env, "inject", "-", stdin=json.dumps(events))
@@ -76,13 +100,19 @@ def look(env, args):
     if args.max_side:
         cmd += ["--max-side", str(args.max_side)]
     ok, text = choractl(env, *cmd)
-    return ok, {"path": path, "info": text} if ok else text
+    if not ok:
+        return False, text
+    info = json.loads(text)
+    with open(last_look_path(env), "w", encoding="utf-8") as f:
+        json.dump({"scale": info["scale"], "origin": info["origin"]}, f)
+    return True, {"path": path, "info": info}
 
 
 def do_click(env, args):
     """Move, then click once or twice."""
     b = BUTTONS[args.button]
-    events = [{"pointer_move": {"position": [args.x, args.y]}}, {"click": {"button": b}}]
+    x, y = to_screen(env, args.x, args.y)
+    events = [{"pointer_move": {"position": [x, y]}}, {"click": {"button": b}}]
     if args.double:
         events.append({"click": {"button": b}})
     return inject(env, events)
@@ -90,13 +120,15 @@ def do_click(env, args):
 
 def do_drag(env, args):
     """Press at the start, move to the end, release."""
+    x1, y1 = to_screen(env, args.x1, args.y1)
+    x2, y2 = to_screen(env, args.x2, args.y2)
     return inject(
         env,
         [
-            {"pointer_move": {"position": [args.x1, args.y1]}},
+            {"pointer_move": {"position": [x1, y1]}},
             {"button": {"state": "pressed", "hold": True}},
-            {"pointer_move": {"position": [(args.x1 + args.x2) / 2, (args.y1 + args.y2) / 2]}},
-            {"pointer_move": {"position": [args.x2, args.y2]}},
+            {"pointer_move": {"position": [(x1 + x2) / 2, (y1 + y2) / 2]}},
+            {"pointer_move": {"position": [x2, y2]}},
             {"button": {"state": "released"}},
         ],
     )
@@ -137,7 +169,7 @@ def run(env, args):
     if a == "click":
         ok, text = do_click(env, args)
     elif a == "move":
-        ok, text = inject(env, [{"pointer_move": {"position": [args.x, args.y]}}])
+        ok, text = inject(env, [{"pointer_move": {"position": list(to_screen(env, args.x, args.y))}}])
     elif a == "drag":
         ok, text = do_drag(env, args)
     elif a == "type":
@@ -176,7 +208,13 @@ def main():
         print(f"failed: {result}", file=sys.stderr)
         sys.exit(1)
     if args.action == "look":
-        print(result["path"])
+        info = result["info"]
+        scale = info["scale"]
+        print(
+            f"{result['path']} capture={info['width']}x{info['height']}"
+            f" screen={round(info['width'] / scale)}x{round(info['height'] / scale)}"
+            f" scale={scale}"
+        )
     else:
         print("ok")
 
