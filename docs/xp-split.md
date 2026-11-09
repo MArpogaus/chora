@@ -14,14 +14,14 @@ only and keeps `tests/xp.sh` green.
 - Blocks do not call each other in code. They meet through the core: the
   events of the core, `methods.call`, nodes and the session bus.
 - No plugin depends on another plugin. Shared code lives in `chora-kit`
-  or in `chora-draw`.
+  or in `chora-draw`. One exception is open: `chora-xp` may link the
+  library of `chora-stack`, decided in X5.
 - A block loads its pictures and a few values from an asset folder. The
   block ships a neutral folder. A flavor ships another. There is no theme
   system and no API for looks (D73).
 - No crate stays unused. A crate appears with the step that moves the
   first code into it.
-- The blocks go to the repository `chora-plugins` with `chora-xp` (the
-  repository split design).
+- The blocks go to the repository `chora-plugins` with `chora-xp` (D77).
 
 ## Blocks
 
@@ -33,7 +33,10 @@ only and keeps `tests/xp.sh` green.
 | Panel | `chora-panel` | `panel` | taskbar, start menu, clock and tray (D51) | X4 |
 | Stacking window manager | `chora-stack` | `stack` | stacking windows with frames, focus, Alt+Tab, resize, hand-over | X5 |
 | XP gimmick | `chora-xp` | `xp` | the XP look files, the dialogs of D63, the cube, the sounds, the paperclip | X7 |
-| Drawing library | `chora-draw` | none | rasterizes SVG files and text into image nodes; the context menu widget | X2 |
+
+`chora-draw` is a library, not a block. It has no client, settings or
+asset folder. It rasterizes SVG files and text into image nodes and holds
+the context menu widget. The blocks share it, and X2 creates it.
 
 Why these names:
 
@@ -131,8 +134,8 @@ A block needs nothing from another block at build time. At run time:
 Each block exports `settings.get`, `settings.set` and `settings.reload`
 through the runtime of `chora-kit` (D62). The file is
 `$XDG_CONFIG_HOME/chora/chora-NAME.yaml`. The default is the file
-`NAME.yaml` next to the crate, or `defaults.yaml` of the asset folder (see
-below). The skeleton of X1 exports none of them yet. Each block adds them
+`NAME.yaml` next to the crate, compiled into the binary. A key that the
+file of the user leaves out takes the default. The skeleton of X1 exports none of them yet. Each block adds them
 in its step.
 
 | Block | Methods besides the settings | Settings |
@@ -168,13 +171,14 @@ do today. It is not a setting (D62 keeps `--theme` as a flag).
 assets/
 ├── README.md       # source and license of every file
 ├── values.yaml     # sizes, colors, the font family, a few margins
-├── defaults.yaml   # optional: the default of the settings, for a flavor
 ├── *.svg           # the pictures, with the element ids the block lists
 └── fonts/          # optional
 ```
 
 Rules:
 
+- The neutral folder `plugins/chora-NAME/assets` of a block is created in
+  the step that creates the block. X2 creates the first two.
 - Without the flag, a block uses the installed neutral folder
   `/usr/share/chora/NAME/assets`. Run from `target/<profile>/`, it uses
   `plugins/chora-NAME/assets` of the source tree. This is the order of
@@ -183,9 +187,6 @@ Rules:
   broken picture stops the start with an error that names the file.
 - A key that `values.yaml` leaves out takes the value that the block
   compiles in.
-- `defaults.yaml` lists every option, as `xp.yaml` does. A flavor uses it
-  to ship other defaults, such as the XP clock format. The file of the
-  user still wins, and a save still writes only the differences (D62).
 - The block documents the file names and element ids that it reads. The
   neutral folder is the reference. A test loads each shipped folder.
 
@@ -206,7 +207,7 @@ Where the XP files go:
 | `winxp/balloon-*.svg` | `assets/notify` |
 | `wallpaper/bloff.png` | `assets/desk` |
 | `winxp/dialog*.svg`, `winxp/log-off.svg`, `winxp/turn-off.svg`, `winxp/switch-user.svg`, `winxp/stand-by.svg`, `winxp/restart.svg`, `winxp/check*.svg` | the folder of the gimmick |
-| the paperclip, drawn in `assistant.rs` today | `assets/assistant` as SVG files |
+| the paperclip, drawn in `assistant.rs` today | `flavors/xp/assets/assistant` as SVG files |
 | `fonts/*` | one folder, linked into each folder that needs it |
 | `cursors/ModernXP` | `flavors/xp/cursors`, installed as today |
 
@@ -233,8 +234,8 @@ flavors/xp/
 
 `chora-xp` links the library of `chora-stack`. It is the window
 manager of the XP session, with the cube and the dialogs added. It exports
-the methods of `stack` under the client name `xp`, so the XP panel has
-`window_manager: xp` in its `defaults.yaml`. The decision to link the
+the methods of `stack` under the client name `xp`, so the XP panel needs
+`window_manager: xp`. The decision to link the
 library and not to run two window managers is open until X5.
 
 A flavor without the gimmick uses the neutral folders. A plain stacking
@@ -265,6 +266,9 @@ Each step also:
 
 ## Open points
 
+- A flavor may need other defaults than the compiled ones, such as the
+  XP clock format and `window_manager: xp`. X4 decides how a flavor sets
+  them. Until a flavor needs it, there is no mechanism for it.
 - The panel needs a way to find which window manager answers `minimize`.
   The setting `window_manager` solves it for stacking window managers.
   `chora-tiling` exports no such methods, so a panel on tiling shows its
