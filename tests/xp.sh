@@ -43,8 +43,20 @@ export XDG_RUNTIME_DIR
 # of choractl, which the cleanup ends.
 unset DBUS_SESSION_BUS_ADDRESS
 pids=()
+descendants() {
+    local child
+    for child in $(pgrep -P "$1" || true); do
+        echo "$child"
+        descendants "$child"
+    done
+}
 cleanup() {
-    kill "${pids[@]}" 2>/dev/null || true
+    local doomed=("${pids[@]}")
+    local pid
+    for pid in "${pids[@]}"; do
+        mapfile -t -O "${#doomed[@]}" doomed < <(descendants "$pid")
+    done
+    kill "${doomed[@]}" 2>/dev/null || true
     rm -rf "$XDG_RUNTIME_DIR"
 }
 trap cleanup EXIT
