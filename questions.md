@@ -27,3 +27,15 @@ Each: number, date, background, default taken.
    fallback is a git dependency on a tag.
 5. 2026-11-09. Only you can create the empty GitHub organization
    `chora-desktop` now, so that the name stays free. Default: not done.
+
+6. 2026-11-09. Since security fix (a) (the voice agent's MCP connection
+   is confined with the full client socket rules, 0a3d34e and eded56f),
+   the voice agent can no longer close, configure or attach other
+   clients' windows directly, nor move a camera; it must ask the window
+   manager (`node.requested`, D31, D58, window manager methods). Views
+   with images or shaders no longer load through `load_view`. Default
+   taken: keep the confinement (it is what the go for (a) asked); make
+   the window manager path the documented one, fix
+   `services/voice/README.md`, and check that each window manager offers
+   the methods voice needs (close, move, resize). Answer "loosen" to let
+   the confined agent act on foreign windows again with a grant.
