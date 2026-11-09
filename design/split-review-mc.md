@@ -35,7 +35,7 @@ The voice agent (`voice.*`, D65) and the collectors fill it; mc reads no sources
 
 Since 2026-10-01 there are 12 commits without merges. 11 touch only `main.rs` (core
 API changes: injected keys, work area, pane focus, privileged methods). One
-(4e011f5) touches `agent.rs`, `main.rs`, `manage.rs`. 173581b, the first in the
+(8228cd1) touches `agent.rs`, `main.rs`, `manage.rs`. 173581b, the first in the
 window, touches all files. No commit changes `region.rs`, `agent.rs` or `config.rs`
 alone. mc changes as one unit, driven by the core. A split would turn each such
 commit into changes in two or three plugins.

@@ -1,7 +1,7 @@
 # State
 
-last_reviewed: 4513ba2 (each branch since 8435faa was reviewed before its merge; the round of 8435faa..8b567b5 is clean)
-base_2d: the commit before 5c447ce (the 2D guard); no scene or renderer change since
+last_reviewed: df6dc69 (each branch since d443fe7 was reviewed before its merge; the round of d443fe7..bf81b35 is clean)
+base_2d: the commit before 0153f0d (the 2D guard); no scene or renderer change since
 block: three work branches in parallel, started 11:50
 
 ## Plan of the day
@@ -34,42 +34,42 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
-- 11-09: construct adoption fixes squash-merged as f220e76 (gate:
+- 11-09: construct adoption fixes squash-merged as 674a7a9 (gate:
   912 tests, 2D guard, xp.sh, construct windows and keys, matrix 158 s);
   the remote branch `claude/construct-adopt` could not be deleted (proxy).
 
-- 11-09 15:00: XP start feedback merged (7dccda3): a missing program
+- 11-09 15:00: XP start feedback merged (92e7539): a missing program
   says so at once; a slow start shows "Starting NAME" after 2 s and
   "Cannot open" after 30 s without a window; launchers that exit 0 are
   followed like any program. Two review regressions fixed before the
   merge. Gate: 909 tests, 2D guard, xp.sh, matrix gate green.
 
-- 11-09 14:30: grants step 1 merged (1ce735c): confined callers cannot
+- 11-09 14:30: grants step 1 merged (52abe8f): confined callers cannot
   claim the indicator, answer, confirm, talk or mute; injected pointer
   presses are marked and ignored by the HUD answer buttons; docs name
   the one-hop routes of methods.privileged. Opus security review done.
   Gate: 895 tests, 2D guard, xp.sh, matrix gate green.
 
-- 11-09 afternoon: merged persona driver (b7897ba), 3D step 1 (7e3bb63),
-  review fixes with guard hardening (9e48a34), XP split X2 (a83933f),
-  xp.sh cleanup and the handover matrix gate (4513ba2: 46 of 84 cells
-  pass, every cell as expected). Gate on 4513ba2: 891 tests, 2D guard,
+- 11-09 afternoon: merged persona driver (ece3c80), 3D step 1 (c90b2be),
+  review fixes with guard hardening (62e7d94), XP split X2 (e5391bd),
+  xp.sh cleanup and the handover matrix gate (df6dc69: 46 of 84 cells
+  pass, every cell as expected). Gate on df6dc69: 891 tests, 2D guard,
   xp.sh, matrix gate green.
 
-- 11-09: construct gates fixed and merged (89158c7): launcher window
+- 11-09: construct gates fixed and merged (aa17985): launcher window
   under a forking shell, two test script fixes; 3D step 0 merged
-  (8aa0529): RenderStats and 2D path tests, review clean; 859 tests.
+  (45d85f2): RenderStats and 2D path tests, review clean; 859 tests.
 
-- 11-09: XP split X1 merged (97afe81): docs/xp-split.md, skeletons of
+- 11-09: XP split X1 merged (4a13267): docs/xp-split.md, skeletons of
   chora-notify and chora-assistant, chora-draw as a shared library, D77
   (four repositories, amends D36); review: no high, two medium fixed;
-  853 tests, 2D guard PASS. Panes as views of sources, D76 (8b567b5).
+  853 tests, 2D guard PASS. Panes as views of sources, D76 (bf81b35).
 
-- 11-09: security fixes, all seven findings (0e3afa2 to 37052ae after
+- 11-09: security fixes, all seven findings (fcf70e5 to ee61765 after
   the rewrite), 851 tests; history of the session branch cleaned of
-  session files (37052ae); roadmap without plan links (4295193); guards
+  session files (ee61765); roadmap without plan links (4295193); guards
   `no-inline-comments`, `no-session-files`, `commit-message-length`
-  (64c5999, b796e75, dbaf94b); target shrunk from 20.9 to 3.4 GB; 2D
+  (b9cd834, 4a845c2, 82ae39f); target shrunk from 20.9 to 3.4 GB; 2D
   guard PASS against 8742dee after all of today's code.
 
 - 11-09: security check, attacker view (opus). Items (a), (b), (c) of
@@ -83,13 +83,13 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
   `sandbox_cmd` first (`config.rs:421-426`), `check_harnesses`
   (`config.rs:1056-1061`), tests
   `harnesses_run_in_the_sandbox_unless_unsandboxed`, `check_rejects_mistakes`.
-- 11-09: 2D guard `tests/2d-guard.sh` (5c447ce), red test against a
+- 11-09: 2D guard `tests/2d-guard.sh` (0153f0d), red test against a
   changed premultiply in `render.rs`.
 - 11-09: 3D strategy `plans/3d.md`, revised after an opus review
-  (9cde738); decision D75 and roadmap (f5f346f).
+  (9cde738); decision D75 and roadmap (dd59a2e).
 - 11-09: baseline (07c6c09): 846 tests, most gates pass; `cargo deny`
   fixed (8589485, yanked async-executor).
-- 11-09: driver for simulated users (b28adcf), audience research and
+- 11-09: driver for simulated users (4e372b4), audience research and
   everyday task matrix (b4b7520).
 
 ## Running
@@ -103,7 +103,7 @@ Sprint S1 wave 1, started 17:25 Bangkok (budget left today about 6 %):
 - Evening reflection (opus), reflections/2026-11-09.md
 H2 (pictures confined to the folder) waits for disk and budget (11-10).
 
-review_due.py at 17:23: DUE (4513ba2..HEAD, weighted 2310, 9 critical
+review_due.py at 17:23: DUE (df6dc69..HEAD, weighted 2310, 9 critical
 files). ACP and construct-adopt were reviewed before their merge; grants
 step 1, the XP launch feedback and the design principles docs were not.
 First task of 11-10 run 1: one review round on that range (views: bugs,
@@ -141,7 +141,7 @@ Security check of 11-09 (probes in the scratchpad, `sec/`):
    (`crates/choractl/src/events.rs:70-74`).
 6. low: `load_view` has no confirm rule.
 7. docs: `services/voice/README.md:343-350` is out of date.
-Review round of 11-09 on 02cdeed..8435faa (five views; bugs: clean,
+Review round of 11-09 on 02cdeed..d443fe7 (five views; bugs: clean,
 187 voice tests and the new core test pass; security: nothing high or
 medium):
 

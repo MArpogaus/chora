@@ -1,7 +1,7 @@
 # Feature sprint 1: ACP chat and HUDs
 
-Design of the first feature sprint. Read on 2026-11-09 at `7dccda3` and on `claude/acp-gate`
-(`72c94d6`). References are `path:line` or `path` in the chora repository. Values: POLS, KISS,
+Design of the first feature sprint. Read on 2026-11-09 at `92e7539` and on `claude/acp-gate`
+(`42826c0`). References are `path:line` or `path` in the chora repository. Values: POLS, KISS,
 lean core, reuse. The request: ACP chats; HUD drafts for mc, xp and construct; a voice HUD that
 adapts to context; users ship their own HUDs; user tests.
 
@@ -282,7 +282,7 @@ whose files do not overlap; a lane runs its steps in order.
 | H4a chat model | K | `crates/chora-kit/src/chat.rs`, `lib.rs` (1 line) | H1 | `control_characters_and_bidi_overrides_are_dropped` (ESC, OSC 52, BEL, C1 0x9b, U+202E), `pull_after_seq_resumes_after_a_gap`, `a_typed_yes_is_held_while_a_question_waits`, `held_text_is_sent_after_the_question_ends`, `entries_wrap_to_whole_lines` |
 | H4b chat field | V | `services/voice/chat/` (new crate, binary `chora-chat`: opener and `--input` layer surface), workspace member line, `tests/chat.sh` | H3, H4a, H4c | `a_typed_yes_answers_nothing` (no `confirm*` and no `agent_say` in the log while a question waits), `tests/chat.sh`: with a token the field takes the keyboard, without one it does not; Enter sends to `fake-acp.sh`; Esc closes the chat and the window gets the keyboard back; a paste and a `text-input-v3` commit arrive; the field re-anchors on a new place and keeps its draft |
 | H4c field keyboard | R | `crates/chora/src/layers.rs`, `state.rs` (the activation rule only) | none | `an_on_demand_layer_with_a_valid_token_gets_the_keyboard`, `a_layer_without_a_token_gets_no_keyboard_on_map`, `a_named_client_gets_no_keyboard`, `a_click_on_a_window_takes_the_keyboard_back` |
-| H5 host, one folder | A | `plugins/chora-assistant/**` | H1, H2 | `the_neutral_folder_loads`, the gate cell "neutral equals today" (`png-same.py` against a capture of `7dccda3`), `a_folder_cannot_hide_the_question`, `a_folder_without_a_voice_panel_gets_the_dot` |
+| H5 host, one folder | A | `plugins/chora-assistant/**` | H1, H2 | `the_neutral_folder_loads`, the gate cell "neutral equals today" (`png-same.py` against a capture of `92e7539`), `a_folder_cannot_hide_the_question`, `a_folder_without_a_voice_panel_gets_the_dot` |
 | H6 host, context | A | `plugins/chora-assistant/src/context.rs`, `config.rs`, `assistant.yaml` | H5 | `focus_on_an_xp_window_picks_xp`, `a_wm_in_a_construct_pane_keeps_space_construct`, `a_burst_of_focus_changes_switches_once` (150 ms), gate cells "tiling to xp to mc to construct switches the folder" |
 | H7 host, chat session and view | A | `plugins/chora-assistant/src/chat.rs` (new), `main.rs`, the `chat:` block in `chora-kit/src/hud.rs` is H1's; `huds/neutral/hud.yaml` (chat values); `plugins/chora-tiling/tiling.yaml` (1 line `MOD+a: {run: chora-chat}`); `chora-chat.desktop` ("Chat with a helper"); `tests/gate-chat.sh` | H4b, H6 | `a_click_on_the_chat_row_opens_the_chat_with_a_token`, `the_chat_follows_a_switch_of_look_and_keeps_the_draft`, `the_context_stays_while_the_field_has_the_keyboard`, `a_question_stays_where_it_appeared`, `agent_text_never_draws_a_card`; `gate-chat.sh`: one event script, the same visible lines in all four folders at 1280x720 |
 | H8 xp draft | X | `flavors/xp/assets/assistant/`, `flavors/xp/*.service` | H6 | gate cell "xp shows tray rows while an agent works"; folder loads; the chat values of the balloon (Tahoma 14, XP edit box border) load |

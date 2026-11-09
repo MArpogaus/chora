@@ -48,7 +48,7 @@ T1. `tests/gate-construct-windows.sh` and `gate-construct-keys.sh` wait
 
 11. XP split (D73, roadmap "Track: XP split", steps X1 to X7, plugins
     only, `tests/xp.sh` and the battle workflows green after each step).
-    X1 done (97afe81). Next: X2, notifications and assistant as plugins,
+    X1 done (4a13267). Next: X2, notifications and assistant as plugins,
     with chora-draw. X2
     (notifications as a plugin) also closes the notification gap of mc
     and construct; X4 (panel) is the shared bar of D51. Asked by the
@@ -134,7 +134,7 @@ S1. Feature sprint "HUDs and ACP chat" (user request 11-09 evening,
 
 ## Track B
 
-1. Driver for simulated users: done 11-09 (`tests/persona/`, b28adcf).
+1. Driver for simulated users: done 11-09 (`tests/persona/`, 4e372b4).
 2. Matrix of everyday tasks: done 11-09 (`baseline.md`). Gaps, most
    important first: Wi-Fi, volume, power and lock, battery, brightness,
    files and USB, screenshots, keyboard layout, Bluetooth.

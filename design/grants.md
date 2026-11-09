@@ -1,6 +1,6 @@
 # Grants that the user raises
 
-Design for configurable grants of the voice agent. Read on 2026-11-09 at `8aa0529`.
+Design for configurable grants of the voice agent. Read on 2026-11-09 at `45d85f2`.
 References are `path:line` in the chora repository. Values: POLS, KISS, reuse.
 
 ## 1. Today

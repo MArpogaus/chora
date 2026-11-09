@@ -1,0 +1,131 @@
+old                                      new                                      subject
+b57edbaf88e6873c4f70af87df92d62613d2eed7 103ce6f949bbce223856d8888ba75a15b817887e Merge branch 'claude/acp-gate': ACP permissions that act need a key
+38819786453c6a459c33cd6648f8134ab8cf3ae8 84bd5eb8e6acb31acd4dab9b4e15312f48e3bcf8 fix(voice): reject an ACP request too long to show whole
+eaefbcf08d8540b232b1bbe377b2ed5dd8596b47 089dc544ee8ab99987a0c6d6207c9f6838421268 docs(voice): describe keys, detail and allow_always of ACP asks
+7e162cbebb0c1afc7278d895406a3204348b40c3 16a07cefd4e33a2e38ce04b6a640a804dc31dfa5 fix(voice): show the whole ACP request and name the keys
+f220e765819e184e2b01446d0ff58fa64b8b705b 674a7a941296022dee5fe5f386dbcb5df980ba23 fix(construct): take over handed-over windows without focus loss
+72c94d622497eaec9e8386d88ae97bdb61dc232c 42826c0f19147e3f2487b513782bbc3fa6a36f7c docs(voice): state the key rule and the always word of ACP questions
+3d6397eb114d9d976095cd6e3697340cce70786a 6fafc3f68b24cf100d1d2ebc9b3eff6391b16bfa fix(voice): ask ACP permissions that run or write by key
+7dccda38eb7603f521208b0180c5b4e8de1dc99b 92e75397d0485fbeac82750047090bf95957642d Merge branch 'claude/xp-launch-feedback': say when a start fails
+109dd76c8d0086807a2ca3d0e2d4f336ebc4b44d 4da0abe78101585baa6af9ec91d10740216f310f test(xp): cover the message of a start that choractl refused
+036339ec9ffe6f6eb33cb8e357f387545a8f0224 e429d1fa21be9c269ce72cc66d45c1e4c471d6df build(deps): share zbus between chora-kit and chora-notify
+6984eb12b1bb799e0236170bd19b2d29d55ccc6c bab9e8b3fcdac927dbf5f530fb4f80ffeda7248c fix(kit): give the notification calls a timeout of 2 seconds
+d265bfb932990057e1f58206b8c33357a06cb927 7e0ef4d242c750d8614d2771dd2323667dd71021 fix(xp): refuse only a plain command of a missing program
+22a0e952c4403145c6d8a960fbffbf7157d39b93 8534b1d3f3c00e0c9697e2c123ac51e5b75b8adc fix(xp): drop the message for a program that ended without a window
+7d816c5b732fe23422283ea335397eb64326a886 1f764da2b5a49dfd8171cd1bd389925ca535554f test(xp): check the messages of a program that does not open
+d71360cb3f5b49da595fb06237b8b717437d18dc d0cc42218dc147ba81f116887f822c1939f0757f fix(xp): say when a program starts, fails or opens no window
+23aced99db0fe0aeb436cf0c04a8567f8bb6791b 1065ccc00d4c1ab54c74b027ed3403da732891fb feat(kit): add a notification client and a process check
+1ce735c814ef898425f8dc1491a6450512808674 52abe8f6cf04c87da587c89295e505e6c2730bce Merge branch 'claude/grants-step1': confined callers cannot answer
+c8b0d4f5c8f6a78ec54ea5d503ccb6f13fdd09ad d6f935c16ffa0a741bebc4aa33cb919f2974fbce docs(voice): name the routes that a confined caller still has
+0ed7d44907e75e86bf399e2910307b2797615b60 97aa2a83114abfb2a44da52d9325d6a2fc88554e fix(voice): refuse confirm, talk and mute from a confined caller
+4e011f5e04dfcd5a13a4ca4cb5c2caaea9e572af 8228cd128f200298906c674eb74e3a082765a13b fix(hud): ignore an injected press on an answer button
+5aefacff122f55a9a50f070174461859e12373af ec92a05a9645982193c500976f68616ebd14de01 feat(core): mark a pointer press of input.inject as injected
+da5f693ff57a0c70a2af765e0905f82a5e57bc03 c7f579258d0974aec95f27bce95572f503ddfd50 fix(voice): refuse indicator.claim and confirm.answer when confined
+8c6d8b4539b66c35eb529961ee5bd52e0da94661 8116b832e2eb54a7d68aa2d98ed3f61d7bb19219 feat(core): name a confined caller in method.called
+4513ba2adbf5d317785865d94dee894986aee876 df6dc69b8274a58cd92483dfc858ea5a364f2ce9 Merge branch 'claude/handover-guard': the handover matrix gate
+fa8dcda9e87565726082cc67d3afe2e489671200 9944050646c581727cb6e817d88d1715d3276d2e Merge branch 'claude/fix-xp-notify': clean up after xp.sh
+3fc4ac27e6ff2b96e354a407bc26b883a0ef17cb c8fc99fc31ece9f219db2cdfe6b70dbbc0a967ef fix(test): end the descendants of xp.sh in its cleanup
+30616e678341ff3b45d3d58550cb6e9f7a411cf4 ab3e859a1f7a2c5710825cb982309a9ca30b43b5 test(handover): scope surface check, anchor ONLY, drop voice_pairs
+c8c5a7c507445ff63087a8c0526672278077931b 7c4a8ac586570496055467d4c82eacbdf9cf7f15 test(mcp): the give mode prints the tool it calls
+6d1164c130fbe9359e21b81c2bbef9830e391eb3 949c85a5a7635479dc672b103b3c8a06fbb3d17f test(handover): log setup repairs and measure the construct leak
+f0bfaffc524ead696e04e53efe1dfa802af31ce2 b6065f701c71c267eae9cf871b15c82adefa37e0 test(handover): the 240 s cap covers the whole run
+e648bf50076228420c6482a5d73046ec5747a16e df2e4c677cb0d98ba96e3290d5a6de31b08791ba test(handover): wait 5 s for the owner of a cell that must pass
+a83933f72e52244f9d176006b9d15cef779d9cf9 e5391bdb6afc3d55d89c380ea71bb099c6dd250b Merge branch 'claude/xp-x2': notifications and assistant as plugins
+9fc700f6a31bfeb0067b4eefd2751671b97362e7 06926fd0824007328292e77d1ddef254be04ce5b docs: list the open points of the X2 review
+358a3339f0603c7fb1958c78f2dbf4a6ba2acd6f 371bfbdf7330f2b6df7dc6c3ce805c11715fcc46 test(handover): matrix gate of 12 pairs by 7 paths
+676202908e27863728077d4254db2aac0dc92697 0dabfac296c034acf2c16df943b2cd38dd50de63 test(mcp): give mode for the MCP client
+c456198fadd51019e390e6c6923f50b4be95763a dfd414f793d70b7e4af721dddbef981d53c1eec4 docs: record the direction of the tail as an open point
+3b07887fbc78a8751080d6fb1278365a8cc4f12e fabb5f08e1e117656732682667f559c693297814 docs: add a migration note for the assistant key of chora-xp.yaml
+a8378e7204f5ba9ad1e54d207fd83009e250c1ad 81cd642b63905530b482ec23e1834aeb9aafacc5 fix(notify): end without an error when the bus name is taken
+78e834434b37610a08e388d306db425ed5562588 76e03456289f56b88e2954a7312321d35177091d fix(assistant): hang the bubble below the figure at a top corner
+e2a6b78f7af76cc7c378fe794ba5ab7bb4757567 0559aeea89e15cac418df92d41f5a85c3383c1fd style(xp): group the sheets import with the other crate imports
+311e165a95d9aa5ac4bbbfdee417c2a4e103489c 75c8ef83f4fcbea23c713209cb2954cb5a9a720c refactor(xp): remove the unused position of a taskbar
+082c857871368ca0a045fc4ae16a97937415ec42 a1f1534ca4e2acebdb795a97cf07b7c8d44697e9 style: remove inline comments from the new crates
+9e48a340585735e24c81919cdb9c0b9555273a52 62e7d94d776f7aa02fc2cc3ca0804c3f8f04904c Merge branch 'claude/review-fixes': fixes of the review round
+33ba389af4a38fb0c3028ae62dcfe8181f44299e 216e7a8e3a8d405464be77db6ec15c4fc4e6e9c8 style(hooks): re-wrap the limits in the docstring
+32c19b44446dd639701d718e792d1f7c32480a4a e98ee1cef0e8a49f2d16a35b9271e95aa7738fc4 docs(hooks): list the known limits of no-inline-comments
+a1f52b2d6d745a2d6bb2babce0775d886ac0383b f3d72dc4a43682ea45502a1289063975dad9dc8d fix(hooks): skip the length of amend! subjects
+e247ff9db98a5af7e490b296c21239cf92ac0479 aa77a3271aac9fb11faadc2be5ead788a60c0ca3 test(hooks): name a missing pre-commit and never sign test commits
+7d03f32407c9ab0661af424f3f91f925400b119e 2ee0f417b44a1c6ec173efa6c4c239bd4acda6d2 fix(hooks): say session files belong outside the repository
+018cdb3fb99006dfd12f6dff6c928568e2a464c3 c541cf0a53593d6027a626531c71460ca5e69940 fix(hooks): split the staged file on newlines only
+0a8d511c844ac42458e94d92cfc3af26caff6d55 62c55e64598abb0854dd3e06ba96a0f7f765a534 fix(hooks): allow only real Rust comment forms
+c7c20f1f830860102904dd4ba23f6aad8980dd0c a761b355ed44b383a1bb76ba62bd3e8ca11428e0 fix(hooks): count // after a colon outside a string as a comment
+6c813bdcc4e4b849f453abef951d9597a3700e4d ad56c371100bcd0061a6df9739caf0362a992f3c fix(hooks): start a heredoc only when its delimiter follows
+84230a5c1e864ed9136be187c6409f30f557739b 02d255d4451caf512f79a95c9035a5fd7dfb04fd refactor(xp): drop the zbus dependency of the moved server
+6c6a16bc40aadf709d01321d8c8503549e990131 ab99973c9b7a67331402090b0e64474228e56205 fix(hooks): pair renames in no-inline-comments
+65335759abdf5b3cd4e364fea1b4800e1dc49f45 75c42657abb658328b908717690746132e27945f docs: describe chora-notify, chora-assistant and their asset folders
+43ad4bf942fdd37c9e6eae791632f3fae8abeda2 b7e19b4507e4f664fb4337255b1d4890092c3d37 build(dist): package chora-notify, chora-assistant and their assets
+d024501354e762dd1b907cd4f820f7960e41be42 eaf8be13560a2286976f0f14aea87a3b5123c77f test(xp): run chora-notify and chora-assistant as units of their own
+5d83d822f6a404b010ead07d1c88822302f9b32a 7ab916f4b9fdf5bc10385d049cb6f087a8496e5d feat(xp): start chora-notify and chora-assistant in the XP flavor
+0b20d694a5dacb6f5155345f667b4d305acee70f f3d8c5dcb3ebb5eb867ad38e6f624a0493ecad3e test(xp): point the settings gate at the moved test picture
+be34765e76d62fa3eeaa172b7bcbc4dc1b76190f e33c0b93a0dd2eb401d3cf6b35d56456c8e1272c test(hooks): prove guards.sh ignores the git hook environment
+7e3bb635abb15ce785e946c5a7ad15a37a63b7ed c90b2be052538ca3c0345b6d7deb71c65d9ecee7 Merge branch 'claude/3d-step1': rotations turn, Transform inverse
+4a444ec0d54b6b28d15b7eeb140dc1857803d218 53ec8a14d5dc7d0ff696f7a79b7b46c559c7317d feat(assistant): move the assistant from chora-xp to chora-assistant
+f7a55c9acd9e531a2f1bba69d220590081a1a2ac f60605b9ab2199797621d53bc47d09eefbb39e4b style(voice): re-wrap a doc comment of the tools tests
+5e1ea1afb2dcfcba54056f4a55ec947394997411 91f39b5f61d044db0f0b8125bcc196f2a847be47 docs(voice): say how the confined connection acts without grants
+b684261f3ae0def37beab1f8b435202c0510bab2 5753f21f647ef44d70d31fe17660791fdc0c83b2 docs(api): re-wrap the client socket rules, add the code 7 cases
+9dc3b573fbdd7ff120d1a17fcf68a739a0b92ccc 8648b301e450a757207d7ed20b106dc08f9ceff6 docs(contributing): state the commit limits and list the new hooks
+e9b1f4c596af7716197f88ab2d56cefdef98f0c2 a26c7f93a92bed4122c1477b767e15364a4957fc feat(hooks): run the guard test when a guard changes
+341c9b5e3ece89e75940b83aa7de8fa9a778fba6 f9d1f2e9a5f3c8b282c49ca49074a414ea90999c test(scene): check the direction at the end of a half turn
+87c0c1fc50bc7704ef0bb45209e875cc80221b12 d09732c80ae5139e09ac8cf6b81bafab6ed9b272 fix(scene): end a camera move exactly on its target
+f46d14c7e08a57e08f020237dac6da8f2c8301ef a2d86560fcc2784973acde85f09558db794103ba feat(notify): move notifications from chora-xp to chora-notify
+a074a80a4924e68ca7b79d83240708b5f7640f10 5ddf6206560abd284577afc52b229d92c12f9102 refactor(scene): make Transform::compose crate private
+75bbc4bf3894ba324069f47bbaad3b26f12d99e8 091c44fdfc8d4626a0cc42d25ea3f0eb77eb4728 refactor(hooks): replace the session files script by a fail hook
+26437ce970b8964f0e722c3fec33c77947388eeb d10c2baf50e079f3e40651be661f91526cb80ee8 fix(scene): refuse the inverse of a nearly singular matrix
+a3c57cf730c99cc988ac880454d668526b9e7b03 1b7275ce76d0791f17dd3a1109dc0ecb5ff4fa75 fix(hooks): let commit-message-length handle git's own text
+14203e57341ffe5697441ff175e9268223f1d4a5 a51dae409420ac878a218fb69ab6117d6fb1a42f fix(hooks): make no-inline-comments scan strings and scripts
+cc3be17bc63975a3a44a702c1ab8fa6e0019c141 208fdd705bd405bef56836e0401da94f1ba99580 feat(draw): add the bubble outline and the corners of an output
+8e9581975305bd288547d246bf34f73e3971ae3e 6839344551de5e2ac28c546b4464ce0b71205c2e feat(draw): move theme, text and icons of chora-xp to chora-draw
+4de865701154b5b17b0045b449e6b08f24a0a55f 11d4748e6eb61ec0732f9bb734a4a4dfc87978bd fix(ipc): compare effective confinement of a name's connections
+b7897baf8f029aa44e4ce8b377f852838eaf5061 ece3c8055b168fd94565d97aa9183ae109e8e399 Merge branch 'claude/persona-driver': realistic persona sessions
+9b9025fe4882e2542b2c12d5a5ffc8bd7f6aa2cf 542ac90195d5bd594dd5711319565936b3d74094 fix(persona): check the tools of the companions before the start
+aef0dad048524b75c91b6fc0c062474951f10cba f33eb9eb28673c59d2c63c356e5ff4b0d0f9827a fix(persona): stop the companions by unit when choractl run has one
+c2a872f0b4cd2bc077e3527db1b0a820932f4f51 ae4e3036d2e6f6a516c9f917716bb8bfe71eea63 fix(persona): delete a stale last_look.json at session start
+b1d3e5891de02faf88477ca4f9567c02163942d4 5a28c85a2c37f10046d4ea0ce4fdcb8267507f34 fix(persona): refuse a PERSONA_KEEP that is not empty
+ee242bcd1756e80fd7778c493c295a578b514686 55cdd359505cb5811b56b91076c4d5c17acda142 docs(api): describe how animate interpolates a transform
+a172178c9db5818dc9e9a7caafaf0b2e0255a5a2 863374ef8e4325367e8753a0aec164f503fd1b20 fix(persona): let act.py type take the rest of the line as text
+076df3d4486e10ba4ced50cbc3950cf5583ba162 88ab8ec42745b09d87a95fb2ea659b12e02dc80c fix(scene): animate a rotation as a turn, not a matrix blend
+faf5a8612686956209918ecd991f9d3ed7eddcfd 219334561e3f1bf6c0733c6627289936103dd180 feat(scene): add inverse, plane_inverse and decompose to Transform
+25321e4e9ae9d5eedd538875e038c73a30b3c946 2eb260647e48d308ffa3fe4327ee1835568a8be3 fix(persona): remove only a session directory that the script made
+6e664dec9f28bbab3e8dee1ee9152d93ddba34c0 af425aeb3e21f04d470c13f56ce577328784dfde feat(persona): keep the captures and the log with PERSONA_KEEP
+da91fe59dd80a9d9aadd13038bcc238326defeda b0c20d0df1554d631e2f93fbe89143bf6c0d07a3 fix(persona): click in the pixels of the last capture
+df07c1c5eb066e6e034cccc18f5e93ee8972b6c4 c0a6aaa7385d3b28cf3867010fcd04d1605e2eeb feat(persona): start the companions of the flavor in the session
+f386cb224cc6f4090e480063a0887e0c1002d382 10ff45fd390aa46d3c799d1a0e8981810089c894 test(persona): drop unused copies of the captures in smoke.sh
+8aa0529a895d3fdf5a9ffc83daabf378481974cf 45d85f2dd1920a4b8c40f4f0a3ac63ac499e6e44 Merge branch 'claude/3d-step0': render counters and 2D path tests
+a97ddf2ba9059010bf28620bb0541e2ee51412bd f7e5cc15511637126fc9c239643d9be024fa9e22 refactor(render): tie element counters to Variant at compile time
+89158c78b242357969b275ce5d8363ef2a215d6a aa17985963154a402b710d51d905b15cac75c1e0 Merge branch 'claude/construct-gates': fix the two construct gates
+ee8592406ed1d6d6fdcc9852c00df9ab9303321b 9eb1bb0a9e630118dd33a6317be6b9e0c18d8044 test(testing): record pointer and popup events in the Wayland client
+97afe8140427af3456ab8b80517f7792bd1e04b0 4a132675b93d5a3691dff85bb8a15c3b757d3c8c Merge branch 'claude/xp-x1': XP split step X1
+a117b490e1fbf12ce078af04041a5be7e86f5da4 11bd01f5952fd28cf3838f6c2e8c9c2c5e46a28b test(render): compare the hit test with the flat 2D walk
+80ba75a8ce1ac42a70044fc5887c0b00b4702cf0 f93b34b87c8dbb8ad8b3980062f1c0d50408dbd2 test(construct): end the windows gate with the status 0
+2645430c6b4c379d1e3d46d50616c15ddfcf7ec1 e68909d47784f012ea65237dd8802f5ab8741416 docs(xp-split): cite D77, drop defaults.yaml, name chora-draw apart
+b332df7c07d329dd06604681e6f2980252101d28 f01f30dd21ace79b809e656da252e6120e481fc8 docs(roadmap): name chora-draw in D73 and X2, X1 has two crates
+bd83eec907532dd374a55a0513559960262913ff ddedcb15aeaad468b4f0e8a280b7f427941da3ab test(render): guard the frame cost of 2D scenes
+ac76250b7d373dd70c3559d73adb35d9a9410fab 5037f2c9030362941cb9141eeb6ab40d92252d09 docs(decisions): add D77 for four repositories, update D36
+53e8ee1a3881453b11c7345dd3795715977b560c 6ba42b6be0c881a1529502eb69981f52fa3eae30 test(render): guard 2D element variants and the depth buffer
+62cb2d40c342c3cf1816c261ae13314695c7e64d 0d97cc65314e502e623563e4e4cc5c58303649b8 feat(render): count offscreen renders, elements and damaged frames
+813d4d3fd7897d8f3721ec7fe04257a7bfe8b099 a82a7f404b2a75b8dd5df0b6ec468e71af371a8c test(construct): free the view in the fuzzel step of the keys gate
+f56aad0de32c0182aa7575e588bfb3797c0c3c8b f9d4e6579d21d5ecf85998dc47097203dd3eb9b5 fix(construct): a launcher under a forking shell keeps its window
+8b567b5a86fa220d8e232580eaffe3f95b34d4af bf81b35d235eafbd9d5b2616b8eaca574234f7ba docs: panes as views of sources, geometries as plugins (D76)
+d32f13897f6798626e357708d997cba49993bd19 5334bf788ca66dc955a145cf5d8b0355cfd5cc27 docs(xp-split): design the blocks of chora-xp and their assets
+513ec3027774882507bf02d7d8317de28a6fdd52 c76f8c8f9d2eecbad632afd5722b19a7513ef635 style(plugins): wrap the module docs of the skeletons
+b95c6a41150b6dccfa093f6a75401715385a15a7 389265404ffb5c3aae8c864ecea719a9d3b942f5 feat(plugins): add skeletons of chora-notify and chora-assistant
+dbaf94beeb6dcf2be3822705fa5f61d73ebbd74d 82ae39fca18ffae10431f324185f113d0d4e6875 feat(hooks): add commit-message-length guard with its test
+b796e7502d48ae0ec3b384a167bff452a7883a54 4a845c20b0baf95eb5fa153a3e3d7b1b9c5f5780 feat(hooks): add no-session-files guard with its test
+64c5999e759dac9280eff59d2b3382c020be8a57 b9cd834027b4cec7a45848a7316df500cb958102 feat(hooks): add no-inline-comments guard with its test
+4295193738e5ea0334ae21c084bd12e0ff5f1c8b 37f51d8b2f6c5431b04493310f4cb79608f0622c docs(roadmap): list the 3D steps instead of pointing to a plan file
+37052aed5fc282f43dc05a7632514158c26b26c9 ee617658a92cc33830edcd5bde91240a19b1fd74 docs(voice): fix the grants and questions of the LLM tools
+f425ff9e3aeb567d270606aa85c0843bac5bbeba c56e26dd4fc4c5cb828be322ba5e9c2a3bba9f3a fix(voice): ask before load_view
+dabcbef31af8c30bf60e311f52b548a0ebb96cde 9059bd6e92aee42bd2c7cfe89129b5d21aa39f51 style(voice): drop an inline comment and an anecdote
+eded56fe5c06f5f2531400a76ac86e90f9b4db99 53803cebdeddf93cd7cc31dd06ab6b0577dc8dd4 fix(choractl): confine the event connection of mcp
+0a3d34ec21c1cb25343b44342d5fa92847d63451 e823dd9239e39d39c29e202d2fadc87fd6549113 fix(core): apply the client socket scene rules when confined
+8435faa43ad9f6405b5331e2b52ceda3a4128ff3 d443fe72b2960aeaecae4b341fcf6e3cca8fc778 fix(core): mark injected keys in input.key events
+100d4b65ba4a788928470b2b963e9611c2f810e5 1788a06f128d90382c8dd2940a16cae11b5029ca fix(voice): ask before every tool that is privileged
+83f9b6cf68a457abda5de2779561d534e4888b36 7509bd68c92446557b9b4d7c9cd6fb2199f89e00 feat(mc): mark agent.set and notify.push privileged
+d34b05813a564e5ae1cac6129edee42ba4e88d2d 59c4bd28efb41bef68cf5bbfee6f03e8bb424c40 feat(choractl): pass the privileged flag in the MCP tool meta
+8cfc8711119af0bf8c7d26be0c43e2e038b460d3 9967c6024128377632a2a8501b471f38c7be8460 feat(core): send the privileged flag in methods.list
+51496ce3f68cedf3a7a6ae4364558b75fb2e3651 fcf70e527e760542dbc09a9fa34bf88f642603bb fix(voice): say the whole call in spoken confirm questions
+b28adcfaa52849f6a15da5e1f3c539273d0e7f5a 4e372b49b578d28fe6b3698e795ea0b3bbd69186 test: add a driver for simulated users
+8589485bdc3cd3be083e8222588d381e3c6ebd66 2ad3fcd4c96e8c096cae0445d099bdac3480377e build(deps): update async-executor from the yanked 1.14.0 to 1.14.1
+f5f346f31ea1ebc9b27759eb34b995b634feb53d dd59a2ee7f8ebf0c5f636191f943b2ebee080820 docs: build the space now (D75), replacing the spike of D68
+5c447ce071e3b6e5757b65a917036a5d1461cd8a 0153f0d8131e4f98166466cc3abff32374800f5c test: add the 2D guard that compares captures with a base commit

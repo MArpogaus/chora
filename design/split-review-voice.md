@@ -1,6 +1,6 @@
 # Split review: voice
 
-At `7dccda3`, 2026-11-09. References are `path:line` under `services/voice/src/` when no
+At `92e7539`, 2026-11-09. References are `path:line` under `services/voice/src/` when no
 folder is named. Values: POLS, KISS. Voice has 16,933 lines of Rust in 25 files: 11,014 of
 code, 5,919 of tests (with `fake.rs`). Over 5,000 lines, so a split review (charter 18).
 
@@ -35,8 +35,8 @@ Inside the big files:
   questions (:525-660), `security_key` (:664), the checks (:973-1127).
 
 History: 33 voice commits since 2026-10-01 touch `tools.rs` 12 times, `chat.rs` 11,
-`config.rs` 8, `core.rs` 7. 12 fix confirmations, confined callers or secrets (`0ed7d44`,
-`da5f693`, `f425ff9`, `100d4b6`, `51496ce`, `c96bab8`, `7f608df`, `173581b`, and 4 more).
+`config.rs` 8, `core.rs` 7. 12 fix confirmations, confined callers or secrets (`97aa2a8`,
+`c7f5792`, `c56e26d`, `1788a06`, `fcf70e5`, `c96bab8`, `7f608df`, `173581b`, and 4 more).
 
 ## 2. Security code
 
