@@ -11,8 +11,8 @@ fmt:, pragma:, rustfmt::skip).
 The scan runs over the whole staged file, so an added line inside a
 multi-line string is not a comment: Rust strings and raw strings, Python
 triple-quoted strings, shell here-documents. Limits: block comments are
-not checked, shell quotes do not span lines, and a shell arithmetic
-shift like `1 << x` is taken for a here-document.
+not checked, shell quotes do not span lines, and a here-document
+starts only when a line equal to its delimiter follows.
 """
 import re
 import subprocess
@@ -123,6 +123,12 @@ def comment_start(line, kind, state):
     return -1, state
 
 
+def closes_later(lines, start, word, dash):
+    return any(
+        (line.lstrip("\t") if dash else line) == word for line in lines[start:]
+    )
+
+
 def comments(lines, kind):
     state = None
     heredoc = None
@@ -137,8 +143,9 @@ def comments(lines, kind):
             yield number, column
         if kind == "shell":
             found = HEREDOC.search(line[:column] if column >= 0 else line)
-            if found:
-                heredoc = (found.group(3), found.group(1) == "-")
+            dash = bool(found and found.group(1))
+            if found and closes_later(lines, number, found.group(3), dash):
+                heredoc = (found.group(3), dash)
 
 
 def allowed(text, kind):
