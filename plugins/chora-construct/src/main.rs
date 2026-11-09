@@ -340,6 +340,18 @@ struct Glide {
     into: Option<Flown>,
 }
 
+/// The surface that the camera is in or on its way into.
+fn window_flown_into<'a>(flown: Option<&'a Flown>, glide: Option<&'a Glide>) -> Option<&'a str> {
+    let into = flown.or_else(|| glide.and_then(|g| g.into.as_ref()));
+    into.map(|f| f.surface.as_str())
+}
+
+/// Whether a window handed over takes the camera: not while the user is
+/// in a window.
+fn takes_the_camera(inside: Option<&str>) -> bool {
+    inside.is_none()
+}
+
 /// The pose with the snap: the window of the pane that the camera flew
 /// into, and the pose to fly back to.
 struct Flown {
@@ -617,6 +629,24 @@ fn resized(pane: &Pane) -> Vec<Command> {
         size(&pane.node(), pane.size),
         size(&pane.mirror(), mirror_size(pane.size)),
     ]
+}
+
+/// The pane of a window that another window manager hands over (D55):
+/// at the size of the window, clamped to the view, else the view.
+fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFile {
+    let view = [lens.w, lens.h];
+    let size = size.map_or(view, |s| {
+        [0, 1].map(|i| s[i].clamp(PANE_MIN.min(view[i]), view[i]))
+    });
+    PaneFile {
+        kind: Kind::Program,
+        command: None,
+        plugin: None,
+        scene: None,
+        at: None,
+        yaw: None,
+        size: Some(size),
+    }
 }
 
 /// The uniforms of a mirror image: the pane's node and the strength.
@@ -933,14 +963,17 @@ impl Construct {
                 state: PressState::Pressed,
                 ..
             } => return self.fly_out(),
-            // The grabbed drag comes in scene coordinates, also over the
-            // other outputs; the window flown into keeps its presses.
             Event::InputButton {
                 state, position, ..
-            } if self.flown.is_none() => {
+            } => {
                 let at = self.local(position);
+                let inside = self.inside();
                 return match state {
-                    PressState::Pressed => self.press(at, true),
+                    PressState::Pressed => match inside {
+                        Some(surface) => self.drag_from_window(at, &surface),
+                        None => self.press(at, true),
+                    },
+                    PressState::Released if inside.is_some() => Ok(()),
                     PressState::Released => self.release(at),
                 };
             }
@@ -1018,6 +1051,38 @@ impl Construct {
                 last: at,
                 moved: false,
             });
+        }
+        Ok(())
+    }
+
+    /// The surface that the camera is in or on its way into.
+    fn inside(&self) -> Option<String> {
+        window_flown_into(self.flown.as_ref(), self.glide.as_ref()).map(String::from)
+    }
+
+    /// The drag with the modifier on the window that the camera is in:
+    /// the camera flies out, and the pane of the window moves on. The
+    /// grabbed drag comes in scene coordinates, also over other outputs.
+    fn drag_from_window(&mut self, at: [f64; 2], surface: &str) -> Result<(), ClientError> {
+        let Some(pane) = self.panes.iter().find(|p| p.source == surface) else {
+            return Ok(());
+        };
+        self.moving = Some(Moving {
+            name: pane.name.clone(),
+            from: at,
+            at: pane.at,
+        });
+        self.leave_window()
+    }
+
+    /// Flies out of the window that the camera is in, or turns back from
+    /// the flight into it.
+    fn leave_window(&mut self) -> Result<(), ClientError> {
+        if self.flown.is_some() {
+            return self.fly_out();
+        }
+        if let Some(into) = self.glide.take().and_then(|g| g.into) {
+            self.glide_to(into.back, FLY_MS, None);
         }
         Ok(())
     }
@@ -1652,6 +1717,13 @@ impl Construct {
     /// A window closed or left: its pane goes. A pane that the camera
     /// is in flies back out first.
     fn forget(&mut self, surface: &str) -> Result<(), ClientError> {
+        self.forget_with(surface, true)
+    }
+
+    /// Removes the pane of a window; the camera in it goes back, and the
+    /// keyboard to the walk when `walk` is set. A window given away
+    /// leaves the keyboard to its new owner.
+    fn forget_with(&mut self, surface: &str, walk: bool) -> Result<(), ClientError> {
         let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
@@ -1659,15 +1731,15 @@ impl Construct {
         self.order.retain(|n| *n != pane.node());
         self.rt.conn.apply(pane.remove().into())?;
         if let Some(flown) = self.flown.take_if(|f| f.surface == surface) {
-            self.unsnap(None)?;
+            self.unsnap(None, walk)?;
             self.pose = flown.back;
         }
-        if self
+        if let Some(into) = (self
             .glide
-            .as_ref()
-            .is_some_and(|g| g.into.as_ref().is_some_and(|f| f.surface == surface))
+            .take_if(|g| g.into.as_ref().is_some_and(|f| f.surface == surface)))
+        .and_then(|g| g.into)
         {
-            self.glide = None;
+            self.pose = into.back;
         }
         self.frame()
     }
@@ -1928,19 +2000,19 @@ impl Construct {
     }
 
     /// Hides the window again and gives the keys back to the walk.
-    fn unsnap(&mut self, surface: Option<&str>) -> Result<(), ClientError> {
-        let mut commands = vec![
-            update(
-                LOOK,
-                PropsUpdate {
-                    visible: Some(true),
-                    ..PropsUpdate::default()
-                },
-            ),
-            Command::FocusNode {
-                node: Some(LOOK.into()),
+    fn unsnap(&mut self, surface: Option<&str>, walk: bool) -> Result<(), ClientError> {
+        let mut commands = vec![update(
+            LOOK,
+            PropsUpdate {
+                visible: Some(true),
+                ..PropsUpdate::default()
             },
-        ];
+        )];
+        if walk {
+            commands.push(Command::FocusNode {
+                node: Some(LOOK.into()),
+            });
+        }
         if let Some(surface) = surface {
             commands.insert(
                 0,
@@ -1962,7 +2034,7 @@ impl Construct {
         let Some(flown) = self.flown.take() else {
             return Ok(());
         };
-        self.unsnap(flown.attached.then_some(&flown.surface))?;
+        self.unsnap(flown.attached.then_some(&flown.surface), true)?;
         self.draw_hud()?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
@@ -2547,7 +2619,9 @@ impl Construct {
     /// Gives an own window to the client `to`, a window manager or a
     /// plugin such as mc (D55): the core reserves the window for `to`,
     /// with its props back to the defaults, and the pane goes. The core
-    /// refuses a `to` without a connection, and the pane stays.
+    /// refuses a `to` without a connection, and the pane and the camera
+    /// stay. After a give the keyboard is left to `to`, also when the
+    /// camera was in the window.
     fn give(&mut self, surface: &str, to: &str) -> Result<Value, ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(surface)) else {
@@ -2560,7 +2634,7 @@ impl Construct {
             ));
         }
         let answer = self.rt.conn.give(surface, to).map_err(ClientError::Rpc)?;
-        self.forget(surface)?;
+        self.forget_with(surface, false)?;
         Ok(answer)
     }
 
@@ -2572,7 +2646,9 @@ impl Construct {
     /// A window that is free again, or that another window manager gives
     /// to the construct (D55). The flavor takes both; an overlay only a
     /// window given to it, so that it never takes a window on its own
-    /// (F30). It owns such a window, and its leave frees it again.
+    /// (F30). A window given always gets its pane, and the camera flies
+    /// to it, so that it has the keyboard, unless the user is in a
+    /// window already. It owns such a window, and its leave frees it again.
     fn detached(&mut self, surface: &str) -> Result<(), ClientError> {
         let node = self.rt.conn.query(&format!("id:{surface}"))?.pop();
         let Some(node) = node else {
@@ -2588,10 +2664,30 @@ impl Construct {
         if self.overlay && node.to.as_deref() != Some(NAME) {
             return Ok(());
         }
+        let inside = self.inside();
+        let handed = node.to.as_deref() == Some(NAME);
         let info = node.surface.unwrap_or_default();
+        let file = handed.then(|| handed_over(info.size.map(|s| s.map(f64::from)), &self.lens));
         let label = info.app_id.or(info.title).unwrap_or_default();
         self.forget(surface)?;
-        self.adopt(surface, &label, None, Hold::Own, false)
+        self.adopt(surface, &label, file.as_ref(), Hold::Own, handed)?;
+        if handed && takes_the_camera(inside.as_deref()) {
+            self.fly_to_window(surface)?;
+        }
+        Ok(())
+    }
+
+    /// Flies in front of the pane of a window, from inside another pane
+    /// too; the window takes the keyboard at the end of the flight.
+    fn fly_to_window(&mut self, surface: &str) -> Result<(), ClientError> {
+        let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
+            return Ok(());
+        };
+        if self.flown.is_some() {
+            self.fly_out()?;
+        }
+        self.fly_in(i);
+        Ok(())
     }
 
     /// The window list as a glass panel in the middle of the output
@@ -3153,6 +3249,54 @@ mod tests {
         assert_eq!(ahead(&panes, &lens, &pose, 6000.0), None);
         let panes = [pane(100_000.0), pane(2000.0)];
         assert_eq!(ahead(&panes, &lens, &pose, 6000.0), Some(1));
+    }
+
+    /// A window handed over keeps its own size, clamped to the view. A
+    /// window that finds no free spot in the view must still get its
+    /// pane (forced), or it is lost to the list (the pane leak of the
+    /// handover matrix).
+    #[test]
+    fn a_handed_over_window_keeps_its_size_clamped_to_the_view() {
+        let lens = space::Lens::new(1280.0, 800.0);
+        let small = handed_over(Some([640.0, 400.0]), &lens);
+        assert_eq!(small.size, Some([640.0, 400.0]));
+        let big = handed_over(Some([3000.0, 800.0]), &lens);
+        assert_eq!(big.size, Some([1280.0, 800.0]));
+        let unknown = handed_over(None, &lens);
+        assert_eq!(unknown.size, Some([1280.0, 800.0]));
+    }
+
+    /// The window the camera is in, or on its way into, is the one a
+    /// give, a drag or a handover has to reckon with; a plain glide is
+    /// no window.
+    #[test]
+    fn the_window_flown_into_includes_the_glide_into_it() {
+        let flown = |s: &str| Flown {
+            surface: s.into(),
+            back: Pose::default(),
+            attached: true,
+            plugin: None,
+        };
+        let glide = |into| Glide {
+            from: Pose::default(),
+            to: Pose::default(),
+            start: Instant::now(),
+            ms: 380.0,
+            into,
+        };
+        assert_eq!(window_flown_into(None, None), None);
+        assert_eq!(window_flown_into(Some(&flown("s1")), None), Some("s1"));
+        assert_eq!(window_flown_into(None, Some(&glide(None))), None);
+        let gliding = glide(Some(flown("s2")));
+        assert_eq!(window_flown_into(None, Some(&gliding)), Some("s2"));
+    }
+
+    /// A window that is handed over takes the camera only when the user
+    /// is not in a window; in one, the pane waits in the space.
+    #[test]
+    fn a_handover_does_not_pull_the_user_out_of_a_window() {
+        assert!(takes_the_camera(None));
+        assert!(!takes_the_camera(Some("s1")));
     }
 
     /// A shader goes to the runtime directory only, never to the shared
