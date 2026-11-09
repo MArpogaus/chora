@@ -1,5 +1,5 @@
-//! The words of the screen: one table in English and German, chosen by
-//! the language setting. A HUD folder or a look never changes a word.
+//! The words of the screen: one `match` per language, English and
+//! German, chosen by the language setting. A HUD folder or a look never changes a word.
 
 /// The language of the words.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -25,186 +25,229 @@ impl Language {
     }
 }
 
-/// A word of the table.
+/// A word of the screen.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
-    /// The word `Asleep`; see [`TABLE`].
+    /// The voice is asleep and waits for its name.
     Asleep,
-    /// The word `Listening`; see [`TABLE`].
+    /// The voice listens.
     Listening,
-    /// The word `Thinking`; see [`TABLE`].
+    /// The voice thinks.
     Thinking,
-    /// The word `Working`; see [`TABLE`].
+    /// A turn runs.
     Working,
-    /// The word `Speaking`; see [`TABLE`].
+    /// The voice speaks.
     Speaking,
-    /// The word `Question`; see [`TABLE`].
+    /// The title of a question without a helper.
     Question,
-    /// The word `VoiceOff`; see [`TABLE`].
+    /// A helper that waits for work.
+    Idle,
+    /// A helper that finished.
+    Done,
+    /// A helper that cannot go on.
+    Blocked,
+    /// The voice is switched off.
     VoiceOff,
-    /// The word `Muted`; see [`TABLE`].
+    /// The badge of a muted microphone.
     Muted,
-    /// The word `MicOn`; see [`TABLE`].
+    /// The microphone was switched on.
     MicOn,
-    /// The word `MicError`; see [`TABLE`].
+    /// The microphone did not switch.
     MicError,
-    /// The word `ChatRow`; see [`TABLE`].
+    /// The row that opens the chat.
     ChatRow,
-    /// The word `ChatLauncher`; see [`TABLE`].
+    /// The name of the chat launcher.
     ChatLauncher,
-    /// The word `Helpers`; see [`TABLE`].
+    /// Several helpers work.
     Helpers,
-    /// The word `HelperOne`; see [`TABLE`].
+    /// One helper works.
     HelperOne,
-    /// The word `Stop`; see [`TABLE`].
+    /// The button that stops a turn.
     Stop,
-    /// The word `Close`; see [`TABLE`].
+    /// The button that closes the chat.
     Close,
-    /// The word `You`; see [`TABLE`].
+    /// The name of the person in the chat.
     You,
-    /// The word `CardTitle`; see [`TABLE`].
+    /// The title of a question of a helper.
     CardTitle,
-    /// The word `KeyLine`; see [`TABLE`].
+    /// The keys that answer a question.
     KeyLine,
-    /// The word `NoVoiceYes`; see [`TABLE`].
+    /// A spoken yes does not answer.
     NoVoiceYes,
-    /// The word `Yes`; see [`TABLE`].
+    /// The left button.
     Yes,
-    /// The word `No`; see [`TABLE`].
+    /// The right button.
     No,
-    /// The word `Allowed`; see [`TABLE`].
+    /// The question was allowed.
     Allowed,
-    /// The word `Refused`; see [`TABLE`].
+    /// The question was refused.
     Refused,
-    /// The word `NoAnswer`; see [`TABLE`].
+    /// The question timed out.
     NoAnswer,
-    /// The word `Injected`; see [`TABLE`].
+    /// A press that a program made.
     Injected,
-    /// The word `TypedYes`; see [`TABLE`].
+    /// Typed text does not answer.
     TypedYes,
-    /// The word `Waiting`; see [`TABLE`].
+    /// A question waits.
     Waiting,
-    /// The word `FieldHint`; see [`TABLE`].
+    /// The hint of the input field.
     FieldHint,
-    /// The word `Offline`; see [`TABLE`].
+    /// The voice control does not answer.
     Offline,
-    /// The word `CloseNote`; see [`TABLE`].
+    /// Closing the chat does not stop a helper.
     CloseNote,
-    /// The word `NoHelper`; see [`TABLE`].
+    /// No helper exists.
     NoHelper,
-    /// The word `HudNotice`; see [`TABLE`].
+    /// A look with one problem.
+    HudNoticeOne,
+    /// A look with several problems.
     HudNotice,
 }
 
-/// The last variant, for the table check.
-pub const LAST: Word = Word::HudNotice;
-
-/// One row per word, in the order of [`Word`]: English, German. `{name}`
-/// style fields are filled by [`say`].
-pub const TABLE: &[(Word, &str, &str)] = &[
-    (
-        Word::Asleep,
-        "Asleep. Say \"Hey Chora\".",
-        "Schläft. Sagen Sie „Hallo Chora“.",
-    ),
-    (Word::Listening, "Listening", "Hört zu"),
-    (Word::Thinking, "Thinking", "Denkt nach"),
-    (Word::Working, "Working", "Arbeitet"),
-    (Word::Speaking, "Speaking", "Spricht"),
-    (Word::Question, "Question for you", "Frage an Sie"),
-    (Word::VoiceOff, "Voice off", "Sprache aus"),
-    (
-        Word::Muted,
-        "Microphone off. Click to turn it on.",
-        "Mikrofon aus. Zum Einschalten klicken.",
-    ),
-    (Word::MicOn, "Microphone on.", "Mikrofon an."),
-    (
-        Word::MicError,
-        "I could not switch the microphone.",
-        "Ich konnte das Mikrofon nicht schalten.",
-    ),
-    (Word::ChatRow, "Chat ...", "Chat ..."),
-    (
-        Word::ChatLauncher,
-        "Chat with a helper",
-        "Mit einem Helfer chatten",
-    ),
-    (Word::Helpers, "{n} helpers working", "{n} Helfer arbeiten"),
-    (Word::HelperOne, "1 helper working", "1 Helfer arbeitet"),
-    (Word::Stop, "Stop", "Anhalten"),
-    (Word::Close, "Close", "Schließen"),
-    (Word::You, "You", "Sie"),
-    (Word::CardTitle, "Question from {name}", "Frage von {name}"),
-    (
-        Word::KeyLine,
-        "Press {yes} to allow or {no} to refuse.",
-        "{yes} zum Erlauben, {no} zum Ablehnen drücken.",
-    ),
-    (
-        Word::NoVoiceYes,
-        "A spoken \"yes\" does not count.",
-        "Ein gesprochenes „Ja“ zählt hier nicht.",
-    ),
-    (Word::Yes, "Yes", "Ja"),
-    (Word::No, "No", "Nein"),
-    (Word::Allowed, "Allowed.", "Erlaubt."),
-    (Word::Refused, "Refused.", "Abgelehnt."),
-    (
-        Word::NoAnswer,
-        "No answer in time. Refused.",
-        "Keine Antwort rechtzeitig. Abgelehnt.",
-    ),
-    (
-        Word::Injected,
-        "Please use your own mouse or keyboard.",
-        "Bitte mit eigener Maus oder Tastatur antworten.",
-    ),
-    (
-        Word::TypedYes,
-        "Typing does not answer. Press {yes} or {no}, or click Yes or No.",
-        "Tippen beantwortet die Frage nicht. {yes} oder {no} drücken oder Ja oder Nein klicken.",
-    ),
-    (
-        Word::Waiting,
-        "A question is waiting.",
-        "Eine Frage wartet.",
-    ),
-    (
-        Word::FieldHint,
-        "Type a message, then Enter.",
-        "Nachricht eingeben, dann Enter.",
-    ),
-    (
-        Word::Offline,
-        "Cannot reach chora-voice. Trying again every 5 s.",
-        "chora-voice nicht erreichbar. Neuer Versuch alle 5 s.",
-    ),
-    (
-        Word::CloseNote,
-        "{name} goes on working.",
-        "{name} arbeitet weiter.",
-    ),
-    (
-        Word::NoHelper,
-        "No helper is set up. Ask the person who set up this computer.",
-        "Kein Helfer eingerichtet. Fragen Sie, wer den Computer eingerichtet hat.",
-    ),
-    (
-        Word::HudNotice,
-        "Look \"{name}\" has {n} errors; the old look stays. Run: chora-assistant --check-hud {name}",
-        "Aussehen „{name}“ hat {n} Fehler; das alte bleibt. Prüfen: chora-assistant --check-hud {name}",
-    ),
+/// Every word, for the checks of the tests.
+pub const ALL: [Word; 37] = [
+    Word::Asleep,
+    Word::Listening,
+    Word::Thinking,
+    Word::Working,
+    Word::Speaking,
+    Word::Question,
+    Word::Idle,
+    Word::Done,
+    Word::Blocked,
+    Word::VoiceOff,
+    Word::Muted,
+    Word::MicOn,
+    Word::MicError,
+    Word::ChatRow,
+    Word::ChatLauncher,
+    Word::Helpers,
+    Word::HelperOne,
+    Word::Stop,
+    Word::Close,
+    Word::You,
+    Word::CardTitle,
+    Word::KeyLine,
+    Word::NoVoiceYes,
+    Word::Yes,
+    Word::No,
+    Word::Allowed,
+    Word::Refused,
+    Word::NoAnswer,
+    Word::Injected,
+    Word::TypedYes,
+    Word::Waiting,
+    Word::FieldHint,
+    Word::Offline,
+    Word::CloseNote,
+    Word::NoHelper,
+    Word::HudNoticeOne,
+    Word::HudNotice,
 ];
 
 impl Word {
     /// The text in a language, with its `{fields}` unfilled.
     #[must_use]
     pub fn text(self, language: Language) -> &'static str {
-        let (_, en, de) = TABLE[self as usize];
         match language {
-            Language::En => en,
-            Language::De => de,
+            Language::En => self.en(),
+            Language::De => self.de(),
+        }
+    }
+
+    fn en(self) -> &'static str {
+        match self {
+            Self::Asleep => "Asleep. Say \"Hey Chora\".",
+            Self::Listening => "Listening",
+            Self::Thinking => "Thinking",
+            Self::Working => "Working",
+            Self::Speaking => "Speaking",
+            Self::Question => "Question for you",
+            Self::Idle => "Idle",
+            Self::Done => "Done",
+            Self::Blocked => "Blocked",
+            Self::VoiceOff => "Voice off",
+            Self::Muted => "Microphone off. Click to turn it on.",
+            Self::MicOn => "Microphone on.",
+            Self::MicError => "I could not switch the microphone.",
+            Self::ChatRow => "Chat ...",
+            Self::ChatLauncher => "Chat with a helper",
+            Self::Helpers => "{n} helpers working",
+            Self::HelperOne => "1 helper working",
+            Self::Stop => "Stop",
+            Self::Close => "Close",
+            Self::You => "You",
+            Self::CardTitle => "Question from {name}",
+            Self::KeyLine => "Press {yes} to allow or {no} to refuse.",
+            Self::NoVoiceYes => "A spoken \"yes\" does not count.",
+            Self::Yes => "Yes",
+            Self::No => "No",
+            Self::Allowed => "Allowed.",
+            Self::Refused => "Refused.",
+            Self::NoAnswer => "No answer in time. Refused.",
+            Self::Injected => "Please use your own mouse or keyboard.",
+            Self::TypedYes => "Typing does not answer. Press {yes} or {no}, or click Yes or No.",
+            Self::Waiting => "A question is waiting.",
+            Self::FieldHint => "Type a message, then Enter.",
+            Self::Offline => "Cannot reach voice control. Trying again every 5 s.",
+            Self::CloseNote => "{name} goes on working.",
+            Self::NoHelper => "No helper is set up. Ask the person who set up this computer.",
+            Self::HudNoticeOne => {
+                "The look \"{name}\" has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
+            }
+            Self::HudNotice => {
+                "The look \"{name}\" has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
+            }
+        }
+    }
+
+    fn de(self) -> &'static str {
+        match self {
+            Self::Asleep => "Schläft. Sagen Sie „Hallo Chora“.",
+            Self::Listening => "Hört zu",
+            Self::Thinking => "Denkt nach",
+            Self::Working => "Arbeitet",
+            Self::Speaking => "Spricht",
+            Self::Question => "Frage an Sie",
+            Self::Idle => "Bereit",
+            Self::Done => "Fertig",
+            Self::Blocked => "Blockiert",
+            Self::VoiceOff => "Sprache aus",
+            Self::Muted => "Mikrofon aus. Zum Einschalten klicken.",
+            Self::MicOn => "Mikrofon an.",
+            Self::MicError => "Ich konnte das Mikrofon nicht schalten.",
+            Self::ChatRow => "Chat ...",
+            Self::ChatLauncher => "Mit einem Helfer chatten",
+            Self::Helpers => "{n} Helfer arbeiten",
+            Self::HelperOne => "1 Helfer arbeitet",
+            Self::Stop => "Anhalten",
+            Self::Close => "Schließen",
+            Self::You => "Sie",
+            Self::CardTitle => "Frage von {name}",
+            Self::KeyLine => "{yes} zum Erlauben, {no} zum Ablehnen drücken.",
+            Self::NoVoiceYes => "Ein gesprochenes „Ja“ zählt hier nicht.",
+            Self::Yes => "Ja",
+            Self::No => "Nein",
+            Self::Allowed => "Erlaubt.",
+            Self::Refused => "Abgelehnt.",
+            Self::NoAnswer => "Keine Antwort rechtzeitig. Abgelehnt.",
+            Self::Injected => "Bitte mit eigener Maus oder Tastatur antworten.",
+            Self::TypedYes => {
+                "Tippen beantwortet die Frage nicht. {yes} oder {no} drücken oder Ja oder Nein klicken."
+            }
+            Self::Waiting => "Eine Frage wartet.",
+            Self::FieldHint => "Nachricht eingeben, dann Enter.",
+            Self::Offline => "Sprachsteuerung nicht erreichbar. Neuer Versuch alle 5 s.",
+            Self::CloseNote => "{name} arbeitet weiter.",
+            Self::NoHelper => {
+                "Kein Helfer eingerichtet. Fragen Sie, wer den Computer eingerichtet hat."
+            }
+            Self::HudNoticeOne => {
+                "Das Aussehen „{name}“ hat 1 Fehler, das alte bleibt. Wählen Sie in den Einstellungen ein anderes oder fragen Sie, wer es gemacht hat."
+            }
+            Self::HudNotice => {
+                "Das Aussehen „{name}“ hat {n} Fehler, das alte bleibt. Wählen Sie in den Einstellungen ein anderes oder fragen Sie, wer es gemacht hat."
+            }
         }
     }
 }
@@ -220,7 +263,8 @@ pub fn say(language: Language, word: Word, fields: &[(&str, &str)]) -> String {
     })
 }
 
-/// The word of a `voice.state` value such as `working`, if it is one.
+/// The word of a state such as `working`, if it is one: the states of
+/// `voice.state` and of a helper.
 #[must_use]
 pub fn state(name: &str) -> Option<Word> {
     Some(match name {
@@ -230,18 +274,26 @@ pub fn state(name: &str) -> Option<Word> {
         "working" => Word::Working,
         "question" => Word::Question,
         "speaking" => Word::Speaking,
+        "idle" => Word::Idle,
+        "done" => Word::Done,
+        "blocked" => Word::Blocked,
         _ => return None,
     })
 }
 
-/// A row of the agents list: `Atlas · working · Write file (2/2)`.
+/// A row of the agents list: `Atlas · working · Write file (2/2)`; no
+/// task, no last part.
 #[must_use]
 pub fn row(language: Language, name: &str, state_name: &str, task: &str) -> String {
     let state_text = state(state_name).map_or_else(
         || state_name.to_owned(),
         |word| word.text(language).to_lowercase(),
     );
-    format!("{name} · {state_text} · {task}")
+    if task.is_empty() {
+        format!("{name} · {state_text}")
+    } else {
+        format!("{name} · {state_text} · {task}")
+    }
 }
 
 #[cfg(test)]
@@ -258,22 +310,69 @@ mod tests {
     }
 
     fn avoids_jargon(text: &str) -> bool {
-        !text.contains("HUD") && !text.contains("ACP") && !text.to_lowercase().contains("agent")
+        ["chora-", "Look", "HUD", "ACP"]
+            .iter()
+            .all(|word| !text.contains(word))
+            && !text.to_lowercase().contains("agent")
+    }
+
+    fn has_command(text: &str) -> bool {
+        text.contains("--") || text.contains("chora") && text.contains(':')
     }
 
     #[test]
     fn every_word_has_en_and_de() {
-        assert_eq!(TABLE.len(), LAST as usize + 1, "a word without a row");
-        for (index, (word, en, de)) in TABLE.iter().enumerate() {
-            assert_eq!(*word as usize, index, "{word:?} is out of order");
+        for word in ALL {
+            let (en, de) = (word.text(Language::En), word.text(Language::De));
             assert!(!en.is_empty() && !de.is_empty(), "{word:?}");
             assert_eq!(fields(en), fields(de), "{word:?}: fields differ");
-            assert_eq!(word.text(Language::En), *en);
-            assert_eq!(word.text(Language::De), *de);
             assert!(avoids_jargon(en) && avoids_jargon(de), "{word:?}");
+            assert!(!has_command(en) && !has_command(de), "{word:?}: a command");
         }
     }
 
+    #[test]
+    fn the_notice_counts_in_the_singular() {
+        for language in [Language::En, Language::De] {
+            let one = say(language, Word::HudNoticeOne, &[("name", "fancy")]);
+            let many = say(language, Word::HudNotice, &[("name", "fancy"), ("n", "3")]);
+            assert!(one.contains("fancy") && many.contains("fancy") && many.contains('3'));
+            assert!(!one.contains("errors") && !one.contains("Fehler"), "{one}");
+        }
+        let one = say(Language::En, Word::HudNoticeOne, &[("name", "x")]);
+        assert!(one.contains("1 problem"), "{one}");
+    }
+
+    #[test]
+    fn helper_states_have_words() {
+        for name in [
+            "asleep",
+            "listening",
+            "thinking",
+            "working",
+            "question",
+            "speaking",
+            "idle",
+            "done",
+            "blocked",
+        ] {
+            assert!(state(name).is_some(), "{name}");
+        }
+        assert_eq!(row(Language::En, "Atlas", "idle", "x"), "Atlas · idle · x");
+        assert_eq!(
+            row(Language::De, "Atlas", "done", "x"),
+            "Atlas · fertig · x"
+        );
+        assert_eq!(
+            row(Language::En, "Atlas", "blocked", "x"),
+            "Atlas · blocked · x"
+        );
+    }
+
+    #[test]
+    fn a_row_without_a_task_has_no_tail() {
+        assert_eq!(row(Language::En, "Atlas", "working", ""), "Atlas · working");
+    }
     #[test]
     fn the_language_follows_the_tag() {
         assert_eq!(Language::from_tag("de"), Language::De);
