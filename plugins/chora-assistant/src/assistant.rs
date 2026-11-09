@@ -214,18 +214,26 @@ fn key_name(key: &str) -> String {
     }
 }
 
-/// The top-left corner of a balloon of a size, and the x of its tail tip
-/// in it, for a tip at a point of a screen of a width.
+/// Where a balloon goes: its top-left corner, the x of its tail tip in it
+/// and whether it hangs below the figure without a tail. A balloon sits
+/// above the tip, which is a point of a screen of a width, with its tail
+/// pointing down at it; where it would leave the top of the screen, it
+/// sits below the bottom of the figure instead.
 fn place(
     style: &Style,
     [w, h]: [i32; 2],
     [tip_x, tip_y]: [i32; 2],
-    screen: i32,
-) -> ([i32; 2], i32) {
+    (screen, figure_bottom): (i32, i32),
+) -> ([i32; 2], i32, bool) {
     let right = (tip_x + style.tail_inset).min(screen - 2);
     let left = (right - w).max(0);
     let tail = (tip_x - left).clamp(style.radius + style.tail_base, w - style.radius);
-    ([left, tip_y - style.tail - h], tail)
+    let above = tip_y - style.tail - h;
+    if above >= 0 {
+        ([left, above], tail, false)
+    } else {
+        ([left, figure_bottom], tail, true)
+    }
 }
 
 /// A balloon with text only, as the assistant speaks: its picture and its
@@ -236,16 +244,20 @@ fn speech(
     theme: &mut Theme,
     style: &Style,
     text: &str,
-    (tip, screen): ([i32; 2], i32),
+    (tip, anchor): ([i32; 2], (i32, i32)),
     [room_w, room_h]: [i32; 2],
-) -> (Picture, [i32; 2]) {
+) -> (Picture, [i32; 2], i32) {
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = wrap(text, MAX_SPEECH, width);
     let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
     #[allow(clippy::cast_possible_truncation)]
     let w = (PAD + (text_width.ceil() as i32).max(room_w) + PAD).max(MIN_WIDTH);
     let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + room_h + PAD;
-    let (origin, tail) = place(style, [w, h], tip, screen);
+    let (origin, tail, below) = place(style, [w, h], tip, anchor);
+    let style = Style {
+        tail: if below { 0 } else { style.tail },
+        ..style.clone()
+    };
     let mut picture = Picture::new(w, h + style.tail).svg(style.shape([w, h], tail));
     for (line, y) in lines.iter().zip((PAD..).step_by(LINE as usize)) {
         picture = picture.text(Text::new(
@@ -255,7 +267,7 @@ fn speech(
             [PAD, y, w - 2 * PAD, LINE],
         ));
     }
-    (picture, origin)
+    (picture, origin, style.tail)
 }
 
 /// A push button of a question: a rounded rectangle with its label.
@@ -390,8 +402,9 @@ impl Assistant {
         } else {
             [0, 0]
         };
-        let (picture, [bx, by]) =
-            speech(theme, &self.values.speech, text, (tip, self.screen), room);
+        let anchor = (self.screen, y + self.values.figure.size()[1]);
+        let (picture, [bx, by], tail) =
+            speech(theme, &self.values.speech, text, (tip, anchor), room);
         let mut commands = Vec::new();
         if std::mem::replace(&mut self.buttons, buttons) {
             commands.extend([YES, NO].map(|id| Command::Remove {
@@ -400,7 +413,6 @@ impl Assistant {
             }));
         }
         if buttons {
-            let tail = self.values.speech.tail;
             let top = by - y + picture.size[1] - tail - PAD - BUTTON[1];
             let right = bx - x + picture.size[0] - PAD;
             let lefts = [right - 2 * BUTTON[0] - BUTTON_GAP, right - BUTTON[0]];
@@ -562,6 +574,18 @@ impl Assistant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_balloon_hangs_below_a_figure_at_the_top() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        let (origin, _, below) = place(&style, [120, 40], [100, 300], (1000, 330));
+        assert_eq!((origin[1], below), (300 - 18 - 40, false));
+        let (origin, _, below) = place(&style, [120, 40], [100, 10], (1000, 40));
+        assert_eq!((origin[1], below), (40, true));
+    }
 
     #[test]
     fn each_state_has_its_pose() {
