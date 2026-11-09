@@ -325,7 +325,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
-| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down |
+| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
 | `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position and modifiers; `pointer.released` with the button |
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
@@ -335,7 +335,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
-| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`; only the exporting connection gets it, subscribed or not |
+| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, and `confined: true` when the connection of the caller is confined (the field is absent otherwise); only the exporting connection gets it, subscribed or not |
 | `NAME.something` | a client emitted it with `events.emit`, for example `voice.state`: `client`, the name of the emitter, and its `data`; only to the connections that name the event or a pattern of it (D65) |
 
 Every event carries `seq`, the count of its connection (D32). Every event
@@ -1012,7 +1012,10 @@ $ choractl call tiling set_layout '{"layout": "fair"}'
 {"columns": 1, "gap": 4, "layout": "fair", "master_width": 0.5, "masters": 1, "windows": ["s2", "s1"]}
 ```
 
-The core sends the exporting connection a `method.called` event. The
+The core sends the exporting connection a `method.called` event. Its
+`confined` field is `true` when the caller is a client socket or a main
+socket connection that said `confined` in `hello`, so an exporter can
+refuse such a caller. The
 plugin answers with `methods.return`: the same `call` and a `result`, or an
 `error` with a `code` and a `message`. The core passes the answer to the
 caller. The `Client` of `chora-scene` answers with `Client::answer`.

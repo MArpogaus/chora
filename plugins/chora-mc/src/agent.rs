@@ -130,7 +130,10 @@ impl Confirming {
     /// The parameters of `voice.confirm.answer` for a press on `node`:
     /// an answer of a confirmation with buttons. Only a pointer press on
     /// the node calls it; no method of mc does.
-    pub fn answer(&self, node: &str) -> Option<Value> {
+    pub fn answer(&self, node: &str, injected: bool) -> Option<Value> {
+        if injected {
+            return None;
+        }
         let yes = match node {
             ANSWER_YES => true,
             ANSWER_NO => false,
@@ -646,8 +649,8 @@ impl Mc {
     /// Answers the confirmation by the click on `node`, with
     /// `voice.confirm.answer`; a refusal, as for an old id, only logs.
     /// True when `node` was an answer.
-    pub fn press_answer(&mut self, node: &str) -> bool {
-        let Some(params) = self.confirming.as_ref().and_then(|c| c.answer(node)) else {
+    pub fn press_answer(&mut self, node: &str, injected: bool) -> bool {
+        let Some(params) = (self.confirming.as_ref()).and_then(|c| c.answer(node, injected)) else {
             return false;
         };
         let call = json!({"client": crate::VOICE, "method": "confirm.answer", "params": params});
@@ -750,19 +753,28 @@ mod tests {
             keys: None,
         };
         assert_eq!(
-            with.answer(super::ANSWER_YES),
+            with.answer(super::ANSWER_YES, false),
             Some(json!({"id": "4", "yes": true}))
         );
         assert_eq!(
-            with.answer(super::ANSWER_NO),
+            with.answer(super::ANSWER_NO, false),
             Some(json!({"id": "4", "yes": false}))
         );
-        assert_eq!(with.answer("mc-answer-yes-word"), None);
+        assert_eq!(with.answer("mc-answer-yes-word", false), None);
         let without = super::Confirming {
             buttons: false,
             ..with
         };
-        assert_eq!(without.answer(super::ANSWER_YES), None);
+        assert_eq!(without.answer(super::ANSWER_YES, false), None);
+        assert_eq!(
+            super::Confirming {
+                buttons: true,
+                ..without
+            }
+            .answer(super::ANSWER_YES, true),
+            None,
+            "an injected press answers nothing"
+        );
         let (mut mc, _) = crate::testing::mc("answers", [1920, 1080]);
         let ask = json!({"id": "5", "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});

@@ -105,18 +105,47 @@ struct ButtonParams {
     yes: bool,
 }
 
+/// Whether a confined caller is refused `method`: the methods that act for
+/// the user at the keyboard.
+fn not_for_confined(method: &str) -> bool {
+    matches!(method, "confirm" | "talk" | "mute")
+}
+
+/// The refusal of `method` for a confined caller.
+fn confined_refusal(method: &str) -> RpcError {
+    RpcError::new(
+        RpcError::REJECTED,
+        format!("{method}: not for a confined connection"),
+    )
+}
+
+/// `indicator.claim` of `caller`: a confined connection never claims, as a
+/// claim lets it answer the questions of the agent.
+fn claim_indicator(claims: &mut Claims, caller: &str, confined: bool) -> Result<Value, RpcError> {
+    if confined {
+        return Err(RpcError::new(
+            RpcError::REJECTED,
+            "indicator.claim: not for a confined connection",
+        ));
+    }
+    claims.claim(caller);
+    Ok(json!({}))
+}
+
 /// `confirm.answer` of `caller`: only a client that claimed the indicator,
-/// a HUD plugin, may answer, and only the open question.
+/// a HUD plugin, may answer, and only the open question. A confined
+/// connection never answers.
 fn confirm_answer(
     claims: &Claims,
     tx: &Sender<Input>,
     caller: &str,
+    confined: bool,
     params: Value,
 ) -> Result<Value, RpcError> {
-    if !claims.0.contains(caller) {
+    if confined || !claims.0.contains(caller) {
         return Err(RpcError::new(
             RpcError::REJECTED,
-            "confirm.answer: only a client that holds indicator.claim",
+            "confirm.answer: only an unconfined client that holds indicator.claim",
         ));
     }
     let ButtonParams { id, yes } = runtime::params(params)?;
@@ -211,6 +240,7 @@ fn session(
 
 /// Handles the events of chora and emits the events of the HUD until the
 /// connection fails.
+#[allow(clippy::too_many_lines, reason = "one arm per event")]
 fn serve(
     client: &mut Client,
     name: &str,
@@ -224,19 +254,35 @@ fn serve(
                 call,
                 caller,
                 method,
+                confined,
                 ..
             }) if method == "indicator.claim" => {
-                let _ = client.tx.send(Input::Claimed(client.claims.claim(&caller)));
-                client.rt.conn.answer(call, Ok(json!({})))?;
+                let answer = claim_indicator(&mut client.claims, &caller, confined);
+                if answer.is_ok() {
+                    let _ = client.tx.send(Input::Claimed(true));
+                }
+                client.rt.conn.answer(call, answer)?;
             }
             Some(Event::MethodCalled {
                 call,
                 caller,
                 method,
                 params,
+                confined,
             }) if method == "confirm.answer" => {
-                let answer = confirm_answer(&client.claims, &client.tx, &caller, params);
+                let answer = confirm_answer(&client.claims, &client.tx, &caller, confined, params);
                 client.rt.conn.answer(call, answer)?;
+            }
+            Some(Event::MethodCalled {
+                call,
+                method,
+                confined: true,
+                ..
+            }) if not_for_confined(&method) => {
+                client
+                    .rt
+                    .conn
+                    .answer(call, Err(confined_refusal(&method)))?;
             }
             // Any client may read the settings: without the header values.
             Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
@@ -566,7 +612,7 @@ mod tests {
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
-    use super::{Claims, Held, RESEND, confirm_answer, without_headers};
+    use super::{Claims, Held, RESEND, claim_indicator, confirm_answer, without_headers};
     use crate::core::Input;
 
     #[test]
@@ -618,7 +664,7 @@ mod tests {
         let mut claims = Claims::default();
         claims.claim("mc");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "evil", params.clone()).unwrap_err();
+        let err = confirm_answer(&claims, &tx, "evil", false, params.clone()).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
         let core = std::thread::spawn(move || {
@@ -635,12 +681,44 @@ mod tests {
             }
         });
         assert_eq!(
-            confirm_answer(&claims, &tx, "mc", params.clone()),
+            confirm_answer(&claims, &tx, "mc", false, params.clone()),
             Ok(json!({}))
         );
-        let err = confirm_answer(&claims, &tx, "mc", params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, "mc", false, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED, "stale");
         core.join().unwrap();
+    }
+
+    /// A confined connection neither claims the indicator nor answers by
+    /// button, even when it claimed before or holds `methods.privileged`.
+    #[test]
+    fn a_confined_caller_cannot_claim_or_answer() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        let err = claim_indicator(&mut claims, "voice-mcp", true).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(!claims.0.contains("voice-mcp"), "no claim");
+        claims.claim("voice-mcp");
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, "voice-mcp", true, params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
+        assert!(claim_indicator(&mut claims, "mc", false).is_ok());
+        assert!(claims.0.contains("mc"));
+    }
+
+    /// A confined connection cannot answer by `confirm`, push to talk or
+    /// mute, whatever it holds; the other methods stay open to it.
+    #[test]
+    fn a_confined_caller_cannot_confirm_talk_or_mute() {
+        for method in ["confirm", "talk", "mute"] {
+            assert!(super::not_for_confined(method), "{method}");
+            let err = super::confined_refusal(method);
+            assert_eq!(err.code, RpcError::REJECTED, "{method}");
+        }
+        for method in ["state", "cancel", "sleep", "wake", "health"] {
+            assert!(!super::not_for_confined(method), "{method}");
+        }
     }
 
     /// Emits `new` at `now`; the core takes them or refuses them over its

@@ -337,8 +337,8 @@ last `voice.confirm` goes again after 1 s.
 While a claimer of the indicator (section 10) is connected, the event
 also has `buttons: true`. A HUD can then show Yes and No buttons. A
 click calls `voice.confirm.answer {id, yes}` with the `id` of the
-event. Only a client that holds `indicator.claim` may call it, and
-only for the question that is open now. An old or wrong `id` is
+event. Only an unconfined client that holds `indicator.claim` may call
+it, and only for the question that is open now. An old or wrong `id` is
 refused. A click is a physical act, as a key press is. So a button
 also answers a question about a security key. The LLM never reaches
 the method: it calls no method of NAME (see "Own settings").
@@ -389,13 +389,20 @@ the user agrees:
   shows that line too.
 - A holder of `indicator.claim` is trusted like the keyboard: its
   `confirm.answer` counts as a physical answer (review rc3 round 3,
-  2.6). A confined client with `methods.privileged` can claim the
-  indicator and then answer every key question. So grant
-  `methods.privileged`, and with it the claim, only to a HUD that the
-  user trusts as the keyboard.
-- An injected key could answer the question. The core marks an
-  `input.key` event of `input.inject` with `injected: true`, and the
-  agent ignores an injected key of `confirm_keys`. Besides, the agent
+  2.6). The agent refuses `indicator.claim`, `confirm.answer`,
+  `confirm`, `talk` and `mute` from a confined caller, as the
+  `confined` field of `method.called` names it. That closes the direct
+  routes only. A confined client with `methods.privileged` can still
+  start a program by a method such as `mc.app.open`, by `voice.agent`
+  with `agent_start`, or by `settings.set` of a setting that holds a
+  command. The program connects free, claims the indicator and answers.
+  So grant `methods.privileged` only to a client that the user trusts as
+  the keyboard.
+- An injected key or press could answer the question. The core marks an
+  `input.key` event and a `pointer.pressed` event of `input.inject`
+  with `injected: true`. The agent ignores an injected key of
+  `confirm_keys`, and the answer buttons of mc, the assistant and the
+  construct ignore an injected press. Besides, the agent
   refuses `inject_input` while such a question waits, and `inject_input`
   always asks by the default rules and never takes an always word.
 
@@ -643,12 +650,12 @@ both a key variable and a key file for one server.
 |---|---|---|
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
-| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
-| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
+| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller |
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
-| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
-| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a caller without `indicator.claim` and for any other `id` (section 5) |
+| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
+| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller without `indicator.claim` and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 

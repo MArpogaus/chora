@@ -332,7 +332,7 @@ impl State {
                 Step::Button(button, state, hold) => {
                     let pressed = *state == ButtonState::Pressed && !hold;
                     note(&mut buttons_down, *button, pressed);
-                    input::press_button(self, *button, *state, now);
+                    input::press_button(self, *button, *state, now, true);
                 }
                 Step::Scroll(dx, dy) => input::scroll(self, *dx, *dy, now),
                 Step::Key(code, state) => {
@@ -351,7 +351,7 @@ impl State {
             input::key(self, code, KeyState::Released, InputTime::now(), true);
         }
         for button in buttons_down {
-            input::press_button(self, button, ButtonState::Released, InputTime::now());
+            input::press_button(self, button, ButtonState::Released, InputTime::now(), true);
         }
     }
 }
@@ -618,6 +618,51 @@ mod tests {
             physical.iter().all(|e| e.get("injected").is_none()),
             "{physical:?}"
         );
+    }
+
+    /// A press of `input.inject` reaches the plugin of a node with
+    /// `injected`, a physical press without.
+    #[test]
+    fn an_injected_press_reaches_a_node_with_the_mark() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut watcher = core.named("watcher");
+        watcher.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"create": {"id": "menu", "kind": "rect",
+                "parent": "root", "props": {"size": [100, 100],
+                "color": [1, 1, 1, 1]}}}]}),
+        );
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let click = json!({"events": [
+            {"pointer_move": {"position": [50.0, 50.0]}},
+            {"click": {"button": 272}}
+        ]});
+        agent.ok(&mut core, "input.inject", click);
+        let presses = |watcher: &mut crate::testing::Client, core: &mut Core| -> Vec<Value> {
+            let events = watcher.events_now(core).into_iter();
+            events
+                .map(|e| e["params"].clone())
+                .filter(|p| p["event"] == "pointer.pressed")
+                .collect()
+        };
+        let injected = presses(&mut watcher, &mut core);
+        assert_eq!(injected.len(), 1, "{injected:?}");
+        assert_eq!(injected[0]["injected"], true);
+        input::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Pressed,
+            InputTime::now(),
+            false,
+        );
+        let physical = presses(&mut watcher, &mut core);
+        assert_eq!(physical.len(), 1, "{physical:?}");
+        assert!(physical[0].get("injected").is_none(), "{physical:?}");
     }
 
     /// Gate check 9 of 0.7: the limit of a request has its own code.
