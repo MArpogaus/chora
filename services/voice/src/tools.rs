@@ -1121,13 +1121,17 @@ pub mod tests {
         let rules = Config::default().confirm;
         let ask =
             |tool: &str, args: Value| rule(&rules, tool, &args).map(|r| r.question(tool, &args));
-        for (tool, args) in [
-            ("mc.app.open", json!({"app": "foot"})),
-            ("call_method", json!({"client": "mc", "method": "app.open"})),
+        for (tool, args, said) in [
+            ("mc.app.open", json!({"app": "foot"}), "mc: app foot"),
+            (
+                "call_method",
+                json!({"client": "mc", "method": "app.open"}),
+                "mc",
+            ),
         ] {
             assert_eq!(
                 ask(tool, args).as_deref(),
-                Some("Shall I run app open of the plugin mc?")
+                Some(format!("Shall I run app open of the plugin {said}?").as_str())
             );
         }
         for method in [
