@@ -8,15 +8,18 @@
     clippy::print_stderr,
     reason = "a plugin logs to stderr, which the session keeps"
 )]
+pub mod ask;
 pub mod conn;
 pub mod desktop_entry;
 pub mod give;
+pub mod hud;
 pub mod icons;
 pub mod lamp;
 pub mod notify;
 pub mod runtime;
 pub mod settings;
 pub mod wobbly;
+pub mod words;
 pub mod xdg;
 
 /// Starts a shell command as an app with `choractl run` (D42). The app
