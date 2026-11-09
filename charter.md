@@ -271,6 +271,10 @@ code gate.
   as all earlier commits of the repo do, even when a harness hook asks
   for another email. It is set in the local config of the chora repo,
   which all worktrees share.
+- **Merge gate script** (11-10): every merge goes through
+  `tests/merge-gate.sh --push BRANCH`; it runs each step without a pipe,
+  logs each step, and stops on a non-zero code or a `FAIL:`/`MISMATCH`
+  line. The prose gate below is its definition.
 - **Merge gate**, one command with `set -e -o pipefail`, the push last:
   `cargo build --workspace` (e2e scripts use `target/debug`, so a gate
   without the build tests stale binaries), `cargo test --workspace`,

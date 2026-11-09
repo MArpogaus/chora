@@ -36,3 +36,4 @@ its own), **to build** (a guard is possible and planned), **manual**
 | Persona findings triaged within a day | `triage.py` at run start | guarded |
 | Every persona run reports UX/UI flaws or says why none (charter 8) | `triage.py` prints MISSING UX for a run file from 2026-11-10 on without a `kind: ux` finding or a `ux: none seen, because` line | guarded |
 | A user-facing change gets a UX/UI design note before programming (charter 5a) | none yet: the PM checks that each developer brief of a user-facing change links `design/ux-*.md`; candidate guard: `review_due.py` lists merged user-facing ranges without a note | manual |
+| A merge is pushed only after every gate step passed (charter 3) | `tests/merge-gate.sh --push`, proven by `tests/merge-gate-selftest.sh` | guarded |
