@@ -8,15 +8,15 @@ its own), **to build** (a guard is possible and planned), **manual**
 |---|---|---|
 | No attribution lines in commits | `no-agent-trailers` commit-msg hook (code branches and session log) | guarded |
 | Conventional commit type | `commitizen` commit-msg hook | guarded |
-| Commit subject at most 68 characters, body at 72 | commit-msg hook | to build |
+| Commit subject at most 68 characters, body at 72 | `commit-message-length` commit-msg hook (dbaf94b), tested by `tests/guards.sh` | guarded |
 | Format, lints, complexity | `cargo fmt`, `cargo clippy -D warnings` hooks | guarded |
 | Shell scripts lint | `shellcheck` hook | guarded |
 | Docs prose style | `vale` hook on `docs/*.md` | guarded |
 | Links in Markdown | `lychee` hook (installed 11-09) | guarded |
 | Spelling | `typos` hook | guarded |
 | No GPL-3.0-only code in the core | local hook | guarded |
-| No inline comments in code bodies (added lines) | pre-commit hook over the staged diff of Rust, shell and Python files | to build |
-| No session files on code branches (`plans/autonomy/`, reports, logs) | pre-commit hook that rejects those paths on code branches | to build |
+| No inline comments in code bodies (added lines) | `no-inline-comments` hook over the staged diff (64c5999), tested by `tests/guards.sh` | guarded |
+| No session files on code branches (`plans/autonomy/`, reports, logs) | `no-session-files` hook (b796e75), tested by `tests/guards.sh` | guarded |
 | No dashes as punctuation in docs | vale rule | to build (check whether `.vale/` has it) |
 | Hooks installed in every clone | run start step 2 checks `.git/hooks` | guarded by the run start |
 | Never `--no-verify` | CI pre-commit job on every push of `dev` and `main`; locally not checkable | manual until CI runs on the branch |

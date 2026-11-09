@@ -2,7 +2,7 @@
 
 last_reviewed: 8435faa (cd9b09b before the history rewrite; the round of 11-09 covered up to it)
 base_2d: the commit before 5c447ce (the 2D guard); no scene or renderer change since
-block: security fixes (agent running), started 11:05
+block: three work branches in parallel, started 11:50
 
 ## Plan of the day
 
@@ -31,6 +31,13 @@ block: security fixes (agent running), started 11:05
 
 ## Done
 
+- 11-09: security fixes, all seven findings (0e3afa2 to 37052ae after
+  the rewrite), 851 tests; history of the session branch cleaned of
+  session files (37052ae); roadmap without plan links (4295193); guards
+  `no-inline-comments`, `no-session-files`, `commit-message-length`
+  (64c5999, b796e75, dbaf94b); target shrunk from 20.9 to 3.4 GB; 2D
+  guard PASS against 8742dee after all of today's code.
+
 - 11-09: security check, attacker view (opus). Items (a), (b), (c) of
   charter section 1 item 11 HOLD: (a) `confined: true` in
   `crates/choractl/src/mcp.rs:108-111,352-355`, test
@@ -52,6 +59,12 @@ block: security fixes (agent running), started 11:05
   everyday task matrix (b4b7520).
 
 ## Running
+
+- `claude/construct-gates` (worktree /home/user/wt/construct-gates):
+  the two failing construct gates.
+- `claude/xp-x1` (worktree /home/user/wt/xp-x1): XP split step X1.
+- `claude/3d-step0` (worktree /home/user/wt/3d-step0): 3D step 0.
+Each merges into the session branch after a review round (merge rule).
 
 ## Blocked
 

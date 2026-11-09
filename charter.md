@@ -172,8 +172,8 @@ short form that applies.
      24.04 on 2026-11-08). Rust comes from rustup through
      `rust-toolchain.toml`.
    - `~/.cargo/config.toml` of the agent home, when missing: `[build]
-     incremental = false` (8.6 GB of incremental data filled the disk
-     on 11-09).
+     incremental = false` and `[profile.dev] debug = "line-tables-only"`
+     (full debug info and incremental data filled the disk on 11-09).
    - `pre-commit` and `vale`: `uv tool install pre-commit`, `uv tool
      install vale` (vale 3.26 works so; run `vale sync` once).
    - `cargo-deny`, `cargo-machete`: `cargo install --locked`.
@@ -364,13 +364,12 @@ Implementation, fixes, docs edits, test runs and review views go to
 subagents, with model and effort chosen per task. The PM looks closely
 where it counts: numbers, public API, security.
 
-**Disk:** the debug target with tests is about 12 GB; on 2026-11-08 18
-GB were free with it in place; the base target of the 2D guard adds a
-few GB while it exists. Worktrees under `/home/user/wt/` build into the
-same target (`CARGO_TARGET_DIR=/home/user/chora/target`). Cargo
-rebuilds the workspace crates when the worktree changes, so build one
-worktree at a time and finish its tests before switching. Below 8 GB
-free, stop building and clean up first.
+**Disk:** with `debug = "line-tables-only"` and incremental builds off
+in `~/.cargo/config.toml`, a target with all test binaries is about 3.4
+GB (it was 23 GB with full debug info). Each worktree builds into its
+own target; three to four in parallel fit the 30 GB. Below 8 GB free,
+stop building and remove the targets of finished work first. Kill test
+sessions by the pid of their core, never by name.
 
 **Test scripts** take the binaries so, run from the root of the checkout
 (`B=/home/user/chora/target/debug`):
