@@ -27,7 +27,7 @@ pub use scene::{
     TransactionError, claimant_at, overlay_id,
 };
 pub use selector::{Selector, SelectorError};
-pub use transform::Transform;
+pub use transform::{Decomposed, Transform};
 
 #[cfg(test)]
 mod tests;
