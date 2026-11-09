@@ -1054,6 +1054,17 @@ impl Chat {
             .any(|k| new[k] != old[k])
     }
 
+    /// The rule that asks before a call: one of `confirm`, else the one
+    /// of a privileged method.
+    fn rule(&self, name: &str, args: &Value) -> Option<crate::config::Confirm> {
+        tools::rule(&self.config.confirm, name, args)
+            .cloned()
+            .or_else(|| {
+                let prompt = &self.config.phrases.privileged;
+                self.tools.privileged_rule(name, args, prompt)
+            })
+    }
+
     /// Asks the user when a rule of `confirm` matches, and before each
     /// change of the agent's own settings; else, or on a no, the reason
     /// for the LLM.
@@ -1079,7 +1090,7 @@ impl Chat {
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
-        } else if let Some(rule) = tools::rule(&self.config.confirm, &name, args) {
+        } else if let Some(rule) = self.rule(&name, args) {
             let (prompt, kinds) = (rule.question(&name, args), rule.commands.clone());
             if name == "apply_commands" && self.removes_own(&kinds, args).await {
                 crate::log::info("confirm apply_commands: own nodes, no question");

@@ -399,7 +399,7 @@ the user agrees:
 
 The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
-Its own `settings.reload` asks with the rule of `*.settings.reload`.
+Its own `settings.reload` asks as a privileged method.
 A reload can also apply a file that the LLM wrote (review rc3 round 3,
 2.4). So the agent reads the file before it asks and compares each
 security key with the running settings. When one differs, or the file
@@ -577,7 +577,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -594,25 +594,17 @@ confirm:
   - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
   - {tool: call_method, method: "*restart", prompt: "Shall I restart the plugin {client}?"}
-  # Then two rules for each privileged method METHOD of a plugin:
-  # settings.set, settings.reload, app.open, scene.save, scene.rename,
-  # scene.move, construct.load, construct.save, region.toggle,
-  # region.put and region.solo; and for window.give, agent.set and
-  # notify.push, which are not privileged.
-  - {tool: "*.METHOD", prompt: "Shall I run {method} of the plugin {client}{params}?"}
-  - {tool: call_method, method: METHOD, prompt: "Shall I run {method} of the plugin {client}{params}?"}
 ```
 
 The grant `methods.privileged` opens every privileged method of every
-plugin. The export flag `privileged` does not reach the agent, so the
-default rules ask before each privileged method of the plugins, from a
-list kept by hand that must follow the plugins. `window.give` also
-asks: it hides a window in another client. So do `agent.set` and
-`notify.push` of chora-mc: they show what the user trusts as the state
-of the agent or as a notification. In a
-prompt, `{client}` and `{method}` name the plugin and the method, also
-for a plugin tool `CLIENT.METHOD`. The method is said with spaces
-("app open").
+plugin. `methods.list` sends the flag `privileged` of each export, and
+`choractl mcp` puts it in the `_meta` of the tool. So the agent asks
+before each tool that is privileged, also by `call_method`, with
+`phrases.privileged` ("Shall I run app open of the plugin mc: app
+foot?"). No list of methods is kept in the agent. The methods
+`window.give`, `agent.set` and `notify.push` are privileged too. In a
+prompt, `{client}`, `{method}` and `{params}` name the plugin, the
+method and its params. The method is said with spaces ("app open").
 
 Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
 that each one can move to another provider. The key comes from the

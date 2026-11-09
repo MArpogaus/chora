@@ -140,6 +140,9 @@ pub struct Phrases {
     pub allowed: String,
     /// Said when three answers of a turn stopped mid-sentence.
     pub lost: String,
+    /// The question before a method that its export marks privileged:
+    /// `{method}`, `{client}` and `{params}`.
+    pub privileged: String,
 }
 
 impl Default for Phrases {
@@ -162,6 +165,7 @@ impl Default for Phrases {
             ready: "Ready.".into(),
             allowed: "Allowed for this session.".into(),
             lost: "I lost the thread, please say it again.".into(),
+            privileged: PRIVILEGED_PROMPT.into(),
         }
     }
 }
@@ -361,7 +365,7 @@ fn rule(tool: &str, prompt: &str) -> Confirm {
 
 /// The tools that ask first (docs/voice.md section 9).
 fn default_confirm() -> Vec<Confirm> {
-    let mut rules = vec![
+    vec![
         Confirm {
             commands: words(&["remove", "close"]),
             ..rule("apply_commands", "Shall I remove that?")
@@ -378,42 +382,10 @@ fn default_confirm() -> Vec<Confirm> {
             method: Some("*restart".into()),
             ..rule("call_method", "Shall I restart the plugin {client}?")
         },
-    ];
-    // The privileged methods of the plugins: `methods.privileged` opens
-    // them all, and their export flag does not reach the agent. Then the
-    // methods that ask although they are not privileged.
-    for &method in PRIVILEGED.iter().chain(&SENSITIVE) {
-        rules.push(rule(&format!("*.{method}"), PRIVILEGED_PROMPT));
-        rules.push(Confirm {
-            method: Some(method.into()),
-            ..rule("call_method", PRIVILEGED_PROMPT)
-        });
-    }
-    rules
+    ]
 }
 
-/// The privileged methods of the plugins that ask first: a hand-kept
-/// copy of their export flags.
-// ponytail: a copy; `choractl mcp` could pass the export flag through.
-const PRIVILEGED: [&str; 11] = [
-    "settings.set",
-    "settings.reload",
-    "app.open",
-    "scene.save",
-    "scene.rename",
-    "scene.move",
-    "construct.load",
-    "construct.save",
-    "region.toggle",
-    "region.put",
-    "region.solo",
-];
-
-/// Methods that are not privileged but ask first: `window.give` hides a
-/// window in another client, `agent.set` and `notify.push` of chora-mc
-/// show what the user trusts as the voice agent or a notification.
-const SENSITIVE: [&str; 3] = ["window.give", "agent.set", "notify.push"];
-
+/// The question before a privileged method (`phrases.privileged`).
 const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}{params}?";
 
 impl Config {
@@ -524,6 +496,7 @@ impl Config {
             &mut p.ready,
             &mut p.allowed,
             &mut p.lost,
+            &mut p.privileged,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -1365,6 +1338,17 @@ mod tests {
             question("run_program", bare),
             "Shall I start the program foot?"
         );
+        let ask = rule("*.settings.set", &Phrases::default().privileged);
+        let patch = serde_json::json!({"allow_programs": ["sh"], "volume": 3});
+        assert_eq!(
+            ask.question("xp.settings.set", &patch),
+            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
+        );
+        let call = serde_json::json!({"client": "xp", "method": "settings.set", "params": patch});
+        assert_eq!(
+            ask.question("call_method", &call),
+            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
+        );
         let typed = serde_json::json!({"events": [
             {"text": {"text": "rm -rf ~\n"}},
             {"shortcut": {"keys": "Ctrl+q"}},
@@ -1373,22 +1357,6 @@ mod tests {
         assert_eq!(
             question("inject_input", typed),
             "Shall I type or click: the text rm -rf ~ Return, the shortcut Ctrl+q, click?"
-        );
-        let plugin = serde_json::json!({"allow_programs": ["sh"], "volume": 3});
-        let config = Config::default();
-        let rule = config.confirm.iter().find(|r| r.tool == "*.settings.set");
-        assert_eq!(
-            rule.unwrap().question("xp.settings.set", &plugin),
-            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
-        );
-        let call = serde_json::json!({"client": "xp", "method": "settings.set", "params": plugin});
-        let rule = config
-            .confirm
-            .iter()
-            .find(|r| r.method.as_deref() == Some("settings.set"));
-        assert_eq!(
-            rule.unwrap().question("call_method", &call),
-            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
         );
     }
 
