@@ -634,7 +634,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             }),
             &["content", "region"],
         )),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "agent.set",
             "Adds or changes an agent: its state (idle, listening, thinking, working, \
              speaking, question, blocked, done or asleep), its task, its last words, its \
@@ -651,7 +651,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "log": lines.clone(),
             }),
             &["name"],
-        ),
+        )),
         runtime::method(
             "agent.focus",
             "Shows the agents scene with one agent alone and its transcript; an empty \
@@ -666,7 +666,7 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["name"],
         ),
         runtime::method("agent.list", "Answers the agents.", json!({}), &[]),
-        runtime::method(
+        runtime::privileged(runtime::method(
             "notify.push",
             "Shows a notification on top of the stack of notify; a critical one also in \
              red in urgent.",
@@ -676,7 +676,7 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "urgency": {"type": "string", "enum": ["low", "normal", "critical"]},
             }),
             &["title"],
-        ),
+        )),
         runtime::method("notify.clear", "Empties the notifications.", json!({}), &[]),
         chora_kit::give::method(),
     ]
@@ -2758,6 +2758,8 @@ mod tests {
                 "region.toggle",
                 "region.put",
                 "region.solo",
+                "agent.set",
+                "notify.push",
                 "window.give"
             ]
         );
