@@ -89,6 +89,13 @@ is found (charter section 8). Started from charter section 15 on
     adopted window; the user must fly out first (Alt+Escape). Decide
     whether Super+drag should work from inside (POLS).
 
+19. Extraction (split reviews of 11-09): the `voice.confirm` wire types
+    and the `confirm.answer` call exist three times (mc agent.rs:86-165,
+    construct hud.rs:933-975, assistant voice.rs:216-272); move them to
+    `chora_kit::voice`, one switch-over commit per plugin. Security
+    relevant: it is the answer path hardened today. Also the /proc
+    launcher check (construct and mc) to chora-kit.
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running
