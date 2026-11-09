@@ -14,7 +14,9 @@ chora/
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
-│   ├── chora-xp/      # stacking window manager in the style of Windows XP
+│   ├── chora-xp/      # stacking window manager in the style of Windows XP; splits into the blocks below (D73)
+│   ├── chora-notify/  # block: notification server (skeleton)
+│   ├── chora-assistant/ # block: state and speech of the voice agent (skeleton)
 │   ├── chora-mc/      # experimental: a voice-first desktop, one full-screen scene at a time
 │   └── chora-construct/ # experimental: a spatial desktop with panes that float in a space
 ├── flavors/           # systemd units of the flavors (tiling, xp, construct); the theme of the XP flavor
