@@ -3068,12 +3068,36 @@ fn exported_methods() -> Vec<ExportMethod> {
 
 /// Whether a window with the token of the launcher is the launcher's own:
 /// a launcher without a window, such as fuzzel, may pass its token on to
-/// the program that it starts, another process. Without both pids, the
-/// window is the launcher's.
-// ponytail: pids only; a launcher started through a wrapper shell with
-// more than one command then has a window of another process, a pane.
+/// the program that it starts, another process. The launcher runs under
+/// `sh -c`, which does not always exec its last command, so the pid of the
+/// launcher may be that of the shell and the window the shell's child.
+/// Without both pids, the window is the launcher's.
 fn launchers_own(window: Option<u32>, launcher: Option<u32>) -> bool {
-    window.zip(launcher).is_none_or(|(w, l)| w == l)
+    launchers_own_by(window, launcher, process)
+}
+
+fn launchers_own_by(
+    window: Option<u32>,
+    launcher: Option<u32>,
+    process: impl Fn(u32) -> Option<(u32, String)>,
+) -> bool {
+    let Some((window, launcher)) = window.zip(launcher) else {
+        return true;
+    };
+    window == launcher
+        || (process(launcher).is_some_and(|(_, comm)| SHELLS.contains(&comm.as_str()))
+            && process(window).is_some_and(|(parent, _)| parent == launcher))
+}
+
+/// The names of the shells that wrap a launcher.
+const SHELLS: [&str; 3] = ["sh", "dash", "bash"];
+
+/// The parent pid and the command name of a process, from `/proc`.
+fn process(pid: u32) -> Option<(u32, String)> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let (comm, rest) = stat.get(stat.find('(')? + 1..)?.rsplit_once(')')?;
+    let parent = rest.split_whitespace().nth(1)?.parse().ok()?;
+    Some((parent, comm.into()))
 }
 
 fn configure(surface: &str, size: [f64; 2]) -> Command {
@@ -3287,6 +3311,25 @@ mod tests {
         assert!(!launchers_own(Some(8), Some(7)));
         assert!(launchers_own(None, Some(7)));
         assert!(launchers_own(Some(8), None));
+    }
+
+    /// A shell that does not exec its command leaves the window with the
+    /// child of the launcher's pid; a program of the launcher is still
+    /// another process.
+    #[test]
+    fn the_window_of_the_child_of_a_launcher_shell_is_the_launcher() {
+        let table = |pid| match pid {
+            7 => Some((1, "sh".to_owned())),
+            8 => Some((7, "foot".to_owned())),
+            9 => Some((8, "foot".to_owned())),
+            10 => Some((1, "fuzzel".to_owned())),
+            11 => Some((10, "app".to_owned())),
+            _ => None,
+        };
+        assert!(launchers_own_by(Some(8), Some(7), table));
+        assert!(!launchers_own_by(Some(9), Some(7), table));
+        assert!(!launchers_own_by(Some(11), Some(10), table));
+        assert!(!launchers_own_by(Some(8), Some(99), table));
     }
 
     /// A program that waits longer than [`LAUNCHED`] goes, and no program
