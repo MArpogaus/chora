@@ -116,6 +116,15 @@ code branches carry only code, tests and the product docs
     `chora-kit` give). The guard is a handover gate over all pairs of
     window managers and all input paths; it must stay green.
 
+20. **Foundation before feature sprints** (2026-11-09): the pitch
+    tournament and feature sprints start only when the foundation holds:
+    3D steps 0 to 4 merged with their exit criteria; the handover guard
+    green; no open finding of high or medium severity (review, feedback,
+    baseline defects); XP split X2 to X5 merged; the due split reviews
+    done. Until then the work is, in this order: stability and bug fixes,
+    3D, plugin separation. Persona runs and the feedback loop continue;
+    the push-to-the-limit persona reports on what exists.
+
 **Overrides of the skills**, because the container of the PM session can
 be replaced between runs:
 

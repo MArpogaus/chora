@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Focus on 3D, plugin separation, stability and bug fixes before
+  starting new feature sprints (charter section 1 item 20).
+
 - All user agents report issues and draft feature requests; the PM
   reviews, ranks and addresses them by importance; cheap agents run
   user tests continuously, big rounds for demos and features.

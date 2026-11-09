@@ -16,6 +16,9 @@ block: three work branches in parallel, started 11:50
 
 ## Next step
 
+Order until the foundation holds (charter section 1 item 20):
+stability and bug fixes, 3D, plugin separation; no feature sprints.
+
 0. Disk (user request 11-09): after the security agent ends, `cargo
    clean`, add `[profile.dev] debug = "line-tables-only"` to
    `~/.cargo/config.toml` (incremental is already off there), rebuild;
