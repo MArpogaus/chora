@@ -2,13 +2,13 @@
 //! image nodes: XP's blue bar, the green start button, one button per
 //! window and the notification area with the clock.
 
-use crate::sheets;
 use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
     cube::DESKTOPS,
+    sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -112,8 +112,6 @@ pub struct Bar {
     pub output: String,
     /// The work area of the output.
     area: Rect,
-    /// The position of the output in the layout.
-    position: [i32; 2],
     /// The surfaces with a button, from the left.
     tasks: Vec<String>,
     /// The last update of each task button, to skip repeats.
@@ -133,7 +131,6 @@ impl Bar {
         Self {
             output: output.name.clone(),
             area: output.layout_area(),
-            position: output.position,
             tasks: Vec::new(),
             shown: HashMap::new(),
             auto_hide: false,
@@ -264,7 +261,6 @@ impl Bar {
     /// Moves the taskbar to the new work area of its output.
     pub fn resize(&mut self, theme: &mut Theme, output: &OutputInfo, clock: &str) -> Vec<Command> {
         self.area = output.layout_area();
-        self.position = output.position;
         let mut commands = self.layout(theme);
         commands.push(self.tray(theme, clock));
         commands
@@ -613,7 +609,6 @@ mod tests {
         Bar {
             output: "DP-1".into(),
             area: [0, 0, 1280, 800],
-            position: [0, 0],
             tasks: (0..tasks).map(|i| format!("s{i}")).collect(),
             shown: HashMap::new(),
             auto_hide: false,
