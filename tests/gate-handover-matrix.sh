@@ -114,6 +114,7 @@ construct xp cgive-s pass
 construct xp mcp pass
 construct xp voice skip
 construct mc key pass
+mc construct leak gap
 construct mc drag pass
 construct mc give pass
 construct mc cgive gap
@@ -212,16 +213,24 @@ rects_stable() {
     done
 }
 
+repairs=0
+repair() {
+    repairs=$((repairs + 1))
+    echo "repair $*" >>"$log"
+}
+
 place() {
     local o
     o=$(owner_of)
     [ "$o" != "$1" ] || return 0
     case $o in none | null | "") fail "the window is lost before a cell: owner ${o:-nobody}" ;; esac
     if [ "$o" = construct ] && [ "$(construct_pane)" != shown ]; then
+        repair "window.show of the construct pane ($(construct_pane)) before the give to $1"
         ctl call construct window.show '{"name": "probe"}' >/dev/null 2>&1
         sleep 1.5
     fi
     if ! ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$1\"}" >/dev/null 2>&1; then
+        repair "give $o to $1 through tiling"
         ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null 2>&1
         sleep 0.5
         ctl call tiling window.give "{\"surface\": \"$w\", \"to\": \"$1\"}" >/dev/null 2>&1
@@ -403,6 +412,17 @@ cell() {
     [ "$result" = "$want" ] || mismatches+=("$src $dst $path: measured $result, expected $want")
 }
 
+leak_cell() {
+    local want result
+    want=$(expected_of mc construct leak)
+    [ -n "$want" ] || fail "no EXPECTED line for mc construct leak"
+    place construct
+    if [ "$(construct_pane)" = shown ]; then result=pass; else result=gap; fi
+    got["mc construct leak"]=$result
+    echo "mc construct leak $result pane=$(construct_pane)" >>"$log"
+    [ "$result" = "$want" ] || mismatches+=("mc construct leak: measured $result, expected $want")
+}
+
 pairs=()
 for s in tiling xp construct mc; do
     for d in tiling xp mc construct; do
@@ -417,6 +437,9 @@ for path in "${paths[@]}"; do
         [[ "$1 $2 $path" =~ ${ONLY:-.} ]] || continue
         cell "$1" "$2" "$path"
     done
+    if [ "$path" = drag ] && [[ "mc construct leak" =~ ^(${ONLY:-.*})$ ]]; then
+        leak_cell
+    fi
 done
 
 printf '\n%-22s' pair
@@ -429,6 +452,7 @@ for pair in "${pairs[@]}"; do
     done
     echo
 done
+echo "repairs of the setup: $repairs (see $log)"
 echo "run time: ${SECONDS}s"
 if [ "${#mismatches[@]}" != 0 ]; then
     printf 'MISMATCH %s\n' "${mismatches[@]}" >&2
