@@ -4,6 +4,13 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Review rules too tight (100 lines burns tokens): rounds at merges,
+  tags, the end of the week and when critical components changed; no
+  rounds for routine work, sprint prototypes, test rounds and demos; an
+  automatic suggestion after some time (`review_due.py`).
+- Delete stale branches (done for `claude/report-media` locally; the
+  proxy refuses remote deletes).
+
 - Every rule shall be guarded where possible; manual checks are the
   exception (charter section 1 item 15, `guards.md`).
 

@@ -190,7 +190,7 @@ short form that applies.
 5. **State.** Read `state.md` and `friction.md`. If `state.md` names a
    `block` that was started and not finished, redo or finish it first.
    Fetch all `claude/*` branches and recreate missing worktrees under
-   `/home/user/wt/NAME` with `git worktree add`.
+   `/home/user/wt/NAME` with `git worktree add`. Run `review_due.py`.
 6. **Build.** `df -h /home/user`; below 8 GB free, remove
    `/home/user/target-base` first. Then `cargo build --workspace` and
    `cargo test --workspace` (cold: about 3.5 minutes and 1 minute; 846
@@ -296,19 +296,37 @@ sprints propose rows in `sprints.md`.
 - [ ] the change ran, and drawing code has a pixel check;
 - [ ] docs, glossary and decision rows are in the same series;
 - [ ] the 2D guard is green if the scene or the renderer changed;
-- [ ] the review round of the range that contains it is clean (a
-      round also runs before each merge and at the end of the 17:23
-      run, whatever the size of the range);
+- [ ] it is covered by a clean review round before it merges, is
+      tagged, or the week ends (see Review);
 - [ ] `state.md` is updated and pushed.
 
 **Clean** means: no open finding of medium or high severity.
 
-**Review:** `state.md` holds `last_reviewed: <sha>`. After each commit
-series on the session branch (about 100 changed lines of code, or 5
-commits), one round runs on `last_reviewed..HEAD`, (a range without code needs no round; move `last_reviewed` on): a subagent per view,
-always bugs, simplicity and leftovers; also docs, security, efficiency
-or usability when the range touches them (views as in `dev-conventions`
-section 4.3). The brief is minimal: repo, range, view, read-only rules.
+**Review** (risk based, revised by the user on 2026-11-09: the old
+trigger of 100 lines burned tokens on routine work). `state.md` holds
+`last_reviewed: <sha>`. A round is **required**:
+
+- before a merge into the session branch (a sprint keeper, a 3D exit
+  criterion) and before a tag;
+- at the end of each budget week, on the whole unreviewed range;
+- when `review_due.py` of the session log says DUE: weighted lines of
+  the unreviewed range at 1,500 or more (critical paths count 3, other
+  code 1, tests, docs and examples 0.2), or critical paths unreviewed
+  for 3 days. Critical paths: the core (`crates/chora`), the protocol
+  (`crates/chora-scene`), the MCP server, the security parts of voice
+  (config, chat, tools, agents), `dist/`, CI and `Cargo.lock`.
+
+No round for routine work (a dependency bump that passes the gate, a
+typo, a test script), for sprint prototypes, test rounds and demos on
+their own branches: those get their round when they merge. Run start
+step 5 runs `review_due.py`.
+
+**Size of a round** follows the risk: one combined sonnet reviewer
+(bugs, simplicity, leftovers) for a range without critical paths; one
+sonnet agent per view (bugs, simplicity, leftovers, plus docs,
+security, efficiency or usability as the range touches them) for
+critical paths or a merge; opus for security views and for the final
+round. The brief is minimal: repo, range, view, read-only rules.
 Each finding needs evidence (a reproduction, a command output or
 file:line); a finding without evidence is dropped. The PM re-verifies
 each finding before acting, fixes in new commits, and keeps a "checked
@@ -401,9 +419,8 @@ test from the pitch, before it sees the code.
 One fix round per sprint.
 
 **Keep or kill (Thursday):** a sprint stays if the acceptance test
-passes, the panel reaches the threshold, the 2D guard holds, and a review
-round (bugs, simplicity) leaves no open finding of high severity (the
-prototype check). The
+passes, the panel reaches the threshold and the 2D guard holds (the
+prototype check, without a review round). The
 keeper is brought to production level; reusable parts become plugins of
 their own or go into `chora-kit`. It merges into the session branch with
 `--no-ff` after a clean review round of the result. A killed sprint keeps
@@ -738,6 +755,7 @@ All on the branch `claude/session-log` (worktree `/home/user/wt/log`), committed
 | `drafts/` | marketing texts, outward texts, skill patches |
 | `routine.md` | the schedule and prompt of the runs |
 | `tokens.py` | sums the tokens of the session logs per day and model |
+| `review_due.py` | says whether a review round is due on the session branch |
 | `HANDOFF.md` | started with the 3D benchmark script, finished on 11-30 |
 
 When the session ends, the user decides which of these files stay in the

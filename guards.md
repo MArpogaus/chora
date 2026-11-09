@@ -24,7 +24,8 @@ its own), **to build** (a guard is possible and planned), **manual**
 | 2D unchanged by 3D work | `tests/2d-guard.sh` | guarded when run; to build: run it in a hook or CI job on renderer changes |
 | A new test fails without the fix | review evidence | manual (needs judgement of what "the fix" is) |
 | Stage files by name, no `git add -A` | none possible in git | manual |
-| Clean review round before a merge | the merge step of the PM | manual (a review is judgement) |
+| Review round when due (weighted size, critical paths, age) | `review_due.py` at run start | guarded (suggests; the round itself is judgement) |
+| Clean review round before a merge or tag | the merge step of the PM | manual (a review is judgement) |
 | Budget rules | `tokens.py` estimate at run start | guarded by the run start |
 | Never push to `dev` or `main` | branch protection on GitHub (D47, after 1.0) | manual until protection exists |
 | English replies, no overselling in reports | daily reflection | manual |
