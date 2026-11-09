@@ -7,9 +7,10 @@
 //! The other properties, for example `visible`, change at the end,
 //! so that a node can fade out and then hide.
 
+use glam::DQuat;
 use serde::{Deserialize, Serialize};
 
-use crate::{Mesh, Props, PropsUpdate, ShaderEffect, Transform, Uniform};
+use crate::{Decomposed, Mesh, Props, PropsUpdate, ShaderEffect, Transform, Uniform};
 
 /// The longest animation, in milliseconds.
 pub const MAX_DURATION: f64 = 60_000.0;
@@ -172,14 +173,29 @@ impl CameraMove {
 }
 
 impl Transform {
-    /// The transform between `self` at 0 and `other` at 1, entry by entry.
-    /// Translations and scales move straight; a rotation shrinks on the
-    /// way, as in other compositors that blend matrices.
+    /// The transform between `self` at 0 and `other` at 1. If both
+    /// decompose and their rotations differ, the translation and the scale
+    /// move straight and the rotation turns along the shortest arc, so the
+    /// size stays on the way. Otherwise the entries blend one by one.
     #[must_use]
     pub fn lerp(&self, other: &Self, t: f64) -> Self {
+        if let (Some(a), Some(b)) = (self.decompose(), other.decompose())
+            && DQuat::from_array(a.rotation) != DQuat::from_array(b.rotation)
+        {
+            let rotation = DQuat::from_array(a.rotation).slerp(DQuat::from_array(b.rotation), t);
+            return Self::compose(&Decomposed {
+                translation: mix(a.translation, b.translation, t),
+                rotation: rotation.to_array(),
+                scale: mix(a.scale, b.scale, t),
+            });
+        }
         let (a, b) = (self.matrix(), other.matrix());
         Self::from_matrix(std::array::from_fn(|i| a[i] + (b[i] - a[i]) * t))
     }
+}
+
+fn mix(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
+    std::array::from_fn(|i| a[i] + (b[i] - a[i]) * t)
 }
 
 #[cfg(test)]
@@ -262,5 +278,77 @@ mod tests {
         assert_eq!(half.len(), 2, "the list changes at the end");
         animation.elapsed = 200.0;
         assert_eq!(animation.props().effects, animation.to.effects.unwrap());
+    }
+
+    fn column_length(t: &Transform) -> f64 {
+        let m = t.matrix();
+        m[0].hypot(m[1])
+    }
+
+    #[test]
+    fn a_rotation_keeps_the_size_of_the_node_on_the_way() {
+        let from = Transform::scale(100.0, 100.0, 1.0);
+        let to = Transform::rotate_z(90.0).then(&from);
+        let half = from.lerp(&to, 0.5);
+        assert!((column_length(&half) - 100.0).abs() < 1e-9);
+        let (x, y) = half.apply(1.0, 0.0);
+        let angle = y.atan2(x).to_degrees();
+        assert!((angle - 45.0).abs() < 1e-9, "{angle}");
+        let end = from.lerp(&to, 1.0);
+        assert!((end.apply(1.0, 0.0).1 - 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_node_turns_by_half_a_turn_without_shrinking() {
+        let from = Transform::translate(50.0, 0.0, 0.0);
+        let to = Transform::translate(50.0, 0.0, 0.0).then(&Transform::rotate_z(180.0));
+        let mut animation = Animation {
+            from: Props {
+                transform: from,
+                ..Props::default()
+            },
+            to: PropsUpdate {
+                transform: Some(to),
+                ..PropsUpdate::default()
+            },
+            duration: 200.0,
+            elapsed: 100.0,
+            easing: Easing::Linear,
+        };
+        for elapsed in [0.0, 25.0, 100.0, 175.0] {
+            animation.elapsed = elapsed;
+            let t = animation.props().transform;
+            assert!((column_length(&t) - 1.0).abs() < 1e-9, "{elapsed}");
+        }
+    }
+
+    #[test]
+    fn translation_and_scale_blend_entry_by_entry() {
+        let from = Transform::translate(10.0, 20.0, 0.0).then(&Transform::scale(2.0, 4.0, 1.0));
+        let to = Transform::translate(-30.0, 5.0, 8.0).then(&Transform::scale(5.0, 1.0, 3.0));
+        for t in [0.0, 0.1, 0.5, 0.9, 1.0] {
+            let blend: [f64; 16] =
+                std::array::from_fn(|i| from.matrix()[i] + (to.matrix()[i] - from.matrix()[i]) * t);
+            assert_eq!(from.lerp(&to, t).matrix(), &blend);
+        }
+    }
+
+    #[test]
+    fn a_matrix_that_does_not_decompose_blends_entry_by_entry() {
+        let mut skew = *Transform::IDENTITY.matrix();
+        skew[4] = 1.0;
+        let from = Transform::from_matrix(skew);
+        let to = Transform::rotate_z(90.0);
+        let half = from.lerp(&to, 0.5);
+        let blend: [f64; 16] = std::array::from_fn(|i| skew[i] + (to.matrix()[i] - skew[i]) * 0.5);
+        assert_eq!(half.matrix(), &blend);
+    }
+
+    #[test]
+    fn a_rotation_takes_the_short_way_round() {
+        let from = Transform::rotate_z(10.0);
+        let to = Transform::rotate_z(350.0);
+        let (x, y) = from.lerp(&to, 0.5).apply(1.0, 0.0);
+        assert!(y.atan2(x).abs() < 1e-9);
     }
 }
