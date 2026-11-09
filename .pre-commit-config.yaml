@@ -24,6 +24,13 @@ repos:
     entry: tests/no-agent-trailers.sh
     language: script
     stages: [commit-msg]
+  - id: no-inline-comments
+    name: no inline comments in added lines of Rust, shell and Python
+    entry: python3 -I tests/no-inline-comments.py
+    language: system
+    types_or: [rust, shell, python]
+    pass_filenames: false
+    stages: [pre-commit]
   - id: lychee
     name: lychee (offline links in the Markdown files)
     entry: lychee --config lychee.toml
