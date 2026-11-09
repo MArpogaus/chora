@@ -141,6 +141,12 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Waiting for merge
 
+- claude/hud-h1 (cbebd65, b9a0710, 071a2c6): `chora-kit` hud, words, ask
+  and docs/hud.md; 105 kit tests, gate green. Joins the 11-10 review
+  round (bugs, POLS and KISS; UX/UI view on the word table). Open: the
+  xp figure `paperclip` drawn in code has no name in the folder
+  contract (decide in H8); the `huds:` settings list is not modelled;
+  the contrast check moves to H2 `--check-hud`.
 - claude/hud-h3 (9750224, 19b2f7b): voice chat methods, 202 voice tests,
   gate green. Merges after the 11-10 review round, which includes this
   branch (critical path: agents.rs, client.rs; opus security view). Open
