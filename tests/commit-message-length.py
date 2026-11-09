@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """commit-msg hook: subject at most 68 characters, body lines at most 72.
 
-Lines that are or start with a URL and git's # comment lines are skipped.
+Skipped: git's # comment lines, everything from git's scissors line on
+(`git commit -v` appends the diff there), lines that are or start with a
+URL, leading blank lines, and the length of a subject that git
+generates (`Merge `, `Revert "`, `fixup! `, `squash! `).
 Usage: commit-message-length.py MESSAGE_FILE
 """
 import re
@@ -9,6 +12,8 @@ import sys
 
 SUBJECT_LIMIT = 68
 BODY_LIMIT = 72
+SCISSORS = "# ------------------------ >8 ------------------------"
+GENERATED = ("Merge ", 'Revert "', "fixup! ", "squash! ")
 URL_START = re.compile(r"\s*https?://")
 
 
@@ -17,13 +22,19 @@ def main(path):
         lines = handle.read().splitlines()
     failed = False
     subject_seen = False
-    for line in lines:
-        if line.startswith("#"):
+    for number, line in enumerate(lines, 1):
+        if line == SCISSORS:
+            break
+        if line.startswith("#") or (not subject_seen and not line.strip()):
             continue
-        limit = BODY_LIMIT if subject_seen else SUBJECT_LIMIT
+        is_subject = not subject_seen
         subject_seen = True
+        if is_subject and line.startswith(GENERATED):
+            continue
+        limit = SUBJECT_LIMIT if is_subject else BODY_LIMIT
+        label = "subject" if is_subject else f"body line {number}"
         if len(line) > limit and not URL_START.match(line):
-            print(f"{len(line)} characters (limit {limit}): {line}")
+            print(f"{label}: {len(line)} characters (limit {limit}): {line}")
             failed = True
     return 1 if failed else 0
 
