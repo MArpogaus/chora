@@ -1,0 +1,20 @@
+hud: 1
+font: sans-serif
+panels:
+- id: figure
+  source: voice
+  anchor: bottom_right
+  margin: [16, 48]
+  picture: dot.svg#{state}
+  action: mute
+- id: line
+  source: say
+  near: figure
+  style: bubble
+  text: '{text}'
+  max_chars: 160
+chat:
+  style: plain
+  size: 14
+  anchor: right
+  width: 400
