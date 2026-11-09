@@ -2562,7 +2562,9 @@ impl Construct {
     /// Gives an own window to the client `to`, a window manager or a
     /// plugin such as mc (D55): the core reserves the window for `to`,
     /// with its props back to the defaults, and the pane goes. The core
-    /// refuses a `to` without a connection, and the pane stays.
+    /// refuses a `to` without a connection, and the pane stays. A window
+    /// that the camera flew into first gives the keyboard back to the
+    /// walk, so that this cannot take it from `to` after the give.
     fn give(&mut self, surface: &str, to: &str) -> Result<Value, ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(surface)) else {
@@ -2573,6 +2575,9 @@ impl Construct {
                 "the window {} belongs to another client, which gives it",
                 pane.name
             ));
+        }
+        if (self.flown.as_ref()).is_some_and(|f| f.surface == surface) {
+            self.fly_out()?;
         }
         let answer = self.rt.conn.give(surface, to).map_err(ClientError::Rpc)?;
         self.forget(surface)?;
