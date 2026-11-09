@@ -1160,7 +1160,9 @@ JSON-RPC error.
 
 Every method that a plugin exports is a tool of its own, named
 `client.method`, with the description and the input schema of the
-export. `call_method` stays for the general case. The tool list answers
+export. Its `_meta` has `"privileged": true` for a privileged method, so
+that a client of the server can ask its user first. `call_method` stays
+for the general case. The tool list answers
 fresh on every `tools/list`, so a later `methods.export` needs no
 restart. A call of such a tool passes its whole arguments object as the
 params of the method.

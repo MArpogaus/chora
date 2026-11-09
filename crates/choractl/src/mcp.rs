@@ -28,7 +28,7 @@ use chora_scene::{
 use rmcp::{
     model::{
         CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorCode,
-        ErrorData, Implementation, JsonObject, ListToolsResult, PaginatedRequestParams,
+        ErrorData, Implementation, JsonObject, ListToolsResult, MetaObject, PaginatedRequestParams,
         ServerCapabilities, ServerConfig, Tool,
     },
     service::{RequestContext, RoleServer},
@@ -405,7 +405,8 @@ fn object(schema: &Value) -> JsonObject {
 }
 
 /// One tool per exported plugin method: the name `client.method`, the
-/// description and the input schema of the export. A plain export gets a
+/// description and the input schema of the export, and in its `_meta`
+/// whether the method is privileged. A plain export gets a
 /// schema that accepts any object.
 fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
     methods
@@ -420,7 +421,10 @@ fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
             let description = method["description"]
                 .as_str()
                 .map_or_else(|| format!("Call {client}.{name}."), str::to_owned);
-            Some(Tool::new(format!("{client}.{name}"), description, schema))
+            let mut tool = Tool::new(format!("{client}.{name}"), description, schema);
+            let privileged = method["privileged"].as_bool().unwrap_or(false);
+            tool.meta = Some(MetaObject(object(&json!({"privileged": privileged}))));
+            Some(tool)
         })
         .collect()
 }
@@ -915,6 +919,22 @@ mod tests {
             Some("Call tiling.give.")
         );
         assert_eq!(exported[1].input_schema["type"], "object");
+    }
+
+    /// The agent asks before a privileged method, and learns of it from
+    /// the `_meta` of its tool.
+    #[test]
+    fn a_tool_carries_the_privileged_flag_in_its_meta() {
+        let methods = vec![
+            json!({"client": "mc", "name": "app.open", "description": null,
+                   "input_schema": null, "privileged": true}),
+            json!({"client": "mc", "name": "scene.show", "description": null,
+                   "input_schema": null, "privileged": false}),
+        ];
+        let flag = |tool: &Tool| tool.meta.as_ref().map(|m| m.0["privileged"].clone());
+        let exported = plugin_tools(&methods);
+        assert_eq!(flag(&exported[0]), Some(json!(true)));
+        assert_eq!(flag(&exported[1]), Some(json!(false)));
     }
 
     #[test]
