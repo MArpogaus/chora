@@ -36,7 +36,21 @@ done
 PERSONA_ENV=$(sed -n 's/^PERSONA_ENV=//p' "$dir/out")
 export PERSONA_ENV
 act() { python3 -I "$here/act.py" "$@"; }
+env_value() { sed -n "s/^$1=//p" "$PERSONA_ENV"; }
+admin() {
+    CHORA_SOCKET=$(env_value CHORA_SOCKET) XDG_RUNTIME_DIR=$(env_value XDG_RUNTIME_DIR) \
+        "${CHORA_BIN:-$repo/target/debug}/choractl" "$@"
+}
 sleep 2 # the plugin needs a moment before it takes keys
+
+top=0
+for _ in $(seq 100); do
+    top=$(admin outputs | jq '.[0].work_area[1]')
+    ((top > 0)) && break
+    sleep 0.2
+done
+((top > 0)) || fail "waybar reserved no space: the work area starts at $top"
+echo "waybar: the work area starts at y=$top"
 
 act look >"$dir/a.path"
 act key Super+Return

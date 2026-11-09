@@ -13,6 +13,10 @@
 #   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
 #
+# The companions that the units of the flavor start (flavors/FLAVOR/) start
+# too, with choractl run, when their programs exist on the machine; the
+# list of each flavor is the `case` on FLAVOR in this script.
+#
 # When the session is up, it writes KEY=VALUE lines to
 # $PERSONA_DIR/session.env and prints "PERSONA_ENV=<that file>" as its
 # first output line. The file has PERSONA_ENV, PERSONA_DIR, PERSONA_LOG,
@@ -80,8 +84,19 @@ construct) startup=("$bin/chora-construct") ;;
     ;;
 esac
 
+case $flavor in
+tiling)
+    companions=(
+        "swaybg --color #2e3440"
+        "waybar --config $repo/flavors/tiling/waybar/config.jsonc"
+    )
+    ;;
+*) companions=() ;;
+esac
+
 out=$dir/headless.out
 session=
+companion_pids=()
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
     trap - EXIT INT TERM HUP
@@ -94,7 +109,9 @@ cleanup() {
         done
         kill -KILL "$session" 2>/dev/null || true
     fi
-    # Programs of `choractl run` that stayed in this script's group.
+    for pid in "${companion_pids[@]}"; do
+        kill -TERM -- "-$pid" 2>/dev/null || true
+    done
     rm -rf "$dir"
 }
 trap cleanup EXIT
@@ -123,6 +140,17 @@ core=$(pgrep -P "$session" -x chora | head -n 1 || true)
 
 # The admin socket grants; persona gets these two and nothing else.
 CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona screen.capture input.inject >/dev/null
+
+for line in "${companions[@]}"; do
+    read -ra argv <<<"$line"
+    command -v "${argv[0]}" >/dev/null || continue
+    started=$(
+        WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$out") CHORA_FLAVOR_DIR=$repo/flavors/$flavor \
+            CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime \
+            "$bin/choractl" run setsid dbus-run-session -- "${argv[@]}"
+    )
+    companion_pids+=("$(jq -r .pid <<<"$started")")
+done
 
 {
     echo "PERSONA_ENV=$env_file"
