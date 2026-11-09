@@ -39,6 +39,11 @@ assets = [
   { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
   { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
   { source = "target/release/chora-xp", dest = "/usr/bin/chora-xp", mode = "755" },
+  { source = "target/release/chora-notify", dest = "/usr/bin/chora-notify", mode = "755" },
+  { source = "target/release/chora-assistant", dest = "/usr/bin/chora-assistant", mode = "755" },
+  # The neutral asset folder of each block (D73).
+  { source = "../../plugins/chora-notify/assets/*", dest = "/usr/share/chora/notify/assets/", mode = "644" },
+  { source = "../../plugins/chora-assistant/assets/*", dest = "/usr/share/chora/assistant/assets/", mode = "644" },
   { source = "target/release/chora-mc", dest = "/usr/bin/chora-mc", mode = "755" },
   # chora-mc has its scenes, settings and shaders built in; the collectors
   # that fill the scenes run from here.
@@ -83,6 +88,16 @@ assets = [
   { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/theme/fonts/", mode = "644" },
   { source = "../../flavors/xp/theme/wallpaper/*", dest = "/usr/share/chora/flavors/xp/theme/wallpaper/", mode = "644" },
   { source = "../../flavors/xp/theme/winxp/*", dest = "/usr/share/chora/flavors/xp/theme/winxp/", mode = "644" },
+  # The XP folders of the blocks. cargo-generate-rpm has no entry for a
+  # link, so each folder carries a copy of the fonts that the Arch package
+  # links to the theme.
+  { source = "../../flavors/xp/assets/notify/README.md", dest = "/usr/share/chora/flavors/xp/assets/notify/README.md", mode = "644" },
+  { source = "../../flavors/xp/assets/notify/values.yaml", dest = "/usr/share/chora/flavors/xp/assets/notify/values.yaml", mode = "644" },
+  { source = "../../flavors/xp/assets/notify/*.svg", dest = "/usr/share/chora/flavors/xp/assets/notify/", mode = "644" },
+  { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/assets/notify/fonts/", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/README.md", dest = "/usr/share/chora/flavors/xp/assets/assistant/README.md", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/values.yaml", dest = "/usr/share/chora/flavors/xp/assets/assistant/values.yaml", mode = "644" },
+  { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/assets/assistant/fonts/", mode = "644" },
   # The cursors of the XP session, where XCURSOR_THEME=ModernXP finds them.
   { source = "../../flavors/xp/theme/cursors/ModernXP/**/*", dest = "/usr/share/icons/ModernXP/", mode = "644" }
 ]
