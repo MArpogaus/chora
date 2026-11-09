@@ -80,6 +80,15 @@ is found (charter section 8). Started from charter section 15 on
     office tasks of personas are only meaningful on the reference
     hardware or once xwayland is available here (owner's machine).
 
+17. Flaky focus under load (11-09): with several parallel cargo test
+    runs, the matrix gate sometimes ends a window in xp without keyboard
+    focus (tiling xp cgive, tiling xp voice, xp mc cgive, xp construct
+    cgive), also without construct. A possible real timing bug of focus
+    on handover in xp. Reproduce under load, find the cause, fix.
+18. Super+drag does nothing while the construct camera is inside an
+    adopted window; the user must fly out first (Alt+Escape). Decide
+    whether Super+drag should work from inside (POLS).
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running
