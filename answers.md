@@ -133,3 +133,5 @@ Newest first. The PM reads this file at the start of each run.
   more (done: 130 commits on the code branch, 48 on session-log).
 - The ACP chat shall be themed and integrated into the matching UI, for
   example the agents view of mc and the assistant figure of xp.
+- Define the design principles, core values and philosophy that the UX/UI
+  follows: `docs/design-principles.md` (e22ce6b), linked from charter 5a.

@@ -456,7 +456,9 @@ pass by the UX/UI designer (section 5) **before** a developer starts:
 a feature, a sprint, a HUD, a launcher, a bar item, a prompt or a voice
 reply. Bug fixes that restore designed behavior need none.
 
-The designer reads the pitch or design, the existing look
+The designer follows `docs/design-principles.md` (philosophy, core
+values, ten principles with their checks; asked by the user on
+2026-11-09) and reads the pitch or design, the existing look
 (`docs/*-style.md`, captures) and the persona feedback, and writes
 `design/ux-NAME.md` on the session log branch:
 
