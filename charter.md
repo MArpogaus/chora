@@ -203,7 +203,8 @@ short form that applies.
      https://github.com/lycheeverse/lychee/releases/latest/download/lychee-x86_64-unknown-linux-gnu.tar.gz`,
      unpack, `install -m755`); 0.24.2 works.
 2. **Hooks.** Check `git -C /home/user/chora config --get core.bare` is
-   false (a test that inherited GIT_DIR once set it). `cd` into the chora clone (the PM session has it; clone it
+   false and `config --local --get user.email` is empty (a test that
+   inherited GIT_DIR once set both). `cd` into the chora clone (the PM session has it; clone it
    only when the container is fresh). Make sure the worktree
    `/home/user/wt/log` exists on `claude/session-log` (`git worktree add
    /home/user/wt/log claude/session-log`), pull it, and install its hooks
