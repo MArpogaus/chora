@@ -116,6 +116,19 @@ impl RenderStats {
     }
 }
 
+#[cfg(test)]
+impl RenderStats {
+    /// How many elements of a variant [`output_elements`] returned.
+    pub fn elements_of(&self, variant: Variant) -> u64 {
+        self.elements[variant as usize]
+    }
+
+    /// The offscreen renders: node contents and shader passes.
+    pub fn offscreen(&self) -> u64 {
+        self.textures_rendered + self.passes
+    }
+}
+
 /// What the scene draws besides surfaces: a color buffer per rect node,
 /// the images, the ids of the image cells of each image node, and the
 /// textures of the layers.

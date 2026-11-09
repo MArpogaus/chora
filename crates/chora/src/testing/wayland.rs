@@ -398,12 +398,27 @@ impl Wayland {
         &mut self,
         core: &mut Core,
         toplevel: &Toplevel,
-        (w, h): (i32, i32),
+        size: (i32, i32),
         (format, pixel): (wl_shm::Format, u32),
     ) {
         if let Some(serial) = self.app.surfaces[toplevel.index].pending.take() {
             toplevel.xdg.ack_configure(serial);
         }
+        self.show(core, &toplevel.surface, size, (format, pixel));
+    }
+
+    /// Commits a transparent buffer of a size to a layer surface.
+    pub fn attach_layer(&mut self, core: &mut Core, layer: &LayerSurface, size: (i32, i32)) {
+        self.show(core, &layer.surface, size, (wl_shm::Format::Argb8888, 0));
+    }
+
+    fn show(
+        &mut self,
+        core: &mut Core,
+        surface: &WlSurface,
+        (w, h): (i32, i32),
+        (format, pixel): (wl_shm::Format, u32),
+    ) {
         let mut file = tempfile();
         let pixels = usize::try_from(w * h).expect("a size");
         std::io::Write::write_all(&mut file, &pixel.to_le_bytes().repeat(pixels))
@@ -413,9 +428,9 @@ impl Wayland {
         let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
         let buffer = pool.create_buffer(0, w, h, w * 4, format, &qh, ());
         pool.destroy();
-        toplevel.surface.attach(Some(&buffer), 0, 0);
-        toplevel.surface.damage(0, 0, w, h);
-        toplevel.surface.commit();
+        surface.attach(Some(&buffer), 0, 0);
+        surface.damage(0, 0, w, h);
+        surface.commit();
         self.roundtrip(core);
     }
 
