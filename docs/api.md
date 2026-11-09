@@ -758,8 +758,11 @@ in. `choractl clients create agent` prints its path:
   window of its `wayland.sock` asks for tokens through `xdg-activation`, under the
   focus rules above.
 - Its `image`, `shader` and effect paths name only its own files of
-  `assets.put`. The main socket has no such rule: a client of it runs as
-  the same account as the core and could read those files anyway.
+  `assets.put`. The main socket has no such rule, unless the `hello`
+  has `confined: true`, as of `choractl mcp`: a shader path to any file
+  would leak its content in a compile error. A confined connection of
+  the main socket also has the scene rules of a client socket, and its
+  grabs share no button binding by claim.
 - It holds at most 16 connections, and its Wayland socket at most 16
   clients. All client sockets together leave 32 connections to the main
   socket.

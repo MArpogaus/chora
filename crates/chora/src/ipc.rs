@@ -1284,8 +1284,7 @@ impl State {
         // Only on the main socket: a confined client could claim a little
         // less than an output and so take every press of the binding.
         let claims = |c: u64| {
-            self.ipc.fixed(c).is_none()
-                && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
+            !self.ipc.confined(c) && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
         };
         // Each window manager gets the moves of its own windows.
         let own = trigger == Trigger::Move;
@@ -2395,6 +2394,15 @@ mod tests {
         admin.ok(&mut core, "grants.set", grant);
         mcp.send("methods.call", open);
         assert_eq!(mc.event_names(&mut core), ["method.called"]);
+        // The scene rules of a client socket hold too: only own assets,
+        // and no camera.
+        let image = json!({"commands": [{"create": {"id": "i", "kind": "image",
+            "parent": "root", "props": {"image": "/etc/hostname"}}}]});
+        let (_, message) = mcp.fails(&mut core, "scene.apply", image);
+        assert!(message.contains("only its own assets"), "{message}");
+        let camera = json!({"commands": [{"camera": {"output": "DP-1"}}]});
+        let (_, message) = mcp.fails(&mut core, "scene.apply", camera);
+        assert!(message.contains("no camera commands"), "{message}");
         // Another connection of the name without the flag stays free.
         let mut free = core.connect();
         free.ok(&mut core, "hello", json!({"name": "other"}));
