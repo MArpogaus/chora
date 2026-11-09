@@ -11,35 +11,50 @@ they apply these principles and never contradict them.
 
 ## Philosophy
 
-chora gives forms a place and stays out of the way. The interface
-serves the task of the person in front of it and recedes when it is not
-needed. Content comes first; the frame around it is calm and quiet.
+**Minimal, flawless, flexible.**
 
-A look can be anything: a classic desktop, a tiling setup, a media
-center, a 3D space. The behavior under the look stays the same, so a
-person who learned one look is not lost in another. People of every
-skill use chora: a person who has never used a computer and a person who
-rebuilds the whole desktop for fun. The simple path comes first, and
-power sits on top of it, never in its way.
+- **Minimal.** chora gives forms a place and stays out of the way. The
+  interface serves the task of the person in front of it and recedes
+  when it is not needed. Content comes first; the frame around it is
+  calm and quiet. Every element earns its place.
+- **Flawless.** What exists works, every time, for everyone. A small
+  thing that always works beats a large thing that mostly works.
+- **Flexible.** A look can be anything: a classic desktop, a tiling
+  setup, a media center, a 3D space. Anything a person sees can be
+  changed, replaced and shared. The behavior under the look stays the
+  same, so a person who learned one look is not lost in another.
 
-The person decides. Agents, plugins and scripts act for the person, show
-what they do, and ask before they do something that matters.
+People of every skill use chora: a person who has never used a computer
+and a person who rebuilds the whole desktop for fun. The simple path
+comes first, and power sits on top of it, never in its way. The person
+decides: agents, plugins and scripts act for the person, show what they
+do, and ask before they do something that matters.
 
 ## Core values
 
-1. **Least surprise (POLS).** Things behave as a person expects from
-   what they see and from the rest of chora.
-2. **Simplicity (KISS).** The simplest thing that solves the task. No
+Minimal:
+
+1. **Simplicity (KISS).** The simplest thing that solves the task. No
    feature without a person and a task it serves.
-3. **Quality and stability before features.** A flaw in a flow that
+2. **Calm.** Nothing asks for attention that the person did not ask
+   for.
+
+Flawless:
+
+3. **Least surprise (POLS).** Things behave as a person expects from
+   what they see and from the rest of chora.
+4. **Quality and stability before features.** A flaw in a flow that
    exists ranks above a new flow.
-4. **Everyone.** Low-tech people, people who use only a keyboard or only
-   their voice, and power users all reach their goal.
-5. **The person in control.** Nothing acts in a person's name without
-   their knowledge; every step can be undone or left.
-6. **Honesty.** The interface shows the true state, names failures, and
+5. **Honesty.** The interface shows the true state, names failures, and
    never pretends.
-7. **Open and ownable.** Everything a person sees can be changed and
+6. **The person in control.** Nothing acts in a person's name without
+   their knowledge; every step can be undone or left.
+
+Flexible:
+
+7. **Everyone.** Low-tech people, people who use only a keyboard or only
+   their voice, and power users all reach their goal.
+8. **Open and ownable.** Everything a person sees can be changed and
    shared as plain files.
 
 ## Principles
