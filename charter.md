@@ -247,7 +247,8 @@ code gate.
 **Commits:**
 
 - `type(scope): description` in the imperative, scope optional, at
-  most 68 characters,
+  most 68 characters (a merge commit: `Merge branch 'NAME': what it
+  brings`, which commitizen accepts),
   body wrapped at 72. Commitizen checks the type. One reason per commit.
   Stage files by name; never `git commit -a` or `git add -A`.
 - **No AI attribution**: no `Co-Authored-By`, `Claude-Session` or

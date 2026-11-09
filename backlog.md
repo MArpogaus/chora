@@ -35,7 +35,8 @@ is found (charter section 8). Started from charter section 15 on
 
 11. XP split (D73, roadmap "Track: XP split", steps X1 to X7, plugins
     only, `tests/xp.sh` and the battle workflows green after each step).
-    Next: X1, the design document and the crate skeleton. X2
+    X1 done (97afe81). Next: X2, notifications and assistant as plugins,
+    with chora-draw. X2
     (notifications as a plugin) also closes the notification gap of mc
     and construct; X4 (panel) is the shared bar of D51. Asked by the
     owner on 2026-11-09 (the "MCP plugin" in the transcript meant XP).

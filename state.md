@@ -31,6 +31,11 @@ block: three work branches in parallel, started 11:50
 
 ## Done
 
+- 11-09: XP split X1 merged (97afe81): docs/xp-split.md, skeletons of
+  chora-notify and chora-assistant, chora-draw as a shared library, D77
+  (four repositories, amends D36); review: no high, two medium fixed;
+  853 tests, 2D guard PASS. Panes as views of sources, D76 (8b567b5).
+
 - 11-09: security fixes, all seven findings (0e3afa2 to 37052ae after
   the rewrite), 851 tests; history of the session branch cleaned of
   session files (37052ae); roadmap without plan links (4295193); guards
@@ -62,7 +67,6 @@ block: three work branches in parallel, started 11:50
 
 - `claude/construct-gates` (worktree /home/user/wt/construct-gates):
   the two failing construct gates.
-- `claude/xp-x1` (worktree /home/user/wt/xp-x1): XP split step X1.
 - `claude/3d-step0` (worktree /home/user/wt/3d-step0): 3D step 0.
 Each merges into the session branch after a review round (merge rule).
 
