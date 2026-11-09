@@ -2,7 +2,8 @@
 # Starts a private headless chora session with a flavor for a simulated
 # user (persona), and grants the client `persona` screen.capture and
 # input.inject only. It stays in the foreground until SIGTERM or INT, then
-# stops the core by its pid and removes the session directory.
+# stops the core by its pid and removes the session directory, unless the
+# caller gave it in PERSONA_DIR.
 #
 # Usage: tests/persona/session.sh FLAVOR [WxH]
 #        tests/persona/session.sh --stop ENV_FILE
@@ -10,7 +11,9 @@
 #   WxH     the size of the virtual output (default 1280x800)
 #
 # Environment:
-#   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX)
+#   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX,
+#                which the script removes at the end; a directory that
+#                you give stays)
 #   PERSONA_KEEP a directory that gets a copy of shots/ and actions.jsonl
 #                when the session ends (default: nothing is kept)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
@@ -53,7 +56,12 @@ fi
 flavor=$1
 size=${2:-1280x800}
 
-dir=${PERSONA_DIR:-$(mktemp -d /tmp/persona.XXXXXX)}
+created_dir=
+if [[ -z ${PERSONA_DIR:-} ]]; then
+    PERSONA_DIR=$(mktemp -d /tmp/persona.XXXXXX)
+    created_dir=$PERSONA_DIR
+fi
+dir=$PERSONA_DIR
 mkdir -p "$dir/shots" "$dir/config"
 dir=$(cd "$dir" && pwd)
 env_file=$dir/session.env
@@ -119,7 +127,9 @@ cleanup() {
         cp -r "$dir/shots" "$PERSONA_KEEP/"
         cp "$dir/actions.jsonl" "$PERSONA_KEEP/" 2>/dev/null || true
     fi
-    rm -rf "$dir"
+    if [[ -n $created_dir ]]; then
+        rm -rf "$created_dir"
+    fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT
