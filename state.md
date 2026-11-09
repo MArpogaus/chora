@@ -103,6 +103,13 @@ Sprint S1 wave 1, started 17:25 Bangkok (budget left today about 6 %):
 - Evening reflection (opus), reflections/2026-11-09.md
 H2 (pictures confined to the folder) waits for disk and budget (11-10).
 
+review_due.py at 17:23: DUE (4513ba2..HEAD, weighted 2310, 9 critical
+files). ACP and construct-adopt were reviewed before their merge; grants
+step 1, the XP launch feedback and the design principles docs were not.
+First task of 11-10 run 1: one review round on that range (views: bugs,
+POLS and KISS, security on inject.rs and the grants, UX/UI on the XP
+messages), then advance last_reviewed.
+
 ## Blocked
 
 ## Split reviews
