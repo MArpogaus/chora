@@ -77,3 +77,9 @@
     config core.bare false`; nothing was lost. Change: test scripts that
     make git repos unset the GIT_* environment first; the run start
     checks `git config --get core.bare` is false.
+13. **The comment guard grows.** `tests/no-inline-comments.py` became a
+    state machine for strings, raw strings, triple quotes and heredocs,
+    and two review rounds still found false positives and negatives.
+    That is in tension with KISS. Change if it keeps failing: accept the
+    known limits in its docstring instead of parsing further, or move the
+    Rust part to a clippy-style lint on the AST.
