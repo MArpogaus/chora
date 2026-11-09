@@ -58,6 +58,8 @@ pub enum Event {
         name: String,
         voice: String,
         prompt: String,
+        detail: String,
+        physical: bool,
         answer: oneshot::Sender<bool>,
     },
 }
@@ -603,11 +605,38 @@ fn outcome(options: &[Value], yes: bool) -> Value {
         )
 }
 
+/// Whether a permission request takes a key or a button of the HUD, as
+/// a security question of the reply does: all but a read, a search and
+/// a thought, so a command, a write, a move, a delete, a fetch and a
+/// kind that is unknown; and any request without an `allow_once`
+/// option, which a plain yes would turn into `allow_always`.
+fn is_physical(tool: &Value, options: &[Value]) -> bool {
+    let once = options.iter().any(|o| o["kind"] == "allow_once");
+    !once || !matches!(tool["kind"].as_str(), Some("read" | "search" | "think"))
+}
+
+/// What a permission request asks, in full, for the screen.
+fn detail(tool: &Value) -> String {
+    let title = tool["title"].as_str().unwrap_or_default().trim();
+    let mut input = tool["rawInput"].clone();
+    crate::chat::hide(&mut input);
+    if input.is_null() {
+        title.to_owned()
+    } else {
+        format!("{title}\n{input}")
+    }
+}
+
 /// What a permission request asks, short enough to speak: the title of
-/// its tool call, a path as its file name, and the kind as a verb.
+/// its tool call, a path as its file name for an edit, a read, a delete
+/// and a move, and the kind as a verb.
 fn asked(tool: &Value, german: bool) -> String {
     let title = tool["title"].as_str().unwrap_or_default().trim();
-    let title = if title.starts_with('/') {
+    let short = matches!(
+        tool["kind"].as_str(),
+        Some("edit" | "read" | "delete" | "move")
+    );
+    let title = if short && title.starts_with('/') {
         Path::new(title)
             .file_name()
             .map_or(title.into(), |f| f.to_string_lossy())
@@ -904,6 +933,26 @@ impl Actor {
         let what = asked(&params["toolCall"], german);
         let options = params["options"].as_array().cloned().unwrap_or_default();
         let prompt = question(&asks, name, &what, &options, german);
+        let physical = is_physical(&params["toolCall"], &options);
+        let detail = detail(&params["toolCall"]);
+        if crate::chat::too_long(&detail) {
+            rpc.respond(rpc_id, outcome(&options, false)).await?;
+            let told = if german {
+                format!(
+                    "{} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.",
+                    title(name)
+                )
+            } else {
+                format!(
+                    "{} asked for something too long to show. Rejected.",
+                    title(name)
+                )
+            };
+            self.agents
+                .update(name, id, |s| s.note(&format!("! {told}")));
+            self.agents.speak(name, &told);
+            return Ok(());
+        }
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
@@ -920,6 +969,8 @@ impl Actor {
             name: name.to_owned(),
             voice,
             prompt,
+            detail,
+            physical,
             answer,
         }));
         Ok(())
@@ -1068,6 +1119,51 @@ mod tests {
 
     use super::*;
 
+    /// A permission request takes a key unless it only reads, searches
+    /// or thinks, and unless its only allowing option is `allow_once`.
+    #[test]
+    fn a_permission_request_is_physical_unless_it_only_looks() {
+        let once = [
+            json!({"kind": "allow_once"}),
+            json!({"kind": "reject_once"}),
+        ];
+        for kind in ["execute", "edit", "delete", "move", "fetch", "other"] {
+            assert!(is_physical(&json!({"kind": kind}), &once), "{kind}");
+        }
+        assert!(is_physical(&json!({}), &once), "no kind");
+        for kind in ["read", "search", "think"] {
+            assert!(!is_physical(&json!({"kind": kind}), &once), "{kind}");
+        }
+        let always = [json!({"kind": "allow_always"})];
+        assert!(is_physical(&json!({"kind": "read"}), &always));
+    }
+
+    /// The title of a command is never cut to a file name, and the
+    /// screen gets the whole title and the raw input without secrets.
+    #[test]
+    fn a_command_keeps_its_whole_title_for_the_user() {
+        let tool = json!({
+            "kind": "execute",
+            "title": "/bin/true && rm -rf /home/user/x",
+            "rawInput": {"command": "ls", "api_key": "s3cret"}
+        });
+        let said = asked(&tool, false);
+        assert!(said.contains("rm -rf /home/user/x"), "{said}");
+        let long = json!({"kind": "execute", "title": "x".repeat(200)});
+        assert_eq!(detail(&long).matches('x').count(), 200);
+        let shown = detail(&tool);
+        assert!(
+            shown.contains("/bin/true && rm -rf /home/user/x"),
+            "{shown}"
+        );
+        assert!(shown.contains("\"command\":\"ls\""), "{shown}");
+        assert!(!shown.contains("s3cret"), "{shown}");
+        let edit = json!({"kind": "edit", "title": "/home/user/notes.txt"});
+        assert_eq!(asked(&edit, false), "edit notes.txt");
+        let unknown = json!({"title": "/bin/sh"});
+        assert_eq!(asked(&unknown, false), "/bin/sh");
+    }
+
     #[test]
     fn a_long_answer_speaks_its_first_sentence() {
         assert_eq!(summary(" Kurz. ", 20, "Mehr."), "Kurz.");
@@ -1189,6 +1285,40 @@ mod tests {
             unreachable!()
         };
         assert!(text.starts_with("Erlaubt"), "{text}");
+        agents.stop("demo");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A request whose detail is too long to show whole is rejected,
+    /// and the user is told, so that no part of it hides the rest.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_request_too_long_to_show_is_rejected() {
+        let data = std::env::temp_dir().join(format!("chora-voice-long-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", None, None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        agents.prompt("demo", "LONG");
+        let (_rx, events) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.starts_with("Abgelehnt")),
+        )
+        .await;
+        assert!(!events.iter().any(|e| matches!(e, Event::Ask { .. })));
+        let told = events
+            .iter()
+            .any(|e| matches!(e, Event::Said { text, .. } if text.contains("too long")));
+        assert!(told, "{}", events.len());
         agents.stop("demo");
         let _ = std::fs::remove_dir_all(&data);
     }
@@ -1320,11 +1450,14 @@ exec cat >/dev/null"#;
             name,
             voice,
             prompt,
+            detail: _,
+            physical,
             answer,
         }) = events.pop()
         else {
             unreachable!()
         };
+        assert!(physical, "a write takes a key");
         assert_eq!((name.as_str(), voice.as_str()), ("coder", "ryan"));
         assert_eq!(prompt, "Coder wants to edit notes.txt. Allow?");
         let status = agents.call("agent_status", &json!({"name": "coder"}));

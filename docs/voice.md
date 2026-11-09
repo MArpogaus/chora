@@ -302,7 +302,8 @@ other call, an always word is a single yes: `inject_input`,
 `apply_commands`, `code_task`, `agent_start`, `configure_output`, the
 other built-in tools, each `settings.set` and `settings.reload`, and
 each change of the agent's own settings. A question of a sub-agent
-takes an always word as a yes.
+takes no always word: it answers nothing, because the agent has no
+action to remember for it.
 
 Two settings list the actions that never ask. `allow_programs` lists
 programs. A bare name, such as `foot`, allows only the argv `["foot"]`
@@ -586,7 +587,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_keys`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -1239,12 +1240,30 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   möchte notes.txt ändern. Erlauben?": the file name of a path title
   and a verb for the kind). It waits from when it is spoken, so it
   also waits while the agent sleeps; the state is `confirming`. Yes and no words, `voice.confirm`, or "NAME, ja"
-  answer it; two unclear answers or `agent_permission_s` without one
-  are a no. Yes picks an `allow_once` option, no a `reject_once` one;
-  without a fitting option the outcome is `cancelled`. A request whose
-  only allowing option is `allow_always` is spoken as "Atlas wants to
-  edit notes.txt. Always allow?" ("… Immer erlauben?" with
-  `reply_language: de`), and only then a yes picks `allow_always`.
+  answer it, with the exception below; two unclear answers or
+  `agent_permission_s` without one are a no. A request of the kind
+  `read`, `search` or `think` that offers `allow_once` is a normal
+  question. Every other request (a command, a write, a move, a delete,
+  a fetch, an unknown kind) and every request without an `allow_once`
+  option follows the rule of a security question above: only a key of
+  `confirm_keys` or a button of a HUD answers it, and the event
+  `voice.confirm` has `physical: true`. A spoken yes, an always word
+  and a yes of `voice.confirm` count as nothing, and a yes sounds the
+  error earcon; a no answers. The spoken question ends with `agent_keys`
+  ("Press Alt+y for yes or Alt+n for no."). The screen shows the whole
+  title of the request and its raw input, secrets hidden; a request
+  whose detail passes 400 lines or 64 KiB is rejected and the agent
+  says so, as the confirmation of the reply refuses a command too long
+  to show. The spoken
+  title is a file name only for the kinds `edit`, `read`, `delete` and
+  `move`. An always word answers no request: the agent never maps it
+  to `allow_always`. Yes picks an `allow_once` option, no a
+  `reject_once` one; without a fitting option the outcome is
+  `cancelled`. A request whose only allowing option is `allow_always`
+  is spoken as "Atlas wants to edit notes.txt. Always allow?" ("…
+  Immer erlauben?" with `reply_language: de`), and only then a yes
+  picks `allow_always`; as it takes a key, the key or a button picks
+  it.
 - Routing: the LLM gets `agent_list`, `agent_start {project, name?,
   voice?}`, `agent_say {name, text}`, `agent_stop {name}` and
   `agent_status {name?}`, and a part of the prompt. `agent_start` asks
