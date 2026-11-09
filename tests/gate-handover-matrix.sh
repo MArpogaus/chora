@@ -14,8 +14,7 @@
 # Paths: give (`window.give` of the owner), cgive (`choractl give TO`, the
 # focused window), cgive-s (`choractl give TO --surface ID`), mcp (the tool
 # of `choractl mcp`, tests/mcp-client.py give), drag (the title bar of xp;
-# Super with the left button for the others; a drag from the construct
-# flies out of the adopted window first), key (the shortcut
+# Super with the left button for the others), key (the shortcut
 # Super+Shift+o; in construct Tab, g and Return of the window list on a
 # window behind the camera), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
@@ -220,6 +219,14 @@ repair() {
     echo "repair $*" >>"$log"
 }
 
+has_focus() {
+    for _ in $(seq 50); do
+        ctl query "id:$w" | jq -e '.[0].focused == true' >/dev/null && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
 place() {
     local o
     o=$(owner_of)
@@ -235,22 +242,17 @@ place() {
         [ "$(owner_of)" = "$1" ] && break
         sleep 0.2
     done
-    ctl wait --timeout 5 "id:$w focused:true" >/dev/null 2>&1
-    [ "$1" != construct ] || sleep 0.8
+    has_focus || fail "the window has no focus with $1 before a cell: $(ctl query "id:$w" | jq -c '.[0] | {owner, focused, rects}')"
     [ "$(owner_of)" = "$1" ] || fail "cannot place the window with $1: owner $(owner_of); construct: $(ctl call construct window.list 2>&1 | jq -c .windows)"
     rects_stable
 }
 
 super_drag() {
-    local grab="{\"node\": \"$w\", \"point\": [100,60]}"
+    local point='[100,60]'
     if [ "$2" = construct ]; then
-        sleep 1
-        key Alt+Escape
-        ctl wait --timeout 3 "id:construct-look focused:true" >/dev/null 2>&1
-        sleep 1
-        grab="{\"position\": [640, 400], \"output\": \"${out_of[construct]}\"}"
+        point=$(ctl query "id:$w" | jq -c '.[0].rects | to_entries[0].value | [.[2] / 2, .[3] / 2]')
     fi
-    inject "[{\"pointer_move\": $grab},
+    inject "[{\"pointer_move\": {\"node\": \"$w\", \"point\": $point}},
       {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
       {\"button\": {\"state\": \"pressed\", \"hold\": true}},
       {\"pointer_move\": {\"position\": [640, 400], \"output\": \"${out_of[$1]}\"}},
