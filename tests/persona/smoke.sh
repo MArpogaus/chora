@@ -82,9 +82,14 @@ focused_x=$(admin query 'kind:surface' | jq '.[] | select(.focused) | .rects["HE
 echo "click on the capture: the window at x=$focused_x has the focus"
 echo "$look" | grep -q 'scale=0.5' || fail "look printed no scale: $look"
 
+act type -x two words >/dev/null || fail "act.py type refused a text that starts with a dash"
+
 log=$dir/s/actions.jsonl
+typed=$(grep '"action": "type"' "$log" | tail -n 1 | jq -r .args.text)
+[[ $typed == "-x two words" ]] || fail "typed '$typed', expected '-x two words'"
+echo "type: '$typed'"
 n=$(wc -l <"$log")
-((n == 9)) || fail "the log has $n lines, expected 9"
+((n == 10)) || fail "the log has $n lines, expected 10"
 grep -q '"ok": false' "$log" && fail "a failed action in the log"
 # A command outside the list is refused.
 act ls >/dev/null 2>&1 && fail "act.py took an unknown command"
