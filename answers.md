@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- 12:30 Bangkok: 8 % of the weekly limit. Week totals 273,598,608 cache
+  read, 1,279,909 output. Calibration: 32 million cache read per percent.
+
 - Focus on 3D, plugin separation, stability and bug fixes before
   starting new feature sprints (charter section 1 item 20).
 
