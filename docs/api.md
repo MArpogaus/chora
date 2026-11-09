@@ -477,7 +477,7 @@ answers every request.
 | `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
-| `methods.list` | list the methods that clients exported, each with its description and input schema |
+| `methods.list` | list the methods that clients exported, each with its description, input schema and privileged flag |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
@@ -1004,9 +1004,11 @@ command or writes a file sets `"privileged": true`: a caller on a client
 socket then needs the capability `methods.privileged` besides
 `methods.call`. `settings.set` and `settings.reload` are always
 privileged. `methods.list` answers every exported
-method as `{"client", "name", "description", "input_schema"}`, with `null`
-for a plain export, and `"privileged": true` for a privileged one. The core passes description and schema through
-unchanged, and `chora-tiling` gives one to each of its methods.
+method as `{"client", "name", "description", "input_schema", "privileged"}`,
+with `null` for description and schema of a plain export. `privileged` is
+`true` for a privileged method, so a caller can ask its user first. The
+core passes description and schema through unchanged, and `chora-tiling`
+gives one to each of its methods.
 
 - A method name has at most 64 characters: lowercase letters, digits, `_`,
   `-` and `.`, starting with a letter.

@@ -247,8 +247,9 @@ impl State {
     }
 
     /// `methods.list`: every exported method with its description and
-    /// input schema, by connection and sorted by name. Plain exports
-    /// answer with `null` for both.
+    /// input schema and whether it is privileged, by connection and sorted
+    /// by name. Plain exports answer with `null` for description and
+    /// schema.
     pub fn list_methods(&self) -> Value {
         let mut list: Vec<Value> = Vec::new();
         for conn in self.ipc.conn_ids() {
@@ -264,6 +265,7 @@ impl State {
                     "name": method.name(),
                     "description": method.description(),
                     "input_schema": method.input_schema(),
+                    "privileged": method.privileged(),
                 }));
             }
         }
@@ -455,7 +457,9 @@ mod tests {
         let schema = json!({"type": "object", "properties": {"gap": {"type": "integer"}}});
         let export = json!({"names": [
             "restart",
+            "settings.set",
             {"name": "set_layout", "description": "Sets the layout.", "input_schema": schema},
+            {"name": "run", "privileged": true},
         ]});
         wm.ok(&mut core, "methods.export", export);
         let mut other = core.named("agent");
@@ -463,13 +467,19 @@ mod tests {
         assert_eq!(
             listed,
             json!([
-                {"client": "wm", "name": "restart", "description": null, "input_schema": null},
+                {"client": "wm", "name": "restart", "description": null,
+                 "input_schema": null, "privileged": false},
+                {"client": "wm", "name": "run", "description": null,
+                 "input_schema": null, "privileged": true},
                 {
                     "client": "wm",
                     "name": "set_layout",
                     "description": "Sets the layout.",
                     "input_schema": schema,
+                    "privileged": false,
                 },
+                {"client": "wm", "name": "settings.set", "description": null,
+                 "input_schema": null, "privileged": true},
             ])
         );
         let id = other.send("methods.call", json!({"client": "wm", "method": "restart"}));
