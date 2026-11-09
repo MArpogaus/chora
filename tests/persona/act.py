@@ -7,7 +7,8 @@ Usage: PERSONA_ENV=FILE python3 -I tests/persona/act.py ACTION ...
   click X Y [--button left|right] [--double]
   move X Y
   drag X1 Y1 X2 Y2
-  type TEXT
+  type TEXT...               the rest of the line is the text, also when it
+                             starts with a dash
   key COMBO                  for example Super+Return, Return, Ctrl+c
   scroll DX DY               logical pixels; positive DY scrolls down
 
@@ -71,7 +72,7 @@ def choractl(env, *args, stdin=None):
 
 
 def last_look_path(env):
-    """The file that holds the scale and origin of the last capture."""
+    """Name the file that holds the scale and origin of the last capture."""
     return os.path.join(env["PERSONA_DIR"], LAST_LOOK)
 
 
@@ -134,8 +135,15 @@ def do_drag(env, args):
     )
 
 
+def type_takes_the_rest(argv):
+    """Put `--` after `type`, so that a text with a dash is text."""
+    if argv[:1] == ["type"] and argv[1:2] != ["--"]:
+        return ["type", "--", *argv[1:]]
+    return argv
+
+
 def parser():
-    """The command line: exactly the allowed actions."""
+    """Build the command line: exactly the allowed actions."""
     p = argparse.ArgumentParser(prog="act.py", description=__doc__.split("\n")[0])
     sub = p.add_subparsers(dest="action", required=True)
     s = sub.add_parser("look")
@@ -152,7 +160,7 @@ def parser():
     for name in ("x1", "y1", "x2", "y2"):
         s.add_argument(name, type=float)
     s = sub.add_parser("type")
-    s.add_argument("text")
+    s.add_argument("text", nargs="*")
     s = sub.add_parser("key")
     s.add_argument("combo")
     s = sub.add_parser("scroll")
@@ -169,7 +177,9 @@ def run(env, args):
     if a == "click":
         ok, text = do_click(env, args)
     elif a == "move":
-        ok, text = inject(env, [{"pointer_move": {"position": list(to_screen(env, args.x, args.y))}}])
+        ok, text = inject(
+            env, [{"pointer_move": {"position": list(to_screen(env, args.x, args.y))}}]
+        )
     elif a == "drag":
         ok, text = do_drag(env, args)
     elif a == "type":
@@ -183,7 +193,9 @@ def run(env, args):
 
 def main():
     """Parse, run, log, report."""
-    args = parser().parse_args()
+    args = parser().parse_args(type_takes_the_rest(sys.argv[1:]))
+    if args.action == "type":
+        args.text = " ".join(args.text)
     path = os.environ.get("PERSONA_ENV")
     if not path:
         sys.exit("act.py: PERSONA_ENV is not set")

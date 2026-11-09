@@ -69,7 +69,7 @@ Your only tools:
    click X Y [--button left|right] [--double]
    move X Y
    drag X1 Y1 X2 Y2
-   type TEXT
+   type TEXT                 the rest of the line is the text
    key COMBO                 for example Super+Return, Return, Ctrl+c
    scroll DX DY
    X and Y are pixels of the picture of your last `look`, counted from
