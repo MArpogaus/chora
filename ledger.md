@@ -8,4 +8,4 @@ sum of the percent of its rows.
 | date | input | cache write | cache read | output | seen (cache read, output) | carry (cache read, output) | percent | note |
 |---|---:|---:|---:|---:|---|---|---:|---|
 | 2026-11-08 | 30 | 66,328 | 1,260,238 | 21,477 | 1260238,21477 | 0,0 | 0.5 | Bangkok date (the dates moved to Bangkok on 11-09); most of the planning falls on 11-09 Bangkok |
-| 2026-11-09 | 2,007 | 3,798,569 | 179,461,744 | 878,957 | 179461744,878957 | 0,0 | 6.0 | weekly readings 3 % at 10:33 and 6 % at 11:48 (whole week, incl. 11-08) |
+| 2026-11-09 | 5,186 | 7,855,512 | 500,137,770 | 1,937,262 | 500137770,1937262 | 0,0 | 11.8 | weekly readings 3, 6, 8, 9 and 11 % (whole week, incl. the planning) |

@@ -4,6 +4,8 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- 14:15 Bangkok: 11 % of the weekly limit; tokens.py estimates 11.8 %, within the rounding; the calibration of 13:11 holds.
+
 - The real meter is not reachable from the session (no token in the
   container; the Admin API covers API organizations, not the
   subscription). Cross-check from the session's event log, cumulative
