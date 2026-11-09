@@ -25,7 +25,7 @@ fail() {
     exit 1
 }
 
-PERSONA_DIR=$dir/s "$here/session.sh" tiling >"$dir/out" 2>"$dir/err" &
+PERSONA_DIR=$dir/s PERSONA_KEEP=$dir/keep "$here/session.sh" tiling >"$dir/out" 2>"$dir/err" &
 spid=$!
 for _ in $(seq 150); do
     [[ -s $dir/out ]] && break
@@ -87,4 +87,13 @@ grep -q '"ok": false' "$log" && fail "a failed action in the log"
 # A command outside the list is refused.
 act ls >/dev/null 2>&1 && fail "act.py took an unknown command"
 echo "log: $n actions, none failed"
+
+cp "$log" "$dir/log.before"
+"$here/session.sh" --stop "$PERSONA_ENV"
+wait "$spid" || true
+spid=
+shots=$(find "$dir/keep/shots" -name '*.png' 2>/dev/null | wc -l || true)
+((shots == 4)) || fail "PERSONA_KEEP holds $shots captures, expected 4"
+cmp -s "$dir/keep/actions.jsonl" "$dir/log.before" || fail "PERSONA_KEEP holds no copy of the action log"
+echo "keep: $shots captures and the log"
 echo "PASS"

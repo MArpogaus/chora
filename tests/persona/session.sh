@@ -11,6 +11,8 @@
 #
 # Environment:
 #   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX)
+#   PERSONA_KEEP a directory that gets a copy of shots/ and actions.jsonl
+#                when the session ends (default: nothing is kept)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
 #
 # The companions that the units of the flavor start (flavors/FLAVOR/) start
@@ -112,6 +114,11 @@ cleanup() {
     for pid in "${companion_pids[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null || true
     done
+    if [[ -n ${PERSONA_KEEP:-} ]]; then
+        mkdir -p "$PERSONA_KEEP"
+        cp -r "$dir/shots" "$PERSONA_KEEP/"
+        cp "$dir/actions.jsonl" "$PERSONA_KEEP/" 2>/dev/null || true
+    fi
     rm -rf "$dir"
 }
 trap cleanup EXIT
