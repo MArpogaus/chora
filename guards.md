@@ -33,3 +33,4 @@ its own), **to build** (a guard is possible and planned), **manual**
 | POLS and KISS in every implementation | a view of every review round | manual (judgement) |
 | Split review once a plugin or service reaches 5,000 lines | `review_due.py` (plugin sizes) at run start | guarded |
 | Windows move between all window managers by every input path | handover gate over all pairs and paths (extends `tests/gate-handover.sh`) | to build |
+| Persona findings triaged within a day | `triage.py` at run start | guarded |

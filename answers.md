@@ -4,6 +4,10 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- All user agents report issues and draft feature requests; the PM
+  reviews, ranks and addresses them by importance; cheap agents run
+  user tests continuously, big rounds for demos and features.
+
 - For r/unixporn: a heavy-user scenario that pushes the concept to its
   limits and shows something unseen; the user tests get this "push to
   the limit" view without dropping the low-tech views.

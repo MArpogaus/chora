@@ -215,7 +215,8 @@ short form that applies.
 5. **State.** Read `state.md` and `friction.md`. If `state.md` names a
    `block` that was started and not finished, redo or finish it first.
    Fetch all `claude/*` branches and recreate missing worktrees under
-   `/home/user/wt/NAME` with `git worktree add`. Run `review_due.py`.
+   `/home/user/wt/NAME` with `git worktree add`. Run `review_due.py`
+   and `triage.py`.
 6. **Build.** `df -h /home/user`; below 8 GB free, remove
    `/home/user/target-base` first. Then `cargo build --workspace` and
    `cargo test --workspace` (cold: about 3.5 minutes and 1 minute; 846
@@ -602,6 +603,24 @@ keep the reasoning of the persona. Reports say plainly that these are
 simulated users, not user research. A pass is weak evidence, a fail is
 strong evidence.
 
+**Feedback loop** (asked on 2026-11-09). Every persona reports its
+findings as issues and drafted feature requests in the form of
+`feedback/README.md`, one file per run in `feedback/`.
+
+- **Continuous cheap runs:** each scheduled run starts two or three
+  short haiku-5-5 personas (low effort) on the current build of the
+  session branch, rotating personas, flavors and tasks; captures at
+  `max_side` 640, a step cap of 30.
+- **Big rounds:** sonnet-5-5 panels plus the push-to-the-limit persona at
+  demos, sprint panels and before each feature merge.
+- **Triage by the PM, at least daily:** reproduce each finding before
+  acting (cheap personas err more often), mark duplicates, rank by
+  severity, how many personas hit it and fit with the goals (a lost
+  window outranks a missing effect), then route it: fix now, a GitHub
+  issue, `backlog.md`, a pitch for the next tournament, a question to
+  the user, or rejected with a reason. `triage.py` reports findings
+  still `new`; older than a day is OVERDUE.
+
 Each finding: reproduce, verify, classify (bug, security, docs,
 friction, feature), then fix it or route it.
 
@@ -803,6 +822,7 @@ All on the branch `claude/session-log` (worktree `/home/user/wt/log`), committed
 | `routine.md` | the schedule and prompt of the runs |
 | `tokens.py` | sums the tokens of the session logs per day and model |
 | `review_due.py` | says whether a review round is due on the session branch |
+| `feedback/`, `triage.py` | the findings of the personas and the count of those waiting for triage |
 | `HANDOFF.md` | started with the 3D benchmark script, finished on 11-30 |
 
 When the session ends, the user decides which of these files stay in the
