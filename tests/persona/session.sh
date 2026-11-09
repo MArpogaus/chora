@@ -111,6 +111,7 @@ esac
 
 out=$dir/headless.out
 session=
+companion_units=()
 companion_pids=()
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
@@ -124,6 +125,9 @@ cleanup() {
         done
         kill -KILL "$session" 2>/dev/null || true
     fi
+    for unit in "${companion_units[@]}"; do
+        systemctl --user stop "$unit" 2>/dev/null || true
+    done
     for pid in "${companion_pids[@]}"; do
         kill -TERM -- "-$pid" 2>/dev/null || true
     done
@@ -171,7 +175,12 @@ for line in "${companions[@]}"; do
             CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime \
             "$bin/choractl" run setsid dbus-run-session -- "${argv[@]}"
     )
-    companion_pids+=("$(jq -r .pid <<<"$started")")
+    unit=$(jq -r '.unit // empty' <<<"$started")
+    if [[ -n $unit ]]; then
+        companion_units+=("$unit")
+    else
+        companion_pids+=("$(jq -r .pid <<<"$started")")
+    fi
 done
 
 {
