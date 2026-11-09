@@ -4,6 +4,16 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Question 3 answered: the split of `design/split.md` (four
+  repositories) is accepted for now; finer splits only if they stay
+  simple. Prepare it, do not split.
+- POLS and KISS are core values and a view of every review round.
+- Check the plugins regularly for code that can be separated and
+  generalized into its own plugin.
+- The owner had a plan to split the grown chora-mc into small reusable
+  parts; it is not in the repo (maybe in the owner's notebook). Replan
+  it.
+
 - Review rules too tight (100 lines burns tokens): rounds at merges,
   tags, the end of the week and when critical components changed; no
   rounds for routine work, sprint prototypes, test rounds and demos; an

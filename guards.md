@@ -29,3 +29,5 @@ its own), **to build** (a guard is possible and planned), **manual**
 | Budget rules | `tokens.py` estimate at run start | guarded by the run start |
 | Never push to `dev` or `main` | branch protection on GitHub (D47, after 1.0) | manual until protection exists |
 | English replies, no overselling in reports | daily reflection | manual |
+| Code duplicated across plugins | a copy-paste detector over `plugins/` (for example `jscpd`) in the weekly round | to build |
+| POLS and KISS in every implementation | a view of every review round | manual (judgement) |

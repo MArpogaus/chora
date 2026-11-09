@@ -15,7 +15,7 @@ Each: number, date, background, default taken.
    now need the grant `methods.privileged` to call them. Default taken:
    keep it. Answer "unprivileged" to revert.
 
-3. 2026-11-09. Repository split (`design/split.md`): four repositories
+3. ANSWERED 2026-11-09 (accepted). Repository split (`design/split.md`): four repositories
    after 1.0 in the organization `chora-desktop`: `chora` (core, API
    crates, choractl, chora-kit, chora-tiling as the reference plugin),
    `chora-plugins` (xp, mc, construct), `chora-voice`, `chora-website`.

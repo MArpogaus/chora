@@ -91,6 +91,14 @@ code branches carry only code, tests and the product docs
     A new rule is added together with its guard, and a rule broken once
     without a guard gets one before the next run.
 
+16. **POLS and KISS are core values** (2026-11-09): the principle of
+    least surprise and "keep it simple" govern every implementation and
+    are a view of every review round.
+17. **Extraction checks** (2026-11-09): the plugins are checked
+    regularly for code that can be separated and generalized into its
+    own small plugin or a `chora-kit` module, and for code duplicated
+    across plugins. Finer splits only where they stay simple.
+
 **Overrides of the skills**, because the container of the PM session can
 be replaced between runs:
 
@@ -320,6 +328,13 @@ No round for routine work (a dependency bump that passes the gate, a
 typo, a test script), for sprint prototypes, test rounds and demos on
 their own branches: those get their round when they merge. Run start
 step 5 runs `review_due.py`.
+
+**Views:** every round has the view **POLS and KISS** (least surprise
+for a user and a plugin author; the simplest thing that works; no
+over-engineering, no reinvention), together with bugs and leftovers.
+The weekly round adds the view **extraction**: code in a plugin that
+can become its own small plugin or a `chora-kit` module, and code
+duplicated across plugins; findings go to `backlog.md`.
 
 **Size of a round** follows the risk: one combined sonnet reviewer
 (bugs, simplicity, leftovers) for a range without critical paths; one
