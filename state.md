@@ -171,7 +171,9 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 Day 11-10, run 1, started 06:28 Bangkok by the user ("start at 6, begin
 now"); the schedule is now 05:58, 11:58 and 16:58 Bangkok.
 - merge-gate script with self-test (sonnet), claude/merge-gate
-- keyboard focus design check, H4c (opus), design/h4c-decision.md
+- keyboard focus design check, H4c (opus): done, act-stamped tokens
+  accepted (design/h4c-decision.md); H4c starts on claude/hud-h4c when
+  disk allows (after the merge-gate build), with the injected-press fix
 - 3D step 2, planes outside a context (sonnet; opus review before
   merge), claude/3d-step2
 
