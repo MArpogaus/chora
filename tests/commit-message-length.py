@@ -4,7 +4,7 @@
 Skipped: git's # comment lines, everything from git's scissors line on
 (`git commit -v` appends the diff there), lines that are or start with a
 URL, leading blank lines, and the length of a subject that git
-generates (`Merge `, `Revert "`, `fixup! `, `squash! `).
+generates (`Merge `, `Revert "`, `fixup! `, `squash! `, `amend! `).
 Usage: commit-message-length.py MESSAGE_FILE
 """
 import re
@@ -13,7 +13,7 @@ import sys
 SUBJECT_LIMIT = 68
 BODY_LIMIT = 72
 SCISSORS = "# ------------------------ >8 ------------------------"
-GENERATED = ("Merge ", 'Revert "', "fixup! ", "squash! ")
+GENERATED = ("Merge ", 'Revert "', "fixup! ", "squash! ", "amend! ")
 URL_START = re.compile(r"\s*https?://")
 
 
