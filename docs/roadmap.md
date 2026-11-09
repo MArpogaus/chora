@@ -24,8 +24,7 @@ with a stable, versioned API (D3).
   never block the core.
 - Core code stops during Gate 1 and opens again when `v0.9.0` is tagged.
   The XP split and the construct change plugins only until then. The owner
-  lifted the stop for the autonomous session of November 2026
-  (`plans/autonomy/charter.md`).
+  lifted the stop for November 2026.
 
 ## Current state
 
@@ -70,9 +69,9 @@ of 0.9 and 1.0 measure that use, so they set the calendar time.
 
 The renderer has the largest risk. A fault on real hardware in 0.10 can
 add one to two weeks. The row holds the renderer only. The space is
-not in the table. The owner decided to build it now (D75). Its steps and
-sizes are in `plans/3d.md`. The portal, output textures and virtual
-outputs follow in a later plan and are not counted.
+not in the table. The owner decided to build it now (D75), in the seven
+steps of the 0.10 section, about 3,000 lines. The portal, output
+textures and virtual outputs follow later and are not counted.
 
 ## 0.6: Foundation
 
@@ -420,9 +419,15 @@ Scope:
   Wayland protocol for plugins (D54).
 - The bugs of the render quality: #34, #36, #37, #38, #46, #47, #48, #74,
   #75, #76, #78 and #79.
-- The space (D75): planes with 3D cameras in the core, steps 0 to 6 of
-  `plans/3d.md`. The portal (D70), output textures and virtual outputs
-  (D69) follow in a later plan.
+- The space (D75), in seven steps, each with tests on the headless
+  backend and the 2D guard: 0, render counters and tests of the 2D path;
+  1, glam inside `Transform` and rotations that turn in `animate` (#83,
+  #78); 2, planes outside a context with exact hits and content sizes
+  (#48); 3, the `perspective` context with sorting and splitting of
+  planes and the ray hit; 4, popups and drags in a context; 5, the cost
+  of planes (damage per plane, a texture cache, mipmaps) and the `scale`
+  uniform (#79); 6, 2D sampling (#76). The portal (D70), output textures
+  and virtual outputs (D69) follow later.
   The new-window target by activation token (D72). Damage tracking for
   node textures, so that a node texture renders only when its source
   changes.
@@ -550,11 +555,11 @@ where programs, plugins, window managers, desktops and agent prompts float
 as panes (D66, D67). It grows from the loader prototype in
 `examples/loader/`. The requirements are in
 `plans/construct-requirements.md`. Steps up to K4 are plugin only and run
-beside Gate 1. Steps from K5 need the 3D steps 0 to 6 of
-`plans/3d.md` (D75). They give a plane with a 3D camera, a ray hit to a
+beside Gate 1. Steps from K5 need the 3D steps 0 to 6 of the 0.10
+section (D75). They give a plane with a 3D camera, a ray hit to a
 tilted pane, a popup in a tilted pane and 8 panes with live content. The
-portal, output textures and virtual outputs (K6, K7, K11) need the later
-plan that follows it (D69, D70).
+portal, output textures and virtual outputs (K6, K7, K11) follow later
+(D69, D70).
 
 | Step | Goal | Size | Needs | Check |
 |------|------|------|-------|-------|
