@@ -105,6 +105,12 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track C
 
+S1. Feature sprint "HUDs and ACP chat" (user request 11-09 evening,
+   design/hud-sprint.md): ACP chats; HUD drafts for mc, xp and
+   construct; a voice HUD that adapts to the context; HUDs that users
+   ship themselves. With persona tests. Runs beside the foundation
+   work; foundation merges keep priority.
+
 0. Voice (design/split-review-voice.md): after the security steps, the
    tool `Source` registry, tool plugins as sandboxed MCP servers with one
    grant each (`tool_plugins`), and the layered context (scene, task,

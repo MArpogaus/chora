@@ -102,6 +102,13 @@ Newest first. The PM reads this file at the start of each run.
 - 10:26 Bangkok: the weekly limit seems to have reset; 2 % used now.
 - Align the working times to Thailand (Asia/Bangkok). Start the work now.
 
+- Feature request (evening): ACP chats shall be possible. HUD drafts for
+  mc, xp and construct. The voice agent HUD becomes more flexible and
+  adapts to the context. Users can easily ship their own HUDs. This is
+  the first feature sprint, with user tests. The user opens it before
+  the foundation gate of charter section 1 item 20; the foundation work
+  keeps running in parallel and keeps priority on merges.
+
 ## 2026-11-08
 
 - Reply to the user in English from now on.
