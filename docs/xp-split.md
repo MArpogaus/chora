@@ -288,3 +288,5 @@ Each step also:
   played a sound. A notification block that calls no other block cannot do
   either; the panel (X4) and the sounds (X7) decide whether the core or the
   block that shows the balloon sends an event for them.
+- The tail of a card of `notify` always points down. At a top corner it
+  points away from the corner; a flavor with a tail uses a bottom corner.
