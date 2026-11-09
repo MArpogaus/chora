@@ -8,13 +8,14 @@ use std::{
 };
 
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop,
+    Connection, Dispatch, EventQueue, Proxy, QueueHandle, WEnum, delegate_noop,
     protocol::{
         wl_buffer::WlBuffer,
         wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
+        wl_pointer::{self, WlPointer},
         wl_region::WlRegion,
         wl_registry::{self, WlRegistry},
         wl_seat::{self, WlSeat},
@@ -71,6 +72,8 @@ struct App {
     key_serials: Vec<u32>,
     /// The newest `repeat_info`: rate and delay.
     repeat_info: Option<(i32, i32)>,
+    /// The pointer events that the core sent and that no test took yet.
+    pointer_events: Vec<PointerEvent>,
     /// The commit strings that the core sent to the text input.
     commits: Vec<String>,
     /// The interfaces of all globals that the core offered.
@@ -78,6 +81,22 @@ struct App {
     synced: bool,
     /// The configures of each surface, by its index.
     surfaces: Vec<Configures>,
+}
+
+/// An event of the pointer of the client, in the units of the client.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PointerEvent {
+    /// The pointer entered a surface at a point of it.
+    Enter {
+        surface: wayland_client::backend::ObjectId,
+        at: (f64, f64),
+    },
+    /// The pointer moved on the surface that it entered.
+    Motion { at: (f64, f64) },
+    /// A button changed, with the serial of the event.
+    Button { serial: u32, pressed: bool },
+    /// The pointer left its surface.
+    Leave,
 }
 
 /// The configures of a surface.
@@ -93,6 +112,9 @@ pub struct Configures {
     pub count: usize,
     /// Whether the core closed the popup.
     pub done: bool,
+    /// The newest popup configure: x, y, width and height relative to the
+    /// parent geometry.
+    pub popup: Option<[i32; 4]>,
     /// How many frame callbacks the core sent.
     pub frames: usize,
 }
@@ -312,6 +334,17 @@ impl Wayland {
     /// Whether the core closed a popup.
     pub fn popup_done(&self, popup: &Popup) -> bool {
         self.app.surfaces[popup.index].done
+    }
+
+    /// The geometry of a popup that the core configured: x, y, width and
+    /// height relative to the parent geometry.
+    pub fn popup_geometry(&self, popup: &Popup) -> Option<[i32; 4]> {
+        self.app.surfaces[popup.index].popup
+    }
+
+    /// Takes the pointer events that the client got, in order.
+    pub fn take_pointer_events(&mut self) -> Vec<PointerEvent> {
+        std::mem::take(&mut self.app.pointer_events)
     }
 
     /// The newest key repeat that the core sent: rate and delay.
@@ -731,9 +764,51 @@ impl Dispatch<WlSeat, ()> for App {
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(c),
         } = event
-            && c.contains(wl_seat::Capability::Keyboard)
         {
-            seat.get_keyboard(qh, ());
+            if c.contains(wl_seat::Capability::Keyboard) {
+                seat.get_keyboard(qh, ());
+            }
+            if c.contains(wl_seat::Capability::Pointer) {
+                seat.get_pointer(qh, ());
+            }
+        }
+    }
+}
+
+impl Dispatch<WlPointer, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlPointer,
+        event: wl_pointer::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_pointer::Event::Enter {
+                surface,
+                surface_x,
+                surface_y,
+                ..
+            } => app.pointer_events.push(PointerEvent::Enter {
+                surface: surface.id(),
+                at: (surface_x, surface_y),
+            }),
+            wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } => app.pointer_events.push(PointerEvent::Motion {
+                at: (surface_x, surface_y),
+            }),
+            wl_pointer::Event::Button { serial, state, .. } => {
+                app.pointer_events.push(PointerEvent::Button {
+                    serial,
+                    pressed: state == WEnum::Value(wl_pointer::ButtonState::Pressed),
+                });
+            }
+            wl_pointer::Event::Leave { .. } => app.pointer_events.push(PointerEvent::Leave),
+            _ => {}
         }
     }
 }
@@ -779,8 +854,15 @@ impl Dispatch<XdgPopup, usize> for App {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let xdg_popup::Event::PopupDone = event {
-            app.surfaces[*index].done = true;
+        match event {
+            xdg_popup::Event::PopupDone => app.surfaces[*index].done = true,
+            xdg_popup::Event::Configure {
+                x,
+                y,
+                width,
+                height,
+            } => app.surfaces[*index].popup = Some([x, y, width, height]),
+            _ => {}
         }
     }
 }
