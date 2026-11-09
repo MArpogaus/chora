@@ -7,6 +7,12 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+T1. `tests/gate-construct-windows.sh` and `gate-construct-keys.sh` wait
+   with `ctl wait ... focused:true`, which is not a valid selector: the
+   wait fails at once and a sleep does the real work. Use the
+   `has_focus` helper of `gate-handover-matrix.sh` (move it into a shared
+   test lib), and make an invalid selector fail the gate visibly.
+
 0. SECURITY (voice split review, 11-09): ACP permission requests take a
    weaker question path: a spoken yes answers them (services/voice/src/
    core.rs:819) and "always" counts as yes (core.rs:1047), while every
