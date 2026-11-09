@@ -4,6 +4,13 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- The real meter is not reachable from the session (no token in the
+  container; the Admin API covers API organizations, not the
+  subscription). Cross-check from the session's event log, cumulative
+  cost at list price: 3 % at $24.27, 6 % at $65.60, 8 % at $90.26, 9 % at
+  $112.09; about $12 to 15 per percent lately, not linear (the meter may
+  count other use of the account and lag).
+
 - 13:11 Bangkok: 9 % of the weekly limit. Calibration now weights the
   tokens by model.
 
