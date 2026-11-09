@@ -135,3 +135,5 @@ Newest first. The PM reads this file at the start of each run.
   example the agents view of mc and the assistant figure of xp.
 - Define the design principles, core values and philosophy that the UX/UI
   follows: `docs/design-principles.md` (e22ce6b), linked from charter 5a.
+- 17:19 Bangkok: weekly limit at 13 %. tokens.py estimated 13.8 % at the
+  same time (seen 580,229,950 cache read, 2,346,207 output).
