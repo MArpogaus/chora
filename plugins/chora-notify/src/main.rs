@@ -1,8 +1,9 @@
 //! chora-notify: the notification server of the freedesktop specification on the
 //! session bus.
 //!
-//! A block of the XP split (D73, `docs/xp-split.md`). It connects through `chora-kit`, subscribes to no event and exports no
-//! method. The code of the block moves here in step X2.
+//! A block of the XP split (D73, `docs/xp-split.md`). It connects through
+//! `chora-kit`, subscribes to no event and exports no method. The code of
+//! the block moves here in step X2.
 
 use std::process::ExitCode;
 

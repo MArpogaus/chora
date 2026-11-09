@@ -1,8 +1,9 @@
 //! chora-assistant: the state of the voice agent (D65) as a neutral indicator
 //! and its speech.
 //!
-//! A block of the XP split (D73, `docs/xp-split.md`). It connects through `chora-kit`, subscribes to no event and exports no
-//! method. The code of the block moves here in step X2.
+//! A block of the XP split (D73, `docs/xp-split.md`). It connects through
+//! `chora-kit`, subscribes to no event and exports no method. The code of
+//! the block moves here in step X2.
 
 use std::process::ExitCode;
 
