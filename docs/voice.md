@@ -389,13 +389,20 @@ the user agrees:
   shows that line too.
 - A holder of `indicator.claim` is trusted like the keyboard: its
   `confirm.answer` counts as a physical answer (review rc3 round 3,
-  2.6). The agent refuses `indicator.claim` and `confirm.answer` from a
-  confined caller, as the `confined` field of `method.called` names it.
-  A confined client can then neither claim the indicator nor answer a
-  question, also with `methods.privileged`.
-- An injected key could answer the question. The core marks an
-  `input.key` event of `input.inject` with `injected: true`, and the
-  agent ignores an injected key of `confirm_keys`. Besides, the agent
+  2.6). The agent refuses `indicator.claim`, `confirm.answer`,
+  `confirm`, `talk` and `mute` from a confined caller, as the
+  `confined` field of `method.called` names it. That closes the direct
+  routes only. A confined client with `methods.privileged` can still
+  start a program by a method such as `mc.app.open`, by `voice.agent`
+  with `agent_start`, or by `settings.set` of a setting that holds a
+  command. The program connects free, claims the indicator and answers.
+  So grant `methods.privileged` only to a client that the user trusts as
+  the keyboard.
+- An injected key or press could answer the question. The core marks an
+  `input.key` event and a `pointer.pressed` event of `input.inject`
+  with `injected: true`. The agent ignores an injected key of
+  `confirm_keys`, and the answer buttons of mc, the assistant and the
+  construct ignore an injected press. Besides, the agent
   refuses `inject_input` while such a question waits, and `inject_input`
   always asks by the default rules and never takes an always word.
 
