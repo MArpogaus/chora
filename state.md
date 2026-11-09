@@ -50,6 +50,13 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-09 evening: claude/hud-h3 with the review fixes (74e8348: the
+  cancel deadlock, entries cut to 16 KiB and the ring to 4 MiB,
+  redaction, a chat unread for 10 minutes expires, a `notice` role)
+  merged as 7df49e3. Gate: 931 tests, clippy, 2D guard, xp.sh, matrix
+  every cell as expected, gate-hud every cell as expected. Known gap:
+  the line redaction checks only the first separator of a line.
+
 - 11-09 17:28: HUD gate table merged (5e92531, branch claude/hud-h0):
   `tests/gate-hud.sh` measures 20 cells of the acceptance checks A1 to
   A15 that a script can verify headlessly. All 20 are `missing`, as the
@@ -141,19 +148,10 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Waiting for merge
 
-- claude/hud-h1 (cbebd65, b9a0710, 071a2c6): `chora-kit` hud, words, ask
-  and docs/hud.md; 105 kit tests, gate green. Joins the 11-10 review
-  round (bugs, POLS and KISS; UX/UI view on the word table). Open: the
-  xp figure `paperclip` drawn in code has no name in the folder
-  contract (decide in H8); the `huds:` settings list is not modelled;
-  the contrast check moves to H2 `--check-hud`.
-- claude/hud-h3 (9750224, 19b2f7b): voice chat methods, 202 voice tests,
-  gate green. Merges after the 11-10 review round, which includes this
-  branch (critical path: agents.rs, client.rs; opus security view). Open
-  for the review: the role of end and refusal notices (the developer
-  used `tool`; PM default: a role `notice`, so system text never looks
-  like a helper's or a tool's); the `client.disconnected` wiring has no
-  test; `agent.read` on an unknown agent errors, a stale `after` resyncs.
+- claude/hud-h1 with the fixes of the evening round (e0f0c38, 72787a7,
+  8b86c5d): merged locally as 1e824a9, full gate running. Open for
+  later: the `{field}` names of chat (`chat.name`) and clock
+  (`clock.time`) are the developer's reading of the spec.
 
 ## Running
 
