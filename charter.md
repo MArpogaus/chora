@@ -164,9 +164,9 @@ Rhythm of weeks 1 and 2:
 | Fri | the rest of the weekly budget, minus a 3 % margin, goes to intensive tests, reviews and refactoring |
 
 The driver for simulated users (section 8) is built in week 0 or on the
-first weekend, before the first panel. Sprints start only when the 2D
-guard (section 7) works. If it does not
-work by Saturday 11-14, week 1 finishes the guard and 3D first.
+first weekend, before the first panel. Sprints start only when the
+foundation of section 1, item 20 holds; until then the pitch slot goes
+to stability, 3D and plugin separation.
 
 Week 3 has no retro and no pitches. It spends at most 14 % a day; the
 unused rest of that budget week is intended.
