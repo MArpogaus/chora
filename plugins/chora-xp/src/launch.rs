@@ -458,5 +458,8 @@ mod tests {
             name: "writer".into(),
         };
         assert_eq!(starting.text().0, "Starting writer");
+        let (title, body) = failed(Why::Refused).text();
+        assert_eq!(title, "Cannot open thunar");
+        assert!(body.contains("could not start"), "{body}");
     }
 }
