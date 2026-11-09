@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Prove the pre-commit guards red and green in a temporary git repository.
-# Usage: tests/guards.sh   (run by hand; exits 1 if a guard misbehaves)
+# Usage: tests/guards.sh   (run by hand or by the guards hook; exits 1 if a guard misbehaves)
 set -u
+while IFS= read -r variable; do unset "$variable"; done < <(git rev-parse --local-env-vars)
 tests_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
