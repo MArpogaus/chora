@@ -67,6 +67,7 @@ if [[ -z ${PERSONA_DIR:-} ]]; then
 fi
 dir=$PERSONA_DIR
 mkdir -p "$dir/shots" "$dir/config"
+rm -f "$dir/last_look.json"
 dir=$(cd "$dir" && pwd)
 env_file=$dir/session.env
 
