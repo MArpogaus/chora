@@ -694,12 +694,14 @@ step 4, before new work. The
   same rule.
 - **Calibration:** the conversion of tokens to percent comes from the
   reports of the user in `answers.md` (section 1, item 2).
-- **Calibration in use:** `PER_PERCENT` in `tokens.py`, from the weekly
-  readings of the user on 2026-11-09 (3 %, 6 % and 8 %; the page shows
-  whole percents): 1 % is about 32 million cache read or
-  150,000 output tokens, the larger ratio counts. Each new weekly reading
-  refines it. Cache reads of long contexts are the largest cost: keep the
-  PM turns short and the PM context small.
+- **Calibration in use:** `PER_PERCENT` and `MODEL_WEIGHT` in
+  `tokens.py`, from the weekly readings of the user on 2026-11-09 (3, 6,
+  8 and 9 %; whole percents): tokens count in opus-5-5 equivalents
+  (sonnet-5-5 0.6, haiku-5-5 0.2, an assumption from the price ratios);
+  1 % is about 33 million cache read or 132,000 output tokens of that
+  scale, the larger ratio counts. Each new weekly reading refines it.
+  Cache reads of long contexts are the largest cost: keep the PM turns
+  short and the PM context small.
 - **Runs:** three runs a day share the budget of the day, about 40, 35
   and 25 % of 14 %, as a guide, not a cap. The first run plans the day in `state.md`; the later runs
   continue it. When the 5-hour limit stops a run, the next run picks up

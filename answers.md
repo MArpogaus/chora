@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- 13:11 Bangkok: 9 % of the weekly limit. Calibration now weights the
+  tokens by model.
+
 - Question 6 answered: make it configurable; the user shall be able to
   raise grants temporarily or permanently.
 

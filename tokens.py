@@ -24,10 +24,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ZONE = ZoneInfo("Asia/Bangkok")
-# 2026-11-09, weekly readings of the user (whole percents): 3 % at 10:33,
-# 6 % at 11:48 (180.1 million cache read, 897,769 output), 8 % at 12:30
-# (273.6 million cache read, 1,279,909 output).
-PER_PERCENT = {"cache_read": 32_000_000, "output": 150_000}
+# Weekly readings of the user on 2026-11-09 (whole percents): 3 % at
+# 10:33, 6 % at 11:48, 8 % at 12:30, 9 % at 13:11. Tokens count in
+# opus-5-5 equivalents; the model weights are an assumption from the
+# price ratios and are refined by later readings.
+MODEL_WEIGHT = {"opus": 1.0, "sonnet": 0.6, "haiku": 0.2}
+PER_PERCENT = {"cache_read": 33_000_000, "output": 132_000}
 KEYS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
 
 
@@ -72,7 +74,12 @@ def main():
     print(f"seen: {total[2]},{total[3]}")
     if carry != (0, 0):
         print(f"carry: {carry[0]:,} cache read, {carry[1]:,} output")
-    cache_read, output = total[2] + carry[0], total[3] + carry[1]
+    weighted = [0.0, 0.0]
+    for model, row in sums.items():
+        weight = next((w for name, w in MODEL_WEIGHT.items() if name in model), 1.0)
+        weighted[0] += row[2] * weight
+        weighted[1] += row[3] * weight
+    cache_read, output = weighted[0] + carry[0], weighted[1] + carry[1]
     pct = max(cache_read / PER_PERCENT["cache_read"], output / PER_PERCENT["output"])
     print(f"estimate: {pct:.1f} % of the weekly limit")
 
