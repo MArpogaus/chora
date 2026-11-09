@@ -583,11 +583,23 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
 }
 
 fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
-    press_button(state, event.button_code(), event.state(), event.time());
+    press_button(
+        state,
+        event.button_code(),
+        event.state(),
+        event.time(),
+        false,
+    );
 }
 
 /// A pointer button goes down or up.
-pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, time: InputTime) {
+pub fn press_button(
+    state: &mut State,
+    code: u32,
+    button_state: ButtonState,
+    time: InputTime,
+    injected: bool,
+) {
     if button_state == ButtonState::Pressed {
         state.pressed = None;
     }
@@ -599,7 +611,7 @@ pub fn press_button(state: &mut State, code: u32, button_state: ButtonState, tim
     if button_state == ButtonState::Pressed {
         click_focus(state);
         note_input(state, pointer.current_focus(), serial, true);
-        press_node(state, code);
+        press_node(state, code, injected);
     } else {
         note_input(state, pointer.current_focus(), serial, false);
         release_node(state, code);
@@ -765,7 +777,7 @@ fn hover(state: &mut State, spot: &Spot, moved: bool) {
 
 /// Tells plugins about a press over a node. Over a rect or an image, the
 /// moves and the release of the button follow.
-fn press_node(state: &mut State, button: u32) {
+fn press_node(state: &mut State, button: u32, injected: bool) {
     if state.node_grab.is_some() {
         return;
     }
@@ -789,6 +801,7 @@ fn press_node(state: &mut State, button: u32) {
         button,
         position,
         modifiers: modifiers(state),
+        injected,
     });
     if area {
         state.node_grab = Some(NodeGrab {
@@ -1196,7 +1209,7 @@ mod tests {
         } else {
             ButtonState::Released
         };
-        super::press_button(&mut core.state, 272, state, InputTime::now());
+        super::press_button(&mut core.state, 272, state, InputTime::now(), false);
     }
 
     /// The events of a kind.

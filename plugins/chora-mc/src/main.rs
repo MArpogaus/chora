@@ -410,6 +410,7 @@ fn spoofs_voice(event: &Event) -> Option<(u64, RpcError)> {
         caller,
         method,
         params,
+        ..
     } = event
     else {
         return None;
@@ -689,6 +690,7 @@ impl Plugin for Mc {
         &mut self.rt
     }
 
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
@@ -747,7 +749,12 @@ impl Plugin for Mc {
                 data,
             } if client == VOICE => self.follow(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
-            Event::PointerPressed { node, position, .. } => self.click(&node, position),
+            Event::PointerPressed {
+                node,
+                position,
+                injected,
+                ..
+            } => self.click(&node, position, injected),
             _ => Ok(()),
         }
     }
@@ -2723,6 +2730,7 @@ mod tests {
             caller: caller.into(),
             method: method.into(),
             params: serde_json::json!({"name": name, "state": "listening"}),
+            confined: false,
         };
         assert!(super::spoofs_voice(&call("evil", "agent.set", "voice")).is_some());
         assert!(super::spoofs_voice(&call("voice.evil", "agent.remove", "voice")).is_some());

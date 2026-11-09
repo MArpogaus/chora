@@ -378,7 +378,7 @@ fn a_token_with_serial_zero_is_refused() {
 fn click_and_type(core: &mut Core, at: (f64, f64)) {
     crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
     for state in [ButtonState::Pressed, ButtonState::Released] {
-        crate::input::press_button(&mut core.state, 272, state, InputTime::now());
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now(), false);
     }
     let a = smithay::input::keyboard::Keycode::new(38);
     for state in [KeyState::Pressed, KeyState::Released] {
@@ -779,7 +779,7 @@ fn a_client_socket_adopts_no_foreign_window() {
 fn click(core: &mut Core, at: (f64, f64)) {
     crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
     for state in [ButtonState::Pressed, ButtonState::Released] {
-        crate::input::press_button(&mut core.state, 272, state, InputTime::now());
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now(), false);
     }
 }
 
