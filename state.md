@@ -22,13 +22,21 @@ the sprint has at most two lanes (reflection of the evening, point 1).
 
 ## Plan of the day
 
-2026-11-09, run 1 (started by hand at 10:27 Bangkok):
+2026-11-10 to 11-13 (user request 11-09: finish 3D this week, so that
+week 1 has room for playful 3D demos and feature sprints):
 
-1. Tools (installing in the background), baseline.md.
-2. backlog.md from charter section 15.
-3. Security check, attacker view (subagent, opus high).
-4. 2D guard (subagent).
-5. 3D design (subagent, opus high).
+- Main lane, 3D core, in order: step 2 (Tue), step 3 (Wed and Thu, the
+  hard one: perspective, plane-split, ray hit; opus implements), step 4
+  (Thu), step 5 (Fri); step 6 beside them on Tue. Each step: tests
+  first, 2D guard, review (opus security view on input and hit test),
+  merge through the merge-gate script.
+- First task 11-10: the merge-gate script (no pipes, log per step, rc
+  checks, FAIL grep), then the H4c design check (opus).
+- Sprint lane (one at a time): H2, then H4a and H5.
+- Cheap lane (haiku/sonnet): Dependabot bumps, inline comment cleanup,
+  issues for the stability items, shared CARGO_TARGET_DIR.
+- Not this week: construct on 3D (K5), virtual outputs (D69), the cube
+  geometry; they start week 1 as the base of the 3D demos.
 
 ## Next step
 
