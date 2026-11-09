@@ -34,6 +34,10 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-09: construct adoption fixes squash-merged as f220e76 (gate:
+  912 tests, 2D guard, xp.sh, construct windows and keys, matrix 158 s);
+  the remote branch `claude/construct-adopt` could not be deleted (proxy).
+
 - 11-09 15:00: XP start feedback merged (7dccda3): a missing program
   says so at once; a slow start shows "Starting NAME" after 2 s and
   "Cannot open" after 30 s without a window; launchers that exit 0 are
@@ -90,7 +94,12 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-(none)
+- ACP gate fixes of the security review (medium 1 and 2, low 3 to 6) on
+  `claude/acp-gate`; then the full gate and the merge.
+- UX/UI pass on design/hud-sprint.md (design/ux-hud-sprint.md), then
+  sprint S1 wave 1 on 11-10.
+- After the ACP merge: author rewrite of the code branch (the user
+  agreed on 11-09 to the force push; guards@example.com commits).
 
 ## Blocked
 
