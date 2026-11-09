@@ -321,6 +321,19 @@ The layer surface keeps it until one of these occurs:
 - Its role goes, or it no longer accepts the keyboard.
 - Its output goes.
 
+A layer surface that takes the keyboard on demand also gets it from an
+activation token of a real press. The core keeps the serial and time of
+the last real key or button press, never an injected one; a grabbed key
+such as Super+a counts. `activation.token` stamps a token with that act
+when the caller is no client socket client, the press is under 2 s old and
+no token carries it yet. The layer surface of an unnamed client gets the
+keyboard on `xdg-activation` only when its token is stamped, no real press
+came after the stamp, the token is at most 10 s old and the session is not
+locked. An unstamped token still starts programs and places windows, so a
+token without a press gives no keyboard (issue #102). An injected press
+sets neither the act nor the `focus_node` chance of a client socket, and
+it gives a client socket client no token.
+
 A popup grabs the input only with the serial of the last press, or of the
 last key or button event that its client got. A release counts, so a menu
 opens on F10 when the key goes up.

@@ -830,6 +830,72 @@ fn a_client_socket_focuses_a_node_only_after_its_own_press() {
     assert_eq!(focused.as_deref(), Some("menu"));
 }
 
+/// A click at a point of the scene that an injection made.
+fn injected_click(core: &mut Core, at: (f64, f64)) {
+    crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
+    for state in [ButtonState::Pressed, ButtonState::Released] {
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now(), true);
+    }
+}
+
+/// An injected click is no act of the person: it does not allow
+/// `focus_node` of a client socket, a real click does.
+#[test]
+fn an_injected_click_allows_no_focus_node() {
+    let (mut core, dir, mut agent, _) = agent_ipc("focus-injected");
+    let field = json!({"create": {"id": "field", "kind": "rect", "parent": "root",
+        "props": {"size": [100, 100], "color": [1, 1, 1, 1]}}});
+    agent.ok(&mut core, "scene.apply", apply(&json!([field])));
+    let focus = apply(&json!([{"focus_node": {"node": "field"}}]));
+    injected_click(&mut core, (10.0, 10.0));
+    let (_, message) = agent.fails(&mut core, "scene.apply", focus.clone());
+    assert!(message.contains("right after a press"), "{message}");
+    click(&mut core, (10.0, 10.0));
+    agent.ok(&mut core, "scene.apply", focus);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A press that an injection made gives a client socket client no
+/// token, though the client holds the keyboard and names its serial.
+#[test]
+fn an_injected_press_gives_a_client_socket_no_token() {
+    let (mut core, dir) = socket_dir("token-injected");
+    core.add_output("A", (64, 48));
+    let mut admin = core.admin();
+    let mut agent = named(&mut core, &mut admin, None);
+    let seat: WlSeat = agent.bind(7);
+    let _pointer = seat.get_pointer(&agent.queue.handle(), ());
+    let _keyboard = seat.get_keyboard(&agent.queue.handle(), ());
+    let full = KeyboardInteractivity::Exclusive;
+    let _panel = map_layer(&mut agent, &mut core, Layer::Top, None, full);
+    let activation: XdgActivationV1 = agent.bind(1);
+    let mint = |agent: &mut Raw, core: &mut Core| {
+        let press = *agent.app.button_serials.last().expect("a press");
+        let token = activation.get_activation_token(&agent.queue.handle(), ());
+        token.set_serial(press, &seat);
+        token.commit();
+        agent.roundtrip(core);
+        core.state.activation_state.tokens().count()
+    };
+    click_and_type(&mut core, (30.0, 20.0));
+    agent.roundtrip(&mut core);
+    let real = mint(&mut agent, &mut core);
+    crate::input::press_button(
+        &mut core.state,
+        272,
+        ButtonState::Pressed,
+        InputTime::now(),
+        true,
+    );
+    agent.roundtrip(&mut core);
+    let injected = mint(&mut agent, &mut core);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(real, 1, "a real press gives a token");
+    assert_eq!(injected, 1, "an injected press gave a second token");
+}
+
 /// The surfaces in the `surface.*` events of a client.
 fn surface_events(client: &mut crate::testing::Client, core: &mut Core) -> Vec<String> {
     client

@@ -108,6 +108,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         state.pressed = None;
     }
     let serial = SERIAL_COUNTER.next_serial();
+    state.note_act(serial, key_state == KeyState::Pressed && !injected);
     let action = keyboard.input(
         state,
         code,
@@ -603,11 +604,12 @@ pub fn press_button(
     if button_state == ButtonState::Pressed {
         state.pressed = None;
     }
+    let serial = SERIAL_COUNTER.next_serial();
+    state.note_act(serial, button_state == ButtonState::Pressed && !injected);
     if grab_button(state, code, button_state, time) {
         return;
     }
     let pointer = state.pointer();
-    let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         click_focus(state);
         note_input(state, pointer.current_focus(), serial, true);
@@ -790,11 +792,13 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
     let hit = state.scene.node(&node);
     let area = hit.is_some_and(|n| n.kind != NodeKind::Surface);
     // A window counts for the client that it came from.
-    state.pressed = hit.and_then(|n| {
-        n.surface
-            .as_ref()
-            .map_or(n.owner.clone(), |s| s.client.clone())
-    });
+    if !injected {
+        state.pressed = hit.and_then(|n| {
+            n.surface
+                .as_ref()
+                .map_or(n.owner.clone(), |s| s.client.clone())
+        });
+    }
     let position = position_for(&state.scene, &state.outputs, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
         node: node.clone(),
