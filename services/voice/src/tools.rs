@@ -1161,8 +1161,8 @@ pub mod tests {
 
     /// `methods.privileged` opens every privileged method, so the agent
     /// asks before each tool that the export marks privileged, in both
-    /// forms, also when `skipped_tools` hides the tool. The flag comes in the `_meta` of the
-    /// tool, not from a list kept by hand.
+    /// forms, also when `skipped_tools` hides the tool. The flag comes in
+    /// the `_meta` of the tool, not from a list kept by hand.
     #[tokio::test]
     async fn privileged_methods_ask_by_their_flag() {
         let (mut tools, _) = fake(0);
