@@ -192,11 +192,11 @@ fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
 /// Most lines and bytes of a detail that the agent asks about. A
 /// longer one is refused, so that every screen shows the whole command
 /// and no question hides its tail (review rc3 round 4, 2.2).
-const DETAIL_LINES: usize = 400;
-const DETAIL_BYTES: usize = 64 * 1024;
+pub(crate) const DETAIL_LINES: usize = 400;
+pub(crate) const DETAIL_BYTES: usize = 64 * 1024;
 
 /// Whether a detail passes the cap.
-fn too_long(detail: &str) -> bool {
+pub(crate) fn too_long(detail: &str) -> bool {
     detail.len() > DETAIL_BYTES || detail.lines().count() > DETAIL_LINES
 }
 
