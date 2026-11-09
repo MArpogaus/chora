@@ -40,7 +40,7 @@ use clap::Parser;
 use serde_json::Value;
 
 use crate::{
-    bus::{Bus, Note, Reason, Request, Signal},
+    bus::{Bus, Note, Reason, Request, Signal, StartError},
     card::{Card, Queue, Values},
     config::Config,
 };
@@ -118,20 +118,29 @@ impl Plugin for Notify {
 
 impl Notify {
     /// Connects, takes the name on the session bus and exports the
-    /// methods of the settings.
+    /// methods of the settings. `None` when another server owns the name:
+    /// the plugin has nothing to do then, and ends without an error, so
+    /// that no unit restarts it.
     fn start(
         theme: Theme,
         values: Values,
         settings: settings::File<Config>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        let bus = Bus::start()?;
+    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+        let bus = match Bus::start() {
+            Ok(bus) => bus,
+            Err(err @ StartError::Taken) => {
+                eprintln!("chora-notify: {err}, which stays its owner");
+                return Ok(None);
+            }
+            Err(err) => return Err(err.into()),
+        };
         let rt = Runtime::start(
             NAME,
             Vec::new(),
             EVENTS,
             settings::File::<Config>::methods(),
         )?;
-        Ok(Self {
+        Ok(Some(Self {
             rt,
             queue: Queue::new(settings.value),
             settings,
@@ -140,7 +149,7 @@ impl Notify {
             icons: Icons::new(icons::THEMES),
             bus,
             card: None,
-        })
+        }))
     }
 
     /// Applies a transaction, with the logical sizes of the pictures.
@@ -291,7 +300,9 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         "plugins/chora-notify/assets",
     );
     let (theme, values) = load_assets(&dir, &theme::cache_dir("chora-notify")?)?;
-    let mut notify = Notify::start(theme, values, settings)?;
+    let Some(mut notify) = Notify::start(theme, values, settings)? else {
+        return Ok(());
+    };
     loop {
         let wait = notify
             .due(Instant::now())
