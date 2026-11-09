@@ -235,6 +235,8 @@ place() {
         [ "$(owner_of)" = "$1" ] && break
         sleep 0.2
     done
+    ctl wait --timeout 5 "id:$w focused:true" >/dev/null 2>&1
+    [ "$1" != construct ] || sleep 0.8
     [ "$(owner_of)" = "$1" ] || fail "cannot place the window with $1: owner $(owner_of); construct: $(ctl call construct window.list 2>&1 | jq -c .windows)"
     rects_stable
 }
