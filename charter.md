@@ -700,9 +700,10 @@ step 4, before new work. The
   (sonnet-5-5 0.6, haiku-5-5 0.2, an assumption from the price ratios);
   1 % is about 33 million cache read or 132,000 output tokens of that
   scale, the larger ratio counts. Each new weekly reading refines it.
-  Cross-check once a day: the cumulative cost at list price of the
-  session's result events (`list_events`, kinds result, read by a haiku
-  agent that returns only the sum); lately about $12 to 15 per percent.
+  Cross-check once a day: `total_cost_usd` of the newest result event of
+  the session (`list_events`, kinds result, limit 5) is already the
+  cumulative cost at list price since the session start; lately about
+  $12 to 15 per percent. One call, no paging.
   Cache reads of long contexts are the largest cost: keep the PM turns
   short and the PM context small.
 - **Runs:** three runs a day share the budget of the day, about 40, 35
