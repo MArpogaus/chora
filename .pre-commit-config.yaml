@@ -31,6 +31,13 @@ repos:
     types_or: [rust, shell, python]
     pass_filenames: false
     stages: [pre-commit]
+  - id: no-session-files
+    name: no session-log files (they belong on the branch claude/session-log)
+    entry: tests/no-session-files.sh
+    language: script
+    pass_filenames: false
+    always_run: true
+    stages: [pre-commit]
   - id: lychee
     name: lychee (offline links in the Markdown files)
     entry: lychee --config lychee.toml

@@ -64,5 +64,29 @@ comment_case "python noqa and type" pass a.py 'x = 1\n' 'import os  # noqa: F401
 comment_case "python hash in string" pass a.py 'x = 1\n' 's = "#a"\n'
 comment_case "other files unchecked" pass notes.txt "" '# explain\n'
 
+session_case() {
+  local label=$1 want=$2 path=$3
+  new_repo
+  cd "$work/repo" || exit 1
+  mkdir -p "$(dirname "$path")"
+  printf 'x\n' >"$path"
+  git add "$path"
+  "$tests_dir/no-session-files.sh" >/dev/null 2>&1
+  verdict "no-session-files: $label" "$want" $?
+}
+
+session_case "plans/autonomy" fail plans/autonomy/plan.md
+session_case "reports" fail reports/day1.md
+session_case "reflections" fail reflections/a.md
+session_case "media" fail media/shot.png
+session_case "drafts" fail drafts/a.md
+for name in charter state ledger friction answers questions backlog HANDOFF; do
+  session_case "top-level $name.md" fail "$name.md"
+done
+session_case "docs/reports is code" pass docs/reports/a.md
+session_case "plans/other" pass plans/other/a.md
+session_case "nested state.md" pass docs/state.md
+session_case "source file" pass src/main.rs
+
 [ "$failures" -eq 0 ] && echo "all guards behave" || echo "$failures guard check(s) failed"
 [ "$failures" -eq 0 ]
