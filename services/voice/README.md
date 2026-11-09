@@ -342,11 +342,14 @@ choractl grant voice-mcp methods.call
 `methods.privileged`, `activation.token` and `input.inject` lets the
 LLM run commands as you: a setting such as the terminal of chora-xp or
 a binding with `run:` holds a command, and typing reaches a terminal.
-The agent asks for a spoken yes before each `run_program` and each
-`inject_input` (the `confirm` rules), not before a privileged method.
-Without grants, the LLM still closes windows and changes the outputs
-and the scene, and overwrites the saved views. It also starts the
-plugins of installed views. Any voice that the mic hears can start a
+The agent asks for a spoken yes before each `run_program`, each
+`inject_input` and each `load_view` (the `confirm` rules), and before
+every tool that its export marks privileged, with the whole command
+line, the typed text or the changed values in the question. Without
+grants, the LLM still closes windows and changes the outputs and the
+scene, and overwrites the saved views. It starts no plugin of a view and
+changes no input settings: for that, the user grants the name
+`view-NAME` of the view. Any voice that the mic hears can start a
 turn, also from a video, and also while the screen is locked. Text on
 the screen that a tool reads can also steer the LLM. So can the plugins,
 which write the descriptions and results of their tools. The journal
