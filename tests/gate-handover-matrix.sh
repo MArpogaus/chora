@@ -373,7 +373,10 @@ cell() {
     want=$(expected_of "$src" "$dst" "$path")
     [ -n "$want" ] || fail "no EXPECTED line for $src $dst $path"
     case $path in drag | key) owner_s=1.5 ;; voice) owner_s=12 ;; *) owner_s=0.8 ;; esac
-    [ "$want" != pass ] || settle_s=10
+    if [ "$want" = pass ]; then
+        settle_s=10
+        [ "$path" = voice ] || owner_s=5
+    fi
     if [ "$path" = voice ] && [[ "|$voice_pairs|" != *"|$src $dst|"* ]]; then
         got["$src $dst $path"]=skip
         echo "$src $dst $path skip" >>"$log"
