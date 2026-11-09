@@ -337,7 +337,8 @@ mod tests {
             let one = say(language, Word::HudNoticeOne, &[("name", "fancy")]);
             let many = say(language, Word::HudNotice, &[("name", "fancy"), ("n", "3")]);
             assert!(one.contains("fancy") && many.contains("fancy") && many.contains('3'));
-            assert!(!one.contains("errors") && !one.contains("Fehler"), "{one}");
+            assert!(!one.contains("errors"), "{one}");
+            assert!(one.contains("1 "), "{one}");
         }
         let one = say(Language::En, Word::HudNoticeOne, &[("name", "x")]);
         assert!(one.contains("1 problem"), "{one}");
