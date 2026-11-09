@@ -1012,19 +1012,27 @@ impl State {
         self.ipc_grants(method, params)
     }
 
-    /// Checks a `hello` against the live connections of its name: they
-    /// share confinement, `keep_nodes` and `resume`. Answers whether the
-    /// name is connected.
-    fn check_peers(&self, hello: &Hello) -> Result<bool, RpcError> {
-        let peer = self
+    /// Checks a `hello` of `conn` against the live connections of its
+    /// name: they share effective confinement (a connection on a client
+    /// socket is confined whatever its `hello` says), `keep_nodes` and
+    /// `resume`. Resume is for a name without a live connection: a second
+    /// instance must not take the nodes of a running one. Answers whether
+    /// the name is connected.
+    fn check_peers(&self, conn: u64, hello: &Hello) -> Result<bool, RpcError> {
+        let (peer_conn, peer) = self
             .ipc
             .conns
-            .values()
-            .find(|c| c.name.as_deref() == Some(&hello.name));
-        if let Some(peer) = peer.filter(|p| p.confined != hello.confined) {
+            .iter()
+            .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
+            .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
+        let confined = hello.confined || self.ipc.fixed(conn).is_some();
+        if let Some(peer_confined) = peer_conn
+            .map(|id| self.ipc.confined(id))
+            .filter(|p| *p != confined)
+        {
             return Err(name_taken(format!(
-                "{:?} is in use with confined {}",
-                hello.name, peer.confined
+                "{:?} is in use with confined {peer_confined}",
+                hello.name
             )));
         }
         if let Some(peer) =
@@ -1035,8 +1043,6 @@ impl State {
                 hello.name, peer.keep_nodes, peer.resume
             )));
         }
-        // Resume is for a name without a live connection: a second instance
-        // must not take the nodes of a running one.
         if hello.resume && peer.is_some() {
             return Err(name_taken(format!(
                 "{:?} is connected; resume needs a name without a live connection",
@@ -1072,7 +1078,7 @@ impl State {
             }
             _ => {}
         }
-        let known = self.check_peers(&hello)?;
+        let known = self.check_peers(conn, &hello)?;
         if hello.resume {
             self.ipc.graces.remove(&hello.name);
         } else if self.ipc.graces.contains_key(&hello.name) {
@@ -3615,6 +3621,27 @@ mod tests {
         assert!(message.contains("lowercase"), "{message}");
         drop(core);
         assert!(!path.exists(), "the core removes the socket");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn two_connections_of_a_client_socket_share_confinement_without_the_flag() {
+        let dir = std::env::temp_dir().join(format!("chora-peers-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut core = Core::new();
+        core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["path"].as_str().unwrap());
+        let mut first = core.connect_to(&path);
+        first.ok(
+            &mut core,
+            "hello",
+            json!({"name": "agent", "confined": true}),
+        );
+        let mut second = core.connect_to(&path);
+        second.ok(&mut core, "hello", json!({"name": "agent"}));
+        drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
