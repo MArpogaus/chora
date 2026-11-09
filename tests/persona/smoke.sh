@@ -27,6 +27,7 @@ fail() {
 
 mkdir "$dir/s"
 touch "$dir/s/sentinel"
+echo '{"scale": 0.1, "origin": [0, 0]}' >"$dir/s/last_look.json"
 mkdir "$dir/full"
 touch "$dir/full/file"
 PERSONA_KEEP=$dir/full "$here/session.sh" tiling >/dev/null 2>"$dir/refuse.err" && fail "a non-empty PERSONA_KEEP was accepted"
@@ -57,6 +58,7 @@ for _ in $(seq 100); do
     sleep 0.2
 done
 ((top > 0)) || fail "waybar reserved no space: the work area starts at $top"
+[[ ! -e $dir/s/last_look.json ]] || fail "the session kept a stale last_look.json"
 echo "waybar: the work area starts at y=$top"
 
 act look | cut -d" " -f1 >"$dir/a.path"
