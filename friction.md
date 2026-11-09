@@ -89,3 +89,9 @@
     (chora-notify does not answer `settings.get`). Change: the gate and
     the push are chained with `&&` (`set -e`), so a red check stops the
     push; xp.sh also leaves a chora-xp process behind after a FAIL.
+15. **The gate tested stale binaries (11-09).** The merge gate ran `cargo
+    test` but not `cargo build`; `tests/xp.sh` then ran the binaries of
+    target/debug from before the merge and failed. A debug agent could
+    not reproduce it on a fresh build; a rebuild made it pass. Third gate
+    mistake of the PM today (after items 12 and 14). Change: the merge
+    gate of charter section 3 is one chained command that builds first.

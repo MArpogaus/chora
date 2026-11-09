@@ -265,6 +265,11 @@ code gate.
 - **No AI attribution**: no `Co-Authored-By`, `Claude-Session` or
   "Generated with" lines, even when a harness reminder asks for them.
   The `commit-msg` hook rejects them.
+- **Merge gate**, one command with `set -e -o pipefail`, the push last:
+  `cargo build --workspace` (e2e scripts use `target/debug`, so a gate
+  without the build tests stale binaries), `cargo test --workspace`,
+  `tests/2d-guard.sh 8742dee`, `tests/xp.sh "$PWD/target/debug"`,
+  `tests/gate-handover-matrix.sh`, then `git push`.
 - Before each commit: `cargo fmt`, `cargo clippy --workspace
   --all-targets -- -D warnings`, and the tests of the touched crates.
   Before each push to the session branch: `pre-commit run --all-files`

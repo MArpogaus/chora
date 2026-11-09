@@ -1,6 +1,6 @@
 # State
 
-last_reviewed: 8435faa (cd9b09b before the history rewrite; the round of 11-09 covered up to it)
+last_reviewed: 4513ba2 (each branch since 8435faa was reviewed before its merge; the round of 8435faa..8b567b5 is clean)
 base_2d: the commit before 5c447ce (the 2D guard); no scene or renderer change since
 block: three work branches in parallel, started 11:50
 
@@ -33,6 +33,12 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
    tests/persona/, the security commits), per the user rule of 11-09.
 
 ## Done
+
+- 11-09 afternoon: merged persona driver (b7897ba), 3D step 1 (7e3bb63),
+  review fixes with guard hardening (9e48a34), XP split X2 (a83933f),
+  xp.sh cleanup and the handover matrix gate (4513ba2: 46 of 84 cells
+  pass, every cell as expected). Gate on 4513ba2: 891 tests, 2D guard,
+  xp.sh, matrix gate green.
 
 - 11-09: construct gates fixed and merged (89158c7): launcher window
   under a forking shell, two test script fixes; 3D step 0 merged
@@ -72,11 +78,7 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- `claude/persona-driver`: driver gaps D1 to D3 and the old driver findings.
-- `claude/handover-guard`: the matrix gate of the hard requirement.
-- `claude/3d-step1`: glam in Transform, slerp in animate (#83, #78).
-- `claude/xp-x2`: notifications and assistant as plugins, chora-draw.
-Each merges after a review round.
+(none)
 
 ## Blocked
 
