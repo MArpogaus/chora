@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Question 6 answered: make it configurable; the user shall be able to
+  raise grants temporarily or permanently.
+
 - 12:30 Bangkok: 8 % of the weekly limit. Week totals 273,598,608 cache
   read, 1,279,909 output. Calibration: 32 million cache read per percent.
 

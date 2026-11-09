@@ -59,6 +59,13 @@ is found (charter section 8). Started from charter section 15 on
     cube, cylinder, wall and slider as geometries; the XP cube fly-out;
     several panes per source with input. After 3D steps 2 to 4.
 
+15. Grants the user raises temporarily or permanently (question 6): a
+    capability for acting on foreign windows and the camera from a
+    confined connection; temporary grants with an end, permanent ones
+    stored; voice asks for the missing grant and takes the answer only
+    from a physical key or the HUD. Design first (opus), then the code.
+    It restores the voice actions lost by fix (a).
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running

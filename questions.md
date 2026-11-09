@@ -28,7 +28,8 @@ Each: number, date, background, default taken.
 5. 2026-11-09. Only you can create the empty GitHub organization
    `chora-desktop` now, so that the name stays free. Default: not done.
 
-6. 2026-11-09. Since security fix (a) (the voice agent's MCP connection
+6. ANSWERED 2026-11-09: make it configurable; the user can raise grants
+   temporarily or permanently. Since security fix (a) (the voice agent's MCP connection
    is confined with the full client socket rules, 0a3d34e and eded56f),
    the voice agent can no longer close, configure or attach other
    clients' windows directly, nor move a camera; it must ask the window
