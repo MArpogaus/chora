@@ -596,6 +596,7 @@ dependencies = [
 name = "chora-scene"
 version = "0.9.0-rc.3"
 dependencies = [
+ "glam",
  "imbl",
  "schemars",
  "serde",
