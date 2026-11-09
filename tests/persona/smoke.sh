@@ -47,8 +47,6 @@ act key Return
 sleep 1
 a=$(cat "$dir/a.path")
 b=$(cat "$dir/b.path")
-cp "$a" "$dir/a.png"
-cp "$b" "$dir/b.png"
 act look >"$dir/c.path"
 c=$(cat "$dir/c.path")
 
