@@ -144,6 +144,29 @@ message_case "long URL line" pass "short\n\n$long_url\n"
 message_case "line starting with a URL" pass "short\n\n$long_url and $body_73\n"
 message_case "long comment line" pass "short\n\n# $body_73\n"
 message_case "long line after a URL line" fail "short\n\n$long_url\n$body_73\n"
+message_case "scissors line hides the diff" pass "short\n\n# ------------------------ >8 ------------------------\n$body_73\n"
+message_case "long line before the scissors" fail "short\n$body_73\n# ------------------------ >8 ------------------------\n"
+message_case "long merge subject" pass "Merge branch 'x': $subject_69\n"
+message_case "long revert subject" pass "Revert \"$subject_69\"\n"
+message_case "long fixup subject" pass "fixup! $subject_69\n"
+message_case "long squash subject" pass "squash! $subject_69\n"
+message_case "long body line of a merge" fail "Merge branch 'x'\n\n$body_73\n"
+message_case "leading blank line is no subject" fail "\n$subject_69\n"
+message_case "body after a leading blank line" fail "\nshort\n\n$body_73\n"
+message_case "subject after a leading blank line" pass "\n$subject_68\n"
+
+message_output_case() {
+  local label=$1 text=$2 want=$3
+  printf '%b' "$text" >"$work/message"
+  local output
+  output=$(python3 -I "$tests_dir/commit-message-length.py" "$work/message")
+  local status=1
+  case "$output" in *"$want"*) status=0 ;; esac
+  verdict "commit-message-length: $label" pass $status
+}
+
+message_output_case "labels the subject" "$subject_69\n" "subject: 69 characters"
+message_output_case "labels the body line" "short\n\n$body_73\n" "body line 3: 73 characters"
 
 [ "$failures" -eq 0 ] && echo "all guards behave" || echo "$failures guard check(s) failed"
 [ "$failures" -eq 0 ]
