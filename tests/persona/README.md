@@ -28,7 +28,8 @@ kills the session by the pid in the file, never by name). It then removes
 its directory, when it made the directory itself. Set `PERSONA_KEEP` to a directory, for example
 `/home/user/wt/log/media/DATE/persona-NAME/`, and the session copies
 `shots/` and `actions.jsonl` there first, so that a feedback file can
-cite the pictures. Without `PERSONA_KEEP` they go with the directory.
+cite the pictures. A `PERSONA_KEEP` that is not empty is refused at the start. Without
+`PERSONA_KEEP` they go with the directory.
 A directory that you give in `PERSONA_DIR` is never removed; its files
 stay.
 

@@ -56,6 +56,10 @@ fi
 flavor=$1
 size=${2:-1280x800}
 
+if [[ -n ${PERSONA_KEEP:-} && -n $(ls -A "$PERSONA_KEEP" 2>/dev/null) ]]; then
+    echo "PERSONA_KEEP $PERSONA_KEEP is not empty; give a new or empty directory" >&2
+    exit 2
+fi
 created_dir=
 if [[ -z ${PERSONA_DIR:-} ]]; then
     PERSONA_DIR=$(mktemp -d /tmp/persona.XXXXXX)
