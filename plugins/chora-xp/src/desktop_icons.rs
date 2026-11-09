@@ -20,7 +20,6 @@ use chora_kit::{desktop_entry, icons::Icons};
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
-    balloon,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
 };
@@ -684,7 +683,7 @@ fn label_box([w, h]: [i32; 2], focused: bool) -> String {
 /// The lines of a label, wrapped at XP's width: at most `max`, and the
 /// last one takes the rest of the text, to end with an ellipsis.
 fn label(title: &str, max: usize, width: impl Fn(&str) -> f64) -> Vec<String> {
-    let mut lines = balloon::wrap(title, LABEL_WIDTH, width);
+    let mut lines = crate::text::wrap(title, LABEL_WIDTH, width);
     if lines.len() > max {
         let rest = lines.split_off(max - 1).join(" ");
         lines.push(rest);

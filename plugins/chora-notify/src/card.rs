@@ -1,28 +1,29 @@
-//! XP's balloon tips above the notification area: a pale yellow rounded
-//! rectangle with a black border and a tail towards the tray, an icon, a
-//! bold title, the wrapped text and a close button. One balloon shows at a
-//! time; the others wait in a queue.
+//! The card of a notification in a corner of an output: a rounded
+//! rectangle with a border, an icon, a bold title, the wrapped text and a
+//! close button. The values of the asset folder give its colors, its
+//! corners and an optional tail. One card shows at a time; the others
+//! wait in a queue.
 
 use std::{
     collections::VecDeque,
-    fmt::Write as _,
     path::Path,
     time::{Duration, Instant},
 };
 
-use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
+use chora_draw::{
+    bubble::{Corner, Style},
+    text::{Font, Text, wrap},
+    theme::{Picture, Rect, Theme},
+};
+use chora_scene::{Command, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
-    notify::{Note, Reason, Signal},
-    taskbar::Bar,
-    text::{Font, Text},
-    theme::{Picture, Rect, Theme},
+    bus::{Note, Reason, Signal},
+    config::Config,
 };
 
 /// The widest line of the text.
 const MAX_TEXT: f64 = 300.0;
-/// The widest line of the assistant's speech.
-const MAX_SPEECH: f64 = 220.0;
 const PAD: i32 = 10;
 const TOP: i32 = 8;
 const ICON: i32 = 16;
@@ -31,26 +32,59 @@ const TITLE_HEIGHT: i32 = 16;
 const GAP: i32 = 5;
 const LINE: i32 = 13;
 const CLOSE: i32 = 14;
-const RADIUS: i32 = 7;
-/// The height of the tail and the width of its base.
-pub const TAIL: i32 = 18;
-/// The inner margin of a balloon.
-pub const BALLOON_PAD: i32 = PAD;
-const TAIL_BASE: i32 = 16;
 const MIN_WIDTH: i32 = 120;
-const GROUP: &str = "xp-balloon";
-const BODY: &str = "xp-balloon-body";
-const CLOSE_ID: &str = "xp-balloon-close";
-const BLACK: [u8; 4] = [0, 0, 0, 255];
+pub const GROUP: &str = "notify-card";
+const BODY: &str = "notify-card-body";
+const CLOSE_ID: &str = "notify-card-close";
+
+/// The pictures that the card reads from the asset folder.
+pub const PICTURES: [&str; 2] = ["close.svg", "close-hover.svg"];
+
+/// The values of `values.yaml` of the asset folder.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Values {
+    /// The base font family of the text; `sans-serif` is the system's.
+    pub font: String,
+    /// The distance of the card from the corner of the output.
+    pub margin: [i32; 2],
+    /// The look of the card.
+    pub card: Style,
+}
+
+impl Default for Values {
+    fn default() -> Self {
+        Self {
+            font: chora_draw::text::SANS_SERIF.into(),
+            margin: [16, 16],
+            card: Style::default(),
+        }
+    }
+}
 
 /// The notification that shows and the ones that wait.
-#[derive(Default)]
 pub struct Queue {
+    times: Config,
     shown: Option<(Note, Option<Instant>)>,
     waiting: VecDeque<Note>,
 }
 
 impl Queue {
+    /// An empty queue; the settings give the times of the notifications.
+    pub fn new(times: Config) -> Self {
+        Self {
+            times,
+            shown: None,
+            waiting: VecDeque::new(),
+        }
+    }
+
+    /// Takes the times of changed settings for the notifications that show
+    /// from now on.
+    pub fn set_times(&mut self, times: Config) {
+        self.times = times;
+    }
+
     /// The notification that shows.
     pub fn current(&self) -> Option<&Note> {
         self.shown.as_ref().map(|(note, _)| note)
@@ -74,7 +108,7 @@ impl Queue {
     }
 
     fn show(&mut self, note: Note, now: Instant) {
-        let until = note.timeout.map(|t| now + t);
+        let until = self.times.timeout(note.expire_ms).map(|t| now + t);
         self.shown = Some((note, until));
     }
 
@@ -101,7 +135,7 @@ impl Queue {
         }
     }
 
-    /// A click on the balloon invokes its default action and closes it.
+    /// A click on the card invokes its default action and closes it.
     pub fn click(&mut self, now: Instant) -> Vec<Signal> {
         let Some(note) = self.current() else {
             return Vec::new();
@@ -116,43 +150,7 @@ impl Queue {
     }
 }
 
-/// Breaks text into lines no wider than `max`, at spaces where it can, and
-/// at its line breaks.
-pub fn wrap(text: &str, max: f64, width: impl Fn(&str) -> f64) -> Vec<String> {
-    let mut lines = Vec::new();
-    for paragraph in text.lines() {
-        let mut line = String::new();
-        for word in paragraph.split_whitespace() {
-            let candidate = if line.is_empty() {
-                word.to_string()
-            } else {
-                format!("{line} {word}")
-            };
-            if width(&candidate) <= max {
-                line = candidate;
-                continue;
-            }
-            if !line.is_empty() {
-                lines.push(std::mem::take(&mut line));
-            }
-            // A word wider than a line breaks between its characters.
-            for c in word.chars() {
-                line.push(c);
-                if width(&line) > max && line.chars().count() > 1 {
-                    line.pop();
-                    lines.push(std::mem::replace(&mut line, c.to_string()));
-                }
-            }
-        }
-        lines.push(line);
-    }
-    while lines.last().is_some_and(String::is_empty) {
-        lines.pop();
-    }
-    lines
-}
-
-/// Where the parts of a balloon sit, without the tail below it.
+/// Where the parts of a card sit, without the tail below it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Layout {
     /// The rounded rectangle with its border.
@@ -195,73 +193,8 @@ pub fn layout(icon: bool, title: f64, lines: &[f64]) -> Layout {
     }
 }
 
-/// The top-left corner of a balloon of a size, and the x of its tail tip
-/// in it, for a tip at a point of a screen of a width.
-pub fn place([w, h]: [i32; 2], [tip_x, tip_y]: [i32; 2], screen: i32) -> ([i32; 2], i32) {
-    let right = (tip_x + 40).min(screen - 2);
-    let left = (right - w).max(0);
-    let tail = (tip_x - left).clamp(RADIUS + TAIL_BASE, w - RADIUS);
-    ([left, tip_y - TAIL - h], tail)
-}
-
-/// The rounded rectangle with the tail as one outline, so that the black
-/// border runs around both.
-fn shape([w, h]: [i32; 2], tail: i32) -> String {
-    let (x1, y1) = (f64::from(w) - 0.5, f64::from(h) - 0.5);
-    let r = f64::from(RADIUS);
-    let t = f64::from(tail) - 0.5;
-    let mut path = String::new();
-    let _ = write!(
-        path,
-        "M{a},0.5 H{b} A{r},{r} 0 0 1 {x1},{a} V{c} A{r},{r} 0 0 1 {b},{y1} \
-         H{t} V{tip} L{base},{y1} H{a} A{r},{r} 0 0 1 0.5,{c} V{a} A{r},{r} 0 0 1 {a},0.5 Z",
-        a = 0.5 + r,
-        b = x1 - r,
-        c = y1 - r,
-        tip = y1 + f64::from(TAIL),
-        base = t - f64::from(TAIL_BASE),
-    );
-    format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{}"><path d="{path}" fill="#FFFFE1" stroke="#000" stroke-width="1"/></svg>"##,
-        h + TAIL
-    )
-}
-
-/// A balloon with text only, as the assistant speaks: its picture and its
-/// top-left corner, for a tail tip at a point of a screen of a width.
-/// `room` is a width that the inside keeps at least and a height under
-/// the text, for the buttons of a question.
-pub fn speech(
-    theme: &mut Theme,
-    text: &str,
-    tip: [i32; 2],
-    screen: i32,
-    [room_w, room_h]: [i32; 2],
-) -> (Picture, [i32; 2]) {
-    let width = |s: &str| theme.text_width(s, Font::Ui);
-    let lines = wrap(text, MAX_SPEECH, width);
-    let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
-    #[allow(clippy::cast_possible_truncation)]
-    let w = (PAD + (text_width.ceil() as i32).max(room_w) + PAD).max(MIN_WIDTH);
-    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + room_h + PAD;
-    let (origin, tail) = place([w, h], tip, screen);
-    let file = theme
-        .cache_file(&format!("balloon-{w}x{h}-{tail}.svg"), &shape([w, h], tail))
-        .unwrap_or_default();
-    let mut picture = Picture::new(w, h + TAIL).file(&file, [0, 0, w, h + TAIL]);
-    for (line, y) in lines.iter().zip((PAD..).step_by(LINE as usize)) {
-        picture = picture.text(Text::new(
-            line,
-            Font::Ui,
-            BLACK,
-            [PAD, y, w - 2 * PAD, LINE],
-        ));
-    }
-    (picture, origin)
-}
-
-/// A balloon on the overlay root of an output.
-pub struct Balloon {
+/// A card on the overlay root of an output.
+pub struct Card {
     output: String,
     layout: Layout,
     origin: [i32; 2],
@@ -269,10 +202,17 @@ pub struct Balloon {
     hovered: bool,
 }
 
-impl Balloon {
-    /// Lays out a notification above the notification area of a taskbar.
-    pub fn new(theme: &mut Theme, note: &Note, icon: Option<&Path>, bar: &Bar) -> Self {
-        let (tip, screen) = bar.tray_tip();
+impl Card {
+    /// Lays out a notification in a corner of an output.
+    pub fn new(
+        theme: &mut Theme,
+        note: &Note,
+        icon: Option<&Path>,
+        values: &Values,
+        (output, corner): (&OutputInfo, Corner),
+    ) -> Self {
+        let style = &values.card;
+        let color = style.text_rgba();
         let width = |s: &str| theme.text_width(s, Font::Ui);
         let lines = wrap(&note.body, MAX_TEXT, width);
         let widths: Vec<f64> = lines.iter().map(|l| width(l)).collect();
@@ -281,29 +221,25 @@ impl Balloon {
             theme.text_width(&note.summary, Font::UiBold),
             &widths,
         );
-        let (origin, tail) = place(layout.size, tip, screen);
         let [w, h] = layout.size;
-        let file = theme
-            .cache_file(
-                &format!("balloon-{w}x{h}-{tail}.svg"),
-                &shape(layout.size, tail),
-            )
-            .unwrap_or_default();
-        let mut picture = Picture::new(w, h + TAIL).file(&file, [0, 0, w, h + TAIL]);
+        let height = h + style.tail;
+        let origin = corner.origin(output.size, [w, height], values.margin);
+        let mut picture =
+            Picture::new(w, height).svg(style.shape(layout.size, style.tail_x(w, corner)));
         if let (Some(path), Some(rect)) = (icon, layout.icon) {
             picture = picture.file(path, rect);
         }
-        picture = picture.text(Text::new(&note.summary, Font::UiBold, BLACK, layout.title));
+        picture = picture.text(Text::new(&note.summary, Font::UiBold, color, layout.title));
         for (line, y) in lines.iter().zip((layout.text_top..).step_by(LINE as usize)) {
             picture = picture.text(Text::new(
                 line,
                 Font::Ui,
-                BLACK,
+                color,
                 [PAD, y, w - 2 * PAD, LINE],
             ));
         }
         Self {
-            output: bar.output.clone(),
+            output: output.name.clone(),
             layout,
             origin,
             picture,
@@ -311,7 +247,7 @@ impl Balloon {
         }
     }
 
-    /// Whether a node belongs to a balloon.
+    /// Whether a node belongs to a card.
     pub fn owns(node: &str) -> bool {
         node.starts_with(GROUP)
     }
@@ -321,7 +257,7 @@ impl Balloon {
         node == CLOSE_ID
     }
 
-    /// Creates the balloon and its close button.
+    /// Creates the card and its close button.
     pub fn create(&self, theme: &mut Theme) -> Vec<Command> {
         let [x, y] = self.origin.map(f64::from);
         vec![
@@ -370,9 +306,9 @@ impl Balloon {
 
     fn close_look(&self, theme: &mut Theme) -> PropsUpdate {
         let file = if self.hovered {
-            "winxp/balloon-close-hover.svg"
+            "close-hover.svg"
         } else {
-            "winxp/balloon-close.svg"
+            "close.svg"
         };
         let picture = Picture::new(CLOSE, CLOSE).file(&theme.path(file), [0, 0, CLOSE, CLOSE]);
         let [x, y, ..] = self.layout.close;
@@ -383,7 +319,7 @@ impl Balloon {
         }
     }
 
-    /// Removes the balloon.
+    /// Removes the card.
     pub fn remove() -> Command {
         Command::Remove {
             id: GROUP.into(),
@@ -393,41 +329,32 @@ impl Balloon {
 }
 
 /// How long the main loop may sleep before it looks for new
-/// notifications: the bus thread cannot wake the read of the core socket.
-// ponytail: polls at 10 Hz; a wake fd in chora-scene's client would end it.
+/// notifications: the bus thread cannot wake the read of the core socket,
+/// so the loop polls at 10 Hz until the client of chora-scene can wait on
+/// a wake file descriptor.
 pub const POLL: Duration = Duration::from_millis(100);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn note(id: u32, timeout: Option<u64>) -> Note {
+    fn note(id: u32, expire_ms: i32) -> Note {
         Note {
             id,
             icon: String::new(),
             summary: format!("n{id}"),
             body: String::new(),
             actions: Vec::new(),
-            timeout: timeout.map(Duration::from_secs),
+            expire_ms,
         }
     }
 
-    /// Six pixels per character.
-    #[allow(clippy::cast_precision_loss)]
-    fn mono(s: &str) -> f64 {
-        s.chars().count() as f64 * 6.0
+    fn queue() -> Queue {
+        Queue::new(chora_kit::settings::parse(crate::config::DEFAULT).unwrap())
     }
 
     #[test]
-    fn text_wraps_at_spaces_and_breaks() {
-        assert_eq!(wrap("aaa bbb ccc", 42.0, mono), ["aaa bbb", "ccc"]);
-        assert_eq!(wrap("one\n\ntwo", 300.0, mono), ["one", "", "two"]);
-        assert_eq!(wrap("abcdefghij", 24.0, mono), ["abcd", "efgh", "ij"]);
-        assert_eq!(wrap("", 300.0, mono).len(), 0);
-    }
-
-    #[test]
-    fn the_balloon_fits_its_text() {
+    fn the_card_fits_its_text() {
         let short = layout(true, 40.0, &[]);
         assert_eq!(short.size, [MIN_WIDTH, 32]);
         assert_eq!(short.icon, Some([10, 8, 16, 16]));
@@ -439,26 +366,14 @@ mod tests {
     }
 
     #[test]
-    fn the_tail_points_at_the_tray() {
-        let (origin, tail) = place([200, 60], [1200, 785], 1280);
-        assert_eq!(origin, [1040, 785 - TAIL - 60]);
-        assert_eq!(origin[0] + tail, 1200);
-        // At the right edge, the balloon stays on the screen.
-        let (origin, tail) = place([200, 60], [1270, 785], 1280);
-        assert_eq!(origin[0] + 200, 1278);
-        assert!(tail <= 200 - RADIUS);
-    }
-
-    #[test]
     fn notifications_wait_their_turn() {
         let now = Instant::now();
-        let mut queue = Queue::default();
-        queue.push(note(1, Some(10)), now);
-        queue.push(note(2, None), now);
-        queue.push(note(3, Some(10)), now);
+        let mut queue = queue();
+        queue.push(note(1, 10_000), now);
+        queue.push(note(2, 0), now);
+        queue.push(note(3, 10_000), now);
         assert_eq!(queue.current().map(|n| n.id), Some(1));
-        // A replacement of a waiting one keeps its place.
-        let mut two = note(2, None);
+        let mut two = note(2, 0);
         two.summary = "new".into();
         queue.push(two, now);
         assert_eq!(queue.waiting.len(), 2);
@@ -466,7 +381,6 @@ mod tests {
         let later = now + Duration::from_secs(10);
         assert_eq!(queue.expire(later), [Signal::Closed(1, Reason::Expired)]);
         assert_eq!(queue.current().map(|n| n.summary.as_str()), Some("new"));
-        // No timeout: it waits for a click.
         assert_eq!(queue.due(), None);
         assert_eq!(
             queue.close(3, Reason::Closed, later),
@@ -478,21 +392,21 @@ mod tests {
     #[test]
     fn a_replacement_starts_the_time_again() {
         let now = Instant::now();
-        let mut queue = Queue::default();
-        queue.push(note(1, Some(10)), now);
+        let mut queue = queue();
+        queue.push(note(1, 10_000), now);
         let later = now + Duration::from_secs(5);
-        queue.push(note(1, Some(10)), later);
+        queue.push(note(1, 10_000), later);
         assert_eq!(queue.due(), Some(later + Duration::from_secs(10)));
     }
 
     #[test]
     fn a_click_invokes_the_default_action() {
         let now = Instant::now();
-        let mut queue = Queue::default();
-        let mut one = note(1, None);
+        let mut queue = queue();
+        let mut one = note(1, 0);
         one.actions = vec!["default".into()];
         queue.push(one, now);
-        queue.push(note(2, None), now);
+        queue.push(note(2, 0), now);
         assert_eq!(
             queue.click(now),
             [

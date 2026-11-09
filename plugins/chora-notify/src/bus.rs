@@ -1,12 +1,11 @@
 //! The notification server of the freedesktop specification on the
-//! session bus, so that `notify-send` and programs show XP's balloons.
+//! session bus, so that `notify-send` and programs show their notifications.
 //! zbus serves the bus on its own thread; the calls reach the main loop
 //! through a channel, and the main loop sends the signals.
 
 use std::{
     collections::HashMap,
     sync::mpsc::{Receiver, Sender, channel},
-    time::Duration,
 };
 
 use zbus::{
@@ -17,9 +16,6 @@ use zbus::{
 
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
-/// XP showed a balloon for at least 10 and at most 30 seconds.
-const SHORTEST: Duration = Duration::from_secs(10);
-const LONGEST: Duration = Duration::from_secs(30);
 
 /// A notification as the main loop gets it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,8 +30,9 @@ pub struct Note {
     pub body: String,
     /// The keys of the actions, without their labels.
     pub actions: Vec<String>,
-    /// How long it shows; `None` until a click.
-    pub timeout: Option<Duration>,
+    /// The `expire_timeout` of the client in milliseconds: -1 for the
+    /// default, 0 for no end.
+    pub expire_ms: i32,
 }
 
 /// A call of a client.
@@ -67,16 +64,6 @@ pub enum Signal {
     Action(u32, String),
 }
 
-/// How long a notification shows: XP's 10 seconds by default, a time of
-/// the client between XP's 10 and 30 seconds, and no end for 0.
-pub fn timeout(expire_timeout: i32) -> Option<Duration> {
-    match u64::try_from(expire_timeout) {
-        Err(_) => Some(SHORTEST),
-        Ok(0) => None,
-        Ok(ms) => Some(Duration::from_millis(ms).clamp(SHORTEST, LONGEST)),
-    }
-}
-
 /// The icon of a notification: the `image-path` hint before `app_icon`,
 /// as the specification orders them.
 fn icon(app_icon: &str, hints: &HashMap<String, OwnedValue>) -> String {
@@ -106,8 +93,11 @@ struct Server {
 
 #[zbus::interface(name = "org.freedesktop.Notifications")]
 impl Server {
-    // The arguments of the specification, as zbus hands them over.
-    #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+    #[allow(
+        clippy::too_many_arguments,
+        clippy::needless_pass_by_value,
+        reason = "the arguments of the specification, as zbus hands them over"
+    )]
     fn notify(
         &mut self,
         app_name: String,
@@ -119,7 +109,6 @@ impl Server {
         hints: HashMap<String, OwnedValue>,
         expire_timeout: i32,
     ) -> u32 {
-        // XP's balloons do not show the name of the program.
         let _ = app_name;
         let id = if replaces_id == 0 {
             self.last = self.last.wrapping_add(1).max(1);
@@ -133,7 +122,7 @@ impl Server {
             summary,
             body,
             actions: action_keys(&actions),
-            timeout: timeout(expire_timeout),
+            expire_ms: expire_timeout,
         }));
         id
     }
@@ -142,14 +131,14 @@ impl Server {
         let _ = self.requests.send(Request::Close(id));
     }
 
-    #[allow(clippy::unused_self)] // zbus calls it on the object
+    #[allow(clippy::unused_self, reason = "zbus calls it on the object")]
     fn get_capabilities(&self) -> Vec<&str> {
         vec!["actions", "body", "icon-static"]
     }
 
     #[allow(clippy::unused_self)]
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
-        ("chora-xp", "chora", env!("CARGO_PKG_VERSION"), "1.2")
+        ("chora-notify", "chora", env!("CARGO_PKG_VERSION"), "1.2")
     }
 }
 
@@ -160,33 +149,57 @@ pub struct Bus {
     pub requests: Receiver<Request>,
 }
 
+/// Why the server did not start.
+#[derive(Debug, PartialEq, Eq)]
+pub enum StartError {
+    /// Another server owns the name.
+    Taken,
+    /// The bus failed.
+    Failed(String),
+}
+
+impl std::fmt::Display for StartError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Taken => write!(f, "{NAME} has another owner"),
+            Self::Failed(err) => f.write_str(err),
+        }
+    }
+}
+
+impl std::error::Error for StartError {}
+
 impl Bus {
     /// Takes the name on the session bus, if no other server has it: it
     /// never queues for the name, nor takes it from its owner.
-    pub fn start() -> Result<Self, String> {
+    ///
+    /// # Errors
+    ///
+    /// The bus fails, or another server owns the name.
+    pub fn start() -> Result<Self, StartError> {
+        Self::on(Connection::session().map_err(|e| StartError::Failed(e.to_string()))?)
+    }
+
+    /// Takes the name on a connection, as [`Self::start`].
+    ///
+    /// # Errors
+    ///
+    /// The bus fails, or another server owns the name.
+    pub fn on(conn: Connection) -> Result<Self, StartError> {
+        let failed = |e: zbus::Error| StartError::Failed(e.to_string());
         let (tx, requests) = channel();
-        let conn = Connection::session().map_err(|e| e.to_string())?;
         let server = Server {
             requests: tx,
             last: 0,
         };
-        conn.object_server()
-            .at(PATH, server)
-            .map_err(|e| e.to_string())?;
+        conn.object_server().at(PATH, server).map_err(failed)?;
         match conn.request_name_with_flags(NAME, RequestNameFlags::DoNotQueue.into()) {
             Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => {
                 Ok(Self { conn, requests })
             }
-            Ok(_) => Err(format!("{NAME} has another owner")),
-            Err(err) => Err(err.to_string()),
+            Ok(_) | Err(zbus::Error::NameTaken) => Err(StartError::Taken),
+            Err(err) => Err(StartError::Failed(err.to_string())),
         }
-    }
-
-    /// The server, or `None` with a line in the log when it cannot run.
-    pub fn start_or_log() -> Option<Self> {
-        Self::start()
-            .map_err(|err| eprintln!("chora-xp: no notifications: {err}"))
-            .ok()
     }
 
     /// Sends a signal to the clients.
@@ -205,7 +218,7 @@ impl Bus {
             }
         };
         if let Err(err) = sent {
-            eprintln!("chora-xp: notifications: {err}");
+            eprintln!("chora-notify: {err}");
         }
     }
 }
@@ -215,12 +228,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_time_follows_xp() {
-        assert_eq!(timeout(-1), Some(SHORTEST));
-        assert_eq!(timeout(0), None);
-        assert_eq!(timeout(3000), Some(SHORTEST));
-        assert_eq!(timeout(20_000), Some(Duration::from_secs(20)));
-        assert_eq!(timeout(60_000), Some(LONGEST));
+    fn a_second_server_finds_the_name_taken() {
+        let Ok(daemon) = std::process::Command::new("dbus-daemon")
+            .args(["--session", "--nofork", "--print-address"])
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+        else {
+            return;
+        };
+        let mut daemon = KillOnDrop(daemon);
+        let mut address = String::new();
+        let stdout = daemon.0.stdout.take().unwrap();
+        std::io::BufRead::read_line(&mut std::io::BufReader::new(stdout), &mut address).unwrap();
+        let connect = || {
+            zbus::blocking::connection::Builder::address(address.trim())
+                .unwrap()
+                .build()
+                .unwrap()
+        };
+        let first = Bus::on(connect()).expect("the name is free");
+        assert_eq!(Bus::on(connect()).err(), Some(StartError::Taken));
+        drop(first);
+    }
+
+    struct KillOnDrop(std::process::Child);
+
+    impl Drop for KillOnDrop {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
     }
 
     #[test]

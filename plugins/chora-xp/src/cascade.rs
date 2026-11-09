@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The height of a row.
@@ -31,7 +32,7 @@ impl Margins {
     pub fn of(theme: &Theme) -> Self {
         let hint = |side: &str, axis: usize, default: i32| {
             theme
-                .size(Sheet::Winxp, &format!("cascade-hint-{side}-margin"))
+                .size(sheets::WINXP, &format!("cascade-hint-{side}-margin"))
                 .map_or(default, |s| s[axis])
         };
         Self([
@@ -127,7 +128,7 @@ impl Cascade {
     /// Creates the cascade with its rows under a parent node.
     pub fn create(&self, theme: &mut Theme, parent: &str, rows: &[Row<'_>]) -> Vec<Command> {
         let [x, y, w, h] = self.rect;
-        let frame = Picture::new(w, h).frame(Sheet::Winxp, "cascade", [0, 0, w, h]);
+        let frame = Picture::new(w, h).frame(sheets::WINXP, "cascade", [0, 0, w, h]);
         let mut commands = vec![
             Command::Create {
                 id: group_id(self.level),
@@ -184,7 +185,7 @@ impl Cascade {
         let w = self.column_width;
         let mut picture = Picture::new(w, ROW);
         if lit {
-            picture = picture.frame(Sheet::Winxp, "cascade-highlight", [0, 0, w, ROW]);
+            picture = picture.frame(sheets::WINXP, "cascade-highlight", [0, 0, w, ROW]);
         }
         if let Some(icon) = row.icon {
             picture = picture.file(icon, [4, (ROW - 16) / 2, 16, 16]);
@@ -312,7 +313,8 @@ mod tests {
     fn the_margins_come_from_the_theme() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
         let cache = std::env::temp_dir().join(format!("chora-xp-margins-{}", std::process::id()));
-        let theme = Theme::load(&dir, &cache).expect("the theme loads");
+        let theme =
+            Theme::load(&dir, &cache, &sheets::ALL, sheets::FAMILY).expect("the theme loads");
         assert_eq!(Margins::of(&theme), MARGINS);
         let _ = std::fs::remove_dir_all(cache);
     }

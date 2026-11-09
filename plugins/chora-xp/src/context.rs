@@ -10,8 +10,9 @@ use std::fmt::Write as _;
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The height of a row.
@@ -911,7 +912,7 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) ->
         ));
     }
     if lit {
-        picture = picture.frame(Sheet::Winxp, "menu-highlight", [0, 0, w, h]);
+        picture = picture.frame(sheets::WINXP, "menu-highlight", [0, 0, w, h]);
     }
     if entry.checked {
         let check = if lit {

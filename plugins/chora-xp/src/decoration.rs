@@ -11,8 +11,9 @@ use std::path::Path;
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
     window::GRIP,
 };
 
@@ -58,12 +59,12 @@ impl Button {
         }
     }
 
-    fn sheet(self, maximized: bool) -> Sheet {
+    fn sheet(self, maximized: bool) -> chora_draw::theme::Sheet {
         match self {
-            Self::Close => Sheet::Close,
-            Self::Maximize if maximized => Sheet::Restore,
-            Self::Maximize => Sheet::Maximize,
-            Self::Minimize => Sheet::Minimize,
+            Self::Close => sheets::CLOSE,
+            Self::Maximize if maximized => sheets::RESTORE,
+            Self::Maximize => sheets::MAXIMIZE,
+            Self::Minimize => sheets::MINIMIZE,
         }
     }
 
@@ -320,8 +321,8 @@ fn frame(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
     let props = if look.maximized {
         // A title bar without borders, stretched over the width.
         let id = format!("decoration-maximized{inactive}-center");
-        let [nw, nh] = theme.size(Sheet::Decoration, &id).unwrap_or([1, TITLE]);
-        let picture = Picture::new(nw, nh).element(Sheet::Decoration, &id, [0, 0, nw, nh]);
+        let [nw, nh] = theme.size(sheets::DECORATION, &id).unwrap_or([1, TITLE]);
+        let picture = Picture::new(nw, nh).element(sheets::DECORATION, &id, [0, 0, nw, nh]);
         PropsUpdate {
             image: Some(theme.render(&picture)),
             size: Some([f64::from(w), f64::from(TITLE)]),
@@ -329,7 +330,7 @@ fn frame(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
             ..at([0.0, 0.0])
         }
     } else {
-        let frame = theme.frame(Sheet::Decoration, &format!("decoration{inactive}"));
+        let frame = theme.frame(sheets::DECORATION, &format!("decoration{inactive}"));
         let shadow = f64::from(SHADOW);
         PropsUpdate {
             image: Some(frame.image),
@@ -420,7 +421,7 @@ fn button(theme: &mut Theme, surface: &str, look: &Look<'_>, button: Button) -> 
 pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     let inactive = if active { "" } else { "-inactive" };
     let mut picture = Picture::new(w, h).frame(
-        Sheet::Decoration,
+        sheets::DECORATION,
         &format!("decoration{inactive}"),
         [-SHADOW, -SHADOW, w + 2 * SHADOW, h + 2 * SHADOW],
     );

@@ -9,8 +9,9 @@ use std::fmt::Write as _;
 
 use crate::{
     dialog::{self, Control, Dialog, Hit, Page},
+    sheets,
     taskbar::{self, Settings},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The client area: XP's dialog is 404 by 455 pixels with its frame.
@@ -211,9 +212,9 @@ fn start_menu_preview(theme: &Theme) -> Picture {
     let bar = taskbar::preview(theme, [w, h], &[], [false, true], None);
     let [mx, mw] = [8, 170];
     let mut picture = bar
-        .element(Sheet::Winxp, "startmenu-header", [mx, 6, mw, 22])
-        .element(Sheet::Winxp, "startmenu-body", [mx, 28, mw, 98])
-        .element(Sheet::Winxp, "startmenu-footer", [mx, 126, mw, 16]);
+        .element(sheets::WINXP, "startmenu-header", [mx, 6, mw, 22])
+        .element(sheets::WINXP, "startmenu-body", [mx, 28, mw, 98])
+        .element(sheets::WINXP, "startmenu-footer", [mx, 126, mw, 16]);
     // Lines for the entries of the two columns.
     let mut svg = String::new();
     for i in 0..6 {

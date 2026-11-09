@@ -8,8 +8,9 @@ use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
     cube::DESKTOPS,
+    sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The height of the taskbar.
@@ -36,9 +37,6 @@ const TRAY_EMPTY: i32 = 14;
 pub const HIDDEN_STRIP: i32 = 2;
 /// How long the taskbar takes to slide away or back.
 const SLIDE_TIME: f64 = 0.15;
-/// The room of an icon in the notification area, and its left edge.
-const TRAY_ICON: i32 = 22;
-const TRAY_ICON_LEFT: i32 = 10;
 /// The buttons of the desktops, left of the tray, as in the virtual
 /// desktop manager of the power toys for XP.
 const PAGER_BUTTON: i32 = 22;
@@ -114,10 +112,6 @@ pub struct Bar {
     pub output: String,
     /// The work area of the output.
     area: Rect,
-    /// The position of the output in the layout.
-    position: [i32; 2],
-    /// The icon in the notification area, left of the clock.
-    pub icon: Option<PathBuf>,
     /// The surfaces with a button, from the left.
     tasks: Vec<String>,
     /// The last update of each task button, to skip repeats.
@@ -137,8 +131,6 @@ impl Bar {
         Self {
             output: output.name.clone(),
             area: output.layout_area(),
-            position: output.position,
-            icon: None,
             tasks: Vec::new(),
             shown: HashMap::new(),
             auto_hide: false,
@@ -269,7 +261,6 @@ impl Bar {
     /// Moves the taskbar to the new work area of its output.
     pub fn resize(&mut self, theme: &mut Theme, output: &OutputInfo, clock: &str) -> Vec<Command> {
         self.area = output.layout_area();
-        self.position = output.position;
         let mut commands = self.layout(theme);
         commands.push(self.tray(theme, clock));
         commands
@@ -331,7 +322,7 @@ impl Bar {
                 )
                 .centered();
                 let picture = Picture::new(PAGER_BUTTON, TASK_HEIGHT)
-                    .frame(Sheet::Tasks, prefix, [0, 0, PAGER_BUTTON, TASK_HEIGHT])
+                    .frame(sheets::TASKS, prefix, [0, 0, PAGER_BUTTON, TASK_HEIGHT])
                     .text(label);
                 update(
                     &self.pager_id(desktop),
@@ -347,9 +338,9 @@ impl Bar {
             .collect()
     }
 
-    /// The width of the notification area: it grows for an icon.
+    /// The width of the notification area.
     fn tray_width(&self) -> i32 {
-        tray_width(self.clock, self.icon.is_some())
+        tray_width(self.clock)
     }
 
     /// The clock in scene coordinates, while it shows: a double click
@@ -365,7 +356,7 @@ impl Bar {
     pub fn tray(&self, theme: &mut Theme, clock: &str) -> Command {
         let width = self.tray_width();
         let clock = self.clock.then_some(clock);
-        let picture = tray(width, clock, self.icon.as_deref());
+        let picture = tray(width, clock);
         update(
             &format!("xp-tray-{}", self.output),
             PropsUpdate {
@@ -373,16 +364,6 @@ impl Bar {
                 ..at(f64::from(self.area[2] - width), 0.0)
             },
         )
-    }
-
-    /// Where the tail of a balloon points, in the coordinates of the
-    /// output: the top of the icon of the notification area; and the
-    /// right edge of the work area.
-    pub fn tray_tip(&self) -> ([i32; 2], i32) {
-        let [x, y, w, h] = self.area;
-        let [x, y] = [x - self.position[0], y - self.position[1]];
-        let icon = x + w - self.tray_width() + TRAY_ICON_LEFT + 8;
-        ([icon, y + h - HEIGHT + 8], x + w)
     }
 
     /// The task buttons: new ones for new windows, none for closed ones,
@@ -431,7 +412,7 @@ impl Bar {
         };
         let shift = i32::from(task.active);
         let mut picture =
-            Picture::new(w, TASK_HEIGHT).frame(Sheet::Tasks, prefix, [0, 0, w, TASK_HEIGHT]);
+            Picture::new(w, TASK_HEIGHT).frame(sheets::TASKS, prefix, [0, 0, w, TASK_HEIGHT]);
         let mut left = 8;
         if let Some(icon) = &task.icon {
             picture = picture.file(icon, [7 + shift, 4 + shift, 16, 16]);
@@ -483,22 +464,16 @@ impl Bar {
     }
 }
 
-/// The width of a notification area with or without the clock and an
-/// icon.
-fn tray_width(clock: bool, icon: bool) -> i32 {
-    let base = if clock { TRAY_WIDTH } else { TRAY_EMPTY };
-    base + if icon { TRAY_ICON } else { 0 }
+/// The width of a notification area with or without the clock.
+fn tray_width(clock: bool) -> i32 {
+    if clock { TRAY_WIDTH } else { TRAY_EMPTY }
 }
 
-/// The notification area of a width: an icon at the left, the clock at
-/// the right.
-fn tray(width: i32, clock: Option<&str>, icon: Option<&std::path::Path>) -> Picture {
+/// The notification area of a width, with the clock at the right.
+fn tray(width: i32, clock: Option<&str>) -> Picture {
     let mut picture = Picture::new(width, HEIGHT)
-        .element(Sheet::Winxp, "tray-left", [0, 0, 2, HEIGHT])
-        .element(Sheet::Winxp, "tray-center", [2, 0, width - 2, HEIGHT]);
-    if let Some(icon) = icon {
-        picture = picture.file(icon, [TRAY_ICON_LEFT, 7, 16, 16]);
-    }
+        .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
+        .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
     if let Some(clock) = clock {
         let left = width - TRAY_WIDTH;
         picture = picture.text(
@@ -519,7 +494,7 @@ fn start_button(theme: &Theme, look: &str) -> Picture {
     let shift = i32::from(look == "pressed");
     Picture::new(START_WIDTH, HEIGHT)
         .element(
-            Sheet::Winxp,
+            sheets::WINXP,
             &format!("startbutton-{look}"),
             [0, 0, START_WIDTH, HEIGHT],
         )
@@ -565,7 +540,7 @@ pub fn preview(
                 );
                 picture = picture
                     .frame(
-                        Sheet::Tasks,
+                        sheets::TASKS,
                         look,
                         [x, bar_y + TASK_TOP, TASK_WIDTH, TASK_HEIGHT],
                     )
@@ -574,9 +549,9 @@ pub fn preview(
             }
         }
         Some(clock) => {
-            let width = tray_width(!clock.is_empty(), false);
+            let width = tray_width(!clock.is_empty());
             let clock = (!clock.is_empty()).then_some(clock);
-            picture = picture.layers_of(tray(width, clock, None), [w - width, bar_y]);
+            picture = picture.layers_of(tray(width, clock), [w - width, bar_y]);
         }
     }
     if !on_top {
@@ -634,8 +609,6 @@ mod tests {
         Bar {
             output: "DP-1".into(),
             area: [0, 0, 1280, 800],
-            position: [0, 0],
-            icon: None,
             tasks: (0..tasks).map(|i| format!("s{i}")).collect(),
             shown: HashMap::new(),
             auto_hide: false,
@@ -697,14 +670,5 @@ mod tests {
         });
         assert_eq!(bar.tray_width(), TRAY_EMPTY);
         assert_eq!(bar.clock_rect(), None);
-    }
-
-    #[test]
-    fn the_tray_grows_for_an_icon() {
-        let mut bar = bar(0);
-        assert_eq!(bar.tray_tip(), ([1280 - 82 + 18, 778], 1280));
-        bar.icon = Some("info.svg".into());
-        assert_eq!(bar.tray_width(), 104);
-        assert_eq!(bar.tray_tip().0[0], 1280 - 104 + 18);
     }
 }

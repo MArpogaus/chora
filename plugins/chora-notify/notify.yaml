@@ -1,0 +1,14 @@
+# The settings of chora-notify. It lists every option. Copy it to
+# ~/.config/chora/chora-notify.yaml and change it there, or change it with
+# the method settings.set, which rewrites the file. Edits by hand apply on
+# the method settings.reload or restart.
+
+# The corner of the first output where the notifications show: top_left,
+# top_right, bottom_left or bottom_right.
+position: bottom_right
+# How long a notification shows at least and at most, in seconds. A
+# notification without a time of its own shows for the shortest time, one
+# with a time of its own for that time between the two, and one without an
+# end until a click.
+shortest: 10
+longest: 30
