@@ -10,9 +10,9 @@ Newest first. The PM reads this file at the start of each run.
 - POLS and KISS are core values and a view of every review round.
 - Check the plugins regularly for code that can be separated and
   generalized into its own plugin.
-- The owner had a plan to split the grown chora-mc into small reusable
-  parts; it is not in the repo (maybe in the owner's notebook). Replan
-  it.
+- Correction: the plugin to split is chora-xp, not chora-mc (a
+  transcription error). The XP split is planned in D73 and the roadmap
+  track X1 to X7; it goes into the backlog. The mc replan was stopped.
 
 - Review rules too tight (100 lines burns tokens): rounds at merges,
   tags, the end of the week and when critical components changed; no

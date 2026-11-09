@@ -33,6 +33,13 @@ is found (charter section 8). Started from charter section 15 on
    section 5, in order, after the user answers questions 3 and 4; each
    step small and tested, no split.
 
+11. XP split (D73, roadmap "Track: XP split", steps X1 to X7, plugins
+    only, `tests/xp.sh` and the battle workflows green after each step).
+    Next: X1, the design document and the crate skeleton. X2
+    (notifications as a plugin) also closes the notification gap of mc
+    and construct; X4 (panel) is the shared bar of D51. Asked by the
+    owner on 2026-11-09 (the "MCP plugin" in the transcript meant XP).
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running
