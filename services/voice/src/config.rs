@@ -22,8 +22,9 @@ pub struct Confirm {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     /// What the agent asks; `{program}` stands for the program of
-    /// `run_program`, `{NAME}` for the argument `NAME` and `{args}` for
-    /// all short arguments (`Confirm::question`).
+    /// `run_program`, `{NAME}` for the argument `NAME`, `{args}` for all
+    /// short arguments, `{input}` for the events of `inject_input` and
+    /// `{params}` for the params of a method (`Confirm::question`).
     pub prompt: String,
 }
 
@@ -366,7 +367,7 @@ fn default_confirm() -> Vec<Confirm> {
             ..rule("apply_commands", "Shall I remove that?")
         },
         rule("unload_view", "Shall I remove the view {name}?"),
-        rule("inject_input", "Shall I type or click?"),
+        rule("inject_input", "Shall I type or click: {input}?"),
         rule("code_task", "Shall I start the coding task?"),
         rule("agent_start", "Shall I start an agent for {project}?"),
         // A program can do all that the user can (D42).
@@ -413,7 +414,7 @@ const PRIVILEGED: [&str; 11] = [
 /// show what the user trusts as the voice agent or a notification.
 const SENSITIVE: [&str; 3] = ["window.give", "agent.set", "notify.push"];
 
-const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}?";
+const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}{params}?";
 
 impl Config {
     /// The command line of a harness: in `sandbox_cmd`, unless
@@ -576,12 +577,16 @@ impl Config {
 
 impl Confirm {
     /// The question for a call with `args`: `{program}` is the program of
-    /// `run_program`, `{NAME}` the argument `NAME` and `{args}` all
-    /// arguments that are a text, a number or a boolean. `{client}` and
-    /// `{method}` also name the plugin tool `tool` of a rule `*.METHOD`.
+    /// `run_program` (its whole command line when it has arguments or a
+    /// path), `{NAME}` the argument `NAME` and `{args}` all arguments
+    /// that are a text, a number or a boolean. `{client}` and `{method}`
+    /// also name the plugin tool `tool` of a rule `*.METHOD`. `{input}`
+    /// is what `inject_input` types or presses, and `{params}` the
+    /// params of a method as `: key value, key value`, or nothing.
     pub fn question(&self, tool: &str, args: &serde_json::Value) -> String {
-        let program = crate::tools::program(args).unwrap_or_default();
-        let mut text = self.prompt.replace("{program}", program);
+        let mut text = (self.prompt.replace("{program}", &spoken_program(args)))
+            .replace("{input}", &spoken_events(args))
+            .replace("{params}", &spoken_params(tool, args));
         let named = (args["client"].as_str()).zip(args["method"].as_str());
         let from_tool = || {
             let method = self.tool.strip_prefix("*.")?;
@@ -604,6 +609,68 @@ impl Confirm {
             all.push(format!("{} {value}", name.replace('_', " ")));
         }
         text.replace("{args}", &all.join(", "))
+    }
+}
+
+/// A value as the TTS says it, without quotes and never cut: a change
+/// must not stay unsaid.
+fn said(v: &serde_json::Value) -> String {
+    v.as_str().map_or_else(|| v.to_string(), str::to_owned)
+}
+
+/// The program of `run_program` as the TTS says it: the file name of a
+/// bare program, else the whole command line, so that no argument and no
+/// directory stays unsaid.
+fn spoken_program(args: &serde_json::Value) -> String {
+    let words: Vec<&str> = (args["argv"].as_array().into_iter().flatten())
+        .filter_map(serde_json::Value::as_str)
+        .collect();
+    match words.as_slice() {
+        [one] if !one.contains('/') => (*one).to_owned(),
+        _ => words.join(" "),
+    }
+}
+
+/// The events of `inject_input` as the TTS says them: the text, the
+/// keys and shortcuts, and the pointer events by their kind.
+fn spoken_events(args: &serde_json::Value) -> String {
+    let events = args["events"].as_array().into_iter().flatten();
+    let say = |event: &serde_json::Value| {
+        let (kind, body) = event.as_object()?.iter().next()?;
+        Some(match kind.as_str() {
+            "text" => {
+                let text = said(&body["text"]).replace('\n', " Return ");
+                format!("the text {}", text.trim_end())
+            }
+            "key" => format!("the key {}", said(&body["key"])),
+            "shortcut" => format!("the shortcut {}", said(&body["keys"])),
+            other => other.replace('_', " "),
+        })
+    };
+    events.filter_map(say).collect::<Vec<_>>().join(", ")
+}
+
+/// The params of a method call as the TTS says them, after a colon, or
+/// nothing: `call_method` has them in `params`, a plugin tool is the
+/// params.
+fn spoken_params(tool: &str, args: &serde_json::Value) -> String {
+    let params = if tool == "call_method" {
+        &args["params"]
+    } else {
+        args
+    };
+    let list = match params {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Object(map) => (map.iter())
+            .map(|(k, v)| format!("{} {}", k.replace('_', " "), said(v)))
+            .collect::<Vec<_>>()
+            .join(", "),
+        other => said(other),
+    };
+    if list.is_empty() {
+        list
+    } else {
+        format!(": {list}")
     }
 }
 
@@ -703,7 +770,10 @@ const GERMAN: [(&str, &str); 24] = [
         "Shall I remove the view {name}?",
         "Soll ich die Ansicht {name} entfernen?",
     ),
-    ("Shall I type or click?", "Soll ich tippen oder klicken?"),
+    (
+        "Shall I type or click: {input}?",
+        "Soll ich tippen oder klicken: {input}?",
+    ),
     (
         "Shall I start the coding task?",
         "Soll ich die Programmieraufgabe starten?",
@@ -730,7 +800,7 @@ const GERMAN: [(&str, &str); 24] = [
     ),
     (
         PRIVILEGED_PROMPT,
-        "Soll ich {method} des Plugins {client} ausführen?",
+        "Soll ich {method} des Plugins {client}{params} ausführen?",
     ),
 ];
 
@@ -1283,7 +1353,42 @@ mod tests {
         let argv = serde_json::json!({"argv": ["/usr/bin/foot", "-e"]});
         assert_eq!(
             question("run_program", argv),
+            "Shall I start the program /usr/bin/foot -e?"
+        );
+        let hidden = serde_json::json!({"argv": ["/tmp/x/firefox", "-e", "rm -rf ~"]});
+        assert_eq!(
+            question("run_program", hidden),
+            "Shall I start the program /tmp/x/firefox -e rm -rf ~?"
+        );
+        let bare = serde_json::json!({"argv": ["foot"]});
+        assert_eq!(
+            question("run_program", bare),
             "Shall I start the program foot?"
+        );
+        let typed = serde_json::json!({"events": [
+            {"text": {"text": "rm -rf ~\n"}},
+            {"shortcut": {"keys": "Ctrl+q"}},
+            {"click": {}},
+        ]});
+        assert_eq!(
+            question("inject_input", typed),
+            "Shall I type or click: the text rm -rf ~ Return, the shortcut Ctrl+q, click?"
+        );
+        let plugin = serde_json::json!({"allow_programs": ["sh"], "volume": 3});
+        let config = Config::default();
+        let rule = config.confirm.iter().find(|r| r.tool == "*.settings.set");
+        assert_eq!(
+            rule.unwrap().question("xp.settings.set", &plugin),
+            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
+        );
+        let call = serde_json::json!({"client": "xp", "method": "settings.set", "params": plugin});
+        let rule = config
+            .confirm
+            .iter()
+            .find(|r| r.method.as_deref() == Some("settings.set"));
+        assert_eq!(
+            rule.unwrap().question("call_method", &call),
+            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
         );
     }
 

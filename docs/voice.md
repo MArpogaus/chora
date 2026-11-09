@@ -266,7 +266,12 @@ program of `run_program` in place of `{program}`, the argument `NAME`
 in place of `{NAME}` (a missing one stays as it is) and all text,
 number and boolean arguments in place of `{args}` ("Shall I change the
 screen to output winit, scale 1.5?"), and waits for
-yes or no. The method `confirm` answers from a key or the HUD (WP5;
+yes or no. `{program}` is the file name of a program without arguments
+and without a path, else the whole command line ("Shall I start the
+program /tmp/x/firefox -e sh?"). `{input}` is what `inject_input` types
+or presses ("Shall I type or click: the text ls Return?"). `{params}`
+is the params of a method, after a colon ("Shall I run settings set of
+the plugin xp: volume 3?"). None of them is cut. The method `confirm` answers from a key or the HUD (WP5;
 privileged, so a confined client needs `methods.privileged`),
 the spoken yes and no since WP6. Only speech that starts after the
 question starts to play is an answer. A queued text never answers.
@@ -582,7 +587,7 @@ device.
 confirm:
   - {tool: apply_commands, commands: [remove, close], prompt: "Shall I remove that?"}
   - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
-  - {tool: inject_input, prompt: "Shall I type or click?"}
+  - {tool: inject_input, prompt: "Shall I type or click: {input}?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
   - {tool: agent_start, prompt: "Shall I start an agent for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
@@ -594,8 +599,8 @@ confirm:
   # scene.move, construct.load, construct.save, region.toggle,
   # region.put and region.solo; and for window.give, agent.set and
   # notify.push, which are not privileged.
-  - {tool: "*.METHOD", prompt: "Shall I run {method} of the plugin {client}?"}
-  - {tool: call_method, method: METHOD, prompt: "Shall I run {method} of the plugin {client}?"}
+  - {tool: "*.METHOD", prompt: "Shall I run {method} of the plugin {client}{params}?"}
+  - {tool: call_method, method: METHOD, prompt: "Shall I run {method} of the plugin {client}{params}?"}
 ```
 
 The grant `methods.privileged` opens every privileged method of every
