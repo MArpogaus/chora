@@ -15,7 +15,7 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 use crate::{
     notify::{Note, Reason, Signal},
     taskbar::Bar,
-    text::{Font, Text},
+    text::{Font, Text, wrap},
     theme::{Picture, Rect, Theme},
 };
 
@@ -114,42 +114,6 @@ impl Queue {
         signals.extend(self.close(id, Reason::Dismissed, now));
         signals
     }
-}
-
-/// Breaks text into lines no wider than `max`, at spaces where it can, and
-/// at its line breaks.
-pub fn wrap(text: &str, max: f64, width: impl Fn(&str) -> f64) -> Vec<String> {
-    let mut lines = Vec::new();
-    for paragraph in text.lines() {
-        let mut line = String::new();
-        for word in paragraph.split_whitespace() {
-            let candidate = if line.is_empty() {
-                word.to_string()
-            } else {
-                format!("{line} {word}")
-            };
-            if width(&candidate) <= max {
-                line = candidate;
-                continue;
-            }
-            if !line.is_empty() {
-                lines.push(std::mem::take(&mut line));
-            }
-            // A word wider than a line breaks between its characters.
-            for c in word.chars() {
-                line.push(c);
-                if width(&line) > max && line.chars().count() > 1 {
-                    line.pop();
-                    lines.push(std::mem::replace(&mut line, c.to_string()));
-                }
-            }
-        }
-        lines.push(line);
-    }
-    while lines.last().is_some_and(String::is_empty) {
-        lines.pop();
-    }
-    lines
 }
 
 /// Where the parts of a balloon sit, without the tail below it.
@@ -410,20 +374,6 @@ mod tests {
             actions: Vec::new(),
             timeout: timeout.map(Duration::from_secs),
         }
-    }
-
-    /// Six pixels per character.
-    #[allow(clippy::cast_precision_loss)]
-    fn mono(s: &str) -> f64 {
-        s.chars().count() as f64 * 6.0
-    }
-
-    #[test]
-    fn text_wraps_at_spaces_and_breaks() {
-        assert_eq!(wrap("aaa bbb ccc", 42.0, mono), ["aaa bbb", "ccc"]);
-        assert_eq!(wrap("one\n\ntwo", 300.0, mono), ["one", "", "two"]);
-        assert_eq!(wrap("abcdefghij", 24.0, mono), ["abcd", "efgh", "ij"]);
-        assert_eq!(wrap("", 300.0, mono).len(), 0);
     }
 
     #[test]

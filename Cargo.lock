@@ -548,6 +548,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-draw"
+version = "0.9.0-rc.3"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "resvg",
+ "serde",
+ "serde-saphyr",
+ "zune-jpeg",
+]
+
+[[package]]
 name = "chora-kit"
 version = "0.9.0-rc.3"
 dependencies = [
@@ -642,6 +654,7 @@ dependencies = [
 name = "chora-xp"
 version = "0.9.0-rc.3"
 dependencies = [
+ "chora-draw",
  "chora-kit",
  "chora-scene",
  "chrono",
@@ -651,7 +664,6 @@ dependencies = [
  "serde",
  "serde_json",
  "zbus",
- "zune-jpeg",
 ]
 
 [[package]]

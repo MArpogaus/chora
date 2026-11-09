@@ -562,7 +562,7 @@ mod tests {
     /// eyes shut, so that the mic that waits for the wake words shows.
     #[test]
     fn a_sleeping_agent_shows_a_dim_paperclip() {
-        let (mut theme, _) = crate::theme::tests::theme("sleeping");
+        let (mut theme, _) = crate::sheets::tests::theme("sleeping");
         let bar_less = Assistant {
             origin: [800, 500],
             screen: 1024,
@@ -607,7 +607,7 @@ mod tests {
     #[test]
     #[allow(clippy::cognitive_complexity, reason = "one answer after the other")]
     fn a_confirmation_stays_until_its_answer() {
-        let (mut theme, _) = crate::theme::tests::theme("confirm");
+        let (mut theme, _) = crate::sheets::tests::theme("confirm");
         let now = Instant::now();
         let mut a = Assistant {
             origin: [800, 500],

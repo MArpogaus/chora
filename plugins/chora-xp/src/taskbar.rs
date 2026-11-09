@@ -2,6 +2,7 @@
 //! image nodes: XP's blue bar, the green start button, one button per
 //! window and the notification area with the clock.
 
+use crate::sheets;
 use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
@@ -9,7 +10,7 @@ use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 use crate::{
     cube::DESKTOPS,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The height of the taskbar.
@@ -331,7 +332,7 @@ impl Bar {
                 )
                 .centered();
                 let picture = Picture::new(PAGER_BUTTON, TASK_HEIGHT)
-                    .frame(Sheet::Tasks, prefix, [0, 0, PAGER_BUTTON, TASK_HEIGHT])
+                    .frame(sheets::TASKS, prefix, [0, 0, PAGER_BUTTON, TASK_HEIGHT])
                     .text(label);
                 update(
                     &self.pager_id(desktop),
@@ -431,7 +432,7 @@ impl Bar {
         };
         let shift = i32::from(task.active);
         let mut picture =
-            Picture::new(w, TASK_HEIGHT).frame(Sheet::Tasks, prefix, [0, 0, w, TASK_HEIGHT]);
+            Picture::new(w, TASK_HEIGHT).frame(sheets::TASKS, prefix, [0, 0, w, TASK_HEIGHT]);
         let mut left = 8;
         if let Some(icon) = &task.icon {
             picture = picture.file(icon, [7 + shift, 4 + shift, 16, 16]);
@@ -494,8 +495,8 @@ fn tray_width(clock: bool, icon: bool) -> i32 {
 /// the right.
 fn tray(width: i32, clock: Option<&str>, icon: Option<&std::path::Path>) -> Picture {
     let mut picture = Picture::new(width, HEIGHT)
-        .element(Sheet::Winxp, "tray-left", [0, 0, 2, HEIGHT])
-        .element(Sheet::Winxp, "tray-center", [2, 0, width - 2, HEIGHT]);
+        .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
+        .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
     if let Some(icon) = icon {
         picture = picture.file(icon, [TRAY_ICON_LEFT, 7, 16, 16]);
     }
@@ -519,7 +520,7 @@ fn start_button(theme: &Theme, look: &str) -> Picture {
     let shift = i32::from(look == "pressed");
     Picture::new(START_WIDTH, HEIGHT)
         .element(
-            Sheet::Winxp,
+            sheets::WINXP,
             &format!("startbutton-{look}"),
             [0, 0, START_WIDTH, HEIGHT],
         )
@@ -565,7 +566,7 @@ pub fn preview(
                 );
                 picture = picture
                     .frame(
-                        Sheet::Tasks,
+                        sheets::TASKS,
                         look,
                         [x, bar_y + TASK_TOP, TASK_WIDTH, TASK_HEIGHT],
                     )

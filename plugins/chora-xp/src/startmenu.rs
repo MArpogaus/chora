@@ -3,6 +3,7 @@
 //! The geometry follows the measurements of the reference start menu
 //! (`XpTheme.qml`): 382 pixels wide, a 64 pixel header, a 40 pixel footer.
 
+use crate::sheets;
 use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
@@ -19,7 +20,7 @@ use crate::{
     control::Setting,
     desktop_icons,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 const WIDTH: i32 = 382;
@@ -235,10 +236,10 @@ impl Menu {
     fn chrome(&self, theme: &Theme) -> Picture {
         let body = self.height - HEADER - FOOTER - 2;
         let header = theme
-            .size(Sheet::Winxp, "startmenu-header")
+            .size(sheets::WINXP, "startmenu-header")
             .unwrap_or([WIDTH, 67]);
         let footer = theme
-            .size(Sheet::Winxp, "startmenu-footer")
+            .size(sheets::WINXP, "startmenu-footer")
             .unwrap_or([WIDTH, 41]);
         let face = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".face"));
         let avatar = face
@@ -253,13 +254,13 @@ impl Menu {
         .shadow([0, 0, 0, 100]);
         let mut picture = Picture::new(WIDTH, self.height)
             .element(
-                Sheet::Winxp,
+                sheets::WINXP,
                 "startmenu-body",
                 [0, header[1], WIDTH, body + HEADER + 1 - header[1] + 1],
             )
-            .element(Sheet::Winxp, "startmenu-header", [0, 0, WIDTH, header[1]])
+            .element(sheets::WINXP, "startmenu-header", [0, 0, WIDTH, header[1]])
             .element(
-                Sheet::Winxp,
+                sheets::WINXP,
                 "startmenu-footer",
                 [0, self.height - footer[1], WIDTH, footer[1]],
             )
@@ -272,7 +273,7 @@ impl Menu {
                 "startmenu-places-separator"
             };
             let [x, y, w, h] = *rect;
-            picture = picture.element(Sheet::Winxp, id, [x, y + h / 2, w, 1]);
+            picture = picture.element(sheets::WINXP, id, [x, y + h / 2, w, 1]);
         }
         picture
     }
@@ -1019,9 +1020,9 @@ fn background(entry: &Entry, down: bool) -> Picture {
     match (down, entry.kind) {
         (false, _) => picture,
         (true, Kind::Footer) => {
-            picture.frame(Sheet::Winxp, "startmenu-footer-pressed", [0, 0, w, h])
+            picture.frame(sheets::WINXP, "startmenu-footer-pressed", [0, 0, w, h])
         }
-        (true, _) => picture.frame(Sheet::Winxp, "menu-highlight", [0, 0, w, h]),
+        (true, _) => picture.frame(sheets::WINXP, "menu-highlight", [0, 0, w, h]),
     }
 }
 
@@ -1030,7 +1031,7 @@ fn background(entry: &Entry, down: bool) -> Picture {
 fn all_programs(theme: &Theme, picture: Picture, entry: &Entry, down: bool) -> Picture {
     let [_, _, w, h] = entry.rect;
     let arrow = theme
-        .size(Sheet::Winxp, "startmenu-allprograms-arrow")
+        .size(sheets::WINXP, "startmenu-allprograms-arrow")
         .unwrap_or([17, 22]);
     #[allow(clippy::cast_possible_truncation)]
     let label = theme.text_width(&entry.title, Font::UiBold).ceil() as i32;
@@ -1044,7 +1045,7 @@ fn all_programs(theme: &Theme, picture: Picture, entry: &Entry, down: bool) -> P
             [x, 0, label + 2, h],
         ))
         .element(
-            Sheet::Winxp,
+            sheets::WINXP,
             "startmenu-allprograms-arrow",
             [x + label + 18, (h - arrow[1]) / 2, arrow[0], arrow[1]],
         )
