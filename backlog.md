@@ -43,7 +43,7 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track B
 
-1. Driver for simulated users: done 11-09 (`tests/persona/`, fa1cb7c).
+1. Driver for simulated users: done 11-09 (`tests/persona/`, b28adcf).
 2. Matrix of everyday tasks: done 11-09 (`baseline.md`). Gaps, most
    important first: Wi-Fi, volume, power and lock, battery, brightness,
    files and USB, screenshots, keyboard layout, Bluetooth.

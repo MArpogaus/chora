@@ -46,7 +46,7 @@
    Change: commits there use `PRE_COMMIT_ALLOW_NO_CONFIG=1` and the
    message rules are checked by hand (charter section 11b).
 8. **Workflow tool used without opt-in.** The review round of 11-09
-   (02cdeed..cd9b09b) ran as a Workflow script; the tool rules allow it
+   (02cdeed..8435faa) ran as a Workflow script; the tool rules allow it
    only when the user asks for workflows. Same cost as five Agent calls.
    Change: review rounds start their views as separate Agent calls.
 9. **Resolved 11-09: items 2 and 7.** lychee is installed from its
@@ -54,3 +54,18 @@
    its own hook config, and a test commit with an attribution line was
    rejected. `SKIP=lychee` is no longer used (user request: fix the hooks
    instead of working around them).
+10. **History rewrite of 11-09, a near miss.** The first `git filter-repo`
+    run rewrote the whole history of the repository (the base 8742dee of
+    `main` was gone), probably because it re-encodes older commits. It was
+    caught before the push: the base commit was checked. The second run
+    used `--refs BASE..BRANCH` and touched only the 59 commits of the
+    session (15 code commits remain, all files outside `plans/autonomy/`
+    and `plans/3d.md` identical). Pushed with `--force-with-lease`, with
+    the user's consent; commit map in `media/commit-map-2026-11-09.txt`.
+    Change: any history filter runs with `--refs BASE..BRANCH`, and the
+    PM checks that the base is still an ancestor and that the tree diff
+    holds only the intended paths before a push.
+11. **Session files and code on one branch got in each other's way.** The
+    security agent reported that the PM's plan commits reverted its
+    working tree twice during pre-commit runs. Solved by the session log
+    branch in its own worktree.

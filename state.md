@@ -1,7 +1,7 @@
 # State
 
-last_reviewed: 02cdeed
-base_2d: 0d1a24b (HEAD when the guard was added; no scene or renderer change since)
+last_reviewed: 8435faa (cd9b09b before the history rewrite; the round of 11-09 covered up to it)
+base_2d: the commit before 5c447ce (the 2D guard); no scene or renderer change since
 block: security fixes (agent running), started 11:05
 
 ## Plan of the day
@@ -42,13 +42,13 @@ block: security fixes (agent running), started 11:05
   `sandbox_cmd` first (`config.rs:421-426`), `check_harnesses`
   (`config.rs:1056-1061`), tests
   `harnesses_run_in_the_sandbox_unless_unsandboxed`, `check_rejects_mistakes`.
-- 11-09: 2D guard `tests/2d-guard.sh` (9cca731), red test against a
+- 11-09: 2D guard `tests/2d-guard.sh` (5c447ce), red test against a
   changed premultiply in `render.rs`.
 - 11-09: 3D strategy `plans/3d.md`, revised after an opus review
-  (9cde738); decision D75 and roadmap (f1c7f30).
+  (9cde738); decision D75 and roadmap (f5f346f).
 - 11-09: baseline (07c6c09): 846 tests, most gates pass; `cargo deny`
-  fixed (a9a3775, yanked async-executor).
-- 11-09: driver for simulated users (fa1cb7c), audience research and
+  fixed (8589485, yanked async-executor).
+- 11-09: driver for simulated users (b28adcf), audience research and
   everyday task matrix (b4b7520).
 
 ## Running
@@ -77,7 +77,7 @@ Security check of 11-09 (probes in the scratchpad, `sec/`):
    (`crates/choractl/src/events.rs:70-74`).
 6. low: `load_view` has no confirm rule.
 7. docs: `services/voice/README.md:343-350` is out of date.
-Review round of 11-09 on 02cdeed..cd9b09b (five views; bugs: clean,
+Review round of 11-09 on 02cdeed..8435faa (five views; bugs: clean,
 187 voice tests and the new core test pass; security: nothing high or
 medium):
 
