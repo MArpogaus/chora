@@ -4,6 +4,10 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- For r/unixporn: a heavy-user scenario that pushes the concept to its
+  limits and shows something unseen; the user tests get this "push to
+  the limit" view without dropping the low-tech views.
+
 - Brainstorm on panes (recorded as D76, 8b567b5): a pane is a view of a
   source (window, window manager on a virtual output, plugin view,
   prompt); several panes may show one source and every pane takes

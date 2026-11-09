@@ -570,6 +570,18 @@ flavor; never reimplement the services. Tests run against
 `python3-dbusmock` (it has templates for NetworkManager, BlueZ, UPower
 and logind), since the worker has no Wi-Fi or Bluetooth hardware.
 
+**Push to the limit** (asked on 2026-11-09): every panel also has one
+heavy-user persona, a ricer who pushes the concept to its limits and
+looks for what no other desktop can show, next to the low-tech personas
+(never instead of them). Its showcase task: start the construct from
+inside XP, fly out to the XP cube with its windows, open a pane with
+tiling and a slider of panes, move one window by key, voice and drag
+through tiling, XP, mc and construct, add a shader effect, and fly back
+in at 1:1. The task grows with the features (3D steps, D76 geometries,
+the handover guard) and is recorded as a screencast and GIFs for the
+showcase (section 9). Its findings rank like any other: a crash or a
+lost window counts more than a missing effect.
+
 Tasks in five more levels:
 
 1. Open a program and arrange windows.
@@ -626,6 +638,10 @@ Goal: when the user returns, chora 0.9 has a ready announcement.
   or 1.0), Phoronix, distro forums, awesome lists.
 - Each keeper gets a capture for a later post. Plain language. Nothing is
   posted.
+- The r/unixporn draft rests on the push-to-the-limit showcase (section
+  8): a short screencast and two or three GIFs of things no other
+  desktop does, with the honest limits (headless captures on a software
+  renderer; real hardware frame rates measured by the user).
 
 ## 10. Budget control
 

@@ -88,6 +88,11 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track D
 
+0. Push-to-the-limit showcase (charter sections 8 and 9): the persona
+   and its task in the panel from the first panel on; the screencast
+   and GIFs once the 3D steps 3 and 4, the D76 slider and the handover
+   guard work (week 2 or 3).
+
 1. Research of audiences, competitors and channels: done 11-09
    (`drafts/audiences.md`). Notes: awesome-wayland is archived; FOSDEM
    2027 is 30 and 31 January; Show HN and r/linux are wary of quick or
