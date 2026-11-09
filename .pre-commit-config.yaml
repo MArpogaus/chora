@@ -36,12 +36,10 @@ repos:
     types_or: [rust, shell, python]
     stages: [pre-commit]
   - id: no-session-files
-    name: no session-log files (they belong on the branch claude/session-log)
-    entry: tests/no-session-files.sh
-    language: script
-    pass_filenames: false
-    always_run: true
-    stages: [pre-commit]
+    name: no session logs, reports or media in the repository
+    entry: session logs, reports and media do not belong in the repository
+    language: fail
+    files: ^(plans/autonomy/|reports/|reflections/|media/|drafts/|(charter|state|ledger|friction|answers|questions|backlog|HANDOFF)\.md$)
   - id: lychee
     name: lychee (offline links in the Markdown files)
     entry: lychee --config lychee.toml
