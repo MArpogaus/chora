@@ -108,7 +108,60 @@ struct ButtonParams {
 /// Whether a confined caller is refused `method`: the methods that act for
 /// the user at the keyboard.
 fn not_for_confined(method: &str) -> bool {
-    matches!(method, "confirm" | "talk" | "mute")
+    matches!(method, "confirm" | "talk" | "mute") || CHAT_METHODS.contains(&method)
+}
+
+/// The methods of a chat view: they read the transcript of an agent,
+/// stop its prompt and mark a chat open. None of them answers a question.
+const CHAT_METHODS: [&str; 4] = ["agent.read", "agent.cancel", "chat.open", "chat.close"];
+
+/// The parameters of `agent.read`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReadParams {
+    name: String,
+    #[serde(default)]
+    after: u64,
+}
+
+/// The parameters of `agent.cancel`, `chat.open` and `chat.close`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NameParams {
+    name: String,
+}
+
+/// A chat method of `caller`: refused for a confined connection; the core
+/// gets the name of the caller, and a failure of the core is a refusal.
+fn chat_call(
+    tx: &Sender<Input>,
+    caller: &str,
+    confined: bool,
+    method: &str,
+    params: Value,
+) -> Result<Value, RpcError> {
+    if confined {
+        return Err(confined_refusal(method));
+    }
+    let mut args = if method == "agent.read" {
+        let ReadParams { name, after } = runtime::params(params)?;
+        json!({"name": name, "after": after})
+    } else {
+        let NameParams { name } = runtime::params(params)?;
+        json!({"name": name})
+    };
+    args["caller"] = caller.into();
+    let (reply, rx) = mpsc::channel();
+    let gone = || RpcError::new(RpcError::REJECTED, "the agent does not answer");
+    (tx.send(Input::AgentCall(method.to_owned(), args, reply))).map_err(|_| gone())?;
+    let answer = rx.recv_timeout(ANSWER).map_err(|_| gone())?;
+    match answer["error"].as_str() {
+        Some(error) => Err(RpcError::new(
+            RpcError::REJECTED,
+            format!("{method}: {error}"),
+        )),
+        None => Ok(answer),
+    }
 }
 
 /// The refusal of `method` for a confined caller.
@@ -225,6 +278,8 @@ fn session(
     };
     // The claims of the session before are gone.
     let _ = tx.send(Input::Claimed(false));
+    let (reply, _) = mpsc::channel();
+    let _ = tx.send(Input::AgentCall("chat.gone".into(), json!({}), reply));
     // A new session reads the file again, which an edit may have changed.
     client.apply().map_err(|e| e.message)?;
     crate::log::info(&format!("connected to chora as {name}"));
@@ -271,6 +326,16 @@ fn serve(
                 confined,
             }) if method == "confirm.answer" => {
                 let answer = confirm_answer(&client.claims, &client.tx, &caller, confined, params);
+                client.rt.conn.answer(call, answer)?;
+            }
+            Some(Event::MethodCalled {
+                call,
+                caller,
+                method,
+                params,
+                confined,
+            }) if CHAT_METHODS.contains(&method.as_str()) => {
+                let answer = chat_call(&client.tx, &caller, confined, &method, params);
                 client.rt.conn.answer(call, answer)?;
             }
             Some(Event::MethodCalled {
@@ -457,6 +522,33 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["tool"],
         )),
         runtime::privileged(runtime::method(
+            "agent.read",
+            "Answers the entries of the transcript of an ACP agent after the number after: \
+             entries with seq, role and text, and the last seq; at most 64 KiB of text.",
+            json!({"name": {"type": "string"}, "after": {"type": "integer"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "agent.cancel",
+            "Cancels the running prompt of an ACP agent and the prompts that wait.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "chat.open",
+            "Marks a chat of the caller with an ACP agent as open: the agent speaks its \
+             questions but not its results. The mark ends with chat.close or when the \
+             caller disconnects. A chat answers no question.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "chat.close",
+            "Ends the chat that the caller opened with an ACP agent.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
             "indicator.claim",
             "Hides the state dot of the agent while the calling client is connected: the \
              caller shows the state itself. Call it again after the voice client connects.",
@@ -537,10 +629,15 @@ impl Plugin for Client {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
-        if let Event::ClientDisconnected { name } = &event
-            && self.claims.0.contains(name)
-        {
-            let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
+        if let Event::ClientDisconnected { name } = &event {
+            if self.claims.0.contains(name) {
+                let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
+            }
+            let (reply, _) = mpsc::channel();
+            let args = json!({"caller": name});
+            let _ = self
+                .tx
+                .send(Input::AgentCall("chat.gone".into(), args, reply));
         }
         if let Event::InputKey {
             binding,
@@ -612,8 +709,11 @@ mod tests {
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
-    use super::{Claims, Held, RESEND, claim_indicator, confirm_answer, without_headers};
+    use super::{
+        Claims, Held, RESEND, chat_call, claim_indicator, confirm_answer, without_headers,
+    };
     use crate::core::Input;
+    use std::sync::mpsc;
 
     #[test]
     fn only_the_client_voice_emits() {
@@ -721,6 +821,69 @@ mod tests {
         }
     }
 
+    /// The chat methods read a transcript, stop a prompt and mark a chat
+    /// open: a confined connection gets none of them and the core hears
+    /// nothing; an unconfined one reaches the core with its name.
+    #[test]
+    fn chat_methods_refuse_a_confined_caller() {
+        let (tx, rx) = mpsc::channel();
+        for method in ["agent.read", "agent.cancel", "chat.open", "chat.close"] {
+            assert!(super::not_for_confined(method), "{method}");
+            let params = json!({"name": "atlas"});
+            let err = chat_call(&tx, "voice-mcp", true, method, params).unwrap_err();
+            assert_eq!(err.code, RpcError::REJECTED, "{method}");
+            assert!(rx.try_recv().is_err(), "{method}: the core heard nothing");
+        }
+        let params = json!({"name": "atlas"});
+        let asked = std::thread::spawn(move || {
+            chat_call(&tx, "chora-assistant", false, "chat.open", params)
+        });
+        let Ok(Input::AgentCall(tool, params, reply)) = rx.recv_timeout(Duration::from_secs(2))
+        else {
+            panic!("the core heard nothing");
+        };
+        assert_eq!(tool, "chat.open");
+        assert_eq!(params["caller"], "chora-assistant");
+        reply.send(json!({})).unwrap();
+        assert!(asked.join().unwrap().is_ok());
+    }
+
+    /// The core answers a failure as an `error` text; the caller gets a
+    /// refusal, and a bad parameter is refused before the core hears it.
+    #[test]
+    fn a_failed_chat_call_is_a_refusal_and_bad_parameters_never_reach_the_core() {
+        let (tx, rx) = mpsc::channel();
+        let err = chat_call(
+            &tx,
+            "hud",
+            false,
+            "agent.read",
+            json!({"name": "a", "after": "x"}),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+        let err = chat_call(
+            &tx,
+            "hud",
+            false,
+            "chat.open",
+            json!({"name": "a", "extra": 1}),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+        assert!(rx.try_recv().is_err());
+        let asked = std::thread::spawn(move || {
+            chat_call(&tx, "hud", false, "agent.cancel", json!({"name": "a"}))
+        });
+        let Ok(Input::AgentCall(_, _, reply)) = rx.recv_timeout(Duration::from_secs(2)) else {
+            panic!("the core heard nothing");
+        };
+        reply.send(json!({"error": "no agent a"})).unwrap();
+        let err = asked.join().unwrap().unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(err.message.contains("no agent a"));
+    }
+
     /// Emits `new` at `now`; the core takes them or refuses them over its
     /// rate limit. Answers what it took.
     fn emit(
@@ -794,6 +957,10 @@ mod tests {
                 "confirm.answer",
                 "talk",
                 "agent",
+                "agent.read",
+                "agent.cancel",
+                "chat.open",
+                "chat.close",
                 "indicator.claim"
             ]
         );

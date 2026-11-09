@@ -659,8 +659,13 @@ both a key variable and a key file for one server.
 | `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller without `indicator.claim` and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
+| `agent.read` (privileged) | `name`, `after: int` (default 0) | `{entries: [{seq, role, text}], seq}`: the entries of the transcript of the agent after `after`, at most 64 KiB of text, oldest first; `seq` is the last one returned, or the current one when none is; refused for a confined caller (section 18) |
+| `agent.cancel` (privileged) | `name` | the text `NAME stops its request`; cancels the running prompt and the queue, as the spoken cancel word does; refused for a confined caller |
+| `chat.open` (privileged) | `name` | `{}`; marks a chat of the agent as open for the caller; refused for a confined caller, for an unknown agent and without a caller |
+| `chat.close` (privileged) | `name` | `{}`; ends the chat that the caller opened; refused for a confined caller and when the caller has none open |
 
-`mute`, `talk`, `indicator.claim` and `confirm.answer` are privileged: with them, a
+`mute`, `talk`, `indicator.claim`, `confirm.answer`, `agent.read`, `agent.cancel`,
+`chat.open` and `chat.close` are privileged: with them, a
 client could unmute the mic, record, or hide the dot, so that the agent
 listens without a sign. A client socket needs `methods.privileged` for
 them. The export flag cannot depend on `mic`, so muting needs it too.
@@ -707,8 +712,8 @@ A coding task is a sub-agent: `voice.state {name: coder, state, task,
 said}` with `state` `working`, then `done` or `blocked` (failed or
 cancelled), `task` the task, and `said` its last step, then its result.
 An ACP agent (section 18) is a sub-agent too: `voice.state {name,
-state, task, said, voice, plan, question, log}`, and `voice.remove
-{name}` when it stops.
+state, task, said, voice, plan, question, log, seq, chat}`, and
+`voice.remove {name}` when it stops.
 The `hud` thread waits for the sound of a sentence and hands the events
 to the `chora` thread, which emits them on the connection of the
 methods: only that connection has the name `voice`. The `chora` thread
@@ -1278,6 +1283,28 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   question); `voice.remove {name}` when it stops. chora-mc shows the
   agents in the status line and the `agents` scene; `mc agent.focus`
   shows one agent with its transcript.
+- Transcript and chat: each agent keeps a ring of 500 entries `{seq,
+  role, text}`, `role` one of `user` (a prompt), `agent` (its words),
+  `tool` (a tool call), `notice` (the end of the agent or the refusal
+  of a request, text of the system and not of the agent), `question` (a
+  permission request) and `plan`. An entry has at most 16 KiB of text,
+  cut with an ellipsis, and a ring holds at most 4 MiB, the oldest
+  entries dropped first. The text is hidden as the journal hides it:
+  the value of a key such as `token`, `authorization` or `api_key` is
+  `(hidden)`. `seq` counts up from 1 for each
+  entry of the agent and never repeats while it runs; `voice.state`
+  carries the last `seq`, so a reader pulls with `agent.read {name,
+  after}` when it grew. `chat.open {name}` marks a chat of the agent as
+  open for the caller, and `chat.close {name}` ends it; the chat also
+  ends on `client.disconnected` of the caller, when the voice agent
+  connects to chora again, and when the caller has not read the agent
+  with `agent.read` for 10 minutes. `voice.state` has `chat: true` while any
+  chat is open. An agent with an open chat does not speak the end of
+  its turn or its notices; its questions are spoken as before. A chat
+  sends text and reads text: it answers no question, and a permission
+  request keeps the rules above (a key or a button, no always word).
+  A caller without these methods, a confined one, gets
+  `not for a confined connection`.
 - Logs: `$XDG_DATA_HOME/chora/agents/NAME.log`, the stderr of the agent
   and every message (`>` sent, `<` received).
 - Lifetime: `agent_stop` and the end of the voice agent (an error,
