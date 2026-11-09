@@ -158,11 +158,10 @@ pub(crate) struct CameraMove {
 impl CameraMove {
     /// The camera at the current time on the way to `to`.
     pub fn at(&self, to: &Transform) -> Transform {
-        let t = if self.duration > 0.0 {
-            (self.elapsed / self.duration).min(1.0)
-        } else {
-            1.0
-        };
+        if self.ended() {
+            return *to;
+        }
+        let t = (self.elapsed / self.duration).min(1.0);
         self.from.lerp(to, self.easing.at(t))
     }
 
@@ -320,6 +319,21 @@ mod tests {
             let t = animation.props().transform;
             assert!((column_length(&t) - 1.0).abs() < 1e-9, "{elapsed}");
         }
+    }
+
+    #[test]
+    fn a_camera_ends_exactly_on_its_target_after_a_rotation() {
+        let to = Transform::translate(-30.3, 7.1, 0.0)
+            .then(&Transform::rotate_z(123.4).then(&Transform::scale(0.7, 1.9, 1.0)));
+        let mut camera = CameraMove {
+            from: Transform::IDENTITY,
+            duration: 100.0,
+            elapsed: 100.0,
+            easing: Easing::Linear,
+        };
+        assert_eq!(camera.at(&to), to);
+        camera.elapsed = 500.0;
+        assert_eq!(camera.at(&to), to);
     }
 
     #[test]
