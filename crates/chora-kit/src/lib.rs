@@ -13,6 +13,7 @@ pub mod desktop_entry;
 pub mod give;
 pub mod icons;
 pub mod lamp;
+pub mod notify;
 pub mod runtime;
 pub mod settings;
 pub mod wobbly;
@@ -54,6 +55,16 @@ pub fn launch(command: &str) -> Option<(String, Option<u32>)> {
     let answer: serde_json::Value = serde_json::from_slice(&line).unwrap_or_default();
     let pid = answer["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
     Some((answer["token"].as_str()?.into(), pid))
+}
+
+/// Whether a process runs: it has a `/proc` entry and is no zombie. A
+/// pid can be reused, so the answer is a hint.
+#[must_use]
+pub fn alive(pid: u32) -> bool {
+    let stat = read_text(std::path::Path::new(&format!("/proc/{pid}/stat")), 4096);
+    stat.ok()
+        .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
+        .is_some_and(|zombie| !zombie)
 }
 
 /// Writes a file through a new temporary file of mode 0600 next to it,
@@ -191,6 +202,12 @@ pub fn check_file(path: &std::path::Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+
+    #[test]
+    fn a_running_process_is_alive_and_a_missing_one_not() {
+        assert!(super::alive(std::process::id()));
+        assert!(!super::alive(u32::MAX));
+    }
 
     #[test]
     fn devices_fifos_and_large_files_are_refused() {
