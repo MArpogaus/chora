@@ -472,6 +472,17 @@ impl Client {
     }
 }
 
+/// What a grabbed key means. An injected key never answers a question
+/// about a security setting: only the keyboard does.
+fn key_input(key: Key, state: PressState, injected: bool) -> Option<Input> {
+    match (key, state) {
+        (Key::Ptt, PressState::Pressed) => Some(Input::PttDown),
+        (Key::Ptt, PressState::Released) => Some(Input::PttUp),
+        (Key::Confirm(yes), PressState::Pressed) if !injected => Some(Input::ConfirmKey(yes)),
+        (Key::Confirm(_), _) => None,
+    }
+}
+
 impl Plugin for Client {
     type Action = Key;
 
@@ -485,15 +496,14 @@ impl Plugin for Client {
         {
             let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
         }
-        if let Event::InputKey { binding, state } = event
+        if let Event::InputKey {
+            binding,
+            state,
+            injected,
+        } = event
             && let Some(&key) = self.rt.action(&binding)
+            && let Some(input) = key_input(key, state, injected)
         {
-            let input = match (key, state) {
-                (Key::Ptt, PressState::Pressed) => Input::PttDown,
-                (Key::Ptt, PressState::Released) => Input::PttUp,
-                (Key::Confirm(yes), PressState::Pressed) => Input::ConfirmKey(yes),
-                (Key::Confirm(_), PressState::Released) => return Ok(()),
-            };
             // The core is gone only when the process ends.
             let _ = self.tx.send(input);
         }
@@ -551,6 +561,8 @@ impl Plugin for Client {
 mod tests {
     use std::time::{Duration, Instant};
 
+    use super::{Key, PressState, key_input};
+
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
@@ -572,6 +584,17 @@ mod tests {
             without_headers(settings),
             json!({"llm_headers": {"Authorization": "(hidden)"}, "llm_url": "u"})
         );
+    }
+
+    /// The agent takes a key for the user only from the keyboard (finding
+    /// 3 of the security review): an injected confirm key is ignored.
+    #[test]
+    fn an_injected_confirm_key_answers_nothing() {
+        let key = |injected| key_input(Key::Confirm(true), PressState::Pressed, injected);
+        assert!(matches!(key(false), Some(Input::ConfirmKey(true))));
+        assert!(key(true).is_none());
+        let ptt = key_input(Key::Ptt, PressState::Pressed, true);
+        assert!(matches!(ptt, Some(Input::PttDown)), "not a security key");
     }
 
     /// A claim hides the dot, the claimer's disconnect shows it again,

@@ -393,8 +393,10 @@ the user agrees:
   indicator and then answer every key question. So grant
   `methods.privileged`, and with it the claim, only to a HUD that the
   user trusts as the keyboard.
-- An injected key could answer the question. So the agent refuses
-  `inject_input` while such a question waits. Besides, `inject_input`
+- An injected key could answer the question. The core marks an
+  `input.key` event of `input.inject` with `injected: true`, and the
+  agent ignores an injected key of `confirm_keys`. Besides, the agent
+  refuses `inject_input` while such a question waits, and `inject_input`
   always asks by the default rules and never takes an always word.
 
 The client `NAME-mcp`

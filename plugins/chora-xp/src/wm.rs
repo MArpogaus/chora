@@ -1320,6 +1320,7 @@ impl Wm {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
+                ..
             } => self.key(&binding),
             Event::InputKey {
                 state: PressState::Released,

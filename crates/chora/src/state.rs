@@ -102,6 +102,8 @@ pub struct HeldGrab {
     pub conn: u64,
     pub binding: Binding,
     pub code: Keycode,
+    /// The key came from `input.inject`.
+    pub injected: bool,
 }
 
 /// The keys whose press did not reach a surface, and the held key grabs.

@@ -734,6 +734,7 @@ impl Plugin for Mc {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
+                ..
             } => {
                 self.act(&binding);
                 Ok(())

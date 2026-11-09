@@ -44,7 +44,9 @@ enum KeyAction {
     /// Switch to another virtual terminal.
     SwitchVt(i32),
     /// Send `input.key` to the client that grabbed the binding.
-    Grab(u64, Binding),
+    /// The connection and the binding of a grab, and whether the key was
+    /// injected.
+    Grab(u64, Binding, bool),
     /// Send a key to the owner of the node with the keyboard focus.
     Node(String, SceneEvent),
 }
@@ -129,8 +131,8 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
                 backend.change_vt(vt);
             }
         }
-        Some(KeyAction::Grab(conn, binding)) => {
-            grabbed(state, conn, &binding, PressState::Pressed);
+        Some(KeyAction::Grab(conn, binding, injected)) => {
+            grabbed(state, conn, &binding, PressState::Pressed, injected);
             if !state
                 .held
                 .grabs
@@ -141,6 +143,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
                     conn,
                     binding,
                     code,
+                    injected,
                 });
             }
         }
@@ -175,7 +178,13 @@ fn released_key(
         .partition(|h| h.code == code && free_binding(&h.binding));
     state.held.grabs = held_grabs;
     for grab in free {
-        grabbed(state, grab.conn, &grab.binding, PressState::Released);
+        grabbed(
+            state,
+            grab.conn,
+            &grab.binding,
+            PressState::Released,
+            grab.injected,
+        );
     }
     let Some(i) = state.held.keys.iter().position(|(k, _)| *k == code) else {
         return FilterResult::Forward;
@@ -229,10 +238,11 @@ fn pressed_key(
 }
 
 /// Tells the client of a grab that its key went down or up.
-fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState) {
+fn grabbed(state: &mut State, conn: u64, binding: &Binding, press: PressState, injected: bool) {
     let event = chora_scene::Event::InputKey {
         binding: binding.to_string(),
         state: press,
+        injected,
     };
     state.ipc.send_to(conn, &event);
 }
@@ -256,7 +266,13 @@ fn release_grabs(state: &mut State, mods: &ModifiersState) {
     state.held.grabs = held;
     let ended: Vec<HeldGrab> = ended;
     for grab in ended {
-        grabbed(state, grab.conn, &grab.binding, PressState::Released);
+        grabbed(
+            state,
+            grab.conn,
+            &grab.binding,
+            PressState::Released,
+            grab.injected,
+        );
     }
 }
 
@@ -274,7 +290,13 @@ impl State {
             .partition(|h| conns.contains(&h.conn) && free_binding(&h.binding));
         self.held.grabs = keep;
         for grab in ends {
-            grabbed(self, grab.conn, &grab.binding, PressState::Released);
+            grabbed(
+                self,
+                grab.conn,
+                &grab.binding,
+                PressState::Released,
+                grab.injected,
+            );
         }
     }
 
@@ -359,7 +381,7 @@ fn press_action(
     injected: bool,
 ) -> Option<KeyAction> {
     if injected {
-        return grab_action(state, mods, syms);
+        return grab_action(state, mods, syms, true);
     }
     let first = Keysym::XF86_Switch_VT_1.raw();
     if let Some(vt) = modified
@@ -379,16 +401,21 @@ fn press_action(
             return Some(KeyAction::RevokeAll);
         }
     }
-    grab_action(state, mods, syms)
+    grab_action(state, mods, syms, false)
 }
 
 /// The grab of a binding, unless the session is locked.
-fn grab_action(state: &State, mods: &ModifiersState, syms: &[Keysym]) -> Option<KeyAction> {
+fn grab_action(
+    state: &State,
+    mods: &ModifiersState,
+    syms: &[Keysym],
+    injected: bool,
+) -> Option<KeyAction> {
     if state.lock.is_some() {
         return None;
     }
     let (conn, binding) = state.ipc.grab_for(mods, syms)?;
-    Some(KeyAction::Grab(conn, binding))
+    Some(KeyAction::Grab(conn, binding, injected))
 }
 
 /// Relative motion, as from a mouse on real hardware. The pointer stays on
