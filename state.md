@@ -34,6 +34,12 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-09 14:30: grants step 1 merged (1ce735c): confined callers cannot
+  claim the indicator, answer, confirm, talk or mute; injected pointer
+  presses are marked and ignored by the HUD answer buttons; docs name
+  the one-hop routes of methods.privileged. Opus security review done.
+  Gate: 895 tests, 2D guard, xp.sh, matrix gate green.
+
 - 11-09 afternoon: merged persona driver (b7897ba), 3D step 1 (7e3bb63),
   review fixes with guard hardening (9e48a34), XP split X2 (a83933f),
   xp.sh cleanup and the handover matrix gate (4513ba2: 46 of 84 cells
