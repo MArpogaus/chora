@@ -381,6 +381,34 @@ fn with_derivatives(source: String) -> String {
     format!("{head}{newline}{line}{rest}")
 }
 
+/// What is attached to the framebuffer of a frame, as GL names the object type
+/// (`NONE`, `TEXTURE`, `RENDERBUFFER`): the color, the depth and the
+/// stencil attachment.
+#[cfg(test)]
+pub fn attachments(frame: &mut GlesFrame<'_, '_>) -> Result<[u32; 3], GlesError> {
+    let mut kinds = [0; 3];
+    frame.with_context(|gl| {
+        for (kind, slot) in kinds.iter_mut().zip([
+            ffi::COLOR_ATTACHMENT0,
+            ffi::DEPTH_ATTACHMENT,
+            ffi::STENCIL_ATTACHMENT,
+        ]) {
+            let mut value = 0;
+            // SAFETY: a plain query on the current context into a local.
+            unsafe {
+                gl.GetFramebufferAttachmentParameteriv(
+                    ffi::FRAMEBUFFER,
+                    slot,
+                    ffi::FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE,
+                    &raw mut value,
+                );
+            }
+            *kind = u32::try_from(value).unwrap_or_default();
+        }
+    })?;
+    Ok(kinds)
+}
+
 /// Compiles and links a fragment shader with the vertex shader of meshes.
 /// Returns the log of the compiler on an error.
 unsafe fn compile(gl: &ffi::Gles2, fragment: &str) -> Result<Program, String> {

@@ -351,8 +351,13 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         .map_err(|e| format!("rendering failed: {e:?}"))?;
     // The watchdog measures the work of the renderer, as on a screen.
     let _ = result.sync.wait();
-    Ok(result.damage.is_some())
+    let damaged = result.damage.is_some();
+    parts.assets.stats.frame(damaged);
+    Ok(damaged)
 }
+
+#[cfg(test)]
+mod guard;
 
 #[cfg(test)]
 mod tests {
