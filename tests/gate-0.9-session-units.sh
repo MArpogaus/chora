@@ -11,7 +11,7 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need systemd-analyze
 need desktop-file-validate
-need_bins chora chora-tiling chora-xp
+need_bins chora chora-tiling chora-xp chora-notify chora-assistant
 
 desktop-file-validate "$repo"/dist/session/*.desktop || fail "a session entry is not valid"
 ok "the session entries are valid"
