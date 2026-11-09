@@ -1,7 +1,8 @@
 #!/bin/bash
 # shellcheck disable=SC2016 # jq programs and code a helper evaluates later
 # W15 voice HUD: tests/fake-voice.py stands in for the voice agent. In
-# the construct flavor, in mc and in xp: the states, a normal and a
+# the construct flavor, in mc and in chora-assistant with the XP folder:
+# the states, a normal and a
 # physical `voice.confirm`, an answer by key (Alt+y reaches the grabber)
 # and by click on a button (`confirm.answer`), a foreign client that
 # calls `indicator.claim` and `confirm.answer` of voice (must be
@@ -37,10 +38,9 @@ emit_evil() { echo "$1 $2" >&4; }
 claims() { cat "$work/claims" 2>/dev/null || echo 0; }
 state() { emit voice.state "{\"state\": \"$1\", \"task\": \"Look up the train to Basel\", \"said\": \"\"}"; }
 # ui_has <text>: a node of the plugin shows the text
-# (xp draws the balloon as an image: its speech node stands for the text)
 ui_has() {
-  if [ "$plugin" = xp ]; then
-    ctl query id:xp-assistant-speech | py 'import json, sys; n = json.load(sys.stdin); sys.exit(not (n and n[0]["visible"] and n[0]["opacity"] > 0 and n[0]["rects"]))'
+  if [ "$plugin" = assistant ]; then
+    ctl query id:assistant-speech | py 'import json, sys; n = json.load(sys.stdin); sys.exit(not (n and n[0]["visible"] and n[0]["opacity"] > 0 and n[0]["rects"]))'
   else
     # a node that shows (visible, opaque, with a rect) has the text
     ctl query "owner:$plugin" | py 'import json, sys
@@ -80,7 +80,10 @@ plugin_round() {
   wm_session 1920x1080 || return 1
   "$@" >> "$RUN" 2>&1 &
   pid=$!; track $pid
-  ctl wait --timeout 20 "owner:$plugin" > /dev/null || finding "W15: $plugin does not start" breaks "start $plugin"
+  case $plugin in
+    assistant) ready assistant settings.get ;;
+    *) ctl wait --timeout 20 "owner:$plugin" > /dev/null ;;
+  esac || finding "W15: $plugin does not start" breaks "start $plugin"
   # the foreign client of this round: methods.call without methods.privileged
   admin clients create foreign > "$work/foreign.json" 2>> "$RUN"
   foreign_sock=$(py 'import json, sys; print(json.load(sys.stdin).get("path", ""))' < "$work/foreign.json")
@@ -119,7 +122,7 @@ plugin_round() {
     rm -f "$work/claims.answers" "$work/claims.keys"
     emit voice.confirm "{\"id\": \"43\", \"prompt\": \"Set allow to [sh]?\", \"detail\": \"allow: [sh]\", \"physical\": true, \"keys\": {\"yes\": \"Alt+y\", \"no\": \"Alt+n\"}, \"buttons\": true}"
     expect "$plugin: the physical question does not show" breaks 'ui_has "allow: [sh]" || ui_has "Set allow"' 8
-    case $plugin in construct) yes_id=construct-ask-yes ;; mc) yes_id=mc-answer-yes ;; xp) yes_id=xp-assistant-yes ;; esac
+    case $plugin in construct) yes_id=construct-ask-yes ;; mc) yes_id=mc-answer-yes ;; assistant) yes_id=assistant-yes ;; esac
     expect "$plugin: no Yes button on the physical question" breaks "ctl query id:$yes_id | grep -q $yes_id" 8
     sleep 0.5
     shot_wm "$plugin-physical-$how"
@@ -180,5 +183,5 @@ plugin_round() {
 
 plugin_round construct "$bin/chora-construct"
 plugin_round mc "$bin/chora-mc"
-plugin_round xp "$bin/chora-xp" --theme "$repo/flavors/xp/theme"
+plugin_round assistant "$bin/chora-assistant" --assets "$repo/flavors/xp/assets/assistant"
 log_scan
