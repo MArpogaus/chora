@@ -200,6 +200,19 @@ the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 mako, swaybg, swayidle and kanshi.
 
+`tests/merge-gate.sh` decides whether a merge into the session branch may
+be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
+handover matrix and the HUD gate, one log per step in a run directory. A
+step fails on a non-zero exit code, on a line that starts with `FAIL:` or
+`MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
+and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
+and only from a clean work tree. `tests/merge-gate-selftest.sh` proves
+this with fake steps and needs no build.
+
+```bash
+tests/merge-gate.sh --push claude/session
+```
+
 The other gate scripts `tests/gate-*.sh` take the binaries from
 `target/debug`, or from the directory in `BIN`. The list of the scripts
 that CI runs is `.github/workflows/ci.yaml`, and its `dnf install` line
