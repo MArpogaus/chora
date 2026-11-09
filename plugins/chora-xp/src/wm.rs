@@ -8,7 +8,6 @@ mod effects;
 mod items;
 mod resize;
 mod restart;
-mod voice;
 
 use std::{
     collections::HashMap,
@@ -33,7 +32,6 @@ use serde_json::{Value, json};
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
-    assistant::Assistant,
     config::{Config, Picture, Wallpaper},
     context::{self, Act},
     control::{self, Setting},
@@ -81,7 +79,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 19] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -101,10 +99,6 @@ const EVENTS: [&str; 22] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
-    "client.connected",
-    "client.disconnected",
-    // The events of the voice agent (D65).
-    "voice.*",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -258,14 +252,6 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
-    /// The paperclip of the voice agent, while it shows.
-    assistant: Option<Assistant>,
-    /// The client name of the voice agent and its pose, while it is
-    /// connected and awake.
-    voice: Option<(String, crate::assistant::Pose)>,
-    /// Whether xp claims the state indicator of the voice agent at its
-    /// next event: after the start and after the agent connected.
-    claim_due: bool,
 }
 
 impl Plugin for Wm {
@@ -348,9 +334,6 @@ impl Wm {
             system_key: None,
             cube_grab: None,
             kept: HashMap::new(),
-            assistant: None,
-            voice: None,
-            claim_due: true,
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -361,7 +344,6 @@ impl Wm {
         // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
-        wm.ask_voice()?;
         Ok(wm)
     }
 
@@ -577,28 +559,10 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::OutputChanged { output } => [
-                self.rescale()?,
-                self.output_changed(&output),
-                self.replace_assistant(),
-            ]
-            .concat(),
-            Event::OutputRemoved { name } => [
-                self.rescale()?,
-                self.output_removed(&name),
-                self.replace_assistant(),
-            ]
-            .concat(),
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } => self.voice_event(&event, &client, &data),
-            Event::ClientConnected { name } => {
-                self.voice_connected(&name);
-                Vec::new()
+            Event::OutputChanged { output } => {
+                [self.rescale()?, self.output_changed(&output)].concat()
             }
-            Event::ClientDisconnected { name } => self.voice_gone(&name),
+            Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -1590,12 +1554,6 @@ impl Wm {
     }
 
     fn press_node(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
-        if Assistant::owns(node) {
-            return self.press_assistant();
-        }
-        if self.press_answer(node) {
-            return Vec::new();
-        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
@@ -2500,7 +2458,6 @@ impl Wm {
             &mut self.theme,
             &mut self.icons,
         ));
-        commands.extend(self.sync_assistant(Instant::now()));
         commands
     }
 
