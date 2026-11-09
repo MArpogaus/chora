@@ -21,6 +21,7 @@ nav:
 - Home: index.md
 - Concept:
   - Vision and principles: vision.md
+  - Design principles: design-principles.md
   - Glossary: glossary.md
   - Scenarios: scenarios.md
 - Design:
