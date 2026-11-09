@@ -387,16 +387,20 @@ def hud(choractl, mcp, out):
 
 
 def give(mcp, owner, surface, to):
-    """Gives a window to another window manager and prints the answer.
+    """Gives a window to another window manager.
+
+    Prints `tool: NAME` and then the answer.
 
     The tool `give_window` does it when the server has one. Without it,
     the tool is the `window.give` of the owner, `OWNER.window.give`.
     """
     names = [t["name"] for t in mcp.request("tools/list")["tools"]]
     if "give_window" in names:
-        content = mcp.tool("give_window", {"to": to, "surface": surface})
+        tool, arguments = "give_window", {"to": to, "surface": surface}
     else:
-        content = mcp.tool(f"{owner}.window.give", {"surface": surface, "to": to})
+        tool, arguments = f"{owner}.window.give", {"surface": surface, "to": to}
+    print(f"tool: {tool}")
+    content = mcp.tool(tool, arguments)
     print(content[0]["text"])
 
 
