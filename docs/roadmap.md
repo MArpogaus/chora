@@ -23,7 +23,9 @@ with a stable, versioned API (D3).
 - The voice, split and construct tracks have steps of their own. They
   never block the core.
 - Core code stops during Gate 1 and opens again when `v0.9.0` is tagged.
-  The XP split and the construct change plugins only until then.
+  The XP split and the construct change plugins only until then. The owner
+  lifted the stop for the autonomous session of November 2026
+  (`plans/autonomy/charter.md`).
 
 ## Current state
 
@@ -67,10 +69,10 @@ of 0.9 and 1.0 measure that use, so they set the calendar time.
 | **Total without 0.8** | **16,500** | **102 to 134** | **24** | **13 to 15 weeks** |
 
 The renderer has the largest risk. A fault on real hardware in 0.10 can
-add one to two weeks. The row holds the renderer only. The space adds
-about 2,500 lines and 12 to 16 agent hours with option B of the spike; the
-plane world of option A replaces part of the renderer scope, and its
-numbers wait for the spike.
+add one to two weeks. The row holds the renderer only. The space is
+not in the table. The owner decided to build it now (D75). Its steps and
+sizes are in `plans/3d.md`. The portal, output textures and virtual
+outputs follow in a later plan and are not counted.
 
 ## 0.6: Foundation
 
@@ -418,10 +420,9 @@ Scope:
   Wayland protocol for plugins (D54).
 - The bugs of the render quality: #34, #36, #37, #38, #46, #47, #48, #74,
   #75, #76, #78 and #79.
-- The space (D68), as the spike decides. Option A: a world of planes with
-  3D cameras in the renderer. Option B: a hit test through flat 3D
-  transforms (P1), virtual outputs (P4, D69), an output as a texture
-  source (P3) and the portal `forward` (P2, D70), on the current renderer.
+- The space (D75): planes with 3D cameras in the core, steps 0 to 6 of
+  `plans/3d.md`. The portal (D70), output textures and virtual outputs
+  (D69) follow in a later plan.
   The new-window target by activation token (D72). Damage tracking for
   node textures, so that a node texture renders only when its source
   changes.
@@ -448,8 +449,7 @@ Gate:
 8. CI runs the CI scripts of the earlier gates again. The user runs the
    hardware checks again on the reference hardware, with a log, except the
    daily-use checks (0.9 gate 1).
-9. The checks of the space hold for either option of the spike. Tests
-   check each one:
+9. The checks of the space hold. Tests check each one:
    - The emergency reset removes all virtual outputs and puts every window
      on a real output.
    - A client of a client socket cannot create a virtual output or set
@@ -550,14 +550,11 @@ where programs, plugins, window managers, desktops and agent prompts float
 as panes (D66, D67). It grows from the loader prototype in
 `examples/loader/`. The requirements are in
 `plans/construct-requirements.md`. Steps up to K4 are plugin only and run
-beside Gate 1. Steps from K5 need the core blocks of the space (D68) and
-start after them.
-
-The spike decides the core blocks. It runs during Gate 1, outside `dev`:
-
-| Spike | Goal | Criteria |
-|-------|------|----------|
-| S1 Plane world | one plane, a 3D camera and a ray hit test decide between option A (world of planes in the 0.10 renderer) and option B (building blocks on the current renderer) (D68) | the world wins only if all hold on the reference hardware: 8 panes at 60 fps; a popup opens and works in a tilted pane; the 2D path keeps direct scanout and its latency |
+beside Gate 1. Steps from K5 need the 3D steps 0 to 6 of
+`plans/3d.md` (D75). They give a plane with a 3D camera, a ray hit to a
+tilted pane, a popup in a tilted pane and 8 panes with live content. The
+portal, output textures and virtual outputs (K6, K7, K11) need the later
+plan that follows it (D69, D70).
 
 | Step | Goal | Size | Needs | Check |
 |------|------|------|-------|-------|
@@ -566,13 +563,13 @@ The spike decides the core blocks. It runs during Gate 1, outside `dev`:
 | K2b More panes | GNOME and prompt panes | M | none | four panes of the four kinds show live within 10 s after the start |
 | K3 Live | LOD, voice tools, prompt panes with ACP agents | L | none | 8 live panes at 60 fps for 60 s; "build me a snake game in a new pane" by voice shows the game running |
 | K4 Modes | use and navigate mode with one toggle key; pane resize in width and height; panes obey `update` and `animate` requests; `construct.load` without a name and one key to enter and leave from any flavor | M | none | in use mode a click on a pane does not move the view; a corner drag changes width and height |
-| K5 Direct input | pointer and keyboard in tilted panes without a fly-in | S | spike, hit test | a click on a tilted terminal pane focuses it and types, in 20 of 20 tries |
-| K6 Desktop pane | load the construct from a running tiling, xp or mc session; the session shows live in a pane; a fly-in at 1:1 leaves the construct | M | spike, portal | a tiling session shows live in a pane; fly in and back |
-| K7 WM panes | the construct starts a window manager on a virtual output and shows it as a pane; several panes with different window managers; the parent fallback: when a window manager ends, its windows go back to the one that gave them (D55) | M | K6, virtual outputs | xp and tiling run in two panes; a window opened in the xp pane lands in xp; a killed child returns its windows |
+| K5 Direct input | pointer and keyboard in tilted panes without a fly-in | S | 3D steps 2 and 3 (hit test, ray hit); step 4 (popups) | a click on a tilted terminal pane focuses it and types, in 20 of 20 tries |
+| K6 Desktop pane | load the construct from a running tiling, xp or mc session; the session shows live in a pane; a fly-in at 1:1 leaves the construct | M | 3D step 5 (live panes), portal plan | a tiling session shows live in a pane; fly in and back |
+| K7 WM panes | the construct starts a window manager on a virtual output and shows it as a pane; several panes with different window managers; the parent fallback: when a window manager ends, its windows go back to the one that gave them (D55) | M | K6, virtual outputs plan | xp and tiling run in two panes; a window opened in the xp pane lands in xp; a killed child returns its windows |
 | K8 Drop to give | drag a window from one WM pane to another; a preview shows the target; the hand-over happens on release | S | K7 | one window moves from the xp pane to the tiling pane and back |
 | K9 Cylinder and wall | a group layout: panes on the inner side of a ring, scrolled by the user; each pane is a window, a window manager or a desktop; a wall is the same ring with a flat radius | M | K7 | five panes scroll; one pane is removed; the user enters and leaves |
 | K10 Foreign desktops | GNOME, KDE or an X11 window manager as a nested session pane with direct input (D74) | S | K5 | a GNOME session shows in a pane and takes typed text |
-| K11 Cube | a group layout: the cube is `chora-xp` on four virtual outputs, one per face, with the construct as its horizon | M | K7, X7 | the cube shows four live desktops; a window moves between faces |
+| K11 Cube | a group layout: the cube is `chora-xp` on four virtual outputs, one per face, with the construct as its horizon | M | K7, X7, virtual outputs plan | the cube shows four live desktops; a window moves between faces |
 
 **Gate 2:** after K7 to K11, the user works some days in the construct
 with tiling and xp panes. Only then the space counts as equal to 2D work.
