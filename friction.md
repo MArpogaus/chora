@@ -118,3 +118,16 @@
     filter-repo and a mailmap on `8742dee..HEAD` (130 commits, trees
     identical, dates kept). Lesson: a hook of the harness does not
     decide the identity; the repo history and the user do.
+
+18. The H1 merge gate printed "FAIL: the window has no focus with xp
+    before a cell" from the handover matrix as the last line of that
+    step, yet the chained command (`set -e -o pipefail`, `;` between the
+    steps) went on and pushed 1e824a9. A rerun of the matrix alone on
+    the same commit passed with rc 0, so the pushed state is green, but
+    the gate did not do its job. Shell tests show that `set -e` with
+    pipefail stops on a failing piped step, and the EXIT trap of
+    gate-lib.sh keeps status 1; the cause is not found. Change: the
+    merge-gate script of reflection point 8 runs each step without a
+    pipe, keeps the full log per step, checks each exit code and greps
+    the log for `FAIL:` before it pushes (11-10, first task after the
+    review).

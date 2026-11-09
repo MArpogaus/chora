@@ -50,6 +50,14 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-09 evening: claude/hud-h1 with its review fixes merged as 1e824a9
+  and pushed. Gate: 965 tests, clippy, 2D guard, xp.sh, gate-hud every
+  cell as expected; the handover matrix printed one FAIL (no focus with
+  xp before a cell, the focus flake of backlog item 17), yet the chained
+  gate went on and pushed. A rerun of the matrix alone on the same
+  commit: every cell as expected, rc 0. Why the chain did not stop is
+  not found (friction 18).
+
 - 11-09 evening: claude/hud-h3 with the review fixes (74e8348: the
   cancel deadlock, entries cut to 16 KiB and the ring to 4 MiB,
   redaction, a chat unread for 10 minutes expires, a `notice` role)
@@ -148,10 +156,7 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Waiting for merge
 
-- claude/hud-h1 with the fixes of the evening round (e0f0c38, 72787a7,
-  8b86c5d): merged locally as 1e824a9, full gate running. Open for
-  later: the `{field}` names of chat (`chat.name`) and clock
-  (`clock.time`) are the developer's reading of the spec.
+(none)
 
 ## Running
 
