@@ -94,6 +94,9 @@ fn main() -> ExitCode {
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-xp")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
+    if let Some(hint) = settings.broken().and_then(config::migration_hint) {
+        eprintln!("chora-xp: {hint}");
+    }
     let exe = std::env::current_exe().and_then(std::fs::canonicalize).ok();
     let dir = assets::resolve(
         args.theme.clone(),
