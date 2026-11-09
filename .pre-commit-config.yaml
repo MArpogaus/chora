@@ -34,7 +34,6 @@ repos:
     entry: python3 -I tests/no-inline-comments.py
     language: system
     types_or: [rust, shell, python]
-    pass_filenames: false
     stages: [pre-commit]
   - id: no-session-files
     name: no session-log files (they belong on the branch claude/session-log)

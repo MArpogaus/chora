@@ -39,7 +39,7 @@ comment_case() {
   fi
   printf '%b' "$added" >>"$path"
   git add "$path"
-  python3 -I "$tests_dir/no-inline-comments.py" >/dev/null
+  python3 -I "$tests_dir/no-inline-comments.py" "$path" >/dev/null
   verdict "no-inline-comments: $label" "$want" $?
 }
 
@@ -63,6 +63,41 @@ comment_case "python header" pass a.py "" '#!/usr/bin/env python3\n# usage: a.py
 comment_case "python noqa and type" pass a.py 'x = 1\n' 'import os  # noqa: F401\ny = []  # type: list\n'
 comment_case "python hash in string" pass a.py 'x = 1\n' 's = "#a"\n'
 comment_case "other files unchecked" pass notes.txt "" '# explain\n'
+comment_case "rust raw string" pass a.rs "" 'const S: &str = r#"\n// inside\n"#;\n'
+comment_case "rust multi-line string" pass a.rs "" 'const S: &str = "a\n// inside\nb";\n'
+comment_case "rust string opened in old lines" pass a.rs 'const S: &str = r#"\nold\n' '// inside\n"#;\n'
+comment_case "rust comment after raw string" fail a.rs "" 'const S: &str = r#"x"#; // explain\n'
+comment_case "python triple-quoted string" pass a.py "" 's = """\n# inside\n"""\n'
+comment_case "python comment after triple quotes" fail a.py "" 's = """\nx\n"""\n# explain\n'
+comment_case "shell heredoc" pass a.sh "" 'cat <<EOF\n# inside\nEOF\n'
+comment_case "shell quoted heredoc" pass a.sh "" "cat <<'END'\\n# inside\\nEND\\n"
+comment_case "shell comment after heredoc" fail a.sh "" 'cat <<EOF\nx\nEOF\n# explain\n'
+comment_case "python pragma" pass a.py "" 'x = 1  # pragma: no cover\n'
+comment_case "rust rustfmt skip" pass a.rs "" '// rustfmt::skip\nfn a() {}\n'
+comment_case "rust SAFETY without space" pass a.rs "" '//SAFETY: checked\nfn a() {}\n'
+comment_case "rust double quote char" fail a.rs "" "fn a() { let c = '\"'; } // explain\\n"
+comment_case "rust slashes after quote char" pass a.rs "" "fn a() { let c = '\"'; let s = \"//\"; }\\n"
+comment_case "rust escaped quote char" pass a.rs "" "fn a() { let c = '\\\\''; let s = \"//\"; }\\n"
+comment_case "extensionless python" fail bin/tool "" '#!/usr/bin/env python3\nx = 1  # explain\n'
+comment_case "extensionless shell" fail bin/tool "" '#!/bin/sh\nls # explain\n'
+comment_case "extensionless header" pass bin/tool "" '#!/bin/sh\n# usage: tool\nls\n'
+comment_case "extensionless without shebang" pass bin/tool "" '# explain\n'
+comment_case "path with spaces" fail "my dir/a file.rs" "" '// explain\n'
+
+message_names_the_rules() {
+  new_repo
+  cd "$work/repo" || exit 1
+  printf '// explain\n' >a.rs
+  git add a.rs
+  local output
+  output=$(python3 -I "$tests_dir/no-inline-comments.py" a.rs)
+  local status=1
+  case "$output" in
+    *"a.rs:1: // explain"*"SAFETY"*"directives"*"usage header"*"doc comment"*) status=0 ;;
+  esac
+  verdict "no-inline-comments: message names the rules" pass $status
+}
+message_names_the_rules
 
 session_case() {
   local label=$1 want=$2 path=$3

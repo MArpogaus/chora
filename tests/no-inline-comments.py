@@ -1,15 +1,34 @@
 #!/usr/bin/env python3
 """pre-commit hook: reject comments on lines added in the staged diff.
 
-Checks *.rs, *.sh and *.py. Allowed: Rust doc comments and SAFETY, the
-shebang, the usage header at the top of a script, and tool directives.
+Usage: no-inline-comments.py FILE...   (pre-commit passes the files)
+
+Checks Rust, shell and Python files, by suffix or by shebang. Allowed:
+Rust doc comments, SAFETY comments, the shebang, the usage header at the
+top of a script, and tool directives (shellcheck, noqa, type:, pylint,
+fmt:, pragma:, rustfmt::skip).
+
+The scan runs over the whole staged file, so an added line inside a
+multi-line string is not a comment: Rust strings and raw strings, Python
+triple-quoted strings, shell here-documents. Limits: block comments are
+not checked, shell quotes do not span lines, and a shell arithmetic
+shift like `1 << x` is taken for a here-document.
 """
 import re
 import subprocess
 import sys
 
-DIRECTIVES = ("shellcheck", "noqa", "type:", "pylint", "fmt:")
+DIRECTIVES = (
+    "shellcheck", "noqa", "type:", "pylint", "fmt:", "pragma:", "rustfmt::skip",
+)
 HUNK = re.compile(r"^@@ -\S+ \+(\d+)")
+RUST_RAW = re.compile(r"b?r(#*)\"")
+HEREDOC = re.compile(r"(?<!<)<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2")
+MESSAGE = """inline comments are not allowed: names explain the code.
+Allowed: doc comments (///, //!, docstrings), // SAFETY:, tool directives
+(shellcheck, noqa, type:, pylint, fmt:, pragma:, rustfmt::skip) and the
+usage header at the top of a script. Remove the comment or move the
+reason into the doc comment of the item."""
 
 
 def git(*args):
@@ -20,54 +39,118 @@ def git(*args):
     return result.stdout
 
 
-def allowed_rust(text):
-    return text.startswith(("///", "//!")) or text.startswith("// SAFETY:")
+def staged(path):
+    try:
+        return git("show", f":{path}").splitlines()
+    except subprocess.CalledProcessError:
+        return []
 
 
-def allowed_hash(text):
-    body = text[1:].strip()
-    return body.startswith(DIRECTIVES)
+def kind_of(path, lines):
+    if path.endswith(".rs"):
+        return "rust"
+    if path.endswith(".py"):
+        return "python"
+    if path.endswith(".sh"):
+        return "shell"
+    first = lines[0] if lines else ""
+    if first.startswith("#!"):
+        if "python" in first:
+            return "python"
+        if re.search(r"\b(ba|z|da)?sh\b", first):
+            return "shell"
+    return None
 
 
-def find_trailing(line, marker):
-    quote = None
+def string_opener(line, index, kind):
+    """The closer, escape rule and persistence of a string starting here."""
+    char = line[index]
+    if kind == "rust":
+        raw = RUST_RAW.match(line, index) if not line[index - 1 : index].isalnum() else None
+        if raw:
+            return raw.end() - index, '"' + raw.group(1), False, True
+        if char == '"':
+            return 1, '"', True, True
+        return None
+    if char in "\"'":
+        triple = line[index : index + 3]
+        if kind == "python" and triple == char * 3:
+            return 3, triple, True, True
+        return 1, char, char == '"' or kind == "python", False
+    return None
+
+
+def skip_char_literal(line, index):
+    if line[index + 1 : index + 2] == "\\":
+        end = line.find("'", index + 3)
+        return end + 1 if end > 0 else index + 1
+    if line[index + 2 : index + 3] == "'":
+        return index + 3
+    return index + 1
+
+
+def comment_start(line, kind, state):
     index = 0
     while index < len(line):
-        char = line[index]
-        if quote:
-            if char == "\\":
+        if state:
+            closer, escapes, _ = state
+            if escapes and line[index] == "\\":
+                index += 2
+            elif line.startswith(closer, index):
+                index += len(closer)
+                state = None
+            else:
                 index += 1
-            elif char == quote:
-                quote = None
-        elif char in ('"', "'") and (marker == "#" or char == '"'):
-            quote = char
-        elif line.startswith(marker, index):
-            before = line[index - 1] if index else " "
-            if marker == "//" and before != ":":
-                return index
-            if marker == "#" and before.isspace():
-                return index
+            continue
+        opener = string_opener(line, index, kind)
+        if opener:
+            length, closer, escapes, persists = opener
+            state = (closer, escapes, persists)
+            index += length
+            continue
+        before = line[index - 1] if index else " "
+        if kind == "rust":
+            if line[index] == "'":
+                index = skip_char_literal(line, index)
+                continue
+            if line.startswith("//", index) and before != ":":
+                return index, state
+        elif line[index] == "#" and before.isspace():
+            return index, state
         index += 1
-    return -1
+    if state and not state[2]:
+        state = None
+    return -1, state
 
 
-def violates(line, path):
-    stripped = line.strip()
-    if path.endswith(".rs"):
-        marker, allowed = "//", allowed_rust
-    else:
-        marker, allowed = "#", allowed_hash
-    if stripped.startswith(marker):
-        return not allowed(stripped)
-    start = find_trailing(line, marker)
-    return start > 0 and not allowed(line[start:].strip())
+def comments(lines, kind):
+    state = None
+    heredoc = None
+    for number, line in enumerate(lines, 1):
+        if heredoc:
+            word, dash = heredoc
+            if (line.lstrip("\t") if dash else line) == word:
+                heredoc = None
+            continue
+        column, state = comment_start(line, kind, state)
+        if column >= 0:
+            yield number, column
+        if kind == "shell":
+            found = HEREDOC.search(line[:column] if column >= 0 else line)
+            if found:
+                heredoc = (found.group(3), found.group(1) == "-")
 
 
-def header_lines(path):
-    try:
-        lines = git("show", f":{path}").splitlines()
-    except subprocess.CalledProcessError:
-        return set()
+def allowed(text, kind):
+    if kind == "rust":
+        if text.startswith(("///", "//!")):
+            return True
+        body = text[2:].strip()
+        return body.startswith("SAFETY:") or body.startswith(DIRECTIVES)
+    return text[1:].strip().startswith(DIRECTIVES)
+
+
+def header_lines(lines):
     found = set()
     for number, text in enumerate(lines, 1):
         stripped = text.strip()
@@ -80,40 +163,48 @@ def header_lines(path):
     return found
 
 
-def added_lines(diff):
-    path = None
-    number = 0
-    for line in diff.splitlines():
-        if line.startswith("+++ "):
-            path = line[6:]
-        elif line.startswith("@@"):
-            number = int(HUNK.match(line).group(1))
-        elif line.startswith("+") and path:
-            yield path, number, line[1:]
-            number += 1
-
-
-def main():
+def added_numbers(path):
     diff = git(
         "diff", "--cached", "-U0", "--no-color", "--no-ext-diff",
-        "--diff-filter=ACMR", "--", "*.rs", "*.sh", "*.py",
+        "--no-prefix", "--diff-filter=ACMR", "--", path,
     )
-    headers = {}
+    numbers = set()
+    number = 0
+    for line in diff.splitlines():
+        if line.startswith("@@"):
+            number = int(HUNK.match(line).group(1))
+        elif line.startswith("+") and not line.startswith("+++ "):
+            numbers.add(number)
+            number += 1
+    return numbers
+
+
+def violations(path):
+    added = added_numbers(path)
+    if not added:
+        return
+    lines = staged(path)
+    kind = kind_of(path, lines)
+    if kind is None:
+        return
+    header = header_lines(lines) if kind != "rust" else set()
+    for number, column in comments(lines, kind):
+        text = lines[number - 1][column:]
+        if number not in added or number in header:
+            continue
+        if not allowed(text.strip(), kind):
+            yield number, lines[number - 1].strip()
+
+
+def main(paths):
     failed = False
-    for path, number, line in added_lines(diff):
-        if not path.endswith(".rs"):
-            if number == 1 and line.startswith("#!"):
-                continue
-            if path not in headers:
-                headers[path] = header_lines(path)
-            if number in headers[path]:
-                continue
-        if violates(line, path):
-            print(f"{path}:{number}: {line.strip()}")
+    for path in paths:
+        for number, text in violations(path):
+            print(f"{path}:{number}: {text}")
             failed = True
     if failed:
-        print("inline comments are not allowed: names explain the code")
+        print(MESSAGE)
     return 1 if failed else 0
 
 
-sys.exit(main())
+sys.exit(main(sys.argv[1:]))
