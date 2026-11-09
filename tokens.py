@@ -24,9 +24,10 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ZONE = ZoneInfo("Asia/Bangkok")
-# 2026-11-09 10:33 Bangkok: weekly limit at 3 % for all tokens so far
-# (54,636,124 cache read, 395,192 output; opus-5-5 and sonnet-5-5).
-PER_PERCENT = {"cache_read": 18_200_000, "output": 132_000}
+# 2026-11-09 11:48 Bangkok: weekly limit at 6 % for all tokens of the week
+# (180,125,337 cache read, 897,769 output). The reading of 3 % at 10:33
+# (54.6 million, 395,192) fits within the rounding to whole percents.
+PER_PERCENT = {"cache_read": 30_000_000, "output": 150_000}
 KEYS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
 
 

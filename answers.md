@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- 11:48 Bangkok: 6 % of the weekly limit used. Week totals: 180,125,337
+  cache read and 897,769 output tokens. Calibration updated.
+
 - Every plugin is considered for a split once it reaches a certain
   size or feature set (charter section 1 item 18).
 
