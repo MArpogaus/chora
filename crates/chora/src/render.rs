@@ -925,6 +925,9 @@ pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f
 }
 
 #[cfg(test)]
+mod hit_guard;
+
+#[cfg(test)]
 mod tests {
     use chora_scene::Transform;
 
