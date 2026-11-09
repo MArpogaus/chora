@@ -290,3 +290,20 @@ Each step also:
   block that shows the balloon sends an event for them.
 - The tail of a card of `notify` always points down. At a top corner it
   points away from the corner; a flavor with a tail uses a bottom corner.
+- The XP balloon sits about 22 pixels further left than before. Its tail
+  tip followed the tray icon; now `margin: [46, 22]` and `tail_inset: 40`
+  place it, and the width of the tray, the auto-hide of the taskbar and the
+  work area are not taken into account. X4 revisits it when the panel exists.
+- `figure: paperclip` in the `values.yaml` of the XP folder selects code,
+  `paperclip.rs`, from a neutral block. The key exists only until X7 moves
+  the paperclip into the gimmick.
+- `chora-draw` still carries XP specifics: the font variants `Title`,
+  `Start`, `Name` and `Dialog`, the fixed XP font names, the search of
+  `fonts/WindowsXP`, and the faux bold and unsmoothed rendering. The blocks
+  use only `Ui` and `UiBold`. The XP-only parts leave the library when the
+  gimmick takes them.
+- The neutral `margin` of `notify`, `[16, 56]`, leaves room for the dot of
+  `chora-assistant` at the bottom. At a top corner the 56 pixels count from
+  the top.
+- A missing or broken picture of `notify` is reported as "no picture"
+  with the name of the file but without the cause.
