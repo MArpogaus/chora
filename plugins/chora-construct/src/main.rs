@@ -619,6 +619,24 @@ fn resized(pane: &Pane) -> Vec<Command> {
     ]
 }
 
+/// The pane of a window that another window manager hands over (D55):
+/// at the size of the window, clamped to the view, else the view.
+fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFile {
+    let view = [lens.w, lens.h];
+    let size = size.map_or(view, |s| {
+        [0, 1].map(|i| s[i].clamp(PANE_MIN.min(view[i]), view[i]))
+    });
+    PaneFile {
+        kind: Kind::Program,
+        command: None,
+        plugin: None,
+        scene: None,
+        at: None,
+        yaw: None,
+        size: Some(size),
+    }
+}
+
 /// The uniforms of a mirror image: the pane's node and the strength.
 fn mirror_uniforms(source: &str, gloss: f64) -> BTreeMap<String, Uniform> {
     let win = Uniform::Texture(NodeTexture {
@@ -2567,9 +2585,10 @@ impl Construct {
     }
 
     /// A window that is free again, or that another window manager gives
-    /// to the construct (D55). The flavor takes both; an overlay only a
-    /// window given to it, so that it never takes a window on its own
-    /// (F30). It owns such a window, and its leave frees it again.
+    /// to the construct (D55). A window given always gets its pane, and
+    /// the camera flies to it, so that it has the keyboard. The flavor
+    /// takes both; an overlay only a window given to it, so that it never
+    /// takes a window on its own (F30). It owns such a window, and its leave frees it again.
     fn detached(&mut self, surface: &str) -> Result<(), ClientError> {
         let node = self.rt.conn.query(&format!("id:{surface}"))?.pop();
         let Some(node) = node else {
@@ -2585,10 +2604,29 @@ impl Construct {
         if self.overlay && node.to.as_deref() != Some(NAME) {
             return Ok(());
         }
+        let handed = node.to.as_deref() == Some(NAME);
         let info = node.surface.unwrap_or_default();
+        let file = handed.then(|| handed_over(info.size.map(|s| s.map(f64::from)), &self.lens));
         let label = info.app_id.or(info.title).unwrap_or_default();
         self.forget(surface)?;
-        self.adopt(surface, &label, None, Hold::Own, false)
+        self.adopt(surface, &label, file.as_ref(), Hold::Own, handed)?;
+        if handed {
+            self.fly_to_window(surface)?;
+        }
+        Ok(())
+    }
+
+    /// Flies in front of the pane of a window, from inside another pane
+    /// too; the window takes the keyboard at the end of the flight.
+    fn fly_to_window(&mut self, surface: &str) -> Result<(), ClientError> {
+        let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
+            return Ok(());
+        };
+        if self.flown.is_some() {
+            self.fly_out()?;
+        }
+        self.fly_in(i);
+        Ok(())
     }
 
     /// The window list as a glass panel in the middle of the output
@@ -3150,6 +3188,21 @@ mod tests {
         assert_eq!(ahead(&panes, &lens, &pose, 6000.0), None);
         let panes = [pane(100_000.0), pane(2000.0)];
         assert_eq!(ahead(&panes, &lens, &pose, 6000.0), Some(1));
+    }
+
+    /// A window handed over keeps its own size, clamped to the view. A
+    /// window that finds no free spot in the view must still get its
+    /// pane (forced), or it is lost to the list (the pane leak of the
+    /// handover matrix).
+    #[test]
+    fn a_handed_over_window_keeps_its_size_clamped_to_the_view() {
+        let lens = space::Lens::new(1280.0, 800.0);
+        let small = handed_over(Some([640.0, 400.0]), &lens);
+        assert_eq!(small.size, Some([640.0, 400.0]));
+        let big = handed_over(Some([3000.0, 800.0]), &lens);
+        assert_eq!(big.size, Some([1280.0, 800.0]));
+        let unknown = handed_over(None, &lens);
+        assert_eq!(unknown.size, Some([1280.0, 800.0]));
     }
 
     /// A shader goes to the runtime directory only, never to the shared

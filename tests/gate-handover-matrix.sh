@@ -14,7 +14,8 @@
 # Paths: give (`window.give` of the owner), cgive (`choractl give TO`, the
 # focused window), cgive-s (`choractl give TO --surface ID`), mcp (the tool
 # of `choractl mcp`, tests/mcp-client.py give), drag (the title bar of xp;
-# Super with the left button for the others), key (the shortcut
+# Super with the left button for the others; a drag from the construct
+# flies out of the adopted window first), key (the shortcut
 # Super+Shift+o; in construct Tab, g and Return of the window list on a
 # window behind the camera), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
@@ -51,12 +52,12 @@ tiling mc cgive-s pass
 tiling mc mcp pass
 tiling mc voice skip
 tiling construct key gap
-tiling construct drag gap
-tiling construct give gap
-tiling construct cgive gap
-tiling construct cgive-s gap
-tiling construct mcp gap
-tiling construct voice gap
+tiling construct drag pass
+tiling construct give pass
+tiling construct cgive pass
+tiling construct cgive-s pass
+tiling construct mcp pass
+tiling construct voice pass
 xp tiling key gap
 xp tiling drag pass
 xp tiling give pass
@@ -72,11 +73,11 @@ xp mc cgive-s pass
 xp mc mcp pass
 xp mc voice pass
 xp construct key gap
-xp construct drag gap
-xp construct give gap
-xp construct cgive gap
-xp construct cgive-s gap
-xp construct mcp gap
+xp construct drag pass
+xp construct give pass
+xp construct cgive pass
+xp construct cgive-s pass
+xp construct mcp pass
 xp construct voice skip
 mc tiling key gap
 mc tiling drag gap
@@ -94,30 +95,30 @@ mc xp mcp pass
 mc xp voice pass
 mc construct key gap
 mc construct drag gap
-mc construct give gap
-mc construct cgive gap
-mc construct cgive-s gap
-mc construct mcp gap
-mc construct voice gap
+mc construct give pass
+mc construct cgive pass
+mc construct cgive-s pass
+mc construct mcp pass
+mc construct voice pass
 construct tiling key pass
 construct tiling drag pass
 construct tiling give pass
-construct tiling cgive gap
+construct tiling cgive pass
 construct tiling cgive-s pass
 construct tiling mcp pass
 construct tiling voice pass
 construct xp key pass
 construct xp drag pass
 construct xp give pass
-construct xp cgive gap
+construct xp cgive pass
 construct xp cgive-s pass
 construct xp mcp pass
 construct xp voice skip
 construct mc key pass
-mc construct leak gap
+mc construct leak pass
 construct mc drag pass
 construct mc give pass
-construct mc cgive gap
+construct mc cgive pass
 construct mc cgive-s pass
 construct mc mcp pass
 construct mc voice pass
@@ -224,11 +225,6 @@ place() {
     o=$(owner_of)
     [ "$o" != "$1" ] || return 0
     case $o in none | null | "") fail "the window is lost before a cell: owner ${o:-nobody}" ;; esac
-    if [ "$o" = construct ] && [ "$(construct_pane)" != shown ]; then
-        repair "window.show of the construct pane ($(construct_pane)) before the give to $1"
-        ctl call construct window.show '{"name": "probe"}' >/dev/null 2>&1
-        sleep 1.5
-    fi
     if ! ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"$1\"}" >/dev/null 2>&1; then
         repair "give $o to $1 through tiling"
         ctl call "$o" window.give "{\"surface\": \"$w\", \"to\": \"tiling\"}" >/dev/null 2>&1
@@ -244,11 +240,15 @@ place() {
 }
 
 super_drag() {
-    local point='[100,60]'
+    local grab="{\"node\": \"$w\", \"point\": [100,60]}"
     if [ "$2" = construct ]; then
-        point=$(ctl query "id:$w" | jq -c '.[0].rects | to_entries[0].value | [.[2] / 2, .[3] / 2]')
+        sleep 1
+        key Alt+Escape
+        ctl wait --timeout 3 "id:construct-look focused:true" >/dev/null 2>&1
+        sleep 1
+        grab="{\"position\": [640, 400], \"output\": \"${out_of[construct]}\"}"
     fi
-    inject "[{\"pointer_move\": {\"node\": \"$w\", \"point\": $point}},
+    inject "[{\"pointer_move\": $grab},
       {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
       {\"button\": {\"state\": \"pressed\", \"hold\": true}},
       {\"pointer_move\": {\"position\": [640, 400], \"output\": \"${out_of[$1]}\"}},
