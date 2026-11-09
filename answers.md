@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Every plugin is considered for a split once it reaches a certain
+  size or feature set (charter section 1 item 18).
+
 - Question 3 answered: the split of `design/split.md` (four
   repositories) is accepted for now; finer splits only if they stay
   simple. Prepare it, do not split.

@@ -31,3 +31,4 @@ its own), **to build** (a guard is possible and planned), **manual**
 | English replies, no overselling in reports | daily reflection | manual |
 | Code duplicated across plugins | a copy-paste detector over `plugins/` (for example `jscpd`) in the weekly round | to build |
 | POLS and KISS in every implementation | a view of every review round | manual (judgement) |
+| Split review once a plugin or service reaches 5,000 lines | `review_due.py` (plugin sizes) at run start | guarded |

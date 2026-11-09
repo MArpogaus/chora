@@ -55,6 +55,10 @@ block: security fixes (agent running), started 11:05
 
 ## Blocked
 
+## Split reviews
+
+split review: chora-xp 18258 2026-11-09 (planned: D73, roadmap track X1 to X7)
+
 ## Review findings
 
 Security check of 11-09 (probes in the scratchpad, `sec/`):

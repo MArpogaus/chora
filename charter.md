@@ -99,6 +99,13 @@ code branches carry only code, tests and the product docs
     own small plugin or a `chora-kit` module, and for code duplicated
     across plugins. Finer splits only where they stay simple.
 
+18. **Split review by size** (2026-11-09): every plugin and service is
+    considered for a split once it reaches 5,000 lines of Rust;
+    `review_due.py` reports it as SPLIT REVIEW DUE. The result (the
+    split, or why not) goes into `state.md` as a line "split review:
+    NAME LINES DATE"; the check returns when the unit grows by half
+    again. Split reviews follow POLS and KISS: a few meaningful parts.
+
 **Overrides of the skills**, because the container of the PM session can
 be replaced between runs:
 
