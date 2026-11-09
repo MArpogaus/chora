@@ -109,3 +109,12 @@
     permission classifier, so it waits for the user; the code branch
     needs the same rewrite (filter-repo with a mailmap on the session
     range) after the user agrees.
+
+17. The author fix of item 16 first used `noreply@anthropic.com`, as a
+    harness stop hook asked, and `--reset-author`, which also reset the
+    author dates. The user wants the GitHub identity of all earlier
+    commits. Second rewrite: session-log with the original dates taken
+    from the commits before the first rewrite; code branch with
+    filter-repo and a mailmap on `8742dee..HEAD` (130 commits, trees
+    identical, dates kept). Lesson: a hook of the harness does not
+    decide the identity; the repo history and the user do.

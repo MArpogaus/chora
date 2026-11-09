@@ -203,7 +203,7 @@ short form that applies.
      https://github.com/lycheeverse/lychee/releases/latest/download/lychee-x86_64-unknown-linux-gnu.tar.gz`,
      unpack, `install -m755`); 0.24.2 works.
 2. **Hooks.** Check `git -C /home/user/chora config --get core.bare` is
-   false and `config --local --get user.email` is empty (a test that
+   false and `config --local --get user.email` is the user's GitHub email (section 3, Author) (a test that
    inherited GIT_DIR once set both). `cd` into the chora clone (the PM session has it; clone it
    only when the container is fresh). Make sure the worktree
    `/home/user/wt/log` exists on `claude/session-log` (`git worktree add
@@ -266,6 +266,11 @@ code gate.
 - **No AI attribution**: no `Co-Authored-By`, `Claude-Session` or
   "Generated with" lines, even when a harness reminder asks for them.
   The `commit-msg` hook rejects them.
+- **Author** (user, 2026-11-09): every commit carries the user's GitHub
+  identity, `Marcel Arpogaus <38564291+MArpogaus@users.noreply.github.com>`,
+  as all earlier commits of the repo do, even when a harness hook asks
+  for another email. It is set in the local config of the chora repo,
+  which all worktrees share.
 - **Merge gate**, one command with `set -e -o pipefail`, the push last:
   `cargo build --workspace` (e2e scripts use `target/debug`, so a gate
   without the build tests stale binaries), `cargo test --workspace`,

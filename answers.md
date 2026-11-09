@@ -127,3 +127,9 @@ Newest first. The PM reads this file at the start of each run.
   User tests always report UX/UI flaws from the persona's view. Done in
   charter sections 5, 5a, 3 (Review) and 8, `feedback/README.md` and
   `triage.py`.
+
+- Force push allowed for the author rewrite. Then: use the user's GitHub
+  name and email as in all previous commits; rewrite and force push once
+  more (done: 130 commits on the code branch, 48 on session-log).
+- The ACP chat shall be themed and integrated into the matching UI, for
+  example the agents view of mc and the assistant figure of xp.
