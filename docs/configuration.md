@@ -1229,6 +1229,30 @@ reads the insets of a slice in pixels of the file. The pictures:
 - the icons of the desktop, between the wallpaper and the windows;
 - the wallpaper below everything: Bliss when it is installed, else Bløff.
 
+The start menu, the Run list, the desktop icons and `Super+e` start a
+program with `choractl run` (D42) and follow it until its first window
+shows, which the activation token of the start tells. `chora-xp` shows
+what happens as a balloon of `chora-notify` on the session bus; without
+a notification server it writes the same words to its log:
+
+- A program that is not on `PATH` never starts. The balloon "Cannot open
+  NAME" says that it is not installed. NAME is the program of the command,
+  without directory and arguments, for example `thunar` or `libreoffice`.
+- A program that ended before its first window showed gives the same
+  title and says that it ended before it opened a window. A program that
+  hands its work to an instance that already runs, and ends, is not a
+  failure when another window opens meanwhile.
+- A program that is still starting after 2 seconds shows "Starting NAME".
+  The balloon closes when the window shows. A program that shows no window
+  within 30 seconds gets "Cannot open NAME" with the number of seconds.
+  A program that opens in less than 2 seconds shows no balloon.
+
+The balloon of the start needs `chora-notify`, which the unit
+`chora-xp-notify.service` starts. A program that needs X11, as the
+LibreOffice of a build without the Wayland plugin does, needs
+`xwayland-satellite` (`chora-xp-xwayland.service`); without it, it ends at
+once and gets the second message.
+
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. `chora-xp` claims the box around the work areas
 of its outputs (D55). `--output NAME` limits it to some outputs. A window
