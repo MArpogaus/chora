@@ -9,6 +9,7 @@
 )]
 
 pub mod assets;
+pub mod bubble;
 pub mod icons;
 pub mod text;
 pub mod theme;
