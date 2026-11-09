@@ -299,7 +299,6 @@ impl Theme {
         }
         let width = self.fonts.width(line, font).unwrap_or(0.0);
         let mut widths = self.widths.borrow_mut();
-        // ponytail: forget all at a size, rather than track their use.
         if widths.len() >= 4096 {
             widths.clear();
         }
@@ -346,9 +345,6 @@ impl Theme {
     pub fn render(&mut self, picture: &Picture) -> String {
         let path = self.render_at(picture, self.scale, false);
         if path != self.blank && !self.pictures.contains_key(&path) {
-            // ponytail: clear the map at PICTURES pictures instead of
-            // tracking which files nodes still show; those nodes keep
-            // their old scale.
             if self.pictures.len() >= PICTURES {
                 self.pictures.clear();
             }
@@ -467,7 +463,6 @@ impl Theme {
         #[allow(clippy::cast_possible_truncation)]
         let base = Transform::from_scale(scale as f32, scale as f32);
         for layer in &picture.layers {
-            // A missing icon or element leaves the rest of the picture.
             if let Err(err) = self.draw_layer(layer, (base, &mut pixmap.as_mut())) {
                 eprintln!("chora-draw: {err}");
             }
@@ -568,7 +563,6 @@ impl Theme {
         ];
         for (name, cell) in cells {
             if cell[2] > 0 && cell[3] > 0 {
-                // A frame without some of its parts is fine.
                 let _ = self.draw_element(sheet, &part(prefix, name), cell, (base, pixmap));
             }
         }
@@ -595,7 +589,6 @@ impl Theme {
                 );
                 return Ok(());
             }
-            // A tile of an SVG file: its pixels at its own size.
             let [w, h] = [size.width(), size.height()].map(f32::ceil);
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let mut tile = Pixmap::new(w as u32, h as u32).ok_or_else(|| error(&"empty"))?;
@@ -608,8 +601,6 @@ impl Theme {
         let size = [image.width() as f32, image.height() as f32];
         let transform = place(rect, size, fit);
         if let Fit::Tile(_) = fit {
-            // fill_rect applies `base` to the pattern too, so the pattern
-            // takes only the place.
             let paint = Paint {
                 shader: Pattern::new(
                     image.as_ref(),
@@ -657,7 +648,6 @@ impl Theme {
             let (w, h) = decoder.dimensions()?;
             [i32::try_from(w).ok()?, i32::try_from(h).ok()?]
         } else {
-            // The IHDR chunk of a PNG file: width and height at 16 and 20.
             let mut head = [0; 24];
             std::io::Read::read_exact(&mut chora_kit::open_file(path).ok()?, &mut head).ok()?;
             let word = |at: usize| {
@@ -681,13 +671,11 @@ fn load_raster(path: &Path) -> Result<Pixmap, String> {
     if !is_jpeg(path) {
         return Pixmap::decode_png(&data).map_err(|e| e.to_string());
     }
-    // At most 256 MiB of pixels.
     let options = DecoderOptions::default()
         .jpeg_set_out_colorspace(ColorSpace::RGBA)
         .set_max_width(8192)
         .set_max_height(8192);
     let mut decoder = JpegDecoder::new_with_options(std::io::Cursor::new(data), options);
-    // Opaque pixels are premultiplied already.
     let pixels = decoder.decode().map_err(|e| e.to_string())?;
     let info = decoder.info().ok_or("no JPEG header")?;
     IntSize::from_wh(info.width.into(), info.height.into())
@@ -808,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::float_cmp)] // insets are whole pixels
+    #[allow(clippy::float_cmp, reason = "insets are whole pixels")]
     fn frames_have_the_sizes_of_their_parts() {
         let (mut theme, cache) = theme("frames");
         let frame = theme.frame(SHEET, "f");
@@ -848,8 +836,6 @@ mod tests {
         let image = Pixmap::load_png(&sharp).expect("a PNG file");
         assert_eq!([image.width(), image.height()], [150, 45]);
         assert_eq!(size, [100.0, 30.0]);
-        // The node of the picture gets its logical size, one with a
-        // slice keeps the pixels of its file.
         let image = |slice: Option<[f64; 4]>| Command::Update {
             id: "n".into(),
             props: chora_scene::PropsUpdate {
@@ -871,7 +857,6 @@ mod tests {
     #[test]
     fn tiles_keep_their_size_at_a_scale() {
         let (mut theme, cache) = theme("tile");
-        // A tile of 8 by 4, red on the left, blue on the right.
         let mut tile = Pixmap::new(8, 4).expect("pixels");
         let mut paint = Paint::default();
         for (x, [r, b]) in [(0.0, [255, 0]), (4.0, [0, 255])] {
@@ -883,7 +868,6 @@ mod tests {
         tile.save_png(&file).expect("a PNG file");
         let picture = Picture::new(16, 4).fit(&file, [0, 0, 16, 4], Fit::Tile([8, 4]));
         let image = Pixmap::load_png(theme.render_at(&picture, 2.0, false)).expect("a PNG file");
-        // Logical x 6 is in the blue half of the first tile.
         let pixel = image.pixel(12, 4).expect("inside");
         assert!(pixel.blue() > 200 && pixel.red() < 50, "{pixel:?}");
         let _ = fs::remove_dir_all(cache);

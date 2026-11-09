@@ -93,8 +93,11 @@ struct Server {
 
 #[zbus::interface(name = "org.freedesktop.Notifications")]
 impl Server {
-    // The arguments of the specification, as zbus hands them over.
-    #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+    #[allow(
+        clippy::too_many_arguments,
+        clippy::needless_pass_by_value,
+        reason = "the arguments of the specification, as zbus hands them over"
+    )]
     fn notify(
         &mut self,
         app_name: String,
@@ -128,7 +131,7 @@ impl Server {
         let _ = self.requests.send(Request::Close(id));
     }
 
-    #[allow(clippy::unused_self)] // zbus calls it on the object
+    #[allow(clippy::unused_self, reason = "zbus calls it on the object")]
     fn get_capabilities(&self) -> Vec<&str> {
         vec!["actions", "body", "icon-static"]
     }

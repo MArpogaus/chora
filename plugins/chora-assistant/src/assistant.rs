@@ -1,9 +1,3 @@
-//! The assistant of the voice agent: a paperclip with eyes and eyebrows
-//! above the right end of the taskbar, which follows the state of the
-//! agent (D65) and speaks its sentences in a balloon. It is drawn for
-//! chora. The core moves and scales it; the renderer draws no rotation
-//! yet, so the picture itself leans. A few frames swap the face.
-
 //! The assistant of the voice agent: a figure above the corner of the
 //! first output that follows the state of the agent (D65) and speaks its
 //! sentences in a bubble. The figure is a dot of the asset folder, or the
@@ -117,7 +111,6 @@ impl Pose {
         let even = step.is_multiple_of(2);
         match (self, step) {
             (Self::Idle, 0) => Some(([1.0, 1.0], [0.0, 0.0], 300.0)),
-            // Towards the middle of the screen.
             (Self::Listening, 0) => Some(([1.0, 1.0], [-2.0, 0.0], 250.0)),
             (Self::Asking, 0) => Some(([1.0, 1.0], [0.0, -2.0], 250.0)),
             (Self::Thinking, _) => Some(([1.0, 1.0], [if even { 2.0 } else { -2.0 }, 0.0], 700.0)),
@@ -653,8 +646,6 @@ mod tests {
         assert!(a.asking(), "another id");
         a.answered("c1", now);
         assert!(!a.asking() && a.fades_at == Some(now));
-        // With buttons: a click on Ja or Nein maps to confirm.answer, and
-        // the answer removes the buttons.
         let offer = Offer {
             buttons: true,
             keys: Some(["Alt+y".into(), "Alt+n".into()]),
