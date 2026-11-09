@@ -47,7 +47,16 @@ is found (charter section 8). Started from charter section 15 on
     split, recorded as "split review:" in `state.md`. After the XP split
     X1, one at a time, sonnet for the analysis, opus only for voice.
 
-13. HARD REQUIREMENT: window handover between all window managers by
+13. HARD REQUIREMENT, measured 11-09 by the matrix gate
+    (claude/handover-guard): 46 of 84 cells pass. Gaps by lever: (a)
+    construct does not focus a window it adopts: 19 cells; (b) no give
+    key in tiling, xp, mc: 9 cells, and one key reaches only one target,
+    so a `give: NAME` binding per target is needed; (c) mc cannot give
+    by drag: 3 cells; (d) `choractl give` without `--surface` finds no
+    focused window in construct: 3 cells. Bug: after an mc drag onto the
+    construct output, construct loses its panes (`pane: none`); the gate
+    repairs it in setup with `window.show`; needs its own fix and issue.
+    Earlier text: window handover between all window managers by
     every input path (charter section 1 item 19). Gap matrix done
     (`design/window-handover.md`, 11-09): the 13 steps there, first the
     guard (the matrix gate with its expected table), then: one shared
