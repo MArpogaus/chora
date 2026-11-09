@@ -29,6 +29,9 @@ terms and no synonyms.
 | **Flavor** | A preconfigured bundle of views, plugins and services, for example "classic", "tiling" or "agentic". |
 | **Block** | A neutral plugin of the XP split that does one job for any flavor: notifications, assistant, desktop, panel or stacking window manager (D73). |
 | **Asset folder** | The folder from which a block loads its pictures and a few values. The block ships a neutral one, and a flavor ships another (D73). |
+| **Card** | The rounded rectangle in which `chora-notify` shows a notification, in a corner of an output. Its colors, corners and optional tail are values of the asset folder. |
+| **Bubble** | The rounded rectangle with an optional tail that `chora-assistant` draws around a sentence or a question of the voice agent. `chora-draw` draws its outline for the card and the bubble. |
+| **Figure** | What `chora-assistant` shows for the voice agent: the dot of the neutral asset folder, or the paperclip of the XP flavor. |
 | **Coordinator** | The party that installs and connects plugins, services and flavors. First the user, later an agent with special permissions. |
 | **Inventory** | A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core. |
 | **Command** | A request to change the scene, for example `create` or `update`. |

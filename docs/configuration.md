@@ -20,7 +20,9 @@ chora -- chora-flavor tiling
 ├── plugins/            # plugin manifests
 ├── shaders/            # GLSL ES shaders
 ├── clients.yaml        # the names and capabilities of `clients up`
-└── chora-tiling.yaml   # the options and bindings of chora-tiling
+├── chora-tiling.yaml   # the options and bindings of chora-tiling
+├── chora-notify.yaml   # the options of chora-notify
+└── chora-assistant.yaml # the options of chora-assistant
 ```
 
 The directory is a git repository. It contains no secrets. The package
@@ -106,9 +108,9 @@ are booleans, so `no` stays the string `no`.
 
 ### A broken settings file
 
-The plugins `chora-tiling`, `chora-xp`, `chora-mc` and `chora-construct`
-and the service `chora-voice` read their settings file (D62) as strict
-YAML too. If the file does not parse or check, for example because an
+The plugins `chora-tiling`, `chora-xp`, `chora-notify`,
+`chora-assistant`, `chora-mc` and `chora-construct` and the service
+`chora-voice` read their settings file (D62) as strict YAML too. If the file does not parse or check, for example because an
 update removed a key, the plugin does not stop. It starts with its
 default settings, writes the error to its log and does not change the
 file. `chora-mc` also shows the error as a critical notification.
@@ -905,6 +907,113 @@ labels stay, without the ring, until the settings change.
 `tests/gate-construct-hud.sh` checks the HUD with a fake agent,
 `tests/fake-voice.py`, and captures each state in both themes.
 
+## chora-notify
+
+`chora-notify` is the notification server of the freedesktop specification
+(`org.freedesktop.Notifications` on the session bus), so that `notify-send`
+and programs show their notifications. It is a block of the XP split (D73)
+and connects with the client name `notify`. It exports the methods of its
+settings and no other.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--assets DIR` | `CHORA_NOTIFY_ASSETS`, else `/usr/share/chora/notify/assets`, else `plugins/chora-notify/assets` of the source tree when the binary runs from `target/<profile>/` | the asset folder |
+| `--config FILE` | `chora/chora-notify.yaml` in `$XDG_CONFIG_HOME` | the settings file |
+
+`chora-notify` reads `chora/chora-notify.yaml` in `$XDG_CONFIG_HOME`, by
+default `~/.config`, or the file of `--config`. Without a file, it uses its
+default, `plugins/chora-notify/notify.yaml` of the source tree, which lists
+every option. `settings.set` changes the settings at once and writes the
+file again, without its comments. Edits by hand apply with
+`settings.reload` or at the next start.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `position` | `bottom_right` | the corner of the first output where the card shows: `top_left`, `top_right`, `bottom_left` or `bottom_right` |
+| `shortest` | `10` | the shortest time that a notification shows, in seconds, at least 1 |
+| `longest` | `30` | the longest time, not less than `shortest` |
+
+Each notification shows as a card in the corner: a rounded rectangle with
+a border, the icon of the notification, a bold title, the text wrapped at
+300 pixels and a close button. One card shows at a time, and the others
+wait their turn. A card closes after its time: the shortest time by
+default, a time of the client between the shortest and the longest time,
+and never for a time of 0, until a click. A click on the close button
+dismisses the card; a click on the card invokes the action `default` of
+the notification, if it has one, and dismisses it too. If another server,
+such as GNOME Shell, owns the name on the bus, `chora-notify` fails with
+an error that says so; it never takes the name from its owner.
+
+The look of the card comes from the asset folder. A folder replaces the
+neutral one and does not merge with it. A missing or broken file stops the
+start with an error that names it. The folder holds:
+
+| File | Content |
+|------|---------|
+| `values.yaml` | `font`, the base font family (`sans-serif` is the family of the system); `margin`, the distance of the card from its corner; `card`, with `fill`, `border` and `text` as red, green and blue, `radius`, and `tail`, `tail_base` and `tail_inset` for a tail below the card, which `tail: 0` leaves out; a key that the file leaves out takes the neutral value |
+| `close.svg`, `close-hover.svg` | the close button, 14 by 14 pixels, normal and under the pointer |
+| `fonts/` | font files, optional |
+
+`plugins/chora-notify/assets` is the neutral folder, a flat card without a
+tail. `flavors/xp/assets/notify` is the balloon of XP.
+
+## chora-assistant
+
+`chora-assistant` shows the state of the voice agent (D65) as a figure
+above a corner of the first output, and its sentences in a bubble. It is a
+block of the XP split (D73) and connects with the client name `assistant`.
+It exports the methods of its settings and no other.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--assets DIR` | `CHORA_ASSISTANT_ASSETS`, else `/usr/share/chora/assistant/assets`, else `plugins/chora-assistant/assets` of the source tree when the binary runs from `target/<profile>/` | the asset folder |
+| `--config FILE` | `chora/chora-assistant.yaml` in `$XDG_CONFIG_HOME` | the settings file |
+
+`chora-assistant` reads `chora/chora-assistant.yaml` in `$XDG_CONFIG_HOME`,
+by default `~/.config`, or the file of `--config`. Without a file, it uses
+its default, `plugins/chora-assistant/assistant.yaml` of the source tree,
+which lists every option. The file and its changes work as for
+`chora-notify`.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `enabled` | `true` | the figure shows while the voice agent is connected |
+| `position` | `bottom_right` | the corner of the first output where it shows |
+
+`chora-assistant` subscribes to `voice.*`. The figure shows a state of the
+agent: it blinks while the agent is idle, leans in while it listens, looks
+up and sways while it thinks, bounces while it speaks and raises its
+eyebrows when it asks. While the agent sleeps, the figure shows dimmed: the
+mic still listens for the wake words. Only the events of the client `voice`
+itself move it. Each sentence of `voice.say` shows in a bubble above the
+figure, which fades out three seconds after the sentence ends. The bubble
+shows the `prompt` and the `detail` of `voice.confirm` until the event with
+`done` and the same `id`. With `buttons`, the bubble has the buttons Ja and
+Nein; a click calls `voice.confirm.answer {id, yes}`. A question about a
+security key (`physical`) shows one more line with its `keys`, such as
+"Alt+Y = Ja, Alt+N = Nein". Only a pointer press on a button answers; no
+method of `chora-assistant` calls `confirm.answer`, but it cannot tell an
+injected click (`input.inject`) from a real one.
+
+While the assistant is enabled, `chora-assistant` calls `indicator.claim`
+of the agent at its start and after the agent connects. A click on the
+figure mutes the mic of the agent through its method `mute`, and a second
+click unmutes it. The figure goes when the agent disconnects, and
+`enabled: false` turns it off.
+
+The asset folder holds:
+
+| File | Content |
+|------|---------|
+| `values.yaml` | `font`, as for `chora-notify`; `figure`, `dot` or `paperclip`; `margin`, the distance of the figure from its corner; `speech` and `buttons`, the look of the bubble and of the buttons with the keys of `card` of `chora-notify` (the tail of a button is ignored); a key that the file leaves out takes the neutral value |
+| `dot.svg` | the dot, 24 by 24 pixels, with a group for each pose: `idle`, `listening`, `thinking`, `speaking`, `asking` and `sleeping`; only the figure `dot` reads it |
+| `fonts/` | font files, optional |
+
+`plugins/chora-assistant/assets` is the neutral folder, a dot that changes
+its color with the state. The figure `paperclip` is the character of the
+XP flavor, drawn in code until the XP step X7 turns it into SVG files;
+`flavors/xp/assets/assistant` selects it.
+
 ## Flavors
 
 A flavor is a directory with views, plugin manifests and services, plus a
@@ -1060,9 +1169,12 @@ connects with the client name `xp`.
 
 ```text
 /usr/share/chora/flavors/xp/
-├── chora-xp.target              # wants the two units below
+├── chora-xp.target              # wants the units below
 ├── chora-xp.service             # chora-xp
+├── chora-xp-notify.service      # chora-notify --assets .../assets/notify
+├── chora-xp-assistant.service   # chora-assistant --assets .../assets/assistant
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
+├── assets/                      # the XP folder of each block, with a link to the fonts
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```
 
@@ -1087,7 +1199,7 @@ uses them instead of the free files of the theme:
   size of 20 pixels.
 - `sounds/WindowsXP/stereo/`: XP's sounds. `login.wav` plays when
   `chora-xp` starts, `logout.wav` on Log Off, `shutdown.wav` on Turn Off
-  and `notify.wav` when a balloon opens. The first of `pw-play`, `paplay`
+  and nothing for a notification. The first of `pw-play`, `paplay`
   and `canberra-gtk-play` on the `PATH` plays them in the background.
 
 The Luna GTK theme and the icons of `xfce-winxp-tc` give GTK
@@ -1367,45 +1479,12 @@ frame looks the same as the window, and the meta on the node that the
 client named, except the key `xp`. The meta of a surface does not stay
 over a restart.
 
-`chora-xp` serves notifications (`org.freedesktop.Notifications` on the
-session bus), so that `notify-send` and programs show XP's balloon tips:
-a pale yellow balloon with a black border above the notification area of
-the first output, with a tail towards the tray, the icon of the
-notification, a bold title, the text wrapped at 300 pixels and a close
-button. While a balloon shows, the notification area grows for its icon,
-or XP's information icon, left of the clock, as on XP, and the tail
-points at it. One balloon shows at a time, and the others wait their turn. A
-balloon closes after its time, which is 10 seconds by default and, as on
-XP, at least 10 and at most 30 seconds; with a time of 0 it stays until a
-click. A click on the close button dismisses it; a click on the balloon
-invokes the action `default` of the notification, if it has one, and
-dismisses it too. If another server, such as GNOME Shell, owns the name
-on the bus, `chora-xp` logs one line and shows no balloons; it never
-takes the name from its owner.
-
-While the voice agent is connected, a paperclip with eyes and eyebrows
-stands above the right end of the taskbar of the first output. While the
-agent sleeps, the paperclip shows dimmed with its eyes shut: the mic
-still listens for the wake words. Only the events of the client `voice`
-itself move it.
-`chora-xp` subscribes to `voice.*` (D65): the paperclip blinks while the
-agent is idle, leans in while it listens, looks up and sways while it
-thinks, bounces while it speaks and raises its eyebrows when it asks. Each
-sentence of `voice.say` shows in a balloon above it, which fades out three
-seconds after the sentence ends. The balloon shows the `prompt` and the
-`detail` of `voice.confirm` until the event with `done` and the same `id`.
-With `buttons`, the balloon has XP's push buttons Ja and Nein; a click
-calls `voice.confirm.answer {id, yes}`. A question about a security key
-(`physical`) shows one more line with its `keys`, such as "Alt+Y = Ja,
-Alt+N = Nein". Only a pointer press on a button answers; no method of
-xp calls `confirm.answer`, but xp cannot tell an injected click
-(`input.inject`) from a real one.
-While the paperclip is enabled, `chora-xp` calls `indicator.claim` of the
-agent at its start and after the agent connects.
-A click on the paperclip mutes the mic of
-the agent through its method `mute`, and a second click unmutes it. The
-paperclip goes when the agent disconnects, and `assistant:
-{enabled: false}` turns it off.
+Notifications and the assistant are blocks of their own, `chora-notify` and
+`chora-assistant`, which the units `chora-xp-notify` and
+`chora-xp-assistant` start with the folders of `assets/` (see their
+sections). `chora-xp` shows no notifications and no paperclip. The balloon
+of a notification does not put an icon into the notification area and plays
+no sound; the blocks do not call each other.
 
 The effects run in the plugin, which computes their meshes and
 transforms at 60 Hz:
@@ -1479,7 +1558,6 @@ that the file leaves out takes its default:
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
-| `assistant` | on | `enabled`: the paperclip of the voice agent |
 
 `settings.set` merges its object into the settings (see
 [API](api.md#plugin-methods)), so a change of the wallpaper names only

@@ -326,7 +326,7 @@ are hidden as in the journal: the value of each `*_headers` key, of
 `api_key`, `secret` or `password` shows as `(hidden)`. A question of a sub-agent has its prompt as
 `detail`. When the question gets its answer, ends or times out, the
 agent emits `voice.confirm {id, done: true}`. chora-mc shows the
-question as a notification, chora-xp as a balloon. The agent cannot
+question as a notification, chora-assistant as a bubble. The agent cannot
 see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
