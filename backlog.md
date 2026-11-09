@@ -40,6 +40,12 @@ is found (charter section 8). Started from charter section 15 on
     and construct; X4 (panel) is the shared bar of D51. Asked by the
     owner on 2026-11-09 (the "MCP plugin" in the transcript meant XP).
 
+12. Split reviews due (`review_due.py`, 2026-11-09): chora-mc (6,695
+    lines), chora-construct (6,429), voice (16,855). Each: a short
+    design note in `design/`, a few meaningful parts or the reason not to
+    split, recorded as "split review:" in `state.md`. After the XP split
+    X1, one at a time, sonnet for the analysis, opus only for voice.
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running
