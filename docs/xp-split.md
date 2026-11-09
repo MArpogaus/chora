@@ -288,6 +288,12 @@ Each step also:
   played a sound. A notification block that calls no other block cannot do
   either; the panel (X4) and the sounds (X7) decide whether the core or the
   block that shows the balloon sends an event for them.
+- The feedback of a program that starts (`plugins/chora-xp/src/launch.rs`:
+  the wait for the first window by its activation token, "Starting NAME",
+  "Cannot open NAME") belongs to the panel. It moves with the start menu to
+  `chora-panel` in X4. It talks to `notify` only through the bus, with
+  `chora_kit::notify`, so it needs no other call between blocks. The panel
+  learns the token of a window from `surface.created`.
 - The tail of a card of `notify` always points down. At a top corner it
   points away from the corner; a flavor with a tail uses a bottom corner.
 - The XP balloon sits about 22 pixels further left than before. Its tail

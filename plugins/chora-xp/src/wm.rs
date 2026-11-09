@@ -18,6 +18,7 @@ use std::{
 use chora_kit::{
     give,
     icons::Icons,
+    notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
 };
@@ -41,6 +42,7 @@ use crate::{
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
+    launch::{self, Change, Launches},
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
     startmenu::{self, Action, Menu},
@@ -252,6 +254,9 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
+    /// The programs that started and show no window yet.
+    launches: Launches,
+    notifier: Notifier,
 }
 
 impl Plugin for Wm {
@@ -334,6 +339,8 @@ impl Wm {
             system_key: None,
             cube_grab: None,
             kept: HashMap::new(),
+            launches: Launches::new(),
+            notifier: Notifier::new(),
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -524,8 +531,14 @@ impl Wm {
                 app_id,
                 title,
                 to,
+                token,
                 ..
-            } => return self.adopt(&surface, app_id, title.as_deref(), to.as_deref()),
+            } => {
+                if let Some(note) = self.launches.window(token.as_deref()) {
+                    self.notifier.close(note);
+                }
+                return self.adopt(&surface, app_id, title.as_deref(), to.as_deref());
+            }
             Event::SurfaceDetached { surface } => {
                 let commands = self.forget(&surface);
                 self.apply(commands)?;
@@ -647,6 +660,7 @@ impl Wm {
 
     /// Updates the clock.
     pub fn tick(&mut self) -> Result<(), ClientError> {
+        self.check_launches();
         let mut commands = self.refresh_icons();
         // The hands of Date and Time move.
         for i in 0..self.panels.len() {
@@ -1300,7 +1314,8 @@ impl Wm {
         match self.rt.action(binding).copied() {
             Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
             Some(Key::Terminal) => {
-                chora_kit::run(&self.settings.value.terminal);
+                let terminal = self.settings.value.terminal.clone();
+                self.start_program(&terminal);
                 Vec::new()
             }
             Some(Key::Turn(steps)) => self.turn(steps),
@@ -2180,6 +2195,44 @@ impl Wm {
         commands
     }
 
+    /// Starts a program and follows it until its window shows.
+    fn start_program(&mut self, command: &str) {
+        if let Some(change) = self.launches.run(command, Instant::now()) {
+            self.tell(&change);
+        }
+    }
+
+    /// Shows what the programs that wait for a window call for.
+    fn check_launches(&mut self) {
+        let mut changes = self.launches.collect();
+        changes.extend(self.launches.check(Instant::now(), chora_kit::alive));
+        for change in &changes {
+            self.tell(change);
+        }
+    }
+
+    /// Tells the user that a program starts or did not open.
+    fn tell(&mut self, change: &Change) {
+        let (summary, body) = change.text();
+        let (replaces, expire_ms) = match change {
+            Change::Starting { .. } => (
+                None,
+                i32::try_from(launch::GIVE_UP.as_millis()).unwrap_or(-1),
+            ),
+            Change::Failed { note, .. } => (*note, -1),
+        };
+        let message = Message {
+            icon: "",
+            summary: &summary,
+            body: &body,
+            expire_ms,
+        };
+        let id = self.notifier.show("chora-xp", replaces, &message);
+        if let (Change::Starting { token, .. }, Some(id)) = (change, id) {
+            self.launches.noted(token, id);
+        }
+    }
+
     fn close_menu(&mut self) -> Vec<Command> {
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
@@ -2194,13 +2247,7 @@ impl Wm {
     fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
-                // choractl run drops the stderr of the app: say it here.
-                // All Programs without desktop files runs the launcher.
-                let program = command.split_whitespace().next().unwrap_or_default();
-                if !session::on_path(program) {
-                    eprintln!("chora-xp: {program:?} is not on PATH, {command:?} does not run");
-                }
-                chora_kit::run(command);
+                self.start_program(command);
                 Vec::new()
             }
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
@@ -2689,7 +2736,7 @@ impl Wm {
     /// program or a file with the program of its type.
     fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
         let fm = &self.settings.value.file_manager;
-        chora_kit::run(&match open {
+        let command = match open {
             desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
             desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
             desktop_icons::Open::Trash => {
@@ -2697,7 +2744,8 @@ impl Wm {
             }
             desktop_icons::Open::Run(command) => command,
             desktop_icons::Open::File(path) => desktop_icons::xdg_open(&path),
-        });
+        };
+        self.start_program(&command);
         Vec::new()
     }
 
