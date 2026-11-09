@@ -116,6 +116,7 @@ comment_case "shell quoted heredoc" pass a.sh "" "cat <<'END'\\n# inside\\nEND\\
 comment_case "shell comment after heredoc" fail a.sh "" 'cat <<EOF\nx\nEOF\n# explain\n'
 comment_case "shell arithmetic shift is no heredoc" fail a.sh "" 'x=\x24((1<<n))\n# explain\n'
 comment_case "shell heredoc word in quotes" fail a.sh "" 'echo "<<EOF"\n# explain\n'
+comment_case "form feed does not shift the line numbers" fail a.rs "" 'let s = "a\fb";\n// explain\n'
 comment_case "python pragma" pass a.py "" 'x = 1  # pragma: no cover\n'
 comment_case "rust rustfmt skip comment" fail a.rs "" '// rustfmt::skip\nfn a() {}\n'
 comment_case "rust four slashes" fail a.rs "" '//// banner\nfn a() {}\n'

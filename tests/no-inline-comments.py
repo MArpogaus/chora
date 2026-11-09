@@ -40,9 +40,12 @@ def git(*args):
 
 def staged(path):
     try:
-        return git("show", f":{path}").splitlines()
+        lines = git("show", f":{path}").split("\n")
     except subprocess.CalledProcessError:
         return []
+    if lines and lines[-1] == "":
+        lines.pop()
+    return lines
 
 
 def kind_of(path, lines):
