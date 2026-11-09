@@ -748,8 +748,10 @@ in. `choractl clients create agent` prints its path:
   export marks `"privileged": true`, such as `app.open` of `chora-mc`. Without them they answer code 4. The main
   socket needs none of them, unless the `hello` of the connection has
   `confined: true`: then these rules hold for it too, with the grants
-  of its name. A connection can confine itself, never free itself;
-  other connections of the name stay free. So a confined agent cannot end chora or
+  of its name. A connection can confine itself, never free itself.
+  The connections of a name are all confined or all free: a `hello`
+  with another `confined` than a live connection of its name fails with
+  code 7. The event connection of `choractl mcp` is confined too. So a confined agent cannot end chora or
   change the settings of a plugin by default. A token of
   `activation.token` belongs to no client. Any window that activates
   with it takes the focus without a press, also a window of the client

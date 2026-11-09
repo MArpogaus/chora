@@ -1012,6 +1012,40 @@ impl State {
         self.ipc_grants(method, params)
     }
 
+    /// Checks a `hello` against the live connections of its name: they
+    /// share confinement, `keep_nodes` and `resume`. Answers whether the
+    /// name is connected.
+    fn check_peers(&self, hello: &Hello) -> Result<bool, RpcError> {
+        let peer = self
+            .ipc
+            .conns
+            .values()
+            .find(|c| c.name.as_deref() == Some(&hello.name));
+        if let Some(peer) = peer.filter(|p| p.confined != hello.confined) {
+            return Err(name_taken(format!(
+                "{:?} is in use with confined {}",
+                hello.name, peer.confined
+            )));
+        }
+        if let Some(peer) =
+            peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
+        {
+            return Err(name_taken(format!(
+                "{:?} is in use with keep_nodes {} and resume {}",
+                hello.name, peer.keep_nodes, peer.resume
+            )));
+        }
+        // Resume is for a name without a live connection: a second instance
+        // must not take the nodes of a running one.
+        if hello.resume && peer.is_some() {
+            return Err(name_taken(format!(
+                "{:?} is connected; resume needs a name without a live connection",
+                hello.name
+            )));
+        }
+        Ok(peer.is_some())
+    }
+
     /// Names a connection. All connections of a name share one
     /// `keep_nodes` and one `resume` setting. With `resume`, a name in its
     /// grace time gets its nodes back; without, they go first.
@@ -1038,28 +1072,7 @@ impl State {
             }
             _ => {}
         }
-        let peer = self
-            .ipc
-            .conns
-            .values()
-            .find(|c| c.name.as_deref() == Some(&hello.name));
-        if let Some(peer) =
-            peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
-        {
-            return Err(name_taken(format!(
-                "{:?} is in use with keep_nodes {} and resume {}",
-                hello.name, peer.keep_nodes, peer.resume
-            )));
-        }
-        // Resume is for a name without a live connection: a second instance
-        // must not take the nodes of a running one.
-        if hello.resume && peer.is_some() {
-            return Err(name_taken(format!(
-                "{:?} is connected; resume needs a name without a live connection",
-                hello.name
-            )));
-        }
-        let known = peer.is_some();
+        let known = self.check_peers(&hello)?;
         if hello.resume {
             self.ipc.graces.remove(&hello.name);
         } else if self.ipc.graces.contains_key(&hello.name) {
@@ -2394,8 +2407,20 @@ mod tests {
         admin.ok(&mut core, "grants.set", grant);
         mcp.send("methods.call", open);
         assert_eq!(mc.event_names(&mut core), ["method.called"]);
-        // The scene rules of a client socket hold too: only own assets,
-        // and no camera.
+        // Another connection of the name without the flag stays free.
+        let mut free = core.connect();
+        free.ok(&mut core, "hello", json!({"name": "other"}));
+        free.ok(&mut core, "activation.token", Value::Null);
+    }
+
+    /// The scene rules of a client socket hold for a confined connection
+    /// of the main socket too: only own assets, and no camera.
+    #[test]
+    fn a_confined_main_socket_connection_has_the_scene_rules() {
+        let mut core = Core::new();
+        let mut mcp = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        mcp.ok(&mut core, "hello", hello);
         let image = json!({"commands": [{"create": {"id": "i", "kind": "image",
             "parent": "root", "props": {"image": "/etc/hostname"}}}]});
         let (_, message) = mcp.fails(&mut core, "scene.apply", image);
@@ -2403,10 +2428,32 @@ mod tests {
         let camera = json!({"commands": [{"camera": {"output": "DP-1"}}]});
         let (_, message) = mcp.fails(&mut core, "scene.apply", camera);
         assert!(message.contains("no camera commands"), "{message}");
-        // Another connection of the name without the flag stays free.
+    }
+
+    /// The connections of a name are all confined or all free: the event
+    /// connection of `choractl mcp` is confined too, and a free one cannot
+    /// join a confined name, nor the other way round.
+    #[test]
+    fn the_connections_of_a_name_share_confinement() {
+        let mut core = Core::new();
+        let confined = json!({"name": "voice-mcp", "confined": true});
+        let mut first = core.connect();
+        first.ok(&mut core, "hello", confined.clone());
         let mut free = core.connect();
-        free.ok(&mut core, "hello", json!({"name": "other"}));
-        free.ok(&mut core, "activation.token", Value::Null);
+        let hello = json!({"name": "voice-mcp", "confined": false});
+        let (error_code, message) = free.fails(&mut core, "hello", hello);
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("confined"), "{message}");
+        let mut events = core.connect();
+        events.ok(&mut core, "hello", confined);
+        events.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        events.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = core.connect();
+        other.ok(&mut core, "hello", json!({"name": "other"}));
+        let mut late = core.connect();
+        let hello = json!({"name": "other", "confined": true});
+        let (error_code, _) = late.fails(&mut core, "hello", hello);
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
     }
 
     /// Plugin settings hold commands that the plugin runs: a client socket
