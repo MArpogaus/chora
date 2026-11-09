@@ -346,10 +346,13 @@ The agent asks for a spoken yes before each `run_program`, each
 `inject_input` and each `load_view` (the `confirm` rules), and before
 every tool that its export marks privileged, with the whole command
 line, the typed text or the changed values in the question. Without
-grants, the LLM still closes windows and changes the outputs and the
-scene, and overwrites the saved views. It starts no plugin of a view and
-changes no input settings: for that, the user grants the name
-`view-NAME` of the view. Any voice that the mic hears can start a
+grants, the connection of the LLM follows the rules of a client socket.
+It acts on the windows of other clients only through their window
+managers (`node.requested`, D31 and D58, and the methods of the
+managers), and it loads no view that names image or shader files. It
+overwrites the saved views. It starts no plugin of a view and changes no
+input settings: for that, the user grants the name `view-NAME` of the
+view. Any voice that the mic hears can start a
 turn, also from a video, and also while the screen is locked. Text on
 the screen that a tool reads can also steer the LLM. So can the plugins,
 which write the descriptions and results of their tools. The journal

@@ -34,6 +34,13 @@ The hooks run:
   Fix a finding, or add `# shellcheck disable=SCxxxx` with a reason
 - `actionlint` on the workflows
 - `commitizen` on every commit message
+- no inline comments: a comment on an added line of Rust, shell or Python
+  fails, except doc comments, `// SAFETY:`, tool directives and the usage
+  header of a script
+- session files: logs, reports and media paths of the autonomous sessions
+  fail
+- commit message length: the subject at 68 characters, body lines at 72
+- the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:
 
@@ -256,8 +263,10 @@ requests only (D47).
 ## Commits
 
 Use [conventional commits](https://www.conventionalcommits.org/):
-`<type>: <description>`, with the description at 68 characters or fewer.
-Make one logical change per commit.
+`<type>(<scope>): <description>`, with the scope optional. The subject
+line has 68 characters or fewer, counting the whole line including
+`type(scope): `. Body lines have 72 characters or fewer. Make one logical
+change per commit.
 
 ## Documentation
 

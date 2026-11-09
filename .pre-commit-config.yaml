@@ -34,14 +34,18 @@ repos:
     entry: python3 -I tests/no-inline-comments.py
     language: system
     types_or: [rust, shell, python]
-    pass_filenames: false
     stages: [pre-commit]
   - id: no-session-files
-    name: no session-log files (they belong on the branch claude/session-log)
-    entry: tests/no-session-files.sh
-    language: script
+    name: no session logs, reports or media in the repository
+    entry: session logs, reports and media belong outside the repository
+    language: fail
+    files: ^(plans/autonomy/|reports/|reflections/|media/|drafts/|(charter|state|ledger|friction|answers|questions|backlog|HANDOFF)\.md$)
+  - id: guards
+    name: guard test (tests/guards.sh proves the commit guards red and green)
+    entry: bash tests/guards.sh
+    language: system
+    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py)|\.pre-commit-config\.yaml)$
     pass_filenames: false
-    always_run: true
     stages: [pre-commit]
   - id: lychee
     name: lychee (offline links in the Markdown files)
