@@ -1,5 +1,5 @@
-//! The XP theme: the SVG files of the theme directory, rasterized with
-//! resvg into PNG files for image nodes.
+//! The asset folder of a block: its SVG files, rasterized with resvg into
+//! PNG files for image nodes. The block names the sheets that it needs.
 //!
 //! A [`Picture`] describes an image as layers: elements of the SVG files
 //! by id, frames by prefix, icons, fills and text. Each picture renders
@@ -34,49 +34,10 @@ use crate::text::{Font, Fonts, Text};
 /// A rectangle: x, y, width and height in logical pixels.
 pub type Rect = [i32; 4];
 
-/// The SVG files of the theme.
+/// An SVG file of the asset folder, by its path in the folder. The
+/// elements of the file have ids that pictures name.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Sheet {
-    /// The window frame of Exposé.
-    Decoration,
-    /// The close button.
-    Close,
-    /// The maximize button.
-    Maximize,
-    /// The minimize button.
-    Minimize,
-    /// The restore button of a maximized window.
-    Restore,
-    /// The XP artwork: start button, start menu, notification area.
-    Winxp,
-    /// The task buttons.
-    Tasks,
-}
-
-impl Sheet {
-    const ALL: [Self; 7] = [
-        Self::Decoration,
-        Self::Close,
-        Self::Maximize,
-        Self::Minimize,
-        Self::Restore,
-        Self::Winxp,
-        Self::Tasks,
-    ];
-
-    /// The file in the theme directory.
-    fn file(self) -> &'static str {
-        match self {
-            Self::Decoration => "expose/decoration.svg",
-            Self::Close => "expose/close.svg",
-            Self::Maximize => "expose/maximize.svg",
-            Self::Minimize => "expose/minimize.svg",
-            Self::Restore => "expose/restore.svg",
-            Self::Winxp => "winxp/winxp.svg",
-            Self::Tasks => "winxp/tasks.svg",
-        }
-    }
-}
+pub struct Sheet(pub &'static str);
 
 /// One layer of a picture.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -127,6 +88,7 @@ pub struct Picture {
 
 impl Picture {
     /// An empty picture.
+    #[must_use]
     pub fn new(width: i32, height: i32) -> Self {
         Self {
             size: [width.max(1), height.max(1)],
@@ -135,6 +97,7 @@ impl Picture {
     }
 
     /// Adds an element of a sheet.
+    #[must_use]
     pub fn element(mut self, sheet: Sheet, id: &str, rect: Rect) -> Self {
         self.layers.push(Layer::Element {
             sheet,
@@ -145,6 +108,7 @@ impl Picture {
     }
 
     /// Adds a frame of a sheet.
+    #[must_use]
     pub fn frame(mut self, sheet: Sheet, prefix: &str, rect: Rect) -> Self {
         self.layers.push(Layer::Frame {
             sheet,
@@ -155,6 +119,7 @@ impl Picture {
     }
 
     /// Adds an SVG or PNG file.
+    #[must_use]
     pub fn file(mut self, path: &Path, rect: Rect) -> Self {
         self.layers.push(Layer::File {
             path: path.into(),
@@ -165,6 +130,7 @@ impl Picture {
     }
 
     /// Adds a file that fills a rectangle in a way of [`Fit`].
+    #[must_use]
     pub fn fit(mut self, path: &Path, rect: Rect, fit: Fit) -> Self {
         self.layers.push(Layer::File {
             path: path.into(),
@@ -175,12 +141,14 @@ impl Picture {
     }
 
     /// Adds a line of text.
+    #[must_use]
     pub fn text(mut self, text: Text) -> Self {
         self.layers.push(Layer::Text(text));
         self
     }
 
     /// Adds the layers of another picture, moved by an offset.
+    #[must_use]
     pub fn layers_of(mut self, other: Self, [dx, dy]: [i32; 2]) -> Self {
         let shift = |[x, y, w, h]: Rect| [x + dx, y + dy, w, h];
         for layer in other.layers {
@@ -217,6 +185,7 @@ impl Picture {
     }
 
     /// Adds SVG elements, drawn in the coordinates of the picture.
+    #[must_use]
     pub fn svg(mut self, body: impl Into<String>) -> Self {
         self.layers.push(Layer::Svg(body.into()));
         self
@@ -238,7 +207,7 @@ struct Rendered {
     used: u64,
 }
 
-/// The theme and the cache of rendered files.
+/// The asset folder and the cache of rendered files.
 pub struct Theme {
     dir: PathBuf,
     cache: PathBuf,
@@ -266,18 +235,24 @@ const PICTURES: usize = 8192;
 const MAX_SCALE: f64 = 4.0;
 
 impl Theme {
-    /// Loads the theme from a directory. Rendered files go to `cache`,
-    /// which this call empties first.
-    pub fn load(dir: &Path, cache: &Path) -> Result<Self, String> {
+    /// Loads the `sheets` and the fonts of an asset folder; `family` is
+    /// the base font family. Rendered files go to `cache`, which this
+    /// call empties first.
+    ///
+    /// # Errors
+    ///
+    /// A sheet is missing or broken, or the cache cannot be written; the
+    /// message names the file.
+    pub fn load(dir: &Path, cache: &Path, names: &[Sheet], family: &str) -> Result<Self, String> {
         let mut sheets = HashMap::new();
-        let fonts = Fonts::load(dir);
-        for sheet in Sheet::ALL {
-            let path = dir.join(sheet.file());
+        let fonts = Fonts::load(dir, family);
+        for sheet in names {
+            let path = dir.join(sheet.0);
             let data = chora_kit::read_file(&path, chora_kit::MAX_PICTURE)
                 .map_err(|e| format!("{}: {e}", path.display()))?;
             let tree = usvg::Tree::from_data(&data, fonts.options())
                 .map_err(|e| format!("{}: {e}", path.display()))?;
-            sheets.insert(sheet, tree);
+            sheets.insert(*sheet, tree);
         }
         clear(cache).map_err(|e| format!("{}: {e}", cache.display()))?;
         let mut theme = Self {
@@ -292,21 +267,24 @@ impl Theme {
             scale: 1.0,
             pictures: HashMap::new(),
         };
-        #[allow(clippy::expect_used, reason = "a 1x1 pixmap has a valid size")]
-        let blank = Pixmap::new(1, 1).expect("one pixel");
+        let blank = Pixmap::new(1, 1).ok_or("no pixmap of one pixel")?;
         theme.blank = theme
             .write(0, &blank)
             .map_err(|e| format!("{}: {e}", cache.display()))?;
         Ok(theme)
     }
 
-    /// A file of the theme directory.
+    /// A file of the asset folder.
     pub fn path(&self, file: &str) -> PathBuf {
         self.dir.join(file)
     }
 
     /// Writes a file into the cache, for example a shader for the core,
     /// and returns its path.
+    ///
+    /// # Errors
+    ///
+    /// The file cannot be written.
     pub fn cache_file(&self, name: &str, data: &str) -> std::io::Result<PathBuf> {
         let path = self.cache.join(name);
         chora_kit::write_file(&path, data.as_bytes())?;
@@ -331,7 +309,7 @@ impl Theme {
 
     /// The size of an element, rounded to pixels.
     pub fn size(&self, sheet: Sheet, id: &str) -> Option<[i32; 2]> {
-        let node = self.sheets[&sheet].node_by_id(id)?;
+        let node = self.sheets.get(&sheet)?.node_by_id(id)?;
         let bbox = node.abs_bounding_box();
         #[allow(clippy::cast_possible_truncation)]
         let size = [bbox.width().round() as i32, bbox.height().round() as i32];
@@ -412,7 +390,7 @@ impl Theme {
                 path
             }
             Err(err) => {
-                eprintln!("chora-xp: rendering failed: {err}");
+                eprintln!("chora-draw: rendering failed: {err}");
                 self.blank.clone()
             }
         }
@@ -491,7 +469,7 @@ impl Theme {
         for layer in &picture.layers {
             // A missing icon or element leaves the rest of the picture.
             if let Err(err) = self.draw_layer(layer, (base, &mut pixmap.as_mut())) {
-                eprintln!("chora-xp: {err}");
+                eprintln!("chora-draw: {err}");
             }
         }
         Ok(pixmap)
@@ -540,8 +518,9 @@ impl Theme {
         rect: Rect,
         (base, pixmap): (Transform, &mut PixmapMut<'_>),
     ) -> Result<(), String> {
-        let missing = || format!("{} has no element {id:?}", sheet.file());
-        let node = self.sheets[&sheet].node_by_id(id).ok_or_else(missing)?;
+        let missing = || format!("{} has no element {id:?}", sheet.0);
+        let node = self.sheets.get(&sheet).and_then(|t| t.node_by_id(id));
+        let node = node.ok_or_else(missing)?;
         let bbox = node
             .abs_bounding_box()
             .to_non_zero_rect()
@@ -717,6 +696,7 @@ fn load_raster(path: &Path) -> Result<Pixmap, String> {
 }
 
 /// Whether a file is a JPEG file, by its extension.
+#[must_use]
 pub fn is_jpeg(path: &Path) -> bool {
     path.extension()
         .is_some_and(|e| e.eq_ignore_ascii_case("jpg") || e.eq_ignore_ascii_case("jpeg"))
@@ -783,6 +763,24 @@ fn part(prefix: &str, name: &str) -> String {
     }
 }
 
+/// The directory of the rendered files of a block: one per chora
+/// instance, `$XDG_RUNTIME_DIR/NAME/INSTANCE`, which the core can read.
+///
+/// # Errors
+///
+/// `$XDG_RUNTIME_DIR` is not an absolute path.
+pub fn cache_dir(name: &str) -> Result<PathBuf, String> {
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .ok_or("no absolute $XDG_RUNTIME_DIR for the cache")?;
+    let instance = std::env::var_os(chora_scene::ipc::SOCKET_ENV)
+        .map(PathBuf::from)
+        .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
+        .unwrap_or_else(|| "default".into());
+    Ok(runtime.join(name).join(instance))
+}
+
 /// Creates a directory, or removes the PNG files in it.
 fn clear(dir: &Path) -> std::io::Result<()> {
     fs::create_dir_all(dir)?;
@@ -796,26 +794,27 @@ fn clear(dir: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
-    /// The theme of the source tree, with a cache of its own for a test.
-    pub fn theme(test: &str) -> (Theme, PathBuf) {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
-        let cache = std::env::temp_dir().join(format!("chora-xp-{test}-{}", std::process::id()));
-        (Theme::load(&dir, &cache).expect("the theme loads"), cache)
+    const SHEET: Sheet = Sheet("sheet.svg");
+
+    /// A theme with the sheet of the test data, and a cache of its own.
+    fn theme(test: &str) -> (Theme, PathBuf) {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata");
+        let cache = std::env::temp_dir().join(format!("chora-draw-{test}-{}", std::process::id()));
+        let theme = Theme::load(&dir, &cache, &[SHEET], "sans-serif");
+        (theme.expect("the theme loads"), cache)
     }
 
     #[test]
     #[allow(clippy::float_cmp)] // insets are whole pixels
     fn frames_have_the_sizes_of_their_parts() {
         let (mut theme, cache) = theme("frames");
-        let frame = theme.frame(Sheet::Decoration, "decoration");
-        assert_eq!(frame.slice, [34.0, 40.0, 34.0, 34.0]);
-        let button = theme.frame(Sheet::Close, "active");
-        assert_eq!(button.slice, [3.0, 3.0, 3.0, 3.0]);
+        let frame = theme.frame(SHEET, "f");
+        assert_eq!(frame.slice, [3.0, 4.0, 3.0, 5.0]);
         let image = Pixmap::load_png(&frame.image).expect("a PNG file");
-        assert_eq!([image.width(), image.height()], [156, 162]);
+        assert_eq!([image.width(), image.height()], [7, 10]);
         let _ = fs::remove_dir_all(cache);
     }
 
@@ -829,10 +828,9 @@ pub mod tests {
     }
 
     #[test]
-    fn the_start_button_is_green() {
-        let (mut theme, cache) = theme("start");
-        let picture =
-            Picture::new(100, 30).element(Sheet::Winxp, "startbutton-normal", [0, 0, 100, 30]);
+    fn an_element_is_green() {
+        let (mut theme, cache) = theme("green");
+        let picture = Picture::new(100, 30).element(SHEET, "box", [0, 0, 100, 30]);
         let image = Pixmap::load_png(theme.render(&picture)).expect("a PNG file");
         let pixel = image.pixel(50, 15).expect("inside");
         assert!(pixel.green() > pixel.red() && pixel.green() > pixel.blue());
@@ -842,8 +840,7 @@ pub mod tests {
     #[test]
     fn pictures_render_at_the_scale_with_their_logical_size() {
         let (mut theme, cache) = theme("scale");
-        let picture =
-            Picture::new(100, 30).element(Sheet::Winxp, "startbutton-normal", [0, 0, 100, 30]);
+        let picture = Picture::new(100, 30).element(SHEET, "box", [0, 0, 100, 30]);
         let flat = theme.render(&picture);
         assert!(theme.set_scale(1.5));
         assert!(!theme.set_scale(1.5));

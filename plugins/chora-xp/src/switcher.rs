@@ -3,12 +3,13 @@
 //! title in a sunken field below. The layout follows the `winxp_alttab`
 //! switcher of `kde-plasma-winxp-launcher`.
 
+use crate::sheets;
 use std::path::PathBuf;
 
 use crate::{
     dialog::BLACK,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// A cell of an icon.
@@ -82,22 +83,22 @@ impl Switcher {
     #[allow(clippy::many_single_char_names)] // coordinates
     pub fn picture(&self, theme: &Theme) -> Picture {
         let pad = theme
-            .size(Sheet::Winxp, "alttab-hint-left-margin")
+            .size(sheets::WINXP, "alttab-hint-left-margin")
             .map_or(12, |s| s[0]);
         let inset = theme
-            .size(Sheet::Winxp, "alttab-title-hint-left-margin")
+            .size(sheets::WINXP, "alttab-title-hint-left-margin")
             .map_or(3, |s| s[0]);
         let count = i32::try_from(self.entries.len()).unwrap_or(1);
         let columns = count.clamp(1, COLUMNS);
         let rows = (count + columns - 1) / columns;
         let [gw, gh] = [columns * CELL, rows * CELL];
         let [w, h] = [gw + 2 * pad, gh + GAP + TITLE + 2 * pad];
-        let mut picture = Picture::new(w, h).frame(Sheet::Winxp, "alttab", [0, 0, w, h]);
+        let mut picture = Picture::new(w, h).frame(sheets::WINXP, "alttab", [0, 0, w, h]);
         for (i, entry) in self.entries.iter().enumerate() {
             let i = i32::try_from(i).unwrap_or(0);
             let [x, y] = [pad + i % columns * CELL, pad + i / columns * CELL];
             if usize::try_from(i) == Ok(self.chosen) {
-                picture = picture.frame(Sheet::Winxp, "alttab-selection", [x, y, CELL, CELL]);
+                picture = picture.frame(sheets::WINXP, "alttab-selection", [x, y, CELL, CELL]);
             }
             if let Some(icon) = &entry.icon {
                 let at = (CELL - 32) / 2;
@@ -105,7 +106,7 @@ impl Switcher {
             }
         }
         let title: Rect = [pad, pad + gh + GAP, gw, TITLE];
-        picture = picture.frame(Sheet::Winxp, "alttab-title", title);
+        picture = picture.frame(sheets::WINXP, "alttab-title", title);
         let [x, y, tw, th] = title;
         let text = &self.entries[self.chosen].title;
         picture
@@ -165,7 +166,7 @@ mod tests {
         }
         let [w, h] = picture.size;
         let pad = theme
-            .size(Sheet::Winxp, "alttab-hint-left-margin")
+            .size(sheets::WINXP, "alttab-hint-left-margin")
             .map_or(12, |s| s[0]);
         assert_eq!(
             [w, h],
