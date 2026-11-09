@@ -84,6 +84,13 @@ code branches carry only code, tests and the product docs
     opus-5-5 agent with high effort criticizes the PM's own work
     (section 11a). The PM answers every point.
 
+15. **Every rule is guarded** (asked on 2026-11-09): each rule of this
+    charter and of the project gets an automatic check (a pre-commit
+    hook, a test, a CI job or a script) where one is possible; a manual
+    check is the exception and is listed with its reason in `guards.md`.
+    A new rule is added together with its guard, and a rule broken once
+    without a guard gets one before the next run.
+
 **Overrides of the skills**, because the container of the PM session can
 be replaced between runs:
 
@@ -725,6 +732,7 @@ All on the branch `claude/session-log` (worktree `/home/user/wt/log`), committed
 | `backlog.md` | findings and ideas for later |
 | `sprints.md` | pitches, scores, keep or kill with reasons |
 | `friction.md` | friction with the plan, the skills, the rules and the tools |
+| `guards.md` | every rule with its guard, or the reason it is checked by hand |
 | `reports/` | the run reports per day and the weekly reports (section 11b) |
 | `reflections/` | one file per day: the critique of the opus reflection agent and the PM's answers |
 | `drafts/` | marketing texts, outward texts, skill patches |

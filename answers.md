@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Every rule shall be guarded where possible; manual checks are the
+  exception (charter section 1 item 15, `guards.md`).
+
 - No inline comments in code: names make it readable, docs carry the
   rest; no anecdotes or storytelling in docs; the PM's decisions and
   friction go into the reports, not the docs.
