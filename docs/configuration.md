@@ -941,8 +941,9 @@ default, a time of the client between the shortest and the longest time,
 and never for a time of 0, until a click. A click on the close button
 dismisses the card; a click on the card invokes the action `default` of
 the notification, if it has one, and dismisses it too. If another server,
-such as GNOME Shell, owns the name on the bus, `chora-notify` fails with
-an error that says so; it never takes the name from its owner.
+such as GNOME Shell, owns the name on the bus, `chora-notify` logs the
+owner and ends with status 0, so that its unit does not restart it; it
+never takes the name from its owner.
 
 The look of the card comes from the asset folder. A folder replaces the
 neutral one and does not merge with it. A missing or broken file stops the
@@ -1558,6 +1559,12 @@ that the file leaves out takes its default:
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
+
+Migration: a `chora-xp.yaml` from before the split has the key `assistant`,
+which `chora-xp` now rejects as an unknown key, so that it starts with the
+default settings and logs the error with a hint. Move `assistant.enabled` to
+`chora-assistant.yaml` as `enabled`, and remove the key `assistant` from
+`chora-xp.yaml`. Then `settings.reload` or a restart applies the file.
 
 `settings.set` merges its object into the settings (see
 [API](api.md#plugin-methods)), so a change of the wallpaper names only
