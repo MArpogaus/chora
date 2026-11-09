@@ -634,7 +634,7 @@ message.
 | 4 | a capability the method needs | `screen.capture` without a grant |
 | 5 | an unknown node | `update` of a node id that never existed |
 | 6 | a limit of the core is reached | a request longer than 1 MiB |
-| 7 | a client name that is taken | a `hello` with a name that has a client socket |
+| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` with `resume` on a name that is connected |
 | 8 | a method of the admin socket | `grants.set` on the main socket |
 | 9 | a rule of client sockets | a `hello` with another name on `clients/agent/ipc.sock` |
 
@@ -741,30 +741,37 @@ in. `choractl clients create agent` prints its path:
 - `methods.call` needs the capability `methods.call`,
   `activation.token` the capability `activation.token`,
   `session.quit` the capability `session.quit` and `input.configure`
-  the capability `methods.privileged`. A `methods.call` of a
-  privileged method also needs `methods.privileged`: `settings.set` and
+  the capability `methods.privileged`. A `methods.call` of a privileged
+  method also needs `methods.privileged`: `settings.set` and
   `settings.reload` of any client, because plugin settings hold commands
   that the plugin runs and paths that it reads, and each method that its
-  export marks `"privileged": true`, such as `app.open` of `chora-mc`. Without them they answer code 4. The main
-  socket needs none of them, unless the `hello` of the connection has
-  `confined: true`: then these rules hold for it too, with the grants
-  of its name. A connection can confine itself, never free itself.
-  The connections of a name are all confined or all free: a `hello`
-  with another `confined` than a live connection of its name fails with
-  code 7. The event connection of `choractl mcp` is confined too. So a confined agent cannot end chora or
-  change the settings of a plugin by default. A token of
-  `activation.token` belongs to no client. Any window that activates
-  with it takes the focus without a press, also a window of the client
-  itself. With `methods.call`, a client can also ask a window manager for
-  the focus. So both capabilities let a client take the keyboard. A
-  window of its `wayland.sock` asks for tokens through `xdg-activation`, under the
-  focus rules above.
+  export marks `"privileged": true`, such as `app.open` of `chora-mc`.
+  Without them they answer code 4.
+- The main socket needs none of these capabilities, unless the `hello`
+  of the connection has `confined: true`. Then the rules above hold for
+  it too, with the grants of its name. A connection can confine itself,
+  never free itself. A confined connection of the main socket still sees
+  the whole scene in `scene.query` and all surface events.
+- The connections of a name are all confined or all free. A connection
+  on a client socket counts as confined. A `hello` whose effective
+  confinement differs from a live connection of its name fails with code
+  7. The event connection of `choractl mcp` is confined too. So a
+  confined agent cannot end chora or change the settings of a plugin by
+  default.
+- A token of `activation.token` belongs to no client. Any window that
+  activates with it takes the focus without a press, also a window of the
+  client itself. With `methods.call`, a client can also ask a window
+  manager for the focus. So both capabilities let a client take the
+  keyboard. A window of its `wayland.sock` asks for tokens through
+  `xdg-activation`, under the focus rules above.
 - Its `image`, `shader` and effect paths name only its own files of
-  `assets.put`. The main socket has no such rule, unless the `hello`
-  has `confined: true`, as of `choractl mcp`: a shader path to any file
+  `assets.put`. The main socket has no such rule, unless the `hello` has
+  `confined: true`; `choractl mcp` sets it. A shader path to any file
   would leak its content in a compile error. A confined connection of
-  the main socket also has the scene rules of a client socket, and its
-  grabs share no button binding by claim.
+  the main socket also has the scene rules of a client socket. It never
+  shares a button binding with other grabs by claim, because it could
+  claim a little less than an output and so take every press of the
+  binding.
 - It holds at most 16 connections, and its Wayland socket at most 16
   clients. All client sockets together leave 32 connections to the main
   socket.
