@@ -82,7 +82,8 @@ ok "x closed a pane: $before -> $(panes)"
 # pane.remove only asks the window to close, as x does: a window that
 # refuses, as chora-probe does, stays a pane, and shows.
 "$bin/chora-probe" window 200 40 40 &
-pids+=($!)
+probe=$!
+pids+=("$probe")
 until_ok 'panes | grep -qw chora-probe' || fail "chora-probe became no pane: $(panes)"
 ctl call construct pane.remove '{"name": "chora-probe"}' >/dev/null || fail "pane.remove"
 sleep 1
@@ -97,6 +98,9 @@ import json, math, sys
 print(round(next(math.hypot(*p["at"]) for p in json.load(sys.stdin)["panes"] if p["name"] == "chora-probe")))')
 [ "$far" -le 1000 ] || fail "settings.set radius 1000 did not leash: a pane at $far"
 ok "settings.set radius 1000 leashed the pane at $far"
+
+kill "$probe"
+until_ok '! panes | grep -qw chora-probe' || fail "the pane of chora-probe stays: $(panes)"
 
 # fuzzel, a layer-shell launcher, may pass its own token on to the
 # program that it starts; that program's window is a pane all the same.
