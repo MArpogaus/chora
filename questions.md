@@ -40,3 +40,15 @@ Each: number, date, background, default taken.
    `services/voice/README.md`, and check that each window manager offers
    the methods voice needs (close, move, resize). Answer "loosen" to let
    the confined agent act on foreign windows again with a grant.
+
+## Q7 (2026-11-09): HUD and ACP chat sprint defaults
+
+Defaults taken unless the user objects (design/hud-sprint.md section 8,
+design/ux-hud-sprint.md section 8): chat as a terminal program this
+sprint, with a real window title, 14 px text and no slash commands on
+the main path; `chora-assistant` grows into the HUD host; mc and
+construct keep their own voice HUD but share words, key line and
+badge; a typed "yes" never answers a question and the chat holds it;
+helpers speak only questions, plus a "done" sound; no chat with the
+voice LLM itself this sprint; HUD folders read events only; a dropped
+folder needs one `hud: NAME` line; confirm keys follow the language.
