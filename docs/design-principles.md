@@ -107,9 +107,10 @@ of the kind `ux`.
 Anything that acts in a person's name asks before it acts on something
 that matters, and the question shows the whole of what will happen. A
 question that guards a risky act takes a physical answer: a key or a
-click. Text that a third party supplies, such as a HUD folder or an
-agent's message, can never draw or fake a question. A person can stop an
-agent and undo or leave every step.
+click. Text or pictures that a third party supplies, such as a HUD
+folder or an agent's message, can never answer, hide or cover a
+question: the real question has one place, and its keys always work. A
+person can stop an agent and undo or leave every step.
 
 *Check:* the confirmation tests of the voice service; the security view
 of review rounds.
@@ -162,6 +163,16 @@ look and what they show, never what runs. Code comes only as a plugin
 with its own grant.
 
 *Check:* the HUD folder limits of `chora-kit`; the security view.
+
+### 11. Nothing takes the keyboard on its own
+
+The keyboard focus moves only as the result of something the person
+did: a click, a key, a spoken command, or a program the person started.
+A program, an agent or a HUD cannot pull the focus away from the person
+while they type.
+
+*Check:* the core keyboard rule for layer surfaces of the HUD sprint
+(step H4c) and its test; the UX/UI view.
 
 ## How a change follows these principles
 
