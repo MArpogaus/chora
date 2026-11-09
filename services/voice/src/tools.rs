@@ -1141,6 +1141,10 @@ pub mod tests {
             );
         }
         assert_eq!(
+            prompt("load_view", json!({"name": "desk"})),
+            Some("Shall I load the view {name}?")
+        );
+        assert_eq!(
             prompt("tiling.restart", json!({})),
             Some("Shall I restart the plugin?")
         );

@@ -370,6 +370,7 @@ fn default_confirm() -> Vec<Confirm> {
             commands: words(&["remove", "close"]),
             ..rule("apply_commands", "Shall I remove that?")
         },
+        rule("load_view", "Shall I load the view {name}?"),
         rule("unload_view", "Shall I remove the view {name}?"),
         rule("inject_input", "Shall I type or click: {input}?"),
         rule("code_task", "Shall I start the coding task?"),
@@ -697,7 +698,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 24] = [
+const GERMAN: [(&str, &str); 25] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -739,6 +740,10 @@ const GERMAN: [(&str, &str); 24] = [
          Bildschirm. Drück {yes} für ja oder {no} für nein.",
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
+    (
+        "Shall I load the view {name}?",
+        "Soll ich die Ansicht {name} laden?",
+    ),
     (
         "Shall I remove the view {name}?",
         "Soll ich die Ansicht {name} entfernen?",

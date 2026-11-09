@@ -588,6 +588,7 @@ device.
 ```yaml
 confirm:
   - {tool: apply_commands, commands: [remove, close], prompt: "Shall I remove that?"}
+  - {tool: load_view, prompt: "Shall I load the view {name}?"}
   - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
   - {tool: inject_input, prompt: "Shall I type or click: {input}?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
