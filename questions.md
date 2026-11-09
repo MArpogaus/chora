@@ -70,3 +70,11 @@ file. Defaults on wording, key line and badge are in
     HUD needs. Answer word: `methods`.
 7.8 Does a dropped HUD folder activate itself? Default: no, one line
     `hud: NAME` in `chora-assistant.yaml`. Answer word: `auto`.
+
+## Q8 (2026-11-09): the XP cube
+
+Background: backlog C1. Default taken: one cube, the construct geometry
+of D76; the xp cube effect is removed when that geometry works, and
+until then the old cube only hides the taskbar while it turns. Answer
+"keep both" to keep the xp effect as a light switcher without the
+construct.

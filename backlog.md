@@ -7,6 +7,19 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+C1. One cube (user question 11-09): today `chora-xp` has its own desktop
+   cube (`cube.rs`, 327 lines), a transform of the desktop layer only;
+   the taskbar is a separate layer outside it and stays flat while the
+   cube turns. D67 and D76 make the cube a construct geometry: four
+   panes, each `chora-xp` on a virtual output (D69) with its own
+   taskbar as part of the face, so the taskbar turns with its face;
+   leaving XP flies out to that cube. Two cubes that behave differently
+   break POLS and "minimal". Plan: the xp desktop switch asks the
+   construct for the cube geometry; `cube.rs` goes when the geometry
+   module (K9), virtual outputs (D69) and the cube (K11) work; the xp
+   split X7 drops the cube from the gimmick. Until then no polish of the
+   old cube beyond hiding the taskbar while it turns (small, one test).
+
 0. DONE 2026-11-09, merge 103ce6f (claude/acp-gate): ACP permission
    requests that run or write take only a key or a HUD button; a spoken
    yes no longer answers them and "always" counts as no (was SECURITY,
