@@ -935,6 +935,24 @@ impl Actor {
         let prompt = question(&asks, name, &what, &options, german);
         let physical = is_physical(&params["toolCall"], &options);
         let detail = detail(&params["toolCall"]);
+        if crate::chat::too_long(&detail) {
+            rpc.respond(rpc_id, outcome(&options, false)).await?;
+            let told = if german {
+                format!(
+                    "{} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.",
+                    title(name)
+                )
+            } else {
+                format!(
+                    "{} asked for something too long to show. Rejected.",
+                    title(name)
+                )
+            };
+            self.agents
+                .update(name, id, |s| s.note(&format!("! {told}")));
+            self.agents.speak(name, &told);
+            return Ok(());
+        }
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
@@ -1267,6 +1285,40 @@ mod tests {
             unreachable!()
         };
         assert!(text.starts_with("Erlaubt"), "{text}");
+        agents.stop("demo");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A request whose detail is too long to show whole is rejected,
+    /// and the user is told, so that no part of it hides the rest.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_request_too_long_to_show_is_rejected() {
+        let data = std::env::temp_dir().join(format!("chora-voice-long-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", None, None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        agents.prompt("demo", "LONG");
+        let (_rx, events) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.starts_with("Abgelehnt")),
+        )
+        .await;
+        assert!(!events.iter().any(|e| matches!(e, Event::Ask { .. })));
+        let told = events
+            .iter()
+            .any(|e| matches!(e, Event::Said { text, .. } if text.contains("too long")));
+        assert!(told, "{}", events.len());
         agents.stop("demo");
         let _ = std::fs::remove_dir_all(&data);
     }

@@ -1251,7 +1251,10 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   and a yes of `voice.confirm` count as nothing, and a yes sounds the
   error earcon; a no answers. The spoken question ends with `agent_keys`
   ("Press Alt+y for yes or Alt+n for no."). The screen shows the whole
-  title of the request and its raw input, secrets hidden. The spoken
+  title of the request and its raw input, secrets hidden; a request
+  whose detail passes 400 lines or 64 KiB is rejected and the agent
+  says so, as the confirmation of the reply refuses a command too long
+  to show. The spoken
   title is a file name only for the kinds `edit`, `read`, `delete` and
   `move`. An always word answers no request: the agent never maps it
   to `allow_always`. Yes picks an `allow_once` option, no a
