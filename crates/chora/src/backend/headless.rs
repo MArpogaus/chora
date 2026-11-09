@@ -263,7 +263,7 @@ impl State {
 
 /// One tick of the frame clock: renders the damage of every output that
 /// is on, and sends the frame callbacks.
-fn render_all(state: &mut State) {
+pub(crate) fn render_all(state: &mut State) {
     let Some(Backend::Headless(headless)) = &state.backend else {
         return;
     };

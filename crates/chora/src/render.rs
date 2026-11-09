@@ -58,6 +58,64 @@ render_elements! {
     Text = RescaleRenderElement<MemoryRenderBufferRenderElement<R>>,
 }
 
+/// The kind of a [`SceneElement`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Variant {
+    Surface,
+    Scaled,
+    Solid,
+    Cursor,
+    Image,
+    Mesh,
+    Text,
+}
+
+impl<R: MeshRenderer> SceneElement<R> {
+    /// The kind of the element.
+    pub fn variant(&self) -> Variant {
+        match self {
+            Self::Surface(_) => Variant::Surface,
+            Self::Scaled(_) => Variant::Scaled,
+            Self::Solid(_) => Variant::Solid,
+            Self::Cursor(_) => Variant::Cursor,
+            Self::Image(_) => Variant::Image,
+            Self::Mesh(_) => Variant::Mesh,
+            Self::Text(_) => Variant::Text,
+            Self::_GenericCatcher((_, never)) => match *never {},
+        }
+    }
+}
+
+/// What rendering did since the start of the core, for the tests that
+/// guard the cost of a scene. The counters only grow.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct RenderStats {
+    /// The elements that [`output_elements`] returned, by variant.
+    pub elements: [u64; 7],
+    /// The node contents that rendered into a texture of their own.
+    pub textures_rendered: u64,
+    /// The shader passes over such textures: shapes, shaders and effects.
+    pub passes: u64,
+    /// The frames that a backend rendered.
+    pub frames: u64,
+    /// The frames of those that had damage.
+    pub damaged_frames: u64,
+}
+
+impl RenderStats {
+    /// Counts the render of a frame by a backend.
+    pub fn frame(&mut self, damaged: bool) {
+        self.frames += 1;
+        self.damaged_frames += u64::from(damaged);
+    }
+
+    fn count<R: MeshRenderer>(&mut self, elements: &[SceneElement<R>]) {
+        for element in elements {
+            self.elements[element.variant() as usize] += 1;
+        }
+    }
+}
+
 /// What the scene draws besides surfaces: a color buffer per rect node,
 /// the images, the ids of the image cells of each image node, and the
 /// textures of the layers.
@@ -80,6 +138,7 @@ pub struct Assets {
     /// The nodes that the last render of each output left out, before the
     /// frame shows.
     pub frame_left_out: HashMap<String, Vec<String>>,
+    pub stats: RenderStats,
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.
@@ -137,7 +196,7 @@ where
     R: MeshRenderer,
 {
     if let Some(lock) = parts.lock {
-        return lock.surface(output).map_or_else(Vec::new, |surface| {
+        let elements = lock.surface(output).map_or_else(Vec::new, |surface| {
             render_elements_from_surface_tree(
                 renderer,
                 surface,
@@ -150,6 +209,8 @@ where
             .map(SceneElement::Surface)
             .collect()
         });
+        parts.assets.stats.count(&elements);
+        return elements;
     }
     prune_assets(parts);
     let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
@@ -172,6 +233,7 @@ where
     assets
         .frame_left_out
         .insert(output.name(), assets.layers.left_out.clone());
+    assets.stats.count(&out);
     out
 }
 
@@ -274,6 +336,7 @@ fn layer_texture(
         tracing::warn!(%err, "a layer failed");
         return None;
     }
+    parts.assets.stats.textures_rendered += 1;
     // Texture pixels per logical pixel, also when the texture hit its
     // largest size.
     let pixels = node
@@ -284,7 +347,11 @@ fn layer_texture(
     let assets = &mut *parts.assets;
     Some(mesh::apply_passes(
         gles,
-        (&mut assets.layers, &mut assets.effect_errors),
+        (
+            &mut assets.layers,
+            &mut assets.effect_errors,
+            &mut assets.stats,
+        ),
         node,
         texture,
         (pixels, &textures),
@@ -329,6 +396,7 @@ fn node_textures(
             continue;
         };
         if mesh::render_into(gles, &mut texture, scale, &content).is_ok() {
+            parts.assets.stats.textures_rendered += 1;
             out.push((name.clone(), texture));
         }
     }

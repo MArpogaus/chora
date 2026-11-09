@@ -814,7 +814,9 @@ fn draw(
         &output,
         view,
     ));
-    present(&mut device.manager, surface, &mut renderer, &elements)
+    let damaged = present(&mut device.manager, surface, &mut renderer, &elements)?;
+    parts.assets.stats.frame(damaged);
+    Ok(damaged)
 }
 
 /// Renders the elements. Returns whether the frame has damage.

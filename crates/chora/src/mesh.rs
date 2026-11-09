@@ -21,7 +21,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::gl;
+use crate::{gl, render::RenderStats};
 
 use chora_scene::{Mesh, Node, NodeKind, Scene, Transform, Uniform};
 use smithay::{
@@ -552,7 +552,7 @@ pub fn passes(node: &Node, scale: f64) -> Vec<Pass<'_>> {
 /// node by the names of their samplers.
 pub fn apply_passes(
     gles: &mut GlesRenderer,
-    (layers, errors): (&mut Layers, &mut Vec<String>),
+    (layers, errors, stats): (&mut Layers, &mut Vec<String>, &mut RenderStats),
     node: &Node,
     mut texture: GlesTexture,
     (scale, textures): (f64, &[(String, GlesTexture)]),
@@ -571,6 +571,7 @@ pub fn apply_passes(
         };
         match draw_pass(gles, &program, &texture, &mut target, (&uniforms, &extra)) {
             Ok(()) => {
+                stats.passes += 1;
                 texture = target;
                 slot = next;
             }

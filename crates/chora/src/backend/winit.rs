@@ -243,6 +243,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
                 [0.0, 0.0, 0.0, 1.0],
             )
             .map_err(|e| format!("rendering failed: {e:?}"))?;
+        parts.assets.stats.frame(result.damage.is_some());
         result.damage.cloned()
     };
     let Some(damage) = damage else {
