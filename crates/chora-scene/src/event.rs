@@ -101,6 +101,10 @@ pub enum Event {
         /// Pressed or released.
         #[serde(default)]
         state: crate::ipc::PressState,
+        /// The key came from `input.inject`, not from a keyboard. A
+        /// client that takes a key for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The button of a grabbed binding, such as `Super+BTN_LEFT`, went
     /// down or up. Only the connection of the grab gets it, subscribed or

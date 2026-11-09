@@ -371,6 +371,7 @@ impl Tiling {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
+                ..
             } => return self.act(&binding),
             Event::InputButton {
                 binding,

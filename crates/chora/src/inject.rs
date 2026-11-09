@@ -574,6 +574,52 @@ mod tests {
         json!({"events": [{"button": button}]})
     }
 
+    /// The voice agent takes a physical key for a security confirmation: an
+    /// injected key reaches a grab with `injected`, a physical one without.
+    #[test]
+    fn an_injected_key_reaches_a_grab_with_the_mark() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut voice = core.named("voice");
+        voice.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        let shortcut = json!({"events": [{"shortcut": {"keys": "Alt+y"}}]});
+        agent.ok(&mut core, "input.inject", shortcut);
+        let keys = |client: &mut crate::testing::Client, core: &mut Core| -> Vec<Value> {
+            let events = client.events_now(core).into_iter();
+            events
+                .map(|e| e["params"].clone())
+                .filter(|p| p["event"] == "input.key")
+                .collect()
+        };
+        let injected = keys(&mut voice, &mut core);
+        assert!(!injected.is_empty(), "the grab gets the key");
+        assert!(
+            injected.iter().all(|e| e["injected"] == true),
+            "{injected:?}"
+        );
+        for (code, state) in [(56, true), (21, true), (21, false), (56, false)] {
+            crate::input::key(
+                &mut core.state,
+                Keycode::new(code + XKB_OFFSET),
+                if state {
+                    KeyState::Pressed
+                } else {
+                    KeyState::Released
+                },
+                InputTime::now(),
+                false,
+            );
+        }
+        let physical = keys(&mut voice, &mut core);
+        assert!(!physical.is_empty(), "the grab gets the key");
+        assert!(
+            physical.iter().all(|e| e.get("injected").is_none()),
+            "{physical:?}"
+        );
+    }
+
     /// Gate check 9 of 0.7: the limit of a request has its own code.
     #[test]
     fn more_events_than_the_limit_answer_limit_reached() {
