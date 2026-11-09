@@ -38,7 +38,7 @@ use smithay::{
 
 use crate::{
     output::output_area,
-    render::{location_and_scale, window_rect},
+    render::{bounding_box, projected_box, window_rect},
     state::State,
     uploads::Uploads,
 };
@@ -1202,9 +1202,11 @@ impl State {
     /// The rectangle of one placed node on an output, as the renderer
     /// draws it there. A layer, and with a size also a shader, shows
     /// through its mesh, so its box is the box of the projected shape.
-    /// Any other node needs a plain positive scale below its innermost
-    /// ancestor layer, and every ancestor layer cuts its box like a clip
-    /// does. The mesh of a layer does not move the boxes of descendants.
+    /// Any other node draws as a plane when its transform is not a plain
+    /// translation with a positive scale, so its box is the box of its
+    /// projected corners; every ancestor layer cuts the box like a clip
+    /// does. A quad that is edge on or collapsed shows nowhere. The mesh of
+    /// a layer does not move the boxes of descendants.
     fn screen_rect(
         &self,
         placed: &Placed<'_>,
@@ -1213,13 +1215,13 @@ impl State {
     ) -> Option<Rectangle<f64, Logical>> {
         let node = placed.node;
         let transform = at.get(node.id.as_str())?;
-        let (below, layers) = self.lineage(node)?;
+        let layers = self.lineage(node)?;
+        if node.props.mesh.is_none() && !transform.is_plain() {
+            transform.plane_inverse()?;
+        }
         let mut rect = if node.is_layer() {
             layer_box(node, transform)?
         } else {
-            // A mirrored, rotated, collapsed or projected node draws
-            // nothing outside a layer.
-            location_and_scale(&below)?;
             self.content_box(node, transform)?
         };
         // Every ancestor layer cuts the box like a clip does.
@@ -1229,25 +1231,20 @@ impl State {
         rect.overlaps(screen).then_some(rect)
     }
 
-    /// The node's transform below the innermost ancestor layer, and every
-    /// ancestor layer. The renderer draws the node with that transform,
-    /// also inside the texture of a layer, and the node shows only inside
-    /// every layer: a layer composes into a texture of its size. A clip
-    /// makes a layer and cuts through the same box.
-    fn lineage(&self, node: &Node) -> Option<(Transform, Vec<&Node>)> {
-        let mut below = node.props.transform;
+    /// Every ancestor layer. The node shows only inside every layer: a
+    /// layer composes into a texture of its size. A clip makes a layer and
+    /// cuts through the same box.
+    fn lineage(&self, node: &Node) -> Option<Vec<&Node>> {
         let mut layers = Vec::new();
         let mut parent = node.parent.as_deref();
         while let Some(id) = parent {
             let ancestor = self.scene.node(id)?;
             if ancestor.is_layer() {
                 layers.push(ancestor);
-            } else if layers.is_empty() {
-                below = ancestor.props.transform.then(&below);
             }
             parent = ancestor.parent.as_deref();
         }
-        Some((below, layers))
+        Some(layers)
     }
 
     /// The box of a node that is not a layer itself.
@@ -1502,45 +1499,6 @@ fn intersect(
         .then(|| Rectangle::new(loc.into(), (end.0 - loc.0, end.1 - loc.1).into()))
 }
 
-/// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
-/// `(w, h)` after the transform.
-fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
-    projected_box(
-        transform,
-        [[0.0, 0.0], [w, 0.0], [0.0, h], [w, h]].into_iter(),
-    )
-}
-
-/// The smallest axis-aligned rectangle that holds the points after the
-/// transform. The points go through the projection of the renderer, so
-/// that a matrix which divides by w moves them as the frame does; the
-/// depth of mesh points stays out, as in `Transform::apply`. A point at
-/// or behind the eye is left out, and a box of no point in front overlaps
-/// nothing.
-fn projected_box(
-    transform: &Transform,
-    points: impl Iterator<Item = [f64; 2]>,
-) -> Rectangle<f64, Logical> {
-    let m = transform.matrix();
-    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
-    for [px, py] in points {
-        // The least w of a point that shows, as in the renderer.
-        let hw = m[3] * px + m[7] * py + m[15];
-        if hw <= 1e-6 {
-            continue;
-        }
-        let (x, y) = (
-            (m[0] * px + m[4] * py + m[12]) / hw,
-            (m[1] * px + m[5] * py + m[13]) / hw,
-        );
-        x0 = x0.min(x);
-        y0 = y0.min(y);
-        x1 = x1.max(x);
-        y1 = y1.max(y);
-    }
-    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
-}
-
 /// Whether Ctrl+Alt with a key is a binding of the safety layer (D23):
 /// `BackSpace` quits, `Escape` resets, `i` revokes the agents, `F1` to
 /// `F12` switch the VT.
@@ -1687,11 +1645,12 @@ mod tests {
     }
 
     #[test]
-    fn query_leaves_out_mirrored_rotated_and_collapsed_nodes() {
+    fn query_boxes_mirrored_and_rotated_nodes_and_leaves_out_collapsed_ones() {
         let mut core = Core::new();
         core.add_output("out", (800, 600));
         let mut wayland = Wayland::connect(&mut core);
-        wayland.toplevel(&mut core, "win");
+        let window = wayland.toplevel(&mut core, "win");
+        wayland.attach(&mut core, &window, (40, 30));
         let mut wm = core.named("wm");
         let path = png("mirror", 8);
         let sent = wm.send(
@@ -1700,8 +1659,6 @@ mod tests {
                 {"attach": {"surface": "s1", "parent": "root"}},
                 {"update": {"id": "s1", "props": {
                     "transform": {"translate": [400, 0], "scale": [-1, 1]}}}},
-                // An image without a size, so no layer: the renderer
-                // draws it only under a plain positive scale.
                 {"create": {"id": "turn", "kind": "image", "parent": "root",
                     "props": {"image": &path,
                               "transform": {"translate": [10, 10], "rotate": 30}}}},
@@ -1716,13 +1673,26 @@ mod tests {
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        for id in ["s1", "turn", "flat"] {
-            assert_eq!(
-                query_node(&mut wm, &mut core, id)["rects"],
-                json!({}),
-                "{id} draws nothing, so it shows on no output"
-            );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "s1")["rects"],
+            json!({"out": [360.0, 0.0, 40.0, 30.0]}),
+            "the mirrored window shows left of its origin"
+        );
+        let turned = query_node(&mut wm, &mut core, "turn")["rects"]["out"].clone();
+        let turned: Vec<f64> = serde_json::from_value(turned).unwrap();
+        let (side, turn) = (8.0_f64, 30.0_f64.to_radians());
+        let extent = side * (turn.cos() + turn.sin());
+        for (got, want) in turned
+            .iter()
+            .zip([10.0 - side * turn.sin(), 10.0, extent, extent])
+        {
+            assert!((got - want).abs() < 1e-6, "the turned image: {turned:?}");
         }
+        assert_eq!(
+            query_node(&mut wm, &mut core, "flat")["rects"],
+            json!({}),
+            "a collapsed node draws nothing, so it shows on no output"
+        );
         std::fs::remove_file(&path).unwrap();
     }
 

@@ -28,7 +28,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, Repeat, State, Suppressed},
+    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, PlaneGrab, Repeat, State, Suppressed},
 };
 
 /// What a key press does besides reaching a client.
@@ -549,20 +549,26 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
     // The drag of a node goes to plugins only, with each new position.
     let under = if let Some(grab) = &mut state.node_grab {
         let position = position_for(&state.scene, &state.outputs, &grab.node, &spot);
+        let local =
+            local_for(&state.scene, &state.outputs, &grab.node, &spot).unwrap_or(grab.local);
         #[allow(clippy::float_cmp)] // the same input gives the same numbers
-        if grab.position != position {
+        if (grab.position, grab.local) != (position, local) {
             grab.position = position;
+            grab.local = local;
             let node = grab.node.clone();
             let modifiers = modifiers(state);
             state.emit(&SceneEvent::PointerMoved {
                 node,
                 position,
+                local,
                 modifiers,
             });
         }
         None
     } else if state.button_grab.is_some() {
         None
+    } else if let Some(under) = planar_press(state, &spot) {
+        Some(under)
     } else {
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
     };
@@ -612,6 +618,9 @@ pub fn press_button(
         click_focus(state);
         note_input(state, pointer.current_focus(), serial, true);
         press_node(state, code, injected);
+        if state.plane_grab.is_none() {
+            start_plane_grab(state);
+        }
     } else {
         note_input(state, pointer.current_focus(), serial, false);
         release_node(state, code);
@@ -626,6 +635,9 @@ pub fn press_button(
         },
     );
     pointer.frame(state);
+    if button_state == ButtonState::Released {
+        state.plane_grab = None;
+    }
 }
 
 /// A button with modifiers that a client grabbed: the press, the moves and
@@ -784,9 +796,10 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
     let Some(spot) = state.spot(state.pointer_layout) else {
         return;
     };
-    let Some(node) = render::node_under(state, &spot) else {
+    let Some((node, local)) = render::node_hit(state, &spot) else {
         return;
     };
+    let local = [local.x, local.y];
     let hit = state.scene.node(&node);
     let area = hit.is_some_and(|n| n.kind != NodeKind::Surface);
     // A window counts for the client that it came from.
@@ -800,6 +813,7 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         node: node.clone(),
         button,
         position,
+        local,
         modifiers: modifiers(state),
         injected,
     });
@@ -808,41 +822,108 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
             node,
             button,
             position,
+            local,
         });
     }
 }
 
-/// The position of the pointer for a node: under the overlay of an output
-/// in the coordinates of that output, also while a drag crosses to another
-/// one, and in scene coordinates elsewhere.
+/// Where a node is reached from: the list of the root or of the overlay
+/// of an output, and the pointer in its coordinates. Under the overlay of
+/// an output the coordinates are those of that output, also while a drag
+/// crosses to another one; elsewhere they are scene coordinates.
+fn anchor(
+    scene: &chora_scene::Scene,
+    outputs: &[Output],
+    node: &str,
+    spot: &Spot,
+) -> (String, Point<f64, Logical>) {
+    let overlay = outputs
+        .iter()
+        .find(|o| scene.is_within(node, &chora_scene::overlay_id(&o.name())));
+    match overlay {
+        Some(o) => (
+            chora_scene::overlay_id(&o.name()),
+            spot.local + (output_area(&spot.output).loc - output_area(o).loc).to_f64(),
+        ),
+        None => (chora_scene::ROOT.into(), spot.scene),
+    }
+}
+
+/// The position of the pointer for a node, as `anchor` tells it.
 fn position_for(
     scene: &chora_scene::Scene,
     outputs: &[Output],
     node: &str,
     spot: &Spot,
 ) -> [f64; 2] {
-    let overlay = outputs
-        .iter()
-        .find(|o| scene.is_within(node, &chora_scene::overlay_id(&o.name())));
-    let at = overlay.map_or(spot.scene, |o| {
-        spot.local + (output_area(&spot.output).loc - output_area(o).loc).to_f64()
-    });
+    let (_, at) = anchor(scene, outputs, node, spot);
     [at.x, at.y]
+}
+
+/// The pointer in the coordinates of a node, mapped through its planes
+/// without a test of the inside. `None` when a plane shows the pointer
+/// behind the eye.
+fn local_for(
+    scene: &chora_scene::Scene,
+    outputs: &[Output],
+    node: &str,
+    spot: &Spot,
+) -> Option<[f64; 2]> {
+    let (start, at) = anchor(scene, outputs, node, spot);
+    let local = render::local_in(scene, &start, at, node)?;
+    Some([local.x, local.y])
+}
+
+/// Starts the press of a surface under a plane at the first button.
+fn start_plane_grab(state: &mut State) {
+    let Some(spot) = state.spot(state.pointer_layout) else {
+        return;
+    };
+    let Some(under) = render::surface_under(state, &spot) else {
+        return;
+    };
+    let (Some(origin), Some(node)) = (under.plane, under.node) else {
+        return;
+    };
+    if state.scene.is_within(&node, chora_scene::ROOT) {
+        state.plane_grab = Some(PlaneGrab {
+            node,
+            surface: under.surface,
+            origin,
+            last: spot.scene - under.location,
+        });
+    }
+}
+
+/// The surface of a press under a plane, with the location that gives its
+/// client the point that the plane maps to the pointer. When the plane
+/// shows the pointer behind the eye, the client keeps its last point.
+fn planar_press(state: &mut State, spot: &Spot) -> Option<(WlSurface, Point<f64, Logical>)> {
+    let grab = state.plane_grab.as_mut()?;
+    if let Some(local) = render::local_in(&state.scene, chora_scene::ROOT, spot.scene, &grab.node) {
+        grab.last = local - grab.origin;
+    }
+    Some((grab.surface.clone(), spot.scene - grab.last))
 }
 
 /// Ends the drag of a node when its button goes up.
 fn release_node(state: &mut State, button: u32) {
-    let Some(NodeGrab { node, .. }) = state.node_grab.take_if(|g| g.button == button) else {
+    let Some(NodeGrab { node, local, .. }) = state.node_grab.take_if(|g| g.button == button) else {
         return;
     };
-    let position = state.spot(state.pointer_layout).map_or([0.0; 2], |s| {
-        position_for(&state.scene, &state.outputs, &node, &s)
+    let spot = state.spot(state.pointer_layout);
+    let position = spot.as_ref().map_or([0.0; 2], |s| {
+        position_for(&state.scene, &state.outputs, &node, s)
     });
+    let local = spot
+        .and_then(|s| local_for(&state.scene, &state.outputs, &node, &s))
+        .unwrap_or(local);
     let modifiers = modifiers(state);
     state.emit(&SceneEvent::PointerReleased {
         node,
         button,
         position,
+        local,
         modifiers,
     });
 }

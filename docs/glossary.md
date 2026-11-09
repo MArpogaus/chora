@@ -9,6 +9,7 @@ terms and no synonyms.
 | **Scene** | The tree of nodes that the core renders. It is the single source of truth for the screen content. |
 | **Node** | One element of the scene. The kinds are **group**, **surface**, **rect**, **image**, **shader** and **text**. Every node has an id, an owner, a transform, an opacity and optional effects. |
 | **Group** | A node that contains other nodes. It applies a transform, a clip, an opacity and optional effects to its children. |
+| **Plane** | A node with a size whose transform, relative to its nearest layer, is not a 2D translation with a positive scale. The size is its `size` or its content: the geometry of a window, the file of an image, the layout of a text. The core draws it through a texture and maps pointer input through the inverse of its transform. |
 | **Canvas** | A group that serves as a working area: a workspace, a desktop or an infinite zoomable plane. |
 | **Surface** | A node that shows a Wayland client: an application window, a layer-shell widget or a browser window. For the core, a surface is a texture source and an input target. |
 | **Rect** | A colored rectangle with optional rounded corners and border. |

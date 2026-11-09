@@ -293,6 +293,7 @@ impl State {
         self.forget_unused_tokens(std::time::Duration::ZERO);
         self.inject_mark = None;
         self.node_grab = None;
+        self.plane_grab = None;
         self.button_grab = None;
         self.held.grabs.clear();
         let effects = self.scene.reset(self.reset_area());

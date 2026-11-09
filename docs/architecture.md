@@ -183,16 +183,19 @@ transaction names it, rejects the transaction on an error, and compiles it
 again when the file changes.
 
 Transforms are 4x4 matrices, so 3D effects need no API change. A node with
-a size and a mesh, or with a transform that is not a plain 2D translation
-and scale, is a **layer**: the core renders it with its descendants into a
+a size and a mesh, or with a transform that is not a 2D translation with a
+positive scale, is a **layer**: the core renders it with its descendants into a
 texture of its size, and then draws the texture through the mesh, or a
 quad, with the full transform of the node and the camera. The vertices go
 to the GPU in homogeneous coordinates, so textures map correctly under
 perspective. Wobbly windows move the points of a mesh, a magic lamp
 animates them, and a desktop cube turns layers in 3D. A layer has no depth
 test: the order of the siblings decides what is in front, and a plugin
-hides the faces that turn away. Pointer input reaches the nodes of a layer
-only where its transform is a plain 2D one.
+hides the faces that turn away. A node with a content size, for example a
+window, an image or a text, under such a transform is a **plane**: it draws
+through a texture of its size, and pointer input reaches it through the
+inverse of its transform, so a rotated window gets the pointer at the point
+that it shows.
 
 The core asks each output for a frame once per refresh. It renders only
 when the damage tracker of Smithay reports damage. A layer counts as

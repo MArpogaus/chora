@@ -464,15 +464,13 @@ rpc "[{\"update\": {\"id\": \"layer\",
     >"$out/shear.json"
 wait_for pixel_is 810 455 "255 0 0"
 pixel_is 720 455 "0 0 0" || fail "the sheared mesh: $(pixel 720 455)"
-# A perspective puts the right column of a mesh with depth behind the
-# eye: its cell goes, and the left cell still shows.
 rpc '[{"update": {"id": "layer", "props": {
        "mesh": {"cols": 2, "rows": 1, "points": [[0, 0], [150, 0], [300, 0], [0, 200], [150, 200], [300, 200]],
                 "depth": [0, 0, 200, 0, 0, 200]},
        "transform": {"matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.01, 700, 450, 0, 1]}}}}]' \
     >"$out/depth.json"
 all_results "$out/depth.json" || fail "answers: $out/depth.json"
-wait_for pixel_is 925 500 "0 0 0"
+wait_for pixel_is 925 500 "0 255 0"
 pixel_is 775 500 "255 0 0" || fail "the near cell: $(pixel 775 500)"
 # A quarter turn without a mesh: x goes down, y goes left.
 rpc '[{"update": {"id": "layer", "props": {"mesh": {"cols": 1, "rows": 1, "points": []},

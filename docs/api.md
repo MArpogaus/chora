@@ -64,7 +64,7 @@ This table is the one list of node properties.
 | `image` | image | absolute path of a PNG file; the core loads it again after a change |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch |
 | `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
-| `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer: rotated, mirrored or projected outside a layer, it draws nothing, so put it in a group with a `size` and a `clip`; the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
+| `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer; under a transform that is not a 2D translation with a positive scale it is a plane (see below); the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 | `line_height`, `weight`, `style`, `letter_spacing`, `features` | text | `line_height`: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; `weight`: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; `style`: `normal` or `italic`, slanted when the family has no italic; `letter_spacing`: extra space after each character in em, from -1 to 1, also after the last one; `features`: at most 32 OpenType features by their tag of four ASCII characters and their value, for example `{"smcp": 1, "onum": 1}` for small caps and old-style figures; a feature that the font lacks changes nothing; an update of `features` replaces all |
 
 A surface node gets its size from its client. The `configure` command asks
@@ -90,15 +90,33 @@ that read each other do not recurse.
 - update: {id: button, props: {border: null}}
 ```
 
-A node with a size and a mesh, or with a transform that is not a plain 2D
-translation and scale, for example a rotation or a perspective, is a layer
-(see [Architecture](architecture.md#renderer)). `animate` moves the points
-of a mesh of the same grid, for example for a magic lamp minimize.
+A node with a size and a mesh, or with a transform that is not a 2D
+translation with a positive scale, for example a rotation, a mirror or a
+perspective, is a layer (see [Architecture](architecture.md#renderer)).
+`animate` moves the points of a mesh of the same grid, for example for a
+magic lamp minimize.
+
+A **plane** is a node with a size whose transform, relative to its nearest
+layer, is not a 2D translation with a positive scale. The size is the
+`size`, or the content: the geometry of a window, the file of an image, the
+layout of a text. A group without a `size` passes its transform on, so each
+child below it is its own plane. Every plane draws: a rotated window, a
+mirrored text or a node under a group with a perspective matrix needs no
+layer in the scene. A plane that is edge on or collapsed draws nothing.
+Pointer input reaches a plane through the inverse of its transform: the
+core maps the pointer into the plane and then runs the hit test of the
+plane there. Input reaches the window, its subsurfaces and the nodes in the
+plane only inside the area of the plane, and never where the plane shows the
+pointer behind the eye. During a press, the core maps every motion through
+the plane that the press hit, also outside it; where the plane shows the
+pointer behind the eye, the last point stays. The popups of a window under a
+plane stay inside the geometry of the window.
 
 With `depth`, a grid bends into 3D, for example a strip on a ring around
 the viewer, and a perspective transform projects it. The texture maps
-perspective-correct. A triangle with a point behind the viewer does
-not show; the rest of the mesh does.
+perspective-correct. A triangle with some points behind the viewer shows
+the part in front of it; a triangle with all points behind it does not
+show.
 
 An effect is a GLSL ES fragment shader with absolute path. It reads the
 layer in `uniform sampler2D tex` at `varying vec2 v_uv`. `v_uv` is
@@ -325,8 +343,8 @@ by default; a timeout exits 1 with the reason on stderr.
 | `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
-| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
-| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position and modifiers; `pointer.released` with the button |
+| `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local` and modifiers; `pointer.released` with the button. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye |
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
