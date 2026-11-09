@@ -3,11 +3,18 @@
 # opens foot, a look, typing into it; the two captures must differ.
 #
 # Usage: tests/persona/smoke.sh
-# Needs: target/debug binaries and foot.
+# Needs: target/debug binaries, foot, waybar, swaybg, jq, setsid and
+# dbus-run-session.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
+for tool in foot waybar swaybg jq setsid dbus-run-session; do
+    command -v "$tool" >/dev/null || {
+        echo "FAIL: $tool is needed" >&2
+        exit 1
+    }
+done
 dir=$(mktemp -d /tmp/persona-smoke.XXXXXX)
 spid=
 # shellcheck disable=SC2329 # runs as the EXIT trap

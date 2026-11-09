@@ -16,6 +16,11 @@ driver here gives it exactly that.
 
 ## Start a session (PM)
 
+A tiling session needs `waybar`, `swaybg`, `jq`, `setsid` and
+`dbus-run-session` besides the binaries of the repo; `session.sh` stops
+with a message when `jq`, `setsid` or `dbus-run-session` is missing, and
+skips a companion that is not installed. `smoke.sh` also needs `foot`.
+
 ```console
 $ tests/persona/session.sh xp 1280x800 > /tmp/persona.out 2>&1 &
 $ sleep 5; cat /tmp/persona.out
