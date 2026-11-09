@@ -337,8 +337,8 @@ last `voice.confirm` goes again after 1 s.
 While a claimer of the indicator (section 10) is connected, the event
 also has `buttons: true`. A HUD can then show Yes and No buttons. A
 click calls `voice.confirm.answer {id, yes}` with the `id` of the
-event. Only a client that holds `indicator.claim` may call it, and
-only for the question that is open now. An old or wrong `id` is
+event. Only an unconfined client that holds `indicator.claim` may call
+it, and only for the question that is open now. An old or wrong `id` is
 refused. A click is a physical act, as a key press is. So a button
 also answers a question about a security key. The LLM never reaches
 the method: it calls no method of NAME (see "Own settings").
@@ -389,10 +389,10 @@ the user agrees:
   shows that line too.
 - A holder of `indicator.claim` is trusted like the keyboard: its
   `confirm.answer` counts as a physical answer (review rc3 round 3,
-  2.6). A confined client with `methods.privileged` can claim the
-  indicator and then answer every key question. So grant
-  `methods.privileged`, and with it the claim, only to a HUD that the
-  user trusts as the keyboard.
+  2.6). The agent refuses `indicator.claim` and `confirm.answer` from a
+  confined caller, as the `confined` field of `method.called` names it.
+  A confined client can then neither claim the indicator nor answer a
+  question, also with `methods.privileged`.
 - An injected key could answer the question. The core marks an
   `input.key` event of `input.inject` with `injected: true`, and the
   agent ignores an injected key of `confirm_keys`. Besides, the agent
@@ -644,11 +644,11 @@ both a key variable and a key file for one server.
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
-| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller |
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
-| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a caller without `indicator.claim` and for any other `id` (section 5) |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller without `indicator.claim` and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 
