@@ -52,16 +52,16 @@ done
 ((top > 0)) || fail "waybar reserved no space: the work area starts at $top"
 echo "waybar: the work area starts at y=$top"
 
-act look >"$dir/a.path"
+act look | cut -d" " -f1 >"$dir/a.path"
 act key Super+Return
 sleep 4 # foot starts and draws
-act look >"$dir/b.path"
+act look | cut -d" " -f1 >"$dir/b.path"
 act type 'echo hello'
 act key Return
 sleep 1
 a=$(cat "$dir/a.path")
 b=$(cat "$dir/b.path")
-act look >"$dir/c.path"
+act look | cut -d" " -f1 >"$dir/c.path"
 c=$(cat "$dir/c.path")
 
 out=$(python3 -I "$repo/tests/png-same.py" "$a" "$b") || fail "png-same: $out"
@@ -70,9 +70,19 @@ echo "$out" | grep -qE '^0 ' && fail "the captures do not differ"
 out=$(python3 -I "$repo/tests/png-same.py" "$b" "$c") || fail "png-same: $out"
 echo "look 2 vs 3: $out"
 
+act key Super+Return
+sleep 4
+look=$(act look --max-side 640)
+act click 480 200
+sleep 1
+focused_x=$(admin query 'kind:surface' | jq '.[] | select(.focused) | .rects["HEADLESS-1"][0] | floor')
+((focused_x > 640)) || fail "a click at 480,200 of a 640 px capture did not focus the right window (x=$focused_x)"
+echo "click on the capture: the window at x=$focused_x has the focus"
+echo "$look" | grep -q 'scale=0.5' || fail "look printed no scale: $look"
+
 log=$dir/s/actions.jsonl
 n=$(wc -l <"$log")
-((n == 6)) || fail "the log has $n lines, expected 6"
+((n == 9)) || fail "the log has $n lines, expected 9"
 grep -q '"ok": false' "$log" && fail "a failed action in the log"
 # A command outside the list is refused.
 act ls >/dev/null 2>&1 && fail "act.py took an unknown command"
