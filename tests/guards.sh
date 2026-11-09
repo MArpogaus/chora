@@ -91,7 +91,7 @@ comment_case "rust doc comment" pass a.rs "" '/// docs\n//! crate docs\nfn a() {
 comment_case "rust SAFETY comment" pass a.rs "" '// SAFETY: checked\nfn a() {}\n'
 comment_case "rust url in string" pass a.rs "" 'const U: &str = "http://x.org";\n'
 comment_case "rust slashes in string" pass a.rs "" 'const U: &str = "a // b";\n'
-comment_case "rust url after colon" pass a.rs "" 'fn a() { open(http://x.org); }\n'
+comment_case "rust slashes after a colon outside a string" fail a.rs "" 'fn a() { open(http://x.org); }\n'
 comment_case "rust old comment untouched" pass a.rs '// old\nfn a() {}\n' 'fn b() {}\n'
 comment_case "shell comment line" fail a.sh '#!/bin/sh\n# header\n\nls\n' '# explain\nls\n'
 comment_case "shell trailing comment" fail a.sh "" 'ls # explain\n'

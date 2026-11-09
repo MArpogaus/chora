@@ -113,7 +113,7 @@ def comment_start(line, kind, state):
             if line[index] == "'":
                 index = skip_char_literal(line, index)
                 continue
-            if line.startswith("//", index) and before != ":":
+            if line.startswith("//", index):
                 return index, state
         elif line[index] == "#" and before.isspace():
             return index, state
