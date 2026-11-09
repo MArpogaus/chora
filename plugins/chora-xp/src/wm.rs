@@ -2197,7 +2197,13 @@ impl Wm {
 
     /// Starts a program and follows it until its window shows.
     fn start_program(&mut self, command: &str) {
-        if let Some(change) = self.launches.run(command, Instant::now()) {
+        self.start_named(command, launch::program_name(command));
+    }
+
+    /// Starts a program that the user knows by another name than its
+    /// command, such as a file that `xdg-open` opens.
+    fn start_named(&mut self, command: &str, name: String) {
+        if let Some(change) = self.launches.run(command, name, Instant::now()) {
             self.tell(&change);
         }
     }
@@ -2205,7 +2211,7 @@ impl Wm {
     /// Shows what the programs that wait for a window call for.
     fn check_launches(&mut self) {
         let mut changes = self.launches.collect();
-        changes.extend(self.launches.check(Instant::now(), chora_kit::alive));
+        changes.extend(self.launches.check(Instant::now()));
         for change in &changes {
             self.tell(change);
         }
@@ -2736,6 +2742,7 @@ impl Wm {
     /// program or a file with the program of its type.
     fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
         let fm = &self.settings.value.file_manager;
+        let mut name = None;
         let command = match open {
             desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
             desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
@@ -2743,9 +2750,15 @@ impl Wm {
                 desktop_icons::open_with(fm, &desktop_icons::trash_to_open())
             }
             desktop_icons::Open::Run(command) => command,
-            desktop_icons::Open::File(path) => desktop_icons::xdg_open(&path),
+            desktop_icons::Open::File(path) => {
+                name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+                desktop_icons::xdg_open(&path)
+            }
         };
-        self.start_program(&command);
+        match name {
+            Some(name) => self.start_named(&command, name),
+            None => self.start_program(&command),
+        }
         Vec::new()
     }
 

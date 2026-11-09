@@ -47,8 +47,6 @@ pub enum Why {
     Missing,
     /// `choractl run` could not start it.
     Refused,
-    /// It ended before its first window showed.
-    Stopped,
     /// No window showed within [`GIVE_UP`].
     Slow,
 }
@@ -61,9 +59,8 @@ impl Change {
             Self::Starting { name, .. } => (format!("Starting {name}"), "Please wait.".into()),
             Self::Failed { name, why, .. } => {
                 let body = match why {
-                    Why::Missing => "The program is not installed.".into(),
+                    Why::Missing => "The program is not installed.".to_string(),
                     Why::Refused => "The session could not start it.".into(),
-                    Why::Stopped => "It ended before it opened a window.".to_string(),
                     Why::Slow => format!("No window opened in {} seconds.", GIVE_UP.as_secs()),
                 };
                 (format!("Cannot open {name}"), body)
@@ -77,7 +74,6 @@ impl Change {
 struct Entry {
     name: String,
     token: String,
-    pid: Option<u32>,
     since: Instant,
     windows_before: u64,
     note: Option<u32>,
@@ -87,7 +83,7 @@ struct Entry {
 /// The answer of `choractl run` for a command.
 struct Started {
     name: String,
-    launched: Option<(String, Option<u32>)>,
+    token: Option<String>,
     since: Instant,
     windows_before: u64,
 }
@@ -129,8 +125,7 @@ impl Launches {
     /// on a thread of its own, so the window manager never blocks; its
     /// answer comes with [`Self::collect`]. A program that is not on
     /// `PATH` never starts: the change says so.
-    pub fn run(&mut self, command: &str, now: Instant) -> Option<Change> {
-        let name = program_name(command);
+    pub fn run(&mut self, command: &str, name: String, now: Instant) -> Option<Change> {
         if !crate::session::on_path(command.split_whitespace().next().unwrap_or_default()) {
             eprintln!("chora-xp: {name:?} is not on PATH, {command:?} does not run");
             return Some(Change::Failed {
@@ -143,10 +138,10 @@ impl Launches {
         let sender = self.sender.clone();
         let windows_before = self.windows;
         std::thread::spawn(move || {
-            let launched = chora_kit::launch(&command);
+            let token = chora_kit::launch(&command).map(|(token, _)| token);
             let _ = sender.send(Started {
                 name,
-                launched,
+                token,
                 since: now,
                 windows_before,
             });
@@ -163,7 +158,7 @@ impl Launches {
 
     fn drain(&mut self) {
         while let Ok(started) = self.started.try_recv() {
-            match started.launched {
+            match started.token {
                 Some(_) => self.add(started),
                 None => self.failed.push(Change::Failed {
                     name: started.name,
@@ -175,7 +170,7 @@ impl Launches {
     }
 
     fn add(&mut self, started: Started) {
-        let Some((token, pid)) = started.launched else {
+        let Some(token) = started.token else {
             return;
         };
         if self.opened.contains(&token) {
@@ -184,7 +179,6 @@ impl Launches {
         self.entries.push(Entry {
             name: started.name,
             token,
-            pid,
             since: started.since,
             windows_before: started.windows_before,
             note: None,
@@ -213,36 +207,33 @@ impl Launches {
         }
     }
 
-    /// What the programs that wait for a window call for at `now`.
-    /// `alive` tells whether a process runs.
-    pub fn check(&mut self, now: Instant, alive: impl Fn(u32) -> bool) -> Vec<Change> {
+    /// What the programs that wait for a window call for at `now`. A
+    /// program that shows no window within [`GIVE_UP`] fails, unless a
+    /// window of another start opened meanwhile, which a launcher that
+    /// hands its work to a running instance explains.
+    pub fn check(&mut self, now: Instant) -> Vec<Change> {
         let mut changes = Vec::new();
         let windows = self.windows;
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
-            let gone = !entry.pid.is_some_and(&alive);
-            let why = if gone && entry.windows_before != windows {
-                return false;
-            } else if gone {
-                Why::Stopped
-            } else if age >= GIVE_UP {
-                Why::Slow
-            } else {
-                if age >= SHOW_AFTER && !entry.shown {
-                    entry.shown = true;
-                    changes.push(Change::Starting {
-                        token: entry.token.clone(),
+            if age >= GIVE_UP {
+                if entry.windows_before == windows {
+                    changes.push(Change::Failed {
                         name: entry.name.clone(),
+                        note: entry.note,
+                        why: Why::Slow,
                     });
                 }
-                return true;
-            };
-            changes.push(Change::Failed {
-                name: entry.name.clone(),
-                note: entry.note,
-                why,
-            });
-            false
+                return false;
+            }
+            if age >= SHOW_AFTER && !entry.shown {
+                entry.shown = true;
+                changes.push(Change::Starting {
+                    token: entry.token.clone(),
+                    name: entry.name.clone(),
+                });
+            }
+            true
         });
         changes
     }
@@ -261,17 +252,17 @@ pub fn program_name(command: &str) -> String {
 mod tests {
     use super::*;
 
-    fn launches(pid: Option<u32>) -> (Launches, Instant) {
+    fn launches() -> (Launches, Instant) {
         let now = Instant::now();
         let mut launches = Launches::new();
-        launches.add(started(pid, now));
+        launches.add(started(now));
         (launches, now)
     }
 
-    fn started(pid: Option<u32>, since: Instant) -> Started {
+    fn started(since: Instant) -> Started {
         Started {
             name: "writer".into(),
-            launched: Some(("t1".into(), pid)),
+            token: Some("t1".into()),
             since,
             windows_before: 0,
         }
@@ -296,7 +287,11 @@ mod tests {
     #[test]
     fn a_missing_program_gives_a_message_and_starts_nothing() {
         let mut launches = Launches::new();
-        let change = launches.run("chora-no-such-program --flag", Instant::now());
+        let change = launches.run(
+            "chora-no-such-program --flag",
+            "chora-no-such-program".into(),
+            Instant::now(),
+        );
         assert_eq!(
             change,
             Some(Change::Failed {
@@ -310,9 +305,9 @@ mod tests {
 
     #[test]
     fn a_program_that_runs_shows_a_message_only_after_a_moment() {
-        let (mut launches, now) = launches(Some(7));
-        assert_eq!(launches.check(seconds(now, 1), |_| true), none());
-        let changes = launches.check(seconds(now, 2), |_| true);
+        let (mut launches, now) = launches();
+        assert_eq!(launches.check(seconds(now, 1)), none());
+        let changes = launches.check(seconds(now, 2));
         assert_eq!(
             changes,
             [Change::Starting {
@@ -320,17 +315,17 @@ mod tests {
                 name: "writer".into()
             }]
         );
-        assert_eq!(launches.check(seconds(now, 3), |_| true), none());
+        assert_eq!(launches.check(seconds(now, 3)), none());
     }
 
     #[test]
     fn the_window_of_the_token_ends_the_wait_and_names_the_message_to_close() {
-        let (mut launches, now) = launches(Some(7));
-        launches.check(seconds(now, 2), |_| true);
+        let (mut launches, now) = launches();
+        launches.check(seconds(now, 2));
         launches.noted("t1", 12);
         assert_eq!(launches.window(Some("other")), None);
         assert_eq!(launches.window(Some("t1")), Some(12));
-        assert_eq!(launches.check(seconds(now, 40), |_| true), none());
+        assert_eq!(launches.check(seconds(now, 40)), none());
     }
 
     #[test]
@@ -338,51 +333,48 @@ mod tests {
         let now = Instant::now();
         let mut launches = Launches::new();
         assert_eq!(launches.window(Some("t1")), None);
-        launches.add(started(Some(7), now));
-        assert_eq!(launches.check(seconds(now, 40), |_| true), none());
+        launches.add(started(now));
+        assert_eq!(launches.check(seconds(now, 40)), none());
     }
 
     #[test]
-    fn a_program_that_ended_without_a_window_says_so_in_place_of_its_message() {
-        let (mut launches, now) = launches(Some(7));
-        launches.check(seconds(now, 2), |_| true);
-        launches.noted("t1", 12);
-        let changes = launches.check(seconds(now, 3), |_| false);
+    fn a_launcher_that_exits_at_once_is_followed_like_any_program() {
+        let (mut launches, now) = launches();
+        assert_eq!(launches.check(seconds(now, 1)), none());
         assert_eq!(
-            changes,
-            [Change::Failed {
-                name: "writer".into(),
-                note: Some(12),
-                why: Why::Stopped
+            launches.check(seconds(now, 2)),
+            [Change::Starting {
+                token: "t1".into(),
+                name: "writer".into()
             }]
         );
-        assert_eq!(launches.check(seconds(now, 4), |_| false), none());
+        launches.noted("t1", 12);
+        assert_eq!(launches.window(Some("t1")), Some(12));
     }
 
     #[test]
-    fn a_start_that_left_no_pid_counts_as_ended() {
-        let (mut launches, now) = launches(None);
-        assert_eq!(launches.check(seconds(now, 1), |_| true).len(), 1);
+    fn a_start_that_left_no_pid_waits_like_any_other() {
+        let (mut launches, now) = launches();
+        assert_eq!(launches.check(seconds(now, 1)), none());
     }
 
     #[test]
     fn a_launcher_that_hands_over_to_a_running_instance_is_no_failure() {
-        let (mut launches, now) = launches(Some(7));
+        let (mut launches, now) = launches();
         assert_eq!(launches.window(None), None);
-        assert_eq!(launches.check(seconds(now, 1), |_| false), none());
-        assert_eq!(launches.check(seconds(now, 40), |_| true), none());
+        assert_eq!(launches.check(seconds(now, GIVE_UP.as_secs())), none());
     }
 
     #[test]
     fn a_program_without_a_window_gives_up_after_the_limit() {
-        let (mut launches, now) = launches(Some(7));
+        let (mut launches, now) = launches();
         assert!(
             launches
-                .check(seconds(now, GIVE_UP.as_secs() - 1), |_| true)
+                .check(seconds(now, GIVE_UP.as_secs() - 1))
                 .iter()
                 .all(|c| matches!(c, Change::Starting { .. }))
         );
-        let changes = launches.check(seconds(now, GIVE_UP.as_secs()), |_| true);
+        let changes = launches.check(seconds(now, GIVE_UP.as_secs()));
         assert_eq!(
             changes,
             [Change::Failed {
@@ -391,7 +383,7 @@ mod tests {
                 why: Why::Slow
             }]
         );
-        assert_eq!(launches.check(seconds(now, 60), |_| true), none());
+        assert_eq!(launches.check(seconds(now, 60)), none());
     }
 
     #[test]

@@ -430,7 +430,7 @@ DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/n
     >"$out/notify2.log" 2>&1 || fail "the second chora-notify failed: $out/notify2.log"
 grep -q "another owner" "$out/notify2.log" || fail "no word of the owner: $out/notify2.log"
 
-step "17b. a program that cannot start, ends or is slow gets a message that names it"
+step "17b. a program that cannot start or is slow gets a message that names it"
 said() {
     jq -e --arg m "$1" --arg s "$2" \
         'select(.member == $m and (.payload.data[3] // "" | startswith($s)))' \
@@ -448,10 +448,7 @@ open_my_documents_with chora-no-such-manager
 wait_for said Notify "Cannot open chora-no-such-manager"
 grim "$out/cannot-open.png"
 printf '#!/bin/sh\nsleep 3\nexec foot\n' >"$out/slow-manager"
-printf '#!/bin/sh\nexit 3\n' >"$out/ending-manager"
-chmod +x "$out/slow-manager" "$out/ending-manager"
-open_my_documents_with "$out/ending-manager"
-wait_for said Notify "Cannot open ending-manager"
+chmod +x "$out/slow-manager"
 open_my_documents_with "$out/slow-manager"
 wait_for said Notify "Starting slow-manager"
 grim "$out/starting.png"
