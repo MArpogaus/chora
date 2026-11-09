@@ -2,7 +2,8 @@
 # Starts a private headless chora session with a flavor for a simulated
 # user (persona), and grants the client `persona` screen.capture and
 # input.inject only. It stays in the foreground until SIGTERM or INT, then
-# stops the core by its pid and removes the session directory.
+# stops the core by its pid and removes the session directory, unless the
+# caller gave it in PERSONA_DIR.
 #
 # Usage: tests/persona/session.sh FLAVOR [WxH]
 #        tests/persona/session.sh --stop ENV_FILE
@@ -10,8 +11,16 @@
 #   WxH     the size of the virtual output (default 1280x800)
 #
 # Environment:
-#   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX)
+#   PERSONA_DIR  the session directory (default: a new /tmp/persona.XXXXXX,
+#                which the script removes at the end; a directory that
+#                you give stays)
+#   PERSONA_KEEP a directory that gets a copy of shots/ and actions.jsonl
+#                when the session ends (default: nothing is kept)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
+#
+# The companions that the units of the flavor start (flavors/FLAVOR/) start
+# too, with choractl run, when their programs exist on the machine; the
+# list of each flavor is the `case` on FLAVOR in this script.
 #
 # When the session is up, it writes KEY=VALUE lines to
 # $PERSONA_DIR/session.env and prints "PERSONA_ENV=<that file>" as its
@@ -47,8 +56,18 @@ fi
 flavor=$1
 size=${2:-1280x800}
 
-dir=${PERSONA_DIR:-$(mktemp -d /tmp/persona.XXXXXX)}
+if [[ -n ${PERSONA_KEEP:-} && -n $(ls -A "$PERSONA_KEEP" 2>/dev/null) ]]; then
+    echo "PERSONA_KEEP $PERSONA_KEEP is not empty; give a new or empty directory" >&2
+    exit 2
+fi
+created_dir=
+if [[ -z ${PERSONA_DIR:-} ]]; then
+    PERSONA_DIR=$(mktemp -d /tmp/persona.XXXXXX)
+    created_dir=$PERSONA_DIR
+fi
+dir=$PERSONA_DIR
 mkdir -p "$dir/shots" "$dir/config"
+rm -f "$dir/last_look.json"
 dir=$(cd "$dir" && pwd)
 env_file=$dir/session.env
 
@@ -80,8 +99,29 @@ construct) startup=("$bin/chora-construct") ;;
     ;;
 esac
 
+case $flavor in
+tiling)
+    companions=(
+        "swaybg --color #2e3440"
+        "waybar --config $repo/flavors/tiling/waybar/config.jsonc"
+    )
+    ;;
+*) companions=() ;;
+esac
+
+if ((${#companions[@]})); then
+    for tool in jq setsid dbus-run-session; do
+        command -v "$tool" >/dev/null || {
+            echo "$tool is needed to start the companions of $flavor" >&2
+            exit 2
+        }
+    done
+fi
+
 out=$dir/headless.out
 session=
+companion_units=()
+companion_pids=()
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
     trap - EXIT INT TERM HUP
@@ -94,8 +134,20 @@ cleanup() {
         done
         kill -KILL "$session" 2>/dev/null || true
     fi
-    # Programs of `choractl run` that stayed in this script's group.
-    rm -rf "$dir"
+    for unit in "${companion_units[@]}"; do
+        systemctl --user stop "$unit" 2>/dev/null || true
+    done
+    for pid in "${companion_pids[@]}"; do
+        kill -TERM -- "-$pid" 2>/dev/null || true
+    done
+    if [[ -n ${PERSONA_KEEP:-} ]]; then
+        mkdir -p "$PERSONA_KEEP"
+        cp -r "$dir/shots" "$PERSONA_KEEP/"
+        cp "$dir/actions.jsonl" "$PERSONA_KEEP/" 2>/dev/null || true
+    fi
+    if [[ -n $created_dir ]]; then
+        rm -rf "$created_dir"
+    fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -123,6 +175,22 @@ core=$(pgrep -P "$session" -x chora | head -n 1 || true)
 
 # The admin socket grants; persona gets these two and nothing else.
 CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona screen.capture input.inject >/dev/null
+
+for line in "${companions[@]}"; do
+    read -ra argv <<<"$line"
+    command -v "${argv[0]}" >/dev/null || continue
+    started=$(
+        WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$out") CHORA_FLAVOR_DIR=$repo/flavors/$flavor \
+            CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime \
+            "$bin/choractl" run setsid dbus-run-session -- "${argv[@]}"
+    )
+    unit=$(jq -r '.unit // empty' <<<"$started")
+    if [[ -n $unit ]]; then
+        companion_units+=("$unit")
+    else
+        companion_pids+=("$(jq -r .pid <<<"$started")")
+    fi
+done
 
 {
     echo "PERSONA_ENV=$env_file"

@@ -3,11 +3,18 @@
 # opens foot, a look, typing into it; the two captures must differ.
 #
 # Usage: tests/persona/smoke.sh
-# Needs: target/debug binaries and foot.
+# Needs: target/debug binaries, foot, waybar, swaybg, jq, setsid and
+# dbus-run-session.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
+for tool in foot waybar swaybg jq setsid dbus-run-session; do
+    command -v "$tool" >/dev/null || {
+        echo "FAIL: $tool is needed" >&2
+        exit 1
+    }
+done
 dir=$(mktemp -d /tmp/persona-smoke.XXXXXX)
 spid=
 # shellcheck disable=SC2329 # runs as the EXIT trap
@@ -25,7 +32,15 @@ fail() {
     exit 1
 }
 
-PERSONA_DIR=$dir/s "$here/session.sh" tiling >"$dir/out" 2>"$dir/err" &
+mkdir "$dir/s"
+touch "$dir/s/sentinel"
+echo '{"scale": 0.1, "origin": [0, 0]}' >"$dir/s/last_look.json"
+mkdir "$dir/full"
+touch "$dir/full/file"
+PERSONA_KEEP=$dir/full "$here/session.sh" tiling >/dev/null 2>"$dir/refuse.err" && fail "a non-empty PERSONA_KEEP was accepted"
+grep -q PERSONA_KEEP "$dir/refuse.err" || fail "no message about PERSONA_KEEP: $(cat "$dir/refuse.err")"
+echo "keep: a non-empty directory is refused"
+PERSONA_DIR=$dir/s PERSONA_KEEP=$dir/keep "$here/session.sh" tiling >"$dir/out" 2>"$dir/err" &
 spid=$!
 for _ in $(seq 150); do
     [[ -s $dir/out ]] && break
@@ -36,20 +51,33 @@ done
 PERSONA_ENV=$(sed -n 's/^PERSONA_ENV=//p' "$dir/out")
 export PERSONA_ENV
 act() { python3 -I "$here/act.py" "$@"; }
+env_value() { sed -n "s/^$1=//p" "$PERSONA_ENV"; }
+admin() {
+    CHORA_SOCKET=$(env_value CHORA_SOCKET) XDG_RUNTIME_DIR=$(env_value XDG_RUNTIME_DIR) \
+        "${CHORA_BIN:-$repo/target/debug}/choractl" "$@"
+}
 sleep 2 # the plugin needs a moment before it takes keys
 
-act look >"$dir/a.path"
+top=0
+for _ in $(seq 100); do
+    top=$(admin outputs | jq '.[0].work_area[1]')
+    ((top > 0)) && break
+    sleep 0.2
+done
+((top > 0)) || fail "waybar reserved no space: the work area starts at $top"
+[[ ! -e $dir/s/last_look.json ]] || fail "the session kept a stale last_look.json"
+echo "waybar: the work area starts at y=$top"
+
+act look | cut -d" " -f1 >"$dir/a.path"
 act key Super+Return
 sleep 4 # foot starts and draws
-act look >"$dir/b.path"
+act look | cut -d" " -f1 >"$dir/b.path"
 act type 'echo hello'
 act key Return
 sleep 1
 a=$(cat "$dir/a.path")
 b=$(cat "$dir/b.path")
-cp "$a" "$dir/a.png"
-cp "$b" "$dir/b.png"
-act look >"$dir/c.path"
+act look | cut -d" " -f1 >"$dir/c.path"
 c=$(cat "$dir/c.path")
 
 out=$(python3 -I "$repo/tests/png-same.py" "$a" "$b") || fail "png-same: $out"
@@ -58,11 +86,37 @@ echo "$out" | grep -qE '^0 ' && fail "the captures do not differ"
 out=$(python3 -I "$repo/tests/png-same.py" "$b" "$c") || fail "png-same: $out"
 echo "look 2 vs 3: $out"
 
+act key Super+Return
+sleep 4
+look=$(act look --max-side 640)
+act click 480 200
+sleep 1
+focused_x=$(admin query 'kind:surface' | jq '.[] | select(.focused) | .rects["HEADLESS-1"][0] | floor')
+((focused_x > 640)) || fail "a click at 480,200 of a 640 px capture did not focus the right window (x=$focused_x)"
+echo "click on the capture: the window at x=$focused_x has the focus"
+echo "$look" | grep -q 'scale=0.5' || fail "look printed no scale: $look"
+
+act type -x two words >/dev/null || fail "act.py type refused a text that starts with a dash"
+
 log=$dir/s/actions.jsonl
+typed=$(grep '"action": "type"' "$log" | tail -n 1 | jq -r .args.text)
+[[ $typed == "-x two words" ]] || fail "typed '$typed', expected '-x two words'"
+echo "type: '$typed'"
 n=$(wc -l <"$log")
-((n == 6)) || fail "the log has $n lines, expected 6"
+((n == 10)) || fail "the log has $n lines, expected 10"
 grep -q '"ok": false' "$log" && fail "a failed action in the log"
 # A command outside the list is refused.
 act ls >/dev/null 2>&1 && fail "act.py took an unknown command"
 echo "log: $n actions, none failed"
+
+cp "$log" "$dir/log.before"
+"$here/session.sh" --stop "$PERSONA_ENV"
+wait "$spid" || true
+spid=
+shots=$(find "$dir/keep/shots" -name '*.png' 2>/dev/null | wc -l || true)
+((shots == 4)) || fail "PERSONA_KEEP holds $shots captures, expected 4"
+cmp -s "$dir/keep/actions.jsonl" "$dir/log.before" || fail "PERSONA_KEEP holds no copy of the action log"
+echo "keep: $shots captures and the log"
+[[ -e $dir/s/sentinel ]] || fail "the session removed the PERSONA_DIR of its caller"
+echo "PERSONA_DIR of the caller is still there"
 echo "PASS"

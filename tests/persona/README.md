@@ -6,12 +6,20 @@ driver here gives it exactly that.
 
 - `session.sh FLAVOR [WxH]` starts a private headless session (`tiling`,
   `xp`, `mc`, `construct`) and grants the client `persona` only
-  `screen.capture` and `input.inject`.
+  `screen.capture` and `input.inject`. It also starts the companions of
+  the flavor with `choractl run`, as its units do: `tiling` gets swaybg
+  (the wallpaper) and waybar (the panel with the tags), each when its
+  program is installed. `xp`, `mc` and `construct` have none.
 - `act.py` is the only command of the persona: `look`, `click`, `move`,
   `drag`, `type`, `key`, `scroll`. It logs every action.
 - `smoke.sh` checks the driver on a tiling session.
 
 ## Start a session (PM)
+
+A tiling session needs `waybar`, `swaybg`, `jq`, `setsid` and
+`dbus-run-session` besides the binaries of the repo; `session.sh` stops
+with a message when `jq`, `setsid` or `dbus-run-session` is missing, and
+skips a companion that is not installed. `smoke.sh` also needs `foot`.
 
 ```console
 $ tests/persona/session.sh xp 1280x800 > /tmp/persona.out 2>&1 &
@@ -22,12 +30,30 @@ PERSONA_ENV=/tmp/persona.AbC123/session.env
 The session stays up until it gets SIGTERM. End it with
 `tests/persona/session.sh --stop /tmp/persona.AbC123/session.env` (it
 kills the session by the pid in the file, never by name). It then removes
-its directory, so copy `actions.jsonl` and the `shots/` you want to keep
-first. Set `PERSONA_DIR` to choose the directory.
+its directory, when it made the directory itself. Set `PERSONA_KEEP` to a directory, for example
+`/home/user/wt/log/media/DATE/persona-NAME/`, and the session copies
+`shots/` and `actions.jsonl` there first, so that a feedback file can
+cite the pictures. A `PERSONA_KEEP` that is not empty is refused at the start. Without
+`PERSONA_KEEP` they go with the directory.
+A directory that you give in `PERSONA_DIR` is never removed; its files
+stay.
 
-The persona needs only the path in `PERSONA_ENV`. Coordinates are logical
-pixels of the output, so the size you give the session is the size of the
-screen.
+The persona needs only the path in `PERSONA_ENV`.
+
+`look` scales the capture down to `--max-side` (default 800), so the PNG
+is usually smaller than the screen. It prints the path, the size of the
+capture, the size of the screen and the scale:
+
+```console
+$ act.py look --max-side 640
+/tmp/persona.AbC123/shots/001.png capture=640x400 screen=1280x800 scale=0.5
+```
+
+The coordinates of `click`, `move` and `drag` are always pixels of the
+last capture, as the persona reads them off the picture. `act.py` keeps
+the scale of the last `look` in `$PERSONA_DIR/last_look.json` and turns
+the position into logical pixels of the output. Before the first `look`
+they are logical pixels. `scroll` takes no position and is not scaled.
 
 ## Brief for the persona subagent
 
@@ -45,13 +71,15 @@ Your only tools:
 1. Bash, for exactly this command and no other:
    PERSONA_ENV=<path> python3 -I <repo>/tests/persona/act.py ACTION ...
    look [--max-side N]       takes a picture of the screen, prints a PNG path
+                             and the size of the picture
    click X Y [--button left|right] [--double]
    move X Y
    drag X1 Y1 X2 Y2
-   type TEXT
+   type TEXT                 the rest of the line is the text
    key COMBO                 for example Super+Return, Return, Ctrl+c
    scroll DX DY
-   The screen is <W>x<H> pixels; X and Y count from the top left.
+   X and Y are pixels of the picture of your last `look`, counted from
+   its top left.
 2. Read, only to look at the PNG that `look` printed.
 Do not read any other file, run any other command, or search the web.
 
