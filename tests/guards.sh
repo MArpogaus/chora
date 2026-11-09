@@ -114,6 +114,8 @@ comment_case "python comment after triple quotes" fail a.py "" 's = """\nx\n"""\
 comment_case "shell heredoc" pass a.sh "" 'cat <<EOF\n# inside\nEOF\n'
 comment_case "shell quoted heredoc" pass a.sh "" "cat <<'END'\\n# inside\\nEND\\n"
 comment_case "shell comment after heredoc" fail a.sh "" 'cat <<EOF\nx\nEOF\n# explain\n'
+comment_case "shell arithmetic shift is no heredoc" fail a.sh "" 'x=\x24((1<<n))\n# explain\n'
+comment_case "shell heredoc word in quotes" fail a.sh "" 'echo "<<EOF"\n# explain\n'
 comment_case "python pragma" pass a.py "" 'x = 1  # pragma: no cover\n'
 comment_case "rust rustfmt skip" pass a.rs "" '// rustfmt::skip\nfn a() {}\n'
 comment_case "rust SAFETY without space" pass a.rs "" '//SAFETY: checked\nfn a() {}\n'
