@@ -186,7 +186,7 @@ split review: chora-construct 6530 2026-11-09 (no plugin split; split main.rs in
 ## Review findings
 
 Round of 11-09 evening (sonnet bugs, KISS, leftovers, UX; opus security
-pending) on A = df6dc69..5e92531, B = hud-h1, C = hud-h3:
+done, below) on A = df6dc69..5e92531, B = hud-h1, C = hud-h3:
 
 - C high (verified by the PM): `agents.rs` `cancel_running` holds the
   lock of the match scrutinee while `cancel()` locks again; cancelling a
@@ -202,6 +202,28 @@ pending) on A = df6dc69..5e92531, B = hud-h1, C = hud-h3:
   docs/hud.md; `when` values and size bounds not validated; KISS: a
   `match` instead of TABLE plus order test; duplicate text helpers in
   ask.rs; the jargon test misses "chora-voice" and "Look".
+- Opus security view: B1 = the same deadlock (high; it blocks the stop
+  path, principle 5). B2 medium: transcript entries uncut (16 MiB lines,
+  OOM; an entry over the core MAX_LINE sticks the reader): cut entries to
+  16 KiB and bound the ring in bytes. B3 low: transcript not redacted
+  (`chat::hide` unused). C1 medium: SVG `<image href>` read by the
+  default usvg resolver: resolver limited to `data:` or `hud::file`,
+  `resources_dir` = folder (goes to H2). C2 medium: folder fonts could
+  fake the card text: the card draws with host fonts only (H5). C3
+  medium: ids of any characters, literal text anywhere, unbounded sizes,
+  `chat.slot` lets a client place the card: ids `[a-z0-9_-]{1,32}`,
+  upper bounds, the card always on top at a host-fixed place (H1 fix,
+  H5). C4 low: `hud.yaml` read through `dir.join` and parsed after a
+  failed scan, no entry count or depth limit, hard links, alias budget.
+  C5 low: `{` in the file part of `picture`.
+  A1 medium: any unconfined main-socket process (run_program with a
+  token, an ACP agent shell if the sandbox mounts the socket) can claim
+  the indicator and press Yes: only the HUD names of a security setting
+  may claim; test the socket check of agent-sandbox.sh (grants step 2).
+  A2 low: an injected press sets `last_press` and `pressed`, so it can
+  mint a token and satisfy the focus press rule (into the H4c design
+  check). A3 low: a missing `confined` field means unconfined: make it
+  `Option<bool>`, `None` = confined.
 - A medium: the XP start messages (launch.rs:62-73) are English only and
   name no next step; they move into the word table after H1 merges.
   Low: `program_name("'my app' x")` gives "my"; German voice phrases
