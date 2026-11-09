@@ -96,8 +96,15 @@ fi
 sed "s|^file_manager: .*|file_manager: $file_manager|" \
     "$(dirname "$0")/../plugins/chora-xp/xp.yaml" >"$out/chora-xp.yaml"
 
+bus="unix:path=$XDG_RUNTIME_DIR/bus"
+dbus-daemon --session --nofork --address="$bus" >"$out/dbus.log" 2>&1 &
+pids+=($!)
+wait_for test -S "$XDG_RUNTIME_DIR/bus"
+busctl --address "$bus" monitor --json=short org.freedesktop.Notifications >"$out/bus.jsonl" 2>/dev/null &
+pids+=($!)
+
 step "1. chora -- chora-xp starts nested"
-CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
+DBUS_SESSION_BUS_ADDRESS=$bus CHORA_FRAME_BUDGET_US=500000 "$bin/chora" -- "$bin/chora-xp" --theme "$theme" --slow-motion 5 \
     --config "$out/chora-xp.yaml" >"$out/chora.log" 2>&1 &
 chora_pid=$!
 pids+=("$chora_pid")
@@ -111,10 +118,6 @@ has_node_count() { test "$(query "$2" | jq length)" = "$1"; }
 wait_for has_node id:xp-tray-winit
 
 step "1b. chora-notify and chora-assistant start with the XP assets"
-bus="unix:path=$XDG_RUNTIME_DIR/bus"
-dbus-daemon --session --nofork --address="$bus" >"$out/dbus.log" 2>&1 &
-pids+=($!)
-wait_for test -S "$XDG_RUNTIME_DIR/bus"
 DBUS_SESSION_BUS_ADDRESS=$bus "$bin/chora-notify" --assets "$assets/notify" >"$out/notify.log" 2>&1 &
 pids+=($!)
 "$bin/chora-assistant" --assets "$assets/assistant" >"$out/assistant.log" 2>&1 &
@@ -426,6 +429,34 @@ step "17. a second chora-notify leaves the bus name to the first and ends cleanl
 DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/notify" \
     >"$out/notify2.log" 2>&1 || fail "the second chora-notify failed: $out/notify2.log"
 grep -q "another owner" "$out/notify2.log" || fail "no word of the owner: $out/notify2.log"
+
+step "17b. a program that cannot start, ends or is slow gets a message that names it"
+said() {
+    jq -e --arg m "$1" --arg s "$2" \
+        'select(.member == $m and (.payload.data[3] // "" | startswith($s)))' \
+        "$out/bus.jsonl" >/dev/null
+}
+closed() { jq -e 'select(.member == "CloseNotification")' "$out/bus.jsonl" >/dev/null; }
+open_my_documents_with() {
+    xp settings.set "{\"file_manager\": \"$1\"}" >/dev/null
+    click 50 785 || fail "the click failed"
+    wait_for menu_visible true
+    click 280 $((menu_y + 85)) || fail "the click failed"
+    wait_for menu_visible false
+}
+open_my_documents_with chora-no-such-manager
+wait_for said Notify "Cannot open chora-no-such-manager"
+grim "$out/cannot-open.png"
+printf '#!/bin/sh\nsleep 3\nexec foot\n' >"$out/slow-manager"
+printf '#!/bin/sh\nexit 3\n' >"$out/ending-manager"
+chmod +x "$out/slow-manager" "$out/ending-manager"
+open_my_documents_with "$out/ending-manager"
+wait_for said Notify "Cannot open ending-manager"
+open_my_documents_with "$out/slow-manager"
+wait_for said Notify "Starting slow-manager"
+grim "$out/starting.png"
+wait_for closed
+"$bin/choractl" call xp settings.set "{\"file_manager\": \"$file_manager\"}" >/dev/null
 
 # A token given before or with the first commit reaches plugins
 # through surface.created.
