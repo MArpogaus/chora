@@ -643,11 +643,11 @@ both a key variable and a key file for one server.
 |---|---|---|
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
-| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
+| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
 | `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller |
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
-| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
+| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
+| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
 | `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller without `indicator.claim` and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |

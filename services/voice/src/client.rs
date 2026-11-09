@@ -105,6 +105,20 @@ struct ButtonParams {
     yes: bool,
 }
 
+/// Whether a confined caller is refused `method`: the methods that act for
+/// the user at the keyboard.
+fn not_for_confined(method: &str) -> bool {
+    matches!(method, "confirm" | "talk" | "mute")
+}
+
+/// The refusal of `method` for a confined caller.
+fn confined_refusal(method: &str) -> RpcError {
+    RpcError::new(
+        RpcError::REJECTED,
+        format!("{method}: not for a confined connection"),
+    )
+}
+
 /// `indicator.claim` of `caller`: a confined connection never claims, as a
 /// claim lets it answer the questions of the agent.
 fn claim_indicator(claims: &mut Claims, caller: &str, confined: bool) -> Result<Value, RpcError> {
@@ -226,6 +240,7 @@ fn session(
 
 /// Handles the events of chora and emits the events of the HUD until the
 /// connection fails.
+#[allow(clippy::too_many_lines, reason = "one arm per event")]
 fn serve(
     client: &mut Client,
     name: &str,
@@ -257,6 +272,17 @@ fn serve(
             }) if method == "confirm.answer" => {
                 let answer = confirm_answer(&client.claims, &client.tx, &caller, confined, params);
                 client.rt.conn.answer(call, answer)?;
+            }
+            Some(Event::MethodCalled {
+                call,
+                method,
+                confined: true,
+                ..
+            }) if not_for_confined(&method) => {
+                client
+                    .rt
+                    .conn
+                    .answer(call, Err(confined_refusal(&method)))?;
             }
             // Any client may read the settings: without the header values.
             Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
@@ -679,6 +705,20 @@ mod tests {
         assert!(rx.try_recv().is_err(), "the core heard nothing");
         assert!(claim_indicator(&mut claims, "mc", false).is_ok());
         assert!(claims.0.contains("mc"));
+    }
+
+    /// A confined connection cannot answer by `confirm`, push to talk or
+    /// mute, whatever it holds; the other methods stay open to it.
+    #[test]
+    fn a_confined_caller_cannot_confirm_talk_or_mute() {
+        for method in ["confirm", "talk", "mute"] {
+            assert!(super::not_for_confined(method), "{method}");
+            let err = super::confined_refusal(method);
+            assert_eq!(err.code, RpcError::REJECTED, "{method}");
+        }
+        for method in ["state", "cancel", "sleep", "wake", "health"] {
+            assert!(!super::not_for_confined(method), "{method}");
+        }
     }
 
     /// Emits `new` at `now`; the core takes them or refuses them over its
