@@ -1,0 +1,9 @@
+[Unit]
+Description=chora-notify with the XP assets
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/chora-notify --assets /usr/share/chora/flavors/xp/assets/notify
+Restart=on-failure
+RestartSec=1
