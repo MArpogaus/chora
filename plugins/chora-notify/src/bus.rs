@@ -149,25 +149,56 @@ pub struct Bus {
     pub requests: Receiver<Request>,
 }
 
+/// Why the server did not start.
+#[derive(Debug, PartialEq, Eq)]
+pub enum StartError {
+    /// Another server owns the name.
+    Taken,
+    /// The bus failed.
+    Failed(String),
+}
+
+impl std::fmt::Display for StartError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Taken => write!(f, "{NAME} has another owner"),
+            Self::Failed(err) => f.write_str(err),
+        }
+    }
+}
+
+impl std::error::Error for StartError {}
+
 impl Bus {
     /// Takes the name on the session bus, if no other server has it: it
     /// never queues for the name, nor takes it from its owner.
-    pub fn start() -> Result<Self, String> {
+    ///
+    /// # Errors
+    ///
+    /// The bus fails, or another server owns the name.
+    pub fn start() -> Result<Self, StartError> {
+        Self::on(Connection::session().map_err(|e| StartError::Failed(e.to_string()))?)
+    }
+
+    /// Takes the name on a connection, as [`Self::start`].
+    ///
+    /// # Errors
+    ///
+    /// The bus fails, or another server owns the name.
+    pub fn on(conn: Connection) -> Result<Self, StartError> {
+        let failed = |e: zbus::Error| StartError::Failed(e.to_string());
         let (tx, requests) = channel();
-        let conn = Connection::session().map_err(|e| e.to_string())?;
         let server = Server {
             requests: tx,
             last: 0,
         };
-        conn.object_server()
-            .at(PATH, server)
-            .map_err(|e| e.to_string())?;
+        conn.object_server().at(PATH, server).map_err(failed)?;
         match conn.request_name_with_flags(NAME, RequestNameFlags::DoNotQueue.into()) {
             Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => {
                 Ok(Self { conn, requests })
             }
-            Ok(_) => Err(format!("{NAME} has another owner")),
-            Err(err) => Err(err.to_string()),
+            Ok(_) | Err(zbus::Error::NameTaken) => Err(StartError::Taken),
+            Err(err) => Err(StartError::Failed(err.to_string())),
         }
     }
 
@@ -195,6 +226,39 @@ impl Bus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_second_server_finds_the_name_taken() {
+        let Ok(daemon) = std::process::Command::new("dbus-daemon")
+            .args(["--session", "--nofork", "--print-address"])
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+        else {
+            return;
+        };
+        let mut daemon = KillOnDrop(daemon);
+        let mut address = String::new();
+        let stdout = daemon.0.stdout.take().unwrap();
+        std::io::BufRead::read_line(&mut std::io::BufReader::new(stdout), &mut address).unwrap();
+        let connect = || {
+            zbus::blocking::connection::Builder::address(address.trim())
+                .unwrap()
+                .build()
+                .unwrap()
+        };
+        let first = Bus::on(connect()).expect("the name is free");
+        assert_eq!(Bus::on(connect()).err(), Some(StartError::Taken));
+        drop(first);
+    }
+
+    struct KillOnDrop(std::process::Child);
+
+    impl Drop for KillOnDrop {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
 
     #[test]
     fn actions_come_in_pairs() {

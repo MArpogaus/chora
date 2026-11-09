@@ -410,6 +410,11 @@ speech_visible() { test "$(query id:assistant-speech | jq '.[0].visible')" = tru
 wait_for speech_visible
 grim "$out/paperclip.png"
 
+step "17. a second chora-notify leaves the bus name to the first and ends cleanly"
+DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/notify" \
+    >"$out/notify2.log" 2>&1 || fail "the second chora-notify failed: $out/notify2.log"
+grep -q "another owner" "$out/notify2.log" || fail "no word of the owner: $out/notify2.log"
+
 # A token given before or with the first commit reaches plugins
 # through surface.created.
 "$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
