@@ -69,3 +69,11 @@
     security agent reported that the PM's plan commits reverted its
     working tree twice during pre-commit runs. Solved by the session log
     branch in its own worktree.
+12. **The main repository went bare (11-09).** `core.bare` was set to
+    true in /home/user/chora; git then refused all work there and a merge
+    did not happen. Probable cause: a new pre-commit hook runs
+    `tests/guards.sh`, pre-commit exports GIT_DIR, and the `git init` of
+    the test repos re-initialised the real repository. Reset with `git
+    config core.bare false`; nothing was lost. Change: test scripts that
+    make git repos unset the GIT_* environment first; the run start
+    checks `git config --get core.bare` is false.
