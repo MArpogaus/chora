@@ -27,6 +27,11 @@ fail() {
 
 mkdir "$dir/s"
 touch "$dir/s/sentinel"
+mkdir "$dir/full"
+touch "$dir/full/file"
+PERSONA_KEEP=$dir/full "$here/session.sh" tiling >/dev/null 2>"$dir/refuse.err" && fail "a non-empty PERSONA_KEEP was accepted"
+grep -q PERSONA_KEEP "$dir/refuse.err" || fail "no message about PERSONA_KEEP: $(cat "$dir/refuse.err")"
+echo "keep: a non-empty directory is refused"
 PERSONA_DIR=$dir/s PERSONA_KEEP=$dir/keep "$here/session.sh" tiling >"$dir/out" 2>"$dir/err" &
 spid=$!
 for _ in $(seq 150); do
