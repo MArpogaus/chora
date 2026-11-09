@@ -86,12 +86,38 @@ impl<R: MeshRenderer> SceneElement<R> {
     }
 }
 
+/// One counter per [`Variant`]; a new variant fails to compile in `slot`.
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct ElementCounts {
+    surface: u64,
+    scaled: u64,
+    solid: u64,
+    cursor: u64,
+    image: u64,
+    mesh: u64,
+    text: u64,
+}
+
+impl ElementCounts {
+    fn slot(&mut self, variant: Variant) -> &mut u64 {
+        match variant {
+            Variant::Surface => &mut self.surface,
+            Variant::Scaled => &mut self.scaled,
+            Variant::Solid => &mut self.solid,
+            Variant::Cursor => &mut self.cursor,
+            Variant::Image => &mut self.image,
+            Variant::Mesh => &mut self.mesh,
+            Variant::Text => &mut self.text,
+        }
+    }
+}
+
 /// What rendering did since the start of the core, for the tests that
 /// guard the cost of a scene. The counters only grow.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct RenderStats {
     /// The elements that [`output_elements`] returned, by variant.
-    pub elements: [u64; 7],
+    pub elements: ElementCounts,
     /// The node contents that rendered into a texture of their own.
     pub textures_rendered: u64,
     /// The shader passes over such textures: shapes, shaders and effects.
@@ -111,7 +137,7 @@ impl RenderStats {
 
     fn count<R: MeshRenderer>(&mut self, elements: &[SceneElement<R>]) {
         for element in elements {
-            self.elements[element.variant() as usize] += 1;
+            *self.elements.slot(element.variant()) += 1;
         }
     }
 }
@@ -119,8 +145,8 @@ impl RenderStats {
 #[cfg(test)]
 impl RenderStats {
     /// How many elements of a variant [`output_elements`] returned.
-    pub fn elements_of(&self, variant: Variant) -> u64 {
-        self.elements[variant as usize]
+    pub fn elements_of(&mut self, variant: Variant) -> u64 {
+        *self.elements.slot(variant)
     }
 
     /// The offscreen renders: node contents and shader passes.
@@ -151,6 +177,7 @@ pub struct Assets {
     /// The nodes that the last render of each output left out, before the
     /// frame shows.
     pub frame_left_out: HashMap<String, Vec<String>>,
+    /// What rendering counted since the start of the core.
     pub stats: RenderStats,
 }
 

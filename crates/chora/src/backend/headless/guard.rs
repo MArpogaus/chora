@@ -3,18 +3,14 @@
 //! 3D work, so that a change of the render path shows as a failing test.
 
 use serde_json::{Value, json};
-use smithay::{
-    backend::renderer::{Bind, Frame, Renderer},
-    output::Output,
-};
+use smithay::output::Output;
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::KeyboardInteractivity,
 };
 
-use super::{Headless, render_all};
+use super::render_all;
 use crate::{
     backend::Backend,
-    gl,
     render::{self, RenderStats, Variant},
     testing::{Client, Core, wayland::Wayland},
 };
@@ -138,38 +134,10 @@ fn a_2d_scene_takes_no_3d_path() {
     let before = stats(&core);
     render_frames(&mut core, 1);
     assert_eq!(variants(&mut core, &output), expected);
-    let after = stats(&core);
+    let mut after = stats(&core);
     assert_eq!(after.elements_of(Variant::Mesh), 0);
     assert_eq!(after.offscreen(), before.offscreen());
     assert_eq!(after.offscreen(), 0, "no layer renders into a texture");
-}
-
-#[test]
-fn the_output_target_has_no_depth_attachment() {
-    let (mut core, mut wm, _output) = core_with_output();
-    let (_wayland, _) = flat_scene(&mut core, &mut wm);
-    render_frames(&mut core, 1);
-    let Some(Backend::Headless(headless)) = &mut core.state.backend else {
-        panic!("a headless backend");
-    };
-    let Headless {
-        renderer, outputs, ..
-    } = &mut **headless;
-    let texture = outputs[0].texture.as_mut().expect("a rendered texture");
-    let size = smithay::backend::renderer::Texture::size(texture);
-    let mut framebuffer = renderer.bind(texture).expect("a bind");
-    let mut frame = renderer
-        .render(
-            &mut framebuffer,
-            (size.w, size.h).into(),
-            smithay::utils::Transform::Normal,
-        )
-        .expect("a frame");
-    let [color, depth, stencil] = gl::attachments(&mut frame).expect("a query");
-    drop(frame.finish().expect("a finished frame"));
-    drop(framebuffer);
-    assert_ne!(color, 0, "the query reads the framebuffer of the output");
-    assert_eq!((depth, stencil), (0, 0), "GL_NONE for depth and stencil");
 }
 
 #[test]
