@@ -4,9 +4,10 @@
 Usage: no-inline-comments.py FILE...   (pre-commit passes the files)
 
 Checks Rust, shell and Python files, by suffix or by shebang. Allowed:
-Rust doc comments, SAFETY comments, the shebang, the usage header at the
-top of a script, and tool directives (shellcheck, noqa, type:, pylint,
-fmt:, pragma:, rustfmt::skip).
+Rust doc comments (`///`, `//!`) and SAFETY comments, the shebang, the
+usage header at the top of a shell or Python script, and the tool
+directives shellcheck, noqa, type:, pylint, fmt: and pragma: in shell
+and Python.
 
 The scan runs over the whole staged file, so an added line inside a
 multi-line string is not a comment: Rust strings and raw strings, Python
@@ -18,15 +19,13 @@ import re
 import subprocess
 import sys
 
-DIRECTIVES = (
-    "shellcheck", "noqa", "type:", "pylint", "fmt:", "pragma:", "rustfmt::skip",
-)
+DIRECTIVES = ("shellcheck", "noqa", "type:", "pylint", "fmt:", "pragma:")
 HUNK = re.compile(r"^@@ -\S+ \+(\d+)")
 RUST_RAW = re.compile(r"b?r(#*)\"")
 HEREDOC = re.compile(r"(?<!<)<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2")
 MESSAGE = """inline comments are not allowed: names explain the code.
 Allowed: doc comments (///, //!, docstrings), // SAFETY:, tool directives
-(shellcheck, noqa, type:, pylint, fmt:, pragma:, rustfmt::skip) and the
+(shellcheck, noqa, type:, pylint, fmt:, pragma: in shell and Python) and the
 usage header at the top of a script. Remove the comment or move the
 reason into the doc comment of the item."""
 
@@ -151,9 +150,8 @@ def comments(lines, kind):
 def allowed(text, kind):
     if kind == "rust":
         if text.startswith(("///", "//!")):
-            return True
-        body = text[2:].strip()
-        return body.startswith("SAFETY:") or body.startswith(DIRECTIVES)
+            return not text.startswith("////")
+        return text[2:].strip().startswith("SAFETY:")
     return text[1:].strip().startswith(DIRECTIVES)
 
 
