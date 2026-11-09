@@ -1235,9 +1235,13 @@ shows, which the activation token of the start tells. `chora-xp` shows
 what happens as a balloon of `chora-notify` on the session bus; without
 a notification server it writes the same words to its log:
 
-- A program that is not on `PATH` never starts. The balloon "Cannot open
+- A command that is a plain program name, such as `thunar '/'`, and whose
+  program is not on `PATH` never starts. The balloon "Cannot open
   NAME" says that it is not installed. NAME is the program of the command,
   without directory and arguments, for example `thunar` or `libreoffice`.
+  Other commands, such as `./app`, `VAR=1 app`, `env VAR=1 app`,
+  `cd dir && app`, a quoted program or a shell builtin, run as they are:
+  the shell finds the program, or the limit of 30 seconds speaks.
 - A program that is still starting after 2 seconds shows "Starting NAME".
   The balloon closes when the window shows. A program that shows no window
   within 30 seconds gets "Cannot open NAME" with the number of seconds,

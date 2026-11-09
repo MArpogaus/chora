@@ -126,7 +126,7 @@ impl Launches {
     /// answer comes with [`Self::collect`]. A program that is not on
     /// `PATH` never starts: the change says so.
     pub fn run(&mut self, command: &str, name: String, now: Instant) -> Option<Change> {
-        if !crate::session::on_path(command.split_whitespace().next().unwrap_or_default()) {
+        if missing(command, crate::session::on_path) {
             eprintln!("chora-xp: {name:?} is not on PATH, {command:?} does not run");
             return Some(Change::Failed {
                 name,
@@ -239,6 +239,34 @@ impl Launches {
     }
 }
 
+/// Words that the shell runs without a program on `PATH`.
+const BUILTINS: [&str; 18] = [
+    ".", ":", "alias", "cd", "command", "echo", "eval", "exec", "exit", "export", "printf", "pwd",
+    "read", "set", "source", "test", "trap", "unset",
+];
+
+/// Whether a command is a plain program that `on_path` does not know:
+/// its first word is a bare name, no shell builtin, and the command has
+/// no assignment, quote around the program, path, operator or
+/// substitution that could make the shell find the program elsewhere.
+/// Such a command never runs, so a message can say so at once; any other
+/// command runs and the limit of [`GIVE_UP`] speaks.
+fn missing(command: &str, on_path: impl Fn(&str) -> bool) -> bool {
+    let Some(word) = command.split_whitespace().next() else {
+        return false;
+    };
+    let plain = word
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '+' | '-'));
+    let shell = command.chars().any(|c| {
+        matches!(
+            c,
+            '&' | '|' | ';' | '<' | '>' | '(' | ')' | '$' | '`' | '\\'
+        )
+    });
+    plain && !shell && !BUILTINS.contains(&word) && !on_path(word)
+}
+
 /// The name of the program of a shell command: its first word without
 /// quotes and directory.
 #[must_use]
@@ -282,6 +310,34 @@ mod tests {
         assert_eq!(program_name("/usr/bin/thunar '/'"), "thunar");
         assert_eq!(program_name("'my app' x"), "my");
         assert_eq!(program_name(""), "");
+    }
+
+    #[test]
+    fn only_a_plain_command_of_a_program_that_is_not_there_counts_as_missing() {
+        let on_path = |word: &str| matches!(word, "env" | "foot");
+        let refused = ["chora-no-such", "chora-no-such --flag '/home/user'"];
+        let run = [
+            "foot",
+            "foot -e htop",
+            "/opt/app/bin/start",
+            "./app",
+            "'my app' --flag",
+            "\"my app\"",
+            "VAR=1 chora-no-such",
+            "env VAR=1 chora-no-such",
+            "cd /tmp && chora-no-such",
+            "chora-no-such || foot",
+            "chora-no-such $HOME",
+            "cd /tmp",
+            "exec chora-no-such",
+            "",
+        ];
+        for command in refused {
+            assert!(missing(command, on_path), "{command}");
+        }
+        for command in run {
+            assert!(!missing(command, on_path), "{command}");
+        }
     }
 
     #[test]
