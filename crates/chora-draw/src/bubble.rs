@@ -9,13 +9,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A corner of an output.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Corner {
     /// The top left corner.
     TopLeft,
     /// The top right corner.
-    #[default]
     TopRight,
     /// The bottom left corner.
     BottomLeft,
