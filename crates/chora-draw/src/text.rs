@@ -1,7 +1,9 @@
 //! Text through usvg and fontdb: each line of text becomes a small SVG
-//! document with a `<text>` element, which resvg renders with the bundled
-//! font or a system font. XP's own fonts in `fonts/WindowsXP` of the XDG
-//! data directories come first, when they are installed.
+//! document with a `<text>` element, which resvg renders with a font of
+//! the asset folder or a system font. The base family is a value of the
+//! asset folder; `sans-serif` names the sans-serif family of the system.
+//! XP's own fonts in `fonts/WindowsXP` of the XDG data directories come
+//! first, when they are installed.
 
 use std::{fmt::Write as _, path::Path, sync::Arc};
 
@@ -15,6 +17,9 @@ use resvg::{
 };
 
 use crate::theme::Rect;
+
+/// The family name that stands for the sans-serif family of the system.
+pub const SANS_SERIF: &str = "sans-serif";
 
 /// The fonts of the theme.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -62,6 +67,7 @@ pub struct Text {
 
 impl Text {
     /// Left-aligned text without a shadow.
+    #[must_use]
     pub fn new(text: &str, font: Font, color: [u8; 4], rect: Rect) -> Self {
         Self {
             line: text.into(),
@@ -74,12 +80,14 @@ impl Text {
     }
 
     /// The same text with a shadow.
+    #[must_use]
     pub fn shadow(mut self, color: [u8; 4]) -> Self {
         self.shadow = Some(color);
         self
     }
 
     /// The same text, centered.
+    #[must_use]
     pub fn centered(mut self) -> Self {
         self.align = Align::Center;
         self
@@ -130,48 +138,50 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    /// Loads the system fonts and the fonts of the theme directory.
-    pub fn load(dir: &Path) -> Self {
+    /// Loads the system fonts and the font files in `fonts/` of the asset
+    /// directory. `family` is the base family of the text.
+    #[must_use]
+    pub fn load(dir: &Path, family: &str) -> Self {
         let mut db = Database::new();
-        // Of equal faces, a query takes the first one, so XP's own Tahoma
-        // goes before the Tahoma of newer Windows and the Wine Tahoma of
-        // the theme.
         for data in data_dirs() {
             db.load_fonts_dir(data.join("fonts/WindowsXP"));
         }
         db.load_system_fonts();
-        for file in ["fonts/tahoma.ttf", "fonts/LibreFranklin-Bold.ttf"] {
-            if let Err(err) = db.load_font_file(dir.join(file)) {
-                eprintln!("chora-xp: font {file}: {err}");
+        let files = std::fs::read_dir(dir.join("fonts")).into_iter().flatten();
+        for file in files.flatten().map(|entry| entry.path()) {
+            if let Err(err) = db.load_font_file(&file) {
+                eprintln!("chora-draw: font {}: {err}", file.display());
             }
         }
-        Self::with(db)
+        Self::with(db, family)
     }
 
     /// The looks of the fonts from a font database.
-    fn with(mut db: Database) -> Self {
-        db.set_sans_serif_family("Tahoma");
-        let title = first_family(&db, &["Trebuchet MS", "Tahoma"]);
-        let start = first_family(&db, &["Franklin Gothic Medium", "Libre Franklin", "Tahoma"]);
-        // XP draws "start" in Franklin Gothic Medium Italic, made bold.
+    fn with(mut db: Database, base: &str) -> Self {
+        if base != SANS_SERIF {
+            db.set_sans_serif_family(base);
+        }
+        let title = first_family(&db, &["Trebuchet MS", base]);
+        let start = first_family(&db, &["Franklin Gothic Medium", "Libre Franklin", base]);
         let spec = |family: &str, size, bold, italic| Spec::new(&db, family, size, bold, italic);
         let specs = [
-            spec("Tahoma", 11, false, false),
-            spec("Tahoma", 11, true, false),
+            spec(base, 11, false, false),
+            spec(base, 11, true, false),
             spec(&title, 13, true, false),
             spec(&start, 17, true, true),
-            spec("Tahoma", 16, true, false),
-            spec("Tahoma", 19, false, false),
+            spec(base, 16, true, false),
+            spec(base, 19, false, false),
         ];
         let options = usvg::Options {
             fontdb: Arc::new(db),
-            font_family: "Tahoma".into(),
+            font_family: base.into(),
             ..usvg::Options::default()
         };
         Self { options, specs }
     }
 
     /// The options for parsing SVG files, with the font database.
+    #[must_use]
     pub fn options(&self) -> &usvg::Options<'static> {
         &self.options
     }
@@ -182,6 +192,10 @@ impl Fonts {
 
     /// Draws a line of text onto a pixmap, in the coordinates that `base`
     /// scales to pixels.
+    ///
+    /// # Errors
+    ///
+    /// The text does not parse as SVG.
     pub fn draw(
         &self,
         text: &Text,
@@ -215,7 +229,6 @@ impl Fonts {
             return clean;
         }
         let chars: Vec<char> = clean.chars().collect();
-        // The longest prefix that fits with the ellipsis, by bisection.
         let (mut low, mut high) = (0, chars.len());
         while low < high {
             let mid = (low + high).div_ceil(2);
@@ -231,6 +244,7 @@ impl Fonts {
     }
 
     /// The width of a line from its start to the right edge of its ink.
+    #[must_use]
     pub fn width(&self, line: &str, font: Font) -> Option<f64> {
         let probe = Text::new(line, font, [0, 0, 0, 255], [0, 0, 4096, 64]);
         let tree = self
@@ -244,19 +258,19 @@ impl Fonts {
         (bbox.width() > 0.0).then(|| f64::from(bbox.right()))
     }
 
-    /// The `<text>` element of a line, at `x` and moved down by `dy`.
+    /// The `<text>` element of a line, at `x` and moved down by `dy`. A
+    /// window title draws without smoothing and with a thin stroke for its
+    /// weight, as XP does; a family without a bold face takes a thicker
+    /// stroke. A family without an italic face is sheared.
     fn element(&self, line: &str, text: &Text, [x, dy]: [f64; 2], color: [u8; 4]) -> String {
         let spec = self.spec(text.font);
         let [_, y, _, h] = text.rect;
         let size = f64::from(spec.size);
-        // The baseline that centers the capitals in the rectangle.
         let baseline = f64::from(y) + f64::from(h) / 2.0 + size * 0.36 + dy;
         let fill = format!("rgb({},{},{})", color[0], color[1], color[2]);
         let alpha = f64::from(color[3]) / 255.0;
         let mut out = String::new();
         if spec.slant == Slant::Sheared {
-            // skewX(-8) shears around the origin; the shift keeps the
-            // baseline in place.
             let _ = write!(
                 out,
                 r#"<g transform="translate({:.2} 0) skewX(-8)">"#,
@@ -274,10 +288,6 @@ impl Fonts {
                 "normal"
             },
         );
-        // XP draws window titles without smoothing, with stems of two
-        // pixels: no anti-aliasing, and a thin stroke for the weight. A
-        // family without a bold face takes a thicker stroke; one stroke
-        // in all, as SVG allows one attribute of a name.
         let title = text.font == Font::Title;
         if title {
             out += r#" text-rendering="optimizeSpeed""#;
@@ -308,13 +318,58 @@ impl Fonts {
     }
 }
 
+/// Breaks text into lines no wider than `max`, at spaces where it can, and
+/// at its line breaks. A word wider than a line breaks between its
+/// characters.
+pub fn wrap(text: &str, max: f64, width: impl Fn(&str) -> f64) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.lines() {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            let candidate = if line.is_empty() {
+                word.to_string()
+            } else {
+                format!("{line} {word}")
+            };
+            if width(&candidate) <= max {
+                line = candidate;
+                continue;
+            }
+            if !line.is_empty() {
+                lines.push(std::mem::take(&mut line));
+            }
+            for c in word.chars() {
+                line.push(c);
+                if width(&line) > max && line.chars().count() > 1 {
+                    line.pop();
+                    lines.push(std::mem::replace(&mut line, c.to_string()));
+                }
+            }
+        }
+        lines.push(line);
+    }
+    while lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
+    lines
+}
+
+/// The family of a name; `sans-serif` is the generic family.
+fn family(name: &str) -> Family<'_> {
+    if name == SANS_SERIF {
+        Family::SansSerif
+    } else {
+        Family::Name(name)
+    }
+}
+
 /// The first family of a list that the database has, or the last one.
 fn first_family(db: &Database, families: &[&str]) -> String {
     families
         .iter()
         .find(|f| {
             db.query(&Query {
-                families: &[Family::Name(f)],
+                families: &[family(f)],
                 ..Query::default()
             })
             .is_some()
@@ -324,9 +379,9 @@ fn first_family(db: &Database, families: &[&str]) -> String {
 }
 
 /// Whether a family has a bold face.
-fn has_bold(db: &Database, family: &str) -> bool {
+fn has_bold(db: &Database, name: &str) -> bool {
     db.query(&Query {
-        families: &[Family::Name(family)],
+        families: &[family(name)],
         weight: Weight::BOLD,
         ..Query::default()
     })
@@ -335,9 +390,9 @@ fn has_bold(db: &Database, family: &str) -> bool {
 }
 
 /// Whether a family has an italic face.
-fn has_italic(db: &Database, family: &str) -> bool {
+fn has_italic(db: &Database, name: &str) -> bool {
     db.query(&Query {
-        families: &[Family::Name(family)],
+        families: &[family(name)],
         style: Style::Italic,
         ..Query::default()
     })
@@ -372,7 +427,6 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../flavors/xp/theme/fonts"
         ));
-        // The Wine Tahoma has no bold face; Libre Franklin has no italic.
         let bold = Spec::new(&db, "Tahoma", 11, true, false);
         assert!(bold.faux_bold && bold.slant == Slant::Upright);
         let start = Spec::new(&db, "Libre Franklin", 17, true, true);
@@ -385,13 +439,12 @@ mod tests {
 
     #[test]
     fn a_title_renders_without_a_bold_face() {
-        // Only the Wine Tahoma of the theme, as without Trebuchet MS.
         let mut db = Database::new();
         db.load_fonts_dir(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../flavors/xp/theme/fonts"
         ));
-        let fonts = Fonts::with(db);
+        let fonts = Fonts::with(db, "Tahoma");
         assert!(fonts.spec(Font::Title).faux_bold);
         let mut pixmap = resvg::tiny_skia::Pixmap::new(120, 20).expect("a pixmap");
         let title = Text::new(
@@ -404,6 +457,20 @@ mod tests {
             .draw(&title, Transform::identity(), &mut pixmap.as_mut())
             .expect("the title parses");
         assert!(pixmap.pixels().iter().any(|p| p.alpha() > 0));
+    }
+
+    /// Six pixels per character.
+    #[allow(clippy::cast_precision_loss)]
+    fn mono(s: &str) -> f64 {
+        s.chars().count() as f64 * 6.0
+    }
+
+    #[test]
+    fn text_wraps_at_spaces_and_breaks() {
+        assert_eq!(wrap("aaa bbb ccc", 42.0, mono), ["aaa bbb", "ccc"]);
+        assert_eq!(wrap("one\n\ntwo", 300.0, mono), ["one", "", "two"]);
+        assert_eq!(wrap("abcdefghij", 24.0, mono), ["abcd", "efgh", "ij"]);
+        assert_eq!(wrap("", 300.0, mono).len(), 0);
     }
 
     #[test]

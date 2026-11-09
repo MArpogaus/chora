@@ -8,11 +8,10 @@ mod effects;
 mod items;
 mod resize;
 mod restart;
-mod voice;
 
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::Path,
     time::{Duration, Instant},
 };
 
@@ -33,8 +32,6 @@ use serde_json::{Value, json};
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
-    assistant::Assistant,
-    balloon::{self, Balloon, Queue},
     config::{Config, Picture, Wallpaper},
     context::{self, Act},
     control::{self, Setting},
@@ -44,7 +41,6 @@ use crate::{
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
-    notify::{Bus, Note, Reason, Request, Signal},
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
     startmenu::{self, Action, Menu},
@@ -83,7 +79,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 19] = [
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -103,10 +99,6 @@ const EVENTS: [&str; 22] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
-    "client.connected",
-    "client.disconnected",
-    // The events of the voice agent (D65).
-    "voice.*",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -224,12 +216,6 @@ pub struct Wm {
     fade: Option<Instant>,
     /// The shader of the fade, in the cache.
     fade_shader: Option<String>,
-    /// The notification server, if the session bus had the name free.
-    bus: Option<Bus>,
-    /// The notifications that show and wait.
-    notes: Queue,
-    /// The balloon that shows, with its notification.
-    balloon: Option<(Note, Balloon)>,
     /// The icons on the desktop of the first output.
     desk: DesktopIcons,
     /// The open context menu, and the work area of its output.
@@ -266,14 +252,6 @@ pub struct Wm {
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
-    /// The paperclip of the voice agent, while it shows.
-    assistant: Option<Assistant>,
-    /// The client name of the voice agent and its pose, while it is
-    /// connected and awake.
-    voice: Option<(String, crate::assistant::Pose)>,
-    /// Whether xp claims the state indicator of the voice agent at its
-    /// next event: after the start and after the agent connected.
-    claim_due: bool,
 }
 
 impl Plugin for Wm {
@@ -341,9 +319,6 @@ impl Wm {
             dialog: None,
             fade: None,
             fade_shader: None,
-            bus: Bus::start_or_log(),
-            notes: Queue::default(),
-            balloon: None,
             context: None,
             sys_window: None,
             last_icon: None,
@@ -359,9 +334,6 @@ impl Wm {
             system_key: None,
             cube_grab: None,
             kept: HashMap::new(),
-            assistant: None,
-            voice: None,
-            claim_due: true,
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -372,7 +344,6 @@ impl Wm {
         // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
-        wm.ask_voice()?;
         Ok(wm)
     }
 
@@ -588,28 +559,10 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::OutputChanged { output } => [
-                self.rescale()?,
-                self.output_changed(&output),
-                self.replace_assistant(),
-            ]
-            .concat(),
-            Event::OutputRemoved { name } => [
-                self.rescale()?,
-                self.output_removed(&name),
-                self.replace_assistant(),
-            ]
-            .concat(),
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } => self.voice_event(&event, &client, &data),
-            Event::ClientConnected { name } => {
-                self.voice_connected(&name);
-                Vec::new()
+            Event::OutputChanged { output } => {
+                [self.rescale()?, self.output_changed(&output)].concat()
             }
-            Event::ClientDisconnected { name } => self.voice_gone(&name),
+            Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -1159,9 +1112,6 @@ impl Wm {
         if let Some(dialog) = self.dialog.as_mut().filter(|_| Dialog::owns(node)) {
             return dialog.hover(&mut self.theme, node, on);
         }
-        if let Some((_, balloon)) = self.balloon.as_mut().filter(|_| Balloon::owns(node)) {
-            return balloon.hover(&mut self.theme, node, on);
-        }
         if let Some(Part::Button(surface, button)) = Part::of(node) {
             let Some(i) = self.index(&surface) else {
                 return Vec::new();
@@ -1604,15 +1554,6 @@ impl Wm {
     }
 
     fn press_node(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
-        if Balloon::owns(node) {
-            return self.press_balloon(node);
-        }
-        if Assistant::owns(node) {
-            return self.press_assistant();
-        }
-        if self.press_answer(node) {
-            return Vec::new();
-        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
@@ -2517,7 +2458,6 @@ impl Wm {
             &mut self.theme,
             &mut self.icons,
         ));
-        commands.extend(self.sync_assistant(Instant::now()));
         commands
     }
 
@@ -2961,107 +2901,6 @@ impl Wm {
             }
             Choice::SwitchUser | Choice::Cancel => {}
         }
-        commands
-    }
-}
-
-impl Wm {
-    // The balloons of the notifications
-
-    /// When the main loop looks at the notifications again: soon, while
-    /// the server runs.
-    pub fn notes_due(&self, now: Instant) -> Option<Instant> {
-        self.bus.as_ref()?;
-        let poll = now + balloon::POLL;
-        Some(self.notes.due().map_or(poll, |due| due.min(poll)))
-    }
-
-    /// Takes the calls of the clients and closes an expired balloon.
-    pub fn notifications(&mut self, now: Instant) -> Result<(), ClientError> {
-        let Some(bus) = &self.bus else {
-            return Ok(());
-        };
-        let requests: Vec<Request> = bus.requests.try_iter().collect();
-        let mut signals = Vec::new();
-        for request in requests {
-            match request {
-                Request::Notify(note) => self.notes.push(note, now),
-                Request::Close(id) => signals.extend(self.notes.close(id, Reason::Closed, now)),
-            }
-        }
-        signals.extend(self.notes.expire(now));
-        let commands = self.after_notes(&signals);
-        if commands.is_empty() {
-            return Ok(());
-        }
-        self.apply(commands)
-    }
-
-    /// A click on the close button dismisses the balloon; one on the
-    /// balloon invokes its default action, too.
-    fn press_balloon(&mut self, node: &str) -> Vec<Command> {
-        let now = Instant::now();
-        let signals = match self.notes.current() {
-            Some(shown) if Balloon::is_close(node) => {
-                self.notes.close(shown.id, Reason::Dismissed, now)
-            }
-            _ => self.notes.click(now),
-        };
-        self.after_notes(&signals)
-    }
-
-    /// Sends the signals and shows the balloon of the current
-    /// notification, if it changed.
-    fn after_notes(&mut self, signals: &[Signal]) -> Vec<Command> {
-        if let Some(bus) = &self.bus {
-            for signal in signals {
-                bus.emit(signal);
-            }
-        }
-        let current = self.notes.current();
-        if self.balloon.as_ref().map(|(note, _)| note) == current {
-            return Vec::new();
-        }
-        let current = current.cloned();
-        let mut commands = Vec::new();
-        if self.balloon.take().is_some() {
-            commands.push(Balloon::remove());
-        }
-        let icon = current
-            .as_ref()
-            .map(|n| n.icon.as_str())
-            .filter(|i| !i.is_empty())
-            .and_then(|i| self.icons.find(i));
-        // The notification area shows the icon of the balloon, or XP's
-        // information icon, while the balloon shows.
-        let tray = current.as_ref().map(|_| {
-            icon.clone()
-                .unwrap_or_else(|| self.theme.path("winxp/balloon-info.svg"))
-        });
-        commands.extend(self.tray_icon(tray));
-        let (Some(note), Some(bar)) = (current, self.bars.first()) else {
-            return commands;
-        };
-        let balloon = Balloon::new(&mut self.theme, &note, icon.as_deref(), bar);
-        commands.extend(balloon.create(&mut self.theme));
-        self.balloon = Some((note, balloon));
-        self.play(Sound::Balloon);
-        commands
-    }
-
-    /// Puts an icon into the notification area of the first output, or
-    /// takes it out; the task and desktop buttons make room.
-    fn tray_icon(&mut self, icon: Option<PathBuf>) -> Vec<Command> {
-        let Some(bar) = self.bars.first_mut() else {
-            return Vec::new();
-        };
-        if bar.icon == icon {
-            return Vec::new();
-        }
-        bar.icon = icon;
-        let mut commands = vec![bar.tray(&mut self.theme, &self.clock)];
-        commands.extend(self.pagers());
-        commands.extend(self.sync_tasks());
         commands
     }
 }

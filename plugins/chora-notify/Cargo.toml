@@ -1,7 +1,12 @@
 [dependencies]
+chora-draw.workspace = true
 chora-kit.workspace = true
 chora-scene.workspace = true
+clap = { workspace = true, features = ["env"] }
+schemars.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+zbus = "5.19"
 
 [lints]
 workspace = true

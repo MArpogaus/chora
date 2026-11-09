@@ -7,7 +7,7 @@ use chora_kit::settings::Settings;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{assistant, control::Toggles, taskbar, theme::Theme, wallpaper};
+use crate::{control::Toggles, taskbar, theme::Theme, wallpaper};
 
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../xp.yaml");
@@ -115,8 +115,6 @@ pub struct Config {
     pub taskbar: taskbar::Settings,
     pub effects: Toggles,
     pub session: Session,
-    /// The paperclip of the voice agent.
-    pub assistant: assistant::Settings,
 }
 
 impl Settings for Config {
@@ -176,6 +174,15 @@ impl Settings for Config {
     }
 }
 
+/// The way out of an old settings file, for the log: the key `assistant`
+/// moved into `chora-assistant.yaml` as `enabled`.
+pub fn migration_hint(error: &str) -> Option<&'static str> {
+    error.contains("unknown field `assistant`").then_some(
+        "assistant.enabled moved to chora-assistant.yaml as enabled; remove the key \
+         assistant (Migration in docs/configuration.md)",
+    )
+}
+
 /// The default settings, for the tests.
 #[cfg(test)]
 pub fn defaults() -> Config {
@@ -200,6 +207,21 @@ mod tests {
         assert_eq!(session.restart.as_deref(), Some("systemctl reboot"));
         assert_eq!(session.stand_by.as_deref(), Some("systemctl suspend"));
         assert_eq!(session.log_off.as_deref(), Some("choractl quit"));
+    }
+
+    #[test]
+    fn the_old_assistant_key_is_named_with_the_way_out() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-old-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("chora-xp.yaml");
+        std::fs::write(&path, "terminal: kitty\nassistant:\n  enabled: false\n").unwrap();
+        let file = File::<Config>::load(path, DEFAULT).unwrap();
+        let err = file.broken().expect("the old key breaks the file");
+        assert!(err.contains("assistant"), "{err}");
+        let hint = migration_hint(err).expect("a hint");
+        assert!(hint.contains("chora-assistant.yaml"), "{hint}");
+        assert_eq!(migration_hint("terminal: an empty command"), None);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

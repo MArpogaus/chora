@@ -3,8 +3,7 @@
 # while windows move, dialogs open during restarts, settings.set while
 # the start menu is open, broken values (missing files, huge strings,
 # unicode), harmless session commands, restart spam and hotplug.
-# Notifications need a session bus; the sandbox has no dbus-daemon, so
-# the notify-send flood runs only where `dbus-run-session` exists.
+# Notifications are chora-notify; this workflow does not start it.
 WF=w10; STOP_ON_DEATH=1; . "$(dirname "$0")/lib.sh"
 config_home
 xp_settings

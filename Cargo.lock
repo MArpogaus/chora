@@ -529,8 +529,12 @@ dependencies = [
 name = "chora-assistant"
 version = "0.9.0-rc.3"
 dependencies = [
+ "chora-draw",
  "chora-kit",
  "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
  "serde_json",
 ]
 
@@ -545,6 +549,19 @@ dependencies = [
  "serde",
  "serde-saphyr",
  "serde_json",
+]
+
+[[package]]
+name = "chora-draw"
+version = "0.9.0-rc.3"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "resvg",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -576,9 +593,14 @@ dependencies = [
 name = "chora-notify"
 version = "0.9.0-rc.3"
 dependencies = [
+ "chora-draw",
  "chora-kit",
  "chora-scene",
+ "clap",
+ "schemars",
+ "serde",
  "serde_json",
+ "zbus",
 ]
 
 [[package]]
@@ -643,6 +665,7 @@ dependencies = [
 name = "chora-xp"
 version = "0.9.0-rc.3"
 dependencies = [
+ "chora-draw",
  "chora-kit",
  "chora-scene",
  "chrono",
@@ -651,8 +674,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "zbus",
- "zune-jpeg",
 ]
 
 [[package]]
