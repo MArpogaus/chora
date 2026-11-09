@@ -94,12 +94,14 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- ACP gate fixes of the security review (medium 1 and 2, low 3 to 6) on
-  `claude/acp-gate`; then the full gate and the merge.
-- UX/UI pass on design/hud-sprint.md (design/ux-hud-sprint.md), then
-  sprint S1 wave 1 on 11-10.
-- After the ACP merge: author rewrite of the code branch (the user
-  agreed on 11-09 to the force push; guards@example.com commits).
+Sprint S1 wave 1, started 17:25 Bangkok (budget left today about 6 %):
+- H0 acceptance gate `tests/gate-hud.sh` (tester, sonnet), claude/hud-h0
+- H1 `chora-kit` hud, words, ask (sonnet), claude/hud-h1
+- H3 voice chat methods (sonnet), claude/hud-h3
+- H4c core keyboard rule for on_demand layers (sonnet; opus security
+  review before merge, critical path), claude/hud-h4c
+- Evening reflection (opus), reflections/2026-11-09.md
+H2 (pictures confined to the folder) waits for disk and budget (11-10).
 
 ## Blocked
 
