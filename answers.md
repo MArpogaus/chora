@@ -4,6 +4,15 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- Brainstorm on panes (recorded as D76, 8b567b5): a pane is a view of a
+  source (window, window manager on a virtual output, plugin view,
+  prompt); several panes may show one source and every pane takes
+  input; geometries (cube, cylinder, wall, slider, more) are small
+  plugins with one interface; the slider is a geometry of the construct
+  (D67 revised); "globe in XP" meant the XP cube: leaving XP flies out
+  to the whole cube with its windows. Launching the construct from XP
+  and a pane with tiling are K6 and K7.
+
 - Hard requirement: windows move flawlessly between all window
   managers (construct, mc, xp, tiling) by key bindings, automation,
   voice or whatever the user wants; easily extensible (charter section

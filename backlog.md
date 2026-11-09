@@ -47,9 +47,16 @@ is found (charter section 8). Started from charter section 15 on
     X1, one at a time, sonnet for the analysis, opus only for voice.
 
 13. HARD REQUIREMENT: window handover between all window managers by
-    every input path (charter section 1 item 19). First the gap matrix
-    (`design/window-handover.md`), then the guard gate over all pairs
-    and paths, then the fixes, one window manager or path at a time.
+    every input path (charter section 1 item 19). Gap matrix done
+    (`design/window-handover.md`, 11-09): the 13 steps there, first the
+    guard (the matrix gate with its expected table), then: one shared
+    `give` key action in chora-kit; one MCP tool `give_window` and the
+    voice prompt fix; mc drag and construct adoption at the window's own
+    size with focus; the drop point; state across a move (one `give`
+    meta key in the core).
+14. Panes and geometries (D76): the geometry interface in chora-kit;
+    cube, cylinder, wall and slider as geometries; the XP cube fly-out;
+    several panes per source with input. After 3D steps 2 to 4.
 
 ## Track C
 
