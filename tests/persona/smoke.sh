@@ -25,6 +25,8 @@ fail() {
     exit 1
 }
 
+mkdir "$dir/s"
+touch "$dir/s/sentinel"
 PERSONA_DIR=$dir/s PERSONA_KEEP=$dir/keep "$here/session.sh" tiling >"$dir/out" 2>"$dir/err" &
 spid=$!
 for _ in $(seq 150); do
@@ -96,4 +98,6 @@ shots=$(find "$dir/keep/shots" -name '*.png' 2>/dev/null | wc -l || true)
 ((shots == 4)) || fail "PERSONA_KEEP holds $shots captures, expected 4"
 cmp -s "$dir/keep/actions.jsonl" "$dir/log.before" || fail "PERSONA_KEEP holds no copy of the action log"
 echo "keep: $shots captures and the log"
+[[ -e $dir/s/sentinel ]] || fail "the session removed the PERSONA_DIR of its caller"
+echo "PERSONA_DIR of the caller is still there"
 echo "PASS"

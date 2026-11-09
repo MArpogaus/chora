@@ -25,11 +25,12 @@ PERSONA_ENV=/tmp/persona.AbC123/session.env
 The session stays up until it gets SIGTERM. End it with
 `tests/persona/session.sh --stop /tmp/persona.AbC123/session.env` (it
 kills the session by the pid in the file, never by name). It then removes
-its directory. Set `PERSONA_KEEP` to a directory, for example
+its directory, when it made the directory itself. Set `PERSONA_KEEP` to a directory, for example
 `/home/user/wt/log/media/DATE/persona-NAME/`, and the session copies
 `shots/` and `actions.jsonl` there first, so that a feedback file can
 cite the pictures. Without `PERSONA_KEEP` they go with the directory.
-Set `PERSONA_DIR` to choose the directory.
+A directory that you give in `PERSONA_DIR` is never removed; its files
+stay.
 
 The persona needs only the path in `PERSONA_ENV`.
 
