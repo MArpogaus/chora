@@ -185,6 +185,31 @@ split review: chora-construct 6530 2026-11-09 (no plugin split; split main.rs in
 
 ## Review findings
 
+Round of 11-09 evening (sonnet bugs, KISS, leftovers, UX; opus security
+pending) on A = df6dc69..5e92531, B = hud-h1, C = hud-h3:
+
+- C high (verified by the PM): `agents.rs` `cancel_running` holds the
+  lock of the match scrutinee while `cancel()` locks again; cancelling a
+  running helper deadlocks the voice main loop. Fix: read the state into
+  a bool, drop the guard, then cancel; test with a running helper. Also
+  lower-case the name as `cancel()` does.
+- C medium: an open chat of a hung client mutes results forever; low:
+  a caller-less `chat.open` gets the unknown-tool text.
+- B medium: a `near` cycle parses; `row()` leaves helper states
+  (idle, done, blocked) in English and ends in " · " for an empty task;
+  `HudNotice` says "1 errors", shows a shell command and the internal
+  name "chora-voice". Low: template fields per source undocumented in
+  docs/hud.md; `when` values and size bounds not validated; KISS: a
+  `match` instead of TABLE plus order test; duplicate text helpers in
+  ask.rs; the jargon test misses "chora-voice" and "Look".
+- A medium: the XP start messages (launch.rs:62-73) are English only and
+  name no next step; they move into the word table after H1 merges.
+  Low: `program_name("'my app' x")` gives "my"; German voice phrases
+  use the informal address against principle 7 (existing convention,
+  backlog); gate-hud.sh header cites design files that are not in the
+  repo.
+
+
 Status marks added on 11-09 evening from the code at HEAD (5e92531) and
 the commit messages; "fixed" means a commit named it, not that a new
 review confirmed it. The review round on the later commits is due.
