@@ -661,7 +661,7 @@ both a key variable and a key file for one server.
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 | `agent.read` (privileged) | `name`, `after: int` (default 0) | `{entries: [{seq, role, text}], seq}`: the entries of the transcript of the agent after `after`, at most 64 KiB of text, oldest first; `seq` is the last one returned, or the current one when none is; refused for a confined caller (section 18) |
 | `agent.cancel` (privileged) | `name` | the text `NAME stops its request`; cancels the running prompt and the queue, as the spoken cancel word does; refused for a confined caller |
-| `chat.open` (privileged) | `name` | `{}`; marks a chat of the agent as open for the caller; refused for a confined caller and for an unknown agent |
+| `chat.open` (privileged) | `name` | `{}`; marks a chat of the agent as open for the caller; refused for a confined caller, for an unknown agent and without a caller |
 | `chat.close` (privileged) | `name` | `{}`; ends the chat that the caller opened; refused for a confined caller and when the caller has none open |
 
 `mute`, `talk`, `indicator.claim`, `confirm.answer`, `agent.read`, `agent.cancel`,
@@ -1285,14 +1285,20 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   shows one agent with its transcript.
 - Transcript and chat: each agent keeps a ring of 500 entries `{seq,
   role, text}`, `role` one of `user` (a prompt), `agent` (its words),
-  `tool` (a tool call, an end or a refusal notice), `question` (a
-  permission request) and `plan`. `seq` counts up from 1 for each
+  `tool` (a tool call), `notice` (the end of the agent or the refusal
+  of a request, text of the system and not of the agent), `question` (a
+  permission request) and `plan`. An entry has at most 16 KiB of text,
+  cut with an ellipsis, and a ring holds at most 4 MiB, the oldest
+  entries dropped first. The text is hidden as the journal hides it:
+  the value of a key such as `token`, `authorization` or `api_key` is
+  `(hidden)`. `seq` counts up from 1 for each
   entry of the agent and never repeats while it runs; `voice.state`
   carries the last `seq`, so a reader pulls with `agent.read {name,
   after}` when it grew. `chat.open {name}` marks a chat of the agent as
   open for the caller, and `chat.close {name}` ends it; the chat also
-  ends on `client.disconnected` of the caller and when the voice agent
-  connects to chora again. `voice.state` has `chat: true` while any
+  ends on `client.disconnected` of the caller, when the voice agent
+  connects to chora again, and when the caller has not read the agent
+  with `agent.read` for 10 minutes. `voice.state` has `chat: true` while any
   chat is open. An agent with an open chat does not speak the end of
   its turn or its notices; its questions are spoken as before. A chat
   sends text and reads text: it answers no question, and a permission

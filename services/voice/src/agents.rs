@@ -7,11 +7,11 @@
 //! of each agent for chora-mc, its spoken lines and its questions.
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex, mpsc::Sender},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use serde_json::{Value, json};
@@ -45,6 +45,13 @@ const MESSAGE_BYTES: usize = 16 * 1024;
 /// The entries of the transcript that an agent keeps, and the most text
 /// that one `agent.read` answers.
 const RING: usize = 500;
+/// The most bytes of one entry, and of the whole ring; the rest is cut
+/// or dropped, the oldest first.
+const ENTRY_BYTES: usize = 16 * 1024;
+const RING_BYTES: usize = 4 * 1024 * 1024;
+/// A chat that no `agent.read` touches for this long ends.
+const CHAT_TTL: Duration = Duration::from_secs(600);
+const CHAT_SWEEP: Duration = Duration::from_secs(30);
 const READ_BYTES: usize = 64 * 1024;
 
 /// What an agent tells the core.
@@ -88,6 +95,7 @@ struct Inner {
     subs: BTreeMap<String, Sub>,
     /// The number of the next actor.
     next: u64,
+    chat_ttl: Duration,
 }
 
 /// The settings of the agents, from `Config`.
@@ -144,8 +152,11 @@ struct Sub {
     entries: VecDeque<Entry>,
     /// The `seq` of the last entry; 0 before the first.
     seq: u64,
-    /// The clients that hold a chat with this agent open.
-    chats: BTreeSet<String>,
+    /// The clients that hold a chat with this agent open, with the time
+    /// of their last `agent.read`.
+    chats: BTreeMap<String, Instant>,
+    /// The bytes of text in `entries`.
+    bytes: usize,
     started: Instant,
     /// None once its process ended.
     cmds: Option<mpsc::UnboundedSender<Cmd>>,
@@ -194,7 +205,8 @@ impl Sub {
             log: VecDeque::new(),
             entries: VecDeque::new(),
             seq: 0,
-            chats: BTreeSet::new(),
+            chats: BTreeMap::new(),
+            bytes: 0,
             started: Instant::now(),
             cmds: Some(cmds),
             pid: None,
@@ -207,17 +219,21 @@ impl Sub {
             "log": self.log, "seq": self.seq, "chat": !self.chats.is_empty()})
     }
 
-    /// Adds an entry to the transcript; the ring drops the oldest.
+    /// Adds an entry to the transcript, hidden and cut to `ENTRY_BYTES`;
+    /// the ring drops the oldest beyond `RING` entries and `RING_BYTES`.
     fn entry(&mut self, role: &'static str, text: &str) {
         self.seq += 1;
-        let text = text.to_owned();
+        let text = cut(&redact(text), ENTRY_BYTES);
+        self.bytes += text.len();
         self.entries.push_back(Entry {
             seq: self.seq,
             role,
             text,
         });
-        while self.entries.len() > RING {
-            self.entries.pop_front();
+        while self.entries.len() > RING || (self.bytes > RING_BYTES && self.entries.len() > 1) {
+            if let Some(old) = self.entries.pop_front() {
+                self.bytes -= old.text.len();
+            }
         }
     }
 
@@ -248,6 +264,51 @@ impl Sub {
         while self.log.len() > LOG_LINES {
             self.log.pop_front();
         }
+    }
+}
+
+/// The text with at most `limit` bytes, cut on a char boundary and
+/// marked with an ellipsis.
+fn cut(text: &str, limit: usize) -> String {
+    if text.len() <= limit {
+        return text.to_owned();
+    }
+    let room = limit - '…'.len_utf8();
+    let end = (text.char_indices().map(|(i, _)| i))
+        .take_while(|&i| i <= room)
+        .last()
+        .unwrap_or(0);
+    format!("{}…", &text[..end])
+}
+
+/// The text without the secrets that `chat::hide` hides: a JSON text
+/// by its keys, any other text by the `key: value` and `key=value` of
+/// each line.
+fn redact(text: &str) -> String {
+    if let Ok(mut value) = serde_json::from_str::<Value>(text)
+        && (value.is_object() || value.is_array())
+    {
+        crate::chat::hide(&mut value);
+        return value.to_string();
+    }
+    (text.lines().map(redact_line))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn redact_line(line: &str) -> String {
+    let Some(at) = line.find([':', '=']) else {
+        return line.to_owned();
+    };
+    let key = (line[..at].split_whitespace().last())
+        .unwrap_or_default()
+        .trim_matches(['-', '"', '\'']);
+    let mut probe = json!({ key: "" });
+    crate::chat::hide(&mut probe);
+    if probe[key] == "(hidden)" {
+        format!("{} (hidden)", &line[..=at])
+    } else {
+        line.to_owned()
     }
 }
 
@@ -284,6 +345,7 @@ impl Agents {
                 settings: Settings::new(config),
                 subs: BTreeMap::new(),
                 next: 0,
+                chat_ttl: CHAT_TTL,
             })),
             data,
             tx,
@@ -372,6 +434,7 @@ impl Agents {
 
     /// Runs one of `TOOLS` and answers the text for the LLM.
     pub fn call(&self, tool: &str, args: &Value) -> Value {
+        self.expire_chats();
         if let Some(answer) = self.chat_call(tool, args) {
             return answer;
         }
@@ -401,10 +464,17 @@ impl Agents {
         let name = args["name"].as_str().unwrap_or_default().to_lowercase();
         let caller = args["caller"].as_str();
         let answer = match method {
-            "agent.read" => self.read(&name, args["after"].as_u64().unwrap_or(0)),
+            "agent.read" => {
+                let after = args["after"].as_u64().unwrap_or(0);
+                self.read(&name, after, caller)
+            }
             "agent.cancel" => self.cancel_running(&name).map(Value::from),
-            "chat.open" => self.chat_open(&name, caller?).map(|()| json!({})),
-            "chat.close" => self.chat_close(&name, caller?).map(|()| json!({})),
+            "chat.open" | "chat.close" => match caller {
+                Some(caller) if method == "chat.open" => self.chat_open(&name, caller),
+                Some(caller) => self.chat_close(&name, caller),
+                None => Err(format!("{method} needs a caller")),
+            }
+            .map(|()| json!({})),
             "chat.gone" => {
                 self.chat_gone(caller);
                 Ok(json!({}))
@@ -415,24 +485,44 @@ impl Agents {
     }
 
     /// The transcript of an agent after `after`.
-    fn read(&self, name: &str, after: u64) -> Result<Value, String> {
-        let inner = self.lock();
-        let sub = inner.subs.get(name).ok_or(format!("no agent {name}"))?;
+    /// A read keeps the chat of `caller` alive.
+    fn read(&self, name: &str, after: u64, caller: Option<&str>) -> Result<Value, String> {
+        let mut inner = self.lock();
+        let sub = (inner.subs.get_mut(name)).ok_or(format!("no agent {name}"))?;
+        if let Some(read) = caller.and_then(|c| sub.chats.get_mut(c)) {
+            *read = Instant::now();
+        }
         Ok(sub.read(after))
+    }
+
+    /// Ends the chats that no read touched for the time to live.
+    fn expire_chats(&self) {
+        let mut inner = self.lock();
+        let ttl = inner.chat_ttl;
+        for (name, sub) in &mut inner.subs {
+            let before = sub.chats.len();
+            sub.chats.retain(|_, read| read.elapsed() < ttl);
+            if sub.chats.len() != before {
+                let _ = self.tx.send(Input::Agent(Event::State(sub.record(name))));
+            }
+        }
     }
 
     /// Cancels the prompt of an agent that runs.
     fn cancel_running(&self, name: &str) -> Result<String, String> {
-        match self.lock().subs.get(name) {
-            Some(Sub { cmds: Some(_), .. }) => Ok(self.cancel(name)),
-            _ => Err(format!("no agent {name} runs")),
+        let name = name.to_lowercase();
+        let runs = (self.lock().subs.get(&name)).is_some_and(|s| s.cmds.is_some());
+        if runs {
+            Ok(self.cancel(&name))
+        } else {
+            Err(format!("no agent {name} runs"))
         }
     }
 
     /// Marks a chat of `caller` with an agent as open.
     fn chat_open(&self, name: &str, caller: &str) -> Result<(), String> {
         self.chats(name, |chats| {
-            chats.insert(caller.to_owned());
+            chats.insert(caller.to_owned(), Instant::now());
             Ok(())
         })
     }
@@ -440,7 +530,7 @@ impl Agents {
     /// Ends the chat that `caller` opened.
     fn chat_close(&self, name: &str, caller: &str) -> Result<(), String> {
         self.chats(name, |chats| {
-            if chats.remove(caller) {
+            if chats.remove(caller).is_some() {
                 Ok(())
             } else {
                 Err(format!("{caller} has no chat open with {name}"))
@@ -454,7 +544,7 @@ impl Agents {
         for (name, sub) in &mut inner.subs {
             let before = sub.chats.len();
             match caller {
-                Some(c) => sub.chats.remove(c),
+                Some(c) => sub.chats.remove(c).is_some(),
                 None => !std::mem::take(&mut sub.chats).is_empty(),
             };
             if sub.chats.len() != before {
@@ -466,7 +556,7 @@ impl Agents {
     fn chats(
         &self,
         name: &str,
-        change: impl FnOnce(&mut BTreeSet<String>) -> Result<(), String>,
+        change: impl FnOnce(&mut BTreeMap<String, Instant>) -> Result<(), String>,
     ) -> Result<(), String> {
         let mut inner = self.lock();
         let sub = (inner.subs.get_mut(name)).ok_or(format!("no agent {name}"))?;
@@ -653,6 +743,7 @@ impl Agents {
 
     /// Speaks the end of a turn in the voice of the agent, short.
     fn speak(&self, name: &str, text: &str) {
+        self.expire_chats();
         let (limit, details) = {
             let inner = self.lock();
             (inner.settings.said_chars, inner.settings.details.clone())
@@ -862,7 +953,7 @@ impl Actor {
             s.state = "blocked";
             s.question.clear();
             s.note(&format!("✕ {why}"));
-            s.entry("tool", &why);
+            s.entry("notice", &why);
             s.said = why;
         });
         let ended = self.agents.lock().settings.ended.clone();
@@ -884,8 +975,10 @@ impl Actor {
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
         let mut lines = read_lines(child.stdout.take().expect("piped"));
         let mut session = Session::default();
+        let mut sweep = tokio::time::interval(CHAT_SWEEP);
         loop {
             tokio::select! {
+                _ = sweep.tick() => self.agents.expire_chats(),
                 line = lines.recv() => {
                     let Some(line) = line.transpose()? else { return Ok(false) };
                     self.line(&mut rpc, &mut session, &line, dir).await?;
@@ -1096,7 +1189,7 @@ impl Actor {
             };
             self.agents.update(name, id, |s| {
                 s.note(&format!("! {told}"));
-                s.entry("tool", &told);
+                s.entry("notice", &told);
             });
             self.agents.speak(name, &told);
             return Ok(());
@@ -1716,13 +1809,13 @@ exec cat >/dev/null"#;
     #[tokio::test(flavor = "multi_thread")]
     async fn agent_read_answers_after_seq() {
         let (agents, rx, data) = idle_agent("read").await;
-        assert_eq!(agents.read("coder", 0).unwrap()["entries"], json!([]));
+        assert_eq!(agents.read("coder", 0, None).unwrap()["entries"], json!([]));
         agents.prompt("coder", "Schreib notes.txt");
         let (rx, mut events) = until(rx, |e| matches!(e, Event::Ask { .. })).await;
         let Some(Event::Ask { answer, .. }) = events.pop() else {
             unreachable!()
         };
-        let first = agents.read("coder", 0).unwrap();
+        let first = agents.read("coder", 0, None).unwrap();
         let seen = roles(&first);
         let kinds: Vec<&str> = seen.iter().map(|(_, r)| r.as_str()).collect();
         assert_eq!(kinds, ["user", "plan", "agent", "tool", "question"]);
@@ -1732,19 +1825,19 @@ exec cat >/dev/null"#;
         assert_eq!(first["seq"], seen[4].0);
         let record = agents.lock().subs["coder"].record("coder");
         assert_eq!(record["seq"], seen[4].0);
-        let after = agents.read("coder", seen[2].0).unwrap();
+        let after = agents.read("coder", seen[2].0, None).unwrap();
         let kinds: Vec<String> = roles(&after).into_iter().map(|(_, r)| r).collect();
         assert_eq!(kinds, ["tool", "question"]);
-        let none = agents.read("coder", seen[4].0).unwrap();
+        let none = agents.read("coder", seen[4].0, None).unwrap();
         assert_eq!(none["entries"], json!([]));
         assert_eq!(none["seq"], seen[4].0);
         answer.send(true).unwrap();
         let (_rx, _) = until(rx, |e| is_state(e, "done")).await;
-        let rest = agents.read("coder", seen[4].0).unwrap();
+        let rest = agents.read("coder", seen[4].0, None).unwrap();
         let rest = roles(&rest);
         assert!(rest.iter().all(|(n, _)| *n > seen[4].0), "{rest:?}");
         assert!(rest.iter().any(|(_, r)| r == "agent"), "{rest:?}");
-        assert!(agents.read("nobody", 0).is_err());
+        assert!(agents.read("nobody", 0, None).is_err());
         agents.stop("coder");
         let _ = std::fs::remove_dir_all(&data);
     }
@@ -1820,7 +1913,7 @@ exec cat >/dev/null"#;
         let (rx, events) = until(rx, |e| is_state(e, "done")).await;
         assert!(!events.iter().any(|e| matches!(e, Event::Said { .. })));
         assert!(rx.recv_timeout(Duration::from_millis(500)).is_err());
-        let read = agents.read("coder", 0).unwrap();
+        let read = agents.read("coder", 0, None).unwrap();
         assert!(roles(&read).iter().any(|(_, r)| r == "agent"));
         agents.chat_close("coder", "hud").unwrap();
         agents.prompt("coder", "Noch eins");
@@ -1860,6 +1953,137 @@ exec cat >/dev/null"#;
         let log = std::fs::read_to_string(data.join("agents/coder.log")).unwrap();
         assert!(!log.contains(r#""outcome""#), "{log}");
         drop(answer);
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// Cancelling an agent that runs answers at once; the lock is not
+    /// held through the cancel.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancelling_a_running_agent_does_not_deadlock() {
+        let (agents, _rx, data) = idle_agent("cancel").await;
+        let (done, answer) = std::sync::mpsc::channel();
+        let again = agents.clone();
+        std::thread::spawn(move || {
+            let _ = done.send(again.cancel_running("coder"));
+        });
+        let answer = answer.recv_timeout(Duration::from_secs(5));
+        assert_eq!(answer, Ok(Ok("coder stops its request".to_owned())));
+        assert!(agents.cancel_running("Coder").is_ok());
+        assert!(agents.cancel_running("nobody").is_err());
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    fn lone_sub() -> Sub {
+        let (cmds, _rx) = tokio::sync::mpsc::unbounded_channel();
+        Sub::new(1, "demo", Path::new("/"), "ryan", cmds)
+    }
+
+    /// An entry is cut to 16 KiB on a char boundary with an ellipsis,
+    /// and the ring holds at most 4 MiB, oldest dropped first.
+    #[test]
+    fn an_entry_is_cut_and_the_ring_has_a_byte_limit() {
+        let mut sub = lone_sub();
+        sub.entry("tool", &"é".repeat(20 * 1024));
+        let text = &sub.entries[0].text;
+        assert!(text.len() <= 16 * 1024, "{}", text.len());
+        assert!(text.len() > 16 * 1024 - 4, "{}", text.len());
+        assert!(text.ends_with('…'));
+        sub.entry("tool", &"x".repeat(16 * 1024));
+        assert_eq!(sub.entries[1].text.len(), 16 * 1024);
+        let mut sub = lone_sub();
+        for _ in 0..400 {
+            sub.entry("agent", &"x".repeat(100 * 1024));
+        }
+        let bytes: usize = sub.entries.iter().map(|e| e.text.len()).sum();
+        assert!(bytes <= 4 * 1024 * 1024, "{bytes}");
+        assert!(sub.entries.len() >= 250, "{}", sub.entries.len());
+        assert_eq!(sub.entries.back().unwrap().seq, 400);
+        assert!(sub.entries.front().unwrap().seq > 1);
+    }
+
+    /// The transcript hides what the journal hides.
+    #[test]
+    fn the_transcript_hides_secrets() {
+        let mut sub = lone_sub();
+        sub.entry("tool", r#"{"cmd": "x", "api_key": "sk-123"}"#);
+        sub.entry("tool", "curl -H\nAuthorization: Bearer abc\ntoken=xyz\nls");
+        sub.entry("tool", "Read src/main.rs");
+        let all: String = sub.entries.iter().map(|e| e.text.as_str()).collect();
+        for secret in ["sk-123", "abc", "xyz"] {
+            assert!(!all.contains(secret), "{all}");
+        }
+        assert!(all.contains("(hidden)") && all.contains("Read src/main.rs"));
+        assert!(all.contains("curl -H") && all.contains("ls"), "{all}");
+    }
+
+    /// A chat that is not read for the time to live ends; a read keeps
+    /// it, and the agent record says so.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_chat_that_is_not_read_expires() {
+        let (agents, rx, data) = idle_agent("expire").await;
+        agents.lock().chat_ttl = Duration::from_millis(300);
+        let open = |agents: &Agents| agents.lock().subs["coder"].record("coder")["chat"].clone();
+        agents.call("chat.open", &json!({"name": "coder", "caller": "hud"}));
+        agents.call("chat.open", &json!({"name": "coder", "caller": "idle"}));
+        for _ in 0..3 {
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            agents.call("agent.read", &json!({"name": "coder", "caller": "hud"}));
+            agents.expire_chats();
+        }
+        let chats: Vec<String> = agents.lock().subs["coder"].chats.keys().cloned().collect();
+        assert_eq!(chats, ["hud"]);
+        assert_eq!(open(&agents), json!(true));
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        agents.expire_chats();
+        assert_eq!(open(&agents), json!(false));
+        let (_rx, events) = until(rx, |e| matches!(e, Event::State(r) if r["chat"] == false)).await;
+        assert!(!events.is_empty());
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A chat method without a caller is an error, not the unknown-tool
+    /// text.
+    #[test]
+    fn chat_open_and_close_need_a_caller() {
+        let (tx, _rx) = mpsc::channel();
+        let agents = Agents::new(&Config::default(), PathBuf::from("/"), tx);
+        for method in ["chat.open", "chat.close"] {
+            let answer = agents.call(method, &json!({"name": "coder"}));
+            assert_eq!(answer["error"], format!("{method} needs a caller"));
+        }
+    }
+
+    /// The notice of a refusal and of the end of an agent has the role
+    /// `notice`, not `tool`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn notices_have_their_own_role() {
+        let (agents, rx, data) = idle_agent("notice").await;
+        agents.prompt("coder", "LONG");
+        let (rx, _) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.contains("too long")),
+        )
+        .await;
+        let read = agents.read("coder", 0, None).unwrap();
+        let notice = read["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["text"].as_str().unwrap().contains("too long"));
+        assert_eq!(notice.unwrap()["role"], "notice");
+        let pid = agents.lock().subs["coder"].pid.unwrap();
+        let _ = std::process::Command::new("kill")
+            .arg(pid.to_string())
+            .status();
+        let (_rx, _) = until(rx, |e| is_state(e, "blocked")).await;
+        let read = agents.read("coder", 0, None).unwrap();
+        assert_eq!(
+            read["entries"].as_array().unwrap().last().unwrap()["role"],
+            "notice"
+        );
         agents.stop("coder");
         let _ = std::fs::remove_dir_all(&data);
     }
