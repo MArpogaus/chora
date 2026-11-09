@@ -234,6 +234,7 @@ fn serve(
                 caller,
                 method,
                 params,
+                ..
             }) if method == "confirm.answer" => {
                 let answer = confirm_answer(&client.claims, &client.tx, &caller, params);
                 client.rt.conn.answer(call, answer)?;

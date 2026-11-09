@@ -177,6 +177,7 @@ impl State {
         let deadline = self.time.now() + TIMEOUT;
         self.expire_at(deadline).map_err(rejected)?;
         let from = self.ipc.name(conn).unwrap_or_default().to_owned();
+        let confined = self.ipc.confined(conn);
         self.methods.pending.insert(
             number,
             Pending {
@@ -191,6 +192,7 @@ impl State {
             caller: from,
             method: call.method,
             params: call.params,
+            confined,
         };
         self.ipc.send_to(callee, &event);
         Ok(())
@@ -343,6 +345,24 @@ mod tests {
         let answer = json!({"call": params["call"], "result": "done"});
         wm.ok(&mut core, "methods.return", answer);
         assert_eq!(caller.answer(&mut core, id), Some(Ok(json!("done"))));
+    }
+
+    #[test]
+    fn method_called_names_a_confined_caller() {
+        let (mut core, mut wm, mut free) = exported();
+        call(&mut free, "set_layout");
+        let event = wm.events_now(&mut core);
+        assert_eq!(event[0]["params"].get("confined"), None);
+        let mut admin = core.admin();
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        call(&mut confined, "set_layout");
+        let event = wm.events_now(&mut core);
+        assert_eq!(event[0]["params"]["caller"], "voice-mcp");
+        assert_eq!(event[0]["params"]["confined"], true);
     }
 
     /// The sequence numbers count every event of a connection, also the
