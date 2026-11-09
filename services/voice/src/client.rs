@@ -586,8 +586,7 @@ mod tests {
         );
     }
 
-    /// The agent takes a key for the user only from the keyboard (finding
-    /// 3 of the security review): an injected confirm key is ignored.
+    /// An injected confirm key is ignored: only the keyboard answers.
     #[test]
     fn an_injected_confirm_key_answers_nothing() {
         let key = |injected| key_input(Key::Confirm(true), PressState::Pressed, injected);
