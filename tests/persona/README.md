@@ -6,7 +6,10 @@ driver here gives it exactly that.
 
 - `session.sh FLAVOR [WxH]` starts a private headless session (`tiling`,
   `xp`, `mc`, `construct`) and grants the client `persona` only
-  `screen.capture` and `input.inject`.
+  `screen.capture` and `input.inject`. It also starts the companions of
+  the flavor with `choractl run`, as its units do: `tiling` gets swaybg
+  (the wallpaper) and waybar (the panel with the tags), each when its
+  program is installed. `xp`, `mc` and `construct` have none.
 - `act.py` is the only command of the persona: `look`, `click`, `move`,
   `drag`, `type`, `key`, `scroll`. It logs every action.
 - `smoke.sh` checks the driver on a tiling session.
