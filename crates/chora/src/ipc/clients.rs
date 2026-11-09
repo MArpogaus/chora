@@ -256,10 +256,20 @@ impl State {
         }
     }
 
-    /// A connection of a client socket names only files that its client
-    /// stored with `assets.put`, so that it learns nothing of other files.
+    /// The client name of a confined connection: one of a client socket,
+    /// or of the main socket with `confined` in its `hello`. None for a
+    /// free one.
+    fn confined_name(&self, conn: u64) -> Option<&str> {
+        self.ipc
+            .confined(conn)
+            .then(|| self.ipc.name(conn))
+            .flatten()
+    }
+
+    /// A confined connection names only files that its client stored with
+    /// `assets.put`, so that it learns nothing of other files.
     pub(super) fn check_paths(&self, conn: u64, commands: &[Command]) -> Result<(), RpcError> {
-        let Some(name) = self.ipc.fixed(conn) else {
+        let Some(name) = self.confined_name(conn) else {
             return Ok(());
         };
         let foreign = commands
@@ -283,10 +293,10 @@ impl State {
         }
     }
 
-    /// The scene rules of a connection of a client socket. The error names
-    /// the rule and carries the index of the command, as the scene does.
+    /// The scene rules of a confined connection. The error names the rule
+    /// and carries the index of the command, as the scene does.
     pub(super) fn confine(&mut self, conn: u64, commands: &[Command]) -> Result<(), RpcError> {
-        let Some(name) = self.ipc.fixed(conn).map(str::to_owned) else {
+        let Some(name) = self.confined_name(conn).map(str::to_owned) else {
             return Ok(());
         };
         for (index, command) in commands.iter().enumerate() {
