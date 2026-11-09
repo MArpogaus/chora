@@ -3,6 +3,10 @@
 # Usage: tests/guards.sh   (run by hand or by the guards hook; exits 1 if a guard misbehaves)
 set -u
 while IFS= read -r variable; do unset "$variable"; done < <(git rev-parse --local-env-vars)
+if ! command -v pre-commit >/dev/null; then
+  echo "tests/guards.sh needs pre-commit on PATH" >&2
+  exit 1
+fi
 tests_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -14,6 +18,7 @@ new_repo() {
   git -C "$work/repo" init -q
   git -C "$work/repo" config user.email guards@example.com
   git -C "$work/repo" config user.name guards
+  git -C "$work/repo" config commit.gpgsign false
 }
 
 verdict() {
@@ -34,6 +39,7 @@ hook_environment_case() {
   git init -q "$outer"
   git -C "$outer" config user.email guards@example.com
   git -C "$outer" config user.name guards
+  git -C "$outer" config commit.gpgsign false
   git -C "$outer" commit -q --allow-empty -m outer
   local head
   head=$(git -C "$outer" rev-parse HEAD)
@@ -50,6 +56,18 @@ hook_environment_case() {
 }
 
 hook_environment_case
+
+missing_pre_commit_case() {
+  [ -n "${GUARDS_NESTED:-}" ] && return
+  mkdir "$work/bin"
+  ln -s "$(command -v git)" "$work/bin/git"
+  local output status=1
+  output=$(env PATH="$work/bin" "$(command -v bash)" "${BASH_SOURCE[0]}" 2>&1)
+  case "$?:$output" in 1:*"needs pre-commit on PATH"*) status=0 ;; esac
+  verdict "guards.sh names a missing pre-commit" pass $status
+}
+
+missing_pre_commit_case
 
 comment_case() {
   local label=$1 want=$2 path=$3 base=$4 added=$5
