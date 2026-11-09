@@ -24,6 +24,11 @@ repos:
     entry: tests/no-agent-trailers.sh
     language: script
     stages: [commit-msg]
+  - id: commit-message-length
+    name: commit message length (subject 68, body lines 72 characters)
+    entry: python3 -I tests/commit-message-length.py
+    language: system
+    stages: [commit-msg]
   - id: no-inline-comments
     name: no inline comments in added lines of Rust, shell and Python
     entry: python3 -I tests/no-inline-comments.py

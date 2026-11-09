@@ -88,5 +88,27 @@ session_case "plans/other" pass plans/other/a.md
 session_case "nested state.md" pass docs/state.md
 session_case "source file" pass src/main.rs
 
+message_case() {
+  local label=$1 want=$2 text=$3
+  printf '%b' "$text" >"$work/message"
+  python3 -I "$tests_dir/commit-message-length.py" "$work/message" >/dev/null 2>&1
+  verdict "commit-message-length: $label" "$want" $?
+}
+
+subject_68=$(printf 's%.0s' $(seq 68))
+subject_69=$(printf 's%.0s' $(seq 69))
+body_72=$(printf 'b%.0s' $(seq 72))
+body_73=$(printf 'b%.0s' $(seq 73))
+long_url="https://example.org/$(printf 'u%.0s' $(seq 100))"
+
+message_case "subject of 68" pass "$subject_68\n"
+message_case "subject of 69" fail "$subject_69\n"
+message_case "body line of 72" pass "short\n\n$body_72\n"
+message_case "body line of 73" fail "short\n\n$body_73\n"
+message_case "long URL line" pass "short\n\n$long_url\n"
+message_case "line starting with a URL" pass "short\n\n$long_url and $body_73\n"
+message_case "long comment line" pass "short\n\n# $body_73\n"
+message_case "long line after a URL line" fail "short\n\n$long_url\n$body_73\n"
+
 [ "$failures" -eq 0 ] && echo "all guards behave" || echo "$failures guard check(s) failed"
 [ "$failures" -eq 0 ]
