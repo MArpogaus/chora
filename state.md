@@ -97,6 +97,7 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 ## Split reviews
 
 split review: chora-xp 18258 2026-11-09 (planned: D73, roadmap track X1 to X7)
+split review: voice 16933 2026-11-09 (one policy crate chora-voice-policy, the rest modules; design/split-review-voice.md)
 split review: chora-mc 6704 2026-11-09 (no split; share the voice wire types in chora-kit; design/split-review-mc.md)
 split review: chora-construct 6530 2026-11-09 (no plugin split; split main.rs into files after the adoption merge; D76 geometry as a chora-kit module at K9; the /proc launcher check to chora-kit; design/split-review-construct.md)
 

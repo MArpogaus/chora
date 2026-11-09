@@ -7,6 +7,13 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+0. SECURITY (voice split review, 11-09): ACP permission requests take a
+   weaker question path: a spoken yes answers them (services/voice/src/
+   core.rs:819) and "always" counts as yes (core.rs:1047), while every
+   other security question needs a physical key or the HUD. Route them
+   through the same gate (step 5 of design/split-review-voice.md), with a
+   test that fails first. Then the policy crate steps 1 to 4.
+
 1. Security check of the voice agent paths, attacker view (owner's notes
    2026-10-31; charter section 1 item 11). Running 11-09.
 2. Security audit, the full list of charter section 15 item 2.
@@ -97,6 +104,11 @@ is found (charter section 8). Started from charter section 15 on
     launcher check (construct and mc) to chora-kit.
 
 ## Track C
+
+0. Voice (design/split-review-voice.md): after the security steps, the
+   tool `Source` registry, tool plugins as sandboxed MCP servers with one
+   grant each (`tool_plugins`), and the layered context (scene, task,
+   conversation) in `context.rs`.
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running
    11-09). Issues #48, #76, #78, #83, #79 belong to the 3D steps.
