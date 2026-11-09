@@ -2090,7 +2090,7 @@ impl Mc {
             .retain(|(name, _)| !windows.contains_key(name));
         let (ended, running) = std::mem::take(&mut self.launched)
             .into_iter()
-            .partition(|(_, pid)| !pid.is_some_and(alive));
+            .partition(|(_, pid)| !pid.is_some_and(chora_kit::alive));
         self.launched = running;
         let ended: Vec<(String, Option<u32>)> = ended;
         for (name, _) in ended {
@@ -2331,7 +2331,7 @@ impl Mc {
         }
         // The scene goes when the app ended too; until then it waits.
         let pid = self.pids.get(&name).copied().flatten();
-        if pid.is_some_and(alive) {
+        if pid.is_some_and(chora_kit::alive) {
             self.launched.push((name, pid));
             return self.apply(vec![wait()]);
         }
@@ -2582,15 +2582,6 @@ fn wait() -> Command {
     }
 }
 
-/// Whether a process runs, not ended and not a zombie.
-fn alive(pid: u32) -> bool {
-    let stat = chora_kit::read_text(std::path::Path::new(&format!("/proc/{pid}/stat")), 4096);
-    // The state follows the name in parentheses, which may hold any byte.
-    stat.ok()
-        .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
-        .is_some_and(|zombie| !zombie)
-}
-
 #[cfg(test)]
 mod tests {
     use chora_scene::{Command, NodeKind, PropsUpdate};
@@ -2659,12 +2650,6 @@ mod tests {
         assert!(text.chars().count() <= super::HUD_CHARS, "{}", text.len());
         assert!(text.ends_with("wordy1199") && text.starts_with("wordy"));
         assert_eq!(super::hud_tail("short"), "short");
-    }
-
-    #[test]
-    fn a_running_process_is_alive_and_a_missing_one_not() {
-        assert!(super::alive(std::process::id()));
-        assert!(!super::alive(u32::MAX));
     }
 
     /// mc claims the work area of its output, so that other window managers can give it

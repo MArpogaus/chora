@@ -1229,6 +1229,36 @@ reads the insets of a slice in pixels of the file. The pictures:
 - the icons of the desktop, between the wallpaper and the windows;
 - the wallpaper below everything: Bliss when it is installed, else Bløff.
 
+The start menu, the Run list, the desktop icons and `Super+e` start a
+program with `choractl run` (D42) and follow it until its first window
+shows, which the activation token of the start tells. `chora-xp` shows
+what happens as a balloon of `chora-notify` on the session bus; without
+a notification server it writes the same words to its log:
+
+- A command that is a plain program name, such as `thunar '/'`, and whose
+  program is not on `PATH` never starts. The balloon "Cannot open
+  NAME" says that it is not installed. NAME is the program of the command,
+  without directory and arguments, for example `thunar` or `libreoffice`.
+  Other commands, such as `./app`, `VAR=1 app`, `env VAR=1 app`,
+  `cd dir && app`, a quoted program or a shell builtin, run as they are:
+  the shell finds the program, or the limit of 30 seconds speaks.
+- A program that is still starting after 2 seconds shows "Starting NAME".
+  The balloon closes when the window shows. A program that shows no window
+  within 30 seconds gets "Cannot open NAME" with the number of seconds,
+  unless a window of another start opened meanwhile: a launcher such as
+  `xdg-open` or a browser may hand its work to a program that runs
+  already, and exit. A program that opens in less than 2 seconds shows
+  no balloon. A program that ends at once gets no message of its own: it
+  shows "Starting NAME" and then "Cannot open NAME". The wait is checked once a second, so each message can
+  come up to a second late.
+- For a file of the desktop, NAME is the name of the file, not `xdg-open`.
+
+The balloon of the start needs `chora-notify`, which the unit
+`chora-xp-notify.service` starts. A program that needs X11, as the
+LibreOffice of a build without the Wayland plugin does, needs
+`xwayland-satellite` (`chora-xp-xwayland.service`); without it, it ends at
+once and gets the messages of a program that opens no window.
+
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. `chora-xp` claims the box around the work areas
 of its outputs (D55). `--output NAME` limits it to some outputs. A window

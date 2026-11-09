@@ -89,7 +89,7 @@ tiling) startup=("$bin/chora-tiling") ;;
 xp)
     # No sounds in a headless run.
     sed 's/^  sounds: true/  sounds: false/' "$repo/plugins/chora-xp/xp.yaml" >"$dir/xp.yaml"
-    startup=("$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
+    startup=(env "DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus" "$bin/chora-xp" --theme "$repo/flavors/xp/theme" --config "$dir/xp.yaml")
     ;;
 mc) startup=("$bin/chora-mc" --manage-windows) ;;
 construct) startup=("$bin/chora-construct") ;;
@@ -106,11 +106,12 @@ tiling)
         "waybar --config $repo/flavors/tiling/waybar/config.jsonc"
     )
     ;;
+xp) companions=("chora-notify --assets $repo/flavors/xp/assets/notify") ;;
 *) companions=() ;;
 esac
 
 if ((${#companions[@]})); then
-    for tool in jq setsid dbus-run-session; do
+    for tool in jq setsid dbus-daemon dbus-run-session; do
         command -v "$tool" >/dev/null || {
             echo "$tool is needed to start the companions of $flavor" >&2
             exit 2
@@ -121,6 +122,7 @@ fi
 out=$dir/headless.out
 session=
 companion_units=()
+bus_pid=
 companion_pids=()
 # shellcheck disable=SC2329 # runs as the EXIT trap
 cleanup() {
@@ -133,6 +135,9 @@ cleanup() {
             sleep 0.1
         done
         kill -KILL "$session" 2>/dev/null || true
+    fi
+    if [[ -n $bus_pid ]]; then
+        kill -TERM "$bus_pid" 2>/dev/null || true
     fi
     for unit in "${companion_units[@]}"; do
         systemctl --user stop "$unit" 2>/dev/null || true
@@ -152,6 +157,12 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
+
+if [[ $flavor == xp ]]; then
+    export DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus
+    dbus-daemon --session --nofork --address="$DBUS_SESSION_BUS_ADDRESS" >"$dir/dbus.log" 2>&1 &
+    bus_pid=$!
+fi
 
 CHORA_LOG=$dir/chora.log "$repo/tests/headless-session.sh" "$size" -- "${startup[@]}" \
     >"$out" 2>"$out.err" &
@@ -179,10 +190,14 @@ CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime "$bin/choractl" grant persona scre
 for line in "${companions[@]}"; do
     read -ra argv <<<"$line"
     command -v "${argv[0]}" >/dev/null || continue
+    session_wrapper=(dbus-run-session --)
+    if [[ $flavor == xp ]]; then
+        session_wrapper=()
+    fi
     started=$(
         WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$out") CHORA_FLAVOR_DIR=$repo/flavors/$flavor \
             CHORA_SOCKET=$socket XDG_RUNTIME_DIR=$runtime \
-            "$bin/choractl" run setsid dbus-run-session -- "${argv[@]}"
+            "$bin/choractl" run setsid "${session_wrapper[@]}" "${argv[@]}"
     )
     unit=$(jq -r '.unit // empty' <<<"$started")
     if [[ -n $unit ]]; then
