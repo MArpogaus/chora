@@ -29,6 +29,10 @@ is found (charter section 8). Started from charter section 15 on
    ok line (twice). No issues yet.
 10. Later: #102, #63, #73, #85, #81, #90, #97, #99.
 
+10. Repository split: the 14 preparation steps of `design/split.md`
+   section 5, in order, after the user answers questions 3 and 4; each
+   step small and tested, no split.
+
 ## Track C
 
 1. 2D guard (running 11-09), then 3D per `plans/3d.md` (design running

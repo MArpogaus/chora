@@ -14,3 +14,16 @@ Each: number, date, background, default taken.
    new is that other clients (for example an agent on a client socket)
    now need the grant `methods.privileged` to call them. Default taken:
    keep it. Answer "unprivileged" to revert.
+
+3. 2026-11-09. Repository split (`design/split.md`): four repositories
+   after 1.0 in the organization `chora-desktop`: `chora` (core, API
+   crates, choractl, chora-kit, chora-tiling as the reference plugin),
+   `chora-plugins` (xp, mc, construct), `chora-voice`, `chora-website`.
+   This amends D36 (one repository per plugin and a packaging
+   repository). Default: prepare for this split; nothing is split.
+   Answer "keep D36" to prepare the old plan instead.
+4. 2026-11-09. Publish `chora-scene` and `chora-kit` on crates.io at
+   1.0 (both names are free; `chora` is taken). Default: yes; the
+   fallback is a git dependency on a tag.
+5. 2026-11-09. Only you can create the empty GitHub organization
+   `chora-desktop` now, so that the name stays free. Default: not done.
