@@ -12,7 +12,10 @@ of the node as OUT_DIR/asset.png and the path as OUT_DIR/asset-path.txt.
 With the layout `panel`, it runs the panel test instead: see panel(). With
 `hud`, it runs the HUD test: see hud().
 
+With `give`, it gives a window instead: see give().
+
 Usage: tests/mcp-client.py CHORACTL OUT_DIR (LAYOUT | panel | hud)
+       tests/mcp-client.py CHORACTL OUT_DIR give OWNER SURFACE TO
 """
 
 import base64
@@ -383,6 +386,20 @@ def hud(choractl, mcp, out):
     )
 
 
+def give(mcp, owner, surface, to):
+    """Gives a window to another window manager and prints the answer.
+
+    The tool `give_window` does it when the server has one. Without it,
+    the tool is the `window.give` of the owner, `OWNER.window.give`.
+    """
+    names = [t["name"] for t in mcp.request("tools/list")["tools"]]
+    if "give_window" in names:
+        content = mcp.tool("give_window", {"to": to, "surface": surface})
+    else:
+        content = mcp.tool(f"{owner}.window.give", {"surface": surface, "to": to})
+    print(content[0]["text"])
+
+
 def start(choractl):
     """Starts the server and initializes the session."""
     mcp = Mcp([choractl, "--name", "agent", "mcp"])
@@ -407,6 +424,10 @@ def start(choractl):
 def main():
     choractl, out, layout = sys.argv[1:4]
     mcp = start(choractl)
+    if layout == "give":
+        give(mcp, *sys.argv[4:7])
+        mcp.close()
+        return
     if layout == "panel":
         panel(mcp, out)
         mcp.close()
