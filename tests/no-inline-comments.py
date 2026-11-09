@@ -11,7 +11,9 @@ and Python.
 
 The scan runs over the whole staged file, so an added line inside a
 multi-line string is not a comment: Rust strings and raw strings, Python
-triple-quoted strings, shell here-documents. Known limits: block comments are not checked, shell quotes do not span
+triple-quoted strings, shell here-documents.
+
+Known limits: block comments are not checked, shell quotes do not span
 lines, a here-document starts only when a line equal to its delimiter
 follows, a backslash always escapes inside a Python string (also in raw
 strings), a renamed file is paired only by git's own rename detection,
