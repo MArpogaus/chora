@@ -410,6 +410,7 @@ fn spoofs_voice(event: &Event) -> Option<(u64, RpcError)> {
         caller,
         method,
         params,
+        ..
     } = event
     else {
         return None;
@@ -2723,6 +2724,7 @@ mod tests {
             caller: caller.into(),
             method: method.into(),
             params: serde_json::json!({"name": name, "state": "listening"}),
+            confined: false,
         };
         assert!(super::spoofs_voice(&call("evil", "agent.set", "voice")).is_some());
         assert!(super::spoofs_voice(&call("voice.evil", "agent.remove", "voice")).is_some());

@@ -322,6 +322,10 @@ pub enum Event {
         /// The parameters of the caller.
         #[serde(default)]
         params: serde_json::Value,
+        /// Whether the connection of the caller is confined. Absent means
+        /// `false`.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        confined: bool,
     },
     /// An event that a client emitted with `events.emit` (D65). Its name
     /// starts with the name of the client and a dot, for example
