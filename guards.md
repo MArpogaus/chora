@@ -32,7 +32,7 @@ its own), **to build** (a guard is possible and planned), **manual**
 | Code duplicated across plugins | a copy-paste detector over `plugins/` (for example `jscpd`) in the weekly round | to build |
 | POLS and KISS in every implementation | a view of every review round | manual (judgement) |
 | Split review once a plugin or service reaches 5,000 lines | `review_due.py` (plugin sizes) at run start | guarded |
-| Windows move between all window managers by every input path | handover gate over all pairs and paths (extends `tests/gate-handover.sh`) | to build |
+| Windows move between all window managers by every input path | `tests/gate-handover-matrix.sh` (all 12 ordered pairs, 7 paths, plus the pane leak check; 85 cells). It fails on every cell that differs from its EXPECTED table in both directions, on a lost window and on a run over 4 minutes. Expected gaps are listed in the table: 69 pass, 12 gaps (the key path in tiling, xp and mc, the mc drag), 4 skips. Green means "as expected", not "no gaps" | guarded (gaps open) |
 | Persona findings triaged within a day | `triage.py` at run start | guarded |
 | Every persona run reports UX/UI flaws or says why none (charter 8) | `triage.py` prints MISSING UX for a run file from 2026-11-10 on without a `kind: ux` finding or a `ux: none seen, because` line | guarded |
 | A user-facing change gets a UX/UI design note before programming (charter 5a) | none yet: the PM checks that each developer brief of a user-facing change links `design/ux-*.md`; candidate guard: `review_due.py` lists merged user-facing ranges without a note | manual |
