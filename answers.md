@@ -4,6 +4,25 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-09
 
+- 17:19 Bangkok: weekly limit at 13 %. tokens.py estimated 13.8 % at the
+  same time (seen 580,229,950 cache read, 2,346,207 output).
+
+- Define the design principles, core values and philosophy that the UX/UI
+  follows: `docs/design-principles.md` (e22ce6b), linked from charter 5a.
+
+- The ACP chat shall be themed and integrated into the matching UI, for
+  example the agents view of mc and the assistant figure of xp.
+
+- Force push allowed for the author rewrite. Then: use the user's GitHub
+  name and email as in all previous commits; rewrite and force push once
+  more (done: 130 commits on the code branch, 48 on session-log).
+
+- Sharpen the plan: a UX/UI design agent sharpens every user-facing
+  design before programming starts and takes part in the review rounds.
+  User tests always report UX/UI flaws from the persona's view. Done in
+  charter sections 5, 5a, 3 (Review) and 8, `feedback/README.md` and
+  `triage.py`.
+
 - 14:15 Bangkok: 11 % of the weekly limit; tokens.py estimates 11.8 %, within the rounding; the calibration of 13:11 holds.
 
 - The real meter is not reachable from the session (no token in the
@@ -121,19 +140,3 @@ Newest first. The PM reads this file at the start of each run.
 
 - Calibration: the user reports the used share of the weekly limit in
   the session chat during the first days; each report is added here.
-
-- Sharpen the plan: a UX/UI design agent sharpens every user-facing
-  design before programming starts and takes part in the review rounds.
-  User tests always report UX/UI flaws from the persona's view. Done in
-  charter sections 5, 5a, 3 (Review) and 8, `feedback/README.md` and
-  `triage.py`.
-
-- Force push allowed for the author rewrite. Then: use the user's GitHub
-  name and email as in all previous commits; rewrite and force push once
-  more (done: 130 commits on the code branch, 48 on session-log).
-- The ACP chat shall be themed and integrated into the matching UI, for
-  example the agents view of mc and the assistant figure of xp.
-- Define the design principles, core values and philosophy that the UX/UI
-  follows: `docs/design-principles.md` (e22ce6b), linked from charter 5a.
-- 17:19 Bangkok: weekly limit at 13 %. tokens.py estimated 13.8 % at the
-  same time (seen 580,229,950 cache read, 2,346,207 output).
