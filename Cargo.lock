@@ -526,6 +526,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-assistant"
+version = "0.9.0-rc.3"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
+ "serde_json",
+]
+
+[[package]]
 name = "chora-construct"
 version = "0.9.0-rc.3"
 dependencies = [
@@ -560,6 +569,15 @@ dependencies = [
  "schemars",
  "serde",
  "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "chora-notify"
+version = "0.9.0-rc.3"
+dependencies = [
+ "chora-kit",
+ "chora-scene",
  "serde_json",
 ]
 
