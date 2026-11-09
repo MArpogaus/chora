@@ -30,9 +30,9 @@
 #
 # Usage: tests/gate-handover-matrix.sh   BIN: directory with the binaries
 #   SHOTS: directory for the log (default: a temp dir)
-#   ONLY: a regular expression of "SRC DST PATH"; only those cells run and
-#   the table is not checked for the others (for debugging)
-# shellcheck disable=SC2016 # jq programs
+#   ONLY: a regular expression that must match all of "SRC DST PATH"; only
+#   those cells run, the table is not fully checked, and the gate says so
+# shellcheck disable=SC2016
 set -uo pipefail
 
 EXPECTED='
@@ -174,7 +174,7 @@ w=$(ctl wait "app_id:probe kind:surface owner:xp" --timeout 20 | jq -r '.[0].id'
 
 owner_of() { ctl query "id:$w" | jq -r '.[0].owner // "none"'; }
 
-surfaces_clean='all(.[]; .owner != null and .parent != null and ((.rects // {}) | length) > 0
+surfaces_clean='all(.[] | select(.id == $w); .owner != null and .parent != null and ((.rects // {}) | length) > 0
     and ([.rects[] | select(.[2] > 0 and .[3] > 0)] | length) > 0)'
 
 arrived() {
@@ -359,7 +359,7 @@ path_run() {
     give) ctl call "$2" window.give "{\"surface\": \"$w\", \"to\": \"$3\"}" >/dev/null 2>&1 ;;
     cgive) ctl give "$3" >/dev/null 2>&1 ;;
     cgive-s) ctl give "$3" --surface "$w" >/dev/null 2>&1 ;;
-    mcp) timeout 20 python3 -I "$repo/tests/mcp-client.py" "$bin/choractl" "$work" give "$2" "$w" "$3" >/dev/null 2>&1 ;;
+    mcp) timeout 20 python3 -I "$repo/tests/mcp-client.py" "$bin/choractl" "$work" give "$2" "$w" "$3" >"$work/mcp.out" 2>&1 ;;
     drag)
         if [ "$2" = xp ]; then title_drag "$3"; else super_drag "$3" "$2"; fi
         ;;
@@ -372,7 +372,6 @@ path_run() {
 }
 
 last_all=[]
-voice_pairs="tiling xp|tiling construct|xp tiling|xp mc|mc xp|mc construct|construct tiling|construct mc"
 declare -A got
 mismatches=()
 expected_of() { echo "$EXPECTED" | awk -v k="$1 $2 $3" '$1" "$2" "$3 == k {print $4}'; }
@@ -387,7 +386,7 @@ cell() {
         settle_s=10
         [ "$path" = voice ] || owner_s=5
     fi
-    if [ "$path" = voice ] && [[ "|$voice_pairs|" != *"|$src $dst|"* ]]; then
+    if [ "$want" = skip ]; then
         got["$src $dst $path"]=skip
         echo "$src $dst $path skip" >>"$log"
         return 0
@@ -396,11 +395,11 @@ cell() {
     path_run "$path" "$src" "$dst"
     if arrived "$dst" "$owner_s" "$settle_s"; then result=pass; else result=gap; fi
     for _ in $(seq 25); do
-        echo "$last_all" | jq -e "$surfaces_clean" >/dev/null && break
+        echo "$last_all" | jq -e --arg w "$w" "$surfaces_clean" >/dev/null && break
         sleep 0.2
         last_all=$(ctl query kind:surface)
     done
-    echo "$last_all" | jq -e "$surfaces_clean" >/dev/null ||
+    echo "$last_all" | jq -e --arg w "$w" "$surfaces_clean" >/dev/null ||
         fail "a surface is lost after $src $dst $path: $(echo "$last_all" | jq -c 'map({id, owner, parent, rects})')"
     o=$(echo "$last_all" | jq -r --arg w "$w" '.[] | select(.id == $w) | .owner // "none"')
     case $o in none | null | "") fail "the window is lost after $src $dst $path" ;; esac
@@ -408,7 +407,7 @@ cell() {
         key Escape
     fi
     got["$src $dst $path"]=$result
-    echo "$src $dst $path $result owner=$o focus=$(echo "$last_all" | jq -r --arg w "$w" '.[] | select(.id == $w) | .focused') pane=$([ "$o" = construct ] && construct_pane) $((SECONDS - t0))s" >>"$log"
+    echo "$src $dst $path $result owner=$o focus=$(echo "$last_all" | jq -r --arg w "$w" '.[] | select(.id == $w) | .focused') pane=$([ "$o" = construct ] && construct_pane)$([ "$path" = mcp ] && echo " tool=$(sed -n 's/^tool: //p' "$work/mcp.out")") $((SECONDS - t0))s" >>"$log"
     [ "$result" = "$want" ] || mismatches+=("$src $dst $path: measured $result, expected $want")
 }
 
@@ -432,9 +431,9 @@ done
 paths=(give cgive cgive-s mcp voice drag key)
 for path in "${paths[@]}"; do
     for pair in "${pairs[@]}"; do
-        # shellcheck disable=SC2086 # split the pair on purpose
+        # shellcheck disable=SC2086
         set -- $pair
-        [[ "$1 $2 $path" =~ ${ONLY:-.} ]] || continue
+        [[ "$1 $2 $path" =~ ^(${ONLY:-.*})$ ]] || continue
         cell "$1" "$2" "$path"
     done
     if [ "$path" = drag ] && [[ "mc construct leak" =~ ^(${ONLY:-.*})$ ]]; then
@@ -452,6 +451,7 @@ for pair in "${pairs[@]}"; do
     done
     echo
 done
+[ -z "${ONLY:-}" ] || echo "ONLY is set: the table is not fully checked"
 echo "repairs of the setup: $repairs (see $log)"
 echo "run time: ${SECONDS}s"
 if [ "${#mismatches[@]}" != 0 ]; then
@@ -459,4 +459,4 @@ if [ "${#mismatches[@]}" != 0 ]; then
     fail "${#mismatches[@]} cells differ from EXPECTED; see $log"
 fi
 [ $SECONDS -le $time_cap ] || fail "the run took ${SECONDS}s, more than $time_cap s"
-ok "gate-handover-matrix: every cell as in EXPECTED in ${SECONDS}s"
+ok "gate-handover-matrix: every cell as in EXPECTED${ONLY:+ that ran} in ${SECONDS}s"
