@@ -846,6 +846,17 @@ should take.
   session log; reports link them by relative path. Captures use `max_side` 1280 for
   the reports. Each picture states what it shows and how it was made.
 
+
+**Status page** (asked by the user on 2026-11-09): a mobile-first page
+for the user to check on the go, https://claude.ai/artifact/GXmcSEwuzRMXF1QiyUXHFe.
+It holds "right now" (running, next, needs you), progress bars in plain
+words, the status log newest first, what worked and what did not, ideas,
+screenshots, the plan and links to the reports. No internal step names.
+The PM updates it at the end of every run and after every notable
+event (a merge, a stopped piece of work, a reading of the user). Its
+source is `status/` on this branch; publish from the scratchpad copy in
+the same session, else with the page URL as `url` after a read.
+
 ## 12. Friction log
 
 `friction.md` records, with date, session and evidence:

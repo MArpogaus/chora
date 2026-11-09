@@ -1,0 +1,247 @@
+<title>chora session log</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one calm column for a phone, read top to bottom: now, progress, log, lessons, pictures, plan. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --ink: #18202c;
+  --muted: #5b6676;
+  --line: #d9dee6;
+  --accent: #2f5fd0;
+  --good: #1f7a4d;
+  --warn: #a55f00;
+  --bad: #b3261e;
+  --idle: #8a94a3;
+  --track: #e3e8ef;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342;
+    --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --idle: #6d7888; --track: #252e3b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141b; --surface: #171d27; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2a3342;
+  --accent: #7ea2ff; --good: #5fcf95; --warn: #f0b35a; --bad: #ff8a80; --idle: #6d7888; --track: #252e3b;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 28px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 19px; margin: 0 0 10px; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; }
+p { margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--font-data); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta span { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+section { display: flex; flex-direction: column; gap: 10px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.now-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 640px) { .now-grid { grid-template-columns: repeat(3, 1fr); } }
+.now-grid .panel { min-width: 0; }
+.now-grid h3 { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+ul.plain li { padding-left: 14px; position: relative; }
+ul.plain li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--idle); }
+.you li::before { background: var(--warn); }
+.run li::before { background: var(--accent); }
+.bars { display: flex; flex-direction: column; gap: 14px; }
+.bar { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
+.bar .name { font-weight: 700; }
+.bar .pct { font-family: var(--font-data); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.bar .track { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 4px; background: var(--accent); }
+.bar .note { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
+.bar.good .fill { background: var(--good); }
+.bar.warn .fill { background: var(--warn); }
+.bar.bad .fill { background: var(--bad); }
+.bar.idle .fill { background: var(--idle); }
+.group-label { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.timeline li { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.timeline li:first-child { border-top: 0; }
+.timeline time { font-family: var(--font-data); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.timeline .tag { display: inline-block; font-family: var(--font-data); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; border-radius: 4px; padding: 0 6px; margin-right: 6px; border: 1px solid currentColor; }
+.tag.ok { color: var(--good); } .tag.issue { color: var(--bad); } .tag.info { color: var(--accent); } .tag.you { color: var(--warn); }
+.day { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 0 2px; }
+.lessons { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 640px) { .lessons { grid-template-columns: repeat(3, 1fr); } }
+.lessons .panel { min-width: 0; }
+.lessons .panel.worked { border-top: 3px solid var(--good); }
+.lessons .panel.didnt { border-top: 3px solid var(--bad); }
+.lessons .panel.ideas { border-top: 3px solid var(--accent); }
+.shots { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 640px) { .shots { grid-template-columns: 1fr 1fr; } }
+figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+figure img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
+figcaption { font-size: 14px; color: var(--muted); }
+.plan { display: flex; flex-direction: column; gap: 8px; }
+.phase { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.phase.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.phase .when { font-family: var(--font-data); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.phase .what { min-width: 0; }
+.phase .what strong { display: block; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.links { display: flex; flex-direction: column; gap: 6px; }
+footer { font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">chora · autonomous development session</div>
+    <h1>Where the session stands</h1>
+    <div class="meta">
+      <span>Updated Mon 9 Nov, 19:40 Bangkok</span>
+      <span>Day 2 of 22</span>
+      <span>Week budget used: 15 %</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="now">
+    <h2 id="now">Right now</h2>
+    <div class="now-grid">
+      <div class="panel">
+        <h3>Running</h3>
+        <ul class="plain run">
+          <li>Nothing. The day is closed.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Next</h3>
+        <ul class="plain">
+          <li>One fixed merge-check script, so a failing test can never be pushed again</li>
+          <li>Decide how the chat field may take the keyboard safely</li>
+          <li>3D step 2 and a "give window" key, beside the chat work</li>
+          <li>Start on stability bugs</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Needs you</h3>
+        <ul class="plain you">
+          <li>Delete 15 old branches on GitHub (list in today's report)</li>
+          <li>Open questions have defaults; nothing is blocked</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="progress">
+    <h2 id="progress">Progress</h2>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--good)"></i>on track</span>
+      <span><i style="background:var(--warn)"></i>behind</span>
+      <span><i style="background:var(--idle)"></i>not started</span>
+    </div>
+    <div class="panel bars">
+      <div class="group-label">Foundation · comes first</div>
+      <div class="bar good"><span class="name">Security</span><span class="pct">70 %</span><div class="track"><div class="fill" style="width:70%"></div></div><span class="note">Helper permissions fixed and reviewed. Two known holes left.</span></div>
+      <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">69 of 85</span><div class="track"><div class="fill" style="width:81%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
+      <div class="bar good"><span class="name">3D</span><span class="pct">2 of 7 steps</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Base laid. The 2D look is checked pixel by pixel on every merge.</span></div>
+      <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
+      <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">~10 %</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Barely touched today. Starts tomorrow.</span></div>
+      <div class="group-label">Features</div>
+      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">3 of 13</span><div class="track"><div class="fill" style="width:23%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
+      <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
+      <div class="bar idle"><span class="name">Marketing and announcement</span><span class="pct">0 %</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="note">Planned for later weeks.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="log">
+    <h2 id="log">Status log</h2>
+    <div class="panel">
+      <div class="day">Mon 9 Nov</div>
+      <ul class="timeline">
+        <li><time>19:30</time><p><span class="tag issue">issue</span>The merge check pushed despite one failing test. A rerun showed the code is fine. Fix: one fixed script tomorrow.</p></li>
+        <li><time>19:20</time><p><span class="tag ok">merged</span>HUD model: the folder format, the English and German word table, the question card. Hardened after a security review.</p></li>
+        <li><time>19:00</time><p><span class="tag ok">merged</span>Voice chat methods. The review caught a freeze when stopping a helper; fixed before merge.</p></li>
+        <li><time>18:30</time><p><span class="tag info">review</span>Two reviewers (bugs and security) checked all code merged without review. 1 high, 7 medium findings; all fixed or scheduled.</p></li>
+        <li><time>18:00</time><p><span class="tag issue">critique</span>Daily self-critique: 20 points. Biggest: the sprint crowded out foundation work. From tomorrow one foundation track always runs.</p></li>
+        <li><time>17:50</time><p><span class="tag issue">stopped</span>The planned keyboard rule for the chat field trusted tokens that need no real click. Stopped and sent to a design check.</p></li>
+        <li><time>17:20</time><p><span class="tag info">sprint</span>First feature sprint started: HUDs and a helper chat, themed in each look.</p></li>
+        <li><time>16:40</time><p><span class="tag ok">docs</span>Design principles written: minimal, flawless, flexible.</p></li>
+        <li><time>16:10</time><p><span class="tag ok">fixed</span>All of today's commits now carry your name and GitHub email.</p></li>
+        <li><time>15:20</time><p><span class="tag ok">merged</span>Helper permissions: risky actions need a key or a click, never a spoken yes.</p></li>
+        <li><time>15:10</time><p><span class="tag ok">merged</span>The 3D construct takes over windows from other window managers without losing focus.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="lessons">
+    <h2 id="lessons">What worked, what did not</h2>
+    <div class="lessons">
+      <div class="panel worked">
+        <h3>Worked</h3>
+        <ul class="plain">
+          <li>Reviews caught real bugs before you would see them: a spoken yes approving risky actions, a voice freeze, HUD folders that could fake a question.</li>
+          <li>2D stays pixel-identical while 3D is built.</li>
+          <li>Simulated users found real everyday gaps.</li>
+          <li>A UX designer now checks every visible change before coding.</li>
+        </ul>
+      </div>
+      <div class="panel didnt">
+        <h3>Did not work</h3>
+        <ul class="plain">
+          <li>The sprint crowded out stability work and the Dependabot updates.</li>
+          <li>The merge check failed four times.</li>
+          <li>Commit authorship had to be rewritten twice.</li>
+          <li>A keyboard rule was designed on a wrong assumption.</li>
+          <li>Reports lagged behind for half a day.</li>
+        </ul>
+      </div>
+      <div class="panel ideas">
+        <h3>Ideas</h3>
+        <ul class="plain">
+          <li>One chat that lives in every look: side panel in tiling, the paperclip's bubble in xp, a drawer in mc, a glass panel in 3D.</li>
+          <li>Your own HUDs as a dropped folder: it changes the look, never what runs.</li>
+          <li>The chat follows you when you switch looks.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="shots">
+    <h2 id="shots">Screenshots</h2>
+    <div class="shots">
+      <figure><img src="img/xp-cube-3d.png" alt="The xp desktop turned into a 3D cube with two terminal windows on its side" loading="lazy"><figcaption>xp flips into the 3D cube. Windows stay usable on its faces.</figcaption></figure>
+      <figure><img src="img/xp-windows-paperclip.png" alt="xp desktop with two terminal windows and the paperclip helper with a speech balloon" loading="lazy"><figcaption>xp with windows and the paperclip helper. The chat will grow out of its balloon.</figcaption></figure>
+      <figure><img src="img/tiling-erika.png" alt="Empty dark tiling desktop with a thin top bar showing an IP address" loading="lazy"><figcaption>What a simulated 74-year-old saw in tiling: no visible way to start a program, and an address instead of "Connected". Both are in the backlog.</figcaption></figure>
+      <figure><img src="img/2d-guard-scenes.png" alt="Grid of small test scenes used to compare 2D rendering" loading="lazy"><figcaption>The 2D test scenes. They must stay pixel-identical while 3D is built.</figcaption></figure>
+      <figure><img src="img/mc.png" alt="The media center look with the Agenda page" loading="lazy"><figcaption>mc, the calm media-center look. The helper chat will open as a drawer here.</figcaption></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="plan">
+    <h2 id="plan">The plan</h2>
+    <div class="plan">
+      <div class="phase current"><span class="when">9–13 Nov</span><div class="what"><strong>Week 0 · foundation</strong>Security, 2D guard, 3D base, plugin split, window moves. First feature sprint (HUDs and chat) beside it.</div></div>
+      <div class="phase"><span class="when">14–20 Nov</span><div class="what"><strong>Week 1 · 3D and sprint round 1</strong>3D to its exit criteria, voice, the chat in every look, a big user-test round.</div></div>
+      <div class="phase"><span class="when">21–27 Nov</span><div class="what"><strong>Week 2 · sprint round 2</strong>Voice and construct on 3D, more everyday tasks, marketing drafts.</div></div>
+      <div class="phase"><span class="when">28–30 Nov</span><div class="what"><strong>Week 3 · finish</strong>No new features: polish, final review, handoff.</div></div>
+    </div>
+    <p class="note" style="color:var(--muted);font-size:14px">Rule throughout: quality and stability before features. Feature work never stops the foundation work.</p>
+  </section>
+
+  <section aria-labelledby="reports">
+    <h2 id="reports">Reports and details</h2>
+    <div class="panel links">
+      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/reports/2026-11-09.md">Daily report, 9 Nov</a>
+      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/reflections/2026-11-09.md">Self-critique and answers, 9 Nov</a>
+      <a href="https://github.com/MArpogaus/chora/blob/claude/autonomous-dev-session-3w-i33pg7/docs/design-principles.md">Design principles</a>
+      <a href="https://github.com/MArpogaus/chora/blob/claude/session-log/questions.md">Open questions with their defaults</a>
+      <a href="https://github.com/MArpogaus/chora/tree/claude/session-log">All session files</a>
+    </div>
+  </section>
+
+  <footer>Updated by the session at the end of each run and after notable events. Percentages are estimates; the window-move and step counts come from the tests.</footer>
+</div>
