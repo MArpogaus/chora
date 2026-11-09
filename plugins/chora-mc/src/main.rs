@@ -690,6 +690,7 @@ impl Plugin for Mc {
         &mut self.rt
     }
 
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             Event::SurfaceCreated { to: Some(to), .. } if to != NAME => Ok(()),
@@ -748,7 +749,12 @@ impl Plugin for Mc {
                 data,
             } if client == VOICE => self.follow(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
-            Event::PointerPressed { node, position, .. } => self.click(&node, position),
+            Event::PointerPressed {
+                node,
+                position,
+                injected,
+                ..
+            } => self.click(&node, position, injected),
             _ => Ok(()),
         }
     }

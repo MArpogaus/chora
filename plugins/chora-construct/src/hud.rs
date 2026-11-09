@@ -1345,9 +1345,12 @@ impl Voice {
 
     /// The parameters of `voice.confirm.answer` for a press on `node`: a
     /// button of the open question that has buttons. Only a pointer press
-    /// on the node calls it; no method of the construct does.
+    /// on the node calls it, and an injected press never; no method of the construct does.
     #[must_use]
-    pub fn answer(&self, node: &str) -> Option<Value> {
+    pub fn answer(&self, node: &str, injected: bool) -> Option<Value> {
+        if injected {
+            return None;
+        }
         let ask = self.ask.as_ref().filter(|a| a.buttons)?;
         let yes = match node {
             ASK_YES => true,
@@ -1600,9 +1603,15 @@ mod tests {
         let ask = json!({"id": "4", "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         voice.follow("confirm", ask, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES), Some(json!({"id": "4", "yes": true})));
-        assert_eq!(voice.answer(ASK_NO), Some(json!({"id": "4", "yes": false})));
-        assert_eq!(voice.answer(ASK_GLASS), None);
+        assert_eq!(
+            voice.answer(ASK_YES, false),
+            Some(json!({"id": "4", "yes": true}))
+        );
+        assert_eq!(
+            voice.answer(ASK_NO, false),
+            Some(json!({"id": "4", "yes": false}))
+        );
+        assert_eq!(voice.answer(ASK_GLASS, false), None);
         let commands = measured(&metrics, || voice.ask(&look, [1280.0, 720.0], true));
         assert_eq!(text_of(&commands, "construct-ask-yes-text"), Some("Ja"));
         assert_eq!(
@@ -1611,14 +1620,24 @@ mod tests {
         );
         let numeric = json!({"id": 9, "prompt": "Run?", "buttons": true});
         voice.follow("confirm", numeric, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES), Some(json!({"id": "9", "yes": true})));
+        assert_eq!(
+            voice.answer(ASK_YES, false),
+            Some(json!({"id": "9", "yes": true}))
+        );
         let plain = json!({"id": "5", "prompt": "Run?"});
         voice.follow("confirm", plain, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES), None, "no buttons");
+        assert_eq!(voice.answer(ASK_YES, false), None, "no buttons");
         voice
             .follow("confirm", json!({"id": "5", "done": true}), now)
             .unwrap();
-        assert_eq!(voice.answer(ASK_NO), None, "closed");
+        assert_eq!(voice.answer(ASK_NO, false), None, "closed");
+        let open = json!({"id": "6", "prompt": "Run?", "buttons": true});
+        voice.follow("confirm", open, now).unwrap();
+        assert_eq!(voice.answer(ASK_YES, true), None, "an injected press");
+        assert_eq!(
+            voice.answer(ASK_YES, false),
+            Some(json!({"id": "6", "yes": true}))
+        );
     }
 
     #[test]

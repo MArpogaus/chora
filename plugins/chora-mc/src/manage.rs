@@ -170,8 +170,8 @@ impl Mc {
 
     /// A click of the user: on a window or a docked app it gives that the
     /// keyboard, on a line of the overview it shows that scene.
-    pub fn click(&mut self, node: &str, at: [f64; 2]) -> Result<(), ClientError> {
-        if self.press_answer(node) {
+    pub fn click(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
+        if self.press_answer(node, injected) {
             return Ok(());
         }
         let mut ours = self.windows.values().chain(self.docks.values());
@@ -443,8 +443,12 @@ mod tests {
         let panel = mc.overview_panel().unwrap();
         let [_, top, _, _] = mc.place(super::OVERVIEW, &panel).unwrap();
         let line = mc.ty("body", None).line;
-        mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line])
-            .unwrap();
+        mc.click(
+            &crate::wheel_id(super::OVERVIEW),
+            [400.0, top + 1.5 * line],
+            false,
+        )
+        .unwrap();
         assert_eq!(mc.current.as_deref(), Some("agenda"));
     }
 
