@@ -83,3 +83,9 @@
     That is in tension with KISS. Change if it keeps failing: accept the
     known limits in its docstring instead of parsing further, or move the
     Rust part to a clippy-style lint on the AST.
+14. **Pushed before the gate finished (11-09).** The merge of X2
+    (a83933f) was pushed in the same command that ran `tests/xp.sh`,
+    without waiting for its result; xp.sh then failed on the merged tree
+    (chora-notify does not answer `settings.get`). Change: the gate and
+    the push are chained with `&&` (`set -e`), so a red check stops the
+    push; xp.sh also leaves a chora-xp process behind after a FAIL.
