@@ -1,0 +1,18 @@
+# Hooks of the media branch of the session reports. Only binary media
+# and short Markdown live here; the full config is on the code branches.
+default_install_hook_types: [pre-commit, commit-msg]
+repos:
+  - repo: local
+    hooks:
+      - id: no-agent-trailers
+        name: no Co-Authored-By, Claude-Session or "Generated with" in the message
+        language: pygrep
+        entry: '(?i)(Co-Authored-By:|Claude-Session:|Generated with)'
+        stages: [commit-msg]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=20000]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
