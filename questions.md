@@ -41,14 +41,32 @@ Each: number, date, background, default taken.
    the methods voice needs (close, move, resize). Answer "loosen" to let
    the confined agent act on foreign windows again with a grant.
 
-## Q7 (2026-11-09): HUD and ACP chat sprint defaults
+## Q7 (2026-11-09): HUD and ACP chat sprint
 
-Defaults taken unless the user objects (design/hud-sprint.md section 8,
-design/ux-hud-sprint.md section 8): chat as a terminal program this
-sprint, with a real window title, 14 px text and no slash commands on
-the main path; `chora-assistant` grows into the HUD host; mc and
-construct keep their own voice HUD but share words, key line and
-badge; a typed "yes" never answers a question and the chat holds it;
-helpers speak only questions, plus a "done" sound; no chat with the
-voice LLM itself this sprint; HUD folders read events only; a dropped
-folder needs one `hud: NAME` line; confirm keys follow the language.
+Numbers match `design/hud-sprint.md` section 8. Each has one default
+that is taken unless you answer; answer with the number and the word,
+for example "7.3 hand over". The text of each default is in the design
+file. Defaults on wording, key line and badge are in
+`design/ux-hud-sprint.md` section 8.
+
+7.1 Decided by you (11-09): the chat lives inside each look, drawn by
+    the host and styled by the HUD folder, with one layer-surface
+    field. It is not a terminal window. No answer needed.
+7.2 Host: grow `chora-assistant` into the HUD host, or a new block
+    `chora-hud`? Default: grow `chora-assistant`. Answer word: `new`.
+7.3 Do mc and construct hand their voice HUD to the host? Default:
+    no, `voice_hud: own` this sprint; the PM looks again after the user
+    tests. Answer word: `hand over`.
+7.4 May a typed "yes" in the chat answer a `read`, `search` or `think`
+    question of an agent? Default: no, the chat answers nothing; only a
+    key or a button does. Answer word: `allow`.
+7.5 Does an agent with an open chat speak its results? Default: no,
+    only its questions. Answer word: `speak`.
+7.6 Type to the voice LLM itself in the chat, not only to ACP agents?
+    Default: not this sprint; the picker lists helpers only. Answer
+    word: `include`.
+7.7 May a HUD folder call non-privileged plugin methods, such as
+    `tiling.get_tags`? Default: no, events only; a plugin emits what a
+    HUD needs. Answer word: `methods`.
+7.8 Does a dropped HUD folder activate itself? Default: no, one line
+    `hud: NAME` in `chora-assistant.yaml`. Answer word: `auto`.
