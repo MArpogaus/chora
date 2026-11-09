@@ -29,6 +29,7 @@ nav:
   - Configuration: configuration.md
   - chora-mc style guide: mc-style.md
   - chora-construct style guide: construct-style.md
+  - Split of chora-xp: xp-split.md
   - Project structure: project-structure.md
   - Voice agent (draft): voice.md
 - Context:
