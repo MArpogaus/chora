@@ -865,7 +865,6 @@ pub mod tests {
             })
         });
         let config = Config::default();
-        // The privileged `mc` tools are skipped: `call_method` reaches them.
         let mut skipped = config.skipped_tools;
         skipped.push("mc.*".into());
         let tools = Tools::new(connect, skipped, Duration::from_millis(300));
@@ -1156,9 +1155,9 @@ pub mod tests {
         assert_eq!(prompt("query_scene", json!({})), None);
     }
 
-    /// Review 0.9.0-rc.3: `methods.privileged` opens every privileged
-    /// method, so the agent asks before each tool that the export marks
-    /// privileged, in both forms. The flag comes in the `_meta` of the
+    /// `methods.privileged` opens every privileged method, so the agent
+    /// asks before each tool that the export marks privileged, in both
+    /// forms, also when `skipped_tools` hides the tool. The flag comes in the `_meta` of the
     /// tool, not from a list kept by hand.
     #[tokio::test]
     async fn privileged_methods_ask_by_their_flag() {
