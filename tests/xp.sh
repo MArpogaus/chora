@@ -1,13 +1,17 @@
 #!/bin/bash
 # End-to-end test of the XP flavor: chora runs nested in a headless sway
-# with chora-xp. The taskbar and the start button show, two foot windows
+# with chora-xp, and chora-notify and chora-assistant as units of their
+# own, with the XP assets. The taskbar and the start button show, two foot windows
 # get title bars, a drag of a title bar moves its window and bends its
 # mesh, the minimize button sends the window through the magic lamp and
 # the task button brings it back, the start menu opens and starts a
 # terminal, the buttons of the title bar maximize and close a window, and
 # the desktop buttons turn the cube to another desktop and back, My
 # Documents of the start menu starts the file manager, and the exported
-# methods do what the clicks do. Buttons light up under the pointer.
+# methods do what the clicks do. A notification of a private session bus
+# shows as the balloon of XP and a click closes it, and the paperclip shows
+# the state and the sentence of a fake voice agent. Buttons light up under
+# the pointer.
 #
 # A virtual pointer of the host drives chora, as in tests/nested.sh. Its
 # coordinates are those of the 1280x800 output, which shows the scene
@@ -17,9 +21,11 @@
 # host is slow, so a frame budget keeps the watchdog of the core calm.
 #
 # Usage: tests/xp.sh BIN_DIR [OUT_DIR]
-#   BIN_DIR  holds chora, choractl, chora-xp and chora-probe
+#   BIN_DIR  holds chora, choractl, chora-xp, chora-notify, chora-assistant
+#            and chora-probe
 #   OUT_DIR  receives the logs and screenshots (default: a temp dir)
-# Needs: sway, foot, grim, jq, pgrep and a Mesa driver. The file manager
+# Needs: sway, foot, grim, jq, pgrep, dbus-daemon, busctl, python3 and a
+# Mesa driver. The file manager
 # is thunar when it is installed, else foot in the folder.
 set -euo pipefail
 
@@ -28,6 +34,7 @@ bin=$(realpath "$1")
 export PATH="$bin:$PATH"
 out=$(realpath "${2:-$(mktemp -d)}")
 theme=$(realpath "$(dirname "$0")/../flavors/xp/theme")
+assets=$(realpath "$(dirname "$0")/../flavors/xp/assets")
 mkdir -p "$out"
 # A short path, because a socket path has at most 107 bytes.
 XDG_RUNTIME_DIR=$(mktemp -d /tmp/chora-xp-e2e.XXXXXX)
@@ -90,6 +97,18 @@ query() { "$bin/choractl" query "$@"; }
 has_node() { test "$(query "$1" | jq length)" = 1; }
 has_node_count() { test "$(query "$2" | jq length)" = "$1"; }
 wait_for has_node id:xp-tray-winit
+
+step "1b. chora-notify and chora-assistant start with the XP assets"
+bus="unix:path=$XDG_RUNTIME_DIR/bus"
+dbus-daemon --session --nofork --address="$bus" >"$out/dbus.log" 2>&1 &
+pids+=($!)
+wait_for test -S "$XDG_RUNTIME_DIR/bus"
+DBUS_SESSION_BUS_ADDRESS=$bus "$bin/chora-notify" --assets "$assets/notify" >"$out/notify.log" 2>&1 &
+pids+=($!)
+"$bin/chora-assistant" --assets "$assets/assistant" >"$out/assistant.log" 2>&1 &
+pids+=($!)
+wait_for "$bin/choractl" call notify settings.get
+wait_for "$bin/choractl" call assistant settings.get
 
 # Prints the color of a pixel of a new screenshot as "r g b". The header
 # of a 1280x800 PPM file has 16 bytes. The screenshot goes to a file: a
@@ -364,6 +383,33 @@ kill "$restart_job" 2>/dev/null || true
 wait_for count_is 3
 grim "$out/after-restart.png"
 
+step "15. a notification shows as the balloon of XP, and a click closes it"
+notify() {
+    busctl --address "$bus" call org.freedesktop.Notifications /org/freedesktop/Notifications \
+        org.freedesktop.Notifications Notify 'susssasa{sv}i' app 0 "" "$1" "$2" 0 0 0
+}
+notify "Windows Update" "Your updates are ready to install."
+wait_for has_node id:notify-card
+read -r nx ny <<<"$(query id:notify-card | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"')"
+read -r nw nh <<<"$(query id:notify-card-body | jq -r '.[0].size | "\(.[0] | floor) \(.[1] | floor)"')"
+balloon='r > 240 && g > 240 && b > 190 && b < 235'
+wait_for pixel_is $((nx + nw - 20)) $((ny + 20)) "$balloon"
+grim "$out/balloon.png"
+click $((nx + nw / 2)) $((ny + nh / 2)) || fail "the click failed"
+wait_for has_node_count 0 id:notify-card
+
+step "16. the paperclip shows the state and the sentence of the voice agent"
+mkfifo "$out/voice.in"
+python3 -I "$(dirname "$0")/fake-voice.py" "$out/claims" <"$out/voice.in" >"$out/voice.log" 2>&1 &
+pids+=($!)
+exec 5>"$out/voice.in"
+echo 'voice.state {"state": "listening"}' >&5
+wait_for has_node id:assistant-clip
+echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
+speech_visible() { test "$(query id:assistant-speech | jq '.[0].visible')" = true; }
+wait_for speech_visible
+grim "$out/paperclip.png"
+
 # A token given before or with the first commit reaches plugins
 # through surface.created.
 "$bin/choractl" events surface.created >"$out/created.jsonl" 2>/dev/null &
@@ -381,5 +427,7 @@ jq -e --arg t "$token" \
 
 kill -0 "$chora_pid" || fail "chora died"
 pgrep -x chora-xp >/dev/null || fail "chora-xp died: $out/chora.log"
+pgrep -x chora-notify >/dev/null || fail "chora-notify died: $out/notify.log"
+pgrep -x chora-assistant >/dev/null || fail "chora-assistant died: $out/assistant.log"
 
 echo "PASS (logs and screenshots in $out)"
