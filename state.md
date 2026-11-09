@@ -168,22 +168,12 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-Sprint S1 wave 1, started 17:25 Bangkok (budget left today about 6 %):
-- H0 acceptance gate `tests/gate-hud.sh` (tester, sonnet): merged 5e92531
-- H1 `chora-kit` hud, words, ask (sonnet), claude/hud-h1
-- H3 voice chat methods (sonnet), claude/hud-h3
-- H4c core keyboard rule for on_demand layers: HELD at about 17:50, the
-  token is not bound to a press (#102); opus design check first
-  (11-10 run 1), claude/hud-h4c
-- Evening reflection (opus): done, reflections/2026-11-09.md
-H2 (pictures confined to the folder) waits for disk and budget (11-10).
-
-review_due.py at 17:23: DUE (df6dc69..HEAD, weighted 2310, 9 critical
-files). ACP and construct-adopt were reviewed before their merge; grants
-step 1, the XP launch feedback and the design principles docs were not.
-First task of 11-10 run 1: one review round on that range (views: bugs,
-POLS and KISS, security on inject.rs and the grants, UX/UI on the XP
-messages), then advance last_reviewed.
+Day 11-10, run 1, started 06:28 Bangkok by the user ("start at 6, begin
+now"); the schedule is now 05:58, 11:58 and 16:58 Bangkok.
+- merge-gate script with self-test (sonnet), claude/merge-gate
+- keyboard focus design check, H4c (opus), design/h4c-decision.md
+- 3D step 2, planes outside a context (sonnet; opus review before
+  merge), claude/3d-step2
 
 ## Blocked
 
