@@ -537,8 +537,8 @@ after each step.
 
 | Step | Goal | Size | Check |
 |------|------|------|-------|
-| X1 Design | a short design document and the skeleton of the target crates; the asset folder of a block (D73) | S | the document is in `docs/`; the skeleton builds |
-| X2 Notify and assistant | notifications and the assistant (paperclip look stays with the gimmick) as plugins of their own | S | `tests/xp.sh` passes with both as separate units |
+| X1 Design | a short design document and the skeleton of the first two crates; the asset folder of a block (D73) | S | the document is in `docs/`; the skeleton builds |
+| X2 Notify and assistant | `chora-draw`, the library that the blocks share, and notifications and the assistant (paperclip look stays with the gimmick) as plugins of their own | S | `tests/xp.sh` passes with both as separate units |
 | X3 Desktop | wallpaper, icons and context menu as a plugin | M | a capture shows the wallpaper from the neutral folder |
 | X4 Panel | taskbar, start menu, clock and tray as a plugin | L | the start menu starts a program; the task list shows its window |
 | X5 Stack | the plain stacking window manager, with a neutral frame | L | windows move, resize and switch with Alt+Tab |
