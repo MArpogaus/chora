@@ -103,7 +103,7 @@ impl Plugin for Agent {
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
-            Event::PointerPressed { node, .. } => self.pressed(&node),
+            Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
                 self.replace_assistant()?
             }
@@ -188,8 +188,8 @@ impl Agent {
 
     /// A press on the figure mutes the mic or unmutes it; one on a button
     /// of a question answers it.
-    fn pressed(&mut self, node: &str) -> Vec<Command> {
-        if self.press_answer(node) {
+    fn pressed(&mut self, node: &str, injected: bool) -> Vec<Command> {
+        if self.press_answer(node, injected) {
             return Vec::new();
         }
         if Assistant::owns(node) {

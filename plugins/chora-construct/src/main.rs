@@ -947,10 +947,13 @@ impl Construct {
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
             // A button of a question: only a press of the pointer on it
             // answers, and no method of the construct does.
-            Event::PointerPressed { node, button, .. }
-                if button == BTN_LEFT && self.voice.answer(&node).is_some() =>
-            {
-                self.answer(&node);
+            Event::PointerPressed {
+                node,
+                button,
+                injected,
+                ..
+            } if button == BTN_LEFT && self.voice.answer(&node, injected).is_some() => {
+                self.answer(&node, injected);
                 return Ok(());
             }
             Event::PointerPressed {
@@ -2830,8 +2833,8 @@ impl Construct {
 
     /// Answers the open question of the voice agent by the button `node`
     /// with `confirm.answer`; a refusal, as for an old id, only logs.
-    fn answer(&mut self, node: &str) {
-        let Some(params) = self.voice.answer(node) else {
+    fn answer(&mut self, node: &str, injected: bool) {
+        let Some(params) = self.voice.answer(node, injected) else {
             return;
         };
         let call = json!({"client": VOICE, "method": "confirm.answer", "params": params});

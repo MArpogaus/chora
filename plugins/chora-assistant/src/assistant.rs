@@ -501,8 +501,11 @@ impl Assistant {
 
     /// The parameters of `voice.confirm.answer` for a press on `node`: a
     /// button of the open question. Only a pointer press on the button
-    /// calls it; no method of xp does.
-    pub fn answer(&self, node: &str) -> Option<serde_json::Value> {
+    /// calls it, and an injected press never; no method of xp does.
+    pub fn answer(&self, node: &str, injected: bool) -> Option<serde_json::Value> {
+        if injected {
+            return None;
+        }
         let yes = match node {
             YES => true,
             NO => false,
@@ -665,7 +668,7 @@ mod tests {
             1
         );
         assert!(a.asking() && a.fades_at.is_none());
-        assert_eq!(a.answer(YES), None, "no buttons");
+        assert_eq!(a.answer(YES, false), None, "no buttons");
         a.answered("c2", now);
         assert!(a.asking(), "another id");
         a.answered("c1", now);
@@ -683,11 +686,13 @@ mod tests {
             .collect();
         assert!(made.contains(&YES) && made.contains(&NO), "{made:?}");
         let json = |yes| serde_json::json!({"id": "c3", "yes": yes});
-        assert_eq!(a.answer(YES), Some(json(true)));
-        assert_eq!(a.answer(NO), Some(json(false)));
-        assert_eq!(a.answer(CLIP), None);
+        assert_eq!(a.answer(YES, false), Some(json(true)));
+        assert_eq!(a.answer(NO, false), Some(json(false)));
+        assert_eq!(a.answer(CLIP, false), None);
+        assert_eq!(a.answer(YES, true), None, "an injected press");
+        assert_eq!(a.answer(NO, true), None, "an injected press");
         assert_eq!(a.answered("c3", now).len(), 2, "the buttons go");
-        assert_eq!(a.answer(YES), None, "answered");
+        assert_eq!(a.answer(YES, false), None, "answered");
     }
 
     #[test]

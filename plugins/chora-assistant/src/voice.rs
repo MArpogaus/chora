@@ -195,8 +195,8 @@ impl Agent {
     /// A press on a button of the question in the balloon answers it
     /// with `confirm.answer`; a refusal, as for an old id, only logs.
     /// True when `node` was such a button.
-    pub fn press_answer(&mut self, node: &str) -> bool {
-        let Some(params) = self.assistant.as_ref().and_then(|a| a.answer(node)) else {
+    pub fn press_answer(&mut self, node: &str, injected: bool) -> bool {
+        let Some(params) = (self.assistant.as_ref()).and_then(|a| a.answer(node, injected)) else {
             return false;
         };
         if let Err(err) = self.voice_call("confirm.answer", &params) {
