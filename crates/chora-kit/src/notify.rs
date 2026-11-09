@@ -2,14 +2,22 @@
 //! (`org.freedesktop.Notifications`, served by `chora-notify`), for a
 //! plugin that has something to tell the user. The connection opens at
 //! the first call and again after a failure; without a server the calls
-//! fail, are logged, and the plugin goes on.
+//! fail, are logged, and the plugin goes on. A call waits 2 seconds for
+//! the server at most.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
-use zbus::{blocking::Connection, zvariant::Value};
+use zbus::{
+    blocking::{Connection, connection::Builder},
+    zvariant::Value,
+};
 
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
+
+/// How long a call waits for the server, so that a server that hangs
+/// stalls the plugin for this long at most.
+const TIMEOUT: Duration = Duration::from_secs(2);
 
 /// What the server shows: a title, a text and an icon.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,10 +46,12 @@ impl Notifier {
         Self::default()
     }
 
-    /// A client on a given connection.
+    /// A client on the bus that a builder names.
     #[must_use]
-    pub fn on(conn: Connection) -> Self {
-        Self { conn: Some(conn) }
+    pub fn at(builder: Builder<'_>) -> Self {
+        Self {
+            conn: builder.method_timeout(TIMEOUT).build().ok(),
+        }
     }
 
     /// Shows a message as the app `app`, or, with the id of an earlier one
@@ -93,7 +103,9 @@ impl Notifier {
 
     fn connection(&mut self) -> Result<&Connection, String> {
         if self.conn.is_none() {
-            self.conn = Some(Connection::session().map_err(|err| err.to_string())?);
+            let builder = Builder::session().map_err(|err| err.to_string())?;
+            let conn = builder.method_timeout(TIMEOUT).build();
+            self.conn = Some(conn.map_err(|err| err.to_string())?);
         }
         self.conn.as_ref().ok_or_else(|| "no connection".into())
     }
@@ -101,7 +113,10 @@ impl Notifier {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::{
+        sync::{Arc, Mutex},
+        time::Duration,
+    };
 
     use super::*;
 
@@ -174,7 +189,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let mut notifier = Notifier::on(connect(&address).build().unwrap());
+        let mut notifier = Notifier::at(connect(&address));
         let message = Message {
             icon: "",
             summary: "Starting writer",
@@ -195,12 +210,66 @@ mod tests {
         );
     }
 
+    struct Hanging;
+
+    #[zbus::interface(name = "org.freedesktop.Notifications")]
+    impl Hanging {
+        #[allow(
+            clippy::too_many_arguments,
+            clippy::unused_self,
+            reason = "the signature of the specification"
+        )]
+        fn notify(
+            &mut self,
+            app: String,
+            replaces: u32,
+            icon: String,
+            summary: String,
+            body: String,
+            actions: Vec<String>,
+            hints: HashMap<String, zbus::zvariant::OwnedValue>,
+            expire: i32,
+        ) -> u32 {
+            let _ = (app, replaces, icon, summary, body, actions, hints, expire);
+            std::thread::sleep(Duration::from_secs(6));
+            1
+        }
+    }
+
+    #[test]
+    fn a_server_that_does_not_answer_loses_the_message_after_the_timeout() {
+        let Some((_daemon, address)) = bus() else {
+            return;
+        };
+        let _server = connect(&address)
+            .name(NAME)
+            .unwrap()
+            .serve_at(PATH, Hanging)
+            .unwrap()
+            .build()
+            .unwrap();
+        let mut notifier = Notifier::at(connect(&address));
+        let message = Message {
+            icon: "",
+            summary: "hangs",
+            body: "",
+            expire_ms: -1,
+        };
+        let start = std::time::Instant::now();
+        assert_eq!(notifier.show("chora-xp", None, &message), None);
+        assert!(
+            start.elapsed() < Duration::from_secs(4),
+            "{:?}",
+            start.elapsed()
+        );
+    }
+
     #[test]
     fn a_bus_without_a_server_loses_the_message() {
         let Some((_daemon, address)) = bus() else {
             return;
         };
-        let mut notifier = Notifier::on(connect(&address).build().unwrap());
+        let mut notifier = Notifier::at(connect(&address));
         let message = Message {
             icon: "",
             summary: "lost",
