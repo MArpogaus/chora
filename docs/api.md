@@ -168,6 +168,13 @@ targets along the curve: `linear` (the default), `ease_in`, `ease_out` or
 `ease_in_out`. The other properties change at the end, so this example
 fades the node out and then hides it.
 
+A `transform` moves as translation, rotation and scale apart: the
+translation and the scale move straight and the rotation turns along the
+shortest arc (a quaternion slerp), so a node keeps its size while it
+turns. A transform with a shear, a perspective part or a zero scale does
+not decompose; if the start or the end is such a matrix, the 16 entries
+blend one by one. The same holds for the `camera` move.
+
 `effects` in `animate` is the full list of the end. An effect of the
 list that has the same index and the same `shader` as the effect of the
 node now moves its numeric uniforms, a number or 2 to 4 numbers, toward
