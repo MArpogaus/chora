@@ -135,7 +135,7 @@ pub enum Key {
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 14] = [
+const KEYS: [(&str, &str, Key); 10] = [
     ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
@@ -154,10 +154,6 @@ const KEYS: [(&str, &str, Key); 14] = [
         "Super+Ctrl+Shift+Right",
         Key::Carry(1),
     ),
-    ("Super+Alt+1", "", Key::Give("tiling")),
-    ("Super+Alt+2", "", Key::Give("xp")),
-    ("Super+Alt+3", "", Key::Give("mc")),
-    ("Super+Alt+4", "", Key::Give("construct")),
 ];
 
 /// A title bar that the pointer drags.
@@ -497,7 +493,8 @@ impl Wm {
                 }
             }
         }
-        Ok(())
+        self.rt.give_keys(Some(Key::Give));
+        self.rt.grab_give_keys()
     }
 
     /// Applies a transaction, with the logical sizes of the pictures.

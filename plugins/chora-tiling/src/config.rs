@@ -242,18 +242,14 @@ mod tests {
     }
 
     #[test]
-    fn the_default_gives_the_focused_window_to_each_manager() {
-        let config = parse::<Config>(DEFAULT).unwrap();
-        for (key, to) in [
-            ("1", "tiling"),
-            ("2", "xp"),
-            ("3", "mc"),
-            ("4", "construct"),
-        ] {
-            let binding = format!("Super+Alt+{key}");
-            assert_eq!(config.bindings[&binding], Action::Give(to.into()));
-        }
-        let empty = DEFAULT.replace("{give: xp}", "{give: ' '}");
+    fn a_binding_gives_the_focused_window() {
+        let give = DEFAULT.replace(
+            "MOD+Ctrl+r: reload",
+            "MOD+g: {give: xp}\n  MOD+Ctrl+r: reload",
+        );
+        let config = parse::<Config>(&give).unwrap();
+        assert_eq!(config.bindings["MOD+g"], Action::Give("xp".into()));
+        let empty = give.replace("{give: xp}", "{give: ' '}");
         assert!(
             parse::<Config>(&empty)
                 .unwrap_err()

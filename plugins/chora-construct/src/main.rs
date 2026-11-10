@@ -325,15 +325,6 @@ enum Grab {
     Give(&'static str),
 }
 
-/// The keys that give the focused window to the window manager of this
-/// name (D55); the same on every window manager.
-const GIVE_KEYS: [(&str, &str); 4] = [
-    ("Super+Alt+1", "tiling"),
-    ("Super+Alt+2", "xp"),
-    ("Super+Alt+3", "mc"),
-    ("Super+Alt+4", "construct"),
-];
-
 /// A drag with the modifier: the pane, the press and its centre then.
 struct Moving {
     name: String,
@@ -2026,11 +2017,9 @@ impl Construct {
                 eprintln!("chora-construct: the drag: {err}");
             }
         }
-        if self.active && !self.overlay {
-            for (key, to) in GIVE_KEYS {
-                self.rt.grab(parse(key.into())?, Grab::Give(to))?;
-            }
-        }
+        let serves = self.active && !self.overlay;
+        self.rt.give_keys(serves.then_some(Grab::Give));
+        self.rt.grab_give_keys()?;
         if self.flown.is_some() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;

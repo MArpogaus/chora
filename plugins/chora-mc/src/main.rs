@@ -1251,7 +1251,8 @@ impl Mc {
             let binding = text.parse().expect("the settings check their bindings");
             self.rt.grab(binding, action)?;
         }
-        Ok(())
+        self.rt.give_keys(Some(|to| Action::Give(to.into())));
+        self.rt.grab_give_keys()
     }
 
     /// The claim: the work area of an output, below the header and above

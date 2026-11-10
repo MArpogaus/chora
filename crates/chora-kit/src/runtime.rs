@@ -19,6 +19,9 @@ use serde_json::{Value, json};
 
 use crate::{conn::Conn, settings::Store};
 
+/// The time between two tries to grab give keys that another client held.
+const REGRAB: Duration = Duration::from_secs(2);
+
 /// A plugin on the runtime: it handles the events and the calls of its
 /// exported methods.
 pub trait Plugin {
@@ -123,23 +126,42 @@ impl<A> Runtime<A> {
         self.give_keys = make;
     }
 
-    /// Grabs the give keys that the plugin does not hold.
+    /// Grabs the give keys that the plugin does not hold; a key that
+    /// another client holds stays free for the next try.
     ///
     /// # Errors
     ///
     /// The socket fails.
     pub fn grab_give_keys(&mut self) -> Result<(), ClientError> {
+        let Some(make) = self.give_keys else {
+            return Ok(());
+        };
+        for (key, to) in crate::give::KEYS {
+            let Ok(binding) = key.parse::<Binding>() else {
+                continue;
+            };
+            let text = binding.to_string();
+            if self.grabs.iter().any(|(b, _)| *b == text) {
+                continue;
+            }
+            self.grab_with(binding, make(to), false)?;
+        }
         Ok(())
     }
 
-    /// As [`Self::grab_give_keys`], at most once in a while.
+    /// As [`Self::grab_give_keys`], at most every [`REGRAB`], so that a
+    /// plugin calls it per event: a client that held a key may have gone.
     ///
     /// # Errors
     ///
     /// The socket fails.
     pub fn regrab_give_keys(&mut self) -> Result<(), ClientError> {
-        self.give_tried.take();
-        Ok(())
+        let now = Instant::now();
+        if self.give_keys.is_none() || self.give_tried.is_some_and(|t| now < t + REGRAB) {
+            return Ok(());
+        }
+        self.give_tried = Some(now);
+        self.grab_give_keys()
     }
 
     /// Subscribes to `events` and exports `methods`. The events of the
@@ -196,6 +218,10 @@ impl<A> Runtime<A> {
     /// The socket fails, or the core knows no such key, so that a
     /// `settings.set` with it fails.
     pub fn grab(&mut self, binding: Binding, action: A) -> Result<bool, ClientError> {
+        self.grab_with(binding, action, true)
+    }
+
+    fn grab_with(&mut self, binding: Binding, action: A, log: bool) -> Result<bool, ClientError> {
         let text = binding.to_string();
         match self.conn.call::<_, String>("input.grab", Grab { binding }) {
             Ok(normal) => {
@@ -206,7 +232,9 @@ impl<A> Runtime<A> {
                 Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into())
             }
             Err(ClientError::Rpc(err)) => {
-                eprintln!("chora-{}: {text}: {err}", self.name);
+                if log {
+                    eprintln!("chora-{}: {text}: {err}", self.name);
+                }
                 Ok(false)
             }
             Err(err) => Err(err),
@@ -288,7 +316,10 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         }
         Event::OutputChanged { output } if !rt.manages(&output.name) => Ok(()),
         Event::OutputRemoved { name } if !rt.manages(&name) => Ok(()),
-        event => plugin.event(event),
+        event => {
+            rt.regrab_give_keys()?;
+            plugin.event(event)
+        }
     }
 }
 
@@ -600,8 +631,8 @@ mod tests {
         let released = Arc::new(AtomicBool::new(false));
         let seen = Arc::clone(&released);
         let (path, _core) = fake_core::serve(move |method, params| match method {
-            "input.grab" if params["binding"] == "Super+Alt+2" && !seen.load(Ordering::SeqCst) => {
-                Answer::Error("Super+Alt+2 is grabbed already")
+            "input.grab" if params["binding"] == "Alt+Super+2" && !seen.load(Ordering::SeqCst) => {
+                Answer::Error("Alt+Super+2 is grabbed already")
             }
             "input.grab" => Answer::Result(params["binding"].clone()),
             _ => Answer::Result(Value::Null),
@@ -610,13 +641,13 @@ mod tests {
         let mut rt: Runtime<&'static str> = Runtime::with(conn, "mc", Vec::new());
         rt.give_keys(Some(|to| to));
         rt.grab_give_keys().unwrap();
-        for (key, to) in [("Super+Alt+1", "tiling"), ("Super+Alt+3", "mc")] {
+        for (key, to) in [("Alt+Super+1", "tiling"), ("Alt+Super+3", "mc")] {
             assert_eq!(rt.action(key), Some(&to));
         }
-        assert_eq!(rt.action("Super+Alt+4"), Some(&"construct"));
-        assert_eq!(rt.action("Super+Alt+2"), None);
+        assert_eq!(rt.action("Alt+Super+4"), Some(&"construct"));
+        assert_eq!(rt.action("Alt+Super+2"), None);
         released.store(true, Ordering::SeqCst);
         rt.grab_give_keys().unwrap();
-        assert_eq!(rt.action("Super+Alt+2"), Some(&"xp"));
+        assert_eq!(rt.action("Alt+Super+2"), Some(&"xp"));
     }
 }

@@ -5,6 +5,8 @@ use chora_scene::{
     Command, Node, claimant_at,
     ipc::{ClientError, ExportMethod, Filter, MethodCall, Query, RpcError},
 };
+use std::time::Duration;
+
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -61,7 +63,7 @@ pub trait Windows {
 
 /// What the key action does with the focused window.
 #[derive(Debug, PartialEq, Eq)]
-pub enum Step {
+enum Step {
     /// The window is an own one: the window manager hands it over.
     Hand(String),
     /// Another window manager owns it: it hands it over with its own
@@ -82,7 +84,7 @@ pub enum Step {
 /// # Errors
 ///
 /// One of the refusals above.
-pub fn plan(
+fn plan(
     focused: Option<&Node>,
     me: &str,
     to: &str,
@@ -95,14 +97,14 @@ pub fn plan(
     let Some(owner) = node.owner.as_deref() else {
         return refuse(format!("{} has no window manager", node.id));
     };
+    if owner == to {
+        return refuse(format!("{} is with {to} already", node.id));
+    }
     if owner != me {
         return Ok(Step::Forward {
             owner: owner.into(),
             surface: node.id.clone(),
         });
-    }
-    if to == me {
-        return refuse(format!("{} is with {me} already", node.id));
     }
     if !windows.has(&node.id) {
         return refuse(format!("{me} has no window {}", node.id));
@@ -120,20 +122,7 @@ pub const KEYS: [(&str, &str); 4] = [
 ];
 
 /// The time that a key waits for the owner of another window.
-pub const FORWARD_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
-
-/// As [`focused`], with the time to wait for the owner of another window.
-///
-/// # Errors
-///
-/// As [`focused`], and the time ends.
-pub fn focused_within(
-    _windows: &mut impl Windows,
-    _to: &str,
-    _wait: std::time::Duration,
-) -> Result<Value, RpcError> {
-    Err(RpcError::new(RpcError::REJECTED, "not written yet"))
-}
+pub const FORWARD_WAIT: Duration = Duration::from_secs(2);
 
 /// The key action `give: to`: gives the focused window to the window
 /// manager `to`. A window of the plugin goes through [`Windows::hand`],
@@ -142,27 +131,43 @@ pub fn focused_within(
 ///
 /// # Errors
 ///
-/// The window cannot go, the owner refuses, or the socket fails.
+/// The window cannot go, the owner refuses or does not answer within
+/// [`FORWARD_WAIT`], or the socket fails.
 pub fn focused(windows: &mut impl Windows, to: &str) -> Result<Value, RpcError> {
+    focused_within(windows, to, FORWARD_WAIT)
+}
+
+/// As [`focused`], with the time to wait for the owner of another window.
+///
+/// # Errors
+///
+/// As [`focused`].
+pub fn focused_within(
+    windows: &mut impl Windows,
+    to: &str,
+    wait: Duration,
+) -> Result<Value, RpcError> {
     let node = windows.conn().focused_surface()?;
     let me = windows.conn().name().to_owned();
-    match plan(node.as_ref(), &me, to, windows)? {
-        Step::Hand(surface) => windows.hand(&surface, to),
-        Step::Forward { owner, surface } => windows
-            .conn()
-            .call(
-                "methods.call",
-                MethodCall {
-                    client: owner,
-                    method: METHOD.into(),
-                    params: json!({"surface": surface, "to": to}),
-                },
-            )
-            .map_err(|e| match e {
-                ClientError::Rpc(err) => err,
-                other => rejected(other),
-            }),
-    }
+    let answer = match plan(node.as_ref(), &me, to, windows)? {
+        Step::Hand(surface) => windows.hand(&surface, to)?,
+        Step::Forward { owner, surface } => {
+            let call = MethodCall {
+                client: owner,
+                method: METHOD.into(),
+                params: json!({"surface": surface, "to": to}),
+            };
+            windows
+                .conn()
+                .call_within("methods.call", call, wait)
+                .map_err(|e| match e {
+                    ClientError::Rpc(err) => err,
+                    other => rejected(other),
+                })?
+        }
+    };
+    eprintln!("chora-{me}: key give {answer} to {to}");
+    Ok(answer)
 }
 
 impl Conn {
@@ -233,14 +238,12 @@ fn rejected(err: impl std::fmt::Display) -> RpcError {
 
 #[cfg(test)]
 mod tests {
-    use super::focused_within;
+    use super::{Duration, focused_within};
     use super::{Step, Windows, plan};
     use crate::conn::{
         Conn,
         fake_core::{self, Answer},
     };
-    use std::time::Duration;
-
     use chora_scene::{
         Node, NodeKind, Props,
         ipc::{ExportMethod, RpcError},

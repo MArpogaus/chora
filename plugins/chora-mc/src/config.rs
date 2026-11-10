@@ -495,7 +495,9 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
         assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
-        assert_eq!(config.bindings["Super+Alt+2"], Action::Give("xp".into()));
+        let give = DEFAULT.replace("Super+n:", "Super+g: {give: xp}\n  Super+n:");
+        let given = parse::<Config>(&give).unwrap();
+        assert_eq!(given.bindings["Super+g"], Action::Give("xp".into()));
         assert_eq!(config.chapter.layout, Layout::Number);
         assert!(config.write.enabled);
         let slow = DEFAULT.replace("duration_ms: 900", "duration_ms: 99999");

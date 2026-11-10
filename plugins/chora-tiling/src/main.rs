@@ -322,6 +322,7 @@ impl Tiling {
     #[allow(clippy::expect_used, reason = "the configuration checks its bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
         let bindings = self.wm.config.bindings.clone();
+        self.rt.give_keys(Some(|to| Action::Give(to.into())));
         for (text, action) in bindings {
             let binding = self
                 .wm
@@ -330,6 +331,7 @@ impl Tiling {
                 .expect("the configuration checks its bindings");
             self.rt.grab(binding, action)?;
         }
+        self.rt.grab_give_keys()?;
         // The title bars of the clients drag as `drag` does.
         let moves = MOVE.parse().expect("move is a binding");
         self.rt.grab(moves, Action::Drag)?;

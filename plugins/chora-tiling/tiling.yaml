@@ -116,11 +116,6 @@ bindings:
   MOD+Ctrl+Shift+7: {toggle_window_tag: 7}
   MOD+Ctrl+Shift+8: {toggle_window_tag: 8}
   MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
-  # Give the focused window to a window manager
-  Super+Alt+1: {give: tiling}
-  Super+Alt+2: {give: xp}
-  Super+Alt+3: {give: mc}
-  Super+Alt+4: {give: construct}
   # Programs
   MOD+Return: {run: foot}
   MOD+r: {run: fuzzel}
