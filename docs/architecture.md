@@ -188,8 +188,9 @@ positive scale, is a **layer**: the core renders it with its descendants into a
 texture of its size, and then draws the texture through the mesh, or a
 quad, with the full transform of the node and the camera. The vertices go
 to the GPU in homogeneous coordinates, so textures map correctly under
-perspective. Wobbly windows move the points of a mesh, a magic lamp
-animates them, and a desktop cube turns layers in 3D. A layer has no depth
+perspective. Wobbly windows move the points of a mesh, in 3D
+with a `depth` for each point (`Wobble::new_3d`, a smaller z is nearer), a
+magic lamp animates them, and a desktop cube turns layers in 3D. A layer has no depth
 test: the order of the siblings decides what is in front, and a plugin
 hides the faces that turn away. A node with a size, or with a content size
 such as a window, an image or a text, whose transform relative to its nearest
@@ -398,9 +399,18 @@ The safety layer is the only built-in behavior (see
   the last injected event. No client owns the mark or can remove it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Last words.** A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)
-  writes the fault address and a backtrace to stderr before the default
-  action ends chora. `tests/last-words.sh` checks it.
+- **Last words.** No end of the core is silent. A faulting signal
+  (SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGFPE, SIGSYS) writes the fault
+  address and a backtrace to stderr before the default action ends
+  chora. A signal that ends chora without a fault (SIGTERM, SIGINT,
+  SIGHUP, SIGQUIT, SIGUSR2, SIGALRM, SIGXCPU, SIGXFSZ) writes its name
+  and the pid of its sender. A panic writes its thread, its message and
+  a backtrace; a panic outside the main thread ends only that thread.
+  An end through the quit binding, `session.quit`, the window of the
+  nested backend or a failed startup command logs `chora ends` with the
+  reason. Only SIGKILL leaves nothing, for example from the OOM killer;
+  the exit status 137 of the core then names it.
+  `tests/last-words.sh` checks the signals and `session.quit`.
 - **Emergency reset.** The core disconnects all plugins and ends their
   grace times. It revokes all grants, removes all effects and restores the
   default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
@@ -426,11 +436,21 @@ The safety layer is the only built-in behavior (see
   also those of a client with `keep_nodes` or `resume`, without a grace
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
-  the emergency reset; only the binding and SIGUSR1 do.
+  the emergency reset; only the binding and SIGUSR1 do. The time that
+  the main thread waited for a CPU during a frame (the run queue wait of
+  `/proc/thread-self/schedstat`) does not count: on a busy host the
+  frames are late without a costly scene, so the core logs at most once
+  a minute that the host is busy and acts on no client. Only the main
+  thread counts: the wait of the threads of a software renderer still
+  looks like a costly frame.
+  `tests/gate-watchdog-starved.sh` checks it beside busy loops.
 - **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
   stall of the main loop and aborts chora when the loop hangs, for
-  example in a shader that never returns.
-  `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
+  example in a shader that never returns. The time that the watchdog
+  thread itself did not run, after SIGSTOP or on a starved host, counts
+  for no stall, up to a ceiling: four times the abort time of wall time
+  without a beat aborts too. `tests/gate-0.9-shader-hang.sh` checks it on
+  llvmpipe.
 
 ## Permissions
 

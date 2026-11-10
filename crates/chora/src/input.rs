@@ -54,7 +54,7 @@ enum KeyAction {
     /// injected.
     Grab(u64, Binding, bool),
     /// Send a key to the owner of the node with the keyboard focus.
-    Node(String, SceneEvent),
+    Node(String, Box<SceneEvent>),
 }
 
 pub fn process<I: InputBackend>(state: &mut State, event: InputEvent<I>) {
@@ -132,7 +132,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         },
     );
     match action {
-        Some(KeyAction::Quit) => state.loop_signal.stop(),
+        Some(KeyAction::Quit) => state.quit("the quit binding"),
         Some(KeyAction::Reset) => state.reset(),
         Some(KeyAction::RevokeAll) => state.revoke_all(),
         Some(KeyAction::SwitchVt(vt)) => {
@@ -212,7 +212,8 @@ fn released_key(
     };
     FilterResult::Intercept(match state.held.keys.remove(i).1 {
         Suppressed::Node(owner, node) => {
-            KeyAction::Node(owner, node_key(node, mods, handle, PressState::Released))
+            let release = node_key(node, mods, handle, PressState::Released);
+            KeyAction::Node(owner, Box::new(release))
         }
         Suppressed::Swallow => KeyAction::Swallow,
     })
@@ -246,7 +247,7 @@ fn pressed_key(
             });
         }
         (
-            KeyAction::Node(owner.clone(), event),
+            KeyAction::Node(owner.clone(), Box::new(event)),
             Suppressed::Node(owner, node),
         )
     } else {

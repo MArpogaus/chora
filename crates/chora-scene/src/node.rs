@@ -132,7 +132,7 @@ pub struct ShaderEffect {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(
     untagged,
-    expecting = "a uniform of a number, a list of 2 to 4 numbers, or {\"node\": ID}"
+    expecting = "a uniform of a number, a list of 2 to 4 numbers, {\"node\": ID} or {\"output\": NAME}"
 )]
 pub enum Uniform {
     /// A `float`.
@@ -142,6 +142,9 @@ pub enum Uniform {
     /// A `sampler2D` with another node, as it shows on its own; shader
     /// nodes only.
     Texture(NodeTexture),
+    /// A `sampler2D` with the last frame of a virtual output of the
+    /// client; shader nodes only.
+    Output(OutputTexture),
 }
 
 /// A node that a shader reads as a texture.
@@ -153,6 +156,15 @@ pub struct NodeTexture {
     pub node: String,
 }
 
+/// A virtual output that a shader reads as a texture.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct OutputTexture {
+    /// The name of the output.
+    pub output: String,
+}
+
 impl Uniform {
     /// The numbers of the value; none for a texture.
     #[must_use]
@@ -160,7 +172,7 @@ impl Uniform {
         match self {
             Self::Float(v) => std::slice::from_ref(v),
             Self::Vector(v) => v,
-            Self::Texture(_) => &[],
+            Self::Texture(_) | Self::Output(_) => &[],
         }
     }
 }

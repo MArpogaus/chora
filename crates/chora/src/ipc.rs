@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -469,7 +469,7 @@ impl Ipc {
     }
 
     /// Whether a connection came through the admin socket.
-    fn admin(&self, conn: u64) -> bool {
+    pub(crate) fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
             .is_some_and(|c| c.socket == Socket::Admin)
@@ -879,7 +879,7 @@ impl State {
                 params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
             }
             "output.add" | "output.remove" => {
-                self.ipc_headless_output(conn, &request.method, params)
+                self.ipc_output_hotplug(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
@@ -961,8 +961,8 @@ impl State {
             .name(conn)
             .ok_or_else(|| rejected("send hello first"))?;
         self.check_socket_grant(conn, Capability::SessionQuit)?;
-        tracing::info!(client = name, "session.quit");
-        self.loop_signal.stop();
+        let reason = format!("session.quit of {name}");
+        self.quit(&reason);
         Ok(Value::Null)
     }
 
@@ -1166,6 +1166,7 @@ impl State {
     /// ends its grace time.
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
+        self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
         self.execute_gone(effects);
         self.ipc.uploads.drop_client(name);
@@ -1191,7 +1192,11 @@ impl State {
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
         // (D33): only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
-        let rects = self.screen_rects();
+        if nodes.is_empty() {
+            return Ok(Value::Array(Vec::new()));
+        }
+        let matched: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+        let rects = self.screen_rects(&matched);
         if let Some(filter) = &query.filter {
             nodes.retain(|n| {
                 filter.matches(
@@ -1221,10 +1226,12 @@ impl State {
     /// The screen rectangles by node: the output name maps to
     /// `[x, y, w, h]` in the logical pixels of that output, after the
     /// parent transforms and the camera of the output. Outputs where the
-    /// node does not show are left out.
-    fn screen_rects(&self) -> HashMap<&str, Value> {
+    /// node does not show are left out. Only the nodes `of` get a
+    /// rectangle: a box costs a text layout or a projection, which a
+    /// query for one node must not pay for the whole scene.
+    fn screen_rects(&self, of: &HashSet<&str>) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             let name = output.name();
             let screen = Rectangle::from_size(output_area(output).size).to_f64();
             // The overlay sits in the coordinates of its output, without
@@ -1240,7 +1247,8 @@ impl State {
                     .iter()
                     .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
                     .collect();
-                let shown = list.iter().filter_map(|placed| {
+                let wanted = list.iter().filter(|p| of.contains(p.node.id.as_str()));
+                let shown = wanted.filter_map(|placed| {
                     Some((
                         placed.node.id.as_str(),
                         self.screen_rect(placed, &at, screen)?,
@@ -1471,6 +1479,7 @@ impl State {
             self.drop_nodes(&name);
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
+            self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
             self.execute_gone(effects);
         }
@@ -3258,6 +3267,28 @@ mod tests {
         let mut client = core.connect_to(&path);
         client.ok(core, "hello", json!({"name": name}));
         (client, path)
+    }
+
+    /// Only a free client of the main socket owns a virtual output.
+    #[test]
+    fn a_client_socket_cannot_add_one() {
+        let (mut core, dir) = socket_dir("virtual");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        let add = json!({"spec": "32x32", "virtual": true});
+        for client in [&mut agent, &mut confined] {
+            let (number, error) = client.fails(&mut core, "output.add", add.clone());
+            assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        }
+        let mut nameless = core.connect();
+        let (_, error) = nameless.fails(&mut core, "output.add", add);
+        assert!(error.contains("hello"), "{error}");
+        let list = admin.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list, json!([]), "nothing was added");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

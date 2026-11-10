@@ -51,7 +51,8 @@ health() {
     else
       state=no-process
     fi
-    finding "core dead after: $*" crash "health check during $WF" "process: $state"
+    finding "core dead after: $*" crash "health check during $WF" "process: $state" \
+      "session: $(grep -a "the core ended with" "$hlenv.err" 2>/dev/null | tail -n 1)"
     # W9-W12 end at the first death instead of piling up findings
     if [ -n "${STOP_ON_DEATH:-}" ]; then log_scan; session_stop; exit 1; fi
     return 1

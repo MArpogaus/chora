@@ -34,7 +34,7 @@ use chora_kit::{
 use chora_scene::{
     Command, Easing, Event, MAX_DURATION, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     ToplevelState, Transform, Uniform,
-    ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
+    ipc::{ClientError, ExportMethod, Filter, PressState, Query, RpcError},
 };
 use clap::Parser;
 use serde::Deserialize;
@@ -241,6 +241,14 @@ enum Target {
     Dock(String),
 }
 
+/// Whether the panels may write and blur: not after the watchdog of the
+/// core dropped the effects, until the settings change.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Shaders {
+    On,
+    Dropped,
+}
+
 struct Mc {
     rt: Runtime<Action>,
     /// Whether mc claims its output (`--manage-windows`).
@@ -276,6 +284,11 @@ struct Mc {
     /// The files of the effects that write new text and that blur.
     shader: PathBuf,
     blur: PathBuf,
+    shaders: Shaders,
+    /// The panels whose write animation runs, each with the number of
+    /// the transaction that started it: those of one transaction end in
+    /// the same frame.
+    writing: HashMap<String, u64>,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -456,6 +469,8 @@ impl Mc {
             typing: None,
             shader,
             blur,
+            shaders: Shaders::On,
+            writing: HashMap::new(),
             put: Vec::new(),
             toggled: BTreeMap::new(),
             docks: HashMap::new(),
@@ -492,9 +507,10 @@ const CHAT: &str = "chat";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 13] = [
+const EVENTS: [&str; 14] = [
     "voice.*",
     "assistant.chat",
+    "effects.dropped",
     "client.connected",
     "client.disconnected",
     "pointer.scroll",
@@ -749,6 +765,7 @@ impl Plugin for Mc {
             Event::AnimationDone {
                 node: Some(node), ..
             } => self.timer(&node),
+            Event::EffectsDropped { client } if client == NAME => self.effects_dropped(),
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
@@ -844,6 +861,7 @@ impl Plugin for Mc {
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
+        let plain = std::mem::replace(&mut self.shaders, Shaders::On) == Shaders::Dropped;
         self.keep_texts();
         let contents = &self.settings.value.contents;
         (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
@@ -856,7 +874,7 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
-        let theme_only = self.built && self.shape.as_ref() == Some(&self.shape_of());
+        let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
         self.rt
             .ungrab_all()
             .and_then(|()| self.grab_all())
@@ -1243,7 +1261,76 @@ impl Mc {
                 let late: Vec<String> = self.fitting.keys().cloned().collect();
                 late.iter().try_for_each(|surface| self.fit(surface))
             }
-            _ => Ok(()),
+            _ => self.written(node),
+        }
+    }
+
+    /// The watchdog of the core removed the effects of the plugin. An
+    /// update that was on its way then may have put a blur or a write
+    /// effect back, so the effects of the panels go once more.
+    fn effects_dropped(&mut self) -> Result<(), ClientError> {
+        if self.shaders == Shaders::On {
+            eprintln!(
+                "chora-mc: frames were slow, the core dropped the effects; the panels \
+                 stay plain until the settings change"
+            );
+        }
+        self.shaders = Shaders::Dropped;
+        let mut commands = Vec::new();
+        for (name, scene) in &self.scenes {
+            for panel in &scene.panels {
+                let id = panel_id(name, &panel.id);
+                let shaded = panel.blur.is_some() || self.writing.contains_key(&id);
+                if shaded && self.place(name, panel).is_some() {
+                    commands.push(Command::Update {
+                        id,
+                        props: PropsUpdate {
+                            effects: Some(Vec::new()),
+                            ..PropsUpdate::default()
+                        },
+                    });
+                }
+            }
+        }
+        self.writing.clear();
+        self.apply(commands)
+    }
+
+    /// The write animation of a panel ended, and with it those of the
+    /// same transaction: their effects go in one transaction, so that a
+    /// page that rests costs no shader pass per panel.
+    fn written(&mut self, node: &str) -> Result<(), ClientError> {
+        let Some(batch) = self.writing.get(node).copied() else {
+            return Ok(());
+        };
+        let mut commands = Vec::new();
+        for (name, scene) in &self.scenes {
+            for panel in &scene.panels {
+                let id = panel_id(name, &panel.id);
+                if self.writing.get(&id) == Some(&batch) {
+                    commands.push(Command::Update {
+                        id,
+                        props: PropsUpdate {
+                            effects: Some(self.blur_effect(panel).into_iter().collect()),
+                            ..PropsUpdate::default()
+                        },
+                    });
+                }
+            }
+        }
+        self.writing.retain(|_, b| *b != batch);
+        self.apply(commands)
+    }
+
+    /// Remembers the panels that the commands start to write.
+    fn note_writes(&mut self, commands: &[Command]) {
+        let batch = self.writing.values().max().map_or(0, |b| b + 1);
+        for command in commands {
+            if let Command::Animate { id, props, .. } = command
+                && props.effects.is_some()
+            {
+                self.writing.insert(id.clone(), batch);
+            }
         }
     }
 
@@ -1336,6 +1423,7 @@ impl Mc {
         if commands.is_empty() {
             return Ok(());
         }
+        self.note_writes(&commands);
         self.rt.conn.apply(commands)
     }
 
@@ -1876,7 +1964,7 @@ impl Mc {
 
     /// Moves what the core lays out to its place: the title of the head
     /// after the number, the notes of the panels of a scene flush right to
-    /// the margin.
+    /// the margin. One query reads the rects of all texts that show.
     fn align(&mut self, name: &str) -> Result<(), ClientError> {
         let Some(scene) = self.scenes.get(name).cloned() else {
             return Ok(());
@@ -1884,11 +1972,13 @@ impl Mc {
         let Some(geo) = self.geometry(name) else {
             return Ok(());
         };
+        let rects = self.text_rects()?;
+        let rect = |id: &str| rects.get(id).copied();
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
         if Self::has_chapter(&scene)
             && self.layout(&scene) == Layout::Number
-            && let Some([_, _, width, _]) = self.rect(&chapter_id(name, "number"))?
+            && let Some([_, _, width, _]) = rect(&chapter_id(name, "number"))
         {
             let space = BAR_SPACE * self.ty("chapter", None).size;
             let bar = self.bar((geo.text[0] + width + space).round());
@@ -1901,7 +1991,7 @@ impl Mc {
             // A title that wraps pushes the lines down by its extra lines.
             let mut y = self.lines_top(panel);
             if !panel.title.is_empty()
-                && let Some([_, _, _, height]) = self.rect(&format!("{id}-title"))?
+                && let Some([_, _, _, height]) = rect(&format!("{id}-title"))
             {
                 let line = self.ty("heading", panel.title_style.as_ref()).line;
                 y += (height - line).max(0.0);
@@ -1915,13 +2005,13 @@ impl Mc {
             let body = self.ty("body", panel.style.as_ref());
             let note = self.ty("margin", panel.note_style.as_ref());
             for (i, (time, _)) in rows.iter().enumerate() {
-                let Some([_, _, _, height]) = self.rect(&format!("{id}-line-{i}"))? else {
+                let Some([_, _, _, height]) = rect(&format!("{id}-line-{i}")) else {
                     break; // below the panel
                 };
                 commands.push(move_to(format!("{id}-line-{i}"), indent, y));
                 let note_id = format!("{id}-note-{i}");
                 if !time.is_empty()
-                    && let Some([_, _, width, _]) = self.rect(&note_id)?
+                    && let Some([_, _, width, _]) = rect(&note_id)
                 {
                     let x = (geo.note - width).max(0.0);
                     commands.push(move_to(note_id, x, y + baseline_shift(&body, &note)));
@@ -1967,6 +2057,26 @@ impl Mc {
         Ok(rect)
     }
 
+    /// The rects that the core lays out the visible texts of the plugin
+    /// at, by node, with one query: each query costs the core a walk
+    /// over the scene.
+    fn text_rects(&mut self) -> Result<HashMap<String, [f64; 4]>, ClientError> {
+        let query = Query {
+            selector: format!("owner:{NAME} kind:text"),
+            filter: Some(Filter {
+                visible: true,
+                ..Filter::default()
+            }),
+        };
+        let nodes: Vec<Value> = self.rt.conn.call("scene.query", query)?;
+        let rects = nodes.iter().filter_map(|n| {
+            let r = n["rects"].as_object()?.values().next()?.as_array()?;
+            let v: Vec<f64> = r.iter().filter_map(Value::as_f64).collect();
+            Some((n["id"].as_str()?.to_owned(), <[f64; 4]>::try_from(v).ok()?))
+        });
+        Ok(rects.collect())
+    }
+
     /// The rect of an item, or of its hidden copy when `probed`.
     fn measure(&mut self, id: &str, probed: bool) -> Result<[f64; 4], ClientError> {
         let rect = if probed {
@@ -1977,9 +2087,10 @@ impl Mc {
         Ok(rect?.unwrap_or_default())
     }
 
-    /// The effect of the blur of a panel, if it has one.
+    /// The effect of the blur of a panel, if it has one and the watchdog
+    /// of the core did not drop the effects.
     fn blur_effect(&self, panel: &Panel) -> Option<ShaderEffect> {
-        let radius = panel.blur.filter(|r| *r > 0.0)?;
+        let radius = (panel.blur).filter(|r| *r > 0.0 && self.shaders == Shaders::On)?;
         Some(ShaderEffect {
             shader: self.blur.to_string_lossy().into_owned(),
             uniforms: [("radius".into(), Uniform::Float(radius))].into(),
@@ -1991,7 +2102,7 @@ impl Mc {
     #[allow(clippy::cast_precision_loss)] // at most 4 KiB of lines
     fn write(&self, name: &str, panels: &[&Panel]) -> Vec<Command> {
         let config = &self.settings.value;
-        if !config.write.enabled {
+        if !config.write.enabled || self.shaders == Shaders::Dropped {
             return Vec::new();
         }
         let mut commands = Vec::new();
@@ -2953,6 +3064,126 @@ mod tests {
         assert_eq!(focuses(), before);
         mc.show("agenda", true).unwrap();
         assert_eq!(focuses(), before + 1);
+    }
+
+    /// The number of effects of the first panel of a scene in the model.
+    fn panel_effects(mc: &super::Mc, model: &crate::testing::Model, scene: &str) -> usize {
+        let panel = &mc.scenes[scene].panels[0].id;
+        let id = super::panel_id(scene, panel);
+        let core = model.lock().unwrap();
+        core.scene.node(&id).unwrap().props.effects.len()
+    }
+
+    /// The write effect costs a shader pass per panel, so it goes when
+    /// its animation ends: a page that rests has no effects.
+    #[test]
+    fn the_write_effect_goes_when_its_animation_ends() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-ends", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it writes");
+        let panel = mc.scenes["agenda"].panels[0].id.clone();
+        mc.event(chora_scene::Event::AnimationDone {
+            node: Some(super::panel_id("agenda", &panel)),
+            output: None,
+        })
+        .unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 0);
+    }
+
+    /// The panels that one transaction writes end in the same frame:
+    /// the first end removes the effects of all of them at once, and a
+    /// scene of 300 panels answers with one transaction, not with 300.
+    #[test]
+    fn the_panels_of_one_show_lose_the_write_effect_together() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-batch", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("mission", true).unwrap();
+        let ids: Vec<String> = (mc.scenes["mission"].panels.iter())
+            .map(|p| super::panel_id("mission", &p.id))
+            .collect();
+        assert!(ids.len() > 1);
+        let effects = |id: &String| {
+            let core = model.lock().unwrap();
+            core.scene.node(id).unwrap().props.effects.len()
+        };
+        assert_eq!(
+            ids.iter().map(effects).sum::<usize>(),
+            ids.len(),
+            "all write"
+        );
+        mc.event(chora_scene::Event::AnimationDone {
+            node: Some(ids[0].clone()),
+            output: None,
+        })
+        .unwrap();
+        assert_eq!(ids.iter().map(effects).sum::<usize>(), 0);
+        assert!(mc.writing.is_empty());
+    }
+
+    /// After the watchdog of the core dropped the effects of mc, a scene
+    /// shows without the write effect until the settings change.
+    #[test]
+    fn dropped_effects_stay_off_until_the_settings_change() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("dropped", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        assert!(super::EVENTS.contains(&"effects.dropped"));
+        mc.event(chora_scene::Event::EffectsDropped {
+            client: super::NAME.into(),
+        })
+        .unwrap();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 0, "no shader");
+        mc.event(chora_scene::Event::EffectsDropped {
+            client: "other".into(),
+        })
+        .unwrap();
+        mc.settings_changed().unwrap();
+        mc.show("morning", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "morning"), 1, "it writes again");
+    }
+
+    /// An end of a write animation that mc answers before it hears of
+    /// the drop puts the blur back after the core removed it. The drop
+    /// clears the effects of the panels once more, and the change of the
+    /// settings that allows shaders again brings the blur back, also
+    /// when only the theme changed.
+    #[test]
+    fn a_drop_clears_the_blur_and_the_settings_bring_it_back() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("blur", [1920, 1080]);
+        mc.blur = "/blur.frag".into();
+        mc.scenes.get_mut("agenda").unwrap().panels[0].blur = Some(4.0);
+        mc.build().unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs");
+        mc.event(chora_scene::Event::EffectsDropped {
+            client: super::NAME.into(),
+        })
+        .unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 0, "the drop");
+        mc.settings_changed().unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs again");
+    }
+
+    /// A query costs the core a walk over the scene, so a scene of 300
+    /// panels must not ask one per title and row: the alignment of a
+    /// scene reads all rects with one query.
+    #[test]
+    fn a_scene_aligns_with_one_query() {
+        let (mut mc, model) = crate::testing::mc("one-query", [1920, 1080]);
+        let rows = |i: u32| vec![format!("{i}\tone"), format!("{i}\ttwo")];
+        let scene = mc.scenes.get_mut("mission").unwrap();
+        for (i, panel) in (0..).zip(&mut scene.panels) {
+            panel.title = format!("T{i}");
+            panel.lines = rows(i);
+        }
+        mc.build().unwrap();
+        let before = model.lock().unwrap().queries;
+        mc.align("mission").unwrap();
+        assert_eq!(model.lock().unwrap().queries - before, 1);
     }
 
     /// The window that mc hands away leaves the keyboard to its receiver:

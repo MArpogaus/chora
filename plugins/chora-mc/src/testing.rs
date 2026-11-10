@@ -25,6 +25,8 @@ pub struct Core {
     pub focuses: Vec<Option<String>>,
     /// The methods that the plugin called through `methods.call`.
     pub calls: Vec<String>,
+    /// How often the plugin asked `scene.query`.
+    pub queries: usize,
     /// The parameters of each `methods.call`: client, method and params.
     pub called: Vec<Value>,
     /// The events that the plugin emitted through `events.emit`.
@@ -86,6 +88,7 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
                 )),
             }
         }
+        "input.grab" => Ok(params["binding"].clone()),
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             let mut core = model.lock().unwrap();
@@ -101,7 +104,8 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
             let id = params["selector"]
                 .as_str()
                 .and_then(|s| s.strip_prefix("id:"));
-            let core = model.lock().unwrap();
+            let mut core = model.lock().unwrap();
+            core.queries += 1;
             let found = id
                 .and_then(|id| core.scene.node(id))
                 .map(|n| json!({"id": n.id}));
@@ -139,6 +143,8 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         camera: Transform::IDENTITY,
         work_area: [0, 0, size[0], size[1]],
         default_work_area: [0; 4],
+        is_virtual: None,
+        owner: None,
     });
     mc.build().unwrap();
     (mc, model)
