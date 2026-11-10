@@ -246,7 +246,7 @@ impl Config {
     /// claims the indicator of the voice agent.
     #[must_use]
     pub fn draws_voice(&self) -> bool {
-        matches!(self.voice_hud, VoiceHud::Own | VoiceHud::Host)
+        self.voice_hud == VoiceHud::Own
     }
 }
 

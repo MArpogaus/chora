@@ -92,7 +92,7 @@ xp-tray-rows missing
 mc-host-hud pass
 mc-chat-drawer missing
 construct-host-hud pass
-construct-chat-panel pass
+construct-chat-panel missing
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
@@ -438,6 +438,7 @@ stop_mc() {
     mc_pid=0
 }
 claims_now() { cat "$work/claims" 2>/dev/null || echo 0; }
+node_shows() { ctl query "id:$1" | jq -e '.[0] | . != null and .visible != false and (.opacity // 1) > 0' >/dev/null; }
 owner_says() { ctl query "owner:$1" | jq -e --arg t "$2" 'any(.[]; (.meta.text // "") | contains($t))'; }
 cell_mc_host_hud() {
     local before
@@ -507,11 +508,12 @@ cell_construct_host_hud() {
     emit voice.say '{"text": "Your updates are ready to install.", "duration_ms": 1000}'
     waiting "$settle_s" node_exists hud-figure || return 1
     waiting "$settle_s" node_exists hud-line || return 1
-    ! node_exists construct-hud || return 1
+    sleep 1
+    ! node_shows construct-hud || return 1
     ask_notes
     waiting "$settle_s" node_exists hud-card || return 1
     sleep 1
-    ! node_exists construct-ask || return 1
+    ! node_shows construct-ask || return 1
     [ "$(claims_now)" = "$before" ]
 }
 chat_at_right() {

@@ -737,7 +737,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
-| `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
+| `voice_hud` | `own` | `own`: draw the voice HUD and the questions, and hide the dot of the voice agent; `host`: the HUD host `chora-assistant` draws them with the folder `plugins/chora-construct/hud`, and the construct claims no indicator |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
@@ -916,7 +916,7 @@ a pane goes in any way.
 
 ### The voice HUD
 
-With `voice_hud`, the construct shows the voice agent
+With `voice_hud: own`, the construct shows the voice agent
 ([voice](voice.md), section 10) at the bottom centre of the output, from its first
 `voice.state` on. A glass panel holds a ring in the accent and the state
 as a label: a thin, dim ring asleep, a full ring listening, a turning arc
