@@ -1688,7 +1688,8 @@ impl Construct {
     fn start_terminal(&mut self) {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
-        let token = chora_kit::launch(&command).map(|(t, _)| t);
+        let mint = self.rt.conn.activation_token();
+        let token = chora_kit::launch(&command, mint.as_deref()).map(|(t, _)| t);
         let pane = PaneFile {
             kind: Kind::Program,
             command: Some(command),
@@ -1707,7 +1708,8 @@ impl Construct {
     /// Starts the launcher. Its own window, if it has one and the
     /// token, is no pane; the next window after it is.
     fn start_launcher(&mut self) {
-        self.launcher = chora_kit::launch(&self.settings.value.launcher);
+        let mint = self.rt.conn.activation_token();
+        self.launcher = chora_kit::launch(&self.settings.value.launcher, mint.as_deref());
         self.launched = Some(Instant::now());
     }
 
@@ -2300,8 +2302,9 @@ impl Construct {
         for pane in file.panes {
             match pane.kind {
                 Kind::Program => {
-                    let token = chora_kit::launch(pane.command.as_deref().unwrap_or_default())
-                        .map(|(t, _)| t);
+                    let mint = self.rt.conn.activation_token();
+                    let command = pane.command.as_deref().unwrap_or_default();
+                    let token = chora_kit::launch(command, mint.as_deref()).map(|(t, _)| t);
                     self.waiting.push(Waiting::new(token, pane));
                 }
                 Kind::Plugin => {

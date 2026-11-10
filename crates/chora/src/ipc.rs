@@ -893,10 +893,12 @@ impl State {
     /// such a token skips the focus rule of its own tokens.
     ///
     /// The token carries the act of the person (the last command press)
-    /// when the caller is unconfined, the act is younger than `ACT_AGE` and
-    /// no layer surface used it yet. Only such a token gives the keyboard
-    /// to an on-demand layer surface. Any other token still starts programs
-    /// and places windows. A call without an act proves nothing (#102).
+    /// when the caller is unconfined, has the client name that received
+    /// the act, the act is younger than `ACT_AGE` and no token carries it
+    /// yet: one act, one stamped token. Only such a token gives the
+    /// keyboard to an on-demand layer surface. Any other token still
+    /// starts programs and places windows. A call without an act proves
+    /// nothing (#102).
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
         self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
@@ -908,25 +910,27 @@ impl State {
     }
 
     /// The token data of `activation.token`: stamped with the act when the
-    /// caller is unconfined and the act is young and unused. Every such
-    /// token carries it, so that no mint takes the stamp from another.
+    /// caller is unconfined and is the client that received the act, and
+    /// the act is young and carried by no token yet.
     fn act_stamped_data(
         &mut self,
         conn: u64,
     ) -> smithay::wayland::xdg_activation::XdgActivationTokenData {
         let data = smithay::wayland::xdg_activation::XdgActivationTokenData::default();
         let now = self.time.now();
-        let act = self.last_act.filter(|a| {
-            !a.used
-                && !self.ipc.confined(conn)
+        let confined = self.ipc.confined(conn);
+        let caller = self.ipc.name(conn).map(str::to_owned);
+        let act = self.last_act.as_mut().filter(|a| {
+            !a.stamped
+                && !confined
+                && caller.as_deref() == Some(a.client.as_str())
                 && now.saturating_duration_since(a.at) < crate::protocols::ACT_AGE
         });
         if let Some(act) = act {
+            act.stamped = true;
+            let serial = u32::from(act.serial);
             data.user_data
-                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp {
-                    serial: u32::from(act.serial),
-                    at: now,
-                });
+                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp { serial, at: now });
         }
         data
     }

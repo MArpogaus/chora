@@ -142,6 +142,11 @@ enum Cmd {
     /// when a user manager runs, as its own child otherwise. Prints pid,
     /// unit and token as one JSON line.
     Run {
+        /// A token that the caller minted on its own connection, so that
+        /// it carries the act that the caller received; without it,
+        /// choractl mints one.
+        #[arg(long)]
+        token: Option<String>,
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         argv: Vec<String>,
@@ -461,9 +466,8 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             "camera.release",
             serde_json::json!({"output": output}),
         ),
-        Cmd::Run { argv } => {
-            run_program(client, &argv, None).map(|line| print_line(std::io::stdout(), &line))
-        }
+        Cmd::Run { argv, token } => run_program(client, &argv, (None, token.as_deref()))
+            .map(|line| print_line(std::io::stdout(), &line)),
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -521,10 +525,11 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
 /// token as one JSON value; the token lets a test follow the trip to the
 /// window. With `plugin`, the unit is the one of `view_unit` and
 /// restarts the program when it fails, as the unit of a flavor does.
+/// With `given`, the program gets that token instead of a new one.
 pub(crate) fn run_program(
     client: &mut Client,
     argv: &[String],
-    plugin: Option<&str>,
+    (plugin, given): (Option<&str>, Option<&str>),
 ) -> Result<Value, ClientError> {
     if argv.is_empty() {
         return Err(ClientError::Io(std::io::Error::other("no program")));
@@ -546,7 +551,10 @@ pub(crate) fn run_program(
     if plugin.is_some() && matches!(unit_state(&unit).as_str(), "active" | "activating") {
         return Ok(serde_json::json!({ "pid": null, "unit": unit, "token": null }));
     }
-    let answer: Value = client.call("activation.token", Value::Null)?;
+    let answer: Value = match given {
+        Some(token) => serde_json::json!({ "token": token }),
+        None => client.call("activation.token", Value::Null)?,
+    };
     let Some(token) = answer["token"].as_str().map(str::to_owned) else {
         return Err(ClientError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidData,

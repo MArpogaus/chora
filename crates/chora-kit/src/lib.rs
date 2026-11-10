@@ -24,25 +24,40 @@ pub mod wobbly;
 pub mod words;
 pub mod xdg;
 
+/// The arguments of `choractl run` for a shell command, with the
+/// activation token of the plugin when it has one.
+fn run_args<'a>(command: &'a str, token: Option<&'a str>) -> Vec<&'a str> {
+    let mut args = vec!["run"];
+    if let Some(token) = token {
+        args.extend(["--token", token]);
+    }
+    args.extend(["--", "sh", "-c", command]);
+    args
+}
+
 /// Starts a shell command as an app with `choractl run` (D42). The app
-/// gets an activation token, and a unit of its own when a user manager
-/// runs. `&` lets the shell exit at once, so no zombie stays.
-pub fn run(command: &str) {
+/// gets the activation token `token`, which the plugin minted on its own
+/// connection with [`conn::Conn::activation_token`] so that it carries
+/// the act that the plugin received, or else a token of `choractl`; and
+/// a unit of its own when a user manager runs. `&` lets the shell exit at
+/// once, so no zombie stays.
+pub fn run(command: &str, token: Option<&str>) {
     let started = std::process::Command::new("sh")
-        .args(["-c", r#"choractl run sh -c "$0" >/dev/null &"#, command])
+        .args(["-c", r#"choractl "$@" >/dev/null &"#, "choractl"])
+        .args(run_args(command, token))
         .status();
     if let Err(err) = started {
         eprintln!("cannot run {command:?}: {err}");
     }
 }
 
-/// Starts a shell command as an app with `choractl run` (D42), and
-/// answers the activation token that finds its window and the pid of
-/// the app, if `choractl` knows it.
+/// Starts a shell command as an app with `choractl run` (D42), with the
+/// activation token as [`run`] takes it, and answers the activation token
+/// that finds its window and the pid of the app, if `choractl` knows it.
 #[must_use]
-pub fn launch(command: &str) -> Option<(String, Option<u32>)> {
+pub fn launch(command: &str, token: Option<&str>) -> Option<(String, Option<u32>)> {
     let run = std::process::Command::new("choractl")
-        .args(["run", "--", "sh", "-c", command])
+        .args(run_args(command, token))
         .stdin(std::process::Stdio::null())
         .output();
     let line = match run {

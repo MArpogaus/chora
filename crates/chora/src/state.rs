@@ -166,11 +166,16 @@ struct Waiting {
 /// The last press that a person made as a command: a grabbed key or
 /// button, a key to a node, or a press on a node that is no window; never
 /// an injected press, a press in a locked session or a key typed into a
-/// window. `used` ends it when a layer surface took the keyboard with it.
-#[derive(Clone, Copy)]
+/// window. `client` is the client name that received it: the holder of
+/// the grab or the owner of the node. Only a token of that client carries
+/// the act, and only one: `stamped` ends the stamping, `used` ends the act
+/// when a layer surface took the keyboard with it.
+#[derive(Clone)]
 pub struct Act {
     pub serial: Serial,
     pub at: Instant,
+    pub client: String,
+    pub stamped: bool,
     pub used: bool,
 }
 
@@ -792,17 +797,23 @@ impl State {
         }
     }
 
-    /// Takes the newest real press as the act that activation tokens may
-    /// carry, unless the session is locked. Called only for a press that
-    /// the core or a client took as a command.
-    pub fn note_act(&mut self) {
+    /// Takes the newest real press as the act that activation tokens of
+    /// the client `client` may carry, unless the session is locked. Called
+    /// only for a press that a client took as a command: a key or button
+    /// it grabbed, a key to its node, or a press on its node.
+    pub fn note_act(&mut self, client: Option<&str>) {
         let Some(serial) = self.last_real_press.filter(|_| self.lock.is_none()) else {
             return;
         };
-        if self.last_act.is_none_or(|a| a.serial != serial) {
+        let Some(client) = client else {
+            return;
+        };
+        if self.last_act.as_ref().is_none_or(|a| a.serial != serial) {
             self.last_act = Some(Act {
                 serial,
                 at: self.time.now(),
+                client: client.to_owned(),
+                stamped: false,
                 used: false,
             });
         }
@@ -1534,8 +1545,8 @@ mod tests {
         let second = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
         let mut ctl = grab_key(&mut core);
         chord(&mut core, false);
-        let unused = mint(&mut core, &mut ctl);
         let used = mint(&mut core, &mut ctl);
+        let unused = mint(&mut core, &mut ctl);
         wayland.activate_layer(&mut core, &second, &used);
         assert_eq!(keyboard(&core), Some(second.surface.id().protocol_id()));
         wayland.activate_layer(&mut core, &field, &unused);
@@ -1582,7 +1593,7 @@ mod tests {
         let _lock = wayland.lock(&mut core);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         core.state.track_press(serial, false);
-        core.state.note_act();
+        core.state.note_act(Some("tiling"));
         assert!(core.state.last_act.is_none());
     }
 

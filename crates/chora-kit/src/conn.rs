@@ -53,6 +53,15 @@ impl Conn {
         &self.name
     }
 
+    /// An activation token of the plugin for [`crate::run`] and
+    /// [`crate::launch`]. It carries the act of the person when the act
+    /// went to this plugin: a key or button it grabbed, a key to its node
+    /// or a press on its node. `None` when the core refuses one.
+    pub fn activation_token(&mut self) -> Option<String> {
+        let answer: Value = self.call("activation.token", Value::Null).ok()?;
+        answer["token"].as_str().map(str::to_owned)
+    }
+
     /// Sends a request and waits for its response.
     ///
     /// # Errors

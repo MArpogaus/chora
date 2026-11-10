@@ -2092,7 +2092,8 @@ impl Mc {
             Some(app) if app.kind == Kind::App => region::command(&app.command, config.colors()),
             _ => command.into(),
         };
-        let Some((token, pid)) = launch(&command) else {
+        let mint = self.rt.conn.activation_token();
+        let Some((token, pid)) = launch(&command, mint.as_deref()) else {
             return Ok(());
         };
         self.starting.insert(token, Target::Scene(name.into()));
@@ -2560,7 +2561,8 @@ impl Mc {
             Action::Scene(name) => name,
             Action::Run(command) => {
                 // The new window takes the keyboard.
-                let _ = launch(&command);
+                let mint = self.rt.conn.activation_token();
+                let _ = launch(&command, mint.as_deref());
                 return;
             }
             Action::Give(to) => {

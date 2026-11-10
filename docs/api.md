@@ -621,7 +621,7 @@ answers every request.
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
-| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined, the act is under 2 s old and unused, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined and has the client name that received the act (the holder of the grab, the owner of the node), the act is under 2 s old and no token carries it yet, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -979,8 +979,10 @@ The core starts no program except its own startup command (D30, D42).
 `choractl run` starts programs outside the core, and systemd keeps
 plugins running.
 
-`choractl run [--] CMD ARGS...` starts a program outside the core. It
-asks the core for an activation token with `activation.token` and
+`choractl run [--token TOKEN] [--] CMD ARGS...` starts a program outside
+the core. It asks the core for an activation token with
+`activation.token`, or takes `TOKEN`, which a plugin minted on its own
+connection so that it carries the act that the plugin received, and
 passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
 `DESKTOP_STARTUP_ID` for GTK 3. The children of the program inherit
 both variables unless the program removes them, as GTK does after it
