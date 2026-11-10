@@ -102,7 +102,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 09:18 Bangkok</span>
+      <span>Updated Tue 10 Nov, 10:10 Bangkok</span>
       <span>Day 3 of 22</span>
       <span>Week budget used: 15 %</span>
     </div>
@@ -114,8 +114,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>3D step 3 of 4: menus and drag-and-drop in tilted windows</li>
-          <li>The HUD host: today's look as the first HUD folder, plus a check command for your own folders</li>
+          <li>3D step 4 of 4: smooth with 8 live 3D windows</li>
+          <li>The HUD changes with what you do: window manager, app, helper state</li>
         </ul>
       </div>
       <div class="panel">
@@ -148,11 +148,11 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="group-label">Foundation · comes first</div>
       <div class="bar good"><span class="name">Security</span><span class="pct">70 %</span><div class="track"><div class="fill" style="width:70%"></div></div><span class="note">Helper permissions fixed and reviewed. Two known holes left.</span></div>
       <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">69 of 85</span><div class="track"><div class="fill" style="width:81%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
-      <div class="bar good"><span class="name">3D</span><span class="pct">4 of 7 steps</span><div class="track"><div class="fill" style="width:57%"></div></div><span class="note">Real 3D space works; ahead of plan. The 2D look is checked pixel by pixel on every merge.</span></div>
+      <div class="bar good"><span class="name">3D</span><span class="pct">5 of 7 steps</span><div class="track"><div class="fill" style="width:71%"></div></div><span class="note">Real 3D space works; ahead of plan. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
       <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">~10 %</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Barely touched today. Starts tomorrow.</span></div>
       <div class="group-label">Features</div>
-      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">6 of 13</span><div class="track"><div class="fill" style="width:46%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
+      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">7 of 13</span><div class="track"><div class="fill" style="width:54%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
       <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
       <div class="bar idle"><span class="name">Marketing and announcement</span><span class="pct">0 %</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="note">Planned for later weeks.</span></div>
     </div>
@@ -163,6 +163,8 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>10:10</time><p><span class="tag ok">merged</span>The HUD host: today's look is now the first HUD folder, plus commands to check, list and switch folders. Review caught a long command hiding its dangerous end; now a question that cannot be shown in full is refused.</p></li>
+        <li><time>09:55</time><p><span class="tag ok">merged</span>3D step 3 of 4: menus and drag-and-drop work in tilted windows. Drag-and-drop between programs is new and locked down after review. Also a real clock bug in mc, found by a flaky test.</p></li>
         <li><time>09:18</time><p><span class="tag ok">merged</span>3D step 2 of 4 (the hardest): a real 3D space where planes cross and the nearest one gets the click. Review caught a screen freeze with many planes and a click reaching hidden planes; both fixed first. Also merged: the chat model, which cleans hidden and fake text from helpers.</p></li>
         <li><time>09:00</time><p><span class="tag ok">merged</span>11 of 13 dependency updates, plus a security fix for one library. 2 major updates need code changes and are planned.</p></li>
         <li><time>08:37</time><p><span class="tag ok">merged</span>HUD pictures and fonts stay inside their folder. A review found no way out; crafted pictures that could freeze the screen are now refused.</p></li>

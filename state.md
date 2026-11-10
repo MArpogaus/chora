@@ -58,6 +58,10 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-10 10:10: pushed c5f277f (merge-gate green each time): 3D step 4
+  with DnD security fixes (f5d293b chain), mc clock duration bug
+  445cdfa, H5 HUD host with review fixes (too-long cards refused).
+
 - 11-10 09:18: pushed 2d72eec through merge-gate (all green): Dependabot
   11 of 13 plus rmcp 3.9.0 advisory fix (#96 zbus 6 and #87
   serde-saphyr 2 wait: API migrations); 3D step 3 with review fixes
@@ -181,8 +185,8 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- 3D step 4, popups and drags in a context (sonnet), claude/3d-step4
-- H5 HUD host with the neutral folder (sonnet), claude/hud-h5
+- 3D step 5, plane cost (sonnet), claude/3d-step5
+- H6 context switching (sonnet), claude/hud-h6
 
 ## Blocked
 
