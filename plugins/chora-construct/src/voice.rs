@@ -114,6 +114,8 @@ impl Construct {
     /// pill change only with the pane.
     pub(crate) fn label_commands(&mut self) -> Vec<Command> {
         let hidden = self.flown.is_some()
+            || self.moving.is_some()
+            || self.effects.animating()
             || self.list.is_some()
             || self.glide.as_ref().is_some_and(|g| g.into.is_some());
         let pick = if hidden { None } else { self.focus() };

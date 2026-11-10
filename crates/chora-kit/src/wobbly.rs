@@ -32,9 +32,22 @@ const COUNT: usize = SIDE * SIDE;
 const CELLS: u32 = 20;
 /// `KWin`'s default level (`set_0`): spring stiffness, the share of the
 /// velocity kept per step, and the scale from velocity to movement.
-const STIFFNESS: f64 = 0.15;
-const DRAG: f64 = 0.80;
-const MOVE_FACTOR: f64 = 0.10;
+const KWIN: Level = Level {
+    stiffness: 0.15,
+    drag: 0.80,
+    move_factor: 0.10,
+};
+/// The level of a sail: looser springs, so that a pane that swings
+/// through a space bends far and still rests within a second.
+const SAIL: Level = Level {
+    stiffness: 0.06,
+    drag: 0.90,
+    move_factor: 0.10,
+};
+/// The depth of the bow of a sail per pixel that a point trails its
+/// place, and the trail below which the bow starts softly.
+const BOW: f64 = 0.9;
+const BOW_SOFT: f64 = 12.0;
 /// The cap of velocity and acceleration, per axis.
 const MAX: f64 = 1000.0;
 /// The grid rests when the summed accelerations and velocities fall below
@@ -44,8 +57,21 @@ const STOP_VELOCITY: f64 = 0.5;
 /// The integration step, in milliseconds.
 const STEP_MS: f64 = 10.0;
 
+/// The springs of a grid.
+#[derive(Clone, Copy)]
+struct Level {
+    stiffness: f64,
+    /// The share of the velocity kept per step.
+    drag: f64,
+    /// The scale from velocity to movement.
+    move_factor: f64,
+}
+
 /// The state of the grid of one window.
 pub struct Wobble {
+    level: Level,
+    /// The depth of the bow per pixel of trail; 0 without a sail.
+    bow: f64,
     /// The width and height of the window.
     size: [f64; 2],
     /// The origin of the window at the last step.
@@ -84,6 +110,8 @@ impl Wobble {
                 .clamp(0.0, (SIDE - 1) as f64) as usize
         };
         let mut wobble = Self {
+            level: KWIN,
+            bow: 0.0,
             size,
             origin,
             at: [[0.0; 3]; COUNT],
@@ -240,16 +268,45 @@ impl Wobble {
     /// With a grid of `new_3d` it has a depth for each point.
     #[must_use]
     pub fn mesh(&self, origin: [f64; 2]) -> Mesh {
-        let n = CELLS as usize;
-        let mut points = Vec::with_capacity((n + 1) * (n + 1));
+        self.mesh_around(origin, 0.0)
+    }
+
+    /// Makes the grid of `new_3d` the sail of a pane that stands in a
+    /// space: looser springs, and a bow in depth where the pane trails
+    /// its place.
+    #[must_use]
+    pub fn sail(mut self) -> Self {
+        self.level = SAIL;
+        self.bow = BOW;
+        self
+    }
+
+    /// The drawn mesh as `mesh` gives it, for a node that reaches
+    /// `margin` past the window on each side, for example its glow: the
+    /// surface goes on past the edges of the window.
+    #[must_use]
+    pub fn mesh_around(&self, origin: [f64; 2], margin: f64) -> Mesh {
+        let cells = CELLS as usize;
+        let along = |cell: usize, side: f64| {
+            let t = cell as f64 / cells as f64;
+            if margin == 0.0 {
+                t
+            } else {
+                (t * (side + 2.0 * margin) - margin) / side
+            }
+        };
+        let mut points = Vec::with_capacity((cells + 1) * (cells + 1));
         let mut depth = Vec::new();
-        for row in 0..=n {
-            for col in 0..=n {
-                let [x, y, z] = self.bezier(col as f64 / n as f64, row as f64 / n as f64);
+        for row in 0..=cells {
+            for col in 0..=cells {
+                let (u, v) = (along(col, self.size[0]), along(row, self.size[1]));
+                let [x, y, depth_here] = self.bezier(u, v);
                 points.push([x - origin[0], y - origin[1]]);
                 if self.three_d {
-                    let z = (z - self.lift).clamp(-MAX, MAX);
-                    depth.push(or_zero(z));
+                    let trail =
+                        (x - origin[0] - u * self.size[0]).hypot(y - origin[1] - v * self.size[1]);
+                    let bow = self.bow * (trail.hypot(BOW_SOFT) - BOW_SOFT);
+                    depth.push(or_zero((depth_here - self.lift + bow).clamp(-MAX, MAX)));
                 }
             }
         }
@@ -259,23 +316,6 @@ impl Wobble {
             points,
             depth,
         }
-    }
-
-    /// Makes the grid of `new_3d` the sail of a pane that stands in a
-    /// space: looser springs, and a bow in depth where the pane trails
-    /// its place.
-    #[must_use]
-    pub fn sail(self) -> Self {
-        self
-    }
-
-    /// The drawn mesh as `mesh` gives it, for a node that reaches
-    /// `margin` past the window on each side, for example its glow: the
-    /// surface goes on past the edges of the window.
-    #[must_use]
-    pub fn mesh_around(&self, origin: [f64; 2], margin: f64) -> Mesh {
-        let _ = margin;
-        self.mesh(origin)
     }
 
     /// The place of a control point in a window at an origin.
@@ -291,15 +331,15 @@ impl Wobble {
 
     /// One step of 10 ms.
     fn integrate(&mut self, origin: [f64; 2]) {
-        let ms = STEP_MS;
+        let (ms, level) = (STEP_MS, self.level);
         let mut acceleration = [[0.0; 3]; COUNT];
         for (i, acc) in acceleration.iter_mut().enumerate() {
             let place = self.place(i, origin);
             if i == self.grab {
                 *acc = [
-                    (place[0] - self.at[i][0]) * STIFFNESS,
-                    (place[1] - self.at[i][1]) * STIFFNESS,
-                    (place[2] - self.at[i][2]) * STIFFNESS,
+                    (place[0] - self.at[i][0]) * level.stiffness,
+                    (place[1] - self.at[i][1]) * level.stiffness,
+                    (place[2] - self.at[i][2]) * level.stiffness,
                 ];
                 continue;
             }
@@ -311,7 +351,7 @@ impl Wobble {
                 for axis in [0, 1, 2] {
                     let stretch =
                         (self.at[*j][axis] - self.at[i][axis]) - (rest[axis] - place[axis]);
-                    acc[axis] += stretch * STIFFNESS;
+                    acc[axis] += stretch * level.stiffness;
                 }
             }
             for value in acc.iter_mut() {
@@ -323,7 +363,7 @@ impl Wobble {
         for (velocity, acc) in self.velocity.iter_mut().zip(acceleration) {
             for axis in [0, 1, 2] {
                 let acc = acc[axis].clamp(-MAX, MAX);
-                velocity[axis] = acc * ms + velocity[axis] * DRAG;
+                velocity[axis] = acc * ms + velocity[axis] * level.drag;
                 acc_sum += acc.abs();
             }
         }
@@ -332,7 +372,7 @@ impl Wobble {
         for (at, velocity) in self.at.iter_mut().zip(&mut self.velocity) {
             for axis in [0, 1, 2] {
                 velocity[axis] = velocity[axis].clamp(-MAX, MAX);
-                at[axis] += velocity[axis] * ms * MOVE_FACTOR;
+                at[axis] += velocity[axis] * ms * level.move_factor;
                 vel_sum += velocity[axis].abs();
             }
         }
@@ -353,7 +393,8 @@ impl Wobble {
                 // Moved on by the time since the last step.
                 let i = row * SIDE + col;
                 let p = [0, 1, 2].map(|axis| {
-                    self.at[i][axis] + self.velocity[i][axis] * self.pending * MOVE_FACTOR
+                    self.at[i][axis]
+                        + self.velocity[i][axis] * self.pending * self.level.move_factor
                 });
                 point[0] += a * b * p[0];
                 point[1] += a * b * p[1];

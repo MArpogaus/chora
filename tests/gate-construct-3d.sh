@@ -16,7 +16,8 @@
 #    test_accept_injected_keys an injected click gives no window the
 #    keyboard.
 # 6. With `effects: [wobbly]`, a pane dragged with the modifier wobbles
-#    with a depth, and settles after the release.
+#    with a depth, its mirror image bends with it, and it settles
+#    after the release.
 # 7. `choractl record` writes one picture per frame, and the walk of the
 #    camera moves with the steps of its clock, not with the time.
 #
@@ -233,12 +234,15 @@ if call settings.set '{"effects": ["wobbly"]}' >/dev/null; then
   {\"pointer_move\": {\"position\": [$((${from%%,*} + 120)), 330]}}]"
     sleep 0.1
     bent=$(mesh_of "$b_node")
+    mirror_bent=$(mesh_of "$b_node-mirror")
     [ -n "${SHOT_WOBBLE:-}" ] && ctl capture "$SHOT_WOBBLE" >/dev/null
     inject '[{"button": {"state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]'
 else
     bent="refused"
+    mirror_bent="refused"
 fi
 check "a dragged pane wobbles with depth: $bent" 'test "${bent#* }" = True'
+check "the mirror image bends with its pane: $mirror_bent" 'test "${mirror_bent#* }" = True'
 check "the wobble settles after the release" 'until_ok "test \"\$(mesh_of $b_node)\" = \"0 False\"" 20'
 
 frames=$(mktemp -d /tmp/gate-frames.XXXXXX)

@@ -3,40 +3,151 @@
 //! pane, and its shadow on the floor. The driver of `chora-kit` bends the
 //! group of the pane; the hairline of the focused pane is part of that
 //! group.
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the frames of the wobble call them")
-)]
-
 use chora_scene::Mesh;
+
+use super::{
+    ClientError, Command, Construct, FOCUS, FOCUS_SCALE, Pane, PropsUpdate, mirror_size, space,
+    update,
+};
 
 /// The mesh of the mirror image of a pane with the mesh `pane`: the same
 /// bend on a node of the pane's size divided by `k`.
 pub(crate) fn mirror_mesh(pane: &Mesh, k: f64) -> Mesh {
-    let _ = k;
-    pane.clone()
+    Mesh {
+        points: pane.points.iter().map(|p| p.map(|v| v / k)).collect(),
+        ..pane.clone()
+    }
 }
 
 /// The mesh of the glow node behind a pane, from the mesh of the pane
 /// that reaches `reach` past its edges: the node is the pane plus the
 /// reach on each side, divided by `k`.
 pub(crate) fn glow_mesh(around: &Mesh, reach: f64, k: f64) -> Mesh {
-    let _ = (reach, k);
-    around.clone()
+    let points = around.points.iter();
+    Mesh {
+        points: points.map(|p| p.map(|v| (v + reach) / k)).collect(),
+        ..around.clone()
+    }
 }
 
 /// How far a bent pane of a size is from its place on average: along its
 /// face and along its normal.
+#[allow(clippy::cast_precision_loss, reason = "at most 65 points a side")]
 pub(crate) fn drift(mesh: &Mesh, size: [f64; 2]) -> [f64; 2] {
-    let _ = (mesh, size);
-    [0.0; 2]
+    let count = mesh.points.len().max(1) as f64;
+    let along: f64 = mesh.points.iter().map(|p| p[0]).sum::<f64>() / count - size[0] / 2.0;
+    let deep: f64 = mesh.depth.iter().sum::<f64>() / count;
+    [along, deep]
 }
 
 /// The place on the floor of a pane at `at` with the turn `yaw` that
 /// drifted from its place, for its shadow.
-pub(crate) fn drifted(at: [f64; 2], yaw: f64, drift: [f64; 2]) -> [f64; 2] {
-    let _ = (yaw, drift);
-    at
+pub(crate) fn drifted(at: [f64; 2], yaw: f64, [along, deep]: [f64; 2]) -> [f64; 2] {
+    let (sin, cos) = yaw.sin_cos();
+    [
+        at[0] + along * cos + deep * sin,
+        at[1] - along * sin + deep * cos,
+    ]
+}
+
+fn bend(node: &str, mesh: Mesh) -> Command {
+    update(
+        node,
+        PropsUpdate {
+            mesh: Some(mesh),
+            ..PropsUpdate::default()
+        },
+    )
+}
+
+fn flat() -> Mesh {
+    Mesh {
+        cols: 1,
+        rows: 1,
+        points: Vec::new(),
+        depth: Vec::new(),
+    }
+}
+
+impl Construct {
+    /// How far the glow of a pane reaches past its edges, in the pixels
+    /// of the pane.
+    pub(crate) fn glow_reach(&self, pane: &Pane) -> f64 {
+        let px = space::depth(&self.pose, pane.at).max(self.lens.focal * 0.1) / self.lens.focal;
+        self.settings.value.style.glow * px
+    }
+
+    /// The place of the shadow of a pane: under the pane as it bends.
+    pub(crate) fn shadow_at(&self, pane: &Pane) -> [f64; 2] {
+        let by = self.drifts.get(&pane.name).copied().unwrap_or_default();
+        drifted(pane.at, pane.yaw, by)
+    }
+
+    /// The mesh updates of the panes from the driver, with the updates of
+    /// what follows each pane: its mirror image and, for the focused
+    /// pane, the glow. The shadow takes the drift with the next frame.
+    pub(crate) fn followed(&mut self, commands: Vec<Command>) -> Vec<Command> {
+        let focus = self.focus().map(|k| self.panes[k].name.clone());
+        let mut all = Vec::with_capacity(commands.len() * 3);
+        for command in commands {
+            let bent = match &command {
+                Command::Update { id, props } => {
+                    (props.mesh.clone()).zip(self.panes.iter().position(|p| p.node() == *id))
+                }
+                _ => None,
+            };
+            all.push(command);
+            let Some((mesh, index)) = bent else {
+                continue;
+            };
+            let pane = &self.panes[index];
+            let (name, mirror) = (pane.name.clone(), pane.mirror());
+            if mesh.points.is_empty() {
+                self.drifts.remove(&name);
+                all.push(bend(&mirror, flat()));
+                if !self.glass.plain {
+                    all.push(bend(FOCUS, flat()));
+                }
+                continue;
+            }
+            let k = pane.size[0] / mirror_size(pane.size)[0];
+            all.push(bend(&mirror, mirror_mesh(&mesh, k)));
+            let reach = self.glow_reach(pane);
+            let glows = !self.glass.plain && focus.as_deref() == Some(name.as_str());
+            if let Some(around) = self.effects.mesh_around(&name, reach).filter(|_| glows) {
+                all.push(bend(FOCUS, glow_mesh(&around, reach, FOCUS_SCALE)));
+            }
+            self.drifts.insert(name, drift(&mesh, pane.size));
+        }
+        self.drifts
+            .retain(|name, _| self.panes.iter().any(|p| p.name == *name));
+        all
+    }
+
+    /// One frame of the wobbles of the panes, with what follows them.
+    pub(crate) fn wobble_frame(&mut self) -> Result<(), ClientError> {
+        let panes = &self.panes;
+        let frame = self.effects.tick(chora_kit::clock::now(), |name| {
+            panes.iter().find(|p| p.name == name).map(wobble_target)
+        });
+        if frame.commands.is_empty() {
+            return Ok(());
+        }
+        let commands = self.followed(frame.commands);
+        self.rt.conn.try_apply(commands)?;
+        self.frame()
+    }
+}
+
+/// The node that the wobble of a pane bends: the group of the pane, in
+/// its own coordinates.
+pub(crate) fn wobble_target(pane: &Pane) -> chora_kit::effects::Target {
+    chora_kit::effects::Target {
+        node: pane.node(),
+        origin: [0.0; 2],
+        size: pane.size,
+        set_size: true,
+    }
 }
 
 #[cfg(test)]

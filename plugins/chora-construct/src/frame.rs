@@ -42,7 +42,8 @@ impl Construct {
         for k in 0..SHADOWS {
             let shadow = near.get(k).map_or(vec![0.0; 4], |p| {
                 let lift = (self.lens.ground - p.size[1] / 2.0).max(0.0);
-                vec![p.at[0], p.at[1], p.size[0] / 2.0, shadow_w(lift, p.yaw)]
+                let at = self.shadow_at(p);
+                vec![at[0], at[1], p.size[0] / 2.0, shadow_w(lift, p.yaw)]
             });
             uniforms.insert(format!("s{k}"), Uniform::Vector(shadow));
         }
