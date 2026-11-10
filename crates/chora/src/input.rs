@@ -141,12 +141,12 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             }
         }
         Some(KeyAction::Grab(conn, binding, injected)) => {
-            state.note_act();
+            state.note_act(vec![conn]);
             hold_grab(state, conn, binding, code, injected);
         }
         Some(KeyAction::Node(owner, event)) => {
             if key_state == KeyState::Pressed {
-                state.note_act();
+                state.note_act(state.owner_conns(Some(&owner)));
             }
             state.ipc.send_to_client(&owner, &event);
         }
@@ -715,7 +715,7 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
     };
     let (conn, binding, press) = grab;
     if press == PressState::Pressed {
-        state.note_act();
+        state.note_act(vec![conn]);
     }
     let moved = binding == MOVE;
     send_button(state, conn, binding, press, None);
@@ -854,7 +854,8 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         });
     }
     if area {
-        state.note_act();
+        let owner = hit.and_then(|n| n.owner.clone());
+        state.note_act(state.owner_conns(owner.as_deref()));
     }
     let position = position_for(&state.scene, &state.outputs, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
@@ -989,7 +990,9 @@ impl Pin {
     ) -> Option<(WlSurface, Point<f64, Logical>)> {
         let spot = state.spot(state.pointer_layout)?;
         let (start, at) = anchor(&state.scene, &state.outputs, &self.node, &spot);
-        if !state.scene.is_within(&self.node, &start) || render::left_out(state, &self.node) {
+        if !state.scene.is_within(&self.node, &start)
+            || render::left_out(state, &spot.output, &self.node)
+        {
             return None;
         }
         if let Some(local) = render::local_in(&state.scene, &start, at, &self.node) {

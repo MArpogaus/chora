@@ -124,8 +124,15 @@ impl Launches {
     /// Starts a shell command as an app. The wait for `choractl run` is
     /// on a thread of its own, so the window manager never blocks; its
     /// answer comes with [`Self::collect`]. A program that is not on
-    /// `PATH` never starts: the change says so.
-    pub fn run(&mut self, command: &str, name: String, now: Instant) -> Option<Change> {
+    /// `PATH` never starts: the change says so. The app gets the
+    /// activation token of xp, if xp has one, as [`chora_kit::launch`]
+    /// takes it.
+    pub fn run(
+        &mut self,
+        command: &str,
+        (name, token): (String, Option<String>),
+        now: Instant,
+    ) -> Option<Change> {
         if missing(command, crate::session::on_path) {
             eprintln!("chora-xp: {name:?} is not on PATH, {command:?} does not run");
             return Some(Change::Failed {
@@ -138,7 +145,7 @@ impl Launches {
         let sender = self.sender.clone();
         let windows_before = self.windows;
         std::thread::spawn(move || {
-            let token = chora_kit::launch(&command).map(|(token, _)| token);
+            let token = chora_kit::launch(&command, token.as_deref()).map(|(token, _)| token);
             let _ = sender.send(Started {
                 name,
                 token,
@@ -345,7 +352,7 @@ mod tests {
         let mut launches = Launches::new();
         let change = launches.run(
             "chora-no-such-program --flag",
-            "chora-no-such-program".into(),
+            ("chora-no-such-program".into(), None),
             Instant::now(),
         );
         assert_eq!(

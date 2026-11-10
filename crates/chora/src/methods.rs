@@ -46,9 +46,18 @@ struct Pending {
     id: Value,
     callee: u64,
     deadline: Instant,
+    /// Whether the caller is confined.
+    confined: bool,
 }
 
 impl Methods {
+    /// Whether the connection handles a call of a confined caller now.
+    pub fn serves_confined(&self, conn: u64) -> bool {
+        self.pending
+            .values()
+            .any(|p| p.callee == conn && p.confined)
+    }
+
     /// Whether a call of the connection waits for its answer.
     pub fn waits_for(&self, conn: u64) -> bool {
         self.pending.values().any(|p| p.caller == conn)
@@ -185,6 +194,7 @@ impl State {
                 id,
                 callee,
                 deadline,
+                confined,
             },
         );
         let event = Event::MethodCalled {

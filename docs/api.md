@@ -108,11 +108,20 @@ Pointer input reaches a plane through the inverse of its transform: the
 core maps the pointer into the plane and then runs the hit test of the
 plane there. Input reaches a plane and what it holds only inside its area,
 and never where the plane shows the pointer behind the eye. A node with a
-mesh under such a transform keeps the box of its shape. A plane that the
-layer budget leaves out of the frame draws nothing, so it takes the input
-and gives it to nobody. During a press, the core maps every motion through
-the plane that the press hit, also outside it; where the plane shows the
-pointer behind the eye, the last point stays. The popups of a window under a
+mesh under such a transform keeps the box of its shape. A plane whose
+texture would pass 4096 pixels a side, or the `GL_MAX_TEXTURE_SIZE` of the
+GPU when that is less, renders at a lower scale, so that it
+shows all of its content and takes input where it shows it. A layer, plane,
+mesh or piece that the layer budget leaves out of the last frame of an
+output draws nothing there, so on that output it and every node in it take
+the input where they would take it and give it to nobody. The budget counts
+a node texture that a shader node reads, and the layers inside it, under
+the shader node: `layers.dropped` names the shader node, but it still
+draws without that texture, so it and the source node keep their input. The keyboard stays where it is; the
+owner and the window manager learn of it from `layers.dropped`, whose
+`keyboard` names such a focused window. During a press, the core maps
+every motion through the plane that the press hit, also outside it; where
+the plane shows the pointer behind the eye, the last point stays. The popups of a window under a
 plane stay inside the geometry of the window. The pin ends with the release
 of the last button, when the node leaves the scene or the layer budget
 leaves its plane out, or where another grab takes the pointer: when a popup
@@ -148,8 +157,8 @@ a context sorts its planes by their centres and splits nothing; the hit
 test then follows the same order. Pointer input in a context follows the ray from the eye:
 the nearest plane that shows at the point and takes input gets it, in the
 order that the context draws. A part of a plane that the layer budget
-leaves out of the frame takes the input and gives it to nobody. The
-empty area of a context takes no input, so a click there reaches what lies
+leaves out of the frame takes the input and gives it to nobody, as above.
+The empty area of a context takes no input, so a click there reaches what lies
 behind it.
 
 <!-- parses: commands -->
@@ -457,7 +466,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
-| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
+| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again; `keyboard` names the surface node with the keyboard focus when one of these nodes holds it, so that the person types into a window that shows nothing; the core leaves the focus there, and the window manager of that window may move it |
 | `effects.dropped` | the watchdog removed the effects, the meshes, the shaders of shader nodes and the perspectives of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
@@ -615,7 +624,7 @@ answers every request.
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
-| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined, the act is under 2 s old and unused, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined, is a connection that received the act (the connection of the grab, a connection of the owner of the node at the press), handles no method call of a confined caller, the act is under 2 s old and no token carries it yet, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -974,8 +983,10 @@ The core starts no program except its own startup command (D30, D42).
 plugins running.
 
 `choractl run [--] CMD ARGS...` starts a program outside the core. It
-asks the core for an activation token with `activation.token` and
-passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
+asks the core for an activation token with `activation.token`, or takes
+the one in `CHORA_RUN_TOKEN`, which a plugin minted on its own connection
+so that it carries the act that the plugin received, and passes it to
+the program in `XDG_ACTIVATION_TOKEN`, and in
 `DESKTOP_STARTUP_ID` for GTK 3. The children of the program inherit
 both variables unless the program removes them, as GTK does after it
 read the token. It prints the pid, the unit and the token as one

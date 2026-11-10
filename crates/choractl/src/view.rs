@@ -306,7 +306,7 @@ fn start_plugins(client: &mut Client, plugins: &[PluginUse]) -> Result<Vec<Strin
     for manifest in &manifests {
         if !running.contains_key(&manifest.name) {
             let argv = ["sh".into(), "-c".into(), manifest.exec.clone()];
-            let answer = crate::run_program(client, &argv, Some(&manifest.name))
+            let answer = crate::run_program(client, &argv, (Some(&manifest.name), None))
                 .map_err(|e| format!("{}: {e}", manifest.name))?;
             // A unit that runs already answers no token: nothing started.
             if !answer["token"].is_null() {

@@ -28,7 +28,7 @@ use smithay::{
     },
 };
 
-use crate::state::{Act, ClientState, State};
+use crate::state::{ClientState, State};
 
 /// The most requests of one surface that wait for its `surface.created`;
 /// beyond it a request is dropped, so a client that never commits cannot
@@ -267,7 +267,9 @@ impl XdgActivationHandler for State {
             if self.on_demand_layer(&surface) && self.layer_may_take_keyboard(&token_data, &surface)
             {
                 self.set_layer_focus(Some(surface));
-                self.last_act = self.last_act.map(|a| Act { used: true, ..a });
+                if let Some(act) = &mut self.last_act {
+                    act.used = true;
+                }
             }
             return;
         }
@@ -370,6 +372,7 @@ impl State {
         };
         let act = self
             .last_act
+            .as_ref()
             .filter(|a| !a.used && u32::from(a.serial) == stamp.serial);
         self.lock.is_none()
             && !crate::security::named(&self.display_handle, surface)

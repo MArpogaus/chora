@@ -39,7 +39,8 @@ use smithay::{
     utils::{Buffer as BufferCoords, Physical, Point, Rectangle, Scale, Size},
 };
 
-/// The largest side of a layer texture, in pixels.
+/// The largest side of a layer texture, in pixels, when the GL takes it:
+/// two textures of a larger side would pass the budget of a frame.
 const MAX_SIDE: f64 = 4096.0;
 /// The most pixels of layer textures in one frame of an output.
 const FRAME_PIXELS: u64 = 64 << 20;
@@ -143,20 +144,39 @@ pub struct Layers {
     textures: HashMap<(String, usize, i32, i32), Slot>,
     /// By node and piece: 0 for a whole layer, the others for the pieces
     /// of a plane of a 3D context.
-    ids: HashMap<(String, usize), Tracked>,
+    ids: HashMap<(String, String, usize), Tracked>,
     /// By node: what made the last result of the passes of a layer.
-    passed: HashMap<String, Passed>,
+    passed: HashMap<(String, String), Passed>,
     /// The most bytes of textures that [`Self::retain`] keeps.
     cap: Option<u64>,
     /// By node: the step of the texture scale of a plane, as a power of
     /// two below the output scale.
-    steps: HashMap<String, i32>,
+    steps: HashMap<(String, String), i32>,
+    /// The view that renders now: an output, or the capture of one. The
+    /// ids, the results of passes and the steps are kept per view, so that
+    /// two outputs of other scales or cameras do not flip them.
+    view: String,
     /// The pixels of layer textures in the current frame.
     pixels: u64,
     /// The budget ran out in this frame, and the log tells it once.
     told: bool,
-    /// The nodes whose layers the budget left out of the current frame.
+    /// The nodes whose layers the budget left out of the current frame:
+    /// the node that draws, also for a node texture that a shader node
+    /// reads or a layer inside it, so that the source node itself, which
+    /// draws, keeps its input.
     pub left_out: Vec<String>,
+    /// Those of `left_out` that draw nothing: not a shader node that only
+    /// misses a node texture.
+    pub dark: Vec<String>,
+    /// The shader node whose node texture renders now, which pays for the
+    /// layers inside it.
+    pub reader: Option<String>,
+    /// The largest side of a layer texture on this GL, once known.
+    max_side: Option<f64>,
+    /// The last version that a render gave a texture. One counter for all
+    /// slots, so that a texture that the cap evicted and made again never
+    /// repeats the version of the texture before it.
+    versions: u64,
 }
 
 impl Layers {
@@ -167,9 +187,9 @@ impl Layers {
         self.textures
             .retain(|(id, ..), slot| keep(id) && now - slot.used < UNUSED_FOR);
         self.evict_over_cap();
-        self.ids.retain(|(id, _), _| keep(id));
-        self.passed.retain(|id, _| keep(id));
-        self.steps.retain(|id, _| keep(id));
+        self.ids.retain(|(_, id, _), _| keep(id));
+        self.passed.retain(|(_, id), _| keep(id));
+        self.steps.retain(|(_, id), _| keep(id));
         self.new_budget();
     }
 
@@ -223,19 +243,39 @@ impl Layers {
         (self.passed.len(), self.textures.len())
     }
 
+    /// The largest side of a layer texture: `MAX_SIDE`, or less where
+    /// `GL_MAX_TEXTURE_SIZE` is less.
+    pub fn max_side(&mut self, gles: &mut GlesRenderer) -> f64 {
+        *self
+            .max_side
+            .get_or_insert_with(|| side_limit(gl::max_texture_size(gles)))
+    }
+
+    /// Names the view that renders next: an output, or the capture of one.
+    pub fn set_view(&mut self, view: String) {
+        self.view = view;
+    }
+
     /// Starts the budget of a new frame or capture.
     pub fn new_budget(&mut self) {
         self.pixels = 0;
         self.left_out.clear();
+        self.dark.clear();
     }
 
     /// Takes pixels of the budget of the frame for the textures of the layer
-    /// of a node. Returns `false` when they do not fit, and notes the node.
+    /// of a node. Returns `false` when they do not fit, and notes the node,
+    /// or the shader node that reads it, which still draws.
     pub fn spend(&mut self, id: &str, size: Size<i32, BufferCoords>, textures: usize) -> bool {
         let area = u64::try_from(size.w * size.h).unwrap_or(u64::MAX);
         let pixels = area.saturating_mul(textures as u64);
         if self.pixels.saturating_add(pixels) > FRAME_PIXELS {
-            self.leave_out(id);
+            if let Some(reader) = self.reader.clone() {
+                self.leave_out(&reader);
+            } else {
+                self.leave_out(id);
+                self.dark.push(id.to_owned());
+            }
             return false;
         }
         self.pixels += pixels;
@@ -262,12 +302,13 @@ impl Layers {
     /// forgets the step.
     pub fn step(&mut self, node: &str, ratio: Option<f64>) -> f64 {
         let Some(ratio) = ratio.filter(|r| *r > 0.0) else {
-            self.steps.remove(node);
+            self.steps.remove(&(self.view.clone(), node.to_owned()));
             return 1.0;
         };
         #[allow(clippy::cast_possible_truncation)]
         let wanted = (ratio.log2().ceil() as i32).clamp(-MAX_STEPS, 0);
-        let kept = self.steps.get(node).copied();
+        let key = (self.view.clone(), node.to_owned());
+        let kept = self.steps.get(&key).copied();
         let step = kept.map_or(wanted, |kept| {
             if wanted >= kept - 1 {
                 wanted.max(kept)
@@ -275,7 +316,7 @@ impl Layers {
                 wanted
             }
         });
-        self.steps.insert(node.to_owned(), step);
+        self.steps.insert(key, step);
         2.0_f64.powi(step)
     }
 
@@ -345,6 +386,7 @@ impl Layers {
     where
         E: RenderElement<GlesRenderer>,
     {
+        let next = self.versions + 1;
         let entry = self
             .slot((gles, stats), (node, slot, size))
             .map_err(|e| e.to_string())?;
@@ -360,8 +402,12 @@ impl Layers {
         let drew = render_into(gles, &mut texture, (&mut tracker, age), scale, elements)?;
         entry.tracker = Some((bits, tracker));
         stats.textures_rendered += u64::from(drew);
-        entry.version += u64::from(drew);
-        Ok((texture, entry.version))
+        if drew {
+            entry.version = next;
+        }
+        let version = entry.version;
+        self.versions = self.versions.max(version);
+        Ok((texture, version))
     }
 
     /// The id of the element of a layer, and its commit: a new one when
@@ -374,7 +420,7 @@ impl Layers {
     ) -> (Id, CommitCounter) {
         let entry = self
             .ids
-            .entry((node.into(), piece))
+            .entry((self.view.clone(), node.into(), piece))
             .or_insert_with(|| Tracked {
                 id: Id::new(),
                 commit: CommitCounter::default(),
@@ -413,7 +459,7 @@ fn subtree_pixels(scene: &Scene, id: &str, scale: f64) -> u64 {
     let Some(node) = scene.node(id) else {
         return 0;
     };
-    let own = match texture_size(node, scale) {
+    let own = match texture_size(node, scale, MAX_SIDE) {
         Some(size) if node.is_layer() => {
             let textures = 1 + passes(node, scale).len().min(2);
             u64::try_from(size.w * size.h).unwrap_or(u64::MAX) * textures as u64
@@ -427,15 +473,30 @@ fn subtree_pixels(scene: &Scene, id: &str, scale: f64) -> u64 {
     own + children.sum::<u64>()
 }
 
-/// The pixel size of the texture of a layer node at an output scale.
-pub fn texture_size(node: &Node, scale: f64) -> Option<Size<i32, BufferCoords>> {
-    pixel_size(node.props.size?, scale)
+/// The pixel size of the texture of a layer node at an output scale, with
+/// at most `max` pixels a side.
+pub fn texture_size(node: &Node, scale: f64, max: f64) -> Option<Size<i32, BufferCoords>> {
+    let size = node.props.size?;
+    pixel_size(size, fit_scale(size, scale, max), max)
 }
 
-/// The pixel size of a texture of a logical size, at most 4096 a side.
-pub fn pixel_size([w, h]: [f64; 2], scale: f64) -> Option<Size<i32, BufferCoords>> {
+/// The largest side of a layer texture for the `GL_MAX_TEXTURE_SIZE` of a
+/// GL: at most `MAX_SIDE`.
+fn side_limit(gl_max: Option<i32>) -> f64 {
+    gl_max.map_or(MAX_SIDE, |side| f64::from(side).min(MAX_SIDE))
+}
+
+/// The scale at which a texture of a logical size holds all of its
+/// content: `scale`, or less when a side would pass `max` pixels, so that
+/// a large plane shows whole and takes input where it shows.
+pub fn fit_scale([w, h]: [f64; 2], scale: f64, max: f64) -> f64 {
+    scale.min(max / w.max(h))
+}
+
+/// The pixel size of a texture of a logical size, at most `max` a side.
+pub fn pixel_size([w, h]: [f64; 2], scale: f64, max: f64) -> Option<Size<i32, BufferCoords>> {
     #[allow(clippy::cast_possible_truncation)] // clamped
-    let side = |v: f64| (v * scale).round().clamp(1.0, MAX_SIDE) as i32;
+    let side = |v: f64| (v * scale).round().clamp(1.0, max) as i32;
     (w > 0.0 && h > 0.0).then(|| Size::from((side(w), side(h))))
 }
 
@@ -1041,7 +1102,8 @@ pub fn apply_passes(
         .iter()
         .any(|(_, (program, ..))| program.reads_time());
     let signature = signature((scale, version, sources), &compiled);
-    let last = layers.passed.get(&node.id).map(|last| {
+    let key = (layers.view.clone(), node.id.clone());
+    let last = layers.passed.get(&key).map(|last| {
         (
             last.reusable && last.signature == signature && last.size == size_key,
             last.slot,
@@ -1069,7 +1131,7 @@ pub fn apply_passes(
         runs,
         reusable,
     };
-    layers.passed.insert(node.id.clone(), passed);
+    layers.passed.insert(key, passed);
     (texture, result)
 }
 
@@ -1234,6 +1296,14 @@ fn draw_pass(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_layer_texture_side_follows_a_smaller_gl_limit() {
+        assert!((side_limit(Some(2048)) - 2048.0).abs() < f64::EPSILON);
+        assert!((side_limit(Some(16384)) - 4096.0).abs() < f64::EPSILON);
+        assert!((side_limit(None) - 4096.0).abs() < f64::EPSILON);
+        assert!((fit_scale([5000.0, 100.0], 1.0, 2048.0) - 0.4096).abs() < 1e-9);
+    }
 
     fn projected(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
         project(

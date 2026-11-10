@@ -506,3 +506,68 @@ fn a_child_surface_that_commits_inside_a_rounded_layer_shows_the_new_pixels() {
     frames(&mut core, 2);
     assert_eq!(shot(&mut core, &mut wm)(32.0, 32.0), [0, 0, 255, 255]);
 }
+
+#[test]
+fn a_layer_whose_content_the_cap_evicted_shows_its_new_content() {
+    let mut core = Core::with_renderer();
+    let mut wm = granted(&mut core);
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [20, 20], "color": [1, 0, 0, 1], "radius": 4}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rect]}));
+    frames(&mut core, 2);
+    assert_eq!(shot(&mut core, &mut wm)(10.0, 10.0), [255, 0, 0, 255]);
+    core.state.assets.layers.set_cap(20 * 20 * 4);
+    frames(&mut core, 2);
+    let update = json!({"commands": [
+        {"update": {"id": "r", "props": {"color": [0, 0, 1, 1]}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", update);
+    frames(&mut core, 2);
+    assert_eq!(shot(&mut core, &mut wm)(10.0, 10.0), [0, 0, 255, 255]);
+}
+
+#[test]
+fn a_change_inside_a_layer_damages_the_screen_and_nothing_else_does() {
+    let mut core = Core::with_renderer();
+    let mut wm = granted(&mut core);
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let commands = json!({"commands": [
+        {"create": {"id": "round", "kind": "group", "parent": "root", "props": {
+            "size": [40, 40], "clip": {"radius": 6}}}},
+        {"create": {"id": "back", "kind": "rect", "parent": "round", "props": {
+            "size": [40, 40], "color": [1, 0, 0, 1], "radius": 6}}},
+        {"create": {"id": "dot", "kind": "rect", "parent": "round", "props": {
+            "size": [10, 10], "color": [0, 1, 0, 1], "transform": {"translate": [15, 15]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    frames(&mut core, 3);
+    let before = stats(&core).damaged_frames;
+    frames(&mut core, 2);
+    assert_eq!(stats(&core).damaged_frames, before, "a still layer");
+    let update = json!({"commands": [
+        {"update": {"id": "dot", "props": {"color": [0, 0, 1, 1]}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", update);
+    frames(&mut core, 1);
+    assert_eq!(stats(&core).damaged_frames, before + 1, "the changed child");
+    assert_eq!(shot(&mut core, &mut wm)(20.0, 20.0), [0, 0, 255, 255]);
+}
+
+#[test]
+fn a_layer_on_two_outputs_of_other_scales_stays_still() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "160x120+0+0"}));
+    wm.ok(&mut core, "output.add", json!({"spec": "160x120@2+160+0"}));
+    let rounded = json!({"create": {"id": "round", "kind": "rect", "parent": "root",
+        "props": {"size": [40, 40], "color": [1, 0, 0, 1], "radius": 6,
+                  "transform": {"translate": [140, 20]}}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rounded]}));
+    frames(&mut core, 3);
+    let before = stats(&core);
+    frames(&mut core, 4);
+    let after = stats(&core);
+    assert_eq!(after.passes, before.passes, "no pass reruns");
+    assert_eq!(after.damaged_frames, before.damaged_frames, "no damage");
+}

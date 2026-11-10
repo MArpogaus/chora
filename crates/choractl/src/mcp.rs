@@ -702,7 +702,7 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
 /// itself: the confined connection needs the grant `activation.token`.
 fn run_program(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
     let program: Vec<String> = arg(&args["argv"])?;
-    let line = crate::run_program(core.connected()?, &program, None)?;
+    let line = crate::run_program(core.connected()?, &program, (None, None))?;
     Ok(vec![json_text(&line)])
 }
 

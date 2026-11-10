@@ -286,6 +286,11 @@ pub enum Event {
         output: String,
         /// The nodes whose layers stay out.
         nodes: Vec<String>,
+        /// The surface node with the keyboard focus, when one of these
+        /// nodes holds it, so that it shows nothing; the keyboard stays
+        /// with it, and its window manager may move the focus.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        keyboard: Option<String>,
     },
     /// The shader of an effect failed after a change of its file. The
     /// effect keeps its last working version, or shows nothing.
