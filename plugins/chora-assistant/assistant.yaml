@@ -15,3 +15,14 @@ position:
 # $XDG_DATA_HOME/chora/huds or of /usr/share/chora/huds. `chora-assistant
 # --list-huds` lists them and `--use-hud NAME` sets this line.
 hud: neutral
+# Which folder draws in which context: the first rule whose `when` matches
+# wins, and `hud` draws when none does. A `when` compares a field of the
+# context with a value or a list of values: `wm` (the window manager of the
+# focused window), `space` (the window manager of the space around it),
+# `app` (its app_id), `state` (of the voice agent), `agents`, `chat` and
+# `output`. The context stays while a question waits. Example:
+#   huds:
+#     - {when: {space: construct}, folder: construct}
+#     - {when: {wm: mc}, folder: mc}
+#     - {when: {wm: xp}, folder: xp}
+huds: []

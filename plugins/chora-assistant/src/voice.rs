@@ -17,10 +17,14 @@ use crate::{
     Agent,
     assistant::{self, Assistant},
     card::{self, Outcome, Shown},
+    context,
 };
 
 /// The client name of the voice agent before its first event.
 const VOICE: &str = "voice";
+
+/// The most helpers that the context counts.
+const MAX_HELPERS: usize = 64;
 
 impl Agent {
     /// Asks the voice agent for its state, so that the figure shows after
@@ -55,10 +59,13 @@ impl Agent {
         self.claim_indicator(true);
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
         let name = data.get("name").and_then(Value::as_str);
-        if name.is_some_and(|n| n != client) {
+        let now = Instant::now();
+        if let Some(helper) = name.filter(|n| *n != client) {
+            if kind == Some("state") {
+                self.helper_state(helper, data, now);
+            }
             return Ok(Vec::new());
         }
-        let now = Instant::now();
         match kind {
             Some("state") => {
                 let state = data.get("state").and_then(Value::as_str).unwrap_or("");
@@ -85,6 +92,17 @@ impl Agent {
         }
     }
 
+    /// Notes the state of a helper for the context; the helpers that the
+    /// agent names are at most [`MAX_HELPERS`].
+    fn helper_state(&mut self, name: &str, data: &Value, now: Instant) {
+        let state = assistant::context_state(data["state"].as_str().unwrap_or(""));
+        if self.helpers.len() < MAX_HELPERS || self.helpers.contains_key(name) {
+            self.helpers.insert(name.to_owned(), state);
+        }
+        let agents = context::agents_of(self.helpers.values().copied());
+        self.switcher.set_agents(agents, now);
+    }
+
     /// Shows a sentence in the balloon, through the template and the length
     /// of the folder.
     fn say(&mut self, text: &str, time: Duration, now: Instant) -> Vec<Command> {
@@ -104,7 +122,12 @@ impl Agent {
         self.assistant.as_ref().map_or_else(
             || {
                 let size = [24, 24];
-                let [x, y] = assistant::origin(Anchor::BottomRight, output.size, size, [16, 16]);
+                let [x, y] = assistant::origin(
+                    Anchor::BottomRight,
+                    assistant::work_area(output),
+                    size,
+                    [16, 16],
+                );
                 [x, y, size[0], size[1]]
             },
             Assistant::rect,
@@ -303,6 +326,7 @@ impl Agent {
     pub fn sync_assistant(&mut self, now: Instant) -> Result<Vec<Command>, ClientError> {
         let enabled = self.settings.value.enabled;
         let want = self.voice.as_ref().map(|(_, s)| *s).filter(|_| enabled);
+        self.switcher.set_state(want.unwrap_or("asleep"), now);
         let label = want
             .map(|state| self.state_label(state))
             .unwrap_or_default();

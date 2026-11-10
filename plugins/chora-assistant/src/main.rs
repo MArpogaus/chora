@@ -22,11 +22,13 @@ mod assistant;
 mod card;
 mod check;
 mod config;
+mod context;
 mod folders;
 mod paperclip;
 mod voice;
 
 use std::{
+    collections::BTreeMap,
     io::Write as _,
     path::{Path, PathBuf},
     process::ExitCode,
@@ -38,7 +40,7 @@ use chora_draw::{
     theme::{self, Sheet, Theme},
 };
 use chora_kit::{
-    hud,
+    hud::{self, Context},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
     words::Language,
@@ -54,6 +56,7 @@ use crate::{
     assistant::Assistant,
     card::Shown,
     config::{Config, DOT, Kind, NEUTRAL, Raw, Values},
+    context::Switcher,
 };
 
 /// The client name of the plugin, the prefix of its methods.
@@ -68,6 +71,9 @@ const IDLE: Duration = Duration::from_secs(60);
 /// The events that the plugin handles.
 const EVENTS: &[&str] = &[
     "voice.*",
+    "focus.changed",
+    "surface.changed",
+    "surface.destroyed",
     "client.connected",
     "client.disconnected",
     "pointer.pressed",
@@ -112,12 +118,12 @@ impl Source {
     /// Loads a look into a cache directory of its own, so that the files
     /// of the look on the screen stay until it is replaced. A HUD folder
     /// always goes through `Theme::load_hud`: it is untrusted.
-    fn load(&mut self, hud: &str) -> Result<(Theme, Values, PathBuf), String> {
+    fn load(&mut self, hud: &str, context: &Context) -> Result<(Theme, Values, PathBuf), String> {
         self.loads += 1;
         let cache = self.cache.join(format!("look-{}", self.loads));
         let (theme, values) = match &self.assets {
             Some(dir) => load_assets(dir, &cache)?,
-            None => load_hud(&self.roots, hud, &cache)?,
+            None => load_hud(&self.roots, hud, context, &cache)?,
         };
         Ok((theme, values, cache))
     }
@@ -130,6 +136,14 @@ struct Agent {
     source: Source,
     theme: Theme,
     values: Values,
+    /// The name of the HUD folder on the screen.
+    folder: String,
+    /// The context that the context of the screen is evaluated in.
+    switcher: Switcher,
+    /// The context that the look on the screen was built for.
+    look_context: Context,
+    /// The state of each helper that the agent named.
+    helpers: BTreeMap<String, &'static str>,
     /// The cache directory of the look on the screen.
     look_cache: PathBuf,
     /// The theme of the card and the badge, with the fonts of the host.
@@ -163,7 +177,14 @@ impl Plugin for Agent {
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
+                self.switcher.touch(Instant::now());
                 self.replace_assistant()?
+            }
+            Event::FocusChanged { .. }
+            | Event::SurfaceChanged { .. }
+            | Event::SurfaceDestroyed { .. } => {
+                self.switcher.touch(Instant::now());
+                Vec::new()
             }
             Event::Emitted {
                 event,
@@ -194,12 +215,13 @@ impl Plugin for Agent {
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         self.claim_indicator(false);
         let rejected = |e: String| RpcError::new(RpcError::REJECTED, e);
-        let (theme, values, cache) = self
-            .source
-            .load(&self.settings.value.hud)
-            .map_err(rejected)?;
+        let context = self.switcher.applied().clone();
+        let folder = self.settings.value.folder(&context).to_owned();
+        let (theme, values, cache) = self.source.load(&folder, &context).map_err(rejected)?;
         self.theme = theme;
         self.values = values;
+        self.folder = folder;
+        self.look_context = context;
         let old = std::mem::replace(&mut self.look_cache, cache);
         let result = self
             .replace_assistant()
@@ -216,7 +238,7 @@ impl Agent {
     /// awake.
     fn start(
         (mut source, theme, values, look_cache): (Source, Theme, Values, PathBuf),
-        settings: settings::File<Config>,
+        (settings, folder): (settings::File<Config>, String),
     ) -> Result<Self, String> {
         let card_theme = card::theme(&source.cache, HOST_FAMILY)?;
         source.loads = source.loads.max(1);
@@ -233,6 +255,10 @@ impl Agent {
             source,
             theme,
             values,
+            folder,
+            switcher: Switcher::new(),
+            look_context: Context::default(),
+            helpers: BTreeMap::new(),
             look_cache,
             card_theme,
             language: language(),
@@ -244,6 +270,8 @@ impl Agent {
             top: None,
             claim_due: true,
         };
+        agent.look_context = agent.switcher.applied().clone();
+        agent.evaluate().map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
         Ok(agent)
     }
@@ -257,12 +285,15 @@ impl Agent {
         self.rt.conn.apply(commands)
     }
 
-    /// The first output, which shows the figure, and the largest scale of
-    /// the outputs.
+    /// The output of the focused window, which shows the figure (the first
+    /// one before the first evaluation), and the largest scale of the
+    /// outputs.
     fn output(&mut self) -> Result<Option<(OutputInfo, f64)>, ClientError> {
         let outputs = self.rt.outputs()?;
         let scale = outputs.iter().map(|o| o.scale).fold(1.0, f64::max);
-        Ok(outputs.into_iter().next().map(|o| (o, scale)))
+        let wanted = self.switcher.applied().output.as_str();
+        let at = outputs.iter().position(|o| o.name == wanted).unwrap_or(0);
+        Ok(outputs.into_iter().nth(at).map(|o| (o, scale)))
     }
 
     /// A press on the figure mutes the mic, one on the badge turns it on, and
@@ -343,20 +374,24 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         cache: theme::cache_dir("chora-assistant")?,
         loads: 0,
     };
-    let name = settings.value.hud.clone();
-    let (theme, values, cache) = match source.load(&name) {
+    let context = Switcher::new().applied().clone();
+    let mut name = settings.value.folder(&context).to_owned();
+    let (theme, values, cache) = match source.load(&name, &context) {
         Ok(look) => look,
         Err(err) if source.assets.is_none() && name != NEUTRAL => {
             eprintln!("chora-assistant: hud {name}: {err}; the neutral folder shows");
-            source.load(NEUTRAL)?
+            NEUTRAL.clone_into(&mut name);
+            source.load(NEUTRAL, &context)?
         }
         Err(err) => return Err(err.into()),
     };
-    let mut agent = Agent::start((source, theme, values, cache), settings)?;
+    let mut agent = Agent::start((source, theme, values, cache), (settings, name))?;
     loop {
         let now = Instant::now();
-        let wait = agent
-            .assistant_due()
+        let wait = [agent.assistant_due(), agent.switch_due(now)]
+            .into_iter()
+            .flatten()
+            .min()
             .map_or(IDLE, |due| due.saturating_duration_since(now));
         if let Some(event) = agent
             .rt
@@ -366,6 +401,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             runtime::dispatch(&mut agent, event)?;
         }
         agent.assistant_step(Instant::now())?;
+        agent.switch_step(Instant::now())?;
     }
 }
 
@@ -385,7 +421,12 @@ fn load_assets(dir: &Path, cache: &Path) -> Result<(Theme, Values), String> {
 
 /// The values and the pictures of the HUD folder `name`, read as untrusted
 /// data: only through `Theme::load_hud`.
-fn load_hud(roots: &[PathBuf], name: &str, cache: &Path) -> Result<(Theme, Values), String> {
+fn load_hud(
+    roots: &[PathBuf],
+    name: &str,
+    context: &Context,
+    cache: &Path,
+) -> Result<(Theme, Values), String> {
     let dir = folders::find(roots, name)
         .ok_or_else(|| format!("no HUD folder named {name}; --list-huds lists them"))?;
     let hud = hud::load(&dir).map_err(|errors| errors.join("; "))?;
@@ -402,7 +443,7 @@ fn load_hud(roots: &[PathBuf], name: &str, cache: &Path) -> Result<(Theme, Value
         .map(|file| Sheet(Box::leak(file.to_owned().into_boxed_str())))
         .collect();
     let theme = Theme::load_hud(&dir, cache, &sheets, &hud.font)?;
-    let values = Values::from_hud(&hud, |sheet| theme.sheet_size(sheet));
+    let values = Values::from_hud(&hud, context, |sheet| theme.sheet_size(sheet));
     Ok((theme, values))
 }
 
@@ -422,8 +463,8 @@ mod tests {
     /// The theme and the values of the neutral folder, and the cache.
     pub fn loaded(test: &str) -> (Theme, Values, PathBuf) {
         let cache = cache(test);
-        let (theme, values) =
-            load_hud(&[huds()], NEUTRAL, &cache).expect("the neutral folder loads");
+        let (theme, values) = load_hud(&[huds()], NEUTRAL, &Context::default(), &cache)
+            .expect("the neutral folder loads");
         (theme, values, cache)
     }
 
@@ -450,18 +491,22 @@ mod tests {
             cache: cache("source"),
             loads: 0,
         };
-        let (theme, ..) = source.load(NEUTRAL).expect("the neutral folder loads");
+        let (theme, ..) = source
+            .load(NEUTRAL, &Context::default())
+            .expect("the neutral folder loads");
         assert!(theme.confined(), "a HUD folder is read as untrusted");
         assert_eq!(
             source
-                .load("nothing")
+                .load("nothing", &Context::default())
                 .err()
                 .map(|e| e.contains("--list-huds")),
             Some(true)
         );
         let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
         source.assets = Some(xp);
-        let (theme, ..) = source.load(NEUTRAL).expect("the XP folder loads");
+        let (theme, ..) = source
+            .load(NEUTRAL, &Context::default())
+            .expect("the XP folder loads");
         assert!(!theme.confined(), "the asset folder of a flavor is trusted");
         let _ = std::fs::remove_dir_all(source.cache);
     }
@@ -489,7 +534,7 @@ mod tests {
     #[test]
     fn a_broken_folder_names_its_errors_and_the_host_keeps_to_them() {
         let fancy = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/hud");
-        let err = load_hud(&[fancy], "fancy", &cache("fancy"))
+        let err = load_hud(&[fancy], "fancy", &Context::default(), &cache("fancy"))
             .err()
             .expect("refused");
         assert!(err.contains("link.svg"), "{err}");
@@ -515,8 +560,13 @@ mod tests {
     fn a_folder_cannot_hide_the_question() {
         let root = cache("hostile");
         write_hostile_folder(&root.join("huds/hostile"));
-        let (mut theme, values) =
-            load_hud(&[root.join("huds")], "hostile", &root.join("cache")).unwrap();
+        let (mut theme, values) = load_hud(
+            &[root.join("huds")],
+            "hostile",
+            &Context::default(),
+            &root.join("cache"),
+        )
+        .unwrap();
         let output = chora_scene::OutputInfo {
             name: "HEADLESS-1".into(),
             position: [0, 0],

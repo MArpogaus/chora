@@ -76,6 +76,43 @@ folder of a flavor (`--assets`, `CHORA_ASSISTANT_ASSETS`) is the one
 other way to name a look; it is trusted and replaces the folder of the
 setting.
 
+### Folders by context
+
+The setting `huds` maps the context to folders. The first rule whose
+`when` matches wins; `hud` draws when none does. A rule without `when`
+always matches.
+
+```yaml
+huds:
+  - {when: {space: construct}, folder: construct}
+  - {when: {wm: mc}, folder: mc}
+  - {when: {wm: xp}, folder: xp}
+```
+
+A rule with a key that is no field of the context, a value that a field
+with a closed list does not know, or a `folder` that is no folder name
+(see `--list-huds`) is an error that names `huds[N]` and the key; the
+setting is refused. A folder that is not found keeps the look on the
+screen and the host logs it.
+
+The host keeps one context and reads it again 150 ms after the first
+change of a burst, so that a run of focus changes switches the look once.
+The look then changes for the folder and the panels of the new context,
+with the cross-fade of the figure, on the output of the focused window.
+The context stays as it is:
+
+* while a question waits. The card never moves and its style never
+  changes. The change is evaluated 150 ms after the question ends.
+* while the chat field has the keyboard.
+
+A switch never sends `focus` or `focus_node`: the keyboard stays where it
+is. Without a focus, the window manager that claims the first output
+counts as `wm` and `space`, and `app` is empty. The window manager of the
+space (`space`) is the owner of the largest claim at the centre of the work
+area of the output; it differs from `wm` when a window manager runs in a pane
+of the construct. Panels anchor in the work area of the output, which leaves
+out the panels and bars of the window managers.
+
 ## hud.yaml
 
 Unknown keys are errors, at every level. Each error names the file and
@@ -170,7 +207,7 @@ All keys must match. A value of `state`, `agents` or `chat` that is not in the l
 | Field | Values |
 |---|---|
 | `wm` | Name of the window manager that owns the focused window: `tiling`, `xp`, `mc`, `construct`. |
-| `space` | Name of the client that owns the real output of the focused window. |
+| `space` | Name of the client that claims the real output of the focused window; it differs from `wm` when a window manager runs in a construct pane. |
 | `app` | The `app_id` of the focused window. |
 | `state` | `asleep`, `listening`, `thinking`, `working`, `question`, `speaking`. |
 | `agents` | `none`, `any`, `working`, `question`. |

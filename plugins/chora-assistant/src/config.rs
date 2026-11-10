@@ -8,9 +8,11 @@ use chora_draw::{
     theme::Sheet,
 };
 use chora_kit::{
-    hud::{Anchor, Context, Hud, Source},
+    hud::{Anchor, Context, Hud, Source, When},
     settings::Settings,
 };
+use std::collections::BTreeSet;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -35,19 +37,62 @@ pub struct Config {
     /// The corner of the first output where the figure shows; without it,
     /// the place that the HUD folder names.
     pub position: Option<Corner>,
-    /// The name of the HUD folder that draws the assistant.
+    /// The name of the HUD folder that draws the assistant when no rule of
+    /// `huds` matches.
     pub hud: String,
+    /// Which folder draws in which context: the first rule that matches
+    /// wins.
+    #[serde(default)]
+    pub huds: Vec<Rule>,
+}
+
+/// A rule of `huds`: the folder that draws while `when` matches the
+/// context; without `when` it always matches.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Rule {
+    /// The condition on the context.
+    #[serde(default)]
+    pub when: When,
+    /// The name of the HUD folder.
+    pub folder: String,
+}
+
+impl Config {
+    /// The folder that draws in a context: that of the first matching rule,
+    /// else `hud`.
+    #[must_use]
+    pub fn folder(&self, context: &Context) -> &str {
+        self.huds
+            .iter()
+            .find(|rule| rule.when.matches(context))
+            .map_or(self.hud.as_str(), |rule| rule.folder.as_str())
+    }
 }
 
 impl Settings for Config {
     fn check(&self) -> Result<(), String> {
-        if folders::good_name(&self.hud) {
-            Ok(())
-        } else {
-            Err(format!(
+        let mut errors = Vec::new();
+        if !folders::good_name(&self.hud) {
+            errors.push(format!(
                 "hud: {:?} is not a folder name: 1 to 64 of a-z, A-Z, 0-9, _ and -",
                 self.hud
-            ))
+            ));
+        }
+        for (index, rule) in self.huds.iter().enumerate() {
+            let at = format!("huds[{index}]");
+            if !folders::good_name(&rule.folder) {
+                errors.push(format!(
+                    "{at}.folder: {:?} is not a folder name: 1 to 64 of a-z, A-Z, 0-9, _ and -",
+                    rule.folder
+                ));
+            }
+            rule.when.check(&at, &mut errors);
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
         }
     }
 }
@@ -90,6 +135,9 @@ pub struct Values {
     pub speech: Style,
     /// The template and the length of the text of a sentence.
     pub line: Line,
+    /// The fields of the context that the folder reads in a `when`, so
+    /// that the look is built again when one of them changes.
+    pub watches: BTreeSet<String>,
 }
 
 /// The panel of the sentence.
@@ -116,20 +164,23 @@ const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 
 impl Values {
-    /// The values of a HUD folder. `size` gives the size of a sheet. A folder
-    /// without a voice panel that shows in the
-    /// neutral context, with a picture and an element of at least 12 by 12
-    /// pixels, gets the dot of the host.
+    /// The values of a HUD folder in a context. `size` gives the size of a
+    /// sheet. A folder without a voice panel that shows in the context, with
+    /// a picture and an element of at least 12 by 12 pixels, gets the dot
+    /// of the host.
     #[must_use]
-    pub fn from_hud(hud: &Hud, size: impl Fn(Sheet) -> Option<[i32; 2]>) -> Self {
-        let context = Context::default();
+    pub fn from_hud(
+        hud: &Hud,
+        context: &Context,
+        size: impl Fn(Sheet) -> Option<[i32; 2]>,
+    ) -> Self {
         let voice = hud.panels.iter().find(|panel| {
-            panel.source == Source::Voice && panel.picture.is_some() && panel.when.matches(&context)
+            panel.source == Source::Voice && panel.picture.is_some() && panel.when.matches(context)
         });
         let sentence = hud
             .panels
             .iter()
-            .find(|panel| panel.source == Source::Say && panel.when.matches(&context));
+            .find(|panel| panel.source == Source::Say && panel.when.matches(context));
         let figure = voice.and_then(|panel| {
             let (file, template) = panel.picture.as_deref()?.split_once('#')?;
             let sheet = Sheet(leak(file));
@@ -162,6 +213,12 @@ impl Values {
                 text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
                 max_chars: panel.max_chars.map(|n| n as usize),
             }),
+            watches: hud
+                .panels
+                .iter()
+                .flat_map(|panel| panel.when.keys())
+                .map(str::to_owned)
+                .collect(),
         }
     }
 
@@ -176,6 +233,7 @@ impl Values {
             mutes: true,
             speech: Style::default(),
             line: Line::default(),
+            watches: BTreeSet::new(),
         }
     }
 
@@ -198,6 +256,7 @@ impl Values {
             mutes: true,
             speech: raw.speech,
             line: Line::default(),
+            watches: BTreeSet::new(),
         }
     }
 }
@@ -264,6 +323,63 @@ mod tests {
         assert_eq!(config.hud, NEUTRAL);
     }
 
+    fn with_rules(rules: &str) -> Result<Config, String> {
+        parse(&format!(
+            "enabled: true\nposition: null\nhud: neutral\n{rules}"
+        ))
+    }
+
+    fn context(wm: &str, app: &str) -> Context {
+        Context {
+            wm: wm.into(),
+            space: wm.into(),
+            app: app.into(),
+            ..Context::default()
+        }
+    }
+
+    #[test]
+    fn the_first_rule_that_matches_picks_the_folder() {
+        let config = with_rules(
+            "huds:\n  - {when: {app: foot}, folder: mine}\n  - {when: {wm: [xp, mc]}, folder: xp}\n  - {folder: last}\n",
+        )
+        .unwrap();
+        assert_eq!(config.folder(&context("xp", "foot")), "mine");
+        assert_eq!(config.folder(&context("mc", "firefox")), "xp");
+        assert_eq!(config.folder(&context("tiling", "firefox")), "last");
+    }
+
+    #[test]
+    fn hud_is_the_folder_when_no_rule_matches() {
+        let config = with_rules("huds:\n  - {when: {wm: xp}, folder: xp}\n").unwrap();
+        assert_eq!(config.folder(&context("tiling", "")), "neutral");
+        assert_eq!(
+            with_rules("").unwrap().folder(&context("xp", "")),
+            "neutral"
+        );
+    }
+
+    #[test]
+    fn a_bad_rule_fails_with_its_place() {
+        let bad_folder = with_rules("huds:\n  - {folder: ../x}\n").unwrap_err();
+        assert!(bad_folder.contains("huds[0].folder"), "{bad_folder}");
+        let bad_key = with_rules("huds:\n  - {when: {mood: calm}, folder: a}\n").unwrap_err();
+        assert!(bad_key.contains("huds[0].when.mood"), "{bad_key}");
+        let bad_value =
+            with_rules("huds:\n  - {folder: a}\n  - {when: {chat: opened}, folder: a}\n")
+                .unwrap_err();
+        assert!(bad_value.contains("huds[1].when.chat"), "{bad_value}");
+        assert!(
+            with_rules("huds:\n  - {when: {wm: xp}}\n").is_err(),
+            "a rule names a folder"
+        );
+    }
+
+    #[test]
+    fn the_default_has_no_rules() {
+        assert_eq!(parse::<Config>(DEFAULT).unwrap().huds.len(), 0);
+    }
+
     #[test]
     fn a_wrong_value_fails() {
         assert!(parse::<Config>("enabled: yes please\nposition: null\nhud: neutral").is_err());
@@ -273,7 +389,9 @@ mod tests {
     }
 
     fn values(text: &str) -> Values {
-        Values::from_hud(&hud::parse(text).unwrap(), |_| Some([24, 24]))
+        Values::from_hud(&hud::parse(text).unwrap(), &Context::default(), |_| {
+            Some([24, 24])
+        })
     }
 
     #[test]
@@ -294,6 +412,7 @@ mod tests {
                 "hud: 1\npanels:\n- {id: f, source: voice, anchor: top, picture: 'a.svg#x'}\n",
             )
             .unwrap(),
+            &Context::default(),
             |_| Some([8, 40]),
         );
         assert_eq!(tiny.figure, Figure::Dot, "under 12 by 12 pixels");
@@ -302,6 +421,7 @@ mod tests {
                 "hud: 1\npanels:\n- {id: f, source: voice, anchor: top, picture: 'a.svg#x'}\n",
             )
             .unwrap(),
+            &Context::default(),
             |_| Some([257, 40]),
         );
         assert_eq!(huge.figure, Figure::Dot, "over 256 pixels");
@@ -310,9 +430,29 @@ mod tests {
                 "hud: 1\npanels:\n- {id: f, source: voice, anchor: top, picture: 'a.svg#x'}\n",
             )
             .unwrap(),
+            &Context::default(),
             |_| None,
         );
         assert_eq!(missing.figure, Figure::Dot, "no element idle");
+    }
+
+    #[test]
+    fn a_panel_follows_the_context_and_the_folder_names_what_it_reads() {
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, when: {wm: xp}, anchor: top_left, \
+            picture: 'a.svg#{state}'}\n- {id: g, source: voice, when: {app: [foot, vim]}, \
+            anchor: top, text: x}\n";
+        let hud = hud::parse(text).unwrap();
+        let in_context = |wm: &str| {
+            let context = Context {
+                wm: wm.into(),
+                ..Context::default()
+            };
+            Values::from_hud(&hud, &context, |_| Some([24, 24]))
+        };
+        assert!(matches!(in_context("xp").figure, Figure::Sheet { .. }));
+        assert_eq!(in_context("tiling").figure, Figure::Dot);
+        let watches: Vec<_> = in_context("xp").watches.into_iter().collect();
+        assert_eq!(watches, ["app", "wm"]);
     }
 
     #[test]

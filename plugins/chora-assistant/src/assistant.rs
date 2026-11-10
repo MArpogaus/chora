@@ -178,15 +178,16 @@ impl Figure {
     }
 }
 
-/// The top-left corner of a picture of a size at an anchor of an output of
-/// a size, with the margin to the edges.
-pub fn origin(anchor: Anchor, screen: [i32; 2], size: [i32; 2], margin: [i32; 2]) -> [i32; 2] {
-    let left = margin[0];
-    let right = screen[0] - margin[0] - size[0];
-    let centre_x = (screen[0] - size[0]) / 2;
-    let top = margin[1];
-    let bottom = screen[1] - margin[1] - size[1];
-    let centre_y = (screen[1] - size[1]) / 2;
+/// The top-left corner of a picture of a size at an anchor of an area of
+/// the output (x, y, width, height), with the margin to the edges.
+pub fn origin(anchor: Anchor, area: [i32; 4], size: [i32; 2], margin: [i32; 2]) -> [i32; 2] {
+    let [x, y, w, h] = area;
+    let left = x + margin[0];
+    let right = x + w - margin[0] - size[0];
+    let centre_x = x + (w - size[0]) / 2;
+    let top = y + margin[1];
+    let bottom = y + h - margin[1] - size[1];
+    let centre_y = y + (h - size[1]) / 2;
     match anchor {
         Anchor::TopLeft => [left, top],
         Anchor::Top => [centre_x, top],
@@ -198,6 +199,18 @@ pub fn origin(anchor: Anchor, screen: [i32; 2], size: [i32; 2], margin: [i32; 2]
         Anchor::Bottom => [centre_x, bottom],
         Anchor::BottomRight => [right, bottom],
     }
+}
+
+/// The area of an output where the HUD anchors, in the coordinates of the
+/// output: its work area, which leaves out the panels and bars of the
+/// window managers.
+#[must_use]
+pub fn work_area(output: &OutputInfo) -> [i32; 4] {
+    let [x, y, w, h] = output.layout_area();
+    if w <= 0 || h <= 0 {
+        return [0, 0, output.size[0], output.size[1]];
+    }
+    [x - output.position[0], y - output.position[1], w, h]
 }
 
 /// The transform of the body: scaled from its foot and moved.
@@ -300,10 +313,11 @@ impl Assistant {
         (state, label, now): (&'static str, &str, Instant),
     ) -> (Self, Vec<Command>) {
         let mut values = values.clone();
-        let mut origin = origin(anchor, output.size, values.figure.size(), values.margin);
+        let area = work_area(output);
+        let mut origin = origin(anchor, area, values.figure.size(), values.margin);
         if !inside(origin, values.figure.size(), output.size) {
             values = Values::neutral(&values.font);
-            origin = origin_of(&values, output.size);
+            origin = origin_of(&values, area);
         }
         let screen = output.size[0];
         let assistant = Self {
@@ -554,8 +568,8 @@ fn inside([x, y]: [i32; 2], [w, h]: [i32; 2], [sw, sh]: [i32; 2]) -> bool {
 }
 
 /// The top-left corner of the figure of `values` on an output of a size.
-fn origin_of(values: &Values, screen: [i32; 2]) -> [i32; 2] {
-    origin(values.anchor, screen, values.figure.size(), values.margin)
+fn origin_of(values: &Values, area: [i32; 4]) -> [i32; 2] {
+    origin(values.anchor, area, values.figure.size(), values.margin)
 }
 
 #[cfg(test)]
@@ -658,7 +672,7 @@ mod tests {
 
     #[test]
     fn the_anchors_put_a_picture_in_the_nine_places() {
-        let at = |anchor| origin(anchor, [100, 80], [20, 10], [4, 6]);
+        let at = |anchor| origin(anchor, [0, 0, 100, 80], [20, 10], [4, 6]);
         assert_eq!(at(Anchor::TopLeft), [4, 6]);
         assert_eq!(at(Anchor::Top), [40, 6]);
         assert_eq!(at(Anchor::TopRight), [76, 6]);
@@ -668,6 +682,57 @@ mod tests {
         assert_eq!(at(Anchor::BottomLeft), [4, 64]);
         assert_eq!(at(Anchor::Bottom), [40, 64]);
         assert_eq!(at(Anchor::BottomRight), [76, 64]);
+    }
+
+    #[test]
+    fn anchors_use_the_work_area_not_the_output_size() {
+        let area = [0, 32, 1280, 736];
+        let at = |anchor| origin(anchor, area, [24, 24], [16, 16]);
+        assert_eq!(at(Anchor::TopLeft), [16, 48]);
+        assert_eq!(at(Anchor::BottomRight), [1240, 728]);
+        let beside = origin(Anchor::TopLeft, [200, 0, 1000, 800], [24, 24], [16, 16]);
+        assert_eq!(
+            beside,
+            [216, 16],
+            "a panel at the left edge pushes the figure in"
+        );
+    }
+
+    #[test]
+    fn the_figure_stands_in_the_work_area_of_its_output() {
+        let (mut theme, values, _) = crate::tests::loaded("area");
+        let mut output = OutputInfo {
+            name: "HEADLESS-1".into(),
+            position: [1920, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: Transform::default(),
+            work_area: [1920, 0, 1280, 760],
+            default_work_area: [1920, 0, 1280, 760],
+        };
+        let now = Instant::now();
+        let place = |output: &OutputInfo, theme: &mut Theme| {
+            Assistant::new(
+                theme,
+                &values,
+                (output, Anchor::BottomRight),
+                ("idle", "Idle", now),
+            )
+            .0
+            .rect()
+        };
+        assert_eq!(
+            place(&output, &mut theme),
+            [1240, 720, 24, 24],
+            "a bar of 40 px below"
+        );
+        output.default_work_area = [0; 4];
+        output.work_area = [1920, 40, 1280, 760];
+        assert_eq!(
+            place(&output, &mut theme),
+            [1240, 760, 24, 24],
+            "a core without the default area"
+        );
     }
 
     #[test]
