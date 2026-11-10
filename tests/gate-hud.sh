@@ -78,6 +78,8 @@ voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
 neutral-equals-today pass
+late-host-shows-figure pass
+reconnected-voice-shows-figure pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -136,6 +138,7 @@ log=$shots/hud.log
 : >"$log"
 fixtures=$repo/tests/hud
 settle_s=5
+grace_s=15
 
 waiting() {
     local limit=$1 n
@@ -242,24 +245,43 @@ end_question() {
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
 }
 
+voice_pid=0
+start_voice() {
+    rm -f "$voice_in"
+    mkfifo "$voice_in"
+    python3 -I "$repo/tests/fake-voice.py" "$work/claims" <"$voice_in" >"$shots/voice.log" 2>&1 &
+    voice_pid=$!
+    pids+=("$voice_pid")
+    exec 3>"$voice_in"
+}
+start_assistant() {
+    XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
+    assistant_pid=$!
+    pids+=("$assistant_pid")
+}
+stop_voice() {
+    exec 3>&-
+    kill "$voice_pid"
+    wait "$voice_pid" 2>/dev/null
+}
+stop_assistant() {
+    kill "$assistant_pid"
+    wait "$assistant_pid" 2>/dev/null
+}
+
 ensure_session() {
     [ "$session_up" = 0 ] || return 0
     session_up=1
     session_start 1280x800
     grant input.inject screen.capture methods.call
-    mkfifo "$voice_in"
-    python3 -I "$repo/tests/fake-voice.py" "$work/claims" <"$voice_in" >"$shots/voice.log" 2>&1 &
-    pids+=($!)
-    exec 3>"$voice_in"
+    start_voice
     "$bin/chora-tiling" >"$shots/tiling.log" 2>&1 &
     pids+=($!)
     ctl wait owner:tiling --timeout 20 >/dev/null || fail "tiling does not start: $(tail -n 3 "$shots/tiling.log")"
     mkdir -p "$work/data/chora/huds"
     cp -r "$fixtures/mine" "$work/data/chora/huds/mine"
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {app: probe2}, folder: mine}\n' >"$work/chora/chora-assistant.yaml"
-    XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
-    assistant_pid=$!
-    pids+=("$assistant_pid")
+    start_assistant
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
     run_pid $!
     probe=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
@@ -404,6 +426,23 @@ cell_host_idle_cpu() {
     [ $((after - before)) -lt $((5 * hz / 100)) ]
 }
 
+cell_late_host_shows_figure() {
+    emit voice.state '{"state": "thinking", "task": "", "said": ""}'
+    waiting "$settle_s" node_has hud-state Thinking || return 1
+    stop_assistant
+    waiting "$grace_s" figure_gone || return 1
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    start_assistant
+    waiting "$settle_s" node_has hud-state Listening
+}
+cell_reconnected_voice_shows_figure() {
+    stop_voice
+    waiting "$settle_s" figure_gone || return 1
+    FAKE_VOICE_STATE='{"state": "listening", "task": "", "said": ""}' start_voice
+    waiting "$settle_s" node_exists hud-figure
+}
+figure_gone() { ! node_exists hud-figure; }
+
 run_cell() {
     local id=$1 fn=$2 session=$3 t0=$SECONDS
     [ $SECONDS -le $time_cap ] || fail "the run takes more than $time_cap s at $id"
@@ -441,6 +480,8 @@ run_cell agents-row-text cell_agents_row_text session
 run_cell voice-state-rate cell_voice_state_rate session
 run_cell layers-dropped-empty cell_layers_dropped_empty session
 run_cell host-idle-cpu cell_host_idle_cpu session
+run_cell late-host-shows-figure cell_late_host_shows_figure session
+run_cell reconnected-voice-shows-figure cell_reconnected_voice_shows_figure session
 
 printf '\n%-34s %-9s %s\n' cell measured expected
 while read -r id want; do
