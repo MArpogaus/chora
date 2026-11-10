@@ -775,7 +775,36 @@ pub fn file(dir: &Path, name: &str) -> std::io::Result<Vec<u8>> {
         return Err(invalid("link points outside the folder"));
     }
     single_name(&std::fs::metadata(&real)?).map_err(|e| invalid(&e))?;
-    crate::read_file(&real, MAX_FILE)
+    read_checked(&real, &std::fs::metadata(&real)?)
+}
+
+/// Reads the file at `path` if it is the file that `checked` describes:
+/// it is opened without following a link in its last component, and its
+/// device and inode are those of `checked`. A file swapped for another
+/// between the check and the open is refused.
+fn read_checked(path: &Path, checked: &std::fs::Metadata) -> std::io::Result<Vec<u8>> {
+    use std::io::Read as _;
+    use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)?;
+    let opened = file.metadata()?;
+    if !opened.is_file() || (opened.dev(), opened.ino()) != (checked.dev(), checked.ino()) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "file changed while it was read",
+        ));
+    }
+    let mut data = Vec::new();
+    file.take(MAX_FILE + 1).read_to_end(&mut data)?;
+    if data.len() as u64 > MAX_FILE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("larger than {MAX_FILE} bytes"),
+        ));
+    }
+    Ok(data)
 }
 
 #[cfg(test)]
@@ -854,6 +883,29 @@ mod tests {
         assert!(two.contains('1'), "{two}");
         assert!(errors(parse("panels: []\n")).contains("hud"));
         assert!(parse(MINIMAL).is_ok());
+    }
+
+    #[test]
+    fn a_file_swapped_after_the_check_is_refused() {
+        let dir = Dir::new("swap");
+        std::fs::write(dir.0.join("checked.svg"), "checked").unwrap();
+        std::fs::write(dir.0.join("swapped.svg"), "swapped").unwrap();
+        let checked = std::fs::metadata(dir.0.join("checked.svg")).unwrap();
+        assert_eq!(
+            read_checked(&dir.0.join("checked.svg"), &checked).unwrap(),
+            b"checked"
+        );
+        let err = read_checked(&dir.0.join("swapped.svg"), &checked).unwrap_err();
+        assert!(err.to_string().contains("changed"), "{err}");
+    }
+
+    #[test]
+    fn a_link_in_the_last_component_is_not_followed() {
+        let dir = Dir::new("nofollow");
+        std::fs::write(dir.0.join("real.svg"), "real").unwrap();
+        std::os::unix::fs::symlink("real.svg", dir.0.join("link.svg")).unwrap();
+        let checked = std::fs::metadata(dir.0.join("real.svg")).unwrap();
+        assert!(read_checked(&dir.0.join("link.svg"), &checked).is_err());
     }
 
     #[test]
