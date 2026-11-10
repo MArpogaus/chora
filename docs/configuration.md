@@ -740,6 +740,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 

@@ -55,6 +55,7 @@ use std::{
 };
 
 use chora_kit::{
+    effects,
     give::{self, Give},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
@@ -460,6 +461,8 @@ struct Construct {
     backs: std::collections::BTreeSet<String>,
     /// The focus glow as last sent.
     glow: Option<PropsUpdate>,
+    /// The wobble of the panes of own windows that the modifier drags.
+    effects: effects::Driver,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -544,7 +547,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         hovered: None,
         backs: std::collections::BTreeSet::new(),
         glow: None,
+        effects: effects::Driver::default(),
     };
+    construct.effects.set(&construct.settings.value.effects);
     construct.start()?;
     construct.serve()?;
     Ok(())

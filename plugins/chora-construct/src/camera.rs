@@ -166,7 +166,8 @@ impl Construct {
         (self.panes.iter().enumerate())
             .filter(|(_, pane)| keep(pane))
             .filter_map(|(i, pane)| {
-                space::hit(&self.lens, &self.pose, p, pane.at, pane.size, pane.yaw).map(|t| (i, t))
+                space::hit(&self.lens, &self.pose, p, pane.at, pane.size, pane.yaw)
+                    .map(|(t, _)| (i, t))
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(i, _)| i)

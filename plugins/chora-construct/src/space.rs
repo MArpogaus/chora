@@ -419,7 +419,8 @@ pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]
 /// Where the ray through the screen point `p` hits a pane of `size` at
 /// `at` with `yaw`, from either side: its distance along the ray, or
 /// `None`. Only a press that the construct grabs needs it: the core casts
-/// the ray of all other input.
+/// the ray of all other input. With the distance comes the point (u, v)
+/// of the pane under the ray.
 #[must_use]
 #[allow(clippy::too_many_arguments, reason = "the ray and the pane")]
 pub fn hit(
@@ -429,7 +430,7 @@ pub fn hit(
     at: [f64; 2],
     size: [f64; 2],
     yaw: f64,
-) -> Option<f64> {
+) -> Option<(f64, [f64; 2])> {
     // The ray in camera space, then undo the pitch and the yaw.
     let (x, y) = (
         (p[0] - lens.w / 2.0) / lens.focal,
@@ -454,7 +455,8 @@ pub fn hit(
         eye[1] + ray[2] * t - at[1],
     ];
     let u = hit[0] * r[0] + hit[2] * r[1];
-    (t > 0.0 && u.abs() <= size[0] / 2.0 && hit[1].abs() <= size[1] / 2.0).then_some(t)
+    (t > 0.0 && u.abs() <= size[0] / 2.0 && hit[1].abs() <= size[1] / 2.0)
+        .then_some((t, [u + size[0] / 2.0, size[1] / 2.0 - hit[1]]))
 }
 
 #[cfg(test)]
@@ -656,7 +658,9 @@ mod tests {
         };
         let at = [0.0, 1664.0]; // twice the focal length: half size
         let size = [1280.0, 800.0];
-        assert!((hit(&LENS, &pose, [640.0, 400.0], at, size, 0.0).unwrap() - 1664.0).abs() < 1e-9);
+        assert!(
+            (hit(&LENS, &pose, [640.0, 400.0], at, size, 0.0).unwrap().0 - 1664.0).abs() < 1e-9
+        );
         assert!(hit(&LENS, &pose, [330.0, 400.0], at, size, 0.0).is_some());
         assert!(hit(&LENS, &pose, [310.0, 400.0], at, size, 0.0).is_none());
         assert!(hit(&LENS, &pose, [640.0, 190.0], at, size, 0.0).is_none());

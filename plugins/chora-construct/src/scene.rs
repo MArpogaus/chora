@@ -48,7 +48,7 @@ impl Construct {
     pub(crate) fn serve(&mut self) -> Result<(), ClientError> {
         loop {
             let plugins = self.waiting.iter().any(|w| w.pane.kind == Kind::Plugin);
-            let wait = if self.glide.is_some() {
+            let wait = if self.glide.is_some() || self.effects.animating() {
                 FRAME
             } else if plugins {
                 RETRY
@@ -66,6 +66,9 @@ impl Construct {
             self.tick()?;
             if self.glide.is_some() {
                 self.step_glide()?;
+            }
+            if self.effects.animating() {
+                self.wobble_frame()?;
             }
         }
     }

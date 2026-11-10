@@ -236,6 +236,10 @@ pub struct Config {
     /// Whether the construct draws the voice HUD (F28) and hides the dot
     /// of the voice agent.
     pub voice_hud: bool,
+    /// The effects of the panes of own windows: `wobbly` bends a pane in
+    /// 3D while the modifier drags it.
+    #[serde(default)]
+    pub effects: Vec<chora_kit::effects::Kind>,
     pub style: Style,
 }
 
@@ -255,6 +259,9 @@ impl Settings for Config {
                 "modifier: {} is not Ctrl, Alt, Shift or Super",
                 self.modifier
             ));
+        }
+        if self.effects.contains(&chora_kit::effects::Kind::Lamp) {
+            return Err("effects: the construct has no task button, so only wobbly".into());
         }
         self.check_style()?;
         if !self.start.is_empty() {
