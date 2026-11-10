@@ -926,8 +926,8 @@ impl Wm {
         if self.resize.as_ref().is_some_and(|r| r.surface == surface) {
             self.resize = None;
         }
-        self.effects.wobbles.remove(surface);
-        self.effects.lamps.remove(surface);
+        self.effects.driver.wobbles.remove(surface);
+        self.effects.driver.lamps.remove(surface);
         commands.push(Command::Remove {
             id: decoration::group_id(surface),
             to: None,
@@ -2502,7 +2502,7 @@ impl Wm {
             .map(|o| wallpaper::update(&mut self.theme, &config.wallpaper, o))
             .collect();
         commands.extend(self.set_taskbar(config.taskbar));
-        self.effects.toggles = config.effects;
+        self.effects.set_toggles(config.effects);
         self.desk.terminal.clone_from(&config.terminal);
         commands.extend(self.close_menu());
         commands.extend(self.menu.rebuild(

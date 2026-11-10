@@ -21,7 +21,7 @@ use crate::{lamp::Lamp, wobbly::Wobble};
 /// How long the driver goes without effects after the watchdog of the
 /// core dropped them. Slow frames within ten seconds after a drop reset the
 /// scene.
-pub const CALM: Duration = Duration::from_secs(15);
+const CALM: Duration = Duration::from_secs(15);
 
 /// An effect that a window manager can turn on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -110,7 +110,10 @@ impl Driver {
 
     /// A window is grabbed at a point of the scene: it starts to wobble.
     pub fn grab(&mut self, key: &str, target: &Target, point: [f64; 2]) {
-        let _ = (key, target, point);
+        if self.wobbly && self.calm() {
+            let wobble = Wobble::new(target.size, target.origin, point);
+            self.wobbles.insert(key.into(), wobble);
+        }
     }
 
     /// Whether a window wobbles.
@@ -122,8 +125,9 @@ impl Driver {
     /// The window moved: its mesh at the new place, with the grid
     /// advanced to now. `None` when it does not wobble.
     pub fn motion(&mut self, key: &str, target: &Target) -> Option<Command> {
-        let _ = (key, target);
-        None
+        let wobble = self.wobbles.get_mut(key)?;
+        wobble.advance(target.origin, Instant::now());
+        Some(mesh(target, wobble.mesh(target.origin)))
     }
 
     /// The pointer lets go: the window shakes until it settles.
@@ -139,28 +143,72 @@ impl Driver {
     /// the manager hides or shows the window at once. `fresh` is the lamp
     /// to start when none runs for the window.
     pub fn lamp_toward(&mut self, key: &str, target: &Target, fresh: Lamp) -> Option<Command> {
-        let _ = (key, target, fresh);
-        None
+        if !(self.lamp && self.calm()) {
+            return None;
+        }
+        let now = Instant::now();
+        let lamp = match self.lamps.remove(key) {
+            Some(mut lamp) if lamp.restore != fresh.restore => {
+                lamp.flip(now);
+                lamp
+            }
+            Some(lamp) => lamp,
+            None => fresh,
+        };
+        let first = mesh(target, lamp.mesh(lamp.time(now)));
+        self.lamps.insert(key.into(), lamp);
+        Some(first)
     }
 
     /// Moves every effect one frame forward. `find` gives the target of a
     /// key; an effect whose window is gone ends.
     pub fn tick(&mut self, now: Instant, find: impl Fn(&str) -> Option<Target>) -> Frame {
-        let _ = (now, find);
-        Frame::default()
+        let mut frame = Frame::default();
+        let mut settled = Vec::new();
+        for (key, wobble) in &mut self.wobbles {
+            let Some(target) = find(key) else {
+                settled.push(key.clone());
+                continue;
+            };
+            wobble.advance(target.origin, now);
+            if wobble.settled() {
+                settled.push(key.clone());
+                frame.commands.push(unmesh(&target.node));
+            } else {
+                frame
+                    .commands
+                    .push(mesh(&target, wobble.mesh(target.origin)));
+            }
+        }
+        for key in settled {
+            self.wobbles.remove(&key);
+        }
+        for (key, lamp) in &self.lamps {
+            let Some(target) = find(key) else {
+                frame.lamps_done.push(key.clone());
+                continue;
+            };
+            let time = lamp.time(now);
+            frame.commands.push(mesh(&target, lamp.mesh(time)));
+            if time >= 1.0 {
+                frame.lamps_done.push(key.clone());
+            }
+        }
+        frame
     }
 
     /// The watchdog of the core removed all meshes because frames were
     /// slow: every wobble ends and the driver goes calm for a while. The
     /// keys of the running lamps come back, so that the manager ends them.
     pub fn dropped(&mut self) -> Vec<String> {
-        Vec::new()
+        self.calm_until = Some(Instant::now() + CALM);
+        self.wobbles.clear();
+        self.lamps.keys().cloned().collect()
     }
 }
 
 /// The mesh of a target.
-#[must_use]
-pub fn mesh(target: &Target, mesh: Mesh) -> Command {
+fn mesh(target: &Target, mesh: Mesh) -> Command {
     Command::Update {
         id: target.node.clone(),
         props: PropsUpdate {

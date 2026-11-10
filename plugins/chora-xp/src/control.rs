@@ -70,11 +70,12 @@ impl Toggles {
     }
 
     /// The effects of the shared driver that are on.
-    #[cfg_attr(not(test), allow(dead_code, reason = "wired in the next commit"))]
     pub fn kinds(self) -> Vec<chora_kit::effects::Kind> {
         use chora_kit::effects::Kind::{Lamp, Wobbly};
-        let _ = self.cube;
-        vec![Wobbly, Lamp]
+        [(self.wobbly, Wobbly), (self.lamp, Lamp)]
+            .into_iter()
+            .filter_map(|(on, kind)| on.then_some(kind))
+            .collect()
     }
 
     /// Turns an effect on or off.

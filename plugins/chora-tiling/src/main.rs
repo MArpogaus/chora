@@ -20,6 +20,7 @@ use std::{
 };
 
 use chora_kit::{
+    effects::{self, Driver, Target},
     give::{self, Give, MOVE},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
@@ -124,6 +125,10 @@ struct Tiling {
     /// The window that the binding of `drag` or a move of its client
     /// holds, and the pointer relative to the window.
     dragged: Option<(String, [f64; 2])>,
+    /// The window effects of the setting `effects`.
+    effects: Driver,
+    /// The meshes of a drag that the next transaction carries.
+    meshes: Vec<Command>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -151,6 +156,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut methods = exported_methods();
     methods.extend(settings::File::<Config>::methods());
     let rt = Runtime::start(NAME, args.outputs.clone(), &EVENTS, methods)?;
+    let settings_effects = settings.value.effects.clone();
     let mut tiling = Tiling {
         rt,
         wm: Wm::new(settings.value.clone()),
@@ -162,9 +168,35 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         saved: HashMap::new(),
         claimed: None,
         dragged: None,
+        effects: Driver::new(&settings_effects),
+        meshes: Vec::new(),
     };
     tiling.start()?;
-    Ok(runtime::serve(&mut tiling)?)
+    Ok(serve(&mut tiling)?)
+}
+
+/// The time between two frames of the effects, 60 Hz.
+const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
+
+/// Handles events; while an effect runs, a frame follows each 16 ms.
+fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
+    let mut next = std::time::Instant::now();
+    loop {
+        let event = if tiling.effects.animating() {
+            let wait = next.saturating_duration_since(std::time::Instant::now());
+            tiling.rt.conn.next_event_timeout(wait)?
+        } else {
+            Some(tiling.rt.conn.next_event()?)
+        };
+        if let Some(event) = event {
+            runtime::dispatch(tiling, event)?;
+        }
+        let now = std::time::Instant::now();
+        if tiling.effects.animating() && now >= next {
+            tiling.frame(now)?;
+            next = now + FRAME;
+        }
+    }
 }
 
 /// The events that tiling handles.
@@ -327,6 +359,7 @@ impl Tiling {
         self.check_shaders()?;
         self.rt.ungrab_all()?;
         self.wm.reconfigure(self.settings.value.clone());
+        self.effects.set(&self.settings.value.effects);
         self.grab_all()?;
         self.relayout()
     }
@@ -578,6 +611,10 @@ impl Tiling {
         only(self.wm.has(surface), || {
             format!("tiling has no window {surface}")
         })?;
+        if self.effects.wobbles.remove(surface).is_some() {
+            self.apply(vec![effects::unmesh(surface)])
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        }
         let answer = self.rt.conn.give(surface, to)?;
         self.focus.gave(surface);
         self.forget_window(surface);
@@ -613,6 +650,7 @@ impl Tiling {
         let Some((surface, _)) = self.dragged.take() else {
             return;
         };
+        self.effects.release(&surface);
         if self.wm.output_at(point).is_some() {
             return;
         }
@@ -636,7 +674,55 @@ impl Tiling {
             return false;
         };
         let at = [(px - dx).round() as i32, (py - dy).round() as i32];
-        self.wm.place(&id, at, [px, py])
+        let placed = self.wm.place(&id, at, [px, py]);
+        if placed {
+            self.bend(&id, at.map(f64::from), [px, py]);
+        }
+        placed
+    }
+
+    /// The window as the effects bend it: at an origin, with its size.
+    fn target(&self, id: &str, origin: [f64; 2]) -> Option<Target> {
+        let window = self.wm.windows.iter().find(|w| w.id == id)?;
+        let size = self.sent.get(id).and_then(|p| p.size).or(window.size)?;
+        Some(Target {
+            node: id.into(),
+            origin,
+            size: size.map(f64::from),
+            layer: false,
+        })
+    }
+
+    /// A dragged window wobbles: it starts to at the first move, and each
+    /// move bends its mesh.
+    fn bend(&mut self, id: &str, origin: [f64; 2], pointer: [f64; 2]) {
+        let Some(target) = self.target(id, origin) else {
+            return;
+        };
+        if !self.effects.wobbles(id) {
+            self.effects.grab(id, &target, pointer);
+        }
+        let mesh = self.effects.motion(id, &target);
+        self.meshes.extend(mesh);
+    }
+
+    /// Moves the effects one frame forward.
+    fn frame(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
+        let (sent, wm) = (&self.sent, &self.wm);
+        let frame = self.effects.tick(now, |id| {
+            let window = wm.windows.iter().find(|w| w.id == id)?;
+            let placement = sent.get(id)?;
+            Some(Target {
+                node: id.into(),
+                origin: placement.at?.map(f64::from),
+                size: placement.size.or(window.size)?.map(f64::from),
+                layer: false,
+            })
+        });
+        if frame.commands.is_empty() {
+            return Ok(());
+        }
+        self.apply(frame.commands)
     }
 
     /// The topmost shown window at a point in scene coordinates.
@@ -803,6 +889,7 @@ impl Tiling {
                 },
             });
         }
+        commands.append(&mut self.meshes);
         if commands.is_empty() {
             return Ok(());
         }
@@ -840,6 +927,7 @@ impl Tiling {
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);
+        self.effects.wobbles.remove(id);
         // The focus on it is no longer that of tiling: when the window
         // comes back, tiling sends it again.
         if self.focus.surface.as_deref() == Some(id) {
@@ -1298,6 +1386,8 @@ mod tests {
             saved: HashMap::new(),
             claimed: None,
             dragged: None,
+            effects: Driver::new(effects),
+            meshes: Vec::new(),
         };
         (tiling, methods)
     }
@@ -1343,6 +1433,7 @@ mod tests {
             on_fake_core_with("wobble", &[chora_kit::effects::Kind::Wobbly]);
         let sent = drag_a_floating_window(&mut tiling, &methods);
         assert!(sent.contains("\"mesh\""), "a dragged window bends: {sent}");
+        assert!(tiling.effects.animating(), "and shakes after the release");
     }
 
     #[test]
