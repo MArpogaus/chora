@@ -7,6 +7,11 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+F2. Flake: 14 `chora` lib render tests failed once in a full workspace
+   run with an EGL display PoisonError (11-10, H6 gate); they pass alone.
+   A panic in one render test poisons a shared display lock; find the
+   first panic, make the display per test or recover from poison.
+
 E1. The chat `epoch` restarts at 1 when chora-voice restarts; make it
    unique per voice start (start time plus counter), so a chat that
    lives through a voice restart never takes new answers as stale.
