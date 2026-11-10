@@ -102,7 +102,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 16:58 Bangkok</span>
+      <span>Updated Tue 10 Nov, 17:35 Bangkok</span>
       <span>Day 3 of 22</span>
       <span>Week budget used: 41 % (Fable 16 %)</span>
     </div>
@@ -116,16 +116,16 @@ footer { font-size: 13px; color: var(--muted); }
         <ul class="plain run">
           <li>The construct in 3D, with 3D wobble (first 3D screenshots)</li>
           <li>Virtual screens, step 4 of 10 (worker, Fable)</li>
-          <li>mc fast with 300 panels, memory after drops (worker, Fable)</li>
+          <li>Give a window during a drag, for the cube pull-out (worker, Fable)</li>
           <li>HUD looks for xp, mc and construct (worker)</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Merge virtual screens 2-3 and the core crash fixes (gates running)</li>
+          <li>Merge the 3D construct after its fixes, then the 3D wobble GIF</li>
           <li>Window handover with chat open; user tests with voice</li>
-          <li>Give a window during a drag (pull out of the cube)</li>
+          <li>Demo GIFs: construct walk, 3D wobble, then the cube</li>
           <li>Runs now at 05:58, 11:58 and 16:58 Bangkok</li>
         </ul>
       </div>
@@ -151,9 +151,9 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="group-label">Foundation · comes first</div>
       <div class="bar good"><span class="name">Security</span><span class="pct">open: 0 high</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Who may answer a question is now locked down: a name in use cannot be taken over, and security settings change only with a physical key or click. Open: injected keys reach window manager bindings.</span></div>
       <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">78 of 85</span><div class="track"><div class="fill" style="width:92%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
-      <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps merged</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">Code and tests merged; not yet seen on real hardware, no 3D capture yet, some review findings deferred. Not "done" until a whole-piece review and real captures. The 2D look is checked pixel by pixel on every merge.</span></div>
+      <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps merged</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">Base merged; the construct runs on it (in review, first capture below); not yet seen on real hardware. Not "done" until a whole-piece review and real captures. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
-      <div class="bar good"><span class="name">Stability bugs</span><span class="pct">catching up</span><div class="track"><div class="fill" style="width:40%"></div></div><span class="note">The core now leaves last words on every crash; the frame watchdog no longer blames innocent programs on a busy machine; memory levels off. Open: mc slow with 300 panels.</span></div>
+      <div class="bar good"><span class="name">Stability bugs</span><span class="pct">catching up</span><div class="track"><div class="fill" style="width:40%"></div></div><span class="note">The core now leaves last words on every crash; the frame watchdog no longer blames innocent programs on a busy machine; memory levels off; mc fast with 300 panels.</span></div>
       <div class="group-label">Features</div>
       <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">9 of 13</span><div class="track"><div class="fill" style="width:69%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
       <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
@@ -166,6 +166,8 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>17:35</time><p><span class="tag ok">merged</span>Core crash work: the core leaves last words on every crash, even a stack overflow; the frame watchdog no longer blames innocent programs on a busy machine; mc opens 300 panels in under 1 s (was about 25 s). Virtual screens steps 2 and 3 merged too. The memory left after big scenes belongs to the software graphics driver, not a chora leak.</p></li>
+        <li><time>17:20</time><p><span class="tag info">review</span>The 3D construct works (first 3D screenshot below). Its review found 3 serious bugs before merge, among them a flat fallback under load where a click could reach a window behind you. Being fixed; the 3D wobble and the first GIF come right after.</p></li>
         <li><time>16:58</time><p><span class="tag ok">merged</span>Three pieces, all through the full gate: only the real person can answer a question or change a security setting; the HUD no longer starts wrong when the voice service is slow; wobbly windows can now move in depth (seen once the 3D construct uses it). Reviews of the crash fixes and virtual screens found no serious bugs; their fixes are in and merge next.</p></li>
         <li><time>14:37</time><p><span class="tag ok">merged</span>Render fixes of the core review. Found and fixed a real stale-frame bug the old 2D check could not see; the 2D check now has scenes that catch stale frames. Keyboard tokens are now tied to the program the act was aimed at.</p></li>
         <li><time>14:24</time><p><span class="tag ok">merged</span>Stability: the render-test flake (a race in a graphics library) and shared test folders fixed; the focus race does not exist in xp, mc or construct.</p></li>
@@ -246,6 +248,7 @@ footer { font-size: 13px; color: var(--muted); }
     <h2 id="shots">Screenshots</h2>
     <div class="shots">
       <figure><img src="img/hud-chat-question.png" alt="A chat panel on the right with a helper conversation and a question card asking to allow writing a file, with Yes and No buttons" loading="lazy"><figcaption>New today: the helper chat in the HUD (test run with a fake helper). The question card names its keys, says a spoken yes does not count, and typing never answers it.</figcaption></figure>
+      <figure><img src="img/construct-3d.png" alt="construct: three terminal panes standing in a bright 3D space, the middle one in focus, side panes tilted, reflections on the floor" loading="lazy"><figcaption>New today (in review, not merged yet): the construct now runs on the real 3D base. Clicks go straight into tilted windows. Software rendering in a cloud container.</figcaption></figure>
       <figure><img src="img/xp-wobbly.png" alt="xp desktop with a terminal window bending while it is dragged, and a Chat row near the bottom right" loading="lazy"><figcaption>New today: wobbly windows now come from one shared effects driver (xp shown; tiling can opt in). The "Chat ..." row opens the helper chat.</figcaption></figure>
       <figure><img src="img/xp-cube-3d.png" alt="The xp desktop turned into a 3D cube with two terminal windows on its side" loading="lazy"><figcaption>xp's own cube effect today. The flat taskbar is a known flaw: this old effect turns only the desktop. Planned: one cube, built as a 3D construct shape, where each face is a full xp with its own taskbar.</figcaption></figure>
       <figure><img src="img/xp-windows-paperclip.png" alt="xp desktop with two terminal windows and the paperclip helper with a speech balloon" loading="lazy"><figcaption>xp with windows and the paperclip helper. The chat will grow out of its balloon.</figcaption></figure>

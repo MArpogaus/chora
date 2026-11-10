@@ -211,12 +211,12 @@ Workers (own containers; check with get_session, merge here):
 Local: K5 construct on 3D (agent afab03f7e183f96f0, /home/user/wt/k5),
 plus construct wobble in 3D and construct-3d.png / construct-wobble.png.
 
-Merge queue: virtual-2 (366817d3, gate running), core-death (ea4b02d).
+Merge queue: k5 after review fixes (agent afab03f7e183f96f0).
 
 Merged today: merge-gate script, H4c, 3D steps 2 to 6, focus race, HUD
 H1 to H7 and H4a/H4b, effects driver, give key, grab fix, flake fixes,
 render fixes, D69 step 1, grants2 (2a1e2d2), hud-start (c81144a),
-wobble3d E2 (3dc1eb6). sccache on. Cap: four heavy lanes.
+wobble3d E2 (3dc1eb6), virtual-2 steps 2-3 (7ad15de), core-death + mc-scale (e21a506). sccache on. Cap: four heavy lanes.
 
 ## Blocked
 
