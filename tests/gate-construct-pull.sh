@@ -10,9 +10,11 @@
 # 1. With CHORA_TEST_INJECTED_DRAG_GIVES (headless only), where an
 #    injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
-#    mesh of the pane has a depth; after the drop on the screen of the
-#    construct it is still its pane. The window exists at every step.
-# 2. Without the variable an injected drag gives nothing: past the edge
+#    mesh of the pane has a depth; after a drop beside the cube it is
+#    still its pane. The window exists at every step.
+# 2. A pane dropped over a face goes back to xp on the output of that
+#    face, at the drop point: a move from face to face stays in xp.
+# 3. Without the variable an injected drag gives nothing: past the edge
 #    the window is still with xp, and no pane shows it.
 #
 # Usage: tests/gate-construct-pull.sh   BIN: directory with the binaries
@@ -96,11 +98,25 @@ inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}}]"
 inject '[{"pointer_move": {"position": [900, 420]}}]'
 until_ok 'test "$(deepest "$surface")" != 0' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
 ok "the pane wobbles on with a depth of $(deepest "$surface")"
-inject '[{"pointer_move": {"position": [700, 400]}}, {"button": {"state": "released"}}]'
+inject "[{\"pointer_move\": {\"position\": [220, 320], \"output\": \"$edge\"}},
+    {\"button\": {\"state\": \"released\"}}]"
 sleep 1
 [ "$(owner)" = construct ] || fail "the window is lost or left after the drop: $(probe)"
 [ "$(pane_of "$surface")" != none ] || fail "the pane went after the drop"
-ok "after the drop the window is still a pane of the construct: $(probe)"
+ok "after a drop beside the cube the window is still a pane of the construct: $(probe)"
+end_session
+
+CHORA_TEST_INJECTED_DRAG_GIVES=1 pull returned
+until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
+inject '[{"pointer_move": {"position": [700, 400]}}, {"button": {"state": "released"}}]'
+until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 || fail "a pane dropped over the front face did not go back to xp: $(probe)"
+near_the_drop() {
+    read -r _ _ _ nx ny <<<"$(probe)"
+    [ "$nx" -gt 480 ] && [ "$nx" -lt 720 ] && [ "$ny" -gt 380 ] && [ "$ny" -lt 480 ]
+}
+until_ok near_the_drop 20 || fail "the window is not at the drop point (700, 400): $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "the pane stays after its window went back: $(pane_of "$surface")"
+ok "a pane dropped over a face is a window of xp on that face again, at the drop point: $(probe)"
 end_session
 
 pull injected
