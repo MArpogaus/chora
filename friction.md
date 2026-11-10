@@ -172,3 +172,13 @@
     switch, the user must allow the clone in fresh sessions (for example
     a permission rule for add_repo, or the repo as a source of the
     environment).
+
+25. The PM removed the flakes worktree and deleted its local branch
+    before reading the gate result; the gate had failed and the rebased
+    commits were only local. Recovered from the object store (git branch
+    from 3092e20). Rule: read the gate result first, clean up after.
+    The failure itself: gate-hud `neutral-equals-today` timed out (5 s
+    for the HUD figure) at load 8.8 on 4 cores while a Fable agent ran
+    battle load tests; the step passed alone. Rule: no merge gate while
+    battle or load tests run (F4 in the backlog: make gate waits robust
+    to load, or serialise load tests with gates).

@@ -7,6 +7,10 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+F4. Gate waits under load: gate-hud waits 5 s for the HUD figure; at
+   load 8.8 (battle tests in parallel) that timed out. Serialise load
+   tests with merge gates (a lock file), and make the waits name the load.
+
 F3. Flake: `a_confined_client_starts_no_drag` failed once in a parallel
    run, two tests sharing a temporary directory (11-10, grab fix). Give
    each test its own directory; grep the testing helpers for shared paths.
