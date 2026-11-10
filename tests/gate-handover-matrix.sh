@@ -15,8 +15,9 @@
 # focused window), cgive-s (`choractl give TO --surface ID`), mcp (the tool
 # of `choractl mcp`, tests/mcp-client.py give), drag (the title bar of xp;
 # Super with the left button for the others), key (the shortcut
-# Super+Shift+o; in construct Tab, g and Return of the window list on a
-# window behind the camera), voice (the real chora-voice with the fakes of
+# Super+Alt+1 to 4 for tiling, xp, mc and construct as the target; in
+# construct Tab, g and Return of the window list on a window behind the
+# camera), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
 # turn takes about 7 s, so voice runs for 8 pairs, each window manager
 # twice as source and twice as target; the other 4 cells are `skip` in the
@@ -36,63 +37,63 @@
 set -uo pipefail
 
 EXPECTED='
-tiling xp key gap
+tiling xp key pass
 tiling xp drag pass
 tiling xp give pass
 tiling xp cgive pass
 tiling xp cgive-s pass
 tiling xp mcp pass
 tiling xp voice pass
-tiling mc key gap
+tiling mc key pass
 tiling mc drag pass
 tiling mc give pass
 tiling mc cgive pass
 tiling mc cgive-s pass
 tiling mc mcp pass
 tiling mc voice skip
-tiling construct key gap
+tiling construct key pass
 tiling construct drag pass
 tiling construct give pass
 tiling construct cgive pass
 tiling construct cgive-s pass
 tiling construct mcp pass
 tiling construct voice pass
-xp tiling key gap
+xp tiling key pass
 xp tiling drag pass
 xp tiling give pass
 xp tiling cgive pass
 xp tiling cgive-s pass
 xp tiling mcp pass
 xp tiling voice pass
-xp mc key gap
+xp mc key pass
 xp mc drag pass
 xp mc give pass
 xp mc cgive pass
 xp mc cgive-s pass
 xp mc mcp pass
 xp mc voice pass
-xp construct key gap
+xp construct key pass
 xp construct drag pass
 xp construct give pass
 xp construct cgive pass
 xp construct cgive-s pass
 xp construct mcp pass
 xp construct voice skip
-mc tiling key gap
+mc tiling key pass
 mc tiling drag gap
 mc tiling give pass
 mc tiling cgive pass
 mc tiling cgive-s pass
 mc tiling mcp pass
 mc tiling voice skip
-mc xp key gap
+mc xp key pass
 mc xp drag gap
 mc xp give pass
 mc xp cgive pass
 mc xp cgive-s pass
 mc xp mcp pass
 mc xp voice pass
-mc construct key gap
+mc construct key pass
 mc construct drag gap
 mc construct give pass
 mc construct cgive pass
@@ -358,6 +359,10 @@ voice_give() {
     echo speech >>"$work/mic.cmd"
 }
 
+give_key() {
+    case $1 in tiling) echo 1 ;; xp) echo 2 ;; mc) echo 3 ;; construct) echo 4 ;; esac
+}
+
 path_run() {
     case $1 in
     give) ctl call "$2" window.give "{\"surface\": \"$w\", \"to\": \"$3\"}" >/dev/null 2>&1 ;;
@@ -368,7 +373,7 @@ path_run() {
         if [ "$2" = xp ]; then title_drag "$3"; else super_drag "$3" "$2"; fi
         ;;
     key)
-        if [ "$2" = construct ]; then construct_key "$3"; else key Super+Shift+o; fi
+        if [ "$2" = construct ]; then construct_key "$3"; else key "Super+Alt+$(give_key "$3")"; fi
         ;;
     voice) voice_give "$2" "$3" ;;
     esac
