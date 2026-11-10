@@ -7,6 +7,10 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+E1. The chat `epoch` restarts at 1 when chora-voice restarts; make it
+   unique per voice start (start time plus counter), so a chat that
+   lives through a voice restart never takes new answers as stale.
+
 F1. The focus race fixed in tiling (1275e15: a relayout after a hand
    sent a stale `focus` that cleared the receiver's focus) may exist in
    the hand code of xp, mc and construct. Check each, with the same kind
