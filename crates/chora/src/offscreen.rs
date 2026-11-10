@@ -453,6 +453,23 @@ impl State {
         })
     }
 
+    /// `render.stats`: what rendering did for each output, as counters
+    /// that only grow, so that a caller compares two answers. A client
+    /// socket or a confined connection gets none: the counters tell when
+    /// other clients draw.
+    pub fn ipc_render_stats(&self, conn: u64) -> Result<Value, RpcError> {
+        if self.ipc.name(conn).is_none() {
+            return Err(rejected("send hello first"));
+        }
+        if self.ipc.confined(conn) {
+            return Err(RpcError::new(
+                RpcError::CLIENT_SOCKET_RULE,
+                "a client socket or a confined connection reads no render stats",
+            ));
+        }
+        Ok(serde_json::json!({"outputs": self.assets.stats.by_output}))
+    }
+
     /// Whether an output is a virtual one.
     pub fn is_virtual(&self, output: &Output) -> bool {
         self.assets.virtuals.iter().any(|v| v.output() == output)
@@ -555,7 +572,7 @@ impl OutputTexture {
         {
             self.damage = result.damage.cloned().unwrap_or_default();
         }
-        parts.assets.stats.frame(damaged);
+        parts.assets.stats.frame(&self.output.name(), damaged);
         Ok(damaged)
     }
 }
