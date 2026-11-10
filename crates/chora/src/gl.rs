@@ -23,6 +23,17 @@ use smithay::{
     utils::{Physical, Rectangle},
 };
 
+/// The largest side of a texture that the GL of a renderer takes.
+pub fn max_texture_size(gles: &mut GlesRenderer) -> Option<i32> {
+    let side = gles.with_context(|gl| {
+        let mut side = 0;
+        // SAFETY: MAX_TEXTURE_SIZE writes one integer into `side`.
+        unsafe { gl.GetIntegerv(ffi::MAX_TEXTURE_SIZE, &raw mut side) };
+        side
+    });
+    side.ok().filter(|side| *side > 0)
+}
+
 /// The largest shader file.
 const MAX_SOURCE: u64 = 64 << 10;
 

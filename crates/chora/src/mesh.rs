@@ -39,7 +39,8 @@ use smithay::{
     utils::{Buffer as BufferCoords, Physical, Point, Rectangle, Scale, Size},
 };
 
-/// The largest side of a layer texture, in pixels.
+/// The largest side of a layer texture, in pixels, when the GL takes it:
+/// two textures of a larger side would pass the budget of a frame.
 const MAX_SIDE: f64 = 4096.0;
 /// The most pixels of layer textures in one frame of an output.
 const FRAME_PIXELS: u64 = 64 << 20;
@@ -170,6 +171,8 @@ pub struct Layers {
     /// The shader node whose node texture renders now, which pays for the
     /// layers inside it.
     pub reader: Option<String>,
+    /// The largest side of a layer texture on this GL, once known.
+    max_side: Option<f64>,
     /// The last version that a render gave a texture. One counter for all
     /// slots, so that a texture that the cap evicted and made again never
     /// repeats the version of the texture before it.
@@ -238,6 +241,14 @@ impl Layers {
     #[cfg(test)]
     pub fn kept(&self) -> (usize, usize) {
         (self.passed.len(), self.textures.len())
+    }
+
+    /// The largest side of a layer texture: `MAX_SIDE`, or less where
+    /// `GL_MAX_TEXTURE_SIZE` is less.
+    pub fn max_side(&mut self, gles: &mut GlesRenderer) -> f64 {
+        *self
+            .max_side
+            .get_or_insert_with(|| side_limit(gl::max_texture_size(gles)))
     }
 
     /// Names the view that renders next: an output, or the capture of one.
@@ -448,7 +459,7 @@ fn subtree_pixels(scene: &Scene, id: &str, scale: f64) -> u64 {
     let Some(node) = scene.node(id) else {
         return 0;
     };
-    let own = match texture_size(node, scale) {
+    let own = match texture_size(node, scale, MAX_SIDE) {
         Some(size) if node.is_layer() => {
             let textures = 1 + passes(node, scale).len().min(2);
             u64::try_from(size.w * size.h).unwrap_or(u64::MAX) * textures as u64
@@ -462,22 +473,30 @@ fn subtree_pixels(scene: &Scene, id: &str, scale: f64) -> u64 {
     own + children.sum::<u64>()
 }
 
-/// The pixel size of the texture of a layer node at an output scale.
-pub fn texture_size(node: &Node, scale: f64) -> Option<Size<i32, BufferCoords>> {
-    pixel_size(node.props.size?, fit_scale(node.props.size?, scale))
+/// The pixel size of the texture of a layer node at an output scale, with
+/// at most `max` pixels a side.
+pub fn texture_size(node: &Node, scale: f64, max: f64) -> Option<Size<i32, BufferCoords>> {
+    let size = node.props.size?;
+    pixel_size(size, fit_scale(size, scale, max), max)
+}
+
+/// The largest side of a layer texture for the `GL_MAX_TEXTURE_SIZE` of a
+/// GL: at most `MAX_SIDE`.
+fn side_limit(gl_max: Option<i32>) -> f64 {
+    gl_max.map_or(MAX_SIDE, |side| f64::from(side).min(MAX_SIDE))
 }
 
 /// The scale at which a texture of a logical size holds all of its
-/// content: `scale`, or less when a side would pass 4096 pixels, so that
+/// content: `scale`, or less when a side would pass `max` pixels, so that
 /// a large plane shows whole and takes input where it shows.
-pub fn fit_scale([w, h]: [f64; 2], scale: f64) -> f64 {
-    scale.min(MAX_SIDE / w.max(h))
+pub fn fit_scale([w, h]: [f64; 2], scale: f64, max: f64) -> f64 {
+    scale.min(max / w.max(h))
 }
 
-/// The pixel size of a texture of a logical size, at most 4096 a side.
-pub fn pixel_size([w, h]: [f64; 2], scale: f64) -> Option<Size<i32, BufferCoords>> {
+/// The pixel size of a texture of a logical size, at most `max` a side.
+pub fn pixel_size([w, h]: [f64; 2], scale: f64, max: f64) -> Option<Size<i32, BufferCoords>> {
     #[allow(clippy::cast_possible_truncation)] // clamped
-    let side = |v: f64| (v * scale).round().clamp(1.0, MAX_SIDE) as i32;
+    let side = |v: f64| (v * scale).round().clamp(1.0, max) as i32;
     (w > 0.0 && h > 0.0).then(|| Size::from((side(w), side(h))))
 }
 
@@ -1277,6 +1296,14 @@ fn draw_pass(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_layer_texture_side_follows_a_smaller_gl_limit() {
+        assert!((side_limit(Some(2048)) - 2048.0).abs() < f64::EPSILON);
+        assert!((side_limit(Some(16384)) - 4096.0).abs() < f64::EPSILON);
+        assert!((side_limit(None) - 4096.0).abs() < f64::EPSILON);
+        assert!((fit_scale([5000.0, 100.0], 1.0, 2048.0) - 0.4096).abs() < 1e-9);
+    }
 
     fn projected(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
         project(

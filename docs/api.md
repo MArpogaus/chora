@@ -109,7 +109,8 @@ core maps the pointer into the plane and then runs the hit test of the
 plane there. Input reaches a plane and what it holds only inside its area,
 and never where the plane shows the pointer behind the eye. A node with a
 mesh under such a transform keeps the box of its shape. A plane whose
-texture would pass 4096 pixels a side renders at a lower scale, so that it
+texture would pass 4096 pixels a side, or the `GL_MAX_TEXTURE_SIZE` of the
+GPU when that is less, renders at a lower scale, so that it
 shows all of its content and takes input where it shows it. A layer, plane,
 mesh or piece that the layer budget leaves out of the last frame of an
 output draws nothing there, so on that output it and every node in it take

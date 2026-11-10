@@ -638,8 +638,9 @@ fn node_texture(
     node: &Node,
     scale: f64,
 ) -> Option<(GlesTexture, u64)> {
-    let scale = mesh::fit_scale(node.props.size?, scale);
-    let size = mesh::texture_size(node, scale)?;
+    let max = parts.assets.layers.max_side(gles);
+    let scale = mesh::fit_scale(node.props.size?, scale, max);
+    let size = mesh::texture_size(node, scale, max)?;
     let textures = 1 + mesh::passes(node, scale).len().min(2);
     if !parts.assets.layers.spend(&node.id, size, textures) {
         return None;
@@ -715,8 +716,9 @@ fn node_textures(
         let Some(logical) = source_size(parts, &source.node) else {
             continue;
         };
-        let scale = mesh::fit_scale(logical, scale);
-        let Some(size) = mesh::pixel_size(logical, scale) else {
+        let max = parts.assets.layers.max_side(gles);
+        let scale = mesh::fit_scale(logical, scale, max);
+        let Some(size) = mesh::pixel_size(logical, scale, max) else {
             continue;
         };
         parts.assets.layers.reader = Some(node.id.clone());
