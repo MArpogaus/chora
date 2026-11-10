@@ -28,7 +28,7 @@ use smithay::{
     },
 };
 
-use crate::state::{ClientState, State};
+use crate::state::{Act, ClientState, State};
 
 /// The most requests of one surface that wait for its `surface.created`;
 /// beyond it a request is dropped, so a client that never commits cannot
@@ -243,7 +243,7 @@ impl XdgActivationHandler for State {
             client,
             data.serial.map(|(s, _)| u32::from(s)),
             focused == id,
-            self.last_act.map(|a| u32::from(a.serial)),
+            self.last_real_press.map(u32::from),
         );
         if allowed && client.name.is_some() {
             // One press gives one token.
@@ -263,9 +263,11 @@ impl XdgActivationHandler for State {
         surface: WlSurface,
     ) {
         self.activation_state.remove_token(&token);
-        if self.on_demand_layer(&surface) {
-            if self.layer_may_take_keyboard(&token_data, &surface) {
+        if self.is_layer_surface(&surface) {
+            if self.on_demand_layer(&surface) && self.layer_may_take_keyboard(&token_data, &surface)
+            {
                 self.set_layer_focus(Some(surface));
+                self.last_act = self.last_act.map(|a| Act { used: true, ..a });
             }
             return;
         }
@@ -309,8 +311,12 @@ fn token_allowed(
 /// How old the last real press may be when a token takes it as its act.
 pub(crate) const ACT_AGE: std::time::Duration = std::time::Duration::from_secs(2);
 
-/// The serial of the real press that a token carries as its act.
-pub(crate) struct ActStamp(pub u32);
+/// The act that a token carries: the serial of the press and the time of
+/// the mint.
+pub(crate) struct ActStamp {
+    pub serial: u32,
+    pub at: std::time::Instant,
+}
 
 /// How long a token may wait between creation and use: for a client of a
 /// client socket, and for the unused tokens `choractl run` leaves behind.
@@ -353,17 +359,23 @@ fn token_focused_and_fresh(focused: bool, age: std::time::Duration) -> bool {
 }
 
 impl State {
-    /// Whether a token of a real press may give the keyboard to an
-    /// on-demand layer surface: the client is no client socket client, the
-    /// session is not locked, the token carries the last real press and is
-    /// fresh. A press after the token means the person moved on.
+    /// Whether a token with an act may give the keyboard to an on-demand
+    /// layer surface: the client is unnamed, the session is not locked, the
+    /// token is at most `MAX_TOKEN_AGE` old, and its act is unused and
+    /// still the last real press, because a later press means that the
+    /// person moved on.
     fn layer_may_take_keyboard(&self, data: &XdgActivationTokenData, surface: &WlSurface) -> bool {
-        let stamp = data.user_data.get::<ActStamp>().map(|s| s.0);
+        let Some(stamp) = data.user_data.get::<ActStamp>() else {
+            return false;
+        };
+        let act = self
+            .last_act
+            .filter(|a| !a.used && u32::from(a.serial) == stamp.serial);
         self.lock.is_none()
             && !crate::security::named(&self.display_handle, surface)
-            && data.timestamp.elapsed() <= MAX_TOKEN_AGE
-            && stamp.is_some()
-            && stamp == self.last_act.map(|a| u32::from(a.serial))
+            && self.time.now().saturating_duration_since(stamp.at) <= MAX_TOKEN_AGE
+            && act.is_some()
+            && self.last_real_press.map(u32::from) == Some(stamp.serial)
     }
 
     /// The core forgets the unused tokens of no client that are older than

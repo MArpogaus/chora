@@ -892,12 +892,11 @@ impl State {
     /// client socket needs the capability `activation.token`, because
     /// such a token skips the focus rule of its own tokens.
     ///
-    /// The token carries the last real key or button press as its act when
-    /// the caller is no client socket client, the press is younger than
-    /// `ACT_AGE` and no token carries it yet. Only such a token gives the
-    /// keyboard to an on-demand layer surface. Any other token still starts
-    /// programs and places windows. A call without a press of the person
-    /// proves nothing (#102).
+    /// The token carries the act of the person (the last command press)
+    /// when the caller is unconfined, the act is younger than `ACT_AGE` and
+    /// no layer surface used it yet. Only such a token gives the keyboard
+    /// to an on-demand layer surface. Any other token still starts programs
+    /// and places windows. A call without an act proves nothing (#102).
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
         self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
@@ -908,24 +907,26 @@ impl State {
         Ok(serde_json::json!({"token": token}))
     }
 
-    /// The token data of `activation.token`: stamped with the last real
-    /// press if it qualifies, which uses the press up.
+    /// The token data of `activation.token`: stamped with the act when the
+    /// caller is unconfined and the act is young and unused. Every such
+    /// token carries it, so that no mint takes the stamp from another.
     fn act_stamped_data(
         &mut self,
         conn: u64,
     ) -> smithay::wayland::xdg_activation::XdgActivationTokenData {
         let data = smithay::wayland::xdg_activation::XdgActivationTokenData::default();
         let now = self.time.now();
-        let act = self.last_act.as_mut().filter(|a| {
-            !a.stamped
+        let act = self.last_act.filter(|a| {
+            !a.used
                 && !self.ipc.confined(conn)
                 && now.saturating_duration_since(a.at) < crate::protocols::ACT_AGE
         });
         if let Some(act) = act {
-            act.stamped = true;
-            let serial = u32::from(act.serial);
             data.user_data
-                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp(serial));
+                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp {
+                    serial: u32::from(act.serial),
+                    at: now,
+                });
         }
         data
     }

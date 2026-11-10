@@ -108,7 +108,9 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         state.pressed = None;
     }
     let serial = SERIAL_COUNTER.next_serial();
-    state.note_act(serial, key_state == KeyState::Pressed && !injected);
+    if key_state == KeyState::Pressed {
+        state.track_press(serial, injected);
+    }
     let action = keyboard.input(
         state,
         code,
@@ -133,22 +135,15 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             }
         }
         Some(KeyAction::Grab(conn, binding, injected)) => {
-            grabbed(state, conn, &binding, PressState::Pressed, injected);
-            if !state
-                .held
-                .grabs
-                .iter()
-                .any(|h| h.conn == conn && h.binding == binding)
-            {
-                state.held.grabs.push(HeldGrab {
-                    conn,
-                    binding,
-                    code,
-                    injected,
-                });
-            }
+            state.note_act();
+            hold_grab(state, conn, binding, code, injected);
         }
-        Some(KeyAction::Node(owner, event)) => state.ipc.send_to_client(&owner, &event),
+        Some(KeyAction::Node(owner, event)) => {
+            if key_state == KeyState::Pressed {
+                state.note_act();
+            }
+            state.ipc.send_to_client(&owner, &event);
+        }
         Some(KeyAction::Swallow) => {}
         None => note_input(
             state,
@@ -159,6 +154,25 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     }
     if key_state == KeyState::Released {
         release_grabs(state, &keyboard.modifier_state());
+    }
+}
+
+/// Tells the client of a key grab about the press and keeps the grab until
+/// the release.
+fn hold_grab(state: &mut State, conn: u64, binding: Binding, code: Keycode, injected: bool) {
+    grabbed(state, conn, &binding, PressState::Pressed, injected);
+    if !state
+        .held
+        .grabs
+        .iter()
+        .any(|h| h.conn == conn && h.binding == binding)
+    {
+        state.held.grabs.push(HeldGrab {
+            conn,
+            binding,
+            code,
+            injected,
+        });
     }
 }
 
@@ -605,7 +619,9 @@ pub fn press_button(
         state.pressed = None;
     }
     let serial = SERIAL_COUNTER.next_serial();
-    state.note_act(serial, button_state == ButtonState::Pressed && !injected);
+    if button_state == ButtonState::Pressed {
+        state.track_press(serial, injected);
+    }
     if grab_button(state, code, button_state, time) {
         return;
     }
@@ -664,6 +680,9 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
         (grab.conn, grab.binding, PressState::Released)
     };
     let (conn, binding, press) = grab;
+    if press == PressState::Pressed {
+        state.note_act();
+    }
     let moved = binding == MOVE;
     send_button(state, conn, binding, press, None);
     if moved {
@@ -798,6 +817,9 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
                 .as_ref()
                 .map_or(n.owner.clone(), |s| s.client.clone())
         });
+    }
+    if area {
+        state.note_act();
     }
     let position = position_for(&state.scene, &state.outputs, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
