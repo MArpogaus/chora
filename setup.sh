@@ -33,13 +33,13 @@ if ! command -v lychee >/dev/null 2>&1; then
     rm -rf "$tmp"
 fi
 
-for c in cargo-deny cargo-machete; do
+for c in cargo-deny cargo-machete sccache; do
     cargo "${c#cargo-}" --version >/dev/null 2>&1 || { log "cargo install $c"; cargo install -q --locked "$c"; }
 done
 
 grep -q 'incremental' "$HOME/.cargo/config.toml" 2>/dev/null || {
     mkdir -p "$HOME/.cargo"
-    printf '[build]\nincremental = false\n\n[profile.dev]\ndebug = "line-tables-only"\n' >>"$HOME/.cargo/config.toml"
+    printf '[build]\nincremental = false\nrustc-wrapper = "sccache"\n\n[profile.dev]\ndebug = "line-tables-only"\n' >>"$HOME/.cargo/config.toml"
 }
 
 if [ -d /home/user/chora/.git ]; then
