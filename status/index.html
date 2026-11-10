@@ -102,7 +102,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 12:40 Bangkok</span>
+      <span>Updated Tue 10 Nov, 13:24 Bangkok</span>
       <span>Day 3 of 22</span>
       <span>Week budget used: about 26 %</span>
     </div>
@@ -114,8 +114,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>The chat inside the HUD (open, read, follow you across looks)</li>
-          <li>One shared "give" key to move a window to any window manager</li>
+          <li>Render fixes from the core review (Opus)</li>
+          <li>Stability: flaky tests and a focus race in xp, mc and construct</li>
         </ul>
       </div>
       <div class="panel">
@@ -147,7 +147,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel bars">
       <div class="group-label">Foundation · comes first</div>
       <div class="bar good"><span class="name">Security</span><span class="pct">open: 0 high</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Many holes closed today by reviews. Open: 2 known medium items (injected keys reach window manager bindings; who may claim the question card).</span></div>
-      <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">69 of 85</span><div class="track"><div class="fill" style="width:81%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
+      <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">78 of 85</span><div class="track"><div class="fill" style="width:92%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
       <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps merged</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">Code and tests merged; not yet seen on real hardware, no 3D capture yet, some review findings deferred. Not "done" until a whole-piece review and real captures. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
       <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">behind</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Two real bugs fixed, but the old backlog (silent core death, memory growth, 16 bugs) is untouched. Now first priority.</span></div>
@@ -163,6 +163,9 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>13:24</time><p><span class="tag ok">merged</span>Fix of a stuck-click bug the whole-piece review found (moving a window inside a tilted plane could pin every later click to it), plus drag-and-drop now needs a real held mouse button.</p></li>
+        <li><time>13:05</time><p><span class="tag ok">merged</span>The chat inside the HUD; one "give" key on every window manager (78 of 85 window moves pass); one shared effects driver (wobbly in tiling, opt-in).</p></li>
+        <li><time>12:50</time><p><span class="tag issue">reverted</span>The switch to a fresh PM session per run: a dry run showed a fresh session cannot clone the repo without your approval. Runs stay in this session for now.</p></li>
         <li><time>12:40</time><p><span class="tag issue">audit</span>An independent judge (Fable) audited the project: code is produced faster than it is verified, stability and everyday tasks are behind, and this page overstated some things. Corrected here. New features pause; next comes a whole-piece review of today's core, stability work and real captures.</p></li>
         <li><time>11:44</time><p><span class="tag ok">milestone</span>3D base complete, all 7 steps, Tuesday instead of Friday. Last piece: sharper scaled images in 2D.</p></li>
         <li><time>11:35</time><p><span class="tag ok">merged</span>The chat input field: typing, paste and input methods; a typed "yes" never answers a question; it only gets the keyboard by your own act and talks only to the HUD over a private pipe.</p></li>
