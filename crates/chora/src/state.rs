@@ -270,12 +270,13 @@ pub struct State {
     /// The free surfaces that wait for a window manager (D55); see
     /// [`RESERVATION`].
     waiting: HashMap<String, Waiting>,
-    /// The client that gave each window to its window manager; it comes
-    /// first when that window manager goes or loses the window.
-    pub(crate) given_by: HashMap<String, String>,
-    /// The windows that only a removed virtual output showed, with their
-    /// owners and the time at which the core takes them away.
-    pub(crate) stranded: Vec<(String, String, Instant)>,
+    /// By window, the client that gave it and the window manager that got
+    /// it. The giver comes first when that window manager goes or loses
+    /// the window, and only then: the entry ends with a plain detach, a
+    /// handover by the core and an attach by another client.
+    pub(crate) given_by: HashMap<String, (String, String)>,
+    /// The windows that lay in the slot of a removed virtual output.
+    pub(crate) stranded: Vec<crate::offscreen::Stranded>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -628,6 +629,7 @@ impl State {
         if !self.free(surface) {
             return;
         }
+        self.given_by.remove(surface);
         let client = (self.scene.node(surface)).and_then(|n| n.surface.as_ref()?.client.clone());
         let pointer = self
             .spot(self.pointer_layout)
@@ -682,16 +684,23 @@ impl State {
     /// goes to a definite window manager that is still connected, not to
     /// the first client that takes it (D55). When that one goes too
     /// before it attaches the surface, this runs again for it.
-    pub fn execute_gone(&mut self, effects: Vec<Effect>) {
+    pub fn execute_gone(&mut self, effects: Vec<Effect>, gone: &str) {
         for effect in effects {
             if let Effect::Detached(surface) = effect {
                 let waiting = self.waiting.get(&surface).and_then(|w| w.giver.clone());
-                let giver = waiting.or_else(|| self.given_by.get(&surface).cloned());
+                let giver = waiting.or_else(|| self.giver_to(&surface, gone));
                 self.hand_over(&surface, giver.as_deref(), None);
             } else {
                 self.execute(vec![effect]);
             }
         }
+    }
+
+    /// Takes the client that gave a window to a window manager, if that
+    /// one got the window from it.
+    pub(crate) fn giver_to(&mut self, surface: &str, receiver: &str) -> Option<String> {
+        let (giver, to) = self.given_by.remove(surface)?;
+        (to == receiver).then_some(giver)
     }
 
     /// A surface that became free: one that a client gave away or that
@@ -706,6 +715,7 @@ impl State {
         if self.focused_surface() == Some(surface) {
             self.focus(None);
         }
+        self.given_by.remove(surface);
         self.reserved(surface, None, false);
         self.emit(&Event::SurfaceDetached {
             surface: surface.into(),
@@ -723,7 +733,11 @@ impl State {
         // A surface that a window manager attached waits no more.
         let scene = &self.scene;
         (self.waiting).retain(|s, _| scene.node(s).is_some_and(|n| n.owner.is_none()));
-        self.given_by.retain(|s, _| scene.node(s).is_some());
+        let with = |s: &str, to: &str| {
+            let owner = scene.node(s).map(|n| n.owner.as_deref());
+            owner.is_some_and(|o| o.is_none_or(|o| o == to))
+        };
+        self.given_by.retain(|s, (_, to)| with(s, to));
         for effect in effects {
             match effect {
                 // The transaction sent its configure events when it started.
@@ -740,7 +754,7 @@ impl State {
                         self.focus(None);
                     }
                     self.reserved(&surface, Some(&from), false);
-                    self.given_by.insert(surface.clone(), from);
+                    self.given_by.insert(surface.clone(), (from, to.clone()));
                     let scene = &self.scene;
                     let event = Event::SurfaceDetached { surface };
                     (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));

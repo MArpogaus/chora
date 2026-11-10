@@ -9,7 +9,7 @@
 
 use std::time::Instant;
 
-use chora_scene::{Command, Node, Scene, Uniform, ipc::RpcError};
+use chora_scene::{Command, Effect, Node, Scene, Uniform, ipc::RpcError};
 use serde::Deserialize;
 use serde_json::Value;
 use smithay::{
@@ -26,13 +26,13 @@ use smithay::{
         wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
         wayland_server::backend::GlobalId,
     },
-    utils::{Buffer, Logical, Point, Size},
+    utils::{Buffer, Logical, Point, Rectangle, Size},
     wayland::presentation::Refresh,
 };
 
 use crate::{
     backend::headless::{Spec, parse_specs},
-    ipc::{params_of, rejected},
+    ipc::{params_of, rejected, window_client},
     output::{Spot, frame_duration, output_area, to_scene},
     render,
     state::{RESERVATION, State},
@@ -119,6 +119,16 @@ impl Virtual {
             .map_or((0, 0).into(), |m| m.size);
         i64::from(size.w) * i64::from(size.h)
     }
+}
+
+/// A window that lay in the slot of a virtual output when that one went.
+pub struct Stranded {
+    surface: String,
+    owner: String,
+    /// When the core takes the window from its owner.
+    until: Instant,
+    /// The scene area of the removed output with its default camera.
+    slot: Rectangle<f64, Logical>,
 }
 
 /// The parameters of `output.add` for a virtual output.
@@ -285,55 +295,98 @@ impl State {
         self.stranded.clear();
     }
 
-    /// Notes the windows of clients that only a removed output showed.
-    /// Their window managers get the time of a reservation to move them.
+    /// The windows that lie in an area of the scene.
+    fn windows_in(&self, area: Rectangle<f64, Logical>) -> Vec<String> {
+        let list = self.scene.draw_list();
+        let lies = |p: &chora_scene::Placed<'_>| {
+            let window = self.windows.get(&p.node.id)?;
+            let rect = render::window_rect(window, &p.transform);
+            area.overlaps(rect).then(|| p.node.id.clone())
+        };
+        list.iter().filter_map(lies).collect()
+    }
+
+    /// Notes the windows of clients in the slot of a removed output: the
+    /// part of the scene that its default camera showed. Where its camera
+    /// looked does not count, so that no client takes the windows of
+    /// another one with a camera. Their window managers get the time of a
+    /// reservation to move them.
     fn note_stranded(&mut self, gone: &Output) {
-        let elsewhere = self.all_outputs();
-        let mut only_there = render::shown_surfaces(self, gone);
-        for output in &elsewhere {
-            let shown = render::shown_surfaces(self, output);
-            only_there.retain(|surface| !shown.contains(surface));
-        }
+        let slot = output_area(gone).to_f64();
         let until = self.time.now() + RESERVATION;
-        for surface in only_there {
+        for surface in self.windows_in(slot) {
             let owner = self.scene.node(&surface).and_then(|n| n.owner.clone());
-            self.stranded
-                .extend(owner.map(|owner| (surface, owner, until)));
+            self.stranded.extend(owner.map(|owner| Stranded {
+                surface,
+                owner,
+                until,
+                slot,
+            }));
         }
         let _ = self.expire_at(until);
     }
 
     /// Takes each stranded window whose time is over from its owner, when
-    /// that one still has it and still no output shows it: the core
-    /// removes it in the name of the owner and hands it to the client that
-    /// gave it, else to another window manager, else shows it itself.
+    /// that one still has it in the slot and no virtual output shows the
+    /// slot again: the core tells the owner, removes the window in its
+    /// name and hands it to the client that gave it to the owner, else to
+    /// another window manager, else it shows the window itself.
     pub fn expire_stranded(&mut self, now: std::time::Instant) {
         let (due, later) = (std::mem::take(&mut self.stranded).into_iter())
-            .partition(|(_, _, until)| *until <= now);
+            .partition(|stranded| stranded.until <= now);
         self.stranded = later;
-        for (surface, owner, _) in due {
-            let has_it = |n: &Node| n.owner.as_deref() == Some(&owner);
-            let outputs = self.all_outputs();
-            let shows = |o: &Output| render::shown_surfaces(self, o).contains(&surface);
-            if !self.scene.node(&surface).is_some_and(has_it) || outputs.iter().any(shows) {
-                continue;
-            }
-            let remove = Command::Remove {
-                id: surface.clone(),
-                to: None,
-            };
-            if self.scene.apply(&owner, &[remove]).is_ok() {
-                let giver = self.given_by.get(&surface).cloned();
-                self.hand_over(&surface, giver.as_deref(), Some(&owner));
-            }
+        for stranded in due {
+            self.take_stranded(&stranded);
         }
+    }
+
+    fn take_stranded(&mut self, stranded: &Stranded) {
+        let Stranded {
+            surface,
+            owner,
+            slot,
+            ..
+        } = stranded;
+        let has_it = |n: &Node| n.owner.as_ref() == Some(owner);
+        let shown = |v: &Virtual| output_area(v.output()).to_f64().overlaps(*slot);
+        if !self.scene.node(surface).is_some_and(has_it)
+            || !self.windows_in(*slot).contains(surface)
+            || self.assets.virtuals.iter().any(shown)
+        {
+            return;
+        }
+        let remove = Command::Remove {
+            id: surface.clone(),
+            to: None,
+        };
+        let Ok(effects) = self.scene.apply(owner, &[remove]) else {
+            return;
+        };
+        let event = chora_scene::Event::SurfaceDetached {
+            surface: surface.clone(),
+        };
+        let scene = &self.scene;
+        (self.ipc).send_subscribed(Some(owner), &event, |s| window_client(scene, s));
+        let detached = |e: &Effect| matches!(e, Effect::Detached(s) if s == surface);
+        self.execute(effects.into_iter().filter(|e| !detached(e)).collect());
+        let giver = self.giver_to(surface, owner);
+        self.hand_over(surface, giver.as_deref(), Some(owner));
     }
 
     /// Takes a virtual output out of the session and announces it.
     fn drop_virtual(&mut self, index: usize) {
         let gone = self.assets.virtuals.remove(index);
         let name = gone.output().name();
-        self.press_via = None;
+        let pane = self
+            .press_via
+            .as_ref()
+            .and_then(|press| press.pane.as_deref());
+        if pane
+            .and_then(|id| self.scene.node(id))
+            .is_some_and(|n| gone.read_by(n))
+        {
+            self.press_via = None;
+        }
         self.note_stranded(gone.output());
         crate::backend::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
         self.leave_layout(gone.target.output());
