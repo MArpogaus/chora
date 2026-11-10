@@ -746,9 +746,12 @@ Goal: when the user returns, chora 0.9 has a ready announcement.
 ## 10. Budget control
 
 5-hour limit (user, 11-10): it is shared by this session, its local
-agents and the workers. Pace it: at most two heavy agents (opus or Fable)
-and two light ones at a time; when a 429 stops agents, resume them with
-SendMessage after the reset instead of starting new ones.
+agents and the workers. Pace it: at most four heavy lanes at a time,
+of which at most two are local agents (disk and CPU of this container);
+long dev lanes go to worker sessions, which have their own container.
+When a 429 stops agents, resume them with SendMessage after the reset
+instead of starting new ones. (Raised from two on 11-10 after the user
+asked why; the workers proved stable.)
 
 User, 11-10: spend the weekly limit fully; the daily share is a pacing
 guide, not a cap. No waste, but never stop useful work because a day's
