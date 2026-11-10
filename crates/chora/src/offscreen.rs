@@ -7,7 +7,7 @@
 //! screens holds it: it lives in a list of its own, and the pointer never
 //! enters it.
 
-use chora_scene::{Scene, Uniform, ipc::RpcError};
+use chora_scene::{Command, Node, Scene, Uniform, ipc::RpcError};
 use serde::Deserialize;
 use serde_json::Value;
 use smithay::{
@@ -24,16 +24,16 @@ use smithay::{
         wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
         wayland_server::backend::GlobalId,
     },
-    utils::{Buffer, Size},
+    utils::{Buffer, Logical, Point, Size},
     wayland::presentation::Refresh,
 };
 
 use crate::{
     backend::headless::{Spec, parse_specs},
     ipc::{params_of, rejected},
-    output::frame_duration,
+    output::{Spot, frame_duration, output_area, to_scene},
     render,
-    state::State,
+    state::{RESERVATION, State},
 };
 
 /// The most virtual outputs of a session.
@@ -70,6 +70,13 @@ impl Virtual {
             return None;
         }
         Some((self.target.texture.clone()?, self.target.version))
+    }
+
+    /// Whether a node of the owner reads the output.
+    fn read_by(&self, node: &Node) -> bool {
+        let name = self.output().name();
+        let reads = |u: &Uniform| matches!(u, Uniform::Output(read) if read.output == name);
+        node.owner.as_deref() == Some(&self.owner) && node.props.uniforms.values().any(reads)
     }
 
     /// Renders a frame and notes it for the frame callbacks.
@@ -267,16 +274,114 @@ impl State {
         }
     }
 
+    /// Removes every virtual output, without a wait for their windows:
+    /// the emergency reset places all windows itself.
+    pub fn drop_all_virtuals(&mut self) {
+        while !self.assets.virtuals.is_empty() {
+            self.drop_virtual(0);
+        }
+        self.stranded.clear();
+    }
+
+    /// Notes the windows of clients that only a removed output showed.
+    /// Their window managers get the time of a reservation to move them.
+    fn note_stranded(&mut self, gone: &Output) {
+        let elsewhere = self.all_outputs();
+        let mut only_there = render::shown_surfaces(self, gone);
+        for output in &elsewhere {
+            let shown = render::shown_surfaces(self, output);
+            only_there.retain(|surface| !shown.contains(surface));
+        }
+        let until = self.time.now() + RESERVATION;
+        for surface in only_there {
+            let owner = self.scene.node(&surface).and_then(|n| n.owner.clone());
+            self.stranded
+                .extend(owner.map(|owner| (surface, owner, until)));
+        }
+        let _ = self.expire_at(until);
+    }
+
+    /// Takes each stranded window whose time is over from its owner, when
+    /// that one still has it and still no output shows it: the core
+    /// removes it in the name of the owner and hands it to the client that
+    /// gave it, else to another window manager, else shows it itself.
+    pub fn expire_stranded(&mut self, now: std::time::Instant) {
+        let (due, later) = (std::mem::take(&mut self.stranded).into_iter())
+            .partition(|(_, _, until)| *until <= now);
+        self.stranded = later;
+        for (surface, owner, _) in due {
+            let has_it = |n: &Node| n.owner.as_deref() == Some(&owner);
+            let outputs = self.all_outputs();
+            let shows = |o: &Output| render::shown_surfaces(self, o).contains(&surface);
+            if !self.scene.node(&surface).is_some_and(has_it) || outputs.iter().any(shows) {
+                continue;
+            }
+            let remove = Command::Remove {
+                id: surface.clone(),
+                to: None,
+            };
+            if self.scene.apply(&owner, &[remove]).is_ok() {
+                let giver = self.given_by.get(&surface).cloned();
+                self.hand_over(&surface, giver.as_deref(), Some(&owner));
+            }
+        }
+    }
+
     /// Takes a virtual output out of the session and announces it.
     fn drop_virtual(&mut self, index: usize) {
         let gone = self.assets.virtuals.remove(index);
         let name = gone.output().name();
+        self.press_via = None;
+        self.note_stranded(gone.output());
         crate::backend::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
         self.leave_layout(gone.target.output());
         let _ = self.scene.release_camera(&name);
         self.scene.set_output_owner(&name, None);
         self.output_changed();
         self.update_focus();
+    }
+
+    /// The spot on a virtual output that a pane shows at a spot of a
+    /// screen: the node hit there is a shader node with `forward` that
+    /// reads an output of its owner. The point of the node maps to the
+    /// output by their sizes. One level only: the result is not looked up
+    /// again. A locked session hits no node, so it forwards nothing.
+    pub fn through_pane(&self, screen: &Spot) -> Option<Spot> {
+        if self.assets.virtuals.is_empty() {
+            return None;
+        }
+        let (id, at) = render::node_hit(self, screen)?;
+        self.onto_face(self.scene.node(&id)?, at)
+    }
+
+    /// The spot behind the pane of a press that holds the pointer: the
+    /// plane of the pane maps the screen spot, also outside the pane.
+    pub fn behind_pane(&self, pane: &str, screen: &Spot) -> Option<Spot> {
+        if self.lock.is_some() {
+            return None;
+        }
+        let (start, at) = crate::input::anchor(&self.scene, &self.outputs, pane, screen);
+        let at = render::local_in(&self.scene, &start, at, pane)?;
+        self.onto_face(self.scene.node(pane)?, at)
+    }
+
+    /// The spot on the virtual output of a forwarding pane for a point in
+    /// the coordinates of the pane. A point outside the pane stays within
+    /// one size of the output around it, which is inside the gap of its
+    /// slot.
+    fn onto_face(&self, pane: &Node, at: Point<f64, Logical>) -> Option<Spot> {
+        let [width, height] = pane.props.size.filter(|_| pane.props.forward)?;
+        let face = self.assets.virtuals.iter().find(|v| v.read_by(pane))?;
+        let output = face.output().clone();
+        let size = output_area(&output).size.to_f64();
+        let along = |at: f64, pane: f64, face: f64| (at / pane).clamp(-1.0, 2.0) * face;
+        let local = Point::from((along(at.x, width, size.w), along(at.y, height, size.h)));
+        Some(Spot {
+            scene: to_scene(&self.camera(&output), local),
+            output,
+            local,
+            via: Some(pane.id.clone()),
+        })
     }
 
     /// Whether an output is a virtual one.
@@ -642,6 +747,9 @@ mod tests {
         render_and_present(&mut core.state, &output, |_| Ok(false));
         assert!(!core.state.watchdog.slow(&output.name()));
     }
+
+    mod forward;
+    mod lifetime;
 
     /// The corner of the first slot in the layout.
     const SLOT_1: i32 = -262_144;

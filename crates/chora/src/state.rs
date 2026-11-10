@@ -229,6 +229,8 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
+    /// The press that holds the pointer behind a pane or on the screen.
+    pub press_via: Option<crate::output::Press>,
     /// Whether a drag and drop of a client holds the pointer: its target is
     /// the surface under the pointer, so no press pins a surface.
     pub client_drag: bool,
@@ -268,6 +270,12 @@ pub struct State {
     /// The free surfaces that wait for a window manager (D55); see
     /// [`RESERVATION`].
     waiting: HashMap<String, Waiting>,
+    /// The client that gave each window to its window manager; it comes
+    /// first when that window manager goes or loses the window.
+    pub(crate) given_by: HashMap<String, String>,
+    /// The windows that only a removed virtual output showed, with their
+    /// owners and the time at which the core takes them away.
+    pub(crate) stranded: Vec<(String, String, Instant)>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -390,6 +398,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            press_via: None,
             client_drag: false,
             button_grab: None,
             hovered: None,
@@ -409,6 +418,8 @@ impl State {
             early_requests: HashMap::new(),
             unannounced: Vec::new(),
             waiting: HashMap::new(),
+            given_by: HashMap::new(),
+            stranded: Vec::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             pending_activations: Vec::new(),
@@ -680,7 +691,8 @@ impl State {
     pub fn execute_gone(&mut self, effects: Vec<Effect>) {
         for effect in effects {
             if let Effect::Detached(surface) = effect {
-                let giver = self.waiting.get(&surface).and_then(|w| w.giver.clone());
+                let waiting = self.waiting.get(&surface).and_then(|w| w.giver.clone());
+                let giver = waiting.or_else(|| self.given_by.get(&surface).cloned());
                 self.hand_over(&surface, giver.as_deref(), None);
             } else {
                 self.execute(vec![effect]);
@@ -717,6 +729,7 @@ impl State {
         // A surface that a window manager attached waits no more.
         let scene = &self.scene;
         (self.waiting).retain(|s, _| scene.node(s).is_some_and(|n| n.owner.is_none()));
+        self.given_by.retain(|s, _| scene.node(s).is_some());
         for effect in effects {
             match effect {
                 // The transaction sent its configure events when it started.
@@ -733,6 +746,7 @@ impl State {
                         self.focus(None);
                     }
                     self.reserved(&surface, Some(&from), false);
+                    self.given_by.insert(surface.clone(), from);
                     let scene = &self.scene;
                     let event = Event::SurfaceDetached { surface };
                     (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));

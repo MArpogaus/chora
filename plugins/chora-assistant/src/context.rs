@@ -97,14 +97,18 @@ fn claimant(claims: &[Claim], [px, py]: [f64; 2]) -> Option<&str> {
 /// The place of the focus, from the focused surface of a query (none: no
 /// focus), the claims and the outputs. Without a focus, the window manager
 /// is the one that claims the first output and the app is empty; the
-/// [`Switcher`] keeps the output and the space of before.
+/// [`Switcher`] keeps the output and the space of before. The output is
+/// never a virtual one: its content shows only where a pane of its owner
+/// draws it.
 #[must_use]
 pub fn place_of(focused: Option<&Value>, claims: &[Claim], outputs: &[OutputInfo]) -> Place {
     let named = focused.and_then(output_of);
+    let mut screens = outputs.iter().filter(|o| o.is_virtual != Some(true));
+    let first = screens.clone().next();
     let output = named
         .as_deref()
-        .and_then(|name| outputs.iter().find(|o| o.name == name))
-        .or_else(|| outputs.first());
+        .and_then(|name| screens.find(|o| o.name == name))
+        .or(first);
     let space = output
         .and_then(|output| {
             let [x, y, w, h] = output.layout_area().map(f64::from);
@@ -893,5 +897,20 @@ mod tests {
             change(("neutral", "mc", Some("xp")), &watches, (&old, &new)),
             Change::Reload
         );
+    }
+
+    /// A card on a virtual output would show only inside a pane, where a
+    /// shader can draw over it: the place is always on a screen.
+    #[test]
+    fn the_place_is_never_a_virtual_output() {
+        let face = OutputInfo {
+            is_virtual: Some(true),
+            owner: Some("construct".into()),
+            ..output("VIRTUAL-1", [-262_144, -262_144])
+        };
+        let outputs = [face, output("A", [0, 0])];
+        let on_the_face = place_of(Some(&window("xp", "x", "VIRTUAL-1")), &[], &outputs);
+        assert_eq!(on_the_face.output, "A");
+        assert_eq!(place_of(None, &[], &outputs).output, "A");
     }
 }
