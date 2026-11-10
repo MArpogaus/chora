@@ -745,6 +745,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
@@ -837,6 +838,9 @@ windows of the other flavor.
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
+| `cube.open` | privileged. `faces`, 1 to 4, 4 by default: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
+| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view |
+| `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |

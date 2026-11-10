@@ -4,9 +4,10 @@
 # its whole output in its own log, and stops at the first step that failed.
 #
 # Steps: build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# last-words. `virtual` hands a window over between window managers on a
-# screen and on virtual outputs; `xp-faces` runs one xp on four virtual
-# outputs.
+# last-words, cube. `virtual` hands a window over between window managers
+# on a screen and on virtual outputs; `xp-faces` runs one xp on four
+# virtual outputs; `cube` shows that xp on the faces of a cube in the
+# construct.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -66,6 +67,7 @@ virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
+cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 STEPS
 }
 

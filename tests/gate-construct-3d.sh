@@ -157,12 +157,14 @@ check "a click on the tilted pane a reaches its window at (100, 80)" \
 sleep 0.6
 check "the click does not move the view" 'test "$(view)" = "$view"'
 
+until_ok 'test "$(focused "id:$(surface_of "-700, 2000")")" = True' 8
 inject '[{"text": {"text": "a"}}]'
 check "typing goes to the clicked pane a" 'until_ok "test \$(keys a) -ge 1" 8 && test "$(keys b)" = 0'
 click_at "$(screen b 380 300)"
 check "a click on the tilted pane b reaches its window at (380, 300)" \
     'until_ok "pressed_at b 380 300" 8'
 a_keys=$(keys a)
+until_ok 'test "$(focused "id:$(surface_of "700, 2000")")" = True' 8
 inject '[{"text": {"text": "b"}}]'
 check "typing goes to the clicked pane b, not to a" \
     'until_ok "test \$(keys b) -ge 1" 8 && test "$(keys a)" = "$a_keys"'
