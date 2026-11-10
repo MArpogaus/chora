@@ -241,6 +241,14 @@ enum Target {
     Dock(String),
 }
 
+/// Whether the panels may write and blur: not after the watchdog of the
+/// core dropped the effects, until the settings change.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Shaders {
+    On,
+    Dropped,
+}
+
 struct Mc {
     rt: Runtime<Action>,
     /// Whether mc claims its output (`--manage-windows`).
@@ -276,6 +284,7 @@ struct Mc {
     /// The files of the effects that write new text and that blur.
     shader: PathBuf,
     blur: PathBuf,
+    shaders: Shaders,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -456,6 +465,7 @@ impl Mc {
             typing: None,
             shader,
             blur,
+            shaders: Shaders::On,
             put: Vec::new(),
             toggled: BTreeMap::new(),
             docks: HashMap::new(),
@@ -487,8 +497,9 @@ impl Mc {
 const VOICE: &str = "voice";
 
 /// The events; `voice.*` are those of the voice agent (D65).
-const EVENTS: [&str; 12] = [
+const EVENTS: [&str; 13] = [
     "voice.*",
+    "effects.dropped",
     "client.connected",
     "client.disconnected",
     "pointer.scroll",
@@ -743,6 +754,10 @@ impl Plugin for Mc {
             Event::AnimationDone {
                 node: Some(node), ..
             } => self.timer(&node),
+            Event::EffectsDropped { client } if client == NAME => {
+                self.effects_dropped();
+                Ok(())
+            }
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
@@ -840,6 +855,7 @@ impl Plugin for Mc {
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
+        self.shaders = Shaders::On;
         self.keep_texts();
         let contents = &self.settings.value.contents;
         (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
@@ -1191,8 +1207,39 @@ impl Mc {
                 let late: Vec<String> = self.fitting.keys().cloned().collect();
                 late.iter().try_for_each(|surface| self.fit(surface))
             }
-            _ => Ok(()),
+            _ => self.written(node),
         }
+    }
+
+    /// The watchdog of the core removed the effects of the plugin.
+    fn effects_dropped(&mut self) {
+        if self.shaders == Shaders::On {
+            eprintln!(
+                "chora-mc: frames were slow, the core dropped the effects; the panels \
+                 stay plain until the settings change"
+            );
+        }
+        self.shaders = Shaders::Dropped;
+    }
+
+    /// The write animation of a panel ended: its effect goes, so that a
+    /// page that rests costs no shader pass per panel.
+    fn written(&mut self, node: &str) -> Result<(), ClientError> {
+        let panel = self.scenes.iter().find_map(|(name, scene)| {
+            let id = node.strip_prefix(&panels_id(name))?.strip_prefix('-')?;
+            scene.panels.iter().find(|p| p.id == id)
+        });
+        let Some(panel) = panel else {
+            return Ok(());
+        };
+        let rest = self.blur_effect(panel).into_iter().collect();
+        self.apply(vec![Command::Update {
+            id: node.into(),
+            props: PropsUpdate {
+                effects: Some(rest),
+                ..PropsUpdate::default()
+            },
+        }])
     }
 
     fn start(&mut self, methods: Vec<ExportMethod>) -> Result<(), ClientError> {
@@ -1925,9 +1972,10 @@ impl Mc {
         Ok(rect?.unwrap_or_default())
     }
 
-    /// The effect of the blur of a panel, if it has one.
+    /// The effect of the blur of a panel, if it has one and the watchdog
+    /// of the core did not drop the effects.
     fn blur_effect(&self, panel: &Panel) -> Option<ShaderEffect> {
-        let radius = panel.blur.filter(|r| *r > 0.0)?;
+        let radius = (panel.blur).filter(|r| *r > 0.0 && self.shaders == Shaders::On)?;
         Some(ShaderEffect {
             shader: self.blur.to_string_lossy().into_owned(),
             uniforms: [("radius".into(), Uniform::Float(radius))].into(),
@@ -1939,7 +1987,7 @@ impl Mc {
     #[allow(clippy::cast_precision_loss)] // at most 4 KiB of lines
     fn write(&self, name: &str, panels: &[&Panel]) -> Vec<Command> {
         let config = &self.settings.value;
-        if !config.write.enabled {
+        if !config.write.enabled || self.shaders == Shaders::Dropped {
             return Vec::new();
         }
         let mut commands = Vec::new();
@@ -2862,7 +2910,11 @@ mod tests {
             client: "other".into(),
         })
         .unwrap();
-        mc.settings_changed().unwrap();
+        let grabs_on_the_fake_core = mc.settings_changed();
+        assert!(
+            grabs_on_the_fake_core.is_err(),
+            "the fake core grabs no key"
+        );
         mc.show("morning", true).unwrap();
         assert_eq!(panel_effects(&mc, &model, "morning"), 1, "it writes again");
     }
