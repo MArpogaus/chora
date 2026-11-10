@@ -93,6 +93,11 @@ impl Plugin for Construct {
                 Ok(Value::Null)
             }
             "construct.list" => Ok(self.list()),
+            chora_kit::clock::METHOD => {
+                chora_kit::clock::step(params)?;
+                self.animation_frame().map_err(rejected)?;
+                Ok(Value::Null)
+            }
             "cube.open" => {
                 let OpenCube { faces } = runtime::params(params)?;
                 self.open_cube(faces).map_err(rejected)

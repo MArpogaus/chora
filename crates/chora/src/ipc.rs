@@ -892,6 +892,7 @@ impl State {
                 self.ipc_admin(conn, &request.method, params)
             }
             "screen.capture" => self.ipc_capture(conn, params),
+            m if m.starts_with("record.") => self.ipc_record(conn, m, params),
             "input.inject" => self.ipc_inject(conn, params),
             "input.configure" => self.ipc_input_configure(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
@@ -1461,6 +1462,7 @@ impl State {
             self.output_changed();
         }
         self.methods_closed(conn);
+        self.recording_closed(conn);
         let held = self.transactions.drop_conn(conn);
         self.release(&held);
         // A dropped head lets the next transaction start.

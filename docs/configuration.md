@@ -842,6 +842,7 @@ windows of the other flavor.
 | `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view |
 | `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
+| `clock.step` | `ms`: stops the clock of the glide and the wobble at that time of a recording, and draws one frame; `null` lets it run again; privileged; `choractl record` calls it (see [Recording](api.md#recording)) |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
 | `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |

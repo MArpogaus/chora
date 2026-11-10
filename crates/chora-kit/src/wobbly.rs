@@ -94,7 +94,7 @@ impl Wobble {
             grab: index(1) * SIDE + index(0),
             held: true,
             moving: true,
-            last: Instant::now(),
+            last: crate::clock::now(),
             pending: 0.0,
         };
         for i in 0..COUNT {

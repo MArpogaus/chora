@@ -17,6 +17,8 @@
 #    keyboard.
 # 6. With `effects: [wobbly]`, a pane dragged with the modifier wobbles
 #    with a depth, and settles after the release.
+# 7. `choractl record` writes one picture per frame, and the walk of the
+#    camera moves with the steps of its clock, not with the time.
 #
 # Each check reports on its own; the gate fails when one of them fails.
 # panes_spec gives the name, centre, yaw, size and colour of each pane;
@@ -239,6 +241,19 @@ fi
 check "a dragged pane wobbles with depth: $bent" 'test "${bent#* }" = True'
 check "the wobble settles after the release" 'until_ok "test \"\$(mesh_of $b_node)\" = \"0 False\"" 20'
 
+frames=$(mktemp -d /tmp/gate-frames.XXXXXX)
+tmp_dirs+=("$frames")
+click_at "640, 60"
+sleep 0.5
+echo '{"frame": 1, "method": "input.inject", "params": {"events": [{"shortcut": {"keys": "w"}}]}}' >"$frames/script"
+"$bin/choractl" grant choractl input.inject methods.call methods.privileged >/dev/null || fail "the grant"
+check "choractl record writes one picture per frame" \
+    'timeout 60 "$bin/choractl" record --frames 3 --out "$frames" --script "$frames/script" >/dev/null &&
+     test "$(ls "$frames" | grep -c "^frame-0000[123].png$")" = 3'
+sleep 1
+ctl capture "$frames/end.png" --output HEADLESS-1 >/dev/null
+check "the frames of a recording show the walk part of its way" \
+    '! cmp -s "$frames/frame-00001.png" "$frames/frame-00003.png" && ! cmp -s "$frames/frame-00003.png" "$frames/end.png"'
 call settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
 b_surface=$(surface_of "$(pane_at "$b_name" | tr -d '[]')")
 click_at "$(pane_centre "$b_name")"

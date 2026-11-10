@@ -10,7 +10,10 @@
 use std::{
     collections::{BTreeMap, HashMap},
     ffi::CString,
-    sync::{Mutex, OnceLock},
+    sync::{
+        Mutex, OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Instant, SystemTime},
 };
 
@@ -144,7 +147,7 @@ pub fn draw(
     // Smithay's instanced draws leave divisors on attribute indices.
     let instancing = frame.capabilities().contains(&Capability::Instancing);
     let count = i32::try_from(call.indices.len()).unwrap_or(0);
-    let seconds = START.get_or_init(Instant::now).elapsed().as_secs_f32();
+    let seconds = clock_seconds();
     frame.with_context(|gl| unsafe {
         // SAFETY: the arrays outlive the draw call; see the module notes.
         gl.UseProgram(program.id);
@@ -246,6 +249,25 @@ unsafe fn bind_textures(
 
 /// The time of the `time` uniform starts with the first draw.
 static START: OnceLock<Instant> = OnceLock::new();
+
+/// The `time` of the shaders while a recording steps it, as the bits of
+/// an `f32`; `u64::MAX` while the clock runs.
+static STEPPED: AtomicU64 = AtomicU64::new(u64::MAX);
+
+/// Stops the `time` of the shaders at `seconds` of a recording, or lets
+/// it run again with `None`.
+pub fn step_clock(seconds: Option<f32>) {
+    let bits = seconds.map_or(u64::MAX, |s| u64::from(s.to_bits()));
+    STEPPED.store(bits, Ordering::Relaxed);
+}
+
+/// The `time` of the shaders: of the recording, else since the start.
+fn clock_seconds() -> f32 {
+    match u32::try_from(STEPPED.load(Ordering::Relaxed)) {
+        Ok(bits) => f32::from_bits(bits),
+        Err(_) => START.get_or_init(Instant::now).elapsed().as_secs_f32(),
+    }
+}
 
 /// Sets a uniform of an effect by name; a name that the shader lacks does
 /// nothing.
