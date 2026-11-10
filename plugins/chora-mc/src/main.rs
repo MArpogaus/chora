@@ -3008,4 +3008,22 @@ mod tests {
         mc.settings_changed().unwrap();
         assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs again");
     }
+
+    /// A query costs the core a walk over the scene, so a scene of 300
+    /// panels must not ask one per title and row: the alignment of a
+    /// scene reads all rects with one query.
+    #[test]
+    fn a_scene_aligns_with_one_query() {
+        let (mut mc, model) = crate::testing::mc("one-query", [1920, 1080]);
+        let rows = |i: u32| vec![format!("{i}\tone"), format!("{i}\ttwo")];
+        let scene = mc.scenes.get_mut("mission").unwrap();
+        for (i, panel) in (0..).zip(&mut scene.panels) {
+            panel.title = format!("T{i}");
+            panel.lines = rows(i);
+        }
+        mc.build().unwrap();
+        let before = model.lock().unwrap().queries;
+        mc.align("mission").unwrap();
+        assert_eq!(model.lock().unwrap().queries - before, 1);
+    }
 }
