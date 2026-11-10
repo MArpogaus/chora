@@ -1324,6 +1324,17 @@ mod tests {
         let _ = std::fs::remove_file(&out);
     }
 
+    /// `run --token` starts the program with the activation token of its
+    /// caller instead of one of its own.
+    #[test]
+    fn run_takes_the_token_of_its_caller() {
+        let args = Args::try_parse_from(["choractl", "run", "--token", "tok", "--", "foot"]);
+        let Cmd::Run { argv, .. } = args.expect("run parses").command else {
+            panic!("not run");
+        };
+        assert_eq!(argv, ["foot"], "--token is an option of run");
+    }
+
     /// No argument of a command takes the place of `--name`.
     #[test]
     fn arguments_keep_the_client_name() {

@@ -1446,13 +1446,46 @@ mod tests {
     }
 
     #[test]
-    fn a_press_on_a_node_is_an_act() {
+    fn a_press_on_a_node_is_an_act_of_its_owner() {
         let (mut core, mut wayland, mut wm, _first, field) = field_core();
         wm.ok(&mut core, "scene.apply", crate::testing::rect("chat"));
         click(&mut core, (5.0, 5.0));
-        let token = token(&mut core);
+        let token = mint(&mut core, &mut wm);
         wayland.activate_layer(&mut core, &field, &token);
         assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
+    }
+
+    #[test]
+    fn a_press_on_a_node_of_another_client_stamps_no_token() {
+        let (mut core, mut wayland, mut wm, first, field) = field_core();
+        wm.ok(&mut core, "scene.apply", crate::testing::rect("chat"));
+        click(&mut core, (5.0, 5.0));
+        let token = token(&mut core);
+        assert_eq!(stamped_tokens(&core), 0, "tiling owns no node there");
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "a press on a node of wm");
+    }
+
+    #[test]
+    fn a_key_grab_stamps_no_token_of_another_client() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let _ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        let mut other = core.named("xp");
+        let token = mint(&mut core, &mut other);
+        assert_eq!(stamped_tokens(&core), 0, "the grab is of tiling");
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "a mint of another client");
+    }
+
+    #[test]
+    fn one_act_stamps_one_token() {
+        let (mut core, _wayland, _wm, _first, _field) = field_core();
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        mint(&mut core, &mut ctl);
+        mint(&mut core, &mut ctl);
+        assert_eq!(stamped_tokens(&core), 1);
     }
 
     #[test]

@@ -1632,6 +1632,8 @@ pub(crate) fn projected_box(
 }
 
 #[cfg(test)]
+mod budget;
+#[cfg(test)]
 mod context;
 #[cfg(test)]
 mod cost;

@@ -507,3 +507,23 @@ fn a_child_surface_that_commits_inside_a_rounded_layer_shows_the_new_pixels() {
     frames(&mut core, 2);
     assert_eq!(shot(&mut core, &mut wm)(32.0, 32.0), [0, 0, 255, 255]);
 }
+
+#[test]
+fn a_layer_whose_content_the_cap_evicted_shows_its_new_content() {
+    let mut core = Core::with_renderer();
+    let mut wm = granted(&mut core);
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [20, 20], "color": [1, 0, 0, 1], "radius": 4}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rect]}));
+    frames(&mut core, 2);
+    assert_eq!(shot(&mut core, &mut wm)(10.0, 10.0), [255, 0, 0, 255]);
+    core.state.assets.layers.set_cap(20 * 20 * 4);
+    frames(&mut core, 2);
+    let update = json!({"commands": [
+        {"update": {"id": "r", "props": {"color": [0, 0, 1, 1]}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", update);
+    frames(&mut core, 2);
+    assert_eq!(shot(&mut core, &mut wm)(10.0, 10.0), [0, 0, 255, 255]);
+}
