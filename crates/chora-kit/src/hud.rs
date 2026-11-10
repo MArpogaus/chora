@@ -9,7 +9,7 @@ use std::{
     path::{Component, Path},
 };
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// The only version of the format that this module reads.
 pub const VERSION: u32 = 1;
@@ -360,7 +360,7 @@ impl Context {
 }
 
 /// One value or a list of values.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Match {
     /// A value.
@@ -371,7 +371,7 @@ pub enum Match {
 
 /// The condition `when`: each key names a field of the context and must
 /// equal the value, or one of a list. All keys must match.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(transparent)]
 pub struct When(pub BTreeMap<String, Match>);
 
@@ -385,6 +385,37 @@ impl When {
                 Match::Many(list) => list.iter().any(|item| item == value),
             })
         })
+    }
+}
+
+impl When {
+    /// Adds an error for each key that is no field of the context and for
+    /// each value that a field with a closed list does not know, as
+    /// `AT.when.KEY: message`.
+    pub fn check(&self, at: &str, errors: &mut Vec<String>) {
+        for (key, wanted) in &self.0 {
+            let key_at = &format!("when.{key}");
+            if !CONTEXT_KEYS.contains(&key.as_str()) {
+                fail(errors, at, key_at, "not a field of the context");
+                continue;
+            }
+            let Some((_, known)) = CONTEXT_VALUES.iter().find(|(name, _)| name == key) else {
+                continue;
+            };
+            let values = match wanted {
+                Match::One(one) => std::slice::from_ref(one),
+                Match::Many(list) => list.as_slice(),
+            };
+            for value in values.iter().filter(|v| !known.contains(&v.as_str())) {
+                let message = format!("{value:?} is not one of {}", known.join(", "));
+                fail(errors, at, key_at, &message);
+            }
+        }
+    }
+
+    /// The names of the fields that the condition reads.
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        self.0.keys().map(String::as_str)
     }
 }
 
@@ -608,24 +639,7 @@ impl Panel {
     }
 
     fn check_when(&self, at: &str, errors: &mut Vec<String>) {
-        for (key, wanted) in &self.when.0 {
-            let key_at = &format!("when.{key}");
-            if !CONTEXT_KEYS.contains(&key.as_str()) {
-                fail(errors, at, key_at, "not a field of the context");
-                continue;
-            }
-            let Some((_, known)) = CONTEXT_VALUES.iter().find(|(name, _)| name == key) else {
-                continue;
-            };
-            let values = match wanted {
-                Match::One(one) => std::slice::from_ref(one),
-                Match::Many(list) => list.as_slice(),
-            };
-            for value in values.iter().filter(|v| !known.contains(&v.as_str())) {
-                let message = format!("{value:?} is not one of {}", known.join(", "));
-                fail(errors, at, key_at, &message);
-            }
-        }
+        self.when.check(at, errors);
     }
 }
 
@@ -1097,6 +1111,19 @@ mod tests {
     fn a_folder_cannot_place_the_question() {
         let slot = errors(parse("hud: 1\nchat: {slot: mc}\n"));
         assert!(slot.contains("slot"), "{slot}");
+    }
+
+    #[test]
+    fn a_when_on_its_own_is_checked_and_names_its_fields() {
+        let when: When =
+            serde_json::from_str(r#"{"wm": ["xp", "mc"], "mood": "calm", "chat": "opened"}"#)
+                .unwrap();
+        let mut found = Vec::new();
+        when.check("huds[2]", &mut found);
+        assert_eq!(found.len(), 2, "{found:?}");
+        assert!(found[0].starts_with("huds[2].when.chat") && found[0].contains("opened"));
+        assert!(found[1].starts_with("huds[2].when.mood"));
+        assert_eq!(when.keys().collect::<Vec<_>>(), ["chat", "mood", "wm"]);
     }
 
     #[test]
