@@ -20,6 +20,7 @@
 
 mod assistant;
 mod card;
+mod chat;
 mod check;
 mod config;
 mod context;
