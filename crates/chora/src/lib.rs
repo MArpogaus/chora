@@ -37,6 +37,11 @@ mod text;
 mod time;
 mod transaction;
 mod uploads;
+#[allow(
+    dead_code,
+    reason = "the headless backend uses it from the next commit"
+)]
+mod r#virtual;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 
