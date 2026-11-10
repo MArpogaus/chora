@@ -4,6 +4,8 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- 16:20 Bangkok: the 5-hour limit was hit (reset 16:20 Bangkok). Fable 16 %, all 41 %. Respect the 5-hour limit in planning.
+
 - Don't be too paranoid about the limit: no waste, but finish the work and spend the weekly limit fully.
 
 - The 38 % includes Fable, which gets reset, so there is still room.
