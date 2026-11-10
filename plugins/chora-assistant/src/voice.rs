@@ -165,7 +165,8 @@ impl Agent {
         shown.buttons &= !shown.too_long;
         let size = card::size(theme, &shown, language, output.size);
         let origin = self.card.as_ref().map(|old| old.origin);
-        shown.origin = origin.unwrap_or_else(|| card::place(figure, size, output.size));
+        shown.origin =
+            origin.unwrap_or_else(|| card::place(figure, size, assistant::work_area(&output)));
         if self.card.take().is_some() {
             commands.extend(card::hide());
         }
@@ -181,7 +182,7 @@ impl Agent {
             commands.push(card::badge_move(
                 &self.card_theme,
                 language,
-                (figure, output.size),
+                (figure, assistant::work_area(&output)),
                 rect,
             ));
         }
@@ -272,7 +273,7 @@ impl Agent {
         commands.extend(card::badge(
             &mut self.card_theme,
             language,
-            (figure, output.size),
+            (figure, assistant::work_area(&output)),
             avoid,
         ));
         self.badge = true;
@@ -393,7 +394,8 @@ impl Agent {
             let figure = self.figure_rect(&output);
             commands.extend(self.ensure_top(&output.name));
             let theme = (&self.card_theme, self.language, figure);
-            card::settle(&mut shown, (&output.name, output.size), theme, now);
+            let area = assistant::work_area(&output);
+            card::settle(&mut shown, (&output.name, output.size, area), theme, now);
             commands.extend(card::show(
                 &mut self.card_theme,
                 &shown,

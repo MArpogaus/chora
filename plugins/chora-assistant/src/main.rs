@@ -602,7 +602,7 @@ mod tests {
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);
-        waiting.origin = card::place(figure.rect(), size, output.size);
+        waiting.origin = card::place(figure.rect(), size, assistant::work_area(&output));
         let rect = card::rect(&host, &waiting, Language::En, output.size);
         assert!(card::inside(rect, output.size), "{rect:?}");
         let mut host = host;

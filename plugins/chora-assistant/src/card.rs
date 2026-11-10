@@ -215,16 +215,21 @@ fn floor_boundary(text: &str, at: usize) -> usize {
 
 /// The top-left corner of a new card: above the figure with its right edge
 /// at the figure's, below it where there is no room above, and inside the
-/// output.
+/// work area of the output.
 #[must_use]
-pub fn place(figure: [i32; 4], size: [i32; 2], screen: [i32; 2]) -> [i32; 2] {
+pub fn place(figure: [i32; 4], size: [i32; 2], area: [i32; 4]) -> [i32; 2] {
     let [fx, fy, fw, fh] = figure;
+    let [ax, ay, aw, ah] = area;
     let above = fy - EDGE - size[1];
-    let y = if above >= EDGE { above } else { fy + fh + EDGE };
+    let y = if above >= ay + EDGE {
+        above
+    } else {
+        fy + fh + EDGE
+    };
     let x = fx + fw - size[0];
     [
-        x.clamp(EDGE, (screen[0] - size[0] - EDGE).max(EDGE)),
-        y.clamp(EDGE, (screen[1] - size[1] - EDGE).max(EDGE)),
+        x.clamp(ax + EDGE, (ax + aw - size[0] - EDGE).max(ax + EDGE)),
+        y.clamp(ay + EDGE, (ay + ah - size[1] - EDGE).max(ay + EDGE)),
     ]
 }
 
@@ -363,13 +368,13 @@ fn overlap([ax, ay, aw, ah]: [i32; 4], [bx, by, bw, bh]: [i32; 4]) -> bool {
     ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah
 }
 
-/// The size of the badge on an output.
-fn badge_size(theme: &Theme, language: Language, screen: [i32; 2]) -> [i32; 2] {
+/// The size of the badge in the work area of an output.
+fn badge_size(theme: &Theme, language: Language, area: [i32; 4]) -> [i32; 2] {
     let width = theme
         .text_width(Word::Muted.text(language), Font::Body)
         .ceil();
     #[allow(clippy::cast_possible_truncation)]
-    let w = (width as i32 + 2 * PAD).min(screen[0] - 2 * EDGE);
+    let w = (width as i32 + 2 * PAD).min(area[2] - 2 * EDGE);
     [w, LINE + 12]
 }
 
@@ -378,19 +383,20 @@ fn badge_size(theme: &Theme, language: Language, screen: [i32; 2]) -> [i32; 2] {
 fn badge_place(
     [w, h]: [i32; 2],
     figure: [i32; 4],
-    screen: [i32; 2],
+    area: [i32; 4],
     avoid: Option<[i32; 4]>,
 ) -> [i32; 2] {
     let [fx, fy, fw, fh] = figure;
-    let beside = if fx + fw / 2 > screen[0] / 2 {
+    let [ax, ay, aw, ah] = area;
+    let beside = if fx + fw / 2 > ax + aw / 2 {
         fx - EDGE - w
     } else {
         fx + fw + EDGE
     };
     let clamp = |x: i32, y: i32| {
         [
-            x.clamp(EDGE, (screen[0] - w - EDGE).max(EDGE)),
-            y.clamp(EDGE, (screen[1] - h - EDGE).max(EDGE)),
+            x.clamp(ax + EDGE, (ax + aw - w - EDGE).max(ax + EDGE)),
+            y.clamp(ay + EDGE, (ay + ah - h - EDGE).max(ay + EDGE)),
         ]
     };
     let at = clamp(beside, fy + (fh - h) / 2);
@@ -398,7 +404,7 @@ fn badge_place(
         return at;
     };
     let above = card[1] - EDGE - h;
-    let y = if above >= EDGE {
+    let y = if above >= ay + EDGE {
         above
     } else {
         card[1] + card[3] + EDGE
@@ -411,11 +417,11 @@ fn badge_place(
 pub fn badge(
     theme: &mut Theme,
     language: Language,
-    (figure, screen): ([i32; 4], [i32; 2]),
+    (figure, area): ([i32; 4], [i32; 4]),
     avoid: Option<[i32; 4]>,
 ) -> Vec<Command> {
     let text = Word::Muted.text(language);
-    let [w, h] = badge_size(theme, language, screen);
+    let [w, h] = badge_size(theme, language, area);
     let picture = Picture::new(w, h)
         .svg(style().shape([w, h], 0))
         .text(Text::new(
@@ -424,7 +430,7 @@ pub fn badge(
             [TEXT[0], TEXT[1], TEXT[2], 255],
             [PAD, 6, w - 2 * PAD, LINE],
         ));
-    let at = badge_place([w, h], figure, screen, avoid);
+    let at = badge_place([w, h], figure, area, avoid);
     vec![Command::Create {
         id: BADGE.into(),
         kind: NodeKind::Image,
@@ -438,11 +444,11 @@ pub fn badge(
 pub fn badge_move(
     theme: &Theme,
     language: Language,
-    (figure, screen): ([i32; 4], [i32; 2]),
+    (figure, area): ([i32; 4], [i32; 4]),
     avoid: [i32; 4],
 ) -> Command {
-    let size = badge_size(theme, language, screen);
-    let [x, y] = badge_place(size, figure, screen, Some(avoid));
+    let size = badge_size(theme, language, area);
+    let [x, y] = badge_place(size, figure, area, Some(avoid));
     Command::Update {
         id: BADGE.into(),
         props: PropsUpdate {
@@ -471,7 +477,7 @@ pub fn inside([x, y, w, h]: [i32; 4], screen: [i32; 2]) -> bool {
 /// moved.
 pub fn settle(
     shown: &mut Shown,
-    (output, screen): (&str, [i32; 2]),
+    (output, screen, area): (&str, [i32; 2], [i32; 4]),
     (theme, language, figure): (&Theme, Language, [i32; 4]),
     now: Instant,
 ) -> bool {
@@ -481,7 +487,7 @@ pub fn settle(
     if !other && inside([shown.origin[0], shown.origin[1], w, h], screen) {
         return false;
     }
-    shown.origin = place(figure, [w, h], screen);
+    shown.origin = place(figure, [w, h], area);
     shown.card.moved(now);
     true
 }
@@ -589,12 +595,15 @@ mod tests {
     #[test]
     fn the_card_sits_above_the_figure_inside_the_output() {
         assert_eq!(
-            place([1240, 760, 24, 24], [380, 150], [1280, 800]),
+            place([1240, 760, 24, 24], [380, 150], [0, 0, 1280, 800]),
             [884, 602]
         );
-        assert_eq!(place([10, 10, 24, 24], [380, 150], [1280, 800]), [8, 42]);
         assert_eq!(
-            place([1240, 760, 24, 24], [380, 900], [1280, 800]),
+            place([10, 10, 24, 24], [380, 150], [0, 0, 1280, 800]),
+            [8, 42]
+        );
+        assert_eq!(
+            place([1240, 760, 24, 24], [380, 900], [0, 0, 1280, 800]),
             [884, 8]
         );
     }
@@ -673,10 +682,14 @@ mod tests {
         let big = [1280, 800];
         let figure = [1240, 760, 24, 24];
         let en = Language::En;
-        waiting.origin = place(figure, size(&theme, &waiting, en, big), big);
+        waiting.origin = place(
+            figure,
+            size(&theme, &waiting, en, big),
+            [0, 0, big[0], big[1]],
+        );
         assert!(!settle(
             &mut waiting,
-            ("HEADLESS-1", big),
+            ("HEADLESS-1", big, [0, 0, big[0], big[1]]),
             (&theme, en, figure),
             later
         ));
@@ -684,7 +697,12 @@ mod tests {
         assert_eq!(press(&waiting, YES, false, later), Some(yes.clone()));
         let small = [800, 600];
         let near = (&theme, en, [760, 560, 24, 24]);
-        assert!(settle(&mut waiting, ("HEADLESS-1", small), near, later));
+        assert!(settle(
+            &mut waiting,
+            ("HEADLESS-1", small, [0, 0, 800, 600]),
+            near,
+            later
+        ));
         assert!(inside(rect(&theme, &waiting, en, small), small));
         assert_eq!(press(&waiting, YES, false, later), Some(Outcome::Ignored));
         let after = later + Duration::from_millis(500);
@@ -697,11 +715,27 @@ mod tests {
         let figure = [1240, 760, 24, 24];
         let screen = [1280, 800];
         let card = [880, 700, 380, 90];
-        let free = badge_place([250, 32], figure, screen, None);
+        let area = [0, 0, 1280, 800];
+        let free = badge_place([250, 32], figure, area, None);
         assert!(overlap([free[0], free[1], 250, 32], card));
-        let moved = badge_place([250, 32], figure, screen, Some(card));
+        let moved = badge_place([250, 32], figure, area, Some(card));
         assert!(!overlap([moved[0], moved[1], 250, 32], card), "{moved:?}");
         assert!(inside([moved[0], moved[1], 250, 32], screen));
+    }
+
+    #[test]
+    fn the_card_and_the_badge_keep_clear_of_a_bar() {
+        let area = [0, 40, 1280, 720];
+        let figure = [1240, 80, 24, 24];
+        let at = place(figure, [380, 90], area);
+        assert!(at[1] >= 40 + EDGE, "{at:?}: below the bar at the top");
+        let low = place([1240, 720, 24, 24], [380, 90], area);
+        assert!(
+            low[1] + 90 <= 760 - EDGE,
+            "{low:?}: above the bar at the bottom"
+        );
+        let badge = badge_place([250, 32], [1240, 720, 24, 24], area, None);
+        assert!(badge[1] + 32 <= 760 - EDGE, "{badge:?}");
     }
 
     #[test]
@@ -714,7 +748,7 @@ mod tests {
     fn the_badge_names_the_way_back_and_takes_clicks() {
         let cache = cache("badge");
         let mut theme = theme(&cache, "sans-serif").unwrap();
-        let place = ([1240, 760, 24, 24], [1280, 800]);
+        let place = ([1240, 760, 24, 24], [0, 0, 1280, 800]);
         let commands = badge(&mut theme, Language::En, place, None);
         let [Command::Create { id, props, .. }] = commands.as_slice() else {
             panic!("{commands:?}")
