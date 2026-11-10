@@ -168,21 +168,13 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-Day 11-10, run 1, started 06:28 Bangkok by the user ("start at 6, begin
-now"); the schedule is now 05:58, 11:58 and 16:58 Bangkok.
-- merge-gate script: merged and pushed 11-10 (self-test green, full run green)
-- H4c act-stamped tokens (sonnet; opus security review before merge), claude/hud-h4c
-- keyboard focus design check, H4c (opus): done, act-stamped tokens
-  accepted (design/h4c-decision.md); H4c starts on claude/hud-h4c when
-  disk allows (after the merge-gate build), with the injected-press fix
-- 3D step 2 built (f897109, fb77c42; 2D guard identical; the matrix
-  cell `tiling xp voice` was a gap once, a rerun passed): opus review
-  running, merge after it
-- H4c built (bbe0319, merge-gate green, 293 core tests): opus security
-  review running, merge after it
-- Disk 7.3 GB: no new build until both reviews end; then remove the
-  targets of merged branches first. The matrix flake (backlog item 17)
-  now shows in gates: it is the first stability item.
+- focus flake (backlog 17), claude/focus-flake: it blocks every merge
+  gate now (matrix: "no focus with xp before a cell").
+- Ready, waiting for the flake fix, then merge-gate --push each:
+  3D step 2 (merged locally as a98cca6, not pushed; review fixes
+  902416e; gate stopped at the matrix flake) and H4c (aae7d57, review
+  fixes; its gate passed on the third run). H4c deviation accepted:
+  `token_allowed` compares with the last real press of any kind.
 
 ## Blocked
 
