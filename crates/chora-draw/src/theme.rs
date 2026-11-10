@@ -210,6 +210,10 @@ struct Rendered {
 /// The asset folder and the cache of rendered files.
 pub struct Theme {
     dir: PathBuf,
+    /// Whether the folder is a HUD folder: untrusted, so that each file
+    /// is read through [`chora_kit::hud::file`] and a picture is at most
+    /// [`crate::assets::MAX_SIDE`] on a side.
+    confined: bool,
     cache: PathBuf,
     fonts: Fonts,
     sheets: HashMap<Sheet, usvg::Tree>,
@@ -244,19 +248,45 @@ impl Theme {
     /// A sheet is missing or broken, or the cache cannot be written; the
     /// message names the file.
     pub fn load(dir: &Path, cache: &Path, names: &[Sheet], family: &str) -> Result<Self, String> {
+        Self::open(dir, cache, names, (Fonts::load(dir, family), false))
+    }
+
+    /// Loads a HUD folder, which is untrusted. It may change how things
+    /// look and nothing else: a file is read only inside the folder, within
+    /// its size limit, an SVG over 2048 px on a side is refused, an `href`
+    /// of an image is a `data:` URI or a path inside the folder, and the
+    /// fonts of the folder go to a font database that [`Fonts::host`]
+    /// does not share.
+    ///
+    /// # Errors
+    ///
+    /// A sheet is missing, broken or too large, or the cache cannot be
+    /// written; the message names the file.
+    pub fn load_hud(
+        dir: &Path,
+        cache: &Path,
+        names: &[Sheet],
+        family: &str,
+    ) -> Result<Self, String> {
+        Self::open(dir, cache, names, (Fonts::folder(dir, family), true))
+    }
+
+    fn open(
+        dir: &Path,
+        cache: &Path,
+        names: &[Sheet],
+        (fonts, confined): (Fonts, bool),
+    ) -> Result<Self, String> {
         let mut sheets = HashMap::new();
-        let fonts = Fonts::load(dir, family);
         for sheet in names {
             let path = dir.join(sheet.0);
-            let data = chora_kit::read_file(&path, chora_kit::MAX_PICTURE)
-                .map_err(|e| format!("{}: {e}", path.display()))?;
-            let tree = usvg::Tree::from_data(&data, fonts.options())
-                .map_err(|e| format!("{}: {e}", path.display()))?;
+            let tree = read_tree((dir, confined), fonts.options(), &path)?;
             sheets.insert(*sheet, tree);
         }
         clear(cache).map_err(|e| format!("{}: {e}", cache.display()))?;
         let mut theme = Self {
             dir: dir.into(),
+            confined,
             cache: cache.into(),
             fonts,
             sheets,
@@ -272,6 +302,10 @@ impl Theme {
             .write(0, &blank)
             .map_err(|e| format!("{}: {e}", cache.display()))?;
         Ok(theme)
+    }
+
+    fn folder(&self) -> (&Path, bool) {
+        (&self.dir, self.confined)
     }
 
     /// A file of the asset folder.
@@ -578,8 +612,7 @@ impl Theme {
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
         let image = if is_svg(path) {
-            let data = chora_kit::read_file(path, chora_kit::MAX_PICTURE).map_err(|e| error(&e))?;
-            let tree = usvg::Tree::from_data(&data, self.fonts.options()).map_err(|e| error(&e))?;
+            let tree = read_tree(self.folder(), self.fonts.options(), path)?;
             let size = tree.size();
             if !matches!(fit, Fit::Tile(_)) {
                 resvg::render(
@@ -595,7 +628,7 @@ impl Theme {
             resvg::render(&tree, Transform::identity(), &mut tile.as_mut());
             tile
         } else {
-            load_raster(path).map_err(|e| error(&e))?
+            load_raster(self.folder(), path).map_err(|e| error(&e))?
         };
         #[allow(clippy::cast_precision_loss)]
         let size = [image.width() as f32, image.height() as f32];
@@ -638,25 +671,33 @@ impl Theme {
     pub fn image_size(&self, path: &Path) -> Option<[i32; 2]> {
         #[allow(clippy::cast_possible_truncation)]
         let size = if is_svg(path) {
-            let data = chora_kit::read_file(path, chora_kit::MAX_PICTURE).ok()?;
-            let tree = usvg::Tree::from_data(&data, self.fonts.options()).ok()?;
+            let tree = read_tree(self.folder(), self.fonts.options(), path).ok()?;
             [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
-        } else if is_jpeg(path) {
-            let file = std::io::BufReader::new(chora_kit::open_file(path).ok()?);
-            let mut decoder = JpegDecoder::new(file);
-            decoder.decode_headers().ok()?;
-            let (w, h) = decoder.dimensions()?;
+        } else if self.confined {
+            let data = read_bytes(self.folder(), path).ok()?;
+            let [w, h] = crate::assets::raster_size(&data)?;
             [i32::try_from(w).ok()?, i32::try_from(h).ok()?]
         } else {
-            let mut head = [0; 24];
-            std::io::Read::read_exact(&mut chora_kit::open_file(path).ok()?, &mut head).ok()?;
-            let word = |at: usize| {
-                u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]])
-            };
-            [i32::try_from(word(16)).ok()?, i32::try_from(word(20)).ok()?]
+            header_size(path)?
         };
         (size[0] > 0 && size[1] > 0).then_some(size)
     }
+}
+
+/// The width and height of a PNG or JPEG file of the trusted asset folder,
+/// from its header.
+fn header_size(path: &Path) -> Option<[i32; 2]> {
+    if is_jpeg(path) {
+        let file = std::io::BufReader::new(chora_kit::open_file(path).ok()?);
+        let mut decoder = JpegDecoder::new(file);
+        decoder.decode_headers().ok()?;
+        let (w, h) = decoder.dimensions()?;
+        return Some([i32::try_from(w).ok()?, i32::try_from(h).ok()?]);
+    }
+    let mut head = [0; 24];
+    std::io::Read::read_exact(&mut chora_kit::open_file(path).ok()?, &mut head).ok()?;
+    let word = |at: usize| u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]]);
+    Some([i32::try_from(word(16)).ok()?, i32::try_from(word(20)).ok()?])
 }
 
 /// Whether a file is an SVG file, by its extension.
@@ -665,16 +706,59 @@ fn is_svg(path: &Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"))
 }
 
+/// The bytes of a file. In a HUD folder (`confined`) the file is a path
+/// inside the folder, read through [`chora_kit::hud::file`].
+fn read_bytes((dir, confined): (&Path, bool), path: &Path) -> std::io::Result<Vec<u8>> {
+    if !confined {
+        return chora_kit::read_file(path, chora_kit::MAX_PICTURE);
+    }
+    let outside = || {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "not a path inside the folder",
+        )
+    };
+    let name = path.strip_prefix(dir).map_err(|_| outside())?;
+    chora_kit::hud::file(dir, name.to_str().ok_or_else(outside)?)
+}
+
+/// An SVG file as a tree; in a HUD folder it is also at most
+/// [`crate::assets::MAX_SIDE`] on a side.
+fn read_tree(
+    folder: (&Path, bool),
+    options: &usvg::Options<'_>,
+    path: &Path,
+) -> Result<usvg::Tree, String> {
+    let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
+    let data = read_bytes(folder, path).map_err(|e| error(&e))?;
+    let tree = usvg::Tree::from_data(&data, options).map_err(|e| error(&e))?;
+    if folder.1 {
+        crate::assets::check_svg_size(&tree).map_err(|e| error(&e))?;
+    }
+    Ok(tree)
+}
+
 /// A PNG or JPEG file as a pixmap.
-fn load_raster(path: &Path) -> Result<Pixmap, String> {
-    let data = chora_kit::read_file(path, chora_kit::MAX_PICTURE).map_err(|e| e.to_string())?;
+fn load_raster(folder: (&Path, bool), path: &Path) -> Result<Pixmap, String> {
+    let data = read_bytes(folder, path).map_err(|e| e.to_string())?;
+    let limit = if folder.1 {
+        crate::assets::MAX_SIDE
+    } else {
+        8192
+    };
+    if folder.1 {
+        let [w, h] = crate::assets::raster_size(&data).ok_or("not a PNG or JPEG file")?;
+        if w > limit || h > limit {
+            return Err(format!("picture of {w} x {h} px, at most {limit}"));
+        }
+    }
     if !is_jpeg(path) {
         return Pixmap::decode_png(&data).map_err(|e| e.to_string());
     }
     let options = DecoderOptions::default()
         .jpeg_set_out_colorspace(ColorSpace::RGBA)
-        .set_max_width(8192)
-        .set_max_height(8192);
+        .set_max_width(limit as usize)
+        .set_max_height(limit as usize);
     let mut decoder = JpegDecoder::new_with_options(std::io::Cursor::new(data), options);
     let pixels = decoder.decode().map_err(|e| e.to_string())?;
     let info = decoder.info().ok_or("no JPEG header")?;
@@ -809,7 +893,7 @@ mod tests {
     #[test]
     fn jpeg_files_decode() {
         let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/red.jpg");
-        let image = load_raster(&file).expect("a JPEG file");
+        let image = load_raster((Path::new(""), false), &file).expect("a JPEG file");
         assert_eq!([image.width(), image.height()], [8, 8]);
         let pixel = image.pixel(4, 4).expect("inside");
         assert!(pixel.red() > 150 && pixel.green() < 80 && pixel.alpha() == 255);
@@ -871,5 +955,117 @@ mod tests {
         let pixel = image.pixel(12, 4).expect("inside");
         assert!(pixel.blue() > 200 && pixel.red() < 50, "{pixel:?}");
         let _ = fs::remove_dir_all(cache);
+    }
+
+    struct Folder {
+        root: PathBuf,
+        dir: PathBuf,
+        outside: PathBuf,
+    }
+
+    impl Folder {
+        fn new(test: &str) -> Self {
+            let root =
+                std::env::temp_dir().join(format!("chora-hud-{test}-{}", std::process::id()));
+            let _ = fs::remove_dir_all(&root);
+            let dir = root.join("folder");
+            let outside = root.join("outside");
+            fs::create_dir_all(&dir).expect("a folder");
+            fs::create_dir_all(&outside).expect("a folder");
+            let red = r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="red"/></svg>"#;
+            fs::write(outside.join("secret.svg"), red).expect("a file");
+            fs::write(dir.join("ok.svg"), red).expect("a file");
+            Self { root, dir, outside }
+        }
+
+        fn put(&self, name: &str, data: &str) {
+            fs::write(self.dir.join(name), data).expect("a file");
+        }
+
+        fn theme(&self, names: &[Sheet]) -> Result<Theme, String> {
+            Theme::load_hud(&self.dir, &self.root.join("cache"), names, "sans-serif")
+        }
+
+        fn svg_with(&self, name: &str, href: &str) {
+            self.put(
+                name,
+                &format!(
+                    r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20"><image width="20" height="20" xlink:href="{href}"/></svg>"#
+                ),
+            );
+        }
+    }
+
+    impl Drop for Folder {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn inked(theme: &Theme, path: &Path) -> bool {
+        let picture = Picture::new(20, 20).file(path, [0, 0, 20, 20]);
+        let pixmap = theme.draw(&picture, 1.0).expect("a pixmap");
+        pixmap.pixels().iter().any(|p| p.alpha() > 0)
+    }
+
+    #[test]
+    fn an_image_href_outside_the_folder_draws_nothing() {
+        let folder = Folder::new("href");
+        let secret = folder.outside.join("secret.svg");
+        std::os::unix::fs::symlink(&secret, folder.dir.join("link.svg")).expect("a link");
+        std::os::unix::fs::symlink("/dev/zero", folder.dir.join("zero.svg")).expect("a link");
+        let theme = folder.theme(&[]).expect("the folder loads");
+        folder.svg_with("inside.svg", "ok.svg");
+        assert!(
+            inked(&theme, &theme.path("inside.svg")),
+            "the control draws"
+        );
+        let hrefs = [
+            secret.display().to_string(),
+            format!("file://{}", secret.display()),
+            "../outside/secret.svg".into(),
+            "http://example.invalid/secret.svg".into(),
+            "/etc/passwd".into(),
+            "/dev/zero".into(),
+            "link.svg".into(),
+            "zero.svg".into(),
+        ];
+        for href in hrefs {
+            folder.svg_with("evil.svg", &href);
+            assert!(!inked(&theme, &theme.path("evil.svg")), "{href} was drawn");
+        }
+        assert!(!inked(&theme, &secret), "a file outside was drawn");
+        assert!(!inked(&theme, Path::new("/etc/passwd")));
+        let uri = "data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'>&lt;rect width='20' height='20' fill='red'/&gt;&lt;/svg&gt;";
+        folder.svg_with("data.svg", uri);
+        assert!(inked(&theme, &theme.path("data.svg")), "a data URI draws");
+    }
+
+    #[test]
+    fn a_huge_svg_is_refused() {
+        let folder = Folder::new("huge");
+        let svg = |side: u32| {
+            format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="10"/>"#)
+        };
+        folder.put("huge.svg", &svg(2049));
+        folder.put("edge.svg", &svg(2048));
+        let theme = folder.theme(&[]).expect("the folder loads");
+        assert_eq!(theme.image_size(&theme.path("huge.svg")), None);
+        assert_eq!(theme.image_size(&theme.path("edge.svg")), Some([2048, 10]));
+        let picture = Picture::new(20, 20).file(&theme.path("huge.svg"), [0, 0, 20, 20]);
+        let (w, h) = (20, 20);
+        let mut pixmap = Pixmap::new(w, h).expect("pixels");
+        let err = theme
+            .draw_layer(
+                &picture.layers[0],
+                (Transform::identity(), &mut pixmap.as_mut()),
+            )
+            .expect_err("refused");
+        assert!(err.contains("huge.svg"), "{err}");
+        let err = folder.theme(&[Sheet("huge.svg")]).err().expect("refused");
+        assert!(err.contains("huge.svg"), "{err}");
+        let uri = "data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='9000' height='10'>&lt;rect width='9000' height='10' fill='red'/&gt;&lt;/svg&gt;";
+        folder.svg_with("nested.svg", uri);
+        assert!(!inked(&theme, &theme.path("nested.svg")));
     }
 }

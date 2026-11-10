@@ -169,6 +169,23 @@ values only. A folder without the block gets the neutral chat.
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 
+## Pictures, fonts and colours
+
+The host loads a folder with `chora_draw::theme::Theme::load_hud`.
+
+- A file is read only inside the folder, through the same checks as the
+  loader: no link out, one name, at most 1 MiB.
+- The `href` of an image in an SVG is a `data:` URI or a relative path
+  inside the folder. An absolute path, `..`, `file:` and `http:` draw
+  nothing. Only PNG, JPEG and SVG load.
+- A picture over 2048 px on a side is refused; `--check-hud` names it.
+- Fonts load from `fonts/` of the folder, at most 16 files, into a font
+  database that only the text of the folder uses. The question card uses
+  the host fonts (`Fonts::host`) and never a font of a folder.
+- Text colours need a contrast of 4.5:1 against their fill
+  (`chora_kit::hud::contrast`, `Chat::contrast_errors`). The key line and
+  the buttons of the question card are the host's and keep 7:1.
+
 ## What a folder cannot do
 
 The host draws the question card, the muted badge and the words itself.

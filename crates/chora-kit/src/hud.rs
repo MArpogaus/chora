@@ -268,6 +268,60 @@ impl Chat {
     }
 }
 
+/// The lowest contrast of text against its fill, as a ratio.
+pub const MIN_TEXT_CONTRAST: f64 = 4.5;
+/// The lowest contrast of the key line and the buttons of the question
+/// card, as a ratio. The host draws the card, so a folder has no value to
+/// check against it; the host uses this for its own colours.
+pub const MIN_KEY_CONTRAST: f64 = 7.0;
+
+fn luminance(colour: [u8; 3]) -> f64 {
+    let [r, g, b] = colour.map(|c| {
+        let c = f64::from(c) / 255.0;
+        if c <= 0.03928 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    });
+    0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/// The contrast ratio of two colours, from 1 to 21 (WCAG 2).
+#[must_use]
+pub fn contrast(a: [u8; 3], b: [u8; 3]) -> f64 {
+    let (a, b) = (luminance(a), luminance(b));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+impl Chat {
+    /// The pairs of text colour and fill below [`MIN_TEXT_CONTRAST`], one
+    /// message each. A colour that the block leaves out is `host`'s; a pair
+    /// with a colour that neither has is not checked.
+    #[must_use]
+    pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
+        let Some(fill) = self.fill.or(host.fill) else {
+            return Vec::new();
+        };
+        let mut errors = Vec::new();
+        for (key, own, hosts) in [
+            ("text", self.text, host.text),
+            ("name", self.name, host.name),
+        ] {
+            let Some(colour) = own.or(hosts) else {
+                continue;
+            };
+            let ratio = contrast(colour, fill);
+            if ratio < MIN_TEXT_CONTRAST {
+                errors.push(format!(
+                    "hud.yaml: chat.{key}: contrast {ratio:.1}:1 against chat.fill is below {MIN_TEXT_CONTRAST}:1"
+                ));
+            }
+        }
+        errors
+    }
+}
+
 /// The context that `when` compares; see the table of fields in the
 /// design. Every field is text.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -1108,5 +1162,33 @@ mod tests {
         let dir = Dir::new("yaml-link");
         std::os::unix::fs::symlink(outside.0.join("hud.yaml"), dir.0.join("hud.yaml")).unwrap();
         assert!(errors(load(&dir.0)).contains("outside"));
+    }
+
+    #[test]
+    fn contrast_is_the_wcag_ratio() {
+        assert!((contrast([0, 0, 0], [255, 255, 255]) - 21.0).abs() < 1e-9);
+        assert!((contrast([255, 255, 255], [255, 255, 255]) - 1.0).abs() < 1e-9);
+        assert!(contrast([119, 119, 119], [255, 255, 255]) < MIN_TEXT_CONTRAST);
+        assert!(contrast([118, 118, 118], [255, 255, 255]) >= MIN_TEXT_CONTRAST);
+    }
+
+    #[test]
+    fn low_contrast_text_is_reported_with_its_key() {
+        let host = Chat {
+            fill: Some([255, 255, 255]),
+            text: Some([0, 0, 0]),
+            name: Some([0, 0, 0]),
+            ..Chat::default()
+        };
+        let own = Chat {
+            text: Some([200, 200, 200]),
+            name: Some([100, 100, 100]),
+            ..Chat::default()
+        };
+        let errors = own.contrast_errors(&host);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(errors[0].contains("chat.text"), "{errors:?}");
+        assert_eq!(Chat::default().contrast_errors(&host), Vec::<String>::new());
+        assert_eq!(own.contrast_errors(&Chat::default()), Vec::<String>::new());
     }
 }

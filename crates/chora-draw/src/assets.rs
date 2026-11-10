@@ -2,7 +2,88 @@
 
 use std::path::{Path, PathBuf};
 
+use resvg::usvg::{self, ImageHrefResolver, ImageKind};
 use serde::de::DeserializeOwned;
+use zune_jpeg::JpegDecoder;
+
+/// The largest side of a picture of a HUD folder, in logical pixels.
+pub const MAX_SIDE: u32 = 2048;
+
+/// Whether an SVG tree is at most [`MAX_SIDE`] on each side.
+///
+/// # Errors
+///
+/// The picture is larger.
+pub fn check_svg_size(tree: &usvg::Tree) -> Result<(), String> {
+    let size = tree.size();
+    #[allow(clippy::cast_precision_loss)]
+    let limit = MAX_SIDE as f32;
+    if size.width() > limit || size.height() > limit {
+        return Err(format!(
+            "picture of {} x {} px, at most {MAX_SIDE}",
+            size.width(),
+            size.height()
+        ));
+    }
+    Ok(())
+}
+
+/// The width and height of a PNG or JPEG file from its header.
+#[must_use]
+pub fn raster_size(data: &[u8]) -> Option<[u32; 2]> {
+    if data.starts_with(b"\x89PNG") {
+        let head = data.get(16..24)?;
+        let word =
+            |at: usize| u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]]);
+        return Some([word(0), word(4)]);
+    }
+    let mut decoder = JpegDecoder::new(std::io::Cursor::new(data));
+    decoder.decode_headers().ok()?;
+    let (w, h) = decoder.dimensions()?;
+    Some([u32::try_from(w).ok()?, u32::try_from(h).ok()?])
+}
+
+/// The picture if it is a PNG, JPEG or SVG within [`MAX_SIDE`].
+fn admit(kind: ImageKind) -> Option<ImageKind> {
+    let fits = |[w, h]: [u32; 2]| w <= MAX_SIDE && h <= MAX_SIDE;
+    let ok = match &kind {
+        ImageKind::PNG(data) | ImageKind::JPEG(data) => raster_size(data).is_some_and(fits),
+        ImageKind::SVG(tree) => check_svg_size(tree).is_ok(),
+        ImageKind::GIF(_) | ImageKind::WEBP(_) => false,
+    };
+    ok.then_some(kind)
+}
+
+/// The resolver of the `href` of an `<image>` in a HUD folder. It takes a
+/// `data:` URI, or a relative path of a file inside `dir`, read through
+/// [`chora_kit::hud::file`]. Everything else draws nothing: an absolute
+/// path, `..`, `file:` and `http:`, a link out of the folder, a file over
+/// the size limit, and a picture over [`MAX_SIDE`]. The default resolver
+/// of usvg reads any path of the machine.
+#[must_use]
+pub fn href_resolver(dir: &Path) -> ImageHrefResolver<'static> {
+    let dir = dir.to_path_buf();
+    let data = ImageHrefResolver::default_data_resolver();
+    ImageHrefResolver {
+        resolve_data: Box::new(move |mime, bytes, options| {
+            data(mime, bytes, options).and_then(admit)
+        }),
+        resolve_string: Box::new(move |href, options| {
+            if href.contains(':') {
+                return None;
+            }
+            let bytes = chora_kit::hud::file(&dir, href).ok()?;
+            let kind = if bytes.starts_with(b"\x89PNG") {
+                ImageKind::PNG(bytes.into())
+            } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+                ImageKind::JPEG(bytes.into())
+            } else {
+                ImageKind::SVG(usvg::Tree::from_data_nested(&bytes, options).ok()?)
+            };
+            admit(kind)
+        }),
+    }
+}
 
 /// The asset folder: the given one, else the installed one if it exists,
 /// else `source` below the root of the source tree, two levels above the
