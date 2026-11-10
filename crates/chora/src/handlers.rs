@@ -1,7 +1,7 @@
 //! Protocol handlers: the parts of the Wayland protocols that Smithay leaves
 //! to the compositor.
 
-use std::sync::atomic::Ordering;
+use std::{any::Any, sync::atomic::Ordering};
 
 use chora_scene::{Event, SurfaceRequest};
 use smithay::{
@@ -14,6 +14,7 @@ use smithay::{
     },
     input::{
         Seat, SeatHandler, SeatState,
+        dnd::{DnDGrab, DndGrabHandler, DndTarget, GrabType, Source},
         pointer::{CursorImageStatus, Focus, PointerHandle},
     },
     output::Output,
@@ -22,7 +23,8 @@ use smithay::{
         wayland_server::{
             Client, Resource,
             protocol::{
-                wl_buffer::WlBuffer, wl_output::WlOutput, wl_seat::WlSeat, wl_surface::WlSurface,
+                wl_buffer::WlBuffer, wl_data_source::WlDataSource, wl_output::WlOutput,
+                wl_seat::WlSeat, wl_surface::WlSurface,
             },
         },
     },
@@ -276,8 +278,86 @@ impl DataDeviceHandler for State {
     }
 }
 
-impl smithay::input::dnd::DndGrabHandler for State {}
-impl WaylandDndGrabHandler for State {}
+impl DndGrabHandler for State {
+    fn dropped(
+        &mut self,
+        _target: Option<DndTarget<'_, Self>>,
+        _validated: bool,
+        _seat: Seat<Self>,
+        _location: Point<f64, Logical>,
+    ) {
+        self.client_drag = false;
+    }
+
+    fn cancelled(&mut self, _seat: Seat<Self>, _location: Point<f64, Logical>) {
+        self.client_drag = false;
+    }
+}
+
+impl WaylandDndGrabHandler for State {
+    /// Starts the drag of a client at the real press that the pointer is
+    /// grabbed with. The target is the surface under the pointer, so the
+    /// press stops pinning the surface that it hit, also under a plane.
+    /// The icon of the drag is not shown. Only the client under the press
+    /// may drag, only for a press of the person, never while the session
+    /// is locked, and never for a confined client.
+    fn dnd_requested<S: Source>(
+        &mut self,
+        source: S,
+        _icon: Option<WlSurface>,
+        seat: Seat<Self>,
+        serial: Serial,
+        type_: GrabType,
+    ) {
+        let start_data = seat
+            .get_pointer()
+            .filter(|_| type_ == GrabType::Pointer)
+            .and_then(|pointer| Some((pointer.grab_start_data()?, pointer)));
+        let Some((start_data, pointer)) = start_data.filter(|(data, _)| {
+            data.focus
+                .as_ref()
+                .is_some_and(|(origin, _)| self.drag_allowed(&source, origin, serial))
+        }) else {
+            source.cancel();
+            return;
+        };
+        self.plane_grab = None;
+        let grab = DnDGrab::new_pointer(&self.display_handle, start_data, source, seat);
+        pointer.set_grab(self, grab, serial, Focus::Keep);
+        self.client_drag = true;
+    }
+}
+
+impl State {
+    /// Whether the client of `source` may start a drag from the pressed
+    /// surface `origin` with the press `serial`.
+    fn drag_allowed(&self, source: &dyn Any, origin: &WlSurface, serial: Serial) -> bool {
+        let source = source
+            .downcast_ref::<WlDataSource>()
+            .map(Resource::id)
+            .or_else(|| source.downcast_ref::<WlSurface>().map(Resource::id));
+        source.is_some_and(|id| id.same_client_as(&origin.id()))
+            && self.lock.is_none()
+            && self.last_real_press == Some(serial)
+            && self.pressed(origin, serial)
+            && self.takes_part_in_drags(origin)
+    }
+
+    /// Whether the client of a surface may start or receive a drag: only
+    /// clients outside client sockets and sandboxes. Every client that a
+    /// drag crosses can read its data.
+    pub fn takes_part_in_drags(&self, surface: &WlSurface) -> bool {
+        self.display_handle
+            .get_client(surface.id())
+            .ok()
+            .and_then(|client| {
+                client
+                    .get_data::<ClientState>()
+                    .map(crate::security::unconfined)
+            })
+            .unwrap_or(false)
+    }
+}
 
 impl PrimarySelectionHandler for State {
     fn primary_selection_state(&mut self) -> &mut PrimarySelectionState {
@@ -406,6 +486,7 @@ impl XdgShellHandler for State {
             }
             keyboard.set_focus(self, grab.current_grab(), serial);
             keyboard.set_grab(self, PopupKeyboardGrab::new(&grab), serial);
+            self.plane_grab = None;
             pointer.set_grab(self, PopupPointerGrab::new(&grab), serial, Focus::Keep);
         }
     }

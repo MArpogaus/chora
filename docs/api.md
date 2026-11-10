@@ -113,7 +113,22 @@ layer budget leaves out of the frame draws nothing, so it takes the input
 and gives it to nobody. During a press, the core maps every motion through
 the plane that the press hit, also outside it; where the plane shows the
 pointer behind the eye, the last point stays. The popups of a window under a
-plane stay inside the geometry of the window.
+plane stay inside the geometry of the window. The pin ends where another
+grab takes the pointer: when a popup opens during a press, or a client
+starts a drag and drop, each motion goes to the surface that shows under the
+pointer, so a menu that opens on a press takes the drag and the release,
+and a drop goes to the window under the pointer and not to the source. A
+press in a popup pins the popup, and its drag keeps sending points outside
+the plane.
+
+The core runs the drag and drop of a client, without an icon; before, it
+cancelled every drag. Only the client under the real press of the person
+can start a drag, with the serial of that press. Injected input never
+starts, moves or drops a drag: an injected button or move cancels one that
+runs. A lock, an emergency reset or another grab cancels a drag too. Every
+unconfined client that the drag crosses can read its data. Confined clients
+(client sockets and sandboxes) take no part: they never get an offer and
+cannot start a drag.
 
 A group with a `size` and a `perspective` d is a **3D context**: its
 descendants share one space. The eye sits at distance d in front of the

@@ -588,6 +588,8 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
     };
     let pointer = state.pointer();
+    let under =
+        under.filter(|(surface, _)| !state.client_drag || state.takes_part_in_drags(surface));
     pointer.motion(
         state,
         under.clone(),
@@ -613,6 +615,16 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     );
 }
 
+/// Ends the drag and drop of a client without a drop: injected input never
+/// moves or drops one.
+pub fn cancel_client_drag(state: &mut State) {
+    if state.client_drag {
+        let pointer = state.pointer();
+        pointer.unset_grab(state, SERIAL_COUNTER.next_serial(), InputTime::now());
+        state.client_drag = false;
+    }
+}
+
 /// A pointer button goes down or up.
 pub fn press_button(
     state: &mut State,
@@ -621,6 +633,9 @@ pub fn press_button(
     time: InputTime,
     injected: bool,
 ) {
+    if injected {
+        cancel_client_drag(state);
+    }
     if button_state == ButtonState::Pressed {
         state.pressed = None;
     }
@@ -908,8 +923,12 @@ fn local_for(
     Some([local.x, local.y])
 }
 
-/// Starts the press of a surface under a plane at the first button.
+/// Starts the press of a surface under a plane at the first button, unless
+/// a drag and drop of a client holds the pointer.
 fn start_plane_grab(state: &mut State) {
+    if state.client_drag {
+        return;
+    }
     let Some(spot) = state.spot(state.pointer_layout) else {
         return;
     };
@@ -932,8 +951,12 @@ fn start_plane_grab(state: &mut State) {
 /// client the point that the plane maps to the pointer. The node is
 /// reached from the root or the overlay of an output, as `anchor` tells.
 /// When the plane shows the pointer behind the eye, the client keeps its
-/// last point.
+/// last point. A drag and drop of a client ends the pin; so does a popup
+/// grab, in `grab`.
 fn planar_press(state: &mut State, spot: &Spot) -> Option<(WlSurface, Point<f64, Logical>)> {
+    if state.client_drag {
+        state.plane_grab = None;
+    }
     let grab = state.plane_grab.as_mut()?;
     let (start, at) = anchor(&state.scene, &state.outputs, &grab.node, spot);
     if let Some(local) = render::local_in(&state.scene, &start, at, &grab.node) {

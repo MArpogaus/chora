@@ -8,17 +8,17 @@ use super::planes::{click, close, decode, local, motions, move_to, node_events};
 use crate::testing::{Core, wayland::Wayland};
 
 /// The distance of the eye in front of the centre of the context.
-const EYE: f64 = 800.0;
+pub(super) const EYE: f64 = 800.0;
 
-type Matrix = [f64; 16];
+pub(super) type Matrix = [f64; 16];
 
-fn translate(x: f64, y: f64, z: f64) -> Matrix {
+pub(super) fn translate(x: f64, y: f64, z: f64) -> Matrix {
     [
         1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, x, y, z, 1.0,
     ]
 }
 
-fn turn_y(degrees: f64) -> Matrix {
+pub(super) fn turn_y(degrees: f64) -> Matrix {
     let (s, c) = degrees.to_radians().sin_cos();
     [
         c, 0.0, -s, 0.0, 0.0, 1.0, 0.0, 0.0, s, 0.0, c, 0.0, 0.0, 0.0, 0.0, 1.0,
@@ -32,7 +32,7 @@ fn times(a: &Matrix, b: &Matrix) -> Matrix {
     })
 }
 
-fn chain(matrices: &[Matrix]) -> Matrix {
+pub(super) fn chain(matrices: &[Matrix]) -> Matrix {
     matrices
         .iter()
         .fold(translate(0.0, 0.0, 0.0), |a, b| times(&a, b))
@@ -40,7 +40,7 @@ fn chain(matrices: &[Matrix]) -> Matrix {
 
 /// Where a point of a plane with a transform in a context of a size
 /// shows: w = 1 + z / d around the centre of the context.
-fn shown(m: &Matrix, [cx, cy]: [f64; 2], u: f64, v: f64) -> (f64, f64) {
+pub(super) fn shown(m: &Matrix, [cx, cy]: [f64; 2], u: f64, v: f64) -> (f64, f64) {
     let at: Vec<f64> = (0..3)
         .map(|r| m[r] * u + m[4 + r] * v + m[12 + r])
         .collect();
@@ -48,7 +48,7 @@ fn shown(m: &Matrix, [cx, cy]: [f64; 2], u: f64, v: f64) -> (f64, f64) {
     (cx + (at[0] - cx) / w, cy + (at[1] - cy) / w)
 }
 
-fn space(core: &mut Core, size: [f64; 2]) -> crate::testing::Client {
+pub(super) fn space(core: &mut Core, size: [f64; 2]) -> crate::testing::Client {
     let mut wm = core.named("wm");
     let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
     core.admin().ok(core, "grants.set", grant);

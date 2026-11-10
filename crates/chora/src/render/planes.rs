@@ -21,11 +21,15 @@ use crate::{
 const TOLERANCE: f64 = 0.5;
 const LEFT: u32 = 272;
 
-fn transform(spec: &Value) -> Transform {
+pub(super) fn transform(spec: &Value) -> Transform {
     serde_json::from_value(spec.clone()).expect("a transform")
 }
 
-fn forward(transform: &Transform, u: f64, v: f64) -> Point<f64, smithay::utils::Logical> {
+pub(super) fn forward(
+    transform: &Transform,
+    u: f64,
+    v: f64,
+) -> Point<f64, smithay::utils::Logical> {
     let m = transform.matrix();
     let w = m[3] * u + m[7] * v + m[15];
     (
@@ -66,7 +70,7 @@ pub(super) fn motions(wayland: &mut Wayland, core: &mut Core) -> Vec<(f64, f64)>
 
 /// A window of 100 by 80 as `s1` under a group `rig` with the transform
 /// of `rig` and the translation (10, 5) of the window below it.
-fn window_under(rig: &Value) -> (Core, Wayland, Toplevel, Transform, Client) {
+pub(super) fn window_under(rig: &Value) -> (Core, Wayland, Toplevel, Transform, Client) {
     let mut core = Core::new();
     core.add_output("HDMI-1", (800, 600));
     let mut wayland = Wayland::connect(&mut core);

@@ -1547,6 +1547,8 @@ mod context;
 mod hit_guard;
 #[cfg(test)]
 mod planes;
+#[cfg(test)]
+mod popups;
 
 #[cfg(test)]
 mod tests {
