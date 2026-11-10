@@ -1673,29 +1673,26 @@ fn polygon_box(
 /// transform. The points go through the projection of the renderer, so
 /// that a matrix which divides by w moves them as the frame does; the
 /// depth of mesh points stays out, as in `Transform::apply`. A point at
-/// or behind the eye is left out, and a box of no point in front overlaps
-/// nothing.
+/// or behind `w = near`, the near plane of a context or the eye, is left
+/// out, and a box of no point in front overlaps nothing.
 pub(crate) fn projected_box(
     transform: &Transform,
     points: impl Iterator<Item = [f64; 2]>,
+    near: f64,
 ) -> Rectangle<f64, Logical> {
     let m = transform.matrix();
-    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    let mut bounds = mesh::Bounds::default();
     for [px, py] in points {
-        let hw = m[3] * px + m[7] * py + m[15];
-        if hw <= mesh::NEAR {
-            continue;
-        }
-        let (x, y) = (
-            (m[0] * px + m[4] * py + m[12]) / hw,
-            (m[1] * px + m[5] * py + m[13]) / hw,
+        bounds.add_point_at(
+            [
+                m[0] * px + m[4] * py + m[12],
+                m[1] * px + m[5] * py + m[13],
+                m[3] * px + m[7] * py + m[15],
+            ],
+            near,
         );
-        x0 = x0.min(x);
-        y0 = y0.min(y);
-        x1 = x1.max(x);
-        y1 = y1.max(y);
     }
-    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
+    bounds.rect()
 }
 
 #[cfg(test)]
@@ -1722,7 +1719,8 @@ mod tests {
     use super::{location_and_scale, premultiplied, send_frames, surface_under};
     use crate::testing::{Core, wayland::Wayland};
 
-    /// The mesh points of a layer wholly behind the eye give an empty box.
+    /// The mesh points of a layer wholly behind the eye, or of a context
+    /// between the eye and its near plane, give an empty box.
     #[test]
     fn mesh_points_behind_the_eye_give_an_empty_box() {
         let mut behind = [0.0; 16];
@@ -1731,8 +1729,24 @@ mod tests {
         behind[10] = 1.0;
         behind[15] = -1.0;
         let points = [[0.0, 0.0], [100.0, 0.0], [0.0, 80.0]];
-        let rect = super::projected_box(&Transform::from_matrix(behind), points.into_iter());
+        let rect = super::projected_box(
+            &Transform::from_matrix(behind),
+            points.into_iter(),
+            crate::mesh::NEAR,
+        );
         assert_eq!(rect, smithay::utils::Rectangle::default());
+        let mut near = behind;
+        near[15] = 0.01;
+        let rect = super::projected_box(
+            &Transform::from_matrix(near),
+            points.into_iter(),
+            1.0 / 64.0,
+        );
+        assert_eq!(
+            rect,
+            smithay::utils::Rectangle::default(),
+            "inside the near plane of a context"
+        );
     }
 
     /// A window that no output shows gets a frame callback at most once a

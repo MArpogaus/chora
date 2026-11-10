@@ -1230,7 +1230,10 @@ fn the_watchdog_counts_planes_and_keeps_the_perspective() {
         .unwrap();
     let load = scene.load_by_owner();
     assert_eq!(load.get("wm"), Some(&(1 + 26 + 1 + 26 + 26)));
-    assert!(scene.drop_effects("wm"));
+    assert!(
+        !scene.drop_effects("wm"),
+        "a perspective alone is nothing to drop"
+    );
     assert_eq!(scene.node("space").unwrap().props.perspective, Some(500.0));
     assert_eq!(scene.load_by_owner().get("wm"), load.get("wm"));
 }

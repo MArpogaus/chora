@@ -1776,17 +1776,14 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     Ok(())
 }
 
-/// Removes the mesh, the effects, the shader and the perspective of
-/// properties. Returns whether there were some.
+/// Removes the mesh, the effects and the shader of properties. Returns
+/// whether there were some. A perspective stays: it costs no pass, and
+/// without it a context would show and hit its planes flat.
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some()
-        || !props.effects.is_empty()
-        || props.shader.is_some()
-        || props.perspective.is_some();
+    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
     props.mesh = None;
     props.effects.clear();
     props.shader = None;
-    props.perspective = None;
     found
 }
 

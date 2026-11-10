@@ -852,6 +852,16 @@ impl Bounds {
         Rectangle::new(loc, size)
     }
 
+    /// Adds the screen point of (x, y, w) when it lies at `w > near`.
+    pub(crate) fn add_point_at(&mut self, [x, y, w]: [f64; 3], near: f64) {
+        if w > near {
+            for (axis, v) in [x / w, y / w].into_iter().enumerate() {
+                self.min[axis] = self.min[axis].min(v);
+                self.max[axis] = self.max[axis].max(v);
+            }
+        }
+    }
+
     /// Adds the screen points of corners with a w in front of the eye.
     pub(crate) fn add_points(&mut self, corners: &[Corner]) {
         for [x, y, w, ..] in corners {
