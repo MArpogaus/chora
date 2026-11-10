@@ -90,6 +90,11 @@ impl Plugin for Construct {
                 Ok(Value::Null)
             }
             "construct.list" => Ok(self.list()),
+            chora_kit::clock::METHOD => {
+                chora_kit::clock::step(params)?;
+                self.animation_frame().map_err(rejected)?;
+                Ok(Value::Null)
+            }
             "construct.leave" => {
                 if !self.overlay {
                     return Err(RpcError::new(

@@ -88,8 +88,12 @@ impl State {
         if self.lock.is_some() {
             return Err(rejected("the session is locked"));
         }
-        let capture: Capture = params_of(params)?;
-        let shot = self.plan(&capture)?;
+        self.picture(&params_of(params)?)
+    }
+
+    /// The picture of a capture, as the result of `screen.capture`.
+    pub fn picture(&mut self, capture: &Capture) -> Result<Value, RpcError> {
+        let shot = self.plan(capture)?;
         let pixels = self.render_shot(&shot).map_err(rejected)?;
         let png = encode(&pixels).map_err(rejected)?;
         if png.len() > MAX_PNG {

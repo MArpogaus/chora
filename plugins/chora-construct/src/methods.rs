@@ -102,6 +102,7 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             &["name"],
         ),
         give::method(),
+        chora_kit::clock::method(),
         runtime::method(
             "help.toggle",
             "Shows or hides the help panel with the key bindings of the construct; \

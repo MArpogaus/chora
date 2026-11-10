@@ -142,7 +142,7 @@ impl Driver {
     /// not wobble.
     pub fn motion_3d(&mut self, key: &str, target: &Target, origin: [f64; 3]) -> Option<Command> {
         let wobble = self.wobbles.get_mut(key)?;
-        wobble.advance_3d(origin, Instant::now());
+        wobble.advance_3d(origin, crate::clock::now());
         self.origins.insert(key.into(), origin);
         Some(mesh(target, wobble.mesh([origin[0], origin[1]])))
     }
@@ -195,7 +195,7 @@ impl Driver {
     /// advanced to now. `None` when it does not wobble.
     pub fn motion(&mut self, key: &str, target: &Target) -> Option<Command> {
         let wobble = self.wobbles.get_mut(key)?;
-        wobble.advance(target.origin, Instant::now());
+        wobble.advance(target.origin, crate::clock::now());
         Some(mesh(target, wobble.mesh(target.origin)))
     }
 

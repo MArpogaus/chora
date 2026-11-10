@@ -186,10 +186,6 @@ pub struct State {
     /// The time to which the animations of the scene advanced.
     animated_at: Instant,
     /// The recording with a stepped scene clock, while one runs.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the methods of the recording read it")
-    )]
     pub recording: Option<crate::record::Recording>,
     /// The last refresh of the pointer after a step of the animations.
     pointer_refreshed: Instant,
@@ -475,14 +471,25 @@ impl State {
     }
 
     /// Moves the animations of the scene forward to now, and tells the
-    /// plugins which ended.
+    /// plugins which ended. A recording moves them with its steps instead.
     pub fn advance_animations(&mut self) {
         let now = Instant::now();
         let last = std::mem::replace(&mut self.animated_at, now);
         if !self.scene.animating() {
             return;
         }
-        let ms = now.duration_since(last).as_secs_f64() * 1000.0;
+        if self.recording.is_none() {
+            self.animate_by(now.duration_since(last).as_secs_f64() * 1000.0);
+        }
+        self.refresh_pointer_at(now);
+    }
+
+    /// Moves the animations of the scene forward by a time in
+    /// milliseconds, and tells the plugins which ended.
+    pub fn animate_by(&mut self, ms: f64) {
+        if !self.scene.animating() {
+            return;
+        }
         for node in self.scene.advance(ms) {
             self.emit(&Event::AnimationDone {
                 node: Some(node),
@@ -496,7 +503,12 @@ impl State {
             });
             self.execute(vec![chora_scene::Effect::Camera(output)]);
         }
-        // The loop can run far more often than frames show.
+    }
+
+    /// Refreshes the pointer after a step of the animations, at most
+    /// every `POINTER_REFRESH`: the loop can run far more often than
+    /// frames show.
+    fn refresh_pointer_at(&mut self, now: Instant) {
         if now - self.pointer_refreshed >= POINTER_REFRESH {
             self.pointer_refreshed = now;
             self.refresh_pointer();

@@ -2,9 +2,9 @@
 //! window, fly out, and the pane under a point.
 
 use super::{
-    Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, Instant,
-    LOOK, LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value,
-    json, space, update,
+    Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
+    LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value, json,
+    space, update,
 };
 
 /// The surface that the camera is in or on its way into.
@@ -82,7 +82,7 @@ impl Construct {
         self.glide = Some(Glide {
             from: self.pose,
             to,
-            start: Instant::now(),
+            start: chora_kit::clock::now(),
             ms,
             into,
         });
@@ -208,7 +208,7 @@ impl Construct {
         let Some(glide) = &self.glide else {
             return Ok(());
         };
-        let k = (glide.start.elapsed().as_secs_f64() * 1000.0 / glide.ms).min(1.0);
+        let k = (chora_kit::clock::since(glide.start).as_secs_f64() * 1000.0 / glide.ms).min(1.0);
         self.pose = glide.from.lerp(&glide.to, ease(k));
         if k < 1.0 {
             return self.frame();

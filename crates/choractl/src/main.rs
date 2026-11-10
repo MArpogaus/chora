@@ -12,6 +12,7 @@
 mod docs;
 mod events;
 mod mcp;
+mod record;
 mod schema;
 mod view;
 
@@ -225,6 +226,11 @@ enum Cmd {
         #[arg(long)]
         max_side: Option<u32>,
     },
+    /// Record frames of a headless session as PNG files with a stepped
+    /// clock: each frame shows the scene one frame time later, whatever
+    /// the speed of the renderer. For demo media and tests. Goes through
+    /// the admin socket; works only on the headless backend.
+    Record(record::Recording),
 }
 
 #[derive(Subcommand)]
@@ -404,6 +410,7 @@ fn run(args: Args) -> Result<(), String> {
             };
             return capture_to(&mut client, &capture, &file);
         }
+        Cmd::Record(recording) => return record::record(&mut client, &recording),
     };
     result.map_err(|e| e.to_string())
 }
@@ -423,7 +430,11 @@ fn hello(name: Option<String>) -> Hello {
 fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
     let admin = matches!(
         command,
-        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. } | Cmd::Camera { .. }
+        Cmd::Grant { .. }
+            | Cmd::Revoke { .. }
+            | Cmd::Clients { .. }
+            | Cmd::Camera { .. }
+            | Cmd::Record(_)
     );
     if !admin {
         return Client::from_env(hello).map_err(|e| e.to_string());

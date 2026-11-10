@@ -838,6 +838,7 @@ windows of the other flavor.
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
+| `clock.step` | `ms`: stops the clock of the glide and the wobble at that time of a recording, and draws one frame; `null` lets it run again; privileged; `choractl record` calls it (see [Recording](api.md#recording)) |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
 | `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |

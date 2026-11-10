@@ -64,13 +64,20 @@ impl Construct {
                 None => {}
             }
             self.tick()?;
-            if self.glide.is_some() {
-                self.step_glide()?;
-            }
-            if self.effects.animating() {
-                self.wobble_frame()?;
-            }
+            self.animation_frame()?;
         }
+    }
+
+    /// One frame of the glide of the camera and of the wobbles, at the
+    /// time of the clock of the animations.
+    pub(crate) fn animation_frame(&mut self) -> Result<(), ClientError> {
+        if self.glide.is_some() {
+            self.step_glide()?;
+        }
+        if self.effects.animating() {
+            self.wobble_frame()?;
+        }
+        Ok(())
     }
 
     /// Loads a construct (F18). An overlay takes the output now; a

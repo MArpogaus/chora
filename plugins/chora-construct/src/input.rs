@@ -4,8 +4,8 @@
 use chora_kit::effects::Target;
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
-    LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
+    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, LIST,
+    LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
     window_flown_into,
 };
 
@@ -437,7 +437,7 @@ impl Construct {
     /// One frame of the wobbles of the panes.
     pub(crate) fn wobble_frame(&mut self) -> Result<(), ClientError> {
         let panes = &self.panes;
-        let frame = self.effects.tick(Instant::now(), |name| {
+        let frame = self.effects.tick(chora_kit::clock::now(), |name| {
             panes.iter().find(|p| p.name == name).map(wobble_target)
         });
         if frame.commands.is_empty() {
