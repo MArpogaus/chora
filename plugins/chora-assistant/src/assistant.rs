@@ -719,6 +719,8 @@ mod tests {
             camera: Transform::default(),
             work_area: [1920, 0, 1280, 760],
             default_work_area: [1920, 0, 1280, 760],
+            is_virtual: None,
+            owner: None,
         };
         let now = Instant::now();
         let place = |output: &OutputInfo, theme: &mut Theme| {
@@ -758,6 +760,8 @@ mod tests {
             camera: Transform::default(),
             work_area: [0, 0, 1280, 800],
             default_work_area: [0, 0, 1280, 800],
+            is_virtual: None,
+            owner: None,
         };
         let now = Instant::now();
         let (a, _) = Assistant::new(

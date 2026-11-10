@@ -469,7 +469,7 @@ impl Ipc {
     }
 
     /// Whether a connection came through the admin socket.
-    fn admin(&self, conn: u64) -> bool {
+    pub(crate) fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
             .is_some_and(|c| c.socket == Socket::Admin)
@@ -879,7 +879,7 @@ impl State {
                 params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
             }
             "output.add" | "output.remove" => {
-                self.ipc_headless_output(conn, &request.method, params)
+                self.ipc_output_hotplug(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
@@ -1166,6 +1166,7 @@ impl State {
     /// ends its grace time.
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
+        self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
         self.execute_gone(effects);
         self.ipc.uploads.drop_client(name);
@@ -1224,7 +1225,7 @@ impl State {
     /// node does not show are left out.
     fn screen_rects(&self) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             let name = output.name();
             let screen = Rectangle::from_size(output_area(output).size).to_f64();
             // The overlay sits in the coordinates of its output, without
@@ -1471,6 +1472,7 @@ impl State {
             self.drop_nodes(&name);
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
+            self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
             self.execute_gone(effects);
         }
@@ -3258,6 +3260,28 @@ mod tests {
         let mut client = core.connect_to(&path);
         client.ok(core, "hello", json!({"name": name}));
         (client, path)
+    }
+
+    /// Only a free client of the main socket owns a virtual output.
+    #[test]
+    fn a_client_socket_cannot_add_one() {
+        let (mut core, dir) = socket_dir("virtual");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        let add = json!({"spec": "32x32", "virtual": true});
+        for client in [&mut agent, &mut confined] {
+            let (number, error) = client.fails(&mut core, "output.add", add.clone());
+            assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        }
+        let mut nameless = core.connect();
+        let (_, error) = nameless.fails(&mut core, "output.add", add);
+        assert!(error.contains("hello"), "{error}");
+        let list = admin.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list, json!([]), "nothing was added");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

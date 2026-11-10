@@ -184,6 +184,9 @@ pub struct Scene {
     /// The default camera of each output, which the core sets; the start
     /// and the end of moves from and to the default camera.
     default_cameras: OrdMap<String, Transform>,
+    /// The owners of the virtual outputs by output name, which the core
+    /// sets: only the owner reads its output as a texture.
+    output_owners: OrdMap<String, String>,
     /// The surface with the keyboard focus, which the core sets.
     focused: Option<String>,
     /// The surface that had the focus when a client cleared it, by client.
@@ -212,6 +215,7 @@ impl Default for Scene {
             animations: OrdMap::new(),
             camera_moves: OrdMap::new(),
             default_cameras: OrdMap::new(),
+            output_owners: OrdMap::new(),
             focused: None,
             focus_returns: OrdMap::new(),
             focused_node: None,
@@ -259,6 +263,37 @@ impl Scene {
     /// default camera end and start.
     pub fn set_default_camera(&mut self, output: &str, camera: Transform) {
         self.default_cameras.insert(output.into(), camera);
+    }
+
+    /// Sets or clears the owner of a virtual output.
+    pub fn set_output_owner(&mut self, output: &str, owner: Option<&str>) {
+        match owner {
+            Some(owner) => self.output_owners.insert(output.into(), owner.into()),
+            None => self.output_owners.remove(output),
+        };
+    }
+
+    /// Fails unless every output that the uniforms read is a virtual
+    /// output of the client.
+    fn check_output_reads(&self, client: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+        for uniform in props.uniforms.iter().flat_map(BTreeMap::values) {
+            let Uniform::Output(read) = uniform else {
+                continue;
+            };
+            let name = &read.output;
+            match self.output_owners.get(name) {
+                Some(owner) if owner == client => {}
+                Some(owner) => {
+                    return Err(SceneError::Invalid(format!(
+                        "only its owner {owner:?} reads the output {name:?}"
+                    )));
+                }
+                None => {
+                    return Err(SceneError::Invalid(format!("no virtual output {name:?}")));
+                }
+            }
+        }
+        Ok(())
     }
 
     /// A node by id.
@@ -434,6 +469,7 @@ impl Scene {
                 props,
             } => {
                 check_props(id, *kind, props)?;
+                self.check_output_reads(owner, props)?;
                 check_meta(id, &BTreeMap::new(), props)?;
                 if *kind == NodeKind::Shader && props.shader.is_none() {
                     return Err(SceneError::Invalid(format!(
@@ -1079,12 +1115,14 @@ impl Scene {
             }
             let node = &self.nodes[id];
             check_props(id, node.kind, props)?;
+            self.check_output_reads(owner, props)?;
             check_meta(id, &node.props.meta, props)?;
             #[allow(clippy::expect_used, reason = "props have string keys only")]
             let args = serde_json::to_value(props).expect("props serialize");
             effects.push(request(owner, id, other, "update", args));
             return Ok(());
         }
+        self.check_output_reads(owner, props)?;
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;
         check_meta(id, &node.props.meta, props)?;
@@ -1629,19 +1667,14 @@ fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     }
     if let Some(uniforms) = &props.uniforms {
         check_uniforms(id, uniforms, true)?;
-        let textures = uniforms
-            .values()
-            .filter_map(|u| match u {
-                Uniform::Texture(t) => Some(t),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        if textures.len() > MAX_NODE_TEXTURES {
+        let samplers = uniforms.values().filter(|u| u.values().is_empty());
+        if samplers.count() > MAX_NODE_TEXTURES {
             return Err(SceneError::Invalid(format!(
-                "{id:?}: at most {MAX_NODE_TEXTURES} node textures"
+                "{id:?}: at most {MAX_NODE_TEXTURES} node and output textures"
             )));
         }
-        if textures.iter().any(|t| t.node == id) {
+        let reads_itself = |u: &Uniform| matches!(u, Uniform::Texture(t) if t.node == id);
+        if uniforms.values().any(reads_itself) {
             return Err(SceneError::Invalid(format!(
                 "{id:?} cannot read itself as a texture"
             )));
@@ -1790,12 +1823,17 @@ fn check_uniforms(
             && name.len() <= 64;
         let fits = match value {
             Uniform::Texture(t) => textures && !t.node.is_empty(),
+            Uniform::Output(o) => textures && !o.output.is_empty(),
             _ => (1..=4).contains(&value.values().len()),
         };
         if !identifier || !fits {
             return invalid(&format!(
                 "the uniform {name:?} needs a name and 1 to 4 numbers{}",
-                if textures { ", or a node" } else { "" }
+                if textures {
+                    ", a node or an output"
+                } else {
+                    ""
+                }
             ));
         }
     }
