@@ -2817,4 +2817,53 @@ mod tests {
         mc.show("agenda", true).unwrap();
         assert_eq!(focuses(), before + 1);
     }
+
+    /// The number of effects of the first panel of a scene in the model.
+    fn panel_effects(mc: &super::Mc, model: &crate::testing::Model, scene: &str) -> usize {
+        let panel = &mc.scenes[scene].panels[0].id;
+        let id = super::panel_id(scene, panel);
+        let core = model.lock().unwrap();
+        core.scene.node(&id).unwrap().props.effects.len()
+    }
+
+    /// The write effect costs a shader pass per panel, so it goes when
+    /// its animation ends: a page that rests has no effects.
+    #[test]
+    fn the_write_effect_goes_when_its_animation_ends() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-ends", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it writes");
+        let panel = mc.scenes["agenda"].panels[0].id.clone();
+        mc.event(chora_scene::Event::AnimationDone {
+            node: Some(super::panel_id("agenda", &panel)),
+            output: None,
+        })
+        .unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 0);
+    }
+
+    /// After the watchdog of the core dropped the effects of mc, a scene
+    /// shows without the write effect until the settings change.
+    #[test]
+    fn dropped_effects_stay_off_until_the_settings_change() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("dropped", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        assert!(super::EVENTS.contains(&"effects.dropped"));
+        mc.event(chora_scene::Event::EffectsDropped {
+            client: super::NAME.into(),
+        })
+        .unwrap();
+        mc.show("agenda", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 0, "no shader");
+        mc.event(chora_scene::Event::EffectsDropped {
+            client: "other".into(),
+        })
+        .unwrap();
+        mc.settings_changed().unwrap();
+        mc.show("morning", true).unwrap();
+        assert_eq!(panel_effects(&mc, &model, "morning"), 1, "it writes again");
+    }
 }
