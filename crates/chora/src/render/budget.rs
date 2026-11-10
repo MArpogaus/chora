@@ -166,3 +166,76 @@ fn a_window_whose_mirror_does_not_fit_takes_input() {
     std::fs::remove_dir_all(&dir).unwrap();
     assert!(!moved.is_empty(), "the window that drew takes input");
 }
+
+#[test]
+fn a_shader_and_a_layer_that_drew_take_input_when_a_source_does_not_fit() {
+    let dir = std::env::temp_dir().join(format!("chora-nested-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let shader = dir.join("mirror.frag");
+    std::fs::write(
+        &shader,
+        "precision mediump float;\nvarying vec2 v_uv;\nuniform sampler2D src;\n\
+         void main() { gl_FragColor = texture2D(src, v_uv); }\n",
+    )
+    .unwrap();
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "640x480"}));
+    let filler = |id: &str, height: u32| {
+        json!({"create": {"id": id, "kind": "rect", "parent": "root", "props": {
+            "size": [4096, height], "color": [1, 1, 1, 1], "input": "pass",
+            "transform": {"translate": [10, 10], "rotate": 10}}}})
+    };
+    let commands = json!({"commands": [
+        {"create": {"id": "mirror", "kind": "shader", "parent": "root", "props": {
+            "size": [100, 80], "shader": shader, "uniforms": {"src": {"node": "src"}},
+            "transform": {"translate": [20, 300]}}}},
+        {"create": {"id": "src", "kind": "group", "parent": "root", "props": {
+            "size": [20, 20], "transform": {"translate": [300, 300]}}}},
+        {"create": {"id": "inner", "kind": "rect", "parent": "src", "props": {
+            "size": [40, 40], "color": [0, 1, 0, 1], "radius": 6}}},
+        filler("f1", 4091),
+        filler("f2", 4096),
+        filler("f3", 4096),
+        filler("f4", 4096),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    crate::backend::headless::render_all(&mut core.state);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let under = |core: &Core, at: (f64, f64)| {
+        let spot = core.state.spot(at.into()).expect("a spot");
+        crate::render::node_under(&core.state, &spot)
+    };
+    assert_eq!(under(&core, (320.0, 320.0)).as_deref(), Some("inner"));
+    assert_eq!(under(&core, (60.0, 340.0)).as_deref(), Some("mirror"));
+}
+
+#[test]
+fn layers_dropped_names_the_window_that_keeps_the_keyboard() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (100, 80));
+    let mut wm = core.named("wm");
+    let commands = json!({"commands": [
+        {"create": {"id": "box", "kind": "group", "parent": "root", "props": {
+            "size": [200, 200], "clip": {"radius": 6}}}},
+        {"attach": {"surface": "s1", "parent": "box"}},
+        {"focus": {"surface": "s1"}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    wm.ok(
+        &mut core,
+        "events.subscribe",
+        json!({"events": ["layers.dropped"]}),
+    );
+    leave_out(&mut core, "HDMI-1", &["box"]);
+    let budget = std::time::Duration::from_millis(16);
+    core.state
+        .frame_rendered("HDMI-1", budget, std::time::Duration::ZERO);
+    let events = wm.events_now(&mut core);
+    let dropped = &events[0]["params"];
+    assert_eq!(dropped["nodes"], json!(["box"]), "{events:?}");
+    assert_eq!(dropped["keyboard"], "s1", "{events:?}");
+}

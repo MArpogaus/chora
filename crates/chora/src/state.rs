@@ -1490,6 +1490,42 @@ mod tests {
     }
 
     #[test]
+    fn a_confined_method_call_gives_no_stamped_token() {
+        let (mut core, _wayland, mut wm, _first, _field) = field_core();
+        wm.ok(&mut core, "scene.apply", crate::testing::rect("scene"));
+        wm.ok(
+            &mut core,
+            "methods.export",
+            json!({"names": ["scene.show"]}),
+        );
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.call"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        click(&mut core, (5.0, 5.0));
+        let call = json!({"client": "wm", "method": "scene.show", "params": {}});
+        confined.send("methods.call", call);
+        wm.events_now(&mut core);
+        mint(&mut core, &mut wm);
+        assert_eq!(stamped_tokens(&core), 0, "minted for a confined caller");
+    }
+
+    #[test]
+    fn a_key_grab_stamps_no_token_of_another_connection_of_its_name() {
+        let (mut core, _wayland, _wm, _first, _field) = field_core();
+        let _ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        let mut namesake = core.named("tiling");
+        mint(&mut core, &mut namesake);
+        assert_eq!(
+            stamped_tokens(&core),
+            0,
+            "the grab is of the first connection"
+        );
+    }
+
+    #[test]
     fn one_act_stamps_one_token() {
         let (mut core, _wayland, _wm, _first, _field) = field_core();
         let mut ctl = grab_key(&mut core);

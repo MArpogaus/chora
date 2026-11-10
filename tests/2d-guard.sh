@@ -10,11 +10,12 @@
 # The base is built once in the worktree /home/user/wt/base2d, with the
 # target directory /home/user/target-base; its captures stay in
 # /home/user/guard-cache/BASE_SHA, so later runs skip the base.
-# Three scenes run as sequences of two captures, so that a stale frame of
+# Four scenes run as sequences of two captures, so that a stale frame of
 # a cached layer shows: an image in a clip layer that changes its file
-# (compared with the base), a shader that reads the clock, and a clip
-# layer whose window commits a new color (both checked by their own
-# expected pixels, since the base cannot render them the same way).
+# and a rounded rect whose child changes its color (compared with the
+# base), a shader that reads the clock, and a clip layer whose window
+# commits a new color (both checked by their own expected pixels, since
+# the base cannot render them the same way).
 # Prints one line per scene and PASS or FAIL; exits 1 on FAIL.
 set -euo pipefail
 
@@ -28,7 +29,7 @@ cur_bin=${BIN:-$repo/target/debug}
 wt=/home/user/wt/base2d
 base_target=/home/user/target-base
 cache=/home/user/guard-cache/$base
-scenes=(rect text rounded shader layer window stacked image-a image-b)
+scenes=(rect text rounded shader layer window stacked image-a image-b effect-a effect-b)
 size=640x400
 
 # software EGL for the headless renderer, where that copy exists
@@ -127,6 +128,11 @@ image_nodes() {
     echo '{"create": {"id": "g-imgbox", "kind": "group", "parent": "root", "props": {"size": [100, 70], "clip": {"radius": 12}, "transform": {"translate": [60, 60]}}}},'
     echo '{"create": {"id": "g-image", "kind": "image", "parent": "g-imgbox", "props": {"image": "'"$work"'/a.png", "transform": {"translate": [-10, -5]}}}}'
 }
+effect_nodes() {
+    echo '{"create": {"id": "g-effect", "kind": "group", "parent": "root", "props": {"size": [160, 100], "clip": {"radius": 20}, "transform": {"translate": [320, 200]}}}},'
+    echo '{"create": {"id": "g-effect-back", "kind": "rect", "parent": "g-effect", "props": {"size": [160, 100], "color": [0.1, 0.2, 0.6, 1], "radius": 20, "border": {"width": 3, "color": [1, 1, 1, 1]}}}},'
+    echo '{"create": {"id": "g-effect-dot", "kind": "rect", "parent": "g-effect", "props": {"size": [60, 40], "color": [0.9, 0.8, 0.1, 1], "transform": {"translate": [-10, 30]}}}}'
+}
 clock_nodes() {
     echo '{"create": {"id": "g-clock", "kind": "shader", "parent": "root", "props": {"size": [120, 80], "shader": "'"$work"'/clock.frag", "transform": {"translate": [200, 150]}}}}'
 }
@@ -180,7 +186,7 @@ start_boxed_window() {
 reset() {
     stop_clients
     local id
-    for id in g-rect g-text g-round g-shader g-imgbox g-clock g-box; do
+    for id in g-rect g-text g-round g-shader g-imgbox g-effect g-clock g-box; do
         apply '[{"remove": {"id": "'"$id"'"}}]' 2>/dev/null || true
     done
     # wait for the windows and layer surfaces to go
@@ -235,11 +241,18 @@ render() {
     sleep 0.5
     shot image-b
     reset
+    nodes effect
+    sleep 0.5
+    shot effect-a
+    apply '[{"update": {"id": "g-effect-dot", "props": {"color": [0.1, 0.9, 0.3, 1]}}}]'
+    sleep 0.5
+    shot effect-b
+    reset
     if [[ $own == 1 ]]; then
         nodes clock
         sleep 0.5
         shot clock-1
-        sleep 1.3
+        sleep 0.5
         shot clock-2
         reset
         nodes box
