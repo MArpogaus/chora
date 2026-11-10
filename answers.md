@@ -4,6 +4,12 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- XP split: window effects shall become general and usable by other window
+  managers. Wobbly windows in 3D with the same code? Scenario: walk
+  through the construct, stand in front of the cube, grab a floating
+  window and move it into the 3D construct, wobbling. Possible as a
+  r/unixporn showoff demo? (design/wobbly-3d.md)
+
 - 11:12 Bangkok: weekly limit at 24 %. tokens.py for 11-10: estimate: 8.3 % of the weekly limit (15 % at the end of 11-09, so about 9 % today; the estimate holds).
 
 - Keep chat summaries to a minimum to save tokens; the user reads the
