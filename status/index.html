@@ -102,7 +102,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 11:44 Bangkok</span>
+      <span>Updated Tue 10 Nov, 12:40 Bangkok</span>
       <span>Day 3 of 22</span>
       <span>Week budget used: about 26 %</span>
     </div>
@@ -146,11 +146,11 @@ footer { font-size: 13px; color: var(--muted); }
     </div>
     <div class="panel bars">
       <div class="group-label">Foundation · comes first</div>
-      <div class="bar good"><span class="name">Security</span><span class="pct">70 %</span><div class="track"><div class="fill" style="width:70%"></div></div><span class="note">Helper permissions fixed and reviewed. Two known holes left.</span></div>
+      <div class="bar good"><span class="name">Security</span><span class="pct">open: 0 high</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Many holes closed today by reviews. Open: 2 known medium items (injected keys reach window manager bindings; who may claim the question card).</span></div>
       <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">69 of 85</span><div class="track"><div class="fill" style="width:81%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
-      <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="note">3D base complete, 3 days early. Next: the construct uses it. The 2D look is checked pixel by pixel on every merge.</span></div>
+      <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps merged</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">Code and tests merged; not yet seen on real hardware, no 3D capture yet, some review findings deferred. Not "done" until a whole-piece review and real captures. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
-      <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">~10 %</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Barely touched today. Starts tomorrow.</span></div>
+      <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">behind</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Two real bugs fixed, but the old backlog (silent core death, memory growth, 16 bugs) is untouched. Now first priority.</span></div>
       <div class="group-label">Features</div>
       <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">9 of 13</span><div class="track"><div class="fill" style="width:69%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
       <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
@@ -163,9 +163,10 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>12:40</time><p><span class="tag issue">audit</span>An independent judge (Fable) audited the project: code is produced faster than it is verified, stability and everyday tasks are behind, and this page overstated some things. Corrected here. New features pause; next comes a whole-piece review of today's core, stability work and real captures.</p></li>
         <li><time>11:44</time><p><span class="tag ok">milestone</span>3D base complete, all 7 steps, Tuesday instead of Friday. Last piece: sharper scaled images in 2D.</p></li>
         <li><time>11:35</time><p><span class="tag ok">merged</span>The chat input field: typing, paste and input methods; a typed "yes" never answers a question; it only gets the keyboard by your own act and talks only to the HUD over a private pipe.</p></li>
-        <li><time>11:05</time><p><span class="tag ok">milestone</span>3D base done, 3 days early: 8 live 3D windows, idle frames down from 3-6 ms to 0.5 ms, 2D pixel-identical throughout. Only a small 2D image-quality step is left.</p></li>
+        <li><time>11:05</time><p><span class="tag ok">milestone</span>3D steps merged, 3 days early: 8 live 3D windows in tests; idle frames 3-6 ms to 0.5 ms on the software renderer of the cloud machine (not real hardware); the 2D check (7 simple scenes) stayed identical. Only a small 2D image-quality step is left.</p></li>
         <li><time>10:46</time><p><span class="tag ok">merged</span>The HUD now follows what you do (window manager, app, helper state), calmly: at most one change a second, never while a question is open.</p></li>
         <li><time>10:10</time><p><span class="tag ok">merged</span>The HUD host: today's look is now the first HUD folder, plus commands to check, list and switch folders. Review caught a long command hiding its dangerous end; now a question that cannot be shown in full is refused.</p></li>
         <li><time>09:55</time><p><span class="tag ok">merged</span>3D step 3 of 4: menus and drag-and-drop work in tilted windows. Drag-and-drop between programs is new and locked down after review. Also a real clock bug in mc, found by a flaky test.</p></li>
