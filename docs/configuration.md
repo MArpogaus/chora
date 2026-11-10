@@ -180,6 +180,19 @@ While a name is connected, its socket cannot open. `clients up` then
 only syncs the grants of the name and says on stderr that the socket
 stays closed.
 
+### Injected keys
+
+The window managers chora-tiling, chora-xp, chora-mc and chora-construct
+ignore a key that `input.inject` sent (`injected` is true in
+`input.key`), for every binding. A client with the inject grant cannot
+press a binding for the user, so automation calls the methods of the
+window manager instead, such as `window.give`. The setting
+`test_accept_injected_keys` of each of the four is `false`, and it is for
+tests only: `tests/headless-session.sh` and the persona session turn it
+on through the environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1`
+so that tests and personas can drive the bindings. Production keeps it
+off.
+
 ## chora-tiling
 
 `chora-tiling` connects with the client name `tiling`. Grants and
@@ -227,9 +240,10 @@ to the window manager `NAME` (D55), whoever owns it. The keys `Super+Alt+1`
 to `Super+Alt+4` give to tiling, xp, mc and construct in every one of
 those window managers, with no line in the file; the window manager that
 started first holds them, and the next one takes them when it leaves. A
-binding `give: NAME` on another key works while tiling runs. Like every
-binding, the keys are reachable by a client with the grant `input.inject`,
-so that grant counts as a privileged `window.give`. `MOD+BTN_LEFT` (`drag`) holds the
+binding `give: NAME` on another key works while tiling runs. Tiling, xp,
+mc and construct ignore every binding key that came from `input.inject`,
+so a client cannot press the keys for the user; see
+`test_accept_injected_keys` below. `MOD+BTN_LEFT` (`drag`) holds the
 window under the pointer, and a floating window follows the pointer
 within the work area of the tiling output under the pointer. A title bar
 of a client-side decoration drags its own window in the same way. A drop

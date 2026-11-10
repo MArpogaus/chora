@@ -395,16 +395,21 @@ leaves. The holder is the window manager that started first, and it
 serves the keys for every window. A binding `give: NAME` of the settings
 of tiling or mc grabs another key, which that window manager holds.
 
-A client with the grant `input.inject` can press these keys, as it can
-press every binding of every window manager and type into a terminal, so
-that grant includes a privileged `window.give`.
+A window manager ignores a key that came from `input.inject`
+(`injected` is true in `input.key`), as it does for every binding, so
+the give key needs a real key press outside tests. Automation and agents
+call the privileged `window.give` of the owner, or `choractl give`.
+The setting `test_accept_injected_keys` of each window manager and the
+environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` turn that off
+for tests; `tests/headless-session.sh` and the persona session set it.
 
-`tests/gate-handover-matrix.sh` presses the key for every pair with
-construct as the holder, since it starts first. `tests/gate-give-holders.sh`
+`tests/gate-handover-matrix.sh` injects the key for every pair with the
+test setting on and construct as the holder, since it starts first. `tests/gate-give-holders.sh`
 repeats two pairs with xp, tiling and mc as the holder, one for a window
 of the holder and one for a window of another manager that the holder
 forwards, and the gate fails when a manager other than the holder serves
-a key.
+a key. A last run has the setting off and expects that an injected give
+key gives nothing.
 
 ## Selectors
 
