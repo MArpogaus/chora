@@ -143,3 +143,8 @@
     worktree. Changes: agents commit and push work in progress every 30
     to 60 minutes; the PM checks `git status` of every worktree after a
     restart and relaunches with the uncommitted work named in the brief.
+
+21. Disk fell to 2.8 GB with four worktree targets (5 to 8 GB each) plus
+    the main target. Rule from now: at most three worktrees build at a
+    time, and the main target is removed while lanes build (the merge
+    gate rebuilds it cold, about 2 minutes).
