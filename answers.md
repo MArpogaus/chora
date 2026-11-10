@@ -4,6 +4,8 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- 15:20 Bangkok: Fable 12 %, all models 38 % of the week. Post screenshots on the status page when things merge.
+
 - Hybrid workers agreed: separate worker sessions (own container, started
   with the repo as source) for long heavy dev lanes and for testers
   (personas, battle, load); reviewers stay local subagents; the PM stays in
