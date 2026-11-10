@@ -234,6 +234,9 @@ pub struct OutputTexture {
     output: Output,
     damage_tracker: OutputDamageTracker,
     texture: Option<GlesTexture>,
+    /// The damage of the last frame.
+    #[cfg(test)]
+    damage: Vec<smithay::utils::Rectangle<i32, smithay::utils::Physical>>,
 }
 
 impl OutputTexture {
@@ -243,6 +246,8 @@ impl OutputTexture {
             damage_tracker: OutputDamageTracker::from_output(&output),
             output,
             texture: None,
+            #[cfg(test)]
+            damage: Vec::new(),
         }
     }
 
@@ -255,6 +260,12 @@ impl OutputTexture {
     #[cfg(test)]
     pub fn texture(&self) -> Option<&GlesTexture> {
         self.texture.as_ref()
+    }
+
+    /// The damage of the last frame.
+    #[cfg(test)]
+    pub fn last_damage(&self) -> &[smithay::utils::Rectangle<i32, smithay::utils::Physical>] {
+        &self.damage
     }
 
     /// Renders the damaged parts of the output into the texture. Returns
@@ -290,6 +301,10 @@ impl OutputTexture {
             .map_err(|e| format!("rendering failed: {e:?}"))?;
         let _ = result.sync.wait();
         let damaged = result.damage.is_some();
+        #[cfg(test)]
+        {
+            self.damage = result.damage.cloned().unwrap_or_default();
+        }
         parts.assets.stats.frame(damaged);
         Ok(damaged)
     }
@@ -341,6 +356,7 @@ mod tests {
             wayland::{Toplevel, Wayland},
         },
     };
+    use wayland_client::protocol::wl_shm::Format;
 
     fn render_into(state: &mut State, target: &mut OutputTexture) -> Result<bool, String> {
         let view = render::View::of(state, target.output());
@@ -640,5 +656,235 @@ mod tests {
         core.admin().ok(&mut core, "output.remove", remove);
         let (_, error) = construct.fails(&mut core, "output.remove", json!({"output": "screen"}));
         assert!(error.contains("headless"), "{error}");
+    }
+
+    const RED: u32 = 0xFFFF_0000;
+    const BLUE: u32 = 0xFF00_00FF;
+    /// The place and the side of the pane on the screen, and of the face.
+    const PANE: (i32, i32) = (64, 32);
+    const SIDE: i32 = 32;
+
+    /// A shader file that shows the sampler `face`.
+    fn face_shader(dir: &std::path::Path) -> String {
+        let shader = dir.join("face.frag");
+        std::fs::write(
+            &shader,
+            "precision mediump float;\nuniform sampler2D face;\nvarying vec2 v_uv;\n\
+             void main() { gl_FragColor = texture2D(face, v_uv); }\n",
+        )
+        .expect("a shader file");
+        shader.to_str().expect("a path").to_owned()
+    }
+
+    /// The commands of a pane of the face on the screen.
+    fn pane(shader: &str) -> Value {
+        let props = json!({"size": [SIDE, SIDE], "shader": shader,
+            "uniforms": {"face": {"output": "VIRTUAL-1"}},
+            "transform": {"translate": [PANE.0, PANE.1]}});
+        json!({"commands": [
+            {"create": {"id": "pane", "kind": "shader", "parent": "root", "props": props}}]})
+    }
+
+    /// A screen of 128x96 and its texture, a face of 32x32 of "construct"
+    /// with a red window that fills it and a white corner above the window.
+    struct Faced {
+        core: Core,
+        construct: crate::testing::Client,
+        wayland: Wayland,
+        window: Toplevel,
+        screen: OutputTexture,
+        dir: std::path::PathBuf,
+    }
+
+    fn faced() -> Faced {
+        let mut core = Core::with_renderer();
+        let screen = OutputTexture::new(core.add_output("screen", (128, 96)));
+        let mut construct = core.named("construct");
+        add_virtual(&mut core, &mut construct, "32x32");
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "window");
+        wayland.opaque(&window, (SIDE, SIDE));
+        wayland.attach_filled(&mut core, &window, (SIDE, SIDE), (Format::Argb8888, RED));
+        let at_face = json!({"translate": [SLOT_1, SLOT_1]});
+        let corner = json!({"size": [8, 8], "color": [1, 1, 1, 1], "transform": at_face});
+        let commands = json!({"commands": [
+            {"attach": {"surface": "s1", "parent": "root"}},
+            {"update": {"id": "s1", "props": {"transform": at_face}}},
+            {"create": {"id": "corner", "kind": "rect", "parent": "root", "props": corner}},
+        ]});
+        construct.ok(&mut core, "scene.apply", commands);
+        let dir = crate::testing::scratch_dir("chora-face");
+        Faced {
+            core,
+            construct,
+            wayland,
+            window,
+            screen,
+            dir,
+        }
+    }
+
+    impl Faced {
+        fn show_pane(&mut self) {
+            let pane = pane(&face_shader(&self.dir));
+            self.construct.ok(&mut self.core, "scene.apply", pane);
+        }
+
+        /// Renders frames of the screen as a backend does.
+        fn frames(&mut self, count: usize) {
+            for _ in 0..count {
+                let Self { core, screen, .. } = self;
+                let output = screen.output().clone();
+                render_and_present(&mut core.state, &output, |state| render_into(state, screen));
+            }
+        }
+
+        /// A pixel of the screen after one more frame.
+        fn pixel(&mut self, x: i32, y: i32) -> [u8; 4] {
+            self.frames(1);
+            let Some(Backend::Headless(headless)) = &mut self.core.state.backend else {
+                panic!("a headless backend");
+            };
+            let texture = self.screen.texture().expect("a texture");
+            let gles = headless.gles();
+            let at = Rectangle::new((x, y).into(), (1, 1).into());
+            let mapping = gles
+                .copy_texture(texture, at, Fourcc::Abgr8888)
+                .expect("a copy");
+            let rgba = gles.map_texture(&mapping).expect("a mapping");
+            [rgba[0], rgba[1], rgba[2], rgba[3]]
+        }
+
+        fn stats(&self) -> render::RenderStats {
+            self.core.state.assets.stats.clone()
+        }
+    }
+
+    #[test]
+    fn a_flat_pane_shows_the_window_on_its_virtual_output() {
+        let mut faced = faced();
+        faced.show_pane();
+        assert_eq!(faced.pixel(PANE.0 + 2, PANE.1 + 2), [255; 4], "the corner");
+        assert_eq!(
+            faced.pixel(PANE.0 + SIDE - 2, PANE.1 + SIDE - 2),
+            [255, 0, 0, 255],
+            "the window"
+        );
+        assert_eq!(faced.pixel(4, 4), [0, 0, 0, 255], "beside the pane");
+    }
+
+    #[test]
+    fn a_static_virtual_output_renders_once() {
+        let mut faced = faced();
+        faced.show_pane();
+        let start = faced.stats();
+        faced.frames(2);
+        let settled = faced.stats();
+        faced.frames(60);
+        let end = faced.stats();
+        assert_eq!(settled.damaged_frames - start.damaged_frames, 2);
+        assert_eq!(end.damaged_frames, settled.damaged_frames, "no damage");
+        assert_eq!(end.offscreen(), settled.offscreen(), "no pass");
+        assert_eq!(end.frames - settled.frames, 120, "the screen and the face");
+    }
+
+    #[test]
+    fn an_unread_one_renders_nothing_and_gets_1_hz() {
+        let mut faced = faced();
+        let start = faced.stats();
+        for _ in 0..60 {
+            let Faced {
+                core,
+                wayland,
+                window,
+                ..
+            } = &mut faced;
+            wayland.frame(core, window);
+            faced.frames(1);
+        }
+        faced.wayland.roundtrip(&mut faced.core);
+        assert_eq!(faced.stats().frames - start.frames, 60, "the screen only");
+        assert!(faced.wayland.configures(&faced.window).frames <= 1);
+    }
+
+    #[test]
+    fn a_read_one_gets_a_frame_callback_each_frame() {
+        let mut faced = faced();
+        faced.show_pane();
+        for _ in 0..3 {
+            let Faced {
+                core,
+                wayland,
+                window,
+                ..
+            } = &mut faced;
+            wayland.frame(core, window);
+            faced.frames(1);
+            faced.wayland.roundtrip(&mut faced.core);
+        }
+        assert_eq!(faced.wayland.configures(&faced.window).frames, 3);
+    }
+
+    #[test]
+    fn a_commit_damages_only_its_pane() {
+        let mut faced = faced();
+        faced.show_pane();
+        faced.frames(2);
+        let Faced {
+            core,
+            wayland,
+            window,
+            ..
+        } = &mut faced;
+        wayland.attach_filled(core, window, (SIDE, SIDE), (Format::Argb8888, BLUE));
+        faced.frames(1);
+        let pane = Rectangle::new(PANE.into(), (SIDE, SIDE).into());
+        let damage = faced.screen.last_damage().to_vec();
+        assert!(!damage.is_empty(), "the commit shows");
+        assert!(damage.iter().all(|d| pane.contains_rect(*d)), "{damage:?}");
+        assert_eq!(
+            faced.pixel(PANE.0 + SIDE - 2, PANE.1 + SIDE - 2),
+            [0, 0, 255, 255]
+        );
+    }
+
+    #[test]
+    fn a_foreign_client_cannot_sample_it() {
+        let mut faced = faced();
+        let pane = pane(&face_shader(&faced.dir));
+        let mut other = faced.core.named("xp");
+        let (_, error) = other.fails(&mut faced.core, "scene.apply", pane.clone());
+        assert!(error.contains("construct"), "{error}");
+        let mut unknown = pane;
+        unknown["commands"][0]["create"]["props"]["uniforms"]["face"]["output"] = json!("screen");
+        let (_, error) = faced
+            .construct
+            .fails(&mut faced.core, "scene.apply", unknown);
+        assert!(error.contains("no virtual output"), "{error}");
+    }
+
+    /// The name of a removed output goes to the next one. A pane that read
+    /// the old one stays in the scene and shows nothing of the new owner.
+    #[test]
+    fn a_pane_of_a_former_owner_reads_nothing_of_the_next() {
+        let mut faced = faced();
+        faced.show_pane();
+        let remove = json!({"output": "VIRTUAL-1"});
+        faced.construct.ok(&mut faced.core, "output.remove", remove);
+        let mut other = faced.core.named("xp");
+        add_virtual(&mut faced.core, &mut other, "32x32");
+        faced.frames(2);
+        let shown = faced.pixel(PANE.0 + SIDE - 2, PANE.1 + SIDE - 2);
+        assert_ne!(shown, [255, 0, 0, 255], "the window of the new owner");
+    }
+
+    #[test]
+    fn a_locked_session_renders_no_virtual_output() {
+        let mut faced = faced();
+        faced.show_pane();
+        let _lock = faced.wayland.lock(&mut faced.core);
+        let start = faced.stats();
+        faced.frames(3);
+        assert_eq!(faced.stats().frames - start.frames, 3, "the screen only");
     }
 }
