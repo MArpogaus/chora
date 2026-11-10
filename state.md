@@ -40,6 +40,12 @@ week 1 has room for playful 3D demos and feature sprints):
 
 ## Next step
 
+Fable heavy lane (11-10, user): each freed build slot goes to a Fable
+senior-developer step, in this order: construct on 3D (K5); virtual
+outputs (D69); cube geometry (K9/K11, xp on four faces); give with grab
+(E3); XP split X3 to X5; the voice policy crate; grants steps 2 to 7.
+Opus reviews each. Sonnet lanes only for small steps and fixes.
+
 Order until the foundation holds (charter section 1 item 20):
 stability and bug fixes, 3D, plugin separation; no feature sprints.
 
