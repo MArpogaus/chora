@@ -108,7 +108,7 @@ repos:
 
 # Allowed words are in _typos.toml, next to the German voice phrases.
 - repo: https://github.com/crate-ci/typos
-  rev: v1.51.1
+  rev: v1.52.0
   hooks:
   - id: typos
     args: [--force-exclude]   # pre-commit passes the file names
