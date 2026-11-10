@@ -803,6 +803,17 @@ step 4, before new work. The
   `setup.sh`); the old persistent trigger is disabled. The user talks to
   the newest session. Everything a later run needs is in the log files:
   state.md (Running, Next step), answers.md, questions.md.
+- One PM at a time (`pm:` line in state.md, see routine.md). The old
+  persistent session (session_016iS3kQmq6Q6Ce3hxtenYSR) does no PM work
+  after 11-10 16:45. A user message to an older session is answered
+  there with a pointer to the newest session and copied to answers.md.
+- GitHub from a run: REST only, through `gh api` (GraphQL, so `gh issue`
+  and `gh pr`, is blocked). Issues: list `gh api
+  'repos/MArpogaus/chora/issues?state=open&per_page=100'`, create `gh api
+  repos/MArpogaus/chora/issues -f title=... -f body=...`; Dependabot PRs
+  `gh api 'repos/MArpogaus/chora/pulls?state=open'`, never merged.
+- Budget across runs: tokens.py sees only the current session; the
+  ledger row of the day sums the runs, and the user's readings decide.
 - The user answers in the chat of the PM session or in `answers.md`; the
   PM copies chat answers into `answers.md`. Each run reads it at run
   start step 4 and pulls before it pushes.

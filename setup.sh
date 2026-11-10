@@ -6,12 +6,18 @@ set -u
 log() { echo "setup: $*"; }
 
 need_apt=()
-for p in sway foot grim waybar fuzzel wlrctl swaylock wlr-randr python3-dbusmock jq; do
+build_pkgs="libdisplay-info-dev libdrm-dev libinput-dev libseat-dev libsystemd-dev libudev-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgbm-dev libegl-mesa0 libgl1-mesa-dri pkg-config"
+e2e_pkgs="sway swaybg foot grim waybar fuzzel wlrctl swaylock wlr-randr python3-dbusmock jq"
+for p in $build_pkgs $e2e_pkgs; do
     dpkg -s "$p" >/dev/null 2>&1 || need_apt+=("$p")
 done
 if [ "${#need_apt[@]}" -gt 0 ]; then
     log "apt: ${need_apt[*]}"
-    apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${need_apt[@]}" >/dev/null
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${need_apt[@]}" >/dev/null ||
+        for p in "${need_apt[@]}"; do
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$p" >/dev/null || log "FAILED apt: $p"
+        done
 fi
 
 for t in pre-commit vale git-filter-repo; do
@@ -42,4 +48,13 @@ if [ -d /home/user/chora/.git ]; then
     git -C /home/user/chora config --local core.bare false
     (cd /home/user/chora && pre-commit install -t pre-commit -t commit-msg >/dev/null 2>&1)
 fi
-log "done; check: lychee, vale, pre-commit, cz, cargo deny, cargo machete, sway, foot"
+missing=()
+for t in cargo pre-commit vale cz lychee sway swaybg foot grim jq gh; do
+    command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+done
+for c in deny machete; do cargo "$c" --version >/dev/null 2>&1 || missing+=("cargo-$c"); done
+pkg-config --exists libdisplay-info libdrm libinput libseat libudev wayland-server xkbcommon egl gbm || missing+=("build-packages")
+[ "$(git -C /home/user/chora config --local user.email 2>/dev/null)" = "38564291+MArpogaus@users.noreply.github.com" ] || missing+=("git-identity")
+[ -x /home/user/chora/.git/hooks/commit-msg ] || missing+=("hooks")
+if [ "${#missing[@]}" -gt 0 ]; then log "MISSING: ${missing[*]}"; exit 1; fi
+log "done, all present"
