@@ -503,3 +503,12 @@ fn a_confined_client_starts_no_drag() {
     let _ = std::fs::remove_dir_all(dir);
     assert!(done, "a confined client may not drag");
 }
+
+#[test]
+fn two_agent_windows_keep_their_own_directory() {
+    let (_first, _, first) = with_agent_window();
+    let (_second, _, second) = with_agent_window();
+    assert_ne!(first, second, "the tests share a directory");
+    let _ = std::fs::remove_dir_all(first);
+    let _ = std::fs::remove_dir_all(second);
+}

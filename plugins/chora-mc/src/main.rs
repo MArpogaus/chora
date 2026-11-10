@@ -2817,4 +2817,45 @@ mod tests {
         mc.show("agenda", true).unwrap();
         assert_eq!(focuses(), before + 1);
     }
+
+    /// The window that mc hands away leaves the keyboard to its receiver:
+    /// mc sends no focus while it leaves the scene of the window.
+    #[test]
+    fn a_handed_window_leaves_the_focus_to_its_receiver() {
+        use chora_kit::give::Give;
+        let (mut mc, model) = crate::testing::mc("handed", [1920, 1080]);
+        mc.show("agenda", true).unwrap();
+        let info = chora_scene::SurfaceInfo::default();
+        model.lock().unwrap().scene.add_surface("s1", info);
+        model.lock().unwrap().scene.reserve("s1", Some("mc"));
+        mc.apply(vec![chora_scene::Command::Attach {
+            surface: "s1".into(),
+            parent: crate::scene_id("agenda"),
+        }])
+        .unwrap();
+        let claim = chora_scene::Command::Create {
+            id: "xp-claim".into(),
+            kind: chora_scene::NodeKind::Group,
+            parent: "root".into(),
+            props: chora_scene::PropsUpdate {
+                claim: Some(Some([0.0, 0.0, 10.0, 10.0])),
+                ..chora_scene::PropsUpdate::default()
+            },
+        };
+        model.lock().unwrap().scene.apply("xp", &[claim]).unwrap();
+        mc.windows.insert("agenda".into(), "s1".into());
+        mc.focused = Some("s1".into());
+        let before = model.lock().unwrap().focuses.len();
+        mc.give(Give {
+            surface: "s1".into(),
+            to: "xp".into(),
+        })
+        .unwrap();
+        let focuses = model.lock().unwrap().focuses.split_off(before);
+        assert!(
+            focuses.is_empty(),
+            "mc sent a focus after the hand: {focuses:?}"
+        );
+        assert_eq!(mc.focused, None);
+    }
 }

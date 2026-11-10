@@ -436,4 +436,20 @@ mod tests {
         assert!(error.contains("last output"), "{error}");
         render_all(&mut core.state);
     }
+
+    /// The display of smithay panics while it holds its global lock, and
+    /// poisons it for every later renderer, when a thread finds a display
+    /// whose last user just went. The display stays for the process.
+    #[test]
+    fn the_display_outlives_the_renderers_that_use_it() {
+        let mut renderer = Headless::new().expect("a software renderer");
+        let display = std::sync::Arc::downgrade(
+            &renderer.gles().egl_context().display().get_display_handle(),
+        );
+        drop(renderer);
+        assert!(
+            display.upgrade().is_some(),
+            "the last renderer closed the display"
+        );
+    }
 }
