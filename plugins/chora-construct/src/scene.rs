@@ -15,7 +15,8 @@ impl Construct {
                 to: None,
             }])?;
         }
-        self.output = self.rt.outputs()?.into_iter().next();
+        self.output = (self.rt.outputs()?.into_iter()).find(|o| o.is_virtual != Some(true));
+        self.remove_left_outputs()?;
         let mut methods = exported_methods();
         methods.extend(settings::File::<Config>::methods());
         self.rt.announce(&EVENTS, methods)?;
@@ -55,15 +56,18 @@ impl Construct {
             } else {
                 Duration::from_secs(3600)
             };
-            let wait = (self.voice.deadline()).map_or(wait, |t| {
-                wait.min(t.saturating_duration_since(Instant::now()))
-            });
+            let wait = (self.voice.deadline().into_iter())
+                .chain(self.cube_deadline())
+                .fold(wait, |wait, t| {
+                    wait.min(t.saturating_duration_since(Instant::now()))
+                });
             match self.rt.conn.next_event_timeout(wait)? {
                 Some(event) => runtime::dispatch(self, event)?,
                 None if plugins => self.retry_plugins()?,
                 None => {}
             }
             self.tick()?;
+            self.check_cube()?;
             if self.glide.is_some() {
                 self.step_glide()?;
             }
@@ -127,6 +131,7 @@ impl Construct {
         if !self.active {
             return Ok(());
         }
+        self.close_cube()?;
         self.rt.conn.apply(vec![
             Command::FocusNode { node: None },
             Command::Remove {

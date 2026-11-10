@@ -253,10 +253,10 @@ pub struct Wm {
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
-    /// Whether xp runs on a virtual output: a host such as the construct
-    /// shows the outputs on a cube of its own, so the desktop cube is
-    /// off (one cube).
-    on_virtual: bool,
+    /// The virtual outputs that xp manages: when all its outputs are
+    /// virtual, a host such as the construct shows them on a cube of its
+    /// own, so the desktop cube is off (one cube).
+    virtuals: std::collections::BTreeSet<String>,
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
@@ -361,7 +361,7 @@ impl Wm {
             switch_escape: None,
             system_key: None,
             cube_grab: None,
-            on_virtual: false,
+            virtuals: std::collections::BTreeSet::new(),
             kept: HashMap::new(),
             launches: Launches::new(),
             notifier: Notifier::new(),
@@ -475,7 +475,9 @@ impl Wm {
     }
 
     fn add_output(&mut self, output: &OutputInfo) -> Vec<Command> {
-        self.on_virtual |= output.is_virtual == Some(true);
+        if output.is_virtual == Some(true) {
+            self.virtuals.insert(output.name.clone());
+        }
         let mut commands = wallpaper::create(
             &mut self.theme,
             &self.settings.value.wallpaper,
@@ -1244,6 +1246,7 @@ impl Wm {
     }
 
     fn output_removed(&mut self, name: &str) -> Vec<Command> {
+        self.virtuals.remove(name);
         let mut commands = Vec::new();
         if self.menu.output() == Some(name) {
             commands.extend(self.menu.close(&mut self.theme));

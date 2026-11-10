@@ -63,10 +63,12 @@ impl Wm {
         commands
     }
 
-    /// Whether the desktop cube turns: its toggle is on and xp runs on no
-    /// virtual output.
+    /// Whether the desktop cube turns: its toggle is on and not all the
+    /// outputs of xp are virtual.
     fn cube_on(&self) -> bool {
-        self.effects.toggles.cube && !self.on_virtual
+        let all_virtual =
+            !self.bars.is_empty() && (self.bars.iter()).all(|b| self.virtuals.contains(&b.output));
+        self.effects.toggles.cube && !all_virtual
     }
 
     /// Starts a turn of the cube by some quarter turns.

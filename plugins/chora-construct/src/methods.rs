@@ -37,6 +37,8 @@ fn four() -> usize {
 #[serde(deny_unknown_fields)]
 pub(crate) struct TurnCube {
     pub(crate) by: i32,
+    #[serde(default)]
+    pub(crate) ms: Option<u64>,
 }
 
 /// Parameters of `pane.resize`.
@@ -69,15 +71,23 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
         runtime::privileged(runtime::method(
             "cube.open",
             "Opens a cube of FACES virtual outputs, 4 by default, with one xp on them: each \
-             output shows on a face, whose windows take the pointer. It goes when xp ends.",
+             output shows on a face, whose windows take the pointer. It goes when xp ends \
+             or does not connect within 10 s.",
             json!({"faces": {"type": "integer", "minimum": 1, "maximum": 4}}),
             &[],
         )),
         runtime::method(
             "cube.turn",
-            "Turns the cube BY quarter turns, positive to the right.",
-            json!({"by": {"type": "integer"}}),
+            "Turns the cube BY quarter turns, positive to the right, in MS milliseconds, \
+             500 a quarter by default; ignored while a turn runs.",
+            json!({"by": {"type": "integer"}, "ms": {"type": "integer", "minimum": 0}}),
             &["by"],
+        ),
+        runtime::method(
+            "cube.close",
+            "Closes the cube: its xp ends, and its outputs and faces go.",
+            json!({}),
+            &[],
         ),
         runtime::method(
             "construct.list",

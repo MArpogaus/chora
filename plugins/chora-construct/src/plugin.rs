@@ -47,7 +47,8 @@ impl Plugin for Construct {
                 ..
             } => self.resize(&surface, [f64::from(w), f64::from(h)]),
             Event::OutputChanged { output }
-                if self.output.as_ref().is_none_or(|o| o.name == output.name) =>
+                if output.is_virtual != Some(true)
+                    && self.output.as_ref().is_none_or(|o| o.name == output.name) =>
             {
                 let same = self
                     .output
@@ -59,7 +60,8 @@ impl Plugin for Construct {
             Event::OutputRemoved { name }
                 if self.output.as_ref().is_some_and(|o| o.name == name) =>
             {
-                self.output = self.rt.outputs()?.into_iter().find(|o| o.name != name);
+                self.output = (self.rt.outputs()?.into_iter())
+                    .find(|o| o.name != name && o.is_virtual != Some(true));
                 if self.output.is_some() {
                     self.build()?;
                 }
@@ -96,8 +98,12 @@ impl Plugin for Construct {
                 self.open_cube(faces).map_err(rejected)
             }
             "cube.turn" => {
-                let TurnCube { by } = runtime::params(params)?;
-                self.turn_cube(by).map_err(rejected)?;
+                let TurnCube { by, ms } = runtime::params(params)?;
+                self.turn_cube(by, ms).map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "cube.close" => {
+                self.close_cube().map_err(rejected)?;
                 Ok(Value::Null)
             }
             "construct.leave" => {

@@ -159,7 +159,9 @@ pub struct Turn {
 }
 
 impl Turn {
-    /// A turn from `from` to `to` that starts at `start`.
+    /// A turn from `from` to `to` that starts at `start`, the short way;
+    /// a half turn always goes the negative way, so `by: 2` and `by: -2`
+    /// turn alike.
     #[must_use]
     pub fn new(from: f64, to: f64, start: Instant, duration: Duration) -> Self {
         let by = (to - from + PI).rem_euclid(TAU) - PI;
