@@ -212,7 +212,7 @@ impl Construct {
     /// Asks the voice agent to hide its dot while the HUD shows its
     /// state, once per connection of the agent (docs/voice.md, 10).
     pub(crate) fn claim_indicator(&mut self, last: bool) {
-        if !self.settings.value.voice_hud || !self.active {
+        if !self.settings.value.draws_voice() || !self.active {
             return;
         }
         let conn = &mut self.rt.conn;

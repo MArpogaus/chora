@@ -66,7 +66,7 @@ impl Construct {
     }
 
     pub(crate) fn shows_hud(&self) -> bool {
-        self.settings.value.voice_hud && self.active && self.output.is_some()
+        self.settings.value.draws_voice() && self.active && self.output.is_some()
     }
 
     /// The voice HUD: at the bottom centre, or compact at the bottom

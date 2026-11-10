@@ -224,10 +224,30 @@ pub struct Config {
     /// The modifier of a drag that moves a pane and of the wheel that
     /// resizes it.
     pub modifier: String,
-    /// Whether the construct draws the voice HUD (F28) and hides the dot
-    /// of the voice agent.
-    pub voice_hud: bool,
+    /// Who draws the voice HUD (F28) and the questions: the construct,
+    /// or the HUD host with the folder `hud`.
+    pub voice_hud: VoiceHud,
     pub style: Style,
+}
+
+/// Who draws the voice HUD and the questions of the voice agent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoiceHud {
+    /// The construct draws them and claims the indicator of the agent.
+    Own,
+    /// The HUD host `chora-assistant` draws them; the construct claims
+    /// nothing.
+    Host,
+}
+
+impl Config {
+    /// Whether the construct draws the voice HUD and the questions and
+    /// claims the indicator of the voice agent.
+    #[must_use]
+    pub fn draws_voice(&self) -> bool {
+        matches!(self.voice_hud, VoiceHud::Own | VoiceHud::Host)
+    }
 }
 
 impl Settings for Config {
@@ -318,7 +338,7 @@ mod tests {
         assert_eq!(config.keys["Return"], Action::FlyIn);
         assert_eq!(config.keys["space"], Action::Launcher);
         assert_eq!(config.keys["Tab"], Action::Windows);
-        assert!(config.voice_hud);
+        assert_eq!(config.voice_hud, VoiceHud::Own);
         assert_eq!(config.style.font, "Inter");
     }
 
@@ -347,6 +367,55 @@ mod tests {
         let mut out = config;
         out.style.accent = [1.2, 0.5, 0.5];
         assert!(out.check().is_err());
+    }
+
+    /// With `voice_hud: host` the host draws the voice HUD and the
+    /// question: the construct draws neither.
+    #[test]
+    fn voice_hud_host_draws_no_voice_status() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.voice_hud, VoiceHud::Own);
+        assert!(config.draws_voice());
+        config.voice_hud = VoiceHud::Host;
+        assert!(!config.draws_voice());
+        let text = DEFAULT.replace("voice_hud: own", "voice_hud: host");
+        let host: Config = serde_saphyr::from_str(&text).unwrap();
+        assert_eq!(host.voice_hud, VoiceHud::Host);
+    }
+
+    /// With `voice_hud: host` the construct never claims the indicator of
+    /// voice, also not when the claim is due.
+    #[test]
+    fn voice_hud_host_claims_no_indicator() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        config.voice_hud = VoiceHud::Host;
+        assert!(!config.draws_voice());
+        config.voice_hud = VoiceHud::Own;
+        assert!(config.draws_voice());
+    }
+
+    /// Rule 5 holds for the block `chat:` of the folder `hud`: `text` 7:1
+    /// and the names 4.5:1 on the fill; the chat is the glass panel at
+    /// the right, 480 wide, in the colours of the light theme.
+    #[test]
+    fn the_chat_of_the_folder_keeps_the_contrast_of_rule_5() {
+        use chora_kit::hud::{self, Anchor, ChatStyle};
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("hud");
+        let folder = hud::load(&dir).unwrap_or_else(|errors| panic!("{errors:?}"));
+        let chat = folder.chat;
+        assert_eq!(chat.style, ChatStyle::Glass);
+        assert_eq!(chat.place(), (Anchor::Right, 480));
+        let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
+        let fill = rgb(chat.fill);
+        assert!(contrast(rgb(chat.text), fill) >= 7.0);
+        assert!(contrast(rgb(chat.name), fill) >= 4.5);
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let light = &config.style.themes.light;
+        let near = |a: [f64; 3], b: [f64; 3]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
+        assert!(near(rgb(chat.text), light.text));
+        assert!(near(rgb(chat.name), light.muted));
+        let over_black: [f64; 3] = std::array::from_fn(|i| light.glass[i] * light.glass[3]);
+        assert!(near(fill, over_black), "{fill:?} {over_black:?}");
     }
 
     /// The help lists the bindings of the settings, also changed ones.
