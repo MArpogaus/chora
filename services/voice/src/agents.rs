@@ -237,9 +237,11 @@ impl Sub {
         }
     }
 
-    /// The entries after `after`, up to `READ_BYTES` of text, and the
-    /// last `seq` that the answer holds. The first entry always comes,
-    /// so that a reader never stalls.
+    /// The entries after `after`, up to `READ_BYTES` of text, the last
+    /// `seq` that the answer holds, and the `epoch` of this start of the
+    /// agent: a reader that sees another epoch starts its transcript
+    /// again. The first entry always comes, so that a reader never
+    /// stalls.
     fn read(&self, after: u64) -> Value {
         let mut bytes = 0;
         let mut last = self.seq;
@@ -252,7 +254,7 @@ impl Sub {
             last = e.seq;
             entries.push(json!({"seq": e.seq, "role": e.role, "text": e.text}));
         }
-        json!({"entries": entries, "seq": last})
+        json!({"entries": entries, "seq": last, "epoch": self.id})
     }
 
     fn note(&mut self, line: &str) {
@@ -1823,6 +1825,9 @@ exec cat >/dev/null"#;
         assert_eq!(first["entries"][0]["text"], "Schreib notes.txt");
         assert_eq!(first["entries"][3]["text"], "Read src/main.rs");
         assert_eq!(first["seq"], seen[4].0);
+        let epoch = agents.lock().subs["coder"].id;
+        assert_eq!(first["epoch"], epoch);
+        assert_eq!(agents.read("coder", 99, None).unwrap()["epoch"], epoch);
         let record = agents.lock().subs["coder"].record("coder");
         assert_eq!(record["seq"], seen[4].0);
         let after = agents.read("coder", seen[2].0, None).unwrap();
