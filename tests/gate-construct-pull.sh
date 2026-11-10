@@ -1,0 +1,111 @@
+#!/bin/bash
+# Gate of the pull-out (E3): a window leaves a face of the cube of the
+# construct while its title bar is dragged. chora-xp gives it with the
+# drag to chora-construct, which shows the face; there it becomes a pane
+# that goes on with the drag and wobbles with a depth.
+#
+# The front face of a resting cube fills its screen, so the drag leaves
+# the face over the edge of the screen, onto a second output.
+#
+# 1. With CHORA_TEST_INJECTED_DRAG_GIVES (headless only), where an
+#    injected press gives its drag: inside the face the window moves and
+#    stays with xp; past the edge it is a pane of the construct, and the
+#    mesh of the pane has a depth; after the drop on the screen of the
+#    construct it is still its pane. The window exists at every step.
+# 2. Without the variable an injected drag gives nothing: past the edge
+#    the window is still with xp, and no pane shows it.
+#
+# Usage: tests/gate-construct-pull.sh   BIN: directory with the binaries
+# shellcheck disable=SC2016
+set -u
+. "$(dirname "$0")/gate-lib.sh"
+need_bins chora choractl chora-construct chora-xp chora-probe
+temp_config
+work=$XDG_CONFIG_HOME
+export PATH=$bin:$PATH
+export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
+
+until_ok() {
+    for _ in $(seq "${2:-40}"); do
+        eval "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+call() { ctl call construct "$@"; }
+inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
+probe() {
+    ctl query kind:surface | python3 -I -c '
+import json, sys
+for n in json.load(sys.stdin):
+    if n["surface"].get("app_id") == "chora-probe":
+        out, r = next(iter(n["rects"].items()), ("-", [0, 0, 0, 0]))
+        print(n["id"], n.get("owner"), out, round(r[0]), round(r[1]))'
+}
+owner() { probe | awk '{print $2}'; }
+pane_of() {
+    call window.list '{}' | python3 -I -c '
+import json, sys
+print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]), "lost"))' "$1"
+}
+deepest() {
+    ctl query "id:construct-pane-$1" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+depth = (nodes[0].get("mesh") or {}).get("depth") or [] if nodes else []
+print(max((abs(z) for z in depth), default=0))'
+}
+
+pull() {
+    env_file=$work/$1.env session_start 1280x800 -- "$bin/chora-construct"
+    grant input.inject screen.capture
+    ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+    call settings.set '{"effects": ["wobbly"]}' >/dev/null || fail "settings.set effects"
+    call cube.open '{}' >/dev/null || fail "cube.open"
+    until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
+    edge=$(timeout 10 "$bin/choractl" add-output "640x800+1280+0" |
+        python3 -I -c 'import json, sys; print(json.load(sys.stdin)["name"])') || fail "no second output"
+    inject '[{"pointer_move": {"position": [640, 400]}}]'
+    "$bin/chora-probe" window 40 120 200 --server-deco >"$work/$1-probe.log" 2>&1 &
+    pids+=($!)
+    until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
+    read -r surface _ _ x y <<<"$(probe)"
+    until_ok 'ctl query "id:xp-title-$surface" | grep -q VIRTUAL-1' 40 || fail "the window has no title bar"
+    inject "[{\"pointer_move\": {\"position\": [$((x + 90)), $((y - 24))]}},
+        {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"
+    inject '[{"pointer_move": {"position": [900, 300]}}]'
+    until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" != "$x"' 20 ||
+        fail "the drag of the title bar does not move the window: $(probe)"
+    [ "$(owner)" = xp ] || fail "the window left xp inside its face: $(probe)"
+    inject "[{\"pointer_move\": {\"position\": [200, 300], \"output\": \"$edge\"}}]"
+}
+end_session() {
+    inject '[{"button": {"state": "released"}}]'
+    kill "${pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    pids=()
+}
+
+CHORA_TEST_INJECTED_DRAG_GIVES=1 pull given
+ok "inside its face the window moves with the drag and stays with xp"
+until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
+until_ok 'test "$(pane_of "$surface")" != none && test "$(pane_of "$surface")" != lost' 20 ||
+    fail "the window is no pane of the construct: $(pane_of "$surface")"
+ok "past the edge of its face the window is a pane of the construct"
+inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}}]"
+inject '[{"pointer_move": {"position": [900, 420]}}]'
+until_ok 'test "$(deepest "$surface")" != 0' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
+ok "the pane wobbles on with a depth of $(deepest "$surface")"
+inject '[{"pointer_move": {"position": [700, 400]}}, {"button": {"state": "released"}}]'
+sleep 1
+[ "$(owner)" = construct ] || fail "the window is lost or left after the drop: $(probe)"
+[ "$(pane_of "$surface")" != none ] || fail "the pane went after the drop"
+ok "after the drop the window is still a pane of the construct: $(probe)"
+end_session
+
+pull injected
+sleep 2
+[ "$(owner)" = xp ] || fail "an injected drag gave the window past the edge: $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "an injected drag made a pane: $(pane_of "$surface")"
+ok "an injected drag gives nothing: past the edge the window is still with xp"
+end_session
