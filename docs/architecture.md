@@ -188,8 +188,9 @@ positive scale, is a **layer**: the core renders it with its descendants into a
 texture of its size, and then draws the texture through the mesh, or a
 quad, with the full transform of the node and the camera. The vertices go
 to the GPU in homogeneous coordinates, so textures map correctly under
-perspective. Wobbly windows move the points of a mesh, a magic lamp
-animates them, and a desktop cube turns layers in 3D. A layer has no depth
+perspective. Wobbly windows move the points of a mesh, in 3D
+with a `depth` for each point (`Wobble::new_3d`, a smaller z is nearer), a
+magic lamp animates them, and a desktop cube turns layers in 3D. A layer has no depth
 test: the order of the siblings decides what is in front, and a plugin
 hides the faces that turn away. A node with a size, or with a content size
 such as a window, an image or a text, whose transform relative to its nearest
