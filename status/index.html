@@ -102,9 +102,9 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 11:05 Bangkok</span>
+      <span>Updated Tue 10 Nov, 11:44 Bangkok</span>
       <span>Day 3 of 22</span>
-      <span>Week budget used: 15 %</span>
+      <span>Week budget used: about 26 %</span>
     </div>
   </header>
 
@@ -114,8 +114,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>The chat input field (keyboard only by your own act)</li>
-          <li>Last 3D piece: sharper scaled images in 2D</li>
+          <li>The chat inside the HUD (open, read, follow you across looks)</li>
+          <li>One shared "give" key to move a window to any window manager</li>
         </ul>
       </div>
       <div class="panel">
@@ -148,11 +148,11 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="group-label">Foundation · comes first</div>
       <div class="bar good"><span class="name">Security</span><span class="pct">70 %</span><div class="track"><div class="fill" style="width:70%"></div></div><span class="note">Helper permissions fixed and reviewed. Two known holes left.</span></div>
       <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">69 of 85</span><div class="track"><div class="fill" style="width:81%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
-      <div class="bar good"><span class="name">3D</span><span class="pct">6 of 7 steps</span><div class="track"><div class="fill" style="width:86%"></div></div><span class="note">3D base done, 3 days early. The 2D look is checked pixel by pixel on every merge.</span></div>
+      <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="note">3D base complete, 3 days early. Next: the construct uses it. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
       <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">~10 %</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Barely touched today. Starts tomorrow.</span></div>
       <div class="group-label">Features</div>
-      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">8 of 13</span><div class="track"><div class="fill" style="width:62%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
+      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">9 of 13</span><div class="track"><div class="fill" style="width:69%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
       <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
       <div class="bar idle"><span class="name">Marketing and announcement</span><span class="pct">0 %</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="note">Planned for later weeks.</span></div>
     </div>
@@ -163,6 +163,8 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>11:44</time><p><span class="tag ok">milestone</span>3D base complete, all 7 steps, Tuesday instead of Friday. Last piece: sharper scaled images in 2D.</p></li>
+        <li><time>11:35</time><p><span class="tag ok">merged</span>The chat input field: typing, paste and input methods; a typed "yes" never answers a question; it only gets the keyboard by your own act and talks only to the HUD over a private pipe.</p></li>
         <li><time>11:05</time><p><span class="tag ok">milestone</span>3D base done, 3 days early: 8 live 3D windows, idle frames down from 3-6 ms to 0.5 ms, 2D pixel-identical throughout. Only a small 2D image-quality step is left.</p></li>
         <li><time>10:46</time><p><span class="tag ok">merged</span>The HUD now follows what you do (window manager, app, helper state), calmly: at most one change a second, never while a question is open.</p></li>
         <li><time>10:10</time><p><span class="tag ok">merged</span>The HUD host: today's look is now the first HUD folder, plus commands to check, list and switch folders. Review caught a long command hiding its dangerous end; now a question that cannot be shown in full is refused.</p></li>
