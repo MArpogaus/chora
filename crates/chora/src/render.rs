@@ -207,6 +207,9 @@ pub struct View {
     /// The least w of a point of a layer that shows: the GPU cuts at 0, a
     /// 3D context cuts its planes at [`space::NEAR_W`].
     pub near: f64,
+    /// Whether planes step the scale of their textures with their size on
+    /// screen; a capture renders them at the full scale.
+    pub stepped: bool,
 }
 
 impl View {
@@ -217,6 +220,7 @@ impl View {
             scale: output.current_scale().fractional_scale(),
             size: physical_size(output),
             near: mesh::NEAR,
+            stepped: true,
         }
     }
 }
@@ -281,6 +285,7 @@ where
         scale: view.scale,
         size: view.size,
         near: mesh::NEAR,
+        stepped: true,
     };
     let overlay = scene.overlay_layer_list(&output.name());
     out.extend(elements(parts, renderer, &overlay, &screen));
@@ -481,7 +486,7 @@ fn piece_element<R: MeshRenderer>(
     let drawn = if let Some(drawn) = textures.get(&node.id) {
         drawn.clone()
     } else {
-        let scale = texture_scale(&mut parts.assets.layers, &node, &transform, view.scale);
+        let scale = texture_scale(&mut parts.assets.layers, &node, &transform, view);
         let drawn = node_texture(parts, renderer.gles(), &node, scale);
         textures.insert(node.id.clone(), drawn.clone());
         drawn
@@ -574,7 +579,7 @@ fn layer<R: MeshRenderer>(
     if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
         return None;
     }
-    let scale = texture_scale(&mut parts.assets.layers, node, &transform, view.scale);
+    let scale = texture_scale(&mut parts.assets.layers, node, &transform, view);
     let drawn = node_texture(parts, renderer.gles(), node, scale)?;
     #[allow(clippy::cast_possible_truncation)]
     let alpha = placed.opacity as f32;
@@ -586,7 +591,11 @@ fn layer<R: MeshRenderer>(
 /// pixel: the output scale, and for a plane without a mesh a power of two
 /// step below it that follows the size on screen, so that a far plane
 /// renders fewer pixels and a walk crosses a step rarely.
-fn texture_scale(layers: &mut Layers, node: &Node, transform: &Transform, scale: f64) -> f64 {
+fn texture_scale(layers: &mut Layers, node: &Node, transform: &Transform, view: &View) -> f64 {
+    let scale = view.scale;
+    if !view.stepped {
+        return scale;
+    }
     let ratio = (!transform.is_plain() && node.props.mesh.is_none())
         .then_some(node.props.size)
         .flatten()
@@ -644,6 +653,7 @@ fn layer_texture(
         scale,
         size: (size.w, size.h).into(),
         near: mesh::NEAR,
+        stepped: true,
     };
     let content = flat_elements(parts, gles, &node.id, &inner)?;
     let assets = &mut *parts.assets;
@@ -705,6 +715,7 @@ fn node_textures(
             scale,
             size: (size.w, size.h).into(),
             near: mesh::NEAR,
+            stepped: true,
         };
         parts.depth += 1;
         let content = flat_elements(parts, gles, &source.node, &view);

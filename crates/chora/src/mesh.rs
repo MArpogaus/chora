@@ -45,6 +45,8 @@ const MAX_SIDE: f64 = 4096.0;
 const FRAME_PIXELS: u64 = 64 << 20;
 /// The slot of the texture of a node as the shaders of other nodes read it.
 pub const SOURCE_SLOT: usize = 3;
+/// The most bytes of layer textures that stay between frames.
+const MAX_BYTES: u64 = 512 << 20;
 /// The most steps of a power of two that the texture of a plane shrinks.
 const MAX_STEPS: i32 = 4;
 /// How long an unused layer texture stays.
@@ -116,6 +118,8 @@ struct Tracked {
 
 /// The last result of the passes of a layer.
 struct Passed {
+    /// The size of the texture that the passes ran over.
+    size: (i32, i32),
     /// A hash of the inputs of the passes.
     signature: u64,
     /// The slot of the texture of the result.
@@ -140,9 +144,10 @@ pub struct Layers {
     /// By node and piece: 0 for a whole layer, the others for the pieces
     /// of a plane of a 3D context.
     ids: HashMap<(String, usize), Tracked>,
-    /// By node and size: what made the last result of the passes of a
-    /// layer.
-    passed: HashMap<(String, i32, i32), Passed>,
+    /// By node: what made the last result of the passes of a layer.
+    passed: HashMap<String, Passed>,
+    /// The most bytes of textures that [`Self::retain`] keeps.
+    cap: Option<u64>,
     /// By node: the step of the texture scale of a plane, as a power of
     /// two below the output scale.
     steps: HashMap<String, i32>,
@@ -161,10 +166,61 @@ impl Layers {
         let now = Instant::now();
         self.textures
             .retain(|(id, ..), slot| keep(id) && now - slot.used < UNUSED_FOR);
+        self.evict_over_cap();
         self.ids.retain(|(id, _), _| keep(id));
-        self.passed.retain(|(id, ..), _| keep(id));
+        self.passed.retain(|id, _| keep(id));
         self.steps.retain(|id, _| keep(id));
         self.new_budget();
+    }
+
+    /// Drops the textures that no frame used for the longest time until
+    /// the rest fits the cap.
+    fn evict_over_cap(&mut self) {
+        let cost = |key: &(String, usize, i32, i32)| u64::try_from(key.2 * key.3).unwrap_or(0) * 4;
+        let mut total: u64 = self.textures.keys().map(cost).sum();
+        let cap = self.cap.unwrap_or(MAX_BYTES);
+        if total <= cap {
+            return;
+        }
+        let mut oldest: Vec<_> = self
+            .textures
+            .iter()
+            .map(|(key, slot)| (slot.used, key.clone()))
+            .collect();
+        oldest.sort();
+        for (_, key) in oldest {
+            if total <= cap {
+                break;
+            }
+            total -= cost(&key);
+            self.textures.remove(&key);
+        }
+    }
+
+    /// Sets the cap of [`Self::retain`] on the bytes of textures.
+    #[cfg(test)]
+    pub fn set_cap(&mut self, bytes: u64) {
+        self.cap = Some(bytes);
+    }
+
+    /// The sizes of the textures of a node.
+    #[cfg(test)]
+    pub fn sizes(&self, node: &str) -> Vec<(i32, i32)> {
+        let mut sizes: Vec<_> = self
+            .textures
+            .keys()
+            .filter(|key| key.0 == node)
+            .map(|key| (key.2, key.3))
+            .collect();
+        sizes.sort_unstable();
+        sizes.dedup();
+        sizes
+    }
+
+    /// How many results of passes and textures the layers keep.
+    #[cfg(test)]
+    pub fn kept(&self) -> (usize, usize) {
+        (self.passed.len(), self.textures.len())
     }
 
     /// Starts the budget of a new frame or capture.
@@ -198,10 +254,12 @@ impl Layers {
     }
 
     /// The factor of the texture scale of a plane that shows `ratio` times
-    /// its size: the least power of two of at least the ratio, at most 1.
-    /// A plane keeps a step when its ratio falls one step below, so that a
-    /// walk back and forth around a limit allocates nothing; `None` for a
-    /// plane at the full scale.
+    /// its size: the least power of two of at least the ratio, at most 1
+    /// and at least 2 to the power of `-MAX_STEPS`. A plane keeps its step
+    /// while the wanted step is at most one below it and shrinks when it
+    /// is two below, so that a walk back and forth around a limit
+    /// allocates nothing. `None`, for a plane without a ratio, gives 1 and
+    /// forgets the step.
     pub fn step(&mut self, node: &str, ratio: Option<f64>) -> f64 {
         let Some(ratio) = ratio.filter(|r| *r > 0.0) else {
             self.steps.remove(node);
@@ -978,14 +1036,14 @@ pub fn apply_passes(
         })
         .collect();
     let size = Texture::size(&texture);
-    let key = (node.id.clone(), size.w, size.h);
+    let size_key = (size.w, size.h);
     let timed = compiled
         .iter()
         .any(|(_, (program, ..))| program.reads_time());
     let signature = signature((scale, version, sources), &compiled);
-    let last = layers.passed.get(&key).map(|last| {
+    let last = layers.passed.get(&node.id).map(|last| {
         (
-            last.reusable && last.signature == signature,
+            last.reusable && last.signature == signature && last.size == size_key,
             last.slot,
             last.version,
             last.runs,
@@ -999,22 +1057,24 @@ pub fn apply_passes(
     }
     let runs = last.map_or(0, |(.., runs)| runs) + 1;
     let errors_before = errors.len();
-    let (texture, slot) = run_passes((gles, layers, errors, stats), &node.id, texture, &compiled);
+    let (texture, slot, completed) =
+        run_passes((gles, layers, errors, stats), &node.id, texture, &compiled);
     let result = hash_of(&(signature, runs));
-    let reusable = !timed && errors.len() == errors_before && compiled.len() == all;
+    let reusable = !timed && errors.len() == errors_before && completed == all;
     let passed = Passed {
+        size: size_key,
         signature,
         slot,
         version: result,
         runs,
         reusable,
     };
-    layers.passed.insert(key, passed);
+    layers.passed.insert(node.id.clone(), passed);
     (texture, result)
 }
 
 /// Draws each pass over the result of the one before; returns the last
-/// texture and its slot.
+/// texture, its slot and the number of passes that ran.
 fn run_passes(
     (gles, layers, errors, stats): (
         &mut GlesRenderer,
@@ -1025,8 +1085,9 @@ fn run_passes(
     node: &str,
     mut texture: GlesTexture,
     compiled: &[(Pass<'_>, Compiled)],
-) -> (GlesTexture, usize) {
+) -> (GlesTexture, usize, usize) {
     let mut slot = 0;
+    let mut completed = 0;
     for (_, (program, uniforms, extra)) in compiled {
         let size = Texture::size(&texture);
         let next = if slot == 1 { 2 } else { 1 };
@@ -1038,11 +1099,12 @@ fn run_passes(
                 stats.passes += 1;
                 texture = target;
                 slot = next;
+                completed += 1;
             }
             Err(err) => errors.push(err),
         }
     }
-    (texture, slot)
+    (texture, slot, completed)
 }
 
 fn hash_of(value: &impl std::hash::Hash) -> u64 {

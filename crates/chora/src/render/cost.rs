@@ -44,6 +44,13 @@ fn report(line: &str) {
     println!("{line}");
 }
 
+fn granted(core: &mut Core) -> Client {
+    let wm = core.named("wm");
+    let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+    core.admin().ok(core, "grants.set", grant);
+    wm
+}
+
 fn frames(core: &mut Core, count: usize) {
     for _ in 0..count {
         render_all(&mut core.state);
@@ -243,14 +250,12 @@ fn shader(test: &str, body: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn a_shader_plane_reads_the_scale_of_its_texture() {
+fn a_far_plane_renders_a_smaller_texture_and_a_capture_the_full_scale() {
     let probe = shader(
         "scale",
         "uniform float scale;\nvoid main() { gl_FragColor = vec4(scale * 0.25, 0.0, 0.0, 1.0); }",
     );
-    let mut core = Core::with_renderer();
-    let mut wm = space(&mut core, SIZE);
-    core.add_output("test-1", (640, 480));
+    let (mut core, mut wm) = world();
     let near = chain(&[translate(100.0, 100.0, 0.0), turn_y(0.001)]);
     let far = chain(&[translate(400.0, 100.0, 3.3 * EYE), turn_y(0.001)]);
     let node = |id: &str, at: &Matrix| {
@@ -262,14 +267,14 @@ fn a_shader_plane_reads_the_scale_of_its_texture() {
         "scene.apply",
         json!({"commands": [node("near", &near), node("far", &far)]}),
     );
-    let pixel = capture(&mut core, &mut wm);
+    frames(&mut core, 1);
+    let layers = &core.state.assets.layers;
+    assert_eq!(layers.sizes("near"), [(100, 100)]);
+    assert_eq!(layers.sizes("far"), [(25, 25)], "1/4 of the pixels a side");
+    let pixel = shot(&mut core, &mut wm);
     assert_eq!(pixel(150.0, 150.0)[0], 64, "1 texture pixel per pixel");
     let (x, y) = shown(&far, [320.0, 240.0], 50.0, 50.0);
-    let got = pixel(x, y)[0];
-    assert!(
-        (15..=17).contains(&got),
-        "a plane over 4 times as far gets 1/4: {got}"
-    );
+    assert_eq!(pixel(x, y)[0], 64, "a capture renders at the full scale");
     std::fs::remove_dir_all(probe.parent().unwrap()).unwrap();
 }
 
@@ -365,7 +370,7 @@ fn a_mirror_and_its_pane_read_one_texture_of_their_window() {
          void main() { gl_FragColor = texture2D(win, v_uv); }",
     );
     let mut core = Core::with_renderer();
-    let mut wm = core.named("wm");
+    let mut wm = granted(&mut core);
     wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
     let mut wayland = Wayland::connect(&mut core);
     let toplevel = window(&mut core, &mut wayland, (32, 32), 0xFFFF_0000);
@@ -392,6 +397,9 @@ fn a_mirror_and_its_pane_read_one_texture_of_their_window() {
     let after = stats(&core);
     assert_eq!(after.textures_rendered - before.textures_rendered, 1);
     assert_eq!(after.passes - before.passes, 2, "one pass per pane");
+    let pixel = shot(&mut core, &mut wm);
+    assert_eq!(pixel(56.0, 56.0), [0, 255, 0, 255], "the pane");
+    assert_eq!(pixel(96.0, 56.0), [0, 255, 0, 255], "the mirror");
     std::fs::remove_dir_all(probe.parent().unwrap()).unwrap();
 }
 
@@ -416,4 +424,86 @@ fn a_clipped_translated_context_computes_its_order_once() {
         hit(&core, 500.0 + f64::from(step));
     }
     assert_eq!(core.state.assets.stats.orders.get(), before);
+}
+
+#[test]
+fn a_resized_layer_keeps_one_pass_result_and_the_cap_evicts_old_textures() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
+        "props": {"size": [20, 20], "color": [1, 0, 0, 1], "radius": 4}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [rect]}));
+    core.state.assets.layers.set_cap(20 * 20 * 4 * 3);
+    for side in 21..30 {
+        let update = json!({"commands": [
+            {"update": {"id": "r", "props": {"size": [side, side]}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", update);
+        frames(&mut core, 2);
+    }
+    let (passes, textures) = core.state.assets.layers.kept();
+    assert_eq!(passes, 1, "one result per node");
+    assert!(textures <= 3, "{textures} textures under the cap");
+}
+
+fn passes_per_frame(core: &mut Core, count: usize) -> u64 {
+    let before = stats(core).passes;
+    for _ in 0..count {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        frames(core, 1);
+    }
+    stats(core).passes - before
+}
+
+#[test]
+fn a_shader_that_reads_the_clock_renders_in_every_frame() {
+    let probe = shader(
+        "clock",
+        "uniform float time;\nvoid main() { gl_FragColor = vec4(fract(time), 0.0, 0.0, 1.0); }",
+    );
+    let (mut core, mut wm) = world();
+    let node = |id: &str, parent: &str, props: Value| {
+        let mut props = props;
+        props["size"] = json!([50, 50]);
+        props["shader"] = json!(probe);
+        json!({"create": {"id": id, "kind": "shader", "parent": parent, "props": props}})
+    };
+    let tilted = json!({"transform": {"matrix": turned(10.0, [200.0, 200.0, 0.0])}});
+    let commands = json!({"commands": [
+        node("flat", "root", json!({"transform": {"translate": [10, 10]}})),
+        node("plane", "eye", tilted),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    frames(&mut core, 2);
+    assert!(
+        passes_per_frame(&mut core, 6) >= 12,
+        "two shaders, six frames"
+    );
+    std::fs::remove_dir_all(probe.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn a_child_surface_that_commits_inside_a_rounded_layer_shows_the_new_pixels() {
+    let mut core = Core::with_renderer();
+    let mut wm = granted(&mut core);
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let mut wayland = Wayland::connect(&mut core);
+    let toplevel = window(&mut core, &mut wayland, (64, 64), 0xFFFF_0000);
+    let commands = json!({"commands": [
+        {"create": {"id": "box", "kind": "group", "parent": "root", "props": {
+            "size": [64, 64], "clip": {"radius": 6}}}},
+        {"attach": {"surface": "s1", "parent": "box"}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    frames(&mut core, 2);
+    assert_eq!(shot(&mut core, &mut wm)(32.0, 32.0), [255, 0, 0, 255]);
+    wayland.attach_filled(
+        &mut core,
+        &toplevel,
+        (64, 64),
+        (Format::Argb8888, 0xFF00_00FF),
+    );
+    frames(&mut core, 2);
+    assert_eq!(shot(&mut core, &mut wm)(32.0, 32.0), [0, 0, 255, 255]);
 }
