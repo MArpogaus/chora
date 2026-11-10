@@ -4,6 +4,10 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Fable 5.2 is out with a one-time reset (for Fable only). Use it as the
+  strong senior developer for big and hard tasks and as an honest,
+  strong judge of the whole project, the plan and the decisions.
+
 - Note this down and keep sharpening the plan as data and experience
   grow (charter 11c, plan-data.md).
 

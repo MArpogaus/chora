@@ -37,7 +37,13 @@ code branches carry only code, tests and the product docs
    chat of the PM session; the PM writes each report into `answers.md`,
    compares it with the token counts of `ledger.md` and derives the
    conversion (section 10).
-3. **Models:** the PM session runs on opus-5-5. fable-5-1 is not used.
+3. **Models:** the PM session runs on opus-5-5. Fable (user, 11-10; its
+   weekly pool was reset): the senior developer of big and hard steps
+   (construct on 3D, virtual outputs, cube geometry, give with grab) and
+   the independent judge of the project, the plan and the PM's decisions
+   (a deep audit at once and at each week's end; the daily reflection
+   while the reset lasts). Opus still reviews Fable's code. Fable use is
+   tracked apart from the weekly limit of the other models.
 4. **Outward:** push with `git push` from the local clone to the session
    branch and to `claude/*` work branches. Never commit through an API.
    No tags, version bumps, releases, pull requests, or pushes to `main`
