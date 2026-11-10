@@ -764,30 +764,18 @@ impl Plugin for Mc {
                 self.act(&binding);
                 Ok(())
             }
-            // `voice.*` also matches a client named `voice.evil`: only
-            // the agent itself shows its state (review 4.9).
             Event::Emitted {
                 event,
                 client,
                 data,
-            } if client == VOICE => self.follow(&event, &client, data),
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } if client == ASSISTANT && event == "assistant.chat" => self.chat_drawer(&data),
+            } => self.emitted(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             Event::PointerPressed {
                 node,
                 position,
                 injected,
                 ..
-            } => {
-                if self.click_agent(&node, position) {
-                    return Ok(());
-                }
-                self.click(&node, position, injected)
-            }
+            } => self.press(&node, position, injected),
             _ => Ok(()),
         }
     }
@@ -998,6 +986,26 @@ impl Mc {
         let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
         let done = self.rt.conn.call::<_, Value>("methods.call", call).is_ok();
         self.claim_due = !done && !last;
+    }
+
+    /// An event of a client (D65): of the voice agent, or `assistant.chat`
+    /// of the HUD host. `voice.*` also matches a client named `voice.evil`:
+    /// only the agent itself shows its state (review 4.9).
+    fn emitted(&mut self, event: &str, client: &str, data: Value) -> Result<(), ClientError> {
+        match client {
+            VOICE => self.follow(event, client, data),
+            ASSISTANT if event == "assistant.chat" => self.chat_drawer(&data),
+            _ => Ok(()),
+        }
+    }
+
+    /// A press of the pointer: on a column of a helper it opens the chat,
+    /// else it is a click.
+    fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
+        if self.click_agent(node, at) {
+            return Ok(());
+        }
+        self.click(node, at, injected)
     }
 
     /// `assistant.chat` of the HUD host: while it shows the chat on the
