@@ -30,6 +30,9 @@
 //!   checks that the sandboxed client sees no privileged global.
 //! - `repeat-info`: prints the rate and the delay of the key repeat that
 //!   the keyboard gets.
+//! - `clip TEXT`: shows a toplevel `chora-probe`, offers TEXT as the
+//!   selection when it gets the keyboard, and prints a line `enter` or
+//!   `leave` each time the keyboard comes or goes, until it is killed.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
 //!   size of each configure, until it is killed. With `--exit-on-close`,
 //!   it exits with 0 when the compositor asks it to close.
@@ -57,10 +60,14 @@ use rustix::{
     time::{ClockId, clock_gettime},
 };
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle, delegate_noop,
+    Connection, Dispatch, EventQueue, QueueHandle, delegate_noop, event_created_child,
     protocol::{
         wl_buffer::{self, WlBuffer},
         wl_compositor::WlCompositor,
+        wl_data_device::{self, WlDataDevice},
+        wl_data_device_manager::WlDataDeviceManager,
+        wl_data_offer::WlDataOffer,
+        wl_data_source::{self, WlDataSource},
         wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm,
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
@@ -123,6 +130,13 @@ struct Probe {
     pointer_manager: Option<ZwlrVirtualPointerManagerV1>,
     keyboard_manager: Option<ZwpVirtualKeyboardManagerV1>,
     activation: Option<XdgActivationV1>,
+    data_manager: Option<WlDataDeviceManager>,
+    /// The text that mode `clip` offers, once it is told to.
+    clip: Option<String>,
+    /// How often the keyboard came to the surface of mode `clip`, and the
+    /// serial of the last time.
+    enters: u32,
+    enter_serial: u32,
     /// The activation token that the compositor answered.
     token: Option<String>,
     /// `Some(true)` after `locked`, `Some(false)` after `finished`.
@@ -187,6 +201,7 @@ fn main() -> ExitCode {
         "capture" => capture::capture(&mut queue, &mut probe),
         "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
         "window" => window(&mut queue, &mut probe),
+        "clip" => clip(&mut queue, &mut probe),
         "activated" => activated(&mut queue, &mut probe),
         "repeat-info" => repeat_info(&mut queue, &mut probe),
         "held-commit" => match size_args() {
@@ -620,6 +635,33 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     }
 }
 
+/// Shows a toplevel that offers a text as the selection from its first
+/// keyboard enter on, and reports each enter and leave on stdout.
+fn clip(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let text = std::env::args().nth(2).ok_or("usage: clip TEXT")?;
+    probe.clip = Some(text);
+    let qh = queue.handle();
+    let seat = probe.seat.clone().ok_or("no seat")?;
+    let manager = probe.data_manager.clone().ok_or("no data device manager")?;
+    seat.get_keyboard(&qh, ());
+    let device = manager.get_data_device(&seat, &qh, ());
+    let source = manager.create_data_source(&qh, ());
+    source.offer("text/plain;charset=utf-8".into());
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    show(probe, &qh, &surface, [200, 200])?;
+    let mut offered = false;
+    loop {
+        let enters = probe.enters;
+        if !dispatch_until(queue, probe, TIMEOUT, |p| p.enters != enters) {
+            continue;
+        }
+        if !offered {
+            device.set_selection(Some(&source), probe.enter_serial);
+            offered = true;
+        }
+    }
+}
+
 /// Attaches a gray buffer of a size and commits.
 fn show(
     probe: &Probe,
@@ -730,6 +772,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
             }
             "wp_presentation" => probe.presentation = Some(registry.bind(name, 1, qh, ())),
             "xdg_activation_v1" => probe.activation = Some(registry.bind(name, 1, qh, ())),
+            "wl_data_device_manager" => probe.data_manager = Some(registry.bind(name, 3, qh, ())),
             "zwp_virtual_keyboard_manager_v1" => {
                 probe.keyboard_manager = Some(registry.bind(name, 1, qh, ()));
             }
@@ -856,7 +899,15 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Probe {
         _: &QueueHandle<Self>,
     ) {
         match event {
-            wl_keyboard::Event::Enter { .. } => probe.keyboard = true,
+            wl_keyboard::Event::Enter { serial, .. } => {
+                probe.keyboard = true;
+                probe.enter_serial = serial;
+                if probe.clip.is_some() {
+                    probe.enters += 1;
+                    println!("enter");
+                }
+            }
+            wl_keyboard::Event::Leave { .. } if probe.clip.is_some() => println!("leave"),
             wl_keyboard::Event::RepeatInfo { rate, delay } => probe.repeat = Some((rate, delay)),
             _ => {}
         }
@@ -923,6 +974,41 @@ impl Dispatch<WlBuffer, ()> for Probe {
 }
 
 delegate_noop!(Probe: ignore WlCompositor);
+delegate_noop!(Probe: ignore WlDataDeviceManager);
+delegate_noop!(Probe: ignore WlDataOffer);
+
+impl Dispatch<WlDataDevice, ()> for Probe {
+    fn event(
+        _: &mut Self,
+        _: &WlDataDevice,
+        _: wl_data_device::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+
+    event_created_child!(Probe, WlDataDevice, [
+        wl_data_device::EVT_DATA_OFFER_OPCODE => (WlDataOffer, ()),
+    ]);
+}
+
+/// The source gives its text to whoever asks for it.
+impl Dispatch<WlDataSource, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &WlDataSource,
+        event: wl_data_source::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_data_source::Event::Send { fd, .. } = event {
+            let text = probe.clip.clone().unwrap_or_default();
+            let _ = File::from(fd).write_all(text.as_bytes());
+        }
+    }
+}
 delegate_noop!(Probe: ignore WlSurface);
 delegate_noop!(Probe: ignore wl_shm::WlShm);
 delegate_noop!(Probe: ignore WlShmPool);
