@@ -858,11 +858,15 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
+                let drag = match self.check_grab_gives(conn, &apply.commands) {
+                    Ok(drag) => drag,
+                    Err(e) => return Some(Err(e)),
+                };
                 let checked = self.check_paths(conn, &apply.commands);
                 if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
-                self.submit_transaction(conn, id, owner, apply.commands);
+                self.submit_transaction(conn, id, owner, (apply.commands, drag));
                 return None;
             }
             "events.subscribe" => {
@@ -1450,6 +1454,9 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        if self.button_grab.take_if(|g| g.conn == conn).is_some() {
+            self.refresh_pointer();
+        }
         if !closed.reserves.is_empty() {
             self.output_changed();
         }

@@ -94,6 +94,13 @@ impl Wm {
         }
     }
 
+    /// The springs of a window that wobbles, for the window manager that
+    /// gets it with its drag.
+    pub(super) fn wobble_springs(&self, key: &str) -> Option<serde_json::Value> {
+        let target = self.wobble_target(key)?;
+        self.effects.driver.springs(key, &target)
+    }
+
     /// The pointer lets go: the window shakes until it settles.
     pub(super) fn release_wobble(&mut self, surface: &str) {
         self.effects.driver.release(surface);

@@ -138,6 +138,42 @@ impl Wobble {
         or_zero(lift)
     }
 
+    /// The springs of the grid as a value for another window manager
+    /// that takes the window with its drag (`give_grab`): how far each
+    /// control point is from its place for a window at an origin, and its
+    /// velocity.
+    #[must_use]
+    pub fn springs(&self, origin: [f64; 2]) -> serde_json::Value {
+        let offsets: Vec<[f64; 3]> = (0..COUNT)
+            .map(|i| {
+                let rest = self.place(i, origin);
+                [0, 1, 2].map(|axis| self.at[i][axis] - rest[axis])
+            })
+            .collect();
+        serde_json::json!({"offsets": offsets, "velocity": self.velocity.to_vec()})
+    }
+
+    /// Takes the springs that another window manager sent with a drag,
+    /// for a window at an origin. The value comes from another client:
+    /// anything but two lists of this grid with numbers within `MAX`
+    /// leaves the grid flat.
+    pub fn take_springs(&mut self, origin: [f64; 2], springs: &serde_json::Value) {
+        let list = |name: &str| {
+            let points: Vec<[f64; 3]> = serde_json::from_value(springs[name].clone()).ok()?;
+            let sound = points.iter().flatten().all(|v| v.abs() <= MAX);
+            (points.len() == COUNT && sound).then_some(points)
+        };
+        let (Some(offsets), Some(velocity)) = (list("offsets"), list("velocity")) else {
+            return;
+        };
+        for i in 0..COUNT {
+            let rest = self.place(i, origin);
+            self.at[i] = [0, 1, 2].map(|axis| rest[axis] + offsets[i][axis]);
+            self.velocity[i] = velocity[i];
+        }
+        self.moving = true;
+    }
+
     /// Lets go of the window; it shakes until it settles.
     pub fn release(&mut self) {
         self.held = false;
@@ -666,6 +702,33 @@ mod tests {
                     .iter()
                     .all(|p| p[0].is_finite() && p[1].is_finite())
             );
+        }
+    }
+
+    /// The springs of a grid go to another window manager with a drag and
+    /// come back the same; a value of another shape, or with numbers out
+    /// of range, leaves the grid flat.
+    #[test]
+    fn the_springs_of_a_drag_go_to_another_grid() {
+        let origin = [100.0, 50.0];
+        let mut pulled = Wobble::new([200.0, 100.0], origin, [150.0, 60.0]);
+        let later = pulled.last + std::time::Duration::from_millis(50);
+        pulled.advance([160.0, 50.0], later);
+        let springs = pulled.springs([160.0, 50.0]);
+        let mut taken = Wobble::new([200.0, 100.0], [160.0, 50.0], [210.0, 60.0]);
+        taken.take_springs([160.0, 50.0], &springs);
+        assert_eq!(taken.at, pulled.at);
+        assert_eq!(taken.velocity, pulled.velocity);
+        let mut flat = Wobble::new([200.0, 100.0], origin, [150.0, 60.0]);
+        let rest = flat.at;
+        for bad in [
+            serde_json::json!({"offsets": [[1.0, 0.0, 0.0]], "velocity": [[0.0, 0.0, 0.0]]}),
+            serde_json::json!({"offsets": vec![[1e9, 0.0, 0.0]; COUNT],
+                "velocity": vec![[0.0; 3]; COUNT]}),
+            serde_json::json!("springs"),
+        ] {
+            flat.take_springs(origin, &bad);
+            assert_eq!(flat.at, rest, "{bad}");
         }
     }
 }

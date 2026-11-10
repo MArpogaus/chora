@@ -2,7 +2,7 @@
 //! point, and the method `window.give` that every window manager exports.
 
 use chora_scene::{
-    Command, Node, claimant_at,
+    Command, GivenGrab, Node, claimant_at,
     ipc::{ClientError, ExportMethod, Filter, MethodCall, Query, RpcError},
 };
 use std::time::Duration;
@@ -25,6 +25,10 @@ pub struct Give {
     pub surface: String,
     /// The client name of the window manager that gets it.
     pub to: String,
+    /// The drag that goes with the window, while the user holds its
+    /// button: the receiver goes on with it (`give_grab`).
+    #[serde(default)]
+    pub grab: Option<GivenGrab>,
 }
 
 /// The export of `window.give`, with its description and schema. It is
@@ -38,6 +42,9 @@ pub fn method() -> ExportMethod {
         json!({
             "surface": {"type": "string", "description": "The surface id of the window."},
             "to": {"type": "string", "description": "The client name of the window manager."},
+            "grab": {"type": "object", "description":
+                "Gives the drag too, while the user holds its button: point [x, y] of the \
+                 window under the pointer, velocity [x, y] and wobble, the state of the effect."},
         }),
         &["surface", "to"],
     ))
@@ -215,17 +222,40 @@ impl Conn {
     ///
     /// `to` is the plugin itself, the core refuses, or the socket fails.
     pub fn give(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.give_dragged(surface, to, None)
+    }
+
+    /// As [`Conn::give`], and with `grab` the drag of the window goes too
+    /// (`give_grab`): the core moves the pointer grab to `to` in the same
+    /// transaction, or refuses both.
+    ///
+    /// # Errors
+    ///
+    /// As [`Conn::give`]; the core also refuses a drag that must not go.
+    pub fn give_dragged(
+        &mut self,
+        surface: &str,
+        to: &str,
+        grab: Option<GivenGrab>,
+    ) -> Result<Value, RpcError> {
         if to == self.name() {
             return Err(RpcError::new(
                 RpcError::INVALID_PARAMS,
                 format!("{surface} is with {to} already"),
             ));
         }
-        let remove = Command::Remove {
+        let mut commands = vec![Command::Remove {
             id: surface.into(),
             to: Some(to.into()),
-        };
-        match self.try_apply(vec![remove]).map_err(rejected)? {
+        }];
+        commands.extend(grab.map(|grab| Command::GiveGrab {
+            surface: surface.into(),
+            to: to.into(),
+            point: grab.point,
+            velocity: grab.velocity,
+            wobble: grab.wobble,
+        }));
+        match self.try_apply(commands).map_err(rejected)? {
             Some(err) => Err(err),
             None => Ok(Value::String(surface.into())),
         }

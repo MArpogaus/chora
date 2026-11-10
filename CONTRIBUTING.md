@@ -40,6 +40,10 @@ The hooks run:
 - session files: logs, reports and media paths of the autonomous sessions
   fail
 - commit message length: the subject at 68 characters, body lines at 72
+- no process by its name alone: a test script that uses `pkill` or
+  `killall`, or `pgrep -x chora` without a parent (`-P`), a session
+  (`-s`) or a process group (`-g`), fails, because other sessions run
+  cores on the same machine
 - the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:

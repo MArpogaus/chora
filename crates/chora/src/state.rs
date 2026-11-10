@@ -86,6 +86,9 @@ pub struct NodeGrab {
     pub position: [f64; 2],
     /// The last point of the press in the coordinates of the node.
     pub local: [f64; 2],
+    /// The serial of the press when the user made it; an injected press
+    /// has none.
+    pub real: Option<Serial>,
 }
 
 /// A grab of a button that is down: the connection of the grab, the
@@ -94,6 +97,18 @@ pub struct ButtonGrab {
     pub conn: u64,
     pub binding: String,
     pub button: u32,
+    /// The serial of the press when the user made it: an injected press
+    /// has none, and such a grab never moves to another client.
+    pub real: Option<Serial>,
+    /// Whether the pointer got the press, so that it gets the release.
+    pub to_pointer: bool,
+    /// The window that came with the grab from another window manager
+    /// (`give_grab`): the grab ends when its holder does not get it.
+    pub given: Option<String>,
+    /// The window of the press: the one that asked for the move, or the
+    /// one under the pointer at the press of a binding. Only the drag of
+    /// this window can go to another window manager.
+    pub window: Option<String>,
 }
 
 /// A key grab whose key went down and has not sent its `released` yet: the
@@ -737,6 +752,12 @@ impl State {
                     let event = Event::SurfaceDetached { surface };
                     (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));
                 }
+                Effect::GrabGiven {
+                    surface,
+                    to,
+                    from,
+                    grab,
+                } => self.move_grab(&surface, &to, &from, grab),
                 Effect::Camera(name) => {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
                         self.emit(&Event::OutputChanged { output });
@@ -800,6 +821,7 @@ impl State {
         self.last_real_press = (!injected).then_some(serial);
         if injected {
             self.last_act = None;
+            self.last_real_button = None;
         }
     }
 
