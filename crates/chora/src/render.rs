@@ -1102,9 +1102,10 @@ fn hit<'a>(
 
 /// What a point hits in a 3D context: the ray from the eye through the
 /// point takes the nearest piece of a plane that shows there and accepts
-/// the input, in the order that the context draws them. A piece that the
-/// layer budget left out of the last frame takes the input and gives it
-/// to nobody. The empty area of the context lets the point through.
+/// the input, in the order that the context draws them. A piece or a
+/// layer that the layer budget left out of the last frame takes the input
+/// where it would take it, and gives it to nobody. The empty area of the
+/// context lets the point through.
 fn context_hit<'a>(
     state: &'a State,
     context: &Placed<'a>,
@@ -1123,21 +1124,23 @@ fn context_hit<'a>(
         if input == InputMode::Pass {
             return None;
         }
-        if let Some(part) = &piece.part {
-            if !space::contains(&part.shown, [pos.x, pos.y]) {
-                return None;
-            }
-            if left_out(state, &entry.node.id) {
-                return Some(Found {
-                    node: entry.node,
-                    input: InputMode::Block,
-                    hit: Hit::Area,
-                    local: node_point(&entry.transform, pos).map_or(pos, clamp_local),
-                    planar: true,
-                });
-            }
+        if let Some(part) = &piece.part
+            && !space::contains(&part.shown, [pos.x, pos.y])
+        {
+            return None;
         }
-        entry_hit(state, entry, input, pos)
+        let found = entry_hit(state, entry, input, pos)?;
+        let textured = piece.part.is_some() || entry.node.is_layer();
+        if textured && left_out(state, &entry.node.id) {
+            return Some(Found {
+                node: entry.node,
+                input: InputMode::Block,
+                hit: Hit::Area,
+                local: node_point(&entry.transform, pos).map_or(pos, clamp_local),
+                planar: true,
+            });
+        }
+        Some(found)
     })
 }
 
