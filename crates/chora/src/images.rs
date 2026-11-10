@@ -42,6 +42,9 @@ const MAX_FILE: u64 = 32 << 20;
 /// The ticket of a background reload: no transaction waits for it.
 pub(crate) const RELOAD_TICKET: u64 = u64::MAX;
 
+/// The most halvings of an image that it keeps: down to 1/16 a side.
+const MAX_STEPS: usize = 4;
+
 /// The most images in the cache at once.
 const MAX_IMAGES: usize = 1024;
 /// The most bytes of decoded pixels of all images.
@@ -49,13 +52,20 @@ const MAX_DECODED: u64 = 512 << 20;
 
 /// A loaded image.
 pub struct Image {
-    buffer: MemoryRenderBuffer,
+    /// The file pixels first, then each box-filtered halving.
+    steps: Vec<Step>,
     /// Width and height in pixels.
     pub size: [u32; 2],
     modified: Option<SystemTime>,
     /// New with each load, so that the cells of a reloaded image get new
     /// ids and show again.
     pub version: Id,
+}
+
+/// One size of an image: the file pixels or a halving of the step before.
+struct Step {
+    buffer: MemoryRenderBuffer,
+    size: [u32; 2],
 }
 
 /// The loaded images by path, and the worker that decodes the files.
@@ -79,7 +89,7 @@ pub struct Decoded {
     pub ticket: u64,
     path: String,
     modified: Option<SystemTime>,
-    result: Result<(MemoryBuffer, [u32; 2]), Error>,
+    result: Result<Vec<(MemoryBuffer, [u32; 2])>, Error>,
 }
 
 /// Why an image did not load. `limit` is true when a limit of the image
@@ -132,11 +142,10 @@ impl Images {
                     // The copy into the buffer runs here too: for a large
                     // image it takes a while.
                     let result = decode(job.file, job.budget).map(|(pixels, size)| {
-                        #[allow(clippy::cast_possible_wrap)] // at most MAX_SIDE
-                        let buffer_size = (size[0] as i32, size[1] as i32);
-                        let memory =
-                            MemoryBuffer::from_slice(&pixels, Fourcc::Abgr8888, buffer_size);
-                        (memory, size)
+                        halvings(pixels, size)
+                            .into_iter()
+                            .map(|(pixels, size)| (memory(&pixels, size), size))
+                            .collect()
                     });
                     let decoded = Decoded {
                         ticket: job.ticket,
@@ -199,12 +208,13 @@ impl Images {
     /// may have come in since the worker started.
     pub fn insert(&mut self, decoded: Decoded) -> Result<(), Error> {
         let path = decoded.path;
-        let (memory, size) = decoded.result.map_err(|mut e| {
+        let steps = decoded.result.map_err(|mut e| {
             e.message = format!("{path}: {}", e.message);
             e
         })?;
+        let size = steps[0].1;
         self.room_for(&path)?;
-        let bytes = u64::from(size[0]) * u64::from(size[1]) * 4;
+        let bytes = cost(size);
         if bytes > self.budget(&path) {
             return Err(Error {
                 limit: true,
@@ -214,9 +224,15 @@ impl Images {
                 ),
             });
         }
-        let buffer = MemoryRenderBuffer::from_memory(memory, 1, Transform::Normal, None);
+        let steps = steps
+            .into_iter()
+            .map(|(memory, size)| Step {
+                buffer: MemoryRenderBuffer::from_memory(memory, 1, Transform::Normal, None),
+                size,
+            })
+            .collect();
         let image = Image {
-            buffer,
+            steps,
             size,
             modified: decoded.modified,
             version: Id::new(),
@@ -243,7 +259,7 @@ impl Images {
             .cache
             .iter()
             .filter(|(p, _)| p.as_str() != path)
-            .map(|(_, i)| u64::from(i.size[0]) * u64::from(i.size[1]) * 4)
+            .map(|(_, i)| cost(i.size))
             .sum();
         MAX_DECODED.saturating_sub(others)
     }
@@ -335,7 +351,7 @@ fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), Error> {
     if w == 0 || h == 0 || w > MAX_SIDE || h > MAX_SIDE {
         return Err(format!("{w}x{h} pixels; at most {MAX_SIDE} on a side").into());
     }
-    if u64::from(w) * u64::from(h) * 4 > budget {
+    if cost([w, h]) > budget {
         return Err(Error {
             limit: true,
             message: format!("{w}x{h} pixels exceed the {MAX_DECODED} bytes of all images"),
@@ -355,6 +371,58 @@ fn decode(file: File, budget: u64) -> Result<(Vec<u8>, [u32; 2]), Error> {
         }
     }
     Ok((pixels, [w, h]))
+}
+
+/// The buffer of RGBA pixels; a side has at most `MAX_SIDE` pixels.
+fn memory(pixels: &[u8], size: [u32; 2]) -> MemoryBuffer {
+    #[allow(clippy::cast_possible_wrap)]
+    let buffer_size = (size[0] as i32, size[1] as i32);
+    MemoryBuffer::from_slice(pixels, Fourcc::Abgr8888, buffer_size)
+}
+
+/// The bytes of an image of a size with its halvings: the pixels of the
+/// file, and a third more.
+fn cost(size: [u32; 2]) -> u64 {
+    u64::from(size[0]) * u64::from(size[1]) * 16 / 3
+}
+
+/// The pixels of an image and of its halvings, each the box filter of the
+/// one before, until the step limit or one pixel.
+fn halvings(pixels: Vec<u8>, size: [u32; 2]) -> Vec<(Vec<u8>, [u32; 2])> {
+    let mut steps = vec![(pixels, size)];
+    while steps.len() <= MAX_STEPS && size_of_last(&steps) != [1, 1] {
+        let next = halved(&steps[steps.len() - 1].0, size_of_last(&steps));
+        steps.push(next);
+    }
+    steps
+}
+
+fn size_of_last(steps: &[(Vec<u8>, [u32; 2])]) -> [u32; 2] {
+    steps.last().map_or([1, 1], |(_, size)| *size)
+}
+
+/// The mean of each 2 by 2 block of premultiplied RGBA pixels; a block
+/// at an odd edge has the pixels that exist.
+fn halved(pixels: &[u8], [w, h]: [u32; 2]) -> (Vec<u8>, [u32; 2]) {
+    let (nw, nh) = (w.div_ceil(2), h.div_ceil(2));
+    let mut out = Vec::with_capacity(nw as usize * nh as usize * 4);
+    for y in 0..nh {
+        for x in 0..nw {
+            let block = [(0, 0), (1, 0), (0, 1), (1, 1)]
+                .map(|(px, py)| (x * 2 + px, y * 2 + py))
+                .into_iter()
+                .filter(|(sx, sy)| *sx < w && *sy < h)
+                .map(|(sx, sy)| (sy as usize * w as usize + sx as usize) * 4);
+            let (sum, count) = block.fold(([0u32; 4], 0), |(sum, count), at| {
+                (
+                    [0, 1, 2, 3].map(|c| sum[c] + u32::from(pixels[at + c])),
+                    count + 1,
+                )
+            });
+            out.extend(sum.map(|total| u8::try_from((total + count / 2) / count).unwrap_or(255)));
+        }
+    }
+    (out, [nw, nh])
 }
 
 /// One pixel as premultiplied RGBA.
@@ -436,22 +504,36 @@ where
     ids.resize_with(cells.len(), Id::new);
     let mut out = Vec::new();
     for ((src, dst), id) in cells.iter().zip(ids.iter()) {
-        let Some((location, size)) = cell_area(dst, at) else {
+        let Some(area) = cell_area(dst, at) else {
             continue;
         };
+        let step = image.step_for(src, &area);
+        let scaled: Rectangle<f64, Logical> = Rectangle::new(
+            (
+                src.loc.x * f64::from(step.size[0]) / f64::from(image.size[0]),
+                src.loc.y * f64::from(step.size[1]) / f64::from(image.size[1]),
+            )
+                .into(),
+            (
+                src.size.w * f64::from(step.size[0]) / f64::from(image.size[0]),
+                src.size.h * f64::from(step.size[1]) / f64::from(image.size[1]),
+            )
+                .into(),
+        );
         let element = MemoryRenderBufferRenderElement::from_buffer(
             renderer,
-            location.to_physical(1.0),
-            &image.buffer,
+            area.loc.to_f64(),
+            &step.buffer,
             Some(at.alpha),
-            Some(*src),
-            Some(size),
+            Some(scaled),
+            Some(Size::from((area.size.w, area.size.h))),
             Kind::Unspecified,
         );
         match element {
             Ok(inner) => out.push(CellElement {
                 id: id.clone(),
                 inner,
+                area,
             }),
             Err(err) => tracing::warn!(?err, "an image failed to upload"),
         }
@@ -459,26 +541,44 @@ where
     out
 }
 
-/// The physical location and the logical size of a cell on the output, or
-/// `None` for a cell without pixels. The edges are rounded, so that
-/// neighbor cells leave no gap.
-fn cell_area(
-    dst: &Rectangle<f64, Logical>,
-    at: &Placement,
-) -> Option<(Point<f64, Logical>, Size<i32, Logical>)> {
+/// The area of a cell on the output in whole physical pixels, or `None`
+/// for a cell without pixels. The edges are rounded in physical pixels,
+/// so that neighbor cells leave no gap and an image sized to whole
+/// pixels is not resampled.
+fn cell_area(dst: &Rectangle<f64, Logical>, at: &Placement) -> Option<Rectangle<i32, Physical>> {
     let (sx, sy) = at.scale;
+    let scale = at.output_scale;
     #[allow(clippy::cast_possible_truncation)]
     let round = |v: f64| v.round() as i32;
-    let (x0, y0) = (round(dst.loc.x * sx), round(dst.loc.y * sy));
+    let (x0, y0) = (
+        round(at.origin.x + dst.loc.x * sx * scale),
+        round(at.origin.y + dst.loc.y * sy * scale),
+    );
     let (x1, y1) = (
-        round((dst.loc.x + dst.size.w) * sx),
-        round((dst.loc.y + dst.size.h) * sy),
+        round(at.origin.x + (dst.loc.x + dst.size.w) * sx * scale),
+        round(at.origin.y + (dst.loc.y + dst.size.h) * sy * scale),
     );
     if x1 <= x0 || y1 <= y0 {
         return None;
     }
-    let offset = Point::from((f64::from(x0), f64::from(y0))).upscale(at.output_scale);
-    Some((at.origin + offset, Size::from((x1 - x0, y1 - y0))))
+    Some(Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into()))
+}
+
+impl Image {
+    /// The step to sample a cell from: the smallest one that still has at
+    /// least one pixel for each pixel on the output, so that the filter
+    /// of the renderer does not skip pixels of the file.
+    fn step_for(&self, src: &Rectangle<f64, Logical>, area: &Rectangle<i32, Physical>) -> &Step {
+        let ratio = (f64::from(area.size.w) / src.size.w).min(f64::from(area.size.h) / src.size.h);
+        let halvings = if ratio < 1.0 {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let count = (-ratio.log2()).floor() as usize;
+            count.min(self.steps.len() - 1)
+        } else {
+            0
+        };
+        &self.steps[halvings]
+    }
 }
 
 /// An image cell with the id of its node and cell, in place of the id of
@@ -486,6 +586,7 @@ fn cell_area(
 pub struct CellElement<R: Renderer> {
     id: Id,
     inner: MemoryRenderBufferRenderElement<R>,
+    area: Rectangle<i32, Physical>,
 }
 
 impl<R: Renderer> Element for CellElement<R> {
@@ -497,8 +598,8 @@ impl<R: Renderer> Element for CellElement<R> {
         self.inner.current_commit()
     }
 
-    fn location(&self, scale: Scale<f64>) -> Point<i32, Physical> {
-        self.inner.location(scale)
+    fn location(&self, _scale: Scale<f64>) -> Point<i32, Physical> {
+        self.area.loc
     }
 
     fn src(&self) -> Rectangle<f64, BufferCoords> {
@@ -509,8 +610,8 @@ impl<R: Renderer> Element for CellElement<R> {
         self.inner.transform()
     }
 
-    fn geometry(&self, scale: Scale<f64>) -> Rectangle<i32, Physical> {
-        self.inner.geometry(scale)
+    fn geometry(&self, _scale: Scale<f64>) -> Rectangle<i32, Physical> {
+        self.area
     }
 
     fn damage_since(
@@ -518,7 +619,10 @@ impl<R: Renderer> Element for CellElement<R> {
         scale: Scale<f64>,
         commit: Option<CommitCounter>,
     ) -> DamageSet<i32, Physical> {
-        self.inner.damage_since(scale, commit)
+        if self.inner.damage_since(scale, commit).is_empty() {
+            return DamageSet::default();
+        }
+        DamageSet::from_slice(&[Rectangle::from_size(self.area.size)])
     }
 
     fn opaque_regions(&self, scale: Scale<f64>) -> OpaqueRegions<i32, Physical> {
@@ -643,6 +747,20 @@ mod tests {
     fn insets_that_do_not_fit_shrink() {
         let cells = cells([12, 12], [6.0, 50.0], Some([4.0, 0.0, 4.0, 0.0]));
         assert!(cells.iter().all(|(_, d)| d.loc.x + d.size.w <= 6.0));
+    }
+
+    #[test]
+    fn halvings_average_blocks_and_end_at_the_step_limit() {
+        let pixels = [
+            0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 255,
+        ];
+        let steps = halvings(pixels.to_vec(), [2, 2]);
+        assert_eq!(steps.len(), 2);
+        assert_eq!(steps[1], (vec![128, 128, 128, 255], [1, 1]));
+        assert_eq!(
+            halvings(vec![0; 64 * 4 * 64], [64, 64]).len(),
+            MAX_STEPS + 1
+        );
     }
 
     #[test]

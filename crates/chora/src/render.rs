@@ -1641,6 +1641,8 @@ mod hit_guard;
 mod planes;
 #[cfg(test)]
 mod popups;
+#[cfg(test)]
+mod sampling;
 
 #[cfg(test)]
 mod tests {
