@@ -5,8 +5,13 @@
 
 # The assistant shows while the voice agent is connected: its state, and
 # its sentences in a bubble; dimmed while the agent sleeps and listens for
-# its wake words. A click on it mutes or unmutes the mic.
+# its wake words. A click on it mutes the mic; a click on the badge of a
+# muted mic turns it on again.
 enabled: true
-# The corner of the first output where it shows: top_left, top_right,
-# bottom_left or bottom_right.
-position: bottom_right
+# The corner of the first output where the figure shows: top_left, top_right,
+# bottom_left or bottom_right; null: the place that the HUD folder names.
+position:
+# The name of the HUD folder that draws the assistant: a folder of
+# $XDG_DATA_HOME/chora/huds or of /usr/share/chora/huds. `chora-assistant
+# --list-huds` lists them and `--use-hud NAME` sets this line.
+hud: neutral

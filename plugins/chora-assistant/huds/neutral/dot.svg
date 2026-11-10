@@ -2,7 +2,8 @@
   <g id="idle"><circle cx="12" cy="12" r="10.5" fill="#8a93a3" stroke="#5d6572" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
   <g id="listening"><circle cx="12" cy="12" r="10.5" fill="#4caf6a" stroke="#2f7d45" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
   <g id="thinking"><circle cx="12" cy="12" r="10.5" fill="#e0a63a" stroke="#a8761a" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
+  <g id="working"><circle cx="12" cy="12" r="10.5" fill="#e0a63a" stroke="#a8761a" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
   <g id="speaking"><circle cx="12" cy="12" r="10.5" fill="#4a8fd8" stroke="#2f64a0" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
-  <g id="asking"><circle cx="12" cy="12" r="10.5" fill="#e0653a" stroke="#a8401a" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
-  <g id="sleeping"><circle cx="12" cy="12" r="10.5" fill="#c2c7d0" stroke="#8c929c" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
+  <g id="question"><circle cx="12" cy="12" r="10.5" fill="#e0653a" stroke="#a8401a" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
+  <g id="asleep"><circle cx="12" cy="12" r="10.5" fill="#c2c7d0" stroke="#8c929c" stroke-width="1.5"/><circle cx="9" cy="8.5" r="3" fill="#fff" fill-opacity="0.35"/></g>
 </svg>

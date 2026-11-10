@@ -1,0 +1,14 @@
+hud: 1
+font: sans-serif
+panels:
+- id: figure
+  source: voice
+  anchor: bottom_right
+  margin: [16, 16]
+  picture: dot.svg#{state}
+  action: mute
+- id: line
+  source: say
+  near: figure
+  style: bubble
+  text: '{text}'

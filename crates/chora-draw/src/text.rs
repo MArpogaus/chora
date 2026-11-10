@@ -69,7 +69,15 @@ pub enum Font {
     Name,
     /// The title of the Log Off and Turn Off dialogs.
     Dialog,
+    /// Text that a person must read: [`BODY_SIZE`] pixels.
+    Body,
+    /// Bold text that a person must read: [`BODY_SIZE`] pixels.
+    BodyBold,
 }
+
+/// The size of [`Font::Body`] and [`Font::BodyBold`] in pixels; the
+/// smallest size of text that a person must read.
+pub const BODY_SIZE: u32 = 14;
 
 /// Where a line of text sits in its rectangle.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -167,7 +175,8 @@ impl Spec {
 /// The font database and the look of each font.
 pub struct Fonts {
     options: usvg::Options<'static>,
-    specs: [Spec; 6],
+    specs: [Spec; 8],
+    host_only: bool,
 }
 
 impl Fonts {
@@ -183,7 +192,9 @@ impl Fonts {
                 eprintln!("chora-draw: font {}: {err}", file.display());
             }
         }
-        Self::with(db, family)
+        let mut fonts = Self::with(db, family);
+        fonts.host_only = false;
+        fonts
     }
 
     /// The fonts of the host only: the system fonts and XP's fonts. The
@@ -210,6 +221,7 @@ impl Fonts {
             }
         }
         let mut fonts = Self::with(db, family);
+        fonts.host_only = false;
         fonts.options.resources_dir = Some(dir.to_path_buf());
         fonts.options.image_href_resolver = crate::assets::href_resolver(dir);
         fonts
@@ -230,13 +242,32 @@ impl Fonts {
             spec(&start, 17, true, true),
             spec(base, 16, true, false),
             spec(base, 19, false, false),
+            spec(base, BODY_SIZE, false, false),
+            spec(base, BODY_SIZE, true, false),
         ];
         let options = usvg::Options {
             fontdb: Arc::new(db),
             font_family: base.into(),
             ..usvg::Options::default()
         };
-        Self { options, specs }
+        Self {
+            options,
+            specs,
+            host_only: true,
+        }
+    }
+
+    /// Whether the fonts are those of the host only, with no font file of
+    /// an asset or HUD folder.
+    #[must_use]
+    pub fn is_host(&self) -> bool {
+        self.host_only
+    }
+
+    /// The size of a font in pixels.
+    #[must_use]
+    pub fn size(&self, font: Font) -> u32 {
+        self.spec(font).size
     }
 
     /// The options for parsing SVG files, with the font database.
@@ -607,6 +638,17 @@ mod tests {
         assert!(!has_family(db, "Zqwvxkjh"), "{:?}", families(db));
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn body_text_is_at_least_14_px_and_only_the_host_fonts_are_host() {
+        let host = Fonts::host(SANS_SERIF);
+        assert!(host.is_host());
+        assert!(host.size(Font::Body) >= 14 && host.size(Font::BodyBold) >= 14);
+        let dir = font_folder("kind");
+        assert!(!Fonts::folder(&dir, SANS_SERIF).is_host());
+        assert!(!Fonts::load(&dir, SANS_SERIF).is_host());
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
