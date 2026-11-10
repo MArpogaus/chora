@@ -192,6 +192,8 @@ pub struct Assets {
     /// The nodes that the last render of each output left out, before the
     /// frame shows.
     pub frame_left_out: HashMap<String, Vec<String>>,
+    /// Those of `frame_left_out` that draw nothing, for the input.
+    pub frame_dark: HashMap<String, Vec<String>>,
     /// What rendering counted since the start of the core.
     pub stats: RenderStats,
 }
@@ -298,6 +300,9 @@ where
     assets
         .frame_left_out
         .insert(output.name(), assets.layers.left_out.clone());
+    assets
+        .frame_dark
+        .insert(output.name(), assets.layers.dark.clone());
     assets.stats.count(&out);
     out
 }
@@ -711,7 +716,10 @@ fn node_textures(
         let Some(size) = mesh::pixel_size(logical, scale) else {
             continue;
         };
-        if !parts.assets.layers.spend(&node.id, size, 1) {
+        parts.assets.layers.reader = Some(node.id.clone());
+        let fits = parts.assets.layers.spend(&source.node, size, 1);
+        if !fits {
+            parts.assets.layers.reader = None;
             continue;
         }
         let view = View {
@@ -724,6 +732,7 @@ fn node_textures(
         parts.depth += 1;
         let content = flat_elements(parts, gles, &source.node, &view);
         parts.depth -= 1;
+        parts.assets.layers.reader = None;
         let Some(content) = content else { continue };
         let assets = &mut *parts.assets;
         let drawn = assets.layers.draw(
@@ -1145,7 +1154,7 @@ fn found_shown<'a>(
 pub fn left_out(state: &State, output: &Output, id: &str) -> bool {
     state
         .assets
-        .frame_left_out
+        .frame_dark
         .get(&output.name())
         .is_some_and(|ids| ids.iter().any(|out| state.scene.is_within(id, out)))
 }

@@ -26,11 +26,10 @@ fn shot(core: &mut Core, wm: &mut Client, output: &str) -> impl Fn(f64, f64) -> 
 }
 
 fn leave_out(core: &mut Core, output: &str, ids: &[&str]) {
-    let ids = ids.iter().map(|id| (*id).to_owned()).collect();
-    core.state
-        .assets
-        .frame_left_out
-        .insert(output.to_owned(), ids);
+    let ids: Vec<String> = ids.iter().map(|id| (*id).to_owned()).collect();
+    let assets = &mut core.state.assets;
+    assets.frame_left_out.insert(output.to_owned(), ids.clone());
+    assets.frame_dark.insert(output.to_owned(), ids);
 }
 
 #[test]

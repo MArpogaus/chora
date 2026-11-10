@@ -114,8 +114,9 @@ shows all of its content and takes input where it shows it. A layer, plane,
 mesh or piece that the layer budget leaves out of the last frame of an
 output draws nothing there, so on that output it and every node in it take
 the input where they would take it and give it to nobody. The budget counts
-a node texture that a shader node reads under the shader node, so the
-source node itself keeps its input. The keyboard stays where it is; the
+a node texture that a shader node reads, and the layers inside it, under
+the shader node: `layers.dropped` names the shader node, but it still
+draws without that texture, so it and the source node keep their input. The keyboard stays where it is; the
 owner learns of it from `layers.dropped`. During a press, the core maps
 every motion through the plane that the press hit, also outside it; where
 the plane shows the pointer behind the eye, the last point stays. The popups of a window under a

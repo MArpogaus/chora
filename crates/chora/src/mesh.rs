@@ -157,9 +157,15 @@ pub struct Layers {
     told: bool,
     /// The nodes whose layers the budget left out of the current frame:
     /// the node that draws, also for a node texture that a shader node
-    /// reads, so that the source node itself, which draws, keeps its
-    /// input.
+    /// reads or a layer inside it, so that the source node itself, which
+    /// draws, keeps its input.
     pub left_out: Vec<String>,
+    /// Those of `left_out` that draw nothing: not a shader node that only
+    /// misses a node texture.
+    pub dark: Vec<String>,
+    /// The shader node whose node texture renders now, which pays for the
+    /// layers inside it.
+    pub reader: Option<String>,
     /// The last version that a render gave a texture. One counter for all
     /// slots, so that a texture that the cap evicted and made again never
     /// repeats the version of the texture before it.
@@ -234,15 +240,22 @@ impl Layers {
     pub fn new_budget(&mut self) {
         self.pixels = 0;
         self.left_out.clear();
+        self.dark.clear();
     }
 
     /// Takes pixels of the budget of the frame for the textures of the layer
-    /// of a node. Returns `false` when they do not fit, and notes the node.
+    /// of a node. Returns `false` when they do not fit, and notes the node,
+    /// or the shader node that reads it, which still draws.
     pub fn spend(&mut self, id: &str, size: Size<i32, BufferCoords>, textures: usize) -> bool {
         let area = u64::try_from(size.w * size.h).unwrap_or(u64::MAX);
         let pixels = area.saturating_mul(textures as u64);
         if self.pixels.saturating_add(pixels) > FRAME_PIXELS {
-            self.leave_out(id);
+            if let Some(reader) = self.reader.clone() {
+                self.leave_out(&reader);
+            } else {
+                self.leave_out(id);
+                self.dark.push(id.to_owned());
+            }
             return false;
         }
         self.pixels += pixels;
