@@ -148,3 +148,9 @@
     the main target. Rule from now: at most three worktrees build at a
     time, and the main target is removed while lanes build (the merge
     gate rebuilds it cold, about 2 minutes).
+
+22. Tests written together with the fix, with no red run, in at least
+    five reports on 11-10 (H2, H4c, H5, H6, H4b). The rule "tests fail
+    first" is broken more than three times. Change: the dev rules ask
+    for the red run as a separate commit (`test: ... (red)`) pushed
+    before the fix; the PM checks the branch history for it at merge.
