@@ -15,9 +15,15 @@ use smithay::{
         InputTime, KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent,
         PointerMotionEvent,
     },
+    desktop::PopupPointerGrab,
     input::{
         keyboard::{FilterResult, Keycode, Keysym, KeysymHandle, ModifiersState, xkb},
-        pointer::{AxisFrame, ButtonEvent, MotionEvent, PointerHandle, RelativeMotionEvent},
+        pointer::{
+            AxisFrame, ButtonEvent, Focus, GestureHoldBeginEvent, GestureHoldEndEvent,
+            GesturePinchBeginEvent, GesturePinchEndEvent, GesturePinchUpdateEvent,
+            GestureSwipeBeginEvent, GestureSwipeEndEvent, GestureSwipeUpdateEvent, GrabStartData,
+            MotionEvent, PointerGrab, PointerHandle, PointerInnerHandle, RelativeMotionEvent,
+        },
     },
     output::Output,
     reexports::wayland_server::{Resource, protocol::wl_surface::WlSurface},
@@ -28,7 +34,7 @@ use smithay::{
 use crate::{
     output::{Spot, output_area},
     render,
-    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, PlaneGrab, Repeat, State, Suppressed},
+    state::{ButtonGrab, ClientState, HeldGrab, NodeGrab, Repeat, State, Suppressed},
 };
 
 /// What a key press does besides reaching a client.
@@ -582,8 +588,6 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         None
     } else if state.button_grab.is_some() {
         None
-    } else if let Some(under) = planar_press(state, &spot) {
-        Some(under)
     } else {
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
     };
@@ -642,6 +646,11 @@ pub fn press_button(
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         state.track_press(serial, injected);
+        state.last_real_button = (!injected).then_some((serial, code));
+    } else {
+        state
+            .last_real_button
+            .take_if(|(_, button)| *button == code);
     }
     if grab_button(state, code, button_state, time) {
         return;
@@ -651,11 +660,7 @@ pub fn press_button(
         click_focus(state);
         note_input(state, pointer.current_focus(), serial, true);
         press_node(state, code, injected);
-        if let Some(grab) = state.plane_grab.as_mut() {
-            grab.held += 1;
-        } else {
-            start_plane_grab(state);
-        }
+        start_plane_grab(state, &pointer, code, serial);
     } else {
         note_input(state, pointer.current_focus(), serial, false);
         release_node(state, code);
@@ -670,14 +675,8 @@ pub fn press_button(
         },
     );
     pointer.frame(state);
-    if button_state == ButtonState::Released {
-        let ended = state.plane_grab.as_mut().is_some_and(|grab| {
-            grab.held = grab.held.saturating_sub(1);
-            grab.held == 0
-        });
-        if ended {
-            state.plane_grab = None;
-        }
+    if button_state == ButtonState::Pressed {
+        start_plane_grab(state, &pointer, code, serial);
     }
 }
 
@@ -923,46 +922,232 @@ fn local_for(
     Some([local.x, local.y])
 }
 
-/// Starts the press of a surface under a plane at the first button, unless
-/// a drag and drop of a client holds the pointer.
-fn start_plane_grab(state: &mut State) {
-    if state.client_drag {
+/// Starts the press of a surface under a plane at the first button, in
+/// place of the click grab that Smithay would start on that surface.
+fn start_plane_grab(
+    state: &mut State,
+    pointer: &PointerHandle<State>,
+    button: u32,
+    serial: Serial,
+) {
+    if pointer.is_grabbed() {
         return;
     }
-    let Some(spot) = state.spot(state.pointer_layout) else {
+    let focus = pointer.current_focus();
+    let Some(pin) = Pin::under(state, focus.as_ref()) else {
         return;
     };
-    let Some(under) = render::surface_under(state, &spot) else {
-        return;
+    let grab = PlaneGrab {
+        start: GrabStartData {
+            focus: Some((pin.surface.clone(), pointer.current_location() - pin.last)),
+            button,
+            location: pointer.current_location(),
+        },
+        popup: None,
+        pin: Some(pin),
     };
-    let (Some(origin), Some(node)) = (under.plane, under.node) else {
-        return;
-    };
-    state.plane_grab = Some(PlaneGrab {
-        node,
-        surface: under.surface,
-        origin,
-        last: spot.scene - under.location,
-        held: 1,
-    });
+    pointer.set_grab(state, grab, serial, Focus::Keep);
 }
 
-/// The surface of a press under a plane, with the location that gives its
-/// client the point that the plane maps to the pointer. The node is
-/// reached from the root or the overlay of an output, as `anchor` tells.
-/// When the plane shows the pointer behind the eye, the client keeps its
-/// last point. A drag and drop of a client ends the pin; so does a popup
-/// grab, in `grab`.
-fn planar_press(state: &mut State, spot: &Spot) -> Option<(WlSurface, Point<f64, Logical>)> {
-    if state.client_drag {
-        state.plane_grab = None;
+/// The press on a surface under a plane: its node, the surface, the
+/// origin of the surface in the coordinates of the node, and the last
+/// point on the surface that the client got.
+struct Pin {
+    node: String,
+    surface: WlSurface,
+    origin: Point<f64, Logical>,
+    last: Point<f64, Logical>,
+}
+
+impl Pin {
+    /// The press on the surface under the pointer, if the pointer has
+    /// that surface as its focus and it is under a plane.
+    fn under(state: &State, focus: Option<&WlSurface>) -> Option<Self> {
+        let spot = state.spot(state.pointer_layout)?;
+        let under = render::surface_under(state, &spot)?;
+        let (Some(origin), Some(node)) = (under.plane, under.node) else {
+            return None;
+        };
+        (focus == Some(&under.surface)).then(|| Self {
+            node,
+            last: spot.scene - under.location,
+            surface: under.surface,
+            origin,
+        })
     }
-    let grab = state.plane_grab.as_mut()?;
-    let (start, at) = anchor(&state.scene, &state.outputs, &grab.node, spot);
-    if let Some(local) = render::local_in(&state.scene, &start, at, &grab.node) {
-        grab.last = local - grab.origin;
+
+    /// The surface with the location that gives its client the point that
+    /// the plane maps to the pointer at `location`. The node is reached
+    /// from the root or the overlay of an output, as `anchor` tells. When
+    /// the plane shows the pointer behind the eye, the client keeps its
+    /// last point. `None` when the node left the scene or the last frame
+    /// left its plane out.
+    fn mapped(
+        &mut self,
+        state: &State,
+        location: Point<f64, Logical>,
+    ) -> Option<(WlSurface, Point<f64, Logical>)> {
+        let spot = state.spot(state.pointer_layout)?;
+        let (start, at) = anchor(&state.scene, &state.outputs, &self.node, &spot);
+        if !state.scene.is_within(&self.node, &start) || render::left_out(state, &self.node) {
+            return None;
+        }
+        if let Some(local) = render::local_in(&state.scene, &start, at, &self.node) {
+            self.last = local - self.origin;
+        }
+        Some((self.surface.clone(), location - self.last))
     }
-    Some((grab.surface.clone(), spot.scene - grab.last))
+}
+
+/// The grab of a press on a surface under a plane, alone or around the
+/// grab of a popup. Each motion of the press maps through the plane, also
+/// outside the node, and goes to the surface of the press. Alone, the
+/// grab ends when the last button goes up; around a popup, the press
+/// ends and the popup keeps the pointer. Any other grab ends it, and with
+/// it the press.
+pub struct PlaneGrab {
+    start: GrabStartData<State>,
+    popup: Option<PopupPointerGrab<State>>,
+    pin: Option<Pin>,
+}
+
+impl PlaneGrab {
+    /// The grab of a popup, in which a press under a plane maps through
+    /// the plane.
+    pub fn popup(popup: PopupPointerGrab<State>) -> Self {
+        Self {
+            start: popup.start_data().clone(),
+            popup: Some(popup),
+            pin: None,
+        }
+    }
+}
+
+/// Passes an event of a gesture to the popup, or else to the focus.
+macro_rules! gestures {
+    ($($name:ident: $event:ty),* $(,)?) => {$(
+        fn $name(
+            &mut self,
+            data: &mut State,
+            handle: &mut PointerInnerHandle<'_, State>,
+            event: &$event,
+        ) {
+            match &mut self.popup {
+                Some(popup) => popup.$name(data, handle, event),
+                None => handle.$name(data, event),
+            }
+        }
+    )*};
+}
+
+impl PointerGrab<State> for PlaneGrab {
+    fn motion(
+        &mut self,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
+        focus: Option<(WlSurface, Point<f64, Logical>)>,
+        event: &MotionEvent,
+    ) {
+        let mapped = self
+            .pin
+            .as_mut()
+            .map(|pin| pin.mapped(data, event.location));
+        if mapped.as_ref().is_some_and(Option::is_none) {
+            self.pin = None;
+            if self.popup.is_none() {
+                handle.unset_grab(self, data, event.serial, event.time, true);
+                return;
+            }
+        }
+        let focus = mapped.flatten().or(focus);
+        match &mut self.popup {
+            Some(popup) => popup.motion(data, handle, focus, event),
+            None => handle.motion(data, focus, event),
+        }
+    }
+
+    fn relative_motion(
+        &mut self,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
+        focus: Option<(WlSurface, Point<f64, Logical>)>,
+        event: &RelativeMotionEvent,
+    ) {
+        let location = handle.current_location();
+        let focus = match &self.pin {
+            Some(pin) => Some((pin.surface.clone(), location - pin.last)),
+            None => focus,
+        };
+        match &mut self.popup {
+            Some(popup) => popup.relative_motion(data, handle, focus, event),
+            None => handle.relative_motion(data, focus, event),
+        }
+    }
+
+    fn button(
+        &mut self,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
+        event: &ButtonEvent,
+    ) {
+        let first = handle.current_pressed().len() == 1;
+        if event.state == ButtonState::Pressed && first && self.pin.is_none() {
+            let focus = handle.current_focus().map(|(surface, _)| surface);
+            self.pin = Pin::under(data, focus.as_ref());
+        }
+        let released = handle.current_pressed().is_empty();
+        if let Some(popup) = &mut self.popup {
+            popup.button(data, handle, event);
+            if released {
+                self.pin = None;
+            }
+        } else {
+            handle.button(data, event);
+            if released {
+                handle.unset_grab(self, data, event.serial, event.time, true);
+            }
+        }
+    }
+
+    fn axis(
+        &mut self,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
+        details: AxisFrame,
+    ) {
+        match &mut self.popup {
+            Some(popup) => popup.axis(data, handle, details),
+            None => handle.axis(data, details),
+        }
+    }
+
+    fn frame(&mut self, data: &mut State, handle: &mut PointerInnerHandle<'_, State>) {
+        match &mut self.popup {
+            Some(popup) => popup.frame(data, handle),
+            None => handle.frame(data),
+        }
+    }
+
+    gestures! {
+        gesture_swipe_begin: GestureSwipeBeginEvent,
+        gesture_swipe_update: GestureSwipeUpdateEvent,
+        gesture_swipe_end: GestureSwipeEndEvent,
+        gesture_pinch_begin: GesturePinchBeginEvent,
+        gesture_pinch_update: GesturePinchUpdateEvent,
+        gesture_pinch_end: GesturePinchEndEvent,
+        gesture_hold_begin: GestureHoldBeginEvent,
+        gesture_hold_end: GestureHoldEndEvent,
+    }
+
+    fn start_data(&self) -> &GrabStartData<State> {
+        &self.start
+    }
+
+    fn unset(&mut self, data: &mut State) {
+        if let Some(popup) = &mut self.popup {
+            popup.unset(data);
+        }
+    }
 }
 
 /// Ends the drag of a node when its button goes up.

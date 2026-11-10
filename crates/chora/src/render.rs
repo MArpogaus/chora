@@ -1259,7 +1259,7 @@ fn entry_hit<'a>(
 
 /// Whether the layer budget left a node out of the last frame of an
 /// output, so that it shows nothing.
-fn left_out(state: &State, id: &str) -> bool {
+pub fn left_out(state: &State, id: &str) -> bool {
     state
         .assets
         .frame_left_out

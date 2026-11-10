@@ -623,6 +623,16 @@ impl Wayland {
         self.roundtrip(core);
     }
 
+    /// Asks for an interactive resize of a toplevel at its bottom right
+    /// corner.
+    pub fn request_resize(&mut self, core: &mut Core, toplevel: &Toplevel, serial: u32) {
+        let seat = self.app.seat.as_ref().expect("wl_seat");
+        toplevel
+            .role
+            .resize(seat, serial, xdg_toplevel::ResizeEdge::BottomRight);
+        self.roundtrip(core);
+    }
+
     /// Unmaps a toplevel with a commit without a buffer.
     pub fn unmap(&mut self, core: &mut Core, toplevel: &Toplevel) {
         toplevel.surface.attach(None, 0, 0);

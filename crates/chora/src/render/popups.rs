@@ -5,7 +5,7 @@
 
 use serde_json::json;
 use smithay::{
-    backend::input::{ButtonState, InputTime},
+    backend::input::{ButtonState, InputTime, KeyState},
     utils::{Logical, Point},
 };
 use wayland_client::Proxy;
@@ -502,4 +502,224 @@ fn a_confined_client_starts_no_drag() {
     let done = cancelled(&mut agent, &mut windows.0);
     let _ = std::fs::remove_dir_all(dir);
     assert!(done, "a confined client may not drag");
+}
+
+#[test]
+fn a_drag_at_a_key_press_through_a_popup_grab_is_cancelled() {
+    let mut windows = two_windows_in_a_context();
+    let focus = json!({"commands": [{"focus": {"surface": "s1"}}]});
+    windows.6.ok(&mut windows.0, "scene.apply", focus);
+    let (core, wayland, source) = (&mut windows.0, &mut windows.1, &windows.2);
+    move_to(core, (windows.4)(50.0, 40.0));
+    let key = smithay::input::keyboard::Keycode::new(76);
+    crate::input::key(
+        &mut core.state,
+        key,
+        KeyState::Pressed,
+        InputTime::now(),
+        false,
+    );
+    wayland.roundtrip(core);
+    let serial = *wayland.key_serials().last().expect("a key press");
+    let menu = wayland.menu(core, source, serial, ((10, 10), (40, 30)));
+    assert!(!wayland.popup_done(&menu), "the key opens the grab");
+    wayland.start_drag(core, source, serial);
+    assert!(cancelled(wayland, core), "no button is down");
+    assert!(!core.state.client_drag);
+}
+
+fn release_on(windows: &mut Windows) {
+    let state = ButtonState::Released;
+    crate::input::press_button(&mut windows.0.state, 272, state, InputTime::now(), false);
+    windows.1.roundtrip(&mut windows.0);
+}
+
+fn plane_press(windows: &mut Windows) {
+    press_on_source(windows, false);
+    release_on(windows);
+}
+
+fn interactive_move(windows: &mut Windows) {
+    let serial = press_on_source(windows, false);
+    windows.1.request_move(&mut windows.0, &windows.2, serial);
+    release_on(windows);
+}
+
+fn interactive_resize(windows: &mut Windows) {
+    let serial = press_on_source(windows, false);
+    windows.1.request_resize(&mut windows.0, &windows.2, serial);
+    release_on(windows);
+}
+
+fn menu_closed_by_a_click_outside(windows: &mut Windows) {
+    let serial = press_on_source(windows, false);
+    let menu = windows
+        .1
+        .menu(&mut windows.0, &windows.2, serial, ((10, 10), (40, 30)));
+    release_on(windows);
+    move_to(&mut windows.0, (5.0, 5.0).into());
+    click(&mut windows.0, true);
+    release_on(windows);
+    assert!(windows.1.popup_done(&menu), "the click outside closes it");
+}
+
+fn drag_and_drop(windows: &mut Windows) {
+    let serial = press_on_source(windows, false);
+    windows.1.start_drag(&mut windows.0, &windows.2, serial);
+    assert!(windows.0.state.client_drag, "the drag starts");
+    move_to(&mut windows.0, (windows.5)(60.0, 40.0));
+    release_on(windows);
+}
+
+fn node_press(windows: &mut Windows) {
+    let rect = json!({"commands": [{"create": {"id": "knob", "kind": "rect",
+        "parent": "root", "props": {"size": [40, 40], "color": [1, 0, 0, 1],
+        "transform": {"translate": [740, 540]}}}}]});
+    windows.6.ok(&mut windows.0, "scene.apply", rect);
+    move_to(&mut windows.0, (760.0, 560.0).into());
+    click(&mut windows.0, true);
+    release_on(windows);
+}
+
+fn button_grab(windows: &mut Windows) {
+    let grab = json!({"binding": "Super+BTN_LEFT"});
+    windows.6.ok(&mut windows.0, "input.grab", grab);
+    let super_key = smithay::input::keyboard::Keycode::new(125 + 8);
+    let now = InputTime::now();
+    crate::input::key(
+        &mut windows.0.state,
+        super_key,
+        KeyState::Pressed,
+        now,
+        false,
+    );
+    move_to(&mut windows.0, (windows.4)(50.0, 40.0));
+    click(&mut windows.0, true);
+    release_on(windows);
+    crate::input::key(
+        &mut windows.0.state,
+        super_key,
+        KeyState::Released,
+        now,
+        false,
+    );
+}
+
+fn lock_during_a_press(windows: &mut Windows) {
+    press_on_source(windows, false);
+    let _lock = windows.1.lock(&mut windows.0);
+    release_on(windows);
+}
+
+fn click_outside_a_menu_on_a_plane(windows: &mut Windows) {
+    let mut other = Wayland::connect(&mut windows.0);
+    let third = other.toplevel(&mut windows.0, "third");
+    let m = chain(&[
+        translate(400.0, 120.0, 200.0),
+        turn_y(40.0),
+        translate(-50.0, -40.0, 0.0),
+    ]);
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s3", "parent": "eye"}},
+        {"update": {"id": "s3", "props": {"transform": {"matrix": m}}}},
+    ]});
+    windows.6.ok(&mut windows.0, "scene.apply", commands);
+    other.attach(&mut windows.0, &third, (100, 80));
+    let serial = press_on_source(windows, false);
+    let menu = windows
+        .1
+        .menu(&mut windows.0, &windows.2, serial, ((10, 10), (40, 30)));
+    release_on(windows);
+    move_to(&mut windows.0, shown(&m, [400.0, 300.0], 50.0, 40.0).into());
+    click(&mut windows.0, true);
+    windows.1.roundtrip(&mut windows.0);
+    assert!(windows.1.popup_done(&menu), "the click outside closes it");
+    windows.1.take_pointer_events();
+    move_to(&mut windows.0, (windows.5)(50.0, 40.0));
+    release_on(windows);
+    let events = windows.1.take_pointer_events();
+    assert!(
+        !buttons(&events).contains(&false),
+        "the release goes to the window of the click: {events:?}"
+    );
+}
+
+fn second_click_without_motion(windows: &mut Windows) {
+    press_on_source(windows, false);
+    windows.1.take_pointer_events();
+    move_to(&mut windows.0, (windows.5)(50.0, 40.0));
+    release_on(windows);
+    let events = windows.1.take_pointer_events();
+    assert!(
+        !enters(&events, &windows.3.surface.id()).is_empty(),
+        "the release gives the pointer to the window under it: {events:?}"
+    );
+    click(&mut windows.0, true);
+    release_on(windows);
+}
+
+type Sequence = (&'static str, fn(&mut Windows));
+
+#[test]
+fn every_press_ends_with_its_release() {
+    let sequences: [Sequence; 10] = [
+        ("plane press", plane_press),
+        ("move", interactive_move),
+        ("resize", interactive_resize),
+        ("popup", menu_closed_by_a_click_outside),
+        ("drag and drop", drag_and_drop),
+        ("node press", node_press),
+        ("button grab", button_grab),
+        ("lock during a press", lock_during_a_press),
+        (
+            "click outside a menu on a plane",
+            click_outside_a_menu_on_a_plane,
+        ),
+        ("second click without motion", second_click_without_motion),
+    ];
+    let failed: Vec<String> = (sequences.into_iter())
+        .filter_map(|(name, sequence)| {
+            let ran = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut windows = two_windows_in_a_context();
+                windows
+                    .6
+                    .ok(&mut windows.0, "input.grab", json!({"binding": "move"}));
+                sequence(&mut windows);
+                windows.0.pointer_free()
+            }));
+            match ran {
+                Ok(true) => None,
+                Ok(false) => Some(format!("{name}: leaves a grab or a press")),
+                Err(_) => Some(format!("{name}: fails")),
+            }
+        })
+        .collect();
+    assert!(failed.is_empty(), "{failed:#?}");
+}
+
+#[test]
+fn a_press_on_a_window_that_leaves_the_scene_frees_the_pointer() {
+    let mut windows = two_windows_in_a_context();
+    press_on_source(&mut windows, false);
+    let remove = json!({"commands": [{"remove": {"id": "s1"}}]});
+    windows.6.ok(&mut windows.0, "scene.apply", remove);
+    move_to(&mut windows.0, (windows.5)(50.0, 40.0));
+    assert!(!windows.0.state.pointer().is_grabbed());
+    release_on(&mut windows);
+}
+
+#[test]
+fn a_lock_a_reset_and_a_lost_device_end_the_held_button() {
+    let mut windows = two_windows_in_a_context();
+    press_on_source(&mut windows, false);
+    let _lock = windows.1.lock(&mut windows.0);
+    assert_eq!(windows.0.state.last_real_button, None, "the lock");
+    let mut windows = two_windows_in_a_context();
+    press_on_source(&mut windows, false);
+    windows.0.state.reset();
+    assert_eq!(windows.0.state.last_real_button, None, "the reset");
+    let mut windows = two_windows_in_a_context();
+    press_on_source(&mut windows, false);
+    windows.0.state.device_removed("event1");
+    assert_eq!(windows.0.state.last_real_button, None, "the device");
 }
