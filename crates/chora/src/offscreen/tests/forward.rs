@@ -200,3 +200,59 @@ fn a_node_press_through_a_pane_stamps_an_act_and_an_injected_one_does_not() {
     click(&mut faced);
     assert!(faced.core.state.last_act.is_some(), "the press of a person");
 }
+
+/// A press on a node of the virtual output, dragged off the pane: the
+/// moves stay on the virtual output, and the release tells where the
+/// pointer is on the screen, for the window manager under it.
+#[test]
+fn a_node_drag_stays_pinned_and_its_release_reports_the_screen_point() {
+    let mut faced = paned(true);
+    let mut construct = faced.core.named("construct");
+    let wanted = ["pointer.pressed", "pointer.moved", "pointer.released"];
+    subscribe(&mut construct, &mut faced, &wanted);
+    point_at(&mut faced, 2, 2);
+    button(&mut faced, ButtonState::Pressed, false);
+    input::move_pointer(&mut faced.core.state, (4.0, 90.0).into(), InputTime::now());
+    button(&mut faced, ButtonState::Released, false);
+    let events = construct.events_now(&mut faced.core);
+    let of = |name: &str| {
+        let found = events.iter().find(|e| e["params"]["event"] == name);
+        found.unwrap_or_else(|| panic!("{name}: {events:?}"))["params"].clone()
+    };
+    assert_eq!(of("pointer.pressed")["node"], "corner");
+    let off_the_pane = f64::from(PANE.0 - 4) / f64::from(ZOOM);
+    let below = f64::from(90 - PANE.1) / f64::from(ZOOM);
+    let on_the_face = [f64::from(SLOT_1) - off_the_pane, f64::from(SLOT_1) + below];
+    assert_eq!(of("pointer.moved")["position"], json!(on_the_face));
+    assert_eq!(of("pointer.released")["position"], json!([4.0, 90.0]));
+    assert_eq!(spot_output(&faced), "screen", "the press ended");
+}
+
+/// A press that starts on the screen stays there while it crosses a pane.
+#[test]
+fn a_drag_from_the_screen_does_not_enter_a_pane() {
+    let mut faced = paned(true);
+    input::move_pointer(&mut faced.core.state, (4.0, 4.0).into(), InputTime::now());
+    button(&mut faced, ButtonState::Pressed, false);
+    point_at(&mut faced, 10, 20);
+    assert_eq!(spot_output(&faced), "screen", "while the button is down");
+    button(&mut faced, ButtonState::Released, false);
+    assert_eq!(spot_output(&faced), "VIRTUAL-1", "after the release");
+}
+
+#[test]
+fn a_point_far_off_the_pane_stays_in_the_gap_of_the_slot() {
+    let mut faced = paned(true);
+    let small = json!({"commands": [{"update": {"id": "pane", "props": {"size": [8, 8]}}}]});
+    faced.construct.ok(&mut faced.core, "scene.apply", small);
+    let on_the_pane = (f64::from(PANE.0 + 2), f64::from(PANE.1 + 2));
+    input::move_pointer(&mut faced.core.state, on_the_pane.into(), InputTime::now());
+    button(&mut faced, ButtonState::Pressed, false);
+    let state = &faced.core.state;
+    let side = f64::from(SIDE);
+    for (corner, clamped) in [((0.0, 0.0), -side), ((127.0, 95.0), 2.0 * side)] {
+        let spot = state.spot(corner.into()).expect("a spot");
+        assert_eq!(spot.output.name(), "VIRTUAL-1");
+        assert_eq!((spot.local.x, spot.local.y), (clamped, clamped));
+    }
+}
