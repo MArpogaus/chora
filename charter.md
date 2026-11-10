@@ -823,6 +823,16 @@ commit, or rejected, with the reason. Accepted actions go into the plan
 of the next day. A point raised on two days in a row goes to
 `friction.md`. The first reflection ran on 2026-11-09 at midday.
 
+## 11c. Sharpening the plan
+
+The plan is a living document (user, 11-10). At the end of every run the
+PM updates `plan-data.md` with the measured velocity (steps, merges,
+review findings, budget per step, restarts, stops) and with the plan
+changes it draws from them; the status page shows the changed plan. The
+weekly retro reviews these changes. Decisions of the user go to
+`answers.md` first and then into the charter, the backlog or a design
+note.
+
 ## 11b. Reports for the user
 
 The user wants to understand everything that happened, decision by

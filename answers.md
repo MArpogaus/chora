@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Note this down and keep sharpening the plan as data and experience
+  grow (charter 11c, plan-data.md).
+
 - Decided (question in chat): packaging before 1.0 stays Fedora/COPR and
   Arch, plus a distrobox/OCI image with windowed mode and a Nix flake;
   native packages for other distributions after 1.0. Website framing:
