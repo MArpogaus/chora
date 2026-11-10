@@ -223,3 +223,13 @@ S1. Feature sprint "HUDs and ACP chat" (user request 11-09 evening,
    history must stay visible; closest design is river 0.4.
 2. Five USPs, website on `claude/website`, announcement in German and
    English (charter section 9).
+
+## CI1 (11-10): CI has no agent sandbox
+grants2 makes `the_sandbox_hides_the_main_socket` fail when `CI` is set
+and `agent-sandbox.sh` is missing. The script is not in the repo, so
+ci.yaml on main/dev goes red. Before the first PR to main: ship a
+minimal sandbox (bwrap) in dist/ and put it on PATH in CI, or install
+it in the CI container. Also open from grants2: a HUD name whose HUD is
+not running is free to any process; hello accepts the same executable
+(several choractl), so the name guard holds against other programs
+only.
