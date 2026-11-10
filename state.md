@@ -58,6 +58,14 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-10 09:18: pushed 2d72eec through merge-gate (all green): Dependabot
+  11 of 13 plus rmcp 3.9.0 advisory fix (#96 zbus 6 and #87
+  serde-saphyr 2 wait: API migrations); 3D step 3 with review fixes
+  (split caps 64 planes and 4 pieces per plane, context hit for nested
+  and tilted contexts, projective pieces, clamp only plane points); H2
+  HUD pictures and fonts with review fixes; H4a chat model with review
+  fixes (epoch in agent.read).
+
 - 11-10 07:50: merged and pushed 6ad7f67 through merge-gate.sh (all 7
   steps green): 3D step 2 with its review fixes, H4c act-stamped tokens
   with its review fixes (fixes #102), and the tiling focus race fix
@@ -173,8 +181,8 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- 3D step 3, perspective contexts (opus), claude/3d-step3
-- H2 HUD pictures and fonts confined (sonnet), claude/hud-h2
+- 3D step 4, popups and drags in a context (sonnet), claude/3d-step4
+- H5 HUD host with the neutral folder (sonnet), claude/hud-h5
 
 ## Blocked
 
