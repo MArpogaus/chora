@@ -172,10 +172,20 @@ fn confined_refusal(method: &str) -> RpcError {
     )
 }
 
+/// Whether `caller` may claim the indicator and answer.
+fn may_answer(
+    _config: &Config,
+    _caller: &str,
+    confined: bool,
+    _grants: impl FnOnce() -> Value,
+) -> bool {
+    !confined
+}
+
 /// `indicator.claim` of `caller`: a confined connection never claims, as a
 /// claim lets it answer the questions of the agent.
-fn claim_indicator(claims: &mut Claims, caller: &str, confined: bool) -> Result<Value, RpcError> {
-    if confined {
+fn claim_indicator(claims: &mut Claims, caller: &str, allowed: bool) -> Result<Value, RpcError> {
+    if !allowed {
         return Err(RpcError::new(
             RpcError::REJECTED,
             "indicator.claim: not for a confined connection",
@@ -192,10 +202,10 @@ fn confirm_answer(
     claims: &Claims,
     tx: &Sender<Input>,
     caller: &str,
-    confined: bool,
+    allowed: bool,
     params: Value,
 ) -> Result<Value, RpcError> {
-    if confined || !claims.0.contains(caller) {
+    if !allowed || !claims.0.contains(caller) {
         return Err(RpcError::new(
             RpcError::REJECTED,
             "confirm.answer: only an unconfined client that holds indicator.claim",
@@ -312,7 +322,8 @@ fn serve(
                 confined,
                 ..
             }) if method == "indicator.claim" => {
-                let answer = claim_indicator(&mut client.claims, &caller, confined);
+                let allowed = may_answer(&client.settings.value, &caller, confined, || Value::Null);
+                let answer = claim_indicator(&mut client.claims, &caller, allowed);
                 if answer.is_ok() {
                     let _ = client.tx.send(Input::Claimed(true));
                 }
@@ -325,7 +336,8 @@ fn serve(
                 params,
                 confined,
             }) if method == "confirm.answer" => {
-                let answer = confirm_answer(&client.claims, &client.tx, &caller, confined, params);
+                let allowed = may_answer(&client.settings.value, &caller, confined, || Value::Null);
+                let answer = confirm_answer(&client.claims, &client.tx, &caller, allowed, params);
                 client.rt.conn.answer(call, answer)?;
             }
             Some(Event::MethodCalled {
@@ -710,8 +722,10 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::{
-        Claims, Held, RESEND, chat_call, claim_indicator, confirm_answer, without_headers,
+        Claims, Held, RESEND, chat_call, claim_indicator, confirm_answer, may_answer,
+        without_headers,
     };
+    use crate::config::Config;
     use crate::core::Input;
     use std::sync::mpsc;
 
@@ -764,7 +778,7 @@ mod tests {
         let mut claims = Claims::default();
         claims.claim("mc");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "evil", false, params.clone()).unwrap_err();
+        let err = confirm_answer(&claims, &tx, "evil", true, params.clone()).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
         let core = std::thread::spawn(move || {
@@ -781,10 +795,10 @@ mod tests {
             }
         });
         assert_eq!(
-            confirm_answer(&claims, &tx, "mc", false, params.clone()),
+            confirm_answer(&claims, &tx, "mc", true, params.clone()),
             Ok(json!({}))
         );
-        let err = confirm_answer(&claims, &tx, "mc", false, params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, "mc", true, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED, "stale");
         core.join().unwrap();
     }
@@ -793,18 +807,78 @@ mod tests {
     /// button, even when it claimed before or holds `methods.privileged`.
     #[test]
     fn a_confined_caller_cannot_claim_or_answer() {
+        let config = Config {
+            indicator_clients: vec!["voice-mcp".into()],
+            ..Config::default()
+        };
+        let grants = || json!({"voice-mcp": ["indicator.claim"]});
+        assert!(!may_answer(&config, "voice-mcp", true, grants));
         let (tx, rx) = std::sync::mpsc::channel();
         let mut claims = Claims::default();
-        let err = claim_indicator(&mut claims, "voice-mcp", true).unwrap_err();
+        let err = claim_indicator(&mut claims, "voice-mcp", false).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(!claims.0.contains("voice-mcp"), "no claim");
         claims.claim("voice-mcp");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "voice-mcp", true, params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, "voice-mcp", false, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
-        assert!(claim_indicator(&mut claims, "mc", false).is_ok());
+        assert!(claim_indicator(&mut claims, "mc", true).is_ok());
         assert!(claims.0.contains("mc"));
+    }
+
+    /// Review A1: an unconfined client of the main socket that is neither
+    /// in `indicator_clients` nor holds the grant `indicator.claim`, such
+    /// as a program of `run_program`, neither claims nor answers, even
+    /// after a claim.
+    #[test]
+    fn a_client_that_is_not_named_cannot_claim_or_answer() {
+        let config = Config::default();
+        let grants = || json!({"evil": ["input.inject", "methods.privileged"]});
+        let allowed = may_answer(&config, "evil", false, grants);
+        assert!(!allowed);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        let err = claim_indicator(&mut claims, "evil", allowed).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(!claims.0.contains("evil"), "no claim");
+        claims.claim("evil");
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, "evil", allowed, params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
+    }
+
+    /// Review A1: the HUDs of the default `indicator_clients` claim and
+    /// answer without asking the core.
+    #[test]
+    fn a_named_hud_claims_and_answers() {
+        let config = Config::default();
+        for hud in ["assistant", "construct", "mc"] {
+            let allowed = may_answer(&config, hud, false, || panic!("asked the core"));
+            assert!(allowed, "{hud}");
+            let mut claims = Claims::default();
+            assert_eq!(claim_indicator(&mut claims, hud, allowed), Ok(json!({})));
+            assert!(claims.0.contains(hud));
+        }
+    }
+
+    /// Review A1: a changed `indicator_clients` and a grant or revoke of
+    /// `indicator.claim` decide the next call.
+    #[test]
+    fn a_changed_setting_or_grant_takes_effect() {
+        let mut config = Config {
+            indicator_clients: vec!["construct".into()],
+            ..Config::default()
+        };
+        assert!(!may_answer(&config, "mc", false, || json!({})));
+        assert!(may_answer(&config, "construct", false, || json!({})));
+        config.indicator_clients.push("hud".into());
+        assert!(may_answer(&config, "hud", false, || json!({})));
+        let granted = || json!({"other": ["indicator.claim"]});
+        assert!(may_answer(&config, "other", false, granted));
+        assert!(!may_answer(&config, "other", false, || json!({})));
+        assert!(!may_answer(&config, "other", false, || Value::Null));
     }
 
     /// A confined connection cannot answer by `confirm`, push to talk or

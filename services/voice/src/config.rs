@@ -283,6 +283,9 @@ pub struct Config {
     /// `{corner, offset}`. A plugin that shows the state hides it with
     /// `indicator.claim`.
     pub indicator: Indicator,
+    /// The client names that may claim the indicator and answer a
+    /// question with `confirm.answer`.
+    pub indicator_clients: Vec<String>,
     /// Empty: the built-in prompt.
     pub system_prompt: String,
     /// Empty: the built-in documents.
@@ -929,6 +932,7 @@ impl Default for Config {
             earcons: true,
             earcon_volume: 0.3,
             indicator: Indicator::On(true),
+            indicator_clients: Vec::new(),
             system_prompt: String::new(),
             context_docs: Vec::new(),
             prompt_file: "~/.config/chora/voice-prompt.md".into(),
@@ -1189,6 +1193,71 @@ mod tests {
             assert!(err.contains("confirm_keys"), "{yaml}: {err}");
         }
         assert!(security_key("confirm_keys"));
+    }
+
+    /// Review A1: the HUDs that may claim the indicator and answer are a
+    /// security setting.
+    #[test]
+    fn indicator_clients_are_the_three_huds_and_a_security_key() {
+        let config = Config::default();
+        assert_eq!(config.indicator_clients, ["assistant", "construct", "mc"]);
+        let config = parse::<Config>("indicator_clients: [mc]").unwrap();
+        assert_eq!(config.indicator_clients, ["mc"]);
+        assert!(parse::<Config>("indicator_clients: ['m c']").is_err());
+        assert!(security_key("indicator_clients"));
+    }
+
+    /// Review A1: the sandbox of the agents hides the main socket of
+    /// chora; `env` as a sandbox hides nothing and shows that the probe
+    /// sees a socket. Without `agent-sandbox.sh` on `PATH` only the probe
+    /// runs.
+    #[test]
+    fn the_sandbox_hides_the_main_socket() {
+        let dir = std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+        let path = dir.join(format!("chora-sandbox-probe-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        let mut sockets = vec![path.clone()];
+        if let Some(main) = std::env::var_os(chora_scene::ipc::SOCKET_ENV) {
+            sockets.push(chora_scene::ipc::admin_socket(std::path::Path::new(&main)));
+            sockets.push(main.into());
+        }
+        let no_sandbox = Config {
+            sandbox_cmd: words(&["env"]),
+            ..Config::default()
+        };
+        assert_eq!(sandbox_reaches(&no_sandbox, &path), "reached");
+        let default = Config::default();
+        if on_path(&default.sandbox_cmd[0]) {
+            for socket in &sockets {
+                assert_eq!(sandbox_reaches(&default, socket), "hidden", "{socket:?}");
+            }
+        }
+        drop(listener);
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    /// Runs a probe in the sandbox of `config`, in an empty directory:
+    /// `reached` when `socket` is there, `hidden` when not.
+    fn sandbox_reaches(config: &Config, socket: &std::path::Path) -> String {
+        let probe = "if test -e \"$1\"; then echo reached; else echo hidden; fi";
+        let socket = socket.to_string_lossy().into_owned();
+        let argv = config.spawn(&words(&["sh", "-c", probe, "sh", &socket]));
+        let empty = std::env::temp_dir().join(format!("chora-sandbox-cwd-{}", std::process::id()));
+        std::fs::create_dir_all(&empty).unwrap();
+        let out = std::process::Command::new(&argv[0])
+            .args(&argv[1..])
+            .current_dir(&empty)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        std::fs::remove_dir(&empty).unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    }
+
+    fn on_path(program: &str) -> bool {
+        std::env::var_os("PATH")
+            .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join(program).is_file()))
     }
 
     #[test]
