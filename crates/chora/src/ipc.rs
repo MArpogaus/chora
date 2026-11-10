@@ -140,6 +140,12 @@ struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
     pid: Option<Pid>,
+    /// The program of that process, from `/proc/PID/exe`.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the name rule of review A1 reads it")
+    )]
+    exe: Option<PathBuf>,
     input: Vec<u8>,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
@@ -736,9 +742,12 @@ impl State {
                 move |_, _, state| Ok(state.ipc_readable(id)),
             )
             .map_err(failed)?;
+        let exe =
+            pid.and_then(|p| std::fs::read_link(format!("/proc/{}/exe", p.as_raw_nonzero())).ok());
         let conn = Conn {
             stream,
             pid,
+            exe,
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
@@ -2323,6 +2332,31 @@ mod tests {
         let (error_code, _) =
             second.fails(&mut core, "hello", json!({"name": "wm", "resume": true}));
         assert_eq!(error_code, RpcError::NAME_TAKEN);
+    }
+
+    /// Review A1, high 1: while a name is connected, another program may
+    /// not say `hello` under it, so a script cannot answer as `mc`; the
+    /// same process may, and so may the same program, such as a second
+    /// `choractl`.
+    #[test]
+    fn a_live_name_belongs_to_its_program() {
+        let mut core = Core::new();
+        let _mc = core.named("mc");
+        let mut script = core.connect();
+        let last = |core: &mut Core| *core.state.ipc.conns.keys().max().unwrap();
+        let id = last(&mut core);
+        let conn = core.state.ipc.conns.get_mut(&id).unwrap();
+        conn.pid = Pid::from_raw(1_000_000);
+        conn.exe = Some("/usr/bin/python3".into());
+        let (error_code, message) = script.fails(&mut core, "hello", json!({"name": "mc"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("another program"), "{message}");
+        let mut same = core.connect();
+        same.ok(&mut core, "hello", json!({"name": "mc"}));
+        let mut twin = core.connect();
+        let id = last(&mut core);
+        core.state.ipc.conns.get_mut(&id).unwrap().pid = Pid::from_raw(1_000_001);
+        twin.ok(&mut core, "hello", json!({"name": "mc"}));
     }
 
     #[test]

@@ -2744,6 +2744,7 @@ mod tests {
             method: method.into(),
             params: serde_json::json!({"name": name, "state": "listening"}),
             confined: false,
+            connection: 1,
         };
         assert!(super::spoofs_voice(&call("evil", "agent.set", "voice")).is_some());
         assert!(super::spoofs_voice(&call("voice.evil", "agent.remove", "voice")).is_some());

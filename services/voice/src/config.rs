@@ -1215,14 +1215,13 @@ mod tests {
     /// Review A1: the sandbox of the agents hides the main socket of
     /// chora; `env` as a sandbox hides nothing and shows that the probe
     /// sees a socket. Without `agent-sandbox.sh` on `PATH` only the probe
-    /// runs.
+    /// runs, with a line on stderr, and with `CI` set the test fails.
+    /// `unsandboxed: true` skips the sandbox and this check.
     #[test]
+    #[allow(clippy::print_stderr, reason = "the skip must show in the test log")]
     fn the_sandbox_hides_the_main_socket() {
-        let dir = std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
-        let path = dir.join(format!("chora-sandbox-probe-{}.sock", std::process::id()));
-        let _ = std::fs::remove_file(&path);
-        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
-        let mut sockets = vec![path.clone()];
+        let probe = Probe::bind();
+        let mut sockets = vec![probe.0.clone()];
         if let Some(main) = std::env::var_os(chora_scene::ipc::SOCKET_ENV) {
             sockets.push(chora_scene::ipc::admin_socket(std::path::Path::new(&main)));
             sockets.push(main.into());
@@ -1231,15 +1230,41 @@ mod tests {
             sandbox_cmd: words(&["env"]),
             ..Config::default()
         };
-        assert_eq!(sandbox_reaches(&no_sandbox, &path), "reached");
+        assert_eq!(sandbox_reaches(&no_sandbox, &probe.0), "reached");
         let default = Config::default();
-        if on_path(&default.sandbox_cmd[0]) {
-            for socket in &sockets {
-                assert_eq!(sandbox_reaches(&default, socket), "hidden", "{socket:?}");
-            }
+        let sandbox = &default.sandbox_cmd[0];
+        if !on_path(sandbox) {
+            eprintln!("skip: {sandbox} not on PATH");
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "{sandbox} not on PATH in CI"
+            );
+            return;
         }
-        drop(listener);
-        std::fs::remove_file(&path).unwrap();
+        for socket in &sockets {
+            assert_eq!(sandbox_reaches(&default, socket), "hidden", "{socket:?}");
+        }
+    }
+
+    /// A socket for the probe in `XDG_RUNTIME_DIR`, where the main socket
+    /// of chora lives; it goes also when the test panics.
+    struct Probe(std::path::PathBuf);
+
+    impl Probe {
+        fn bind() -> Self {
+            let dir =
+                std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+            let path = dir.join(format!("chora-sandbox-probe-{}.sock", std::process::id()));
+            let _ = std::fs::remove_file(&path);
+            std::os::unix::net::UnixListener::bind(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for Probe {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
     }
 
     /// Runs a probe in the sandbox of `config`, in an empty directory:

@@ -352,6 +352,10 @@ pub enum Event {
         /// `false`.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         confined: bool,
+        /// The number of the connection of the caller, unique while the
+        /// core runs: a plugin can tell two connections of one name apart.
+        #[serde(default)]
+        connection: u64,
     },
     /// An event that a client emitted with `events.emit` (D65). Its name
     /// starts with the name of the client and a dot, for example

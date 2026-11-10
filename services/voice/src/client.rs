@@ -4,7 +4,7 @@
 
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{Duration, Instant},
@@ -16,10 +16,11 @@ use chora_kit::{
 };
 use chora_scene::{
     Event,
-    ipc::{Capability, ClientError, Emit, ExportMethod, PressState, RpcError},
+    ipc::{ClientError, Emit, ExportMethod, PressState, RpcError},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+use tokio::sync::oneshot;
 
 use crate::{
     config::Config,
@@ -64,21 +65,38 @@ struct Client {
 }
 
 /// The clients that show the state of the agent themselves and claimed
-/// the indicator: while one is connected, the dot hides. The claims of a
-/// session end with it; the plugins claim again when `voice` connects.
+/// the indicator, by the connection that claimed: while one is
+/// connected, the dot hides. The claims of a session end with it; the
+/// plugins claim again when `voice` connects.
 #[derive(Default)]
-struct Claims(std::collections::BTreeSet<String>);
+struct Claims(std::collections::BTreeMap<u64, String>);
 
 impl Claims {
-    /// A client claims the indicator; answers whether the dot hides.
-    fn claim(&mut self, client: &str) -> bool {
-        self.0.insert(client.to_owned());
+    /// The connection `conn` of `client` claims the indicator; answers
+    /// whether the dot hides.
+    fn claim(&mut self, conn: u64, client: &str) -> bool {
+        self.0.insert(conn, client.to_owned());
         true
+    }
+
+    /// Whether the connection `conn` of `client` holds a claim.
+    fn holds(&self, _conn: u64, client: &str) -> bool {
+        self.0.values().any(|c| c == client)
+    }
+
+    /// Keeps only the claims of `names`; answers whether the dot still
+    /// hides.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the stub of review A1 before its fix")
+    )]
+    fn keep(&mut self, _names: &[String]) -> bool {
+        !self.0.is_empty()
     }
 
     /// A client is gone; answers whether the dot still hides.
     fn gone(&mut self, client: &str) -> bool {
-        self.0.remove(client);
+        self.0.retain(|_, c| c != client);
         !self.0.is_empty()
     }
 }
@@ -173,20 +191,30 @@ fn confined_refusal(method: &str) -> RpcError {
 }
 
 /// Whether `caller` may claim the indicator and answer (review A1): an
-/// unconfined connection of a name in `indicator_clients`, or of a name
-/// that holds the grant `indicator.claim`; `grants` answers `grants.list`
-/// of the core, asked only for a name outside the setting.
-fn may_answer(
-    config: &Config,
-    caller: &str,
-    confined: bool,
-    grants: impl FnOnce() -> Value,
-) -> bool {
-    let granted = |grants: Value| {
-        (grants[caller].as_array())
-            .is_some_and(|held| held.iter().any(|c| c == Capability::IndicatorClaim.name()))
-    };
-    !confined && (config.indicator_clients.iter().any(|c| c == caller) || granted(grants()))
+/// unconfined connection of a name in `indicator_clients`.
+fn may_answer(config: &Config, caller: &str, confined: bool) -> bool {
+    !confined && config.indicator_clients.iter().any(|c| c == caller)
+}
+
+/// The patch of a `settings.set` or `settings.reload` that changes a
+/// security key; `None` for any other change.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "the stub of review A1 before its fix")
+)]
+fn security_patch(_config: &Config, _method: &str, _params: &Value, _file: &Path) -> Option<Value> {
+    None
+}
+
+/// Asks the user for a key press of `confirm_keys` before `patch`
+/// applies; the answer comes through the receiver.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "the stub of review A1 before its fix")
+)]
+fn ask_key(_tx: &Sender<Input>, _config: &Config, _patch: &Value) -> oneshot::Receiver<bool> {
+    let (_answer, rx) = oneshot::channel();
+    rx
 }
 
 /// The refusal of `indicator.claim` and `confirm.answer`.
@@ -194,19 +222,23 @@ fn not_allowed(method: &str) -> RpcError {
     RpcError::new(
         RpcError::REJECTED,
         format!(
-            "{method}: only an unconfined client of indicator_clients, or with the grant \
-             indicator.claim, that claimed the indicator"
+            "{method}: only an unconfined client of indicator_clients that claimed the \
+             indicator"
         ),
     )
 }
 
 /// `indicator.claim` of `caller`: only a client that [`may_answer`]
 /// claims, as a claim lets it answer the questions of the agent.
-fn claim_indicator(claims: &mut Claims, caller: &str, allowed: bool) -> Result<Value, RpcError> {
+fn claim_indicator(
+    claims: &mut Claims,
+    (conn, caller): (u64, &str),
+    allowed: bool,
+) -> Result<Value, RpcError> {
     if !allowed {
         return Err(not_allowed("indicator.claim"));
     }
-    claims.claim(caller);
+    claims.claim(conn, caller);
     Ok(json!({}))
 }
 
@@ -216,11 +248,11 @@ fn claim_indicator(claims: &mut Claims, caller: &str, allowed: bool) -> Result<V
 fn confirm_answer(
     claims: &Claims,
     tx: &Sender<Input>,
-    caller: &str,
+    (conn, caller): (u64, &str),
     allowed: bool,
     params: Value,
 ) -> Result<Value, RpcError> {
-    if !allowed || !claims.0.contains(caller) {
+    if !allowed || !claims.holds(conn, caller) {
         return Err(not_allowed("confirm.answer"));
     }
     let ButtonParams { id, yes } = runtime::params(params)?;
@@ -332,10 +364,11 @@ fn serve(
                 caller,
                 method,
                 confined,
+                connection,
                 ..
             }) if method == "indicator.claim" => {
-                let allowed = client.may_answer(&caller, confined);
-                let answer = claim_indicator(&mut client.claims, &caller, allowed);
+                let allowed = may_answer(&client.settings.value, &caller, confined);
+                let answer = claim_indicator(&mut client.claims, (connection, &caller), allowed);
                 if answer.is_ok() {
                     let _ = client.tx.send(Input::Claimed(true));
                 }
@@ -347,9 +380,16 @@ fn serve(
                 method,
                 params,
                 confined,
+                connection,
             }) if method == "confirm.answer" => {
-                let allowed = client.may_answer(&caller, confined);
-                let answer = confirm_answer(&client.claims, &client.tx, &caller, allowed, params);
+                let allowed = may_answer(&client.settings.value, &caller, confined);
+                let answer = confirm_answer(
+                    &client.claims,
+                    &client.tx,
+                    (connection, &caller),
+                    allowed,
+                    params,
+                );
                 client.rt.conn.answer(call, answer)?;
             }
             Some(Event::MethodCalled {
@@ -358,6 +398,7 @@ fn serve(
                 method,
                 params,
                 confined,
+                ..
             }) if CHAT_METHODS.contains(&method.as_str()) => {
                 let answer = chat_call(&client.tx, &caller, confined, &method, params);
                 client.rt.conn.answer(call, answer)?;
@@ -622,15 +663,6 @@ impl Client {
         rx.recv_timeout(ANSWER).map_err(|_| gone())
     }
 
-    /// [`may_answer`] with the settings and `grants.list` of the core; a
-    /// core that does not answer grants nothing.
-    fn may_answer(&mut self, caller: &str, confined: bool) -> bool {
-        let conn = &mut self.rt.conn;
-        may_answer(&self.settings.value, caller, confined, || {
-            (conn.call_within("grants.list", Value::Null, ANSWER)).unwrap_or_default()
-        })
-    }
-
     /// Hands the settings to the core and grabs the key again.
     fn apply(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
@@ -663,7 +695,7 @@ impl Plugin for Client {
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         if let Event::ClientDisconnected { name } = &event {
-            if self.claims.0.contains(name) {
+            if self.claims.0.values().any(|c| c == name) {
                 let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
             }
             let (reply, _) = mpsc::channel();
@@ -743,8 +775,8 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::{
-        Claims, Held, RESEND, chat_call, claim_indicator, confirm_answer, may_answer,
-        without_headers,
+        Claims, Held, RESEND, ask_key, chat_call, claim_indicator, confirm_answer, may_answer,
+        security_patch, without_headers,
     };
     use crate::config::Config;
     use crate::core::Input;
@@ -782,10 +814,10 @@ mod tests {
     #[test]
     fn claims_hide_the_dot_while_a_claimer_is_connected() {
         let mut claims = Claims::default();
-        assert!(claims.claim("mc"));
+        assert!(claims.claim(1, "mc"));
         assert!(!claims.gone("mc"), "the dot shows again");
-        assert!(claims.claim("mc"));
-        assert!(claims.claim("xp"));
+        assert!(claims.claim(2, "mc"));
+        assert!(claims.claim(3, "xp"));
         assert!(claims.gone("mc"), "xp still claims");
         assert!(claims.gone("other"), "not a claimer");
         assert!(!claims.gone("xp"));
@@ -797,9 +829,9 @@ mod tests {
     fn only_a_claimer_answers_by_button() {
         let (tx, rx) = std::sync::mpsc::channel();
         let mut claims = Claims::default();
-        claims.claim("mc");
+        claims.claim(1, "mc");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "evil", true, params.clone()).unwrap_err();
+        let err = confirm_answer(&claims, &tx, (2, "evil"), true, params.clone()).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
         let core = std::thread::spawn(move || {
@@ -816,12 +848,25 @@ mod tests {
             }
         });
         assert_eq!(
-            confirm_answer(&claims, &tx, "mc", true, params.clone()),
+            confirm_answer(&claims, &tx, (1, "mc"), true, params.clone()),
             Ok(json!({}))
         );
-        let err = confirm_answer(&claims, &tx, "mc", true, params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, (1, "mc"), true, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED, "stale");
         core.join().unwrap();
+    }
+
+    /// Review A1, high 1: a claim belongs to the connection that made it;
+    /// another connection of the same name does not answer under it.
+    #[test]
+    fn a_claim_belongs_to_its_connection() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        assert_eq!(claim_indicator(&mut claims, (1, "mc"), true), Ok(json!({})));
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, (2, "mc"), true, params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
     }
 
     /// A confined connection neither claims the indicator nor answers by
@@ -832,74 +877,111 @@ mod tests {
             indicator_clients: vec!["voice-mcp".into()],
             ..Config::default()
         };
-        let grants = || json!({"voice-mcp": ["indicator.claim"]});
-        assert!(!may_answer(&config, "voice-mcp", true, grants));
+        assert!(!may_answer(&config, "voice-mcp", true));
         let (tx, rx) = std::sync::mpsc::channel();
         let mut claims = Claims::default();
-        let err = claim_indicator(&mut claims, "voice-mcp", false).unwrap_err();
+        let err = claim_indicator(&mut claims, (1, "voice-mcp"), false).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
-        assert!(!claims.0.contains("voice-mcp"), "no claim");
-        claims.claim("voice-mcp");
+        assert!(claims.0.is_empty(), "no claim");
+        claims.claim(1, "voice-mcp");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "voice-mcp", false, params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, (1, "voice-mcp"), false, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
-        assert!(claim_indicator(&mut claims, "mc", true).is_ok());
-        assert!(claims.0.contains("mc"));
     }
 
-    /// Review A1: an unconfined client of the main socket that is neither
-    /// in `indicator_clients` nor holds the grant `indicator.claim`, such
-    /// as a program of `run_program`, neither claims nor answers, even
-    /// after a claim.
+    /// Review A1: an unconfined client of the main socket outside
+    /// `indicator_clients`, such as a program of `run_program`, neither
+    /// claims nor answers, even after a claim.
     #[test]
     fn a_client_that_is_not_named_cannot_claim_or_answer() {
         let config = Config::default();
-        let grants = || json!({"evil": ["input.inject", "methods.privileged"]});
-        let allowed = may_answer(&config, "evil", false, grants);
+        let allowed = may_answer(&config, "evil", false);
         assert!(!allowed);
         let (tx, rx) = std::sync::mpsc::channel();
         let mut claims = Claims::default();
-        let err = claim_indicator(&mut claims, "evil", allowed).unwrap_err();
+        let err = claim_indicator(&mut claims, (1, "evil"), allowed).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
-        assert!(!claims.0.contains("evil"), "no claim");
-        claims.claim("evil");
+        assert!(claims.0.is_empty(), "no claim");
+        claims.claim(1, "evil");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "evil", allowed, params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, (1, "evil"), allowed, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
     }
 
-    /// Review A1: the HUDs of the default `indicator_clients` claim and
-    /// answer without asking the core.
+    /// Review A1: the HUDs of the default `indicator_clients` claim.
     #[test]
     fn a_named_hud_claims_and_answers() {
         let config = Config::default();
         for hud in ["assistant", "construct", "mc"] {
-            let allowed = may_answer(&config, hud, false, || panic!("asked the core"));
+            let allowed = may_answer(&config, hud, false);
             assert!(allowed, "{hud}");
             let mut claims = Claims::default();
-            assert_eq!(claim_indicator(&mut claims, hud, allowed), Ok(json!({})));
-            assert!(claims.0.contains(hud));
+            assert_eq!(
+                claim_indicator(&mut claims, (1, hud), allowed),
+                Ok(json!({}))
+            );
+            assert!(claims.holds(1, hud));
         }
     }
 
-    /// Review A1: a changed `indicator_clients` and a grant or revoke of
-    /// `indicator.claim` decide the next call.
+    /// Review A1: a changed `indicator_clients` decides the next call,
+    /// and a name taken out of it loses its claim.
     #[test]
-    fn a_changed_setting_or_grant_takes_effect() {
+    fn a_changed_setting_takes_effect() {
         let mut config = Config {
             indicator_clients: vec!["construct".into()],
             ..Config::default()
         };
-        assert!(!may_answer(&config, "mc", false, || json!({})));
-        assert!(may_answer(&config, "construct", false, || json!({})));
+        assert!(!may_answer(&config, "mc", false));
+        assert!(may_answer(&config, "construct", false));
         config.indicator_clients.push("hud".into());
-        assert!(may_answer(&config, "hud", false, || json!({})));
-        let granted = || json!({"other": ["indicator.claim"]});
-        assert!(may_answer(&config, "other", false, granted));
-        assert!(!may_answer(&config, "other", false, || json!({})));
-        assert!(!may_answer(&config, "other", false, || Value::Null));
+        assert!(may_answer(&config, "hud", false));
+        let mut claims = Claims::default();
+        claims.claim(1, "mc");
+        claims.claim(2, "construct");
+        assert!(claims.keep(&config.indicator_clients), "construct claims");
+        assert!(!claims.holds(1, "mc"));
+        assert!(claims.holds(2, "construct"));
+        assert!(!claims.keep(&[]), "the dot shows again");
+    }
+
+    /// Review A1, high 2: a change of a security key through
+    /// `settings.set` or `settings.reload` waits for a key press; other
+    /// keys do not.
+    #[test]
+    fn a_security_change_by_a_method_asks_for_a_key() {
+        let config = Config::default();
+        let file = std::env::temp_dir().join(format!("voice-sec-{}.yaml", std::process::id()));
+        let evil = json!({"indicator_clients": ["evil"]});
+        assert_eq!(
+            security_patch(&config, "settings.set", &evil, &file),
+            Some(evil.clone())
+        );
+        let plain = json!({"barge_in_ms": 300});
+        assert_eq!(security_patch(&config, "settings.set", &plain, &file), None);
+        std::fs::write(&file, "{allow_programs: [sh], barge_in_ms: 300}").unwrap();
+        assert_eq!(
+            security_patch(&config, "settings.reload", &json!({}), &file),
+            Some(json!({"allow_programs": ["sh"], "barge_in_ms": 300}))
+        );
+        std::fs::write(&file, "{barge_in_ms: 300}").unwrap();
+        assert_eq!(
+            security_patch(&config, "settings.reload", &json!({}), &file),
+            None
+        );
+        std::fs::remove_file(&file).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let _answer = ask_key(&tx, &config, &evil);
+        let Ok(Input::Agent(crate::agents::Event::Ask {
+            prompt, physical, ..
+        })) = rx.try_recv()
+        else {
+            panic!("no question");
+        };
+        assert!(physical);
+        assert!(prompt.starts_with("Security setting!"), "{prompt}");
     }
 
     /// A confined connection cannot answer by `confirm`, push to talk or
