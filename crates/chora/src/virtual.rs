@@ -4,15 +4,26 @@
 use std::time::Instant;
 
 use smithay::{
-    backend::renderer::gles::{GlesRenderer, GlesTexture},
+    backend::{
+        allocator::Fourcc,
+        renderer::{
+            Bind, Offscreen, Texture,
+            damage::OutputDamageTracker,
+            gles::{GlesRenderer, GlesTexture},
+        },
+    },
     output::Output,
+    reexports::wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
+    utils::{Buffer, Size},
+    wayland::presentation::Refresh,
 };
 
-use crate::{render, state::State};
+use crate::{output::frame_duration, render, state::State};
 
 /// The texture that the frames of an output go to.
 pub struct OutputTexture {
     output: Output,
+    damage_tracker: OutputDamageTracker,
     texture: Option<GlesTexture>,
 }
 
@@ -20,6 +31,7 @@ impl OutputTexture {
     /// A texture for the frames of an output; the first render makes it.
     pub fn new(output: Output) -> Self {
         Self {
+            damage_tracker: OutputDamageTracker::from_output(&output),
             output,
             texture: None,
         }
@@ -36,14 +48,40 @@ impl OutputTexture {
     }
 
     /// Renders the damaged parts of the output into the texture. Returns
-    /// whether the frame had damage.
+    /// whether the frame had damage. A mode change makes a new texture,
+    /// which redraws in full. The render waits for the GPU, so that the
+    /// watchdog measures the work of the renderer, as on a screen.
     pub fn render(
         &mut self,
-        _gles: &mut GlesRenderer,
-        _parts: &mut render::Parts<'_>,
-        _view: &render::View,
+        gles: &mut GlesRenderer,
+        parts: &mut render::Parts<'_>,
+        view: &render::View,
     ) -> Result<bool, String> {
-        Err(format!("{} renders nothing yet", self.output.name()))
+        let mode = self
+            .output
+            .current_mode()
+            .ok_or("the output has no mode")?
+            .size;
+        let size: Size<i32, Buffer> = (mode.w, mode.h).into();
+        let mut age = 1;
+        if self.texture.as_ref().is_none_or(|t| t.size() != size) {
+            self.texture = Some(
+                gles.create_buffer(Fourcc::Abgr8888, size)
+                    .map_err(|e| e.to_string())?,
+            );
+            age = 0;
+        }
+        let elements = render::output_elements(parts, gles, &self.output, view);
+        let texture = self.texture.as_mut().ok_or("no texture")?;
+        let mut framebuffer = gles.bind(texture).map_err(|e| e.to_string())?;
+        let result = self
+            .damage_tracker
+            .render_output(gles, &mut framebuffer, age, &elements, [0.0, 0.0, 0.0, 1.0])
+            .map_err(|e| format!("rendering failed: {e:?}"))?;
+        let _ = result.sync.wait();
+        let damaged = result.damage.is_some();
+        parts.assets.stats.frame(damaged);
+        Ok(damaged)
     }
 }
 
@@ -51,21 +89,36 @@ impl OutputTexture {
 /// lock and the watchdog: presentation feedback after damage, and the
 /// frame callbacks.
 pub fn render_and_present(
-    _state: &mut State,
-    _output: &Output,
-    _render: impl FnOnce(&mut State) -> Result<bool, String>,
+    state: &mut State,
+    output: &Output,
+    render: impl FnOnce(&mut State) -> Result<bool, String>,
 ) {
-    let _ = Instant::now();
+    let start = Instant::now();
+    match render(state) {
+        Ok(damaged) => {
+            if damaged {
+                let mut feedback = render::take_feedback(state, output);
+                feedback.presented(
+                    state.clock.now(),
+                    Refresh::fixed(frame_duration(output)),
+                    0,
+                    wp_presentation_feedback::Kind::Vsync,
+                );
+            }
+            let generation = state.lock_generation();
+            state.frame_shown(output, generation);
+        }
+        Err(err) => tracing::warn!(output = output.name(), "{err}"),
+    }
+    state.frame_rendered(&output.name(), frame_duration(output), start.elapsed());
+    render::send_frames(state, output);
 }
 
 #[cfg(test)]
 mod tests {
     use serde_json::json;
     use smithay::{
-        backend::{
-            allocator::Fourcc,
-            renderer::{ExportMem, Texture},
-        },
+        backend::{allocator::Fourcc, renderer::ExportMem},
         utils::{Buffer, Rectangle, Size},
     };
 

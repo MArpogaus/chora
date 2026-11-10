@@ -13,22 +13,15 @@ use serde::Deserialize;
 use serde_json::Value;
 use smithay::{
     backend::{
-        allocator::{Fourcc, dmabuf::Dmabuf},
+        allocator::dmabuf::Dmabuf,
         egl::{EGLContext, EGLDevice, EGLDisplay},
-        renderer::{
-            Bind, ImportDma, Offscreen,
-            damage::OutputDamageTracker,
-            gles::{GlesRenderer, GlesTexture},
-        },
+        renderer::{ImportDma, gles::GlesRenderer},
     },
     output::{Mode, Output, PhysicalProperties, Scale, Subpixel},
     reexports::{
         calloop::timer::{TimeoutAction, Timer},
-        wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
         wayland_server::backend::GlobalId,
     },
-    utils::{Buffer, Size},
-    wayland::presentation::Refresh,
 };
 
 use chora_scene::ipc::RpcError;
@@ -36,9 +29,9 @@ use chora_scene::ipc::RpcError;
 use super::Backend;
 use crate::{
     ipc::{params_of, rejected},
-    output::frame_duration,
     render,
     state::State,
+    r#virtual::{OutputTexture, render_and_present},
 };
 
 /// The refresh rate of the virtual outputs, in mHz.
@@ -57,12 +50,10 @@ pub struct Headless {
     last: u32,
 }
 
-/// A virtual output: the texture that its frames go to.
+/// A virtual output: its global and the texture that its frames go to.
 struct Virtual {
-    output: Output,
     global: GlobalId,
-    damage_tracker: OutputDamageTracker,
-    texture: Option<GlesTexture>,
+    frames: OutputTexture,
 }
 
 /// A virtual output of the command line or of `output.add`.
@@ -205,10 +196,8 @@ fn add(state: &mut State, spec: &Spec) -> Result<Output, String> {
     output.change_current_state(Some(mode), None, Some(Scale::Fractional(spec.scale)), None);
     output.set_preferred(mode);
     headless.outputs.push(Virtual {
-        damage_tracker: OutputDamageTracker::from_output(&output),
-        output: output.clone(),
         global,
-        texture: None,
+        frames: OutputTexture::new(output.clone()),
     });
     state.add_output(output.clone());
     if let Some(position) = spec.position {
@@ -270,14 +259,14 @@ impl State {
         let index = headless
             .outputs
             .iter()
-            .position(|v| v.output.name() == name)
+            .position(|v| v.frames.output().name() == name)
             .ok_or_else(|| rejected(format!("no virtual output {name:?}")))?;
         if headless.outputs.len() == 1 {
             return Err(rejected("the last output stays"));
         }
         let gone = headless.outputs.remove(index);
         super::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
-        self.remove_output(&gone.output);
+        self.remove_output(gone.frames.output());
         self.outputs_configured();
         Ok(Value::Null)
     }
@@ -292,35 +281,12 @@ pub(crate) fn render_all(state: &mut State) {
     let outputs: Vec<Output> = headless
         .outputs
         .iter()
-        .map(|v| v.output.clone())
+        .map(|v| v.frames.output().clone())
         .filter(|o| state.outputs.contains(o))
         .collect();
     for output in outputs {
-        render_output(state, &output);
+        render_and_present(state, &output, |state| render_frame(state, &output));
     }
-}
-
-/// Renders one output, and tells the clients, the lock and the watchdog.
-fn render_output(state: &mut State, output: &Output) {
-    let start = std::time::Instant::now();
-    match render_frame(state, output) {
-        Ok(damaged) => {
-            if damaged {
-                let mut feedback = render::take_feedback(state, output);
-                feedback.presented(
-                    state.clock.now(),
-                    Refresh::fixed(frame_duration(output)),
-                    0,
-                    wp_presentation_feedback::Kind::Vsync,
-                );
-            }
-            let generation = state.lock_generation();
-            state.frame_shown(output, generation);
-        }
-        Err(err) => tracing::warn!(output = output.name(), "{err}"),
-    }
-    state.frame_rendered(&output.name(), frame_duration(output), start.elapsed());
-    render::send_frames(state, output);
 }
 
 /// Renders the damaged parts of an output into its texture. Returns
@@ -338,25 +304,13 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     let Some(Backend::Headless(headless)) = backend else {
         return Ok(false);
     };
-    let Some(target) = headless.outputs.iter_mut().find(|v| v.output == *output) else {
+    let Some(target) = headless
+        .outputs
+        .iter_mut()
+        .find(|v| v.frames.output() == output)
+    else {
         return Ok(false);
     };
-    let gles = &mut headless.renderer;
-    let mode = output.current_mode().ok_or("the output has no mode")?.size;
-    let size: Size<i32, Buffer> = (mode.w, mode.h).into();
-    // A new texture after a mode change; its age 0 means a full redraw.
-    let mut age = 1;
-    if target
-        .texture
-        .as_ref()
-        .is_none_or(|t| smithay::backend::renderer::Texture::size(t) != size)
-    {
-        target.texture = Some(
-            gles.create_buffer(Fourcc::Abgr8888, size)
-                .map_err(|e| e.to_string())?,
-        );
-        age = 0;
-    }
     let mut parts = render::Parts {
         scene,
         windows,
@@ -364,18 +318,9 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         lock: lock.as_ref(),
         depth: 0,
     };
-    let elements = render::output_elements(&mut parts, gles, output, &view);
-    let texture = target.texture.as_mut().ok_or("no texture")?;
-    let mut framebuffer = gles.bind(texture).map_err(|e| e.to_string())?;
-    let result = target
-        .damage_tracker
-        .render_output(gles, &mut framebuffer, age, &elements, [0.0, 0.0, 0.0, 1.0])
-        .map_err(|e| format!("rendering failed: {e:?}"))?;
-    // The watchdog measures the work of the renderer, as on a screen.
-    let _ = result.sync.wait();
-    let damaged = result.damage.is_some();
-    parts.assets.stats.frame(damaged);
-    Ok(damaged)
+    target
+        .frames
+        .render(&mut headless.renderer, &mut parts, &view)
 }
 
 #[cfg(test)]
