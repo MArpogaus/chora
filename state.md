@@ -1,6 +1,6 @@
 # State
 
-last_reviewed: df6dc69 (mapped to the rewritten hash; the round of d443fe7..bf81b35 was clean; grants step 1, the XP start feedback and 674a7a9 were not reviewed as a range, the round is due)
+last_reviewed: a03be22 (11-10: every branch merged since df6dc69 had its own review before the merge: acp follow-ups, H1, H3, H4c, focus fix, 3D steps 2 to 6, H2, H4a, deps, H5, H6, H4b, mc clock)
 base_2d: the commit before 0153f0d (the 2D guard); no scene or renderer change since
 block: three work branches in parallel, started 11:50
 
