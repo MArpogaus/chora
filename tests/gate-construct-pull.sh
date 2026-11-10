@@ -11,7 +11,9 @@
 #    injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
 #    mesh of the pane has a depth; after a drop beside the cube it is
-#    still its pane. The window exists at every step.
+#    still its pane, with a name. Then the pane rests when the pointer
+#    moves, and the camera is in no window. The window exists at every
+#    step.
 # 2. A pane dropped over a face goes back to xp on the output of that
 #    face, at the drop point: a move from face to face stays in xp.
 # 3. Without the variable an injected drag gives nothing: past the edge
@@ -49,6 +51,17 @@ pane_of() {
     call window.list '{}' | python3 -I -c '
 import json, sys
 print(next((w["pane"] for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]), "lost"))' "$1"
+}
+pane_name() {
+    call window.list '{}' | python3 -I -c '
+import json, sys
+print(next((w["name"] for w in json.load(sys.stdin)["windows"] if w["surface"] == sys.argv[1]), ""))' "$1"
+}
+node() {
+    ctl query "id:$1" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+print(json.dumps([nodes[0].get("parent"), nodes[0]["rects"]]) if nodes else "gone")'
 }
 deepest() {
     ctl query "id:construct-pane-$1" | python3 -I -c '
@@ -103,7 +116,20 @@ inject "[{\"pointer_move\": {\"position\": [220, 320], \"output\": \"$edge\"}},
 sleep 1
 [ "$(owner)" = construct ] || fail "the window is lost or left after the drop: $(probe)"
 [ "$(pane_of "$surface")" != none ] || fail "the pane went after the drop"
-ok "after a drop beside the cube the window is still a pane of the construct: $(probe)"
+[ -n "$(pane_name "$surface")" ] || fail "the pane of the window has no name"
+ok "after a drop beside the cube the window is still the pane $(pane_name "$surface") of the construct: $(probe)"
+sleep 2
+rests=$(node "construct-pane-$surface")
+[ "$(node "$surface" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0])')" = "construct-pane-$surface" ] ||
+    fail "the camera flew into the window after the pull-out: $(node "$surface")"
+inject '[{"pointer_move": {"position": [300, 200]}}]'
+inject '[{"pointer_move": {"position": [900, 600]}}]'
+sleep 1
+[ "$(node "construct-pane-$surface")" = "$rests" ] ||
+    fail "the pane follows the pointer with no button down: $rests, then $(node "construct-pane-$surface")"
+[ "$(node "$surface" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0])')" = "construct-pane-$surface" ] ||
+    fail "the camera flew into the window: $(node "$surface")"
+ok "after the release the pane rests and the camera is in no window"
 end_session
 
 CHORA_TEST_INJECTED_DRAG_GIVES=1 pull returned

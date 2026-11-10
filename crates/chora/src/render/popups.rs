@@ -881,12 +881,11 @@ fn two_agent_windows_keep_their_own_directory() {
     let _ = std::fs::remove_dir_all(second);
 }
 
-/// The pull-out of E3: xp on the virtual output of a face drags a window
-/// by its title bar and gives it with the drag to the window manager of
-/// the space. The drag then leaves its pane: the receiver gets the
-/// pointer of the screen, not the point that the pane maps.
-#[test]
-fn a_drag_given_out_of_a_pane_goes_on_at_the_screen_point() {
+/// xp on the virtual output of a face that the client `wm` shows through
+/// a pane. xp has the window s1 with a title bar and holds a press on the
+/// title, through the pane. The client `other` holds a claim on the
+/// screen too, and both `wm` and `other` grabbed `move`.
+fn pressed_title_behind_a_pane() -> (Core, Wayland, Client, Client, Client) {
     let mut core = Core::new();
     core.add_output("test-1", (800, 600));
     let mut wayland = Wayland::connect(&mut core);
@@ -895,10 +894,16 @@ fn a_drag_given_out_of_a_pane_goes_on_at_the_screen_point() {
     let mut wm = space(&mut core, [800.0, 600.0]);
     let m = pane_in_a_context(&mut core, &mut wm, [100.0, 80.0]);
     let desk = json!({"create": {"id": "desk", "kind": "group", "parent": "root",
-        "props": {"claim": [0.0, 0.0, 800.0, 600.0]}}});
+        "props": {"claim": [0.0, 0.0, 400.0, 600.0]}}});
     wm.ok(&mut core, "scene.apply", json!({"commands": [desk]}));
-    wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
-    wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+    let mut other = core.named("other");
+    let side = json!({"create": {"id": "side", "kind": "group", "parent": "root",
+        "props": {"claim": [400.0, 0.0, 400.0, 600.0]}}});
+    other.ok(&mut core, "scene.apply", json!({"commands": [side]}));
+    for client in [&mut wm, &mut other] {
+        client.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        client.ok(&mut core, "events.subscribe", json!({"events": []}));
+    }
     let mut xp = core.named("xp");
     let face = json!({"create": {"id": "xp", "kind": "group", "parent": "root",
         "props": {"claim": [FACE, FACE, 100.0, 80.0]}}});
@@ -914,21 +919,50 @@ fn a_drag_given_out_of_a_pane_goes_on_at_the_screen_point() {
     move_to(&mut core, shown(&m, [400.0, 300.0], 30.0, 10.0).into());
     click(&mut core, true);
     assert!(core.state.node_grab.is_some(), "the press is on the title");
-    let give = json!({"commands": [
-        {"remove": {"id": "s1", "to": "wm"}},
-        {"give_grab": {"surface": "s1", "to": "wm", "point": [30.0, 10.0]}},
-    ]});
-    xp.ok(&mut core, "scene.apply", give);
-    move_to(&mut core, (700.0, 500.0).into());
-    let got = wm.events_now(&mut core);
-    let moved: Vec<&serde_json::Value> = got
-        .iter()
-        .map(|e| &e["params"])
-        .filter(|p| p["event"] == "input.moved")
-        .collect();
-    let last = moved.last().expect("a move for the receiver");
-    assert_eq!(last["output"], "test-1", "{got:?}");
-    assert_eq!(last["position"], json!([700.0, 500.0]), "{got:?}");
+    (core, wayland, wm, other, xp)
+}
+
+/// The last `input.moved` of a client after the pointer went to (700,
+/// 500) of the screen: its output and its position.
+fn moved_to_the_screen_corner(core: &mut Core, client: &mut Client) -> serde_json::Value {
+    move_to(core, (700.0, 500.0).into());
+    let got = client.events_now(core);
+    let mut moved = got.iter().map(|e| &e["params"]);
+    let last = moved.rfind(|p| p["event"] == "input.moved");
+    let last = last.unwrap_or_else(|| panic!("no move for the receiver: {got:?}"));
+    json!([last["output"], last["position"]])
+}
+
+/// The transaction of xp that gives s1 with its drag to a client.
+fn give_to(to: &str) -> serde_json::Value {
+    json!({"commands": [
+        {"remove": {"id": "s1", "to": to}},
+        {"give_grab": {"surface": "s1", "to": to, "point": [30.0, 10.0]}},
+    ]})
+}
+
+/// The pull-out of E3: xp gives the window with the drag to the window
+/// manager that shows its face. The drag then leaves its pane: the
+/// receiver gets the pointer of the screen, not the point that the pane
+/// maps.
+#[test]
+fn a_drag_given_out_of_a_pane_goes_on_at_the_screen_point() {
+    let (mut core, _wayland, mut wm, _other, mut xp) = pressed_title_behind_a_pane();
+    xp.ok(&mut core, "scene.apply", give_to("wm"));
+    let at = moved_to_the_screen_corner(&mut core, &mut wm);
+    assert_eq!(at, json!(["test-1", [700.0, 500.0]]));
     click(&mut core, false);
     assert!(core.pointer_free());
+}
+
+/// Review of the pull-out: only the owner of the pane may take a drag out
+/// of it. A drag given to another window manager stays behind the pane,
+/// so that no client moves the pointer of a face to the screen for a
+/// third one.
+#[test]
+fn a_drag_given_to_another_client_stays_behind_its_pane() {
+    let (mut core, _wayland, _wm, mut other, mut xp) = pressed_title_behind_a_pane();
+    xp.ok(&mut core, "scene.apply", give_to("other"));
+    let at = moved_to_the_screen_corner(&mut core, &mut other);
+    assert_eq!(at[0], "VIRTUAL-1", "{at}");
 }
