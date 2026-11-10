@@ -197,6 +197,7 @@ impl State {
                 camera: Transform::translate(-x, -y, 0.0),
                 scale,
                 size: pixel_size(w * scale, h * scale),
+                near: crate::mesh::NEAR,
             };
             return Ok(Shot {
                 view,

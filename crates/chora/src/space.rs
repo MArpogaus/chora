@@ -262,7 +262,7 @@ pub fn view(context: &Placed<'_>, placed: &Placed<'_>, [w, h]: [f64; 2]) -> Opti
 }
 
 /// Whether a point lies in a convex polygon of either winding.
-pub fn contains(corners: &[[f64; 2]; 4], [x, y]: [f64; 2]) -> bool {
+pub fn contains(corners: &[[f64; 2]], [x, y]: [f64; 2]) -> bool {
     let finite = [x, y]
         .iter()
         .chain(corners.iter().flatten())

@@ -251,7 +251,7 @@ fn a_shader_plane_reads_the_scale_of_its_texture() {
     let mut wm = space(&mut core, SIZE);
     core.add_output("test-1", (640, 480));
     let near = chain(&[translate(100.0, 100.0, 0.0), turn_y(0.001)]);
-    let far = chain(&[translate(400.0, 100.0, 3.0 * EYE), turn_y(0.001)]);
+    let far = chain(&[translate(400.0, 100.0, 3.3 * EYE), turn_y(0.001)]);
     let node = |id: &str, at: &Matrix| {
         json!({"create": {"id": id, "kind": "shader", "parent": "eye", "props": {
             "size": [100, 100], "shader": probe, "transform": {"matrix": at}}}})
@@ -267,7 +267,7 @@ fn a_shader_plane_reads_the_scale_of_its_texture() {
     let got = pixel(x, y)[0];
     assert!(
         (15..=17).contains(&got),
-        "a plane 4 times as far gets 1/4: {got}"
+        "a plane over 4 times as far gets 1/4: {got}"
     );
     std::fs::remove_dir_all(probe.parent().unwrap()).unwrap();
 }
@@ -334,4 +334,62 @@ fn a_mesh_in_a_context_takes_input_where_it_draws() {
     let (outside, drawn) = under(&core, 180.0, 90.0);
     assert_eq!(outside.as_deref(), Some("back"), "the box is not the shape");
     assert_eq!(drawn, [0, 0, 255, 255]);
+}
+
+#[test]
+fn a_plane_keeps_its_texture_when_it_wobbles_around_a_step() {
+    let (mut core, mut wm) = world();
+    let at = |z: f64| chain(&[translate(100.0, 100.0, z), turn_y(10.0)]);
+    let commands = json!({"commands": [
+        rect("p", [100.0, 100.0], [1.0, 0.0, 0.0, 1.0], &at(0.8 * EYE)),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    frames(&mut core, 1);
+    let first = stats(&core);
+    for z in [1.3, 0.8, 1.3, 0.8] {
+        let update = json!({"commands": [
+            {"update": {"id": "p", "props": {"transform": {"matrix": at(z * EYE)}}}},
+        ]});
+        wm.ok(&mut core, "scene.apply", update);
+        frames(&mut core, 1);
+    }
+    assert_eq!(stats(&core).textures_allocated, first.textures_allocated);
+}
+
+#[test]
+fn a_mirror_and_its_pane_read_one_texture_of_their_window() {
+    let probe = shader(
+        "mirror.frag",
+        "uniform sampler2D win;\nvarying vec2 v_uv;\n\
+         void main() { gl_FragColor = texture2D(win, v_uv); }",
+    );
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let mut wayland = Wayland::connect(&mut core);
+    let toplevel = window(&mut core, &mut wayland, (32, 32), 0xFFFF_0000);
+    let pane = |id: &str, x: u32| {
+        json!({"create": {"id": id, "kind": "shader", "parent": "root", "props": {
+            "size": [32, 32], "shader": probe, "uniforms": {"win": {"node": "s1"}},
+            "transform": {"translate": [x, 40]}}}})
+    };
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "root"}},
+        pane("pane", 40),
+        pane("mirror", 80),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    frames(&mut core, 1);
+    let before = stats(&core);
+    wayland.attach_filled(
+        &mut core,
+        &toplevel,
+        (32, 32),
+        (Format::Argb8888, 0xFF00_FF00),
+    );
+    frames(&mut core, 1);
+    let after = stats(&core);
+    assert_eq!(after.textures_rendered - before.textures_rendered, 1);
+    assert_eq!(after.passes - before.passes, 2, "one pass per pane");
+    std::fs::remove_dir_all(probe.parent().unwrap()).unwrap();
 }
