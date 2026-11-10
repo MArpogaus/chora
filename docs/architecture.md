@@ -433,13 +433,17 @@ The safety layer is the only built-in behavior (see
   the main thread waited for a CPU during a frame (the run queue wait of
   `/proc/thread-self/schedstat`) does not count: on a busy host the
   frames are late without a costly scene, so the core logs at most once
-  a minute that the host is busy and acts on no client.
+  a minute that the host is busy and acts on no client. Only the main
+  thread counts: the wait of the threads of a software renderer still
+  looks like a costly frame.
   `tests/gate-watchdog-starved.sh` checks it beside busy loops.
 - **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
   stall of the main loop and aborts chora when the loop hangs, for
   example in a shader that never returns. The time that the watchdog
   thread itself did not run, after SIGSTOP or on a starved host, counts
-  for no stall. `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
+  for no stall, up to a ceiling: four times the abort time of wall time
+  without a beat aborts too. `tests/gate-0.9-shader-hang.sh` checks it on
+  llvmpipe.
 
 ## Permissions
 
