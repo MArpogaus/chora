@@ -36,6 +36,8 @@ const STEP_MS: f64 = 10.0;
 pub struct Wobble {
     /// The width and height of the window.
     size: [f64; 2],
+    /// The origin of the window at the last step.
+    origin: [f64; 2],
     /// The control points in scene coordinates, row by row.
     at: [[f64; 2]; COUNT],
     velocity: [[f64; 2]; COUNT],
@@ -65,6 +67,7 @@ impl Wobble {
         };
         let mut wobble = Self {
             size,
+            origin,
             at: [[0.0; 2]; COUNT],
             velocity: [[0.0; 2]; COUNT],
             grab: index(1) * SIDE + index(0),
@@ -97,10 +100,26 @@ impl Wobble {
     /// in the `KWin` model. The rest waits for the next call. The drawn
     /// mesh moves the points on by it.
     fn step(&mut self, origin: [f64; 2], dt: f64) {
+        self.follow(origin);
         self.pending += dt.clamp(0.0, 0.1) * 1000.0;
         while self.pending >= STEP_MS {
             self.pending -= STEP_MS;
             self.integrate(origin);
+        }
+    }
+
+    /// Takes the grid along when the window jumps farther than its size
+    /// in one step, as to another output: the springs would else stretch
+    /// the mesh over the way of the jump until they catch up.
+    fn follow(&mut self, origin: [f64; 2]) {
+        let jump = [origin[0] - self.origin[0], origin[1] - self.origin[1]];
+        self.origin = origin;
+        if jump[0].abs() <= self.size[0] && jump[1].abs() <= self.size[1] {
+            return;
+        }
+        for point in &mut self.at {
+            point[0] += jump[0];
+            point[1] += jump[1];
         }
     }
 

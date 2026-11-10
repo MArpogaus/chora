@@ -42,7 +42,7 @@ opens-under-pointer pass
 moves-to-face pass
 face-removed pass
 no-cube-on-faces pass
-drag-keeps-rect gap
+drag-keeps-rect pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"

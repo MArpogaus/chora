@@ -295,15 +295,23 @@ impl State {
         self.stranded.clear();
     }
 
-    /// The windows that lie in an area of the scene.
-    fn windows_in(&self, area: Rectangle<f64, Logical>) -> Vec<String> {
+    /// The rectangle of a window in the scene, if the scene draws it. A
+    /// hidden window has none.
+    fn scene_rect_of(&self, surface: &str) -> Option<Rectangle<f64, Logical>> {
+        let window = self.windows.get(surface)?;
         let list = self.scene.draw_list();
-        let lies = |p: &chora_scene::Placed<'_>| {
-            let window = self.windows.get(&p.node.id)?;
-            let rect = render::window_rect(window, &p.transform);
-            area.overlaps(rect).then(|| p.node.id.clone())
+        let placed = list.iter().find(|p| p.node.id == surface)?;
+        Some(render::window_rect(window, &placed.transform))
+    }
+
+    /// The windows whose centre lies in an area of the scene.
+    fn windows_in(&self, area: Rectangle<f64, Logical>) -> Vec<String> {
+        let inside = |id: &&String| {
+            let centre = |r: Rectangle<f64, Logical>| r.loc + r.size.downscale(2.0).to_point();
+            self.scene_rect_of(id)
+                .is_some_and(|r| area.contains(centre(r)))
         };
-        list.iter().filter_map(lies).collect()
+        self.windows.keys().filter(inside).cloned().collect()
     }
 
     /// Notes the windows of clients in the slot of a removed output: the
@@ -327,8 +335,9 @@ impl State {
     }
 
     /// Takes each stranded window whose time is over from its owner, when
-    /// that one still has it in the slot and no virtual output shows the
-    /// slot again: the core tells the owner, removes the window in its
+    /// that one still has it in the slot and neither a new virtual output
+    /// nor a screen shows it. A hidden window stays with its owner.
+    /// Then: the core tells the owner, removes the window in its
     /// name and hands it to the client that gave it to the owner, else to
     /// another window manager, else it shows the window itself.
     pub fn expire_stranded(&mut self, now: std::time::Instant) {
@@ -348,10 +357,15 @@ impl State {
             ..
         } = stranded;
         let has_it = |n: &Node| n.owner.as_ref() == Some(owner);
-        let shown = |v: &Virtual| output_area(v.output()).to_f64().overlaps(*slot);
+        let Some(rect) = self.scene_rect_of(surface) else {
+            return;
+        };
+        let on_a_new_output = |v: &Virtual| output_area(v.output()).to_f64().overlaps(rect);
+        let on_a_screen = |o: &Output| render::shown_surfaces(self, o).contains(surface);
         if !self.scene.node(surface).is_some_and(has_it)
             || !self.windows_in(*slot).contains(surface)
-            || self.assets.virtuals.iter().any(shown)
+            || self.assets.virtuals.iter().any(on_a_new_output)
+            || self.outputs.iter().any(on_a_screen)
         {
             return;
         }

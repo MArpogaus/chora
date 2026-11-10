@@ -105,15 +105,28 @@ const EVENTS: [&str; 19] = [
 
 /// The methods that other clients call with the client name, as
 /// `xp.turn_to`.
-const METHODS: [&str; 7] = [
+const METHODS: [&str; 6] = [
     "start_menu",
     "minimize",
     "restore",
     "activate",
     "restart",
     "turn_to",
-    "window.move",
 ];
+
+/// The export of `window.move`. It is privileged, as `window.give` is: it
+/// takes a window out of the view of the person.
+fn move_method() -> ExportMethod {
+    chora_kit::runtime::privileged(chora_kit::runtime::method(
+        "window.move",
+        "Moves a window to another output that chora-xp manages.",
+        serde_json::json!({
+            "surface": {"type": "string", "description": "The surface id of the window."},
+            "output": {"type": "string", "description": "The name of the output."},
+        }),
+        &["surface", "output"],
+    ))
+}
 
 /// What a key binding does.
 #[derive(Clone, Copy)]
@@ -216,6 +229,8 @@ pub struct Wm {
     hover: Option<String>,
     /// The output that the pointer entered last, where a new window opens.
     pointer_output: Option<String>,
+    /// Whether the bindings of the cube are grabbed.
+    cube_keys: bool,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
@@ -318,6 +333,7 @@ impl Wm {
     ) -> Result<Self, ClientError> {
         let mut methods = METHODS.map(ExportMethod::from).to_vec();
         methods.push(give::method());
+        methods.push(move_method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
@@ -344,6 +360,7 @@ impl Wm {
             desktop: 0,
             hover: None,
             pointer_output: None,
+            cube_keys: false,
             dialog: None,
             fade: None,
             fade_shader: None,
@@ -490,6 +507,7 @@ impl Wm {
     #[allow(clippy::expect_used, reason = "KEYS holds valid bindings")]
     fn grab(&mut self) -> Result<(), ClientError> {
         let cube = !self.cube_off();
+        self.cube_keys = cube;
         let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
         for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
@@ -1065,6 +1083,18 @@ impl Wm {
         !self.bars.is_empty() && !self.bars.iter().any(Bar::has_pager)
     }
 
+    /// Grabs or lets go the bindings of the cube after the outputs
+    /// changed: the cube is off while all outputs are virtual ones.
+    fn sync_cube_keys(&mut self) {
+        if self.cube_keys != self.cube_off() {
+            return;
+        }
+        let grabbed = self.rt.ungrab_all().and_then(|()| self.grab());
+        if let Err(err) = grabbed {
+            eprintln!("chora-xp: {err}");
+        }
+    }
+
     /// The output of a node of an output, as its wallpaper or its taskbar,
     /// or of a window.
     fn output_of(&self, node: &str) -> Option<String> {
@@ -1234,6 +1264,7 @@ impl Wm {
             let mut commands = self.add_output(output);
             commands.extend(self.sync_tasks());
             commands.extend(self.claim());
+            self.sync_cube_keys();
             return commands;
         };
         let mine: Vec<usize> = (0..self.windows.len())
@@ -1302,6 +1333,7 @@ impl Wm {
             }
             commands.extend(self.refresh_icons());
             commands.extend(self.claim());
+            self.sync_cube_keys();
         }
         commands
     }
@@ -3265,7 +3297,7 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 /// the pointer entered last, else the first output. Screens keep the
 /// first one, as before virtual outputs.
 fn home_bar<'a>(bars: &'a [Bar], entered: Option<&str>) -> Option<&'a Bar> {
-    let under_the_pointer = |b: &&Bar| Some(b.output.as_str()) == entered;
+    let under_the_pointer = |b: &&Bar| !b.has_pager() && Some(b.output.as_str()) == entered;
     bars.iter().find(under_the_pointer).or(bars.first())
 }
 
