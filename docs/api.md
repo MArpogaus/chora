@@ -474,6 +474,12 @@ kept inside the window, under the pointer and wobbles on from the
 springs. `chora-xp`, `chora-mc` and `chora-construct` grab no `move` and
 so receive no drag.
 
+`chora-xp` gives by itself on a virtual output: when the drag of a title
+bar leaves the output where it started, the window goes with the drag
+to the owner of that output, the client that shows it as a pane. When
+the core refuses, as for an injected drag, the window stays with
+`chora-xp` for the rest of the drag.
+
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for
 example 5 seconds after the give. In the second case the receiver gets

@@ -167,6 +167,9 @@ struct Drag {
     /// The pointer of the last move. The core reports the pointer again
     /// after each transaction, also when it did not move.
     last: [f64; 2],
+    /// The core refused to give this drag away: the window stays for the
+    /// rest of it.
+    kept: bool,
 }
 
 /// A border of a frame that the pointer drags.
@@ -2052,6 +2055,7 @@ impl Wm {
                 start: position,
                 origin: self.windows[i].pos,
                 last: position,
+                kept: false,
             });
             self.start_wobble(surface, position);
         }
@@ -2119,6 +2123,9 @@ impl Wm {
         }
         drag.last = [px, py];
         let (surface, start, origin) = (drag.surface.clone(), drag.start, drag.origin);
+        if let Some(commands) = self.pull_out(&surface, start, origin, [px, py]) {
+            return commands;
+        }
         let Some(i) = self.index(&surface) else {
             return Vec::new();
         };
@@ -2229,6 +2236,46 @@ impl Wm {
         }
         self.desk
             .release(&mut self.theme, &mut self.icons, position)
+    }
+
+    /// A drag of a title bar that leaves the face where it started gives
+    /// the window with the drag to the client that shows the face, so
+    /// that the window follows the pointer out of the cube (E3). The
+    /// commands after the give; `None` on a screen, inside the face, and
+    /// after the core refused, as it does for an injected drag: then the
+    /// window stays with chora-xp.
+    #[allow(clippy::cast_possible_truncation, reason = "scene coordinates")]
+    fn pull_out(
+        &mut self,
+        surface: &str,
+        start: [f64; 2],
+        origin: [i32; 2],
+        pointer: [f64; 2],
+    ) -> Option<Vec<Command>> {
+        if self.drag.as_ref().is_none_or(|d| d.kept) {
+            return None;
+        }
+        let pixel = |p: [f64; 2]| p.map(|v| v.floor() as i32);
+        let face = self.bars.iter().find(|b| b.contains(pixel(start)))?;
+        let to = pulled_out(face.area(), face.owner(), pixel(pointer))?.to_owned();
+        let grab = chora_scene::GivenGrab {
+            point: [
+                start[0] - f64::from(origin[0]),
+                start[1] - f64::from(origin[1]),
+            ],
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        match self.give_dragged(surface, &to, Some(grab)) {
+            Ok((_, commands)) => Some(commands),
+            Err(err) => {
+                eprintln!("chora-xp: {surface} stays on its face: {}", err.message);
+                if let Some(drag) = &mut self.drag {
+                    drag.kept = true;
+                }
+                None
+            }
+        }
     }
 
     /// A window dragged out of the work areas of `chora-xp` goes to the
@@ -3293,6 +3340,15 @@ fn dropped_on(frame: Rect, area: Rect, point: [i32; 2], grab: [i32; 2]) -> Optio
     (apart(0) || apart(1)).then(|| [point[0] - grab[0], point[1] - grab[1]])
 }
 
+/// The client that gets a window whose drag started on a face: the owner
+/// of the virtual output, once the pointer is outside it. A screen has no
+/// owner, and a drag there gives at the release.
+fn pulled_out(face: Rect, owner: Option<&str>, [px, py]: [i32; 2]) -> Option<&str> {
+    let [x, y, w, h] = face;
+    let inside = (x..x + w).contains(&px) && (y..y + h).contains(&py);
+    owner.filter(|_| !inside)
+}
+
 fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
     let keep = 64;
     [
@@ -3304,6 +3360,18 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// E3: a drag that leaves its face gives the window to the client
+    /// that shows the face; on a screen and inside the face nothing goes.
+    #[test]
+    fn a_drag_out_of_a_face_goes_to_the_owner_of_the_face() {
+        let face = [-262_144, -262_144, 800, 600];
+        let construct = Some("construct");
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_000]), None);
+        assert_eq!(pulled_out(face, construct, [-261_344, -262_000]), construct);
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_145]), construct);
+        assert_eq!(pulled_out([0, 0, 800, 600], None, [900, 100]), None);
+    }
 
     #[test]
     fn every_exported_method_parses_its_parameters() {

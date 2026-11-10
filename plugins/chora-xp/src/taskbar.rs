@@ -123,6 +123,8 @@ pub struct Bar {
     /// The buttons of the desktops show: not on a virtual output, where
     /// the plugin has no cube of its own.
     pager: bool,
+    /// The client that shows a virtual output, as a face of its cube.
+    owner: Option<String>,
     /// How far the taskbar slid down, and how far it goes.
     offset: f64,
     target: f64,
@@ -139,6 +141,7 @@ impl Bar {
             auto_hide: false,
             clock: true,
             pager: output.is_virtual != Some(true),
+            owner: (output.owner.clone()).filter(|_| output.is_virtual == Some(true)),
             offset: 0.0,
             target: 0.0,
         }
@@ -214,6 +217,11 @@ impl Bar {
         let [x, y, w, h] = self.area;
         let bar = if self.auto_hide { HIDDEN_STRIP } else { HEIGHT };
         [x, y, w, (h - bar).max(1)]
+    }
+
+    /// The client that shows the output when it is a virtual one.
+    pub fn owner(&self) -> Option<&str> {
+        self.owner.as_deref()
     }
 
     /// Whether the taskbar shows the buttons of the desktops.
@@ -626,6 +634,7 @@ mod tests {
             auto_hide: false,
             clock: true,
             pager: true,
+            owner: None,
             offset: 0.0,
             target: 0.0,
         }
