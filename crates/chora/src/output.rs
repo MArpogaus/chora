@@ -639,7 +639,7 @@ fn smithay_transform(transform: OutputTransform) -> utils::Transform {
 }
 
 /// The camera that shows an output at its place in the layout.
-fn default_camera(output: &Output) -> Transform {
+pub(crate) fn default_camera(output: &Output) -> Transform {
     let loc = output_area(output).loc;
     Transform::translate(-f64::from(loc.x), -f64::from(loc.y), 0.0)
 }

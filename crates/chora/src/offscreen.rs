@@ -9,7 +9,7 @@
 
 use std::time::Instant;
 
-use chora_scene::ipc::RpcError;
+use chora_scene::{Scene, Uniform, ipc::RpcError};
 use serde::Deserialize;
 use serde_json::Value;
 use smithay::{
@@ -58,9 +58,43 @@ pub struct Virtual {
     slot: usize,
     global: GlobalId,
     target: OutputTexture,
+    /// The screens whose frames asked for a frame of the output since it
+    /// rendered last. A screen that asks again starts the next frame, so
+    /// the output renders once per frame of the fastest screen.
+    asked: Vec<String>,
 }
 
 impl Virtual {
+    /// The last frame of the output and its version, for a shader node
+    /// of a client: only the owner reads it.
+    pub fn frame(&self, reader: Option<&str>) -> Option<(GlesTexture, u64)> {
+        if reader != Some(&self.owner) {
+            return None;
+        }
+        Some((self.target.texture.clone()?, self.target.version))
+    }
+
+    /// Renders a frame and notes it for the frame callbacks.
+    fn render(&mut self, parts: &mut render::Parts<'_>, gles: &mut GlesRenderer) {
+        let output = self.output().clone();
+        let view = render::View::in_scene(parts.scene, &output);
+        match self.target.render(gles, parts, &view) {
+            Ok(damaged) => parts.assets.rendered_virtuals.push((output, damaged)),
+            Err(err) => tracing::warn!(output = output.name(), "{err}"),
+        }
+    }
+
+    /// Whether a frame of a screen starts a new frame of the output.
+    fn due(&mut self, screen: &str) -> bool {
+        let known = self.asked.iter().any(|s| s == screen);
+        if known {
+            self.asked.clear();
+        }
+        let first = self.asked.is_empty();
+        self.asked.push(screen.to_owned());
+        first
+    }
+
     /// The output.
     pub fn output(&self) -> &Output {
         self.target.output()
@@ -173,7 +207,10 @@ impl State {
             slot,
             global,
             target: OutputTexture::new(output.clone()),
+            asked: Vec::new(),
         });
+        self.scene
+            .set_output_owner(&output.name(), self.ipc.name(conn));
         self.output_changed();
         let info = self
             .output_info()
@@ -223,6 +260,7 @@ impl State {
         crate::backend::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
         self.leave_layout(gone.target.output());
         let _ = self.scene.release_camera(name);
+        self.scene.set_output_owner(name, None);
         self.output_changed();
         self.update_focus();
         Ok(Value::Null)
@@ -234,6 +272,8 @@ pub struct OutputTexture {
     output: Output,
     damage_tracker: OutputDamageTracker,
     texture: Option<GlesTexture>,
+    /// Counts the frames with damage, for the readers of the texture.
+    version: u64,
     /// The damage of the last frame.
     #[cfg(test)]
     damage: Vec<smithay::utils::Rectangle<i32, smithay::utils::Physical>>,
@@ -246,6 +286,7 @@ impl OutputTexture {
             damage_tracker: OutputDamageTracker::from_output(&output),
             output,
             texture: None,
+            version: 0,
             #[cfg(test)]
             damage: Vec::new(),
         }
@@ -301,12 +342,66 @@ impl OutputTexture {
             .map_err(|e| format!("rendering failed: {e:?}"))?;
         let _ = result.sync.wait();
         let damaged = result.damage.is_some();
+        self.version += u64::from(damaged);
         #[cfg(test)]
         {
             self.damage = result.damage.cloned().unwrap_or_default();
         }
         parts.assets.stats.frame(damaged);
         Ok(damaged)
+    }
+}
+
+/// The names of the virtual outputs that a visible shader node reads, in
+/// the scene or in the overlay of a screen.
+fn read_outputs(scene: &Scene, screen: &str) -> Vec<String> {
+    let lists = [scene.draw_list(), scene.overlay_draw_list(screen)];
+    let uniforms = lists
+        .iter()
+        .flatten()
+        .flat_map(|placed| placed.node.props.uniforms.values());
+    uniforms
+        .filter_map(|uniform| match uniform {
+            Uniform::Output(read) => Some(read.output.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Renders the virtual outputs that a frame of a screen reads, before the
+/// screen builds its elements, so that the reader shows a texture of the
+/// same frame. An output without damage keeps its texture. The outputs
+/// leave the list while they render: a virtual output shows no other one.
+pub fn render_virtuals(parts: &mut render::Parts<'_>, gles: &mut GlesRenderer, screen: &Output) {
+    let listed = |v: &Virtual| v.output() == screen;
+    if parts.assets.virtuals.is_empty() || parts.assets.virtuals.iter().any(listed) {
+        return;
+    }
+    let read = read_outputs(parts.scene, &screen.name());
+    let mut virtuals = std::mem::take(&mut parts.assets.virtuals);
+    for face in &mut virtuals {
+        if read.contains(&face.output().name()) && face.due(&screen.name()) {
+            face.render(parts, gles);
+        }
+    }
+    parts.assets.virtuals = virtuals;
+}
+
+/// Tells the clients on the virtual outputs that rendered with the last
+/// frame of a screen: presentation feedback after damage, and the frame
+/// callbacks.
+pub fn present_virtuals(state: &mut State) {
+    for (output, damaged) in std::mem::take(&mut state.assets.rendered_virtuals) {
+        if damaged {
+            let mut feedback = render::take_feedback(state, &output);
+            feedback.presented(
+                state.clock.now(),
+                Refresh::fixed(frame_duration(&output)),
+                0,
+                wp_presentation_feedback::Kind::Vsync,
+            );
+        }
+        render::send_frames(state, &output);
     }
 }
 

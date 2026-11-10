@@ -42,7 +42,7 @@ use crate::{
     layers,
     lock::Lock,
     mesh::{self, Layers, MeshElement, MeshRenderer, Placing},
-    output::{Spot, output_area, scene_rect},
+    output::{Spot, default_camera, output_area, scene_rect},
     space,
     state::State,
     text::{self, Texts},
@@ -198,6 +198,9 @@ pub struct Assets {
     pub stats: RenderStats,
     /// The virtual outputs, which render into textures.
     pub virtuals: Vec<crate::offscreen::Virtual>,
+    /// The virtual outputs that rendered since the last frame callbacks,
+    /// and whether they had damage.
+    pub rendered_virtuals: Vec<(Output, bool)>,
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.
@@ -219,8 +222,14 @@ pub struct View {
 impl View {
     /// The view of an output.
     pub fn of(state: &State, output: &Output) -> Self {
+        Self::in_scene(&state.scene, output)
+    }
+
+    /// The view of an output with its camera in a scene.
+    pub fn in_scene(scene: &Scene, output: &Output) -> Self {
+        let camera = scene.current_camera(&output.name());
         Self {
-            camera: state.camera(output),
+            camera: camera.unwrap_or_else(|| default_camera(output)),
             scale: output.current_scale().fractional_scale(),
             size: physical_size(output),
             near: mesh::NEAR,
@@ -279,6 +288,7 @@ where
         parts.assets.stats.count(&elements);
         return elements;
     }
+    crate::offscreen::render_virtuals(parts, renderer.gles(), output);
     prune_assets(parts);
     let shown = if view.stepped { "" } else { " capture" };
     let name = format!("{}{shown}", output.name());
@@ -712,8 +722,18 @@ fn node_textures(
         return out;
     }
     for (name, uniform) in &node.props.uniforms {
-        let chora_scene::Uniform::Texture(source) = uniform else {
-            continue;
+        let source = match uniform {
+            chora_scene::Uniform::Texture(source) => source,
+            chora_scene::Uniform::Output(read) => {
+                let reader = node.owner.as_deref();
+                let faces = parts.assets.virtuals.iter();
+                let frame = faces
+                    .filter(|v| v.output().name() == read.output)
+                    .find_map(|v| v.frame(reader));
+                out.extend(frame.map(|(texture, version)| (name.clone(), texture, version)));
+                continue;
+            }
+            _ => continue,
         };
         let Some(logical) = source_size(parts, &source.node) else {
             continue;
@@ -1528,6 +1548,7 @@ pub fn send_frames(state: &mut State, output: &Output) {
     state
         .foreign_toplevel_manager_state
         .set_shown(output, &visible);
+    crate::offscreen::present_virtuals(state);
 }
 
 /// The surface nodes that an output shows: those whose scene rectangle
