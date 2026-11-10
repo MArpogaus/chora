@@ -34,7 +34,7 @@ use chora_kit::{
 use chora_scene::{
     Command, Easing, Event, MAX_DURATION, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
     ToplevelState, Transform, Uniform,
-    ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
+    ipc::{ClientError, ExportMethod, Filter, PressState, Query, RpcError},
 };
 use clap::Parser;
 use serde::Deserialize;
@@ -1912,7 +1912,7 @@ impl Mc {
 
     /// Moves what the core lays out to its place: the title of the head
     /// after the number, the notes of the panels of a scene flush right to
-    /// the margin.
+    /// the margin. One query reads the rects of all texts that show.
     fn align(&mut self, name: &str) -> Result<(), ClientError> {
         let Some(scene) = self.scenes.get(name).cloned() else {
             return Ok(());
@@ -1920,11 +1920,13 @@ impl Mc {
         let Some(geo) = self.geometry(name) else {
             return Ok(());
         };
+        let rects = self.text_rects()?;
+        let rect = |id: &str| rects.get(id).copied();
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
         if Self::has_chapter(&scene)
             && self.layout(&scene) == Layout::Number
-            && let Some([_, _, width, _]) = self.rect(&chapter_id(name, "number"))?
+            && let Some([_, _, width, _]) = rect(&chapter_id(name, "number"))
         {
             let space = BAR_SPACE * self.ty("chapter", None).size;
             let bar = self.bar((geo.text[0] + width + space).round());
@@ -1937,7 +1939,7 @@ impl Mc {
             // A title that wraps pushes the lines down by its extra lines.
             let mut y = self.lines_top(panel);
             if !panel.title.is_empty()
-                && let Some([_, _, _, height]) = self.rect(&format!("{id}-title"))?
+                && let Some([_, _, _, height]) = rect(&format!("{id}-title"))
             {
                 let line = self.ty("heading", panel.title_style.as_ref()).line;
                 y += (height - line).max(0.0);
@@ -1951,13 +1953,13 @@ impl Mc {
             let body = self.ty("body", panel.style.as_ref());
             let note = self.ty("margin", panel.note_style.as_ref());
             for (i, (time, _)) in rows.iter().enumerate() {
-                let Some([_, _, _, height]) = self.rect(&format!("{id}-line-{i}"))? else {
+                let Some([_, _, _, height]) = rect(&format!("{id}-line-{i}")) else {
                     break; // below the panel
                 };
                 commands.push(move_to(format!("{id}-line-{i}"), indent, y));
                 let note_id = format!("{id}-note-{i}");
                 if !time.is_empty()
-                    && let Some([_, _, width, _]) = self.rect(&note_id)?
+                    && let Some([_, _, width, _]) = rect(&note_id)
                 {
                     let x = (geo.note - width).max(0.0);
                     commands.push(move_to(note_id, x, y + baseline_shift(&body, &note)));
@@ -2001,6 +2003,26 @@ impl Mc {
             <[f64; 4]>::try_from(v).ok()
         });
         Ok(rect)
+    }
+
+    /// The rects that the core lays out the visible texts of the plugin
+    /// at, by node, with one query: each query costs the core a walk
+    /// over the scene.
+    fn text_rects(&mut self) -> Result<HashMap<String, [f64; 4]>, ClientError> {
+        let query = Query {
+            selector: format!("owner:{NAME} kind:text"),
+            filter: Some(Filter {
+                visible: true,
+                ..Filter::default()
+            }),
+        };
+        let nodes: Vec<Value> = self.rt.conn.call("scene.query", query)?;
+        let rects = nodes.iter().filter_map(|n| {
+            let r = n["rects"].as_object()?.values().next()?.as_array()?;
+            let v: Vec<f64> = r.iter().filter_map(Value::as_f64).collect();
+            Some((n["id"].as_str()?.to_owned(), <[f64; 4]>::try_from(v).ok()?))
+        });
+        Ok(rects.collect())
     }
 
     /// The rect of an item, or of its hidden copy when `probed`.
