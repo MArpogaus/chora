@@ -1392,9 +1392,7 @@ mod tests {
 
     #[test]
     fn a_named_client_gets_no_keyboard() {
-        let dir = std::env::temp_dir().join(format!("chora-field-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-field");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         core.add_output("HDMI-1", (800, 600));
@@ -1526,9 +1524,7 @@ mod tests {
 
     #[test]
     fn a_confined_mint_carries_no_act() {
-        let dir = std::env::temp_dir().join(format!("chora-mint-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-mint");
         let (mut core, mut wayland, _wm, first, field) = field_core();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();

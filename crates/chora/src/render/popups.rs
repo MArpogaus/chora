@@ -436,9 +436,7 @@ fn an_emergency_reset_ends_a_drag() {
 }
 
 fn with_agent_window() -> (Windows, Wayland, std::path::PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-drag-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).expect("a directory");
+    let dir = crate::testing::scratch_dir("chora-drag");
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     core.add_output("test-1", (800, 600));

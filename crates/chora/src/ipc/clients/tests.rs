@@ -292,9 +292,7 @@ delegate_noop!(App: XdgActivationV1);
 delegate_noop!(App: ZwlrLayerShellV1);
 
 fn socket_dir(tag: &str) -> (Core, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-raw-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-raw-{tag}"));
     let mut core = Core::with_renderer();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     (core, dir)
@@ -663,9 +661,7 @@ fn a_hover_locks_no_pointer_of_a_client_socket() {
 /// A core with an output `A`, the client socket of `agent`, a connection
 /// through it after `hello`, and the path of its Wayland socket.
 fn agent_ipc(tag: &str) -> (Core, PathBuf, crate::testing::Client, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-a1-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-a1-{tag}"));
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     core.add_output("A", (800, 600));
@@ -1014,9 +1010,7 @@ fn open_agent(
 fn a_client_socket_has_the_capabilities_of_its_file() {
     // No renderer here either: the granted capture then fails with "no
     // renderer yet" instead, which the test reads as "past the gate".
-    let dir = std::env::temp_dir().join(format!("chora-caps-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir("chora-caps");
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     let mut admin = core.admin();
@@ -1050,9 +1044,7 @@ fn a_client_socket_has_the_capabilities_of_its_file() {
 /// socket at the same path.
 #[test]
 fn the_grants_of_a_client_socket_name_point_at_the_file() {
-    let dir = std::env::temp_dir().join(format!("chora-caps-file-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir("chora-caps-file");
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     let mut admin = core.admin();
@@ -1085,9 +1077,7 @@ fn the_grants_of_a_client_socket_name_point_at_the_file() {
 
 /// A core with a socket directory, for the `clients.create` tests below.
 fn caps_core(tag: &str) -> (Core, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-caps-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-caps-{tag}"));
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     (core, dir)

@@ -726,8 +726,7 @@ mod tests {
 
     #[test]
     fn only_a_regular_file_opens() {
-        let dir = std::env::temp_dir().join(format!("chora-open-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-open");
         let fifo = dir.join("fifo");
         let made = std::process::Command::new("mkfifo").arg(&fifo).status();
         assert!(made.unwrap().success());
@@ -745,8 +744,7 @@ mod tests {
     /// answers code 6 and not code 1.
     #[test]
     fn pixels_over_the_budget_are_a_limit() {
-        let dir = std::env::temp_dir().join(format!("chora-budget-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-budget");
         let path = dir.join("img.png");
         let mut png = Vec::new();
         {
