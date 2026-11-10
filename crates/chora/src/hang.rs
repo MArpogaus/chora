@@ -10,7 +10,10 @@
 //! The watchdog counts only the time that it watched: a look that comes
 //! later than [`LATE`] after the one before means that the thread itself
 //! did not run, after SIGSTOP or on a starved host, and that time is no
-//! stall of the main loop.
+//! stall of the main loop. This has a ceiling in wall time, so that a
+//! host on which every look comes late cannot keep a hung core alive:
+//! [`CEILING`] times the abort time without a beat aborts too, once the
+//! watchdog watched for longer than an idle loop sleeps.
 //!
 //! The stall and the abort lines go to fd 2 with a raw `write(2)`, not
 //! through tracing or `std::io::stderr`: a main loop that hangs inside a
@@ -43,6 +46,13 @@ const TICK: Duration = Duration::from_millis(250);
 /// did not run in between.
 const LATE: Duration = Duration::from_secs(1);
 
+/// How many abort times of wall time without a beat end a hang of which
+/// the watchdog watched only a part.
+const CEILING: u32 = 4;
+/// The watched time without a beat that the ceiling needs: more than the
+/// sleep of an idle loop, so that a core that was stopped beats first.
+const WATCHED: Duration = Duration::from_millis(1250);
+
 /// What the watchdog sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Hang {
@@ -58,6 +68,8 @@ enum Hang {
 struct Watch {
     beat: u64,
     since: Instant,
+    /// The last beat in wall time, also over the time not watched.
+    beat_at: Instant,
     looked: Instant,
     stalled: bool,
     abort: Option<Duration>,
@@ -68,6 +80,7 @@ impl Watch {
         Self {
             beat: 0,
             since: now,
+            beat_at: now,
             looked: now,
             stalled: false,
             abort,
@@ -86,10 +99,15 @@ impl Watch {
         if beat != self.beat {
             self.beat = beat;
             self.since = now;
+            self.beat_at = now;
             return std::mem::take(&mut self.stalled).then_some(Hang::Runs(gap));
         }
         if self.abort.is_some_and(|abort| gap >= abort) {
             return Some(Hang::Abort(gap));
+        }
+        let wall = now - self.beat_at;
+        if gap >= WATCHED && self.abort.is_some_and(|abort| wall >= abort * CEILING) {
+            return Some(Hang::Abort(wall));
         }
         if !self.stalled && gap >= STALL_AFTER {
             self.stalled = true;
@@ -119,6 +137,7 @@ fn spawn(
     thread::Builder::new()
         .name("chora-watchdog".into())
         .spawn(move || {
+            crate::words::roomy_signal_stack();
             let mut watch = Watch::new(abort, Instant::now());
             while Arc::strong_count(&beats) > 1 {
                 thread::sleep(TICK);
