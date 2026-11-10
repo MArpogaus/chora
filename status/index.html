@@ -102,9 +102,9 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 15:25 Bangkok</span>
+      <span>Updated Tue 10 Nov, 16:58 Bangkok</span>
       <span>Day 3 of 22</span>
-      <span>Week budget used: 38 % (Fable 12 %)</span>
+      <span>Week budget used: 41 % (Fable 16 %)</span>
     </div>
   </header>
 
@@ -114,17 +114,18 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Silent core crashes and memory growth (Fable)</li>
-          <li>Virtual screens, step 1 of 10 (for the cube)</li>
-          <li>Wobbly windows in 3D (springs with depth)</li>
+          <li>The construct in 3D, with 3D wobble (first 3D screenshots)</li>
+          <li>Virtual screens, step 4 of 10 (worker, Fable)</li>
+          <li>mc fast with 300 panels, memory after drops (worker, Fable)</li>
+          <li>HUD looks for xp, mc and construct (worker)</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Review and merge the 3D step</li>
-          <li>Next HUD piece: pictures and fonts kept inside their folder</li>
-          <li>Cheap lane: Dependabot updates, stability issues</li>
+          <li>Merge virtual screens 2-3 and the core crash fixes (gates running)</li>
+          <li>Window handover with chat open; user tests with voice</li>
+          <li>Give a window during a drag (pull out of the cube)</li>
           <li>Runs now at 05:58, 11:58 and 16:58 Bangkok</li>
         </ul>
       </div>
@@ -133,6 +134,7 @@ footer { font-size: 13px; color: var(--muted); }
         <ul class="plain you">
           <li>Delete 15 old branches on GitHub (list in today's report)</li>
           <li>Open questions have defaults; nothing is blocked</li>
+          <li>Known: GitHub CI will fail one sandbox test until a sandbox ships (fix planned before the first release PR)</li>
         </ul>
       </div>
     </div>
@@ -147,11 +149,11 @@ footer { font-size: 13px; color: var(--muted); }
     </div>
     <div class="panel bars">
       <div class="group-label">Foundation · comes first</div>
-      <div class="bar good"><span class="name">Security</span><span class="pct">open: 0 high</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Many holes closed today by reviews. Open: 2 known medium items (injected keys reach window manager bindings; who may claim the question card).</span></div>
+      <div class="bar good"><span class="name">Security</span><span class="pct">open: 0 high</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="note">Who may answer a question is now locked down: a name in use cannot be taken over, and security settings change only with a physical key or click. Open: injected keys reach window manager bindings.</span></div>
       <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">78 of 85</span><div class="track"><div class="fill" style="width:92%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
       <div class="bar good"><span class="name">3D</span><span class="pct">7 of 7 steps merged</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="note">Code and tests merged; not yet seen on real hardware, no 3D capture yet, some review findings deferred. Not "done" until a whole-piece review and real captures. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
-      <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">behind</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Two real bugs fixed, but the old backlog (silent core death, memory growth, 16 bugs) is untouched. Now first priority.</span></div>
+      <div class="bar good"><span class="name">Stability bugs</span><span class="pct">catching up</span><div class="track"><div class="fill" style="width:40%"></div></div><span class="note">The core now leaves last words on every crash; the frame watchdog no longer blames innocent programs on a busy machine; memory levels off. Open: mc slow with 300 panels.</span></div>
       <div class="group-label">Features</div>
       <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">9 of 13</span><div class="track"><div class="fill" style="width:69%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
       <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
@@ -164,6 +166,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>16:58</time><p><span class="tag ok">merged</span>Three pieces, all through the full gate: only the real person can answer a question or change a security setting; the HUD no longer starts wrong when the voice service is slow; wobbly windows can now move in depth (seen once the 3D construct uses it). Reviews of the crash fixes and virtual screens found no serious bugs; their fixes are in and merge next.</p></li>
         <li><time>14:37</time><p><span class="tag ok">merged</span>Render fixes of the core review. Found and fixed a real stale-frame bug the old 2D check could not see; the 2D check now has scenes that catch stale frames. Keyboard tokens are now tied to the program the act was aimed at.</p></li>
         <li><time>14:24</time><p><span class="tag ok">merged</span>Stability: the render-test flake (a race in a graphics library) and shared test folders fixed; the focus race does not exist in xp, mc or construct.</p></li>
         <li><time>13:24</time><p><span class="tag ok">merged</span>Fix of a stuck-click bug the whole-piece review found (moving a window inside a tilted plane could pin every later click to it), plus drag-and-drop now needs a real held mouse button.</p></li>
