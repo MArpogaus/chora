@@ -20,10 +20,6 @@ mod layers;
 mod lock;
 mod mesh;
 mod methods;
-#[allow(
-    dead_code,
-    reason = "the headless backend uses it from the next commit"
-)]
 mod offscreen;
 mod output;
 mod output_management;

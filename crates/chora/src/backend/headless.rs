@@ -275,23 +275,26 @@ impl State {
 /// One tick of the frame clock: renders the damage of every output that
 /// is on, and sends the frame callbacks.
 pub(crate) fn render_all(state: &mut State) {
-    let Some(Backend::Headless(headless)) = &state.backend else {
-        return;
-    };
-    let outputs: Vec<Output> = headless
-        .outputs
-        .iter()
-        .map(|v| v.texture.output().clone())
-        .filter(|o| state.outputs.contains(o))
-        .collect();
-    for output in outputs {
-        render_and_present(state, &output, |state| render_frame(state, &output));
+    let mut index = 0;
+    while let Some(output) = output_at(state, index) {
+        if state.outputs.contains(&output) {
+            render_and_present(state, &output, |state| render_frame(state, &output, index));
+        }
+        index += 1;
     }
 }
 
-/// Renders the damaged parts of an output into its texture. Returns
-/// whether the frame had damage.
-fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
+/// The output at an index of the list of the headless backend.
+fn output_at(state: &State, index: usize) -> Option<Output> {
+    let Some(Backend::Headless(headless)) = &state.backend else {
+        return None;
+    };
+    Some(headless.outputs.get(index)?.texture.output().clone())
+}
+
+/// Renders the damaged parts of the output at an index into its texture.
+/// Returns whether the frame had damage.
+fn render_frame(state: &mut State, output: &Output, index: usize) -> Result<bool, String> {
     let view = render::View::of(state, output);
     let State {
         backend,
@@ -304,11 +307,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     let Some(Backend::Headless(headless)) = backend else {
         return Ok(false);
     };
-    let Some(target) = headless
-        .outputs
-        .iter_mut()
-        .find(|v| v.texture.output() == output)
-    else {
+    let Some(target) = headless.outputs.get_mut(index) else {
         return Ok(false);
     };
     let mut parts = render::Parts {

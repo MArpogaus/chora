@@ -43,6 +43,7 @@ impl OutputTexture {
     }
 
     /// The texture of the last frame, at the size of the mode.
+    #[cfg(test)]
     pub fn texture(&self) -> Option<&GlesTexture> {
         self.texture.as_ref()
     }
