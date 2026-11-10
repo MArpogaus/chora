@@ -620,4 +620,30 @@ mod tests {
         assert_eq!(a.points, b.points);
         assert!(b.depth.iter().all(|z| *z == 0.0));
     }
+
+    #[test]
+    fn a_non_finite_origin_or_view_leaves_the_mesh_finite() {
+        let mut w = Wobble::new_3d(
+            [400.0, 300.0],
+            [0.0; 3],
+            [200.0, 0.0, 0.0],
+            [f64::NAN, 0.0, 1.0],
+        );
+        let mut now = w.last;
+        for origin in [
+            [f64::INFINITY, 0.0, 0.0],
+            [0.0, f64::NAN, 0.0],
+            [0.0, 0.0, f64::NEG_INFINITY],
+        ] {
+            now += FRAME;
+            w.advance_3d(origin, now);
+            let mesh = w.mesh([0.0, 0.0]);
+            assert!(mesh.depth.iter().all(|z| z.is_finite()));
+            assert!(
+                mesh.points
+                    .iter()
+                    .all(|p| p[0].is_finite() && p[1].is_finite())
+            );
+        }
+    }
 }
