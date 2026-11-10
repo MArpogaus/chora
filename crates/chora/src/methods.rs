@@ -203,7 +203,7 @@ impl State {
             method: call.method,
             params: call.params,
             confined,
-            connection: 0,
+            connection: conn,
         };
         self.ipc.send_to(callee, &event);
         Ok(())

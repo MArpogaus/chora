@@ -141,10 +141,6 @@ struct Conn {
     /// The process of the client; `None` if the core cannot see it.
     pid: Option<Pid>,
     /// The program of that process, from `/proc/PID/exe`.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the name rule of review A1 reads it")
-    )]
     exe: Option<PathBuf>,
     input: Vec<u8>,
     output: Vec<u8>,
@@ -457,6 +453,19 @@ impl Ipc {
     /// Whether a client name has a client socket.
     pub fn has_socket(&self, name: &str) -> bool {
         self.clients.contains_key(name)
+    }
+
+    /// Whether a live connection of `name` comes from the process of
+    /// `conn`, or from the same program, such as a second `choractl`
+    /// (review A1): a live name of the main socket belongs to its program.
+    fn same_program(&self, conn: u64, name: &str) -> bool {
+        let Some(me) = self.conns.get(&conn) else {
+            return false;
+        };
+        let same = |c: &Conn| {
+            (me.pid.is_some() && c.pid == me.pid) || (me.exe.is_some() && c.exe == me.exe)
+        };
+        (self.conns.values()).any(|c| c.name.as_deref() == Some(name) && same(c))
     }
 
     /// Whether a connection came through the admin socket.
@@ -1070,6 +1079,15 @@ impl State {
             .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
             .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
         let confined = hello.confined || self.ipc.fixed(conn).is_some();
+        if peer.is_some()
+            && self.ipc.fixed(conn).is_none()
+            && !self.ipc.same_program(conn, &hello.name)
+        {
+            return Err(name_taken(format!(
+                "{:?} is connected from another program",
+                hello.name
+            )));
+        }
         if let Some(peer_confined) = peer_conn
             .map(|id| self.ipc.confined(id))
             .filter(|p| *p != confined)
