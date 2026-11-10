@@ -73,7 +73,6 @@ const EVENTS: &[&str] = &[
     "voice.*",
     "focus.changed",
     "surface.changed",
-    "surface.destroyed",
     "client.connected",
     "client.disconnected",
     "pointer.pressed",
@@ -180,10 +179,17 @@ impl Plugin for Agent {
                 self.switcher.touch(Instant::now());
                 self.replace_assistant()?
             }
-            Event::FocusChanged { .. }
-            | Event::SurfaceChanged { .. }
-            | Event::SurfaceDestroyed { .. } => {
-                self.switcher.touch(Instant::now());
+            Event::FocusChanged { surface } => {
+                self.switcher
+                    .focus_changed(surface.as_deref(), Instant::now());
+                Vec::new()
+            }
+            Event::SurfaceChanged {
+                surface, app_id, ..
+            } => {
+                let now = Instant::now();
+                self.switcher
+                    .surface_changed(&surface, app_id.as_deref(), now);
                 Vec::new()
             }
             Event::Emitted {
@@ -271,7 +277,7 @@ impl Agent {
             claim_due: true,
         };
         agent.look_context = agent.switcher.applied().clone();
-        agent.evaluate().map_err(|e| e.to_string())?;
+        agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
         Ok(agent)
     }
