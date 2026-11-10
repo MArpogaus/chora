@@ -360,6 +360,34 @@ outputs, so it tests a drop against the outputs themselves: a drop on an
 output of another window manager between two tiling outputs hands the
 window over.
 
+The key action `give` is the same on every window manager. A binding
+`give: NAME` gives the focused window to the window manager `NAME`.
+`chora_kit::give::focused(windows, to)` implements it: it queries the
+focused window and reads its owner. A window of the plugin goes through
+`Windows::hand`, which does what `window.give` does: `Conn::give`, then
+the bookkeeping and the relayout of the plugin. It refuses a window that
+the plugin does not know, and a give to the plugin itself. A window of
+another window manager goes through `methods.call` to `window.give` of
+its owner, because a key has one holder (D55), whoever owns the focused
+window. Without a focused window or an owner the action fails and only
+logs. A new window manager implements `chora_kit::give::Windows` with
+`conn`, `has` and `hand`, and binds the key with one line:
+
+```rust
+impl give::Windows for MyWm {
+    fn conn(&mut self) -> &mut Conn { &mut self.rt.conn }
+    fn has(&self, surface: &str) -> bool { self.windows.contains(surface) }
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.give_and_relayout(surface, to)
+    }
+}
+```
+
+The default keys are `Super+Alt+1` for `tiling`, `Super+Alt+2` for `xp`,
+`Super+Alt+3` for `mc` and `Super+Alt+4` for `construct`, in tiling, xp,
+mc and construct. `tests/gate-handover-matrix.sh` checks the key for
+every pair.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,

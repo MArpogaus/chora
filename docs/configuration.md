@@ -222,7 +222,10 @@ A window can be on several tags, and an output can show several tags. A
 floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
-`MOD+Ctrl+r` reads the file again. `MOD+BTN_LEFT` (`drag`) holds the
+`MOD+Ctrl+r` reads the file again. `give: NAME` gives the focused window
+to the window manager `NAME` (D55); the default bindings `Super+Alt+1` to
+`Super+Alt+4` give to tiling, xp, mc and construct, and the same keys do
+the same in those window managers. `MOD+BTN_LEFT` (`drag`) holds the
 window under the pointer, and a floating window follows the pointer
 within the work area of the tiling output under the pointer. A title bar
 of a client-side decoration drags its own window in the same way. A drop
@@ -472,9 +475,12 @@ with `settings.reload`:
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
-  `solo: {content: NAME, region: REGION}` (as `region.solo`; the default
-  `Super+F12` shows the test overlay in the drawer).
+  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`,
+  `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `region.solo`; the default `Super+F12` shows the test overlay in the
+  drawer). `give: NAME` gives the focused window to the window manager
+  `NAME` (D55); the default `Super+Alt+1` to `Super+Alt+4` give to
+  tiling, xp, mc and construct.
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -851,6 +857,11 @@ flies to the pane. A window of another client, such as tiling, xp or mc,
 first becomes a pane at its own size. `Escape` or `Tab` closes the list.
 `g` on an own window shows the other window managers, the clients with a
 claim (D55); `Return` gives the window to the one selected.
+
+`Super+Alt+1` to `Super+Alt+4` give the focused window to tiling, xp, mc
+or construct, also the window of the pane that the camera flew into. The
+construct grabs the keys while a flavor shows, and gives a window of
+another window manager through its owner.
 
 A load never makes panes for the windows of other clients: they become
 panes only from the list or by `window.show`. Such a pane shows the
@@ -1557,6 +1568,7 @@ of another client changes nothing.
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
 | Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. |
 | Super+e | start the terminal |
+| Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
 | Super and a drag with the left button | turn the cube with the pointer. A drag over the width of the output is a quarter turn. At the release, the cube turns to the nearest desktop. |
