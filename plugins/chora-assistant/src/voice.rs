@@ -30,6 +30,9 @@ const MAX_HELPERS: usize = 64;
 /// The time between two tries to ask the voice agent for its state.
 const ASK_EVERY: Duration = Duration::from_millis(250);
 
+/// How long one call to `state` of the voice agent may take.
+const ASK_WAIT: Duration = Duration::from_millis(500);
+
 /// The most tries to ask the voice agent for its state after it connected.
 const ASK_TRIES: u8 = 20;
 
@@ -43,13 +46,25 @@ impl Agent {
     }
 
     /// Calls `state` of the voice agent and shows what it answers. False
-    /// when the call fails, for example before the agent exported it.
+    /// when the call is worth a new try: no answer in [`ASK_WAIT`], or the
+    /// method is not exported yet. An answer without a state leaves the
+    /// state as it is.
     fn ask_state(&mut self) -> Result<bool, ClientError> {
-        let Ok(state) = self.voice_call("state", &json!({})) else {
-            return Ok(false);
+        let client = self.voice.as_ref().map_or(VOICE, |(c, _)| c.as_str());
+        let call = json!({"client": client, "method": "state", "params": {}});
+        let state: Value = match self.rt.conn.call_within("methods.call", call, ASK_WAIT) {
+            Ok(state) => state,
+            Err(ClientError::Io(_)) => return Ok(false),
+            Err(ClientError::Rpc(error)) if error.message.ends_with("is no exported method") => {
+                return Ok(false);
+            }
+            Err(ClientError::Rpc(_) | ClientError::Json(_)) => return Ok(true),
+            Err(error) => return Err(error),
         };
-        let name = state["state"].as_str().map(assistant::context_state);
-        self.voice = name.map(|n| (VOICE.to_owned(), n));
+        let Some(name) = state["state"].as_str() else {
+            return Ok(true);
+        };
+        self.voice = Some((VOICE.to_owned(), assistant::context_state(name)));
         self.muted = state["muted"]["mic"].as_bool().unwrap_or(false);
         let mut commands = self.sync_assistant(Instant::now())?;
         commands.extend(self.sync_badge()?);
@@ -395,6 +410,7 @@ impl Agent {
     pub fn voice_gone(&mut self, name: &str) -> Result<Vec<Command>, ClientError> {
         if name == VOICE {
             self.claim_due = true;
+            self.state_ask = None;
         }
         if self.voice.as_ref().is_none_or(|(client, _)| client != name) {
             return Ok(Vec::new());
