@@ -108,7 +108,9 @@ Pointer input reaches a plane through the inverse of its transform: the
 core maps the pointer into the plane and then runs the hit test of the
 plane there. Input reaches a plane and what it holds only inside its area,
 and never where the plane shows the pointer behind the eye. A node with a
-mesh under such a transform keeps the box of its shape. A plane that the
+mesh under such a transform keeps the box of its shape. A plane whose
+texture would pass 4096 pixels a side renders at a lower scale, so that it
+shows all of its content and takes input where it shows it. A plane that the
 layer budget leaves out of the frame draws nothing, so it takes the input
 and gives it to nobody. During a press, the core maps every motion through
 the plane that the press hit, also outside it; where the plane shows the

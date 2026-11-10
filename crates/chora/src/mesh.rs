@@ -438,7 +438,14 @@ fn subtree_pixels(scene: &Scene, id: &str, scale: f64) -> u64 {
 
 /// The pixel size of the texture of a layer node at an output scale.
 pub fn texture_size(node: &Node, scale: f64) -> Option<Size<i32, BufferCoords>> {
-    pixel_size(node.props.size?, scale)
+    pixel_size(node.props.size?, fit_scale(node.props.size?, scale))
+}
+
+/// The scale at which a texture of a logical size holds all of its
+/// content: `scale`, or less when a side would pass 4096 pixels, so that
+/// a large plane shows whole and takes input where it shows.
+pub fn fit_scale([w, h]: [f64; 2], scale: f64) -> f64 {
+    scale.min(MAX_SIDE / w.max(h))
 }
 
 /// The pixel size of a texture of a logical size, at most 4096 a side.

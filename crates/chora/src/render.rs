@@ -630,6 +630,7 @@ fn node_texture(
     node: &Node,
     scale: f64,
 ) -> Option<(GlesTexture, u64)> {
+    let scale = mesh::fit_scale(node.props.size?, scale);
     let size = mesh::texture_size(node, scale)?;
     let textures = 1 + mesh::passes(node, scale).len().min(2);
     if !parts.assets.layers.spend(&node.id, size, textures) {
@@ -703,8 +704,11 @@ fn node_textures(
         let chora_scene::Uniform::Texture(source) = uniform else {
             continue;
         };
-        let Some(size) = source_size(parts, &source.node).and_then(|s| mesh::pixel_size(s, scale))
-        else {
+        let Some(logical) = source_size(parts, &source.node) else {
+            continue;
+        };
+        let scale = mesh::fit_scale(logical, scale);
+        let Some(size) = mesh::pixel_size(logical, scale) else {
             continue;
         };
         if !parts.assets.layers.spend(&source.node, size, 1) {
