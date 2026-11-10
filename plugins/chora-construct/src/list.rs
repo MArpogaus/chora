@@ -218,6 +218,17 @@ impl Construct {
     /// stay. After a give the keyboard is left to `to`, also when the
     /// camera was in the window.
     pub(crate) fn give(&mut self, surface: &str, to: &str) -> Result<Value, ClientError> {
+        self.give_dragged(surface, to, None)
+    }
+
+    /// As [`Self::give`]; with `grab` the drag of the window goes too
+    /// (`give_grab`), when the core lets it.
+    pub(crate) fn give_dragged(
+        &mut self,
+        surface: &str,
+        to: &str,
+        grab: Option<chora_scene::GivenGrab>,
+    ) -> Result<Value, ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
         let Some(pane) = self.panes.iter().find(|p| p.window() == Some(surface)) else {
             return refuse(format!("{surface} is no pane"));
@@ -228,7 +239,9 @@ impl Construct {
                 pane.name
             ));
         }
-        let answer = self.rt.conn.give(surface, to).map_err(ClientError::Rpc)?;
+        let answer = (self.rt.conn)
+            .give_dragged(surface, to, grab)
+            .map_err(ClientError::Rpc)?;
         self.forget_with(surface, false)?;
         Ok(answer)
     }

@@ -160,8 +160,8 @@ impl Plugin for Construct {
                 Ok(json!({"pane": pane}))
             }
             give::METHOD => {
-                let Give { surface, to } = runtime::params(params)?;
-                self.give(&surface, &to).map_err(rejected)
+                let Give { surface, to, grab } = runtime::params(params)?;
+                self.give_dragged(&surface, &to, grab).map_err(rejected)
             }
             "help.toggle" => {
                 if !self.active {

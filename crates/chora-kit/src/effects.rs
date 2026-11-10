@@ -147,6 +147,29 @@ impl Driver {
         Some(mesh(target, wobble.mesh([origin[0], origin[1]])))
     }
 
+    /// A window that came with its drag from another window manager
+    /// (`give_grab`) is grabbed at a point of the scene: it wobbles on
+    /// from the springs that the giver sent, if it sent some.
+    pub fn grab_given(
+        &mut self,
+        key: &str,
+        target: &Target,
+        point: [f64; 2],
+        springs: Option<&serde_json::Value>,
+    ) {
+        self.grab(key, target, point);
+        if let (Some(wobble), Some(springs)) = (self.wobbles.get_mut(key), springs) {
+            wobble.take_springs(target.origin, springs);
+        }
+    }
+
+    /// The springs of a window that wobbles, for the window manager that
+    /// gets it with its drag.
+    #[must_use]
+    pub fn springs(&self, key: &str, target: &Target) -> Option<serde_json::Value> {
+        Some(self.wobbles.get(key)?.springs(target.origin))
+    }
+
     /// Whether a lamp runs for a window.
     #[must_use]
     pub fn has_lamp(&self, key: &str) -> bool {
