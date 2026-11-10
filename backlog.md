@@ -245,3 +245,8 @@ headless session at 30 fps to frames, ffmpeg to a GIF (under 10 MB,
 4. the pull-out of a window from the cube (after E3).
 Media go to media/<date>/ on the log branch and the status page. Each
 caption names the machine (software GL in a container).
+
+## F6 (11-10): gate-hud cell card-stays-on-focus-move flaked
+virtual-2 worker: one full gate run measured it missing; --only hud then
+passed 3 of 3. Treat as a real timing bug until shown otherwise: find
+the race, do not raise the wait.
