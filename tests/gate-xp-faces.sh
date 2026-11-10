@@ -13,6 +13,10 @@
 #   face-removed         the window is on the fourth virtual output and
 #                        that one goes: xp moves the window to another of
 #                        its outputs and keeps three taskbars
+#   no-cube-on-faces     xp has no desktop cube of its own on virtual
+#                        outputs: the taskbars show no desktop buttons,
+#                        Super with the left button turns nothing, and
+#                        `turn_to` leaves the window where it shows
 #
 # A cell measures pass or gap; a line `missing` in the table EXPECTED is a
 # cell that xp cannot pass yet and that does not run. The gate fails on
@@ -31,6 +35,7 @@ faces-have-bars pass
 opens-under-pointer pass
 moves-to-face pass
 face-removed pass
+no-cube-on-faces missing
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -116,6 +121,24 @@ cell_face_removed() {
     on_face "${faces[0]}" 10 || on_face "${faces[1]}" 1 || on_face "${faces[2]}" 1
 }
 
+cell_no_cube_on_faces() {
+    local face=${faces[0]} hidden
+    hidden=$(ctl query "id:xp-pager-0-$face" | jq -r '.[0].visible')
+    [ "$hidden" = false ] || return 1
+    inject '[{"pointer_move": {"position": [300, 200]}},
+      {"key": {"key": "Super_L", "state": "pressed"}},
+      {"button": {"state": "pressed", "hold": true}},
+      {"pointer_move": {"position": [400, 220]}}]'
+    sleep 0.5
+    hidden=$(ctl query id:xp-cube-bg | jq length)
+    inject '[{"button": {"state": "released"}},
+      {"key": {"key": "Super_L", "state": "released"}}]'
+    [ "$hidden" = 0 ] || return 1
+    ctl call xp turn_to '{"desktop": 1}' >/dev/null 2>&1
+    sleep 1
+    ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null
+}
+
 declare -A got
 mismatches=()
 cell() {
@@ -133,7 +156,7 @@ cell() {
         fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
 }
 
-cells=(faces-have-bars opens-under-pointer moves-to-face face-removed)
+cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces)
 for id in "${cells[@]}"; do cell "$id"; done
 ctl capture "$shots/faces.png" >/dev/null 2>&1
 
