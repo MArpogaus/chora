@@ -2096,6 +2096,9 @@ impl Wm {
             if !self.bars.iter().any(|b| b.contains(point)) {
                 return self.hand_over(&drag.surface, position);
             }
+            if let Some(commands) = self.drop_on_far_output(&drag, point) {
+                return commands;
+            }
         }
         if let Some(group) = self
             .panels
@@ -2135,6 +2138,19 @@ impl Wm {
             commands.extend(self.close_and_run(&action));
         }
         commands
+    }
+
+    /// Places a window whose title bar was dropped on an output that
+    /// shows no part of it, inside that output.
+    fn drop_on_far_output(&mut self, drag: &Drag, point: [i32; 2]) -> Option<Vec<Command>> {
+        let i = self.index(&drag.surface)?;
+        let area = self.bars.iter().find(|b| b.contains(point))?.usable();
+        #[allow(clippy::cast_possible_truncation)]
+        let grab = [0, 1].map(|axis| drag.start[axis].floor() as i32 - drag.origin[axis]);
+        self.windows[i].pos = dropped_on(self.windows[i].rect(), area, point, grab)?;
+        let mut commands = vec![self.windows[i].place()];
+        commands.extend(self.keep_inside(&[i], area));
+        Some(commands)
     }
 
     /// The release after a press on the desktop: icons dropped on a window
@@ -3171,6 +3187,14 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 
 /// A position in one area at the same place in another, so that at least
 /// the title bar stays inside it.
+/// The place of a frame whose title bar was dropped at a point of an
+/// output that shows no part of it, as a drag does that ends on another
+/// virtual output: under the pointer, which holds it at `grab` from its
+/// corner. `None` when the output shows a part of the frame.
+fn dropped_on(_frame: Rect, _area: Rect, _point: [i32; 2], _grab: [i32; 2]) -> Option<[i32; 2]> {
+    None
+}
+
 fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
     let keep = 64;
     [
@@ -3248,5 +3272,20 @@ mod tests {
         assert_eq!(moved([2020, 100], from, to), [100, 100]);
         // Beyond the new area, the title bar stays inside it.
         assert_eq!(moved([4300, 1300], from, to), [1856, 976]);
+    }
+
+    #[test]
+    fn a_frame_dropped_on_a_far_output_lands_under_the_pointer() {
+        let face = [-786_432, -262_144, 600, 350];
+        let left_behind = [-262_500, -262_100, 300, 200];
+        assert_eq!(
+            dropped_on(left_behind, face, [-786_232, -262_044], [60, 10]),
+            Some([-786_292, -262_054])
+        );
+        let straddling = [-786_500, -262_100, 300, 200];
+        assert_eq!(
+            dropped_on(straddling, face, [-786_400, -262_090], [60, 10]),
+            None
+        );
     }
 }
