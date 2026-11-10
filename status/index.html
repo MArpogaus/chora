@@ -102,7 +102,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 09:00 Bangkok</span>
+      <span>Updated Tue 10 Nov, 07:55 Bangkok</span>
       <span>Day 3 of 22</span>
       <span>Week budget used: 15 %</span>
     </div>
@@ -114,8 +114,8 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Review of 3D step 1 of 4 (built, 2D unchanged)</li>
-          <li>Security review of the chat keyboard rule (built)</li>
+          <li>3D step 2 of 4 for this week: the real 3D space (the hardest step)</li>
+          <li>HUD pictures and fonts kept safely inside their folder</li>
         </ul>
       </div>
       <div class="panel">
@@ -148,11 +148,11 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="group-label">Foundation · comes first</div>
       <div class="bar good"><span class="name">Security</span><span class="pct">70 %</span><div class="track"><div class="fill" style="width:70%"></div></div><span class="note">Helper permissions fixed and reviewed. Two known holes left.</span></div>
       <div class="bar good"><span class="name">Moving windows between window managers</span><span class="pct">69 of 85</span><div class="track"><div class="fill" style="width:81%"></div></div><span class="note">A hard requirement. 12 cases still fail, mostly the "give" key.</span></div>
-      <div class="bar good"><span class="name">3D</span><span class="pct">3 of 7 steps (1 in review)</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Base laid. The 2D look is checked pixel by pixel on every merge.</span></div>
+      <div class="bar good"><span class="name">3D</span><span class="pct">3 of 7 steps</span><div class="track"><div class="fill" style="width:43%"></div></div><span class="note">Turned windows get exact clicks. The 2D look is checked pixel by pixel on every merge.</span></div>
       <div class="bar good"><span class="name">Splitting xp into parts</span><span class="pct">2 of 7</span><div class="track"><div class="fill" style="width:29%"></div></div><span class="note">Notifications and the assistant are separate plugins now.</span></div>
       <div class="bar warn"><span class="name">Stability bugs</span><span class="pct">~10 %</span><div class="track"><div class="fill" style="width:10%"></div></div><span class="note">Barely touched today. Starts tomorrow.</span></div>
       <div class="group-label">Features</div>
-      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">3 of 13</span><div class="track"><div class="fill" style="width:23%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
+      <div class="bar good"><span class="name">HUDs and helper chat</span><span class="pct">4 of 13</span><div class="track"><div class="fill" style="width:31%"></div></div><span class="note">Design and UX pass done. Models, tests and voice methods merged.</span></div>
       <div class="bar good"><span class="name">User tests</span><span class="pct">2 rounds</span><div class="track"><div class="fill" style="width:20%"></div></div><span class="note">Simulated users work and already found everyday problems.</span></div>
       <div class="bar idle"><span class="name">Marketing and announcement</span><span class="pct">0 %</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="note">Planned for later weeks.</span></div>
     </div>
@@ -163,9 +163,11 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
-        <li><time>08:50</time><p><span class="tag ok">built</span>3D step 1 of 4: turned and mirrored windows get clicks and drags at the right point. 2D pixel check identical. In review.</p></li>
-        <li><time>08:20</time><p><span class="tag ok">built</span>Chat keyboard rule: only your own real click or key can give a field the keyboard. Also closes the old token hole. In security review.</p></li>
-        <li><time>07:40</time><p><span class="tag ok">merged</span>New merge check: every step logged, stops at any failure, cannot push a red test.</p></li>
+        <li><time>07:50</time><p><span class="tag ok">merged</span>3D step 1 of 4 for this week, the chat keyboard rule, and a real focus bug fix are merged. Full merge check green.</p></li>
+        <li><time>07:40</time><p><span class="tag ok">fixed</span>Real bug found behind a flaky test: after moving a window from tiling to xp, tiling could clear its focus. Fixed; the stress test went from 4 of 4 failing to 0 of 10.</p></li>
+        <li><time>07:20</time><p><span class="tag issue">blocked</span>The new merge check stopped a push because of that focus problem, as it should.</p></li>
+        <li><time>07:10</time><p><span class="tag info">review</span>Reviews found 1 high and 6 medium problems in the two new pieces, before merge. All fixed.</p></li>
+        <li><time>06:55</time><p><span class="tag ok">merged</span>New merge check: every step logged, stops at any failure, cannot push a red test.</p></li>
         <li><time>06:30</time><p><span class="tag info">start</span>Day started early at your request. 3D push begins: the base should be done by Friday.</p></li>
       </ul>
       <div class="day">Mon 9 Nov</div>

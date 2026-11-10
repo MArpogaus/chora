@@ -58,6 +58,11 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-10 07:50: merged and pushed 6ad7f67 through merge-gate.sh (all 7
+  steps green): 3D step 2 with its review fixes, H4c act-stamped tokens
+  with its review fixes (fixes #102), and the tiling focus race fix
+  1275e15 (backlog 17; 4/4 failing runs under load before, 0/10 after).
+
 - 11-09 evening: claude/hud-h1 with its review fixes merged as 1e824a9
   and pushed. Gate: 965 tests, clippy, 2D guard, xp.sh, gate-hud every
   cell as expected; the handover matrix printed one FAIL (no focus with
@@ -168,13 +173,8 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- focus flake (backlog 17), claude/focus-flake: it blocks every merge
-  gate now (matrix: "no focus with xp before a cell").
-- Ready, waiting for the flake fix, then merge-gate --push each:
-  3D step 2 (merged locally as a98cca6, not pushed; review fixes
-  902416e; gate stopped at the matrix flake) and H4c (aae7d57, review
-  fixes; its gate passed on the third run). H4c deviation accepted:
-  `token_allowed` compares with the last real press of any kind.
+- 3D step 3, perspective contexts (opus), claude/3d-step3
+- H2 HUD pictures and fonts confined (sonnet), claude/hud-h2
 
 ## Blocked
 

@@ -131,3 +131,8 @@
     pipe, keeps the full log per step, checks each exit code and greps
     the log for `FAIL:` before it pushes (11-10, first task after the
     review).
+
+19. The PM wrote status page times without reading the clock: entries
+    said 08:50 to 11:30 when it was 07:50 Bangkok. Fixed on the page.
+    Rule: every time on the page or in a report comes from
+    `TZ=Asia/Bangkok date`.
