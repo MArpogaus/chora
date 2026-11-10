@@ -7,6 +7,12 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+R1. Shader slots: a shader node rendered at depth 0 and inside a node
+   texture at depth 1 in one frame overwrites slots 1 and 2; the depth-0
+   element then draws the depth-1 result (pre-existing, review of 3D
+   step 5). Also D75 "leaf planes draw their own texture" is not met:
+   leaf planes still render one offscreen pass per commit.
+
 F2. Flake: 14 `chora` lib render tests failed once in a full workspace
    run with an EGL display PoisonError (11-10, H6 gate); they pass alone.
    A panic in one render test poisons a shared display lock; find the
