@@ -434,31 +434,49 @@ binding `move`, the state `pressed`, the `surface` and `grab`, then
 `input.moved` and the release as for any move. The giver hears no more
 of that button. The receiver attaches the window and goes on with the
 drag from `grab`: `point`, `velocity` and the state of an effect in
-`wobble`, which the core passes on unread.
+`wobble`.
 
-The core refuses the whole transaction, before any command runs, unless
-all of this holds:
+The core refuses the whole transaction unless all of this holds:
 
 - the giver and `to` hold a claim, and neither is confined; the giver
   also answers no method call of a confined caller at that time;
-- the giver holds the grab: a button binding, `move`, or a press on one
-  of its own nodes;
-- the user made that press and still holds the button; an injected
-  press, and any injected press after it, ends this;
-- `to` grabbed `move`.
+- no other client holds a button of the pointer;
+- the giver holds the button press: the grab of a button binding or of
+  `move`, or a press on one of its own nodes;
+- that press drags `surface`: the window asked for the move, was under
+  the pointer at the press of the binding, or sits in the group of the
+  pressed node, as under a title bar;
+- the user made that button press and still holds the button; any
+  injected input after it, also a move of the pointer or a key, ends
+  this;
+- the pointer is on an output, and `to` grabbed `move`;
+- `point` and `velocity` are finite, and `wobble` has at most 16 kB as
+  JSON.
+
+The core checks this twice: when the transaction arrives, before any
+command runs, and again when it applies, since a transaction can wait
+for its clients. At the second check the button press must be the one of
+the first; when the user let go and pressed again in between, or any
+rule fails by then, the whole transaction fails with an error, and the
+window and the drag stay with the giver.
+
+The core passes `velocity` and `wobble` on unread. No window manager of
+the repository uses `velocity` yet.
 
 `window.give` of every window manager takes `grab` and sends the
 `give_grab`. `chora-tiling` and `chora-xp` add the springs of their
 wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
 unless the caller sent some, and stop their own drag. `chora-tiling`
-goes on with a drag that it receives: the window sits with `point` under
-the pointer and wobbles on from the springs. `chora-xp`, `chora-mc` and
-`chora-construct` grab no `move` and so receive no drag.
+goes on with a drag that it receives: the window sits with `point`,
+kept inside the window, under the pointer and wobbles on from the
+springs. `chora-xp`, `chora-mc` and `chora-construct` grab no `move` and
+so receive no drag.
 
-The grab ends without a release event when its receiver disconnects, and
-when the receiver does not own the window and no reservation keeps the
-window for it, for example 5 seconds after the give. The release of the
-button then reaches no client.
+The grab ends when its receiver disconnects, and when the receiver does
+not own the window and no reservation keeps the window for it, for
+example 5 seconds after the give. In the second case the receiver gets
+`input.button` with `move` and `released`; the release of the button
+itself then reaches no client.
 
 ## Selectors
 

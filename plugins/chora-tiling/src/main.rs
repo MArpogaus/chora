@@ -639,13 +639,16 @@ impl Tiling {
 
     /// A press of `move` that came with a window and its drag from
     /// another window manager: the pointer holds the point of the window
-    /// that the giver names, and the window wobbles on from its springs.
+    /// that the giver names, kept inside the window, and the window
+    /// wobbles on from its springs.
     fn take_given_drag(&mut self, grab: Option<GivenGrab>) {
-        let (Some(grab), Some((id, held))) = (grab, &mut self.dragged) else {
+        let (Some(grab), Some((id, _))) = (grab, self.dragged.clone()) else {
             return;
         };
-        *held = grab.point;
-        self.springs = grab.wobble.map(|springs| (id.clone(), springs));
+        let size = self.target(&id, [0.0; 2]).map_or([0.0; 2], |t| t.size);
+        let point = [0, 1].map(|axis| grab.point[axis].clamp(0.0, size[axis].max(0.0)));
+        self.dragged = Some((id.clone(), point));
+        self.springs = grab.wobble.map(|springs| (id, springs));
     }
 
     /// Hands a window to the window manager `to` with a remove with `to`
@@ -1776,6 +1779,14 @@ mod tests {
         };
         press_and_move(&mut tiling, Some(grab));
         assert_eq!(tiling.dragged, Some(("s1".into(), [7.0, 9.0])));
+        let far = chora_scene::GivenGrab {
+            point: [900.0, -5.0],
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        press_and_move(&mut tiling, Some(far));
+        let held = tiling.dragged.clone().map(|(_, point)| point);
+        assert_eq!(held, Some([40.0, 0.0]), "inside the window of 40 by 20");
         assert!(tiling.springs.is_none(), "the first move took the springs");
         assert!(bends(&methods, "s1") > 0);
     }

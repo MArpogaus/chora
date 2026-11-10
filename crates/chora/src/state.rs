@@ -105,6 +105,10 @@ pub struct ButtonGrab {
     /// The window that came with the grab from another window manager
     /// (`give_grab`): the grab ends when its holder does not get it.
     pub given: Option<String>,
+    /// The window of the press: the one that asked for the move, or the
+    /// one under the pointer at the press of a binding. Only the drag of
+    /// this window can go to another window manager.
+    pub window: Option<String>,
 }
 
 /// A key grab whose key went down and has not sent its `released` yet: the
@@ -817,6 +821,7 @@ impl State {
         self.last_real_press = (!injected).then_some(serial);
         if injected {
             self.last_act = None;
+            self.last_real_button = None;
         }
     }
 

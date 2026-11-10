@@ -858,12 +858,15 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
-                let checked = self.check_grab_gives(conn, &apply.commands);
-                let checked = checked.and_then(|()| self.check_paths(conn, &apply.commands));
+                let drag = match self.check_grab_gives(conn, &apply.commands) {
+                    Ok(drag) => drag,
+                    Err(e) => return Some(Err(e)),
+                };
+                let checked = self.check_paths(conn, &apply.commands);
                 if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
-                self.submit_transaction(conn, id, owner, apply.commands);
+                self.submit_transaction(conn, id, owner, (apply.commands, drag));
                 return None;
             }
             "events.subscribe" => {
