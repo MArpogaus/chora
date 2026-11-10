@@ -425,23 +425,33 @@ impl Wayland {
         }
     }
 
-    /// Starts a drag of the client from a surface with the serial of a
-    /// press, which offers one type of text.
-    pub fn start_drag(&mut self, core: &mut Core, origin: &Toplevel, serial: u32) {
+    /// Binds the data device of the client, so that drags can enter its
+    /// surfaces.
+    pub fn listen_for_drags(&mut self, core: &mut Core) {
         let qh = self.queue.handle();
         let manager = self
             .app
             .data_manager
             .as_ref()
             .expect("wl_data_device_manager");
-        let device = self
-            .app
+        let seat = self.app.seat.as_ref().expect("wl_seat");
+        self.app
             .data_device
-            .get_or_insert_with(|| {
-                let seat = self.app.seat.as_ref().expect("wl_seat");
-                manager.get_data_device(seat, &qh, ())
-            })
-            .clone();
+            .get_or_insert_with(|| manager.get_data_device(seat, &qh, ()));
+        self.roundtrip(core);
+    }
+
+    /// Starts a drag of the client from a surface with the serial of a
+    /// press, which offers one type of text.
+    pub fn start_drag(&mut self, core: &mut Core, origin: &Toplevel, serial: u32) {
+        self.listen_for_drags(core);
+        let qh = self.queue.handle();
+        let manager = self
+            .app
+            .data_manager
+            .as_ref()
+            .expect("wl_data_device_manager");
+        let device = self.app.data_device.as_ref().expect("a data device");
         let source = manager.create_data_source(&qh, ());
         source.offer("text/plain".into());
         source.set_actions(DndAction::Copy);

@@ -352,7 +352,10 @@ impl State {
         for step in steps {
             let now = InputTime::now();
             match step {
-                Step::Move(point) => input::move_pointer(self, *point, now),
+                Step::Move(point) => {
+                    input::cancel_client_drag(self);
+                    input::move_pointer(self, *point, now);
+                }
                 Step::Button(button, state, hold) => {
                     let pressed = *state == ButtonState::Pressed && !hold;
                     note(&mut buttons_down, *button, pressed);

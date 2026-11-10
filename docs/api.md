@@ -119,7 +119,16 @@ starts a drag and drop, each motion goes to the surface that shows under the
 pointer, so a menu that opens on a press takes the drag and the release,
 and a drop goes to the window under the pointer and not to the source. A
 press in a popup pins the popup, and its drag keeps sending points outside
-the plane. The core starts the drag and drop of a client and shows no icon.
+the plane.
+
+The core runs the drag and drop of a client, without an icon; before, it
+cancelled every drag. Only the client under the real press of the person
+can start a drag, with the serial of that press. Injected input never
+starts, moves or drops a drag: an injected button or move cancels one that
+runs. A lock, an emergency reset or another grab cancels a drag too. Every
+unconfined client that the drag crosses can read its data. Confined clients
+(client sockets and sandboxes) take no part: they never get an offer and
+cannot start a drag.
 
 A group with a `size` and a `perspective` d is a **3D context**: its
 descendants share one space. The eye sits at distance d in front of the

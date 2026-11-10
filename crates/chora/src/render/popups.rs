@@ -4,7 +4,10 @@
 //! second window (D75).
 
 use serde_json::json;
-use smithay::utils::{Logical, Point};
+use smithay::{
+    backend::input::{ButtonState, InputTime},
+    utils::{Logical, Point},
+};
 use wayland_client::Proxy;
 
 use super::{
@@ -336,4 +339,167 @@ fn a_menu_that_overflows_a_turned_window_slides_into_its_geometry() {
 #[test]
 fn a_menu_that_overflows_a_window_of_a_context_slides_into_its_geometry() {
     a_menu_that_overflows_the_window_slides_into_its_geometry(context_rig());
+}
+
+type Windows = (Core, Wayland, Toplevel, Toplevel, Shown, Shown, Client);
+
+fn press_on_source(windows: &mut Windows, injected: bool) -> u32 {
+    let (core, wayland, _, _, on_left, _, _) = windows;
+    move_to(core, on_left(50.0, 40.0));
+    let state = ButtonState::Pressed;
+    crate::input::press_button(&mut core.state, 272, state, InputTime::now(), injected);
+    wayland.roundtrip(core);
+    pressed(&wayland.take_pointer_events())
+}
+
+fn cancelled(wayland: &mut Wayland, core: &mut Core) -> bool {
+    wayland.roundtrip(core);
+    wayland.take_dnd_events().contains(&DndEvent::Cancelled)
+}
+
+#[test]
+fn a_drag_started_with_the_press_of_another_client_is_cancelled() {
+    let mut windows = two_windows_in_a_context();
+    let serial = press_on_source(&mut windows, false);
+    let mut other = Wayland::connect(&mut windows.0);
+    let window = other.toplevel(&mut windows.0, "other");
+    other.attach(&mut windows.0, &window, (100, 80));
+    other.start_drag(&mut windows.0, &window, serial);
+    assert!(
+        cancelled(&mut other, &mut windows.0),
+        "the press is not its"
+    );
+    assert!(!windows.0.state.client_drag);
+}
+
+#[test]
+fn a_drag_started_at_an_injected_press_is_cancelled() {
+    let mut windows = two_windows_in_a_context();
+    let serial = press_on_source(&mut windows, true);
+    let source = &windows.2;
+    windows.1.start_drag(&mut windows.0, source, serial);
+    assert!(cancelled(&mut windows.1, &mut windows.0));
+    assert!(!windows.0.state.client_drag);
+}
+
+#[test]
+fn an_injected_move_during_a_real_drag_cancels_it() {
+    let mut windows = two_windows_in_a_context();
+    let serial = press_on_source(&mut windows, false);
+    let source = &windows.2;
+    windows.1.start_drag(&mut windows.0, source, serial);
+    assert!(windows.0.state.client_drag, "a real press starts the drag");
+    let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+    windows.0.admin().ok(&mut windows.0, "grants.set", grant);
+    let mut agent = windows.0.named("agent");
+    let step = json!({"pointer_move": {"position": [500.0, 300.0]}});
+    agent.ok(&mut windows.0, "input.inject", json!({"events": [step]}));
+    assert!(cancelled(&mut windows.1, &mut windows.0));
+    assert!(!windows.0.state.client_drag);
+}
+
+#[test]
+fn a_second_start_with_the_same_serial_keeps_the_drag() {
+    let mut windows = two_windows_in_a_context();
+    let serial = press_on_source(&mut windows, false);
+    let source = &windows.2;
+    windows.1.start_drag(&mut windows.0, source, serial);
+    windows.1.start_drag(&mut windows.0, source, serial);
+    assert!(
+        windows.0.state.client_drag,
+        "the new grab holds the pointer"
+    );
+}
+
+#[test]
+fn a_lock_during_a_drag_cancels_it() {
+    let mut windows = two_windows_in_a_context();
+    let serial = press_on_source(&mut windows, false);
+    let source = &windows.2;
+    windows.1.start_drag(&mut windows.0, source, serial);
+    windows.1.take_dnd_events();
+    let _lock = windows.1.lock(&mut windows.0);
+    assert!(cancelled(&mut windows.1, &mut windows.0));
+    assert!(!windows.0.state.client_drag);
+}
+
+#[test]
+fn an_emergency_reset_ends_a_drag() {
+    let mut windows = two_windows_in_a_context();
+    let serial = press_on_source(&mut windows, false);
+    let source = &windows.2;
+    windows.1.start_drag(&mut windows.0, source, serial);
+    windows.0.state.reset();
+    assert!(!windows.0.state.pointer().is_grabbed());
+    assert!(!windows.0.state.client_drag);
+    assert!(cancelled(&mut windows.1, &mut windows.0));
+}
+
+fn with_agent_window() -> (Windows, Wayland, std::path::PathBuf) {
+    let dir = std::env::temp_dir().join(format!("chora-drag-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("a directory");
+    let mut core = Core::new();
+    core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+    core.add_output("test-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let source = wayland.toplevel(&mut core, "source");
+    wayland.attach(&mut core, &source, (100, 80));
+    let created = core
+        .admin()
+        .ok(&mut core, "clients.create", json!({"name": "agent"}));
+    let path = std::path::PathBuf::from(created["wayland"].as_str().expect("a path"));
+    let mut agent = Wayland::connect_to(&mut core, &path);
+    let target = agent.toplevel(&mut core, "agent");
+    agent.attach(&mut core, &target, (100, 80));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let place = |x: f64| {
+        chain(&[
+            translate(x, 300.0, 200.0),
+            turn_y(40.0),
+            translate(-50.0, -40.0, 0.0),
+        ])
+    };
+    let (left, right) = (place(250.0), place(550.0));
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "eye"}},
+        {"update": {"id": "s1", "props": {"transform": {"matrix": left}}}},
+        {"attach": {"surface": "s2", "parent": "eye"}},
+        {"update": {"id": "s2", "props": {"transform": {"matrix": right}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    let on_left: Shown = Box::new(move |u, v| shown(&left, [400.0, 300.0], u, v).into());
+    let on_right: Shown = Box::new(move |u, v| shown(&right, [400.0, 300.0], u, v).into());
+    let windows = (core, wayland, source, target, on_left, on_right, wm);
+    (windows, agent, dir)
+}
+
+#[test]
+fn a_confined_client_gets_no_offer() {
+    let (mut windows, mut agent, dir) = with_agent_window();
+    agent.listen_for_drags(&mut windows.0);
+    let serial = press_on_source(&mut windows, false);
+    let source = &windows.2;
+    windows.1.start_drag(&mut windows.0, source, serial);
+    let over = (windows.5)(60.0, 40.0);
+    move_to(&mut windows.0, over);
+    agent.roundtrip(&mut windows.0);
+    let events = agent.take_dnd_events();
+    let _ = std::fs::remove_dir_all(dir);
+    assert!(events.is_empty(), "the confined window got {events:?}");
+}
+
+#[test]
+fn a_confined_client_starts_no_drag() {
+    let (mut windows, mut agent, dir) = with_agent_window();
+    let over = (windows.5)(50.0, 40.0);
+    move_to(&mut windows.0, over);
+    click(&mut windows.0, true);
+    agent.roundtrip(&mut windows.0);
+    let serial = pressed(&agent.take_pointer_events());
+    let own = &windows.3;
+    agent.start_drag(&mut windows.0, own, serial);
+    let done = cancelled(&mut agent, &mut windows.0);
+    let _ = std::fs::remove_dir_all(dir);
+    assert!(done, "a confined client may not drag");
 }

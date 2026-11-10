@@ -295,6 +295,12 @@ impl State {
         self.node_grab = None;
         self.plane_grab = None;
         self.button_grab = None;
+        let pointer = self.pointer();
+        pointer.unset_grab(
+            self,
+            smithay::utils::SERIAL_COUNTER.next_serial(),
+            smithay::backend::input::InputTime::now(),
+        );
         self.held.grabs.clear();
         let effects = self.scene.reset(self.reset_area());
         self.send_configures(&effects);

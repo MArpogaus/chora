@@ -588,6 +588,8 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         render::surface_under(state, &spot).map(|u| (u.surface, u.location))
     };
     let pointer = state.pointer();
+    let under =
+        under.filter(|(surface, _)| !state.client_drag || state.takes_part_in_drags(surface));
     pointer.motion(
         state,
         under.clone(),
@@ -613,6 +615,16 @@ fn button<I: InputBackend>(state: &mut State, event: &I::PointerButtonEvent) {
     );
 }
 
+/// Ends the drag and drop of a client without a drop: injected input never
+/// moves or drops one.
+pub fn cancel_client_drag(state: &mut State) {
+    if state.client_drag {
+        let pointer = state.pointer();
+        pointer.unset_grab(state, SERIAL_COUNTER.next_serial(), InputTime::now());
+        state.client_drag = false;
+    }
+}
+
 /// A pointer button goes down or up.
 pub fn press_button(
     state: &mut State,
@@ -621,6 +633,9 @@ pub fn press_button(
     time: InputTime,
     injected: bool,
 ) {
+    if injected {
+        cancel_client_drag(state);
+    }
     if button_state == ButtonState::Pressed {
         state.pressed = None;
     }
