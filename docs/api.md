@@ -105,9 +105,11 @@ mirrored text or a node under a group with a perspective matrix needs no
 layer in the scene. A plane that is edge on or collapsed draws nothing.
 Pointer input reaches a plane through the inverse of its transform: the
 core maps the pointer into the plane and then runs the hit test of the
-plane there. Input reaches the window, its subsurfaces and the nodes in the
-plane only inside the area of the plane, and never where the plane shows the
-pointer behind the eye. During a press, the core maps every motion through
+plane there. Input reaches a plane and what it holds only inside its area,
+and never where the plane shows the pointer behind the eye. A node with a
+mesh under such a transform keeps the box of its shape. A plane that the
+layer budget leaves out of the frame draws nothing, so it takes the input
+and gives it to nobody. During a press, the core maps every motion through
 the plane that the press hit, also outside it; where the plane shows the
 pointer behind the eye, the last point stays. The popups of a window under a
 plane stay inside the geometry of the window.

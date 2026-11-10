@@ -1559,16 +1559,25 @@ fn without_planes_the_hit_list_is_the_draw_list() {
     let mut scene = scene_with_surface();
     let layer = serde_json::json!({"size": [50, 50], "radius": 4, "color": [1, 1, 1, 1],
         "transform": {"translate": [3, 4], "scale": 2}});
+    let clipped = serde_json::json!({"size": [30, 30], "clip": {"radius": 2},
+        "transform": {"translate": [1, 1], "scale": 0.5}});
     let inner = serde_json::json!({"size": [5, 5], "transform": {"scale": 0.5}});
+    let nested: Command = serde_json::from_value(serde_json::json!({
+        "create": {"id": "inner", "kind": "rect", "parent": "clipped", "props": inner}
+    }))
+    .unwrap();
     scene
         .apply(
             "wm",
             &[
                 create("layer", "rect", &layer),
-                create("inner", "rect", &inner),
+                create("clipped", "group", &clipped),
+                nested,
                 attach("s1", ROOT),
             ],
         )
         .unwrap();
+    assert!(scene.node("clipped").unwrap().is_layer());
     assert_eq!(scene.hit_list(ROOT), scene.draw_list());
+    assert_ne!(scene.layer_list(ROOT), scene.draw_list());
 }

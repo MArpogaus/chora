@@ -373,7 +373,7 @@ fn a_plane_shown_behind_the_eye_takes_no_input() {
     core.add_output("HDMI-1", (800, 600));
     let mut xp = core.named("xp");
     let matrix = [
-        1.0, 0.0, 0.0, 0.01, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        -1.0, 0.0, 0.0, -0.01, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ];
     let commands = json!({"commands": [
         {"create": {"id": "r", "kind": "rect", "parent": "root",
@@ -382,9 +382,150 @@ fn a_plane_shown_behind_the_eye_takes_no_input() {
     ]});
     xp.ok(&mut core, "scene.apply", commands);
     xp.ok(&mut core, "events.subscribe", json!({"events": []}));
-    move_to(&mut core, (200.0, 10.0).into());
+    let total = transform(&json!({"matrix": matrix}));
+    let behind = forward(&total, 150.0, 25.0);
+    assert!(close((behind.x, behind.y), (300.0, 50.0)), "{behind:?}");
+    move_to(&mut core, behind);
     click(&mut core, true);
     click(&mut core, false);
     let events = node_events(&mut xp, &mut core);
     assert_eq!(events, Vec::<Value>::new());
+}
+
+fn press(core: &mut Core, linux: u32, down: bool) {
+    let state = if down {
+        ButtonState::Pressed
+    } else {
+        ButtonState::Released
+    };
+    press_button(&mut core.state, linux, state, InputTime::now(), false);
+}
+
+#[test]
+fn a_drag_stays_mapped_through_its_plane_while_another_button_is_held() {
+    let (mut core, mut wayland, _window, total, _wm) =
+        window_under(&json!({"translate": [200, 100], "rotate": 30}));
+    move_to(&mut core, forward(&total, 50.0, 40.0));
+    press(&mut core, LEFT, true);
+    press(&mut core, LEFT + 1, true);
+    press(&mut core, LEFT, false);
+    move_to(&mut core, forward(&total, -30.0, 95.0));
+    let moved = motions(&mut wayland, &mut core);
+    assert!(
+        moved.last().is_some_and(|at| close(*at, (-30.0, 95.0))),
+        "{moved:?}"
+    );
+    press(&mut core, LEFT + 1, false);
+}
+
+#[test]
+fn a_plane_that_the_layer_budget_leaves_out_takes_input_and_gives_it_to_nobody() {
+    let mut core = Core::with_renderer();
+    let mut wm = core.named("wm");
+    wm.ok(&mut core, "output.add", json!({"spec": "128x96"}));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (100, 80));
+    let plane = |id: &str, input: &str| {
+        json!({"create": {"id": id, "kind": "rect", "parent": "root", "props": {
+            "size": [4096, 4096], "color": [1, 1, 1, 1], "input": input,
+            "transform": {"translate": [10, 10], "rotate": 10}}}})
+    };
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "root"}},
+        plane("p1", "accept"),
+        plane("p2", "pass"),
+        plane("p3", "pass"),
+        plane("p4", "pass"),
+        plane("p5", "pass"),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+    crate::backend::headless::render_all(&mut core.state);
+    let left_out = &core.state.assets.frame_left_out["HEADLESS-1"];
+    assert_eq!(left_out, &["p1"], "the budget leaves the lowest plane out");
+    wm.take_events();
+    motions(&mut wayland, &mut core);
+    move_to(&mut core, (40.0, 40.0).into());
+    click(&mut core, true);
+    click(&mut core, false);
+    let events = node_events(&mut wm, &mut core);
+    assert_eq!(events, Vec::<Value>::new());
+    assert_eq!(motions(&mut wayland, &mut core), Vec::<(f64, f64)>::new());
+}
+
+fn perspective_rect(core: &mut Core, xp: &mut Client, w_slope: f64) {
+    let matrix = [
+        1.0, 0.0, 0.0, w_slope, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ];
+    let commands = json!({"commands": [
+        {"create": {"id": "r", "kind": "rect", "parent": "root",
+            "props": {"size": [300, 50], "color": [1, 1, 1, 1],
+                      "transform": {"matrix": matrix}}}},
+    ]});
+    xp.ok(core, "scene.apply", commands);
+    xp.ok(core, "events.subscribe", json!({"events": []}));
+}
+
+fn injector(core: &mut Core) -> Client {
+    let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+    core.admin().ok(core, "grants.set", grant);
+    core.named("agent")
+}
+
+#[test]
+fn an_injected_click_on_a_node_under_a_perspective_plane_lands_on_it() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut xp = core.named("xp");
+    perspective_rect(&mut core, &mut xp, 0.01);
+    let mut agent = injector(&mut core);
+    let at = json!({"pointer_move": {"node": "r", "point": [100.0, 25.0]}});
+    agent.ok(
+        &mut core,
+        "input.inject",
+        json!({"events": [at, {"button": {"state": "pressed"}}]}),
+    );
+    let events = node_events(&mut xp, &mut core);
+    assert_eq!(events[0]["node"], "r", "{events:?}");
+    assert!(close(local(&events[0]), (100.0, 25.0)), "{events:?}");
+}
+
+#[test]
+fn an_injected_move_to_a_point_behind_the_eye_fails() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut xp = core.named("xp");
+    perspective_rect(&mut core, &mut xp, -0.01);
+    let mut agent = injector(&mut core);
+    let at = json!({"pointer_move": {"node": "r", "point": [150.0, 25.0]}});
+    agent.fails(&mut core, "input.inject", json!({"events": [at]}));
+}
+
+#[test]
+fn a_plane_that_crosses_the_near_plane_has_a_box_that_reaches_past_it() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (300, 80));
+    let mut xp = core.named("xp");
+    perspective_rect(&mut core, &mut xp, -0.01);
+    let attach = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "root"}},
+        {"update": {"id": "s1", "props": {"transform": {"matrix": [
+            1.0, 0.0, 0.0, -0.01, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0]}}}},
+    ]});
+    xp.ok(&mut core, "scene.apply", attach);
+    let found = xp.ok(&mut core, "scene.query", json!({"selector": "id:r"}));
+    let rect = found[0]["rects"]["HDMI-1"]
+        .as_array()
+        .expect("the part in front of the eye shows");
+    assert!(rect[2].as_f64().unwrap() >= 800.0, "{rect:?}");
+    let window = core.state.windows["s1"].clone();
+    let total = transform(&json!({"matrix": [
+        1.0, 0.0, 0.0, -0.01, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]}));
+    let rect = crate::render::window_rect(&window, &total);
+    assert!(rect.size.w >= 800.0, "{rect:?}");
 }

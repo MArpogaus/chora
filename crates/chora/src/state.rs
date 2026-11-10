@@ -98,6 +98,8 @@ pub struct PlaneGrab {
     pub surface: WlSurface,
     pub origin: Point<f64, Logical>,
     pub last: Point<f64, Logical>,
+    /// The buttons that are down since the press.
+    pub held: u32,
 }
 
 /// A grab of a button that is down: the connection of the grab, the

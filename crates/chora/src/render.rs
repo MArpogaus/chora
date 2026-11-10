@@ -937,8 +937,10 @@ fn hit<'a>(
 /// What a point hits of a node under a transform that is not a 2D
 /// translation with a positive scale. The inverse of the homography of
 /// the plane maps the point into the node; a point that the plane shows
-/// behind the eye or outside its content hits nothing. A group is a
-/// layer: its own list answers inside its size. A node with a mesh takes
+/// behind the eye or outside its content hits nothing. A plane that the
+/// layer budget left out of the last frame shows nothing, so it takes the
+/// input and gives it to nobody. A group is a layer: its own list answers
+/// inside its size. A node with a mesh takes
 /// the input over the bounding box of its shape.
 fn plane_hit<'a>(
     state: &'a State,
@@ -961,6 +963,17 @@ fn plane_hit<'a>(
     let local = plane_point(&placed.transform, pos)?;
     if !((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)) {
         return None;
+    }
+    if state
+        .assets
+        .frame_left_out
+        .values()
+        .any(|ids| ids.contains(&node.id))
+    {
+        return Some(Found {
+            input: InputMode::Block,
+            ..take(Hit::Area, local)
+        });
     }
     match node.kind {
         NodeKind::Surface => {
@@ -996,6 +1009,19 @@ pub(crate) fn plane_point(
     let matrix = transform.matrix();
     let depth = matrix[3] * u + matrix[7] * v + matrix[15];
     (u.is_finite() && v.is_finite() && depth > mesh::NEAR).then_some((u, v).into())
+}
+
+/// The screen point that a transform shows for a point of the plane
+/// z = 0. `None` when the point lies at or behind the eye.
+pub(crate) fn project_point(transform: &Transform, x: f64, y: f64) -> Option<(f64, f64)> {
+    let m = transform.matrix();
+    let w = m[3] * x + m[7] * y + m[15];
+    (w > mesh::NEAR).then(|| {
+        (
+            (m[0] * x + m[4] * y + m[12]) / w,
+            (m[1] * x + m[5] * y + m[13]) / w,
+        )
+    })
 }
 
 /// The point of a node's own coordinates that a transform shows at a
@@ -1166,9 +1192,11 @@ pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f
     let geo = window.geometry().loc.to_f64();
     if !transform.is_plain() {
         let (x, y) = (bbox.loc.x - geo.x, bbox.loc.y - geo.y);
-        let corners = [[x, y], [x + bbox.size.w, y], [x, y + bbox.size.h]];
-        let last = [x + bbox.size.w, y + bbox.size.h];
-        return projected_box(transform, corners.into_iter().chain([last]));
+        let (right, bottom) = (x + bbox.size.w, y + bbox.size.h);
+        return polygon_box(
+            transform,
+            [[x, y], [right, y], [right, bottom], [x, bottom]],
+        );
     }
     let (x, y) = transform.translation_2d();
     let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
@@ -1181,10 +1209,28 @@ pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f
 /// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
 /// `(w, h)` after the transform.
 pub(crate) fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
-    projected_box(
-        transform,
-        [[0.0, 0.0], [w, 0.0], [0.0, h], [w, h]].into_iter(),
-    )
+    polygon_box(transform, [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]])
+}
+
+/// The smallest axis-aligned rectangle that holds the part of a quad in
+/// front of the eye after the transform, as the renderer clips it. The
+/// corners go around the quad. A quad with no corner in front overlaps
+/// nothing.
+pub(crate) fn polygon_box(
+    transform: &Transform,
+    corners: [[f64; 2]; 4],
+) -> Rectangle<f64, Logical> {
+    let m = transform.matrix();
+    let polygon = corners.map(|[px, py]| {
+        [
+            m[0] * px + m[4] * py + m[12],
+            m[1] * px + m[5] * py + m[13],
+            m[3] * px + m[7] * py + m[15],
+        ]
+    });
+    let mut bounds = mesh::Bounds::default();
+    bounds.add_clipped(&polygon);
+    bounds.rect()
 }
 
 /// The smallest axis-aligned rectangle that holds the points after the

@@ -23,7 +23,7 @@ use serde_json::Value;
 use smithay::{
     backend::input::{ButtonState, InputTime, KeyState},
     input::keyboard::{Keycode, Keysym, xkb},
-    utils::{Logical, Point},
+    utils::{Logical, Point, Rectangle},
     wayland::text_input::TextInputSeat,
 };
 
@@ -31,7 +31,7 @@ use crate::{
     input,
     ipc::{params_of, rejected},
     output::output_area,
-    render::node_size,
+    render::{node_size, node_under, project_point},
     state::State,
 };
 
@@ -261,17 +261,41 @@ impl State {
                 if !self.shows_point(placed.node, x, y) {
                     continue;
                 }
-                let (at_x, at_y) = camera.then(&placed.transform).apply(x, y);
-                if at_x >= 0.0
-                    && at_y >= 0.0
-                    && at_x < f64::from(area.size.w)
-                    && at_y < f64::from(area.size.h)
-                {
-                    return Ok(area.loc.to_f64() + Point::from((at_x, at_y)));
+                let total = camera.then(&placed.transform);
+                if let Some(at) = self.lands(node, &total, [x, y], area) {
+                    return Ok(at);
                 }
             }
         }
         Err(format!("the node {node:?} shows no point [{x}, {y}]"))
+    }
+
+    /// The layout point where a point of a node shows on an output, if it
+    /// shows there. Under a plane the node must also take the pointer
+    /// there.
+    fn lands(
+        &self,
+        node: &str,
+        total: &Transform,
+        [x, y]: [f64; 2],
+        area: Rectangle<i32, Logical>,
+    ) -> Option<Point<f64, Logical>> {
+        let (at_x, at_y) = project_point(total, x, y)?;
+        let on_output = at_x >= 0.0
+            && at_y >= 0.0
+            && at_x < f64::from(area.size.w)
+            && at_y < f64::from(area.size.h);
+        let at = area.loc.to_f64() + Point::from((at_x, at_y));
+        (on_output && (total.is_plain() || self.takes_pointer_at(node, at))).then_some(at)
+    }
+
+    /// Whether the node is the one that takes the pointer at a point of the
+    /// layout. A node under a plane may be covered where its projection
+    /// lands.
+    fn takes_pointer_at(&self, node: &str, at: Point<f64, Logical>) -> bool {
+        self.spot(at)
+            .and_then(|spot| node_under(self, &spot))
+            .is_some_and(|under| under == node)
     }
 
     /// Whether a point of the node's own coordinates lies in the box the

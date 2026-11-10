@@ -98,9 +98,8 @@ pub struct Layers {
 }
 
 impl Layers {
-    /// Drops the layers of nodes that are gone or no layers any more, and
-    /// textures that no frame used for a while; starts the budget of a new
-    /// frame.
+    /// Drops the layers of nodes that are gone, and textures that no frame
+    /// used for a while; starts the budget of a new frame.
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
         let now = Instant::now();
         self.textures
@@ -379,7 +378,7 @@ fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
 }
 
 /// The box of the screen points of polygons.
-struct Bounds {
+pub(crate) struct Bounds {
     min: [f64; 2],
     max: [f64; 2],
 }
@@ -394,9 +393,17 @@ impl Default for Bounds {
 }
 
 impl Bounds {
+    /// The box of what was added; a box of nothing overlaps nothing.
+    pub(crate) fn rect(&self) -> smithay::utils::Rectangle<f64, smithay::utils::Logical> {
+        smithay::utils::Rectangle::new(
+            (self.min[0], self.min[1]).into(),
+            (self.max[0] - self.min[0], self.max[1] - self.min[1]).into(),
+        )
+    }
+
     /// Adds the part of a polygon of (x, y, w) points that lies at
     /// `w >= NEAR`. Returns whether any of it does.
-    fn add_clipped(&mut self, polygon: &[[f64; 3]]) -> bool {
+    pub(crate) fn add_clipped(&mut self, polygon: &[[f64; 3]]) -> bool {
         let mut shown = false;
         let mut add = |[x, y, w]: [f64; 3]| {
             shown = true;

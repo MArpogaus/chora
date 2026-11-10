@@ -618,7 +618,9 @@ pub fn press_button(
         click_focus(state);
         note_input(state, pointer.current_focus(), serial, true);
         press_node(state, code, injected);
-        if state.plane_grab.is_none() {
+        if let Some(grab) = state.plane_grab.as_mut() {
+            grab.held += 1;
+        } else {
             start_plane_grab(state);
         }
     } else {
@@ -636,7 +638,13 @@ pub fn press_button(
     );
     pointer.frame(state);
     if button_state == ButtonState::Released {
-        state.plane_grab = None;
+        let ended = state.plane_grab.as_mut().is_some_and(|grab| {
+            grab.held = grab.held.saturating_sub(1);
+            grab.held == 0
+        });
+        if ended {
+            state.plane_grab = None;
+        }
     }
 }
 
@@ -891,6 +899,7 @@ fn start_plane_grab(state: &mut State) {
             surface: under.surface,
             origin,
             last: spot.scene - under.location,
+            held: 1,
         });
     }
 }

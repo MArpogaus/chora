@@ -191,8 +191,9 @@ to the GPU in homogeneous coordinates, so textures map correctly under
 perspective. Wobbly windows move the points of a mesh, a magic lamp
 animates them, and a desktop cube turns layers in 3D. A layer has no depth
 test: the order of the siblings decides what is in front, and a plugin
-hides the faces that turn away. A node with a content size, for example a
-window, an image or a text, under such a transform is a **plane**: it draws
+hides the faces that turn away. A node with a size, or with a content size
+such as a window, an image or a text, whose transform relative to its nearest
+layer is not a 2D translation with a positive scale is a **plane**: it draws
 through a texture of its size, and pointer input reaches it through the
 inverse of its transform, so a rotated window gets the pointer at the point
 that it shows.
