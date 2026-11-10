@@ -28,9 +28,9 @@ set -uo pipefail
 
 EXPECTED='
 faces-have-bars pass
-opens-under-pointer missing
-moves-to-face missing
-face-removed missing
+opens-under-pointer pass
+moves-to-face pass
+face-removed pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
