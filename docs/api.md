@@ -462,8 +462,9 @@ the first; when the user let go and pressed again in between, or any
 rule fails by then, the whole transaction fails with an error, and the
 window and the drag stay with the giver.
 
-The core passes `velocity` and `wobble` on unread. No window manager of
-the repository uses `velocity` yet.
+The core passes `velocity` and `wobble` on unread. `chora-xp` sends the
+speed of the pointer, smoothed over its last moves, as `velocity`; no
+window manager of the repository reads it yet.
 
 `window.give` of every window manager takes `grab` and sends the
 `give_grab`. `chora-tiling` and `chora-xp` add the springs of their
@@ -475,7 +476,12 @@ springs. `chora-construct` grabs `move` too: a window that
 comes with its drag becomes a pane, moved so that `point` is under the
 pointer, and the moves and the release of `move` drag and drop the pane
 as a drag with the modifier does. The pane of an own window wobbles on
-with a depth. `chora-xp` and `chora-mc` grab no `move` and so receive no
+with a depth, and the camera stays where it is. A pane of an own window
+that a drag drops over a face of the cube goes back: the construct
+gives the window to the window manager of the cube and asks it, with
+`window.move` and `at`, to put it on the output of that face at the drop
+point. So a move from face to face looks like a move inside that window
+manager. `chora-xp` and `chora-mc` grab no `move` and so receive no
 drag.
 
 `chora-xp` gives by itself on a virtual output: when the drag of a title
