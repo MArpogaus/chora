@@ -86,6 +86,8 @@ pub enum Word {
     NoAnswer,
     /// A press that a program made.
     Injected,
+    /// The detail of a question does not fit on the card.
+    TooLong,
     /// Typed text does not answer.
     TypedYes,
     /// A question waits.
@@ -109,7 +111,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 39] = [
+pub const ALL: [Word; 40] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -139,6 +141,7 @@ pub const ALL: [Word; 39] = [
     Word::Refused,
     Word::NoAnswer,
     Word::Injected,
+    Word::TooLong,
     Word::TypedYes,
     Word::Waiting,
     Word::FieldHint,
@@ -192,6 +195,7 @@ impl Word {
             Self::Refused => "Refused.",
             Self::NoAnswer => "No answer in time. Refused.",
             Self::Injected => "Please use your own mouse or keyboard.",
+            Self::TooLong => "Too long to show. Refused.",
             Self::TypedYes => "Typing does not answer. Press {yes} or {no}, or click Yes or No.",
             Self::Waiting => "A question is waiting.",
             Self::FieldHint => "Type a message, then Enter.",
@@ -240,6 +244,7 @@ impl Word {
             Self::Refused => "Abgelehnt.",
             Self::NoAnswer => "Keine Antwort rechtzeitig. Abgelehnt.",
             Self::Injected => "Bitte mit eigener Maus oder Tastatur antworten.",
+            Self::TooLong => "Zu lang zum Anzeigen. Abgelehnt.",
             Self::TypedYes => {
                 "Tippen beantwortet die Frage nicht. {yes} oder {no} drücken oder Ja oder Nein klicken."
             }
