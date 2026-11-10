@@ -28,6 +28,8 @@
 #   chat-*, typed-yes-held  the "Chat ..." row, chat.show and chat.hide,
 #                           Super+a and Esc (A3, A9), a typed yes (A5)
 #   agents-row-text         the helper row (A7)
+#   xp-tray-rows            the xp folder shows the row of a working helper
+#                           in its tray balloon (H8, F7)
 #   voice-state-rate, layers-dropped-empty, host-idle-cpu   100 voice.state
 #                           in 5 s, then no dropped layers and under 1 % CPU
 #
@@ -56,7 +58,7 @@ set -uo pipefail
 
 EXPECTED='
 check-neutral pass
-check-xp missing
+check-xp pass
 check-mc missing
 check-construct missing
 check-ok-names-use pass
@@ -74,6 +76,7 @@ chat-show-hide pass
 chat-super-a-esc missing
 typed-yes-held pass
 agents-row-text missing
+xp-tray-rows pass
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
@@ -283,6 +286,7 @@ ensure_session() {
     ctl wait owner:tiling --timeout 20 >/dev/null || fail "tiling does not start: $(tail -n 3 "$shots/tiling.log")"
     mkdir -p "$work/data/chora/huds"
     cp -r "$fixtures/mine" "$work/data/chora/huds/mine"
+    cp -rL "$repo/flavors/xp/assets/assistant" "$work/data/chora/huds/xp"
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {app: probe2}, folder: mine}\n' >"$work/chora/chora-assistant.yaml"
     start_assistant || fail "chora-assistant does not connect: $(tail -n 3 "$shots/assistant.log")"
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
@@ -389,6 +393,17 @@ cell_agents_row_text() {
     waiting "$settle_s" node_has hud-row-Atlas "Atlas · working · Write file (2/2)"
 }
 
+use_folder() { ctl call assistant settings.set "{\"hud\": \"$1\"}" >/dev/null 2>&1; }
+cell_xp_tray_rows() {
+    local shown
+    use_folder xp || return 1
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2}'
+    waiting "$settle_s" node_has hud-row-Atlas "Atlas · working · Write file (2/2)"
+    shown=$?
+    use_folder neutral
+    return "$shown"
+}
+
 figure_shows() { node_exists hud-figure; }
 cpu_ticks() { awk '{print $14 + $15}' "/proc/$assistant_pid/stat"; }
 idle_window() { timeout 6 sleep "$1"; }
@@ -487,6 +502,7 @@ run_cell chat-show-hide cell_chat_show_hide session
 run_cell chat-super-a-esc cell_chat_super_a_esc session
 run_cell typed-yes-held cell_typed_yes_held session
 run_cell agents-row-text cell_agents_row_text session
+run_cell xp-tray-rows cell_xp_tray_rows session
 run_cell voice-state-rate cell_voice_state_rate session
 run_cell layers-dropped-empty cell_layers_dropped_empty session
 run_cell host-idle-cpu cell_host_idle_cpu session
