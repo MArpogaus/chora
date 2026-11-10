@@ -4,6 +4,8 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Don't be too paranoid about the limit: no waste, but finish the work and spend the weekly limit fully.
+
 - The 38 % includes Fable, which gets reset, so there is still room.
 
 - 15:20 Bangkok: Fable 12 %, all models 38 % of the week. Post screenshots on the status page when things merge.

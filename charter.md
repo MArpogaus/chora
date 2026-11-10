@@ -745,6 +745,10 @@ Goal: when the user returns, chora 0.9 has a ready announcement.
 
 ## 10. Budget control
 
+User, 11-10: spend the weekly limit fully; the daily share is a pacing
+guide, not a cap. No waste, but never stop useful work because a day's
+share is used while the week still has room.
+
 - `tokens.py` of the session log prints the totals of the day so far, per
   model and in sum, and the estimate in percent. It reads the session
   logs under `~/.claude/projects/`, subagents included. Those logs live
