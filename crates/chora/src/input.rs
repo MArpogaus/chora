@@ -1947,4 +1947,156 @@ mod tests {
             Vec::<String>::new()
         );
     }
+
+    /// tiling on the left half and xp on the right half, each with a
+    /// claim, the button binding and `move`. tiling has the window s1 and
+    /// drags it: Super is down and the left button went down at
+    /// (100, 100), as an injected press when `injected`.
+    fn mid_drag(injected: bool) -> (Core, Wayland, Client, Client) {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "win");
+        wayland.attach(&mut core, &window, (40, 30));
+        let mut tiling = claimer(&mut core, "tiling", [0.0, 0.0, 400.0, 600.0]);
+        let mut xp = claimer(&mut core, "xp", [400.0, 0.0, 400.0, 600.0]);
+        for wm in [&mut tiling, &mut xp] {
+            wm.ok(
+                &mut core,
+                "input.grab",
+                json!({"binding": "Super+BTN_LEFT"}),
+            );
+            wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        }
+        let attach = json!([{"attach": {"surface": "s1", "parent": "tiling"}}]);
+        apply(&mut tiling, &mut core, &attach);
+        move_to(&mut core, 100.0, 100.0);
+        press(&mut core, SUPER, true);
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), injected);
+        events(&mut tiling, &mut core);
+        events(&mut xp, &mut core);
+        (core, wayland, tiling, xp)
+    }
+
+    /// The transaction of tiling that gives s1 to xp with the drag.
+    fn give_with_the_drag() -> Value {
+        json!({"commands": [
+            {"remove": {"id": "s1", "to": "xp"}},
+            {"give_grab": {"surface": "s1", "to": "xp", "point": [12.0, 8.0],
+                "velocity": [300.0, 0.0], "wobble": {"points": [1.5, 2.5]}}},
+        ]})
+    }
+
+    /// The press that the receiver of a drag gets: `move` with the window
+    /// at the pointer, and the state that the giver sent.
+    fn is_the_press_of_the_given_drag(pressed: &Value) {
+        assert_eq!(pressed["binding"], "move");
+        assert_eq!(pressed["state"], "pressed");
+        assert_eq!(pressed["surface"], "s1");
+        assert_eq!(pressed["position"], json!([100.0, 100.0]));
+        let grab = json!({"point": [12.0, 8.0], "velocity": [300.0, 0.0],
+            "wobble": {"points": [1.5, 2.5]}});
+        assert_eq!(pressed["grab"], grab);
+    }
+
+    /// E3: tiling gives a window to xp while the button is down. The core
+    /// moves the pointer grab in the same transaction: xp gets the press
+    /// of `move` with the window and the state of the drag, then the moves
+    /// and the release, and tiling gets nothing more.
+    #[test]
+    fn a_give_in_the_middle_of_a_drag_moves_the_grab_to_the_receiver() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        let got = events(&mut xp, &mut core);
+        let names: Vec<&str> = got.iter().filter_map(|e| e["event"].as_str()).collect();
+        assert_eq!(names, ["surface.detached", "input.button"], "{got:?}");
+        is_the_press_of_the_given_drag(&got[1]);
+        let take = json!([{"attach": {"surface": "s1", "parent": "xp"}}]);
+        apply(&mut xp, &mut core, &take);
+        move_to(&mut core, 500.0, 300.0);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        assert_eq!(buttons(&mut xp, &mut core), ["moved", "released"]);
+        assert_eq!(buttons(&mut tiling, &mut core), Vec::<String>::new());
+        assert!(core.state.button_grab.is_none());
+        assert!(core.pointer_free());
+    }
+
+    /// The drag of an injected press stays with its window manager: the
+    /// whole transaction fails and the window stays too.
+    #[test]
+    fn a_give_with_the_drag_of_an_injected_press_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(true);
+        let (_, message) = tiling.fails(&mut core, "scene.apply", give_with_the_drag());
+        assert!(message.contains("real press"), "{message}");
+        let owner = core.state.scene.node("s1").unwrap().owner.clone();
+        assert_eq!(owner.as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        click(&mut core, false);
+        assert_eq!(buttons(&mut tiling, &mut core), ["released"]);
+    }
+
+    /// A window manager that answers a method call of a confined caller
+    /// gives no drag: a confined agent must not move the pointer grab of
+    /// the user through `window.give`.
+    #[test]
+    fn a_give_with_the_drag_for_a_confined_caller_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(
+            &mut core,
+            "methods.export",
+            json!({"names": ["window.give"]}),
+        );
+        let mut admin = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "agent", "confined": true}),
+        );
+        let call = json!({"client": "tiling", "method": "window.give", "params": {}});
+        agent.send("methods.call", call);
+        core.dispatch();
+        let (_, message) = tiling.fails(&mut core, "scene.apply", give_with_the_drag());
+        assert!(message.contains("confined"), "{message}");
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        let mut boxed = core.connect();
+        boxed.ok(&mut core, "hello", json!({"name": "box", "confined": true}));
+        let (_, message) = boxed.fails(&mut core, "scene.apply", give_with_the_drag());
+        assert!(message.contains("confined"), "{message}");
+    }
+
+    /// The receiver ends in the middle of the drag: the grab goes with
+    /// it, the release of the button reaches no client and the pointer is
+    /// free again.
+    #[test]
+    fn a_receiver_that_dies_in_the_middle_of_the_drag_frees_the_press() {
+        let (mut core, _wayland, mut tiling, xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        assert!(core.state.button_grab.is_some());
+        drop(xp);
+        core.dispatch();
+        assert!(core.state.button_grab.is_none(), "the grab outlived xp");
+        move_to(&mut core, 500.0, 300.0);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        assert_eq!(buttons(&mut tiling, &mut core), Vec::<String>::new());
+        assert!(core.pointer_free());
+    }
+
+    /// The grab follows the window: a receiver that does not attach the
+    /// window loses the grab when the core frees the window again.
+    #[test]
+    fn a_receiver_that_does_not_take_the_window_loses_the_grab() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        events(&mut xp, &mut core);
+        core.advance(std::time::Duration::from_secs(6));
+        move_to(&mut core, 500.0, 300.0);
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        assert!(core.state.button_grab.is_none());
+    }
 }
