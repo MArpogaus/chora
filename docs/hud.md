@@ -45,10 +45,11 @@ passes these checks.
 
 ### Checking a folder
 
-`chora-assistant --check-hud DIR` prints each error with its file and
-key and exits with 1. A running host keeps the look it has when a new
-folder fails, and shows a short notice. The notice names no command;
-this page does.
+A folder is checked when it loads: the limits above, `hud.yaml` with each
+error naming its file and key, and the pictures and fonts as listed under
+"Pictures, fonts and colours". A command that checks a folder without
+running the host, `chora-assistant --check-hud DIR`, comes later; it does
+not exist yet.
 
 ## hud.yaml
 
@@ -168,6 +169,30 @@ values only. A folder without the block gets the neutral chat.
 | `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. |
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
+
+## Pictures, fonts and colours
+
+The host loads a folder with `chora_draw::theme::Theme::load_hud`.
+
+- A file is read only inside the folder, through the same checks as the
+  loader: no link out, one name, at most 1 MiB. It is opened without
+  following a link in its last component, and refused if it is not the
+  file that was checked.
+- The `href` of an image in an SVG is a relative path inside the folder.
+  An absolute path, `..`, `file:` and `http:` draw nothing. Only PNG and
+  JPEG load as images: an SVG in an image, by path or in a `data:` URI,
+  draws nothing, so that pictures do not nest.
+- An SVG file is refused if it is over 2048 px on a side, has more than
+  10,000 nodes (copies made by `<use>` count), has more than 16 images
+  and filters, or has a pattern tile over 2048 px on a side. A parsed
+  file is kept, not parsed again for each draw.
+- Fonts load from `fonts/` of the folder into a font database that only
+  the text of the folder uses. The first 256 entries are listed, at most
+  16 files load, and a `fonts` that is a link loads nothing. The question
+  card uses the host fonts (`Fonts::host`) and never a font of a folder.
+- Text colours need a contrast of 4.5:1 against their fill
+  (`chora_kit::hud::contrast`, `Chat::contrast_errors`). The key line and
+  the buttons of the question card are the host's and keep 7:1.
 
 ## What a folder cannot do
 

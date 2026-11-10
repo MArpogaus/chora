@@ -21,6 +21,39 @@ use crate::theme::Rect;
 /// The family name that stands for the sans-serif family of the system.
 pub const SANS_SERIF: &str = "sans-serif";
 
+/// How many font files of a HUD folder load.
+pub const MAX_FOLDER_FONTS: usize = 16;
+
+/// How many entries of the `fonts` directory of a HUD folder are listed.
+const MAX_LISTED: usize = 256;
+
+/// The sorted names of the first [`MAX_LISTED`] entries of the `fonts`
+/// directory of a HUD folder. A `fonts` that is a link lists nothing.
+fn font_names(dir: &Path) -> Vec<String> {
+    let fonts = dir.join("fonts");
+    if !std::fs::symlink_metadata(&fonts).is_ok_and(|meta| meta.is_dir()) {
+        return Vec::new();
+    }
+    let entries = std::fs::read_dir(fonts).into_iter().flatten();
+    let mut names: Vec<String> = entries
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .take(MAX_LISTED)
+        .collect();
+    names.sort();
+    names
+}
+
+/// The system fonts and XP's fonts.
+fn host_database() -> Database {
+    let mut db = Database::new();
+    for data in data_dirs() {
+        db.load_fonts_dir(data.join("fonts/WindowsXP"));
+    }
+    db.load_system_fonts();
+    db
+}
+
 /// The fonts of the theme.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Font {
@@ -139,14 +172,11 @@ pub struct Fonts {
 
 impl Fonts {
     /// Loads the system fonts and the font files in `fonts/` of the asset
-    /// directory. `family` is the base family of the text.
+    /// directory. `family` is the base family of the text. The asset
+    /// directory is trusted: use [`Fonts::folder`] for a HUD folder.
     #[must_use]
     pub fn load(dir: &Path, family: &str) -> Self {
-        let mut db = Database::new();
-        for data in data_dirs() {
-            db.load_fonts_dir(data.join("fonts/WindowsXP"));
-        }
-        db.load_system_fonts();
+        let mut db = host_database();
         let files = std::fs::read_dir(dir.join("fonts")).into_iter().flatten();
         for file in files.flatten().map(|entry| entry.path()) {
             if let Err(err) = db.load_font_file(&file) {
@@ -154,6 +184,35 @@ impl Fonts {
             }
         }
         Self::with(db, family)
+    }
+
+    /// The fonts of the host only: the system fonts and XP's fonts. The
+    /// question card is drawn with these and never with a font of a HUD
+    /// folder, which [`Fonts::folder`] keeps in a database of its own.
+    #[must_use]
+    pub fn host(family: &str) -> Self {
+        Self::with(host_database(), family)
+    }
+
+    /// The fonts for the text of a HUD folder: the host fonts and the
+    /// font files in `fonts/` of the folder, read through
+    /// [`chora_kit::hud::file`], so that no link leaves the folder and
+    /// each file stays within its size limit. At most [`MAX_FOLDER_FONTS`]
+    /// of the first [`MAX_LISTED`] entries load; a `fonts` link loads none. The database is separate from [`Fonts::host`]. Pictures
+    /// that the text document links resolve only inside the folder.
+    #[must_use]
+    pub fn folder(dir: &Path, family: &str) -> Self {
+        let mut db = host_database();
+        for name in font_names(dir).iter().take(MAX_FOLDER_FONTS) {
+            match chora_kit::hud::file(dir, &format!("fonts/{name}")) {
+                Ok(data) => db.load_font_data(data),
+                Err(err) => eprintln!("chora-draw: font {name}: {err}"),
+            }
+        }
+        let mut fonts = Self::with(db, family);
+        fonts.options.resources_dir = Some(dir.to_path_buf());
+        fonts.options.image_href_resolver = crate::assets::href_resolver(dir);
+        fonts
     }
 
     /// The looks of the fonts from a font database.
@@ -479,5 +538,113 @@ mod tests {
             escape(r#"<a href="x">&'"#),
             "&lt;a href=&quot;x&quot;&gt;&amp;&apos;"
         );
+    }
+
+    fn font_folder(test: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("chora-fonts-{test}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("fonts")).expect("a folder");
+        dir
+    }
+
+    fn families(db: &Database) -> Vec<String> {
+        db.faces()
+            .flat_map(|face| face.families.iter().map(|(name, _)| name.clone()))
+            .collect()
+    }
+
+    fn theme_fonts() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme/fonts")
+    }
+
+    fn renamed_font(file: &str, from: &str, to: &str, target: &Path) {
+        assert_eq!(from.len(), to.len());
+        let utf16 =
+            |text: &str| -> Vec<u8> { text.encode_utf16().flat_map(u16::to_be_bytes).collect() };
+        let mut data = std::fs::read(theme_fonts().join(file)).unwrap();
+        for (old, new) in [
+            (from.as_bytes().to_vec(), to.as_bytes().to_vec()),
+            (utf16(from), utf16(to)),
+        ] {
+            let mut at = 0;
+            while at + old.len() <= data.len() {
+                if data[at..at + old.len()] == old[..] {
+                    data[at..at + old.len()].copy_from_slice(&new);
+                    at += old.len();
+                } else {
+                    at += 1;
+                }
+            }
+        }
+        std::fs::write(target, data).unwrap();
+    }
+
+    fn has_family(db: &Database, family: &str) -> bool {
+        families(db).iter().any(|name| name == family)
+    }
+
+    #[test]
+    fn fonts_load_only_from_the_folder() {
+        let dir = font_folder("only");
+        let outside = font_folder("outside");
+        renamed_font("tahoma.ttf", "Tahoma", "Qxzvkw", &dir.join("fonts/a.ttf"));
+        renamed_font(
+            "LibreFranklin-Bold.ttf",
+            "Franklin",
+            "Zqwvxkjh",
+            &outside.join("fonts/f.ttf"),
+        );
+        std::os::unix::fs::symlink(outside.join("fonts/f.ttf"), dir.join("fonts/link.ttf"))
+            .unwrap();
+        std::fs::write(dir.join("fonts/notes.txt"), "not a font").unwrap();
+        let fonts = Fonts::folder(&dir, SANS_SERIF);
+        let db = &fonts.options().fontdb;
+        let face = db
+            .faces()
+            .find(|face| face.families.iter().any(|(name, _)| name == "Qxzvkw"))
+            .expect("the font of the folder loads");
+        assert!(matches!(face.source, usvg::fontdb::Source::Binary(_)));
+        assert!(!has_family(db, "Zqwvxkjh"), "{:?}", families(db));
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn a_folder_font_is_not_in_the_host_fontdb() {
+        let dir = font_folder("host");
+        renamed_font("tahoma.ttf", "Tahoma", "Qxzvkw", &dir.join("fonts/a.ttf"));
+        let folder = Fonts::folder(&dir, SANS_SERIF);
+        let host = Fonts::host(SANS_SERIF);
+        assert!(has_family(&folder.options().fontdb, "Qxzvkw"));
+        assert!(!has_family(&host.options().fontdb, "Qxzvkw"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_fonts_directory_that_is_a_link_is_refused() {
+        let dir = font_folder("linked");
+        let outside = font_folder("linked-outside");
+        renamed_font(
+            "tahoma.ttf",
+            "Tahoma",
+            "Qxzvkw",
+            &outside.join("fonts/a.ttf"),
+        );
+        std::fs::remove_dir_all(dir.join("fonts")).unwrap();
+        std::os::unix::fs::symlink(outside.join("fonts"), dir.join("fonts")).unwrap();
+        let fonts = Fonts::folder(&dir, SANS_SERIF);
+        assert!(!has_family(&fonts.options().fontdb, "Qxzvkw"));
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn at_most_256_entries_of_the_fonts_directory_are_listed() {
+        let dir = font_folder("many");
+        for n in 0..300 {
+            std::fs::write(dir.join(format!("fonts/{n:03}.txt")), "").unwrap();
+        }
+        assert_eq!(font_names(&dir).len(), MAX_LISTED);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
