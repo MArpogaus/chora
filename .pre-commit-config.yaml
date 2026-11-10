@@ -61,7 +61,7 @@ repos:
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.17.2
+  rev: v0.17.3
   hooks:
   - id: ruff-check
     args: [--fix]
@@ -108,7 +108,7 @@ repos:
 
 # Allowed words are in _typos.toml, next to the German voice phrases.
 - repo: https://github.com/crate-ci/typos
-  rev: v1.51.1
+  rev: v1.52.0
   hooks:
   - id: typos
     args: [--force-exclude]   # pre-commit passes the file names
@@ -119,7 +119,7 @@ repos:
   - id: actionlint
 
 - repo: https://github.com/commitizen-tools/commitizen
-  rev: v4.19.0
+  rev: v4.19.3
   hooks:
   - id: commitizen
     stages: [commit-msg]
