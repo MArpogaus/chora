@@ -206,8 +206,9 @@ impl State {
                 origin: [x, y],
             });
         }
+        let all = self.all_outputs();
         let output = match &capture.output {
-            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
+            Some(name) => all.iter().find(|o| o.name() == *name),
             None => self.outputs.first(),
         }
         .ok_or_else(|| rejected("no such output"))?
@@ -285,8 +286,10 @@ impl State {
         // A capture renders no frame of the screen, so the layers that the
         // screen left out stay as they were.
         let screen = parts.assets.frame_left_out.clone();
+        let dark = parts.assets.frame_dark.clone();
         let pixels = backend.with_gles(|gles| render_pixels(gles, &mut parts, shot));
         self.assets.frame_left_out = screen;
+        self.assets.frame_dark = dark;
         pixels?
     }
 }
@@ -537,8 +540,7 @@ mod tests {
     /// the right and down, as the scene does, not up as in OpenGL.
     #[test]
     fn the_uv_of_a_shader_node_starts_at_the_top_left() {
-        let dir = std::env::temp_dir().join(format!("chora-uv-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-uv");
         let shader = dir.join("uv.frag");
         std::fs::write(
             &shader,
@@ -582,8 +584,7 @@ mod tests {
         use smithay::reexports::wayland_server::protocol::wl_shm::Format as Server;
         use wayland_client::protocol::wl_shm::Format;
 
-        let dir = std::env::temp_dir().join(format!("chora-win-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-win");
         let shader = dir.join("win.frag");
         std::fs::write(
             &shader,

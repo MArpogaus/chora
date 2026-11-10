@@ -286,6 +286,11 @@ pub enum Event {
         output: String,
         /// The nodes whose layers stay out.
         nodes: Vec<String>,
+        /// The surface node with the keyboard focus, when one of these
+        /// nodes holds it, so that it shows nothing; the keyboard stays
+        /// with it, and its window manager may move the focus.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        keyboard: Option<String>,
     },
     /// The shader of an effect failed after a change of its file. The
     /// effect keeps its last working version, or shows nothing.
@@ -347,6 +352,10 @@ pub enum Event {
         /// `false`.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         confined: bool,
+        /// The number of the connection of the caller, unique while the
+        /// core runs: a plugin can tell two connections of one name apart.
+        #[serde(default)]
+        connection: u64,
     },
     /// An event that a client emitted with `events.emit` (D65). Its name
     /// starts with the name of the client and a dot, for example
@@ -422,6 +431,13 @@ pub struct OutputInfo {
     /// windows of a plugin, which a camera move or a zoom does not change.
     #[serde(default)]
     pub default_work_area: [i32; 4],
+    /// Whether no screen shows the output: its frames go into a texture
+    /// that a shader node of its owner reads.
+    #[serde(default, rename = "virtual", skip_serializing_if = "Option::is_none")]
+    pub is_virtual: Option<bool>,
+    /// The client that added a virtual output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
 }
 
 impl OutputInfo {

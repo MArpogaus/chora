@@ -64,7 +64,7 @@ This table is the one list of node properties.
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change; it draws from halvings of the file, down to 1/16 a side, when smaller than the file; a cell uses the most halvings that keep one file pixel for each output pixel on its most reduced axis, so it is softer on the other axis; each edge of a node rounds to the nearest physical pixel on its own, so at x = 0.4 and a width of 10.4 the image covers the pixels 0 to 10 |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch; a cell is halved only while its edges in the file are multiples of the halving, so that no color crosses a slice border, and an inset that is not a multiple of 2 draws from the file pixels |
-| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, at most 4; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
+| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, and a uniform `{"output": name}` is a `sampler2D` with the last frame of a virtual output that the client added, transparent while the output is gone or the session is locked, at most 4 of both together; only the owner of a virtual output reads it, and a client socket or a confined connection reads none; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
 | `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer; under a transform that is not a 2D translation with a positive scale it is a plane (see below); the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 | `line_height`, `weight`, `style`, `letter_spacing`, `features` | text | `line_height`: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; `weight`: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; `style`: `normal` or `italic`, slanted when the family has no italic; `letter_spacing`: extra space after each character in em, from -1 to 1, also after the last one; `features`: at most 32 OpenType features by their tag of four ASCII characters and their value, for example `{"smcp": 1, "onum": 1}` for small caps and old-style figures; a feature that the font lacks changes nothing; an update of `features` replaces all |
 
@@ -108,11 +108,20 @@ Pointer input reaches a plane through the inverse of its transform: the
 core maps the pointer into the plane and then runs the hit test of the
 plane there. Input reaches a plane and what it holds only inside its area,
 and never where the plane shows the pointer behind the eye. A node with a
-mesh under such a transform keeps the box of its shape. A plane that the
-layer budget leaves out of the frame draws nothing, so it takes the input
-and gives it to nobody. During a press, the core maps every motion through
-the plane that the press hit, also outside it; where the plane shows the
-pointer behind the eye, the last point stays. The popups of a window under a
+mesh under such a transform keeps the box of its shape. A plane whose
+texture would pass 4096 pixels a side, or the `GL_MAX_TEXTURE_SIZE` of the
+GPU when that is less, renders at a lower scale, so that it
+shows all of its content and takes input where it shows it. A layer, plane,
+mesh or piece that the layer budget leaves out of the last frame of an
+output draws nothing there, so on that output it and every node in it take
+the input where they would take it and give it to nobody. The budget counts
+a node texture that a shader node reads, and the layers inside it, under
+the shader node: `layers.dropped` names the shader node, but it still
+draws without that texture, so it and the source node keep their input. The keyboard stays where it is; the
+owner and the window manager learn of it from `layers.dropped`, whose
+`keyboard` names such a focused window. During a press, the core maps
+every motion through the plane that the press hit, also outside it; where
+the plane shows the pointer behind the eye, the last point stays. The popups of a window under a
 plane stay inside the geometry of the window. The pin ends with the release
 of the last button, when the node leaves the scene or the layer budget
 leaves its plane out, or where another grab takes the pointer: when a popup
@@ -148,8 +157,8 @@ a context sorts its planes by their centres and splits nothing; the hit
 test then follows the same order. Pointer input in a context follows the ray from the eye:
 the nearest plane that shows at the point and takes input gets it, in the
 order that the context draws. A part of a plane that the layer budget
-leaves out of the frame takes the input and gives it to nobody. The
-empty area of a context takes no input, so a click there reaches what lies
+leaves out of the frame takes the input and gives it to nobody, as above.
+The empty area of a context takes no input, so a click there reaches what lies
 behind it.
 
 <!-- parses: commands -->
@@ -457,12 +466,12 @@ by default; a timeout exits 1 with the reason on stderr.
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
-| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
+| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again; `keyboard` names the surface node with the keyboard focus when one of these nodes holds it, so that the person types into a window that shows nothing; the core leaves the focus there, and the window manager of that window may move it |
 | `effects.dropped` | the watchdog removed the effects, the meshes, the shaders of shader nodes and the perspectives of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
-| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, and `confined: true` when the connection of the caller is confined (the field is absent otherwise); only the exporting connection gets it, subscribed or not |
+| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, `confined: true` when the connection of the caller is confined (the field is absent otherwise), and `connection`, the number of the connection of the caller, unique while the core runs; only the exporting connection gets it, subscribed or not |
 | `NAME.something` | a client emitted it with `events.emit`, for example `voice.state`: `client`, the name of the emitter, and its `data`; only to the connections that name the event or a pattern of it (D65) |
 
 Every event carries `seq`, the count of its connection (D32). Every event
@@ -608,14 +617,14 @@ answers every request.
 | `output.list` | list the outputs and their cameras |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
-| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them |
+| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them. With `virtual: true`, `output.add(spec, virtual)` works on every backend and adds a virtual output `WxH[@SCALE]` that no screen shows: the core names it `VIRTUAL-n` and places it left of and above the screens, `output.list` shows it with `virtual: true` and its `owner`, and it has a `wl_output`, a camera, a work area, an overlay root and layer surfaces, but no pointer, no lock surface that shows and no screen copy; a side has 1 to 4096 pixels, all virtual outputs together at most 2^26 pixels, and at most 16 are live, else code 6; only a free client of the main socket adds one, a client socket or a confined connection gets code 9; only its owner or the admin socket removes it, and it goes when its owner ends, after the grace time of a `resume` |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.list` | list the methods that clients exported, each with its description, input schema and privileged flag |
 | `methods.call(client, method, params)` | call a method of another client; the answer is the result of the method; a client socket needs the capability `methods.call`, and for a privileged method, such as `settings.set`, `settings.reload` or one that the export marks `privileged`, also `methods.privileged` |
 | `methods.return(call, result, error)` | answer a `method.called` event |
 | `session.quit` | end chora as Ctrl+Alt+Backspace does, after the answer; a client socket needs the capability `session.quit`, the main socket may always; `choractl quit` calls it |
-| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined, the act is under 2 s old and unused, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
+| `activation.token` | answer an xdg activation token of no client, for `choractl run` (D42, see [Programs](#programs)); the next toplevel that activates with it shows the token in `surface.created`; one use ends it; an unused token of no client is forgotten after 10 s; a client socket needs the capability `activation.token`; the token carries the act of the person (a grabbed key or button, a key to a node, a press on a node that is no window) when the caller is unconfined, is a connection that received the act (the connection of the grab, a connection of the owner of the node at the press), handles no method call of a confined caller, the act is under 2 s old and no token carries it yet, and only such a token gives the keyboard to an on-demand layer surface (see [input flow](architecture.md#input-flow)); another token still starts programs |
 | `assets.put(name, data)` | store a file in base64 for image nodes, shader nodes and effects; returns its `path` |
 | `assets.remove(name)` | remove a file of `assets.put` |
 
@@ -654,6 +663,14 @@ while the tiling plugin runs. With `keep_nodes`, `resume` has no effect.
 A `hello` with `resume` also fails while another connection of the name
 is live. So a second instance of a plugin cannot take the nodes of the
 first. The error says that the name is connected.
+
+On the main and the admin socket, a live name belongs to its program: a
+`hello` with a name that has a live connection fails with code 7 unless
+it comes from the same process or from the same executable, such as a
+second `choractl` (review A1). So a script cannot connect as `mc` while
+mc runs and use what the name has, such as a claim of the indicator of
+the voice agent or a grant. A name without a live connection is free to
+any process. Connections of a client socket share their fixed name.
 
 `resume` lets a plugin restart without a loss, for example after a crash
 or a change of its configuration. When the last connection of a name
@@ -768,7 +785,7 @@ message.
 | 4 | a capability the method needs | `screen.capture` without a grant |
 | 5 | an unknown node | `update` of a node id that never existed |
 | 6 | a limit of the core is reached | a request longer than 1 MiB |
-| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` with `resume` on a name that is connected |
+| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` on the main or admin socket with a name that another program has connected (a different process and a different executable); a `hello` with `resume` on a name that is connected |
 | 8 | a method of the admin socket | `grants.set` on the main socket |
 | 9 | a rule of client sockets | a `hello` with another name on `clients/agent/ipc.sock` |
 
@@ -974,8 +991,10 @@ The core starts no program except its own startup command (D30, D42).
 plugins running.
 
 `choractl run [--] CMD ARGS...` starts a program outside the core. It
-asks the core for an activation token with `activation.token` and
-passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
+asks the core for an activation token with `activation.token`, or takes
+the one in `CHORA_RUN_TOKEN`, which a plugin minted on its own connection
+so that it carries the act that the plugin received, and passes it to
+the program in `XDG_ACTIVATION_TOKEN`, and in
 `DESKTOP_STARTUP_ID` for GTK 3. The children of the program inherit
 both variables unless the program removes them, as GTK does after it
 read the token. It prints the pid, the unit and the token as one

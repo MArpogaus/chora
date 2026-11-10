@@ -133,6 +133,8 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         camera: Transform::IDENTITY,
         work_area: [0, 0, size[0], size[1]],
         default_work_area: [0; 4],
+        is_virtual: None,
+        owner: None,
     });
     mc.build().unwrap();
     (mc, model)

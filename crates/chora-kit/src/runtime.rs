@@ -339,6 +339,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             ..
         } => {
             rt.confined_call = confined;
+            rt.conn.serving_confined = confined;
             let result = match method.as_str() {
                 "settings.get" => {
                     (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))
@@ -348,6 +349,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
+            rt.conn.serving_confined = false;
             match rt.conn.answer(call, result.map_err(capped)) {
                 Err(ClientError::Rpc(err)) => {
                     eprintln!("chora-{}: {err}", rt.name);
@@ -375,7 +377,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 ///
 /// The plugin has no settings, a change is wrong, the plugin cannot apply
 /// it, or the file cannot be written.
-fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
+pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
     let no_settings = || no_settings("settings.set");
     let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
     apply(plugin)?;

@@ -696,7 +696,7 @@ fn disconnect(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
 const GLOBAL_GRACE: Duration = Duration::from_secs(10);
 
 /// Hides the global of an output from new clients, and removes it later.
-pub(super) fn retire_global(
+pub(crate) fn retire_global(
     display: &DisplayHandle,
     loop_handle: &LoopHandle<'static, State>,
     global: GlobalId,

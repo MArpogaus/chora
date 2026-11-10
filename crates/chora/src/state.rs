@@ -166,11 +166,16 @@ struct Waiting {
 /// The last press that a person made as a command: a grabbed key or
 /// button, a key to a node, or a press on a node that is no window; never
 /// an injected press, a press in a locked session or a key typed into a
-/// window. `used` ends it when a layer surface took the keyboard with it.
-#[derive(Clone, Copy)]
+/// window. `conns` are the connections that received it: the one of the
+/// grab, or those of the owner of the node at the press. Only a token of
+/// one of them carries the act, and only one: `stamped` ends the stamping,
+/// `used` ends the act when a layer surface took the keyboard with it.
+#[derive(Clone)]
 pub struct Act {
     pub serial: Serial,
     pub at: Instant,
+    pub conns: Vec<u64>,
+    pub stamped: bool,
     pub used: bool,
 }
 
@@ -798,20 +803,31 @@ impl State {
         }
     }
 
-    /// Takes the newest real press as the act that activation tokens may
-    /// carry, unless the session is locked. Called only for a press that
-    /// the core or a client took as a command.
-    pub fn note_act(&mut self) {
+    /// Takes the newest real press as the act that activation tokens of
+    /// the connections `conns` may carry, unless the session is locked.
+    /// Called only for a press that a client took as a command: a key or
+    /// button it grabbed, a key to its node, or a press on its node.
+    pub fn note_act(&mut self, conns: Vec<u64>) {
         let Some(serial) = self.last_real_press.filter(|_| self.lock.is_none()) else {
             return;
         };
-        if self.last_act.is_none_or(|a| a.serial != serial) {
+        if conns.is_empty() {
+            return;
+        }
+        if self.last_act.as_ref().is_none_or(|a| a.serial != serial) {
             self.last_act = Some(Act {
                 serial,
                 at: self.time.now(),
+                conns,
+                stamped: false,
                 used: false,
             });
         }
+    }
+
+    /// The connections of the owner of a node, for [`Self::note_act`].
+    pub fn owner_conns(&self, owner: Option<&str>) -> Vec<u64> {
+        owner.map_or_else(Vec::new, |name| self.ipc.conns_of(name))
     }
 
     /// Focuses a surface node, or nothing. A new focused surface takes the
@@ -1384,9 +1400,7 @@ mod tests {
 
     #[test]
     fn a_named_client_gets_no_keyboard() {
-        let dir = std::env::temp_dir().join(format!("chora-field-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-field");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         core.add_output("HDMI-1", (800, 600));
@@ -1452,13 +1466,82 @@ mod tests {
     }
 
     #[test]
-    fn a_press_on_a_node_is_an_act() {
+    fn a_press_on_a_node_is_an_act_of_its_owner() {
         let (mut core, mut wayland, mut wm, _first, field) = field_core();
         wm.ok(&mut core, "scene.apply", crate::testing::rect("chat"));
         click(&mut core, (5.0, 5.0));
-        let token = token(&mut core);
+        let token = mint(&mut core, &mut wm);
         wayland.activate_layer(&mut core, &field, &token);
         assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
+    }
+
+    #[test]
+    fn a_press_on_a_node_of_another_client_stamps_no_token() {
+        let (mut core, mut wayland, mut wm, first, field) = field_core();
+        wm.ok(&mut core, "scene.apply", crate::testing::rect("chat"));
+        click(&mut core, (5.0, 5.0));
+        let token = token(&mut core);
+        assert_eq!(stamped_tokens(&core), 0, "tiling owns no node there");
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "a press on a node of wm");
+    }
+
+    #[test]
+    fn a_key_grab_stamps_no_token_of_another_client() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let _ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        let mut other = core.named("xp");
+        let token = mint(&mut core, &mut other);
+        assert_eq!(stamped_tokens(&core), 0, "the grab is of tiling");
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "a mint of another client");
+    }
+
+    #[test]
+    fn a_confined_method_call_gives_no_stamped_token() {
+        let (mut core, _wayland, mut wm, _first, _field) = field_core();
+        wm.ok(&mut core, "scene.apply", crate::testing::rect("scene"));
+        wm.ok(
+            &mut core,
+            "methods.export",
+            json!({"names": ["scene.show"]}),
+        );
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.call"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        click(&mut core, (5.0, 5.0));
+        let call = json!({"client": "wm", "method": "scene.show", "params": {}});
+        confined.send("methods.call", call);
+        wm.events_now(&mut core);
+        mint(&mut core, &mut wm);
+        assert_eq!(stamped_tokens(&core), 0, "minted for a confined caller");
+    }
+
+    #[test]
+    fn a_key_grab_stamps_no_token_of_another_connection_of_its_name() {
+        let (mut core, _wayland, _wm, _first, _field) = field_core();
+        let _ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        let mut namesake = core.named("tiling");
+        mint(&mut core, &mut namesake);
+        assert_eq!(
+            stamped_tokens(&core),
+            0,
+            "the grab is of the first connection"
+        );
+    }
+
+    #[test]
+    fn one_act_stamps_one_token() {
+        let (mut core, _wayland, _wm, _first, _field) = field_core();
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        mint(&mut core, &mut ctl);
+        mint(&mut core, &mut ctl);
+        assert_eq!(stamped_tokens(&core), 1);
     }
 
     #[test]
@@ -1507,8 +1590,8 @@ mod tests {
         let second = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
         let mut ctl = grab_key(&mut core);
         chord(&mut core, false);
-        let unused = mint(&mut core, &mut ctl);
         let used = mint(&mut core, &mut ctl);
+        let unused = mint(&mut core, &mut ctl);
         wayland.activate_layer(&mut core, &second, &used);
         assert_eq!(keyboard(&core), Some(second.surface.id().protocol_id()));
         wayland.activate_layer(&mut core, &field, &unused);
@@ -1518,9 +1601,7 @@ mod tests {
 
     #[test]
     fn a_confined_mint_carries_no_act() {
-        let dir = std::env::temp_dir().join(format!("chora-mint-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-mint");
         let (mut core, mut wayland, _wm, first, field) = field_core();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();
@@ -1555,7 +1636,7 @@ mod tests {
         let _lock = wayland.lock(&mut core);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         core.state.track_press(serial, false);
-        core.state.note_act();
+        core.state.note_act(vec![1]);
         assert!(core.state.last_act.is_none());
     }
 

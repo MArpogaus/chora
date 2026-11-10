@@ -308,6 +308,13 @@ impl State {
 
     fn confine_one(&mut self, name: &str, command: &Command) -> Result<(), String> {
         match command {
+            Command::Create { props, .. }
+            | Command::Update { props, .. }
+            | Command::Animate { props, .. }
+                if reads_output(props) =>
+            {
+                Err("a client socket reads no virtual output".into())
+            }
             Command::Create { parent, .. }
             | Command::Move {
                 parent: Some(parent),
@@ -437,6 +444,14 @@ fn socket_exists(name: &str, dir: &Path) -> RpcError {
         format!("{name:?} has a client socket already"),
     )
     .with_data(serde_json::json!({"reason": "socket_exists", "path": dir.join(IPC)}))
+}
+
+/// Whether a uniform of the props reads a virtual output.
+fn reads_output(props: &chora_scene::PropsUpdate) -> bool {
+    let uniforms = props.uniforms.iter().flat_map(|u| u.values());
+    uniforms
+        .into_iter()
+        .any(|u| matches!(u, chora_scene::Uniform::Output(_)))
 }
 
 #[cfg(test)]

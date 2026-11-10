@@ -494,6 +494,8 @@ mod tests {
             camera: chora_scene::Transform::default(),
             work_area: [position[0], position[1], 1280, 800],
             default_work_area: [position[0], position[1], 1280, 800],
+            is_virtual: None,
+            owner: None,
         }
     }
 

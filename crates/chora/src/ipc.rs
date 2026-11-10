@@ -140,6 +140,8 @@ struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
     pid: Option<Pid>,
+    /// The program of that process, from `/proc/PID/exe`.
+    exe: Option<PathBuf>,
     input: Vec<u8>,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
@@ -453,8 +455,21 @@ impl Ipc {
         self.clients.contains_key(name)
     }
 
+    /// Whether a live connection of `name` comes from the process of
+    /// `conn`, or from the same program, such as a second `choractl`
+    /// (review A1): a live name of the main socket belongs to its program.
+    fn same_program(&self, conn: u64, name: &str) -> bool {
+        let Some(me) = self.conns.get(&conn) else {
+            return false;
+        };
+        let same = |c: &Conn| {
+            (me.pid.is_some() && c.pid == me.pid) || (me.exe.is_some() && c.exe == me.exe)
+        };
+        (self.conns.values()).any(|c| c.name.as_deref() == Some(name) && same(c))
+    }
+
     /// Whether a connection came through the admin socket.
-    fn admin(&self, conn: u64) -> bool {
+    pub(crate) fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
             .is_some_and(|c| c.socket == Socket::Admin)
@@ -736,9 +751,12 @@ impl State {
                 move |_, _, state| Ok(state.ipc_readable(id)),
             )
             .map_err(failed)?;
+        let exe =
+            pid.and_then(|p| std::fs::read_link(format!("/proc/{}/exe", p.as_raw_nonzero())).ok());
         let conn = Conn {
             stream,
             pid,
+            exe,
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
@@ -861,7 +879,7 @@ impl State {
                 params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
             }
             "output.add" | "output.remove" => {
-                self.ipc_headless_output(conn, &request.method, params)
+                self.ipc_output_hotplug(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
@@ -893,10 +911,13 @@ impl State {
     /// such a token skips the focus rule of its own tokens.
     ///
     /// The token carries the act of the person (the last command press)
-    /// when the caller is unconfined, the act is younger than `ACT_AGE` and
-    /// no layer surface used it yet. Only such a token gives the keyboard
-    /// to an on-demand layer surface. Any other token still starts programs
-    /// and places windows. A call without an act proves nothing (#102).
+    /// when the caller is unconfined, is a connection that received the
+    /// act, handles no method call of a confined caller, the act is
+    /// younger than `ACT_AGE` and no token carries it yet: one act, one
+    /// stamped token. Only such a token gives the
+    /// keyboard to an on-demand layer surface. Any other token still
+    /// starts programs and places windows. A call without an act proves
+    /// nothing (#102).
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
         self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
@@ -908,25 +929,26 @@ impl State {
     }
 
     /// The token data of `activation.token`: stamped with the act when the
-    /// caller is unconfined and the act is young and unused. Every such
-    /// token carries it, so that no mint takes the stamp from another.
+    /// caller is unconfined, received the act and handles no call of a
+    /// confined caller, and the act is young and carried by no token yet.
     fn act_stamped_data(
         &mut self,
         conn: u64,
     ) -> smithay::wayland::xdg_activation::XdgActivationTokenData {
         let data = smithay::wayland::xdg_activation::XdgActivationTokenData::default();
         let now = self.time.now();
-        let act = self.last_act.filter(|a| {
-            !a.used
-                && !self.ipc.confined(conn)
+        let confined = self.ipc.confined(conn) || self.methods.serves_confined(conn);
+        let act = self.last_act.as_mut().filter(|a| {
+            !a.stamped
+                && !confined
+                && a.conns.contains(&conn)
                 && now.saturating_duration_since(a.at) < crate::protocols::ACT_AGE
         });
         if let Some(act) = act {
+            act.stamped = true;
+            let serial = u32::from(act.serial);
             data.user_data
-                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp {
-                    serial: u32::from(act.serial),
-                    at: now,
-                });
+                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp { serial, at: now });
         }
         data
     }
@@ -1057,6 +1079,15 @@ impl State {
             .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
             .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
         let confined = hello.confined || self.ipc.fixed(conn).is_some();
+        if peer.is_some()
+            && self.ipc.fixed(conn).is_none()
+            && !self.ipc.same_program(conn, &hello.name)
+        {
+            return Err(name_taken(format!(
+                "{:?} is connected from another program",
+                hello.name
+            )));
+        }
         if let Some(peer_confined) = peer_conn
             .map(|id| self.ipc.confined(id))
             .filter(|p| *p != confined)
@@ -1135,6 +1166,7 @@ impl State {
     /// ends its grace time.
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
+        self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
         self.execute_gone(effects);
         self.ipc.uploads.drop_client(name);
@@ -1199,7 +1231,7 @@ impl State {
     /// query for one node must not pay for the whole scene.
     fn screen_rects(&self, of: &HashSet<&str>) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             let name = output.name();
             let screen = Rectangle::from_size(output_area(output).size).to_f64();
             // The overlay sits in the coordinates of its output, without
@@ -1447,6 +1479,7 @@ impl State {
             self.drop_nodes(&name);
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
+            self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
             self.execute_gone(effects);
         }
@@ -2328,6 +2361,31 @@ mod tests {
         assert_eq!(error_code, RpcError::NAME_TAKEN);
     }
 
+    /// Review A1, high 1: while a name is connected, another program may
+    /// not say `hello` under it, so a script cannot answer as `mc`; the
+    /// same process may, and so may the same program, such as a second
+    /// `choractl`.
+    #[test]
+    fn a_live_name_belongs_to_its_program() {
+        let mut core = Core::new();
+        let _mc = core.named("mc");
+        let mut script = core.connect();
+        let last = |core: &mut Core| *core.state.ipc.conns.keys().max().unwrap();
+        let id = last(&mut core);
+        let conn = core.state.ipc.conns.get_mut(&id).unwrap();
+        conn.pid = Pid::from_raw(1_000_000);
+        conn.exe = Some("/usr/bin/python3".into());
+        let (error_code, message) = script.fails(&mut core, "hello", json!({"name": "mc"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("another program"), "{message}");
+        let mut same = core.connect();
+        same.ok(&mut core, "hello", json!({"name": "mc"}));
+        let mut twin = core.connect();
+        let id = last(&mut core);
+        core.state.ipc.conns.get_mut(&id).unwrap().pid = Pid::from_raw(1_000_001);
+        twin.ok(&mut core, "hello", json!({"name": "mc"}));
+    }
+
     #[test]
     fn an_admin_method_off_the_admin_socket_answers_its_code() {
         let mut core = Core::new();
@@ -3196,9 +3254,7 @@ mod tests {
 
     /// A core whose main socket would be in a fresh directory.
     fn socket_dir(tag: &str) -> (Core, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("chora-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir(&format!("chora-{tag}"));
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         (core, dir)
@@ -3211,6 +3267,28 @@ mod tests {
         let mut client = core.connect_to(&path);
         client.ok(core, "hello", json!({"name": name}));
         (client, path)
+    }
+
+    /// Only a free client of the main socket owns a virtual output.
+    #[test]
+    fn a_client_socket_cannot_add_one() {
+        let (mut core, dir) = socket_dir("virtual");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        let add = json!({"spec": "32x32", "virtual": true});
+        for client in [&mut agent, &mut confined] {
+            let (number, error) = client.fails(&mut core, "output.add", add.clone());
+            assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        }
+        let mut nameless = core.connect();
+        let (_, error) = nameless.fails(&mut core, "output.add", add);
+        assert!(error.contains("hello"), "{error}");
+        let list = admin.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list, json!([]), "nothing was added");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -3627,8 +3705,7 @@ mod tests {
 
     #[test]
     fn a_client_socket_fixes_the_name_and_grants_nothing() {
-        let dir = std::env::temp_dir().join(format!("chora-clients-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-clients");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();
@@ -3663,8 +3740,7 @@ mod tests {
 
     #[test]
     fn two_connections_of_a_client_socket_share_confinement_without_the_flag() {
-        let dir = std::env::temp_dir().join(format!("chora-peers-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-peers");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();

@@ -39,7 +39,8 @@
 //!   `leave` each time the keyboard comes or goes, until it is killed.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
 //!   size of each configure, until it is killed. With `--exit-on-close`,
-//!   it exits with 0 when the compositor asks it to close.
+//!   it exits with 0 when the compositor asks it to close. With
+//!   `--recolor FILE R G B`, it commits the second color once FILE exists.
 
 #![allow(
     clippy::print_stdout,
@@ -613,17 +614,22 @@ fn create_surface(probe: &Probe, qh: &QueueHandle<Probe>) -> Result<WlSurface, S
 /// Shows a toplevel in one color until the probe is killed. Each configure
 /// with a new size gets a new buffer of that size.
 fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
-    let color: Vec<u8> = std::env::args()
-        .skip(2)
-        .filter_map(|a| a.parse().ok())
-        .collect();
-    let [red, green, blue] = color[..] else {
-        return Err("usage: window R G B".into());
+    let args: Vec<String> = std::env::args().skip(2).collect();
+    let usage = || "usage: window R G B [--exit-on-close] [--recolor FILE R G B]".to_owned();
+    let first = pixel_of(args.iter().take_while(|a| !a.starts_with("--"))).ok_or_else(usage)?;
+    let exit_on_close = args.iter().any(|a| a == "--exit-on-close");
+    let recolor = match args.iter().position(|a| a == "--recolor") {
+        Some(at) => {
+            let file = args.get(at + 1).ok_or_else(usage)?;
+            let next = pixel_of(args.iter().skip(at + 2)).ok_or_else(usage)?;
+            Some((std::path::PathBuf::from(file), next))
+        }
+        None => None,
     };
-    let exit_on_close = std::env::args().any(|a| a == "--exit-on-close");
+    let wait = if recolor.is_some() { HELD } else { TIMEOUT };
     let (surface, _xdg_surface) = toplevel(queue, probe)?;
     let qh = queue.handle();
-    let mut shown = [0, 0];
+    let mut shown = ([0, 0], first);
     loop {
         if exit_on_close && probe.closed {
             return Ok("closed".into());
@@ -633,14 +639,28 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
             Some(&size) if size[0] > 0 && size[1] > 0 => size,
             _ => [200, 200],
         };
-        if size != shown {
-            paint(probe, &qh, &surface, size, [blue, green, red, 0xff])?;
-            shown = size;
+        let pixel = match &recolor {
+            Some((file, next)) if file.exists() => *next,
+            _ => first,
+        };
+        if (size, pixel) != shown {
+            paint(probe, &qh, &surface, size, pixel)?;
+            shown = (size, pixel);
         }
-        dispatch_until(queue, probe, TIMEOUT, |p| {
+        dispatch_until(queue, probe, wait, |p| {
             p.sizes.len() > configures || (exit_on_close && p.closed)
         });
     }
+}
+
+/// The pixel of the first three numbers of arguments, R G B, in the
+/// byte order of the shm format.
+fn pixel_of<'a>(args: impl Iterator<Item = &'a String>) -> Option<[u8; 4]> {
+    let color: Vec<u8> = args.take(3).filter_map(|a| a.parse().ok()).collect();
+    let [red, green, blue] = color[..] else {
+        return None;
+    };
+    Some([blue, green, red, 0xff])
 }
 
 /// Shows a toplevel that commits a new color on each frame callback and

@@ -2230,7 +2230,8 @@ impl Wm {
     /// Starts a program that the user knows by another name than its
     /// command, such as a file that `xdg-open` opens.
     fn start_named(&mut self, command: &str, name: String) {
-        if let Some(change) = self.launches.run(command, name, Instant::now()) {
+        let token = self.rt.conn.activation_token();
+        if let Some(change) = self.launches.run(command, (name, token), Instant::now()) {
             self.tell(&change);
         }
     }

@@ -221,6 +221,16 @@ impl Watchdog {
     }
 }
 
+#[cfg(test)]
+impl Watchdog {
+    /// Whether the newest frame of an output was over its budget.
+    pub fn slow(&self, output: &str) -> bool {
+        self.outputs
+            .get(output)
+            .is_some_and(|run| run.since.is_some())
+    }
+}
+
 /// What the watchdog asks for after a frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Action {
@@ -244,7 +254,12 @@ impl State {
 
     /// Notes a frame of an output by the time it took and the part of it
     /// that the main thread waited for a CPU.
-    fn frame_took(&mut self, output: &str, budget: Duration, times: (Duration, Duration)) {
+    pub(crate) fn frame_took(
+        &mut self,
+        output: &str,
+        budget: Duration,
+        times: (Duration, Duration),
+    ) {
         self.note_left_out(output);
         match self.watchdog.note(output, budget, times, self.time.now()) {
             Some(Action::Blame) => self.blame(),
@@ -282,9 +297,15 @@ impl State {
                 .left_out
                 .insert(output.to_owned(), nodes.clone());
         }
+        let dark = self.assets.frame_dark.get(output);
+        let keyboard = self.focused_surface().filter(|surface| {
+            dark.is_some_and(|ids| ids.iter().any(|id| self.scene.is_within(surface, id)))
+        });
+        let keyboard = keyboard.map(str::to_owned);
         self.emit(&Event::LayersDropped {
             output: output.to_owned(),
             nodes,
+            keyboard,
         });
     }
 

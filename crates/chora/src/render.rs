@@ -8,7 +8,9 @@ use std::{
 
 use chora_scene::{InputMode, Node, NodeKind, Placed, ROOT, Scene, Transform, overlay_id};
 use smithay::{
+    backend::allocator::Fourcc,
     backend::renderer::{
+        ImportMem,
         element::{
             AsRenderElements, Id, Kind,
             memory::MemoryRenderBufferRenderElement,
@@ -42,7 +44,7 @@ use crate::{
     layers,
     lock::Lock,
     mesh::{self, Layers, MeshElement, MeshRenderer, Placing},
-    output::{Spot, output_area, scene_rect},
+    output::{Spot, default_camera, output_area, scene_rect},
     space,
     state::State,
     text::{self, Texts},
@@ -192,8 +194,28 @@ pub struct Assets {
     /// The nodes that the last render of each output left out, before the
     /// frame shows.
     pub frame_left_out: HashMap<String, Vec<String>>,
+    /// Those of `frame_left_out` that draw nothing, for the input.
+    pub frame_dark: HashMap<String, Vec<String>>,
     /// What rendering counted since the start of the core.
     pub stats: RenderStats,
+    /// The virtual outputs, which render into textures.
+    pub virtuals: Vec<crate::offscreen::Virtual>,
+    /// The virtual outputs that rendered since the last frame callbacks,
+    /// and whether they had damage.
+    pub rendered_virtuals: Vec<(Output, bool)>,
+    /// One transparent pixel, for a shader node whose output is gone.
+    blank: Option<GlesTexture>,
+}
+
+impl Assets {
+    /// The transparent pixel.
+    fn blank(&mut self, gles: &mut GlesRenderer) -> Option<GlesTexture> {
+        if self.blank.is_none() {
+            let pixel = gles.import_memory(&[0; 4], Fourcc::Abgr8888, (1, 1).into(), false);
+            self.blank = pixel.ok();
+        }
+        self.blank.clone()
+    }
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.
@@ -215,8 +237,14 @@ pub struct View {
 impl View {
     /// The view of an output.
     pub fn of(state: &State, output: &Output) -> Self {
+        Self::in_scene(&state.scene, output)
+    }
+
+    /// The view of an output with its camera in a scene.
+    pub fn in_scene(scene: &Scene, output: &Output) -> Self {
+        let camera = scene.current_camera(&output.name());
         Self {
-            camera: state.camera(output),
+            camera: camera.unwrap_or_else(|| default_camera(output)),
             scale: output.current_scale().fractional_scale(),
             size: physical_size(output),
             near: mesh::NEAR,
@@ -275,7 +303,11 @@ where
         parts.assets.stats.count(&elements);
         return elements;
     }
+    crate::offscreen::render_virtuals(parts, renderer.gles(), output);
     prune_assets(parts);
+    let shown = if view.stepped { "" } else { " capture" };
+    let name = format!("{}{shown}", output.name());
+    parts.assets.layers.set_view(name);
     let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
     let scene = parts.scene;
     // The overlay of the output, above the scene and without its camera
@@ -298,6 +330,9 @@ where
     assets
         .frame_left_out
         .insert(output.name(), assets.layers.left_out.clone());
+    assets
+        .frame_dark
+        .insert(output.name(), assets.layers.dark.clone());
     assets.stats.count(&out);
     out
 }
@@ -630,7 +665,9 @@ fn node_texture(
     node: &Node,
     scale: f64,
 ) -> Option<(GlesTexture, u64)> {
-    let size = mesh::texture_size(node, scale)?;
+    let max = parts.assets.layers.max_side(gles);
+    let scale = mesh::fit_scale(node.props.size?, scale, max);
+    let size = mesh::texture_size(node, scale, max)?;
     let textures = 1 + mesh::passes(node, scale).len().min(2);
     if !parts.assets.layers.spend(&node.id, size, textures) {
         return None;
@@ -700,14 +737,32 @@ fn node_textures(
         return out;
     }
     for (name, uniform) in &node.props.uniforms {
-        let chora_scene::Uniform::Texture(source) = uniform else {
+        let source = match uniform {
+            chora_scene::Uniform::Texture(source) => source,
+            chora_scene::Uniform::Output(read) => {
+                let reader = node.owner.as_deref();
+                let faces = parts.assets.virtuals.iter();
+                let frame = faces
+                    .filter(|v| v.output().name() == read.output)
+                    .find_map(|v| v.frame(reader))
+                    .or_else(|| Some((parts.assets.blank(gles)?, 0)));
+                out.extend(frame.map(|(texture, version)| (name.clone(), texture, version)));
+                continue;
+            }
+            _ => continue,
+        };
+        let Some(logical) = source_size(parts, &source.node) else {
             continue;
         };
-        let Some(size) = source_size(parts, &source.node).and_then(|s| mesh::pixel_size(s, scale))
-        else {
+        let max = parts.assets.layers.max_side(gles);
+        let scale = mesh::fit_scale(logical, scale, max);
+        let Some(size) = mesh::pixel_size(logical, scale, max) else {
             continue;
         };
-        if !parts.assets.layers.spend(&source.node, size, 1) {
+        parts.assets.layers.reader = Some(node.id.clone());
+        let fits = parts.assets.layers.spend(&source.node, size, 1);
+        if !fits {
+            parts.assets.layers.reader = None;
             continue;
         }
         let view = View {
@@ -720,6 +775,7 @@ fn node_textures(
         parts.depth += 1;
         let content = flat_elements(parts, gles, &source.node, &view);
         parts.depth -= 1;
+        parts.assets.layers.reader = None;
         let Some(content) = content else { continue };
         let assets = &mut *parts.assets;
         let drawn = assets.layers.draw(
@@ -997,7 +1053,7 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
     }
     // The overlay of the output sits in its coordinates, as layer surfaces.
     let overlay = state.scene.hit_list(&overlay_id(&spot.output.name()));
-    match scene_under(state, &overlay, spot.local) {
+    match scene_under(state, spot, &overlay, spot.local) {
         Target::Surface(under) => {
             return Some(Under {
                 location: under.location + offset,
@@ -1007,7 +1063,7 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
         Target::Blocked => return None,
         Target::Nothing => {}
     }
-    match scene_under(state, &state.scene.hit_list(ROOT), spot.scene) {
+    match scene_under(state, spot, &state.scene.hit_list(ROOT), spot.scene) {
         Target::Surface(under) => Some(under),
         Target::Blocked => None,
         Target::Nothing => layer(&layers::BELOW),
@@ -1034,7 +1090,7 @@ pub fn node_hit(state: &State, spot: &Spot) -> Option<(String, Point<f64, Logica
     let scene = state.scene.hit_list(ROOT);
     let found = [(&overlay, spot.local), (&scene, spot.scene)]
         .into_iter()
-        .find_map(|(list, pos)| found(state, list, InputMode::Accept, pos))?;
+        .find_map(|(list, pos)| found_shown(state, spot, list, pos))?;
     (found.input == InputMode::Accept).then(|| (found.node.id.clone(), found.local))
 }
 
@@ -1049,8 +1105,13 @@ enum Target {
 
 /// The surface of the scene under a point. A node with `pass` lets the
 /// input through.
-fn scene_under(state: &State, hit_list: &[Placed<'_>], pos: Point<f64, Logical>) -> Target {
-    match found(state, hit_list, InputMode::Accept, pos) {
+fn scene_under(
+    state: &State,
+    spot: &Spot,
+    hit_list: &[Placed<'_>],
+    pos: Point<f64, Logical>,
+) -> Target {
+    match found_shown(state, spot, hit_list, pos) {
         Some(Found {
             node,
             input: InputMode::Accept,
@@ -1103,6 +1164,42 @@ struct Found<'a> {
     local: Point<f64, Logical>,
     /// Whether the node sits under a plane.
     planar: bool,
+}
+
+/// The first node of a list of an output, from the top, that a point
+/// hits, as [`found`] finds it. A node that shows nothing because the
+/// layer budget left it, or a layer, plane or piece that holds it, out
+/// of the last frame of that output takes the input where it would take
+/// it, and gives it to nobody: the one place of that rule for every
+/// layer, plane, mesh and piece. The keyboard stays where it is; the
+/// owner of the node learns of it from `layers.dropped`.
+fn found_shown<'a>(
+    state: &'a State,
+    spot: &Spot,
+    list: &[Placed<'a>],
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
+    let found = found(state, list, InputMode::Accept, pos)?;
+    Some(if left_out(state, &spot.output, &found.node.id) {
+        Found {
+            input: InputMode::Block,
+            hit: Hit::Area,
+            ..found
+        }
+    } else {
+        found
+    })
+}
+
+/// Whether a node shows nothing on an output because the layer budget
+/// left it, or a layer, plane or piece that holds it, out of the last
+/// frame of that output.
+pub fn left_out(state: &State, output: &Output, id: &str) -> bool {
+    state
+        .assets
+        .frame_dark
+        .get(&output.name())
+        .is_some_and(|ids| ids.iter().any(|out| state.scene.is_within(id, out)))
 }
 
 /// The first node of a list, from the top, that a point hits. `outer` is
@@ -1187,10 +1284,8 @@ fn hit_cut<'a>(
 
 /// What a point hits in a 3D context: the ray from the eye through the
 /// point takes the nearest piece of a plane that shows there and accepts
-/// the input, in the order that the context draws them. A piece or a
-/// layer that the layer budget left out of the last frame takes the input
-/// where it would take it, and gives it to nobody. The empty area of the
-/// context lets the point through.
+/// the input, in the order that the context draws them. The empty area of
+/// the context lets the point through.
 fn context_hit<'a>(
     state: &'a State,
     context: &Placed<'a>,
@@ -1218,18 +1313,7 @@ fn context_hit<'a>(
         {
             return None;
         }
-        let found = entry_hit(state, entry, input, pos)?;
-        let textured = piece.part.is_some() || entry.node.is_layer();
-        if textured && left_out(state, &entry.node.id) {
-            return Some(Found {
-                node: entry.node,
-                input: InputMode::Block,
-                hit: Hit::Area,
-                local: node_point(&entry.transform, pos).unwrap_or(pos),
-                planar: true,
-            });
-        }
-        Some(found)
+        entry_hit(state, entry, input, pos)
     })
 }
 
@@ -1257,16 +1341,6 @@ fn entry_hit<'a>(
     found(state, &list, input, local)
 }
 
-/// Whether the layer budget left a node out of the last frame of an
-/// output, so that it shows nothing.
-pub fn left_out(state: &State, id: &str) -> bool {
-    state
-        .assets
-        .frame_left_out
-        .values()
-        .any(|ids| ids.iter().any(|n| n == id))
-}
-
 /// The largest coordinate of a point that the inverse of a plane gives; a
 /// plane maps a point near its horizon farther.
 const MAX_LOCAL: f64 = 1e6;
@@ -1280,10 +1354,8 @@ fn clamp_local(point: Point<f64, Logical>) -> Point<f64, Logical> {
 /// What a point hits of a node under a transform that is not a 2D
 /// translation with a positive scale. The inverse of the homography of
 /// the plane maps the point into the node; a point that the plane shows
-/// behind the eye or outside its content hits nothing. A plane that the
-/// layer budget left out of the last frame shows nothing, so it takes the
-/// input and gives it to nobody. A group is a layer: its own list answers
-/// inside its size. A node with a mesh takes
+/// behind the eye or outside its content hits nothing. A group is a
+/// layer: its own list answers inside its size. A node with a mesh takes
 /// the input over the bounding box of its shape, at the point of the flat
 /// quad of its size, as a drag of it tells; where that quad shows no
 /// point, at the point of the screen.
@@ -1309,12 +1381,6 @@ fn plane_hit<'a>(
     let local = plane_point(&placed.transform, pos)?;
     if !((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)) {
         return None;
-    }
-    if left_out(state, &node.id) {
-        return Some(Found {
-            input: InputMode::Block,
-            ..take(Hit::Area, local)
-        });
     }
     match node.kind {
         NodeKind::Surface => {
@@ -1465,7 +1531,7 @@ pub(crate) fn node_size(state: &State, node: &Node) -> [f64; 2] {
 /// draw for nothing. Taskbars learn the toplevels on the output too.
 pub fn send_frames(state: &mut State, output: &Output) {
     let visible = shown_surfaces(state, output);
-    let time = state.start_time.elapsed();
+    let time = state.time.now().saturating_duration_since(state.start_time);
     for (id, window) in &state.windows {
         let on_output = visible.contains(id);
         if on_output {
@@ -1498,6 +1564,7 @@ pub fn send_frames(state: &mut State, output: &Output) {
     state
         .foreign_toplevel_manager_state
         .set_shown(output, &visible);
+    crate::offscreen::present_virtuals(state);
 }
 
 /// The surface nodes that an output shows: those whose scene rectangle
@@ -1631,6 +1698,8 @@ pub(crate) fn projected_box(
     Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
 }
 
+#[cfg(test)]
+mod budget;
 #[cfg(test)]
 mod context;
 #[cfg(test)]

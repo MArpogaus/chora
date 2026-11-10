@@ -833,7 +833,7 @@ impl Tiling {
         match effect {
             Some(Effect::Relayout) => self.relayout(),
             Some(Effect::Run(command)) => {
-                chora_kit::run(&command);
+                chora_kit::run(&command, self.rt.conn.activation_token().as_deref());
                 Ok(())
             }
             Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
