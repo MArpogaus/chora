@@ -7,7 +7,7 @@
 //! so that frame callbacks, presentation feedback, transactions and the
 //! watchdog work as on a screen. Input comes only through `input.inject`.
 
-use std::time::Duration;
+use std::{sync::Mutex, time::Duration};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -109,6 +109,28 @@ fn parse_spec(text: &str) -> Result<Spec, String> {
     })
 }
 
+/// The display of the software device, made once for the process and kept
+/// open. Smithay keeps the displays of a process in a global list behind a
+/// lock, and panics inside that lock when a thread finds a display whose
+/// last user just went; that would poison the lock for every renderer
+/// after it. With one display that never closes, no thread finds it gone.
+/// A poisoned lock of this function (`DISPLAY`, not the one of smithay) is
+/// recovered, and logged as a warning.
+fn shared_display(device: EGLDevice) -> Result<EGLDisplay, String> {
+    static DISPLAY: Mutex<Option<EGLDisplay>> = Mutex::new(None);
+    let mut shared = DISPLAY.lock().unwrap_or_else(|poisoned| {
+        tracing::warn!("the lock of the shared EGL display was poisoned");
+        poisoned.into_inner()
+    });
+    if let Some(display) = shared.as_ref() {
+        return Ok(display.clone());
+    }
+    // SAFETY: the display stays open for the rest of the process.
+    #[allow(unsafe_code)]
+    let display = unsafe { EGLDisplay::new(device) }.map_err(|e| e.to_string())?;
+    Ok(shared.insert(display).clone())
+}
+
 impl Headless {
     /// A renderer on the software device of Mesa, so that the pixels do
     /// not depend on a GPU.
@@ -117,11 +139,11 @@ impl Headless {
             .map_err(|e| format!("no EGL devices: {e}"))?
             .find(EGLDevice::is_software)
             .ok_or("no software EGL device; the headless backend needs the Mesa drivers")?;
+        let display = shared_display(device)?;
         // SAFETY: the display and its context live as long as the renderer,
         // and only the thread of the event loop uses them.
         #[allow(unsafe_code)]
         let renderer = unsafe {
-            let display = EGLDisplay::new(device).map_err(|e| e.to_string())?;
             let context = EGLContext::new(&display).map_err(|e| e.to_string())?;
             GlesRenderer::new(context).map_err(|e| e.to_string())?
         };
@@ -435,5 +457,21 @@ mod tests {
         let (_, error) = wm.fails(&mut core, "output.remove", json!({"output": "HEADLESS-1"}));
         assert!(error.contains("last output"), "{error}");
         render_all(&mut core.state);
+    }
+
+    /// The display of smithay panics while it holds its global lock, and
+    /// poisons it for every later renderer, when a thread finds a display
+    /// whose last user just went. The display stays for the process.
+    #[test]
+    fn the_display_outlives_the_renderers_that_use_it() {
+        let mut renderer = Headless::new().expect("a software renderer");
+        let display = std::sync::Arc::downgrade(
+            &renderer.gles().egl_context().display().get_display_handle(),
+        );
+        drop(renderer);
+        assert!(
+            display.upgrade().is_some(),
+            "the last renderer closed the display"
+        );
     }
 }

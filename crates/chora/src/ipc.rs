@@ -3189,9 +3189,7 @@ mod tests {
 
     /// A core whose main socket would be in a fresh directory.
     fn socket_dir(tag: &str) -> (Core, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("chora-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir(&format!("chora-{tag}"));
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         (core, dir)
@@ -3620,8 +3618,7 @@ mod tests {
 
     #[test]
     fn a_client_socket_fixes_the_name_and_grants_nothing() {
-        let dir = std::env::temp_dir().join(format!("chora-clients-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-clients");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();
@@ -3656,8 +3653,7 @@ mod tests {
 
     #[test]
     fn two_connections_of_a_client_socket_share_confinement_without_the_flag() {
-        let dir = std::env::temp_dir().join(format!("chora-peers-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-peers");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();
