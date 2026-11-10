@@ -447,6 +447,14 @@ all of this holds:
   press, and any injected press after it, ends this;
 - `to` grabbed `move`.
 
+`window.give` of every window manager takes `grab` and sends the
+`give_grab`. `chora-tiling` and `chora-xp` add the springs of their
+wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
+unless the caller sent some, and stop their own drag. `chora-tiling`
+goes on with a drag that it receives: the window sits with `point` under
+the pointer and wobbles on from the springs. `chora-xp`, `chora-mc` and
+`chora-construct` grab no `move` and so receive no drag.
+
 The grab ends without a release event when its receiver disconnects, and
 when the receiver does not own the window and no reservation keeps the
 window for it, for example 5 seconds after the give. The release of the
@@ -1224,7 +1232,7 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
-| `window.give` | `surface`, and `to`: a client name | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
+| `window.give` | `surface`, `to`: a client name, and optionally `grab` with `point`, `velocity` and `wobble` | hands the window to `to` with a `remove` with `to`, and answers with its surface id; with `grab` the drag goes too (see [A give during a drag](#a-give-during-a-drag)) |
 
 Window effects need no API of their own. A window manager that sets
 `effects` in its settings sends `mesh` updates for its own nodes through

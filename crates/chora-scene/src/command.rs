@@ -153,6 +153,7 @@ pub struct GivenGrab {
     /// The point of the window that the pointer holds.
     pub point: [f64; 2],
     /// The speed of the window in scene pixels per second.
+    #[serde(default)]
     pub velocity: [f64; 2],
     /// The state of the effect of the giver.
     #[serde(default, skip_serializing_if = "Option::is_none")]
