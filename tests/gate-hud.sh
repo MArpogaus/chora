@@ -80,6 +80,7 @@ host-idle-cpu pass
 neutral-equals-today pass
 late-host-shows-figure pass
 reconnected-voice-shows-figure pass
+hung-voice-leaves-host-responsive pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -440,8 +441,15 @@ cell_late_host_shows_figure() {
 cell_reconnected_voice_shows_figure() {
     stop_voice
     waiting "$settle_s" figure_gone || return 1
-    FAKE_VOICE_STATE='{"state": "listening", "task": "", "said": ""}' start_voice
-    waiting "$settle_s" node_exists hud-figure
+    FAKE_VOICE_STATE_DELAY=1 FAKE_VOICE_STATE='{"state": "listening", "task": "", "said": ""}' start_voice
+    waiting "$settle_s" node_has hud-state Listening
+}
+cell_hung_voice_leaves_host_responsive() {
+    stop_voice
+    waiting "$settle_s" figure_gone || return 1
+    FAKE_VOICE_HANG_STATE=1 start_voice
+    emit voice.state '{"state": "thinking", "task": "", "said": ""}'
+    waiting "$settle_s" node_has hud-state Thinking
 }
 figure_gone() { ! node_exists hud-figure; }
 
@@ -484,6 +492,7 @@ run_cell layers-dropped-empty cell_layers_dropped_empty session
 run_cell host-idle-cpu cell_host_idle_cpu session
 run_cell late-host-shows-figure cell_late_host_shows_figure session
 run_cell reconnected-voice-shows-figure cell_reconnected_voice_shows_figure session
+run_cell hung-voice-leaves-host-responsive cell_hung_voice_leaves_host_responsive session
 
 printf '\n%-34s %-9s %s\n' cell measured expected
 while read -r id want; do

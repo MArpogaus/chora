@@ -20,7 +20,9 @@ argument plus `.chat`.
 
 The agent exports `state` too: it answers the data of the last
 `voice.state` without a name that it emitted, or FAKE_VOICE_STATE (a
-JSON object) before the first, or `{}`.
+JSON object) before the first, or `{}`. FAKE_VOICE_STATE_DELAY (seconds)
+exports `state` that long after the other methods, and
+FAKE_VOICE_HANG_STATE=1 never answers a call of it.
 """
 
 import json
@@ -37,6 +39,7 @@ sock.connect(os.environ["CHORA_SOCKET"])
 lock = threading.Lock()
 next_id = 0
 state = json.loads(os.environ.get("FAKE_VOICE_STATE", "{}"))
+state_delay = float(os.environ.get("FAKE_VOICE_STATE_DELAY", "0"))
 
 
 def send(method, params):
@@ -85,6 +88,8 @@ def serve():
                     f.write(json.dumps(params.get("params"), sort_keys=True) + "\n")
             result = {}
             if params.get("method") == "state":
+                if os.environ.get("FAKE_VOICE_HANG_STATE") == "1":
+                    continue
                 result = state
             if entries_file and params.get("method") in CHAT_METHODS:
                 result = chat_answer(params["method"], params.get("params") or {})
@@ -98,11 +103,13 @@ send("hello", {"name": os.environ.get("FAKE_VOICE_NAME", "voice")})
 privileged = os.environ.get("FAKE_VOICE_PRIVILEGED") == "1"
 send(
     "methods.export",
-    {"names": [{"name": n, "privileged": True} if privileged else n for n in ["indicator.claim", "confirm.answer", "state"] + (CHAT_METHODS if entries_file else [])]},
+    {"names": [{"name": n, "privileged": True} if privileged else n for n in ["indicator.claim", "confirm.answer"] + ([] if state_delay else ["state"]) + (CHAT_METHODS if entries_file else [])]},
 )
 if os.environ.get("FAKE_VOICE_KEYS") == "1":
     for binding in ("Alt+y", "Alt+n"):
         send("input.grab", {"binding": binding})
+if state_delay:
+    threading.Timer(state_delay, send, ["methods.export", {"names": ["state"]}]).start()
 threading.Thread(target=serve, daemon=True).start()
 for line in sys.stdin:
     event, _, data = line.strip().partition(" ")
