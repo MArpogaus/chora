@@ -3,7 +3,10 @@
 # may be pushed. It runs the steps in order, each without a pipe and with
 # its whole output in its own log, and stops at the first step that failed.
 #
-# Steps: build, test, clippy, 2d-guard, xp, matrix, hud, last-words.
+# Steps: build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
+# last-words. `virtual` hands a window over between window managers on a
+# screen and on virtual outputs; `xp-faces` runs one xp on four virtual
+# outputs.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -59,6 +62,8 @@ clippy|cargo clippy --workspace --all-targets -- -D warnings
 2d-guard|tests/2d-guard.sh 8742dee
 xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh
+virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
+xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 STEPS

@@ -174,6 +174,7 @@ impl Wobble {
             self.at[i] = [0, 1, 2].map(|axis| rest[axis] + offsets[i][axis]);
             self.velocity[i] = velocity[i];
         }
+        self.origin = origin;
         self.moving = true;
     }
 
