@@ -117,7 +117,8 @@ the input where they would take it and give it to nobody. The budget counts
 a node texture that a shader node reads, and the layers inside it, under
 the shader node: `layers.dropped` names the shader node, but it still
 draws without that texture, so it and the source node keep their input. The keyboard stays where it is; the
-owner learns of it from `layers.dropped`. During a press, the core maps
+owner and the window manager learn of it from `layers.dropped`, whose
+`keyboard` names such a focused window. During a press, the core maps
 every motion through the plane that the press hit, also outside it; where
 the plane shows the pointer behind the eye, the last point stays. The popups of a window under a
 plane stay inside the geometry of the window. The pin ends with the release
@@ -464,7 +465,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
-| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
+| `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again; `keyboard` names the surface node with the keyboard focus when one of these nodes holds it, so that the person types into a window that shows nothing; the core leaves the focus there, and the window manager of that window may move it |
 | `effects.dropped` | the watchdog removed the effects, the meshes, the shaders of shader nodes and the perspectives of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |

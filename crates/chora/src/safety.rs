@@ -190,9 +190,15 @@ impl State {
                 .left_out
                 .insert(output.to_owned(), nodes.clone());
         }
+        let dark = self.assets.frame_dark.get(output);
+        let keyboard = self.focused_surface().filter(|surface| {
+            dark.is_some_and(|ids| ids.iter().any(|id| self.scene.is_within(surface, id)))
+        });
+        let keyboard = keyboard.map(str::to_owned);
         self.emit(&Event::LayersDropped {
             output: output.to_owned(),
             nodes,
+            keyboard,
         });
     }
 
