@@ -550,6 +550,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "chora-chat"
+version = "0.9.0-rc.3"
+dependencies = [
+ "chora-draw",
+ "chora-kit",
+ "chora-scene",
+ "clap",
+ "resvg",
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+ "wayland-client",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
+ "xkbcommon",
+]
+
+[[package]]
 name = "chora-construct"
 version = "0.9.0-rc.3"
 dependencies = [

@@ -38,6 +38,7 @@ terms and no synonyms.
 | **Muted badge** | The label "Microphone off. Click to turn it on." that `chora-assistant` shows while the mic is muted. A click of a person on it turns the mic on. |
 | **HUD folder** | A folder with `hud.yaml` (version 1), SVG pictures and optional fonts that `chora-assistant` draws as the look of the voice agent and of the chat. It holds data only and runs no code. See `hud.md`. |
 | **HUD context** | The fields that decide which HUD folder and which panels show: `wm`, `space`, `app`, `state`, `agents`, `chat` and `output`. The setting `huds` maps it to folders; it stays while a question waits or the chat field has the keyboard. See `hud.md`. |
+| **Chat field** | The text field of the chat: `chora-chat --input NAME`, a layer surface that the host starts. Enter sends, Esc closes it and keeps the draft. It answers no question. See `voice.md`. |
 | **Coordinator** | The party that installs and connects plugins, services and flavors. First the user, later an agent with special permissions. |
 | **Inventory** | A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core. |
 | **Command** | A request to change the scene, for example `create` or `update`. |

@@ -1336,3 +1336,78 @@ OpenAI-compatible provider, `permission.edit: ask`):
   got no answer and was a no after 120 s. The ASR heard "Coder" as
   "Coda"; that utterance went to the LLM, which sent it on with
   `agent_say`.
+
+## 19. The chat field
+
+`chora-chat` has two modes (`services/voice/chat`).
+
+- `chora-chat [NAME]` is the opener for a launcher or a key. It calls
+  `assistant chat.show {name, token}`, with the helper if one is named
+  and the `XDG_ACTIVATION_TOKEN` of its environment. It draws nothing.
+- `chora-chat --input NAME` is the text field of the chat view with the
+  helper NAME, a layer surface that the host starts, one at a time. It
+  draws with `chora-draw` into `wl_shm`, in the font size of the body
+  text (14 px at least), uses `text-input-v3` for input methods and the
+  data device for a paste.
+
+**The pipe.** The field reads text that it cannot trust (the clipboard,
+an input method), so it holds no connection to chora. The host
+(`plugins/chora-assistant/src/field.rs`) starts it with a pipe on stdin
+and stdout, without `CHORA_SOCKET` and without `XDG_ACTIVATION_TOKEN`,
+and the field ignores both. Each line is one JSON object.
+
+- Host to field: `{"place": {...}}`, `{"question": true}`,
+  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}` and `"quit"`.
+  The host builds `question` from `voice.state` of the helper of the
+  field, and `keys` from `voice.confirm`, which names no helper today.
+- Field to host: `{"say": "text"}`, which the host sends with `voice
+  agent {tool: agent_say}` (`say_call`), and `{"event": "shown" |
+  "keyboard" | "closed", "data": {...}}`. No event carries text.
+- The end of stdin ends the field, and so does the end of its parent
+  process (`PR_SET_PDEATHSIG`). The host also holds `chat.open` and
+  `chat.close` for the chat; the field never calls them.
+
+A confined caller cannot reach the field: it has no socket, and the
+host methods that start and place it are the host's.
+
+**Place.** `place` has `anchor` (`top`, `bottom`, `left`, `right`, or two
+of them joined by `_`, such as `bottom_right`), `margin` (top, right,
+bottom, left), `width` (1 to 1600, 400 by default), `output`, `look` (the
+colors `background`, `text`, `border` and `hint` as RGBA) and `token`.
+A new place on the same output only moves the surface; another output
+makes a new surface. The draft stays in both cases, because the process
+stays.
+
+**Keys.** Enter sends the draft. Shift+Enter breaks a line. The field
+grows to four lines, then scrolls. A draft of more than four lines shows
+"N lines", and the first Enter shows "Press Enter again to send N
+lines"; only the second Enter sends, and any edit between them cancels
+it. Esc closes the field and keeps the draft for the next `place`. Ctrl+V
+and Shift+Insert paste the text of the selection (64 KiB at most; a
+thread reads it, so a slow source does not stop the field). Left, Right,
+Home, End, Backspace and Delete edit. A key with Ctrl or Alt is never
+text. Pasted and composed text pass `chora_kit::chat::sanitize`.
+
+**Keyboard.** The surface is on layer `top` with the keyboard on demand.
+It takes the keyboard in two ways: a click on it, and the activation
+token of a person's act (a real key or button, see the keyboard rule of
+the core in `architecture.md`) that the host hands it with `place`, and
+nowhere else. Without a token, or with a token that no real press
+stamped, it takes none. Esc destroys the surface, so the window gets the
+keyboard back.
+
+**Questions.** The field answers no question. It cannot tell typed text
+from pasted or injected text, so a typed yes is no proof. While a
+question of its helper waits, Enter keeps the text and the field shows
+"Typing does not answer" with the keys of the question. When the
+question ends, the text is not sent: it stays as a draft with "Not sent.
+Press Enter to send." If `agent_say` fails, the host tells the field,
+which gets the text back and says that voice does not answer.
+
+Tests: the unit tests of the crate and of `field.rs` (the field process
+has no `CHORA_SOCKET`), and `tests/chat.sh`, which runs the field beside
+a window and the fake agent in a headless session, with
+`tests/chat-host.py` as the host. A headless session has no device, so a
+real press is missing there: the script checks that a click takes the
+keyboard and that a token without a real act does not. The token of a
+real act is a test of the core.
