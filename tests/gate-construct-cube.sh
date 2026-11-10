@@ -54,8 +54,6 @@ grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
 opened=$(call cube.open '{}') || fail "cube.open: $opened"
-xp_pid=$(echo "$opened" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["pid"])')
-[ -n "$xp_pid" ] && run_pid "$xp_pid"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no four virtual outputs: $(virtuals)"
 until_ok 'test "$(bars)" = 4' 80 || fail "xp shows $(bars) taskbars on $(virtuals)"
 ok "the cube shows four xp taskbars on $(virtuals)"
@@ -78,7 +76,21 @@ until_ok 'test "$(visible construct-cube-face-1)" = True && test "$(visible cons
     fail "the cube did not turn: face 0 $(visible construct-cube-face-0), face 1 $(visible construct-cube-face-1)"
 ok "the cube turned face 1 to the front, and face 0 hides"
 
-kill "$xp_pid" 2>/dev/null
+xp_pid=$(python3 -I - "$CHORA_SOCKET" <<'EOF'
+import os, sys
+for pid in filter(str.isdigit, os.listdir("/proc")):
+    try:
+        cmd = open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
+        env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+    except OSError:
+        continue
+    if cmd[0].endswith(b"chora-xp") and b"CHORA_SOCKET=" + sys.argv[1].encode() in env:
+        print(pid)
+EOF
+)
+[ -n "$xp_pid" ] || fail "no xp process of this session"
+run_pid "$xp_pid"
+kill "$xp_pid"
 until_ok 'test -z "$(virtuals)"' 40 || fail "the virtual outputs stay after xp ended: $(virtuals)"
 until_ok 'test "$(visible construct-cube-face-0)" = gone' || fail "the cube stays after xp ended"
 ok "xp ended: the construct removed the outputs and the cube"

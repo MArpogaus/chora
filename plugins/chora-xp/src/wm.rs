@@ -253,6 +253,10 @@ pub struct Wm {
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
+    /// Whether xp runs on a virtual output: a host such as the construct
+    /// shows the outputs on a cube of its own, so the desktop cube is
+    /// off (one cube).
+    on_virtual: bool,
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
@@ -357,6 +361,7 @@ impl Wm {
             switch_escape: None,
             system_key: None,
             cube_grab: None,
+            on_virtual: false,
             kept: HashMap::new(),
             launches: Launches::new(),
             notifier: Notifier::new(),
@@ -470,6 +475,7 @@ impl Wm {
     }
 
     fn add_output(&mut self, output: &OutputInfo) -> Vec<Command> {
+        self.on_virtual |= output.is_virtual == Some(true);
         let mut commands = wallpaper::create(
             &mut self.theme,
             &self.settings.value.wallpaper,

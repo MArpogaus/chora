@@ -34,6 +34,7 @@
 mod adopt;
 mod camera;
 mod config;
+mod cube;
 mod file;
 mod frame;
 mod hud;
@@ -75,7 +76,7 @@ use crate::{
     config::{Action, Config},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Metrics, Voice},
-    methods::{MovePane, Named, ResizePane, exported_methods},
+    methods::{MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
     panes::{PaneLook, configure, create, handed_over, shadow_w, update, vec3},
     space::{Lens, Pose},
 };
@@ -463,6 +464,8 @@ struct Construct {
     glow: Option<PropsUpdate>,
     /// The wobble of the panes of own windows that the modifier drags.
     effects: effects::Driver,
+    /// The cube of virtual outputs and their window manager.
+    cube: Option<cube::Host>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -548,6 +551,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         backs: std::collections::BTreeSet::new(),
         glow: None,
         effects: effects::Driver::default(),
+        cube: None,
     };
     construct.effects.set(&construct.settings.value.effects);
     construct.start()?;

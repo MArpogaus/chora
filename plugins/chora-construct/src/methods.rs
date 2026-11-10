@@ -20,6 +20,25 @@ pub(crate) struct MovePane {
     pub(crate) ahead: f64,
 }
 
+/// Parameters of `cube.open`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct OpenCube {
+    #[serde(default = "four")]
+    pub(crate) faces: usize,
+}
+
+fn four() -> usize {
+    4
+}
+
+/// Parameters of `cube.turn`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct TurnCube {
+    pub(crate) by: i32,
+}
+
 /// Parameters of `pane.resize`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -47,6 +66,19 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             name(),
             &["name"],
         )),
+        runtime::privileged(runtime::method(
+            "cube.open",
+            "Opens a cube of FACES virtual outputs, 4 by default, with one xp on them: each \
+             output shows on a face, whose windows take the pointer. It goes when xp ends.",
+            json!({"faces": {"type": "integer", "minimum": 1, "maximum": 4}}),
+            &[],
+        )),
+        runtime::method(
+            "cube.turn",
+            "Turns the cube BY quarter turns, positive to the right.",
+            json!({"by": {"type": "integer"}}),
+            &["by"],
+        ),
         runtime::method(
             "construct.list",
             "Answers the constructs, the loaded one, and its panes with their names.",

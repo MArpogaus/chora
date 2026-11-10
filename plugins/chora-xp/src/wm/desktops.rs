@@ -63,6 +63,12 @@ impl Wm {
         commands
     }
 
+    /// Whether the desktop cube turns: its toggle is on and xp runs on no
+    /// virtual output.
+    fn cube_on(&self) -> bool {
+        self.effects.toggles.cube && !self.on_virtual
+    }
+
     /// Starts a turn of the cube by some quarter turns.
     pub(super) fn turn(&mut self, steps: i32) -> Vec<Command> {
         if self.effects.turn.is_some() || steps == 0 {
@@ -71,7 +77,7 @@ impl Wm {
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if !self.effects_on() || !self.effects.toggles.cube {
+        if !self.effects_on() || !self.cube_on() {
             return self.show_desktop(cube::offset(self.desktop, steps));
         }
         let duration = self
@@ -89,7 +95,7 @@ impl Wm {
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if self.effects.turn.is_some() || !self.effects_on() || !self.effects.toggles.cube {
+        if self.effects.turn.is_some() || !self.effects_on() || !self.cube_on() {
             return Vec::new();
         }
         self.cube_grab = Some(x);

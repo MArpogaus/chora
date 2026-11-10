@@ -2,8 +2,9 @@
 //! construct.
 
 use super::{
-    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, MovePane, Named, Plugin,
-    ResizePane, RpcError, Runtime, Store, Value, file, give, json, moved, runtime,
+    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, MovePane, Named, OpenCube,
+    Plugin, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give, json, moved,
+    runtime,
 };
 
 impl Plugin for Construct {
@@ -90,6 +91,15 @@ impl Plugin for Construct {
                 Ok(Value::Null)
             }
             "construct.list" => Ok(self.list()),
+            "cube.open" => {
+                let OpenCube { faces } = runtime::params(params)?;
+                self.open_cube(faces).map_err(rejected)
+            }
+            "cube.turn" => {
+                let TurnCube { by } = runtime::params(params)?;
+                self.turn_cube(by).map_err(rejected)?;
+                Ok(Value::Null)
+            }
             "construct.leave" => {
                 if !self.overlay {
                     return Err(RpcError::new(

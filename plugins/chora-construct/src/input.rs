@@ -34,6 +34,7 @@ impl Construct {
                 self.claim_indicator(false);
                 Ok(())
             }
+            Event::ClientDisconnected { name } if name == crate::cube::MANAGER => self.close_cube(),
             Event::ClientDisconnected { name } if name == VOICE => {
                 self.claim.due = true;
                 self.voice = Voice::default();

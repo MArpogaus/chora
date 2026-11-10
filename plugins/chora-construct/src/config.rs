@@ -240,7 +240,15 @@ pub struct Config {
     /// 3D while the modifier drags it.
     #[serde(default)]
     pub effects: Vec<chora_kit::effects::Kind>,
+    /// The command of the window manager of the cube; `cube.open` adds
+    /// `--output NAME` for each face. It runs as the client `xp`.
+    #[serde(default = "cube_manager")]
+    pub cube_manager: String,
     pub style: Style,
+}
+
+fn cube_manager() -> String {
+    "chora-xp".into()
 }
 
 impl Settings for Config {
