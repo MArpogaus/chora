@@ -97,8 +97,8 @@ impl Stop {
         let plane = node.props.size.is_some() && !transform.is_plain();
         match self {
             Self::Never => false,
-            Self::Layers => node.is_layer() || plane,
-            Self::Planes => plane,
+            Self::Layers => node.is_layer() || plane || node.is_context(),
+            Self::Planes => plane || node.is_context(),
         }
     }
 }
@@ -131,6 +131,8 @@ const LINE_HEIGHTS: std::ops::RangeInclusive<f64> = 0.5..=10.0;
 const WEIGHTS: std::ops::RangeInclusive<u16> = 1..=1000;
 /// The range of `letter_spacing`, in em.
 const LETTER_SPACINGS: std::ops::RangeInclusive<f64> = -1.0..=1.0;
+/// The range of `perspective`, in logical pixels.
+const PERSPECTIVES: std::ops::RangeInclusive<f64> = 1.0..=1e6;
 /// The most OpenType features of a text node.
 const MAX_FEATURES: usize = 32;
 
@@ -964,6 +966,27 @@ impl Scene {
             self.push_children(&mut stack, &placed);
             out.push(placed);
         }
+        self.descend(stack, stop, out)
+    }
+
+    /// The descendants of a placed 3D context, bottom first, with the
+    /// transforms, opacities, input modes and clips of the list that holds
+    /// it and the projection of the context. The list stops at layers,
+    /// planes and nested contexts, as [`Self::layer_list`] does.
+    #[must_use]
+    pub fn context_list<'a>(&'a self, context: &Placed<'a>) -> Vec<Placed<'a>> {
+        let mut stack = Vec::new();
+        self.push_children(&mut stack, context);
+        self.descend(stack, Stop::Layers, Vec::new())
+    }
+
+    /// Walks the nodes of a stack and their descendants into `out`.
+    fn descend<'a>(
+        &'a self,
+        mut stack: Vec<Step<'a>>,
+        stop: Stop,
+        mut out: Vec<Placed<'a>>,
+    ) -> Vec<Placed<'a>> {
         while let Some((node, parent, opacity, input, mut clips)) = stack.pop() {
             if !node.props.visible {
                 continue;
@@ -996,6 +1019,10 @@ impl Scene {
     /// Puts the children of a placed node on the stack of a walk, the
     /// bottom one last.
     fn push_children<'a>(&'a self, stack: &mut Vec<Step<'a>>, placed: &Placed<'a>) {
+        let parent = placed
+            .node
+            .projection()
+            .map_or(placed.transform, |p| placed.transform.then(&p));
         for id in placed.node.children.iter().rev() {
             // A missing child is a bug of the tree links; a frame without
             // it is better than a crash of the session.
@@ -1003,7 +1030,7 @@ impl Scene {
             if let Some(child) = self.nodes.get(id) {
                 stack.push((
                     child,
-                    placed.transform,
+                    parent,
                     placed.opacity,
                     placed.input,
                     placed.clips.clone(),
@@ -1102,8 +1129,8 @@ impl Scene {
     }
 
     /// Removes the effects of the nodes of an owner, for the watchdog: the
-    /// meshes and the shaders, also at the start and the end of
-    /// animations. Returns whether there were some.
+    /// meshes, the shaders and the perspectives, also at the start and the
+    /// end of animations. Returns whether there were some.
     pub fn drop_effects(&mut self, owner: &str) -> bool {
         let of_owner =
             |node: Option<&Node>| node.is_some_and(|n| n.owner.as_deref() == Some(owner));
@@ -1121,15 +1148,19 @@ impl Scene {
             }
             if let Some(animation) = self.animations.get_mut(&id) {
                 found |= strip(&mut animation.from);
-                found |= animation.to.mesh.take().is_some() | animation.to.effects.take().is_some();
+                found |= animation.to.mesh.take().is_some()
+                    | animation.to.effects.take().is_some()
+                    | animation.to.perspective.take().is_some();
             }
         }
         found
     }
 
     /// The load that the visible nodes of each owner put on a frame, for
-    /// the watchdog: a node counts 1, a layer 25 more, and each effect 25
-    /// more.
+    /// the watchdog: a node counts 1, a layer or a plane 25 more, and each
+    /// effect 25 more. A plane is a node that draws something under a
+    /// transform that is not a 2D translation with a positive scale, also
+    /// the projection of a 3D context.
     #[must_use]
     pub fn load_by_owner(&self) -> BTreeMap<String, u64> {
         // ponytail: fixed weights from the thresholds of #59, where 200
@@ -1145,7 +1176,9 @@ impl Scene {
                     continue;
                 };
                 let effects = node.props.effects.len() as u64;
-                let cost = 1 + LAYER * (u64::from(node.is_layer()) + effects);
+                let draws = node.kind != NodeKind::Group || node.props.size.is_some();
+                let plane = draws && !placed.transform.is_plain();
+                let cost = 1 + LAYER * (u64::from(node.is_layer() || plane) + effects);
                 *load.entry(owner.clone()).or_default() += cost;
             }
         }
@@ -1549,6 +1582,9 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if kind != NodeKind::Shader && (props.shader.is_some() || props.uniforms.is_some()) {
         return wrong("shader");
     }
+    if kind != NodeKind::Group && props.perspective.is_some() {
+        return wrong("group");
+    }
     if kind != NodeKind::Text
         && (props.text.is_some()
             || props.family.is_some()
@@ -1569,8 +1605,18 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     Ok(())
 }
 
-/// The radius, the border, the clip and the uniforms of a shader node.
+/// The radius, the border, the clip, the perspective and the uniforms of a
+/// shader node.
 fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+    if props
+        .perspective
+        .flatten()
+        .is_some_and(|d| !PERSPECTIVES.contains(&d))
+    {
+        return Err(SceneError::Invalid(format!(
+            "the perspective of {id:?} is not from 1 to 1000000"
+        )));
+    }
     let lengths = props
         .radius
         .iter()
@@ -1697,13 +1743,17 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     Ok(())
 }
 
-/// Removes the mesh, the effects and the shader of properties. Returns
-/// whether there were some.
+/// Removes the mesh, the effects, the shader and the perspective of
+/// properties. Returns whether there were some.
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
+    let found = props.mesh.is_some()
+        || !props.effects.is_empty()
+        || props.shader.is_some()
+        || props.perspective.is_some();
     props.mesh = None;
     props.effects.clear();
     props.shader = None;
+    props.perspective = None;
     found
 }
 

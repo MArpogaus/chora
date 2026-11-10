@@ -198,6 +198,16 @@ through a texture of its size, and pointer input reaches it through the
 inverse of its transform, so a rotated window gets the pointer at the point
 that it shows.
 
+A group with a size and a `perspective` is a **3D context**. The walk of
+the scene composes its projection into the transforms of its descendants,
+and the layer and hit lists stop at it. When the core draws a context, it
+clips the planes of the context at w = 1/64, splits planes that cross and
+sorts the pieces from back to front with the crate `plane-split`, the BSP of
+WebRender. A whole plane draws as it would outside a context; a piece draws
+the texture of its plane through its part of the quad, and all pieces of a
+plane share one texture. The hit test walks the same pieces from the front,
+so hit order equals draw order. There is no depth buffer.
+
 The core asks each output for a frame once per refresh. It renders only
 when the damage tracker of Smithay reports damage. A layer counts as
 changed in every frame, so a scene with a layer renders in every frame.

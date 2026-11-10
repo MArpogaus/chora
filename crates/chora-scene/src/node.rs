@@ -260,6 +260,25 @@ impl Node {
                 || shape
                 || self.kind == NodeKind::Shader)
     }
+
+    /// Whether the node is a 3D context: a group with a size and a
+    /// `perspective`, whose descendants project with w = 1 + z / d around
+    /// its centre.
+    #[must_use]
+    pub fn is_context(&self) -> bool {
+        self.kind == NodeKind::Group
+            && self.props.size.is_some()
+            && self.props.perspective.is_some()
+    }
+
+    /// The projection of a 3D context from the coordinates of its
+    /// descendants to its own; `None` for another node.
+    #[must_use]
+    pub fn projection(&self) -> Option<Transform> {
+        let [w, h] = self.props.size?;
+        let d = self.props.perspective.filter(|_| self.is_context())?;
+        Some(Transform::perspective([w / 2.0, h / 2.0], d))
+    }
 }
 
 /// The properties that clients can change.
@@ -304,6 +323,10 @@ pub struct Props {
     /// The absolute path of the fragment shader of a shader node.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
+    /// The distance of the eye in front of the centre of a group with a
+    /// size, which makes the group a 3D context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub perspective: Option<f64>,
     /// The uniforms of the shader of a shader node.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub uniforms: BTreeMap<String, Uniform>,
@@ -386,6 +409,7 @@ impl Default for Props {
             border: None,
             clip: None,
             shader: None,
+            perspective: None,
             uniforms: BTreeMap::new(),
             claim: None,
             text: None,
@@ -469,6 +493,16 @@ pub struct PropsUpdate {
     /// The absolute path of the fragment shader of a shader node.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
+    /// The distance of the eye in front of the centre of a group with a
+    /// size, from 1 to 10^6 logical pixels: the group becomes a 3D context.
+    /// A missing field keeps it, `null` removes it.
+    #[allow(clippy::option_option)]
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub perspective: Option<Option<f64>>,
     /// The uniforms of the shader of a shader node. Replaces all uniforms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uniforms: Option<BTreeMap<String, Uniform>>,
@@ -614,6 +648,9 @@ impl Props {
         }
         if update.shader.is_some() {
             self.shader.clone_from(&update.shader);
+        }
+        if let Some(perspective) = update.perspective {
+            self.perspective = perspective;
         }
         if let Some(uniforms) = &update.uniforms {
             self.uniforms.clone_from(uniforms);

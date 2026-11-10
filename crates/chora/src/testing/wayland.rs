@@ -127,6 +127,14 @@ pub struct Toplevel {
     index: usize,
 }
 
+impl Toplevel {
+    /// Sets the window geometry for the next commit, as a window with a
+    /// drop shadow does: `(x, y, w, h)` in its buffer.
+    pub fn set_geometry(&self, (x, y, w, h): (i32, i32, i32, i32)) {
+        self.xdg.set_window_geometry(x, y, w, h);
+    }
+}
+
 /// A popup of the client.
 pub struct Popup {
     index: usize,

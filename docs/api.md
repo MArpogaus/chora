@@ -47,7 +47,7 @@ This table is the one list of node properties.
 | `id` | all | stable id; ids of the form `s1`, `s2` belong to surfaces, and the core assigns them; `chora:inject` belongs to the injection mark of the core |
 | `owner` | all | client name of the owner; read-only |
 | `focused` | all | `true` in `scene.query` on the surface with the keyboard focus and on the node of `focus_node`; read-only, left out on all other nodes |
-| `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output. The core applies all parent transforms and the camera, and projects like the renderer. The query leaves out outputs where the node does not show. The box holds the drawn shape under rotation, perspective or a mesh. A clip or an ancestor layer cuts the box to its own box. The mesh of a layer does not move the boxes of its descendants. Read-only. |
+| `rects` | all | in `scene.query`: the output name maps to `[x, y, w, h]` in logical pixels of that output. The core applies all parent transforms and the camera, and projects like the renderer. The query leaves out outputs where the node does not show. The box holds the drawn shape under rotation, perspective or a mesh. A clip, an ancestor layer or an ancestor plane cuts the box to its own box. In a 3D context the box ends at the near plane of the context. The mesh of a layer does not move the boxes of its descendants. Read-only. |
 | `to` | surface | the only client name that can attach this detached surface, after a `remove` with `to` or for a new toplevel; read-only |
 | `claim` | all | `[x, y, w, h]` in scene coordinates: the area of the owner as a window manager; a new toplevel can go to it (see [below](#window-managers)); `null` removes the claim |
 | `transform` | all | a 4x4 matrix in column-major order, with the translation at the indices 12 to 14, or the short form translate, scale, rotate |
@@ -57,6 +57,7 @@ This table is the one list of node properties.
 | `input` | all | `accept`, `pass` or `block`; `pass` and `block` apply to all descendants |
 | `meta` | all | free key/value pairs to tag and find nodes; an empty value removes a key; at most 32 keys, 1 KiB per key or value and 4 KiB in all per node |
 | `size` | group, rect, image, shader | width and height; an image without a size has the size of its file; for a group, the area of its layer |
+| `perspective` | group | from 1 to 10^6 logical pixels, on a group with a `size`: the distance of the eye in front of the centre of the group, which makes it a 3D context (see below); `null` removes it |
 | `mesh` | group, rect, image | `cols` and `rows` from 1 to 64, and `points`: the place of each grid point in node coordinates, row by row from the top left; optional `depth`: the z of each point, which the transform of the node projects; the node becomes a layer that shows through the grid; `points: []` removes the mesh |
 | `color` | rect, text | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
@@ -114,6 +115,34 @@ the plane that the press hit, also outside it; where the plane shows the
 pointer behind the eye, the last point stays. The popups of a window under a
 plane stay inside the geometry of the window.
 
+A group with a `size` and a `perspective` d is a **3D context**: its
+descendants share one space. The eye sits at distance d in front of the
+centre of the group and looks along +z, with x to the right and y down. A
+point at depth z shows with w = 1 + z / d around the centre, so z = 0 shows
+at 1:1 and a pane flown in at z = 0 draws as in 2D. The camera is the
+transform of a child group without a size. The core sorts the planes of a
+context from back to front and splits planes that cross, so each shows in
+front where it is nearer. Planes on one geometric plane keep the order of
+the scene, so a glow stays behind its pane. A node with a mesh sorts as one
+unit, and a nested context sorts and splits as a flat plane of its size. The core cuts each plane at the near
+plane w = 1/64, so nothing shows that lies at or behind the eye. With
+more than 64 planes, or when the split gives more than 4 pieces per plane,
+a context sorts its planes by their centres and splits nothing; the hit
+test then follows the same order. Pointer input in a context follows the ray from the eye:
+the nearest plane that shows at the point and takes input gets it, in the
+order that the context draws. A part of a plane that the layer budget
+leaves out of the frame takes the input and gives it to nobody. The
+empty area of a context takes no input, so a click there reaches what lies
+behind it.
+
+<!-- parses: commands -->
+```yaml
+# a 3D context with a camera, and a pane turned 40 degrees, 200 deep
+- create: {id: space, kind: group, parent: root, props: {size: [1920, 1080], perspective: 1200}}
+- create: {id: camera, kind: group, parent: space}
+- create: {id: pane, kind: rect, parent: camera, props: {size: [400, 300], color: [0.2, 0.4, 0.8, 1], transform: {matrix: [0.766, 0, -0.643, 0, 0, 1, 0, 0, 0.643, 0, 0.766, 0, 760, 390, 200, 1]}}}
+```
+
 With `depth`, a grid bends into 3D, for example a strip on a ring around
 the viewer, and a perspective transform projects it. The texture maps
 perspective-correct. A triangle with some points behind the viewer shows
@@ -127,7 +156,11 @@ the scene does; a flame that rises therefore rises toward small `v_uv.y`.
 A shader node and an effect may use
 `uniform float alpha`, `uniform vec2 size` (the texture size in pixels),
 `uniform float time` (seconds) and its own `float` and `vec2` to `vec4`
-uniforms. The texture holds premultiplied colors, and the shader writes
+uniforms. In a 3D context they also get `uniform float depth`, the
+distance from the eye to the centre of the plane over d, 1 at 1:1, and
+`uniform float facing`, the cosine of the angle between the front of the
+plane and the way to the eye, negative from behind; a haze or an edge that
+reads them follows the camera without updates. The texture holds premultiplied colors, and the shader writes
 premultiplied colors; the core passes the uniforms as they are, so a
 color uniform is whatever the shader takes it to be. A transaction that
 names a shader that does not compile fails with the log of the compiler.
@@ -346,12 +379,12 @@ by default; a timeout exits 1 with the reason on stderr.
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
-| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local` and modifiers; `pointer.released` with the button. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local` and modifiers; `pointer.released` with the button. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye, and each coordinate stops at 10^6 near the horizon of the plane; for a node with a mesh, `local` is the point of the flat quad of its size under its transform, in a press as in a drag |
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again |
-| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
+| `effects.dropped` | the watchdog removed the effects, the meshes, the shaders of shader nodes and the perspectives of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
