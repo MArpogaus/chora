@@ -426,11 +426,9 @@ Scope:
   (#48); 3, the `perspective` context with sorting and splitting of
   planes and the ray hit; 4, popups and drags in a context; 5, the cost
   of planes (damage per layer, texture steps by projected size, the order
-  cache, `tests/3d-bench.sh`) and the `scale` uniform (#79); 6, 2D sampling (#76). The portal (D70), output textures
-  and virtual outputs (D69) follow later.
-  The new-window target by activation token (D72). Damage tracking for
-  node textures, so that a node texture renders only when its source
-  changes.
+  cache, `tests/3d-bench.sh`) and the `scale` uniform (#79); 6, 2D sampling (#76). The portal (D70), output
+  textures and virtual outputs (D69) follow later.
+  The new-window target by activation token (D72).
 
 Gate:
 

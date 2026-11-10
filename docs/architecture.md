@@ -217,8 +217,9 @@ the texture, a node texture, a uniform or the shader file changed, or when
 the shader reads `time`. The element of a layer counts as changed only
 then or when its shape moves, so a static scene, also one with layers and
 a 3D context, renders nothing and reports no damage. A node texture
-renders once per frame for all the shader nodes that read it, so a pane
-and its mirror share the texture of their window.
+keeps its own tracker, is keyed by its source and draws only when the
+source changes, for all the shader nodes that read it, so a pane and its
+mirror share the texture of their window.
 
 A plane renders its texture at the output scale times a power of two,
 at most 1, that follows the size of the plane on screen: a far plane
