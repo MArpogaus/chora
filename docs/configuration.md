@@ -1145,7 +1145,8 @@ its own package and needs no configuration.
   occupied tags, shown ones underlined, focused ones bold and urgent ones
   red.
 - **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
-  `chora-tiling` say.
+  `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
+  with a helper.
 - **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
   runs. swaylock locks through the session lock protocol of the core.
