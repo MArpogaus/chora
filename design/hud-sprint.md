@@ -393,3 +393,14 @@ Exit criteria of the sprint:
 7. May a HUD folder call non-privileged plugin methods, such as `tiling.get_tags`? Default: no,
    events only; a plugin emits what a HUD needs.
 8. Does a dropped folder activate itself? Default: no, one line in `chora-assistant.yaml`.
+
+## Carried into H5 (security review of H2, 11-10)
+
+- The host loads HUD folders only through `Theme::load_hud`, never
+  `Theme::load` (chora-assistant main.rs:244 uses `Theme::load` for its
+  own trusted assets). Test: the assistant never passes a HUD folder to
+  `Theme::load`.
+- The question card draws with `Fonts::host` only. Test it.
+- `--check-hud` calls `Chat::contrast_errors` and the size checks.
+- The manifest has no card colours, so the 7:1 key contrast has nothing
+  to test until the card style exists.
