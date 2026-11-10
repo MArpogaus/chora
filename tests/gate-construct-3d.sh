@@ -15,6 +15,8 @@
 #    back to the camera is hidden; without the setting
 #    test_accept_injected_keys an injected click gives no window the
 #    keyboard.
+# 6. With `effects: [wobbly]`, a pane dragged with the modifier wobbles
+#    with a depth, and settles after the release.
 #
 # Each check reports on its own; the gate fails when one of them fails.
 # panes_spec gives the name, centre, yaw, size and colour of each pane;
@@ -24,7 +26,8 @@
 # whether the last press of a pane lies within 1.5 pixels of (U, V).
 #
 # Usage: tests/gate-construct-3d.sh   BIN: directory with the binaries
-#   SHOT  a PNG path that keeps a capture of the four panes
+#   SHOT  a PNG path that keeps a capture of the panes
+#   SHOT_WOBBLE  a PNG path that keeps a capture during the wobble
 # shellcheck disable=SC2016,SC2034 # check and until_ok evaluate their code later
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -214,6 +217,25 @@ inject '[{"shortcut": {"keys": "w"}}]'
 sleep 1
 check "after a click on the empty space, w walks" 'test "$(camera)" != "$view"'
 check "the walk key reaches no window" 'test "$(cat "$work"/?.log | grep -c "^key")" = "$all_keys"'
+
+mesh_of() { ctl query "id:$1" | python3 -I -c 'import json, sys; m = json.load(sys.stdin)[0].get("mesh") or {}; print(len(m.get("depth") or []), any(abs(d) > 0.5 for d in m.get("depth") or []))'; }
+b_node=construct-pane-$(surface_of "$(pane_at "$b_name" | tr -d '[]')")
+if call settings.set '{"effects": ["wobbly"]}' >/dev/null; then
+    from=$(pane_centre "$b_name")
+    inject "[{\"pointer_move\": {\"position\": [$from]}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [$((${from%%,*} + 60)), 380]}},
+  {\"pointer_move\": {\"position\": [$((${from%%,*} + 120)), 330]}}]"
+    sleep 0.1
+    bent=$(mesh_of "$b_node")
+    [ -n "${SHOT_WOBBLE:-}" ] && ctl capture "$SHOT_WOBBLE" >/dev/null
+    inject '[{"button": {"state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]'
+else
+    bent="refused"
+fi
+check "a dragged pane wobbles with depth: $bent" 'test "${bent#* }" = True'
+check "the wobble settles after the release" 'until_ok "test \"\$(mesh_of $b_node)\" = \"0 False\"" 20'
 
 call settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
 b_surface=$(surface_of "$(pane_at "$b_name" | tr -d '[]')")
