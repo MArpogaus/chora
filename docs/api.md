@@ -110,11 +110,15 @@ plane there. Input reaches a plane and what it holds only inside its area,
 and never where the plane shows the pointer behind the eye. A node with a
 mesh under such a transform keeps the box of its shape. A plane whose
 texture would pass 4096 pixels a side renders at a lower scale, so that it
-shows all of its content and takes input where it shows it. A plane that the
-layer budget leaves out of the frame draws nothing, so it takes the input
-and gives it to nobody. During a press, the core maps every motion through
-the plane that the press hit, also outside it; where the plane shows the
-pointer behind the eye, the last point stays. The popups of a window under a
+shows all of its content and takes input where it shows it. A layer, plane,
+mesh or piece that the layer budget leaves out of the last frame of an
+output draws nothing there, so on that output it and every node in it take
+the input where they would take it and give it to nobody. The budget counts
+a node texture that a shader node reads under the shader node, so the
+source node itself keeps its input. The keyboard stays where it is; the
+owner learns of it from `layers.dropped`. During a press, the core maps
+every motion through the plane that the press hit, also outside it; where
+the plane shows the pointer behind the eye, the last point stays. The popups of a window under a
 plane stay inside the geometry of the window. The pin ends with the release
 of the last button, when the node leaves the scene or the layer budget
 leaves its plane out, or where another grab takes the pointer: when a popup
@@ -150,8 +154,8 @@ a context sorts its planes by their centres and splits nothing; the hit
 test then follows the same order. Pointer input in a context follows the ray from the eye:
 the nearest plane that shows at the point and takes input gets it, in the
 order that the context draws. A part of a plane that the layer budget
-leaves out of the frame takes the input and gives it to nobody. The
-empty area of a context takes no input, so a click there reaches what lies
+leaves out of the frame takes the input and gives it to nobody, as above.
+The empty area of a context takes no input, so a click there reaches what lies
 behind it.
 
 <!-- parses: commands -->

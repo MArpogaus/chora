@@ -711,7 +711,7 @@ fn node_textures(
         let Some(size) = mesh::pixel_size(logical, scale) else {
             continue;
         };
-        if !parts.assets.layers.spend(&source.node, size, 1) {
+        if !parts.assets.layers.spend(&node.id, size, 1) {
             continue;
         }
         let view = View {
@@ -1001,7 +1001,7 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
     }
     // The overlay of the output sits in its coordinates, as layer surfaces.
     let overlay = state.scene.hit_list(&overlay_id(&spot.output.name()));
-    match scene_under(state, &overlay, spot.local) {
+    match scene_under(state, spot, &overlay, spot.local) {
         Target::Surface(under) => {
             return Some(Under {
                 location: under.location + offset,
@@ -1011,7 +1011,7 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
         Target::Blocked => return None,
         Target::Nothing => {}
     }
-    match scene_under(state, &state.scene.hit_list(ROOT), spot.scene) {
+    match scene_under(state, spot, &state.scene.hit_list(ROOT), spot.scene) {
         Target::Surface(under) => Some(under),
         Target::Blocked => None,
         Target::Nothing => layer(&layers::BELOW),
@@ -1038,7 +1038,7 @@ pub fn node_hit(state: &State, spot: &Spot) -> Option<(String, Point<f64, Logica
     let scene = state.scene.hit_list(ROOT);
     let found = [(&overlay, spot.local), (&scene, spot.scene)]
         .into_iter()
-        .find_map(|(list, pos)| found(state, list, InputMode::Accept, pos))?;
+        .find_map(|(list, pos)| found_shown(state, spot, list, pos))?;
     (found.input == InputMode::Accept).then(|| (found.node.id.clone(), found.local))
 }
 
@@ -1053,8 +1053,13 @@ enum Target {
 
 /// The surface of the scene under a point. A node with `pass` lets the
 /// input through.
-fn scene_under(state: &State, hit_list: &[Placed<'_>], pos: Point<f64, Logical>) -> Target {
-    match found(state, hit_list, InputMode::Accept, pos) {
+fn scene_under(
+    state: &State,
+    spot: &Spot,
+    hit_list: &[Placed<'_>],
+    pos: Point<f64, Logical>,
+) -> Target {
+    match found_shown(state, spot, hit_list, pos) {
         Some(Found {
             node,
             input: InputMode::Accept,
@@ -1107,6 +1112,42 @@ struct Found<'a> {
     local: Point<f64, Logical>,
     /// Whether the node sits under a plane.
     planar: bool,
+}
+
+/// The first node of a list of an output, from the top, that a point
+/// hits, as [`found`] finds it. A node that shows nothing because the
+/// layer budget left it, or a layer, plane or piece that holds it, out
+/// of the last frame of that output takes the input where it would take
+/// it, and gives it to nobody: the one place of that rule for every
+/// layer, plane, mesh and piece. The keyboard stays where it is; the
+/// owner of the node learns of it from `layers.dropped`.
+fn found_shown<'a>(
+    state: &'a State,
+    spot: &Spot,
+    list: &[Placed<'a>],
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
+    let found = found(state, list, InputMode::Accept, pos)?;
+    Some(if left_out(state, &spot.output, &found.node.id) {
+        Found {
+            input: InputMode::Block,
+            hit: Hit::Area,
+            ..found
+        }
+    } else {
+        found
+    })
+}
+
+/// Whether a node shows nothing on an output because the layer budget
+/// left it, or a layer, plane or piece that holds it, out of the last
+/// frame of that output.
+pub fn left_out(state: &State, output: &Output, id: &str) -> bool {
+    state
+        .assets
+        .frame_left_out
+        .get(&output.name())
+        .is_some_and(|ids| ids.iter().any(|out| state.scene.is_within(id, out)))
 }
 
 /// The first node of a list, from the top, that a point hits. `outer` is
@@ -1191,10 +1232,8 @@ fn hit_cut<'a>(
 
 /// What a point hits in a 3D context: the ray from the eye through the
 /// point takes the nearest piece of a plane that shows there and accepts
-/// the input, in the order that the context draws them. A piece or a
-/// layer that the layer budget left out of the last frame takes the input
-/// where it would take it, and gives it to nobody. The empty area of the
-/// context lets the point through.
+/// the input, in the order that the context draws them. The empty area of
+/// the context lets the point through.
 fn context_hit<'a>(
     state: &'a State,
     context: &Placed<'a>,
@@ -1222,18 +1261,7 @@ fn context_hit<'a>(
         {
             return None;
         }
-        let found = entry_hit(state, entry, input, pos)?;
-        let textured = piece.part.is_some() || entry.node.is_layer();
-        if textured && left_out(state, &entry.node.id) {
-            return Some(Found {
-                node: entry.node,
-                input: InputMode::Block,
-                hit: Hit::Area,
-                local: node_point(&entry.transform, pos).unwrap_or(pos),
-                planar: true,
-            });
-        }
-        Some(found)
+        entry_hit(state, entry, input, pos)
     })
 }
 
@@ -1261,16 +1289,6 @@ fn entry_hit<'a>(
     found(state, &list, input, local)
 }
 
-/// Whether the layer budget left a node out of the last frame of an
-/// output, so that it shows nothing.
-pub fn left_out(state: &State, id: &str) -> bool {
-    state
-        .assets
-        .frame_left_out
-        .values()
-        .any(|ids| ids.iter().any(|n| n == id))
-}
-
 /// The largest coordinate of a point that the inverse of a plane gives; a
 /// plane maps a point near its horizon farther.
 const MAX_LOCAL: f64 = 1e6;
@@ -1284,10 +1302,8 @@ fn clamp_local(point: Point<f64, Logical>) -> Point<f64, Logical> {
 /// What a point hits of a node under a transform that is not a 2D
 /// translation with a positive scale. The inverse of the homography of
 /// the plane maps the point into the node; a point that the plane shows
-/// behind the eye or outside its content hits nothing. A plane that the
-/// layer budget left out of the last frame shows nothing, so it takes the
-/// input and gives it to nobody. A group is a layer: its own list answers
-/// inside its size. A node with a mesh takes
+/// behind the eye or outside its content hits nothing. A group is a
+/// layer: its own list answers inside its size. A node with a mesh takes
 /// the input over the bounding box of its shape, at the point of the flat
 /// quad of its size, as a drag of it tells; where that quad shows no
 /// point, at the point of the screen.
@@ -1313,12 +1329,6 @@ fn plane_hit<'a>(
     let local = plane_point(&placed.transform, pos)?;
     if !((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)) {
         return None;
-    }
-    if left_out(state, &node.id) {
-        return Some(Found {
-            input: InputMode::Block,
-            ..take(Hit::Area, local)
-        });
     }
     match node.kind {
         NodeKind::Surface => {

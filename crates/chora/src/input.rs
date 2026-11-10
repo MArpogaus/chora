@@ -989,7 +989,9 @@ impl Pin {
     ) -> Option<(WlSurface, Point<f64, Logical>)> {
         let spot = state.spot(state.pointer_layout)?;
         let (start, at) = anchor(&state.scene, &state.outputs, &self.node, &spot);
-        if !state.scene.is_within(&self.node, &start) || render::left_out(state, &self.node) {
+        if !state.scene.is_within(&self.node, &start)
+            || render::left_out(state, &spot.output, &self.node)
+        {
             return None;
         }
         if let Some(local) = render::local_in(&state.scene, &start, at, &self.node) {

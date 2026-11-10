@@ -155,7 +155,10 @@ pub struct Layers {
     pixels: u64,
     /// The budget ran out in this frame, and the log tells it once.
     told: bool,
-    /// The nodes whose layers the budget left out of the current frame.
+    /// The nodes whose layers the budget left out of the current frame:
+    /// the node that draws, also for a node texture that a shader node
+    /// reads, so that the source node itself, which draws, keeps its
+    /// input.
     pub left_out: Vec<String>,
     /// The last version that a render gave a texture. One counter for all
     /// slots, so that a texture that the cap evicted and made again never
