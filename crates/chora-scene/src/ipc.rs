@@ -656,17 +656,11 @@ pub enum Capability {
     /// only for a client socket or a confined connection.
     #[serde(rename = "methods.privileged")]
     MethodsPrivileged,
-    /// `indicator.claim`: claim the indicator of the voice agent and
-    /// answer its questions with `voice.confirm.answer`, for a client of
-    /// the main socket that is not in `indicator_clients` of the agent.
-    /// The core checks nothing; the agent reads `grants.list`.
-    #[serde(rename = "indicator.claim")]
-    IndicatorClaim,
 }
 
 impl Capability {
     /// Every capability.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 7] = [
         Self::InputInject,
         Self::ScreenCapture,
         Self::GrabAny,
@@ -674,7 +668,6 @@ impl Capability {
         Self::ActivationToken,
         Self::SessionQuit,
         Self::MethodsPrivileged,
-        Self::IndicatorClaim,
     ];
 
     /// The name, which is also the name of the method.
@@ -688,7 +681,6 @@ impl Capability {
             Self::ActivationToken => "activation.token",
             Self::SessionQuit => "session.quit",
             Self::MethodsPrivileged => "methods.privileged",
-            Self::IndicatorClaim => "indicator.claim",
         }
     }
 }

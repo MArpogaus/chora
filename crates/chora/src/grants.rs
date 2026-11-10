@@ -198,21 +198,6 @@ mod tests {
         assert_eq!(error_code, RpcError::INVALID_PARAMS);
     }
 
-    /// Review A1: `indicator.claim` is a grant of the user, for the
-    /// session, that the voice agent reads with `grants.list`.
-    #[test]
-    fn indicator_claim_is_a_grant_of_the_user() {
-        let mut core = Core::new();
-        let mut ctl = core.admin();
-        let claim = json!({"client": "hud", "capabilities": ["indicator.claim"]});
-        ctl.ok(&mut core, "grants.set", claim.clone());
-        let mut voice = core.named("voice");
-        let list = voice.ok(&mut core, "grants.list", Value::Null);
-        assert_eq!(list, json!({"hud": ["indicator.claim"]}));
-        ctl.ok(&mut core, "grants.revoke", claim);
-        assert_eq!(voice.ok(&mut core, "grants.list", Value::Null), json!({}));
-    }
-
     #[test]
     fn only_the_admin_socket_changes_grants_and_makes_client_sockets() {
         let mut core = Core::new();
