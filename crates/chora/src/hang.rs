@@ -29,6 +29,8 @@ use std::{
 
 use calloop::EventLoop;
 
+use crate::words::say;
+
 /// The longest sleep of an idle main loop between two beats.
 pub const BEAT_EVERY: Duration = Duration::from_secs(1);
 /// How long the heartbeat may stop before the watchdog logs a stall (D64).
@@ -152,22 +154,6 @@ fn log(hang: Hang) {
         Hang::Runs(gap) => {
             tracing::warn!(stalled_s = gap.as_secs(), "the main loop runs again");
         }
-    }
-}
-
-/// Writes `chora: <line>` to fd 2 with one raw `write(2)`, from a buffer on
-/// the stack: no lock of tracing, of `std::io::stderr` or of malloc.
-#[allow(unsafe_code)] // one libc write to a fixed fd
-fn say(line: std::fmt::Arguments<'_>) {
-    use std::io::Write as _;
-    let mut buf = std::io::Cursor::new([0_u8; 256]);
-    // A line longer than the buffer ends short.
-    let _ = writeln!(buf, "chora: {line}");
-    let len = usize::try_from(buf.position()).unwrap_or(0);
-    let buf = buf.into_inner();
-    // SAFETY: the pointer and the length come from a live buffer.
-    unsafe {
-        libc::write(2, buf.as_ptr().cast(), len);
     }
 }
 

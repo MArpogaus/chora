@@ -392,9 +392,18 @@ The safety layer is the only built-in behavior (see
   the last injected event. No client owns the mark or can remove it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
-- **Last words.** A faulting signal (SIGSEGV, SIGBUS, SIGILL, SIGABRT)
-  writes the fault address and a backtrace to stderr before the default
-  action ends chora. `tests/last-words.sh` checks it.
+- **Last words.** No end of the core is silent. A faulting signal
+  (SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGFPE, SIGSYS) writes the fault
+  address and a backtrace to stderr before the default action ends
+  chora. A signal that ends chora without a fault (SIGTERM, SIGINT,
+  SIGHUP, SIGQUIT, SIGUSR2, SIGALRM, SIGXCPU, SIGXFSZ) writes its name
+  and the pid of its sender. A panic writes its thread, its message and
+  a backtrace; a panic outside the main thread ends only that thread.
+  An end through the quit binding, `session.quit`, the window of the
+  nested backend or a failed startup command logs `chora ends` with the
+  reason. Only SIGKILL leaves nothing, for example from the OOM killer;
+  the exit status 137 of the core then names it.
+  `tests/last-words.sh` checks the signals and `session.quit`.
 - **Emergency reset.** The core disconnects all plugins and ends their
   grace times. It revokes all grants, removes all effects and restores the
   default cameras. It puts all surfaces in a simple grid. This grid is the one layout in the core. It is hardcoded, so a broken
