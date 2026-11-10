@@ -947,6 +947,9 @@ fn schedule(state: &mut State, node: DrmNode, crtc: crtc::Handle, delay: Duratio
 
 /// Another session took the devices, or gave them back.
 fn session_event(state: &mut State, event: SessionEvent) {
+    if matches!(event, SessionEvent::PauseSession) {
+        state.press_via = None;
+    }
     let Some(tty) = tty(state) else { return };
     match event {
         SessionEvent::PauseSession => {

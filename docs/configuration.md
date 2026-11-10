@@ -696,12 +696,27 @@ the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.
 
-The space has the keyboard, so its keys need no modifier. A drag looks
-around, and the wheel walks. A walk slows down in the outer quarter of
-the leash radius and stops at it. A click on a pane, or `Return` for the
-pane nearest the middle of the view, flies into the pane. At the end of
-the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
-and the pointer. `Alt+Escape` flies back to the pose before.
+The space is a 3D context of the core (D75): a group with the
+`perspective` of the focal length and a camera group whose transform is
+the pose. The core sorts, splits and clips the panes, and casts the ray
+of the pointer. A window of the construct stands in its pane: a click on
+the pane, also on a tilted one, reaches the window at the point under
+the pointer, gives it the keyboard and does not move the view; where
+panes overlap, the nearer one gets the click. Each pane draws through
+the effect `pane.frag`, which reads `depth` and `facing` for the haze
+and the edge of the focus, so a walk updates no pane.
+
+A press on the empty space gives the keyboard back to the walk, so its
+keys need no modifier. A drag there looks around, and the wheel there or
+over a pane that shows the window of another client or a plugin walks;
+over a window of the construct, the wheel scrolls the window.
+A walk slows down in the outer quarter of the leash radius and stops at
+it. `Return` flies into the pane nearest the middle of the view, and a
+click on a pane that shows the window of another client or a plugin
+flies into that pane. At the end of the fly-in, the window itself shows
+at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
+flies back to the pose before. `tests/gate-construct-3d.sh` checks the
+direct input.
 
 `t` starts the terminal, and its window becomes a pane in the view
 direction. `space` starts the launcher. The launcher itself is no pane:
@@ -730,6 +745,8 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
+| `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
@@ -740,7 +757,12 @@ pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
 The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes
-up or down. The same key with the wheel over a pane resizes it. A window
+up or down. As the flavor, the construct grabs this drag, so it reaches
+no window; without the grab, which another client may hold, a press with
+the key on a window of the construct reaches the window. The same key
+with the wheel over a pane that shows the window of another client or a
+plugin resizes it; over a window of the construct the wheel goes to the
+window, since the core grabs no wheel. A window
 of the flavor gets the new size, so that it stays at 1:1. Other panes
 stretch. The default `Super` is the drag modifier of tiling and chora-xp.
 
@@ -816,6 +838,9 @@ windows of the other flavor.
 | `pane.resize` | `name` and `scale`, for example 1.25 |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
+| `cube.open` | privileged. `faces`, 1 to 4, 4 by default: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
+| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view |
+| `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
@@ -1334,7 +1359,14 @@ window, and a double click maximizes it. `chora-xp` claims the box around the wo
 of its outputs (D55). `--output NAME` limits it to some outputs. A window
 dragged out of these work areas goes to the window manager whose claim
 holds the drop point, with `remove` and `to`. Without one there, or when
-the core refuses, the window stays. A drag of the border of the frame
+the core refuses, the window stays. A new window opens on the output
+that the pointer entered last, else on the first one. A title bar
+dropped on an output of `chora-xp` that shows no part of the window, as
+on another virtual output, puts the window there, under the pointer. When
+all outputs of `chora-xp` are virtual ones, it has no desktop cube of
+its own: the taskbars show no desktop buttons, the keys and Super with
+the left button turn nothing, and `turn_to` does nothing. A construct
+shows such outputs on a cube of its own. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the
@@ -1633,6 +1665,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+| `window.move` | `surface`, and `output`: the name of an output that `chora-xp` manages | a drag of the title bar onto that output: the window goes to the same place there, as far as it fits, and is raised and focused |
 | `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 

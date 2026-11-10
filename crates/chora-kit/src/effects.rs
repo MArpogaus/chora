@@ -72,6 +72,8 @@ pub struct Frame {
 #[derive(Default)]
 pub struct Driver {
     wobbles: HashMap<String, Wobble>,
+    /// The origins in 3D of the wobbles of `grab_3d`, as last moved.
+    origins: HashMap<String, [f64; 3]>,
     lamps: HashMap<String, Lamp>,
     wobbly: bool,
     lamp: bool,
@@ -137,6 +139,37 @@ impl Driver {
         Some(self.wobbles.get(key)?.springs(target.origin))
     }
 
+    /// A window in 3D is grabbed: it starts to wobble with a depth. The
+    /// origin and the grab are in the coordinates of the space of the
+    /// window, and `view` is the x and y of the direction of the view, as
+    /// [`Wobble::new_3d`] takes them. The frames of the wobble then use
+    /// the origin of [`Self::motion_3d`], not the one of the target.
+    #[allow(clippy::too_many_arguments, reason = "the window, and the grab in 3D")]
+    pub fn grab_3d(
+        &mut self,
+        key: &str,
+        target: &Target,
+        origin: [f64; 3],
+        grab: [f64; 3],
+        view: [f64; 2],
+    ) {
+        if self.wobbly && self.calm() {
+            let wobble = Wobble::new_3d(target.size, origin, grab, view);
+            self.wobbles.insert(key.into(), wobble);
+            self.origins.insert(key.into(), origin);
+        }
+    }
+
+    /// A window of [`Self::grab_3d`] moved to an origin in 3D: its mesh
+    /// with a depth, with the grid advanced to now. `None` when it does
+    /// not wobble.
+    pub fn motion_3d(&mut self, key: &str, target: &Target, origin: [f64; 3]) -> Option<Command> {
+        let wobble = self.wobbles.get_mut(key)?;
+        wobble.advance_3d(origin, Instant::now());
+        self.origins.insert(key.into(), origin);
+        Some(mesh(target, wobble.mesh([origin[0], origin[1]])))
+    }
+
     /// Whether a lamp runs for a window.
     #[must_use]
     pub fn has_lamp(&self, key: &str) -> bool {
@@ -146,17 +179,20 @@ impl Driver {
     /// Ends the wobble of a window without a mesh update; true when it
     /// wobbled. The manager removes the mesh itself.
     pub fn cancel_wobble(&mut self, key: &str) -> bool {
+        self.origins.remove(key);
         self.wobbles.remove(key).is_some()
     }
 
     /// Ends the wobble and the lamp of a window without a mesh update.
     pub fn cancel(&mut self, key: &str) {
         self.wobbles.remove(key);
+        self.origins.remove(key);
         self.lamps.remove(key);
     }
 
     /// Ends every wobble and answers their keys.
     pub fn take_wobbles(&mut self) -> Vec<String> {
+        self.origins.clear();
         std::mem::take(&mut self.wobbles).into_keys().collect()
     }
 
@@ -237,18 +273,23 @@ impl Driver {
                 settled.push(key.clone());
                 continue;
             };
-            wobble.advance(target.origin, now);
+            let origin = if let Some(&origin) = self.origins.get(key) {
+                wobble.advance_3d(origin, now);
+                [origin[0], origin[1]]
+            } else {
+                wobble.advance(target.origin, now);
+                target.origin
+            };
             if wobble.settled() {
                 settled.push(key.clone());
                 frame.commands.push(unmesh(&target.node));
             } else {
-                frame
-                    .commands
-                    .push(mesh(&target, wobble.mesh(target.origin)));
+                frame.commands.push(mesh(&target, wobble.mesh(origin)));
             }
         }
         for key in settled {
             self.wobbles.remove(&key);
+            self.origins.remove(&key);
         }
         for (key, lamp) in &self.lamps {
             let Some(target) = find(key) else {
@@ -274,6 +315,7 @@ impl Driver {
     pub fn dropped(&mut self) -> Vec<String> {
         self.calm_until = Some(Instant::now() + CALM);
         self.wobbles.clear();
+        self.origins.clear();
         self.take_lamps()
     }
 }
@@ -329,6 +371,38 @@ mod tests {
     fn has_mesh(command: &Command) -> bool {
         matches!(command, Command::Update { id, props }
             if id == "w" && props.mesh.as_ref().is_some_and(|m| !m.points.is_empty()))
+    }
+
+    /// A window grabbed in 3D and moved away from the eye wobbles with a
+    /// depth, also in the frames after the move, and settles flat.
+    #[test]
+    fn a_window_grabbed_in_3d_wobbles_with_a_depth() {
+        let mut driver = Driver::new(&[Kind::Wobbly]);
+        let target = target();
+        driver.grab_3d("w", &target, [0.0; 3], [100.0, 50.0, 0.0], [0.0; 2]);
+        let mut deep = false;
+        for step in 1..=10 {
+            let origin = [0.0, 0.0, f64::from(step) * 40.0];
+            std::thread::sleep(std::time::Duration::from_millis(12));
+            let Some(Command::Update { props, .. }) = driver.motion_3d("w", &target, origin) else {
+                panic!("no mesh");
+            };
+            let mesh = props.mesh.expect("a mesh");
+            deep |= mesh.depth.iter().any(|d| d.abs() > 0.5);
+        }
+        assert!(deep, "the grid lags in depth");
+        driver.release("w");
+        let start = Instant::now();
+        let mut now = start;
+        while driver.wobbles("w") {
+            now += std::time::Duration::from_millis(16);
+            let frame = driver.tick(now, |_| Some(target.clone()));
+            assert!(
+                now - start < std::time::Duration::from_secs(10),
+                "it settles"
+            );
+            drop(frame);
+        }
     }
 
     #[test]

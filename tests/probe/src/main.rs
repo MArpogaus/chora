@@ -41,6 +41,10 @@
 //!   size of each configure, until it is killed. With `--exit-on-close`,
 //!   it exits with 0 when the compositor asks it to close. With
 //!   `--recolor FILE R G B`, it commits the second color once FILE exists.
+//!   With `--report`, it activates with `XDG_ACTIVATION_TOKEN` when the
+//!   environment has it, and prints a line `press X Y` for each button
+//!   press, at the point of the surface, and `key CODE` for each key
+//!   press that it gets.
 
 #![allow(
     clippy::print_stdout,
@@ -65,7 +69,7 @@ use rustix::{
     time::{ClockId, clock_gettime},
 };
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle, delegate_noop, event_created_child,
+    Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop, event_created_child,
     protocol::{
         wl_buffer::{self, WlBuffer},
         wl_callback::{self, WlCallback},
@@ -173,6 +177,10 @@ struct Probe {
     decoration_manager: Option<ZxdgDecorationManagerV1>,
     /// Kept alive so that the compositor keeps drawing the frame.
     decorations: Vec<ZxdgToplevelDecorationV1>,
+    /// Mode `window --report`: print the presses of buttons and keys.
+    report: bool,
+    /// The last point of the pointer on the surface.
+    pointer_at: (f64, f64),
 }
 
 /// The answer to a request for presentation feedback.
@@ -589,6 +597,14 @@ fn toplevel(queue: &mut Queue, probe: &mut Probe) -> Result<(WlSurface, XdgSurfa
     let qh = queue.handle();
     let wm_base = probe.wm_base.clone().ok_or("no xdg shell")?;
     let surface = create_surface(probe, &qh)?;
+    if probe.report
+        && let (Some(activation), Ok(token)) = (
+            probe.activation.as_ref(),
+            std::env::var("XDG_ACTIVATION_TOKEN"),
+        )
+    {
+        activation.activate(token, &surface);
+    }
     let xdg_surface = wm_base.get_xdg_surface(&surface, &qh, 1);
     let toplevel = xdg_surface.get_toplevel(&qh, ());
     toplevel.set_app_id("chora-probe".into());
@@ -627,8 +643,14 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
         None => None,
     };
     let wait = if recolor.is_some() { HELD } else { TIMEOUT };
-    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    probe.report = args.iter().any(|a| a == "--report");
     let qh = queue.handle();
+    if probe.report {
+        let seat = probe.seat.clone().ok_or("no seat")?;
+        seat.get_pointer(&qh, ());
+        seat.get_keyboard(&qh, ());
+    }
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
     let mut shown = ([0, 0], first);
     loop {
         if exit_on_close && probe.closed {
@@ -983,6 +1005,43 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Probe {
             }
             wl_keyboard::Event::Leave { .. } if probe.clip.is_some() => println!("leave"),
             wl_keyboard::Event::RepeatInfo { rate, delay } => probe.repeat = Some((rate, delay)),
+            wl_keyboard::Event::Key {
+                key,
+                state: WEnum::Value(wl_keyboard::KeyState::Pressed),
+                ..
+            } if probe.report => println!("key {key}"),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<wl_pointer::WlPointer, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &wl_pointer::WlPointer,
+        event: wl_pointer::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_pointer::Event::Enter {
+                surface_x,
+                surface_y,
+                ..
+            }
+            | wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } => probe.pointer_at = (surface_x, surface_y),
+            wl_pointer::Event::Button {
+                state: WEnum::Value(wl_pointer::ButtonState::Pressed),
+                ..
+            } if probe.report => {
+                let (x, y) = probe.pointer_at;
+                println!("press {x:.1} {y:.1}");
+            }
             _ => {}
         }
     }

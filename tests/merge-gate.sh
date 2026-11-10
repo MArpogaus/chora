@@ -3,7 +3,7 @@
 # may be pushed. It runs the steps in order, each without a pipe and with
 # its whole output in its own log, and stops at the first step that failed.
 #
-# Steps: build, test, clippy, 2d-guard, xp, matrix, hud, last-words.
+# Steps: build, test, clippy, 2d-guard, xp, matrix, hud, last-words, cube.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -61,6 +61,7 @@ xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
+cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 STEPS
 }
 

@@ -142,6 +142,13 @@ impl<A> Runtime<A> {
         self.inject_ok = setting || test_session();
     }
 
+    /// Whether the plugin takes input of `input.inject` as the person's:
+    /// the setting of [`Self::accept_injected`] or a test session.
+    #[must_use]
+    pub fn accepts_injected(&self) -> bool {
+        self.inject_ok
+    }
+
     /// Sets the action of a give key of [`crate::give::KEYS`] by its
     /// target, or none for no give keys.
     pub fn give_keys(&mut self, make: Option<fn(&'static str) -> A>) {

@@ -1122,7 +1122,7 @@ fn scene_under(
             surface,
             location: pos - on_surface,
             node: Some(node.id.clone()),
-            plane: planar.then(|| local - on_surface),
+            plane: (planar || spot.via.is_some()).then(|| local - on_surface),
         }),
         Some(_) => Target::Blocked,
         None => Target::Nothing,
@@ -1141,8 +1141,8 @@ pub struct Under {
     /// The surface node; `None` for a layer surface.
     pub node: Option<String>,
     /// The origin of the surface in the coordinates of its node, when a
-    /// plane carries the node; a press then maps every motion through that
-    /// plane.
+    /// plane carries the node or a pane forwards the pointer to it; a
+    /// press then maps every motion through that plane or pane.
     pub plane: Option<Point<f64, Logical>>,
 }
 
@@ -1569,7 +1569,7 @@ pub fn send_frames(state: &mut State, output: &Output) {
 
 /// The surface nodes that an output shows: those whose scene rectangle
 /// overlaps the scene area of the output.
-fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
+pub(crate) fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
     let screen = Rectangle::from_size(output_area(output).size);
     let shown = scene_rect(&state.camera(output), screen);
     let overlay = state.scene.overlay_draw_list(&output.name());
@@ -1673,29 +1673,26 @@ fn polygon_box(
 /// transform. The points go through the projection of the renderer, so
 /// that a matrix which divides by w moves them as the frame does; the
 /// depth of mesh points stays out, as in `Transform::apply`. A point at
-/// or behind the eye is left out, and a box of no point in front overlaps
-/// nothing.
+/// or behind `w = near`, the near plane of a context or the eye, is left
+/// out, and a box of no point in front overlaps nothing.
 pub(crate) fn projected_box(
     transform: &Transform,
     points: impl Iterator<Item = [f64; 2]>,
+    near: f64,
 ) -> Rectangle<f64, Logical> {
     let m = transform.matrix();
-    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    let mut bounds = mesh::Bounds::default();
     for [px, py] in points {
-        let hw = m[3] * px + m[7] * py + m[15];
-        if hw <= mesh::NEAR {
-            continue;
-        }
-        let (x, y) = (
-            (m[0] * px + m[4] * py + m[12]) / hw,
-            (m[1] * px + m[5] * py + m[13]) / hw,
+        bounds.add_point_at(
+            [
+                m[0] * px + m[4] * py + m[12],
+                m[1] * px + m[5] * py + m[13],
+                m[3] * px + m[7] * py + m[15],
+            ],
+            near,
         );
-        x0 = x0.min(x);
-        y0 = y0.min(y);
-        x1 = x1.max(x);
-        y1 = y1.max(y);
     }
-    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
+    bounds.rect()
 }
 
 #[cfg(test)]
@@ -1721,6 +1718,36 @@ mod tests {
 
     use super::{location_and_scale, premultiplied, send_frames, surface_under};
     use crate::testing::{Core, wayland::Wayland};
+
+    /// The mesh points of a layer wholly behind the eye, or of a context
+    /// between the eye and its near plane, give an empty box.
+    #[test]
+    fn mesh_points_behind_the_eye_give_an_empty_box() {
+        let mut behind = [0.0; 16];
+        behind[0] = 1.0;
+        behind[5] = 1.0;
+        behind[10] = 1.0;
+        behind[15] = -1.0;
+        let points = [[0.0, 0.0], [100.0, 0.0], [0.0, 80.0]];
+        let rect = super::projected_box(
+            &Transform::from_matrix(behind),
+            points.into_iter(),
+            crate::mesh::NEAR,
+        );
+        assert_eq!(rect, smithay::utils::Rectangle::default());
+        let mut near = behind;
+        near[15] = 0.01;
+        let rect = super::projected_box(
+            &Transform::from_matrix(near),
+            points.into_iter(),
+            1.0 / 64.0,
+        );
+        assert_eq!(
+            rect,
+            smithay::utils::Rectangle::default(),
+            "inside the near plane of a context"
+        );
+    }
 
     /// A window that no output shows gets a frame callback at most once a
     /// second, so that a hidden client stops drawing (#60).

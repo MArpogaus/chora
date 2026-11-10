@@ -105,13 +105,14 @@ const EVENTS: [&str; 19] = [
 
 /// The methods that other clients call with the client name, as
 /// `xp.turn_to`.
-const METHODS: [&str; 6] = [
+const METHODS: [&str; 7] = [
     "start_menu",
     "minimize",
     "restore",
     "activate",
     "restart",
     "turn_to",
+    "window.move",
 ];
 
 /// What a key binding does.
@@ -213,6 +214,8 @@ pub struct Wm {
     desktop: usize,
     /// The node under the pointer.
     hover: Option<String>,
+    /// The output that the pointer entered last, where a new window opens.
+    pointer_output: Option<String>,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
@@ -340,6 +343,7 @@ impl Wm {
             cascade: 0,
             desktop: 0,
             hover: None,
+            pointer_output: None,
             dialog: None,
             fade: None,
             fade_shader: None,
@@ -485,7 +489,9 @@ impl Wm {
 
     #[allow(clippy::expect_used, reason = "KEYS holds valid bindings")]
     fn grab(&mut self) -> Result<(), ClientError> {
-        for (binding, fallback, key) in KEYS {
+        let cube = !self.cube_off();
+        let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
+        for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
                 let binding: Binding = binding.parse().expect("valid bindings");
                 if self.rt.grab(binding, key)? {
@@ -652,6 +658,7 @@ impl Wm {
                 return Ok(Value::Null);
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
+            Call::Move { surface, output } => self.move_to_output(&surface, &output)?,
             Call::Give(give::Give { surface, to, grab }) => {
                 known(self.index(&surface).is_some(), &surface)?;
                 let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
@@ -787,7 +794,7 @@ impl Wm {
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
         self.anchor(i);
-        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let area = self.home();
         let kept = first.then(|| self.kept.remove(surface)).flatten();
         let active = self.is_active(surface);
         let mut commands = Vec::new();
@@ -1052,6 +1059,47 @@ impl Wm {
         commands
     }
 
+    /// Whether the plugin has no desktop cube: all its outputs are virtual
+    /// ones, which a construct shows on a cube of its own.
+    pub(super) fn cube_off(&self) -> bool {
+        !self.bars.is_empty() && !self.bars.iter().any(Bar::has_pager)
+    }
+
+    /// The output of a node of an output, as its wallpaper or its taskbar,
+    /// or of a window.
+    fn output_of(&self, node: &str) -> Option<String> {
+        let named = |b: &&Bar| node.ends_with(&format!("-{}", b.output));
+        let window = || {
+            self.index(node)
+                .and_then(|i| self.bar_at(self.windows[i].rect()))
+        };
+        let bar = self.bars.iter().find(named).or_else(window)?;
+        Some(bar.output.clone())
+    }
+
+    /// The work area for a new window: on the output that the pointer
+    /// entered last, else on the first one.
+    fn home(&self) -> Rect {
+        let entered = |b: &&Bar| Some(&b.output) == self.pointer_output.as_ref();
+        let bar = self.bars.iter().find(entered).or(self.bars.first());
+        bar.map_or([0, 0, 1280, 770], Bar::usable)
+    }
+
+    /// Moves a window to another output of the plugin, to the same place
+    /// there, as far as it fits, and raises it.
+    fn move_to_output(&mut self, surface: &str, output: &str) -> Result<Vec<Command>, RpcError> {
+        let unknown = |what: &str| RpcError::new(RpcError::REJECTED, format!("xp has no {what}"));
+        let i = self.index(surface).ok_or_else(|| unknown(surface))?;
+        let target = self.bars.iter().find(|b| b.output == output);
+        let target = target.map(Bar::usable).ok_or_else(|| unknown(output))?;
+        let from = self
+            .bar_at(self.windows[i].rect())
+            .map_or(target, Bar::usable);
+        let mut commands = self.move_window(i, from, target);
+        commands.extend(self.activate(surface));
+        Ok(commands)
+    }
+
     // Taskbars
 
     /// The taskbar of the output that shows most of a rectangle: the one
@@ -1127,6 +1175,7 @@ impl Wm {
     fn hovered(&mut self, node: &str, on: bool) -> Vec<Command> {
         if on {
             self.hover = Some(node.into());
+            self.pointer_output = self.output_of(node).or(self.pointer_output.take());
         } else if self.hover.as_deref() == Some(node) {
             self.hover = None;
         }
@@ -1264,24 +1313,30 @@ impl Wm {
         let from = bar.usable();
         let mut commands = Vec::new();
         for i in 0..self.windows.len() {
-            if !bar.contains(self.windows[i].pos) {
-                continue;
+            if bar.contains(self.windows[i].pos) {
+                commands.extend(self.move_window(i, from, target));
             }
-            let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
-            let w = &mut self.windows[i];
-            w.restore = w.restore.map(|[x, y, rw, rh]| {
-                let [x, y] = moved([x, y], from, target);
-                [x, y, rw, rh]
-            });
-            if w.maximized() {
-                w.maximize(target);
-                commands.push(w.configure(active));
-                commands.extend(w.style(&mut self.theme, active));
-            } else {
-                w.pos = moved(w.pos, from, target);
-            }
-            commands.push(w.place());
         }
+        commands
+    }
+
+    /// Moves one window from the area of an output to that of another.
+    fn move_window(&mut self, i: usize, from: Rect, target: Rect) -> Vec<Command> {
+        let mut commands = Vec::new();
+        let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
+        let w = &mut self.windows[i];
+        w.restore = w.restore.map(|[x, y, rw, rh]| {
+            let [x, y] = moved([x, y], from, target);
+            [x, y, rw, rh]
+        });
+        if w.maximized() {
+            w.maximize(target);
+            commands.push(w.configure(active));
+            commands.extend(w.style(&mut self.theme, active));
+        } else {
+            w.pos = moved(w.pos, from, target);
+        }
+        commands.push(w.place());
         commands
     }
 
@@ -2096,6 +2151,9 @@ impl Wm {
             if !self.bars.iter().any(|b| b.contains(point)) {
                 return self.hand_over(&drag.surface, position);
             }
+            if let Some(commands) = self.drop_on_far_output(&drag, point) {
+                return commands;
+            }
         }
         if let Some(group) = self
             .panels
@@ -2135,6 +2193,19 @@ impl Wm {
             commands.extend(self.close_and_run(&action));
         }
         commands
+    }
+
+    /// Places a window whose title bar was dropped on an output that
+    /// shows no part of it, inside that output.
+    fn drop_on_far_output(&mut self, drag: &Drag, point: [i32; 2]) -> Option<Vec<Command>> {
+        let i = self.index(&drag.surface)?;
+        let area = self.bars.iter().find(|b| b.contains(point))?.usable();
+        #[allow(clippy::cast_possible_truncation)]
+        let grab = [0, 1].map(|axis| drag.start[axis].floor() as i32 - drag.origin[axis]);
+        self.windows[i].pos = dropped_on(self.windows[i].rect(), area, point, grab)?;
+        let mut commands = vec![self.windows[i].place()];
+        commands.extend(self.keep_inside(&[i], area));
+        Some(commands)
     }
 
     /// The release after a press on the desktop: icons dropped on a window
@@ -3103,9 +3174,25 @@ enum Call {
         /// The desktop, from 0 to 3.
         desktop: usize,
     },
+    /// Moves a window to another output of the plugin, like a drag of
+    /// its title bar onto it.
+    Move {
+        /// The surface.
+        surface: String,
+        /// The name of the output.
+        output: String,
+    },
     /// Hands a window to another window manager, like a drag out of the
     /// work areas.
     Give(give::Give),
+}
+
+/// Parameters of `xp.window.move`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MoveTo {
+    surface: String,
+    output: String,
 }
 
 /// Parameters of `xp.start_menu`.
@@ -3145,6 +3232,10 @@ fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
             surface: parse::<ForSurface>(params)?.surface,
         },
         "restart" => Call::Restart,
+        "window.move" => {
+            let MoveTo { surface, output } = parse(params)?;
+            Call::Move { surface, output }
+        }
         give::METHOD => Call::Give(parse(params)?),
         "turn_to" => {
             let TurnTo { desktop } = parse(params)?;
@@ -3191,6 +3282,17 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 
 /// A position in one area at the same place in another, so that at least
 /// the title bar stays inside it.
+/// The place of a frame whose title bar was dropped at a point of an
+/// output that shows no part of it, as a drag does that ends on another
+/// virtual output: under the pointer, which holds it at `grab` from its
+/// corner. `None` when the output shows a part of the frame.
+fn dropped_on(frame: Rect, area: Rect, point: [i32; 2], grab: [i32; 2]) -> Option<[i32; 2]> {
+    let apart = |axis: usize| {
+        frame[axis] + frame[axis + 2] <= area[axis] || area[axis] + area[axis + 2] <= frame[axis]
+    };
+    (apart(0) || apart(1)).then(|| [point[0] - grab[0], point[1] - grab[1]])
+}
+
 fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
     let keep = 64;
     [
@@ -3268,5 +3370,20 @@ mod tests {
         assert_eq!(moved([2020, 100], from, to), [100, 100]);
         // Beyond the new area, the title bar stays inside it.
         assert_eq!(moved([4300, 1300], from, to), [1856, 976]);
+    }
+
+    #[test]
+    fn a_frame_dropped_on_a_far_output_lands_under_the_pointer() {
+        let face = [-786_432, -262_144, 600, 350];
+        let left_behind = [-262_500, -262_100, 300, 200];
+        assert_eq!(
+            dropped_on(left_behind, face, [-786_232, -262_044], [60, 10]),
+            Some([-786_292, -262_054])
+        );
+        let straddling = [-786_500, -262_100, 300, 200];
+        assert_eq!(
+            dropped_on(straddling, face, [-786_400, -262_090], [60, 10]),
+            None
+        );
     }
 }

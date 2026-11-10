@@ -2,9 +2,9 @@
 //! window, fly out, and the pane under a point.
 
 use super::{
-    Action, ClientError, Command, Construct, Content, FLY_MS, Flown, Glide, Grab, Instant, LOOK,
-    LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value, json,
-    space, update,
+    Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, Instant,
+    LOOK, LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value,
+    json, space, update,
 };
 
 /// The surface that the camera is in or on its way into.
@@ -155,7 +155,8 @@ impl Construct {
         self.frame()
     }
 
-    /// The pane under a point of the output, the nearest one.
+    /// The pane under a point of the output, the nearest one, for the
+    /// presses that the construct grabs and the pane label.
     pub(crate) fn pane_at(&self, p: [f64; 2]) -> Option<usize> {
         self.pane_hit(p, |_| true)
     }
@@ -165,7 +166,8 @@ impl Construct {
         (self.panes.iter().enumerate())
             .filter(|(_, pane)| keep(pane))
             .filter_map(|(i, pane)| {
-                space::hit(&self.lens, &self.pose, p, pane.at, pane.size, pane.yaw).map(|t| (i, t))
+                space::hit(&self.lens, &self.pose, p, pane.at, pane.size, pane.yaw)
+                    .map(|(t, _)| (i, t))
             })
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(i, _)| i)
@@ -234,8 +236,9 @@ impl Construct {
         )
     }
 
-    /// The end of a fly-in: the window itself shows over the space,
-    /// takes the pointer and the keyboard, and the fly-out key is grabbed.
+    /// The end of a fly-in: the window leaves its pane and shows over the
+    /// space at whole pixels, takes the pointer and the keyboard, and the
+    /// fly-out key is grabbed.
     /// A window of another owner stays where its owner has it: the pane
     /// shows it at 1:1, and the owner gets the request for the keyboard
     /// (D31).
@@ -257,16 +260,9 @@ impl Construct {
         let commands = if pane.attached {
             vec![
                 self.snap_place(pane.size, &surface),
-                update(
-                    &surface,
-                    PropsUpdate {
-                        opacity: Some(1.0),
-                        ..PropsUpdate::default()
-                    },
-                ),
                 Command::Move {
                     id: surface.clone(),
-                    parent: None,
+                    parent: Some(FRONT.into()),
                     index: None,
                 },
                 update(
@@ -295,7 +291,9 @@ impl Construct {
     /// Grabs the drag with the modifier as the flavor, and the fly-out
     /// binding while the camera is in a pane. Without the grab of the
     /// drag, which another client may hold or the core refuses for Shift
-    /// (D45), the presses on the space still move panes.
+    /// (D45), a press with the modifier on the empty space or on a pane
+    /// that shows a node texture still moves a pane, and one on a window
+    /// of the construct reaches the window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {
@@ -321,7 +319,8 @@ impl Construct {
         Ok(())
     }
 
-    /// Hides the window again and gives the keys back to the walk.
+    /// Puts the window back into its pane and gives the keys back to the
+    /// walk.
     pub(crate) fn unsnap(&mut self, surface: Option<&str>, walk: bool) -> Result<(), ClientError> {
         let mut commands = vec![update(
             LOOK,
@@ -335,17 +334,24 @@ impl Construct {
                 node: Some(LOOK.into()),
             });
         }
-        if let Some(surface) = surface {
-            commands.insert(
-                0,
-                update(
-                    surface,
-                    PropsUpdate {
-                        opacity: Some(0.0),
-                        transform: Some(Transform::translate(0.0, 0.0, 0.0)),
-                        ..PropsUpdate::default()
+        let pane = surface.and_then(|s| self.panes.iter().find(|p| p.window() == Some(s)));
+        if let (Some(surface), Some(pane)) = (surface, pane) {
+            commands.splice(
+                0..0,
+                [
+                    Command::Move {
+                        id: surface.into(),
+                        parent: Some(pane.node()),
+                        index: None,
                     },
-                ),
+                    update(
+                        surface,
+                        PropsUpdate {
+                            transform: Some(Transform::translate(0.0, 0.0, 0.0)),
+                            ..PropsUpdate::default()
+                        },
+                    ),
+                ],
             );
         }
         self.rt.conn.try_apply(commands)?;

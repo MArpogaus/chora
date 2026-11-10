@@ -3,7 +3,7 @@
 
 use super::{
     ClientError, Command, Construct, Content, Hold, Instant, Kind, LAUNCHED, NAME, NO_ROOM, Pane,
-    PaneFile, PropsUpdate, WINDOWS, Waiting, configure, resized, update,
+    PaneFile, PropsUpdate, Transform, WINDOWS, Waiting, configure, update,
 };
 
 /// Whether a window with the token of the launcher is the launcher's own:
@@ -64,9 +64,9 @@ impl Construct {
     }
 
     /// A new window becomes a pane, ahead of the camera or where its file
-    /// puts it. The construct hides its own window under the space, and
-    /// the pane shows it through a node texture; a window of another owner
-    /// only shows.
+    /// puts it. The construct puts its own window into the pane, where it
+    /// takes the input through the ray of the core; the pane shows the
+    /// window of another owner through a node texture.
     #[allow(clippy::too_many_arguments, reason = "the window and how it comes")]
     pub(crate) fn adopt(
         &mut self,
@@ -99,29 +99,34 @@ impl Construct {
             taken: hold == Hold::Taken,
             attached: hold == Hold::Own,
         };
-        let mut commands = Vec::new();
+        let mut commands = self.pane_nodes(&pane);
         if pane.attached {
             let fresh = !self.hidden.contains(&surface.to_string());
             self.hidden.retain(|s| s != surface);
-            commands = vec![
-                Command::Attach {
-                    surface: surface.into(),
-                    parent: WINDOWS.into(),
+            commands.extend([
+                if fresh {
+                    Command::Attach {
+                        surface: surface.into(),
+                        parent: pane.node(),
+                    }
+                } else {
+                    Command::Move {
+                        id: surface.into(),
+                        parent: Some(pane.node()),
+                        index: None,
+                    }
                 },
                 update(
                     surface,
                     PropsUpdate {
-                        opacity: Some(0.0),
+                        opacity: Some(1.0),
+                        transform: Some(Transform::translate(0.0, 0.0, 0.0)),
                         ..PropsUpdate::default()
                     },
                 ),
                 configure(surface, size),
-            ];
-            if !fresh {
-                commands.remove(0);
-            }
+            ]);
         }
-        commands.extend(self.pane_nodes(&pane));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
             eprintln!("chora-construct: {surface}: {err}");
             return Ok(());
@@ -230,14 +235,16 @@ impl Construct {
         if self.launcher_window.as_deref() == Some(surface) {
             return self.rt.conn.apply(vec![self.snap_place(size, surface)]);
         }
-        let Some(pane) = (self.panes.iter_mut()).find(|p| p.window() == Some(surface)) else {
+        let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
+        let pane = &mut self.panes[i];
         if pane.size.iter().zip(size).all(|(a, b)| (a - b).abs() < 0.5) {
             return Ok(());
         }
         pane.size = size;
-        let mut commands = resized(pane);
+        let pane = &self.panes[i];
+        let mut commands = self.placed(pane);
         if (self.flown.as_ref()).is_some_and(|f| f.surface == surface && f.attached) {
             commands.push(self.snap_place(size, surface));
         }
@@ -259,7 +266,6 @@ impl Construct {
             return Ok(());
         };
         let pane = self.panes.remove(i);
-        self.order.retain(|n| *n != pane.node());
         self.rt.conn.apply(pane.remove().into())?;
         if let Some(flown) = self.flown.take_if(|f| f.surface == surface) {
             self.unsnap(None, walk)?;

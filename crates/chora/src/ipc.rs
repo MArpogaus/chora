@@ -1172,7 +1172,7 @@ impl State {
         self.ipc.graces.remove(name);
         self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
-        self.execute_gone(effects);
+        self.execute_gone(effects, name);
         self.ipc.uploads.drop_client(name);
     }
 
@@ -1488,7 +1488,7 @@ impl State {
             // Kept nodes stay, but a surface reserved for the name is free.
             self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
-            self.execute_gone(effects);
+            self.execute_gone(effects, &name);
         }
         self.emit(&Event::ClientDisconnected { name });
     }
@@ -1589,7 +1589,7 @@ fn layer_box(node: &Node, transform: &Transform, near: f64) -> Option<Rectangle<
     let Some(mesh) = &node.props.mesh else {
         return Some(bounding_box_from(transform, size, near));
     };
-    Some(projected_box(transform, mesh.points.iter().copied()))
+    Some(projected_box(transform, mesh.points.iter().copied(), near))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.
