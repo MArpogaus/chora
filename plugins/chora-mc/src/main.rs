@@ -2734,6 +2734,86 @@ mod tests {
         assert!(!mc.claim_due);
     }
 
+    /// With `voice_hud: host` the host draws the voice HUD and the
+    /// question: mc shows neither the state nor the sentence of the voice
+    /// agent nor its question, and still shows its helpers.
+    #[test]
+    fn voice_hud_host_draws_no_voice_status() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("host-status", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
+        mc.follow("voice.state", "voice", json!({"state": "listening"}))
+            .unwrap();
+        mc.follow(
+            "voice.say",
+            "voice",
+            json!({"text": "Hello there", "duration_ms": 0}),
+        )
+        .unwrap();
+        let ask = json!({"id": "1", "prompt": "Atlas wants to write notes.txt.",
+            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        mc.follow(
+            "voice.state",
+            "voice",
+            json!({"name": "Atlas", "state": "working"}),
+        )
+        .unwrap();
+        assert!(mc.hud.state.is_empty() && mc.hud.text.is_empty());
+        assert!(!mc.agents.iter().any(|a| a.name == "voice"));
+        assert!(mc.confirming.is_none() && mc.solo.is_none());
+        assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
+    }
+
+    /// With `voice_hud: host` mc never claims the indicator of voice.
+    #[test]
+    fn voice_hud_host_claims_no_indicator() {
+        let (mut mc, model) = crate::testing::mc("host-claim", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
+        mc.claim_indicator(false);
+        mc.follow("voice.state", "voice", serde_json::json!({}))
+            .unwrap();
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
+        assert!(
+            !model
+                .lock()
+                .unwrap()
+                .calls
+                .iter()
+                .any(|m| m == "indicator.claim")
+        );
+    }
+
+    /// `assistant.chat` of the host opens the drawer on the output of mc
+    /// and mc emits its box as `mc.chat.slot`; a close hides the drawer
+    /// again. Another output or another client changes nothing.
+    #[test]
+    fn an_open_chat_opens_the_drawer_and_emits_its_box() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("chat-drawer", [1920, 1080]);
+        let chat = |client: &str, open: bool, output: &str| chora_scene::Event::Emitted {
+            event: "assistant.chat".into(),
+            client: client.into(),
+            data: json!({"open": open, "name": "Atlas", "output": output}),
+        };
+        assert_eq!(mc.drawer_box(), None);
+        chora_kit::runtime::Plugin::event(&mut mc, chat("evil", true, "test")).unwrap();
+        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "other")).unwrap();
+        assert_eq!(mc.drawer_box(), None);
+        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "test")).unwrap();
+        let rect = mc.drawer_box().expect("the drawer shows");
+        let emits = model.lock().unwrap().emits.clone();
+        assert_eq!(
+            emits.last(),
+            Some(&json!({"event": "mc.chat.slot", "data": {"output": "test", "rect": rect}}))
+        );
+        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", false, "test")).unwrap();
+        assert_eq!(mc.drawer_box(), None);
+    }
+
     /// Only the voice agent sets the agent `voice`, by its events or by
     /// agent.set; a client named `voice.evil` or any other caller cannot.
     #[test]

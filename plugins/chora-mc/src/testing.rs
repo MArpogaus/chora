@@ -25,6 +25,10 @@ pub struct Core {
     pub focuses: Vec<Option<String>>,
     /// The methods that the plugin called through `methods.call`.
     pub calls: Vec<String>,
+    /// The parameters of each `methods.call`: client, method and params.
+    pub called: Vec<Value>,
+    /// The events that the plugin emitted through `events.emit`.
+    pub emits: Vec<Value>,
 }
 
 /// The model of each connection, in the order of the connections.
@@ -84,7 +88,13 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
         }
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
-            model.lock().unwrap().calls.push(method);
+            let mut core = model.lock().unwrap();
+            core.calls.push(method);
+            core.called.push(params.clone());
+            Ok(Value::Null)
+        }
+        "events.emit" => {
+            model.lock().unwrap().emits.push(params.clone());
             Ok(Value::Null)
         }
         "scene.query" => {

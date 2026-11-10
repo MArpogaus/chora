@@ -288,11 +288,27 @@ pub struct Write {
     pub duration_ms: f64,
 }
 
+/// Who draws the voice HUD in mc: mc itself, or the HUD host
+/// `chora-assistant` with the folder of mc.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoiceHud {
+    /// mc shows the state, the sentence and the question of the voice
+    /// agent and claims its indicator.
+    #[default]
+    Own,
+    /// The host draws them; mc shows only the helpers and claims nothing.
+    Host,
+}
+
 /// The settings of the plugin.
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub theme: Theme,
+    /// Who draws the voice HUD: `own` or `host`.
+    #[serde(default)]
+    pub voice_hud: VoiceHud,
     /// For tests only: take the keys of `input.inject` as keys of the
     /// user. Off, the bindings ignore injected keys.
     #[serde(default)]

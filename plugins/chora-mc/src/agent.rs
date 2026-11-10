@@ -722,6 +722,47 @@ mod tests {
         assert_eq!(super::agent_cell(cell, 4, 4, 4), [3, 0, 1, 2]);
     }
 
+    /// A click on the column of a helper in the agents scene asks the
+    /// host to show the chat with that helper.
+    #[test]
+    fn a_click_on_an_agent_column_shows_its_chat() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("column-chat", [1920, 1080]);
+        for name in ["Atlas", "Bert"] {
+            mc.follow(
+                "voice.state",
+                "voice",
+                json!({"name": name, "state": "working"}),
+            )
+            .unwrap();
+        }
+        mc.show(super::SCENE, false).unwrap();
+        let panel = mc.scenes[super::SCENE]
+            .panels
+            .iter()
+            .find(|p| p.id == "agent-2")
+            .cloned()
+            .unwrap();
+        let [x, y, w, h] = mc.place(super::SCENE, &panel).expect("the column of Bert");
+        let at = [x + w / 2.0, y + h / 2.0];
+        let press = chora_scene::Event::PointerPressed {
+            node: crate::wheel_id(super::SCENE),
+            button: 272,
+            position: at,
+            local: at,
+            modifiers: Vec::new(),
+            injected: false,
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, press).unwrap();
+        let called = model.lock().unwrap().called.clone();
+        assert_eq!(
+            called.last(),
+            Some(
+                &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Bert"}})
+            )
+        );
+    }
+
     /// voice.confirm shows its prompt and its whole detail alone in the
     /// drawer; the done event of its id removes it, of another id not.
     #[test]
