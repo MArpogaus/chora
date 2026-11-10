@@ -7,6 +7,12 @@
 #    second cube.open is refused.
 # 2. A probe window opens on the front face, which shows its output at
 #    1:1: a click near its corner reaches it at that point.
+# 2a. Standing back (K4, docs/cube-modes.md): view.step_back shows the
+#    cube from a step back, the front face forwards nothing and the chips
+#    TURN LEFT, TURN RIGHT and STEP IN show; a still cube draws nothing,
+#    by render.stats; Ctrl+Alt+Right and Ctrl+Alt+Left turn it; Return
+#    steps in; Alt+Escape steps back from a face, which shows the chip
+#    STEP BACK; a click on the chip STEP IN steps in.
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
 #    the window to the output of the next face.
@@ -96,6 +102,44 @@ until_ok "grep -q '^press' $work/probe.log" 20 || fail "a click on the front fac
 grep '^press' "$work/probe.log" | tail -n 1 | awk '{ dx = $2 - 3; dy = $3 - 2; exit !(dx * dx + dy * dy <= 1) }' ||
     fail "the front face is not 1:1: the click at (3, 2) of the window came at $(grep '^press' "$work/probe.log" | tail -n 1)"
 ok "a click near the corner of the xp window on the front face came at (3, 2): 1:1"
+
+width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
+drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items()))'; }
+still() {
+    local before
+    for _ in 1 2; do
+        before=$(drawn)
+        sleep 2
+        [ "$before" != "$(drawn)" ] || return 0
+    done
+    return 1
+}
+key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
+stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
+stepped_in='test "$(prop construct-cube-face-0 forward)" = True && test "$(width construct-cube-face-0)" = 1280'
+call view.step_back >/dev/null || fail "view.step_back"
+until_ok "$stood_back" 20 || fail "no step back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
+for chip in turn-left turn-right step-in; do
+    [ "$(prop "construct-mode-$chip" visible)" = True ] || fail "the chip $chip does not show in navigate mode"
+done
+[ "$(prop construct-mode-step-back visible)" != True ] || fail "the chip STEP BACK shows in navigate mode"
+ok "view.step_back: the cube stands back, the face forwards nothing, three chips show"
+sleep 2
+still || fail "a still cube draws: $(drawn)"
+ok "a still cube renders 0 passes and has no damage, by render.stats"
+key Ctrl+Alt+Right
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube"
+key Ctrl+Alt+Left
+until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "Ctrl+Alt+Left did not turn the cube back"
+ok "Ctrl+Alt+Right and Ctrl+Alt+Left turn the cube in navigate mode"
+inject '[{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}]'
+until_ok "$stepped_in" 20 || fail "Return did not step in: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
+[ "$(prop construct-mode-step-back visible)" = True ] || fail "the chip STEP BACK does not show in use mode"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back from the face"
+inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, {"click": {}}]'
+until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
+ok "Return steps in, Alt+Escape steps back, and a click on STEP IN steps in"
 
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
 sleep 1
