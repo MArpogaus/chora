@@ -696,6 +696,7 @@ mod tests {
     }
 
     mod forward;
+    mod lifetime;
 
     /// The corner of the first slot in the layout.
     const SLOT_1: i32 = -262_144;
