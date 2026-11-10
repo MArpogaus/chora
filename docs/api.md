@@ -170,8 +170,12 @@ layer in `uniform sampler2D tex` at `varying vec2 v_uv`. `v_uv` is
 the scene does; a flame that rises therefore rises toward small `v_uv.y`.
 A shader node and an effect may use
 `uniform float alpha`, `uniform vec2 size` (the texture size in pixels),
-`uniform float time` (seconds) and its own `float` and `vec2` to `vec4`
-uniforms. In a 3D context they also get `uniform float depth`, the
+`uniform float time` (seconds), `uniform float scale` (texture pixels per
+logical pixel, so that a radius in logical pixels is `radius * scale`; it
+drops below the output scale for a plane far from the eye, and the core
+sets it over a uniform of that name) and its own `float` and `vec2` to
+`vec4` uniforms. A shader that reads `time` runs in every frame; one that
+does not runs again only when its inputs change. In a 3D context they also get `uniform float depth`, the
 distance from the eye to the centre of the plane over d, 1 at 1:1, and
 `uniform float facing`, the cosine of the angle between the front of the
 plane and the way to the eye, negative from behind; a haze or an edge that

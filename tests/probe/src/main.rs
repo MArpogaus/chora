@@ -30,6 +30,10 @@
 //!   checks that the sandboxed client sees no privileged global.
 //! - `repeat-info`: prints the rate and the delay of the key repeat that
 //!   the keyboard gets.
+//! - `live FRAMES`: shows a toplevel that commits a new color on each frame
+//!   callback, FRAMES times, and prints the mean, the 99th percentile and
+//!   the largest interval of the callbacks in milliseconds; a window with
+//!   live content, for `tests/3d-bench.sh`.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
 //!   size of each configure, until it is killed. With `--exit-on-close`,
 //!   it exits with 0 when the compositor asks it to close.
@@ -60,6 +64,7 @@ use wayland_client::{
     Connection, Dispatch, EventQueue, QueueHandle, delegate_noop,
     protocol::{
         wl_buffer::{self, WlBuffer},
+        wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
         wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm,
         wl_shm_pool::WlShmPool,
@@ -139,6 +144,8 @@ struct Probe {
     repeat: Option<(i32, i32)>,
     /// Whether the compositor asked the toplevel to close.
     closed: bool,
+    /// The frame callbacks that were done.
+    frames: u64,
     /// The clock of presentation times.
     clock: Option<u32>,
     /// The answer to the request for presentation feedback.
@@ -187,6 +194,7 @@ fn main() -> ExitCode {
         "capture" => capture::capture(&mut queue, &mut probe),
         "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
         "window" => window(&mut queue, &mut probe),
+        "live" => live(&mut queue, &mut probe),
         "activated" => activated(&mut queue, &mut probe),
         "repeat-info" => repeat_info(&mut queue, &mut probe),
         "held-commit" => match size_args() {
@@ -620,6 +628,52 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     }
 }
 
+/// Shows a toplevel that commits a new color on each frame callback and
+/// reports the intervals of the callbacks.
+fn live(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let frames: usize = std::env::args()
+        .nth(2)
+        .and_then(|a| a.parse().ok())
+        .ok_or("usage: live FRAMES")?;
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    let qh = queue.handle();
+    let size = match probe.sizes.last() {
+        Some(&size) if size[0] > 0 && size[1] > 0 => size,
+        _ => [200, 200],
+    };
+    let mut times = Vec::with_capacity(frames);
+    for frame in 0..frames {
+        let seen = probe.frames;
+        surface.frame(&qh, ());
+        let shade = u8::try_from(frame % 256).unwrap_or(0);
+        paint(
+            probe,
+            &qh,
+            &surface,
+            size,
+            [shade, shade / 2, 255 - shade, 0xff],
+        )?;
+        if !dispatch_until(queue, probe, TIMEOUT, |p| p.frames > seen) {
+            return Err(format!("no frame callback after {frame} frames"));
+        }
+        times.push(monotonic());
+    }
+    let mut gaps: Vec<f64> = times
+        .windows(2)
+        .map(|pair| pair[1].saturating_sub(pair[0]).as_secs_f64() * 1000.0)
+        .collect();
+    gaps.sort_by(f64::total_cmp);
+    let mean = gaps.iter().sum::<f64>() / f64::from(u32::try_from(gaps.len().max(1)).unwrap_or(1));
+    let at = |part: usize| gaps.get(gaps.len() * part / 100).or(gaps.last());
+    let (p99, max) = (
+        at(99).copied().unwrap_or(0.0),
+        gaps.last().copied().unwrap_or(0.0),
+    );
+    Ok(format!(
+        "{frames} frames, mean {mean:.2} ms, p99 {p99:.2} ms, max {max:.2} ms"
+    ))
+}
+
 /// Attaches a gray buffer of a size and commits.
 fn show(
     probe: &Probe,
@@ -918,6 +972,21 @@ impl Dispatch<WlBuffer, ()> for Probe {
     ) {
         if let wl_buffer::Event::Release = event {
             buffer.destroy();
+        }
+    }
+}
+
+impl Dispatch<WlCallback, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &WlCallback,
+        event: wl_callback::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_callback::Event::Done { .. } = event {
+            probe.frames += 1;
         }
     }
 }
