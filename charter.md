@@ -798,6 +798,11 @@ step 4, before new work. The
   reversible and sits in commits of its own. Security policy, licensing
   and anything outward wait for the user, unless section 1 or section
   15 decides them.
+- From 11-10 16:58 each scheduled run is a fresh PM session (trigger
+  trig_01WbCwdAwHzBa5fPkqjSMvar, prompt in `routine.md`, setup in
+  `setup.sh`); the old persistent trigger is disabled. The user talks to
+  the newest session. Everything a later run needs is in the log files:
+  state.md (Running, Next step), answers.md, questions.md.
 - The user answers in the chat of the PM session or in `answers.md`; the
   PM copies chat answers into `answers.md`. Each run reads it at run
   start step 4 and pulls before it pushes.
