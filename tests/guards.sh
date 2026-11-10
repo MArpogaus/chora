@@ -247,6 +247,7 @@ kill_case "the core of the own session" pass 'core=\x24(pgrep -P "\x24session" -
 kill_case "a plugin by its name is no core" pass 'pgrep -x chora-tiling\n'
 kill_case "pkill by name" fail 'pkill -f chora-tiling\n'
 kill_case "pkill of the children of a pid" pass 'pkill -P "\x24voice" -x foot\n'
+kill_case "pkill in the own process group" pass 'pkill -g "\x24group" -f heartbeat\n'
 kill_case "killall" fail 'killall chora\n'
 kill_case "a scoped lookup does not excuse a pkill after it" fail 'pgrep -P 1 -x chora; pkill chora\n'
 
