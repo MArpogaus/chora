@@ -169,7 +169,7 @@ impl Watchdog {
     /// Counts a frame of an output that took a time, against a budget.
     /// The part of the time that the thread `waited` for a CPU does not
     /// count: a frame that is over the budget only with it is not slow,
-    /// and not calm either.
+    /// and one that waited for half its time is not calm either.
     fn note(
         &mut self,
         output: &str,
@@ -181,7 +181,7 @@ impl Watchdog {
         let run = self.outputs.entry(output.into()).or_default();
         if took.saturating_sub(waited) <= budget {
             run.since = None;
-            if took > budget {
+            if took > budget && waited >= took / 2 {
                 let pause = self.busy_noted.is_some_and(|t| now - t < BUSY_NOTE_PAUSE);
                 self.busy_noted = self.busy_noted.filter(|_| pause).or(Some(now));
                 return (!pause).then_some(Action::Busy { took, waited });
@@ -605,6 +605,13 @@ mod tests {
             waited: Duration::from_millis(50),
         };
         assert_eq!(actions, [busy.clone(), busy], "one note a minute");
+    }
+
+    #[test]
+    fn a_short_wait_is_no_busy_host() {
+        let mut watchdog = Watchdog::default();
+        let times = (Duration::from_millis(17), Duration::from_millis(2));
+        assert_eq!(watchdog.note("out", REFRESH, times, Instant::now()), None);
     }
 
     #[test]
