@@ -58,6 +58,10 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Done
 
+- 11-10 11:05: pushed 1cdb2f6: H6 context switching with review fixes,
+  3D step 5 with review fixes (order cache, 512 MiB texture cap, idle
+  frame 0.5 ms). 3D core steps 0 to 5 done three days before plan.
+
 - 11-10 10:10: pushed c5f277f (merge-gate green each time): 3D step 4
   with DnD security fixes (f5d293b chain), mc clock duration bug
   445cdfa, H5 HUD host with review fixes (too-long cards refused).
@@ -185,8 +189,8 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 ## Running
 
-- 3D step 5, plane cost (sonnet), claude/3d-step5
-- H6 context switching (sonnet), claude/hud-h6
+- H4b chat field (sonnet), claude/hud-h4b
+- 3D step 6, 2D sampling #76 (sonnet), claude/3d-step6
 
 ## Blocked
 
