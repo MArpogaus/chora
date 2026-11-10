@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use chora_kit::settings::Settings;
-use chora_scene::Binding;
+use chora_scene::{Binding, ipc::valid_name};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -283,8 +283,9 @@ pub struct Config {
     /// `{corner, offset}`. A plugin that shows the state hides it with
     /// `indicator.claim`.
     pub indicator: Indicator,
-    /// The client names that may claim the indicator and answer a
-    /// question with `confirm.answer`.
+    /// The client names of the main socket that may claim the indicator
+    /// and answer a question with `confirm.answer`: the HUDs. A name with
+    /// the grant `indicator.claim` of the core may too, for the session.
     pub indicator_clients: Vec<String>,
     /// Empty: the built-in prompt.
     pub system_prompt: String,
@@ -670,7 +671,7 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, where
 /// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 27] = [
+    const KEYS: [&str; 28] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -692,6 +693,7 @@ pub fn security_key(key: &str) -> bool {
         "prompt_file",
         "context_docs",
         "indicator",
+        "indicator_clients",
         "earcons",
         "confirm_timeout_ms",
         "ptt_key",
@@ -932,7 +934,7 @@ impl Default for Config {
             earcons: true,
             earcon_volume: 0.3,
             indicator: Indicator::On(true),
-            indicator_clients: Vec::new(),
+            indicator_clients: words(&["assistant", "construct", "mc"]),
             system_prompt: String::new(),
             context_docs: Vec::new(),
             prompt_file: "~/.config/chora/voice-prompt.md".into(),
@@ -1108,6 +1110,9 @@ impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         self.check_values()?;
         self.check_harnesses()?;
+        if let Some(name) = (self.indicator_clients.iter()).find(|n| !valid_name(n)) {
+            return Err(format!("indicator_clients: {name:?} is no client name"));
+        }
         self.check_words()
     }
 }

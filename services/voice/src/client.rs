@@ -16,7 +16,7 @@ use chora_kit::{
 };
 use chora_scene::{
     Event,
-    ipc::{ClientError, Emit, ExportMethod, PressState, RpcError},
+    ipc::{Capability, ClientError, Emit, ExportMethod, PressState, RpcError},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -172,32 +172,47 @@ fn confined_refusal(method: &str) -> RpcError {
     )
 }
 
-/// Whether `caller` may claim the indicator and answer.
+/// Whether `caller` may claim the indicator and answer (review A1): an
+/// unconfined connection of a name in `indicator_clients`, or of a name
+/// that holds the grant `indicator.claim`; `grants` answers `grants.list`
+/// of the core, asked only for a name outside the setting.
 fn may_answer(
-    _config: &Config,
-    _caller: &str,
+    config: &Config,
+    caller: &str,
     confined: bool,
-    _grants: impl FnOnce() -> Value,
+    grants: impl FnOnce() -> Value,
 ) -> bool {
-    !confined
+    let granted = |grants: Value| {
+        (grants[caller].as_array())
+            .is_some_and(|held| held.iter().any(|c| c == Capability::IndicatorClaim.name()))
+    };
+    !confined && (config.indicator_clients.iter().any(|c| c == caller) || granted(grants()))
 }
 
-/// `indicator.claim` of `caller`: a confined connection never claims, as a
-/// claim lets it answer the questions of the agent.
+/// The refusal of `indicator.claim` and `confirm.answer`.
+fn not_allowed(method: &str) -> RpcError {
+    RpcError::new(
+        RpcError::REJECTED,
+        format!(
+            "{method}: only an unconfined client of indicator_clients, or with the grant \
+             indicator.claim, that claimed the indicator"
+        ),
+    )
+}
+
+/// `indicator.claim` of `caller`: only a client that [`may_answer`]
+/// claims, as a claim lets it answer the questions of the agent.
 fn claim_indicator(claims: &mut Claims, caller: &str, allowed: bool) -> Result<Value, RpcError> {
     if !allowed {
-        return Err(RpcError::new(
-            RpcError::REJECTED,
-            "indicator.claim: not for a confined connection",
-        ));
+        return Err(not_allowed("indicator.claim"));
     }
     claims.claim(caller);
     Ok(json!({}))
 }
 
-/// `confirm.answer` of `caller`: only a client that claimed the indicator,
-/// a HUD plugin, may answer, and only the open question. A confined
-/// connection never answers.
+/// `confirm.answer` of `caller`: only a client that [`may_answer`] and
+/// claimed the indicator, a HUD plugin, answers, and only the open
+/// question.
 fn confirm_answer(
     claims: &Claims,
     tx: &Sender<Input>,
@@ -206,10 +221,7 @@ fn confirm_answer(
     params: Value,
 ) -> Result<Value, RpcError> {
     if !allowed || !claims.0.contains(caller) {
-        return Err(RpcError::new(
-            RpcError::REJECTED,
-            "confirm.answer: only an unconfined client that holds indicator.claim",
-        ));
+        return Err(not_allowed("confirm.answer"));
     }
     let ButtonParams { id, yes } = runtime::params(params)?;
     let id = (id.parse()).map_err(|_| RpcError::new(RpcError::INVALID_PARAMS, "id: a number"))?;
@@ -322,7 +334,7 @@ fn serve(
                 confined,
                 ..
             }) if method == "indicator.claim" => {
-                let allowed = may_answer(&client.settings.value, &caller, confined, || Value::Null);
+                let allowed = client.may_answer(&caller, confined);
                 let answer = claim_indicator(&mut client.claims, &caller, allowed);
                 if answer.is_ok() {
                     let _ = client.tx.send(Input::Claimed(true));
@@ -336,7 +348,7 @@ fn serve(
                 params,
                 confined,
             }) if method == "confirm.answer" => {
-                let allowed = may_answer(&client.settings.value, &caller, confined, || Value::Null);
+                let allowed = client.may_answer(&caller, confined);
                 let answer = confirm_answer(&client.claims, &client.tx, &caller, allowed, params);
                 client.rt.conn.answer(call, answer)?;
             }
@@ -608,6 +620,15 @@ impl Client {
         let gone = || RpcError::new(RpcError::REJECTED, "the core does not answer");
         self.tx.send(Input::Call(call, tx)).map_err(|_| gone())?;
         rx.recv_timeout(ANSWER).map_err(|_| gone())
+    }
+
+    /// [`may_answer`] with the settings and `grants.list` of the core; a
+    /// core that does not answer grants nothing.
+    fn may_answer(&mut self, caller: &str, confined: bool) -> bool {
+        let conn = &mut self.rt.conn;
+        may_answer(&self.settings.value, caller, confined, || {
+            (conn.call_within("grants.list", Value::Null, ANSWER)).unwrap_or_default()
+        })
     }
 
     /// Hands the settings to the core and grabs the key again.
