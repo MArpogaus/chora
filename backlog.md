@@ -7,6 +7,10 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+F3. Flake: `a_confined_client_starts_no_drag` failed once in a parallel
+   run, two tests sharing a temporary directory (11-10, grab fix). Give
+   each test its own directory; grep the testing helpers for shared paths.
+
 R2. Issue #76 part 3 (3D quad edges) is not done; step 6 covered parts 1
    and 2. `base_2d` in the 3D plan names nothing in the repo; drop it.
 
