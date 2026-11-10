@@ -421,7 +421,8 @@ the `animate` of the core moves its uniform `progress` from 0 to 1.
 When the animation ends, the plugin removes the effect, so a page that
 rests costs no shader pass. After the watchdog of the core dropped the
 effects of `chora-mc` (`effects.dropped`), new text shows at once and no
-panel blurs, until the settings change.
+panel blurs, until the settings change; that change builds the page
+anew, with the blur.
 
 The page of each scene, with its head and its panels, carries the tag
 `meta:pane=NAME`, also while the scene is hidden. Another plugin finds it

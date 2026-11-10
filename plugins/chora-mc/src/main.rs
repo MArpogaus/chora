@@ -759,10 +759,7 @@ impl Plugin for Mc {
             Event::AnimationDone {
                 node: Some(node), ..
             } => self.timer(&node),
-            Event::EffectsDropped { client } if client == NAME => {
-                self.effects_dropped();
-                Ok(())
-            }
+            Event::EffectsDropped { client } if client == NAME => self.effects_dropped(),
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
@@ -860,7 +857,7 @@ impl Plugin for Mc {
     }
 
     fn settings_changed(&mut self) -> Result<(), RpcError> {
-        self.shaders = Shaders::On;
+        let plain = std::mem::replace(&mut self.shaders, Shaders::On) == Shaders::Dropped;
         self.keep_texts();
         let contents = &self.settings.value.contents;
         (self.put).retain(|r| (r.content.as_ref()).is_some_and(|c| contents.contains_key(c)));
@@ -873,7 +870,7 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
-        let theme_only = self.built && self.shape.as_ref() == Some(&self.shape_of());
+        let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
         self.rt
             .ungrab_all()
             .and_then(|()| self.grab_all())
@@ -1216,8 +1213,10 @@ impl Mc {
         }
     }
 
-    /// The watchdog of the core removed the effects of the plugin.
-    fn effects_dropped(&mut self) {
+    /// The watchdog of the core removed the effects of the plugin. An
+    /// update that was on its way then may have put a blur or a write
+    /// effect back, so the effects of the panels go once more.
+    fn effects_dropped(&mut self) -> Result<(), ClientError> {
         if self.shaders == Shaders::On {
             eprintln!(
                 "chora-mc: frames were slow, the core dropped the effects; the panels \
@@ -1225,7 +1224,24 @@ impl Mc {
             );
         }
         self.shaders = Shaders::Dropped;
+        let mut commands = Vec::new();
+        for (name, scene) in &self.scenes {
+            for panel in &scene.panels {
+                let id = panel_id(name, &panel.id);
+                let shaded = panel.blur.is_some() || self.writing.contains_key(&id);
+                if shaded && self.place(name, panel).is_some() {
+                    commands.push(Command::Update {
+                        id,
+                        props: PropsUpdate {
+                            effects: Some(Vec::new()),
+                            ..PropsUpdate::default()
+                        },
+                    });
+                }
+            }
+        }
         self.writing.clear();
+        self.apply(commands)
     }
 
     /// The write animation of a panel ended, and with it those of the
