@@ -404,3 +404,18 @@ Exit criteria of the sprint:
 - `--check-hud` calls `Chat::contrast_errors` and the size checks.
 - The manifest has no card colours, so the 7:1 key contrast has nothing
   to test until the card style exists.
+
+## Decisions of 11-10 (PM), after H8-H10 found gaps
+
+- The host draws one row per helper with its state word.
+- `chat: {slot: <name>}`: the host places the chat in the box the claim
+  holder announces in `<wm>.chat.slot`; no box, the default place.
+- `chat: {margin: px}`, 0 to 128.
+- Panel colours `text`, `muted`, `accent`, each through the contrast
+  check of rule 5.
+- `figure: <picture in the folder>`, optional; the xp service reads
+  hud.yaml.
+- The host finds folders in its own dir, then $XDG_DATA_HOME/chora/huds
+  and $XDG_DATA_DIRS/chora/huds.
+- construct `voice_hud: own|host`; `true`/`false` stay aliases for one
+  release.
