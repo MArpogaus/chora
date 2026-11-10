@@ -2010,6 +2010,8 @@ impl Construct {
                 ClientError::Rpc(RpcError::new(RpcError::INVALID_PARAMS, format!("{b}: {e}")))
             })
         };
+        let serves = self.active && !self.overlay;
+        self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.ungrab_all()?;
         if self.active && !self.overlay {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
@@ -2017,8 +2019,6 @@ impl Construct {
                 eprintln!("chora-construct: the drag: {err}");
             }
         }
-        let serves = self.active && !self.overlay;
-        self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.grab_give_keys()?;
         if self.flown.is_some() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;

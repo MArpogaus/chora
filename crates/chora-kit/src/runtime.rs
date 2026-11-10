@@ -223,6 +223,10 @@ impl<A> Runtime<A> {
 
     fn grab_with(&mut self, binding: Binding, action: A, log: bool) -> Result<bool, ClientError> {
         let text = binding.to_string();
+        if let Some(held) = self.grabs.iter_mut().find(|(b, _)| *b == text) {
+            held.1 = action;
+            return Ok(true);
+        }
         match self.conn.call::<_, String>("input.grab", Grab { binding }) {
             Ok(normal) => {
                 self.grabs.push((normal, action));
@@ -241,14 +245,28 @@ impl<A> Runtime<A> {
         }
     }
 
-    /// Lets all grabbed bindings go.
+    /// Lets all grabbed bindings go, except the give keys while the
+    /// plugin has them (see [`Self::give_keys`]): no other client may take
+    /// them between two grabs of the plugin.
     ///
     /// # Errors
     ///
     /// The socket fails, the core refuses an ungrab, or the core named a
     /// grabbed binding that does not parse.
     pub fn ungrab_all(&mut self) -> Result<(), ClientError> {
-        for (normal, _) in std::mem::take(&mut self.grabs) {
+        let keep = |normal: &str, serves: bool| {
+            serves
+                && crate::give::KEYS
+                    .iter()
+                    .filter_map(|(key, _)| key.parse::<Binding>().ok())
+                    .any(|b| b.to_string() == normal)
+        };
+        let serves = self.give_keys.is_some();
+        let (kept, dropped): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
+            .into_iter()
+            .partition(|(normal, _)| keep(normal, serves));
+        self.grabs = kept;
+        for (normal, _) in dropped {
             let binding = normal.parse().map_err(|err| {
                 RpcError::new(RpcError::INVALID_PARAMS, format!("{normal}: {err}"))
             })?;
