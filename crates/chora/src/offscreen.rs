@@ -126,7 +126,10 @@ mod tests {
     use super::*;
     use crate::{
         backend::Backend,
-        testing::{Core, wayland::Wayland},
+        testing::{
+            Core,
+            wayland::{Toplevel, Wayland},
+        },
     };
 
     fn render_into(state: &mut State, target: &mut OutputTexture) -> Result<bool, String> {
@@ -179,16 +182,21 @@ mod tests {
         (core, output)
     }
 
+    /// An output that the backend does not know renders its scene into a
+    /// texture of the size of its mode: the left half red, the rest the
+    /// clear color.
     #[test]
-    fn render_into_draws_an_output_outside_the_backend_list() {
+    fn an_output_renders_its_scene_into_a_texture_of_its_mode_size() {
+        const IN_THE_RECT: usize = 8;
+        const RIGHT_OF_THE_RECT: usize = 56;
         let (mut core, output) = core_with_left_half_red((64, 48));
         let mut target = OutputTexture::new(output);
         assert_eq!(render_into(&mut core.state, &mut target), Ok(true));
         let texture = target.texture().expect("a texture");
         assert_eq!(texture.size(), (64, 48).into());
         let row = first_row(&mut core.state, &target);
-        assert_eq!(row[8], [255, 0, 0, 255], "the rect");
-        assert_eq!(row[56], [0, 0, 0, 255], "the clear color");
+        assert_eq!(row[IN_THE_RECT], [255, 0, 0, 255], "the rect");
+        assert_eq!(row[RIGHT_OF_THE_RECT], [0, 0, 0, 255], "the clear color");
     }
 
     #[test]
@@ -205,8 +213,8 @@ mod tests {
         assert_eq!(after.damaged_frames - before.damaged_frames, 1);
     }
 
-    #[test]
-    fn a_rendered_frame_sends_frame_callbacks() {
+    /// A core with a window on an output that the scene shows.
+    fn core_with_a_window() -> (Core, Output, Wayland, Toplevel) {
         let mut core = Core::with_renderer();
         let output = core.add_output("VIRTUAL-1", (64, 48));
         let mut wayland = Wayland::connect(&mut core);
@@ -215,6 +223,12 @@ mod tests {
         let mut wm = core.named("wm");
         let attach = json!({"commands": [{"attach": {"surface": "s1", "parent": "root"}}]});
         wm.ok(&mut core, "scene.apply", attach);
+        (core, output, wayland, window)
+    }
+
+    #[test]
+    fn a_rendered_frame_sends_frame_callbacks() {
+        let (mut core, output, mut wayland, window) = core_with_a_window();
         let mut target = OutputTexture::new(output.clone());
         for _ in 0..3 {
             wayland.frame(&mut core, &window);
@@ -224,5 +238,50 @@ mod tests {
             wayland.roundtrip(&mut core);
         }
         assert_eq!(wayland.configures(&window).frames, 3);
+    }
+
+    #[test]
+    fn a_failed_render_still_sends_frame_callbacks() {
+        let (mut core, output, mut wayland, window) = core_with_a_window();
+        wayland.frame(&mut core, &window);
+        render_and_present(&mut core.state, &output, |_| Err("no GPU".into()));
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.configures(&window).frames, 1);
+    }
+
+    #[test]
+    fn presentation_feedback_follows_damage_only() {
+        let (mut core, output, mut wayland, window) = core_with_a_window();
+        wayland.feedback(&mut core, &window);
+        render_and_present(&mut core.state, &output, |_| Ok(false));
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.presented(), 0, "no damage");
+        render_and_present(&mut core.state, &output, |_| Ok(true));
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.presented(), 1, "damage");
+    }
+
+    /// A pending lock is confirmed once every output showed a frame.
+    #[test]
+    fn a_rendered_frame_counts_as_shown_for_the_lock() {
+        let (mut core, output, mut wayland, _window) = core_with_a_window();
+        let _lock = wayland.lock(&mut core);
+        assert!(!wayland.locked(), "no frame yet");
+        render_and_present(&mut core.state, &output, |_| Ok(false));
+        wayland.roundtrip(&mut core);
+        assert!(wayland.locked());
+    }
+
+    #[test]
+    fn the_watchdog_measures_the_render() {
+        let (mut core, output, _wayland, _window) = core_with_a_window();
+        let over_budget = frame_duration(&output) * 2;
+        render_and_present(&mut core.state, &output, |_| {
+            std::thread::sleep(over_budget);
+            Ok(false)
+        });
+        assert!(core.state.watchdog.slow(&output.name()));
+        render_and_present(&mut core.state, &output, |_| Ok(false));
+        assert!(!core.state.watchdog.slow(&output.name()));
     }
 }
