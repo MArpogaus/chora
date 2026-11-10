@@ -175,8 +175,14 @@ now"); the schedule is now 05:58, 11:58 and 16:58 Bangkok.
 - keyboard focus design check, H4c (opus): done, act-stamped tokens
   accepted (design/h4c-decision.md); H4c starts on claude/hud-h4c when
   disk allows (after the merge-gate build), with the injected-press fix
-- 3D step 2, planes outside a context (sonnet; opus review before
-  merge), claude/3d-step2
+- 3D step 2 built (f897109, fb77c42; 2D guard identical; the matrix
+  cell `tiling xp voice` was a gap once, a rerun passed): opus review
+  running, merge after it
+- H4c built (bbe0319, merge-gate green, 293 core tests): opus security
+  review running, merge after it
+- Disk 7.3 GB: no new build until both reviews end; then remove the
+  targets of merged branches first. The matrix flake (backlog item 17)
+  now shows in gates: it is the first stability item.
 
 ## Blocked
 
