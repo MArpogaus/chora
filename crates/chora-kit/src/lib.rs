@@ -9,6 +9,7 @@
     reason = "a plugin logs to stderr, which the session keeps"
 )]
 pub mod ask;
+pub mod chat;
 pub mod conn;
 pub mod desktop_entry;
 pub mod give;
