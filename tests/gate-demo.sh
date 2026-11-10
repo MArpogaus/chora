@@ -43,8 +43,9 @@ width, height = image.size
 shares = []
 for third in range(3):
     part = image.crop((third * width // 3, 0, (third + 1) * width // 3, height))
-    pixels = list(part.getdata())
-    strong = sum(1 for r, g, b in pixels if max(r, g, b) - min(r, g, b) > 60)
+    data = part.tobytes()
+    pixels = [data[i : i + 3] for i in range(0, len(data), 3)]
+    strong = sum(1 for pixel in pixels if max(pixel) - min(pixel) > 60)
     shares.append(strong / len(pixels))
 print(" ".join(f"{share:.4f}" for share in shares))
 sys.exit(0 if min(shares) > 0.002 else 1)
