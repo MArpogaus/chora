@@ -4,6 +4,20 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Yes, start step 1 (effects). If things keep moving this fast, there
+  is room to push further. Wanted: deliberately over-the-top effects for
+  attention: a closing window burns down with realistic flames and
+  falling ashes; exploding windows with a visible shock wave; other
+  useless but impressive effects.
+- Marketing: design and marketing agents work hand in hand on a good
+  website and the USPs. Target the ricing nerds first, but frame chora
+  also as a universal design study for agentic computing, for many use
+  cases and target groups.
+- Packages for all major Linux distributions with Wayland, plus a
+  distrobox image for quick exploration. New use case: a windowed chora
+  with an agent as a universal 2D/3D canvas and playground. Discuss,
+  push back, judge critically.
+
 - XP split: window effects shall become general and usable by other window
   managers. Wobbly windows in 3D with the same code? Scenario: walk
   through the construct, stand in front of the cube, grab a floating
