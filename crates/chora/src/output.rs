@@ -6,7 +6,11 @@
 //! output. The default camera shows the scene area at the layout position
 //! of the output, so the layout and the scene coordinates agree.
 
-use std::{collections::HashSet, ops::RangeInclusive, time::Duration};
+use std::{
+    collections::{BTreeSet, HashSet},
+    ops::RangeInclusive,
+    time::Duration,
+};
 
 use chora_scene::{
     Event, OutputInfo, Transform,
@@ -322,9 +326,51 @@ impl State {
         }
     }
 
-    /// The output at a point of the layout, and the point in output and in
-    /// scene coordinates.
+    /// Where the pointer is for the input: the spot on the screen, or the
+    /// spot on a virtual output that a forwarding pane shows there. A
+    /// press through a pane has no spot while the pane is gone or shows
+    /// the point behind the eye: the screen spot lies far from the
+    /// virtual output.
     pub fn spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
+        let screen = self.screen_spot(layout)?;
+        let through = match &self.press_via {
+            Some(Press {
+                pane: Some(pane), ..
+            }) => return self.behind_pane(pane, &screen),
+            Some(_) => None,
+            None => self.through_pane(&screen),
+        };
+        Some(through.unwrap_or(screen))
+    }
+
+    /// Notes a button of a real device that went down; the first one
+    /// chooses the pane under the pointer, or the screen.
+    pub fn hold_press(&mut self, button: u32) {
+        if let Some(press) = &mut self.press_via {
+            press.held.insert(button);
+            return;
+        }
+        let pane = self.spot(self.pointer_layout).and_then(|spot| spot.via);
+        let held = BTreeSet::from([button]);
+        self.press_via = Some(Press { pane, held });
+    }
+
+    /// Notes a held button that went up. The last one ends the press,
+    /// before its release is told, so that the release carries the point
+    /// under the pointer. Returns whether a press through a pane ended.
+    pub fn release_press(&mut self, button: u32) -> bool {
+        let Some(press) = &mut self.press_via else {
+            return false;
+        };
+        if !press.held.remove(&button) || !press.held.is_empty() {
+            return false;
+        }
+        self.press_via.take().is_some_and(|p| p.pane.is_some())
+    }
+
+    /// The screen at a point of the layout, and the point in output and in
+    /// scene coordinates.
+    pub fn screen_spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
         let output = self
             .outputs
             .iter()
@@ -334,6 +380,7 @@ impl State {
             output: output.clone(),
             local,
             scene: to_scene(&self.camera(output), local),
+            via: None,
         })
     }
 
@@ -381,6 +428,17 @@ pub struct Spot {
     pub local: Point<f64, Logical>,
     /// The point in scene coordinates.
     pub scene: Point<f64, Logical>,
+    /// The pane that forwarded the pointer into a virtual output.
+    pub via: Option<String>,
+}
+
+/// The buttons of real devices that are down, and the pane that the
+/// first of them came through. Until the last one goes up the pointer
+/// stays where that press began: behind that pane, also outside of it,
+/// or on the screen. Injected buttons neither hold nor end a press.
+pub struct Press {
+    pub pane: Option<String>,
+    pub held: BTreeSet<u32>,
 }
 
 /// The time between two frames of the current mode.

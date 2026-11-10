@@ -48,6 +48,8 @@ const STEP_MS: f64 = 10.0;
 pub struct Wobble {
     /// The width and height of the window.
     size: [f64; 2],
+    /// The origin of the window at the last step.
+    origin: [f64; 2],
     /// The control points in scene coordinates, row by row.
     at: [[f64; 3]; COUNT],
     velocity: [[f64; 3]; COUNT],
@@ -83,6 +85,7 @@ impl Wobble {
         };
         let mut wobble = Self {
             size,
+            origin,
             at: [[0.0; 3]; COUNT],
             velocity: [[0.0; 3]; COUNT],
             lift: 0.0,
@@ -171,6 +174,7 @@ impl Wobble {
             self.at[i] = [0, 1, 2].map(|axis| rest[axis] + offsets[i][axis]);
             self.velocity[i] = velocity[i];
         }
+        self.origin = origin;
         self.moving = true;
     }
 
@@ -192,10 +196,26 @@ impl Wobble {
     /// in the `KWin` model. The rest waits for the next call. The drawn
     /// mesh moves the points on by it.
     fn step(&mut self, origin: [f64; 2], dt: f64) {
+        self.follow(origin);
         self.pending += dt.clamp(0.0, 0.1) * 1000.0;
         while self.pending >= STEP_MS {
             self.pending -= STEP_MS;
             self.integrate(origin);
+        }
+    }
+
+    /// Takes the grid along when the window jumps farther than its size
+    /// in one step, as to another output: the springs would else stretch
+    /// the mesh over the way of the jump until they catch up.
+    fn follow(&mut self, origin: [f64; 2]) {
+        let jump = [origin[0] - self.origin[0], origin[1] - self.origin[1]];
+        self.origin = origin;
+        if jump[0].abs() <= self.size[0] && jump[1].abs() <= self.size[1] {
+            return;
+        }
+        for point in &mut self.at {
+            point[0] += jump[0];
+            point[1] += jump[1];
         }
     }
 
@@ -399,6 +419,41 @@ mod tests {
         // The drawn mesh has the fine grid.
         let mesh = w.mesh([100.0, 0.0]);
         assert_eq!(mesh.points.len(), 21 * 21);
+    }
+
+    /// A window that jumps much farther than its size, as from one virtual
+    /// output to another, takes its grid along: the mesh never spans the
+    /// way of the jump.
+    #[test]
+    fn a_far_jump_takes_the_grid_along() {
+        let size = [400.0, 300.0];
+        let mut w = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
+        let far = [-524_288.0, 100.0];
+        w.step(far, 1.0 / 60.0);
+        assert!(w.bend(far) < 400.0, "the grid lags {} px", w.bend(far));
+        let mesh = w.mesh(far);
+        let widest = mesh.points.iter().map(|p| p[0].abs()).fold(0.0, f64::max);
+        assert!(widest < 2.0 * size[0], "a point at {widest} px");
+    }
+
+    /// Springs that came with a give sit at the place of the window of
+    /// the receiver, which can be far from where its grid began: the next
+    /// step is no jump.
+    #[test]
+    fn received_springs_stay_at_a_far_window() {
+        let size = [400.0, 300.0];
+        let mut giver = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
+        giver.step([60.0, 0.0], 1.0 / 60.0);
+        let springs = giver.springs([60.0, 0.0]);
+        let far = [-524_288.0, 100.0];
+        let mut taker = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
+        taker.take_springs(far, &springs);
+        taker.step(far, 1.0 / 60.0);
+        assert!(
+            taker.bend(far) < 400.0,
+            "the grid lags {} px",
+            taker.bend(far)
+        );
     }
 
     #[test]

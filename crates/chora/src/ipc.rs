@@ -1172,7 +1172,7 @@ impl State {
         self.ipc.graces.remove(name);
         self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
-        self.execute_gone(effects);
+        self.execute_gone(effects, name);
         self.ipc.uploads.drop_client(name);
     }
 
@@ -1488,7 +1488,7 @@ impl State {
             // Kept nodes stay, but a surface reserved for the name is free.
             self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
-            self.execute_gone(effects);
+            self.execute_gone(effects, &name);
         }
         self.emit(&Event::ClientDisconnected { name });
     }

@@ -172,6 +172,42 @@ output cannot turn off. Headless outputs accept every change; tests add and
 remove them with `output.add` and `output.remove`, as monitors that plug in
 and out. No backend has adaptive sync.
 
+### Virtual outputs
+
+A client of the main socket adds a **virtual output** with
+`output.add(spec, virtual: true)` on every backend (D69). To a window
+manager it is an output: it is in `output.list` with `virtual: true` and
+its `owner`, and it has a `wl_output`, a mode, a scale, a camera, a work
+area, an overlay root and layer surfaces, so a window manager runs on it
+with `--output VIRTUAL-1`. To the core it is an output that no screen
+shows and no pointer enters. It lives in a list of its own: the pointer
+layout, `wlr-output-management`, the lock and the screen copy protocols
+never see it. Its scene area lies left of and above all screens.
+
+Its frames go into a texture. A shader node of the owner reads that
+texture with the uniform `{"output": NAME}`. Before a screen renders, the
+core renders each virtual output that a visible node of its owner reads,
+with its damage, once per frame of the fastest screen. An output that
+nobody reads renders nothing, and its windows get a frame callback per
+second, as hidden windows do. With `forward: true` the node passes the
+pointer into the output (D70, see [input flow](#input-flow)): the pointer
+is where the node shows it. A press holds the pointer behind its node
+until the last button goes up.
+
+A virtual output goes when its owner removes it or ends, after the grace
+time of a `resume`, and the emergency reset removes all of them first. Its
+layer surfaces close and `output.removed` goes out. A window whose centre
+lies in the scene area of that output, as its default camera showed it,
+gets 5 s, unless it is hidden or a screen or a new virtual output shows
+it.
+Then the core takes it from a window manager that left it there: it tells
+that one with `surface.detached` and hands the window to the client that
+gave it to that window manager, else to another window manager, else it
+shows the window on the first screen. The camera of the output does not
+decide which windows these are, so no client takes the windows of
+another one with it. The core remembers the giver of a window only while
+the window manager that got it has it.
+
 ### Renderer
 
 The core uses Smithay's GLES renderer through Smithay's own renderer traits.
