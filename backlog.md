@@ -233,3 +233,15 @@ it in the CI container. Also open from grants2: a HUD name whose HUD is
 not running is free to any process; hello accepts the same executable
 (several choractl), so the name guard holds against other programs
 only.
+
+## D1 (11-10): demo media, Reddit-ready
+After K5 merges: a capture lane (light agent). `demo/record.sh` records a
+headless session at 30 fps to frames, ffmpeg to a GIF (under 10 MB,
+720p) and an MP4. Scenes as they become possible:
+1. construct walk-through in 3D (camera path);
+2. a construct pane dragged with 3D wobble;
+3. the cube with xp faces rotating (after D69 steps 4-6 and cube
+   geometry);
+4. the pull-out of a window from the cube (after E3).
+Media go to media/<date>/ on the log branch and the status page. Each
+caption names the machine (software GL in a container).

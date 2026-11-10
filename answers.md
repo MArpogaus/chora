@@ -2,6 +2,15 @@
 
 Newest first. The PM reads this file at the start of each run.
 
+
+## 11-10 17:05: demo captures
+"Have some impressive screenshots and some gifs for construct cube and 3d
+wobble demos. We might be able to reuse for reddit etc"
+Reading: E5 demo media are wanted as soon as each piece exists, not only
+at the end. Plan: a capture lane (demo/record.sh: headless frames,
+ffmpeg to GIF and MP4) after K5 merges; construct walk and 3D wobble
+first, the cube and the pull-out when D69, cube geometry and E3 land.
+
 ## 2026-11-10
 
 - 16:20 Bangkok: the 5-hour limit was hit (reset 16:20 Bangkok). Fable 16 %, all 41 %. Respect the 5-hour limit in planning.
