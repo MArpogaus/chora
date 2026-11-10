@@ -2091,8 +2091,8 @@ mod tests {
 
     /// tiling on the left half and xp on the right half, each with a
     /// claim, the button binding and `move`. tiling has the window s1 and
-    /// drags it: Super is down and the left button went down at
-    /// (100, 100), as an injected press when `injected`.
+    /// drags it: Super is down and the left button went down on the
+    /// window at (10, 10), as an injected press when `injected`.
     fn mid_drag(injected: bool) -> (Core, Wayland, Client, Client) {
         let mut core = Core::new();
         core.add_output("HDMI-1", (800, 600));
@@ -2111,7 +2111,7 @@ mod tests {
         }
         let attach = json!([{"attach": {"surface": "s1", "parent": "tiling"}}]);
         apply(&mut tiling, &mut core, &attach);
-        move_to(&mut core, 100.0, 100.0);
+        move_to(&mut core, 10.0, 10.0);
         press(&mut core, SUPER, true);
         let down = ButtonState::Pressed;
         super::press_button(&mut core.state, 272, down, InputTime::now(), injected);
@@ -2135,7 +2135,7 @@ mod tests {
         assert_eq!(pressed["binding"], "move");
         assert_eq!(pressed["state"], "pressed");
         assert_eq!(pressed["surface"], "s1");
-        assert_eq!(pressed["position"], json!([100.0, 100.0]));
+        assert_eq!(pressed["position"], json!([10.0, 10.0]));
         let grab = json!({"point": [12.0, 8.0], "velocity": [300.0, 0.0],
             "wobble": {"points": [1.5, 2.5]}});
         assert_eq!(pressed["grab"], grab);
@@ -2283,5 +2283,160 @@ mod tests {
         let released = named(&after, "pointer.released");
         assert_eq!(released.len(), 0, "{after:?}");
         assert!(core.pointer_free());
+    }
+
+    /// The answer of tiling's give with the drag, as an error message.
+    fn refused_give(core: &mut Core, tiling: &mut Client) -> String {
+        tiling.fails(core, "scene.apply", give_with_the_drag()).1
+    }
+
+    /// The owner of the window s1.
+    fn owner_of_s1(core: &Core) -> Option<String> {
+        core.state.scene.node("s1").unwrap().owner.clone()
+    }
+
+    /// Review of E3: the press that the core saw at the check must still
+    /// be the press when the transaction applies. The transaction waits
+    /// for a configure; the user lets go and presses again in between, and
+    /// the whole transaction fails: the window and the new drag stay.
+    #[test]
+    fn a_give_that_waited_fails_when_the_press_is_another_one() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        let mut give = give_with_the_drag();
+        let resize = json!({"configure": {"surface": "s1", "size": [50, 40], "states": []}});
+        give["commands"].as_array_mut().unwrap().insert(0, resize);
+        let id = tiling.send("scene.apply", give);
+        core.dispatch();
+        assert_eq!(tiling.answer(&mut core, id), None, "the transaction waits");
+        click(&mut core, false);
+        click(&mut core, true);
+        core.advance(crate::transaction::DEADLINE);
+        let answer = tiling.answer(&mut core, id).expect("the deadline passed");
+        let error = answer.expect_err("the press is another one");
+        assert!(
+            error["message"].as_str().unwrap().contains("press"),
+            "{error}"
+        );
+        assert_eq!(owner_of_s1(&core).as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        click(&mut core, false);
+        let seen = buttons(&mut tiling, &mut core);
+        assert_eq!(
+            seen.last().map(String::as_str),
+            Some("released"),
+            "{seen:?}"
+        );
+    }
+
+    /// Review of E3: a lock in the middle of the drag ends it, and with
+    /// it the give.
+    #[test]
+    fn a_give_after_a_lock_in_the_middle_of_the_drag_is_refused() {
+        let (mut core, mut wayland, mut tiling, mut xp) = mid_drag(false);
+        let _lock = wayland.lock(&mut core);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("holds no pointer grab"), "{message}");
+        assert_eq!(owner_of_s1(&core).as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+    }
+
+    /// Review of E3: any injected input ends the real press, also a move
+    /// of the pointer: an agent must not steer a drag that then changes
+    /// its window manager.
+    #[test]
+    fn a_give_after_an_injected_move_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        let mut admin = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let moved = json!({"events": [{"pointer_move": {"position": [500.0, 300.0]}}]});
+        agent.ok(&mut core, "input.inject", moved);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("real press"), "{message}");
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+    }
+
+    /// Review of E3: a real press that ended is no licence for a later
+    /// injected one of the same button.
+    #[test]
+    fn a_give_with_an_injected_press_after_a_real_one_is_refused() {
+        let (mut core, _wayland, mut tiling, _xp) = mid_drag(false);
+        click(&mut core, false);
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), true);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("real press"), "{message}");
+    }
+
+    /// Review of E3: only the drag of the window itself goes. A press
+    /// beside the window is no drag of it.
+    #[test]
+    fn a_give_of_a_window_that_the_press_did_not_hit_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        click(&mut core, false);
+        move_to(&mut core, 200.0, 200.0);
+        click(&mut core, true);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("s1"), "{message}");
+        assert_eq!(owner_of_s1(&core).as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+    }
+
+    /// Review of E3: xp holds a press on its own node while tiling holds
+    /// the grab of a button binding. xp must not give a drag then, and
+    /// the grab of tiling stays.
+    #[test]
+    fn a_give_does_not_take_the_grab_of_another_client() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        let hand = json!({"commands": [{"remove": {"id": "s1", "to": "xp"}}]});
+        tiling.ok(&mut core, "scene.apply", hand);
+        let title = json!({"create": {"id": "title", "kind": "rect", "parent": "xp",
+            "props": {"size": [100, 20], "transform": {"translate": [500, 100]}}}});
+        let take = json!({"attach": {"surface": "s1", "parent": "xp"}});
+        apply(&mut xp, &mut core, &json!([take, title]));
+        move_to(&mut core, 510.0, 110.0);
+        click(&mut core, true);
+        assert!(core.state.node_grab.is_some());
+        let other = json!({"binding": "Super+BTN_RIGHT"});
+        tiling.ok(&mut core, "input.grab", other);
+        press(&mut core, SUPER, true);
+        let right = ButtonState::Pressed;
+        super::press_button(&mut core.state, 273, right, InputTime::now(), false);
+        let held = core.state.button_grab.as_ref().map(|g| g.conn);
+        assert!(held.is_some(), "tiling holds the right button");
+        let give = json!({"commands": [
+            {"remove": {"id": "s1", "to": "tiling"}},
+            {"give_grab": {"surface": "s1", "to": "tiling", "point": [10.0, 10.0]}},
+        ]});
+        let (_, message) = xp.fails(&mut core, "scene.apply", give);
+        assert!(message.contains("another client"), "{message}");
+        assert_eq!(core.state.button_grab.as_ref().map(|g| g.conn), held);
+    }
+
+    /// Review of E3: a given grab that ends because its holder did not
+    /// get the window ends with a release for the holder.
+    #[test]
+    fn a_grab_that_ends_without_its_window_releases_for_its_holder() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        events(&mut xp, &mut core);
+        core.advance(std::time::Duration::from_secs(6));
+        move_to(&mut core, 500.0, 300.0);
+        assert_eq!(buttons(&mut xp, &mut core), ["released"]);
+        assert!(core.state.button_grab.is_none());
+    }
+
+    /// Review of E3: the state of a drag is data of another client: the
+    /// core refuses a wobble past its size limit.
+    #[test]
+    fn a_give_with_a_huge_wobble_is_refused() {
+        let (mut core, _wayland, mut tiling, _xp) = mid_drag(false);
+        let mut give = give_with_the_drag();
+        give["commands"][1]["give_grab"]["wobble"] = json!("w".repeat(70_000));
+        let (_, message) = tiling.fails(&mut core, "scene.apply", give);
+        assert!(message.contains("wobble"), "{message}");
     }
 }
