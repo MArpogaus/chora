@@ -162,3 +162,13 @@
     brief: never run checkout or switch in /home/user/chora; read with
     `git show REF:PATH` or `git diff`. The PM checks `git status -sb` of
     the main checkout before each merge.
+
+24. The switch to a fresh PM session per run was validated by Fable
+    (NO-GO, five blockers, all fixed) and then by a real dry run in a
+    fresh container: the auto-mode permission check refused `add_repo`,
+    and the dry-run session treats a peer message as no permission for
+    the clone fallback. An unattended run would block. Reverted at
+    12:50: the old persistent trigger is on, the new one is off. To
+    switch, the user must allow the clone in fresh sessions (for example
+    a permission rule for add_repo, or the repo as a source of the
+    environment).

@@ -798,7 +798,10 @@ step 4, before new work. The
   reversible and sits in commits of its own. Security policy, licensing
   and anything outward wait for the user, unless section 1 or section
   15 decides them.
-- From 11-10 16:58 each scheduled run is a fresh PM session (trigger
+- PLANNED, NOT ACTIVE (11-10 12:50: the dry run showed that a fresh
+  session cannot run add_repo or a plain clone without the user's
+  approval, so it would block; the old persistent trigger stays on).
+  Once the user allows it: each scheduled run is a fresh PM session (trigger
   trig_01WbCwdAwHzBa5fPkqjSMvar, prompt in `routine.md`, setup in
   `setup.sh`); the old persistent trigger is disabled. The user talks to
   the newest session. Everything a later run needs is in the log files:
