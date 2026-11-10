@@ -145,6 +145,16 @@ impl Watchdog {
     }
 }
 
+#[cfg(test)]
+impl Watchdog {
+    /// Whether the newest frame of an output was over its budget.
+    pub fn slow(&self, output: &str) -> bool {
+        self.outputs
+            .get(output)
+            .is_some_and(|run| run.since.is_some())
+    }
+}
+
 /// What the watchdog asks for after a frame.
 #[derive(Debug, PartialEq, Eq)]
 enum Action {

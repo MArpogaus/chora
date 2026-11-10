@@ -31,7 +31,11 @@ use wayland_client::{
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1,
     ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
-    ext_session_lock_v1::ExtSessionLockV1,
+    ext_session_lock_v1::{self, ExtSessionLockV1},
+};
+use wayland_protocols::wp::presentation_time::client::{
+    wp_presentation::WpPresentation,
+    wp_presentation_feedback::{self, WpPresentationFeedback},
 };
 use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
@@ -68,6 +72,11 @@ struct App {
     activation: Option<XdgActivationV1>,
     layer_shell: Option<ZwlrLayerShellV1>,
     lock_manager: Option<ExtSessionLockManagerV1>,
+    presentation: Option<WpPresentation>,
+    /// How many presentation feedbacks the core sent as presented.
+    presented: usize,
+    /// Whether the core confirmed a lock of the session.
+    locked: bool,
     text_manager: Option<ZwpTextInputManagerV3>,
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
@@ -616,6 +625,23 @@ impl Wayland {
         self.commit(core, toplevel);
     }
 
+    /// Asks for presentation feedback of a toplevel and commits.
+    pub fn feedback(&mut self, core: &mut Core, toplevel: &Toplevel) {
+        let presentation = self.app.presentation.as_ref().expect("wp_presentation");
+        presentation.feedback(&toplevel.surface, &self.queue.handle(), ());
+        self.commit(core, toplevel);
+    }
+
+    /// How many presentation feedbacks the core sent as presented.
+    pub fn presented(&self) -> usize {
+        self.app.presented
+    }
+
+    /// Whether the core confirmed a lock of the session.
+    pub fn locked(&self) -> bool {
+        self.app.locked
+    }
+
     /// Asks for an interactive move of a toplevel, as a title bar does.
     pub fn request_move(&mut self, core: &mut Core, toplevel: &Toplevel, serial: u32) {
         let seat = self.app.seat.as_ref().expect("wl_seat");
@@ -731,6 +757,7 @@ impl Dispatch<WlRegistry, ()> for App {
             "ext_session_lock_manager_v1" => {
                 app.lock_manager = Some(registry.bind(name, version, qh, ()));
             }
+            "wp_presentation" => app.presentation = Some(registry.bind(name, version, qh, ())),
             "zwp_text_input_manager_v3" => {
                 app.text_manager = Some(registry.bind(name, version, qh, ()));
             }
@@ -1119,4 +1146,34 @@ delegate_noop!(App: WlRegion);
 delegate_noop!(App: ZwpTextInputManagerV3);
 delegate_noop!(App: ZwlrLayerShellV1);
 delegate_noop!(App: ExtSessionLockManagerV1);
-delegate_noop!(App: ignore ExtSessionLockV1);
+delegate_noop!(App: ignore WpPresentation);
+
+impl Dispatch<ExtSessionLockV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ExtSessionLockV1,
+        event: ext_session_lock_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let ext_session_lock_v1::Event::Locked = event {
+            app.locked = true;
+        }
+    }
+}
+
+impl Dispatch<WpPresentationFeedback, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WpPresentationFeedback,
+        event: wp_presentation_feedback::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wp_presentation_feedback::Event::Presented { .. } = event {
+            app.presented += 1;
+        }
+    }
+}
