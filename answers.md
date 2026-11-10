@@ -4,6 +4,9 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Keep chat summaries to a minimum to save tokens; the user reads the
+  status page or asks.
+
 - 06:27 Bangkok: "Start at 6. Begin now." The scheduled runs moved to
   05:58, 11:58 and 16:58 Bangkok; run 1 started at once.
 - 11-09 evening: finish 3D this week, so that week 1 has more time for a

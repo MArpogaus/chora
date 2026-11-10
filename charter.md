@@ -789,6 +789,8 @@ step 4, before new work. The
 - The user answers in the chat of the PM session or in `answers.md`; the
   PM copies chat answers into `answers.md`. Each run reads it at run
   start step 4 and pulls before it pushes.
+- Chat replies are minimal (user, 11-10): one or two lines; details go
+  to the status page and the reports.
 - Each run ends with a short report in the chat: done, running, next,
   blocked, budget. All chat replies to the user are in English (asked
   on 2026-11-08), whatever language the user writes.
