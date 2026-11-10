@@ -280,7 +280,7 @@ pub(crate) fn render_all(state: &mut State) {
 
 /// Renders one output, and tells the clients, the lock and the watchdog.
 fn render_output(state: &mut State, output: &Output) {
-    let start = std::time::Instant::now();
+    let frame = crate::safety::FrameClock::start();
     match render_frame(state, output) {
         Ok(damaged) => {
             if damaged {
@@ -297,7 +297,7 @@ fn render_output(state: &mut State, output: &Output) {
         }
         Err(err) => tracing::warn!(output = output.name(), "{err}"),
     }
-    state.frame_rendered(&output.name(), frame_duration(output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(output), frame);
     render::send_frames(state, output);
 }
 

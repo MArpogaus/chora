@@ -150,9 +150,9 @@ fn redraw(state: &mut State) {
     let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
-    let start = std::time::Instant::now();
+    let frame = crate::safety::FrameClock::start();
     let rendered = render_frame(state, &output);
-    state.frame_rendered(&output.name(), frame_duration(&output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(&output), frame);
     let submitted = shown(state, &output, rendered);
     render::send_frames(state, &output);
     if submitted {

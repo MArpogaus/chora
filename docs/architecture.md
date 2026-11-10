@@ -429,7 +429,12 @@ The safety layer is the only built-in behavior (see
   also those of a client with `keep_nodes` or `resume`, without a grace
   time. When no client alone reaches the budget, the watchdog drops the
   effects of all clients and disconnects none. The watchdog never starts
-  the emergency reset; only the binding and SIGUSR1 do.
+  the emergency reset; only the binding and SIGUSR1 do. The time that
+  the main thread waited for a CPU during a frame (the run queue wait of
+  `/proc/thread-self/schedstat`) does not count: on a busy host the
+  frames are late without a costly scene, so the core logs at most once
+  a minute that the host is busy and acts on no client.
+  `tests/gate-watchdog-starved.sh` checks it beside busy loops.
 - **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
   stall of the main loop and aborts chora when the loop hangs, for
   example in a shader that never returns. The time that the watchdog
