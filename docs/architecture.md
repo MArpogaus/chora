@@ -209,10 +209,27 @@ plane share one texture. The hit test walks the same pieces from the front,
 so hit order equals draw order. There is no depth buffer.
 
 The core asks each output for a frame once per refresh. It renders only
-when the damage tracker of Smithay reports damage. A layer counts as
-changed in every frame, so a scene with a layer renders in every frame.
-There is no direct scanout. Milestone 0.10 replaces this with a renderer
-of chora that renders only on damage (D17, D24).
+when the damage tracker of Smithay reports damage. A layer keeps its
+texture and a damage tracker between frames, and draws only what changed
+since: a window that commits, a node of its subtree that changes, a new
+size or scale. The passes of its shader and effects run again only when
+the texture, a node texture, a uniform or the shader file changed, or when
+the shader reads `time`. The element of a layer counts as changed only
+then or when its shape moves, so a static scene, also one with layers and
+a 3D context, renders nothing and reports no damage. A node texture
+keeps its own tracker, is keyed by its source and draws only when the
+source changes, for all the shader nodes that read it, so a pane and its
+mirror share the texture of their window.
+
+A plane renders its texture at the output scale times a power of two,
+at most 1, that follows the size of the plane on screen: a far plane
+renders fewer pixels, and a camera walk allocates nothing until a plane
+crosses a step; a plane keeps its step until its size falls one step
+further. The order of a 3D context is computed once for as long as its
+planes keep their sizes, transforms and order, and the draw and the hit
+test share it. `RenderStats` counts renders, passes, texture allocations
+and orders for the tests. There is no direct scanout. Milestone 0.10
+replaces this with a renderer of chora (D17, D24).
 
 A text node lays out and draws inside the core. cosmic-text shapes the
 text with the system fonts and the fonts of every directory in

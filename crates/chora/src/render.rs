@@ -133,6 +133,11 @@ pub struct RenderStats {
     /// The pieces of planes that a split or the near clip of a 3D context
     /// left, drawn on their own.
     pub splits: u64,
+    /// The textures that the layers allocated on the GPU.
+    pub textures_allocated: u64,
+    /// The drawing orders of 3D contexts that the splitter computed; a
+    /// frame and a hit test of an unchanged context reuse one.
+    pub orders: std::cell::Cell<u64>,
 }
 
 impl RenderStats {
@@ -174,6 +179,9 @@ pub struct Assets {
     /// The version of the image and the ids of the cells by node.
     pub cells: HashMap<String, (Option<Id>, Vec<Id>)>,
     pub layers: Layers,
+    /// The drawing orders of the 3D contexts, which the draw and the hit
+    /// test share.
+    pub orders: space::Orders,
     /// Errors of effect shaders since the last report.
     pub effect_errors: Vec<String>,
     /// The time of each shader file that compiled in a check.
@@ -196,6 +204,12 @@ pub struct View {
     pub scale: f64,
     /// The size of the target in physical pixels.
     pub size: smithay::utils::Size<i32, smithay::utils::Physical>,
+    /// The least w of a point of a layer that shows: the GPU cuts at 0, a
+    /// 3D context cuts its planes at [`space::NEAR_W`].
+    pub near: f64,
+    /// Whether planes step the scale of their textures with their size on
+    /// screen; a capture renders them at the full scale.
+    pub stepped: bool,
 }
 
 impl View {
@@ -205,6 +219,8 @@ impl View {
             camera: state.camera(output),
             scale: output.current_scale().fractional_scale(),
             size: physical_size(output),
+            near: mesh::NEAR,
+            stepped: true,
         }
     }
 }
@@ -268,6 +284,8 @@ where
         camera: Transform::IDENTITY,
         scale: view.scale,
         size: view.size,
+        near: mesh::NEAR,
+        stepped: true,
     };
     let overlay = scene.overlay_layer_list(&output.name());
     out.extend(elements(parts, renderer, &overlay, &screen));
@@ -363,7 +381,14 @@ fn context_elements<R: MeshRenderer>(
     let list = scene.context_list(context);
     let pieces = {
         let (windows, assets) = (parts.windows, &*parts.assets);
-        space::order(context, &list, |p| flat(windows, assets, p))
+        let computed = &assets.stats.orders;
+        assets
+            .orders
+            .get(computed, context, &list, |p| flat(windows, assets, p))
+    };
+    let view = &View {
+        near: space::NEAR_W,
+        ..*view
     };
     let mut textures = HashMap::new();
     let mut out = Vec::new();
@@ -438,7 +463,7 @@ type Piece<'a> = (
     &'a space::Part,
     usize,
     [f64; 2],
-    &'a mut HashMap<String, Option<GlesTexture>>,
+    &'a mut HashMap<String, Option<(GlesTexture, u64)>>,
 );
 
 /// The element of a piece of a plane of a context: the texture of the
@@ -458,12 +483,13 @@ fn piece_element<R: MeshRenderer>(
     if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
         return None;
     }
-    let texture = if let Some(texture) = textures.get(&node.id) {
-        texture.clone()
+    let drawn = if let Some(drawn) = textures.get(&node.id) {
+        drawn.clone()
     } else {
-        let texture = node_texture(parts, renderer.gles(), &node, view.scale);
-        textures.insert(node.id.clone(), texture.clone());
-        texture
+        let scale = texture_scale(&mut parts.assets.layers, &node, &transform, view);
+        let drawn = node_texture(parts, renderer.gles(), &node, scale);
+        textures.insert(node.id.clone(), drawn.clone());
+        drawn
     }?;
     parts.assets.stats.splits += 1;
     #[allow(clippy::cast_possible_truncation)]
@@ -471,7 +497,7 @@ fn piece_element<R: MeshRenderer>(
     let element = MeshElement::piece(
         &mut parts.assets.layers,
         (&node, piece),
-        texture,
+        drawn,
         shape,
         alpha,
     );
@@ -546,27 +572,64 @@ fn layer<R: MeshRenderer>(
     let at = Placing {
         transform: &transform,
         scale: view.scale,
+        near: view.near,
     };
     // A layer outside of the output renders nothing.
     let shape = mesh::shape(node, &at)?;
     if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
         return None;
     }
-    let texture = node_texture(parts, renderer.gles(), node, view.scale)?;
+    let scale = texture_scale(&mut parts.assets.layers, node, &transform, view);
+    let drawn = node_texture(parts, renderer.gles(), node, scale)?;
     #[allow(clippy::cast_possible_truncation)]
     let alpha = placed.opacity as f32;
-    let element = MeshElement::new(&mut parts.assets.layers, node, texture, shape, alpha);
+    let element = MeshElement::new(&mut parts.assets.layers, node, drawn, shape, alpha);
     Some(SceneElement::Mesh(element))
 }
 
-/// The texture of a layer node with its passes, if the budget of the frame
-/// has room for it.
+/// The scale of the texture of a layer node, in texture pixels per logical
+/// pixel: the output scale, and for a plane without a mesh a power of two
+/// step below it that follows the size on screen, so that a far plane
+/// renders fewer pixels and a walk crosses a step rarely.
+fn texture_scale(layers: &mut Layers, node: &Node, transform: &Transform, view: &View) -> f64 {
+    let scale = view.scale;
+    if !view.stepped {
+        return scale;
+    }
+    let ratio = (!transform.is_plain() && node.props.mesh.is_none())
+        .then_some(node.props.size)
+        .flatten()
+        .and_then(|size| projected_ratio(transform, size));
+    scale * layers.step(&node.id, ratio)
+}
+
+/// The most that a plane on screen is larger than its size: the longest
+/// edge of its projection over the edge of its size. `None` when a corner
+/// lies behind the eye.
+fn projected_ratio(transform: &Transform, [width, height]: [f64; 2]) -> Option<f64> {
+    let at = |across, down| project_point(transform, across, down);
+    let corners = [
+        at(0.0, 0.0)?,
+        at(width, 0.0)?,
+        at(width, height)?,
+        at(0.0, height)?,
+    ];
+    let edge = |from: usize, to: usize| {
+        let (p, q) = (corners[from], corners[to]);
+        (p.0 - q.0).hypot(p.1 - q.1)
+    };
+    let ratio = (edge(0, 1).max(edge(3, 2)) / width).max(edge(0, 3).max(edge(1, 2)) / height);
+    ratio.is_finite().then_some(ratio)
+}
+
+/// The texture of a layer node with its passes and its version, if the
+/// budget of the frame has room for it.
 fn node_texture(
     parts: &mut Parts<'_>,
     gles: &mut GlesRenderer,
     node: &Node,
     scale: f64,
-) -> Option<GlesTexture> {
+) -> Option<(GlesTexture, u64)> {
     let size = mesh::texture_size(node, scale)?;
     let textures = 1 + mesh::passes(node, scale).len().min(2);
     if !parts.assets.layers.spend(&node.id, size, textures) {
@@ -576,33 +639,38 @@ fn node_texture(
 }
 
 /// Renders a layer node with its descendants into its texture, and applies
-/// its effects.
+/// its effects. The texture keeps its content, so that only what changed
+/// since the last frame draws; the version counts the changes.
 fn layer_texture(
     parts: &mut Parts<'_>,
     gles: &mut GlesRenderer,
     node: &chora_scene::Node,
     size: smithay::utils::Size<i32, smithay::utils::Buffer>,
     scale: f64,
-) -> Option<GlesTexture> {
+) -> Option<(GlesTexture, u64)> {
     let inner = View {
         camera: Transform::IDENTITY,
         scale,
         size: (size.w, size.h).into(),
+        near: mesh::NEAR,
+        stepped: true,
     };
     let content = flat_elements(parts, gles, &node.id, &inner)?;
-    let mut texture = parts.assets.layers.texture(gles, &node.id, 0, size).ok()?;
-    if let Err(err) = mesh::render_into(gles, &mut texture, scale, &content) {
-        tracing::warn!(%err, "a layer failed");
-        return None;
-    }
-    parts.assets.stats.textures_rendered += 1;
-    // Texture pixels per logical pixel, also when the texture hit its
-    // largest size.
+    let assets = &mut *parts.assets;
+    let drawn = assets.layers.draw(
+        (gles, &mut assets.stats),
+        (&node.id, 0),
+        (size, scale),
+        &content,
+    );
+    let drawn = drawn
+        .inspect_err(|err| tracing::warn!(%err, "a layer failed"))
+        .ok()?;
     let pixels = node
         .props
         .size
         .map_or(scale, |[w, _]| f64::from(size.w) / w.max(f64::MIN_POSITIVE));
-    let textures = node_textures(parts, gles, node, pixels);
+    let sources = node_textures(parts, gles, node, pixels);
     let assets = &mut *parts.assets;
     Some(mesh::apply_passes(
         gles,
@@ -612,26 +680,26 @@ fn layer_texture(
             &mut assets.stats,
         ),
         node,
-        texture,
-        (pixels, &textures),
+        drawn,
+        (pixels, &sources),
     ))
 }
 
 /// The node textures of a shader node by the names of their uniforms: each
-/// node that a uniform names, rendered on its own at its size. Inside a node
-/// texture, shader nodes get none, so that shader nodes that read each
-/// other do not recurse.
+/// node that a uniform names, rendered on its own at its size, once for
+/// all the nodes that read it. Inside a node texture, shader nodes get
+/// none, so that shader nodes that read each other do not recurse.
 fn node_textures(
     parts: &mut Parts<'_>,
     gles: &mut GlesRenderer,
     node: &chora_scene::Node,
     scale: f64,
-) -> Vec<(String, GlesTexture)> {
-    if node.kind != NodeKind::Shader || parts.depth > 0 {
-        return Vec::new();
-    }
+) -> Vec<mesh::Source> {
     let mut out = Vec::new();
-    for (slot, (name, uniform)) in (3..).zip(&node.props.uniforms) {
+    if node.kind != NodeKind::Shader || parts.depth > 0 {
+        return out;
+    }
+    for (name, uniform) in &node.props.uniforms {
         let chora_scene::Uniform::Texture(source) = uniform else {
             continue;
         };
@@ -646,17 +714,22 @@ fn node_textures(
             camera: Transform::IDENTITY,
             scale,
             size: (size.w, size.h).into(),
+            near: mesh::NEAR,
+            stepped: true,
         };
         parts.depth += 1;
         let content = flat_elements(parts, gles, &source.node, &view);
         parts.depth -= 1;
         let Some(content) = content else { continue };
-        let Ok(mut texture) = parts.assets.layers.texture(gles, &node.id, slot, size) else {
-            continue;
-        };
-        if mesh::render_into(gles, &mut texture, scale, &content).is_ok() {
-            parts.assets.stats.textures_rendered += 1;
-            out.push((name.clone(), texture));
+        let assets = &mut *parts.assets;
+        let drawn = assets.layers.draw(
+            (gles, &mut assets.stats),
+            (&source.node, mesh::SOURCE_SLOT),
+            (size, scale),
+            &content,
+        );
+        if let Ok((texture, version)) = drawn {
+            out.push((name.clone(), texture, version));
         }
     }
     out
@@ -805,6 +878,7 @@ fn prune_assets(parts: &mut Parts<'_>) {
     assets.cells.retain(|id, _| kind_is(id, NodeKind::Image));
     assets.texts.retain(|id| kind_is(id, NodeKind::Text));
     assets.layers.retain(|id| scene.node(id).is_some());
+    assets.orders.retain(|id| scene.node(id).is_some());
 }
 
 fn rect<R>(
@@ -1058,6 +1132,17 @@ fn hit<'a>(
     input: InputMode,
     pos: Point<f64, Logical>,
 ) -> Option<Found<'a>> {
+    hit_cut(state, placed, input, (pos, mesh::NEAR))
+}
+
+/// As [`hit`], for a node that its list cuts at `near`: a 3D context
+/// cuts at [`space::NEAR_W`].
+fn hit_cut<'a>(
+    state: &'a State,
+    placed: &Placed<'a>,
+    input: InputMode,
+    (pos, near): (Point<f64, Logical>, f64),
+) -> Option<Found<'a>> {
     if !placed
         .clips
         .iter()
@@ -1069,7 +1154,7 @@ fn hit<'a>(
         return context_hit(state, placed, input, pos);
     }
     let Some((offset, (sx, sy))) = location_and_scale(&placed.transform) else {
-        return plane_hit(state, placed, input, pos);
+        return plane_hit(state, placed, input, (pos, near));
     };
     let local = Point::<f64, Logical>::from(((pos.x - offset.x) / sx, (pos.y - offset.y) / sy));
     let hit = match placed.node.kind {
@@ -1113,7 +1198,11 @@ fn context_hit<'a>(
     pos: Point<f64, Logical>,
 ) -> Option<Found<'a>> {
     let list = state.scene.context_list(context);
-    let pieces = space::order(context, &list, |p| flat(&state.windows, &state.assets, p));
+    let (windows, assets) = (&state.windows, &state.assets);
+    let computed = &assets.stats.orders;
+    let pieces = assets
+        .orders
+        .get(computed, context, &list, |p| flat(windows, assets, p));
     pieces.iter().rev().find_map(|piece| {
         let entry = &list[piece.plane];
         let input = if outer == InputMode::Accept {
@@ -1154,7 +1243,7 @@ fn entry_hit<'a>(
     pos: Point<f64, Logical>,
 ) -> Option<Found<'a>> {
     if !(entry.node.is_layer() && entry.transform.is_plain()) || entry.node.is_context() {
-        return hit(state, entry, input, pos);
+        return hit_cut(state, entry, input, (pos, space::NEAR_W));
     }
     if !entry
         .clips
@@ -1202,7 +1291,7 @@ fn plane_hit<'a>(
     state: &'a State,
     placed: &Placed<'a>,
     input: InputMode,
-    pos: Point<f64, Logical>,
+    (pos, near): (Point<f64, Logical>, f64),
 ) -> Option<Found<'a>> {
     let node = placed.node;
     let take = |hit, local| Found {
@@ -1214,7 +1303,7 @@ fn plane_hit<'a>(
     };
     if node.props.mesh.is_some() {
         let local = plane_point(&placed.transform, pos).unwrap_or(pos);
-        return layer_hit(placed, pos).map(|hit| take(hit, local));
+        return layer_hit(placed, near, pos).map(|hit| take(hit, local));
     }
     let [w, h] = content_size(&state.windows, &state.assets, node)?;
     let local = plane_point(&placed.transform, pos)?;
@@ -1342,19 +1431,20 @@ fn inside(transform: &Transform, [w, h]: [f64; 2], pos: Point<f64, Logical>) -> 
 }
 
 /// What a point hits of a node with a mesh under a transform that is not
-/// a plain 2D one: the bounding box of the shape takes the input, so that
-/// it does not fall through to the nodes behind.
-fn layer_hit(placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
+/// a plain 2D one: the triangles of its shape take the input where they
+/// draw, cut at `near` as the draw cuts them.
+fn layer_hit(placed: &Placed<'_>, near: f64, pos: Point<f64, Logical>) -> Option<Hit> {
     if !placed.node.is_layer() {
         return None;
     }
     let at = Placing {
         transform: &placed.transform,
         scale: 1.0,
+        near,
     };
-    let bounds = mesh::shape(placed.node, &at)?.bounds;
-    let pos = pos.to_physical(1.0).to_i32_round();
-    bounds.contains(pos).then_some(Hit::Area)
+    mesh::shape(placed.node, &at)?
+        .covers([pos.x, pos.y])
+        .then_some(Hit::Area)
 }
 
 /// The size of a rect or an image node; an image without a size has the
@@ -1543,6 +1633,8 @@ pub(crate) fn projected_box(
 
 #[cfg(test)]
 mod context;
+#[cfg(test)]
+mod cost;
 #[cfg(test)]
 mod hit_guard;
 #[cfg(test)]

@@ -10,6 +10,12 @@
 //! hit test walks the same pieces from the front, so that input reaches
 //! the nearest plane that shows at a point.
 
+use std::{
+    cell::Cell,
+    collections::HashMap,
+    sync::{Arc, Mutex, PoisonError},
+};
+
 use chora_scene::{Placed, Transform};
 use euclid::default::{Point3D, Vector3D};
 use plane_split::{BspSplitter, Clipper, Plane, Polygon};
@@ -52,18 +58,96 @@ pub struct Part {
     pub shown: [[f64; 2]; 4],
 }
 
+/// The placements of a context that [`Orders`] keeps: a context that is
+/// also a layer is drawn in its own coordinates and hit in the scene's.
+const PLACEMENTS: usize = 2;
+
+/// An order that [`Orders`] keeps, with the fingerprint of what it was made
+/// from.
+type Kept = (Vec<u64>, Arc<Vec<Piece>>);
+
+/// The orders of the contexts of a scene, kept between frames: the draw
+/// and the hit test of a context share one order for as long as its planes
+/// keep their sizes, their transforms and their order in the list.
+#[derive(Default)]
+pub struct Orders {
+    kept: Mutex<HashMap<String, Vec<Kept>>>,
+}
+
+impl Orders {
+    /// The order of a context as [`order`] gives it, from the last call
+    /// when the context looks the same. `computed` counts the calls that
+    /// ran the splitter.
+    pub fn get(
+        &self,
+        computed: &Cell<u64>,
+        context: &Placed<'_>,
+        list: &[Placed<'_>],
+        flat: impl Fn(&Placed<'_>) -> Option<Flat>,
+    ) -> Arc<Vec<Piece>> {
+        let flats: Vec<Option<Flat>> = list.iter().map(flat).collect();
+        let key = fingerprint(context, list, &flats);
+        let mut kept = self.kept.lock().unwrap_or_else(PoisonError::into_inner);
+        let entries = kept.entry(context.node.id.clone()).or_default();
+        if let Some((_, pieces)) = entries.iter().find(|(same, _)| *same == key) {
+            return Arc::clone(pieces);
+        }
+        computed.set(computed.get() + 1);
+        let pieces = Arc::new(order_flats(context, list, flats));
+        if entries.len() >= PLACEMENTS {
+            entries.remove(0);
+        }
+        entries.push((key, Arc::clone(&pieces)));
+        pieces
+    }
+
+    /// Forgets the contexts that `keep` refuses.
+    pub fn retain(&self, mut keep: impl FnMut(&str) -> bool) {
+        let mut kept = self.kept.lock().unwrap_or_else(PoisonError::into_inner);
+        kept.retain(|id, _| keep(id));
+    }
+}
+
+/// What [`order`] reads of a context: its place and eye, and of each entry
+/// its content size, whether it is a unit, and its transform.
+fn fingerprint(context: &Placed<'_>, list: &[Placed<'_>], flats: &[Option<Flat>]) -> Vec<u64> {
+    let props = &context.node.props;
+    let mut key = vec![props.perspective.map_or(0, f64::to_bits)];
+    let [w, h] = props.size.unwrap_or_default();
+    key.extend([w.to_bits(), h.to_bits()]);
+    key.extend(context.transform.matrix().iter().map(|v| v.to_bits()));
+    for (placed, flat) in list.iter().zip(flats) {
+        match flat {
+            Some(flat) => {
+                key.extend([
+                    flat.size[0].to_bits(),
+                    flat.size[1].to_bits(),
+                    flat.unit.into(),
+                ]);
+                key.extend(placed.transform.matrix().iter().map(|v| v.to_bits()));
+            }
+            None => key.push(u64::MAX),
+        }
+    }
+    key
+}
+
 /// The planes of a context in pieces from back to front. `context` is the
 /// context as its list places it, `list` its [`chora_scene::Scene::context_list`],
 /// and `flat` tells what each entry of the list needs; an entry without it
 /// draws nothing. A plane that is no polygon in the space of the eye, as
 /// under a matrix of its own with a w part, draws whole behind the others.
+#[cfg(test)]
 pub fn order(
     context: &Placed<'_>,
     list: &[Placed<'_>],
     flat: impl Fn(&Placed<'_>) -> Option<Flat>,
 ) -> Vec<Piece> {
+    order_flats(context, list, list.iter().map(flat).collect())
+}
+
+fn order_flats(context: &Placed<'_>, list: &[Placed<'_>], flats: Vec<Option<Flat>>) -> Vec<Piece> {
     let whole = |plane| Piece { plane, part: None };
-    let flats: Vec<Option<Flat>> = list.iter().map(flat).collect();
     let Some(Eye {
         frame,
         unproject,
@@ -184,7 +268,7 @@ pub fn view(context: &Placed<'_>, placed: &Placed<'_>, [w, h]: [f64; 2]) -> Opti
 }
 
 /// Whether a point lies in a convex polygon of either winding.
-pub fn contains(corners: &[[f64; 2]; 4], [x, y]: [f64; 2]) -> bool {
+pub fn contains(corners: &[[f64; 2]], [x, y]: [f64; 2]) -> bool {
     let finite = [x, y]
         .iter()
         .chain(corners.iter().flatten())

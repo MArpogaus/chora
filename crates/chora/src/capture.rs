@@ -197,6 +197,8 @@ impl State {
                 camera: Transform::translate(-x, -y, 0.0),
                 scale,
                 size: pixel_size(w * scale, h * scale),
+                near: crate::mesh::NEAR,
+                stepped: false,
             };
             return Ok(Shot {
                 view,
@@ -213,6 +215,7 @@ impl State {
         let mut view = View::of(self, &output);
         let factor = shrink(f64::from(view.size.w), f64::from(view.size.h));
         view.scale *= factor;
+        view.stepped = false;
         view.size = pixel_size(
             f64::from(view.size.w) * factor,
             f64::from(view.size.h) * factor,
