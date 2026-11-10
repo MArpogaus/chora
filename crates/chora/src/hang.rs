@@ -254,6 +254,23 @@ mod tests {
         );
     }
 
+    /// On a starved host every look of the watchdog can come late, and
+    /// then almost no time counts as a stall. A main loop that did not
+    /// beat for four times the abort time in wall time hangs all the
+    /// same: the watchdog aborts.
+    #[test]
+    fn a_hang_aborts_after_a_ceiling_of_wall_time_when_every_look_is_late() {
+        let start = Instant::now();
+        let mut watch = Watch::new(Some(10 * S), start);
+        let seen: Vec<Hang> = (1..=6)
+            .filter_map(|look| watch.check(0, start + look * 10 * S))
+            .collect();
+        assert!(
+            matches!(seen.last(), Some(Hang::Abort(wall)) if *wall >= 40 * S),
+            "{seen:?}"
+        );
+    }
+
     /// The stall line does not wait for the stdout lock of tracing, which
     /// a main loop that hangs inside a log write holds.
     #[test]

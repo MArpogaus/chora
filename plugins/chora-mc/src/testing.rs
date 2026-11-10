@@ -82,6 +82,7 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
                 )),
             }
         }
+        "input.grab" => Ok(params["binding"].clone()),
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             model.lock().unwrap().calls.push(method);

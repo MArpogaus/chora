@@ -163,8 +163,6 @@ pub fn install() {
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Read as _, os::fd::AsRawFd as _};
-
     use super::*;
 
     #[test]
@@ -184,21 +182,60 @@ mod tests {
         );
     }
 
-    /// The hook runs in a thread that is not the main thread.
+    /// Runs one test of this binary again in a child with a variable
+    /// set, so that a fault or a hook of the whole process stays apart
+    /// from the other tests; returns how the child ended and its stderr.
+    fn again(test: &str, var: &str) -> (std::process::ExitStatus, String) {
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", test, "--nocapture", "--test-threads=1"])
+            .env(var, "1")
+            .output()
+            .unwrap();
+        (
+            child.status,
+            String::from_utf8_lossy(&child.stderr).into_owned(),
+        )
+    }
+
+    #[allow(unconditional_recursion, reason = "the test overflows the stack")]
+    fn overflow(depth: u64) -> u64 {
+        let frame = std::hint::black_box([depth; 64]);
+        overflow(depth + 1) + frame[0]
+    }
+
+    /// A stack overflow faults with no room on the stack of its thread:
+    /// the handler runs on the alternate stack that Rust gives each
+    /// thread, and the signal still ends the process.
+    #[test]
+    fn a_stack_overflow_leaves_its_words() {
+        use std::os::unix::process::ExitStatusExt as _;
+        const CHILD: &str = "CHORA_WORDS_OVERFLOW";
+        if std::env::var_os(CHILD).is_some() {
+            install();
+            overflow(0);
+        }
+        let (status, words) = again("words::tests::a_stack_overflow_leaves_its_words", CHILD);
+        assert!(words.contains("chora: SIGSEGV at address"), "{words}");
+        assert_eq!(status.signal(), Some(libc::SIGSEGV), "{words}");
+    }
+
+    /// The hook runs in a thread that is not the main thread, here in a
+    /// child, because the hook belongs to the whole process.
     #[test]
     fn a_panic_in_a_worker_thread_leaves_its_words() {
-        let (mut reader, writer) = std::io::pipe().unwrap();
-        let before = std::panic::take_hook();
-        panics_to(writer.as_raw_fd());
-        let worker = std::thread::Builder::new()
-            .name("chora-worker".into())
-            .spawn(|| panic!("the worker gives up"))
-            .unwrap();
-        assert!(worker.join().is_err());
-        std::panic::set_hook(before);
-        drop(writer);
-        let mut words = String::new();
-        reader.read_to_string(&mut words).unwrap();
+        const CHILD: &str = "CHORA_WORDS_PANIC";
+        if std::env::var_os(CHILD).is_some() {
+            panics_to(2);
+            let worker = std::thread::Builder::new()
+                .name("chora-worker".into())
+                .spawn(|| panic!("the worker gives up"))
+                .unwrap();
+            assert!(worker.join().is_err());
+            return;
+        }
+        let test = "words::tests::a_panic_in_a_worker_thread_leaves_its_words";
+        let (status, words) = again(test, CHILD);
+        assert!(status.success(), "{words}");
         assert!(
             words.contains("chora: the thread chora-worker panicked at"),
             "{words}"

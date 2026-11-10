@@ -2966,12 +2966,30 @@ mod tests {
             client: "other".into(),
         })
         .unwrap();
-        let grabs_on_the_fake_core = mc.settings_changed();
-        assert!(
-            grabs_on_the_fake_core.is_err(),
-            "the fake core grabs no key"
-        );
+        mc.settings_changed().unwrap();
         mc.show("morning", true).unwrap();
         assert_eq!(panel_effects(&mc, &model, "morning"), 1, "it writes again");
+    }
+
+    /// An end of a write animation that mc answers before it hears of
+    /// the drop puts the blur back after the core removed it. The drop
+    /// clears the effects of the panels once more, and the change of the
+    /// settings that allows shaders again brings the blur back, also
+    /// when only the theme changed.
+    #[test]
+    fn a_drop_clears_the_blur_and_the_settings_bring_it_back() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("blur", [1920, 1080]);
+        mc.blur = "/blur.frag".into();
+        mc.scenes.get_mut("agenda").unwrap().panels[0].blur = Some(4.0);
+        mc.build().unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs");
+        mc.event(chora_scene::Event::EffectsDropped {
+            client: super::NAME.into(),
+        })
+        .unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 0, "the drop");
+        mc.settings_changed().unwrap();
+        assert_eq!(panel_effects(&mc, &model, "agenda"), 1, "it blurs again");
     }
 }

@@ -27,7 +27,7 @@ print(json.dumps([{"id": "p%d" % i, "cell": [i % 20, i // 20, 1, 1],
 starve() {
     local end=$((SECONDS + seconds))
     for _ in $(seq $(($(nproc) * 4))); do
-        # shellcheck disable=SC2016 # the shell of the busy loop expands them
+        # shellcheck disable=SC2016
         setsid bash -c 'while [ "$SECONDS" -lt "$0" ]; do :; done' "$seconds" &
     done
     while [ "$SECONDS" -lt "$end" ]; do
@@ -49,6 +49,7 @@ run() {
         fail "chora-mc saves no scene of 300 panels"
     mc scene.save '{"name": "day", "grid": [1, 1], "panels": [
         {"id": "a", "cell": [0, 0, 1, 1], "title": "A", "lines": ["one"]}]}'
+    mc scene.show '{"name": "many"}' || fail "chora-mc shows no scene of 300 panels"
     starve
     kill "${pids[0]}" 2>/dev/null
     wait "${pids[0]}" 2>/dev/null
