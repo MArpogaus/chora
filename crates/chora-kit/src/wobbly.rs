@@ -291,6 +291,21 @@ mod tests {
         assert_eq!(mesh.points.len(), 21 * 21);
     }
 
+    /// A window that jumps much farther than its size, as from one virtual
+    /// output to another, takes its grid along: the mesh never spans the
+    /// way of the jump.
+    #[test]
+    fn a_far_jump_takes_the_grid_along() {
+        let size = [400.0, 300.0];
+        let mut w = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
+        let far = [-524_288.0, 100.0];
+        w.step(far, 1.0 / 60.0);
+        assert!(w.bend(far) < 400.0, "the grid lags {} px", w.bend(far));
+        let mesh = w.mesh(far);
+        let widest = mesh.points.iter().map(|p| p[0].abs()).fold(0.0, f64::max);
+        assert!(widest < 2.0 * size[0], "a point at {widest} px");
+    }
+
     #[test]
     fn the_grid_settles_where_the_window_is() {
         let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], [200.0, 10.0]);

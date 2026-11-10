@@ -14,7 +14,12 @@ a point of the output at (x, y) is on the screen at (X + x, Y + y).
 It prints one line per pane, `NAME X Y W H`, then `ready`. Each SIGUSR1
 removes the last pane with its output and prints `removed NAME`.
 
+With `--grab BINDING` it only grabs a key binding as the client
+`pane-probe` and exits: 0 when the core gives it, so no other client holds
+the binding.
+
 Usage: pane-host.py SCREEN PANE...   (CHORA_SOCKET, XDG_RUNTIME_DIR)
+       pane-host.py --grab BINDING
 """
 
 import json
@@ -77,6 +82,9 @@ def pane(core, screen, shader, spec):
 
 def main():
     """Add the outputs, show the panes and serve the signals."""
+    if sys.argv[1] == "--grab":
+        Core(os.environ["CHORA_SOCKET"], "pane-probe").call("input.grab", {"binding": sys.argv[2]})
+        return
     screen, specs = sys.argv[1], sys.argv[2:]
     core = Core(os.environ["CHORA_SOCKET"], "pane-host")
     shader = os.path.join(os.environ["XDG_RUNTIME_DIR"], "pane-host.frag")

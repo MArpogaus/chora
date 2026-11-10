@@ -132,6 +132,68 @@ fn a_camera_on_the_window_of_another_manager_takes_nothing() {
     assert_eq!(owner(&session.core).as_deref(), Some("desk"));
 }
 
+/// A second window of desk at a place, attached under its group.
+fn second_window(session: &mut Session, at: [i32; 2]) {
+    let second = session.wayland.toplevel(&mut session.core, "second");
+    session.wayland.attach(&mut session.core, &second, (20, 20));
+    let place = json!([
+        {"attach": {"surface": "s2", "parent": "desk"}},
+        {"update": {"id": "s2", "props": {"transform": {"translate": at}}}},
+    ]);
+    let desk = session.desk.as_mut().expect("desk");
+    apply(desk, &mut session.core, &place);
+}
+
+fn owner_of_the_second(session: &Session) -> Option<String> {
+    session
+        .core
+        .state
+        .scene
+        .node("s2")
+        .expect("s2")
+        .owner
+        .clone()
+}
+
+/// A window that only touches the slot with an edge lies beside it.
+#[test]
+fn a_window_with_its_centre_outside_the_slot_is_not_stranded() {
+    let mut session = session();
+    second_window(&mut session, [SLOT_1 - 15, SLOT_1]);
+    session.remove_the_output();
+    session.core.advance(RESERVATION * 2);
+    assert_eq!(owner_of_the_second(&session).as_deref(), Some("desk"));
+}
+
+/// A screen whose camera looks at the slot shows the window: it is not
+/// stranded.
+#[test]
+fn a_window_that_a_screen_shows_is_not_taken() {
+    let mut session = session();
+    second_window(&mut session, [SLOT_1 + 4, SLOT_1 + 4]);
+    let look = json!([{"camera": {"output": "screen",
+        "transform": {"translate": [-SLOT_1, -SLOT_1]}}}]);
+    let desk = session.desk.as_mut().expect("desk");
+    apply(desk, &mut session.core, &look);
+    session.remove_the_output();
+    session.core.advance(RESERVATION * 2);
+    assert_eq!(owner_of_the_second(&session).as_deref(), Some("desk"));
+}
+
+/// A new virtual output in the slot keeps only the windows that it
+/// shows: one beside it is still stranded.
+#[test]
+fn a_new_output_that_does_not_show_the_window_does_not_keep_it() {
+    let mut session = session();
+    second_window(&mut session, [SLOT_1 + 10, SLOT_1 + 10]);
+    session.remove_the_output();
+    let small = json!({"spec": "8x8", "virtual": true});
+    let construct = session.construct.as_mut().expect("the construct");
+    construct.ok(&mut session.core, "output.add", small);
+    session.core.advance(RESERVATION * 2);
+    assert_eq!(owner_of_the_second(&session), None, "the core took it");
+}
+
 #[test]
 fn the_owner_hears_that_the_core_took_its_stranded_window() {
     let mut session = session();

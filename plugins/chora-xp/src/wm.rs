@@ -1080,8 +1080,7 @@ impl Wm {
     /// The work area for a new window: on the output that the pointer
     /// entered last, else on the first one.
     fn home(&self) -> Rect {
-        let entered = |b: &&Bar| Some(&b.output) == self.pointer_output.as_ref();
-        let bar = self.bars.iter().find(entered).or(self.bars.first());
+        let bar = home_bar(&self.bars, self.pointer_output.as_deref());
         bar.map_or([0, 0, 1280, 770], Bar::usable)
     }
 
@@ -3262,6 +3261,14 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 
 /// A position in one area at the same place in another, so that at least
 /// the title bar stays inside it.
+/// The taskbar of the output for a new window: the virtual output that
+/// the pointer entered last, else the first output. Screens keep the
+/// first one, as before virtual outputs.
+fn home_bar<'a>(bars: &'a [Bar], entered: Option<&str>) -> Option<&'a Bar> {
+    let under_the_pointer = |b: &&Bar| Some(b.output.as_str()) == entered;
+    bars.iter().find(under_the_pointer).or(bars.first())
+}
+
 /// The place of a frame whose title bar was dropped at a point of an
 /// output that shows no part of it, as a drag does that ends on another
 /// virtual output: under the pointer, which holds it at `grab` from its
@@ -3365,5 +3372,29 @@ mod tests {
             dropped_on(straddling, face, [-786_400, -262_090], [60, 10]),
             None
         );
+    }
+
+    fn bar(name: &str, is_virtual: bool) -> Bar {
+        Bar::new(&OutputInfo {
+            name: name.into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 800],
+            default_work_area: [0, 0, 1280, 800],
+            is_virtual: is_virtual.then_some(true),
+            owner: None,
+        })
+    }
+
+    #[test]
+    fn a_new_window_opens_under_the_pointer_only_on_virtual_outputs() {
+        let home = |bars: &[Bar], entered| home_bar(bars, Some(entered)).map(|b| b.output.clone());
+        let faces = [bar("VIRTUAL-1", true), bar("VIRTUAL-2", true)];
+        assert_eq!(home(&faces, "VIRTUAL-2").as_deref(), Some("VIRTUAL-2"));
+        let screens = [bar("DP-1", false), bar("DP-2", false)];
+        assert_eq!(home(&screens, "DP-2").as_deref(), Some("DP-1"), "as before");
+        assert_eq!(home(&faces, "gone").as_deref(), Some("VIRTUAL-1"));
     }
 }
