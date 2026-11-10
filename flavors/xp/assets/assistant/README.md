@@ -14,4 +14,4 @@ the XP step X7; this folder has no picture.
 | `fonts` | a link to `../../theme/fonts`: Tahoma of the Wine project and Libre Franklin | see `flavors/xp/theme/README.md` | LGPL-2.1-or-later and OFL-1.1 |
 | none, drawn in code | the paperclip of the voice agent, its eyes and eyebrows | drawn for chora, an original paperclip character; no artwork of Microsoft's Office assistant was used | GPL-3.0-or-later, as chora |
 
-The keys of `values.yaml` are in `plugins/chora-assistant/assets/README.md`.
+The keys of `values.yaml` are in the section chora-assistant of `docs/configuration.md`.

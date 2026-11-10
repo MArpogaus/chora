@@ -17,7 +17,7 @@ chora/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
 │   ├── chora-xp/      # stacking window manager in the style of Windows XP; splits into the blocks below (D73)
 │   ├── chora-notify/  # block: notification server, with a neutral asset folder
-│   ├── chora-assistant/ # block: state and speech of the voice agent, with a neutral asset folder
+│   ├── chora-assistant/ # block: the host of the HUD folders: figure, speech, question card; with the neutral folder
 │   ├── chora-mc/      # experimental: a voice-first desktop, one full-screen scene at a time
 │   └── chora-construct/ # experimental: a spatial desktop with panes that float in a space
 ├── flavors/           # systemd units of the flavors (tiling, xp, construct); the theme and the asset folders of the XP flavor

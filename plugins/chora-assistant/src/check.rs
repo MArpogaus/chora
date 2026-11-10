@@ -1,7 +1,10 @@
 //! The commands that run without the host: `--check-hud DIR`,
 //! `--list-huds` and `--use-hud NAME`.
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use chora_draw::theme::{Sheet, Theme};
 use chora_kit::{
@@ -109,6 +112,9 @@ fn picture_names_in(text: &str) -> Vec<String> {
     files
 }
 
+/// The number of pictures checked so far, for a cache directory of its own.
+static CHECKS: AtomicUsize = AtomicUsize::new(0);
+
 /// Reads a picture as the host would and adds what is wrong with it.
 fn check_picture(dir: &Path, name: &str, font: &str, errors: &mut Vec<String>) {
     let data = match hud::file(dir, name) {
@@ -124,7 +130,11 @@ fn check_picture(dir: &Path, name: &str, font: &str, errors: &mut Vec<String>) {
             "{name}: a picture links to {target}, outside the folder"
         ));
     }
-    let cache = std::env::temp_dir().join(format!("chora-assistant-check-{}", std::process::id()));
+    let cache = std::env::temp_dir().join(format!(
+        "chora-assistant-check-{}-{}",
+        std::process::id(),
+        CHECKS.fetch_add(1, Ordering::Relaxed)
+    ));
     let sheet = Sheet(Box::leak(name.to_owned().into_boxed_str()));
     if let Err(e) = Theme::load_hud(dir, &cache, &[sheet], font) {
         errors.push(e);

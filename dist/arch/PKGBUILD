@@ -83,7 +83,7 @@ package() {
   install -Dm644 flavors/construct/* -t "$pkgdir/usr/share/chora/flavors/construct/"
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
   install -Dm644 plugins/chora-notify/assets/* -t "$pkgdir/usr/share/chora/notify/assets/"
-  install -Dm644 plugins/chora-assistant/assets/* -t "$pkgdir/usr/share/chora/assistant/assets/"
+  install -Dm644 plugins/chora-assistant/huds/neutral/* -t "$pkgdir/usr/share/chora/huds/neutral/"
   local block dir
   for block in notify assistant; do
     find "flavors/xp/assets/$block" -maxdepth 1 -type f \
