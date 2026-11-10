@@ -415,3 +415,195 @@ fn a_piece_that_the_budget_leaves_out_takes_input_and_gives_it_to_nobody() {
         "{hidden} shows nothing there"
     );
 }
+
+/// The pieces of the context `space` with the list they index.
+fn pieces_of(core: &Core) -> (Vec<String>, Vec<crate::space::Piece>, Vec<Matrix>) {
+    let scene = &core.state.scene;
+    let roots = scene.layer_list(chora_scene::ROOT);
+    let context = roots
+        .iter()
+        .find(|p| p.node.id == "space")
+        .expect("a context");
+    let list = scene.context_list(context);
+    let (windows, assets) = (&core.state.windows, &core.state.assets);
+    let pieces = crate::space::order(context, &list, |p| super::flat(windows, assets, p));
+    let ids = list.iter().map(|p| p.node.id.clone()).collect();
+    let transforms = list.iter().map(|p| *p.transform.matrix()).collect();
+    (ids, pieces, transforms)
+}
+
+/// Each part of a piece draws its corners where the hit test takes them.
+fn assert_parts_draw_where_they_hit(core: &Core) {
+    let (_, pieces, transforms) = pieces_of(core);
+    for piece in &pieces {
+        let Some(part) = &piece.part else { continue };
+        let m = &transforms[piece.plane];
+        for ([u, v], [x, y]) in part.corners.iter().zip(part.shown) {
+            let w = m[3] * u + m[7] * v + m[15];
+            let drawn = (
+                (m[0] * u + m[4] * v + m[12]) / w,
+                (m[1] * u + m[5] * v + m[13]) / w,
+            );
+            assert!(
+                (drawn.0 - x).abs() < 1e-6 && (drawn.1 - y).abs() < 1e-6,
+                "a corner draws at {drawn:?} and hits at {:?}",
+                (x, y)
+            );
+        }
+    }
+}
+
+#[test]
+fn two_hundred_crossing_planes_stay_fast_and_draw_where_they_hit() {
+    let mut core = Core::with_renderer();
+    core.add_output("test-1", (640, 480));
+    let mut wm = space(&mut core, [640.0, 480.0]);
+    let commands: Vec<Value> = (0..200)
+        .map(|i| {
+            let m = chain(&[
+                translate(320.0, 240.0, 0.0),
+                turn_y(f64::from(i) * 0.9),
+                translate(-150.0, -100.0, 0.0),
+            ]);
+            rect(
+                &format!("p{i}"),
+                [300.0, 200.0],
+                [f64::from(i) / 255.0, 1.0, 0.0, 1.0],
+                &m,
+            )
+        })
+        .collect();
+    wm.ok(&mut core, "scene.apply", json!({"commands": commands}));
+    let start = std::time::Instant::now();
+    let (_, pieces, _) = pieces_of(&core);
+    assert!(pieces.len() <= 4 * 200, "{} pieces", pieces.len());
+    let pixel = capture(&mut core, &mut wm);
+    let mut wrong = Vec::new();
+    for x in (170..470).step_by(7) {
+        for y in [180, 240, 300] {
+            let (x, y) = (f64::from(x), f64::from(y));
+            let spot = core.state.spot((x + 0.5, y + 0.5).into()).expect("a spot");
+            let hit = crate::render::node_under(&core.state, &spot);
+            let [r, g, ..] = pixel(x, y);
+            let drawn = (g == 255).then(|| format!("p{r}"));
+            if hit != drawn {
+                wrong.push((x, y, hit, drawn));
+            }
+        }
+    }
+    assert!(start.elapsed().as_secs() < 20, "{:?}", start.elapsed());
+    assert!(wrong.is_empty(), "draw and hit differ at {wrong:?}");
+}
+
+/// A front plane, created first, and a back plane, created second, both
+/// over the centre of a context `parent`.
+fn front_and_back(parent: &str) -> Vec<Value> {
+    let at = |z: f64| translate(220.0, 140.0, z);
+    vec![
+        json!({"create": {"id": "front", "kind": "rect", "parent": parent, "props": {
+            "size": [200, 200], "color": [0, 1, 0, 1], "transform": {"matrix": at(0.0)}}}}),
+        json!({"create": {"id": "back", "kind": "rect", "parent": parent, "props": {
+            "size": [200, 200], "color": [0, 0, 1, 1], "transform": {"matrix": at(300.0)}}}}),
+    ]
+}
+
+#[test]
+fn a_nested_context_gives_the_input_to_its_front_plane() {
+    let mut core = Core::new();
+    core.add_output("test-1", (640, 480));
+    let mut wm = space(&mut core, [640.0, 480.0]);
+    let mut commands = vec![
+        json!({"create": {"id": "inner", "kind": "group", "parent": "eye",
+        "props": {"size": [640, 480], "perspective": EYE,
+                  "transform": {"matrix": translate(0.0, 0.0, 100.0)}}}}),
+    ];
+    commands.extend(front_and_back("inner"));
+    wm.ok(&mut core, "scene.apply", json!({"commands": commands}));
+    let spot = core.state.spot((320.0, 240.0).into()).expect("a spot");
+    assert_eq!(
+        crate::render::node_under(&core.state, &spot).as_deref(),
+        Some("front")
+    );
+}
+
+#[test]
+fn a_rotated_context_gives_the_input_to_its_front_plane() {
+    let mut core = Core::new();
+    core.add_output("test-1", (640, 480));
+    let mut wm = core.named("wm");
+    let mut commands = vec![
+        json!({"create": {"id": "tilted", "kind": "group", "parent": "root",
+        "props": {"size": [640, 480], "perspective": EYE,
+                  "transform": {"translate": [40, 0], "rotate": 5}}}}),
+    ];
+    commands.extend(front_and_back("tilted"));
+    wm.ok(&mut core, "scene.apply", json!({"commands": commands}));
+    let (s, c) = 5_f64.to_radians().sin_cos();
+    let at = (40.0 + 320.0 * c - 240.0 * s, 320.0 * s + 240.0 * c);
+    let spot = core.state.spot(at.into()).expect("a spot");
+    assert_eq!(
+        crate::render::node_under(&core.state, &spot).as_deref(),
+        Some("front")
+    );
+}
+
+#[test]
+fn a_split_plane_under_its_own_projective_matrix_draws_where_it_hits() {
+    let mut core = Core::new();
+    let mut wm = crossing(&mut core);
+    let mut own = translate(0.0, 0.0, 0.0);
+    own[3] = 0.002;
+    let m = chain(&[
+        translate(320.0, 240.0, 0.0),
+        turn_y(-30.0),
+        own,
+        translate(-150.0, -100.0, 0.0),
+    ]);
+    let update = json!({"commands": [
+        {"update": {"id": "b", "props": {"transform": {"matrix": m}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", update);
+    let (ids, pieces, _) = pieces_of(&core);
+    assert!(
+        pieces
+            .iter()
+            .any(|p| p.part.is_some() && ids[p.plane] == "b"),
+        "the plane with its own w splits"
+    );
+    assert_parts_draw_where_they_hit(&core);
+}
+
+#[test]
+fn coplanar_planes_keep_the_order_of_the_scene() {
+    let mut core = Core::with_renderer();
+    core.add_output("test-1", (640, 480));
+    let mut wm = space(&mut core, [640.0, 480.0]);
+    let pane = chain(&[
+        translate(320.0, 240.0, 100.0),
+        turn_y(30.0),
+        translate(-100.0, -100.0, 0.0),
+    ]);
+    let glow = times(&pane, &translate(-10.0, -10.0, 0.0));
+    let across = chain(&[
+        translate(320.0, 240.0, 100.0),
+        turn_y(-30.0),
+        translate(-150.0, -100.0, 0.0),
+    ]);
+    let commands = json!({"commands": [
+        rect("glow", [220.0, 220.0], [1.0, 0.0, 0.0, 1.0], &glow),
+        rect("pane", [200.0, 200.0], [0.0, 1.0, 0.0, 1.0], &pane),
+        rect("across", [300.0, 200.0], [0.0, 0.0, 1.0, 1.0], &across),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    let pixel = capture(&mut core, &mut wm);
+    let centre = [320.0, 240.0];
+    let (x, y) = shown(&pane, centre, 180.0, 100.0);
+    assert_eq!(pixel(x, y), [0, 255, 0, 255], "the pane over its glow");
+    let (x, y) = shown(&pane, centre, 205.0, 100.0);
+    assert_eq!(pixel(x, y), RED, "the glow around the pane");
+    let spot = core.state.spot((x, y).into()).expect("a spot");
+    assert_eq!(
+        crate::render::node_under(&core.state, &spot).as_deref(),
+        Some("glow")
+    );
+}

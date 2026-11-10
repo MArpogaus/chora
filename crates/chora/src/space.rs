@@ -17,8 +17,12 @@ use plane_split::{BspSplitter, Clipper, Plane, Polygon};
 /// The least w of a point of a context that shows.
 pub const NEAR_W: f64 = 1.0 / 64.0;
 /// The most planes of a context that the splitter sorts; beyond them the
-/// pieces sort by the depth of their centres.
-const MAX_SPLIT: usize = 1024;
+/// pieces sort by the depth of their centres. Planes that cross split each
+/// other, so the pieces grow fast with the planes.
+const MAX_SPLIT: usize = 64;
+/// The most pieces per plane that a split may give; beyond them the pieces
+/// sort by the depth of their centres.
+const PIECES_PER_PLANE: usize = 4;
 /// The log told that a context has too many planes to split.
 static TOLD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -98,16 +102,17 @@ pub fn order(
             vec![polygon.clone()]
         };
         projected.extend(pieces.iter().filter_map(|p| project(&frame, p)));
-        planes.push(Some((flat, polygon, clipped)));
+        planes.push(Some((flat, polygon, clipped, placed.transform)));
     }
-    let sorted = sort(projected, list.len());
+    let sorted = sort(projected, planes.iter().flatten().count());
     out.extend(pieces(&sorted, &planes, &unproject));
     out
 }
 
 /// A plane of a context that the order sorts: what it needs, its polygon
-/// in the space of the eye, and whether the near plane clips it.
-type Sorted = Option<(Flat, Polygon<usize>, bool)>;
+/// in the space of the eye, whether the near plane clips it, and its
+/// transform in the list of the context.
+type Sorted = Option<(Flat, Polygon<usize>, bool, Transform)>;
 
 /// The pieces of sorted polygons: a plane that drew as one unit draws
 /// whole at the place of its back piece, a plane that the sort split or
@@ -120,7 +125,7 @@ fn pieces(sorted: &[Polygon<usize>], planes: &[Sorted], unproject: &Transform) -
     let mut out = Vec::with_capacity(sorted.len());
     for piece in sorted {
         let index = piece.anchor;
-        let Some((flat, polygon, clipped)) = &planes[index] else {
+        let Some((flat, polygon, clipped, transform)) = &planes[index] else {
             continue;
         };
         if flat.unit {
@@ -132,8 +137,8 @@ fn pieces(sorted: &[Polygon<usize>], planes: &[Sorted], unproject: &Transform) -
             }
             continue;
         }
-        let part =
-            (*clipped || count[index] > 1).then(|| part(unproject, polygon, flat.size, piece));
+        let part = (*clipped || count[index] > 1)
+            .then(|| part((unproject, transform), polygon, flat.size, piece));
         out.push(Piece { plane: index, part });
     }
     out
@@ -180,6 +185,13 @@ pub fn view(context: &Placed<'_>, placed: &Placed<'_>, [w, h]: [f64; 2]) -> Opti
 
 /// Whether a point lies in a convex polygon of either winding.
 pub fn contains(corners: &[[f64; 2]; 4], [x, y]: [f64; 2]) -> bool {
+    let finite = [x, y]
+        .iter()
+        .chain(corners.iter().flatten())
+        .all(|v| v.is_finite());
+    if !finite {
+        return false;
+    }
     let mut sides = [false; 2];
     for (index, [ax, ay]) in corners.iter().enumerate() {
         let [bx, by] = corners[(index + 1) % corners.len()];
@@ -231,38 +243,55 @@ fn project(projection: &Transform, polygon: &Polygon<usize>) -> Option<Polygon<u
     Polygon::from_points(points, polygon.anchor)
 }
 
-/// The projected pieces of `planes` planes from back to front.
+/// The projected pieces of `planes` planes from back to front. The
+/// splitter takes the pieces one by one and gives up when they split into
+/// more than `PIECES_PER_PLANE` per plane; then, and for more than
+/// `MAX_SPLIT` planes, the pieces sort by the depth of their centres.
 fn sort(pieces: Vec<Polygon<usize>>, planes: usize) -> Vec<Polygon<usize>> {
     if planes > MAX_SPLIT {
         return by_centres(pieces);
     }
+    let view = Vector3D::new(0.0, 0.0, -1.0);
+    let most = (PIECES_PER_PLANE * planes).max(pieces.len());
     let mut splitter = BspSplitter::new();
-    for piece in pieces {
-        splitter.add(piece);
+    for piece in &pieces {
+        splitter.add(piece.clone());
+        if splitter.sort(view).len() > most {
+            return by_centres(pieces);
+        }
     }
-    splitter.sort(Vector3D::new(0.0, 0.0, -1.0)).to_vec()
+    splitter.sort(view).to_vec()
 }
 
 /// Pieces from back to front by the depth of their centres, without a
-/// split, for a context with more planes than the splitter takes.
+/// split, for a context whose planes are too many or split too much.
 fn by_centres(mut pieces: Vec<Polygon<usize>>) -> Vec<Polygon<usize>> {
     if !TOLD.swap(true, std::sync::atomic::Ordering::Relaxed) {
-        tracing::warn!("a 3D context has more than {MAX_SPLIT} planes; they sort by their centres");
+        tracing::warn!(
+            "a 3D context has more than {MAX_SPLIT} planes or splits too much; \
+             its planes sort by their centres"
+        );
     }
     let depth = |p: &Polygon<usize>| p.points.iter().map(|q| q.z).sum::<f64>();
     pieces.sort_by(|a, b| depth(b).total_cmp(&depth(a)));
     pieces
 }
 
-/// The part of a plane that a projected piece covers.
+/// The part of a plane that a projected piece covers. Its corners come
+/// from the inverse of the transform of the plane, as the hit test maps a
+/// point, so the part draws where it takes input; the space of the eye
+/// gives them where that inverse has none.
 fn part(
-    unproject: &Transform,
+    (unproject, transform): (&Transform, &Transform),
     polygon: &Polygon<usize>,
     [w, h]: [f64; 2],
     piece: &Polygon<usize>,
 ) -> Part {
     let m = unproject.matrix();
     let corners = piece.points.map(|p| {
+        if let Some(at) = crate::render::plane_point(transform, (p.x, p.y).into()) {
+            return [at.x, at.y];
+        }
         let at = |row: usize| m[row] * p.x + m[4 + row] * p.y + m[8 + row] * p.z + m[12 + row];
         let eye = Point3D::new(at(0), at(1), at(2)) / at(3);
         let uv = polygon.untransform_point(eye);
@@ -289,5 +318,14 @@ mod tests {
         let triangle = [[0.0, 0.0], [10.0, 0.0], [10.0, 0.0], [0.0, 10.0]];
         assert!(contains(&triangle, [2.0, 2.0]));
         assert!(!contains(&triangle, [8.0, 8.0]));
+    }
+
+    #[test]
+    fn a_point_that_is_not_finite_is_in_no_polygon() {
+        let square = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
+        assert!(!contains(&square, [f64::NAN, 5.0]));
+        assert!(!contains(&square, [5.0, f64::INFINITY]));
+        let collapsed = [[f64::NAN; 2]; 4];
+        assert!(!contains(&collapsed, [5.0, 5.0]));
     }
 }

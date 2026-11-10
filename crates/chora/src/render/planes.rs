@@ -615,3 +615,52 @@ fn a_plane_ancestor_cuts_the_box_of_a_query() {
         "the pane cuts the bar: {bar:?} in {pane:?}"
     );
 }
+
+#[test]
+fn a_wide_2d_rect_tells_its_true_local_point() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut xp = core.named("xp");
+    let commands = json!({"commands": [
+        {"create": {"id": "r", "kind": "rect", "parent": "root", "props": {
+            "size": [3e6, 100], "color": [1, 1, 1, 1],
+            "transform": {"translate": [-2e6, 100]}}}},
+    ]});
+    xp.ok(&mut core, "scene.apply", commands);
+    xp.ok(&mut core, "events.subscribe", json!({"events": []}));
+    move_to(&mut core, (100.0, 150.0).into());
+    click(&mut core, true);
+    move_to(&mut core, (110.0, 150.0).into());
+    click(&mut core, false);
+    let events = node_events(&mut xp, &mut core);
+    for (event, want) in events.iter().zip([2_000_100.0, 2_000_110.0, 2_000_110.0]) {
+        assert!(close(local(event), (want, 50.0)), "{events:?}");
+    }
+}
+
+#[test]
+fn a_window_with_a_shadow_has_the_box_of_its_geometry_under_a_plane() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    window.set_geometry((20, 20, 100, 80));
+    wayland.attach(&mut core, &window, (140, 120));
+    let window = core.state.windows["s1"].clone();
+    assert_eq!(
+        window.bbox().size,
+        (140, 120).into(),
+        "the shadow is in the box"
+    );
+    let total = transform(&json!({"translate": [200, 100], "rotate": 30}));
+    let rect = crate::render::window_rect(&window, &total);
+    let want = crate::render::bounding_box(&total, [100.0, 80.0]);
+    for (got, want) in [
+        (rect.loc.x, want.loc.x),
+        (rect.loc.y, want.loc.y),
+        (rect.size.w, want.size.w),
+        (rect.size.h, want.size.h),
+    ] {
+        assert!((got - want).abs() < 1e-9, "{rect:?} != {want:?}");
+    }
+}

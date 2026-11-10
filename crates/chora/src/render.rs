@@ -389,7 +389,7 @@ fn context_elements<R: MeshRenderer>(
 
 /// What the order of a context needs of an entry of its list: the content
 /// size of a node that draws, and whether it draws as one unit, as a mesh
-/// or a nested context does. A group draws only as a layer, a plane or a
+/// does. A group draws only as a layer, a plane or a
 /// context; otherwise its children draw on their own.
 fn flat(
     windows: &HashMap<String, Window>,
@@ -404,7 +404,7 @@ fn flat(
     draws.then_some(())?;
     Some(space::Flat {
         size: content_size(windows, assets, node)?,
-        unit: node.props.mesh.is_some() || node.is_context(),
+        unit: node.props.mesh.is_some(),
     })
 }
 
@@ -961,7 +961,7 @@ pub fn node_hit(state: &State, spot: &Spot) -> Option<(String, Point<f64, Logica
     let found = [(&overlay, spot.local), (&scene, spot.scene)]
         .into_iter()
         .find_map(|(list, pos)| found(state, list, InputMode::Accept, pos))?;
-    (found.input == InputMode::Accept).then(|| (found.node.id.clone(), clamp_local(found.local)))
+    (found.input == InputMode::Accept).then(|| (found.node.id.clone(), found.local))
 }
 
 /// What a point of the scene hits.
@@ -1136,7 +1136,7 @@ fn context_hit<'a>(
                 node: entry.node,
                 input: InputMode::Block,
                 hit: Hit::Area,
-                local: node_point(&entry.transform, pos).map_or(pos, clamp_local),
+                local: node_point(&entry.transform, pos).unwrap_or(pos),
                 planar: true,
             });
         }
@@ -1153,7 +1153,7 @@ fn entry_hit<'a>(
     input: InputMode,
     pos: Point<f64, Logical>,
 ) -> Option<Found<'a>> {
-    if !(entry.node.is_layer() && entry.transform.is_plain()) {
+    if !(entry.node.is_layer() && entry.transform.is_plain()) || entry.node.is_context() {
         return hit(state, entry, input, pos);
     }
     if !entry
@@ -1178,8 +1178,8 @@ fn left_out(state: &State, id: &str) -> bool {
         .any(|ids| ids.iter().any(|n| n == id))
 }
 
-/// The largest coordinate of a point of a node that pointer events tell;
-/// a plane seen almost edge on maps a point near its horizon farther.
+/// The largest coordinate of a point that the inverse of a plane gives; a
+/// plane maps a point near its horizon farther.
 const MAX_LOCAL: f64 = 1e6;
 
 /// A point of a node with its coordinates cut to `MAX_LOCAL`.
@@ -1237,7 +1237,12 @@ fn plane_hit<'a>(
         }
         NodeKind::Group => {
             let list = state.scene.hit_list(&node.id);
-            found(state, &list, input, local).map(|inner| Found {
+            let inner = if node.is_context() {
+                context_hit(state, list.first()?, input, local)
+            } else {
+                found(state, &list, input, local)
+            };
+            inner.map(|inner| Found {
                 planar: true,
                 ..inner
             })
@@ -1248,8 +1253,9 @@ fn plane_hit<'a>(
 }
 
 /// The point of the plane z = 0 that a transform shows at a point of the
-/// screen: the inverse of its homography. `None` when the plane is edge
-/// on, or shows the point behind the eye.
+/// screen: the inverse of its homography, each coordinate cut to
+/// `MAX_LOCAL` near the horizon of the plane. `None` when the plane is
+/// edge on, or shows the point behind the eye.
 pub(crate) fn plane_point(
     transform: &Transform,
     pos: Point<f64, Logical>,
@@ -1260,7 +1266,7 @@ pub(crate) fn plane_point(
     let v = (inverse[1] * pos.x + inverse[4] * pos.y + inverse[7]) / scale;
     let matrix = transform.matrix();
     let depth = matrix[3] * u + matrix[7] * v + matrix[15];
-    (u.is_finite() && v.is_finite() && depth > mesh::NEAR).then_some((u, v).into())
+    (u.is_finite() && v.is_finite() && depth > mesh::NEAR).then(|| clamp_local((u, v).into()))
 }
 
 /// The screen point that a transform shows for a point of the plane
@@ -1296,7 +1302,7 @@ pub fn local_in(
     pos: Point<f64, Logical>,
     id: &str,
 ) -> Option<Point<f64, Logical>> {
-    local_in_list(scene, &scene.hit_list(start), pos, id).map(clamp_local)
+    local_in_list(scene, &scene.hit_list(start), pos, id)
 }
 
 /// As [`local_in`], with the list that holds the node or an ancestor of

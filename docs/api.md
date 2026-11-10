@@ -123,11 +123,12 @@ at 1:1 and a pane flown in at z = 0 draws as in 2D. The camera is the
 transform of a child group without a size. The core sorts the planes of a
 context from back to front and splits planes that cross, so each shows in
 front where it is nearer. Planes on one geometric plane keep the order of
-the scene, so a glow stays behind its pane. A node with a mesh and a
-nested context sort as one unit each. The core cuts each plane at the near
+the scene, so a glow stays behind its pane. A node with a mesh sorts as one
+unit, and a nested context sorts and splits as a flat plane of its size. The core cuts each plane at the near
 plane w = 1/64, so nothing shows that lies at or behind the eye. With
-more than 1,024 planes, a context sorts its planes by their centres and
-splits nothing. Pointer input in a context follows the ray from the eye:
+more than 64 planes, or when the split gives more than 4 pieces per plane,
+a context sorts its planes by their centres and splits nothing; the hit
+test then follows the same order. Pointer input in a context follows the ray from the eye:
 the nearest plane that shows at the point and takes input gets it, in the
 order that the context draws. A part of a plane that the layer budget
 leaves out of the frame takes the input and gives it to nobody. The
