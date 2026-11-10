@@ -306,7 +306,7 @@ check_own() {
     if [[ -s $work/cur/$1-1.png && -s $work/cur/$1-2.png ]] && "$2"; then
         echo "ok   $1: as expected"
     else
-        echo "FAIL $1: $(pixel "$1-1" 260 190) then $(pixel "$1-2" 260 190)"
+        echo "FAIL $1: $(pixel "$1-1" "$3" "$4") then $(pixel "$1-2" "$3" "$4")"
         verdict=FAIL
     fi
 }
@@ -325,8 +325,8 @@ recolor_shows() {
         [[ $(pixel recolor-2 200 180) == "0 200 0 255" ]]
 }
 
-check_own clock clock_moves
-check_own recolor recolor_shows
+check_own clock clock_moves 260 190
+check_own recolor recolor_shows 200 180
 
 echo "$verdict"
 [[ $verdict == PASS ]] || exit 1
