@@ -294,6 +294,7 @@ impl State {
         self.inject_mark = None;
         self.node_grab = None;
         self.button_grab = None;
+        self.last_real_button = None;
         let pointer = self.pointer();
         pointer.unset_grab(
             self,

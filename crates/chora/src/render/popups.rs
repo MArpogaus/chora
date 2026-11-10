@@ -639,8 +639,8 @@ fn click_outside_a_menu_on_a_plane(windows: &mut Windows) {
     release_on(windows);
     let events = windows.1.take_pointer_events();
     assert!(
-        enters(&events, &windows.3.surface.id()).is_empty(),
-        "the press stays with the window of the click: {events:?}"
+        !buttons(&events).contains(&false),
+        "the release goes to the window of the click: {events:?}"
     );
 }
 

@@ -675,6 +675,9 @@ pub fn press_button(
         },
     );
     pointer.frame(state);
+    if button_state == ButtonState::Pressed {
+        start_plane_grab(state, &pointer, code, serial);
+    }
 }
 
 /// A button with modifiers that a client grabbed: the press, the moves and
@@ -977,19 +980,22 @@ impl Pin {
     /// the plane maps to the pointer at `location`. The node is reached
     /// from the root or the overlay of an output, as `anchor` tells. When
     /// the plane shows the pointer behind the eye, the client keeps its
-    /// last point.
+    /// last point. `None` when the node left the scene or the last frame
+    /// left its plane out.
     fn mapped(
         &mut self,
         state: &State,
         location: Point<f64, Logical>,
-    ) -> (WlSurface, Point<f64, Logical>) {
-        if let Some(spot) = state.spot(state.pointer_layout) {
-            let (start, at) = anchor(&state.scene, &state.outputs, &self.node, &spot);
-            if let Some(local) = render::local_in(&state.scene, &start, at, &self.node) {
-                self.last = local - self.origin;
-            }
+    ) -> Option<(WlSurface, Point<f64, Logical>)> {
+        let spot = state.spot(state.pointer_layout)?;
+        let (start, at) = anchor(&state.scene, &state.outputs, &self.node, &spot);
+        if !state.scene.is_within(&self.node, &start) || render::left_out(state, &self.node) {
+            return None;
         }
-        (self.surface.clone(), location - self.last)
+        if let Some(local) = render::local_in(&state.scene, &start, at, &self.node) {
+            self.last = local - self.origin;
+        }
+        Some((self.surface.clone(), location - self.last))
     }
 }
 
@@ -1042,10 +1048,18 @@ impl PointerGrab<State> for PlaneGrab {
         focus: Option<(WlSurface, Point<f64, Logical>)>,
         event: &MotionEvent,
     ) {
-        let focus = match &mut self.pin {
-            Some(pin) => Some(pin.mapped(data, event.location)),
-            None => focus,
-        };
+        let mapped = self
+            .pin
+            .as_mut()
+            .map(|pin| pin.mapped(data, event.location));
+        if mapped.as_ref().is_some_and(Option::is_none) {
+            self.pin = None;
+            if self.popup.is_none() {
+                handle.unset_grab(self, data, event.serial, event.time, true);
+                return;
+            }
+        }
+        let focus = mapped.flatten().or(focus);
         match &mut self.popup {
             Some(popup) => popup.motion(data, handle, focus, event),
             None => handle.motion(data, focus, event),
@@ -1076,7 +1090,8 @@ impl PointerGrab<State> for PlaneGrab {
         handle: &mut PointerInnerHandle<'_, State>,
         event: &ButtonEvent,
     ) {
-        if event.state == ButtonState::Pressed && self.pin.is_none() {
+        let first = handle.current_pressed().len() == 1;
+        if event.state == ButtonState::Pressed && first && self.pin.is_none() {
             let focus = handle.current_focus().map(|(surface, _)| surface);
             self.pin = Pin::under(data, focus.as_ref());
         }
@@ -1089,7 +1104,7 @@ impl PointerGrab<State> for PlaneGrab {
         } else {
             handle.button(data, event);
             if released {
-                handle.unset_grab(self, data, event.serial, event.time, false);
+                handle.unset_grab(self, data, event.serial, event.time, true);
             }
         }
     }
