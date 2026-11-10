@@ -436,6 +436,8 @@ pub fn render_and_present(
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use chora_scene::ipc::RpcError;
     use serde_json::{Value, json};
     use smithay::{
@@ -702,6 +704,122 @@ mod tests {
             let (_, error) = construct.fails(&mut core, "output.add", add);
             assert!(!error.contains("headless"), "{bad}: {error}");
         }
+        let wide = json!({"spec": "4097x8", "virtual": true});
+        let (_, error) = construct.fails(&mut core, "output.add", wide);
+        assert!(error.contains("4096"), "{error}");
+        let no_flag = json!({"spec": "8x8", "virtual": "yes"});
+        let (_, error) = construct.fails(&mut core, "output.add", no_flag);
+        assert!(
+            error.contains("headless"),
+            "only true asks for one: {error}"
+        );
+    }
+
+    fn listed(core: &mut Core, client: &mut crate::testing::Client) -> Vec<String> {
+        let list = client.ok(core, "output.list", json!({}));
+        let outputs = list.as_array().expect("a list").iter();
+        outputs
+            .map(|o| o["name"].as_str().expect("a name").to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn the_outputs_of_an_owner_that_ended_go() {
+        let (mut core, construct, _screen) = core_with_a_virtual_output();
+        let mut reader = core.named("reader");
+        let subscribe = json!({"events": ["output.removed"]});
+        reader.ok(&mut core, "events.subscribe", subscribe);
+        drop(construct);
+        core.dispatch();
+        assert_eq!(listed(&mut core, &mut reader), ["screen"]);
+        assert_eq!(reader.event_names(&mut core), ["output.removed"]);
+    }
+
+    fn resuming(core: &mut Core) -> crate::testing::Client {
+        let mut construct = core.connect();
+        let hello = json!({"name": "construct", "resume": true});
+        construct.ok(core, "hello", hello);
+        construct
+    }
+
+    #[test]
+    fn the_outputs_go_after_the_grace_time_and_a_resume_keeps_them() {
+        const GRACE: Duration = Duration::from_secs(10);
+        let mut core = Core::new();
+        core.add_output("screen", (64, 48));
+        let mut reader = core.named("reader");
+        let mut construct = resuming(&mut core);
+        add_virtual(&mut core, &mut construct, "32x32");
+        drop(construct);
+        core.dispatch();
+        core.advance(GRACE.saturating_sub(Duration::from_millis(1)));
+        let construct = resuming(&mut core);
+        core.advance(GRACE);
+        assert_eq!(listed(&mut core, &mut reader), ["screen", "VIRTUAL-1"]);
+        drop(construct);
+        core.dispatch();
+        core.advance(GRACE);
+        assert_eq!(listed(&mut core, &mut reader), ["screen"]);
+    }
+
+    #[test]
+    fn a_confined_caller_neither_removes_nor_reads_one() {
+        let mut faced = faced();
+        let mut confined = faced.core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut faced.core, "hello", hello);
+        let remove = json!({"output": "VIRTUAL-1"});
+        let (number, error) = confined.fails(&mut faced.core, "output.remove", remove);
+        assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        let pane = pane(&face_shader(&faced.dir));
+        let (number, error) = confined.fails(&mut faced.core, "scene.apply", pane);
+        assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+    }
+
+    #[test]
+    fn no_client_copies_a_virtual_output() {
+        let (mut core, _construct, _screen) = core_with_a_virtual_output();
+        let mut wayland = Wayland::connect(&mut core);
+        assert!(!wayland.screencopy_offers(&mut core), "wlr-screencopy");
+        assert!(!wayland.capture_session_offers(&mut core), "ext capture");
+    }
+
+    /// Output configuration turns a screen off by taking it out of the
+    /// layout; a client still copies it, as before virtual outputs.
+    #[test]
+    fn a_screen_that_is_off_still_offers_a_copy() {
+        let mut core = Core::new();
+        let screen = core.add_output("screen", (64, 48));
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.outputs.retain(|o| *o != screen);
+        assert!(wayland.screencopy_offers(&mut core), "wlr-screencopy");
+        assert!(wayland.capture_session_offers(&mut core), "ext capture");
+    }
+
+    /// A lock client makes a surface for every `wl_output`. The one of a
+    /// virtual output gets its size, and no frame shows it.
+    #[test]
+    fn a_lock_surface_on_a_virtual_output_gets_its_size() {
+        let (mut core, _construct, _screen) = core_with_a_virtual_output();
+        let mut wayland = Wayland::connect(&mut core);
+        let lock = wayland.lock(&mut core);
+        let surface = wayland.lock_surface(&mut core, &lock);
+        let configures = wayland.lock_configures(&surface);
+        assert_eq!((configures.count, configures.size), (1, (32, 32)));
+        assert!(core.state.lock_focus().is_none(), "no keyboard for it");
+    }
+
+    #[test]
+    fn a_virtual_output_follows_the_refresh_of_the_fastest_screen() {
+        let (mut core, _construct, screen) = core_with_a_virtual_output();
+        let fast = Mode {
+            size: (64, 48).into(),
+            refresh: 120_000,
+        };
+        screen.change_current_state(Some(fast), None, None, None);
+        core.state.output_changed();
+        let face = core.state.all_outputs().pop().expect("the virtual output");
+        assert_eq!(face.current_mode().map(|m| m.refresh), Some(120_000));
     }
 
     /// An `output.add` that fails at a limit whose message holds a word.
@@ -883,23 +1001,33 @@ mod tests {
         assert_eq!(end.frames - settled.frames, 120, "the screen and the face");
     }
 
+    impl Faced {
+        /// Frames of the screen, each after a frame request of the window.
+        fn frames_with_requests(&mut self, count: usize) {
+            for _ in 0..count {
+                let Self {
+                    core,
+                    wayland,
+                    window,
+                    ..
+                } = self;
+                wayland.frame(core, window);
+                self.frames(1);
+            }
+            self.wayland.roundtrip(&mut self.core);
+        }
+    }
+
     #[test]
     fn an_unread_one_renders_nothing_and_gets_1_hz() {
         let mut faced = faced();
         let start = faced.stats();
-        for _ in 0..60 {
-            let Faced {
-                core,
-                wayland,
-                window,
-                ..
-            } = &mut faced;
-            wayland.frame(core, window);
-            faced.frames(1);
-        }
-        faced.wayland.roundtrip(&mut faced.core);
+        faced.frames_with_requests(60);
         assert_eq!(faced.stats().frames - start.frames, 60, "the screen only");
-        assert!(faced.wayland.configures(&faced.window).frames <= 1);
+        assert_eq!(faced.wayland.configures(&faced.window).frames, 1);
+        faced.core.state.time.advance(Duration::from_millis(1100));
+        faced.frames_with_requests(60);
+        assert_eq!(faced.wayland.configures(&faced.window).frames, 2);
     }
 
     #[test]
@@ -971,6 +1099,42 @@ mod tests {
         faced.frames(2);
         let shown = faced.pixel(PANE.0 + SIDE - 2, PANE.1 + SIDE - 2);
         assert_ne!(shown, [255, 0, 0, 255], "the window of the new owner");
+        let start = faced.stats();
+        faced.frames(3);
+        assert_eq!(faced.stats().frames - start.frames, 3, "no render for it");
+    }
+
+    /// The pixels of a capture of the pane, as RGBA.
+    fn pane_pixels(faced: &mut Faced) -> Vec<u8> {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let grant = json!({"client": "construct", "capabilities": ["screen.capture"]});
+        faced.core.admin().ok(&mut faced.core, "grants.set", grant);
+        let capture = json!({"node": "pane"});
+        let picture = faced
+            .construct
+            .ok(&mut faced.core, "screen.capture", capture);
+        let png = STANDARD
+            .decode(picture["png"].as_str().expect("a picture"))
+            .expect("base64");
+        let mut reader = png::Decoder::new(std::io::Cursor::new(png))
+            .read_info()
+            .expect("a PNG file");
+        let mut rgba = vec![0; reader.output_buffer_size().expect("a size")];
+        reader.next_frame(&mut rgba).expect("a frame");
+        rgba
+    }
+
+    #[test]
+    fn a_pane_of_an_output_that_went_is_transparent() {
+        let mut faced = faced();
+        faced.show_pane();
+        faced.frames(2);
+        assert_eq!(pane_pixels(&mut faced)[..4], [255; 4], "the corner");
+        let remove = json!({"output": "VIRTUAL-1"});
+        faced.construct.ok(&mut faced.core, "output.remove", remove);
+        faced.frames(2);
+        let pixels = pane_pixels(&mut faced);
+        assert!(pixels.as_chunks::<4>().0.iter().all(|p| *p == [0; 4]));
     }
 
     #[test]
