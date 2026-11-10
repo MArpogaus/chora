@@ -4,6 +4,8 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Drop the session switch, no more time on it. Fable at 6 % used. "Go, let's get serious work done."
+
 - Decisions after the Fable judge audit (12:45 Bangkok): (1) cut the
   effects pack, the Nix flake and the windowed playground from this
   session (backlog, after 1.0); (2) window manager bindings ignore
