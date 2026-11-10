@@ -1312,7 +1312,7 @@ mod tests {
         behind[15] = -1.0;
         let rect =
             crate::render::bounding_box_from(&Transform::from_matrix(behind), [100.0, 80.0], NEAR);
-        assert!(rect.size.w <= 0.0 && rect.size.h <= 0.0, "{rect:?}");
+        assert_eq!(rect, smithay::utils::Rectangle::default());
     }
 
     #[test]

@@ -1205,7 +1205,7 @@ fn create_in(id: &str, kind: &str, parent: &str, props: &serde_json::Value) -> C
 }
 
 #[test]
-fn the_watchdog_counts_planes_and_drops_the_perspective() {
+fn the_watchdog_counts_planes_and_keeps_the_perspective() {
     let mut scene = Scene::default();
     let space = serde_json::json!({"size": [100, 100], "perspective": 500});
     let turned = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
@@ -1231,11 +1231,8 @@ fn the_watchdog_counts_planes_and_drops_the_perspective() {
     let load = scene.load_by_owner();
     assert_eq!(load.get("wm"), Some(&(1 + 26 + 1 + 26 + 26)));
     assert!(scene.drop_effects("wm"));
-    assert_eq!(scene.node("space").unwrap().props.perspective, None);
-    assert_eq!(
-        scene.load_by_owner().get("wm"),
-        Some(&(1 + 1 + 1 + 26 + 26))
-    );
+    assert_eq!(scene.node("space").unwrap().props.perspective, Some(500.0));
+    assert_eq!(scene.load_by_owner().get("wm"), load.get("wm"));
 }
 
 #[test]

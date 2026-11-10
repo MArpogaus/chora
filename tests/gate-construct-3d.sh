@@ -1,15 +1,20 @@
 #!/bin/bash
 # Gate of step K5 of the construct track: direct input on the 3D base
-# (design/3d.md, section 5). Four probe windows stand as program panes of
-# a construct file, three of them turned:
+# (design/3d.md, section 5). Five probe windows stand as program panes of
+# a construct file, four of them turned:
 #
 # 1. A click on a tilted pane reaches its window at the point that shows
 #    under the pointer, and the view does not move.
 # 2. Typed keys go to the pane that was clicked last.
 # 3. Where two panes overlap on the output, the nearer one gets the click.
 # 4. Navigate mode keeps its grab: a drag with the modifier over a pane
-#    reaches no window and moves the pane; after a click on the empty
-#    space the walk keys move the camera and reach no window.
+#    reaches no window and moves the pane; a pane dropped on the second
+#    output, which no manager claims, shows where it was; after a click on
+#    the empty space the walk keys move the camera and reach no window.
+# 5. The label follows the pointer over a window; a pane that shows its
+#    back to the camera is hidden; without the setting
+#    test_accept_injected_keys an injected click gives no window the
+#    keyboard.
 #
 # Each check reports on its own; the gate fails when one of them fails.
 # panes_spec gives the name, centre, yaw, size and colour of each pane;
@@ -27,13 +32,16 @@ need_bins chora choractl chora-construct chora-probe
 temp_config
 work=$XDG_CONFIG_HOME
 mkdir -p "$work/chora/constructs"
+export CHORA_TEST_ACCEPT_INJECTED_KEYS=0
+echo "test_accept_injected_keys: true" >"$work/chora/chora-construct.yaml"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 
 panes_spec='a:-700,2000:0.7:480,360:200,60,60
 b:700,2000:-0.7:480,360:60,160,60
 c:0,1400:0.25:400,300:60,60,200
-d:60,2600:-0.2:640,400:200,200,60'
+d:60,2600:-0.2:640,400:200,200,60
+e:-3000,0:1.5708:320,240:120,120,120'
 {
     echo "camera: {x: 0, z: 0, yaw: 0, pitch: 0}"
     echo "radius: 6000"
@@ -47,7 +55,7 @@ d:60,2600:-0.2:640,400:200,200,60'
     done <<<"$panes_spec"
 } >"$work/chora/constructs/k5.yaml"
 
-session_start 1280x800 -- "$bin/chora-construct"
+session_start 1280x800,640x480+1280+0 -- "$bin/chora-construct"
 grant input.inject screen.capture
 
 failed=0
@@ -121,10 +129,18 @@ camera() {
 pane_at() { call construct.list | python3 -I -c "import json, sys; print(next(p['at'] for p in json.load(sys.stdin)['panes'] if p['name'] == '$1'))"; }
 name_of() { call construct.list | python3 -I -c "import json, sys; print(next(p['name'] for p in json.load(sys.stdin)['panes'] if [round(x) for x in p['at']] == [$1]))"; }
 
+focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
+label() { ctl query id:construct-label-text | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0]["text"] if n and n[0]["visible"] else "")'; }
+visible() { ctl query "id:$1" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0]["visible"])'; }
+surface_of() { call construct.list | python3 -I -c "import json, sys; print(next(p['surface'] for p in json.load(sys.stdin)['panes'] if [round(x) for x in p['at']] == [round(float(x)) for x in '$1'.split(',')]))"; }
+box() { ctl query "id:$1" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0].get("rects"))'; }
+pane_centre() { box "construct-pane-$(surface_of "$(pane_at "$1" | tr -d '[]')")" | python3 -I -c 'import ast, sys; r = list(ast.literal_eval(sys.stdin.read()).values())[0]; print(round(r[0] + r[2] / 2), round(r[1] + r[3] / 2), sep=", ")'; }
+second=$(ctl outputs | python3 -I -c 'import json, sys; print(sorted(json.load(sys.stdin), key=lambda o: o["position"][0])[1]["name"])')
+
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 call construct.load '{"name": "k5"}' >/dev/null || fail "construct.load k5"
-until_ok 'test "$(pane_count)" = 4' 80 || fail "the four probe panes do not come: $(call construct.list)"
-for name in a b c d; do
+until_ok 'test "$(pane_count)" = 5' 80 || fail "the five probe panes do not come: $(call construct.list)"
+for name in a b c d e; do
     until_ok "test -e $work/$name.log" || fail "no log of pane $name"
 done
 sleep 2
@@ -155,6 +171,15 @@ click_at "$point"
 check "where c and d overlap, the nearer pane c gets the click" \
     'until_ok "pressed_at c 300 150" 8 && test "$(presses d)" = 0'
 
+inject "[{\"pointer_move\": {\"position\": [$(screen b 240 180)]}}]"
+b_name=$(name_of "700, 2000")
+check "the label follows the pointer over the window of pane b" \
+    'until_ok "label | grep -qix \"$b_name\"" 8'
+
+e_surface=$(surface_of "-3000, 0")
+check "a pane that shows its back to the camera is hidden" \
+    'until_ok "test \"\$(visible construct-pane-$e_surface)\" = False" 8'
+
 a_presses=$(presses a)
 a_name=$(name_of "-700, 2000")
 before=$(pane_at "$a_name")
@@ -169,6 +194,18 @@ inject "[{\"pointer_move\": {\"position\": [$from]}},
 sleep 1
 check "a drag with the modifier over pane a reaches no window" 'test "$(presses a)" = "$a_presses"'
 check "the drag with the modifier moves pane a" 'test "$(pane_at "$a_name")" != "$before"'
+a_box=$(box "construct-pane-$(surface_of "$(pane_at "$a_name" | tr -d '[]')")")
+from=$(pane_centre "$a_name")
+inject "[{\"pointer_move\": {\"position\": [$from]}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"pressed\"}},
+  {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+  {\"pointer_move\": {\"position\": [${from%%,*}, 200]}},
+  {\"pointer_move\": {\"position\": [300, 240], \"output\": \"$second\"}},
+  {\"button\": {\"state\": \"released\"}},
+  {\"key\": {\"key\": \"Super_L\", \"state\": \"released\"}}]"
+sleep 1
+check "a pane dropped off the output shows where it was again" \
+    'test "$(box "construct-pane-$(surface_of "$(pane_at "$a_name" | tr -d "[]")")")" = "$a_box"'
 click_at "640, 60"
 sleep 0.5
 view=$(camera)
@@ -177,6 +214,13 @@ inject '[{"shortcut": {"keys": "w"}}]'
 sleep 1
 check "after a click on the empty space, w walks" 'test "$(camera)" != "$view"'
 check "the walk key reaches no window" 'test "$(cat "$work"/?.log | grep -c "^key")" = "$all_keys"'
+
+call settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
+b_surface=$(surface_of "$(pane_at "$b_name" | tr -d '[]')")
+click_at "$(pane_centre "$b_name")"
+sleep 1
+check "an injected click gives no window the keyboard without the test setting" \
+    'test "$(focused "id:$b_surface")" != True && test "$(focused id:construct-look)" = True'
 
 [ "$failed" = 0 ] || fail "direct input on the 3D base"
 ok "direct input on the 3D base"

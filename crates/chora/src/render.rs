@@ -1722,6 +1722,19 @@ mod tests {
     use super::{location_and_scale, premultiplied, send_frames, surface_under};
     use crate::testing::{Core, wayland::Wayland};
 
+    /// The mesh points of a layer wholly behind the eye give an empty box.
+    #[test]
+    fn mesh_points_behind_the_eye_give_an_empty_box() {
+        let mut behind = [0.0; 16];
+        behind[0] = 1.0;
+        behind[5] = 1.0;
+        behind[10] = 1.0;
+        behind[15] = -1.0;
+        let points = [[0.0, 0.0], [100.0, 0.0], [0.0, 80.0]];
+        let rect = super::projected_box(&Transform::from_matrix(behind), points.into_iter());
+        assert_eq!(rect, smithay::utils::Rectangle::default());
+    }
+
     /// A window that no output shows gets a frame callback at most once a
     /// second, so that a hidden client stops drawing (#60).
     #[test]
