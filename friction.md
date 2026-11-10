@@ -154,3 +154,11 @@
     first" is broken more than three times. Change: the dev rules ask
     for the red run as a separate commit (`test: ... (red)`) pushed
     before the fix; the PM checks the branch history for it at merge.
+
+23. A read-only reviewer detached HEAD in /home/user/chora "to read
+    files" and left it detached; the PM then merged on a detached HEAD
+    and the local branch ref fell 24 commits behind (the pushes were
+    right, from HEAD). Fixed by a fast-forward. Rule for every review
+    brief: never run checkout or switch in /home/user/chora; read with
+    `git show REF:PATH` or `git diff`. The PM checks `git status -sb` of
+    the main checkout before each merge.

@@ -148,6 +148,17 @@ C1. One cube (user question 11-09): today `chora-xp` has its own desktop
 
 ## Track C
 
+S2. Playground: windowed chora (winit) with an agent as a 2D/3D canvas;
+   a distrobox/OCI image and a Nix flake to try it in minutes (user
+   decision 11-10). Week 1, after the construct demo.
+S3. Effects pack, off by default, respects reduced motion: a closing
+   window burns with flames and falling ash, an exploding window with a
+   shock wave, more; the close never waits for the effect (it plays on a
+   snapshot). After the 3D wobble demo.
+S4. Website and USPs: design and marketing agents together, with a
+   research agent; one headline, two paths; every claim backed by a
+   demo; says pre-release. Orphan branch claude/website.
+
 S1. Feature sprint "HUDs and ACP chat" (user request 11-09 evening,
    design/hud-sprint.md): ACP chats; HUD drafts for mc, xp and
    construct; a voice HUD that adapts to the context; HUDs that users

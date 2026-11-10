@@ -4,6 +4,12 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Decided (question in chat): packaging before 1.0 stays Fedora/COPR and
+  Arch, plus a distrobox/OCI image with windowed mode and a Nix flake;
+  native packages for other distributions after 1.0. Website framing:
+  one headline ("a programmable 3D desktop you shape by hand or with an
+  agent") with two paths, "Rice it" and "Build with it".
+
 - Yes, start step 1 (effects). If things keep moving this fast, there
   is room to push further. Wanted: deliberately over-the-top effects for
   attention: a closing window burns down with realistic flames and
