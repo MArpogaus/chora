@@ -61,15 +61,15 @@ pub(super) fn space(core: &mut Core, size: [f64; 2]) -> crate::testing::Client {
     wm
 }
 
-fn rect(id: &str, size: [f64; 2], color: [f64; 4], matrix: &Matrix) -> Value {
+pub(super) fn rect(id: &str, size: [f64; 2], color: [f64; 4], matrix: &Matrix) -> Value {
     json!({"create": {"id": id, "kind": "rect", "parent": "eye", "props": {
         "size": size, "color": color, "transform": {"matrix": matrix}}}})
 }
 
-const RED: [u8; 4] = [255, 0, 0, 255];
+pub(super) const RED: [u8; 4] = [255, 0, 0, 255];
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 
-fn capture(
+pub(super) fn capture(
     core: &mut Core,
     wm: &mut crate::testing::Client,
 ) -> impl Fn(f64, f64) -> [u8; 4] + use<> {
@@ -302,7 +302,7 @@ fn a_shader_in_a_context_reads_depth_and_facing() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
-fn turn_x(degrees: f64) -> Matrix {
+pub(super) fn turn_x(degrees: f64) -> Matrix {
     let (s, c) = degrees.to_radians().sin_cos();
     [
         1.0, 0.0, 0.0, 0.0, 0.0, c, s, 0.0, 0.0, -s, c, 0.0, 0.0, 0.0, 0.0, 1.0,
@@ -313,7 +313,7 @@ fn turn_x(degrees: f64) -> Matrix {
 /// front of the centre, and a blue wall far behind it. The floor shows
 /// below the horizon down to w = 1/64, at y = 240 + 64 = 304; below that
 /// the near plane cuts it and the wall shows.
-fn floor(core: &mut Core) -> crate::testing::Client {
+pub(super) fn floor(core: &mut Core) -> crate::testing::Client {
     core.add_output("test-1", (640, 480));
     let mut wm = space(core, [640.0, 480.0]);
     let floor = chain(&[translate(-680.0, 241.0, -1000.0), turn_x(90.0)]);

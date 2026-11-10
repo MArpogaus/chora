@@ -144,7 +144,7 @@ impl Layers {
     /// frame if there is one.
     pub fn texture(
         &mut self,
-        gles: &mut GlesRenderer,
+        (gles, stats): (&mut GlesRenderer, &mut RenderStats),
         node: &str,
         slot: usize,
         size: Size<i32, BufferCoords>,
@@ -156,6 +156,7 @@ impl Layers {
             return Ok(texture.clone());
         }
         let texture: GlesTexture = gles.create_buffer(Fourcc::Abgr8888, size)?;
+        stats.textures_allocated += 1;
         self.textures.insert(key, (texture.clone(), now));
         Ok(texture)
     }
@@ -686,7 +687,7 @@ pub fn apply_passes(
         };
         let size = Texture::size(&texture);
         let next = if slot == 1 { 2 } else { 1 };
-        let Ok(mut target) = layers.texture(gles, &node.id, next, size) else {
+        let Ok(mut target) = layers.texture((gles, stats), &node.id, next, size) else {
             continue;
         };
         match draw_pass(gles, &program, &texture, &mut target, (&uniforms, &extra)) {

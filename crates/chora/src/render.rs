@@ -133,6 +133,11 @@ pub struct RenderStats {
     /// The pieces of planes that a split or the near clip of a 3D context
     /// left, drawn on their own.
     pub splits: u64,
+    /// The textures that the layers allocated on the GPU.
+    pub textures_allocated: u64,
+    /// The drawing orders of 3D contexts that the splitter computed; a
+    /// frame and a hit test of an unchanged context reuse one.
+    pub orders: std::cell::Cell<u64>,
 }
 
 impl RenderStats {
@@ -363,6 +368,7 @@ fn context_elements<R: MeshRenderer>(
     let list = scene.context_list(context);
     let pieces = {
         let (windows, assets) = (parts.windows, &*parts.assets);
+        assets.stats.orders.set(assets.stats.orders.get() + 1);
         space::order(context, &list, |p| flat(windows, assets, p))
     };
     let mut textures = HashMap::new();
@@ -590,7 +596,11 @@ fn layer_texture(
         size: (size.w, size.h).into(),
     };
     let content = flat_elements(parts, gles, &node.id, &inner)?;
-    let mut texture = parts.assets.layers.texture(gles, &node.id, 0, size).ok()?;
+    let assets = &mut *parts.assets;
+    let mut texture = assets
+        .layers
+        .texture((gles, &mut assets.stats), &node.id, 0, size)
+        .ok()?;
     if let Err(err) = mesh::render_into(gles, &mut texture, scale, &content) {
         tracing::warn!(%err, "a layer failed");
         return None;
@@ -651,7 +661,12 @@ fn node_textures(
         let content = flat_elements(parts, gles, &source.node, &view);
         parts.depth -= 1;
         let Some(content) = content else { continue };
-        let Ok(mut texture) = parts.assets.layers.texture(gles, &node.id, slot, size) else {
+        let assets = &mut *parts.assets;
+        let Ok(mut texture) =
+            assets
+                .layers
+                .texture((gles, &mut assets.stats), &node.id, slot, size)
+        else {
             continue;
         };
         if mesh::render_into(gles, &mut texture, scale, &content).is_ok() {
@@ -1113,6 +1128,8 @@ fn context_hit<'a>(
     pos: Point<f64, Logical>,
 ) -> Option<Found<'a>> {
     let list = state.scene.context_list(context);
+    let counted = &state.assets.stats.orders;
+    counted.set(counted.get() + 1);
     let pieces = space::order(context, &list, |p| flat(&state.windows, &state.assets, p));
     pieces.iter().rev().find_map(|piece| {
         let entry = &list[piece.plane];
@@ -1543,6 +1560,8 @@ pub(crate) fn projected_box(
 
 #[cfg(test)]
 mod context;
+#[cfg(test)]
+mod cost;
 #[cfg(test)]
 mod hit_guard;
 #[cfg(test)]
