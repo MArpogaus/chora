@@ -981,11 +981,11 @@ The core starts no program except its own startup command (D30, D42).
 `choractl run` starts programs outside the core, and systemd keeps
 plugins running.
 
-`choractl run [--token TOKEN] [--] CMD ARGS...` starts a program outside
-the core. It asks the core for an activation token with
-`activation.token`, or takes `TOKEN`, which a plugin minted on its own
-connection so that it carries the act that the plugin received, and
-passes it to the program in `XDG_ACTIVATION_TOKEN`, and in
+`choractl run [--] CMD ARGS...` starts a program outside the core. It
+asks the core for an activation token with `activation.token`, or takes
+the one in `CHORA_RUN_TOKEN`, which a plugin minted on its own connection
+so that it carries the act that the plugin received, and passes it to
+the program in `XDG_ACTIVATION_TOKEN`, and in
 `DESKTOP_STARTUP_ID` for GTK 3. The children of the program inherit
 both variables unless the program removes them, as GTK does after it
 read the token. It prints the pid, the unit and the token as one

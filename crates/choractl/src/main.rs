@@ -140,13 +140,10 @@ enum Cmd {
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
     /// when a user manager runs, as its own child otherwise. Prints pid,
-    /// unit and token as one JSON line.
+    /// unit and token as one JSON line. A token in `CHORA_RUN_TOKEN`,
+    /// which a plugin minted on its own connection, takes the place of a
+    /// new one; the program never sees that variable.
     Run {
-        /// A token that the caller minted on its own connection, so that
-        /// it carries the act that the caller received; without it,
-        /// choractl mints one.
-        #[arg(long)]
-        token: Option<String>,
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         argv: Vec<String>,
@@ -466,8 +463,11 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             "camera.release",
             serde_json::json!({"output": output}),
         ),
-        Cmd::Run { argv, token } => run_program(client, &argv, (None, token.as_deref()))
-            .map(|line| print_line(std::io::stdout(), &line)),
+        Cmd::Run { argv } => {
+            let token = caller_token(|key| std::env::var(key).ok());
+            run_program(client, &argv, (None, token.as_deref()))
+                .map(|line| print_line(std::io::stdout(), &line))
+        }
         Cmd::ConfigureOutput {
             output,
             scale,
@@ -670,9 +670,19 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
 /// Stdout and stderr go to the null device: the output of the program
 /// never mixes with the JSON line or the MCP protocol, and a caller that
 /// reads the stderr of `run` to its end does not wait for the program.
+/// The variable in which a plugin hands `choractl run` the token that it
+/// minted on its own connection, so that the token carries its act.
+const RUN_TOKEN: &str = "CHORA_RUN_TOKEN";
+
+/// The token of the caller of `run` in [`RUN_TOKEN`], if it set one.
+fn caller_token(env: impl Fn(&str) -> Option<String>) -> Option<String> {
+    env(RUN_TOKEN).filter(|token| !token.is_empty())
+}
+
 fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
+        .env_remove(RUN_TOKEN)
         .env("XDG_ACTIVATION_TOKEN", token)
         .env("DESKTOP_STARTUP_ID", token)
         .stdin(std::process::Stdio::null())
@@ -1332,15 +1342,19 @@ mod tests {
         let _ = std::fs::remove_file(&out);
     }
 
-    /// `run --token` starts the program with the activation token of its
-    /// caller instead of one of its own.
+    /// `run` takes the activation token of its caller from the
+    /// environment, never from its arguments, which other users can read.
     #[test]
-    fn run_takes_the_token_of_its_caller() {
-        let args = Args::try_parse_from(["choractl", "run", "--token", "tok", "--", "foot"]);
-        let Cmd::Run { argv, .. } = args.expect("run parses").command else {
+    fn run_takes_the_token_of_its_caller_from_the_environment() {
+        let env = |key: &str| (key == "CHORA_RUN_TOKEN").then(|| "tok".to_owned());
+        assert_eq!(super::caller_token(env).as_deref(), Some("tok"));
+        assert_eq!(super::caller_token(|_| Some(String::new())), None);
+        assert_eq!(super::caller_token(|_| None), None);
+        let args = Args::try_parse_from(["choractl", "run", "--", "foot"]);
+        let Cmd::Run { argv } = args.expect("run parses").command else {
             panic!("not run");
         };
-        assert_eq!(argv, ["foot"], "--token is an option of run");
+        assert_eq!(argv, ["foot"]);
     }
 
     /// No argument of a command takes the place of `--name`.

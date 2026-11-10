@@ -24,15 +24,18 @@ pub mod wobbly;
 pub mod words;
 pub mod xdg;
 
-/// The arguments of `choractl run` for a shell command, with the
-/// activation token of the plugin when it has one.
-fn run_args<'a>(command: &'a str, token: Option<&'a str>) -> Vec<&'a str> {
-    let mut args = vec!["run"];
+/// A command that runs `choractl run` for a shell command through
+/// `program`, with the activation token of the plugin, when it has one,
+/// in `CHORA_RUN_TOKEN` and not in the arguments, which every user can
+/// read.
+fn run_command(program: &[&str], command: &str, token: Option<&str>) -> std::process::Command {
+    let mut run = std::process::Command::new(program[0]);
+    run.args(&program[1..])
+        .args(["run", "--", "sh", "-c", command]);
     if let Some(token) = token {
-        args.extend(["--token", token]);
+        run.env("CHORA_RUN_TOKEN", token);
     }
-    args.extend(["--", "sh", "-c", command]);
-    args
+    run
 }
 
 /// Starts a shell command as an app with `choractl run` (D42). The app
@@ -42,10 +45,8 @@ fn run_args<'a>(command: &'a str, token: Option<&'a str>) -> Vec<&'a str> {
 /// a unit of its own when a user manager runs. `&` lets the shell exit at
 /// once, so no zombie stays.
 pub fn run(command: &str, token: Option<&str>) {
-    let started = std::process::Command::new("sh")
-        .args(["-c", r#"choractl "$@" >/dev/null &"#, "choractl"])
-        .args(run_args(command, token))
-        .status();
+    let program = ["sh", "-c", r#"choractl "$@" >/dev/null &"#, "choractl"];
+    let started = run_command(&program, command, token).status();
     if let Err(err) = started {
         eprintln!("cannot run {command:?}: {err}");
     }
@@ -56,8 +57,7 @@ pub fn run(command: &str, token: Option<&str>) {
 /// that finds its window and the pid of the app, if `choractl` knows it.
 #[must_use]
 pub fn launch(command: &str, token: Option<&str>) -> Option<(String, Option<u32>)> {
-    let run = std::process::Command::new("choractl")
-        .args(run_args(command, token))
+    let run = run_command(&["choractl"], command, token)
         .stdin(std::process::Stdio::null())
         .output();
     let line = match run {
@@ -222,6 +222,18 @@ pub fn check_file(path: &std::path::Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+
+    #[test]
+    fn the_token_of_a_run_goes_in_the_environment_not_the_arguments() {
+        let run = super::run_command(&["choractl"], "foot", Some("secret"));
+        assert!(run.get_args().all(|arg| arg != "secret"));
+        let env: Vec<_> = run.get_envs().collect();
+        let token = std::ffi::OsStr::new("secret");
+        assert_eq!(
+            env,
+            [(std::ffi::OsStr::new("CHORA_RUN_TOKEN"), Some(token))]
+        );
+    }
 
     #[test]
     fn a_running_process_is_alive_and_a_missing_one_not() {

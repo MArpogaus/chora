@@ -364,7 +364,8 @@ connection of the grab, or those of the owner of the node at the press.
 a connection mints, unconfined and outside a method call of a confined
 caller, while the act is under 2 s old; the kit gives a plugin no token at
 all during such a call. `chora_kit::run` and `chora_kit::launch` mint on the
-connection of the plugin and hand the token to `choractl run --token`. The
+connection of the plugin and hand the token to `choractl run` in
+`CHORA_RUN_TOKEN`. The
 layer surface of an unnamed client gets the keyboard on
 `xdg-activation` only when its token is stamped, no real press came after
 the act, the token is at most 10 s old and the session is not locked; the
