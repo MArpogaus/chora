@@ -1,8 +1,11 @@
-//! chora-construct, steps K1 and K2a (D66): a light, foggy space with a
-//! horizon, a walk on a leash, and panes that stand in it: windows,
-//! and node trees of other plugins such as mc scenes. A click or a key
-//! flies into a pane until it covers the output at 1:1; then the window
-//! itself shows, sharp, with the keyboard. A binding flies out again.
+//! chora-construct, steps K1, K2a and K5 (D66, D75): a light, foggy
+//! space with a horizon, a walk on a leash, and panes that stand in it:
+//! windows, and node trees of other plugins such as mc scenes. The space
+//! is a 3D context of the core, which sorts the panes and casts the ray
+//! of the pointer, so a window of the construct takes clicks and keys in
+//! its tilted pane. A key flies into a pane until it covers the output
+//! at 1:1; then the window itself shows, sharp, with the keyboard. A
+//! binding flies out again.
 //!
 //! A construct is a file of panes (F17). As the flavor, the plugin owns
 //! its windows. With `--overlay` it waits beside another flavor until
@@ -52,6 +55,7 @@ use std::{
 };
 
 use chora_kit::{
+    effects,
     give::{self, Give},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
@@ -68,14 +72,11 @@ use serde_json::{Value, json};
 
 use crate::{
     camera::{moved, takes_the_camera, window_flown_into},
-    config::{Action, Config, Theme},
+    config::{Action, Config},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Metrics, Voice},
     methods::{MovePane, Named, ResizePane, exported_methods},
-    panes::{
-        configure, create, handed_over, mirror_size, mirror_uniforms, pane_uniforms, resized,
-        shadow_w, update, vec3,
-    },
+    panes::{PaneLook, configure, create, handed_over, shadow_w, update, vec3},
     space::{Lens, Pose},
 };
 
@@ -94,8 +95,16 @@ const MIRRORS: &str = "construct-mirrors";
 const MIRROR_SCALE: f64 = 2.0;
 /// The fog shader draws the shadows of this many panes, the nearest.
 const SHADOWS: usize = 8;
+/// The 3D context of the space: a group of the output's size with the
+/// perspective of the lens (D75), and in it the camera group, whose
+/// transform is the pose.
+const SPACE: &str = "construct-space";
+const POSE: &str = "construct-pose";
 const PANES: &str = "construct-panes";
+/// The windows of the construct without a pane, hidden under the sky.
 const WINDOWS: &str = "construct-windows";
+/// The window that the camera is in, over the space.
+const FRONT: &str = "construct-front";
 /// The glow of the focused pane, under it in the group of the panes; it
 /// renders at this fraction of its size and scales up.
 const FOCUS: &str = "construct-focus";
@@ -107,6 +116,7 @@ const LOOK: &str = "construct-look";
 const LIST_ROW: &str = "construct-list-row-";
 const FOG_SHADER: &str = include_str!("../fog.frag");
 const PANE_SHADER: &str = include_str!("../pane.frag");
+const SOURCE_SHADER: &str = include_str!("../source.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 const GLASS_SHADER: &str = include_str!("../glass.frag");
 /// The notice of a window that finds no room in the view.
@@ -258,6 +268,13 @@ impl Pane {
         format!("{}-mirror", self.node())
     }
 
+    /// The shader node that shows the source of a pane through a node
+    /// texture: every pane but one of a window of the construct, which
+    /// holds its window itself.
+    fn texture(&self) -> Option<String> {
+        (!self.attached).then(|| format!("{}-source", self.node()))
+    }
+
     /// The commands that remove the nodes of the pane.
     fn remove(&self) -> [Command; 2] {
         [self.node(), self.mirror()].map(|id| Command::Remove { id, to: None })
@@ -348,11 +365,13 @@ enum Grab {
     Give(&'static str),
 }
 
-/// A drag with the modifier: the pane, the press and its centre then.
+/// A drag with the modifier: the pane, the press, and its centre and
+/// yaw then.
 struct Moving {
     name: String,
     from: [f64; 2],
     at: [f64; 2],
+    yaw: f64,
 }
 
 /// An eased camera move; at its end it may snap into a pane.
@@ -395,6 +414,7 @@ struct Construct {
     moving: Option<Moving>,
     fog_shader: String,
     pane_shader: String,
+    source_shader: String,
     mirror_shader: String,
     glass_shader: String,
     /// The launcher: the token and the process of its own window, which
@@ -408,8 +428,8 @@ struct Construct {
     pose: Pose,
     glide: Option<Glide>,
     panes: Vec<Pane>,
-    /// The pane nodes from the back to the front, as last sent.
-    order: Vec<String>,
+    /// The look of the panes as last sent; `None` sends it again.
+    sent: Option<PaneLook>,
     flown: Option<Flown>,
     /// The press of a drag: where, the point of the last move, and
     /// whether it moved.
@@ -434,6 +454,15 @@ struct Construct {
     pointer: Option<[f64; 2]>,
     /// The pane that the label names, if it shows.
     labelled: Option<String>,
+    /// The window of a pane under the pointer, from `pointer.entered`:
+    /// the focus and the label follow it.
+    hovered: Option<String>,
+    /// The panes that show their back to the camera and are hidden.
+    backs: std::collections::BTreeSet<String>,
+    /// The focus glow as last sent.
+    glow: Option<PropsUpdate>,
+    /// The wobble of the panes of own windows that the modifier drags.
+    effects: effects::Driver,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -492,6 +521,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         moving: None,
         fog_shader: shader("fog.frag", FOG_SHADER)?,
         pane_shader: shader("pane.frag", PANE_SHADER)?,
+        source_shader: shader("source.frag", SOURCE_SHADER)?,
         mirror_shader: shader("mirror.frag", MIRROR_SHADER)?,
         glass_shader: shader("glass.frag", GLASS_SHADER)?,
         launcher: None,
@@ -502,7 +532,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         pose: start,
         glide: None,
         panes: Vec::new(),
-        order: Vec::new(),
+        sent: None,
         flown: None,
         drag: None,
         list: None,
@@ -514,14 +544,19 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         glass: Glass::default(),
         pointer: None,
         labelled: None,
+        hovered: None,
+        backs: std::collections::BTreeSet::new(),
+        glow: None,
+        effects: effects::Driver::default(),
     };
+    construct.effects.set(&construct.settings.value.effects);
     construct.start()?;
     construct.serve()?;
     Ok(())
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 16] = [
+const EVENTS: [&str; 18] = [
     "voice.*",
     "client.connected",
     "client.disconnected",
@@ -534,6 +569,8 @@ const EVENTS: [&str; 16] = [
     "output.changed",
     "output.removed",
     "node.key",
+    "pointer.entered",
+    "pointer.left",
     "pointer.pressed",
     "pointer.moved",
     "pointer.released",
@@ -555,6 +592,9 @@ struct Drag {
     press: [f64; 2],
     last: [f64; 2],
     moved: bool,
+    /// Whether the press came from `input.inject` without the test
+    /// setting: its click flies nowhere.
+    injected: bool,
 }
 #[cfg(test)]
 mod tests;

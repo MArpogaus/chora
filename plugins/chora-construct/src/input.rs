@@ -1,11 +1,24 @@
 //! Pointer, key and drag input: press, move, release, drop, the list
 //! keys.
 
+use chora_kit::effects::Target;
+
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, LIST,
-    LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
+    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
+    LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
     window_flown_into,
 };
+
+/// The node that the wobble of a pane bends: the group of the pane, in
+/// its own coordinates.
+fn wobble_target(pane: &Pane) -> Target {
+    Target {
+        node: pane.node(),
+        origin: [0.0; 2],
+        size: pane.size,
+        set_size: true,
+    }
+}
 
 impl Construct {
     /// The events of the voice agent and of the watchdog, then the input.
@@ -37,6 +50,7 @@ impl Construct {
                     );
                 }
                 self.glass.plain = true;
+                self.effects.dropped();
                 self.draw_hud()
             }
             Event::LayersDropped { nodes, .. } => {
@@ -106,7 +120,7 @@ impl Construct {
                         None => self.press(at, true),
                     },
                     PressState::Released if inside.is_some() => Ok(()),
-                    PressState::Released => self.release(at),
+                    PressState::Released => self.release(at, None),
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
@@ -119,20 +133,48 @@ impl Construct {
                 self.answer(&node, injected);
                 return Ok(());
             }
+            Event::PointerEntered { node, .. } => {
+                let hovered = self.own_window(&node).then_some(node);
+                if hovered != self.hovered {
+                    self.hovered = hovered;
+                    return self.frame();
+                }
+            }
+            Event::PointerLeft { node } if self.hovered.as_deref() == Some(node.as_str()) => {
+                self.hovered = None;
+                return self.frame();
+            }
+            Event::PointerPressed { node, injected, .. } if self.own_window(&node) => {
+                if injected && !self.rt.accepts_injected() {
+                    return Ok(());
+                }
+                return self.rt.conn.apply(vec![Command::Focus {
+                    surface: Some(node),
+                }]);
+            }
             Event::PointerPressed {
                 node,
                 position,
                 modifiers,
+                injected,
                 ..
-            } if node == LOOK => {
+            } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
-                return self.press(position, held);
+                self.press(position, held)?;
+                if let Some(drag) = &mut self.drag {
+                    drag.injected = injected && !self.rt.accepts_injected();
+                }
+                return Ok(());
             }
-            Event::PointerMoved { node, position, .. } if node == LOOK => {
+            Event::PointerMoved { node, position, .. }
+                if node == LOOK || self.texture_pane(&node).is_some() =>
+            {
                 return self.moved(position);
             }
-            Event::PointerReleased { node, position, .. } if node == LOOK => {
-                return self.release(position);
+            Event::PointerReleased { node, position, .. }
+                if node == LOOK || self.texture_pane(&node).is_some() =>
+            {
+                return self.release(position, self.texture_pane(&node));
             }
             Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => {
                 if let Some(command) = self.voice.scroll(dy) {
@@ -145,9 +187,10 @@ impl Construct {
                 dy,
                 modifiers,
                 ..
-            } if node == LOOK => {
+            } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
-                match self.pane_at(position).filter(|_| held) {
+                let pane = self.texture_pane(&node).or_else(|| self.pane_at(position));
+                match pane.filter(|_| held) {
                     Some(i) => return self.resize_pane(i, (-dy * 0.005).exp()),
                     None => self.walk(-dy * WHEEL, 0.0),
                 }
@@ -157,11 +200,23 @@ impl Construct {
         Ok(())
     }
 
-    /// A press on the space at a point of the output: with the modifier
-    /// on a pane, it starts to move the pane; else a drag looks around.
+    /// Whether a node is the window of a pane of the construct, which
+    /// takes the input itself.
+    pub(crate) fn own_window(&self, node: &str) -> bool {
+        (self.panes.iter()).any(|p| p.attached && p.window() == Some(node))
+    }
+
+    /// The pane whose shader node of its source is `node`.
+    pub(crate) fn texture_pane(&self, node: &str) -> Option<usize> {
+        (self.panes.iter()).position(|p| p.texture().as_deref() == Some(node))
+    }
+
+    /// A press on the space or on a pane that shows a node texture, at a
+    /// point of the output: with the modifier on a pane, it starts to move
+    /// the pane; else a drag looks around. The walk takes the keyboard.
     pub(crate) fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
         self.pointer = Some(at);
-        if self.overlay && self.flown.is_none() {
+        if self.flown.is_none() {
             self.rt.conn.apply(vec![Command::FocusNode {
                 node: Some(LOOK.into()),
             }])?;
@@ -172,12 +227,19 @@ impl Construct {
                 name: pane.name.clone(),
                 from: at,
                 at: pane.at,
+                yaw: pane.yaw,
             });
+            let grab = space::hit(&self.lens, &self.pose, at, pane.at, pane.size, pane.yaw);
+            if let Some((_, [u, v])) = grab.filter(|_| pane.attached) {
+                let target = wobble_target(pane);
+                (self.effects).grab_3d(&pane.name, &target, [0.0; 3], [u, v, 0.0], [0.0; 2]);
+            }
         } else {
             self.drag = Some(Drag {
                 press: at,
                 last: at,
                 moved: false,
+                injected: false,
             });
         }
         Ok(())
@@ -203,6 +265,7 @@ impl Construct {
             name: pane.name.clone(),
             from: at,
             at: pane.at,
+            yaw: pane.yaw,
         });
         self.leave_window()
     }
@@ -227,14 +290,17 @@ impl Construct {
         self.look(at)
     }
 
-    /// The end of a press: a moved pane drops, a click flies in.
-    pub(crate) fn release(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+    /// The end of a press: a moved pane drops, a click on a pane that
+    /// shows a node texture flies into it. A click on the space moves
+    /// nothing.
+    pub(crate) fn release(&mut self, at: [f64; 2], pane: Option<usize>) -> Result<(), ClientError> {
         self.pointer = Some(at);
         if let Some(moving) = self.moving.take() {
+            self.effects.release(&moving.name);
             return self.drop_pane(&moving, at);
         }
-        let click = self.drag.take().is_some_and(|d| !d.moved);
-        if let Some(i) = self.pane_at(at).filter(|_| click) {
+        let click = self.drag.take().is_some_and(|d| !d.moved && !d.injected);
+        if let Some(i) = pane.filter(|_| click) {
             self.fly_in(i);
             return Ok(());
         }
@@ -275,6 +341,8 @@ impl Construct {
             }
         } else {
             self.panes[i].at = moving.at;
+            self.panes[i].yaw = moving.yaw;
+            self.rt.conn.apply(self.placed(&self.panes[i]))?;
             let [ox, oy] = self.origin();
             (self.rt.conn)
                 .claimant_at([at[0] + ox, at[1] + oy])
@@ -353,6 +421,28 @@ impl Construct {
             at[0] + fx * ahead + fz * right,
             at[1] + fz * ahead - fx * right,
         ];
-        self.move_pane(i, to)
+        let (from, yaw) = (moving.at, moving.yaw);
+        self.move_pane(i, to)?;
+        let pane = &self.panes[i];
+        let [dx, dz] = [pane.at[0] - from[0], pane.at[1] - from[1]];
+        let (sin, cos) = yaw.sin_cos();
+        let origin = [dx * cos - dz * sin, 0.0, dx * sin + dz * cos];
+        let target = wobble_target(pane);
+        match self.effects.motion_3d(&pane.name, &target, origin) {
+            Some(command) => self.rt.conn.apply(vec![command]),
+            None => Ok(()),
+        }
+    }
+
+    /// One frame of the wobbles of the panes.
+    pub(crate) fn wobble_frame(&mut self) -> Result<(), ClientError> {
+        let panes = &self.panes;
+        let frame = self.effects.tick(Instant::now(), |name| {
+            panes.iter().find(|p| p.name == name).map(wobble_target)
+        });
+        if frame.commands.is_empty() {
+            return Ok(());
+        }
+        self.rt.conn.try_apply(frame.commands).map(drop)
     }
 }

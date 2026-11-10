@@ -48,7 +48,7 @@ impl Construct {
     pub(crate) fn serve(&mut self) -> Result<(), ClientError> {
         loop {
             let plugins = self.waiting.iter().any(|w| w.pane.kind == Kind::Plugin);
-            let wait = if self.glide.is_some() {
+            let wait = if self.glide.is_some() || self.effects.animating() {
                 FRAME
             } else if plugins {
                 RETRY
@@ -66,6 +66,9 @@ impl Construct {
             self.tick()?;
             if self.glide.is_some() {
                 self.step_glide()?;
+            }
+            if self.effects.animating() {
+                self.wobble_frame()?;
             }
         }
     }
@@ -91,7 +94,6 @@ impl Construct {
         let commands: Vec<Command> = gone.iter().flat_map(Pane::remove).collect();
         self.rt.conn.apply(commands)?;
         self.active = true;
-        self.order.clear();
         self.waiting.clear();
         self.build()?;
         self.radius = file.radius;
@@ -142,7 +144,9 @@ impl Construct {
         self.radius = None;
         self.panes.clear();
         self.waiting.clear();
-        self.order.clear();
+        self.sent = None;
+        self.glow = None;
+        self.backs.clear();
         self.flown = None;
         self.glide = None;
         self.moving = None;
@@ -174,7 +178,7 @@ impl Construct {
             taken: false,
             attached: false,
         };
-        self.rt.conn.apply(self.pane_nodes(&pane).into())?;
+        self.rt.conn.apply(self.pane_nodes(&pane))?;
         self.panes.push(pane);
         Ok(None)
     }

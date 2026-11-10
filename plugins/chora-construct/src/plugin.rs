@@ -177,6 +177,7 @@ impl Plugin for Construct {
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         self.glass.plain = false;
+        self.effects.set(&self.settings.value.effects);
         self.regrab().map_err(rejected)?;
         self.restyle().map_err(rejected)?;
         self.frame().map_err(rejected)

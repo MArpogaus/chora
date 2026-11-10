@@ -1582,7 +1582,7 @@ fn layer_box(node: &Node, transform: &Transform, near: f64) -> Option<Rectangle<
     let Some(mesh) = &node.props.mesh else {
         return Some(bounding_box_from(transform, size, near));
     };
-    Some(projected_box(transform, mesh.points.iter().copied()))
+    Some(projected_box(transform, mesh.points.iter().copied(), near))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.
