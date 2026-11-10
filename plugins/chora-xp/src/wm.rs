@@ -489,7 +489,9 @@ impl Wm {
 
     #[allow(clippy::expect_used, reason = "KEYS holds valid bindings")]
     fn grab(&mut self) -> Result<(), ClientError> {
-        for (binding, fallback, key) in KEYS {
+        let cube = !self.cube_off();
+        let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
+        for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
                 let binding: Binding = binding.parse().expect("valid bindings");
                 if self.rt.grab(binding, key)? {
@@ -1055,6 +1057,12 @@ impl Wm {
             });
         }
         commands
+    }
+
+    /// Whether the plugin has no desktop cube: all its outputs are virtual
+    /// ones, which a construct shows on a cube of its own.
+    pub(super) fn cube_off(&self) -> bool {
+        !self.bars.is_empty() && !self.bars.iter().any(Bar::has_pager)
     }
 
     /// The output of a node of an output, as its wallpaper or its taskbar,

@@ -1317,7 +1317,11 @@ holds the drop point, with `remove` and `to`. Without one there, or when
 the core refuses, the window stays. A new window opens on the output
 that the pointer entered last, else on the first one. A title bar
 dropped on an output of `chora-xp` that shows no part of the window, as
-on another virtual output, puts the window there, under the pointer. A drag of the border of the frame
+on another virtual output, puts the window there, under the pointer. When
+all outputs of `chora-xp` are virtual ones, it has no desktop cube of
+its own: the taskbars show no desktop buttons, the keys and Super with
+the left button turn nothing, and `turn_to` does nothing. A construct
+shows such outputs on a cube of its own. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the

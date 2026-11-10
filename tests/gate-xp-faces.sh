@@ -35,7 +35,7 @@ faces-have-bars pass
 opens-under-pointer pass
 moves-to-face pass
 face-removed pass
-no-cube-on-faces missing
+no-cube-on-faces pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"

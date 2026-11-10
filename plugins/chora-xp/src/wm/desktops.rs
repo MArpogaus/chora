@@ -46,7 +46,7 @@ impl Wm {
     /// Moves the focused window to the next desktop and turns the cube
     /// with it.
     pub(super) fn carry(&mut self, steps: i32) -> Vec<Command> {
-        if self.effects.turn.is_some() {
+        if self.effects.turn.is_some() || self.cube_off() {
             return Vec::new();
         }
         let target = cube::offset(self.desktop, steps);
@@ -65,7 +65,7 @@ impl Wm {
 
     /// Starts a turn of the cube by some quarter turns.
     pub(super) fn turn(&mut self, steps: i32) -> Vec<Command> {
-        if self.effects.turn.is_some() || steps == 0 {
+        if self.effects.turn.is_some() || steps == 0 || self.cube_off() {
             return Vec::new();
         }
         let Some(area) = self.bars.first().map(Bar::area) else {
@@ -89,7 +89,8 @@ impl Wm {
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if self.effects.turn.is_some() || !self.effects_on() || !self.effects.toggles.cube {
+        let off = !self.effects_on() || !self.effects.toggles.cube || self.cube_off();
+        if self.effects.turn.is_some() || off {
             return Vec::new();
         }
         self.cube_grab = Some(x);
