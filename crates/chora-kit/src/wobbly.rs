@@ -5,6 +5,18 @@
 //! The pull lasts after the release, so the window settles where it is.
 //! The drawn mesh is a finer grid through the Bézier surface of the
 //! control points.
+//!
+//! The springs act on three axes. A window made with `Wobble::new` and
+//! moved with `advance` stays in the plane: z is exactly 0 and the mesh
+//! has no depth. A window made with `Wobble::new_3d` and moved with
+//! `advance_3d` also has a z. The z of its place is the z of its origin
+//! plus the part of its move across the screen that goes along the view
+//! (`view[0] * x + view[1] * y`), so a drag toward the camera pulls the
+//! window in depth, and so does a move of the window in the space. The
+//! control points trail their places in z as they do in x and y. The
+//! mesh goes out with a depth for each point, relative to the place of
+//! the window and kept within `MAX`, in the z of `chora_scene`: the eye
+//! looks along +z, so a smaller z is nearer.
 
 // The grids have at most 21 points a side, so `usize` to `f64` is exact.
 #![allow(clippy::cast_precision_loss)]
@@ -37,8 +49,14 @@ pub struct Wobble {
     /// The width and height of the window.
     size: [f64; 2],
     /// The control points in scene coordinates, row by row.
-    at: [[f64; 2]; COUNT],
-    velocity: [[f64; 2]; COUNT],
+    at: [[f64; 3]; COUNT],
+    velocity: [[f64; 3]; COUNT],
+    /// The z of the place of the window; 0 in 2D.
+    lift: f64,
+    /// The direction of the view in scene coordinates; only x and y count.
+    view: [f64; 3],
+    /// Whether the mesh goes out with a depth.
+    three_d: bool,
     /// The point pulled to its place: the one nearest to the grab.
     grab: usize,
     /// Whether the pointer still holds the window.
@@ -65,8 +83,11 @@ impl Wobble {
         };
         let mut wobble = Self {
             size,
-            at: [[0.0; 2]; COUNT],
-            velocity: [[0.0; 2]; COUNT],
+            at: [[0.0; 3]; COUNT],
+            velocity: [[0.0; 3]; COUNT],
+            lift: 0.0,
+            view: [0.0; 3],
+            three_d: false,
             grab: index(1) * SIDE + index(0),
             held: true,
             moving: true,
@@ -79,15 +100,31 @@ impl Wobble {
         wobble
     }
 
-    /// A grid in 3D.
+    /// A flat grid over a window in 3D, with its origin and the grab in
+    /// scene coordinates and the direction of the view (the way the eye
+    /// looks, for example `[0.0, 0.0, 1.0]`). The grid draws with a depth.
     #[must_use]
-    pub fn new_3d(size: [f64; 2], origin: [f64; 3], grab: [f64; 3], _view: [f64; 3]) -> Self {
-        Self::new(size, [origin[0], origin[1]], [grab[0], grab[1]])
+    pub fn new_3d(size: [f64; 2], origin: [f64; 3], grab: [f64; 3], view: [f64; 3]) -> Self {
+        let mut wobble = Self::new(size, [origin[0], origin[1]], [grab[0], grab[1]]);
+        wobble.view = view;
+        wobble.three_d = true;
+        wobble.lift = wobble.lift_of(origin);
+        for point in &mut wobble.at {
+            point[2] = wobble.lift;
+        }
+        wobble
     }
 
-    /// Advances a grid in 3D.
+    /// Advances the grid as `advance` does, for a window at an origin in
+    /// 3D. Use it with a grid of `new_3d`.
     pub fn advance_3d(&mut self, origin: [f64; 3], now: Instant) {
+        self.lift = self.lift_of(origin);
         self.advance([origin[0], origin[1]], now);
+    }
+
+    /// The z of the place of a window at an origin in 3D.
+    fn lift_of(&self, origin: [f64; 3]) -> f64 {
+        origin[2] + self.view[0] * origin[0] + self.view[1] * origin[1]
     }
 
     /// Lets go of the window; it shakes until it settles.
@@ -133,44 +170,51 @@ impl Wobble {
     }
 
     /// The drawn mesh in the node coordinates of a window at an origin.
+    /// With a grid of `new_3d` it has a depth for each point.
     #[must_use]
     pub fn mesh(&self, origin: [f64; 2]) -> Mesh {
         let n = CELLS as usize;
         let mut points = Vec::with_capacity((n + 1) * (n + 1));
+        let mut depth = Vec::new();
         for row in 0..=n {
             for col in 0..=n {
-                let [x, y] = self.bezier(col as f64 / n as f64, row as f64 / n as f64);
+                let [x, y, z] = self.bezier(col as f64 / n as f64, row as f64 / n as f64);
                 points.push([x - origin[0], y - origin[1]]);
+                if self.three_d {
+                    depth.push((z - self.lift).clamp(-MAX, MAX));
+                }
             }
         }
         Mesh {
             cols: CELLS,
             rows: CELLS,
             points,
-            depth: Vec::new(),
+            depth,
         }
     }
 
     /// The place of a control point in a window at an origin.
-    fn place(&self, i: usize, origin: [f64; 2]) -> [f64; 2] {
+    fn place(&self, i: usize, origin: [f64; 2]) -> [f64; 3] {
         let (col, row) = (i % SIDE, i / SIDE);
         let last = (SIDE - 1) as f64;
         [
             origin[0] + self.size[0] * col as f64 / last,
             origin[1] + self.size[1] * row as f64 / last,
+            self.lift,
         ]
     }
 
     /// One step of 10 ms.
     fn integrate(&mut self, origin: [f64; 2]) {
         let ms = STEP_MS;
-        let mut acceleration = [[0.0; 2]; COUNT];
+        let mut acceleration = [[0.0; 3]; COUNT];
         for (i, acc) in acceleration.iter_mut().enumerate() {
             let place = self.place(i, origin);
             if i == self.grab {
                 *acc = [
                     (place[0] - self.at[i][0]) * STIFFNESS,
                     (place[1] - self.at[i][1]) * STIFFNESS,
+                    (place[2] - self.at[i][2]) * STIFFNESS,
                 ];
                 continue;
             }
@@ -179,7 +223,7 @@ impl Wobble {
             let near = neighbours(i);
             for j in &near {
                 let rest = self.place(*j, origin);
-                for axis in [0, 1] {
+                for axis in [0, 1, 2] {
                     let stretch =
                         (self.at[*j][axis] - self.at[i][axis]) - (rest[axis] - place[axis]);
                     acc[axis] += stretch * STIFFNESS;
@@ -192,7 +236,7 @@ impl Wobble {
         let acceleration = smooth(&acceleration);
         let mut acc_sum = 0.0;
         for (velocity, acc) in self.velocity.iter_mut().zip(acceleration) {
-            for axis in [0, 1] {
+            for axis in [0, 1, 2] {
                 let acc = acc[axis].clamp(-MAX, MAX);
                 velocity[axis] = acc * ms + velocity[axis] * DRAG;
                 acc_sum += acc.abs();
@@ -201,7 +245,7 @@ impl Wobble {
         self.velocity = smooth(&self.velocity);
         let mut vel_sum = 0.0;
         for (at, velocity) in self.at.iter_mut().zip(&mut self.velocity) {
-            for axis in [0, 1] {
+            for axis in [0, 1, 2] {
                 velocity[axis] = velocity[axis].clamp(-MAX, MAX);
                 at[axis] += velocity[axis] * ms * MOVE_FACTOR;
                 vel_sum += velocity[axis].abs();
@@ -212,22 +256,23 @@ impl Wobble {
 
     /// A point of the Bézier surface of the control points at (u, v) from
     /// 0 to 1.
-    fn bezier(&self, u: f64, v: f64) -> [f64; 2] {
+    fn bezier(&self, u: f64, v: f64) -> [f64; 3] {
         let weights = |t: f64| {
             let s = 1.0 - t;
             [s * s * s, 3.0 * s * s * t, 3.0 * s * t * t, t * t * t]
         };
         let (wu, wv) = (weights(u), weights(v));
-        let mut point = [0.0; 2];
+        let mut point = [0.0; 3];
         for (row, a) in wv.iter().enumerate() {
             for (col, b) in wu.iter().enumerate() {
                 // Moved on by the time since the last step.
                 let i = row * SIDE + col;
-                let p = [0, 1].map(|axis| {
+                let p = [0, 1, 2].map(|axis| {
                     self.at[i][axis] + self.velocity[i][axis] * self.pending * MOVE_FACTOR
                 });
                 point[0] += a * b * p[0];
                 point[1] += a * b * p[1];
+                point[2] += a * b * p[2];
             }
         }
         point
@@ -255,12 +300,12 @@ fn neighbours(i: usize) -> Vec<usize> {
 
 /// Blends each value with its ring of up to 8 neighbours; the value itself
 /// weighs as much as all of them together, as in `KWin`.
-fn smooth(data: &[[f64; 2]; COUNT]) -> [[f64; 2]; COUNT] {
-    let mut out = [[0.0; 2]; COUNT];
+fn smooth(data: &[[f64; 3]; COUNT]) -> [[f64; 3]; COUNT] {
+    let mut out = [[0.0; 3]; COUNT];
     for (i, value) in out.iter_mut().enumerate() {
         #[allow(clippy::cast_possible_wrap)] // a 4x4 grid
         let (col, row) = ((i % SIDE) as isize, (i / SIDE) as isize);
-        let mut sum = [0.0; 2];
+        let mut sum = [0.0; 3];
         let mut count = 0.0;
         for dr in -1..=1 {
             for dc in -1..=1 {
@@ -273,10 +318,11 @@ fn smooth(data: &[[f64; 2]; COUNT]) -> [[f64; 2]; COUNT] {
                 let j = (r * side + c) as usize;
                 sum[0] += data[j][0];
                 sum[1] += data[j][1];
+                sum[2] += data[j][2];
                 count += 1.0;
             }
         }
-        for axis in [0, 1] {
+        for axis in [0, 1, 2] {
             value[axis] = (sum[axis] + count * data[i][axis]) / (2.0 * count);
         }
     }
@@ -572,6 +618,6 @@ mod tests {
         }
         let (a, b) = (flat.mesh([20.0, 30.0]), deep.mesh([20.0, 30.0]));
         assert_eq!(a.points, b.points);
-        assert_eq!(b.depth, Vec::<f64>::new());
+        assert!(b.depth.iter().all(|z| *z == 0.0));
     }
 }
