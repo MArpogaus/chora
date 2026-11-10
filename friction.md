@@ -136,3 +136,10 @@
     said 08:50 to 11:30 when it was 07:50 Bangkok. Fixed on the page.
     Rule: every time on the page or in a report comes from
     `TZ=Asia/Bangkok date`.
+
+20. The container restarted twice on 11-10 morning (about 07:52 and
+    08:12 Bangkok) and stopped all running agents. The worktrees and
+    disk survived; uncommitted work of 3D step 3 stayed in its
+    worktree. Changes: agents commit and push work in progress every 30
+    to 60 minutes; the PM checks `git status` of every worktree after a
+    restart and relaunches with the uncommitted work named in the brief.
