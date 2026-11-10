@@ -830,6 +830,9 @@ impl Default for Bounds {
 impl Bounds {
     /// The box of what was added; a box of nothing overlaps nothing.
     pub(crate) fn rect(&self) -> smithay::utils::Rectangle<f64, smithay::utils::Logical> {
+        if self.min[0] > self.max[0] || self.min[1] > self.max[1] {
+            return smithay::utils::Rectangle::default();
+        }
         smithay::utils::Rectangle::new(
             (self.min[0], self.min[1]).into(),
             (self.max[0] - self.min[0], self.max[1] - self.min[1]).into(),
