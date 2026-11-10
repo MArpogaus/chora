@@ -1252,6 +1252,8 @@ impl Mc {
             self.rt.grab(binding, action)?;
         }
         self.rt.give_keys(Some(|to| Action::Give(to.into())));
+        self.rt
+            .accept_injected(self.settings.value.test_accept_injected_keys);
         self.rt.grab_give_keys()
     }
 

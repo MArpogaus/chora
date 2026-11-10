@@ -204,6 +204,10 @@ pub fn contrast(a: [f64; 3], b: [f64; 3]) -> f64 {
 pub struct Config {
     /// The construct of the flavor's start; empty for an empty space.
     pub start: String,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     pub theme: Theme,
     /// The leash radius R in logical pixels.
     pub radius: f64,

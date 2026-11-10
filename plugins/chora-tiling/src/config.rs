@@ -121,6 +121,10 @@ pub struct Style {
 pub struct Config {
     /// What `MOD` means in the bindings.
     pub modifier: String,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     /// The gap around each window, in logical pixels.
     pub gap: u16,
     /// The number of tags of each output.

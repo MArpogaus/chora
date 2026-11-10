@@ -5,6 +5,9 @@
 
 # The shell command of the terminal, for Super+e, the Terminal of the
 # start menu and the desktop files that need a terminal.
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
 terminal: foot
 # The shell command of Run, and of All Programs when no desktop file
 # lists a program.

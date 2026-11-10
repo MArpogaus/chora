@@ -323,6 +323,8 @@ impl Tiling {
     fn grab_all(&mut self) -> Result<(), ClientError> {
         let bindings = self.wm.config.bindings.clone();
         self.rt.give_keys(Some(|to| Action::Give(to.into())));
+        self.rt
+            .accept_injected(self.wm.config.test_accept_injected_keys);
         for (text, action) in bindings {
             let binding = self
                 .wm

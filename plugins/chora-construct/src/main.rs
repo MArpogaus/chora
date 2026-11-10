@@ -2011,6 +2011,8 @@ impl Construct {
             })
         };
         let serves = self.active && !self.overlay;
+        self.rt
+            .accept_injected(self.settings.value.test_accept_injected_keys);
         self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.ungrab_all()?;
         if self.active && !self.overlay {

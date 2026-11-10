@@ -22,6 +22,12 @@ use crate::{conn::Conn, settings::Store};
 /// The time between two tries to grab give keys that another client held.
 const REGRAB: Duration = Duration::from_secs(2);
 
+/// Whether the environment says that this is a test session, which takes
+/// the keys of `input.inject`.
+fn test_session() -> bool {
+    std::env::var("CHORA_TEST_ACCEPT_INJECTED_KEYS").is_ok_and(|v| v == "1")
+}
+
 /// A plugin on the runtime: it handles the events and the calls of its
 /// exported methods.
 pub trait Plugin {
@@ -119,7 +125,7 @@ impl<A> Runtime<A> {
             grabs: Vec::new(),
             give_keys: None,
             give_tried: None,
-            inject_ok: false,
+            inject_ok: test_session(),
         }
     }
 
@@ -129,7 +135,7 @@ impl<A> Runtime<A> {
     /// `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` of the test sessions turns it
     /// on too.
     pub fn accept_injected(&mut self, setting: bool) {
-        let _ = (setting, self.inject_ok);
+        self.inject_ok = setting || test_session();
     }
 
     /// Sets the action of a give key of [`crate::give::KEYS`] by its
@@ -346,6 +352,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         }
         Event::OutputChanged { output } if !rt.manages(&output.name) => Ok(()),
         Event::OutputRemoved { name } if !rt.manages(&name) => Ok(()),
+        Event::InputKey { injected: true, .. } if !rt.inject_ok => Ok(()),
         event => {
             rt.regrab_give_keys()?;
             plugin.event(event)

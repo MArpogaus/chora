@@ -293,6 +293,10 @@ pub struct Write {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub theme: Theme,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     pub themes: Themes,
     pub scale: Scale,
     /// The named styles of text.
