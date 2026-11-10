@@ -380,49 +380,60 @@ fn memory(pixels: &[u8], size: [u32; 2]) -> MemoryBuffer {
     MemoryBuffer::from_slice(pixels, Fourcc::Abgr8888, buffer_size)
 }
 
-/// The bytes of an image of a size with its halvings: the pixels of the
-/// file, and a third more.
+/// The sizes of an image and of its halvings: each side halves, rounded
+/// up, until the step limit or one pixel.
+fn step_sizes(size: [u32; 2]) -> Vec<[u32; 2]> {
+    let mut sizes = vec![size];
+    while sizes.len() <= MAX_STEPS {
+        let [w, h] = sizes[sizes.len() - 1];
+        if w == 1 && h == 1 {
+            break;
+        }
+        sizes.push([w.div_ceil(2), h.div_ceil(2)]);
+    }
+    sizes
+}
+
+/// The bytes of an image of a size with its halvings.
 fn cost(size: [u32; 2]) -> u64 {
-    u64::from(size[0]) * u64::from(size[1]) * 16 / 3
+    step_sizes(size)
+        .iter()
+        .map(|[w, h]| u64::from(*w) * u64::from(*h) * 4)
+        .sum()
 }
 
 /// The pixels of an image and of its halvings, each the box filter of the
-/// one before, until the step limit or one pixel.
+/// one before.
 fn halvings(pixels: Vec<u8>, size: [u32; 2]) -> Vec<(Vec<u8>, [u32; 2])> {
     let mut steps = vec![(pixels, size)];
-    while steps.len() <= MAX_STEPS && size_of_last(&steps) != [1, 1] {
-        let next = halved(&steps[steps.len() - 1].0, size_of_last(&steps));
-        steps.push(next);
+    for next in step_sizes(size).into_iter().skip(1) {
+        let (pixels, size) = &steps[steps.len() - 1];
+        steps.push((halved(pixels, *size, next), next));
     }
     steps
 }
 
-fn size_of_last(steps: &[(Vec<u8>, [u32; 2])]) -> [u32; 2] {
-    steps.last().map_or([1, 1], |(_, size)| *size)
-}
-
 /// The mean of each 2 by 2 block of premultiplied RGBA pixels; a block
 /// at an odd edge has the pixels that exist.
-fn halved(pixels: &[u8], [w, h]: [u32; 2]) -> (Vec<u8>, [u32; 2]) {
-    let (nw, nh) = (w.div_ceil(2), h.div_ceil(2));
+fn halved(pixels: &[u8], [w, h]: [u32; 2], [nw, nh]: [u32; 2]) -> Vec<u8> {
+    let row = |y: u32| &pixels[y as usize * w as usize * 4..(y as usize + 1) * w as usize * 4];
     let mut out = Vec::with_capacity(nw as usize * nh as usize * 4);
     for y in 0..nh {
+        let rows: Vec<&[u8]> = (y * 2..(y * 2 + 2).min(h)).map(row).collect();
         for x in 0..nw {
-            let block = [(0, 0), (1, 0), (0, 1), (1, 1)]
-                .map(|(px, py)| (x * 2 + px, y * 2 + py))
-                .into_iter()
-                .filter(|(sx, sy)| *sx < w && *sy < h)
-                .map(|(sx, sy)| (sy as usize * w as usize + sx as usize) * 4);
-            let (sum, count) = block.fold(([0u32; 4], 0), |(sum, count), at| {
-                (
-                    [0, 1, 2, 3].map(|c| sum[c] + u32::from(pixels[at + c])),
-                    count + 1,
-                )
-            });
+            let (from, to) = (x as usize * 8, ((x as usize * 2 + 2).min(w as usize)) * 4);
+            let mut sum = [0u32; 4];
+            let mut count = 0;
+            for pixel in rows.iter().flat_map(|r| r[from..to].chunks(4)) {
+                for (total, value) in sum.iter_mut().zip(pixel) {
+                    *total += u32::from(*value);
+                }
+                count += 1;
+            }
             out.extend(sum.map(|total| u8::try_from((total + count / 2) / count).unwrap_or(255)));
         }
     }
-    (out, [nw, nh])
+    out
 }
 
 /// One pixel as premultiplied RGBA.
@@ -438,9 +449,14 @@ fn rgba(color: png::ColorType, px: &[u8]) -> [u8; 4] {
     [premultiply(r), premultiply(g), premultiply(b), a]
 }
 
+/// The left, top, right and bottom of a destination in node coordinates.
+/// Neighbor cells copy the shared edge from one array, so that their edges
+/// are equal bit for bit.
+pub type Edges = [f64; 4];
+
 /// A cell of an image: the source in pixels of the file and the
 /// destination in node coordinates.
-pub type Cell = (Rectangle<f64, Logical>, Rectangle<f64, Logical>);
+pub type Cell = (Rectangle<f64, Logical>, Edges);
 
 /// The cells of an image: the source in pixels of the file and the
 /// destination in node coordinates. Without a slice the image is one cell.
@@ -470,7 +486,7 @@ pub fn cells(file: [u32; 2], size: [f64; 2], slice: Option<[f64; 4]>) -> Vec<Cel
             if src.0.1 > 0.0 && src.1.1 > 0.0 && dst.0.1 > 0.0 && dst.1.1 > 0.0 {
                 out.push((
                     Rectangle::new((src.0.0, src.1.0).into(), (src.0.1, src.1.1).into()),
-                    Rectangle::new((dst.0.0, dst.1.0).into(), (dst.0.1, dst.1.1).into()),
+                    [dx[col], dy[row], dx[col + 1], dy[row + 1]],
                 ));
             }
         }
@@ -507,26 +523,22 @@ where
         let Some(area) = cell_area(dst, at) else {
             continue;
         };
-        let step = image.step_for(src, &area);
-        let scaled: Rectangle<f64, Logical> = Rectangle::new(
-            (
-                src.loc.x * f64::from(step.size[0]) / f64::from(image.size[0]),
-                src.loc.y * f64::from(step.size[1]) / f64::from(image.size[1]),
-            )
-                .into(),
-            (
-                src.size.w * f64::from(step.size[0]) / f64::from(image.size[0]),
-                src.size.h * f64::from(step.size[1]) / f64::from(image.size[1]),
-            )
-                .into(),
+        let index = step_index(src, image.size, area.size, image.steps.len());
+        let step = &image.steps[index];
+        let factor = |side: usize| f64::from(step.size[side]) / f64::from(image.size[side]);
+        let scaled = Rectangle::<f64, Logical>::new(
+            (src.loc.x * factor(0), src.loc.y * factor(1)).into(),
+            (src.size.w * factor(0), src.size.h * factor(1)).into(),
         );
+        #[allow(clippy::cast_possible_truncation)]
+        let logical = |side: i32| ((f64::from(side) / at.output_scale).round() as i32).max(1);
         let element = MemoryRenderBufferRenderElement::from_buffer(
             renderer,
             area.loc.to_f64(),
             &step.buffer,
             Some(at.alpha),
             Some(scaled),
-            Some(Size::from((area.size.w, area.size.h))),
+            Some(Size::from((logical(area.size.w), logical(area.size.h)))),
             Kind::Unspecified,
         );
         match element {
@@ -534,6 +546,7 @@ where
                 id: id.clone(),
                 inner,
                 area,
+                commit: CommitCounter::from(index),
             }),
             Err(err) => tracing::warn!(?err, "an image failed to upload"),
         }
@@ -542,43 +555,74 @@ where
 }
 
 /// The area of a cell on the output in whole physical pixels, or `None`
-/// for a cell without pixels. The edges are rounded in physical pixels,
-/// so that neighbor cells leave no gap and an image sized to whole
-/// pixels is not resampled.
-fn cell_area(dst: &Rectangle<f64, Logical>, at: &Placement) -> Option<Rectangle<i32, Physical>> {
+/// for a cell without pixels. Each edge rounds to the nearest physical
+/// pixel on its own, so that neighbor cells leave no gap, and a node at
+/// x = 0.4 with a width of 10.4 covers the pixels 0 to 10 and not 0.4 to
+/// 10.8. An image sized to whole physical pixels is not resampled.
+fn cell_area(dst: &Edges, at: &Placement) -> Option<Rectangle<i32, Physical>> {
     let (sx, sy) = at.scale;
     let scale = at.output_scale;
     #[allow(clippy::cast_possible_truncation)]
     let round = |v: f64| v.round() as i32;
-    let (x0, y0) = (
-        round(at.origin.x + dst.loc.x * sx * scale),
-        round(at.origin.y + dst.loc.y * sy * scale),
-    );
-    let (x1, y1) = (
-        round(at.origin.x + (dst.loc.x + dst.size.w) * sx * scale),
-        round(at.origin.y + (dst.loc.y + dst.size.h) * sy * scale),
-    );
+    let x = |edge: f64| round(at.origin.x + edge * sx * scale);
+    let y = |edge: f64| round(at.origin.y + edge * sy * scale);
+    let [x0, y0, x1, y1] = [x(dst[0]), y(dst[1]), x(dst[2]), y(dst[3])];
     if x1 <= x0 || y1 <= y0 {
         return None;
     }
     Some(Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into()))
 }
 
-impl Image {
-    /// The step to sample a cell from: the smallest one that still has at
-    /// least one pixel for each pixel on the output, so that the filter
-    /// of the renderer does not skip pixels of the file.
-    fn step_for(&self, src: &Rectangle<f64, Logical>, area: &Rectangle<i32, Physical>) -> &Step {
-        let ratio = (f64::from(area.size.w) / src.size.w).min(f64::from(area.size.h) / src.size.h);
-        let halvings = if ratio < 1.0 {
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let count = (-ratio.log2()).floor() as usize;
-            count.min(self.steps.len() - 1)
-        } else {
-            0
-        };
-        &self.steps[halvings]
+/// The halvings that a cell may use: the most that still has one pixel
+/// of the file for each pixel on the output. A cell takes the most
+/// reduced axis, so that a cell that is much smaller on one axis shows no
+/// moire there and is softer on the other. A halving never crosses a
+/// cell edge: each edge of the source is a multiple of the step, or the
+/// end of the file, so that a pixel of the step holds the color of one
+/// cell only.
+fn step_index(
+    src: &Rectangle<f64, Logical>,
+    file: [u32; 2],
+    area: Size<i32, Physical>,
+    steps: usize,
+) -> usize {
+    let ratio = (f64::from(area.w) / src.size.w).min(f64::from(area.h) / src.size.h);
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let wanted = if ratio < 1.0 {
+        (-ratio.log2()).floor() as usize
+    } else {
+        0
+    };
+    let edges = [
+        (src.loc.x, file[0]),
+        (src.loc.x + src.size.w, file[0]),
+        (src.loc.y, file[1]),
+        (src.loc.y + src.size.h, file[1]),
+    ];
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let aligned = |k: usize| {
+        edges.iter().all(|(edge, end)| {
+            let at_end = (edge - f64::from(*end)).abs() < f64::EPSILON;
+            let on_step = edge.fract() == 0.0 && (*edge as u64).is_multiple_of(1 << k);
+            at_end || on_step
+        })
+    };
+    let limit = wanted.min(steps - 1);
+    (0..=limit).rev().find(|k| aligned(*k)).unwrap_or(0)
+}
+
+/// The damage of a cell: all of its area when the commit differs from the
+/// one asked for, which happens for a new image and for a switch of the
+/// step.
+fn cell_damage(
+    asked: Option<CommitCounter>,
+    commit: CommitCounter,
+    area: Rectangle<i32, Physical>,
+) -> DamageSet<i32, Physical> {
+    if asked == Some(commit) {
+        return DamageSet::default();
     }
+    DamageSet::from_slice(&[Rectangle::from_size(area.size)])
 }
 
 /// An image cell with the id of its node and cell, in place of the id of
@@ -587,6 +631,7 @@ pub struct CellElement<R: Renderer> {
     id: Id,
     inner: MemoryRenderBufferRenderElement<R>,
     area: Rectangle<i32, Physical>,
+    commit: CommitCounter,
 }
 
 impl<R: Renderer> Element for CellElement<R> {
@@ -595,7 +640,7 @@ impl<R: Renderer> Element for CellElement<R> {
     }
 
     fn current_commit(&self) -> CommitCounter {
-        self.inner.current_commit()
+        self.commit
     }
 
     fn location(&self, _scale: Scale<f64>) -> Point<i32, Physical> {
@@ -616,17 +661,14 @@ impl<R: Renderer> Element for CellElement<R> {
 
     fn damage_since(
         &self,
-        scale: Scale<f64>,
+        _scale: Scale<f64>,
         commit: Option<CommitCounter>,
     ) -> DamageSet<i32, Physical> {
-        if self.inner.damage_since(scale, commit).is_empty() {
-            return DamageSet::default();
-        }
-        DamageSet::from_slice(&[Rectangle::from_size(self.area.size)])
+        cell_damage(commit, self.commit, self.area)
     }
 
-    fn opaque_regions(&self, scale: Scale<f64>) -> OpaqueRegions<i32, Physical> {
-        self.inner.opaque_regions(scale)
+    fn opaque_regions(&self, _scale: Scale<f64>) -> OpaqueRegions<i32, Physical> {
+        OpaqueRegions::default()
     }
 
     fn alpha(&self) -> f32 {
@@ -727,7 +769,7 @@ mod tests {
     fn an_image_without_a_slice_is_one_cell() {
         let cells = cells([10, 20], [30.0, 40.0], None);
         assert_eq!(cells.len(), 1);
-        assert_eq!(cells[0].1.size, (30.0, 40.0).into());
+        assert_eq!(cells[0].1, [0.0, 0.0, 30.0, 40.0]);
     }
 
     #[test]
@@ -736,17 +778,14 @@ mod tests {
         assert_eq!(cells.len(), 9);
         let (src, dst) = cells[4];
         assert_eq!((src.loc, src.size), ((4.0, 4.0).into(), (4.0, 4.0).into()));
-        assert_eq!(
-            (dst.loc, dst.size),
-            ((4.0, 4.0).into(), (92.0, 42.0).into())
-        );
-        assert_eq!(cells[8].1.loc, (96.0, 46.0).into());
+        assert_eq!(dst, [4.0, 4.0, 96.0, 46.0]);
+        assert_eq!(cells[8].1[..2], [96.0, 46.0]);
     }
 
     #[test]
     fn insets_that_do_not_fit_shrink() {
         let cells = cells([12, 12], [6.0, 50.0], Some([4.0, 0.0, 4.0, 0.0]));
-        assert!(cells.iter().all(|(_, d)| d.loc.x + d.size.w <= 6.0));
+        assert!(cells.iter().all(|(_, d)| d[2] <= 6.0));
     }
 
     #[test]
@@ -761,6 +800,84 @@ mod tests {
             halvings(vec![0; 64 * 4 * 64], [64, 64]).len(),
             MAX_STEPS + 1
         );
+    }
+
+    #[test]
+    fn a_thin_image_costs_the_sum_of_its_steps() {
+        let sizes = step_sizes([1, 1000]);
+        assert_eq!(sizes, [[1, 1000], [1, 500], [1, 250], [1, 125], [1, 63]]);
+        assert_eq!(cost([1, 1000]), (1000 + 500 + 250 + 125 + 63) * 4);
+        assert_eq!(cost([1, 1]), 4);
+    }
+
+    fn area(w: i32, h: i32) -> Size<i32, Physical> {
+        (w, h).into()
+    }
+
+    fn whole(file: [f64; 2]) -> Rectangle<f64, Logical> {
+        Rectangle::from_size((file[0], file[1]).into())
+    }
+
+    #[test]
+    fn the_step_follows_the_ratio_down_to_one_sixteenth() {
+        let src = whole([256.0, 256.0]);
+        let steps = MAX_STEPS + 1;
+        let at = |side: i32| step_index(&src, [256, 256], area(side, side), steps);
+        assert_eq!(at(300), 0, "above 1");
+        assert_eq!(at(256), 0, "1");
+        assert_eq!(at(129), 0, "just above 1/2");
+        assert_eq!(at(128), 1, "1/2");
+        assert_eq!(at(16), 4, "1/16");
+        assert_eq!(at(4), 4, "below 1/16");
+        assert_eq!(step_index(&src, [256, 256], area(4, 4), 2), 1, "few steps");
+    }
+
+    #[test]
+    fn an_odd_image_steps_down_to_one_pixel() {
+        let src = whole([5.0, 3.0]);
+        assert_eq!(step_sizes([5, 3]), [[5, 3], [3, 2], [2, 1], [1, 1]]);
+        assert_eq!(step_index(&src, [5, 3], area(1, 1), 4), 2);
+    }
+
+    #[test]
+    fn a_cell_takes_the_step_of_its_most_reduced_axis() {
+        let src = whole([100.0, 100.0]);
+        assert_eq!(step_index(&src, [100, 100], area(50, 10), 5), 3);
+        assert_eq!(step_index(&src, [100, 100], area(10, 50), 5), 3);
+    }
+
+    #[test]
+    fn a_step_never_crosses_the_edge_of_a_cell() {
+        let center = Rectangle::new((6.0, 6.0).into(), (244.0, 244.0).into());
+        assert_eq!(step_index(&center, [256, 256], area(16, 16), 5), 1);
+        let aligned = Rectangle::new((8.0, 8.0).into(), (240.0, 240.0).into());
+        assert_eq!(step_index(&aligned, [256, 256], area(16, 16), 5), 3);
+        let fractional = Rectangle::new((4.5, 0.0).into(), (251.5, 256.0).into());
+        assert_eq!(step_index(&fractional, [256, 256], area(16, 16), 5), 0);
+    }
+
+    #[test]
+    fn the_edges_of_a_cell_round_in_physical_pixels() {
+        let at = Placement {
+            origin: (0.4, 0.0).into(),
+            scale: (1.0, 1.0),
+            output_scale: 1.0,
+            alpha: 1.0,
+        };
+        let area = cell_area(&[0.0, 0.0, 10.4, 5.0], &at).unwrap();
+        assert_eq!((area.loc.x, area.size.w), (0, 11));
+        let next = cell_area(&[10.4, 0.0, 20.0, 5.0], &at).unwrap();
+        assert_eq!(next.loc.x, area.loc.x + area.size.w, "no gap");
+    }
+
+    #[test]
+    fn a_cell_has_damage_only_when_its_commit_changed() {
+        let area = Rectangle::from_size(area(10, 6));
+        let same = CommitCounter::from(2);
+        assert!(cell_damage(Some(same), same, area).is_empty());
+        let moved = cell_damage(Some(CommitCounter::from(1)), same, area);
+        assert_eq!(moved.to_vec(), [Rectangle::from_size((10, 6).into())]);
+        assert!(!cell_damage(None, same, area).is_empty());
     }
 
     #[test]
