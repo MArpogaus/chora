@@ -537,8 +537,7 @@ mod tests {
     /// the right and down, as the scene does, not up as in OpenGL.
     #[test]
     fn the_uv_of_a_shader_node_starts_at_the_top_left() {
-        let dir = std::env::temp_dir().join(format!("chora-uv-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-uv");
         let shader = dir.join("uv.frag");
         std::fs::write(
             &shader,
@@ -582,8 +581,7 @@ mod tests {
         use smithay::reexports::wayland_server::protocol::wl_shm::Format as Server;
         use wayland_client::protocol::wl_shm::Format;
 
-        let dir = std::env::temp_dir().join(format!("chora-win-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-win");
         let shader = dir.join("win.frag");
         std::fs::write(
             &shader,

@@ -345,9 +345,7 @@ mod tests {
 
     /// A core with a socket directory, for client sockets.
     fn core(tag: &str) -> (Core, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("chora-input-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir(&format!("chora-input-{tag}"));
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         (core, dir)

@@ -260,8 +260,7 @@ fn the_rects_of_a_query_follow_the_projection() {
 
 #[test]
 fn a_shader_in_a_context_reads_depth_and_facing() {
-    let dir = std::env::temp_dir().join(format!("chora-facing-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir("chora-facing");
     let shader = dir.join("facing.frag");
     std::fs::write(
         &shader,

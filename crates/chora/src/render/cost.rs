@@ -242,8 +242,7 @@ fn eight_live_windows_on_a_ring_show_their_last_color_and_none_drops() {
 
 fn shader(test: &str, body: &str) -> std::path::PathBuf {
     let name = format!("{test}.frag");
-    let dir = std::env::temp_dir().join(format!("chora-cost-{test}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-cost-{test}"));
     let path = dir.join(&name);
     std::fs::write(&path, format!("precision mediump float;\n{body}\n")).unwrap();
     path
