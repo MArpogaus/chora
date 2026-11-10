@@ -102,7 +102,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Tue 10 Nov, 13:24 Bangkok</span>
+      <span>Updated Tue 10 Nov, 14:38 Bangkok</span>
       <span>Day 3 of 22</span>
       <span>Week budget used: about 26 %</span>
     </div>
@@ -114,8 +114,9 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Render fixes from the core review (Opus)</li>
-          <li>Stability: flaky tests and a focus race in xp, mc and construct</li>
+          <li>Silent core crashes and memory growth (Fable)</li>
+          <li>Virtual screens, step 1 of 10 (for the cube)</li>
+          <li>Wobbly windows in 3D (springs with depth)</li>
         </ul>
       </div>
       <div class="panel">
@@ -163,6 +164,8 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="panel">
       <div class="day">Tue 10 Nov</div>
       <ul class="timeline">
+        <li><time>14:37</time><p><span class="tag ok">merged</span>Render fixes of the core review. Found and fixed a real stale-frame bug the old 2D check could not see; the 2D check now has scenes that catch stale frames. Keyboard tokens are now tied to the program the act was aimed at.</p></li>
+        <li><time>14:24</time><p><span class="tag ok">merged</span>Stability: the render-test flake (a race in a graphics library) and shared test folders fixed; the focus race does not exist in xp, mc or construct.</p></li>
         <li><time>13:24</time><p><span class="tag ok">merged</span>Fix of a stuck-click bug the whole-piece review found (moving a window inside a tilted plane could pin every later click to it), plus drag-and-drop now needs a real held mouse button.</p></li>
         <li><time>13:05</time><p><span class="tag ok">merged</span>The chat inside the HUD; one "give" key on every window manager (78 of 85 window moves pass); one shared effects driver (wobbly in tiling, opt-in).</p></li>
         <li><time>12:50</time><p><span class="tag issue">reverted</span>The switch to a fresh PM session per run: a dry run showed a fresh session cannot clone the repo without your approval. Runs stay in this session for now.</p></li>
