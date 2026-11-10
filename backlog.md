@@ -264,3 +264,12 @@ at ~15 fps of real time. Needed before Reddit:
 3. a demo scene with real, colourful content (an image viewer, a code
    editor, a browser-like page), not empty terminals;
 4. demo/record.sh + ffmpeg: GIF (<10 MB, 720p) and MP4.
+
+## K4 (11-11): stand back from a cube face
+The front face of a resting cube fills the screen at 1:1 and holds the
+keyboard, so a person (and a gate) cannot step back to see the cube and
+pull a window out into the space. Needs use/navigate modes (K4): a key
+and a visible control that step the camera back while the face still
+forwards input; the same act in every look (principle 1). Also: turn
+keys for the cube, and a stats method so a gate can check that a still
+cube renders 0 passes.
