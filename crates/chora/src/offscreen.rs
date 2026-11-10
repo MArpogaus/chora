@@ -117,10 +117,11 @@ pub fn render_and_present(
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use chora_scene::ipc::RpcError;
+    use serde_json::{Value, json};
     use smithay::{
         backend::{allocator::Fourcc, renderer::ExportMem},
-        utils::{Buffer, Rectangle, Size},
+        utils::{Buffer, Point, Rectangle, Size},
     };
 
     use super::*;
@@ -283,5 +284,152 @@ mod tests {
         assert!(core.state.watchdog.slow(&output.name()));
         render_and_present(&mut core.state, &output, |_| Ok(false));
         assert!(!core.state.watchdog.slow(&output.name()));
+    }
+
+    /// The corner of the first slot in the layout.
+    const SLOT_1: i32 = -262_144;
+
+    fn add_virtual(core: &mut Core, owner: &mut crate::testing::Client, spec: &str) -> Value {
+        owner.ok(core, "output.add", json!({"spec": spec, "virtual": true}))
+    }
+
+    /// A core without a backend, a virtual output of "construct" that came
+    /// before the screen, and the screen.
+    fn core_with_a_virtual_output() -> (Core, crate::testing::Client, Output) {
+        let mut core = Core::new();
+        let mut construct = core.named("construct");
+        let added = add_virtual(&mut core, &mut construct, "32x32");
+        assert_eq!(added["name"], "VIRTUAL-1");
+        let screen = core.add_output("screen", (64, 48));
+        (core, construct, screen)
+    }
+
+    fn names(outputs: &[Output]) -> Vec<String> {
+        outputs.iter().map(Output::name).collect()
+    }
+
+    #[test]
+    fn a_virtual_output_is_an_output_to_a_window_manager() {
+        let (mut core, mut construct, _screen) = core_with_a_virtual_output();
+        let list = construct.ok(&mut core, "output.list", json!({}));
+        let listed: Vec<_> = list.as_array().expect("a list").iter().collect();
+        assert_eq!(listed[0]["name"], "screen");
+        assert_eq!(listed[0].get("virtual"), None, "a screen keeps its form");
+        let face = listed[1];
+        assert_eq!(
+            (&face["name"], &face["virtual"], &face["owner"]),
+            (&json!("VIRTUAL-1"), &json!(true), &json!("construct"))
+        );
+        assert_eq!(face["position"], json!([SLOT_1, SLOT_1]));
+        assert_eq!(face["work_area"], json!([SLOT_1, SLOT_1, 32, 32]));
+        let overlay = json!({"selector": "id:screen:VIRTUAL-1"});
+        let found = construct.ok(&mut core, "scene.query", overlay);
+        assert_eq!(found.as_array().map(Vec::len), Some(1), "an overlay root");
+        let second = add_virtual(&mut core, &mut construct, "16x16@2");
+        assert_eq!(second["name"], "VIRTUAL-2");
+        assert_eq!(second["position"], json!([2 * SLOT_1, SLOT_1]));
+        assert_eq!(second["size"], json!([8, 8]));
+    }
+
+    #[test]
+    fn a_virtual_output_is_in_no_list_of_screens() {
+        let (mut core, mut construct, screen) = core_with_a_virtual_output();
+        assert_eq!(names(&core.state.outputs), ["screen"], "the pointer layout");
+        assert_eq!(
+            core.state.output_management.head_names(),
+            ["screen"],
+            "the heads of output management"
+        );
+        let grant = json!({"client": "construct", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        core.state.backend = Some(Backend::Headless(Box::new(
+            crate::backend::headless::Headless::new().expect("a software renderer"),
+        )));
+        let picture = construct.ok(&mut core, "screen.capture", json!({}));
+        assert_eq!(
+            (&picture["width"], &picture["height"]),
+            (&json!(64), &json!(48)),
+            "the capture of the first screen"
+        );
+        let mut wayland = Wayland::connect(&mut core);
+        let _lock = wayland.lock(&mut core);
+        render_and_present(&mut core.state, &screen, |_| Ok(false));
+        wayland.roundtrip(&mut core);
+        assert!(wayland.locked(), "the lock waits for screens only");
+    }
+
+    #[test]
+    fn the_pointer_never_enters_one() {
+        let (mut core, mut construct, _screen) = core_with_a_virtual_output();
+        let inside = Point::from((f64::from(SLOT_1) + 5.0, f64::from(SLOT_1) + 5.0));
+        assert!(core.state.spot(inside).is_none(), "no spot");
+        let clamped = core.state.clamp_to_outputs(inside);
+        assert_eq!((clamped.x, clamped.y), (0.0, 0.0), "the nearest screen");
+        let grant = json!({"client": "construct", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let onto = json!({"events": [
+            {"pointer_move": {"output": "VIRTUAL-1", "position": [5.0, 5.0]}}]});
+        let (_, error) = construct.fails(&mut core, "input.inject", onto);
+        assert!(error.contains("no such output"), "{error}");
+    }
+
+    #[test]
+    fn a_side_has_1_to_4096_pixels_and_the_core_picks_the_place() {
+        let mut core = Core::new();
+        let mut construct = core.named("construct");
+        for bad in ["4097x8", "8x4097", "0x8", "8x8+0+0", "8x8,8x8"] {
+            let add = json!({"spec": bad, "virtual": true});
+            let (_, error) = construct.fails(&mut core, "output.add", add);
+            assert!(!error.contains("headless"), "{bad}: {error}");
+        }
+    }
+
+    /// An `output.add` that fails at a limit whose message holds a word.
+    fn hits_the_limit(core: &mut Core, owner: &mut crate::testing::Client, word: &str) {
+        let add = json!({"spec": "1x1", "virtual": true});
+        let (number, error) = owner.fails(core, "output.add", add);
+        assert_eq!(number, RpcError::LIMIT_REACHED, "{error}");
+        assert!(error.contains(word), "{error}");
+    }
+
+    #[test]
+    fn the_17th_and_the_pixel_budget_fail() {
+        let mut core = Core::new();
+        let mut construct = core.named("construct");
+        for n in 1..=16 {
+            let added = add_virtual(&mut core, &mut construct, "8x8");
+            assert_eq!(added["name"], format!("VIRTUAL-{n}"));
+        }
+        hits_the_limit(&mut core, &mut construct, "16");
+        for n in 1..=16 {
+            let remove = json!({"output": format!("VIRTUAL-{n}")});
+            construct.ok(&mut core, "output.remove", remove);
+        }
+        for _ in 0..4 {
+            add_virtual(&mut core, &mut construct, "4096x4096");
+        }
+        hits_the_limit(&mut core, &mut construct, "pixels");
+        let list = construct.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list.as_array().map(Vec::len), Some(4));
+    }
+
+    #[test]
+    fn only_the_owner_removes_it() {
+        let (mut core, mut construct, _screen) = core_with_a_virtual_output();
+        let remove = json!({"output": "VIRTUAL-1"});
+        let mut other = core.named("xp");
+        let (_, error) = other.fails(&mut core, "output.remove", remove.clone());
+        assert!(error.contains("construct"), "{error}");
+        let subscribe = json!({"events": ["output.removed"]});
+        other.ok(&mut core, "events.subscribe", subscribe);
+        construct.ok(&mut core, "output.remove", remove.clone());
+        assert_eq!(other.event_names(&mut core), ["output.removed"]);
+        let list = construct.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list.as_array().map(Vec::len), Some(1), "the screen stays");
+        let again = add_virtual(&mut core, &mut construct, "32x32");
+        assert_eq!(again["name"], "VIRTUAL-1", "the slot is free again");
+        core.admin().ok(&mut core, "output.remove", remove);
+        let (_, error) = construct.fails(&mut core, "output.remove", json!({"output": "screen"}));
+        assert!(error.contains("headless"), "{error}");
     }
 }

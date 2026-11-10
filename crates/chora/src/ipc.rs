@@ -3208,6 +3208,28 @@ mod tests {
         (client, path)
     }
 
+    /// Only a free client of the main socket owns a virtual output.
+    #[test]
+    fn a_client_socket_cannot_add_one() {
+        let (mut core, dir) = socket_dir("virtual");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        let add = json!({"spec": "32x32", "virtual": true});
+        for client in [&mut agent, &mut confined] {
+            let (number, error) = client.fails(&mut core, "output.add", add.clone());
+            assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        }
+        let mut nameless = core.connect();
+        let (_, error) = nameless.fails(&mut core, "output.add", add);
+        assert!(error.contains("hello"), "{error}");
+        let list = admin.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list, json!([]), "nothing was added");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn a_client_wayland_socket_names_its_windows_and_hides_protocols_without_grants() {
         let (mut core, dir) = socket_dir("wayland");
