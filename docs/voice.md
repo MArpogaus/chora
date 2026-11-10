@@ -685,7 +685,11 @@ named `voice` emits them; under another `--name`, the agent emits
 none. The subscription `voice.*` also matches a client such as
 `voice.evil`, so a subscriber must check that the `client` of each
 event is exactly `voice`. The method `state`
-stays for a full state record. The
+stays for a full state record: a HUD that starts, or sees the client
+`voice` connect, calls it, so that it shows the current state before
+the next event. The agent exports its methods after its `hello`, so the
+call may fail at first; chora-assistant repeats it every 250 ms, up to 20
+times. The
 indicator node signals without a HUD: with `indicator`, a dot of 12
 pixels in a corner of the first output, under `screen:OUTPUT`, in the
 color of the state (input `pass`). `offset` is its distance from the

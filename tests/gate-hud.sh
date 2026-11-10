@@ -258,7 +258,9 @@ start_assistant() {
     XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
     assistant_pid=$!
     pids+=("$assistant_pid")
+    waiting 20 host_connected
 }
+host_connected() { ctl query owner:assistant | jq -e 'length > 0'; }
 stop_voice() {
     exec 3>&-
     kill "$voice_pid"
@@ -281,7 +283,7 @@ ensure_session() {
     mkdir -p "$work/data/chora/huds"
     cp -r "$fixtures/mine" "$work/data/chora/huds/mine"
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {app: probe2}, folder: mine}\n' >"$work/chora/chora-assistant.yaml"
-    start_assistant
+    start_assistant || fail "chora-assistant does not connect: $(tail -n 3 "$shots/assistant.log")"
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
     run_pid $!
     probe=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') || fail "foot does not show"
@@ -432,7 +434,7 @@ cell_late_host_shows_figure() {
     stop_assistant
     waiting "$grace_s" figure_gone || return 1
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
-    start_assistant
+    start_assistant || return 1
     waiting "$settle_s" node_has hud-state Listening
 }
 cell_reconnected_voice_shows_figure() {

@@ -27,18 +27,53 @@ const VOICE: &str = "voice";
 /// The most helpers that the context counts.
 const MAX_HELPERS: usize = 64;
 
+/// The time between two tries to ask the voice agent for its state.
+const ASK_EVERY: Duration = Duration::from_millis(250);
+
+/// The most tries to ask the voice agent for its state after it connected.
+const ASK_TRIES: u8 = 20;
+
 impl Agent {
     /// Asks the voice agent for its state, so that the figure shows after
     /// a start or restart of chora-assistant while the agent is awake.
     pub fn ask_voice(&mut self) -> Result<(), ClientError> {
         self.claim_indicator(false);
-        if let Ok(state) = self.voice_call("state", &json!({})) {
-            let name = state["state"].as_str().map(assistant::context_state);
-            self.voice = name.map(|n| (VOICE.to_owned(), n));
-            self.muted = state["muted"]["mic"].as_bool().unwrap_or(false);
-            let commands = self.sync_assistant(Instant::now())?;
-            self.apply(commands)?;
-        }
+        self.ask_state()?;
+        Ok(())
+    }
+
+    /// Calls `state` of the voice agent and shows what it answers. False
+    /// when the call fails, for example before the agent exported it.
+    fn ask_state(&mut self) -> Result<bool, ClientError> {
+        let Ok(state) = self.voice_call("state", &json!({})) else {
+            return Ok(false);
+        };
+        let name = state["state"].as_str().map(assistant::context_state);
+        self.voice = name.map(|n| (VOICE.to_owned(), n));
+        self.muted = state["muted"]["mic"].as_bool().unwrap_or(false);
+        let mut commands = self.sync_assistant(Instant::now())?;
+        commands.extend(self.sync_badge()?);
+        self.apply(commands)?;
+        Ok(true)
+    }
+
+    /// When the next try to ask the voice agent for its state is due.
+    pub fn ask_due(&self) -> Option<Instant> {
+        self.state_ask.map(|(at, _)| at)
+    }
+
+    /// Tries to ask the voice agent for its state after it connected. The
+    /// agent exports its methods after its `hello`, so a try can come too
+    /// early; it repeats [`ASK_TRIES`] times.
+    pub fn ask_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        let Some((_, left)) = self.state_ask.filter(|(at, _)| *at <= now) else {
+            return Ok(());
+        };
+        self.state_ask = if self.ask_state()? || left <= 1 {
+            None
+        } else {
+            Some((now + ASK_EVERY, left - 1))
+        };
         Ok(())
     }
 
@@ -339,6 +374,7 @@ impl Agent {
         if name == VOICE {
             self.claim_due = true;
             self.claim_indicator(false);
+            self.state_ask = Some((Instant::now(), ASK_TRIES));
         }
     }
 
