@@ -88,7 +88,8 @@ pub struct NodeGrab {
     pub local: [f64; 2],
 }
 
-/// The press on a surface under a plane: its node, the origin of the
+/// The press on a surface under a plane, until a popup grab or a drag and
+/// drop of a client takes the pointer: its node, the origin of the
 /// surface in the coordinates of the node, and the last point on the
 /// surface that the client got. Each motion of the press maps through the
 /// plane, also outside the node.
@@ -240,6 +241,9 @@ pub struct State {
     pub node_grab: Option<NodeGrab>,
     /// The press on a surface under a plane, until the button goes up.
     pub plane_grab: Option<PlaneGrab>,
+    /// Whether a drag and drop of a client holds the pointer: its target is
+    /// the surface under the pointer, so no press pins a surface.
+    pub client_drag: bool,
     /// The grab of a button with modifiers, until the button goes up.
     pub button_grab: Option<ButtonGrab>,
     /// The node of the last `pointer.entered`.
@@ -396,6 +400,7 @@ impl State {
             focus_wanted: None,
             node_grab: None,
             plane_grab: None,
+            client_drag: false,
             button_grab: None,
             hovered: None,
             pressed: None,

@@ -908,8 +908,12 @@ fn local_for(
     Some([local.x, local.y])
 }
 
-/// Starts the press of a surface under a plane at the first button.
+/// Starts the press of a surface under a plane at the first button, unless
+/// a drag and drop of a client holds the pointer.
 fn start_plane_grab(state: &mut State) {
+    if state.client_drag {
+        return;
+    }
     let Some(spot) = state.spot(state.pointer_layout) else {
         return;
     };
@@ -932,8 +936,12 @@ fn start_plane_grab(state: &mut State) {
 /// client the point that the plane maps to the pointer. The node is
 /// reached from the root or the overlay of an output, as `anchor` tells.
 /// When the plane shows the pointer behind the eye, the client keeps its
-/// last point.
+/// last point. A drag and drop of a client ends the pin; so does a popup
+/// grab, in `grab`.
 fn planar_press(state: &mut State, spot: &Spot) -> Option<(WlSurface, Point<f64, Logical>)> {
+    if state.client_drag {
+        state.plane_grab = None;
+    }
     let grab = state.plane_grab.as_mut()?;
     let (start, at) = anchor(&state.scene, &state.outputs, &grab.node, spot);
     if let Some(local) = render::local_in(&state.scene, &start, at, &grab.node) {

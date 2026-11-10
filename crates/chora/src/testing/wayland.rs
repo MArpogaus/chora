@@ -13,6 +13,10 @@ use wayland_client::{
         wl_buffer::WlBuffer,
         wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
+        wl_data_device::{self, WlDataDevice},
+        wl_data_device_manager::{DndAction, WlDataDeviceManager},
+        wl_data_offer::WlDataOffer,
+        wl_data_source::{self, WlDataSource},
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
@@ -36,7 +40,7 @@ use wayland_protocols::wp::text_input::zv3::client::{
 use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1;
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
-    xdg_positioner::XdgPositioner,
+    xdg_positioner::{self, XdgPositioner},
     xdg_surface::{self, XdgSurface},
     xdg_toplevel::{self, XdgToplevel},
     xdg_wm_base::{self, XdgWmBase},
@@ -68,6 +72,10 @@ struct App {
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
     shm: Option<WlShm>,
+    data_manager: Option<WlDataDeviceManager>,
+    data_device: Option<WlDataDevice>,
+    /// The drag and drop events that no test took yet.
+    dnd_events: Vec<DndEvent>,
     /// The serials of the key events, press and release, in order.
     key_serials: Vec<u32>,
     /// The newest `repeat_info`: rate and delay.
@@ -97,6 +105,26 @@ pub enum PointerEvent {
     Button { serial: u32, pressed: bool },
     /// The pointer left its surface.
     Leave,
+}
+
+/// An event of a drag and drop of the client, in the units of the client.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DndEvent {
+    /// The drag entered a surface at a point of it.
+    Enter {
+        surface: wayland_client::backend::ObjectId,
+        at: (f64, f64),
+    },
+    /// The drag moved on the surface that it entered.
+    Motion { at: (f64, f64) },
+    /// The drag left its surface.
+    Leave,
+    /// The drag dropped on the surface that it entered.
+    Drop,
+    /// The core cancelled the drag of the source.
+    Cancelled,
+    /// The core told the source that the drop happened.
+    Performed,
 }
 
 /// The configures of a surface.
@@ -138,6 +166,8 @@ impl Toplevel {
 /// A popup of the client.
 pub struct Popup {
     index: usize,
+    pub surface: WlSurface,
+    xdg: XdgSurface,
 }
 
 /// A lock surface of the client.
@@ -330,6 +360,39 @@ impl Wayland {
     /// A popup of a toplevel that grabs the input with a serial, after its
     /// first commit.
     pub fn popup(&mut self, core: &mut Core, parent: &Toplevel, serial: u32) -> Popup {
+        self.open_popup(core, parent, serial, ((50, 50), None))
+    }
+
+    /// A menu: a popup of `size` whose corner is at `at` in the geometry of
+    /// the parent, which slides into it, with a buffer after its first
+    /// commit.
+    pub fn menu(
+        &mut self,
+        core: &mut Core,
+        parent: &Toplevel,
+        serial: u32,
+        (at, size): ((i32, i32), (i32, i32)),
+    ) -> Popup {
+        let popup = self.open_popup(core, parent, serial, (size, Some(at)));
+        if let Some(serial) = self.app.surfaces[popup.index].pending.take() {
+            popup.xdg.ack_configure(serial);
+        }
+        self.show(
+            core,
+            &popup.surface,
+            size,
+            (wl_shm::Format::Argb8888, 0xff00_ff00),
+        );
+        popup
+    }
+
+    fn open_popup(
+        &mut self,
+        core: &mut Core,
+        parent: &Toplevel,
+        serial: u32,
+        (size, at): ((i32, i32), Option<(i32, i32)>),
+    ) -> Popup {
         let qh = self.queue.handle();
         let index = self.app.surfaces.len();
         self.app.surfaces.push(Configures::default());
@@ -337,14 +400,58 @@ impl Wayland {
         let surface = compositor.create_surface(&qh, ());
         let wm_base = self.app.wm_base.as_ref().expect("xdg_wm_base");
         let positioner = wm_base.create_positioner(&qh, ());
-        positioner.set_size(50, 50);
-        positioner.set_anchor_rect(0, 0, 1, 1);
+        positioner.set_size(size.0, size.1);
+        match at {
+            Some((x, y)) => {
+                positioner.set_anchor_rect(x, y, 1, 1);
+                positioner.set_anchor(xdg_positioner::Anchor::TopLeft);
+                positioner.set_gravity(xdg_positioner::Gravity::BottomRight);
+                positioner.set_constraint_adjustment(
+                    xdg_positioner::ConstraintAdjustment::SlideX
+                        | xdg_positioner::ConstraintAdjustment::SlideY,
+                );
+            }
+            None => positioner.set_anchor_rect(0, 0, 1, 1),
+        }
         let xdg = wm_base.get_xdg_surface(&surface, &qh, index);
         let popup = xdg.get_popup(Some(&parent.xdg), &positioner, &qh, index);
         popup.grab(self.app.seat.as_ref().expect("wl_seat"), serial);
         surface.commit();
         self.roundtrip(core);
-        Popup { index }
+        Popup {
+            index,
+            surface,
+            xdg,
+        }
+    }
+
+    /// Starts a drag of the client from a surface with the serial of a
+    /// press, which offers one type of text.
+    pub fn start_drag(&mut self, core: &mut Core, origin: &Toplevel, serial: u32) {
+        let qh = self.queue.handle();
+        let manager = self
+            .app
+            .data_manager
+            .as_ref()
+            .expect("wl_data_device_manager");
+        let device = self
+            .app
+            .data_device
+            .get_or_insert_with(|| {
+                let seat = self.app.seat.as_ref().expect("wl_seat");
+                manager.get_data_device(seat, &qh, ())
+            })
+            .clone();
+        let source = manager.create_data_source(&qh, ());
+        source.offer("text/plain".into());
+        source.set_actions(DndAction::Copy);
+        device.start_drag(Some(&source), &origin.surface, None, serial);
+        self.roundtrip(core);
+    }
+
+    /// Takes the drag and drop events that the client got, in order.
+    pub fn take_dnd_events(&mut self) -> Vec<DndEvent> {
+        std::mem::take(&mut self.app.dnd_events)
     }
 
     /// Whether the core closed a popup.
@@ -606,6 +713,9 @@ impl Dispatch<WlRegistry, ()> for App {
             }
             "zwp_text_input_manager_v3" => {
                 app.text_manager = Some(registry.bind(name, version, qh, ()));
+            }
+            "wl_data_device_manager" => {
+                app.data_manager = Some(registry.bind(name, version.min(3), qh, ()));
             }
             "wl_shm" => app.shm = Some(registry.bind(name, 1, qh, ())),
             "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
@@ -878,6 +988,87 @@ impl Dispatch<XdgPopup, usize> for App {
                 width,
                 height,
             } => app.surfaces[*index].popup = Some([x, y, width, height]),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<WlDataDeviceManager, ()> for App {
+    fn event(
+        _: &mut Self,
+        _: &WlDataDeviceManager,
+        _: <WlDataDeviceManager as Proxy>::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlDataDevice, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlDataDevice,
+        event: wl_data_device::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_data_device::Event::Enter {
+                serial,
+                surface,
+                x,
+                y,
+                id,
+            } => {
+                if let Some(offer) = id {
+                    offer.accept(serial, Some("text/plain".into()));
+                    offer.set_actions(DndAction::Copy, DndAction::Copy);
+                }
+                app.dnd_events.push(DndEvent::Enter {
+                    surface: surface.id(),
+                    at: (x, y),
+                });
+            }
+            wl_data_device::Event::Motion { x, y, .. } => {
+                app.dnd_events.push(DndEvent::Motion { at: (x, y) });
+            }
+            wl_data_device::Event::Leave => app.dnd_events.push(DndEvent::Leave),
+            wl_data_device::Event::Drop => app.dnd_events.push(DndEvent::Drop),
+            _ => {}
+        }
+    }
+
+    wayland_client::event_created_child!(App, WlDataDevice, [
+        wl_data_device::EVT_DATA_OFFER_OPCODE => (WlDataOffer, ()),
+    ]);
+}
+
+impl Dispatch<WlDataOffer, ()> for App {
+    fn event(
+        _: &mut Self,
+        _: &WlDataOffer,
+        _: <WlDataOffer as Proxy>::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl Dispatch<WlDataSource, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &WlDataSource,
+        event: wl_data_source::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_data_source::Event::Cancelled => app.dnd_events.push(DndEvent::Cancelled),
+            wl_data_source::Event::DndDropPerformed => app.dnd_events.push(DndEvent::Performed),
             _ => {}
         }
     }

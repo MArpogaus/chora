@@ -14,6 +14,7 @@ use smithay::{
     },
     input::{
         Seat, SeatHandler, SeatState,
+        dnd::{DnDGrab, DndGrabHandler, DndTarget, GrabType, Source},
         pointer::{CursorImageStatus, Focus, PointerHandle},
     },
     output::Output,
@@ -276,8 +277,48 @@ impl DataDeviceHandler for State {
     }
 }
 
-impl smithay::input::dnd::DndGrabHandler for State {}
-impl WaylandDndGrabHandler for State {}
+impl DndGrabHandler for State {
+    fn dropped(
+        &mut self,
+        _target: Option<DndTarget<'_, Self>>,
+        _validated: bool,
+        _seat: Seat<Self>,
+        _location: Point<f64, Logical>,
+    ) {
+        self.client_drag = false;
+    }
+
+    fn cancelled(&mut self, _seat: Seat<Self>, _location: Point<f64, Logical>) {
+        self.client_drag = false;
+    }
+}
+
+impl WaylandDndGrabHandler for State {
+    /// Starts the drag of a client at a press. The target is the surface
+    /// under the pointer, so the press stops pinning the surface that it
+    /// hit, also under a plane. The icon of the drag is not shown.
+    fn dnd_requested<S: Source>(
+        &mut self,
+        source: S,
+        _icon: Option<WlSurface>,
+        seat: Seat<Self>,
+        serial: Serial,
+        type_: GrabType,
+    ) {
+        let start_data = seat
+            .get_pointer()
+            .filter(|_| type_ == GrabType::Pointer)
+            .and_then(|pointer| Some((pointer.grab_start_data()?, pointer)));
+        let Some((start_data, pointer)) = start_data else {
+            source.cancel();
+            return;
+        };
+        self.plane_grab = None;
+        self.client_drag = true;
+        let grab = DnDGrab::new_pointer(&self.display_handle, start_data, source, seat);
+        pointer.set_grab(self, grab, serial, Focus::Keep);
+    }
+}
 
 impl PrimarySelectionHandler for State {
     fn primary_selection_state(&mut self) -> &mut PrimarySelectionState {
@@ -406,6 +447,7 @@ impl XdgShellHandler for State {
             }
             keyboard.set_focus(self, grab.current_grab(), serial);
             keyboard.set_grab(self, PopupKeyboardGrab::new(&grab), serial);
+            self.plane_grab = None;
             pointer.set_grab(self, PopupPointerGrab::new(&grab), serial, Focus::Keep);
         }
     }
