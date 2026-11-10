@@ -64,7 +64,7 @@ set -uo pipefail
 EXPECTED='
 check-neutral pass
 check-xp pass
-check-mc missing
+check-mc pass
 check-construct missing
 check-ok-names-use pass
 check-names-four-errors pass
