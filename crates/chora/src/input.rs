@@ -666,7 +666,8 @@ pub fn press_button(
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         state.track_press(serial, injected);
-        state.last_real_button = (!injected).then_some((serial, code));
+        let real = !injected || state.injected_drag_gives;
+        state.last_real_button = real.then_some((serial, code));
     } else {
         state
             .last_real_button
@@ -1170,7 +1171,7 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         injected,
     });
     if area {
-        let real = real_press_of(state, button).filter(|_| !injected);
+        let real = real_press_of(state, button).filter(|_| !injected || state.injected_drag_gives);
         state.node_grab = Some(NodeGrab {
             node,
             button,
@@ -2585,6 +2586,21 @@ mod tests {
         let (_, message) = xp.fails(&mut core, "scene.apply", give);
         assert!(message.contains("another client"), "{message}");
         assert_eq!(core.state.button_grab.as_ref().map(|g| g.conn), held);
+    }
+
+    /// The test mode of the headless backend: an injected button press
+    /// gives its drag, so that a gate can pull a window out of a face.
+    /// Without the mode the same give is refused.
+    #[test]
+    fn the_test_mode_lets_an_injected_drag_give() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        click(&mut core, false);
+        core.state.injected_drag_gives = true;
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), true);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        let got = events(&mut xp, &mut core);
+        assert!(got.iter().any(|e| e["event"] == "input.button"), "{got:?}");
     }
 
     /// Review of E3: the state of a drag is data of another client: the

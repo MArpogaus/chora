@@ -484,6 +484,13 @@ to the owner of that output, the client that shows it as a pane. When
 the core refuses, as for an injected drag, the window stays with
 `chora-xp` for the rest of the drag.
 
+A gate has no real pointer. On the headless backend only, the
+environment variable `CHORA_TEST_INJECTED_DRAG_GIVES` makes an injected
+button press count as a button press of the user for `give_grab`, and
+for nothing else; the core logs a warning at its start. It is for tests.
+`tests/gate-construct-pull.sh` pulls a window out of a face of the cube
+with it, and checks without it that an injected drag gives nothing.
+
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for
 example 5 seconds after the give. In the second case the receiver gets
