@@ -265,6 +265,8 @@ impl Construct {
                     ));
                 }
                 self.sent = None;
+                self.glow = None;
+                self.backs.clear();
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
             }

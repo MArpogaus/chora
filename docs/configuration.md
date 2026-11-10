@@ -702,7 +702,9 @@ the effect `pane.frag`, which reads `depth` and `facing` for the haze
 and the edge of the focus, so a walk updates no pane.
 
 A press on the empty space gives the keyboard back to the walk, so its
-keys need no modifier. A drag there looks around, and the wheel walks.
+keys need no modifier. A drag there looks around, and the wheel there or
+over a pane that shows the window of another client or a plugin walks;
+over a window of the construct, the wheel scrolls the window.
 A walk slows down in the outer quarter of the leash radius and stops at
 it. `Return` flies into the pane nearest the middle of the view, and a
 click on a pane that shows the window of another client or a plugin
@@ -746,10 +748,14 @@ is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
 after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
-The key of the setting `modifier` with a drag on a pane moves the pane;
-the construct grabs this drag, so it never reaches a window.
+The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes
-up or down. The same key with the wheel over a pane resizes it. A window
+up or down. As the flavor, the construct grabs this drag, so it reaches
+no window; without the grab, which another client may hold, a press with
+the key on a window of the construct reaches the window. The same key
+with the wheel over a pane that shows the window of another client or a
+plugin resizes it; over a window of the construct the wheel goes to the
+window, since the core grabs no wheel. A window
 of the flavor gets the new size, so that it stays at 1:1. Other panes
 stretch. The default `Super` is the drag modifier of tiling and chora-xp.
 

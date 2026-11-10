@@ -66,8 +66,8 @@ impl Construct {
     }
 
     /// Sends the pose: the transform of the camera group and the camera
-    /// of the fog, the focus glow, and the look of the panes when it
-    /// changed.
+    /// of the fog; and on a change the focus glow, the look of the panes
+    /// and which panes show their back.
     pub(crate) fn frame(&mut self) -> Result<(), ClientError> {
         if self.output.is_none() || !self.active {
             return Ok(());
@@ -76,6 +76,10 @@ impl Construct {
             .map(|p| (p, space::depth(&self.pose, p.at)))
             .filter(|(_, depth)| *depth > 0.0)
             .collect();
+        if near.len() > SHADOWS {
+            near.select_nth_unstable_by(SHADOWS, |a, b| a.1.total_cmp(&b.1));
+            near.truncate(SHADOWS);
+        }
         near.sort_by(|a, b| a.1.total_cmp(&b.1));
         let near: Vec<&Pane> = near.into_iter().map(|(p, _)| p).collect();
         let mut commands = self.space_frame(&near);
@@ -88,24 +92,77 @@ impl Construct {
                 ..PropsUpdate::default()
             },
         ));
+        commands.extend(self.back_faces());
         let focus = self.focus();
         let look = self.pane_look(focus.map(|k| self.panes[k].name.clone()));
-        if self.sent.as_ref() != Some(&look) {
-            commands.extend(self.panes.iter().flat_map(|p| self.pane_effects(p, &look)));
-            self.sent = Some(look);
-        }
+        commands.extend(self.restyle_panes(&look));
+        self.sent = Some(look);
         if !self.glass.plain {
-            let glow = focus
-                .filter(|_| self.flown.is_none())
-                .map(|k| self.focus_glow(&self.panes[k]));
-            let props = glow.unwrap_or(PropsUpdate {
-                visible: Some(false),
-                ..PropsUpdate::default()
-            });
-            commands.push(update(FOCUS, props));
+            let glow = focus.filter(|_| self.flown.is_none()).map_or(
+                PropsUpdate {
+                    visible: Some(false),
+                    ..PropsUpdate::default()
+                },
+                |k| self.focus_glow(&self.panes[k]),
+            );
+            if self.glow.as_ref() != Some(&glow) {
+                commands.push(update(FOCUS, glow.clone()));
+                self.glow = Some(glow);
+            }
         }
         commands.extend(self.label_commands());
         self.rt.conn.apply(commands)
+    }
+
+    /// The effects of the panes whose look changed: of the old and the new
+    /// focused pane when only the focus moved, else of every pane.
+    fn restyle_panes(&self, look: &PaneLook) -> Vec<Command> {
+        let Some(sent) = &self.sent else {
+            return (self.panes.iter())
+                .flat_map(|p| self.pane_effects(p, look))
+                .collect();
+        };
+        if sent == look {
+            return Vec::new();
+        }
+        let only_focus = PaneLook {
+            focus: look.focus.clone(),
+            ..sent.clone()
+        } == *look;
+        (self.panes.iter())
+            .filter(|p| {
+                let named = |f: &Option<String>| f.as_deref() == Some(p.name.as_str());
+                !only_focus || named(&sent.focus) || named(&look.focus)
+            })
+            .flat_map(|p| self.pane_effects(p, look))
+            .collect()
+    }
+
+    /// Hides a pane and its mirror image while the camera stands behind
+    /// its face, and shows them again in front of it; only on a change.
+    fn back_faces(&mut self) -> Vec<Command> {
+        let eye = [self.pose.x, self.pose.z];
+        let mut commands = Vec::new();
+        for pane in &self.panes {
+            let back = space::shows_back(eye, pane.at, pane.yaw);
+            if back == self.backs.contains(&pane.name) {
+                continue;
+            }
+            if back {
+                self.backs.insert(pane.name.clone());
+            } else {
+                self.backs.remove(&pane.name);
+            }
+            let visible = PropsUpdate {
+                visible: Some(!back),
+                ..PropsUpdate::default()
+            };
+            commands.push(update(&pane.node(), visible.clone()));
+            commands.push(update(&pane.mirror(), visible));
+        }
+        self.backs
+            .retain(|name| self.panes.iter().any(|p| p.name == *name));
+        commands
     }
 
     /// The look of the panes now: the focused pane, the fog, the accent,
@@ -131,7 +188,9 @@ impl Construct {
                 .iter()
                 .position(|p| p.window() == Some(&flown.surface));
         }
-        (self.pointer.and_then(|p| self.pane_at(p)))
+        let hovered = (self.hovered.as_deref())
+            .and_then(|s| self.panes.iter().position(|p| p.window() == Some(s)));
+        (hovered.or_else(|| self.pointer.and_then(|p| self.pane_at(p))))
             .or_else(|| self.pane_ahead())
             .filter(|&i| {
                 let far = self.radius();

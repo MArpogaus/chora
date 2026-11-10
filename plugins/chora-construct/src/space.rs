@@ -90,6 +90,14 @@ pub fn facing(eye: [f64; 2], at: [f64; 2]) -> f64 {
     (at[0] - eye[0]).atan2(at[1] - eye[1])
 }
 
+/// Whether an eye at `eye` sees the back of a pane at `at` with `yaw`:
+/// its front looks against its yaw, toward an eye that faces it.
+#[must_use]
+pub fn shows_back(eye: [f64; 2], at: [f64; 2], yaw: f64) -> bool {
+    let [fx, fz] = [yaw.sin(), yaw.cos()];
+    (eye[0] - at[0]) * fx + (eye[1] - at[1]) * fz >= 0.0
+}
+
 /// The right direction (x, z) of a pane with `yaw`, seen from its front.
 fn right(yaw: f64) -> [f64; 2] {
     [yaw.cos(), -yaw.sin()]
@@ -736,6 +744,19 @@ mod tests {
             sight(&LENS, &up, ([0.0, 2000.0], [640.0, 400.0], 0.0), 6000.0),
             "aside"
         );
+    }
+
+    #[test]
+    fn a_pane_shows_its_back_to_an_eye_behind_its_face() {
+        let at = [0.0, 2000.0];
+        let yaw = facing([0.0, 0.0], at);
+        assert!(!shows_back([0.0, 0.0], at, yaw));
+        assert!(shows_back([0.0, 3000.0], at, yaw));
+        assert!(shows_back(
+            [-3000.0, 0.0],
+            [-3000.0, 2000.0],
+            std::f64::consts::PI
+        ));
     }
 
     #[test]

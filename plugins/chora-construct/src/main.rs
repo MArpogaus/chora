@@ -364,11 +364,13 @@ enum Grab {
     Give(&'static str),
 }
 
-/// A drag with the modifier: the pane, the press and its centre then.
+/// A drag with the modifier: the pane, the press, and its centre and
+/// yaw then.
 struct Moving {
     name: String,
     from: [f64; 2],
     at: [f64; 2],
+    yaw: f64,
 }
 
 /// An eased camera move; at its end it may snap into a pane.
@@ -451,6 +453,13 @@ struct Construct {
     pointer: Option<[f64; 2]>,
     /// The pane that the label names, if it shows.
     labelled: Option<String>,
+    /// The window of a pane under the pointer, from `pointer.entered`:
+    /// the focus and the label follow it.
+    hovered: Option<String>,
+    /// The panes that show their back to the camera and are hidden.
+    backs: std::collections::BTreeSet<String>,
+    /// The focus glow as last sent.
+    glow: Option<PropsUpdate>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -532,6 +541,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         glass: Glass::default(),
         pointer: None,
         labelled: None,
+        hovered: None,
+        backs: std::collections::BTreeSet::new(),
+        glow: None,
     };
     construct.start()?;
     construct.serve()?;
@@ -539,7 +551,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 16] = [
+const EVENTS: [&str; 18] = [
     "voice.*",
     "client.connected",
     "client.disconnected",
@@ -552,6 +564,8 @@ const EVENTS: [&str; 16] = [
     "output.changed",
     "output.removed",
     "node.key",
+    "pointer.entered",
+    "pointer.left",
     "pointer.pressed",
     "pointer.moved",
     "pointer.released",
@@ -573,6 +587,9 @@ struct Drag {
     press: [f64; 2],
     last: [f64; 2],
     moved: bool,
+    /// Whether the press came from `input.inject` without the test
+    /// setting: its click flies nowhere.
+    injected: bool,
 }
 #[cfg(test)]
 mod tests;

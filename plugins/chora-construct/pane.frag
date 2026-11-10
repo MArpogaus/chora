@@ -4,7 +4,9 @@
 // focused pane has no haze and an accent hairline along its edge
 // (docs/construct-style.md, rule 16). The core gives `depth` and
 // `facing` of the plane in its 3D context, so the haze and the hairline
-// follow the camera without updates.
+// follow the camera without updates. The hairline is 1.5 output pixels
+// wide: wider on the texture with the distance, and on the sides that
+// the turn of the pane narrows.
 precision highp float;
 
 // Texture pixels per screen pixel: the screen derivative where the driver
@@ -37,8 +39,6 @@ void main() {
     float haze = edge.w > 0.0 ? 0.0 : (1.0 - exp(-far * 1.5)) * 0.9;
     c = vec4(mix(c.rgb, fog * c.a, haze), c.a);
     if (edge.w > 0.0) {
-        // A hairline of 1.5 output pixels: wider on the texture with the
-        // distance, and on the sides that the turn of the pane narrows.
         float width = max(1.5 * depth, 1.0) * scale;
         float turn = max(abs(facing), 0.2);
         float side = min(min(p.x, size.x - p.x) * turn, min(p.y, size.y - p.y));

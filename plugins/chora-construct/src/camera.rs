@@ -290,7 +290,9 @@ impl Construct {
     /// Grabs the drag with the modifier as the flavor, and the fly-out
     /// binding while the camera is in a pane. Without the grab of the
     /// drag, which another client may hold or the core refuses for Shift
-    /// (D45), the presses on the space still move panes.
+    /// (D45), a press with the modifier on the empty space or on a pane
+    /// that shows a node texture still moves a pane, and one on a window
+    /// of the construct reaches the window.
     pub(crate) fn regrab(&mut self) -> Result<(), ClientError> {
         let parse = |b: String| {
             b.parse().map_err(|e| {

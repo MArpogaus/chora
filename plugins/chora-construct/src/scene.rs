@@ -142,6 +142,8 @@ impl Construct {
         self.panes.clear();
         self.waiting.clear();
         self.sent = None;
+        self.glow = None;
+        self.backs.clear();
         self.flown = None;
         self.glide = None;
         self.moving = None;

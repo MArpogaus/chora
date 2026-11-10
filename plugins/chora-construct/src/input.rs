@@ -119,7 +119,21 @@ impl Construct {
                 self.answer(&node, injected);
                 return Ok(());
             }
-            Event::PointerPressed { node, .. } if self.own_window(&node) => {
+            Event::PointerEntered { node, .. } => {
+                let hovered = self.own_window(&node).then_some(node);
+                if hovered != self.hovered {
+                    self.hovered = hovered;
+                    return self.frame();
+                }
+            }
+            Event::PointerLeft { node } if self.hovered.as_deref() == Some(node.as_str()) => {
+                self.hovered = None;
+                return self.frame();
+            }
+            Event::PointerPressed { node, injected, .. } if self.own_window(&node) => {
+                if injected && !self.rt.accepts_injected() {
+                    return Ok(());
+                }
                 return self.rt.conn.apply(vec![Command::Focus {
                     surface: Some(node),
                 }]);
@@ -128,10 +142,15 @@ impl Construct {
                 node,
                 position,
                 modifiers,
+                injected,
                 ..
             } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
-                return self.press(position, held);
+                self.press(position, held)?;
+                if let Some(drag) = &mut self.drag {
+                    drag.injected = injected && !self.rt.accepts_injected();
+                }
+                return Ok(());
             }
             Event::PointerMoved { node, position, .. }
                 if node == LOOK || self.texture_pane(&node).is_some() =>
@@ -154,9 +173,10 @@ impl Construct {
                 dy,
                 modifiers,
                 ..
-            } if node == LOOK => {
+            } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
-                match self.pane_at(position).filter(|_| held) {
+                let pane = self.texture_pane(&node).or_else(|| self.pane_at(position));
+                match pane.filter(|_| held) {
                     Some(i) => return self.resize_pane(i, (-dy * 0.005).exp()),
                     None => self.walk(-dy * WHEEL, 0.0),
                 }
@@ -193,12 +213,14 @@ impl Construct {
                 name: pane.name.clone(),
                 from: at,
                 at: pane.at,
+                yaw: pane.yaw,
             });
         } else {
             self.drag = Some(Drag {
                 press: at,
                 last: at,
                 moved: false,
+                injected: false,
             });
         }
         Ok(())
@@ -224,6 +246,7 @@ impl Construct {
             name: pane.name.clone(),
             from: at,
             at: pane.at,
+            yaw: pane.yaw,
         });
         self.leave_window()
     }
@@ -256,7 +279,7 @@ impl Construct {
         if let Some(moving) = self.moving.take() {
             return self.drop_pane(&moving, at);
         }
-        let click = self.drag.take().is_some_and(|d| !d.moved);
+        let click = self.drag.take().is_some_and(|d| !d.moved && !d.injected);
         if let Some(i) = pane.filter(|_| click) {
             self.fly_in(i);
             return Ok(());
@@ -298,6 +321,8 @@ impl Construct {
             }
         } else {
             self.panes[i].at = moving.at;
+            self.panes[i].yaw = moving.yaw;
+            self.rt.conn.apply(self.placed(&self.panes[i]))?;
             let [ox, oy] = self.origin();
             (self.rt.conn)
                 .claimant_at([at[0] + ox, at[1] + oy])
