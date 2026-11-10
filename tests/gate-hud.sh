@@ -65,6 +65,8 @@ list-huds missing
 use-hud-writes-setting pass
 card-names-file pass
 card-injected-click-refused pass
+context-held-for-question pass
+context-picks-folder pass
 card-stays-on-focus-move pass
 chat-row-always missing
 chat-row-click-opens missing
@@ -252,7 +254,10 @@ ensure_session() {
     "$bin/chora-tiling" >"$shots/tiling.log" 2>&1 &
     pids+=($!)
     ctl wait owner:tiling --timeout 20 >/dev/null || fail "tiling does not start: $(tail -n 3 "$shots/tiling.log")"
-    "$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
+    mkdir -p "$work/data/chora/huds"
+    cp -r "$fixtures/mine" "$work/data/chora/huds/mine"
+    printf 'enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {app: probe2}, folder: mine}\n' >"$work/chora/chora-assistant.yaml"
+    XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant.log" 2>&1 &
     assistant_pid=$!
     pids+=("$assistant_pid")
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
@@ -288,6 +293,31 @@ cell_card_injected_click_refused() {
     waiting "$settle_s" node_has hud-card "Please use your own mouse or keyboard." || return 1
     node_exists hud-card-yes || return 1
     [ ! -s "$work/claims.answers" ]
+}
+figure_near() {
+    jq -ne --argjson a "$1" --argjson b "$(node_rect hud-figure)" \
+        '($a | to_entries[0].value) as $p | ($b | to_entries[0].value) as $q |
+         (($p[0] - $q[0]) | fabs) < 4 and (($p[1] - $q[1]) | fabs) < 4' >/dev/null 2>&1
+}
+cell_context_held_for_question() {
+    local card figure second
+    ask_notes
+    waiting "$settle_s" node_exists hud-card || return 1
+    card=$(node_rect hud-card)
+    figure=$(node_rect hud-figure)
+    foot -f "DejaVu Sans Mono:size=10" -a probe2 sh -c 'sleep 900' >"$shots/foot-ctx.log" 2>&1 &
+    run_pid $!
+    second=$(ctl wait "app_id:probe2 kind:surface" --timeout 20 | jq -r '.[0].id') || return 1
+    has_focus "$second" || return 1
+    watch_for 1.5 card_rect_is "$card" || return 1
+    figure_near "$figure"
+}
+figure_left() { ! figure_near "$1"; }
+cell_context_picks_folder() {
+    local figure
+    figure=$(node_rect hud-figure)
+    end_question
+    waiting "$settle_s" figure_left "$figure"
 }
 card_rect_is() { [ "$(node_rect hud-card)" = "$1" ]; }
 cell_card_stays_on_focus_move() {
@@ -399,6 +429,8 @@ run_cell use-hud-writes-setting cell_use_hud_writes_setting static
 run_cell neutral-equals-today cell_neutral_equals_today session
 run_cell card-names-file cell_card_names_file session
 run_cell card-injected-click-refused cell_card_injected_click_refused session
+run_cell context-held-for-question cell_context_held_for_question session
+run_cell context-picks-folder cell_context_picks_folder session
 run_cell card-stays-on-focus-move cell_card_stays_on_focus_move session
 run_cell chat-row-always cell_chat_row_always session
 run_cell chat-row-click-opens cell_chat_row_click_opens session
