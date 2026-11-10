@@ -326,7 +326,32 @@ impl State {
     /// spot on a virtual output that a forwarding pane shows there.
     pub fn spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
         let screen = self.screen_spot(layout)?;
-        Some(self.through_pane(&screen).unwrap_or(screen))
+        let through = match &self.press_via {
+            Some(press) => (press.pane.as_deref()).and_then(|pane| self.behind_pane(pane, &screen)),
+            None => self.through_pane(&screen),
+        };
+        Some(through.unwrap_or(screen))
+    }
+
+    /// Counts a button that went down; the first one notes the pane under
+    /// the pointer.
+    pub fn hold_press(&mut self) {
+        if let Some(press) = &mut self.press_via {
+            press.buttons += 1;
+            return;
+        }
+        let pane = self.spot(self.pointer_layout).and_then(|spot| spot.via);
+        self.press_via = Some(Press { pane, buttons: 1 });
+    }
+
+    /// Counts a button that went up. The last one ends the press, before
+    /// its release is told, so that the release carries the point under
+    /// the pointer.
+    pub fn release_press(&mut self) {
+        if let Some(press) = &mut self.press_via {
+            press.buttons = press.buttons.saturating_sub(1);
+        }
+        self.press_via.take_if(|press| press.buttons == 0);
     }
 
     /// The screen at a point of the layout, and the point in output and in
@@ -341,6 +366,7 @@ impl State {
             output: output.clone(),
             local,
             scene: to_scene(&self.camera(output), local),
+            via: None,
         })
     }
 
@@ -388,6 +414,16 @@ pub struct Spot {
     pub local: Point<f64, Logical>,
     /// The point in scene coordinates.
     pub scene: Point<f64, Logical>,
+    /// The pane that forwarded the pointer into a virtual output.
+    pub via: Option<String>,
+}
+
+/// The buttons that are down, and the pane that the first press came
+/// through. Until the last release the pointer stays where that press
+/// began: behind that pane, also outside of it, or on the screen.
+pub struct Press {
+    pub pane: Option<String>,
+    pub buttons: u32,
 }
 
 /// The time between two frames of the current mode.

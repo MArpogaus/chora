@@ -1122,7 +1122,7 @@ fn scene_under(
             surface,
             location: pos - on_surface,
             node: Some(node.id.clone()),
-            plane: planar.then(|| local - on_surface),
+            plane: (planar || spot.via.is_some()).then(|| local - on_surface),
         }),
         Some(_) => Target::Blocked,
         None => Target::Nothing,
@@ -1141,8 +1141,8 @@ pub struct Under {
     /// The surface node; `None` for a layer surface.
     pub node: Option<String>,
     /// The origin of the surface in the coordinates of its node, when a
-    /// plane carries the node; a press then maps every motion through that
-    /// plane.
+    /// plane carries the node or a pane forwards the pointer to it; a
+    /// press then maps every motion through that plane or pane.
     pub plane: Option<Point<f64, Logical>>,
 }
 

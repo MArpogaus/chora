@@ -311,7 +311,9 @@ fn a_drag_that_leaves_the_pane_keeps_sending_points() {
         );
     }
     click(&mut rig.core, false);
-    assert_eq!(buttons(&rig.events()), [false], "the release");
+    let released = rig.events();
+    assert_eq!(buttons(&released), [false], "the release");
+    assert_eq!(released.last(), Some(&PointerEvent::Leave), "off the pane");
 }
 
 type TwoWindows = (Core, Wayland, Toplevel, Toplevel, Shown, Shown, Client);

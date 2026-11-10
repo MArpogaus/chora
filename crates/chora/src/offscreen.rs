@@ -26,7 +26,7 @@ use smithay::{
         wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
         wayland_server::backend::GlobalId,
     },
-    utils::{Buffer, Point, Size},
+    utils::{Buffer, Logical, Point, Size},
     wayland::presentation::Refresh,
 };
 
@@ -298,16 +298,36 @@ impl State {
             return None;
         }
         let (id, at) = render::node_hit(self, screen)?;
-        let pane = self.scene.node(&id).filter(|n| n.props.forward)?;
-        let [width, height] = pane.props.size?;
+        self.onto_face(self.scene.node(&id)?, at)
+    }
+
+    /// The spot behind the pane of a press that holds the pointer: the
+    /// plane of the pane maps the screen spot, also outside the pane.
+    pub fn behind_pane(&self, pane: &str, screen: &Spot) -> Option<Spot> {
+        if self.lock.is_some() {
+            return None;
+        }
+        let (start, at) = crate::input::anchor(&self.scene, &self.outputs, pane, screen);
+        let at = render::local_in(&self.scene, &start, at, pane)?;
+        self.onto_face(self.scene.node(pane)?, at)
+    }
+
+    /// The spot on the virtual output of a forwarding pane for a point in
+    /// the coordinates of the pane. A point outside the pane stays within
+    /// one size of the output around it, which is inside the gap of its
+    /// slot.
+    fn onto_face(&self, pane: &Node, at: Point<f64, Logical>) -> Option<Spot> {
+        let [width, height] = pane.props.size.filter(|_| pane.props.forward)?;
         let face = self.assets.virtuals.iter().find(|v| v.read_by(pane))?;
         let output = face.output().clone();
         let size = output_area(&output).size.to_f64();
-        let local = Point::from((at.x / width * size.w, at.y / height * size.h));
+        let along = |at: f64, pane: f64, face: f64| (at / pane).clamp(-1.0, 2.0) * face;
+        let local = Point::from((along(at.x, width, size.w), along(at.y, height, size.h)));
         Some(Spot {
             scene: to_scene(&self.camera(&output), local),
             output,
             local,
+            via: Some(pane.id.clone()),
         })
     }
 

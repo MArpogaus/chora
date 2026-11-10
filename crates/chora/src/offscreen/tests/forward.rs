@@ -68,9 +68,11 @@ fn a_click_on_a_scaled_pane_reaches_the_window_at_the_mapped_point() {
     click(&mut faced);
     faced.wayland.roundtrip(&mut faced.core);
     let events = faced.wayland.take_pointer_events();
-    let [enter, press, release] = &events[..] else {
+    let [enter, press, release, after @ ..] = &events[..] else {
         panic!("an enter, a press and a release: {events:?}");
     };
+    let in_place = PointerEvent::Motion { at: (10.0, 20.0) };
+    assert!(after.iter().all(|e| *e == in_place), "{after:?}");
     let at_the_face = PointerEvent::Enter {
         surface: wayland_client::Proxy::id(&faced.window.surface),
         at: (10.0, 20.0),

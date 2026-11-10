@@ -229,6 +229,8 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
+    /// The press that holds the pointer behind a pane or on the screen.
+    pub press_via: Option<crate::output::Press>,
     /// Whether a drag and drop of a client holds the pointer: its target is
     /// the surface under the pointer, so no press pins a surface.
     pub client_drag: bool,
@@ -390,6 +392,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            press_via: None,
             client_drag: false,
             button_grab: None,
             hovered: None,

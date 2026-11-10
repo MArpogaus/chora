@@ -644,6 +644,10 @@ pub fn press_button(
     if button_state == ButtonState::Pressed {
         state.pressed = None;
     }
+    match button_state {
+        ButtonState::Pressed => state.hold_press(),
+        ButtonState::Released => state.release_press(),
+    }
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         state.track_press(serial, injected);
@@ -881,7 +885,7 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
 /// of an output, and the pointer in its coordinates. Under the overlay of
 /// an output the coordinates are those of that output, also while a drag
 /// crosses to another one; elsewhere they are scene coordinates.
-fn anchor(
+pub(crate) fn anchor(
     scene: &chora_scene::Scene,
     outputs: &[Output],
     node: &str,
