@@ -79,6 +79,17 @@ impl Wobble {
         wobble
     }
 
+    /// A grid in 3D.
+    #[must_use]
+    pub fn new_3d(size: [f64; 2], origin: [f64; 3], grab: [f64; 3], _view: [f64; 3]) -> Self {
+        Self::new(size, [origin[0], origin[1]], [grab[0], grab[1]])
+    }
+
+    /// Advances a grid in 3D.
+    pub fn advance_3d(&mut self, origin: [f64; 3], now: Instant) {
+        self.advance([origin[0], origin[1]], now);
+    }
+
     /// Lets go of the window; it shakes until it settles.
     pub fn release(&mut self) {
         self.held = false;
@@ -404,5 +415,163 @@ mod tests {
             (fast - slow).abs() < 5.0,
             "lag {slow:.1} px at 125 Hz, {fast:.1} px at 1000 Hz"
         );
+    }
+
+    /// A drag with a change of direction and a release, fed frame by
+    /// frame; the hash of the bits of every drawn point of every frame.
+    fn recorded_drag_hash() -> u64 {
+        let mut w = Wobble::new([400.0, 300.0], [20.0, 30.0], [120.0, 40.0]);
+        let start = Instant::now();
+        w.last = start;
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        for frame in 1_u32..=240 {
+            let t = f64::from(frame) * 0.016;
+            let origin = [
+                20.0 + 700.0 * t.min(0.8) - 300.0 * (t - 0.8).max(0.0),
+                30.0 + 90.0 * t.min(0.5),
+            ];
+            if frame == 120 {
+                w.release();
+            }
+            let at = std::time::Duration::from_micros(u64::from(frame) * 16_000);
+            w.advance(origin, start + at);
+            for p in w.mesh(origin).points {
+                for value in p {
+                    hash = (hash ^ value.to_bits()).wrapping_mul(0x0100_0000_01b3);
+                }
+            }
+        }
+        hash
+    }
+
+    #[test]
+    fn the_2d_drag_is_bit_identical_to_the_recorded_one() {
+        assert_eq!(recorded_drag_hash(), 789_747_824_616_280_216);
+    }
+
+    const FRAME: std::time::Duration = std::time::Duration::from_millis(16);
+
+    fn deepest(mesh: &Mesh) -> f64 {
+        mesh.depth.iter().copied().fold(0.0, |a, z| a.max(z.abs()))
+    }
+
+    /// Drags toward the camera along `-x` with the view `[0.6, 0, 0.8]`
+    /// for 20 frames, releases, and runs until settled: the mesh of the
+    /// frame with the deepest bend, the mesh at rest, and the frames
+    /// spent after the release.
+    fn drag_along_the_view() -> (Mesh, Mesh, u32) {
+        let view = [0.6, 0.0, 0.8];
+        let mut w = Wobble::new_3d([400.0, 300.0], [500.0, 0.0, 0.0], [700.0, 0.0, 0.0], view);
+        let mut now = w.last;
+        let mut origin = [500.0, 0.0, 0.0];
+        let mut bent = w.mesh([500.0, 0.0]);
+        for _ in 0..20 {
+            origin[0] -= 20.0;
+            now += FRAME;
+            w.advance_3d(origin, now);
+            let mesh = w.mesh([origin[0], origin[1]]);
+            if deepest(&mesh) > deepest(&bent) {
+                bent = mesh;
+            }
+        }
+        w.release();
+        let mut frames = 0;
+        while !w.settled() && frames < 600 {
+            now += FRAME;
+            w.advance_3d(origin, now);
+            frames += 1;
+        }
+        (bent, w.mesh([origin[0], origin[1]]), frames)
+    }
+
+    #[test]
+    fn a_drag_toward_the_camera_bends_the_mesh_in_depth_and_it_settles_flat() {
+        let (bent, rest, _) = drag_along_the_view();
+        assert!(bent.is_valid());
+        assert_eq!(bent.depth.len(), 21 * 21);
+        assert!(
+            bent.depth.iter().copied().fold(0.0, f64::max) > 5.0,
+            "the trailing side stays behind: {}",
+            deepest(&bent)
+        );
+        assert!(deepest(&rest) < 2.0, "{}", deepest(&rest));
+    }
+
+    #[test]
+    fn the_window_own_motion_in_z_bends_the_mesh() {
+        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [0.0, 0.0, 1.0]);
+        let mut now = w.last;
+        for step in 1..=10 {
+            now += FRAME;
+            w.advance_3d([0.0, 0.0, -30.0 * f64::from(step)], now);
+        }
+        let mesh = w.mesh([0.0, 0.0]);
+        assert!(deepest(&mesh) > 5.0, "{}", deepest(&mesh));
+        assert!(
+            mesh.points
+                .iter()
+                .all(|p| p[0].is_finite() && p[1].is_finite())
+        );
+    }
+
+    #[test]
+    fn the_depth_stays_bounded_under_extreme_velocity() {
+        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [0.6, 0.0, 0.8]);
+        let mut now = w.last;
+        for step in 1..=60 {
+            now += FRAME;
+            let jump = 1e9 * f64::from(step);
+            w.advance_3d([jump, jump, -jump], now);
+            let mesh = w.mesh([jump, jump]);
+            assert!(mesh.depth.iter().all(|z| z.is_finite() && z.abs() <= MAX));
+            assert_eq!(mesh.depth.len(), 21 * 21);
+        }
+    }
+
+    #[test]
+    fn a_wobble_in_3d_settles_as_fast_as_in_2d() {
+        let mut flat = Wobble::new([400.0, 300.0], [500.0, 0.0], [700.0, 0.0]);
+        let mut now = flat.last;
+        let mut origin = 500.0;
+        for _ in 0..20 {
+            origin -= 20.0;
+            now += FRAME;
+            flat.advance([origin, 0.0], now);
+        }
+        flat.release();
+        let mut flat_frames = 0;
+        while !flat.settled() && flat_frames < 600 {
+            now += FRAME;
+            flat.advance([origin, 0.0], now);
+            flat_frames += 1;
+        }
+        let (_, _, frames) = drag_along_the_view();
+        assert!(frames > 10 && frames < 600, "{frames}");
+        assert!(
+            frames <= flat_frames + 5,
+            "{frames} in 3D, {flat_frames} in 2D"
+        );
+    }
+
+    #[test]
+    fn the_3d_entry_in_the_plane_equals_the_2d_one() {
+        let mut flat = Wobble::new([400.0, 300.0], [20.0, 30.0], [120.0, 40.0]);
+        let mut deep = Wobble::new_3d(
+            [400.0, 300.0],
+            [20.0, 30.0, 0.0],
+            [120.0, 40.0, 0.0],
+            [0.0; 3],
+        );
+        let mut now = flat.last;
+        deep.last = now;
+        for frame in 1..=30 {
+            now += FRAME;
+            let x = 20.0 + 15.0 * f64::from(frame);
+            flat.advance([x, 30.0], now);
+            deep.advance_3d([x, 30.0, 0.0], now);
+        }
+        let (a, b) = (flat.mesh([20.0, 30.0]), deep.mesh([20.0, 30.0]));
+        assert_eq!(a.points, b.points);
+        assert_eq!(b.depth, Vec::<f64>::new());
     }
 }
