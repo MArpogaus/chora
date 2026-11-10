@@ -159,6 +159,10 @@ bindings:
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
   Super+F12: {solo: {content: overlay, region: drawer}}
+  Super+Alt+1: {give: tiling}
+  Super+Alt+2: {give: xp}
+  Super+Alt+3: {give: mc}
+  Super+Alt+4: {give: construct}
 # The states of an agent of agent.set: the sign and the color of each,
 # and a label for the agents scene; without a label, the name.
 states:

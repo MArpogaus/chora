@@ -97,6 +97,9 @@ pub enum Action {
     ViewBack,
     /// Reads the configuration file again.
     Reload,
+    /// Gives the focused window to the window manager of this name (D55),
+    /// whoever owns it.
+    Give(String),
     /// On a pointer button: drags the window under the pointer. Dropped
     /// in the claim of another window manager, it goes there (D55).
     Drag,
@@ -175,6 +178,11 @@ impl Settings for Config {
             {
                 return Err(format!("{binding}: run takes a command"));
             }
+            if let Action::Give(to) = action
+                && to.trim().is_empty()
+            {
+                return Err(format!("{binding}: give takes a client name"));
+            }
             if let Action::IncMasterWidth(step) = action
                 && !step.is_finite()
             {
@@ -230,6 +238,26 @@ mod tests {
             parse::<Config>(&nan)
                 .unwrap_err()
                 .contains("takes a number")
+        );
+    }
+
+    #[test]
+    fn the_default_gives_the_focused_window_to_each_manager() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for (key, to) in [
+            ("1", "tiling"),
+            ("2", "xp"),
+            ("3", "mc"),
+            ("4", "construct"),
+        ] {
+            let binding = format!("Super+Alt+{key}");
+            assert_eq!(config.bindings[&binding], Action::Give(to.into()));
+        }
+        let empty = DEFAULT.replace("{give: xp}", "{give: ' '}");
+        assert!(
+            parse::<Config>(&empty)
+                .unwrap_err()
+                .contains("give takes a client name")
         );
     }
 

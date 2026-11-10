@@ -214,6 +214,20 @@ fn full_area(output: &OutputInfo) -> layout::Rect {
     [x, y, w, h]
 }
 
+impl give::Windows for Tiling {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        self.wm.has(surface)
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        Tiling::hand(self, surface, to)
+    }
+}
+
 impl Tiling {
     /// Whether `--output` names outputs and none of them is there: the
     /// plugin then leaves all windows to other window managers.
@@ -586,6 +600,14 @@ impl Tiling {
         Ok(answer)
     }
 
+    /// The key `give`: the focused window goes to the window manager `to`.
+    /// A refusal only logs.
+    fn give_focused(&mut self, to: &str) {
+        if let Err(err) = give::focused(self, to) {
+            eprintln!("chora-tiling: give to {to}: {}", err.message);
+        }
+    }
+
     /// Whether a binding drags: the one of `drag`, or `move`, the
     /// interactive move of a client, for example from its title bar.
     fn drags(&self, binding: &str) -> bool {
@@ -679,6 +701,10 @@ impl Tiling {
         let Some(action) = self.rt.action(binding).cloned() else {
             return Ok(());
         };
+        if let Action::Give(to) = &action {
+            self.give_focused(to);
+            return Ok(());
+        }
         let before = self.wm.focused().map(String::from);
         let effect = self.wm.act(&action);
         // A binding that moves the focus of tiling takes it back.

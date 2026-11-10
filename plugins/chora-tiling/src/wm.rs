@@ -385,7 +385,7 @@ impl Wm {
             Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
             Action::Reload => return Some(Effect::Reload),
             // The plugin handles the button events of a drag itself.
-            Action::Drag => return None,
+            Action::Drag | Action::Give(_) => return None,
             Action::FocusNext => self.focus_next(),
             Action::FocusPrevious => self.focus_prev(),
             Action::FocusBack => self.focus_back(),

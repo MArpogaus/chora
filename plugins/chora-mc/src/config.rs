@@ -36,6 +36,9 @@ pub enum Action {
     Scene(String),
     /// Runs a shell command as an app; its window gets a scene of its own.
     Run(String),
+    /// Gives the focused window to the window manager of this name (D55),
+    /// whoever owns it.
+    Give(String),
     /// Shows or hides a region; a docked app takes the focus first.
     Toggle(Region),
     /// Shows a content alone in a region over any scene, or hides it.
@@ -492,6 +495,7 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
         assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
+        assert_eq!(config.bindings["Super+Alt+2"], Action::Give("xp".into()));
         assert_eq!(config.chapter.layout, Layout::Number);
         assert!(config.write.enabled);
         let slow = DEFAULT.replace("duration_ms: 900", "duration_ms: 99999");

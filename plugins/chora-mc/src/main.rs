@@ -683,6 +683,23 @@ fn exported_methods() -> Vec<ExportMethod> {
     ]
 }
 
+impl chora_kit::give::Windows for Mc {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        self.windows.values().any(|s| s == surface)
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.give(chora_kit::give::Give {
+            surface: surface.into(),
+            to: to.into(),
+        })
+    }
+}
+
 impl Plugin for Mc {
     type Action = Action;
 
@@ -2541,6 +2558,12 @@ impl Mc {
             Action::Run(command) => {
                 // The new window takes the keyboard.
                 let _ = launch(&command);
+                return;
+            }
+            Action::Give(to) => {
+                if let Err(err) = chora_kit::give::focused(self, &to) {
+                    eprintln!("chora-mc: give to {to}: {}", err.message);
+                }
                 return;
             }
             Action::Toggle(region) => {

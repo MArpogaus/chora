@@ -322,7 +322,17 @@ impl Waiting {
 enum Grab {
     Drag,
     FlyOut,
+    Give(&'static str),
 }
+
+/// The keys that give the focused window to the window manager of this
+/// name (D55); the same on every window manager.
+const GIVE_KEYS: [(&str, &str); 4] = [
+    ("Super+Alt+1", "tiling"),
+    ("Super+Alt+2", "xp"),
+    ("Super+Alt+3", "mc"),
+    ("Super+Alt+4", "construct"),
+];
 
 /// A drag with the modifier: the pane, the press and its centre then.
 struct Moving {
@@ -707,6 +717,21 @@ fn ease(k: f64) -> f64 {
     1.0 - (1.0 - k).powi(3)
 }
 
+impl give::Windows for Construct {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        (self.panes.iter()).any(|p| p.window() == Some(surface) && p.attached)
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.give(surface, to)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+}
+
 impl Plugin for Construct {
     type Action = Grab;
 
@@ -960,9 +985,18 @@ impl Construct {
                 None => {}
             },
             Event::InputKey {
+                binding,
                 state: PressState::Pressed,
                 ..
-            } => return self.fly_out(),
+            } => {
+                if let Some(&Grab::Give(to)) = self.rt.action(&binding) {
+                    if let Err(err) = give::focused(self, to) {
+                        eprintln!("chora-construct: give to {to}: {}", err.message);
+                    }
+                    return Ok(());
+                }
+                return self.fly_out();
+            }
             Event::InputButton {
                 state, position, ..
             } => {
@@ -1990,6 +2024,11 @@ impl Construct {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
                 eprintln!("chora-construct: the drag: {err}");
+            }
+        }
+        if self.active && !self.overlay {
+            for (key, to) in GIVE_KEYS {
+                self.rt.grab(parse(key.into())?, Grab::Give(to))?;
             }
         }
         if self.flown.is_some() {

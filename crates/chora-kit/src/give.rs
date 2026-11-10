@@ -2,8 +2,8 @@
 //! point, and the method `window.give` that every window manager exports.
 
 use chora_scene::{
-    Command, claimant_at,
-    ipc::{ExportMethod, RpcError},
+    Command, Node, claimant_at,
+    ipc::{ClientError, ExportMethod, Filter, MethodCall, Query, RpcError},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -41,7 +41,127 @@ pub fn method() -> ExportMethod {
     ))
 }
 
+/// The windows of a window manager, for the key action `give` (D55).
+pub trait Windows {
+    /// The connection of the window manager.
+    fn conn(&mut self) -> &mut Conn;
+
+    /// Whether the window manager has this window.
+    fn has(&self, surface: &str) -> bool;
+
+    /// Hands an own window to `to` and forgets it: a `Conn::give`, the
+    /// bookkeeping and the relayout of the window manager. The answer of
+    /// `window.give`.
+    ///
+    /// # Errors
+    ///
+    /// The core refuses, or the relayout fails.
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError>;
+}
+
+/// What the key action does with the focused window.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Step {
+    /// The window is an own one: the window manager hands it over.
+    Hand(String),
+    /// Another window manager owns it: it hands it over with its own
+    /// `window.give`.
+    Forward {
+        /// The client name of the owner.
+        owner: String,
+        /// The surface id of the window.
+        surface: String,
+    },
+}
+
+/// Decides what a key `give: to` does with the focused window of the
+/// window manager `me`: it refuses without a focused window or owner, a
+/// window of `me` that `windows` does not know, and a give to `me` of an
+/// own window.
+///
+/// # Errors
+///
+/// One of the refusals above.
+pub fn plan(
+    focused: Option<&Node>,
+    me: &str,
+    to: &str,
+    windows: &impl Windows,
+) -> Result<Step, RpcError> {
+    let refuse = |m: String| Err(RpcError::new(RpcError::REJECTED, m));
+    let Some(node) = focused else {
+        return refuse("no window has the focus".into());
+    };
+    let Some(owner) = node.owner.as_deref() else {
+        return refuse(format!("{} has no window manager", node.id));
+    };
+    if owner != me {
+        return Ok(Step::Forward {
+            owner: owner.into(),
+            surface: node.id.clone(),
+        });
+    }
+    if to == me {
+        return refuse(format!("{} is with {me} already", node.id));
+    }
+    if !windows.has(&node.id) {
+        return refuse(format!("{me} has no window {}", node.id));
+    }
+    Ok(Step::Hand(node.id.clone()))
+}
+
+/// The key action `give: to`: gives the focused window to the window
+/// manager `to`. A window of the plugin goes through [`Windows::hand`],
+/// the window of another window manager through its `window.give`, since
+/// a key has one holder, whoever owns the window. Answers the surface id.
+///
+/// # Errors
+///
+/// The window cannot go, the owner refuses, or the socket fails.
+pub fn focused(windows: &mut impl Windows, to: &str) -> Result<Value, RpcError> {
+    let node = windows.conn().focused_surface()?;
+    let me = windows.conn().name().to_owned();
+    match plan(node.as_ref(), &me, to, windows)? {
+        Step::Hand(surface) => windows.hand(&surface, to),
+        Step::Forward { owner, surface } => windows
+            .conn()
+            .call(
+                "methods.call",
+                MethodCall {
+                    client: owner,
+                    method: METHOD.into(),
+                    params: json!({"surface": surface, "to": to}),
+                },
+            )
+            .map_err(|e| match e {
+                ClientError::Rpc(err) => err,
+                other => rejected(other),
+            }),
+    }
+}
+
 impl Conn {
+    /// The focused window, `None` without one.
+    ///
+    /// # Errors
+    ///
+    /// The query fails.
+    pub fn focused_surface(&mut self) -> Result<Option<Node>, RpcError> {
+        let query = Query {
+            selector: "kind:surface".into(),
+            filter: Some(Filter {
+                focused: true,
+                ..Filter::default()
+            }),
+        };
+        let nodes: Vec<Value> = self.call("scene.query", query).map_err(rejected)?;
+        nodes
+            .into_iter()
+            .next()
+            .map(|v| serde_json::from_value(v).map_err(rejected))
+            .transpose()
+    }
+
     /// The window manager under a point in scene coordinates: the owner of
     /// the smallest claim of another client that contains it, as the core
     /// picks one for a new toplevel under the pointer; `None` outside the
@@ -84,50 +204,6 @@ impl Conn {
 
 fn rejected(err: impl std::fmt::Display) -> RpcError {
     RpcError::new(RpcError::REJECTED, err.to_string())
-}
-
-/// The windows of a window manager, for the key action `give` (D55).
-pub trait Windows {
-    /// The connection of the window manager.
-    fn conn(&mut self) -> &mut Conn;
-
-    /// Whether the window manager has this window.
-    fn has(&self, surface: &str) -> bool;
-
-    /// Hands an own window to `to` and forgets it.
-    ///
-    /// # Errors
-    ///
-    /// The core refuses, or the relayout fails.
-    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError>;
-}
-
-/// What the key action does with the focused window.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Step {
-    /// The window is an own one.
-    Hand(String),
-    /// Another window manager owns it.
-    Forward {
-        /// The client name of the owner.
-        owner: String,
-        /// The surface id of the window.
-        surface: String,
-    },
-}
-
-/// Decides what a key `give: to` does with the focused window.
-///
-/// # Errors
-///
-/// Not written yet: always refuses.
-pub fn plan(
-    _focused: Option<&chora_scene::Node>,
-    _me: &str,
-    _to: &str,
-    _windows: &impl Windows,
-) -> Result<Step, RpcError> {
-    Err(RpcError::new(RpcError::REJECTED, "not written yet"))
 }
 
 #[cfg(test)]

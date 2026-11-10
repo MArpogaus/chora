@@ -129,11 +129,13 @@ pub enum Key {
     Cube,
     /// Ctrl+Escape opens or closes the start menu, as on XP.
     Start,
+    /// Gives the focused window to the window manager of this name (D55).
+    Give(&'static str),
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 10] = [
+const KEYS: [(&str, &str, Key); 14] = [
     ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
@@ -152,6 +154,10 @@ const KEYS: [(&str, &str, Key); 10] = [
         "Super+Ctrl+Shift+Right",
         Key::Carry(1),
     ),
+    ("Super+Alt+1", "", Key::Give("tiling")),
+    ("Super+Alt+2", "", Key::Give("xp")),
+    ("Super+Alt+3", "", Key::Give("mc")),
+    ("Super+Alt+4", "", Key::Give("construct")),
 ];
 
 /// A title bar that the pointer drags.
@@ -282,6 +288,23 @@ impl Plugin for Wm {
         let commands = self.configure();
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+}
+
+impl give::Windows for Wm {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        self.index(surface).is_some()
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        let (answer, commands) = self.give(surface, to)?;
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(answer)
     }
 }
 
@@ -1329,6 +1352,12 @@ impl Wm {
                     commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
                 }
                 commands
+            }
+            Some(Key::Give(to)) => {
+                if let Err(err) = give::focused(self, to) {
+                    eprintln!("chora-xp: give to {to}: {}", err.message);
+                }
+                Vec::new()
             }
             Some(Key::Cube) | None => Vec::new(),
         }
