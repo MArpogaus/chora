@@ -98,6 +98,10 @@ pub enum Word {
     CloseNote,
     /// No helper exists.
     NoHelper,
+    /// Messages of the transcript are missing.
+    Dropped,
+    /// Typed text waits and was changed after Enter.
+    NotSent,
     /// A look with one problem.
     HudNoticeOne,
     /// A look with several problems.
@@ -105,7 +109,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 37] = [
+pub const ALL: [Word; 39] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -141,6 +145,8 @@ pub const ALL: [Word; 37] = [
     Word::Offline,
     Word::CloseNote,
     Word::NoHelper,
+    Word::Dropped,
+    Word::NotSent,
     Word::HudNoticeOne,
     Word::HudNotice,
 ];
@@ -192,6 +198,8 @@ impl Word {
             Self::Offline => "Cannot reach voice control. Trying again every 5 s.",
             Self::CloseNote => "{name} goes on working.",
             Self::NoHelper => "No helper is set up. Ask the person who set up this computer.",
+            Self::Dropped => "Earlier messages were dropped.",
+            Self::NotSent => "Not sent. Press Enter to send.",
             Self::HudNoticeOne => {
                 "The look \"{name}\" has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
             }
@@ -242,6 +250,8 @@ impl Word {
             Self::NoHelper => {
                 "Kein Helfer eingerichtet. Fragen Sie, wer den Computer eingerichtet hat."
             }
+            Self::Dropped => "Frühere Nachrichten wurden verworfen.",
+            Self::NotSent => "Nicht gesendet. Zum Senden Enter drücken.",
             Self::HudNoticeOne => {
                 "Das Aussehen „{name}“ hat 1 Fehler, das alte bleibt. Wählen Sie in den Einstellungen ein anderes oder fragen Sie, wer es gemacht hat."
             }
