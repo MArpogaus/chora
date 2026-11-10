@@ -202,7 +202,9 @@ mako, swaybg, swayidle and kanshi.
 
 `tests/merge-gate.sh` decides whether a merge into the session branch may
 be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
-handover matrix and the HUD gate, one log per step in a run directory. A
+handover matrix, the HUD gate and `tests/last-words.sh`, one log per step
+in a run directory. `tests/gate-watchdog-starved.sh` is not a step: it
+loads every CPU for half a minute, so run it alone. A
 step fails on a non-zero exit code, on a line that starts with `FAIL:` or
 `MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
 and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
