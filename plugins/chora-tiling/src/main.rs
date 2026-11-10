@@ -579,6 +579,7 @@ impl Tiling {
             format!("tiling has no window {surface}")
         })?;
         let answer = self.rt.conn.give(surface, to)?;
+        self.focus.gave(surface);
         self.forget_window(surface);
         self.relayout()
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
@@ -1204,6 +1205,15 @@ impl ShownFocus {
         }
     }
 
+    /// Tiling hands the window with its focus to another window manager,
+    /// which focuses it. Tiling sends no focus until one of its windows
+    /// takes it back, whether the receiver set it before or after.
+    fn gave(&mut self, surface: &str) {
+        if self.surface.as_deref() == Some(surface) {
+            self.lost = true;
+        }
+    }
+
     /// A window of tiling takes the focus back: by the pointer, a binding
     /// or as a new window. The next transaction sends it, even when it is
     /// the one sent before.
@@ -1259,7 +1269,9 @@ mod tests {
                     "input.grab" => request["params"]["binding"].clone(),
                     _ => Value::Null,
                 };
-                seen.lock().unwrap().push(method);
+                seen.lock()
+                    .unwrap()
+                    .push(format!("{method} {}", request["params"]));
                 let answer = json!({"jsonrpc": "2.0", "id": request["id"], "result": result});
                 writeln!(writer, "{answer}").unwrap();
             }
@@ -1293,7 +1305,7 @@ mod tests {
                 .lock()
                 .unwrap()
                 .iter()
-                .filter(|m| *m == "input.grab")
+                .filter(|m| m.starts_with("input.grab"))
                 .count()
         };
         tiling.relayout().unwrap();
@@ -1345,6 +1357,28 @@ mod tests {
         // The core confirms the focus of tiling.
         shown.moved(Some("s3"));
         assert!(!shown.lost && !shown.sends(Some("s3")));
+    }
+
+    /// The window that tiling hands away leaves the keyboard to its
+    /// receiver: tiling sends no focus in the relayout that follows, which
+    /// would empty or move the focus that the receiver set.
+    #[test]
+    fn a_handed_window_leaves_the_focus_to_its_receiver() {
+        let (mut tiling, methods) = on_fake_core("handed");
+        tiling.wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
+        tiling.wm.add_window("s1");
+        tiling.relayout().unwrap();
+        let before = methods.lock().unwrap().len();
+        tiling.hand("s1", "xp").unwrap();
+        let after = methods.lock().unwrap().split_off(before);
+        assert!(
+            !after.is_empty(),
+            "the hand and the relayout reach the core"
+        );
+        assert!(
+            after.iter().all(|call| !call.contains("\"focus\"")),
+            "tiling sent a focus after the hand: {after:?}"
+        );
     }
 
     #[test]
