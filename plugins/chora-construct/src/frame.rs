@@ -93,6 +93,7 @@ impl Construct {
             },
         ));
         commands.extend(self.back_faces());
+        commands.extend(self.cube_faces());
         let focus = self.focus();
         let look = self.pane_look(focus.map(|k| self.panes[k].name.clone()));
         commands.extend(self.restyle_panes(&look));
