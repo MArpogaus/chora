@@ -277,6 +277,12 @@ code gate.
   as all earlier commits of the repo do, even when a harness hook asks
   for another email. It is set in the local config of the chora repo,
   which all worktrees share.
+- **Merge in the branch worktree** (11-10, for disk): the PM merges a
+  branch in its own worktree, which already holds its build:
+  `git checkout -B merge-NAME origin/claude/autonomous-dev-session-3w-i33pg7`,
+  `git merge --no-ff claude/NAME`, `tests/merge-gate.sh --push
+  claude/autonomous-dev-session-3w-i33pg7`; then the main checkout only
+  fast-forwards and keeps no build of its own.
 - **Merge gate script** (11-10): every merge goes through
   `tests/merge-gate.sh --push BRANCH`; it runs each step without a pipe,
   logs each step, and stops on a non-zero code or a `FAIL:`/`MISMATCH`
