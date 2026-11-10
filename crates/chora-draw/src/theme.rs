@@ -13,6 +13,7 @@ use std::{
     fs,
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
+    rc::Rc,
 };
 
 use resvg::{
@@ -229,6 +230,8 @@ pub struct Theme {
     /// image nodes their logical size and to render them again at
     /// another scale.
     pictures: HashMap<String, Picture>,
+    /// The parsed SVG files by path, so that a file parses once.
+    trees: RefCell<HashMap<PathBuf, Rc<usvg::Tree>>>,
 }
 
 /// How many rendered files the cache keeps.
@@ -296,12 +299,24 @@ impl Theme {
             widths: RefCell::default(),
             scale: 1.0,
             pictures: HashMap::new(),
+            trees: RefCell::default(),
         };
         let blank = Pixmap::new(1, 1).ok_or("no pixmap of one pixel")?;
         theme.blank = theme
             .write(0, &blank)
             .map_err(|e| format!("{}: {e}", cache.display()))?;
         Ok(theme)
+    }
+
+    fn tree(&self, path: &Path) -> Result<Rc<usvg::Tree>, String> {
+        if let Some(tree) = self.trees.borrow().get(path) {
+            return Ok(Rc::clone(tree));
+        }
+        let tree = Rc::new(read_tree(self.folder(), self.fonts.options(), path)?);
+        self.trees
+            .borrow_mut()
+            .insert(path.to_path_buf(), Rc::clone(&tree));
+        Ok(tree)
     }
 
     fn folder(&self) -> (&Path, bool) {
@@ -612,7 +627,7 @@ impl Theme {
     ) -> Result<(), String> {
         let error = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
         let image = if is_svg(path) {
-            let tree = read_tree(self.folder(), self.fonts.options(), path)?;
+            let tree = self.tree(path)?;
             let size = tree.size();
             if !matches!(fit, Fit::Tile(_)) {
                 resvg::render(
@@ -671,7 +686,7 @@ impl Theme {
     pub fn image_size(&self, path: &Path) -> Option<[i32; 2]> {
         #[allow(clippy::cast_possible_truncation)]
         let size = if is_svg(path) {
-            let tree = read_tree(self.folder(), self.fonts.options(), path).ok()?;
+            let tree = self.tree(path).ok()?;
             [tree.size().width(), tree.size().height()].map(|n| n.round() as i32)
         } else if self.confined {
             let data = read_bytes(self.folder(), path).ok()?;
@@ -733,7 +748,7 @@ fn read_tree(
     let data = read_bytes(folder, path).map_err(|e| error(&e))?;
     let tree = usvg::Tree::from_data(&data, options).map_err(|e| error(&e))?;
     if folder.1 {
-        crate::assets::check_svg_size(&tree).map_err(|e| error(&e))?;
+        crate::assets::check_tree(&tree).map_err(|e| error(&e))?;
     }
     Ok(tree)
 }
@@ -1015,11 +1030,13 @@ mod tests {
         std::os::unix::fs::symlink(&secret, folder.dir.join("link.svg")).expect("a link");
         std::os::unix::fs::symlink("/dev/zero", folder.dir.join("zero.svg")).expect("a link");
         let theme = folder.theme(&[]).expect("the folder loads");
-        folder.svg_with("inside.svg", "ok.svg");
-        assert!(
-            inked(&theme, &theme.path("inside.svg")),
-            "the control draws"
-        );
+        let mut red = Pixmap::new(20, 20).expect("pixels");
+        red.fill(tiny_skia::Color::from_rgba8(255, 0, 0, 255));
+        fs::write(folder.dir.join("ok.png"), red.encode_png().expect("a png")).expect("a file");
+        let resolver = crate::assets::href_resolver(&folder.dir);
+        let options = usvg::Options::default();
+        assert!((resolver.resolve_string)("ok.png", &options).is_some());
+        assert!((resolver.resolve_string)("ok.svg", &options).is_none());
         let hrefs = [
             secret.display().to_string(),
             format!("file://{}", secret.display()),
@@ -1030,15 +1047,16 @@ mod tests {
             "link.svg".into(),
             "zero.svg".into(),
         ];
-        for href in hrefs {
-            folder.svg_with("evil.svg", &href);
-            assert!(!inked(&theme, &theme.path("evil.svg")), "{href} was drawn");
+        for (n, href) in hrefs.iter().enumerate() {
+            let name = format!("evil{n}.svg");
+            folder.svg_with(&name, href);
+            assert!(!inked(&theme, &theme.path(&name)), "{href} was drawn");
         }
         assert!(!inked(&theme, &secret), "a file outside was drawn");
         assert!(!inked(&theme, Path::new("/etc/passwd")));
         let uri = "data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'>&lt;rect width='20' height='20' fill='red'/&gt;&lt;/svg&gt;";
         folder.svg_with("data.svg", uri);
-        assert!(inked(&theme, &theme.path("data.svg")), "a data URI draws");
+        assert!(!inked(&theme, &theme.path("data.svg")), "no SVG in a URI");
     }
 
     #[test]
@@ -1067,5 +1085,74 @@ mod tests {
         let uri = "data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='9000' height='10'>&lt;rect width='9000' height='10' fill='red'/&gt;&lt;/svg&gt;";
         folder.svg_with("nested.svg", uri);
         assert!(!inked(&theme, &theme.path("nested.svg")));
+    }
+
+    fn svg_of(body: &str) -> String {
+        format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20">{body}</svg>"#
+        )
+    }
+
+    #[test]
+    fn a_picture_with_too_many_nodes_is_refused() {
+        let folder = Folder::new("nodes");
+        let mut defs = vec![r#"<defs><g id="g0"><rect width="1" height="1"/></g>"#.to_owned()];
+        for level in 1..5 {
+            let uses = format!(r##"<use xlink:href="#g{}"/>"##, level - 1).repeat(10);
+            defs.push(format!(r#"<g id="g{level}">{uses}</g>"#));
+        }
+        defs.push(r##"</defs><use xlink:href="#g4"/>"##.to_owned());
+        folder.put("fan.svg", &svg_of(&defs.concat()));
+        folder.put("few.svg", &svg_of(r#"<rect width="1" height="1"/>"#));
+        let theme = folder.theme(&[]).expect("the folder loads");
+        assert!(theme.image_size(&theme.path("few.svg")).is_some());
+        assert_eq!(theme.image_size(&theme.path("fan.svg")), None);
+        let err = folder.theme(&[Sheet("fan.svg")]).err().expect("refused");
+        assert!(err.contains("fan.svg"), "{err}");
+    }
+
+    #[test]
+    fn a_picture_with_too_many_images_or_filters_is_refused() {
+        let folder = Folder::new("costly");
+        let image = r#"<image width="1" height="1" href="data:image/png;base64,iVBORw0KGgo="/>"#;
+        folder.put("images.svg", &svg_of(&image.repeat(17)));
+        let filter = r#"<filter id="f"><feOffset dx="1"/></filter>"#;
+        let user = r#"<rect width="1" height="1" filter="url(#f)"/>"#;
+        folder.put(
+            "filters.svg",
+            &svg_of(&format!("{filter}{}", user.repeat(17))),
+        );
+        folder.put("some.svg", &svg_of(&format!("{filter}{}", user.repeat(16))));
+        let theme = folder.theme(&[]).expect("the folder loads");
+        assert!(theme.image_size(&theme.path("some.svg")).is_some());
+        assert_eq!(theme.image_size(&theme.path("filters.svg")), None);
+        let uri = "data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='9' height='9'/&gt;";
+        folder.svg_with("nested.svg", uri);
+        assert!(!inked(&theme, &theme.path("nested.svg")));
+    }
+
+    #[test]
+    fn a_huge_pattern_tile_is_refused() {
+        let folder = Folder::new("pattern");
+        let pattern = |side: u32| {
+            svg_of(&format!(
+                r#"<defs><pattern id="p" patternUnits="userSpaceOnUse" width="{side}" height="{side}"><rect width="5" height="5"/></pattern></defs><rect width="20" height="20" fill="url(#p)"/>"#
+            ))
+        };
+        folder.put("big.svg", &pattern(30000));
+        folder.put("small.svg", &pattern(30));
+        let theme = folder.theme(&[]).expect("the folder loads");
+        assert!(theme.image_size(&theme.path("small.svg")).is_some());
+        assert_eq!(theme.image_size(&theme.path("big.svg")), None);
+    }
+
+    #[test]
+    fn a_parsed_svg_is_cached() {
+        let folder = Folder::new("cache");
+        let theme = folder.theme(&[]).expect("the folder loads");
+        let path = theme.path("ok.svg");
+        assert!(theme.image_size(&path).is_some());
+        fs::remove_file(&path).expect("removed");
+        assert!(theme.image_size(&path).is_some(), "the tree is kept");
     }
 }
