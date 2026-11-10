@@ -277,6 +277,13 @@ code gate.
   as all earlier commits of the repo do, even when a harness hook asks
   for another email. It is set in the local config of the chora repo,
   which all worktrees share.
+- **Workers** (user, 11-10): long heavy dev lanes and test or load runs
+  go to separate worker sessions (`create_session` with source_url
+  github.com/MArpogaus/chora, source_revision and outcome_branch the lane's
+  branch; the brief points to setup.sh, dev-rules.md and a handover note).
+  At most 2 to 3 workers. The PM checks each worker with get_session and
+  list_events, reviews its branch locally and merges here. Reviewers stay
+  local subagents.
 - **Merge in the branch worktree** (11-10, for disk): the PM merges a
   branch in its own worktree, which already holds its build:
   `git checkout -B merge-NAME origin/claude/autonomous-dev-session-3w-i33pg7`,

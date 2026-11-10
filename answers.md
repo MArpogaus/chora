@@ -4,6 +4,12 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Hybrid workers agreed: separate worker sessions (own container, started
+  with the repo as source) for long heavy dev lanes and for testers
+  (personas, battle, load); reviewers stay local subagents; the PM stays in
+  this session; at most 2 to 3 workers; merges only here. Shared compile
+  cache (sccache) from now on.
+
 - 14:34 Bangkok: Fable at 9 % used (judge, core review, switch check, D69 design, core-death lane so far).
 
 - Drop the session switch, no more time on it. Fable at 6 % used. "Go, let's get serious work done."
