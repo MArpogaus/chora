@@ -465,6 +465,11 @@ impl Bounds {
     /// Adds the part of a polygon of (x, y, w) points that lies at
     /// `w >= NEAR`. Returns whether any of it does.
     pub(crate) fn add_clipped(&mut self, polygon: &[[f64; 3]]) -> bool {
+        self.add_clipped_at(polygon, NEAR)
+    }
+
+    /// As [`Self::add_clipped`], at `w >= near`.
+    pub(crate) fn add_clipped_at(&mut self, polygon: &[[f64; 3]], near: f64) -> bool {
         let mut shown = false;
         let mut add = |[x, y, w]: [f64; 3]| {
             shown = true;
@@ -475,16 +480,16 @@ impl Bounds {
         };
         for (index, from) in polygon.iter().enumerate() {
             let to = &polygon[(index + 1) % polygon.len()];
-            let (from_in, to_in) = (from[2] > NEAR, to[2] > NEAR);
+            let (from_in, to_in) = (from[2] > near, to[2] > near);
             if from_in {
                 add(*from);
             }
             if from_in != to_in {
-                let t = (NEAR - from[2]) / (to[2] - from[2]);
+                let t = (near - from[2]) / (to[2] - from[2]);
                 add([
                     from[0] + (to[0] - from[0]) * t,
                     from[1] + (to[1] - from[1]) * t,
-                    NEAR,
+                    near,
                 ]);
             }
         }

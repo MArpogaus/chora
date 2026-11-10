@@ -15,7 +15,7 @@ use euclid::default::{Point3D, Vector3D};
 use plane_split::{BspSplitter, Clipper, Plane, Polygon};
 
 /// The least w of a point of a context that shows.
-const NEAR_W: f64 = 1.0 / 64.0;
+pub const NEAR_W: f64 = 1.0 / 64.0;
 /// The most planes of a context that the splitter sorts; beyond them the
 /// pieces sort by the depth of their centres.
 const MAX_SPLIT: usize = 1024;

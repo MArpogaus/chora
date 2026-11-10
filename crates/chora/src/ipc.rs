@@ -38,7 +38,7 @@ use smithay::{
 
 use crate::{
     output::output_area,
-    render::{bounding_box, projected_box, window_rect},
+    render::{bounding_box_from, projected_box, window_rect},
     state::State,
     uploads::Uploads,
 };
@@ -1235,9 +1235,10 @@ impl State {
     /// through its mesh, so its box is the box of the projected shape.
     /// Any other node draws as a plane when its transform is not a plain
     /// translation with a positive scale, so its box is the box of its
-    /// projected corners; every ancestor layer cuts the box like a clip
-    /// does. A quad that is edge on or collapsed shows nowhere. The mesh of
-    /// a layer does not move the boxes of descendants.
+    /// projected corners; every ancestor layer or plane cuts the box like a
+    /// clip does. A quad that is edge on or collapsed shows nowhere, and in
+    /// a 3D context a quad shows only in front of its near plane. The mesh
+    /// of a layer does not move the boxes of descendants.
     fn screen_rect(
         &self,
         placed: &Placed<'_>,
@@ -1246,42 +1247,62 @@ impl State {
     ) -> Option<Rectangle<f64, Logical>> {
         let node = placed.node;
         let transform = at.get(node.id.as_str())?;
-        let layers = self.lineage(node)?;
+        let (layers, near) = self.lineage(node, at)?;
         if node.props.mesh.is_none() && !transform.is_plain() {
             transform.plane_inverse()?;
         }
-        let mut rect = if node.is_layer() {
-            layer_box(node, transform)?
+        let mut rect = if is_texture(node, transform) {
+            layer_box(node, transform, near)?
         } else {
-            self.content_box(node, transform)?
+            self.content_box(node, transform, near)?
         };
         // Every ancestor layer cuts the box like a clip does.
         for ancestor in layers {
-            rect = intersect(rect, layer_box(ancestor, at.get(ancestor.id.as_str())?)?)?;
+            let ancestor_at = at.get(ancestor.id.as_str())?;
+            rect = intersect(rect, layer_box(ancestor, ancestor_at, near)?)?;
         }
         rect.overlaps(screen).then_some(rect)
     }
 
-    /// Every ancestor layer. The node shows only inside every layer: a
-    /// layer composes into a texture of its size. A clip makes a layer and
-    /// cuts through the same box.
-    fn lineage(&self, node: &Node) -> Option<Vec<&Node>> {
+    /// Every ancestor layer or plane, and the near w of the node: 1/64 in
+    /// a 3D context. The node shows only inside every layer and plane: each
+    /// composes into a texture of its size. A clip makes a layer and cuts
+    /// through the same box.
+    fn lineage(&self, node: &Node, at: &HashMap<&str, Transform>) -> Option<(Vec<&Node>, f64)> {
         let mut layers = Vec::new();
+        let mut near = crate::mesh::NEAR;
         let mut parent = node.parent.as_deref();
         while let Some(id) = parent {
             let ancestor = self.scene.node(id)?;
-            if ancestor.is_layer() {
+            if at.get(id).is_some_and(|t| is_texture(ancestor, t)) {
                 layers.push(ancestor);
+            }
+            if ancestor.is_context() {
+                near = crate::space::NEAR_W;
             }
             parent = ancestor.parent.as_deref();
         }
-        Some(layers)
+        Some((layers, near))
     }
 
-    /// The box of a node that is not a layer itself.
-    fn content_box(&self, node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+    /// The box of a node that is not a layer or plane itself. A surface
+    /// has the box of its buffer, subsurfaces and decorations, and under a
+    /// plane the box of its geometry, which its texture holds.
+    fn content_box(
+        &self,
+        node: &Node,
+        transform: &Transform,
+        near: f64,
+    ) -> Option<Rectangle<f64, Logical>> {
+        let bounding_box = |transform, size| bounding_box_from(transform, size, near);
         match node.kind {
-            // A surface is sized by its buffer, subsurfaces and decorations.
+            NodeKind::Surface if !transform.is_plain() => {
+                let size = self.windows.get(node.id.as_str())?.geometry().size;
+                Some(bounding_box(
+                    transform,
+                    [f64::from(size.w), f64::from(size.h)],
+                ))
+            }
             NodeKind::Surface => Some(window_rect(self.windows.get(node.id.as_str())?, transform)),
             NodeKind::Rect => Some(bounding_box(transform, node.props.size?)),
             NodeKind::Image => {
@@ -1506,12 +1527,20 @@ pub fn socket_rule(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::CLIENT_SOCKET_RULE, message)
 }
 
-/// The box of a layer node on the screen: the points of its mesh, or the
-/// corners of its size, through the full transform of the renderer.
-fn layer_box(node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+/// Whether a node draws through a texture of its size: a layer, or a
+/// node with a size under a transform that is not a 2D translation with
+/// a positive scale.
+fn is_texture(node: &Node, transform: &Transform) -> bool {
+    node.is_layer() || (node.props.size.is_some() && !transform.is_plain())
+}
+
+/// The box of a layer node or a plane on the screen: the points of its
+/// mesh, or the corners of its size clipped at `w = near`, through the
+/// full transform of the renderer.
+fn layer_box(node: &Node, transform: &Transform, near: f64) -> Option<Rectangle<f64, Logical>> {
     let size = node.props.size?;
     let Some(mesh) = &node.props.mesh else {
-        return Some(bounding_box(transform, size));
+        return Some(bounding_box_from(transform, size, near));
     };
     Some(projected_box(transform, mesh.points.iter().copied()))
 }

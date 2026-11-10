@@ -919,23 +919,24 @@ fn start_plane_grab(state: &mut State) {
     let (Some(origin), Some(node)) = (under.plane, under.node) else {
         return;
     };
-    if state.scene.is_within(&node, chora_scene::ROOT) {
-        state.plane_grab = Some(PlaneGrab {
-            node,
-            surface: under.surface,
-            origin,
-            last: spot.scene - under.location,
-            held: 1,
-        });
-    }
+    state.plane_grab = Some(PlaneGrab {
+        node,
+        surface: under.surface,
+        origin,
+        last: spot.scene - under.location,
+        held: 1,
+    });
 }
 
 /// The surface of a press under a plane, with the location that gives its
-/// client the point that the plane maps to the pointer. When the plane
-/// shows the pointer behind the eye, the client keeps its last point.
+/// client the point that the plane maps to the pointer. The node is
+/// reached from the root or the overlay of an output, as `anchor` tells.
+/// When the plane shows the pointer behind the eye, the client keeps its
+/// last point.
 fn planar_press(state: &mut State, spot: &Spot) -> Option<(WlSurface, Point<f64, Logical>)> {
     let grab = state.plane_grab.as_mut()?;
-    if let Some(local) = render::local_in(&state.scene, chora_scene::ROOT, spot.scene, &grab.node) {
+    let (start, at) = anchor(&state.scene, &state.outputs, &grab.node, spot);
+    if let Some(local) = render::local_in(&state.scene, &start, at, &grab.node) {
         grab.last = local - grab.origin;
     }
     Some((grab.surface.clone(), spot.scene - grab.last))

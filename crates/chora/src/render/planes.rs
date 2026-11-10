@@ -529,3 +529,89 @@ fn a_plane_that_crosses_the_near_plane_has_a_box_that_reaches_past_it() {
     let rect = crate::render::window_rect(&window, &total);
     assert!(rect.size.w >= 800.0, "{rect:?}");
 }
+
+#[test]
+fn a_window_under_an_overlay_root_and_a_plane_keeps_its_drag_mapped() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (100, 80));
+    let mut wm = core.named("wm");
+    let spec = json!({"translate": [200, 100], "rotate": 30});
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": chora_scene::overlay_id("HDMI-1")}},
+        {"update": {"id": "s1", "props": {"transform": spec}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    let total = transform(&spec);
+    move_to(&mut core, forward(&total, 50.0, 40.0));
+    motions(&mut wayland, &mut core);
+    click(&mut core, true);
+    for (u, v) in [(120.0, 90.0), (-30.0, 95.0)] {
+        move_to(&mut core, forward(&total, u, v));
+        let moved = motions(&mut wayland, &mut core);
+        assert!(
+            moved.last().is_some_and(|at| close(*at, (u, v))),
+            "the drag is at {:?}: {moved:?}",
+            (u, v)
+        );
+    }
+    click(&mut core, false);
+}
+
+#[test]
+fn a_press_on_a_mesh_plane_tells_the_point_of_its_quad() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut xp = core.named("xp");
+    let spec = json!({"translate": [300, 100], "rotate": 45});
+    let mesh = json!({"cols": 1, "rows": 1,
+        "points": [[0, 0], [100, 0], [0, 50], [100, 50]]});
+    let commands = json!({"commands": [
+        {"create": {"id": "r", "kind": "rect", "parent": "root", "props": {
+            "size": [100, 50], "color": [1, 1, 1, 1], "mesh": mesh, "transform": spec}}},
+    ]});
+    xp.ok(&mut core, "scene.apply", commands);
+    xp.ok(&mut core, "events.subscribe", json!({"events": []}));
+    let total = transform(&spec);
+    move_to(&mut core, forward(&total, 20.0, 10.0));
+    click(&mut core, true);
+    move_to(&mut core, forward(&total, 30.0, 15.0));
+    click(&mut core, false);
+    let events = node_events(&mut xp, &mut core);
+    assert_eq!(events[0]["event"], "pointer.pressed", "{events:?}");
+    assert!(close(local(&events[0]), (20.0, 10.0)), "{events:?}");
+    assert!(close(local(&events[1]), (30.0, 15.0)), "{events:?}");
+}
+
+#[test]
+fn a_plane_ancestor_cuts_the_box_of_a_query() {
+    let mut core = Core::new();
+    core.add_output("HDMI-1", (800, 600));
+    let mut wm = core.named("wm");
+    let commands = json!({"commands": [
+        {"create": {"id": "rig", "kind": "group", "parent": "root",
+                    "props": {"transform": {"translate": [300, 300], "rotate": 30}}}},
+        {"create": {"id": "pane", "kind": "group", "parent": "rig",
+                    "props": {"size": [100, 100]}}},
+        {"create": {"id": "bar", "kind": "rect", "parent": "pane",
+                    "props": {"size": [400, 20], "color": [1, 1, 1, 1]}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    let rect = |wm: &mut Client, core: &mut Core, id: &str| -> Vec<f64> {
+        let found = wm.ok(core, "scene.query", json!({"selector": format!("id:{id}")}));
+        found[0]["rects"]["HDMI-1"]
+            .as_array()
+            .expect("a rect")
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect()
+    };
+    let pane = rect(&mut wm, &mut core, "pane");
+    let bar = rect(&mut wm, &mut core, "bar");
+    assert!(
+        bar[0] + bar[2] <= pane[0] + pane[2] + 1e-9,
+        "the pane cuts the bar: {bar:?} in {pane:?}"
+    );
+}

@@ -961,7 +961,7 @@ pub fn node_hit(state: &State, spot: &Spot) -> Option<(String, Point<f64, Logica
     let found = [(&overlay, spot.local), (&scene, spot.scene)]
         .into_iter()
         .find_map(|(list, pos)| found(state, list, InputMode::Accept, pos))?;
-    (found.input == InputMode::Accept).then(|| (found.node.id.clone(), found.local))
+    (found.input == InputMode::Accept).then(|| (found.node.id.clone(), clamp_local(found.local)))
 }
 
 /// What a point of the scene hits.
@@ -1192,7 +1192,9 @@ fn clamp_local(point: Point<f64, Logical>) -> Point<f64, Logical> {
 /// layer budget left out of the last frame shows nothing, so it takes the
 /// input and gives it to nobody. A group is a layer: its own list answers
 /// inside its size. A node with a mesh takes
-/// the input over the bounding box of its shape.
+/// the input over the bounding box of its shape, at the point of the flat
+/// quad of its size, as a drag of it tells; where that quad shows no
+/// point, at the point of the screen.
 fn plane_hit<'a>(
     state: &'a State,
     placed: &Placed<'a>,
@@ -1208,7 +1210,8 @@ fn plane_hit<'a>(
         planar: true,
     };
     if node.props.mesh.is_some() {
-        return layer_hit(placed, pos).map(|hit| take(hit, pos));
+        let local = plane_point(&placed.transform, pos).unwrap_or(pos);
+        return layer_hit(placed, pos).map(|hit| take(hit, local));
     }
     let [w, h] = content_size(&state.windows, &state.assets, node)?;
     let local = plane_point(&placed.transform, pos)?;
@@ -1444,18 +1447,16 @@ pub fn take_feedback(state: &State, output: &Output) -> OutputPresentationFeedba
 
 /// The scene rectangle of a window with its subsurfaces and popups. The
 /// transform places its geometry origin and scales it; under a plane it is
-/// the box of the projected corners.
+/// the box of the projected corners of the geometry, which its texture
+/// holds.
 pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
     let bbox = window.bbox().to_f64();
-    let geo = window.geometry().loc.to_f64();
+    let geo = window.geometry();
     if !transform.is_plain() {
-        let (x, y) = (bbox.loc.x - geo.x, bbox.loc.y - geo.y);
-        let (right, bottom) = (x + bbox.size.w, y + bbox.size.h);
-        return polygon_box(
-            transform,
-            [[x, y], [right, y], [right, bottom], [x, bottom]],
-        );
+        let size = [f64::from(geo.size.w), f64::from(geo.size.h)];
+        return bounding_box(transform, size);
     }
+    let geo = geo.loc.to_f64();
     let (x, y) = transform.translation_2d();
     let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
     Rectangle::new(
@@ -1466,17 +1467,28 @@ pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f
 
 /// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
 /// `(w, h)` after the transform.
-pub(crate) fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
-    polygon_box(transform, [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]])
+pub(crate) fn bounding_box(transform: &Transform, size: [f64; 2]) -> Rectangle<f64, Logical> {
+    bounding_box_from(transform, size, mesh::NEAR)
+}
+
+/// As [`bounding_box`], with the box clipped at `w = near`.
+pub(crate) fn bounding_box_from(
+    transform: &Transform,
+    [w, h]: [f64; 2],
+    near: f64,
+) -> Rectangle<f64, Logical> {
+    polygon_box(transform, [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]], near)
 }
 
 /// The smallest axis-aligned rectangle that holds the part of a quad in
-/// front of the eye after the transform, as the renderer clips it. The
+/// front of the near plane `w = near` after the transform, as the renderer
+/// clips it; a 3D context clips its planes at 1/64. The
 /// corners go around the quad. A quad with no corner in front overlaps
 /// nothing.
-pub(crate) fn polygon_box(
+fn polygon_box(
     transform: &Transform,
     corners: [[f64; 2]; 4],
+    near: f64,
 ) -> Rectangle<f64, Logical> {
     let m = transform.matrix();
     let polygon = corners.map(|[px, py]| {
@@ -1487,7 +1499,7 @@ pub(crate) fn polygon_box(
         ]
     });
     let mut bounds = mesh::Bounds::default();
-    bounds.add_clipped(&polygon);
+    bounds.add_clipped_at(&polygon, near);
     bounds.rect()
 }
 

@@ -301,3 +301,117 @@ fn a_shader_in_a_context_reads_depth_and_facing() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+fn turn_x(degrees: f64) -> Matrix {
+    let (s, c) = degrees.to_radians().sin_cos();
+    [
+        1.0, 0.0, 0.0, 0.0, 0.0, c, s, 0.0, 0.0, -s, c, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]
+}
+
+/// A floor one pixel below the eye from 200 behind the eye to 1000 in
+/// front of the centre, and a blue wall far behind it. The floor shows
+/// below the horizon down to w = 1/64, at y = 240 + 64 = 304; below that
+/// the near plane cuts it and the wall shows.
+fn floor(core: &mut Core) -> crate::testing::Client {
+    core.add_output("test-1", (640, 480));
+    let mut wm = space(core, [640.0, 480.0]);
+    let floor = chain(&[translate(-680.0, 241.0, -1000.0), turn_x(90.0)]);
+    let commands = json!({"commands": [
+        rect("wall", [4000.0, 4000.0], [0.0, 0.0, 1.0, 1.0],
+             &translate(-1700.0, -1700.0, 2000.0)),
+        rect("floor", [2000.0, 2000.0], [1.0, 0.0, 0.0, 1.0], &floor),
+    ]});
+    wm.ok(core, "scene.apply", commands);
+    wm
+}
+
+#[test]
+fn a_plane_through_the_near_plane_shows_and_takes_input_only_in_front_of_it() {
+    let mut core = Core::with_renderer();
+    let mut wm = floor(&mut core);
+    let pixel = capture(&mut core, &mut wm);
+    assert_eq!(
+        pixel(320.0, 280.0),
+        RED,
+        "the floor in front of the near plane"
+    );
+    assert_eq!(
+        pixel(320.0, 400.0),
+        [0, 0, 255, 255],
+        "the wall past the cut"
+    );
+    let under = |core: &Core, x: f64, y: f64| {
+        let spot = core.state.spot((x, y).into()).expect("a spot");
+        crate::render::node_hit(&core.state, &spot)
+    };
+    let (node, at) = under(&core, 320.0, 280.0).expect("the floor");
+    assert_eq!(node, "floor");
+    assert!(close((at.x, at.y), (1000.0, 220.0)), "{at:?}");
+    assert_eq!(
+        under(&core, 320.0, 400.0).map(|(node, _)| node).as_deref(),
+        Some("wall")
+    );
+    let found = wm.ok(&mut core, "scene.query", json!({"selector": "id:floor"}));
+    let height = found[0]["rects"]["test-1"][3].as_f64().expect("a rect");
+    assert!(
+        (63.0..64.0).contains(&height),
+        "the box ends at the cut: {height}"
+    );
+}
+
+#[test]
+fn a_drag_toward_the_horizon_tells_a_clamped_local_point() {
+    let mut core = Core::new();
+    let mut wm = floor(&mut core);
+    wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+    move_to(&mut core, (320.0, 280.0).into());
+    click(&mut core, true);
+    move_to(&mut core, (320.0, 240.000_01).into());
+    click(&mut core, false);
+    let events = node_events(&mut wm, &mut core);
+    let moved = events
+        .iter()
+        .find(|e| e["event"] == "pointer.moved")
+        .expect("a motion");
+    assert!(close(local(moved), (1000.0, 1e6)), "{moved:?}");
+}
+
+#[test]
+fn a_piece_that_the_budget_leaves_out_takes_input_and_gives_it_to_nobody() {
+    let mut core = Core::with_renderer();
+    let mut wm = space(&mut core, [640.0, 480.0]);
+    wm.ok(&mut core, "output.add", json!({"spec": "640x480"}));
+    let at = |degrees| {
+        chain(&[
+            translate(320.0, 240.0, 0.0),
+            turn_y(degrees),
+            translate(-2048.0, -2048.0, 0.0),
+        ])
+    };
+    let big = |id: &str, degrees: f64| {
+        json!({"create": {"id": id, "kind": "rect", "parent": "eye", "props": {
+            "size": [4096, 4096], "color": [1, 1, 1, 1], "radius": 8,
+            "clip": {"radius": 8}, "transform": {"matrix": at(degrees)}}}})
+    };
+    let commands = json!({"commands": [big("a", 30.0), big("b", -30.0)]});
+    wm.ok(&mut core, "scene.apply", commands);
+    crate::backend::headless::render_all(&mut core.state);
+    let left_out = core.state.assets.frame_left_out["HEADLESS-1"].clone();
+    assert_eq!(left_out.len(), 1, "{left_out:?}");
+    let (hidden, shown, hidden_at, shown_at) = if left_out[0] == "a" {
+        ("a", "b", 380.0, 260.0)
+    } else {
+        ("b", "a", 260.0, 380.0)
+    };
+    let under = |core: &Core, x: f64| {
+        let spot = core.state.spot((x, 240.0).into()).expect("a spot");
+        crate::render::node_under(&core.state, &spot)
+    };
+    assert_eq!(under(&core, shown_at).as_deref(), Some(shown));
+    assert_eq!(
+        under(&core, hidden_at),
+        None,
+        "{hidden} shows nothing there"
+    );
+}
