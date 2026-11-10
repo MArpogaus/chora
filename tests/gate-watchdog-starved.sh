@@ -1,6 +1,7 @@
 #!/bin/bash
 # The frame watchdog on a starved host: chora-mc shows a scene of 300
-# panels beside busy loops, four per CPU, each in a session of its own.
+# panels beside busy loops, four per CPU, each in a session of its own;
+# they end by themselves after STARVE_S seconds.
 # The time that the core waits for a CPU is no cost of a scene, so the
 # watchdog blames and disconnects nobody. With a budget of 1 us
 # (CHORA_FRAME_BUDGET_US=1) every frame costs too much by itself, and
@@ -24,20 +25,17 @@ print(json.dumps([{"id": "p%d" % i, "cell": [i % 20, i // 20, 1, 1],
     "title": "T%d" % i, "lines": ["%d\tline" % i]} for i in range(300)]))')
 
 starve() {
-    local hogs=() end
+    local end=$((SECONDS + seconds))
     for _ in $(seq $(($(nproc) * 4))); do
-        setsid bash -c 'while :; do :; done' &
-        hogs+=($!)
+        # shellcheck disable=SC2016 # the shell of the busy loop expands them
+        setsid bash -c 'while [ "$SECONDS" -lt "$0" ]; do :; done' "$seconds" &
     done
-    pids+=("${hogs[@]}")
-    end=$((SECONDS + seconds))
     while [ "$SECONDS" -lt "$end" ]; do
         mc scene.show '{"name": "many"}'
         sleep 2.5
         mc scene.show '{"name": "day"}'
         sleep 0.5
     done
-    kill "${hogs[@]}" 2>/dev/null
 }
 
 run() {

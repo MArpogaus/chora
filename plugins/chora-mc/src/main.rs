@@ -285,6 +285,10 @@ struct Mc {
     shader: PathBuf,
     blur: PathBuf,
     shaders: Shaders,
+    /// The panels whose write animation runs, each with the number of
+    /// the transaction that started it: those of one transaction end in
+    /// the same frame.
+    writing: HashMap<String, u64>,
     /// The rules of `region.put`, before those of the settings.
     put: Vec<Rule>,
     /// The regions that a key or `region.toggle` showed or hid.
@@ -466,6 +470,7 @@ impl Mc {
             shader,
             blur,
             shaders: Shaders::On,
+            writing: HashMap::new(),
             put: Vec::new(),
             toggled: BTreeMap::new(),
             docks: HashMap::new(),
@@ -1220,26 +1225,45 @@ impl Mc {
             );
         }
         self.shaders = Shaders::Dropped;
+        self.writing.clear();
     }
 
-    /// The write animation of a panel ended: its effect goes, so that a
+    /// The write animation of a panel ended, and with it those of the
+    /// same transaction: their effects go in one transaction, so that a
     /// page that rests costs no shader pass per panel.
     fn written(&mut self, node: &str) -> Result<(), ClientError> {
-        let panel = self.scenes.iter().find_map(|(name, scene)| {
-            let id = node.strip_prefix(&panels_id(name))?.strip_prefix('-')?;
-            scene.panels.iter().find(|p| p.id == id)
-        });
-        let Some(panel) = panel else {
+        let Some(batch) = self.writing.get(node).copied() else {
             return Ok(());
         };
-        let rest = self.blur_effect(panel).into_iter().collect();
-        self.apply(vec![Command::Update {
-            id: node.into(),
-            props: PropsUpdate {
-                effects: Some(rest),
-                ..PropsUpdate::default()
-            },
-        }])
+        let mut commands = Vec::new();
+        for (name, scene) in &self.scenes {
+            for panel in &scene.panels {
+                let id = panel_id(name, &panel.id);
+                if self.writing.get(&id) == Some(&batch) {
+                    commands.push(Command::Update {
+                        id,
+                        props: PropsUpdate {
+                            effects: Some(self.blur_effect(panel).into_iter().collect()),
+                            ..PropsUpdate::default()
+                        },
+                    });
+                }
+            }
+        }
+        self.writing.retain(|_, b| *b != batch);
+        self.apply(commands)
+    }
+
+    /// Remembers the panels that the commands start to write.
+    fn note_writes(&mut self, commands: &[Command]) {
+        let batch = self.writing.values().max().map_or(0, |b| b + 1);
+        for command in commands {
+            if let Command::Animate { id, props, .. } = command
+                && props.effects.is_some()
+            {
+                self.writing.insert(id.clone(), batch);
+            }
+        }
     }
 
     fn start(&mut self, methods: Vec<ExportMethod>) -> Result<(), ClientError> {
@@ -1331,6 +1355,7 @@ impl Mc {
         if commands.is_empty() {
             return Ok(());
         }
+        self.note_writes(&commands);
         self.rt.conn.apply(commands)
     }
 
@@ -2890,6 +2915,37 @@ mod tests {
         })
         .unwrap();
         assert_eq!(panel_effects(&mc, &model, "agenda"), 0);
+    }
+
+    /// The panels that one transaction writes end in the same frame:
+    /// the first end removes the effects of all of them at once, and a
+    /// scene of 300 panels answers with one transaction, not with 300.
+    #[test]
+    fn the_panels_of_one_show_lose_the_write_effect_together() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("write-batch", [1920, 1080]);
+        mc.shader = "/write.frag".into();
+        mc.show("mission", true).unwrap();
+        let ids: Vec<String> = (mc.scenes["mission"].panels.iter())
+            .map(|p| super::panel_id("mission", &p.id))
+            .collect();
+        assert!(ids.len() > 1);
+        let effects = |id: &String| {
+            let core = model.lock().unwrap();
+            core.scene.node(id).unwrap().props.effects.len()
+        };
+        assert_eq!(
+            ids.iter().map(effects).sum::<usize>(),
+            ids.len(),
+            "all write"
+        );
+        mc.event(chora_scene::Event::AnimationDone {
+            node: Some(ids[0].clone()),
+            output: None,
+        })
+        .unwrap();
+        assert_eq!(ids.iter().map(effects).sum::<usize>(), 0);
+        assert!(mc.writing.is_empty());
     }
 
     /// After the watchdog of the core dropped the effects of mc, a scene
