@@ -32,8 +32,10 @@ terms and no synonyms.
 | **Block** | A neutral plugin of the XP split that does one job for any flavor: notifications, assistant, desktop, panel or stacking window manager (D73). |
 | **Asset folder** | The folder from which a block loads its pictures and a few values. The block ships a neutral one, and a flavor ships another (D73). |
 | **Card** | The rounded rectangle in which `chora-notify` shows a notification, in a corner of an output. Its colors, corners and optional tail are values of the asset folder. |
-| **Bubble** | The rounded rectangle with an optional tail that `chora-assistant` draws around a sentence or a question of the voice agent. `chora-draw` draws its outline for the card and the bubble. |
-| **Figure** | What `chora-assistant` shows for the voice agent: the dot of the neutral asset folder, or the paperclip of the XP flavor. |
+| **Bubble** | The rounded rectangle with an optional tail that `chora-assistant` draws around a sentence of the voice agent. `chora-draw` draws its outline for the card and the bubble. |
+| **Figure** | What `chora-assistant` shows for the voice agent: the dot of the neutral HUD folder, or the paperclip of the XP flavor. |
+| **Question card** | What `chora-assistant` draws for `voice.confirm`: prompt, detail, key line and the buttons Yes and No. The host draws it with its own fonts, on top of every panel; no HUD folder styles, moves or hides it. See `hud.md`. |
+| **Muted badge** | The label "Microphone off. Click to turn it on." that `chora-assistant` shows while the mic is muted. A click of a person on it turns the mic on. |
 | **HUD folder** | A folder with `hud.yaml` (version 1), SVG pictures and optional fonts that `chora-assistant` draws as the look of the voice agent and of the chat. It holds data only and runs no code. See `hud.md`. |
 | **Coordinator** | The party that installs and connects plugins, services and flavors. First the user, later an agent with special permissions. |
 | **Inventory** | A local, git-versioned store of reusable elements (views, plugins, widgets). It belongs to the opinionated layer above chora, not to the core. |

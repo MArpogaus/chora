@@ -7,8 +7,8 @@
 #   pass     the feature works as the spec says
 #   missing  anything else
 #
-# The table EXPECTED holds the state of every cell. Today every cell is
-# `missing`. The gate fails on each cell that differs from the table, in
+# The table EXPECTED holds the state of every cell. A cell is `missing`
+# until the step that builds its feature has merged. The gate fails on each cell that differs from the table, in
 # both directions, so a step that builds a feature must flip its lines to
 # `pass` in the same branch. It fails too when a cell has no line, when a
 # line has no cell, and when the run takes more than 4 minutes. One line
@@ -21,6 +21,8 @@
 #                           out, an href to /etc/passwd, a 30000 px SVG and
 #                           chat.size 10; exit 1, each error with its file
 #   list-huds, use-hud-writes-setting   --list-huds, --use-hud (A12)
+#   neutral-equals-today    the figure and the sentence of the neutral folder
+#                           against captures of 92e7539 (tests/hud/today)
 #   card-*                  the question card of a physical question (A1,
 #                           A2, A11)
 #   chat-*, typed-yes-held  the "Chat ..." row, chat.show and chat.hide,
@@ -53,26 +55,27 @@
 set -uo pipefail
 
 EXPECTED='
-check-neutral missing
+check-neutral pass
 check-xp missing
 check-mc missing
 check-construct missing
-check-ok-names-use missing
-check-names-four-errors missing
+check-ok-names-use pass
+check-names-four-errors pass
 list-huds missing
-use-hud-writes-setting missing
-card-names-file missing
-card-injected-click-refused missing
-card-stays-on-focus-move missing
+use-hud-writes-setting pass
+card-names-file pass
+card-injected-click-refused pass
+card-stays-on-focus-move pass
 chat-row-always missing
 chat-row-click-opens missing
 chat-show-hide missing
 chat-super-a-esc missing
 typed-yes-held missing
 agents-row-text missing
-voice-state-rate missing
-layers-dropped-empty missing
-host-idle-cpu missing
+voice-state-rate pass
+layers-dropped-empty pass
+host-idle-cpu pass
+neutral-equals-today pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -258,6 +261,20 @@ ensure_session() {
     has_focus "$probe" || fail "foot has no focus at the start"
 }
 
+cell_neutral_equals_today() {
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    waiting "$settle_s" node_exists hud-figure || return 1
+    sleep 2
+    ctl capture "$shots/figure.png" --node hud-figure >/dev/null || return 1
+    emit voice.say '{"text": "Your updates are ready to install.", "duration_ms": 4000}'
+    waiting "$settle_s" node_exists hud-line || return 1
+    sleep 1
+    ctl capture "$shots/line.png" --node hud-line >/dev/null || return 1
+    local part
+    for part in figure line; do
+        [ "$(python3 -I "$repo/tests/png-same.py" "$shots/$part.png" "$fixtures/today/$part.png")" = "0 0" ] || return 1
+    done
+}
 cell_card_names_file() {
     ask_notes
     waiting "$settle_s" node_exists hud-card || return 1
@@ -379,6 +396,7 @@ run_cell check-ok-names-use cell_check_ok_names_use static
 run_cell check-names-four-errors cell_check_names_four_errors static
 run_cell list-huds cell_list_huds static
 run_cell use-hud-writes-setting cell_use_hud_writes_setting static
+run_cell neutral-equals-today cell_neutral_equals_today session
 run_cell card-names-file cell_card_names_file session
 run_cell card-injected-click-refused cell_card_injected_click_refused session
 run_cell card-stays-on-focus-move cell_card_stays_on_focus_move session

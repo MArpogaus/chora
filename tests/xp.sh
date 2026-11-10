@@ -419,9 +419,9 @@ python3 -I "$(dirname "$0")/fake-voice.py" "$out/claims" <"$out/voice.in" >"$out
 pids+=($!)
 exec 5>"$out/voice.in"
 echo 'voice.state {"state": "listening"}' >&5
-wait_for has_node id:assistant-clip
+wait_for has_node id:hud-figure
 echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
-speech_visible() { test "$(query id:assistant-speech | jq '.[0].visible')" = true; }
+speech_visible() { test "$(query id:hud-line | jq '.[0].visible')" = true; }
 wait_for speech_visible
 grim "$out/paperclip.png"
 

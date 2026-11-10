@@ -40,7 +40,11 @@ state() { emit voice.state "{\"state\": \"$1\", \"task\": \"Look up the train to
 # ui_has <text>: a node of the plugin shows the text
 ui_has() {
   if [ "$plugin" = assistant ]; then
-    ctl query id:assistant-speech | py 'import json, sys; n = json.load(sys.stdin); sys.exit(not (n and n[0]["visible"] and n[0]["opacity"] > 0 and n[0]["rects"]))'
+    local id
+    for id in hud-line hud-card; do
+      ctl query "id:$id" | py 'import json, sys; n = json.load(sys.stdin); sys.exit(not (n and n[0]["visible"] and n[0]["opacity"] > 0 and n[0]["rects"]))' && return 0
+    done
+    return 1
   else
     # a node that shows (visible, opaque, with a rect) has the text
     ctl query "owner:$plugin" | py 'import json, sys
@@ -122,7 +126,7 @@ plugin_round() {
     rm -f "$work/claims.answers" "$work/claims.keys"
     emit voice.confirm "{\"id\": \"43\", \"prompt\": \"Set allow to [sh]?\", \"detail\": \"allow: [sh]\", \"physical\": true, \"keys\": {\"yes\": \"Alt+y\", \"no\": \"Alt+n\"}, \"buttons\": true}"
     expect "$plugin: the physical question does not show" breaks 'ui_has "allow: [sh]" || ui_has "Set allow"' 8
-    case $plugin in construct) yes_id=construct-ask-yes ;; mc) yes_id=mc-answer-yes ;; assistant) yes_id=assistant-yes ;; esac
+    case $plugin in construct) yes_id=construct-ask-yes ;; mc) yes_id=mc-answer-yes ;; assistant) yes_id=hud-card-yes ;; esac
     expect "$plugin: no Yes button on the physical question" breaks "ctl query id:$yes_id | grep -q $yes_id" 8
     sleep 0.5
     shot_wm "$plugin-physical-$how"

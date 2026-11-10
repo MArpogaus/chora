@@ -960,15 +960,20 @@ tail. `flavors/xp/assets/notify` is the balloon of XP.
 
 ## chora-assistant
 
-`chora-assistant` shows the state of the voice agent (D65) as a figure
-above a corner of the first output, and its sentences in a bubble. It is a
-block of the XP split (D73) and connects with the client name `assistant`.
-It exports the methods of its settings and no other.
+`chora-assistant` is the host of the HUD folders (`hud.md`). It shows the
+state of the voice agent (D65) as a figure on the first output, its
+sentences in a bubble, the question of the agent as a card and a badge
+while the mic is muted. It is a block of the XP split (D73) and connects
+with the client name `assistant`. It exports the methods of its settings
+and no other.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `--assets DIR` | `CHORA_ASSISTANT_ASSETS`, else `/usr/share/chora/assistant/assets`, else `plugins/chora-assistant/assets` of the source tree when the binary runs from `target/<profile>/` | the asset folder |
+| `--assets DIR` | `CHORA_ASSISTANT_ASSETS` | the asset folder of a flavor, which replaces the HUD folder of the setting `hud` |
 | `--config FILE` | `chora/chora-assistant.yaml` in `$XDG_CONFIG_HOME` | the settings file |
+| `--check-hud DIR` | | checks a HUD folder, prints each problem with its file and key, exits 1 when there is one |
+| `--list-huds` | | lists the HUD folders by name |
+| `--use-hud NAME` | | checks the folder and writes `hud: NAME` to the settings file; `default` takes the line out |
 
 `chora-assistant` reads `chora/chora-assistant.yaml` in `$XDG_CONFIG_HOME`,
 by default `~/.config`, or the file of `--config`. Without a file, it uses
@@ -979,40 +984,50 @@ which lists every option. The file and its changes work as for
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `enabled` | `true` | the figure shows while the voice agent is connected |
-| `position` | `bottom_right` | the corner of the first output where it shows |
+| `position` | `null` | the corner of the first output where the figure shows; `null`: the place of the voice panel of the folder |
+| `hud` | `neutral` | the name of the HUD folder: `$XDG_DATA_HOME/chora/huds/NAME`, else `/usr/share/chora/huds/NAME`, else `plugins/chora-assistant/huds/NAME` of the source tree when the binary runs from `target/<profile>/` |
 
 `chora-assistant` subscribes to `voice.*`. The figure shows a state of the
-agent: it blinks while the agent is idle, leans in while it listens, looks
-up and sways while it thinks, bounces while it speaks and raises its
-eyebrows when it asks. While the agent sleeps, the figure shows dimmed: the
-mic still listens for the wake words. Only the events of the client `voice`
-itself move it. Each sentence of `voice.say` shows in a bubble above the
-figure, which fades out three seconds after the sentence ends. The bubble
-shows the `prompt` and the `detail` of `voice.confirm` until the event with
-`done` and the same `id`. With `buttons`, the bubble has the buttons Ja and
-Nein; a click calls `voice.confirm.answer {id, yes}`. A question about a
-security key (`physical`) shows one more line with its `keys`, such as
-"Alt+Y = Ja, Alt+N = Nein". Only a pointer press on a button answers; no
-method of `chora-assistant` calls `confirm.answer`, but it cannot tell an
-injected click (`input.inject`) from a real one.
+agent with the picture that the folder names for it: `asleep`,
+`listening`, `thinking`, `working`, `question`, `speaking` or `idle`. The
+figure blinks while the agent is idle, leans in while it listens, looks up
+and sways while it thinks, bounces while it speaks and raises its eyebrows
+when it asks. While the agent sleeps, the figure shows dimmed: the mic
+still listens for the wake words. Only the events of the client `voice`
+itself move it. The node `hud-state` carries the state in words in its
+`text` meta key. Each sentence of `voice.say` shows in a bubble above the
+figure, which fades out three seconds after the sentence ends.
+
+`voice.confirm` shows as a card above the figure until the event with
+`done` and the same `id`: the title, the prompt, the whole detail and, for
+a question about a security key (`physical`), the keys of the event. With
+`buttons`, the card has the buttons Yes and No; a press of a person calls
+`voice.confirm.answer {id, yes}`. An injected press (`input.inject`)
+answers nothing and puts the line "Please use your own mouse or keyboard."
+on the card. A question whose whole text, with the whole detail, does not fit
+on the card has no buttons, says "Too long to show. Refused." and is
+refused at once. The card, its words and its fonts are the host's; a HUD
+folder cannot change them (`hud.md`).
 
 While the assistant is enabled, `chora-assistant` calls `indicator.claim`
 of the agent at its start and after the agent connects. A click on the
-figure mutes the mic of the agent through its method `mute`, and a second
-click unmutes it. The figure goes when the agent disconnects, and
+figure mutes the mic of the agent through its method `mute`. While the mic
+is muted, the badge "Microphone off. Click to turn it on." shows beside
+the figure, and a click of a person on it turns the mic on; an injected
+click on the badge or the figure does not. The figure goes when the agent disconnects, and
 `enabled: false` turns it off.
 
-The asset folder holds:
+The asset folder of a flavor holds:
 
 | File | Content |
 |------|---------|
-| `values.yaml` | `font`, as for `chora-notify`; `figure`, `dot` or `paperclip`; `margin`, the distance of the figure from its corner; `speech` and `buttons`, the look of the bubble and of the buttons with the keys of `card` of `chora-notify` (the tail of a button is ignored); a key that the file leaves out takes the neutral value |
-| `dot.svg` | the dot, 24 by 24 pixels, with a group for each pose: `idle`, `listening`, `thinking`, `speaking`, `asking` and `sleeping`; only the figure `dot` reads it |
+| `values.yaml` | `font`, as for `chora-notify`; `figure`, `dot` or `paperclip`; `margin`, the distance of the figure from its corner; `speech`, the look of the bubble with the keys of `card` of `chora-notify`; `buttons`, read and ignored, since the card is the host's; a key that the file leaves out takes the neutral value |
+| `dot.svg` | the dot, with a group for each state, named as above; only the figure `dot` reads it |
 | `fonts/` | font files, optional |
 
-`plugins/chora-assistant/assets` is the neutral folder, a dot that changes
-its color with the state. The figure `paperclip` is the character of the
-XP flavor, drawn in code until the XP step X7 turns it into SVG files;
+`plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
+changes its color with the state. The figure `paperclip` is the character of
+the XP flavor, drawn in code until the XP step X7 turns it into SVG files;
 `flavors/xp/assets/assistant` selects it.
 
 ## Flavors

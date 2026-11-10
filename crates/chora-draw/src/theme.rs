@@ -274,6 +274,28 @@ impl Theme {
         Self::open(dir, cache, names, (Fonts::folder(dir, family), true))
     }
 
+    /// A theme with the fonts of the host only and no folder, for what the
+    /// host draws itself, such as the question card. It reads no file.
+    ///
+    /// # Errors
+    ///
+    /// The cache cannot be written.
+    pub fn host(cache: &Path, family: &str) -> Result<Self, String> {
+        Self::open(cache, cache, &[], (Fonts::host(family), true))
+    }
+
+    /// Whether the folder is a HUD folder, read as untrusted.
+    #[must_use]
+    pub fn confined(&self) -> bool {
+        self.confined
+    }
+
+    /// The fonts of the theme.
+    #[must_use]
+    pub fn fonts(&self) -> &Fonts {
+        &self.fonts
+    }
+
     fn open(
         dir: &Path,
         cache: &Path,
@@ -353,6 +375,15 @@ impl Theme {
         }
         widths.insert(key, width);
         width
+    }
+
+    /// The size of an SVG file of the folder, as its `width` and `height`
+    /// or its `viewBox` say, rounded to pixels.
+    pub fn sheet_size(&self, sheet: Sheet) -> Option<[i32; 2]> {
+        let size = self.sheets.get(&sheet)?.size();
+        #[allow(clippy::cast_possible_truncation)]
+        let size = [size.width().round() as i32, size.height().round() as i32];
+        (size[0] > 0 && size[1] > 0).then_some(size)
     }
 
     /// The size of an element, rounded to pixels.

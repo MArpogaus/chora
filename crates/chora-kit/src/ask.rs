@@ -8,7 +8,10 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-use crate::words::{Language, Word, say};
+use crate::{
+    chat::sanitize,
+    words::{Language, Word, say},
+};
 
 /// How long after it appeared or moved a button takes no click.
 pub const GUARD: Duration = Duration::from_millis(400);
@@ -34,8 +37,11 @@ impl Default for Keys {
 /// A question of `voice.confirm`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Question {
-    /// The id that `confirm.answer` takes.
+    /// The id as a number.
     pub id: u64,
+    /// The id as the event sent it, a text or a number written as text,
+    /// which `confirm.answer` takes back.
+    pub answer_id: String,
     /// The spoken prompt.
     pub prompt: String,
     /// The full command or value, empty if there is none.
@@ -56,19 +62,32 @@ impl Question {
         if data["done"] == true {
             return None;
         }
-        let text = |value: &Value| value.as_str().map(str::to_owned);
+        let answer_id = event_id(data)?;
+        let text = |value: &Value| value.as_str().map(sanitize);
         let keys = Keys {
             yes: text(&data["keys"]["yes"]).unwrap_or_else(|| Keys::default().yes),
             no: text(&data["keys"]["no"]).unwrap_or_else(|| Keys::default().no),
         };
         Some(Self {
-            id: data["id"].as_u64()?,
+            id: answer_id.parse().ok()?,
+            answer_id,
             prompt: text(&data["prompt"])?,
             detail: text(&data["detail"]).unwrap_or_default(),
             physical: data["physical"] == true,
             keys,
             agent: agent.map(str::to_owned),
         })
+    }
+}
+
+/// The id of a `voice.confirm` event as text: the agent sends a text such as
+/// `"3"`, a number is taken too.
+#[must_use]
+pub fn event_id(data: &Value) -> Option<String> {
+    match &data["id"] {
+        Value::String(text) => Some(text.clone()),
+        Value::Number(number) => Some(number.to_string()),
+        _ => None,
     }
 }
 
@@ -329,6 +348,27 @@ mod tests {
         assert_eq!(card.place(), Place::Top);
         card.moved(now);
         assert_eq!(card.place(), Place::Top);
+    }
+
+    #[test]
+    fn a_numeric_and_a_text_id_both_work_and_the_raw_id_stays() {
+        let number = Question::from_event(&json!({"id": 7, "prompt": "x"}), None).unwrap();
+        let text = Question::from_event(&json!({"id": "7", "prompt": "x"}), None).unwrap();
+        assert_eq!((number.id, number.answer_id.as_str()), (7, "7"));
+        assert_eq!((text.id, text.answer_id.as_str()), (7, "7"));
+        assert!(Question::from_event(&json!({"id": "x", "prompt": "x"}), None).is_none());
+    }
+
+    #[test]
+    fn hidden_and_reordering_characters_never_reach_the_card() {
+        let data = json!({
+            "id": 1,
+            "prompt": "Write\u{202e}txt.notes\u{200b}?",
+            "detail": "rm\u{200b} -rf\u{202e} x\u{1b}[2J",
+        });
+        let question = Question::from_event(&data, None).unwrap();
+        assert_eq!(question.prompt, "Writetxt.notes?");
+        assert_eq!(question.detail, "rm -rf x[2J");
     }
 
     #[test]

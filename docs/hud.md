@@ -47,9 +47,34 @@ passes these checks.
 
 A folder is checked when it loads: the limits above, `hud.yaml` with each
 error naming its file and key, and the pictures and fonts as listed under
-"Pictures, fonts and colours". A command that checks a folder without
-running the host, `chora-assistant --check-hud DIR`, comes later; it does
-not exist yet.
+"Pictures, fonts and colours".
+
+`chora-assistant --check-hud DIR` runs these checks without the host and
+adds the checks of the pictures (a link or an `href` that leaves the
+folder, an SVG that is too large) and of the colours of `chat:` against the
+neutral chat (`Chat::contrast_errors`). It prints one problem on each
+line, with its file and key, and exits 1 when there is one. A folder that
+is fine prints `OK. Turn it on: chora-assistant --use-hud NAME` and exits
+0.
+
+### Using a folder
+
+One setting names the folder: `hud: NAME` in
+`~/.config/chora/chora-assistant.yaml`, `neutral` by default. The host
+looks for `NAME` in `$XDG_DATA_HOME/chora/huds`, then in
+`/usr/share/chora/huds`, then in the source tree of a binary run from
+`target/<profile>/`.
+
+| Command | Does |
+|---|---|
+| `chora-assistant --list-huds` | Lists the folders by name, with their place. |
+| `chora-assistant --use-hud NAME` | Checks the folder and writes `hud: NAME`; refuses a folder with problems. `default` takes the line out. |
+| `choractl call assistant settings.reload` | Makes a running host take the new setting. A folder that fails keeps the look on the screen, and the host logs the error. |
+
+The host reads a folder only through `Theme::load_hud`. The asset
+folder of a flavor (`--assets`, `CHORA_ASSISTANT_ASSETS`) is the one
+other way to name a look; it is trusted and replaces the folder of the
+setting.
 
 ## hud.yaml
 
@@ -203,3 +228,31 @@ folder nor a client picks its place. A
 folder without a visible panel with `source: voice` gets the neutral
 dot. Words come from one table in English and German; they follow the
 `language` setting.
+
+### The question card
+
+`voice.confirm` shows as a card above the figure, once, with the title, the
+prompt, the detail, and, for a question that only a key or a click may
+answer, the key line of the event and the note that a spoken yes does not
+count; the buttons Yes and No follow when the event has `buttons`. The
+card appears in one place and stays there until the question ends. It
+is drawn with the host fonts at 14 px, dark text on a light fill. A press
+on a button answers with `confirm.answer`, except an injected press, which
+shows "Please use your own mouse or keyboard." on the card, and a click in
+the first 400 ms after the card appeared, which does nothing. The card is
+at most 560 px wide and leaves 64 px at the sides of the output. The key
+line and the note are always there. When the whole text, with the whole
+detail, does not fit in 80 percent of the height of the output, the card
+shows no buttons and says "Too long to show. Refused.", and the host
+answers `confirm.answer {yes: false}` at once. The host removes control,
+bidi and zero-width characters from the prompt and the detail.
+
+### The mic
+
+A panel with `source: voice` and `action: mute` mutes the mic on a
+click and never unmutes it. While the mic is muted, the host draws a
+badge, "Microphone off. Click to turn it on.", beside the figure, above
+the card; a click on it that a person made turns the mic on. An injected
+click on the badge or the figure does not; it shows the line "Please use your own mouse or
+keyboard.". A folder whose voice panel has no `mute`
+action has a figure that takes no click, and the badge is still there.

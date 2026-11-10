@@ -8,10 +8,11 @@
 use std::time::{Duration, Instant};
 
 use chora_draw::{
-    bubble::{Corner, Style},
+    bubble::Style,
     text::{Font, Text, wrap},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Theme},
 };
+use chora_kit::hud::{Anchor, render};
 use chora_scene::{Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
@@ -19,32 +20,26 @@ use crate::{
     paperclip,
 };
 
-/// The group of the assistant under `screen:OUTPUT`.
-const GROUP: &str = "assistant";
+/// The group of the HUD folder under `screen:OUTPUT`.
+const GROUP: &str = "hud";
 /// The group that moves: leans, wobbles and bounces.
-const BODY: &str = "assistant-body";
+const BODY: &str = "hud-body";
 /// The image of the figure, which takes the clicks.
-const CLIP: &str = "assistant-clip";
+const CLIP: &str = "hud-figure";
 /// The balloon of the spoken sentence.
-const SPEECH: &str = "assistant-speech";
-/// The buttons of a question in the balloon: a click answers it with
-/// `voice.confirm.answer`.
-const YES: &str = "assistant-yes";
-const NO: &str = "assistant-no";
-/// The gap between the buttons and above them.
-const BUTTON_GAP: i32 = 6;
-/// The size of a button of a question.
-const BUTTON: [i32; 2] = [73, 21];
+const SPEECH: &str = "hud-line";
+/// The node that names the state in words, for readers of the scene.
+const STATE: &str = "hud-state";
 const PAD: i32 = 10;
 const LINE: i32 = 13;
 const MIN_WIDTH: i32 = 120;
 /// The widest line of the assistant's speech.
 const MAX_SPEECH: f64 = 220.0;
 
-/// The sheet of the dot: one element per pose, named by [`Pose::id`].
-pub const DOT: Sheet = Sheet("dot.svg");
-/// The size of the dot.
+/// The size of the dot of the host.
 const DOT_SIZE: [i32; 2] = [24, 24];
+/// The dot of the host: one group for each state, one per line.
+const DOT: &str = include_str!("../huds/neutral/dot.svg");
 
 /// How long the eyes stay shut.
 const BLINK: Duration = Duration::from_millis(140);
@@ -87,19 +82,22 @@ pub fn pose(state: &str) -> Pose {
     }
 }
 
-impl Pose {
-    /// The id of the element of the dot for the pose.
-    fn id(self) -> &'static str {
-        match self {
-            Self::Idle => "idle",
-            Self::Listening => "listening",
-            Self::Thinking => "thinking",
-            Self::Speaking => "speaking",
-            Self::Asking => "asking",
-            Self::Sleeping => "sleeping",
-        }
+/// The name of a state of the voice agent in the context of a HUD folder:
+/// `asleep`, `listening`, `thinking`, `working`, `question`, `speaking`,
+/// else `idle`.
+pub fn context_state(state: &str) -> &'static str {
+    match state {
+        "sleeping" | "asleep" => "asleep",
+        "listening" | "recording" => "listening",
+        "transcribing" | "thinking" => "thinking",
+        "tool" | "working" => "working",
+        "speaking" => "speaking",
+        "question" | "confirming" => "question",
+        _ => "idle",
     }
+}
 
+impl Pose {
     /// The opacity of the picture: dimmed while the agent sleeps.
     fn opacity(self) -> f64 {
         if self == Self::Sleeping { DIM } else { 1.0 }
@@ -121,40 +119,84 @@ impl Pose {
     }
 }
 
-/// The figure in a pose, with its eyes open or shut.
-fn draw(look: Figure, pose: Pose, shut: bool) -> Picture {
+/// The group of the dot of the host for a state, as one line of its SVG;
+/// the group `idle` for a state that has none.
+fn dot_group(state: &str) -> &'static str {
+    let line = |id: &str| DOT.lines().find(|l| l.contains(&format!("id=\"{id}\"")));
+    line(state).or_else(|| line("idle")).unwrap_or_default()
+}
+
+/// The figure in a state, with its eyes open or shut.
+fn draw(theme: &Theme, look: &Figure, state: &str, shut: bool) -> Picture {
     match look {
         Figure::Dot => {
             let [w, h] = DOT_SIZE;
-            Picture::new(w, h).element(DOT, pose.id(), [0, 0, w, h])
+            Picture::new(w, h).svg(dot_group(state))
         }
-        Figure::Paperclip => paperclip::draw(pose, shut),
+        Figure::Sheet {
+            sheet,
+            template,
+            size: [w, h],
+        } => {
+            let id = render(template, &serde_json::json!({ "state": state }));
+            let id = if theme.size(*sheet, &id).is_some() {
+                id
+            } else {
+                "idle".to_owned()
+            };
+            Picture::new(*w, *h).element(*sheet, &id, [0, 0, *w, *h])
+        }
+        Figure::Paperclip => paperclip::draw(pose(state), shut),
     }
 }
 
 impl Figure {
     /// The size of the picture.
-    fn size(self) -> [i32; 2] {
+    pub fn size(&self) -> [i32; 2] {
         match self {
             Self::Dot => DOT_SIZE,
+            Self::Sheet { size, .. } => *size,
             Self::Paperclip => paperclip::SIZE,
         }
     }
 
-    /// The point that the body turns around: the bottom of the figure.
-    fn pivot(self) -> [f64; 2] {
+    /// The point that the body turns around: the middle of a dot, the
+    /// bottom of the paperclip.
+    fn pivot(&self) -> [f64; 2] {
         match self {
-            Self::Dot => [12.0, 12.0],
             Self::Paperclip => paperclip::PIVOT,
+            _ => self.size().map(|side| f64::from(side) / 2.0),
         }
     }
 
     /// Where the tail of the balloon points: above the head.
-    fn head(self) -> [i32; 2] {
+    fn head(&self) -> [i32; 2] {
         match self {
-            Self::Dot => [12, 0],
             Self::Paperclip => paperclip::HEAD,
+            _ => [self.size()[0] / 2, 0],
         }
+    }
+}
+
+/// The top-left corner of a picture of a size at an anchor of an output of
+/// a size, with the margin to the edges.
+pub fn origin(anchor: Anchor, screen: [i32; 2], size: [i32; 2], margin: [i32; 2]) -> [i32; 2] {
+    let left = margin[0];
+    let right = screen[0] - margin[0] - size[0];
+    let centre_x = (screen[0] - size[0]) / 2;
+    let top = margin[1];
+    let bottom = screen[1] - margin[1] - size[1];
+    let centre_y = (screen[1] - size[1]) / 2;
+    match anchor {
+        Anchor::TopLeft => [left, top],
+        Anchor::Top => [centre_x, top],
+        Anchor::TopRight => [right, top],
+        Anchor::Left => [left, centre_y],
+        Anchor::Center => [centre_x, centre_y],
+        Anchor::Right => [right, centre_y],
+        Anchor::BottomLeft => [left, bottom],
+        Anchor::Bottom => [centre_x, bottom],
+        Anchor::BottomRight => [right, bottom],
     }
 }
 
@@ -177,6 +219,8 @@ pub struct Assistant {
     origin: [i32; 2],
     /// The width of the output.
     screen: i32,
+    /// The state of the voice agent, as [`context_state`] names it.
+    state: &'static str,
     pose: Pose,
     shut: bool,
     /// The next move of the pose.
@@ -190,28 +234,6 @@ pub struct Assistant {
     speech: bool,
     /// When the balloon fades out.
     fades_at: Option<Instant>,
-    /// The id of the spoken confirmation that the balloon shows until
-    /// its answer.
-    asking: Option<String>,
-    /// The confirmation has the buttons Ja and Nein.
-    buttons: bool,
-}
-
-/// What a question in the balloon offers besides the voice: the buttons
-/// Ja and Nein, and the keys of a question about a security key.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Offer {
-    pub buttons: bool,
-    /// The key of yes and of no, such as `Alt+y`.
-    pub keys: Option<[String; 2]>,
-}
-
-/// A key as XP writes it: `Alt+y` as `Alt+Y`.
-fn key_name(key: &str) -> String {
-    match key.rsplit_once('+') {
-        Some((m, k)) if k.chars().count() == 1 => format!("{m}+{}", k.to_uppercase()),
-        _ => key.to_owned(),
-    }
 }
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
@@ -238,21 +260,18 @@ fn place(
 
 /// A balloon with text only, as the assistant speaks: its picture and its
 /// top-left corner, for a tail tip at a point of a screen of a width.
-/// `room` is a width that the inside keeps at least and a height under
-/// the text, for the buttons of a question.
 fn speech(
     theme: &mut Theme,
     style: &Style,
     text: &str,
     (tip, anchor): ([i32; 2], (i32, i32)),
-    [room_w, room_h]: [i32; 2],
 ) -> (Picture, [i32; 2], i32) {
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = wrap(text, MAX_SPEECH, width);
     let text_width = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
     #[allow(clippy::cast_possible_truncation)]
-    let w = (PAD + (text_width.ceil() as i32).max(room_w) + PAD).max(MIN_WIDTH);
-    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + room_h + PAD;
+    let w = (PAD + (text_width.ceil() as i32) + PAD).max(MIN_WIDTH);
+    let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + PAD;
     let (origin, tail, below) = place(style, [w, h], tip, anchor);
     let style = Style {
         tail: if below { 0 } else { style.tail },
@@ -270,34 +289,29 @@ fn speech(
     (picture, origin, style.tail)
 }
 
-/// A push button of a question: a rounded rectangle with its label.
-fn button(style: &Style, label: &str) -> Picture {
-    let [w, h] = BUTTON;
-    let flat = Style {
-        tail: 0,
-        ..style.clone()
-    };
-    let rect: Rect = [0, 0, w, h];
-    Picture::new(w, h)
-        .svg(flat.shape([w, h], 0))
-        .text(Text::new(label, Font::Ui, flat.text_rgba(), rect).centered())
-}
-
 impl Assistant {
-    /// Creates the figure in a corner of an output.
+    /// Creates the figure in an output at an anchor, `label` being the
+    /// state in words. Where the folder's place would put the figure partly
+    /// outside the output, the neutral dot stands in the neutral place.
     pub fn new(
         theme: &mut Theme,
         values: &Values,
-        (output, corner): (&OutputInfo, Corner),
-        (pose, now): (Pose, Instant),
+        (output, anchor): (&OutputInfo, Anchor),
+        (state, label, now): (&'static str, &str, Instant),
     ) -> (Self, Vec<Command>) {
+        let mut values = values.clone();
+        let mut origin = origin(anchor, output.size, values.figure.size(), values.margin);
+        if !inside(origin, values.figure.size(), output.size) {
+            values = Values::neutral(&values.font);
+            origin = origin_of(&values, output.size);
+        }
         let screen = output.size[0];
-        let origin = corner.origin(output.size, values.figure.size(), values.margin);
         let assistant = Self {
-            values: values.clone(),
+            values,
             origin,
             screen,
-            pose,
+            state,
+            pose: pose(state),
             shut: false,
             step: 0,
             blinks: 0,
@@ -305,48 +319,68 @@ impl Assistant {
             blinks_at: now + blink_gap(0),
             speech: false,
             fades_at: None,
-            asking: None,
-            buttons: false,
         };
-        let group = |id: &str, parent: String, transform| Command::Create {
-            id: id.into(),
-            kind: NodeKind::Group,
-            parent,
-            props: PropsUpdate {
-                transform: Some(transform),
-                ..PropsUpdate::default()
-            },
-        };
-        let [x, y] = origin.map(f64::from);
-        let commands = vec![
+        let commands = assistant.created(theme, &output.name, label);
+        (assistant, commands)
+    }
+
+    /// The commands that create the nodes of the figure on an output.
+    fn created(&self, theme: &mut Theme, output: &str, label: &str) -> Vec<Command> {
+        let [x, y] = self.origin.map(f64::from);
+        let figure = &self.values.figure;
+        vec![
             group(
                 GROUP,
-                format!("screen:{}", output.name),
+                format!("screen:{output}"),
                 Transform::translate(x, y, 0.0),
             ),
+            Command::Create {
+                id: STATE.into(),
+                kind: NodeKind::Group,
+                parent: GROUP.into(),
+                props: PropsUpdate {
+                    meta: Some([("text".to_owned(), label.to_owned())].into()),
+                    ..PropsUpdate::default()
+                },
+            },
             group(
                 BODY,
                 GROUP.into(),
-                body(values.figure.pivot(), [1.0, 1.0], [0.0, 0.0]),
+                body(figure.pivot(), [1.0, 1.0], [0.0, 0.0]),
             ),
             Command::Create {
                 id: CLIP.into(),
                 kind: NodeKind::Image,
                 parent: BODY.into(),
                 props: PropsUpdate {
-                    image: Some(theme.render(&draw(values.figure, pose, false))),
-                    opacity: Some(pose.opacity()),
+                    image: Some(theme.render(&draw(theme, figure, self.state, false))),
+                    opacity: Some(self.pose.opacity()),
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
                 },
             },
-        ];
-        (assistant, commands)
+        ]
     }
 
     /// Whether a node is the figure.
     pub fn owns(node: &str) -> bool {
         node == CLIP
+    }
+
+    /// A click on the figure mutes the mic.
+    pub fn mutes(&self) -> bool {
+        self.values.mutes
+    }
+
+    /// The rectangle of the figure on the output: x, y, width, height.
+    pub fn rect(&self) -> [i32; 4] {
+        let [w, h] = self.values.figure.size();
+        [self.origin[0], self.origin[1], w, h]
+    }
+
+    /// The template and the length of the text of a sentence.
+    pub fn line(&self) -> &crate::config::Line {
+        &self.values.line
     }
 
     /// Removes the figure and its balloon.
@@ -357,22 +391,39 @@ impl Assistant {
         }
     }
 
-    /// Takes another pose; its moves start at once.
-    pub fn set_pose(&mut self, theme: &mut Theme, pose: Pose, now: Instant) -> Vec<Command> {
-        if pose == self.pose {
+    /// Takes another state; its moves start at once. `label` is the state
+    /// in words.
+    pub fn set_state(
+        &mut self,
+        theme: &mut Theme,
+        (state, label): (&'static str, &str),
+        now: Instant,
+    ) -> Vec<Command> {
+        if state == self.state {
             return Vec::new();
         }
-        self.pose = pose;
+        self.state = state;
+        self.pose = pose(state);
         self.step = 0;
         self.moves_at = Some(now);
-        vec![self.face(theme)]
+        vec![
+            self.face(theme),
+            Command::Update {
+                id: STATE.into(),
+                props: PropsUpdate {
+                    meta: Some([("text".to_owned(), label.to_owned())].into()),
+                    ..PropsUpdate::default()
+                },
+            },
+        ]
     }
 
     fn face(&self, theme: &mut Theme) -> Command {
+        let picture = draw(theme, &self.values.figure, self.state, self.shut);
         Command::Update {
             id: CLIP.into(),
             props: PropsUpdate {
-                image: Some(theme.render(&draw(self.values.figure, self.pose, self.shut))),
+                image: Some(theme.render(&picture)),
                 opacity: Some(self.pose.opacity()),
                 ..PropsUpdate::default()
             },
@@ -388,52 +439,17 @@ impl Assistant {
         now: Instant,
     ) -> Vec<Command> {
         self.fades_at = Some(now + time + LINGER);
-        self.balloon(theme, text, false)
+        self.balloon(theme, text)
     }
 
-    /// The balloon of a sentence or of a question, with room for the
-    /// buttons of a question.
-    fn balloon(&mut self, theme: &mut Theme, text: &str, buttons: bool) -> Vec<Command> {
+    /// The balloon of a sentence.
+    fn balloon(&mut self, theme: &mut Theme, text: &str) -> Vec<Command> {
         let [x, y] = self.origin;
         let [head_x, head_y] = self.values.figure.head();
         let tip = [x + head_x, y + head_y];
-        let room = if buttons {
-            [2 * BUTTON[0] + BUTTON_GAP, BUTTON[1] + BUTTON_GAP]
-        } else {
-            [0, 0]
-        };
         let anchor = (self.screen, y + self.values.figure.size()[1]);
-        let (picture, [bx, by], tail) =
-            speech(theme, &self.values.speech, text, (tip, anchor), room);
-        let mut commands = Vec::new();
-        if std::mem::replace(&mut self.buttons, buttons) {
-            commands.extend([YES, NO].map(|id| Command::Remove {
-                id: id.into(),
-                to: None,
-            }));
-        }
-        if buttons {
-            let top = by - y + picture.size[1] - tail - PAD - BUTTON[1];
-            let right = bx - x + picture.size[0] - PAD;
-            let lefts = [right - 2 * BUTTON[0] - BUTTON_GAP, right - BUTTON[0]];
-            for ((id, label), left) in [(YES, "Ja"), (NO, "Nein")].into_iter().zip(lefts) {
-                let look = button(&self.values.buttons, label);
-                commands.push(Command::Create {
-                    id: id.into(),
-                    kind: NodeKind::Image,
-                    parent: GROUP.into(),
-                    props: PropsUpdate {
-                        image: Some(theme.render(&look)),
-                        transform: Some(Transform::translate(f64::from(left), f64::from(top), 0.0)),
-                        input: Some(InputMode::Accept),
-                        ..PropsUpdate::default()
-                    },
-                });
-            }
-        }
-        let mut speech = self.speech_node(theme, &picture, [bx - x, by - y]);
-        speech.extend(commands);
-        speech
+        let (picture, [bx, by], _) = speech(theme, &self.values.speech, text, (tip, anchor));
+        self.speech_node(theme, &picture, [bx - x, by - y])
     }
 
     /// The node of the balloon picture at `at` in the group.
@@ -463,61 +479,6 @@ impl Assistant {
             parent: GROUP.into(),
             props,
         }]
-    }
-
-    /// Shows the question of a spoken confirmation in the balloon until
-    /// [`Self::answered`] with the same id: with the buttons Ja and Nein
-    /// when the agent takes clicks, and with one line of the keys of a
-    /// question about a security key.
-    pub fn ask(&mut self, theme: &mut Theme, id: &str, text: &str, offer: &Offer) -> Vec<Command> {
-        let text = match &offer.keys {
-            Some([yes, no]) => format!("{text}\n{} = Ja, {} = Nein", key_name(yes), key_name(no)),
-            None => text.to_owned(),
-        };
-        let commands = self.balloon(theme, &text, offer.buttons);
-        self.fades_at = None;
-        self.asking = Some(id.into());
-        commands
-    }
-
-    /// The confirmation `id` is answered or timed out: its balloon fades,
-    /// and its buttons go.
-    pub fn answered(&mut self, id: &str, now: Instant) -> Vec<Command> {
-        if self.asking.as_deref() != Some(id) {
-            return Vec::new();
-        }
-        self.asking = None;
-        self.fades_at = Some(now);
-        if !std::mem::replace(&mut self.buttons, false) {
-            return Vec::new();
-        }
-        [YES, NO]
-            .map(|id| Command::Remove {
-                id: id.into(),
-                to: None,
-            })
-            .into()
-    }
-
-    /// The parameters of `voice.confirm.answer` for a press on `node`: a
-    /// button of the open question. Only a pointer press on the button
-    /// calls it, and an injected press never; no method of xp does.
-    pub fn answer(&self, node: &str, injected: bool) -> Option<serde_json::Value> {
-        if injected {
-            return None;
-        }
-        let yes = match node {
-            YES => true,
-            NO => false,
-            _ => return None,
-        };
-        let id = self.asking.as_ref().filter(|_| self.buttons)?;
-        Some(serde_json::json!({"id": id, "yes": yes}))
-    }
-
-    /// Whether the balloon shows a confirmation.
-    pub fn asking(&self) -> bool {
-        self.asking.is_some()
     }
 
     /// When the next move, blink or fade is due.
@@ -574,6 +535,29 @@ impl Assistant {
     }
 }
 
+/// The command that creates a group with a transform.
+fn group(id: &str, parent: String, transform: Transform) -> Command {
+    Command::Create {
+        id: id.into(),
+        kind: NodeKind::Group,
+        parent,
+        props: PropsUpdate {
+            transform: Some(transform),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+/// Whether a picture of a size at a corner lies inside an output of a size.
+fn inside([x, y]: [i32; 2], [w, h]: [i32; 2], [sw, sh]: [i32; 2]) -> bool {
+    x >= 0 && y >= 0 && x + w <= sw && y + h <= sh
+}
+
+/// The top-left corner of the figure of `values` on an output of a size.
+fn origin_of(values: &Values, screen: [i32; 2]) -> [i32; 2] {
+    origin(values.anchor, screen, values.figure.size(), values.margin)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -610,12 +594,13 @@ mod tests {
         }
     }
 
-    fn assistant(values: &Values, pose: Pose, now: Instant) -> Assistant {
+    fn assistant(values: &Values, state: &'static str, now: Instant) -> Assistant {
         Assistant {
             values: values.clone(),
             origin: [800, 500],
             screen: 1024,
-            pose,
+            state,
+            pose: pose(state),
             shut: false,
             step: 0,
             blinks: 0,
@@ -623,8 +608,6 @@ mod tests {
             blinks_at: now,
             speech: false,
             fades_at: None,
-            asking: None,
-            buttons: false,
         }
     }
 
@@ -634,12 +617,82 @@ mod tests {
     fn a_sleeping_agent_shows_a_dim_figure() {
         let (mut theme, values, _) = crate::tests::loaded("sleeping");
         let now = Instant::now();
-        let mut a = assistant(&values, Pose::Idle, now);
-        let commands = a.set_pose(&mut theme, Pose::Sleeping, now);
+        let mut a = assistant(&values, "idle", now);
+        let commands = a.set_state(&mut theme, ("asleep", "Asleep"), now);
         let dim = commands
             .iter()
             .any(|c| matches!(c, Command::Update { props, .. } if props.opacity == Some(DIM)));
         assert!(dim, "{commands:?}");
+    }
+
+    #[test]
+    fn the_state_in_words_is_a_node_that_follows_the_state() {
+        let (mut theme, values, _) = crate::tests::loaded("words");
+        let now = Instant::now();
+        let mut a = assistant(&values, "idle", now);
+        assert_eq!(a.set_state(&mut theme, ("idle", "Idle"), now).len(), 0);
+        let commands = a.set_state(&mut theme, ("listening", "Listening"), now);
+        let said = commands.iter().any(|c| {
+            matches!(c, Command::Update { id, props }
+                if id == STATE && props.meta.as_ref().is_some_and(|m| m["text"] == "Listening"))
+        });
+        assert!(said, "{commands:?}");
+    }
+
+    #[test]
+    fn each_state_of_the_agent_has_a_name_in_the_context() {
+        let cases = [
+            ("sleeping", "asleep"),
+            ("recording", "listening"),
+            ("transcribing", "thinking"),
+            ("tool", "working"),
+            ("confirming", "question"),
+            ("speaking", "speaking"),
+            ("", "idle"),
+            ("something", "idle"),
+        ];
+        for (state, want) in cases {
+            assert_eq!(context_state(state), want, "{state}");
+        }
+    }
+
+    #[test]
+    fn the_anchors_put_a_picture_in_the_nine_places() {
+        let at = |anchor| origin(anchor, [100, 80], [20, 10], [4, 6]);
+        assert_eq!(at(Anchor::TopLeft), [4, 6]);
+        assert_eq!(at(Anchor::Top), [40, 6]);
+        assert_eq!(at(Anchor::TopRight), [76, 6]);
+        assert_eq!(at(Anchor::Left), [4, 35]);
+        assert_eq!(at(Anchor::Center), [40, 35]);
+        assert_eq!(at(Anchor::Right), [76, 35]);
+        assert_eq!(at(Anchor::BottomLeft), [4, 64]);
+        assert_eq!(at(Anchor::Bottom), [40, 64]);
+        assert_eq!(at(Anchor::BottomRight), [76, 64]);
+    }
+
+    #[test]
+    fn a_figure_that_would_leave_the_output_is_the_neutral_dot_in_the_neutral_place() {
+        let (mut theme, mut values, _) = crate::tests::loaded("outside");
+        values.margin = [-40, 16];
+        values.anchor = Anchor::TopLeft;
+        let output = OutputInfo {
+            name: "HEADLESS-1".into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: Transform::default(),
+            work_area: [0, 0, 1280, 800],
+            default_work_area: [0, 0, 1280, 800],
+        };
+        let now = Instant::now();
+        let (a, _) = Assistant::new(
+            &mut theme,
+            &values,
+            (&output, values.anchor),
+            ("idle", "Idle", now),
+        );
+        assert_eq!(a.rect(), [1240, 760, 24, 24]);
+        assert_eq!(a.values.figure, Figure::Dot);
     }
 
     #[test]
@@ -653,46 +706,6 @@ mod tests {
                 "{pose:?}"
             );
         }
-    }
-
-    /// A confirmation stays until its own answer, then fades.
-    #[test]
-    #[allow(clippy::cognitive_complexity, reason = "one answer after the other")]
-    fn a_confirmation_stays_until_its_answer() {
-        let (mut theme, values, _) = crate::tests::loaded("confirm");
-        let now = Instant::now();
-        let mut a = assistant(&values, Pose::Asking, now);
-        let none = Offer::default();
-        assert_eq!(
-            a.ask(&mut theme, "c1", "Run it?\nrm -r build", &none).len(),
-            1
-        );
-        assert!(a.asking() && a.fades_at.is_none());
-        assert_eq!(a.answer(YES, false), None, "no buttons");
-        a.answered("c2", now);
-        assert!(a.asking(), "another id");
-        a.answered("c1", now);
-        assert!(!a.asking() && a.fades_at == Some(now));
-        let offer = Offer {
-            buttons: true,
-            keys: Some(["Alt+y".into(), "Alt+n".into()]),
-        };
-        let commands = a.ask(&mut theme, "c3", "Set allow?", &offer);
-        let made: Vec<&str> = (commands.iter())
-            .filter_map(|c| match c {
-                Command::Create { id, .. } => Some(id.as_str()),
-                _ => None,
-            })
-            .collect();
-        assert!(made.contains(&YES) && made.contains(&NO), "{made:?}");
-        let json = |yes| serde_json::json!({"id": "c3", "yes": yes});
-        assert_eq!(a.answer(YES, false), Some(json(true)));
-        assert_eq!(a.answer(NO, false), Some(json(false)));
-        assert_eq!(a.answer(CLIP, false), None);
-        assert_eq!(a.answer(YES, true), None, "an injected press");
-        assert_eq!(a.answer(NO, true), None, "an injected press");
-        assert_eq!(a.answered("c3", now).len(), 2, "the buttons go");
-        assert_eq!(a.answer(YES, false), None, "answered");
     }
 
     #[test]
