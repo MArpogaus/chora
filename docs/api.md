@@ -432,7 +432,9 @@ holds a `remove` with `to` and a `give_grab` with the same `surface` and
 `to`: the receiver gets `surface.detached`, then `input.button` with the
 binding `move`, the state `pressed`, the `surface` and `grab`, then
 `input.moved` and the release as for any move. The giver hears no more
-of that button. The receiver attaches the window and goes on with the
+of that button. A drag that started through a pane of a virtual output
+leaves that pane with the give: the receiver gets the point under the
+pointer on the screen. The receiver attaches the window and goes on with the
 drag from `grab`: `point`, `velocity` and the state of an effect in
 `wobble`.
 

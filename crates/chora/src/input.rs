@@ -1055,6 +1055,7 @@ impl State {
             given: Some(surface.into()),
             window: Some(surface.into()),
         });
+        self.unpin_press();
         let window = Some((surface, Some(grab)));
         send_button(self, receiver, MOVE.into(), PressState::Pressed, window);
     }

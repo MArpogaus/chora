@@ -355,6 +355,15 @@ impl State {
         self.press_via = Some(Press { pane, held });
     }
 
+    /// Lets the press go on at the screen: a drag that went to another
+    /// window manager (`give_grab`) left the pane that it started in, so
+    /// its moves and its release carry the point under the pointer.
+    pub fn unpin_press(&mut self) {
+        if let Some(press) = &mut self.press_via {
+            press.pane = None;
+        }
+    }
+
     /// Notes a held button that went up. The last one ends the press,
     /// before its release is told, so that the release carries the point
     /// under the pointer. Returns whether a press through a pane ended.
