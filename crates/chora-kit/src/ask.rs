@@ -368,7 +368,7 @@ mod tests {
         });
         let question = Question::from_event(&data, None).unwrap();
         assert_eq!(question.prompt, "Writetxt.notes?");
-        assert_eq!(question.detail, "rm -rf x[2J");
+        assert_eq!(question.detail, "rm -rf x");
     }
 
     #[test]
