@@ -52,32 +52,52 @@ impl View {
 
     /// Does an act. Returns whether the view changed: an act that the
     /// mode has no use for, and a turn during a turn, change nothing.
-    pub fn act(&mut self, _act: Act) -> bool {
-        false
+    pub fn act(&mut self, act: Act) -> bool {
+        match (act, self.mode) {
+            (Act::StepBack, Mode::Use) => {
+                self.mode = Mode::Navigate;
+                true
+            }
+            (Act::StepIn, Mode::Navigate) => {
+                self.mode = Mode::Use;
+                true
+            }
+            (Act::Turn(by), _) if by != 0 && !self.turning => {
+                self.turning = true;
+                true
+            }
+            _ => false,
+        }
     }
 
     /// The turn ended; the mode is the one of before the turn.
-    pub fn turn_ended(&mut self) {}
+    pub fn turn_ended(&mut self) {
+        self.turning = false;
+    }
 
     /// Whether the front pane takes the input: in use mode, and not while
     /// the shape turns.
     #[must_use]
     pub fn forwards(&self) -> bool {
-        true
+        self.mode == Mode::Use && !self.turning
     }
 
     /// The controls that show, in their order.
     #[must_use]
     pub fn controls(&self) -> &'static [Word] {
-        &[]
+        match self.mode {
+            Mode::Use => &[Word::StepBack],
+            Mode::Navigate => &[Word::TurnLeft, Word::TurnRight, Word::StepIn],
+        }
     }
 
     /// The act of a key that the plugin has without a modifier: only in
     /// navigate mode, where the plugin has the keyboard. `Escape` backs
     /// out of the step back and `Return` steps in.
     #[must_use]
-    pub fn key(&self, _key: &str) -> Option<Act> {
-        None
+    pub fn key(&self, key: &str) -> Option<Act> {
+        let stood_back = self.mode == Mode::Navigate;
+        (stood_back && matches!(key, "Escape" | "Return")).then_some(Act::StepIn)
     }
 }
 
