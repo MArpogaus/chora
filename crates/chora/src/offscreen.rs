@@ -7,8 +7,6 @@
 //! screens holds it: it lives in a list of its own, and the pointer never
 //! enters it.
 
-use std::time::Instant;
-
 use chora_scene::{Scene, Uniform, ipc::RpcError};
 use serde::Deserialize;
 use serde_json::Value;
@@ -450,7 +448,7 @@ pub fn render_and_present(
     output: &Output,
     render: impl FnOnce(&mut State) -> Result<bool, String>,
 ) {
-    let start = Instant::now();
+    let frame = crate::safety::FrameClock::start();
     match render(state) {
         Ok(damaged) => {
             if damaged {
@@ -467,7 +465,7 @@ pub fn render_and_present(
         }
         Err(err) => tracing::warn!(output = output.name(), "{err}"),
     }
-    state.frame_rendered(&output.name(), frame_duration(output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(output), frame);
     render::send_frames(state, output);
 }
 

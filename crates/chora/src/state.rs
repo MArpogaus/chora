@@ -437,6 +437,12 @@ impl State {
         self.seat.get_pointer().expect("the seat has a pointer")
     }
 
+    /// Ends chora and logs the reason, so that no end is silent.
+    pub fn quit(&mut self, reason: &str) {
+        tracing::info!(reason, "chora ends");
+        self.loop_signal.stop();
+    }
+
     /// The work after each turn of the event loop: animations, errors of
     /// effects, popups, the focus, and the output to all clients.
     pub fn after_events(&mut self) {
