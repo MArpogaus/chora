@@ -471,8 +471,12 @@ wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
 unless the caller sent some, and stop their own drag. `chora-tiling`
 goes on with a drag that it receives: the window sits with `point`,
 kept inside the window, under the pointer and wobbles on from the
-springs. `chora-xp`, `chora-mc` and `chora-construct` grab no `move` and
-so receive no drag.
+springs. `chora-construct` grabs `move` too: a window that
+comes with its drag becomes a pane, moved so that `point` is under the
+pointer, and the moves and the release of `move` drag and drop the pane
+as a drag with the modifier does. The pane of an own window wobbles on
+with a depth. `chora-xp` and `chora-mc` grab no `move` and so receive no
+drag.
 
 `chora-xp` gives by itself on a virtual output: when the drag of a title
 bar leaves the output where it started, the window goes with the drag

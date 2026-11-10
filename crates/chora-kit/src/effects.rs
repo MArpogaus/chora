@@ -132,6 +132,14 @@ impl Driver {
         }
     }
 
+    /// A window that wobbles takes the springs that another window
+    /// manager sent with its drag, for the window at an origin.
+    pub fn take_springs(&mut self, key: &str, origin: [f64; 2], springs: &serde_json::Value) {
+        if let Some(wobble) = self.wobbles.get_mut(key) {
+            wobble.take_springs(origin, springs);
+        }
+    }
+
     /// The springs of a window that wobbles, for the window manager that
     /// gets it with its drag.
     #[must_use]

@@ -310,6 +310,10 @@ impl Construct {
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
                 eprintln!("chora-construct: the drag: {err}");
             }
+            let moves = parse(chora_kit::give::MOVE.into())?;
+            if let Err(err) = self.rt.grab(moves, Grab::Drag) {
+                eprintln!("chora-construct: the drag of a given window: {err}");
+            }
         }
         self.rt.grab_give_keys()?;
         if self.flown.is_some() {
