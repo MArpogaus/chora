@@ -120,7 +120,7 @@ impl State {
 
     /// Takes an output out of the layout and announces it. A client can
     /// turn it on again through output configuration.
-    fn leave_layout(&mut self, output: &Output) {
+    pub(crate) fn leave_layout(&mut self, output: &Output) {
         self.outputs.retain(|o| o != output);
         // Layer surfaces of the output close; a client can open them again
         // on another output.
@@ -146,10 +146,11 @@ impl State {
     /// Announces new modes, scales or positions of the outputs, to plugins
     /// and to the clients of output configuration.
     pub fn output_changed(&mut self) {
+        self.sync_virtual_refresh();
         self.sync_default_cameras();
         // Every output has an overlay root; it stays when the output goes,
         // with the nodes of the clients, for its return (D43).
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             self.scene.add_overlay(&output.name());
         }
         for output in self.output_info() {
@@ -230,14 +231,18 @@ impl State {
 
     /// The outputs as the API describes them.
     pub fn output_info(&self) -> Vec<OutputInfo> {
-        self.outputs
+        let virtuals = &self.assets.virtuals;
+        self.all_outputs()
             .iter()
             .map(|output| {
                 let area = output_area(output);
                 let camera = self.camera(output);
                 let zone = layer_map_for_output(output).non_exclusive_zone();
                 let zone = shrink(zone, self.ipc.reserved(&output.name()));
+                let owner = virtuals.iter().find(|v| v.output() == output);
                 OutputInfo {
+                    is_virtual: owner.map(|_| true),
+                    owner: owner.map(|v| v.owner().to_owned()),
                     name: output.name(),
                     position: [area.loc.x, area.loc.y],
                     size: [area.size.w, area.size.h],
@@ -288,9 +293,10 @@ impl State {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        let all = self.all_outputs();
         let output = match &reserve.output {
-            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
-            None => self.outputs.first(),
+            Some(name) => all.iter().find(|o| o.name() == *name),
+            None => all.first(),
         }
         .map(Output::name)
         .ok_or_else(|| rejected(format!("no output {:?}", reserve.output)))?;
@@ -310,7 +316,7 @@ impl State {
     /// Tells the scene the default cameras, where camera moves from and to
     /// the default camera start and end.
     pub fn sync_default_cameras(&mut self) {
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             self.scene
                 .set_default_camera(&output.name(), default_camera(output));
         }
@@ -354,7 +360,7 @@ impl State {
     /// first output.
     pub fn scene_area_at(&self, point: Point<f64, Logical>) -> Rectangle<i32, Logical> {
         let areas: Vec<_> = self
-            .outputs
+            .all_outputs()
             .iter()
             .map(|o| scene_area(&self.camera(o), Rectangle::from_size(output_area(o).size)))
             .map(|[x, y, w, h]| Rectangle::new((x, y).into(), (w, h).into()))
@@ -634,7 +640,7 @@ fn smithay_transform(transform: OutputTransform) -> utils::Transform {
 }
 
 /// The camera that shows an output at its place in the layout.
-fn default_camera(output: &Output) -> Transform {
+pub(crate) fn default_camera(output: &Output) -> Transform {
     let loc = output_area(output).loc;
     Transform::translate(-f64::from(loc.x), -f64::from(loc.y), 0.0)
 }

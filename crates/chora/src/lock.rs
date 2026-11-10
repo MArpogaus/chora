@@ -115,7 +115,8 @@ impl SessionLockHandler for State {
     }
 
     fn new_surface(&mut self, surface: LockSurface, output: WlOutput) {
-        let Some(output) = Output::from_resource(&output).filter(|o| self.outputs.contains(o))
+        let Some(output) =
+            Output::from_resource(&output).filter(|o| self.all_outputs().contains(o))
         else {
             return;
         };
@@ -197,8 +198,9 @@ impl State {
     /// output changed, for example its mode, scale or transform.
     pub fn resize_lock_surfaces(&self) {
         let Some(lock) = &self.lock else { return };
+        let all = self.all_outputs();
         for (name, surface) in &lock.surfaces {
-            let Some(output) = self.outputs.iter().find(|o| o.name() == *name) else {
+            let Some(output) = all.iter().find(|o| o.name() == *name) else {
                 continue;
             };
             let size = output_area(output).size;

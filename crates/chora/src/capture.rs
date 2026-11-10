@@ -206,8 +206,9 @@ impl State {
                 origin: [x, y],
             });
         }
+        let all = self.all_outputs();
         let output = match &capture.output {
-            Some(name) => self.outputs.iter().find(|o| o.name() == *name),
+            Some(name) => all.iter().find(|o| o.name() == *name),
             None => self.outputs.first(),
         }
         .ok_or_else(|| rejected("no such output"))?

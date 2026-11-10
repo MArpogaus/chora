@@ -28,6 +28,14 @@ use wayland_client::{
         wl_surface::WlSurface,
     },
 };
+use wayland_protocols::ext::image_capture_source::v1::client::{
+    ext_image_capture_source_v1::ExtImageCaptureSourceV1,
+    ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
+};
+use wayland_protocols::ext::image_copy_capture::v1::client::{
+    ext_image_copy_capture_manager_v1::{ExtImageCopyCaptureManagerV1, Options},
+    ext_image_copy_capture_session_v1::{self, ExtImageCopyCaptureSessionV1},
+};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1,
     ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
@@ -54,6 +62,11 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_surface_v1::{self, KeyboardInteractivity, ZwlrLayerSurfaceV1},
 };
 
+use wayland_protocols_wlr::screencopy::v1::client::{
+    zwlr_screencopy_frame_v1::{self, ZwlrScreencopyFrameV1},
+    zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
+};
+
 use super::Core;
 use crate::state::ClientState;
 
@@ -78,6 +91,12 @@ struct App {
     /// Whether the core confirmed a lock of the session.
     locked: bool,
     text_manager: Option<ZwpTextInputManagerV3>,
+    screencopy: Option<ZwlrScreencopyManagerV1>,
+    capture_sources: Option<ExtOutputImageCaptureSourceManagerV1>,
+    capture: Option<ExtImageCopyCaptureManagerV1>,
+    /// Whether the newest copy of the output got a buffer offer; `None`
+    /// until the core answers.
+    copy_offered: Option<bool>,
     output: Option<WlOutput>,
     seat: Option<WlSeat>,
     shm: Option<WlShm>,
@@ -687,6 +706,31 @@ impl Wayland {
         lock
     }
 
+    /// Whether a screencopy of the output of the client gets a buffer
+    /// offer, and not a failure.
+    pub fn screencopy_offers(&mut self, core: &mut Core) -> bool {
+        let manager = self.app.screencopy.as_ref().expect("a screencopy manager");
+        let output = self.app.output.as_ref().expect("wl_output");
+        self.app.copy_offered = None;
+        manager.capture_output(0, output, &self.queue.handle(), ());
+        self.roundtrip(core);
+        self.app.copy_offered.expect("an answer to the copy")
+    }
+
+    /// Whether a capture session of the output of the client gets a buffer
+    /// size, and is not stopped.
+    pub fn capture_session_offers(&mut self, core: &mut Core) -> bool {
+        let qh = self.queue.handle();
+        let sources = self.app.capture_sources.as_ref().expect("a source manager");
+        let output = self.app.output.as_ref().expect("wl_output");
+        let source = sources.create_source(output, &qh, ());
+        let manager = self.app.capture.as_ref().expect("a capture manager");
+        self.app.copy_offered = None;
+        manager.create_session(&source, Options::empty(), &qh, ());
+        self.roundtrip(core);
+        self.app.copy_offered.expect("an answer to the session")
+    }
+
     /// Destroys the role of a layer surface and keeps its `wl_surface`.
     pub fn destroy_layer_role(&mut self, core: &mut Core, layer: &LayerSurface) {
         layer.layer.destroy();
@@ -763,6 +807,15 @@ impl Dispatch<WlRegistry, ()> for App {
             }
             "wl_data_device_manager" => {
                 app.data_manager = Some(registry.bind(name, version.min(3), qh, ()));
+            }
+            "zwlr_screencopy_manager_v1" => {
+                app.screencopy = Some(registry.bind(name, 1, qh, ()));
+            }
+            "ext_output_image_capture_source_manager_v1" => {
+                app.capture_sources = Some(registry.bind(name, 1, qh, ()));
+            }
+            "ext_image_copy_capture_manager_v1" => {
+                app.capture = Some(registry.bind(name, 1, qh, ()));
             }
             "wl_shm" => app.shm = Some(registry.bind(name, 1, qh, ())),
             "wl_seat" => app.seat = Some(registry.bind(name, version.min(7), qh, ())),
@@ -912,6 +965,47 @@ impl Dispatch<ExtSessionLockSurfaceV1, usize> for App {
         }
     }
 }
+
+impl Dispatch<ZwlrScreencopyFrameV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ZwlrScreencopyFrameV1,
+        event: zwlr_screencopy_frame_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            zwlr_screencopy_frame_v1::Event::Buffer { .. } => app.copy_offered = Some(true),
+            zwlr_screencopy_frame_v1::Event::Failed => app.copy_offered = Some(false),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for App {
+    fn event(
+        app: &mut Self,
+        _: &ExtImageCopyCaptureSessionV1,
+        event: ext_image_copy_capture_session_v1::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            ext_image_copy_capture_session_v1::Event::BufferSize { .. } => {
+                app.copy_offered = Some(true);
+            }
+            ext_image_copy_capture_session_v1::Event::Stopped => app.copy_offered = Some(false),
+            _ => {}
+        }
+    }
+}
+
+delegate_noop!(App: ZwlrScreencopyManagerV1);
+delegate_noop!(App: ExtOutputImageCaptureSourceManagerV1);
+delegate_noop!(App: ExtImageCopyCaptureManagerV1);
+delegate_noop!(App: ExtImageCaptureSourceV1);
 
 impl Dispatch<WlOutput, ()> for App {
     fn event(
