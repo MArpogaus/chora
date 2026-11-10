@@ -5,7 +5,9 @@
 # The time that the core waits for a CPU is no cost of a scene, so the
 # watchdog blames and disconnects nobody. With a budget of 1 us
 # (CHORA_FRAME_BUDGET_US=1) every frame costs too much by itself, and
-# the watchdog still blames chora-mc beside the same busy loops.
+# the watchdog still blames chora-mc beside the same busy loops. The
+# scene must show before the busy loops start; chora-mc needs longer for
+# it than a call waits. With the budget of 1 us the watchdog acts first.
 #
 # Usage: tests/gate-watchdog-starved.sh   BIN: directory with the binaries
 #   STARVE_S  seconds of busy loops per run (default 15)
@@ -20,6 +22,11 @@ tmp_dirs+=("$work")
 temp_config
 
 mc() { ctl call mc "$@" >/dev/null 2>&1; }
+shows_many() {
+    ctl call mc scene.list '{}' 2>/dev/null |
+        python3 -I -c 'import json, sys
+sys.exit(json.load(sys.stdin)["current"] != "many")' 2>/dev/null
+}
 panels=$(python3 -I -c 'import json
 print(json.dumps([{"id": "p%d" % i, "cell": [i % 20, i // 20, 1, 1],
     "title": "T%d" % i, "lines": ["%d\tline" % i]} for i in range(300)]))')
@@ -49,7 +56,14 @@ run() {
         fail "chora-mc saves no scene of 300 panels"
     mc scene.save '{"name": "day", "grid": [1, 1], "panels": [
         {"id": "a", "cell": [0, 0, 1, 1], "title": "A", "lines": ["one"]}]}'
-    mc scene.show '{"name": "many"}' || fail "chora-mc shows no scene of 300 panels"
+    mc scene.show '{"name": "many"}'
+    if [ "$1" = starved ]; then
+        for _ in $(seq 60); do
+            shows_many && break
+            sleep 1
+        done
+        shows_many || fail "chora-mc shows no scene of 300 panels"
+    fi
     starve
     kill "${pids[0]}" 2>/dev/null
     wait "${pids[0]}" 2>/dev/null
