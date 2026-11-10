@@ -200,6 +200,12 @@ pub struct State {
     pub start_time: Instant,
     /// The time to which the animations of the scene advanced.
     animated_at: Instant,
+    /// The recording with a stepped scene clock, while one runs.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the methods of the recording read it")
+    )]
+    pub recording: Option<crate::record::Recording>,
     /// The last refresh of the pointer after a step of the animations.
     pointer_refreshed: Instant,
     /// The clock of presentation times.
@@ -386,6 +392,7 @@ impl State {
         Self {
             start_time: Instant::now(),
             animated_at: Instant::now(),
+            recording: None,
             pointer_refreshed: Instant::now(),
             clock,
             time: Time::default(),
