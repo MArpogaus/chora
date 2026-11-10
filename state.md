@@ -195,23 +195,22 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 (none)
 
-## Running (11-10 14:25 Bangkok)
+## Running (11-10 15:20 Bangkok)
 
-pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent; the fresh-session
-switch is off, see friction 24)
+pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent)
 
-- claude/render-fix (Opus): review fixes of M1, M2, M4, M5 in progress;
-  merge after the gate (in its worktree /home/user/wt/render-fix).
-- claude/core-death (Fable): silent core death, memory growth, hang
-  watchdog gate; worktree /home/user/wt/core-death.
-- claude/virtual (Opus): D69 step 1, extract virtual.rs from the
-  headless backend, no behaviour change (design/virtual-outputs.md).
+Workers (own containers, Fable 5.2; check with get_session, merge here):
+- session_016iS3kL1yG8R47DGySmB65H: core stability on claude/core-death
+  (handover-core-death.md: starvation-robust frame watchdog, mc
+  effects.dropped, hang gate 2, #89, memory re-check).
+- session_016iS3kNteKAJNer4zC9m3qk: D69 virtual outputs steps 2 and 3 on
+  claude/virtual-2; stops after step 3 for review and merge.
 
-Merged today after reviews: merge-gate script, H4c, 3D steps 2 to 6,
-focus race, H1 to H7 and H4a/H4b, effects driver E1, give key, grab fix,
-flake fixes. Next after these: D69 steps 2 to 10 (one at a time, Opus
-author, fresh Opus review), then E2 3D wobble, then the construct (K5).
-Stability backlog F4 and the backlog track A items stay in a lane.
+Local: claude/wobble3d (E2) merge gate queued after the virtual merge.
+
+Merged today: merge-gate script, H4c, 3D steps 2 to 6, focus race, HUD
+H1 to H7 and H4a/H4b, effects driver, give key, grab fix, flake fixes,
+render fixes, D69 step 1 (offscreen.rs). sccache on.
 
 ## Blocked
 
