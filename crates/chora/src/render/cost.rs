@@ -233,10 +233,11 @@ fn eight_live_windows_on_a_ring_show_their_last_color_and_none_drops() {
     }
 }
 
-fn shader(name: &str, body: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("chora-cost-{}", std::process::id()));
+fn shader(test: &str, body: &str) -> std::path::PathBuf {
+    let name = format!("{test}.frag");
+    let dir = std::env::temp_dir().join(format!("chora-cost-{test}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join(name);
+    let path = dir.join(&name);
     std::fs::write(&path, format!("precision mediump float;\n{body}\n")).unwrap();
     path
 }
@@ -244,7 +245,7 @@ fn shader(name: &str, body: &str) -> std::path::PathBuf {
 #[test]
 fn a_shader_plane_reads_the_scale_of_its_texture() {
     let probe = shader(
-        "scale.frag",
+        "scale",
         "uniform float scale;\nvoid main() { gl_FragColor = vec4(scale * 0.25, 0.0, 0.0, 1.0); }",
     );
     let mut core = Core::with_renderer();
@@ -359,7 +360,7 @@ fn a_plane_keeps_its_texture_when_it_wobbles_around_a_step() {
 #[test]
 fn a_mirror_and_its_pane_read_one_texture_of_their_window() {
     let probe = shader(
-        "mirror.frag",
+        "mirror",
         "uniform sampler2D win;\nvarying vec2 v_uv;\n\
          void main() { gl_FragColor = texture2D(win, v_uv); }",
     );
@@ -392,4 +393,27 @@ fn a_mirror_and_its_pane_read_one_texture_of_their_window() {
     assert_eq!(after.textures_rendered - before.textures_rendered, 1);
     assert_eq!(after.passes - before.passes, 2, "one pass per pane");
     std::fs::remove_dir_all(probe.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn a_clipped_translated_context_computes_its_order_once() {
+    let (mut core, mut wm) = world();
+    let _wayland = static_scene(&mut core, &mut wm);
+    let update = json!({"commands": [
+        {"update": {"id": "space", "props": {
+            "clip": {"radius": 0}, "transform": {"translate": [50, 40]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", update);
+    frames(&mut core, 1);
+    let hit = |core: &Core, x: f64| {
+        let spot = core.state.spot((x, 160.0).into()).expect("a spot");
+        node_under(&core.state, &spot)
+    };
+    hit(&core, 530.0);
+    let before = core.state.assets.stats.orders.get();
+    for step in 0..10 {
+        frames(&mut core, 1);
+        hit(&core, 500.0 + f64::from(step));
+    }
+    assert_eq!(core.state.assets.stats.orders.get(), before);
 }

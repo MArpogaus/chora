@@ -58,6 +58,10 @@ pub struct Part {
     pub shown: [[f64; 2]; 4],
 }
 
+/// The placements of a context that [`Orders`] keeps: a context that is
+/// also a layer is drawn in its own coordinates and hit in the scene's.
+const PLACEMENTS: usize = 2;
+
 /// An order that [`Orders`] keeps, with the fingerprint of what it was made
 /// from.
 type Kept = (Vec<u64>, Arc<Vec<Piece>>);
@@ -67,7 +71,7 @@ type Kept = (Vec<u64>, Arc<Vec<Piece>>);
 /// keep their sizes, their transforms and their order in the list.
 #[derive(Default)]
 pub struct Orders {
-    kept: Mutex<HashMap<String, Kept>>,
+    kept: Mutex<HashMap<String, Vec<Kept>>>,
 }
 
 impl Orders {
@@ -84,14 +88,16 @@ impl Orders {
         let flats: Vec<Option<Flat>> = list.iter().map(flat).collect();
         let key = fingerprint(context, list, &flats);
         let mut kept = self.kept.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some((same, pieces)) = kept.get(&context.node.id)
-            && *same == key
-        {
+        let entries = kept.entry(context.node.id.clone()).or_default();
+        if let Some((_, pieces)) = entries.iter().find(|(same, _)| *same == key) {
             return Arc::clone(pieces);
         }
         computed.set(computed.get() + 1);
         let pieces = Arc::new(order_flats(context, list, flats));
-        kept.insert(context.node.id.clone(), (key, Arc::clone(&pieces)));
+        if entries.len() >= PLACEMENTS {
+            entries.remove(0);
+        }
+        entries.push((key, Arc::clone(&pieces)));
         pieces
     }
 
