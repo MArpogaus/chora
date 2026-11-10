@@ -250,3 +250,17 @@ caption names the machine (software GL in a container).
 virtual-2 worker: one full gate run measured it missing; --only hud then
 passed 3 of 3. Treat as a real timing bug until shown otherwise: find
 the race, do not raise the wait.
+
+## D2 (11-10): demo polish before any public GIF
+The first 3D wobble capture (construct-wobble.png, wobble-frames/) is
+not demo grade: the pane hardly bends; the content slides inside a
+fixed frame (the glow and edge do not follow the mesh) and leaves a gap;
+the side panes are flat grey; there is no scene clock, so captures run
+at ~15 fps of real time. Needed before Reddit:
+1. a capture clock: `choractl record` steps scene time at a fixed 1/30 s
+   and writes frames (deterministic, independent of llvmpipe speed);
+2. the pane frame, glow and shadow follow the wobble mesh; stronger,
+   visible bending on a fast drag (tuned against the KWin feel);
+3. a demo scene with real, colourful content (an image viewer, a code
+   editor, a browser-like page), not empty terminals;
+4. demo/record.sh + ffmpeg: GIF (<10 MB, 720p) and MP4.
