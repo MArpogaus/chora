@@ -7,6 +7,9 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+R2. Issue #76 part 3 (3D quad edges) is not done; step 6 covered parts 1
+   and 2. `base_2d` in the 3D plan names nothing in the repo; drop it.
+
 R1. Shader slots: a shader node rendered at depth 0 and inside a node
    texture at depth 1 in one frame overwrites slots 1 and 2; the depth-0
    element then draws the depth-1 result (pre-existing, review of 3D
