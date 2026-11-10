@@ -723,3 +723,12 @@ fn a_lock_a_reset_and_a_lost_device_end_the_held_button() {
     windows.0.state.device_removed("event1");
     assert_eq!(windows.0.state.last_real_button, None, "the device");
 }
+
+#[test]
+fn two_agent_windows_keep_their_own_directory() {
+    let (_first, _, first) = with_agent_window();
+    let (_second, _, second) = with_agent_window();
+    assert_ne!(first, second, "the tests share a directory");
+    let _ = std::fs::remove_dir_all(first);
+    let _ = std::fs::remove_dir_all(second);
+}
