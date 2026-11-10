@@ -49,6 +49,16 @@ E5. The demo: a scripted walk (camera path), the grab, the pull out, the
     wobble in 3D, the drop as a construct pane; captured as a GIF and a
     short video for the status page; a push-to-the-limit persona panel.
 
+## Decision of 11-10 (PM)
+
+E1 changed: D58 allows foreign `update` only for opacity, effects and
+meta, and the core has no `animate` request; a cross-client effects
+plugin would need a new core power and a new security rule. KISS
+instead: `chora_kit::effects`, one driver that each window manager links
+and calls on its own window groups (the owner may set a mesh). One copy
+of the code, one opt-in line per manager, no core change. A cross-client
+effects plugin stays with X6 for later.
+
 ## Order and size
 
 | Step | Content | Size | Depends on |
