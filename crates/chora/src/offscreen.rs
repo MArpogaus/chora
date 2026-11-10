@@ -1354,6 +1354,57 @@ mod tests {
         assert!(pixels.as_chunks::<4>().0.iter().all(|p| *p == [0; 4]));
     }
 
+    /// The counters of `render.stats` for an output.
+    fn counted(faced: &mut Faced, output: &str) -> [u64; 3] {
+        let stats = faced
+            .construct
+            .ok(&mut faced.core, "render.stats", json!({}));
+        let of = &stats["outputs"][output];
+        ["frames", "damaged_frames", "passes"].map(|k| of[k].as_u64().expect("a counter"))
+    }
+
+    /// A gate reads `render.stats` twice: a still pane and its still
+    /// output draw no pass and have no damage between the two, and a
+    /// commit of the window shows as damage of both.
+    #[test]
+    fn render_stats_count_frames_damage_and_passes_by_output() {
+        let mut faced = faced();
+        faced.show_pane();
+        faced.frames(2);
+        let face = counted(&mut faced, "VIRTUAL-1");
+        let screen = counted(&mut faced, "screen");
+        assert!(face[1] >= 1 && screen[2] >= 1, "{face:?} {screen:?}");
+        faced.frames(60);
+        let still = |before: [u64; 3]| [before[0] + 60, before[1], before[2]];
+        assert_eq!(counted(&mut faced, "VIRTUAL-1"), still(face), "the face");
+        assert_eq!(counted(&mut faced, "screen"), still(screen), "the screen");
+        let Faced {
+            core,
+            wayland,
+            window,
+            ..
+        } = &mut faced;
+        wayland.attach_filled(core, window, (SIDE, SIDE), (Format::Argb8888, BLUE));
+        faced.frames(1);
+        assert_eq!(counted(&mut faced, "VIRTUAL-1")[1], face[1] + 1);
+        let after = counted(&mut faced, "screen");
+        assert_eq!(after[1], screen[1] + 1, "damage of the pane");
+        assert!(after[2] > screen[2], "the pane runs its shader again");
+    }
+
+    #[test]
+    fn render_stats_are_not_for_a_confined_caller() {
+        let mut faced = faced();
+        let mut confined = faced.core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut faced.core, "hello", hello);
+        let (number, error) = confined.fails(&mut faced.core, "render.stats", json!({}));
+        assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        let mut nameless = faced.core.connect();
+        let (_, error) = nameless.fails(&mut faced.core, "render.stats", json!({}));
+        assert!(error.contains("hello"), "{error}");
+    }
+
     #[test]
     fn a_locked_session_renders_no_virtual_output() {
         let mut faced = faced();
