@@ -1124,6 +1124,11 @@ lists all of its methods:
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
 | `window.give` | `surface`, and `to`: a client name | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
 
+Window effects need no API of their own. A window manager that sets
+`effects` in its settings sends `mesh` updates for its own nodes through
+`chora_kit::effects`, as any owner does; no request to another client is
+involved (D58 stays as it is).
+
 A plugin with settings exports `settings.get`, `settings.set` and
 `settings.reload` through the runtime of `chora-kit` (D62). `settings.get`
 answers all settings. `settings.reload` reads the file again after an

@@ -85,7 +85,7 @@ holds the parts of every block. Each step takes its functions out of it.
 | `switcher.rs` | 176 | stack |
 | `wm/resize.rs` | 121 | stack |
 | `wm/restart.rs` | 175 | stack |
-| `wm/effects.rs` | 307 | stack: the driver of the effects of `chora-kit` |
+| `wm/effects.rs` | 307 | done: the driver is `chora_kit::effects`; the file keeps the cube turn and the frame of `chora-xp` |
 | `wm.rs` | 3324 | split by function: events and keys, window handling and `give` to stack; task list, start menu and tray clicks to panel; icon and wallpaper clicks to desktop; dialogs and cube to the gimmick |
 | `theme.rs` | 894 | `chora-draw` |
 | `text.rs` | 416 | `chora-draw` |
@@ -258,7 +258,7 @@ keeps its tools (D51).
 | X3 | `chora-desk` with the wallpaper, the icons and the desktop menu; `context.rs` moves into `chora-draw`; `bloff.png` to `assets/desk` | a capture shows the wallpaper from the neutral folder |
 | X4 | `chora-panel` with taskbar, start menu, cascades, programs, clock and tray; `output.reserve` for the bar; the footer buttons call `choractl call xp` | the start menu starts a program; the task list shows its window |
 | X5 | `chora-stack` with windows, frames, switcher, resize, restart and the driver of the effects; `chora-xp` links its library | windows move, resize and switch with Alt+Tab |
-| X6 | a function of `chora-kit` for `update` and `animate` requests (D58) | a request of an effects plugin reaches a window of `chora-tiling` and of `chora-stack` |
+| X6 | a function of `chora-kit` for `update` and `animate` requests (D58); the driver of the effects came early, see below | a request of an effects plugin reaches a window of `chora-tiling` and of `chora-stack` |
 | X7 | the XP folders, the dialogs of D63, the paperclip as SVG files, the cube, the sounds; `theme/` is gone | `tests/xp.sh` passes; a flavor without the gimmick shows a plain desktop |
 
 Each step also:
@@ -270,6 +270,18 @@ Each step also:
 - updates `tests/xp.sh` to start the new units;
 - removes the moved code from `chora-xp`, so the old and the new code never
   run side by side.
+
+## The driver of the effects
+
+The driver moved into `chora-kit` as `chora_kit::effects` ahead of X6.
+It has hooks for a grab, a move, a release, a minimize, a restore and a
+frame, and returns `mesh` updates for the nodes that the caller owns, so
+every window manager sends them as the owner and the core needs no new
+rule. A window manager opts in with `effects: [wobbly, lamp]`. `chora-xp`
+turns on both through its Control Panel toggles; `chora-tiling` takes
+`wobbly` from its setting `effects`, off by default, and refuses `lamp`; `chora-mc` has no
+window drag, and `chora-construct` waits for the 3D step. X6 keeps the
+requests of one client for the windows of another, unchanged.
 
 ## Open points
 

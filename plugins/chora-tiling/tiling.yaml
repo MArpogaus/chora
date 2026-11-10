@@ -40,6 +40,10 @@ focus: follow_mouse
 style:
   opacity: 1.0
   effects: []
+# The effects that tiling drives on its own windows: wobbly, a floating
+# window that bends while it is dragged. Empty turns them off. lamp is
+# refused, because tiling has no task button.
+effects: []
 
 bindings:
   # Windows

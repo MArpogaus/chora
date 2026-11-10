@@ -134,6 +134,9 @@ pub struct Config {
     pub focus: Focus,
     /// How a new window looks.
     pub style: Style,
+    /// The window effects that tiling drives: `wobbly` and `lamp`.
+    #[serde(default)]
+    pub effects: Vec<chora_kit::effects::Kind>,
     /// Binding with `MOD`, and its action.
     pub bindings: BTreeMap<String, Action>,
 }
@@ -157,6 +160,9 @@ impl Settings for Config {
         }
         if !(0.0..=1.0).contains(&self.style.opacity) {
             return Err("style.opacity: from 0 to 1".into());
+        }
+        if self.effects.contains(&chora_kit::effects::Kind::Lamp) {
+            return Err("effects: tiling has no task button, so only wobbly".into());
         }
         // Checked here, so that settings.set refuses it, and not at every
         // new window.
@@ -268,14 +274,17 @@ mod tests {
         let err = parse::<Config>(&opacity).unwrap_err();
         assert!(err.contains("style.opacity"), "{err}");
         let missing = DEFAULT.replace(
-            "effects: []",
-            "effects: [{shader: /nonexistent/chora-test.frag}]",
+            "  effects: []",
+            "  effects: [{shader: /nonexistent/chora-test.frag}]",
         );
         let err = parse::<Config>(&missing).unwrap_err();
         assert!(err.contains("/nonexistent/chora-test.frag"), "{err}");
-        let proc = DEFAULT.replace("effects: []", "effects: [{shader: /proc/self/mem}]");
+        let proc = DEFAULT.replace("  effects: []", "  effects: [{shader: /proc/self/mem}]");
         let err = parse::<Config>(&proc).unwrap_err();
         assert!(err.contains("not a regular file"), "{err}");
+        let lamp = DEFAULT.replace("\neffects: []\n", "\neffects: [lamp]\n");
+        let err = parse::<Config>(&lamp).unwrap_err();
+        assert!(err.contains("effects"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
         assert!(parse::<Config>(&modifier).is_err());
     }

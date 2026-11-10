@@ -18,7 +18,7 @@ impl Wm {
         start: [f64; 2],
     ) -> Vec<Command> {
         let mut commands = Vec::new();
-        if self.effects.wobbles.remove(surface).is_some()
+        if self.effects.driver.cancel_wobble(surface)
             && let Some(i) = self.index(surface)
         {
             commands.push(self.windows[i].unmesh());

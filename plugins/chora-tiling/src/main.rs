@@ -20,6 +20,7 @@ use std::{
 };
 
 use chora_kit::{
+    effects::{Driver, Target},
     give::{self, Give, MOVE},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
@@ -124,6 +125,13 @@ struct Tiling {
     /// The window that the binding of `drag` or a move of its client
     /// holds, and the pointer relative to the window.
     dragged: Option<(String, [f64; 2])>,
+    /// The window effects of the setting `effects`.
+    effects: Driver,
+    /// Where the effects last bent each wobbling window, for a frame after
+    /// the transaction state was forgotten.
+    bent: HashMap<String, Target>,
+    /// The meshes of a drag that the next transaction carries.
+    meshes: Vec<Command>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -151,6 +159,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut methods = exported_methods();
     methods.extend(settings::File::<Config>::methods());
     let rt = Runtime::start(NAME, args.outputs.clone(), &EVENTS, methods)?;
+    let settings_effects = settings.value.effects.clone();
     let mut tiling = Tiling {
         rt,
         wm: Wm::new(settings.value.clone()),
@@ -162,9 +171,36 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         saved: HashMap::new(),
         claimed: None,
         dragged: None,
+        effects: Driver::new(&settings_effects),
+        bent: HashMap::new(),
+        meshes: Vec::new(),
     };
     tiling.start()?;
-    Ok(runtime::serve(&mut tiling)?)
+    Ok(serve(&mut tiling)?)
+}
+
+/// The time between two frames of the effects, 60 Hz.
+const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
+
+/// Handles events; while an effect runs, a frame follows each 16 ms.
+fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
+    let mut next = std::time::Instant::now();
+    loop {
+        let event = if tiling.effects.animating() {
+            let wait = next.saturating_duration_since(std::time::Instant::now());
+            tiling.rt.conn.next_event_timeout(wait)?
+        } else {
+            Some(tiling.rt.conn.next_event()?)
+        };
+        if let Some(event) = event {
+            runtime::dispatch(tiling, event)?;
+        }
+        let now = std::time::Instant::now();
+        if tiling.effects.animating() && now >= next {
+            tiling.frame(now)?;
+            next = now + FRAME;
+        }
+    }
 }
 
 /// The events that tiling handles.
@@ -191,6 +227,9 @@ impl Plugin for Tiling {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if matches!(&event, Event::EffectsDropped { client } if client == NAME) {
+            return self.effects_dropped();
+        }
         self.handle(event)
     }
 
@@ -327,6 +366,7 @@ impl Tiling {
         self.check_shaders()?;
         self.rt.ungrab_all()?;
         self.wm.reconfigure(self.settings.value.clone());
+        self.effects.set(&self.settings.value.effects);
         self.grab_all()?;
         self.relayout()
     }
@@ -578,6 +618,11 @@ impl Tiling {
         only(self.wm.has(surface), || {
             format!("tiling has no window {surface}")
         })?;
+        self.bent.remove(surface);
+        if let Some(flat) = self.effects.unbend(surface, surface) {
+            self.apply(vec![flat])
+                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        }
         let answer = self.rt.conn.give(surface, to)?;
         self.focus.gave(surface);
         self.forget_window(surface);
@@ -601,6 +646,9 @@ impl Tiling {
             return;
         }
         if state == PressState::Pressed {
+            if let Some((old, _)) = self.dragged.take() {
+                self.effects.release(&old);
+            }
             let grabbed = taken(asked, |id| self.wm.has(id), || self.window_at(point));
             self.dragged = grabbed.map(|id| {
                 let [x, y] = (self.sent.get(&id))
@@ -613,6 +661,7 @@ impl Tiling {
         let Some((surface, _)) = self.dragged.take() else {
             return;
         };
+        self.effects.release(&surface);
         if self.wm.output_at(point).is_some() {
             return;
         }
@@ -636,7 +685,73 @@ impl Tiling {
             return false;
         };
         let at = [(px - dx).round() as i32, (py - dy).round() as i32];
-        self.wm.place(&id, at, [px, py])
+        let placed = self.wm.place(&id, at, [px, py]);
+        if placed {
+            self.bend(&id, at.map(f64::from), [px, py]);
+        }
+        placed
+    }
+
+    /// The window as the effects bend it: at an origin, with its size.
+    fn target(&self, id: &str, origin: [f64; 2]) -> Option<Target> {
+        let window = self.wm.windows.iter().find(|w| w.id == id)?;
+        let size = self.sent.get(id).and_then(|p| p.size).or(window.size)?;
+        Some(Target {
+            node: id.into(),
+            origin,
+            size: size.map(f64::from),
+            set_size: false,
+        })
+    }
+
+    /// A dragged window wobbles: it starts to at the first move, and each
+    /// move bends its mesh.
+    fn bend(&mut self, id: &str, origin: [f64; 2], pointer: [f64; 2]) {
+        let Some(target) = self.target(id, origin) else {
+            return;
+        };
+        if !self.effects.wobbles(id) {
+            self.effects.grab(id, &target, pointer);
+        }
+        let mesh = self.effects.motion(id, &target);
+        self.meshes.extend(mesh);
+        if self.effects.wobbles(id) {
+            self.bent.insert(id.into(), target);
+        }
+    }
+
+    /// The watchdog of the core removed the meshes: the effects end.
+    #[allow(clippy::unnecessary_wraps, reason = "an event handler")]
+    fn effects_dropped(&mut self) -> Result<(), ClientError> {
+        eprintln!("chora-tiling: frames were slow, the core dropped the effects");
+        self.effects.dropped();
+        self.bent.clear();
+        Ok(())
+    }
+
+    /// Moves the effects one frame forward. A window sits where the last
+    /// transaction put it, else where the effects last bent it.
+    fn frame(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
+        let (sent, wm, bent) = (&self.sent, &self.wm, &self.bent);
+        let frame = self.effects.tick(now, |id| {
+            let window = wm.windows.iter().find(|w| w.id == id)?;
+            let kept = bent.get(id)?;
+            let placement = sent.get(id);
+            let origin = placement.and_then(|p| p.at);
+            let size = placement.and_then(|p| p.size).or(window.size);
+            Some(Target {
+                node: id.into(),
+                origin: origin.map_or(kept.origin, |at| at.map(f64::from)),
+                size: size.map_or(kept.size, |size| size.map(f64::from)),
+                set_size: false,
+            })
+        });
+        let effects = &self.effects;
+        self.bent.retain(|id, _| effects.wobbles(id));
+        if frame.commands.is_empty() {
+            return Ok(());
+        }
+        self.apply(frame.commands)
     }
 
     /// The topmost shown window at a point in scene coordinates.
@@ -803,6 +918,7 @@ impl Tiling {
                 },
             });
         }
+        commands.append(&mut self.meshes);
         if commands.is_empty() {
             return Ok(());
         }
@@ -840,6 +956,8 @@ impl Tiling {
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);
+        self.effects.cancel_wobble(id);
+        self.bent.remove(id);
         // The focus on it is no longer that of tiling: when the window
         // comes back, tiling sends it again.
         if self.focus.surface.as_deref() == Some(id) {
@@ -1251,6 +1369,13 @@ mod tests {
     /// A tiling on a fake core that answers every request, `input.grab`
     /// with its binding, and keeps the names of the methods called.
     fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+        on_fake_core_with(tag, &[])
+    }
+
+    fn on_fake_core_with(
+        tag: &str,
+        effects: &[chora_kit::effects::Kind],
+    ) -> (Tiling, Arc<Mutex<Vec<String>>>) {
         let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -1278,7 +1403,8 @@ mod tests {
         });
         let conn = Conn::connect_at(NAME, &path).unwrap();
         let file = dir.join("chora-tiling.yaml");
-        let settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
+        let mut settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
+        settings.value.effects = effects.to_vec();
         let tiling = Tiling {
             rt: Runtime::with(conn, NAME, Vec::new()),
             wm: Wm::new(settings.value.clone()),
@@ -1290,8 +1416,230 @@ mod tests {
             saved: HashMap::new(),
             claimed: None,
             dragged: None,
+            effects: Driver::new(effects),
+            bent: HashMap::new(),
+            meshes: Vec::new(),
         };
         (tiling, methods)
+    }
+
+    /// Presses on a window, moves the pointer through the points and lets
+    /// go at the last.
+    fn drag(tiling: &mut Tiling, surface: &str, points: &[[f64; 2]]) {
+        let press = |state, position: [f64; 2]| Event::InputButton {
+            binding: give::MOVE.into(),
+            state,
+            position,
+            output: "X".into(),
+            local: position,
+            surface: Some(surface.into()),
+        };
+        let moved = |position: [f64; 2]| Event::InputMoved {
+            binding: give::MOVE.into(),
+            position,
+            output: "X".into(),
+            local: position,
+        };
+        tiling.event(press(PressState::Pressed, points[0])).unwrap();
+        for point in &points[1..] {
+            tiling.event(moved(*point)).unwrap();
+        }
+        let last = points[points.len() - 1];
+        tiling.event(press(PressState::Released, last)).unwrap();
+    }
+
+    /// Drags a floating window of 40 by 20 from its place to another and
+    /// lets go; the transactions that tiling sent are the answer.
+    fn drag_a_floating_window(tiling: &mut Tiling, methods: &Arc<Mutex<Vec<String>>>) -> String {
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.act(&Action::ToggleFloating);
+        assert!(tiling.wm.set_size("s1", [40, 20]));
+        tiling.relayout().unwrap();
+        drag(
+            tiling,
+            "s1",
+            &[[190.0, 150.0], [230.0, 170.0], [260.0, 190.0]],
+        );
+        methods.lock().unwrap().join("\n")
+    }
+
+    /// The commands of the transactions that tiling sent, in order.
+    fn sent_commands(methods: &Arc<Mutex<Vec<String>>>) -> Vec<Value> {
+        let calls = methods.lock().unwrap().clone();
+        let applies = calls.iter().filter_map(|m| m.strip_prefix("scene.apply "));
+        applies
+            .flat_map(|params| {
+                let params: Value = serde_json::from_str(params).unwrap();
+                params["commands"].as_array().cloned().unwrap_or_default()
+            })
+            .collect()
+    }
+
+    /// The updates of a node that set a mesh with points.
+    fn bends(methods: &Arc<Mutex<Vec<String>>>, node: &str) -> usize {
+        let meshes = sent_commands(methods);
+        let bent = |c: &&Value| {
+            let update = &c["update"];
+            update["id"] == node
+                && update["props"]["mesh"]["points"]
+                    .as_array()
+                    .is_some_and(|p| !p.is_empty())
+        };
+        meshes.iter().filter(bent).count()
+    }
+
+    /// The updates of a node that remove its mesh.
+    fn unbends(methods: &Arc<Mutex<Vec<String>>>, node: &str) -> usize {
+        let unmesh = |c: &&Value| {
+            let update = &c["update"];
+            update["id"] == node
+                && update["props"]["mesh"].is_object()
+                && update["props"]["mesh"]["points"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)
+        };
+        sent_commands(methods).iter().filter(unmesh).count()
+    }
+
+    fn settle(tiling: &mut Tiling) {
+        let mut now = std::time::Instant::now();
+        for _ in 0..600 {
+            now += std::time::Duration::from_millis(16);
+            tiling.frame(now).unwrap();
+            if !tiling.effects.animating() {
+                return;
+            }
+        }
+    }
+
+    const WOBBLY: [chora_kit::effects::Kind; 1] = [chora_kit::effects::Kind::Wobbly];
+
+    #[test]
+    fn a_tiling_window_wobbles_with_the_opt_in() {
+        let (mut tiling, methods) = on_fake_core_with("wobble", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        assert!(bends(&methods, "s1") > 0, "the dragged node bends");
+        assert!(tiling.effects.animating(), "and shakes after the release");
+    }
+
+    #[test]
+    fn the_frames_stop_when_the_window_settles() {
+        let (mut tiling, methods) = on_fake_core_with("settles", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        settle(&mut tiling);
+        assert!(!tiling.effects.animating());
+        assert_eq!(unbends(&methods, "s1"), 1, "one unmesh at the end");
+    }
+
+    #[test]
+    fn a_rejected_transaction_in_a_wobble_leaves_no_mesh_behind() {
+        let (mut tiling, methods) = on_fake_core_with("rejected", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        tiling.forget();
+        settle(&mut tiling);
+        assert_eq!(unbends(&methods, "s1"), 1, "the window is flat again");
+    }
+
+    #[test]
+    fn a_window_closed_in_a_wobble_ends_it() {
+        let (mut tiling, methods) = on_fake_core_with("closed", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        let gone = Event::SurfaceDestroyed {
+            surface: "s1".into(),
+        };
+        tiling.event(gone).unwrap();
+        assert!(!tiling.effects.animating());
+        let before = sent_commands(&methods).len();
+        tiling.frame(std::time::Instant::now()).unwrap();
+        assert_eq!(sent_commands(&methods).len(), before, "nothing to send");
+    }
+
+    #[test]
+    fn a_tiled_window_never_wobbles() {
+        let (mut tiling, methods) = on_fake_core_with("tiled", &WOBBLY);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.relayout().unwrap();
+        drag(&mut tiling, "s1", &[[190.0, 150.0], [230.0, 170.0]]);
+        assert!(!tiling.effects.animating());
+        assert_eq!(bends(&methods, "s1"), 0);
+    }
+
+    #[test]
+    fn a_window_loses_its_mesh_before_the_hand_over() {
+        let (mut tiling, methods) = on_fake_core_with("hand", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        tiling.hand("s1", "other").unwrap();
+        let sent = sent_commands(&methods);
+        let position = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted).unwrap();
+        let unmesh = position(&|c| {
+            c["update"]["id"] == "s1"
+                && c["update"]["props"]["mesh"]["points"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)
+                && c["update"]["props"]["mesh"].is_object()
+        });
+        let give = position(&|c| c["remove"]["to"] == "other");
+        assert!(unmesh < give, "the mesh goes before the window");
+        assert!(!tiling.effects.animating());
+    }
+
+    #[test]
+    fn the_watchdog_of_the_core_ends_the_wobble() {
+        let (mut tiling, methods) = on_fake_core_with("dropped", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        let dropped = Event::EffectsDropped {
+            client: NAME.into(),
+        };
+        tiling.event(dropped).unwrap();
+        assert!(!tiling.effects.animating());
+    }
+
+    #[test]
+    fn a_new_press_lets_go_of_the_window_before() {
+        let (mut tiling, methods) = on_fake_core_with("twice", &WOBBLY);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        for id in ["s1", "s2"] {
+            tiling.wm.add_window(id);
+            tiling.wm.act(&Action::ToggleFloating);
+            assert!(tiling.wm.set_size(id, [40, 20]));
+        }
+        tiling.relayout().unwrap();
+        let press = |surface: &str, position: [f64; 2]| Event::InputButton {
+            binding: give::MOVE.into(),
+            state: PressState::Pressed,
+            position,
+            output: "X".into(),
+            local: position,
+            surface: Some(surface.into()),
+        };
+        let moved = Event::InputMoved {
+            binding: give::MOVE.into(),
+            position: [230.0, 170.0],
+            output: "X".into(),
+            local: [230.0, 170.0],
+        };
+        tiling.event(press("s1", [190.0, 150.0])).unwrap();
+        tiling.event(moved).unwrap();
+        tiling.event(press("s2", [50.0, 50.0])).unwrap();
+        settle(&mut tiling);
+        assert!(bends(&methods, "s1") > 0);
+        assert!(!tiling.effects.animating(), "s1 shakes to its end");
+    }
+
+    #[test]
+    fn a_manager_without_the_opt_in_sends_no_mesh() {
+        let (mut tiling, methods) = on_fake_core("flat");
+        let sent = drag_a_floating_window(&mut tiling, &methods);
+        assert!(sent.contains("scene.apply"), "the window moved: {sent}");
+        assert!(!sent.contains("\"mesh\""), "{sent}");
     }
 
     /// With `--output X` before X exists, the grab of a pointer binding

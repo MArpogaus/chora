@@ -165,12 +165,12 @@ impl Wm {
     fn settle_for_turn(&mut self) -> Vec<Command> {
         self.drag = None;
         let mut commands = Vec::new();
-        for surface in std::mem::take(&mut self.effects.wobbles).into_keys() {
+        for surface in self.effects.driver.take_wobbles() {
             if let Some(i) = self.index(&surface) {
                 commands.push(self.windows[i].unmesh());
             }
         }
-        let lamps: Vec<String> = self.effects.lamps.keys().cloned().collect();
+        let lamps = self.effects.driver.take_lamps();
         for surface in lamps {
             commands.extend(self.end_lamp(&surface));
         }

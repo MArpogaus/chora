@@ -12,6 +12,7 @@ pub mod ask;
 pub mod chat;
 pub mod conn;
 pub mod desktop_entry;
+pub mod effects;
 pub mod give;
 pub mod hud;
 pub mod icons;
