@@ -322,6 +322,7 @@ impl Waiting {
 enum Grab {
     Drag,
     FlyOut,
+    Give(&'static str),
 }
 
 /// A drag with the modifier: the pane, the press and its centre then.
@@ -707,6 +708,21 @@ fn ease(k: f64) -> f64 {
     1.0 - (1.0 - k).powi(3)
 }
 
+impl give::Windows for Construct {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        (self.panes.iter()).any(|p| p.window() == Some(surface) && p.attached)
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.give(surface, to)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+}
+
 impl Plugin for Construct {
     type Action = Grab;
 
@@ -960,9 +976,18 @@ impl Construct {
                 None => {}
             },
             Event::InputKey {
+                binding,
                 state: PressState::Pressed,
                 ..
-            } => return self.fly_out(),
+            } => {
+                if let Some(&Grab::Give(to)) = self.rt.action(&binding) {
+                    if let Err(err) = give::focused(self, to) {
+                        eprintln!("chora-construct: give to {to}: {}", err.message);
+                    }
+                    return Ok(());
+                }
+                return self.fly_out();
+            }
             Event::InputButton {
                 state, position, ..
             } => {
@@ -1985,6 +2010,10 @@ impl Construct {
                 ClientError::Rpc(RpcError::new(RpcError::INVALID_PARAMS, format!("{b}: {e}")))
             })
         };
+        let serves = self.active && !self.overlay;
+        self.rt
+            .accept_injected(self.settings.value.test_accept_injected_keys);
+        self.rt.give_keys(serves.then_some(Grab::Give));
         self.rt.ungrab_all()?;
         if self.active && !self.overlay {
             let drag = parse(format!("{}+BTN_LEFT", self.settings.value.modifier))?;
@@ -1992,6 +2021,7 @@ impl Construct {
                 eprintln!("chora-construct: the drag: {err}");
             }
         }
+        self.rt.grab_give_keys()?;
         if self.flown.is_some() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;

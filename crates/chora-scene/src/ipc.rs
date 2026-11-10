@@ -1111,6 +1111,32 @@ impl Client {
         method: &str,
         params: P,
     ) -> Result<R, ClientError> {
+        self.call_until(method, params, None)
+    }
+
+    /// Sends a request as [`Client::call`] does, and gives up after
+    /// `timeout` without the response; the response that comes later is
+    /// dropped.
+    ///
+    /// # Errors
+    ///
+    /// As [`Client::call`], and the timeout, as an `Io` error of the kind
+    /// `TimedOut` or `WouldBlock`.
+    pub fn call_within<P: Serialize, R: DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+        timeout: Duration,
+    ) -> Result<R, ClientError> {
+        self.call_until(method, params, Some(Instant::now() + timeout))
+    }
+
+    fn call_until<P: Serialize, R: DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+        deadline: Option<Instant>,
+    ) -> Result<R, ClientError> {
         let id = self.next_id;
         self.next_id += 1;
         let request = Request {
@@ -1131,7 +1157,19 @@ impl Client {
             });
         }
         loop {
-            let message = self.read()?;
+            let message = match deadline {
+                None => self.read()?,
+                Some(deadline) => {
+                    let left = deadline.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        return Err(io::Error::from(io::ErrorKind::TimedOut).into());
+                    }
+                    self.reader.get_ref().set_read_timeout(Some(left))?;
+                    let message = self.read();
+                    self.reader.get_ref().set_read_timeout(None)?;
+                    message?
+                }
+            };
             // An error without id answers a request that the core could not
             // parse, so it belongs to this call.
             let mine = match &message.id {

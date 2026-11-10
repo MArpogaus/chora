@@ -101,6 +101,10 @@ pub struct Config {
     /// The shell command of the terminal, for Super+e and the desktop
     /// files that need one.
     pub terminal: String,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     /// The shell command of Run, and of All Programs when no desktop file
     /// lists a program.
     pub launcher: String,

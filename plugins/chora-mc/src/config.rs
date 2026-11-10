@@ -36,6 +36,9 @@ pub enum Action {
     Scene(String),
     /// Runs a shell command as an app; its window gets a scene of its own.
     Run(String),
+    /// Gives the focused window to the window manager of this name (D55),
+    /// whoever owns it.
+    Give(String),
     /// Shows or hides a region; a docked app takes the focus first.
     Toggle(Region),
     /// Shows a content alone in a region over any scene, or hides it.
@@ -290,6 +293,10 @@ pub struct Write {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub theme: Theme,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     pub themes: Themes,
     pub scale: Scale,
     /// The named styles of text.
@@ -492,6 +499,9 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
         assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
+        let give = DEFAULT.replace("Super+n:", "Super+g: {give: xp}\n  Super+n:");
+        let given = parse::<Config>(&give).unwrap();
+        assert_eq!(given.bindings["Super+g"], Action::Give("xp".into()));
         assert_eq!(config.chapter.layout, Layout::Number);
         assert!(config.write.enabled);
         let slow = DEFAULT.replace("duration_ms: 900", "duration_ms: 99999");

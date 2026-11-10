@@ -97,6 +97,9 @@ pub enum Action {
     ViewBack,
     /// Reads the configuration file again.
     Reload,
+    /// Gives the focused window to the window manager of this name (D55),
+    /// whoever owns it.
+    Give(String),
     /// On a pointer button: drags the window under the pointer. Dropped
     /// in the claim of another window manager, it goes there (D55).
     Drag,
@@ -118,6 +121,10 @@ pub struct Style {
 pub struct Config {
     /// What `MOD` means in the bindings.
     pub modifier: String,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     /// The gap around each window, in logical pixels.
     pub gap: u16,
     /// The number of tags of each output.
@@ -181,6 +188,11 @@ impl Settings for Config {
             {
                 return Err(format!("{binding}: run takes a command"));
             }
+            if let Action::Give(to) = action
+                && to.trim().is_empty()
+            {
+                return Err(format!("{binding}: give takes a client name"));
+            }
             if let Action::IncMasterWidth(step) = action
                 && !step.is_finite()
             {
@@ -236,6 +248,22 @@ mod tests {
             parse::<Config>(&nan)
                 .unwrap_err()
                 .contains("takes a number")
+        );
+    }
+
+    #[test]
+    fn a_binding_gives_the_focused_window() {
+        let give = DEFAULT.replace(
+            "MOD+Ctrl+r: reload",
+            "MOD+g: {give: xp}\n  MOD+Ctrl+r: reload",
+        );
+        let config = parse::<Config>(&give).unwrap();
+        assert_eq!(config.bindings["MOD+g"], Action::Give("xp".into()));
+        let empty = give.replace("{give: xp}", "{give: ' '}");
+        assert!(
+            parse::<Config>(&empty)
+                .unwrap_err()
+                .contains("give takes a client name")
         );
     }
 

@@ -5,6 +5,9 @@
 
 # The colors of the theme: light or dark.
 theme: dark
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
 # Each color is RGBA from 0 to 1. A style names a color of the theme;
 # each theme needs a background.
 themes:

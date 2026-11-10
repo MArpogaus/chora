@@ -129,6 +129,8 @@ pub enum Key {
     Cube,
     /// Ctrl+Escape opens or closes the start menu, as on XP.
     Start,
+    /// Gives the focused window to the window manager of this name (D55).
+    Give(&'static str),
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
@@ -282,6 +284,23 @@ impl Plugin for Wm {
         let commands = self.configure();
         self.apply(commands)
             .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))
+    }
+}
+
+impl give::Windows for Wm {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        self.index(surface).is_some()
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        let (answer, commands) = self.give(surface, to)?;
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(answer)
     }
 }
 
@@ -474,7 +493,10 @@ impl Wm {
                 }
             }
         }
-        Ok(())
+        self.rt
+            .accept_injected(self.settings.value.test_accept_injected_keys);
+        self.rt.give_keys(Some(Key::Give));
+        self.rt.grab_give_keys()
     }
 
     /// Applies a transaction, with the logical sizes of the pictures.
@@ -1328,6 +1350,12 @@ impl Wm {
                     commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
                 }
                 commands
+            }
+            Some(Key::Give(to)) => {
+                if let Err(err) = give::focused(self, to) {
+                    eprintln!("chora-xp: give to {to}: {}", err.message);
+                }
+                Vec::new()
             }
             Some(Key::Cube) | None => Vec::new(),
         }

@@ -15,8 +15,9 @@
 # focused window), cgive-s (`choractl give TO --surface ID`), mcp (the tool
 # of `choractl mcp`, tests/mcp-client.py give), drag (the title bar of xp;
 # Super with the left button for the others), key (the shortcut
-# Super+Shift+o; in construct Tab, g and Return of the window list on a
-# window behind the camera), voice (the real chora-voice with the fakes of
+# Super+Alt+1 to 4 for tiling, xp, mc and construct as the target; in
+# construct Tab, g and Return of the window list on a window behind the
+# camera), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
 # turn takes about 7 s, so voice runs for 8 pairs, each window manager
 # twice as source and twice as target; the other 4 cells are `skip` in the
@@ -30,69 +31,76 @@
 #
 # Usage: tests/gate-handover-matrix.sh   BIN: directory with the binaries
 #   SHOTS: directory for the log (default: a temp dir)
+#   HOLDER: the window manager that starts first and so holds the give
+#   keys (default construct); only that one may serve the keys, and the
+#   gate fails when another does
+#   CHORA_TEST_ACCEPT_INJECTED_KEYS: 1 (default) lets the window managers
+#   take the keys of `input.inject`; 0 is production: the key cells of
+#   tiling, xp and mc expect gap, and no manager may serve a key
+#   CAP: the most seconds of the run (default 240)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
 # shellcheck disable=SC2016
 set -uo pipefail
 
 EXPECTED='
-tiling xp key gap
+tiling xp key pass
 tiling xp drag pass
 tiling xp give pass
 tiling xp cgive pass
 tiling xp cgive-s pass
 tiling xp mcp pass
 tiling xp voice pass
-tiling mc key gap
+tiling mc key pass
 tiling mc drag pass
 tiling mc give pass
 tiling mc cgive pass
 tiling mc cgive-s pass
 tiling mc mcp pass
 tiling mc voice skip
-tiling construct key gap
+tiling construct key pass
 tiling construct drag pass
 tiling construct give pass
 tiling construct cgive pass
 tiling construct cgive-s pass
 tiling construct mcp pass
 tiling construct voice pass
-xp tiling key gap
+xp tiling key pass
 xp tiling drag pass
 xp tiling give pass
 xp tiling cgive pass
 xp tiling cgive-s pass
 xp tiling mcp pass
 xp tiling voice pass
-xp mc key gap
+xp mc key pass
 xp mc drag pass
 xp mc give pass
 xp mc cgive pass
 xp mc cgive-s pass
 xp mc mcp pass
 xp mc voice pass
-xp construct key gap
+xp construct key pass
 xp construct drag pass
 xp construct give pass
 xp construct cgive pass
 xp construct cgive-s pass
 xp construct mcp pass
 xp construct voice skip
-mc tiling key gap
+mc tiling key pass
 mc tiling drag gap
 mc tiling give pass
 mc tiling cgive pass
 mc tiling cgive-s pass
 mc tiling mcp pass
 mc tiling voice skip
-mc xp key gap
+mc xp key pass
 mc xp drag gap
 mc xp give pass
 mc xp cgive pass
 mc xp cgive-s pass
 mc xp mcp pass
 mc xp voice pass
-mc construct key gap
+mc construct key pass
 mc construct drag gap
 mc construct give pass
 mc construct cgive pass
@@ -135,15 +143,23 @@ mkdir -p "$shots" "$work/chora"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-time_cap=240
+time_cap=${CAP:-240}
 log=$shots/matrix.log
 : >"$log"
 
+injected_keys=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
+holder=${HOLDER:-construct}
+case $holder in construct | xp | tiling | mc) ;; *) fail "HOLDER $holder is no window manager" ;; esac
+
 session_start 1280x800
 grant input.inject screen.capture methods.call methods.privileged
-"$bin/chora-construct" >"$shots/construct.log" 2>&1 &
-pids+=($!)
-ctl wait --timeout 20 id:construct-look >/dev/null || fail "the flavor shows no space: $(tail -n 3 "$shots/construct.log")"
+
+start_construct() {
+    "$bin/chora-construct" >"$shots/construct.log" 2>&1 &
+    pids+=($!)
+    ctl wait --timeout 20 id:construct-look >/dev/null || fail "the flavor shows no space: $(tail -n 3 "$shots/construct.log")"
+}
+[ "$holder" != construct ] || start_construct
 for x in 1280 2560 3840; do
     ctl add-output "1280x800+$x+0" >/dev/null || fail "add-output +$x"
 done
@@ -157,20 +173,39 @@ plugin() {
     "$bin/chora-$name" "$@" >"$shots/$name.log" 2>&1 &
     pids+=($!)
 }
-plugin xp --theme "$theme" --output "${out_of[xp]}"
-plugin tiling --output "${out_of[tiling]}"
-plugin mc --manage-windows --output "${out_of[mc]}"
-for c in xp tiling mc; do
-    ctl wait "owner:$c" --timeout 20 >/dev/null || fail "$c does not start: $(tail -n 3 "$shots/$c.log")"
-done
+start_plugin() {
+    case $1 in
+    xp) plugin xp --theme "$theme" --output "${out_of[xp]}" ;;
+    tiling) plugin tiling --output "${out_of[tiling]}" ;;
+    mc) plugin mc --manage-windows --output "${out_of[mc]}" ;;
+    esac
+    ctl wait "owner:$1" --timeout 20 >/dev/null || fail "$1 does not start: $(tail -n 3 "$shots/$1.log")"
+}
+if [ "$holder" = construct ]; then
+    for c in xp tiling mc; do start_plugin "$c"; done
+else
+    start_plugin "$holder"
+    for c in xp tiling mc; do [ "$c" = "$holder" ] || start_plugin "$c"; done
+    start_construct
+fi
 
 inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject $1"; }
 inject "[{\"pointer_move\": {\"position\": [640, 300], \"output\": \"${out_of[xp]}\"}}]"
 foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
 run_pid $!
-w=$(ctl wait "app_id:probe kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
-    fail "foot does not show in xp"
+w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') ||
+    fail "foot does not show"
+for _ in $(seq 50); do
+    first_owner=$(ctl query "id:$w" | jq -r '.[0].owner // "none"')
+    [ "$first_owner" != none ] && break
+    sleep 0.2
+done
+if [ "$first_owner" != xp ]; then
+    ctl call "$first_owner" window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null 2>&1 ||
+        fail "foot starts with $first_owner and does not go to xp"
+    ctl wait "id:$w owner:xp" --timeout 20 >/dev/null || fail "foot does not show in xp"
+fi
 
 owner_of() { ctl query "id:$w" | jq -r '.[0].owner // "none"'; }
 
@@ -358,6 +393,10 @@ voice_give() {
     echo speech >>"$work/mic.cmd"
 }
 
+give_key() {
+    case $1 in tiling) echo 1 ;; xp) echo 2 ;; mc) echo 3 ;; construct) echo 4 ;; esac
+}
+
 path_run() {
     case $1 in
     give) ctl call "$2" window.give "{\"surface\": \"$w\", \"to\": \"$3\"}" >/dev/null 2>&1 ;;
@@ -368,7 +407,7 @@ path_run() {
         if [ "$2" = xp ]; then title_drag "$3"; else super_drag "$3" "$2"; fi
         ;;
     key)
-        if [ "$2" = construct ]; then construct_key "$3"; else key Super+Shift+o; fi
+        if [ "$2" = construct ]; then construct_key "$3"; else key "Super+Alt+$(give_key "$3")"; fi
         ;;
     voice) voice_give "$2" "$3" ;;
     esac
@@ -382,9 +421,12 @@ expected_of() { echo "$EXPECTED" | awk -v k="$1 $2 $3" '$1" "$2" "$3 == k {print
 
 cell() {
     local src=$1 dst=$2 path=$3 want result owner_s settle_s=1 t0=$SECONDS o
-    [ $SECONDS -le $time_cap ] || fail "the run takes more than $time_cap s at $src $dst $path"
+    [ "$SECONDS" -le "$time_cap" ] || fail "the run takes more than $time_cap s at $src $dst $path"
     want=$(expected_of "$src" "$dst" "$path")
     [ -n "$want" ] || fail "no EXPECTED line for $src $dst $path"
+    if [ "$injected_keys" = 0 ] && [ "$path" = key ] && [ "$src" != construct ]; then
+        want=gap
+    fi
     case $path in drag | key) owner_s=1.5 ;; voice) owner_s=12 ;; *) owner_s=0.8 ;; esac
     if [ "$want" = pass ]; then
         settle_s=10
@@ -455,6 +497,20 @@ for pair in "${pairs[@]}"; do
     done
     echo
 done
+served_by() {
+    local c
+    for c in construct xp tiling mc; do
+        if grep -q "key give" "$shots/$c.log" 2>/dev/null; then echo "$c"; fi
+    done
+}
+keys_ran=0
+for k in "${!got[@]}"; do [[ $k == *" key" ]] && keys_ran=1; done
+if [ "$keys_ran" = 1 ] && [ "$injected_keys" = 0 ] && [ -n "$(served_by)" ]; then
+    fail "an injected give key was served by [$(served_by | tr '\n' ' ')] with the setting off"
+fi
+if [ "$keys_ran" = 1 ] && [ "$injected_keys" != 0 ] && [ "$(served_by | tr '\n' ' ')" != "$holder " ]; then
+    fail "the give keys were served by [$(served_by | tr '\n' ' ')], expected only $holder"
+fi
 [ -z "${ONLY:-}" ] || echo "ONLY is set: the table is not fully checked"
 echo "repairs of the setup: $repairs (see $log)"
 echo "run time: ${SECONDS}s"
@@ -462,5 +518,5 @@ if [ "${#mismatches[@]}" != 0 ]; then
     printf 'MISMATCH %s\n' "${mismatches[@]}" >&2
     fail "${#mismatches[@]} cells differ from EXPECTED; see $log"
 fi
-[ $SECONDS -le $time_cap ] || fail "the run took ${SECONDS}s, more than $time_cap s"
+[ "$SECONDS" -le "$time_cap" ] || fail "the run took ${SECONDS}s, more than $time_cap s"
 ok "gate-handover-matrix: every cell as in EXPECTED${ONLY:+ that ran} in ${SECONDS}s"

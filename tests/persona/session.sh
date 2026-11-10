@@ -73,6 +73,7 @@ env_file=$dir/session.env
 
 # The plugins start apps with `choractl run` from PATH (D42).
 export PATH="$bin:$PATH"
+export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 unset DBUS_SESSION_BUS_ADDRESS
 # A private config home: the settings of the user stay out of the run.
 export XDG_CONFIG_HOME=$dir/config

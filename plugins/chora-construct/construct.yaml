@@ -47,6 +47,9 @@ keys:
   F1: help
 # The shell command of the key terminal; its window becomes a pane in
 # the view direction.
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
 terminal: foot
 # The shell command of the key launcher. The launcher itself is no pane:
 # a layer-shell launcher such as fuzzel shows over the space, and a

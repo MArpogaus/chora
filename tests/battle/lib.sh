@@ -86,6 +86,7 @@ session_start() {
   : > "$hlenv"
   : > "/tmp/bt-$WF.pids"
   export CHORA_LOG=$repo/tests/battle/chora-$WF.log
+  export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
   tests/headless-session.sh "$outputs" ${1:+-- "$@"} > "$hlenv" 2> "$hlenv.err" &
   HLPID=$!
   for _ in $(seq 120); do grep -q CHORA_SOCKET "$hlenv" && break; sleep 0.5; done

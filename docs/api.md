@@ -360,6 +360,57 @@ outputs, so it tests a drop against the outputs themselves: a drop on an
 output of another window manager between two tiling outputs hands the
 window over.
 
+The key action `give` is the same on every window manager. A binding
+`give: NAME` gives the focused window to the window manager `NAME`.
+`chora_kit::give::focused(windows, to)` implements it: it queries the
+focused window and reads its owner. A window of the plugin goes through
+`Windows::hand`, which does what `window.give` does: `Conn::give`, then
+the bookkeeping and the relayout of the plugin. It refuses a window that
+the plugin does not know, and a give to the window manager that owns
+the window already. A window of another window manager goes through
+`methods.call` to `window.give` of its owner, because a key has one
+holder (D55), whoever owns the focused window; the call waits 2 seconds
+at most. Without a focused window or an owner, or when the owner is gone
+or refuses, the action fails and only logs. A new window manager implements `chora_kit::give::Windows` with
+`conn`, `has` and `hand`, and binds the key with one line:
+
+```rust
+impl give::Windows for MyWm {
+    fn conn(&mut self) -> &mut Conn { &mut self.rt.conn }
+    fn has(&self, surface: &str) -> bool { self.windows.contains(surface) }
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.give_and_relayout(surface, to)
+    }
+}
+```
+
+The table `chora_kit::give::KEYS` holds the default keys: `Super+Alt+1`
+for `tiling`, `Super+Alt+2` for `xp`, `Super+Alt+3` for `mc` and
+`Super+Alt+4` for `construct`. tiling, xp, mc and construct grab them
+with `Runtime::give_keys` and `Runtime::grab_give_keys`, so a settings
+file without give bindings has them too. A key that another client holds
+stays free: the plugin tries again after an event, every 2 seconds at
+most, so the keys pass to the next window manager when their holder
+leaves. The holder is the window manager that started first, and it
+serves the keys for every window. A binding `give: NAME` of the settings
+of tiling or mc grabs another key, which that window manager holds.
+
+A window manager ignores a key that came from `input.inject`
+(`injected` is true in `input.key`), as it does for every binding, so
+the give key needs a real key press outside tests. Automation and agents
+call the privileged `window.give` of the owner, or `choractl give`.
+The setting `test_accept_injected_keys` of each window manager and the
+environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` turn that off
+for tests; `tests/headless-session.sh` and the persona session set it.
+
+`tests/gate-handover-matrix.sh` injects the key for every pair with the
+test setting on and construct as the holder, since it starts first. `tests/gate-give-holders.sh`
+repeats two pairs with xp, tiling and mc as the holder, one for a window
+of the holder and one for a window of another manager that the holder
+forwards, and the gate fails when a manager other than the holder serves
+a key. A last run has the setting off and expects that an injected give
+key gives nothing.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,

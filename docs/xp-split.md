@@ -144,7 +144,7 @@ in its step.
 | `assistant` | none; it reacts to `voice.*` | `enabled`, `position` |
 | `desk` | none | `wallpaper` (`picture`, `position`, `color`), `terminal`, `file_manager`, `icons` (on or off) |
 | `panel` | `start_menu {open}` | `terminal`, `launcher`, `file_manager`, `programs`, `clock_format`, `taskbar` (`auto_hide`, `on_top`, `clock`), `session` (the four commands of the start menu footer), `window_manager` |
-| `stack` | `minimize`, `restore`, `activate`, `restart`, `window.give` | `terminal`, `effects` (`wobbly`, `lamp`) |
+| `stack` | `minimize`, `restore`, `activate`, `restart`, `window.give`; the keys `Super+Alt+1` to `Super+Alt+4` give the focused window to tiling, xp, mc or construct | `terminal`, `effects` (`wobbly`, `lamp`) |
 | `xp` | `turn_to`, `log_off`, `turn_off`, and the methods of `stack` under the client name `xp` | `session` (the commands that the dialogs run), `effects` (`cube`, `sounds`), `taskbar_locked` |
 
 Notes:

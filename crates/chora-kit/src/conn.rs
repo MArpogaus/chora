@@ -66,6 +66,21 @@ impl Conn {
         self.client.call(method, params)
     }
 
+    /// Calls a method of the core as [`Self::call`] does, and gives up
+    /// after `timeout` without an answer.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails, the core answers with an error, or the time ends.
+    pub fn call_within<P: serde::Serialize, R: serde::de::DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+        timeout: Duration,
+    ) -> Result<R, ClientError> {
+        self.client.call_within(method, params, timeout)
+    }
+
     /// Answers a call of an exported method.
     ///
     /// # Errors
@@ -142,4 +157,66 @@ fn node(mut value: Value) -> Result<Node, ClientError> {
             .or_insert_with(|| Value::Array(Vec::new()));
     }
     Ok(serde_json::from_value(value)?)
+}
+
+/// A core that answers from a script, for the tests of the kit.
+#[cfg(test)]
+pub(crate) mod fake_core {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        path::PathBuf,
+        sync::atomic::{AtomicU32, Ordering},
+        thread::JoinHandle,
+    };
+
+    use serde_json::{Value, json};
+
+    /// What the core answers to a request: a result, an error message, or
+    /// nothing at all.
+    pub(crate) enum Answer {
+        Result(Value),
+        Error(&'static str),
+        Silence,
+    }
+
+    static COUNT: AtomicU32 = AtomicU32::new(0);
+
+    /// Serves one connection with `script`, which gets the method and the
+    /// parameters of each request, until the client leaves. The thread
+    /// returns the methods that came.
+    pub(crate) fn serve(
+        script: impl Fn(&str, &Value) -> Answer + Send + 'static,
+    ) -> (PathBuf, JoinHandle<Vec<String>>) {
+        let path = std::env::temp_dir().join(format!(
+            "chora-kit-fake-{}-{}.sock",
+            std::process::id(),
+            COUNT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let listener = UnixListener::bind(&path).expect("bind the fake core");
+        let thread = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("a client");
+            let mut writer = stream.try_clone().expect("clone");
+            let mut methods = Vec::new();
+            for line in BufReader::new(stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).expect("json");
+                let method = request["method"].as_str().unwrap_or_default().to_owned();
+                let id = request["id"].clone();
+                let reply = match script(&method, &request["params"]) {
+                    Answer::Result(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
+                    Answer::Error(message) => {
+                        json!({"jsonrpc": "2.0", "id": id, "error": {"code": 1, "message": message}})
+                    }
+                    Answer::Silence => {
+                        methods.push(method);
+                        continue;
+                    }
+                };
+                methods.push(method);
+                writeln!(writer, "{reply}").expect("reply");
+            }
+            methods
+        });
+        (path, thread)
+    }
 }
