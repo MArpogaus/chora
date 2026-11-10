@@ -42,30 +42,30 @@
 set -uo pipefail
 
 EXPECTED='
-mc xp give missing
-mc xp cgive missing
-mc xp key missing
-mc xp drag missing
-mc tiling give missing
-mc tiling cgive missing
-mc tiling key missing
-mc tiling drag missing
-xp mc give missing
-xp mc cgive missing
-xp mc key missing
-xp mc drag missing
-xp tiling give missing
-xp tiling cgive missing
-xp tiling key missing
-xp tiling drag missing
-tiling mc give missing
-tiling mc cgive missing
-tiling mc key missing
-tiling mc drag missing
-tiling xp give missing
-tiling xp cgive missing
-tiling xp key missing
-tiling xp drag missing
+mc xp give pass
+mc xp cgive pass
+mc xp key pass
+mc xp drag gap
+mc tiling give pass
+mc tiling cgive pass
+mc tiling key pass
+mc tiling drag gap
+xp mc give pass
+xp mc cgive pass
+xp mc key pass
+xp mc drag pass
+xp tiling give pass
+xp tiling cgive pass
+xp tiling key pass
+xp tiling drag pass
+tiling mc give pass
+tiling mc cgive pass
+tiling mc key pass
+tiling mc drag pass
+tiling xp give pass
+tiling xp cgive pass
+tiling xp key pass
+tiling xp drag pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
