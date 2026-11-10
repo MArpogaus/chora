@@ -203,6 +203,7 @@ impl State {
             method: call.method,
             params: call.params,
             confined,
+            connection: conn,
         };
         self.ipc.send_to(callee, &event);
         Ok(())
@@ -373,6 +374,20 @@ mod tests {
         let event = wm.events_now(&mut core);
         assert_eq!(event[0]["params"]["caller"], "voice-mcp");
         assert_eq!(event[0]["params"]["confined"], true);
+    }
+
+    /// Review A1, high 1: `method.called` names the connection of the
+    /// caller, so a plugin tells two connections of one name apart.
+    #[test]
+    fn method_called_names_the_connection_of_the_caller() {
+        let (mut core, mut wm, mut first) = exported();
+        let mut second = core.named("agent");
+        call(&mut first, "set_layout");
+        call(&mut second, "set_layout");
+        let events = wm.events_now(&mut core);
+        let connection = |i: usize| events[i]["params"]["connection"].as_u64();
+        assert!(connection(0).is_some() && connection(1).is_some());
+        assert_ne!(connection(0), connection(1));
     }
 
     /// The sequence numbers count every event of a connection, also the

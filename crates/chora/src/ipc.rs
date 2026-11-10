@@ -140,6 +140,8 @@ struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
     pid: Option<Pid>,
+    /// The program of that process, from `/proc/PID/exe`.
+    exe: Option<PathBuf>,
     input: Vec<u8>,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
@@ -453,6 +455,19 @@ impl Ipc {
         self.clients.contains_key(name)
     }
 
+    /// Whether a live connection of `name` comes from the process of
+    /// `conn`, or from the same program, such as a second `choractl`
+    /// (review A1): a live name of the main socket belongs to its program.
+    fn same_program(&self, conn: u64, name: &str) -> bool {
+        let Some(me) = self.conns.get(&conn) else {
+            return false;
+        };
+        let same = |c: &Conn| {
+            (me.pid.is_some() && c.pid == me.pid) || (me.exe.is_some() && c.exe == me.exe)
+        };
+        (self.conns.values()).any(|c| c.name.as_deref() == Some(name) && same(c))
+    }
+
     /// Whether a connection came through the admin socket.
     fn admin(&self, conn: u64) -> bool {
         self.conns
@@ -736,9 +751,12 @@ impl State {
                 move |_, _, state| Ok(state.ipc_readable(id)),
             )
             .map_err(failed)?;
+        let exe =
+            pid.and_then(|p| std::fs::read_link(format!("/proc/{}/exe", p.as_raw_nonzero())).ok());
         let conn = Conn {
             stream,
             pid,
+            exe,
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
@@ -1061,6 +1079,15 @@ impl State {
             .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
             .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
         let confined = hello.confined || self.ipc.fixed(conn).is_some();
+        if peer.is_some()
+            && self.ipc.fixed(conn).is_none()
+            && !self.ipc.same_program(conn, &hello.name)
+        {
+            return Err(name_taken(format!(
+                "{:?} is connected from another program",
+                hello.name
+            )));
+        }
         if let Some(peer_confined) = peer_conn
             .map(|id| self.ipc.confined(id))
             .filter(|p| *p != confined)
@@ -2323,6 +2350,31 @@ mod tests {
         let (error_code, _) =
             second.fails(&mut core, "hello", json!({"name": "wm", "resume": true}));
         assert_eq!(error_code, RpcError::NAME_TAKEN);
+    }
+
+    /// Review A1, high 1: while a name is connected, another program may
+    /// not say `hello` under it, so a script cannot answer as `mc`; the
+    /// same process may, and so may the same program, such as a second
+    /// `choractl`.
+    #[test]
+    fn a_live_name_belongs_to_its_program() {
+        let mut core = Core::new();
+        let _mc = core.named("mc");
+        let mut script = core.connect();
+        let last = |core: &mut Core| *core.state.ipc.conns.keys().max().unwrap();
+        let id = last(&mut core);
+        let conn = core.state.ipc.conns.get_mut(&id).unwrap();
+        conn.pid = Pid::from_raw(1_000_000);
+        conn.exe = Some("/usr/bin/python3".into());
+        let (error_code, message) = script.fails(&mut core, "hello", json!({"name": "mc"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("another program"), "{message}");
+        let mut same = core.connect();
+        same.ok(&mut core, "hello", json!({"name": "mc"}));
+        let mut twin = core.connect();
+        let id = last(&mut core);
+        core.state.ipc.conns.get_mut(&id).unwrap().pid = Pid::from_raw(1_000_001);
+        twin.ok(&mut core, "hello", json!({"name": "mc"}));
     }
 
     #[test]

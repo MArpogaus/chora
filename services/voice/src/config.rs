@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use chora_kit::settings::Settings;
-use chora_scene::Binding;
+use chora_scene::{Binding, ipc::valid_name};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -283,6 +283,10 @@ pub struct Config {
     /// `{corner, offset}`. A plugin that shows the state hides it with
     /// `indicator.claim`.
     pub indicator: Indicator,
+    /// The client names of the main socket that may claim the indicator
+    /// and answer a question with `confirm.answer`: the HUDs. A name with
+    /// the grant `indicator.claim` of the core may too, for the session.
+    pub indicator_clients: Vec<String>,
     /// Empty: the built-in prompt.
     pub system_prompt: String,
     /// Empty: the built-in documents.
@@ -667,7 +671,7 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, where
 /// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 27] = [
+    const KEYS: [&str; 28] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -689,6 +693,7 @@ pub fn security_key(key: &str) -> bool {
         "prompt_file",
         "context_docs",
         "indicator",
+        "indicator_clients",
         "earcons",
         "confirm_timeout_ms",
         "ptt_key",
@@ -929,6 +934,7 @@ impl Default for Config {
             earcons: true,
             earcon_volume: 0.3,
             indicator: Indicator::On(true),
+            indicator_clients: words(&["assistant", "construct", "mc"]),
             system_prompt: String::new(),
             context_docs: Vec::new(),
             prompt_file: "~/.config/chora/voice-prompt.md".into(),
@@ -1104,6 +1110,9 @@ impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         self.check_values()?;
         self.check_harnesses()?;
+        if let Some(name) = (self.indicator_clients.iter()).find(|n| !valid_name(n)) {
+            return Err(format!("indicator_clients: {name:?} is no client name"));
+        }
         self.check_words()
     }
 }
@@ -1189,6 +1198,96 @@ mod tests {
             assert!(err.contains("confirm_keys"), "{yaml}: {err}");
         }
         assert!(security_key("confirm_keys"));
+    }
+
+    /// Review A1: the HUDs that may claim the indicator and answer are a
+    /// security setting.
+    #[test]
+    fn indicator_clients_are_the_three_huds_and_a_security_key() {
+        let config = Config::default();
+        assert_eq!(config.indicator_clients, ["assistant", "construct", "mc"]);
+        let config = parse::<Config>("indicator_clients: [mc]").unwrap();
+        assert_eq!(config.indicator_clients, ["mc"]);
+        assert!(parse::<Config>("indicator_clients: ['m c']").is_err());
+        assert!(security_key("indicator_clients"));
+    }
+
+    /// Review A1: the sandbox of the agents hides the main socket of
+    /// chora; `env` as a sandbox hides nothing and shows that the probe
+    /// sees a socket. Without `agent-sandbox.sh` on `PATH` only the probe
+    /// runs, with a line on stderr, and with `CI` set the test fails.
+    /// `unsandboxed: true` skips the sandbox and this check.
+    #[test]
+    #[allow(clippy::print_stderr, reason = "the skip must show in the test log")]
+    fn the_sandbox_hides_the_main_socket() {
+        let probe = Probe::bind();
+        let mut sockets = vec![probe.0.clone()];
+        if let Some(main) = std::env::var_os(chora_scene::ipc::SOCKET_ENV) {
+            sockets.push(chora_scene::ipc::admin_socket(std::path::Path::new(&main)));
+            sockets.push(main.into());
+        }
+        let no_sandbox = Config {
+            sandbox_cmd: words(&["env"]),
+            ..Config::default()
+        };
+        assert_eq!(sandbox_reaches(&no_sandbox, &probe.0), "reached");
+        let default = Config::default();
+        let sandbox = &default.sandbox_cmd[0];
+        if !on_path(sandbox) {
+            eprintln!("skip: {sandbox} not on PATH");
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "{sandbox} not on PATH in CI"
+            );
+            return;
+        }
+        for socket in &sockets {
+            assert_eq!(sandbox_reaches(&default, socket), "hidden", "{socket:?}");
+        }
+    }
+
+    /// A socket for the probe in `XDG_RUNTIME_DIR`, where the main socket
+    /// of chora lives; it goes also when the test panics.
+    struct Probe(std::path::PathBuf);
+
+    impl Probe {
+        fn bind() -> Self {
+            let dir =
+                std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+            let path = dir.join(format!("chora-sandbox-probe-{}.sock", std::process::id()));
+            let _ = std::fs::remove_file(&path);
+            std::os::unix::net::UnixListener::bind(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for Probe {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    /// Runs a probe in the sandbox of `config`, in an empty directory:
+    /// `reached` when `socket` is there, `hidden` when not.
+    fn sandbox_reaches(config: &Config, socket: &std::path::Path) -> String {
+        let probe = "if test -e \"$1\"; then echo reached; else echo hidden; fi";
+        let socket = socket.to_string_lossy().into_owned();
+        let argv = config.spawn(&words(&["sh", "-c", probe, "sh", &socket]));
+        let empty = std::env::temp_dir().join(format!("chora-sandbox-cwd-{}", std::process::id()));
+        std::fs::create_dir_all(&empty).unwrap();
+        let out = std::process::Command::new(&argv[0])
+            .args(&argv[1..])
+            .current_dir(&empty)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        std::fs::remove_dir(&empty).unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    }
+
+    fn on_path(program: &str) -> bool {
+        std::env::var_os("PATH")
+            .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join(program).is_file()))
     }
 
     #[test]

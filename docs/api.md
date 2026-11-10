@@ -471,7 +471,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
-| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, and `confined: true` when the connection of the caller is confined (the field is absent otherwise); only the exporting connection gets it, subscribed or not |
+| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, `confined: true` when the connection of the caller is confined (the field is absent otherwise), and `connection`, the number of the connection of the caller, unique while the core runs; only the exporting connection gets it, subscribed or not |
 | `NAME.something` | a client emitted it with `events.emit`, for example `voice.state`: `client`, the name of the emitter, and its `data`; only to the connections that name the event or a pattern of it (D65) |
 
 Every event carries `seq`, the count of its connection (D32). Every event
@@ -664,6 +664,14 @@ A `hello` with `resume` also fails while another connection of the name
 is live. So a second instance of a plugin cannot take the nodes of the
 first. The error says that the name is connected.
 
+On the main and the admin socket, a live name belongs to its program: a
+`hello` with a name that has a live connection fails with code 7 unless
+it comes from the same process or from the same executable, such as a
+second `choractl` (review A1). So a script cannot connect as `mc` while
+mc runs and use what the name has, such as a claim of the indicator of
+the voice agent or a grant. A name without a live connection is free to
+any process. Connections of a client socket share their fixed name.
+
 `resume` lets a plugin restart without a loss, for example after a crash
 or a change of its configuration. When the last connection of a name
 with `resume` closes, the core keeps the nodes of the name for a grace
@@ -777,7 +785,7 @@ message.
 | 4 | a capability the method needs | `screen.capture` without a grant |
 | 5 | an unknown node | `update` of a node id that never existed |
 | 6 | a limit of the core is reached | a request longer than 1 MiB |
-| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` with `resume` on a name that is connected |
+| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` on the main or admin socket with a name that another program has connected (a different process and a different executable); a `hello` with `resume` on a name that is connected |
 | 8 | a method of the admin socket | `grants.set` on the main socket |
 | 9 | a rule of client sockets | a `hello` with another name on `clients/agent/ipc.sock` |
 

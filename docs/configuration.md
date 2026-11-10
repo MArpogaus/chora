@@ -926,6 +926,21 @@ The construct claims the indicator of the agent (`indicator.claim`) at
 the start and on each connection of the agent, and hides the HUD while
 the agent is away.
 
+Only the clients that the voice agent names may claim its indicator and
+answer its questions with `confirm.answer`: the names of its security
+setting `indicator_clients`, by default `assistant`, `construct` and
+`mc` ([voice](voice.md), section 5). A button answers every question,
+also one about a security key, so a name in the list is trusted as the
+keyboard. Any other client is refused, and a claim answers only on the
+connection that made it. To let another HUD answer, add its name to
+`indicator_clients` with `choractl call voice settings.set` and press
+the yes key of `confirm_keys` when the agent asks, or edit
+`~/.config/chora/chora-voice.yaml` and restart the agent. The core
+keeps a live name for its program, so no script connects as
+`construct` while the construct runs; a name of the list whose HUD is
+not running is free to any process of the user. A HUD on a client
+socket is confined and never answers.
+
 Under the pane ahead, or under the pane where the pointer last pressed or
 let go, a pill names the pane. The core tells the pointer only from a
 press to its release, so the label does not follow a hover. That pane,
