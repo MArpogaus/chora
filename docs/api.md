@@ -840,6 +840,12 @@ so its client name, `agent` by default, needs `methods.call` for
 `call_method` and the plugin tools, `methods.privileged` for
 privileged methods and `activation.token` for `run_program`.
 
+The core checks no method for `indicator.claim`. The voice agent reads
+`grants.list` and lets a client of the main socket that is not in its
+setting `indicator_clients` claim its indicator and answer its
+questions while the name holds this grant ([voice](voice.md), section 5):
+`choractl grant hud indicator.claim`.
+
 ## Client sockets
 
 A client socket fixes the name of its clients (D33). `clients.create`

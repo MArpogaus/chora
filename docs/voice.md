@@ -338,8 +338,9 @@ last `voice.confirm` goes again after 1 s.
 While a claimer of the indicator (section 10) is connected, the event
 also has `buttons: true`. A HUD can then show Yes and No buttons. A
 click calls `voice.confirm.answer {id, yes}` with the `id` of the
-event. Only an unconfined client that holds `indicator.claim` may call
-it, and only for the question that is open now. An old or wrong `id` is
+event. Only an unconfined client that may claim the indicator (see
+"Who may answer" below) and claimed it may call it, and only for the
+question that is open now. An old or wrong `id` is
 refused. A click is a physical act, as a key press is. So a button
 also answers a question about a security key. The LLM never reaches
 the method: it calls no method of NAME (see "Own settings").
@@ -364,7 +365,7 @@ yes or Alt+n for no."). The security keys are `allow_programs`,
 `yes_words`, `always_words`, `no_words`, `phrases`, `record_dir`,
 `sandbox_cmd`, `unsandboxed`, `agent_cmd`, `coder_cmd`, `chora_mcp`,
 `capture_cmd`, `playback_cmd`, `skipped_tools`, `system_prompt`,
-`prompt_file`, `context_docs`, `indicator`, `earcons`,
+`prompt_file`, `context_docs`, `indicator`, `indicator_clients`, `earcons`,
 `confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
 `*_url`, `*_headers` and each key with `api_key`. The agent never cuts
 a security value. The question says only the key and that the full
@@ -392,7 +393,25 @@ the user agrees:
   `confirm.answer` counts as a physical answer (review rc3 round 3,
   2.6). The agent refuses `indicator.claim`, `confirm.answer`,
   `confirm`, `talk` and `mute` from a confined caller, as the
-  `confined` field of `method.called` names it. That closes the direct
+  `confined` field of `method.called` names it.
+- Who may answer (review A1): the agent takes `indicator.claim` and
+  `confirm.answer` only from an unconfined caller whose client name is
+  in the security setting `indicator_clients` (default `[assistant,
+  construct, mc]`), or that holds the core grant `indicator.claim`.
+  Any other client of the main socket, such as a program of
+  `run_program`, is refused. The setting is permanent: change it in the
+  settings file or with `settings.set`; the LLM needs a key press for
+  it, as for every security key. The grant is for the session:
+  `choractl grant NAME indicator.claim` through the admin socket, until
+  `choractl revoke NAME indicator.claim`, the revoke binding or the end
+  of the session. The agent reads both on each call, so a change decides
+  the next claim and the next answer; a claim does not outlive a
+  removed name. The rule stops a client that does not set out to get
+  through, not one that does: any client of the main socket may name
+  itself `mc` in `hello`, or edit the settings file of the agent. So
+  `sandbox_cmd` must keep the main socket out of the sandbox of the
+  agents (section 18), and a test of the voice crate checks that
+  `agent-sandbox.sh`, when it is on `PATH`, hides it. That closes the direct
   routes only. A confined client with `methods.privileged` can still
   start a program by a method such as `mc.app.open`, by `voice.agent`
   with `agent_start`, or by `settings.set` of a setting that holds a
@@ -574,6 +593,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `confirm_keys` | `{yes: Alt+y, no: Alt+n}` (the only answer to a question about a security key, section 5; two keys, other than `ptt_key`) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`); `false` turns it off; `{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}` places it, `true` is `{corner: bottom-right, offset: [12, 12]}` |
+| `indicator_clients` | `[assistant, construct, mc]` (the client names that may claim the indicator and answer with `confirm.answer`, section 5; a security key) |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
@@ -652,11 +672,11 @@ both a key variable and a key file for one server.
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
-| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller and for a caller that is neither in `indicator_clients` nor holds the grant `indicator.claim` (section 5) |
 | `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
-| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller without `indicator.claim` and for any other `id` (section 5) |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller that may not claim the indicator or did not claim it, and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 | `agent.read` (privileged) | `name`, `after: int` (default 0) | `{entries: [{seq, role, text}], seq, epoch}`: the entries of the transcript of the agent after `after`, at most 64 KiB of text, oldest first; `seq` is the last one returned, or the current one when none is; `epoch` is the number of this start of the agent, so a reader that sees a new epoch starts its transcript again, and a `seq` below the one it holds in the same epoch is a late answer to ignore; refused for a confined caller (section 18) |
@@ -1219,7 +1239,13 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `unsandboxed: true`, `coder_cmd` and `agent_cmd` always run in
   `sandbox_cmd` (default `agent-sandbox.sh`: podman per start, project
   directory mounted, own home, read-only root, all capabilities
-  dropped, network `ai-net`, ACP on stdio without a tty). The projects:
+  dropped, network `ai-net`, ACP on stdio without a tty). The sandbox
+  must not mount the main socket of chora (`CHORA_SOCKET`) or its
+  directory: a client of the main socket can do all that the user can,
+  also name itself as a HUD (section 5). The test
+  `the_sandbox_hides_the_main_socket` of the voice crate runs a probe in
+  `agent-sandbox.sh` when it is on `PATH` and fails when the probe sees
+  a socket in `XDG_RUNTIME_DIR` or `CHORA_SOCKET`. The projects:
   `agent_projects` and the directories of the inventory; a name matches
   in any case.
 - Protocol: `initialize` (protocol version 1, no file system, no

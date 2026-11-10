@@ -161,7 +161,7 @@ showroom:
   grants: []
 ```
 
-The grants are the seven capabilities of `choractl grant` (see
+The grants are the eight capabilities of `choractl grant` (see
 [API](api.md#client-sockets)). An agent that
 drives the window manager needs `methods.call`, and one that starts apps
 needs `activation.token`. Both let it take the keyboard focus. A name
@@ -925,6 +925,16 @@ cannot tell an injected click (`input.inject`) from a real one.
 The construct claims the indicator of the agent (`indicator.claim`) at
 the start and on each connection of the agent, and hides the HUD while
 the agent is away.
+
+Only the clients that the voice agent names may claim its indicator and
+answer its questions with `confirm.answer`: the names of its security
+setting `indicator_clients`, by default `assistant`, `construct` and
+`mc` ([voice](voice.md), section 5), and a name with the grant
+`indicator.claim`. Any other client of the main socket is refused. To
+let another HUD answer, add its name to `indicator_clients` in
+`~/.config/chora/chora-voice.yaml` for good, or run `choractl grant NAME
+indicator.claim` for the session. A HUD on a client socket is confined
+and never answers.
 
 Under the pane ahead, or under the pane where the pointer last pressed or
 let go, a pill names the pane. The core tells the pointer only from a
