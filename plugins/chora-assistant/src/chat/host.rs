@@ -69,6 +69,40 @@ pub fn exported() -> Vec<chora_scene::ipc::ExportMethod> {
     ]
 }
 
+/// Refuses a caller on a confined connection: the host acts in its own
+/// unconfined name, so only an unconfined caller may ask it to.
+///
+/// # Errors
+///
+/// The caller is confined.
+#[allow(
+    unused_variables,
+    clippy::unused_self,
+    clippy::missing_const_for_fn,
+    clippy::unnecessary_wraps,
+    clippy::needless_pass_by_value,
+    reason = "a stub for the red commit"
+)]
+pub fn guard(method: &str, confined: bool) -> Result<(), chora_scene::ipc::RpcError> {
+    Ok(())
+}
+
+/// What `assistant.chat` said last: open, with whom, and where.
+pub type Announced = (bool, Option<String>, String);
+
+/// The data of `assistant.chat` when it differs from the last one.
+#[allow(
+    unused_variables,
+    clippy::unused_self,
+    clippy::missing_const_for_fn,
+    clippy::unnecessary_wraps,
+    clippy::needless_pass_by_value,
+    reason = "a stub for the red commit"
+)]
+pub fn announcement(last: &mut Option<Announced>, now: Announced) -> Option<Value> {
+    None
+}
+
 /// The connection of the host as the session sees voice and the core.
 struct Bridge<'a> {
     conn: &'a mut Conn,
@@ -355,5 +389,28 @@ impl Agent {
         }
         self.row = Some(output.name);
         Ok(commands)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_confined_caller_cannot_show_or_hide_the_chat() {
+        assert!(guard("chat.show", true).is_err());
+        assert!(guard("chat.hide", true).is_err());
+        assert!(guard("chat.show", false).is_ok());
+    }
+
+    #[test]
+    fn mc_hears_of_a_chat_that_moves_to_another_output() {
+        let mut last = None;
+        let first = (true, Some("atlas".to_owned()), "DP-1".to_owned());
+        assert!(announcement(&mut last, first.clone()).is_some());
+        assert!(announcement(&mut last, first).is_none());
+        let moved = (true, Some("atlas".to_owned()), "DP-2".to_owned());
+        let said = announcement(&mut last, moved).unwrap();
+        assert_eq!(said["output"], "DP-2");
     }
 }

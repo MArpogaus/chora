@@ -528,4 +528,14 @@ mod tests {
         let quiet = text.replace(", action: mute", "");
         assert!(!self::values(&quiet).mutes);
     }
+
+    #[test]
+    fn a_folder_without_a_chat_panel_puts_the_row_at_its_figure() {
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, anchor: bottom_left, margin: [8, 8], \
+                    picture: 'dot.svg#{state}'}\n";
+        let values = Values::from_hud(&hud::parse(text).unwrap(), &Context::default(), |_| {
+            Some([24, 24])
+        });
+        assert_eq!(values.rows.0, Anchor::BottomLeft);
+    }
 }

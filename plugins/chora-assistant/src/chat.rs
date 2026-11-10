@@ -80,6 +80,10 @@ pub trait Link {
     fn voice_event(&mut self, event: &str, data: &Value, helper: &str);
     /// What the field told since the last call.
     fn events(&mut self) -> Vec<FieldEvent>;
+    /// Whether the program still runs.
+    fn alive(&mut self) -> bool;
+    /// Takes the surface away and keeps the draft.
+    fn hide(&mut self);
 }
 
 /// An entry of the list that opens without a name.
@@ -600,6 +604,20 @@ impl Session {
         self.transcript.lines(language, &label, measure)
     }
 
+    /// Asks voice again after it did not answer: the chat opens again and
+    /// the transcript is pulled. True when the view changed.
+    #[allow(
+        unused_variables,
+        clippy::unused_self,
+        clippy::missing_const_for_fn,
+        clippy::unnecessary_wraps,
+        clippy::needless_pass_by_value,
+        reason = "a stub for the red commit"
+    )]
+    pub fn retry(&mut self, out: &mut dyn Outside) -> bool {
+        false
+    }
+
     /// Pulls the transcript from voice, until it is up to date. True when
     /// it grew or when voice stopped answering.
     pub fn pull(&mut self, out: &mut dyn Outside) -> bool {
@@ -650,6 +668,10 @@ mod tests {
         events: Vec<FieldEvent>,
         tokens: u32,
         read: Vec<Value>,
+        down: bool,
+        open_error: Option<String>,
+        dead: bool,
+        hides: u32,
     }
 
     struct Fake(Rc<RefCell<Log>>);
@@ -659,6 +681,14 @@ mod tests {
         fn voice(&mut self, method: &str, params: Value) -> Result<Value, String> {
             let mut log = self.0.borrow_mut();
             log.calls.push((method.to_owned(), params.clone()));
+            if log.down {
+                return Err("voice does not answer".into());
+            }
+            if method == "chat.open"
+                && let Some(error) = log.open_error.clone()
+            {
+                return Err(error);
+            }
             Ok(match method {
                 "agent" if params["tool"] == "agent_list" => {
                     json!("projects: demo, notes; agents: atlas (demo, idle)")
@@ -698,6 +728,14 @@ mod tests {
 
         fn events(&mut self) -> Vec<FieldEvent> {
             std::mem::take(&mut self.0.borrow_mut().events)
+        }
+
+        fn alive(&mut self) -> bool {
+            !self.0.borrow().dead
+        }
+
+        fn hide(&mut self) {
+            self.0.borrow_mut().hides += 1;
         }
     }
 
@@ -891,5 +929,136 @@ mod tests {
             [Pick::Agent("atlas".into()), Pick::Project("notes".into())]
         );
         assert_eq!(parse_list("projects: none; agents: none"), []);
+    }
+
+    fn answer(epoch: u64, entries: &[(u64, &str, &str)]) -> Value {
+        let list: Vec<Value> = entries
+            .iter()
+            .map(|(seq, role, text)| json!({"seq": seq, "role": role, "text": text}))
+            .collect();
+        json!({"entries": list, "seq": entries.last().map_or(0, |e| e.0), "epoch": epoch})
+    }
+
+    #[test]
+    fn a_new_epoch_pulls_again_from_zero() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        log.borrow_mut()
+            .read
+            .push(answer(1, &[(1, "agent", "Hello")]));
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        log.borrow_mut()
+            .read
+            .push(answer(2, &[(1, "agent", "Again")]));
+        let state = json!({"name": "atlas", "state": "working", "seq": 1, "epoch": 2});
+        session.voice_event(&mut out, "voice.state", &state);
+        let reads = calls(&log, "agent.read");
+        assert_eq!(reads.last().unwrap()["after"], 0);
+        let texts: Vec<String> = session
+            .lines(Language::En, &measure())
+            .into_iter()
+            .map(|l| l.text)
+            .collect();
+        assert_eq!(texts, ["Again"]);
+    }
+
+    #[test]
+    fn a_text_that_matches_no_entry_is_given_back() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut().events.push(FieldEvent::Say("zzz".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().failed, ["zzz"]);
+    }
+
+    #[test]
+    fn hide_keeps_the_field_and_its_draft() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), Some("t"), &frame)
+            .unwrap();
+        session.hide(&mut out);
+        assert_eq!(log.borrow().hides, 1);
+        session
+            .show(&mut out, Some("atlas"), Some("t"), &frame)
+            .unwrap();
+        assert_eq!(log.borrow().started, 1);
+    }
+
+    #[test]
+    fn a_bare_show_of_another_helper_leaves_the_chat_alone() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), Some("t"), &frame)
+            .unwrap();
+        session.show(&mut out, Some("coder"), None, &frame).unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("atlas".into()));
+        assert_eq!(calls(&log, "chat.close"), Vec::<Value>::new());
+        session
+            .show(&mut out, Some("coder"), Some("t2"), &frame)
+            .unwrap();
+        assert_eq!(session.mode(), &Mode::Chat("coder".into()));
+    }
+
+    #[test]
+    fn a_helper_that_is_unknown_gets_its_own_line() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        log.borrow_mut().open_error = Some("chat.open: no agent atlas".into());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(session.header(Language::En), "atlas · blocked");
+    }
+
+    #[test]
+    fn an_offline_chat_retries_and_opens_again() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        log.borrow_mut().down = true;
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(
+            session.header(Language::En),
+            "Cannot reach voice control. Trying again every 5 s."
+        );
+        log.borrow_mut().down = false;
+        assert!(session.retry(&mut out));
+        assert_eq!(calls(&log, "chat.open").len(), 2);
+        assert_eq!(session.header(Language::En), "atlas · ");
+    }
+
+    #[test]
+    fn a_field_that_crashed_is_started_again() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        log.borrow_mut().dead = true;
+        session.field_events(&mut out, &frame);
+        assert_eq!(log.borrow().started, 2);
+    }
+
+    #[test]
+    fn the_hint_names_only_the_question_of_its_helper() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_asked();
+        assert_eq!(session.hint(Language::En), None);
+        let state = json!({"name": "atlas", "state": "question"});
+        session.voice_event(&mut out, "voice.state", &state);
+        assert!(session.hint(Language::En).is_some());
+    }
+
+    #[test]
+    fn a_helper_that_ends_leaves_no_state() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        let state = json!({"name": "atlas", "state": "working"});
+        session.voice_event(&mut out, "voice.state", &state);
+        session.voice_event(&mut out, "voice.remove", &json!({"name": "atlas"}));
+        assert!(session.states.is_empty());
+        assert_eq!(session.header(Language::En), "atlas · done");
     }
 }

@@ -601,6 +601,13 @@ mod tests {
     }
 
     #[test]
+    fn escape_sequences_are_dropped_whole() {
+        let hostile = "a\u{1b}[31mb\u{1b}]52;c;Zm9v\u{7}c\u{1b}]0;title\u{1b}\\d\u{9b}31me\u{1b}Pq data\u{1b}\\f\u{1b}Mg";
+        assert_eq!(sanitize(hostile), "abcdefg");
+        assert_eq!(sanitize("x\u{1b}]52;c;AAA"), "x");
+    }
+
+    #[test]
     fn invisible_characters_are_dropped_and_spaces_become_spaces() {
         for gone in [
             '\u{ad}',

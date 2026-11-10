@@ -182,6 +182,12 @@ impl Link for Field {
     fn events(&mut self) -> Vec<FieldEvent> {
         Self::events(self)
     }
+
+    fn alive(&mut self) -> bool {
+        true
+    }
+
+    fn hide(&mut self) {}
 }
 
 fn log(result: std::io::Result<()>) {

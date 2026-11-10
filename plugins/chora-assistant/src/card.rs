@@ -86,6 +86,8 @@ pub struct Shown {
     /// The detail does not fit: the card has no buttons and the question
     /// is refused.
     pub too_long: bool,
+    /// The widest the card may be: the width of the chat view that shows it.
+    pub max_width: Option<i32>,
 }
 
 /// The lines and the buttons of a card, with the size of the card.
@@ -515,6 +517,7 @@ mod tests {
             origin: [900, 500],
             notice: false,
             too_long: false,
+            max_width: None,
         }
     }
 
@@ -522,6 +525,17 @@ mod tests {
         json!({"id": "51", "prompt": "Atlas wants to write the file notes.txt.",
             "detail": "~/projects/notes/notes.txt (412 bytes)", "physical": true,
             "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true})
+    }
+
+    #[test]
+    fn a_card_in_the_chat_is_no_wider_than_the_view() {
+        let cache = cache("width");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        assert_eq!(size(&theme, &card, Language::En, [1280, 720])[0], 560);
+        card.max_width = Some(400);
+        assert!(size(&theme, &card, Language::En, [1280, 720])[0] <= 400);
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

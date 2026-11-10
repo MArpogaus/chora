@@ -165,6 +165,7 @@ impl Agent {
             origin: [0, 0],
             notice: false,
             too_long: false,
+            max_width: None,
         };
         let (theme, language) = (&self.card_theme, self.language);
         shown.too_long = !card::fits(theme, &shown, language, output.size);

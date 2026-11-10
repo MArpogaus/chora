@@ -50,6 +50,21 @@ pub fn pick_of(node: &str) -> Option<usize> {
     node.strip_prefix(PICK)?.parse().ok()
 }
 
+/// Whether a press on `node` that a program made counts for nothing: Stop
+/// and the entries of the list.
+#[must_use]
+#[allow(
+    unused_variables,
+    clippy::unused_self,
+    clippy::missing_const_for_fn,
+    clippy::unnecessary_wraps,
+    clippy::needless_pass_by_value,
+    reason = "a stub for the red commit"
+)]
+pub fn refuses_injected(node: &str) -> bool {
+    false
+}
+
 /// The top-left corner of a card inside the view, above the hint of the
 /// field and against its right edge.
 #[must_use]
@@ -347,4 +362,41 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
         ));
     }
     commands
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line(role: Role, text: &str) -> Line {
+        Line {
+            role,
+            label: None,
+            text: text.into(),
+        }
+    }
+
+    fn colours() -> Colours {
+        super::colours(&Look::default())
+    }
+
+    #[test]
+    fn a_message_of_an_agent_never_takes_the_style_of_a_question() {
+        let lines = [
+            line(Role::Agent, "Question from Atlas: allow?"),
+            line(Role::Question, "Write notes.txt?"),
+        ];
+        let rows = rows_of(&lines, colours());
+        assert_eq!(rows[0].font, Font::Body);
+        assert_eq!(rows[1].font, Font::BodyBold);
+        assert_eq!(rows[0].indent, 0);
+    }
+
+    #[test]
+    fn stop_and_the_entries_refuse_a_press_of_a_program() {
+        assert!(refuses_injected(STOP));
+        assert!(refuses_injected("hud-chat-pick-2"));
+        assert!(!refuses_injected(ROW));
+        assert!(!refuses_injected(CLOSE));
+    }
 }

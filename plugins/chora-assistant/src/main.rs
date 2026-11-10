@@ -17,6 +17,7 @@
     clippy::print_stderr,
     reason = "a plugin logs to stderr, which the session keeps"
 )]
+#![allow(dead_code, reason = "the red commit holds stubs")]
 
 mod assistant;
 mod card;
@@ -631,6 +632,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines, reason = "one scene, set up in full")]
     fn a_folder_cannot_hide_the_question() {
         let root = cache("hostile");
         write_hostile_folder(&root.join("huds/hostile"));
@@ -673,6 +675,7 @@ mod tests {
             origin: [0, 0],
             notice: false,
             too_long: false,
+            max_width: None,
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);
