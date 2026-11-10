@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 17:52 Bangkok: Fable 30 %, all 52 %. Today used about 37 points of the week (15 % at the end of 11-09); the week resets Saturday. Pace from now: about 14 points a day for the rest of the week; heavy work leans on Fable (its pool can be reset), no new lanes tonight, reviews stay compact.
 - 16:20 Bangkok: the 5-hour limit was hit (reset 16:20 Bangkok). Fable 16 %, all 41 %. Respect the 5-hour limit in planning.
 
 - Don't be too paranoid about the limit: no waste, but finish the work and spend the weekly limit fully.
