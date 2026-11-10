@@ -1,6 +1,8 @@
-//! The pure math of the space: the camera pose, the 4x4 matrix of a pane
-//! for the core (D66, as the loader prototype computes it), the leash, the
-//! place of a new pane, the fly-in pose and the ray of a click.
+//! The pure math of the space: the camera pose, the transforms of the
+//! camera group and of the panes in the 3D context of the core (D75), the
+//! projection of a pane for its label and its place, the leash, the place
+//! of a new pane, the fly-in pose and the ray of a press that the
+//! construct grabs.
 //!
 //! The world has x to the right, y up and z forward at yaw 0. One unit is
 //! one logical pixel. The eye and the centres of the panes sit at y = 0,
@@ -113,15 +115,79 @@ fn view(pose: &Pose) -> Mat {
 }
 
 /// The model of a pane of `size` with its centre at `at` and its own
-/// `yaw`: node point (u, v) to the world.
+/// `yaw`: node point (u, v, z) to the world, with z along the facing.
 #[must_use]
 fn model(at: [f64; 2], size: [f64; 2], yaw: f64) -> Mat {
     let r = right(yaw);
     let [w, h] = size;
     [
-        [r[0], 0.0, 0.0, at[0] - r[0] * w / 2.0],
+        [r[0], 0.0, yaw.sin(), at[0] - r[0] * w / 2.0],
         [0.0, -1.0, 0.0, h / 2.0],
-        [r[1], 0.0, 0.0, at[1] - r[1] * w / 2.0],
+        [r[1], 0.0, yaw.cos(), at[1] - r[1] * w / 2.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+/// A matrix, row by row, in the column-major order of the core.
+fn column_major(m: &Mat) -> [f64; 16] {
+    let mut out = [0.0; 16];
+    for (c, column) in out.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+        for (r, cell) in column.iter_mut().enumerate() {
+            *cell = m[r][c];
+        }
+    }
+    out
+}
+
+/// The transform of the camera group in the 3D context of the output,
+/// whose eye sits `lens.focal` in front of its centre: the world as the
+/// camera at `pose` sees it, with y down and z = 0 at the focal distance.
+#[must_use]
+pub fn camera(lens: &Lens, pose: &Pose) -> [f64; 16] {
+    let context = [
+        [1.0, 0.0, 0.0, lens.w / 2.0],
+        [0.0, -1.0, 0.0, lens.h / 2.0],
+        [0.0, 0.0, 1.0, -lens.focal],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    column_major(&mul(&context, &view(pose)))
+}
+
+/// The transform of a pane node in the camera group.
+#[must_use]
+pub fn pane_model(at: [f64; 2], size: [f64; 2], yaw: f64) -> [f64; 16] {
+    column_major(&model(at, size, yaw))
+}
+
+/// The transform of the mirror image of a pane in the ground, for a node
+/// of the pane's size divided by `k`: the node's top row is the pane's
+/// top row, deepest below the ground.
+#[must_use]
+pub fn mirror_model(lens: &Lens, at: [f64; 2], size: [f64; 2], yaw: f64, k: f64) -> [f64; 16] {
+    let flip = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, -1.0, 0.0, -2.0 * lens.ground],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    column_major(&mul(&flip, &mul(&model(at, size, yaw), &scale(k, 0.0))))
+}
+
+/// The transform of the glow node behind a pane: a node of the pane's
+/// size plus `reach` on each side, divided by `k`, so that its point
+/// (0, 0) lies at (-reach, -reach) of the pane.
+#[must_use]
+pub fn glow_model(at: [f64; 2], size: [f64; 2], yaw: f64, reach: f64, k: f64) -> [f64; 16] {
+    column_major(&mul(&model(at, size, yaw), &scale(k, -reach)))
+}
+
+/// A scale by `k` in the plane of a node, then a shift by `by` on both
+/// axes.
+fn scale(k: f64, by: f64) -> Mat {
+    [
+        [k, 0.0, 0.0, by],
+        [0.0, k, 0.0, by],
+        [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, 1.0],
     ]
 }
@@ -133,59 +199,6 @@ pub fn pane_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: 
     to_screen(lens, pose, &model(at, size, yaw))
 }
 
-/// The matrix of the mirror image of a pane in the ground, for a node of
-/// the pane's size divided by `k`: the node's top row is the pane's top
-/// row, deepest below the ground.
-#[must_use]
-#[allow(clippy::too_many_arguments, reason = "the pane and its scale")]
-pub fn mirror_matrix(
-    lens: &Lens,
-    pose: &Pose,
-    at: [f64; 2],
-    size: [f64; 2],
-    yaw: f64,
-    k: f64,
-) -> [f64; 16] {
-    let flip = [
-        [1.0, 0.0, 0.0, 0.0],
-        [0.0, -1.0, 0.0, -2.0 * lens.ground],
-        [0.0, 0.0, 1.0, 0.0],
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    let scale = [
-        [k, 0.0, 0.0, 0.0],
-        [0.0, k, 0.0, 0.0],
-        [0.0, 0.0, 1.0, 0.0],
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    let pane = model(at, size, yaw);
-    to_screen(lens, pose, &mul(&flip, &mul(&pane, &scale)))
-}
-
-/// The matrix of the glow node behind a pane: a node of the pane's size
-/// plus `reach` on each side, divided by `k`, so that its point (0, 0)
-/// lies at (-reach, -reach) of the pane.
-#[must_use]
-#[allow(clippy::too_many_arguments, reason = "the pane and its glow")]
-pub fn glow_matrix(
-    lens: &Lens,
-    pose: &Pose,
-    at: [f64; 2],
-    size: [f64; 2],
-    yaw: f64,
-    reach: f64,
-    k: f64,
-) -> [f64; 16] {
-    let scale = [
-        [k, 0.0, 0.0, -reach],
-        [0.0, k, 0.0, -reach],
-        [0.0, 0.0, 1.0, 0.0],
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    let pane = model(at, size, yaw);
-    to_screen(lens, pose, &mul(&pane, &scale))
-}
-
 /// The projection of a model to the output, column-major.
 fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
     let proj = [
@@ -194,14 +207,7 @@ fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
         [0.0, 0.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
     ];
-    let m = mul(&proj, &mul(&view(pose), model));
-    let mut out = [0.0; 16];
-    for (c, column) in out.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-        for (r, cell) in column.iter_mut().enumerate() {
-            *cell = m[r][c];
-        }
-    }
-    out
+    column_major(&mul(&proj, &mul(&view(pose), model)))
 }
 
 /// The point (u, v) of a node on the output, through the column-major
@@ -404,7 +410,8 @@ pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]
 
 /// Where the ray through the screen point `p` hits a pane of `size` at
 /// `at` with `yaw`, from either side: its distance along the ray, or
-/// `None`.
+/// `None`. Only a press that the construct grabs needs it: the core casts
+/// the ray of all other input.
 #[must_use]
 #[allow(clippy::too_many_arguments, reason = "the ray and the pane")]
 pub fn hit(
@@ -506,17 +513,73 @@ mod tests {
         assert!(close(project(&m, 800.0, 600.0), [1040.0, 700.0]));
     }
 
+    /// A point (u, v) of a node with the transform `model` in the camera
+    /// group, as the 3D context of the core projects it: w = 1 + z / d
+    /// around the centre of the output.
+    fn in_context(pose: &Pose, model: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
+        let c = camera(&LENS, pose);
+        let apply = |m: &[f64; 16], p: [f64; 3]| {
+            [0, 1, 2].map(|r| m[r] * p[0] + m[4 + r] * p[1] + m[8 + r] * p[2] + m[12 + r])
+        };
+        let [x, y, z] = apply(&c, apply(model, [u, v, 0.0]));
+        let w = 1.0 + z / LENS.focal;
+        [
+            LENS.w / 2.0 + (x - LENS.w / 2.0) / w,
+            LENS.h / 2.0 + (y - LENS.h / 2.0) / w,
+        ]
+    }
+
+    /// The core shows a pane in the camera group where the projection of
+    /// the construct puts it, from any pose.
+    #[test]
+    fn the_context_of_the_core_shows_a_pane_where_the_lens_projects_it() {
+        let (at, size, yaw) = ([-400.0, 1800.0], [640.0, 400.0], 0.6);
+        let pose = Pose {
+            x: 120.0,
+            z: -300.0,
+            yaw: 0.2,
+            pitch: 0.1,
+        };
+        let model = pane_model(at, size, yaw);
+        let m = pane_matrix(&LENS, &pose, at, size, yaw);
+        for (u, v) in [(0.0, 0.0), (640.0, 0.0), (100.0, 300.0), (640.0, 400.0)] {
+            assert!(
+                close(in_context(&pose, &model, u, v), project(&m, u, v)),
+                "{u} {v}"
+            );
+        }
+    }
+
+    /// From the fly-in pose the camera group maps the pane at z = 0, so the
+    /// core draws it at 1:1.
+    #[test]
+    fn a_pane_flown_into_lies_at_the_focal_plane() {
+        let (at, yaw) = ([300.0, 2000.0], -0.4);
+        let pose = fly_in(&LENS, at, yaw);
+        let model = pane_model(at, [1280.0, 800.0], yaw);
+        for (u, v) in [(0.0, 0.0), (1280.0, 800.0)] {
+            assert!(close(in_context(&pose, &model, u, v), [u, v]), "{u} {v}");
+        }
+    }
+
     /// The mirror image hangs under the ground: the pane's bottom row
     /// shows as deep below the ground as the pane floats above it, the
     /// top row deeper still.
     #[test]
     fn the_mirror_image_hangs_under_the_ground() {
         let at = [0.0, 2000.0];
-        let m = mirror_matrix(&LENS, &Pose::default(), at, [1280.0, 800.0], 0.0, 4.0);
+        let m = mirror_model(&LENS, at, [1280.0, 800.0], 0.0, 4.0);
         // The world point (0, y, 2000) shows at 400 - y * 832 / 2000.
         let screen = |y: f64| [640.0, 400.0 - y * 832.0 / 2000.0];
-        assert!(close(project(&m, 160.0, 200.0), screen(-1120.0 + 400.0)));
-        assert!(close(project(&m, 160.0, 0.0), screen(-1120.0 - 400.0)));
+        let pose = Pose::default();
+        assert!(close(
+            in_context(&pose, &m, 160.0, 200.0),
+            screen(-1120.0 + 400.0)
+        ));
+        assert!(close(
+            in_context(&pose, &m, 160.0, 0.0),
+            screen(-1120.0 - 400.0)
+        ));
     }
 
     /// The label of a pane straight ahead sits centred under it.

@@ -116,7 +116,7 @@ pressed_at() {
 }
 camera() {
     call construct.save '{"name": "k5-now"}' >/dev/null || fail "construct.save"
-    sed -n 's/^camera: *//p; /^camera:$/,/^[a-z]/p' "$work/chora/constructs/k5-now.yaml" | tr -d ' \n'
+    sed -n '/^camera:/,/^radius:/p' "$work/chora/constructs/k5-now.yaml" | tr -d ' \n'
 }
 pane_at() { call construct.list | python3 -I -c "import json, sys; print(next(p['at'] for p in json.load(sys.stdin)['panes'] if p['name'] == '$1'))"; }
 name_of() { call construct.list | python3 -I -c "import json, sys; print(next(p['name'] for p in json.load(sys.stdin)['panes'] if [round(x) for x in p['at']] == [$1]))"; }

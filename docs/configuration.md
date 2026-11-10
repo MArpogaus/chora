@@ -691,12 +691,25 @@ the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.
 
-The space has the keyboard, so its keys need no modifier. A drag looks
-around, and the wheel walks. A walk slows down in the outer quarter of
-the leash radius and stops at it. A click on a pane, or `Return` for the
-pane nearest the middle of the view, flies into the pane. At the end of
-the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
-and the pointer. `Alt+Escape` flies back to the pose before.
+The space is a 3D context of the core (D75): a group with the
+`perspective` of the focal length and a camera group whose transform is
+the pose. The core sorts, splits and clips the panes, and casts the ray
+of the pointer. A window of the construct stands in its pane: a click on
+the pane, also on a tilted one, reaches the window at the point under
+the pointer, gives it the keyboard and does not move the view; where
+panes overlap, the nearer one gets the click. Each pane draws through
+the effect `pane.frag`, which reads `depth` and `facing` for the haze
+and the edge of the focus, so a walk updates no pane.
+
+A press on the empty space gives the keyboard back to the walk, so its
+keys need no modifier. A drag there looks around, and the wheel walks.
+A walk slows down in the outer quarter of the leash radius and stops at
+it. `Return` flies into the pane nearest the middle of the view, and a
+click on a pane that shows the window of another client or a plugin
+flies into that pane. At the end of the fly-in, the window itself shows
+at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
+flies back to the pose before. `tests/gate-construct-3d.sh` checks the
+direct input.
 
 `t` starts the terminal, and its window becomes a pane in the view
 direction. `space` starts the launcher. The launcher itself is no pane:
@@ -733,7 +746,8 @@ is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
 after `choractl grant construct input.grab-any`; then the program in the
 pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
-The key of the setting `modifier` with a drag on a pane moves the pane.
+The key of the setting `modifier` with a drag on a pane moves the pane;
+the construct grabs this drag, so it never reaches a window.
 It moves sideways along its face, and away or nearer as the pointer goes
 up or down. The same key with the wheel over a pane resizes it. A window
 of the flavor gets the new size, so that it stays at 1:1. Other panes

@@ -91,7 +91,6 @@ impl Construct {
         let commands: Vec<Command> = gone.iter().flat_map(Pane::remove).collect();
         self.rt.conn.apply(commands)?;
         self.active = true;
-        self.order.clear();
         self.waiting.clear();
         self.build()?;
         self.radius = file.radius;
@@ -142,7 +141,7 @@ impl Construct {
         self.radius = None;
         self.panes.clear();
         self.waiting.clear();
-        self.order.clear();
+        self.sent = None;
         self.flown = None;
         self.glide = None;
         self.moving = None;
@@ -174,7 +173,7 @@ impl Construct {
             taken: false,
             attached: false,
         };
-        self.rt.conn.apply(self.pane_nodes(&pane).into())?;
+        self.rt.conn.apply(self.pane_nodes(&pane))?;
         self.panes.push(pane);
         Ok(None)
     }

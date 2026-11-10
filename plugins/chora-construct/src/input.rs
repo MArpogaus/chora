@@ -106,7 +106,7 @@ impl Construct {
                         None => self.press(at, true),
                     },
                     PressState::Released if inside.is_some() => Ok(()),
-                    PressState::Released => self.release(at),
+                    PressState::Released => self.release(at, None),
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
@@ -119,20 +119,29 @@ impl Construct {
                 self.answer(&node, injected);
                 return Ok(());
             }
+            Event::PointerPressed { node, .. } if self.own_window(&node) => {
+                return self.rt.conn.apply(vec![Command::Focus {
+                    surface: Some(node),
+                }]);
+            }
             Event::PointerPressed {
                 node,
                 position,
                 modifiers,
                 ..
-            } if node == LOOK => {
+            } if node == LOOK || self.texture_pane(&node).is_some() => {
                 let held = modifiers.contains(&self.settings.value.modifier);
                 return self.press(position, held);
             }
-            Event::PointerMoved { node, position, .. } if node == LOOK => {
+            Event::PointerMoved { node, position, .. }
+                if node == LOOK || self.texture_pane(&node).is_some() =>
+            {
                 return self.moved(position);
             }
-            Event::PointerReleased { node, position, .. } if node == LOOK => {
-                return self.release(position);
+            Event::PointerReleased { node, position, .. }
+                if node == LOOK || self.texture_pane(&node).is_some() =>
+            {
+                return self.release(position, self.texture_pane(&node));
             }
             Event::PointerScroll { node, dy, .. } if node == hud::ASK_GLASS => {
                 if let Some(command) = self.voice.scroll(dy) {
@@ -157,11 +166,23 @@ impl Construct {
         Ok(())
     }
 
-    /// A press on the space at a point of the output: with the modifier
-    /// on a pane, it starts to move the pane; else a drag looks around.
+    /// Whether a node is the window of a pane of the construct, which
+    /// takes the input itself.
+    pub(crate) fn own_window(&self, node: &str) -> bool {
+        (self.panes.iter()).any(|p| p.attached && p.window() == Some(node))
+    }
+
+    /// The pane whose shader node of its source is `node`.
+    pub(crate) fn texture_pane(&self, node: &str) -> Option<usize> {
+        (self.panes.iter()).position(|p| p.texture().as_deref() == Some(node))
+    }
+
+    /// A press on the space or on a pane that shows a node texture, at a
+    /// point of the output: with the modifier on a pane, it starts to move
+    /// the pane; else a drag looks around. The walk takes the keyboard.
     pub(crate) fn press(&mut self, at: [f64; 2], held: bool) -> Result<(), ClientError> {
         self.pointer = Some(at);
-        if self.overlay && self.flown.is_none() {
+        if self.flown.is_none() {
             self.rt.conn.apply(vec![Command::FocusNode {
                 node: Some(LOOK.into()),
             }])?;
@@ -227,14 +248,16 @@ impl Construct {
         self.look(at)
     }
 
-    /// The end of a press: a moved pane drops, a click flies in.
-    pub(crate) fn release(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+    /// The end of a press: a moved pane drops, a click on a pane that
+    /// shows a node texture flies into it. A click on the space moves
+    /// nothing.
+    pub(crate) fn release(&mut self, at: [f64; 2], pane: Option<usize>) -> Result<(), ClientError> {
         self.pointer = Some(at);
         if let Some(moving) = self.moving.take() {
             return self.drop_pane(&moving, at);
         }
         let click = self.drag.take().is_some_and(|d| !d.moved);
-        if let Some(i) = self.pane_at(at).filter(|_| click) {
+        if let Some(i) = pane.filter(|_| click) {
             self.fly_in(i);
             return Ok(());
         }

@@ -76,6 +76,15 @@ pub struct Palette {
 }
 
 impl Theme {
+    /// The strength of the mirror images in the glossy floor.
+    #[must_use]
+    pub fn gloss(self) -> f64 {
+        match self {
+            Self::Light => 0.4,
+            Self::Dark => 0.55,
+        }
+    }
+
     #[must_use]
     pub fn palette(self) -> Palette {
         match self {
