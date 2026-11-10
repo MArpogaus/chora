@@ -33,7 +33,8 @@ if ! command -v lychee >/dev/null 2>&1; then
     rm -rf "$tmp"
 fi
 
-for c in cargo-deny cargo-machete sccache; do
+command -v sccache >/dev/null 2>&1 || { log "cargo install sccache"; cargo install -q --locked sccache; }
+for c in cargo-deny cargo-machete; do
     cargo "${c#cargo-}" --version >/dev/null 2>&1 || { log "cargo install $c"; cargo install -q --locked "$c"; }
 done
 
