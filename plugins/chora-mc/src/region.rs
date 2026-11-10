@@ -307,15 +307,21 @@ pub fn date(format: &str) -> String {
         .unwrap_or_default()
 }
 
-/// The milliseconds to the next full minute, and a little more.
+/// The milliseconds to the next full minute, and a little more, never
+/// above the longest duration of the core.
 pub fn to_next_minute() -> f64 {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
+    next_minute_after(now)
+}
+
+/// `to_next_minute` at `now` milliseconds since the epoch.
+fn next_minute_after(now: u128) -> f64 {
     #[allow(clippy::cast_precision_loss)] // below 60000
     let ms = (60_000 - now % 60_000) as f64;
-    ms + 50.0
+    (ms + 50.0).min(chora_scene::MAX_DURATION)
 }
 
 /// One text node of a region.
@@ -1268,6 +1274,20 @@ mod tests {
 
     use super::*;
     use crate::config::{Config, DEFAULT};
+
+    /// The clock never asks for more than the core allows, also in the
+    /// first milliseconds of a minute.
+    #[test]
+    fn the_clock_duration_stays_in_range_at_a_minute_boundary() {
+        for now in [0, 1, 49, 50, 59_999, 60_000, 120_000, 120_049] {
+            let ms = next_minute_after(now);
+            assert!(
+                (0.0..=chora_scene::MAX_DURATION).contains(&ms),
+                "{now}: {ms}"
+            );
+        }
+        assert_eq!(next_minute_after(59_000), 1_050.0);
+    }
 
     fn names(placed: &BTreeMap<Region, Vec<(i32, &str)>>, region: Region) -> Vec<String> {
         placed[&region]
