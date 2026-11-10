@@ -53,8 +53,8 @@ pub struct Wobble {
     velocity: [[f64; 3]; COUNT],
     /// The z of the place of the window; 0 in 2D.
     lift: f64,
-    /// The direction of the view in scene coordinates; only x and y count.
-    view: [f64; 3],
+    /// The x and y of the direction of the view in scene coordinates.
+    view: [f64; 2],
     /// Whether the mesh goes out with a depth.
     three_d: bool,
     /// The point pulled to its place: the one nearest to the grab.
@@ -86,7 +86,7 @@ impl Wobble {
             at: [[0.0; 3]; COUNT],
             velocity: [[0.0; 3]; COUNT],
             lift: 0.0,
-            view: [0.0; 3],
+            view: [0.0; 2],
             three_d: false,
             grab: index(1) * SIDE + index(0),
             held: true,
@@ -101,12 +101,19 @@ impl Wobble {
     }
 
     /// A flat grid over a window in 3D, with its origin and the grab in
-    /// scene coordinates and the direction of the view (the way the eye
-    /// looks, for example `[0.0, 0.0, 1.0]`). The grid draws with a depth.
+    /// scene coordinates and the x and y of the direction of the view (the
+    /// way the eye looks, for example `[0.0, 0.0]` for straight ahead). The
+    /// grid draws with a depth. A non-finite value counts as 0.
     #[must_use]
-    pub fn new_3d(size: [f64; 2], origin: [f64; 3], grab: [f64; 3], view: [f64; 3]) -> Self {
+    pub fn new_3d(size: [f64; 2], origin: [f64; 3], grab: [f64; 3], view: [f64; 2]) -> Self {
+        let finite = |v: [f64; 3]| v.map(or_zero);
+        let (origin, grab) = (finite(origin), finite(grab));
         let mut wobble = Self::new(size, [origin[0], origin[1]], [grab[0], grab[1]]);
-        wobble.view = view;
+        wobble.view = if view.iter().all(|v| v.is_finite()) {
+            view
+        } else {
+            [0.0; 2]
+        };
         wobble.three_d = true;
         wobble.lift = wobble.lift_of(origin);
         for point in &mut wobble.at {
@@ -116,15 +123,19 @@ impl Wobble {
     }
 
     /// Advances the grid as `advance` does, for a window at an origin in
-    /// 3D. Use it with a grid of `new_3d`.
+    /// 3D. Use it with a grid of `new_3d`. A non-finite origin is ignored.
     pub fn advance_3d(&mut self, origin: [f64; 3], now: Instant) {
+        if !origin.iter().all(|v| v.is_finite()) {
+            return;
+        }
         self.lift = self.lift_of(origin);
         self.advance([origin[0], origin[1]], now);
     }
 
     /// The z of the place of a window at an origin in 3D.
     fn lift_of(&self, origin: [f64; 3]) -> f64 {
-        origin[2] + self.view[0] * origin[0] + self.view[1] * origin[1]
+        let lift = origin[2] + self.view[0] * origin[0] + self.view[1] * origin[1];
+        or_zero(lift)
     }
 
     /// Lets go of the window; it shakes until it settles.
@@ -181,7 +192,8 @@ impl Wobble {
                 let [x, y, z] = self.bezier(col as f64 / n as f64, row as f64 / n as f64);
                 points.push([x - origin[0], y - origin[1]]);
                 if self.three_d {
-                    depth.push((z - self.lift).clamp(-MAX, MAX));
+                    let z = (z - self.lift).clamp(-MAX, MAX);
+                    depth.push(or_zero(z));
                 }
             }
         }
@@ -277,6 +289,11 @@ impl Wobble {
         }
         point
     }
+}
+
+/// The value, or 0 for a value that is not finite.
+fn or_zero(value: f64) -> f64 {
+    if value.is_finite() { value } else { 0.0 }
 }
 
 /// The left, right, upper and lower neighbours of a control point.
@@ -501,33 +518,56 @@ mod tests {
         mesh.depth.iter().copied().fold(0.0, |a, z| a.max(z.abs()))
     }
 
-    /// Drags toward the camera along `-x` with the view `[0.6, 0, 0.8]`
-    /// for 20 frames, releases, and runs until settled: the mesh of the
-    /// frame with the deepest bend, the mesh at rest, and the frames
-    /// spent after the release.
-    fn drag_along_the_view() -> (Mesh, Mesh, u32) {
-        let view = [0.6, 0.0, 0.8];
-        let mut w = Wobble::new_3d([400.0, 300.0], [500.0, 0.0, 0.0], [700.0, 0.0, 0.0], view);
+    /// Drags a window of 400 by 300 left from x = 500 by 20 pixels a
+    /// frame for 20 frames, releases it, and runs until it settles: the
+    /// frames spent after the release. `frame` sees the grid and the
+    /// origin after each frame of the drag. A grid of `new_3d` is moved
+    /// with `advance_3d`, the other with `advance`.
+    fn drag_left_and_settle(w: &mut Wobble, mut frame: impl FnMut(&Wobble, [f64; 2])) -> u32 {
         let mut now = w.last;
-        let mut origin = [500.0, 0.0, 0.0];
-        let mut bent = w.mesh([500.0, 0.0]);
+        let mut origin = [500.0, 0.0];
+        let advance = |w: &mut Wobble, origin: [f64; 2], now| {
+            if w.three_d {
+                w.advance_3d([origin[0], origin[1], 0.0], now);
+            } else {
+                w.advance(origin, now);
+            }
+        };
         for _ in 0..20 {
             origin[0] -= 20.0;
             now += FRAME;
-            w.advance_3d(origin, now);
-            let mesh = w.mesh([origin[0], origin[1]]);
-            if deepest(&mesh) > deepest(&bent) {
-                bent = mesh;
-            }
+            advance(w, origin, now);
+            frame(w, origin);
         }
         w.release();
         let mut frames = 0;
         while !w.settled() && frames < 600 {
             now += FRAME;
-            w.advance_3d(origin, now);
+            advance(w, origin, now);
             frames += 1;
         }
-        (bent, w.mesh([origin[0], origin[1]]), frames)
+        frames
+    }
+
+    /// Drags toward the camera along `-x` with the view `[0.6, 0]`: the
+    /// mesh of the frame with the deepest bend, the mesh at rest, and the
+    /// frames spent after the release.
+    fn drag_along_the_view() -> (Mesh, Mesh, u32) {
+        let mut w = Wobble::new_3d(
+            [400.0, 300.0],
+            [500.0, 0.0, 0.0],
+            [700.0, 0.0, 0.0],
+            [0.6, 0.0],
+        );
+        let mut bent = w.mesh([500.0, 0.0]);
+        let frames = drag_left_and_settle(&mut w, |w, origin| {
+            let mesh = w.mesh(origin);
+            if deepest(&mesh) > deepest(&bent) {
+                bent = mesh;
+            }
+        });
+        let rest = w.mesh([100.0, 0.0]);
+        (bent, rest, frames)
     }
 
     #[test]
@@ -545,7 +585,7 @@ mod tests {
 
     #[test]
     fn the_window_own_motion_in_z_bends_the_mesh() {
-        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [0.0, 0.0, 1.0]);
+        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [0.0, 0.0]);
         let mut now = w.last;
         for step in 1..=10 {
             now += FRAME;
@@ -562,7 +602,7 @@ mod tests {
 
     #[test]
     fn the_depth_stays_bounded_under_extreme_velocity() {
-        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [0.6, 0.0, 0.8]);
+        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [0.6, 0.0]);
         let mut now = w.last;
         for step in 1..=60 {
             now += FRAME;
@@ -577,20 +617,7 @@ mod tests {
     #[test]
     fn a_wobble_in_3d_settles_as_fast_as_in_2d() {
         let mut flat = Wobble::new([400.0, 300.0], [500.0, 0.0], [700.0, 0.0]);
-        let mut now = flat.last;
-        let mut origin = 500.0;
-        for _ in 0..20 {
-            origin -= 20.0;
-            now += FRAME;
-            flat.advance([origin, 0.0], now);
-        }
-        flat.release();
-        let mut flat_frames = 0;
-        while !flat.settled() && flat_frames < 600 {
-            now += FRAME;
-            flat.advance([origin, 0.0], now);
-            flat_frames += 1;
-        }
+        let flat_frames = drag_left_and_settle(&mut flat, |_, _| {});
         let (_, _, frames) = drag_along_the_view();
         assert!(frames > 10 && frames < 600, "{frames}");
         assert!(
@@ -606,7 +633,7 @@ mod tests {
             [400.0, 300.0],
             [20.0, 30.0, 0.0],
             [120.0, 40.0, 0.0],
-            [0.0; 3],
+            [0.0; 2],
         );
         let mut now = flat.last;
         deep.last = now;
@@ -623,12 +650,7 @@ mod tests {
 
     #[test]
     fn a_non_finite_origin_or_view_leaves_the_mesh_finite() {
-        let mut w = Wobble::new_3d(
-            [400.0, 300.0],
-            [0.0; 3],
-            [200.0, 0.0, 0.0],
-            [f64::NAN, 0.0, 1.0],
-        );
+        let mut w = Wobble::new_3d([400.0, 300.0], [0.0; 3], [200.0, 0.0, 0.0], [f64::NAN, 0.0]);
         let mut now = w.last;
         for origin in [
             [f64::INFINITY, 0.0, 0.0],
