@@ -47,6 +47,7 @@ mod plugin;
 mod scene;
 mod space;
 mod voice;
+mod wobble;
 
 use std::{
     collections::BTreeMap,

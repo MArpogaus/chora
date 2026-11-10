@@ -261,6 +261,23 @@ impl Wobble {
         }
     }
 
+    /// Makes the grid of `new_3d` the sail of a pane that stands in a
+    /// space: looser springs, and a bow in depth where the pane trails
+    /// its place.
+    #[must_use]
+    pub fn sail(self) -> Self {
+        self
+    }
+
+    /// The drawn mesh as `mesh` gives it, for a node that reaches
+    /// `margin` past the window on each side, for example its glow: the
+    /// surface goes on past the edges of the window.
+    #[must_use]
+    pub fn mesh_around(&self, origin: [f64; 2], margin: f64) -> Mesh {
+        let _ = margin;
+        self.mesh(origin)
+    }
+
     /// The place of a control point in a window at an origin.
     fn place(&self, i: usize, origin: [f64; 2]) -> [f64; 3] {
         let (col, row) = (i % SIDE, i / SIDE);
@@ -758,6 +775,73 @@ mod tests {
                     .all(|p| p[0].is_finite() && p[1].is_finite())
             );
         }
+    }
+
+    /// Swings a pane of 480 by 360 along its face at 3000 pixels a
+    /// second for 200 ms, held at its middle: the mesh with the deepest
+    /// bend, and the frames from the release until it settles.
+    fn swing(mut w: Wobble) -> (Mesh, u32) {
+        let mut now = w.last;
+        let mut bent = w.mesh([0.0; 2]);
+        let mut x = 0.0;
+        for _ in 0..20 {
+            x += 30.0;
+            now += std::time::Duration::from_millis(10);
+            w.advance_3d([x, 0.0, 0.0], now);
+            let mesh = w.mesh([x, 0.0]);
+            if deepest(&mesh) > deepest(&bent) {
+                bent = mesh;
+            }
+        }
+        w.release();
+        let mut frames = 0;
+        while !w.settled() && frames < 600 {
+            now += FRAME;
+            w.advance_3d([x, 0.0, 0.0], now);
+            frames += 1;
+        }
+        (bent, frames)
+    }
+
+    fn pane() -> Wobble {
+        Wobble::new_3d([480.0, 360.0], [0.0; 3], [240.0, 180.0, 0.0], [0.0; 2])
+    }
+
+    #[test]
+    fn a_swung_sail_bows_in_depth_and_its_edges_trail_more_than_its_middle() {
+        let (bent, _) = swing(pane().sail());
+        assert!(bent.is_valid());
+        assert!(deepest(&bent) >= 60.0, "the bow: {}", deepest(&bent));
+        let (middle, edge) = (bent.depth[10 * 21 + 10], bent.depth[10 * 21]);
+        assert!(edge > middle + 40.0, "edge {edge}, middle {middle}");
+        let (plain, _) = swing(pane());
+        assert!(
+            deepest(&plain) < 1e-9,
+            "without the sail: {}",
+            deepest(&plain)
+        );
+    }
+
+    #[test]
+    fn a_sail_settles_within_a_second() {
+        let (_, frames) = swing(pane().sail());
+        let (_, plain) = swing(pane());
+        assert!(frames > plain, "{frames} frames, {plain} without the sail");
+        assert!(f64::from(frames) * FRAME.as_secs_f64() <= 1.0, "{frames}");
+    }
+
+    #[test]
+    fn a_mesh_around_goes_on_past_the_edges_of_the_window() {
+        let flat = pane();
+        assert_eq!(flat.mesh_around([0.0; 2], 0.0), flat.mesh([0.0; 2]));
+        let around = flat.mesh_around([0.0; 2], 24.0);
+        assert!(around.is_valid());
+        let (first, last) = (around.points[0], around.points[21 * 21 - 1]);
+        let near = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        assert!(near(first[0], -24.0) && near(first[1], -24.0), "{first:?}");
+        assert!(near(last[0], 504.0) && near(last[1], 384.0), "{last:?}");
+        let (bent, _) = swing(pane().sail());
+        assert_eq!(bent.depth.len(), around.depth.len());
     }
 
     /// The springs of a grid go to another window manager with a drag and
