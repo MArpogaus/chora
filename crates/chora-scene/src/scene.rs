@@ -966,6 +966,27 @@ impl Scene {
             self.push_children(&mut stack, &placed);
             out.push(placed);
         }
+        self.descend(stack, stop, out)
+    }
+
+    /// The descendants of a placed 3D context, bottom first, with the
+    /// transforms, opacities, input modes and clips of the list that holds
+    /// it and the projection of the context. The list stops at layers,
+    /// planes and nested contexts, as [`Self::layer_list`] does.
+    #[must_use]
+    pub fn context_list<'a>(&'a self, context: &Placed<'a>) -> Vec<Placed<'a>> {
+        let mut stack = Vec::new();
+        self.push_children(&mut stack, context);
+        self.descend(stack, Stop::Layers, Vec::new())
+    }
+
+    /// Walks the nodes of a stack and their descendants into `out`.
+    fn descend<'a>(
+        &'a self,
+        mut stack: Vec<Step<'a>>,
+        stop: Stop,
+        mut out: Vec<Placed<'a>>,
+    ) -> Vec<Placed<'a>> {
         while let Some((node, parent, opacity, input, mut clips)) = stack.pop() {
             if !node.props.visible {
                 continue;

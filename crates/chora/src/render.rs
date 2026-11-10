@@ -43,6 +43,7 @@ use crate::{
     lock::Lock,
     mesh::{self, Layers, MeshElement, MeshRenderer, Placing},
     output::{Spot, output_area, scene_rect},
+    space,
     state::State,
     text::{self, Texts},
 };
@@ -129,6 +130,9 @@ pub struct RenderStats {
     /// The nodes that drew as planes: nodes whose transform is not a 2D
     /// translation with a positive scale.
     pub planes: u64,
+    /// The pieces of planes that a split or the near clip of a 3D context
+    /// left, drawn on their own.
+    pub splits: u64,
 }
 
 impl RenderStats {
@@ -319,15 +323,159 @@ fn elements<R: MeshRenderer>(
 ) -> Vec<SceneElement<R>> {
     let mut out = Vec::new();
     for placed in list.iter().rev() {
-        if placed.node.is_layer() {
-            out.extend(layer(parts, renderer, placed, view));
-        } else if let Some(size) = plane_size(parts, placed, view) {
-            out.extend(plane(parts, renderer, placed, size, view));
-        } else {
-            out.extend(node_elements(parts, renderer, placed, view));
+        out.extend(entry_elements(parts, renderer, placed, view));
+    }
+    out
+}
+
+/// The render elements of one entry of a layer list, front first.
+fn entry_elements<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    placed: &Placed<'_>,
+    view: &View,
+) -> Vec<SceneElement<R>> {
+    if placed.node.is_layer() {
+        layer(parts, renderer, placed, view).into_iter().collect()
+    } else if placed.node.is_context() && view.camera.then(&placed.transform).is_plain() {
+        context_elements(parts, renderer, placed, view)
+    } else if let Some(size) = plane_size(parts, placed, view) {
+        plane(parts, renderer, placed, size, view)
+            .into_iter()
+            .collect()
+    } else {
+        node_elements(parts, renderer, placed, view)
+    }
+}
+
+/// The render elements of the planes of a 3D context, front first: sorted,
+/// split and clipped at the near plane (D75). A whole plane draws as it
+/// would outside the context; a piece draws the texture of its plane
+/// through its part of the quad, and the pieces of a plane share one
+/// texture.
+fn context_elements<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    context: &Placed<'_>,
+    view: &View,
+) -> Vec<SceneElement<R>> {
+    let scene = parts.scene;
+    let list = scene.context_list(context);
+    let pieces = {
+        let (windows, assets) = (parts.windows, &*parts.assets);
+        space::order(context, &list, |p| flat(windows, assets, p))
+    };
+    let mut textures = HashMap::new();
+    let mut out = Vec::new();
+    for (index, piece) in pieces.iter().enumerate().rev() {
+        let entry = &list[piece.plane];
+        let size = content_size(parts.windows, parts.assets, entry.node);
+        let viewed = viewed(context, entry, size);
+        let entry = Placed {
+            node: viewed.as_ref().unwrap_or(entry.node),
+            ..entry.clone()
+        };
+        match (&piece.part, size) {
+            (None, _) => out.extend(entry_elements(parts, renderer, &entry, view)),
+            (Some(part), Some(size)) => {
+                let at = (part, index + 1, size, &mut textures);
+                out.extend(piece_element(parts, renderer, &entry, at, view));
+            }
+            (Some(_), None) => {}
         }
     }
     out
+}
+
+/// What the order of a context needs of an entry of its list: the content
+/// size of a node that draws, and whether it draws as one unit, as a mesh
+/// or a nested context does. A group draws only as a layer, a plane or a
+/// context; otherwise its children draw on their own.
+fn flat(
+    windows: &HashMap<String, Window>,
+    assets: &Assets,
+    placed: &Placed<'_>,
+) -> Option<space::Flat> {
+    let node = placed.node;
+    let draws = node.kind != NodeKind::Group
+        || node.is_layer()
+        || node.is_context()
+        || !placed.transform.is_plain();
+    draws.then_some(())?;
+    Some(space::Flat {
+        size: content_size(windows, assets, node)?,
+        unit: node.props.mesh.is_some() || node.is_context(),
+    })
+}
+
+/// A copy of a node of a 3D context whose shader or effects get the
+/// uniforms `depth` and `facing` of its plane; `None` for a node without
+/// them.
+fn viewed(context: &Placed<'_>, entry: &Placed<'_>, size: Option<[f64; 2]>) -> Option<Node> {
+    let node = entry.node;
+    if node.kind != NodeKind::Shader && node.props.effects.is_empty() {
+        return None;
+    }
+    let (depth, facing) = space::view(context, entry, size?)?;
+    let mut node = node.clone();
+    let set = |uniforms: &mut std::collections::BTreeMap<String, chora_scene::Uniform>| {
+        uniforms.insert("depth".into(), chora_scene::Uniform::Float(depth));
+        uniforms.insert("facing".into(), chora_scene::Uniform::Float(facing));
+    };
+    if node.kind == NodeKind::Shader {
+        set(&mut node.props.uniforms);
+    }
+    for effect in &mut node.props.effects {
+        set(&mut effect.uniforms);
+    }
+    Some(node)
+}
+
+/// A piece of a plane of a context as [`piece_element`] draws it: its
+/// part, its number in the context, the content size of its plane and the
+/// textures of the planes of the context in this frame.
+type Piece<'a> = (
+    &'a space::Part,
+    usize,
+    [f64; 2],
+    &'a mut HashMap<String, Option<GlesTexture>>,
+);
+
+/// The element of a piece of a plane of a context: the texture of the
+/// plane, rendered once per frame for all its pieces, through the part of
+/// the quad that the piece covers.
+fn piece_element<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    placed: &Placed<'_>,
+    (part, piece, size, textures): Piece<'_>,
+    view: &View,
+) -> Option<SceneElement<R>> {
+    let mut node = placed.node.clone();
+    node.props.size = Some(size);
+    let transform = view.camera.then(&placed.transform);
+    let shape = mesh::piece_shape(&part.corners, size, &transform, view.scale)?;
+    if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
+        return None;
+    }
+    let texture = if let Some(texture) = textures.get(&node.id) {
+        texture.clone()
+    } else {
+        let texture = node_texture(parts, renderer.gles(), &node, view.scale);
+        textures.insert(node.id.clone(), texture.clone());
+        texture
+    }?;
+    parts.assets.stats.splits += 1;
+    #[allow(clippy::cast_possible_truncation)]
+    let alpha = placed.opacity as f32;
+    let element = MeshElement::piece(
+        &mut parts.assets.layers,
+        (&node, piece),
+        texture,
+        shape,
+        alpha,
+    );
+    Some(SceneElement::Mesh(element))
 }
 
 /// The size of a node that is a plane without being a layer: a node with
@@ -404,16 +552,27 @@ fn layer<R: MeshRenderer>(
     if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
         return None;
     }
-    let size = mesh::texture_size(node, view.scale)?;
-    let textures = 1 + mesh::passes(node, view.scale).len().min(2);
-    if !parts.assets.layers.spend(&node.id, size, textures) {
-        return None;
-    }
-    let texture = layer_texture(parts, renderer.gles(), node, size, view.scale)?;
+    let texture = node_texture(parts, renderer.gles(), node, view.scale)?;
     #[allow(clippy::cast_possible_truncation)]
     let alpha = placed.opacity as f32;
     let element = MeshElement::new(&mut parts.assets.layers, node, texture, shape, alpha);
     Some(SceneElement::Mesh(element))
+}
+
+/// The texture of a layer node with its passes, if the budget of the frame
+/// has room for it.
+fn node_texture(
+    parts: &mut Parts<'_>,
+    gles: &mut GlesRenderer,
+    node: &Node,
+    scale: f64,
+) -> Option<GlesTexture> {
+    let size = mesh::texture_size(node, scale)?;
+    let textures = 1 + mesh::passes(node, scale).len().min(2);
+    if !parts.assets.layers.spend(&node.id, size, textures) {
+        return None;
+    }
+    layer_texture(parts, gles, node, size, scale)
 }
 
 /// Renders a layer node with its descendants into its texture, and applies
@@ -517,7 +676,7 @@ fn source_size(parts: &Parts<'_>, id: &str) -> Option<[f64; 2]> {
 /// The render elements of a node and its descendants, front first, in node
 /// coordinates: the node shows without its own transform, opacity, mesh and
 /// effects. Nested layers show through their meshes. `None` for a node
-/// that is gone or hidden.
+/// that is gone or hidden. The planes of a 3D context show sorted.
 pub fn flat_elements<R: MeshRenderer>(
     parts: &mut Parts<'_>,
     renderer: &mut R,
@@ -527,7 +686,11 @@ pub fn flat_elements<R: MeshRenderer>(
     let scene = parts.scene;
     let list = scene.layer_list(id);
     let (first, rest) = list.split_first()?;
-    let mut content = elements(parts, renderer, rest, view);
+    let mut content = if first.node.is_context() {
+        context_elements(parts, renderer, first, view)
+    } else {
+        elements(parts, renderer, rest, view)
+    };
     content.extend(node_elements(parts, renderer, first, view));
     Some(content)
 }
@@ -902,6 +1065,9 @@ fn hit<'a>(
     {
         return None;
     }
+    if placed.node.is_context() && placed.transform.is_plain() {
+        return context_hit(state, placed, input, pos);
+    }
     let Some((offset, (sx, sy))) = location_and_scale(&placed.transform) else {
         return plane_hit(state, placed, input, pos);
     };
@@ -934,6 +1100,91 @@ fn hit<'a>(
     })
 }
 
+/// What a point hits in a 3D context: the ray from the eye through the
+/// point takes the nearest piece of a plane that shows there and accepts
+/// the input, in the order that the context draws them. A piece that the
+/// layer budget left out of the last frame takes the input and gives it
+/// to nobody. The empty area of the context lets the point through.
+fn context_hit<'a>(
+    state: &'a State,
+    context: &Placed<'a>,
+    outer: InputMode,
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
+    let list = state.scene.context_list(context);
+    let pieces = space::order(context, &list, |p| flat(&state.windows, &state.assets, p));
+    pieces.iter().rev().find_map(|piece| {
+        let entry = &list[piece.plane];
+        let input = if outer == InputMode::Accept {
+            entry.input
+        } else {
+            outer
+        };
+        if input == InputMode::Pass {
+            return None;
+        }
+        if let Some(part) = &piece.part {
+            if !space::contains(&part.shown, [pos.x, pos.y]) {
+                return None;
+            }
+            if left_out(state, &entry.node.id) {
+                return Some(Found {
+                    node: entry.node,
+                    input: InputMode::Block,
+                    hit: Hit::Area,
+                    local: node_point(&entry.transform, pos).map_or(pos, clamp_local),
+                    planar: true,
+                });
+            }
+        }
+        entry_hit(state, entry, input, pos)
+    })
+}
+
+/// What a point hits of an entry of a context. A layer that draws flat
+/// in the context, as a group with a clip does, holds its descendants:
+/// the hit test walks its own list.
+fn entry_hit<'a>(
+    state: &'a State,
+    entry: &Placed<'a>,
+    input: InputMode,
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
+    if !(entry.node.is_layer() && entry.transform.is_plain()) {
+        return hit(state, entry, input, pos);
+    }
+    if !entry
+        .clips
+        .iter()
+        .all(|(transform, size)| inside(transform, *size, pos))
+    {
+        return None;
+    }
+    let local = node_point(&entry.transform, pos)?;
+    let list = state.scene.hit_list(&entry.node.id);
+    found(state, &list, input, local)
+}
+
+/// Whether the layer budget left a node out of the last frame of an
+/// output, so that it shows nothing.
+fn left_out(state: &State, id: &str) -> bool {
+    state
+        .assets
+        .frame_left_out
+        .values()
+        .any(|ids| ids.iter().any(|n| n == id))
+}
+
+/// The largest coordinate of a point of a node that pointer events tell;
+/// a plane seen almost edge on maps a point near its horizon farther.
+const MAX_LOCAL: f64 = 1e6;
+
+/// A point of a node with its coordinates cut to `MAX_LOCAL`.
+fn clamp_local(point: Point<f64, Logical>) -> Point<f64, Logical> {
+    let cut = |v: f64| v.clamp(-MAX_LOCAL, MAX_LOCAL);
+    (cut(point.x), cut(point.y)).into()
+}
+
 /// What a point hits of a node under a transform that is not a 2D
 /// translation with a positive scale. The inverse of the homography of
 /// the plane maps the point into the node; a point that the plane shows
@@ -964,12 +1215,7 @@ fn plane_hit<'a>(
     if !((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)) {
         return None;
     }
-    if state
-        .assets
-        .frame_left_out
-        .values()
-        .any(|ids| ids.contains(&node.id))
-    {
+    if left_out(state, &node.id) {
         return Some(Found {
             input: InputMode::Block,
             ..take(Hit::Area, local)
@@ -1044,19 +1290,31 @@ pub fn local_in(
     pos: Point<f64, Logical>,
     id: &str,
 ) -> Option<Point<f64, Logical>> {
-    let list = scene.hit_list(start);
+    local_in_list(scene, &scene.hit_list(start), pos, id).map(clamp_local)
+}
+
+/// As [`local_in`], with the list that holds the node or an ancestor of
+/// it: a plane, a layer or a 3D context.
+fn local_in_list(
+    scene: &Scene,
+    list: &[Placed<'_>],
+    pos: Point<f64, Logical>,
+    id: &str,
+) -> Option<Point<f64, Logical>> {
     if let Some(placed) = list.iter().find(|p| p.node.id == id) {
         return node_point(&placed.transform, pos);
     }
-    let plane = list
-        .iter()
-        .find(|p| is_plane(p) && scene.is_within(id, &p.node.id))?;
-    local_in(
-        scene,
-        &plane.node.id,
-        plane_point(&plane.transform, pos)?,
-        id,
-    )
+    let holder = list.iter().find(|p| {
+        (is_plane(p) || p.node.is_context() || p.node.is_layer())
+            && p.node.id != id
+            && scene.is_within(id, &p.node.id)
+    })?;
+    if holder.node.is_context() && !is_plane(holder) {
+        return local_in_list(scene, &scene.context_list(holder), pos, id);
+    }
+    let inner = scene.hit_list(&holder.node.id);
+    let at = node_point(&holder.transform, pos)?;
+    local_in_list(scene, inner.get(1..)?, at, id)
 }
 
 /// Whether a listed node is a plane: it has a size and its transform is
@@ -1262,6 +1520,8 @@ pub(crate) fn projected_box(
     Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
 }
 
+#[cfg(test)]
+mod context;
 #[cfg(test)]
 mod hit_guard;
 #[cfg(test)]

@@ -88,7 +88,9 @@ pub struct Layers {
     /// By node, slot and size, so that outputs of other scales keep their
     /// own; with the time of the last use.
     textures: HashMap<(String, usize, i32, i32), (GlesTexture, Instant)>,
-    ids: HashMap<String, (Id, CommitCounter)>,
+    /// By node and piece: 0 for a whole layer, the others for the pieces
+    /// of a plane of a 3D context.
+    ids: HashMap<(String, usize), (Id, CommitCounter)>,
     /// The pixels of layer textures in the current frame.
     pixels: u64,
     /// The budget ran out in this frame, and the log tells it once.
@@ -104,7 +106,7 @@ impl Layers {
         let now = Instant::now();
         self.textures
             .retain(|(id, ..), (_, used)| keep(id) && now - *used < UNUSED_FOR);
-        self.ids.retain(|id, _| keep(id));
+        self.ids.retain(|(id, _), _| keep(id));
         self.new_budget();
     }
 
@@ -160,10 +162,10 @@ impl Layers {
 
     /// The id of the element of a layer, and a new commit: a layer counts
     /// as changed in each frame.
-    fn next(&mut self, node: &str) -> (Id, CommitCounter) {
+    fn next(&mut self, node: &str, piece: usize) -> (Id, CommitCounter) {
         let entry = self
             .ids
-            .entry(node.into())
+            .entry((node.into(), piece))
             .or_insert_with(|| (Id::new(), CommitCounter::default()));
         entry.1.increment();
         entry.clone()
@@ -310,7 +312,19 @@ impl MeshElement {
         shape: Shape,
         alpha: f32,
     ) -> Self {
-        let (id, commit) = layers.next(&node.id);
+        Self::piece(layers, (node, 0), texture, shape, alpha)
+    }
+
+    /// The element of a piece of a plane of a 3D context: piece 0 is the
+    /// whole layer, each other piece has an id of its own.
+    pub fn piece(
+        layers: &mut Layers,
+        (node, piece): (&Node, usize),
+        texture: GlesTexture,
+        shape: Shape,
+        alpha: f32,
+    ) -> Self {
+        let (id, commit) = layers.next(&node.id, piece);
         Self {
             id,
             commit,
@@ -364,16 +378,50 @@ fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
     if kept.is_empty() {
         return None;
     }
-    let (min, max) = (bounds.min, bounds.max);
-    // A point close to the eye lands far away; the box stays in i32.
-    let clamp = |v: f64| v.clamp(-FAR, FAR) as i32;
-    let loc = Point::from((clamp(min[0].floor()), clamp(min[1].floor())));
-    let end = Point::<i32, Physical>::from((clamp(max[0].ceil()), clamp(max[1].ceil())));
-    let size = Size::from(((end.x - loc.x).max(1), (end.y - loc.y).max(1)));
     Some(Shape {
         vertices,
         indices: kept,
-        bounds: Rectangle::new(loc, size),
+        bounds: bounds.pixels(),
+    })
+}
+
+/// The shape of a piece of a plane of a size: a convex quad, possibly with
+/// a repeated corner, of points of the plane, which the texture of the
+/// plane covers from `(0, 0)` to the size. `None` when no part of it lies
+/// in front of the eye. The vertices are 32-bit floats, as GL takes them.
+#[allow(clippy::cast_possible_truncation)]
+pub fn piece_shape(
+    corners: &[[f64; 2]; 4],
+    [w, h]: [f64; 2],
+    transform: &Transform,
+    scale: f64,
+) -> Option<Shape> {
+    let m = transform.matrix();
+    let points = corners.map(|[u, v]| {
+        [
+            (m[0] * u + m[4] * v + m[12]) * scale,
+            (m[1] * u + m[5] * v + m[13]) * scale,
+            m[3] * u + m[7] * v + m[15],
+        ]
+    });
+    let mut bounds = Bounds::default();
+    if !bounds.add_clipped(&points) {
+        return None;
+    }
+    let vertices = points
+        .iter()
+        .zip(corners)
+        .map(|([x, y, hw], [u, v])| {
+            (
+                [*x as f32, *y as f32, *hw as f32],
+                [(u / w) as f32, (v / h) as f32],
+            )
+        })
+        .collect();
+    Some(Shape {
+        vertices,
+        indices: vec![0, 1, 2, 0, 2, 3],
+        bounds: bounds.pixels(),
     })
 }
 
@@ -399,6 +447,19 @@ impl Bounds {
             (self.min[0], self.min[1]).into(),
             (self.max[0] - self.min[0], self.max[1] - self.min[1]).into(),
         )
+    }
+
+    /// The box in whole pixels, at least one pixel a side. A point close to
+    /// the eye lands far away; the box stays in i32, so the casts are
+    /// clamped.
+    #[allow(clippy::cast_possible_truncation)]
+    fn pixels(&self) -> Rectangle<i32, Physical> {
+        let clamp = |v: f64| v.clamp(-FAR, FAR) as i32;
+        let loc = Point::from((clamp(self.min[0].floor()), clamp(self.min[1].floor())));
+        let end =
+            Point::<i32, Physical>::from((clamp(self.max[0].ceil()), clamp(self.max[1].ceil())));
+        let size = Size::from(((end.x - loc.x).max(1), (end.y - loc.y).max(1)));
+        Rectangle::new(loc, size)
     }
 
     /// Adds the part of a polygon of (x, y, w) points that lies at

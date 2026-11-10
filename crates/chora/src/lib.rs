@@ -29,6 +29,7 @@ mod safety;
 mod screencopy;
 mod security;
 mod shm;
+mod space;
 mod state;
 #[cfg(test)]
 mod testing;

@@ -35,11 +35,11 @@ fn forward(transform: &Transform, u: f64, v: f64) -> Point<f64, smithay::utils::
         .into()
 }
 
-fn move_to(core: &mut Core, at: Point<f64, smithay::utils::Logical>) {
+pub(super) fn move_to(core: &mut Core, at: Point<f64, smithay::utils::Logical>) {
     move_pointer(&mut core.state, at, InputTime::now());
 }
 
-fn click(core: &mut Core, down: bool) {
+pub(super) fn click(core: &mut Core, down: bool) {
     let state = if down {
         ButtonState::Pressed
     } else {
@@ -48,11 +48,11 @@ fn click(core: &mut Core, down: bool) {
     press_button(&mut core.state, LEFT, state, InputTime::now(), false);
 }
 
-fn close(got: (f64, f64), want: (f64, f64)) -> bool {
+pub(super) fn close(got: (f64, f64), want: (f64, f64)) -> bool {
     (got.0 - want.0).abs() <= TOLERANCE && (got.1 - want.1).abs() <= TOLERANCE
 }
 
-fn motions(wayland: &mut Wayland, core: &mut Core) -> Vec<(f64, f64)> {
+pub(super) fn motions(wayland: &mut Wayland, core: &mut Core) -> Vec<(f64, f64)> {
     wayland.roundtrip(core);
     wayland
         .take_pointer_events()
@@ -124,7 +124,7 @@ fn a_mirrored_window_gets_the_point_it_shows() {
     hover_and_drag(&json!({"translate": [500, 100], "scale": [-1, 1]}));
 }
 
-fn node_events(client: &mut Client, core: &mut Core) -> Vec<Value> {
+pub(super) fn node_events(client: &mut Client, core: &mut Core) -> Vec<Value> {
     client
         .events_now(core)
         .into_iter()
@@ -139,7 +139,7 @@ fn node_events(client: &mut Client, core: &mut Core) -> Vec<Value> {
         .collect()
 }
 
-fn local(event: &Value) -> (f64, f64) {
+pub(super) fn local(event: &Value) -> (f64, f64) {
     let local = &event["local"];
     (
         local[0].as_f64().expect("a local u"),
@@ -225,7 +225,7 @@ fn a_press_on_a_rotated_rect_tells_its_local_point() {
     );
 }
 
-fn decode(picture: &Value) -> (usize, Vec<u8>) {
+pub(super) fn decode(picture: &Value) -> (usize, Vec<u8>) {
     let png = STANDARD.decode(picture["png"].as_str().unwrap()).unwrap();
     let mut reader = png::Decoder::new(std::io::Cursor::new(png))
         .read_info()
