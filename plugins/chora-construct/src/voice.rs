@@ -1,0 +1,151 @@
+//! Voice glue: following the voice agent, answers, the tick, and drawing
+//! the voice HUD.
+
+use super::{
+    ClientError, Command, Construct, Duration, Instant, Look, PropsUpdate, Transform, VOICE, Value,
+    hud, json, space, update,
+};
+
+impl Construct {
+    /// An event `voice.KIND` of the voice agent. Wrong data only log.
+    pub(crate) fn follow(&mut self, event: &str, data: Value) -> Result<(), ClientError> {
+        self.claim_indicator(true);
+        let kind = event.strip_prefix("voice.").unwrap_or_default();
+        match self.voice.follow(kind, data, Instant::now()) {
+            Ok(changed) => {
+                if changed.hud {
+                    self.draw_hud()?;
+                }
+                if changed.ask {
+                    self.draw_ask()?;
+                }
+                Ok(())
+            }
+            Err(err) => {
+                eprintln!("chora-construct: {event}: {err}");
+                Ok(())
+            }
+        }
+    }
+
+    /// Answers the open question of the voice agent by the button `node`
+    /// with `confirm.answer`; a refusal, as for an old id, only logs.
+    pub(crate) fn answer(&mut self, node: &str, injected: bool) {
+        let Some(params) = self.voice.answer(node, injected) else {
+            return;
+        };
+        let call = json!({"client": VOICE, "method": "confirm.answer", "params": params});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-construct: confirm.answer: {err}");
+        }
+    }
+
+    /// The deadlines of the sentence: the waveform stops at its end, the
+    /// sentence fades out 2 s later, and then the panel fits again.
+    pub(crate) fn tick(&mut self) -> Result<(), ClientError> {
+        let now = Instant::now();
+        let due = |t: Option<Instant>| t.is_some_and(|t| t <= now);
+        if due(self.voice.say_until) {
+            self.voice.say_until = None;
+            self.draw_hud()?;
+        }
+        if due(self.voice.fade_at) {
+            self.voice.fade_at = None;
+            self.voice.drop_at = Some(now + Duration::from_millis(120));
+            if self.shows_hud() {
+                let fade = hud::fade(hud::HUD_SAY, 0.0, hud::FADE_OUT);
+                self.rt.conn.try_apply(vec![fade])?;
+            }
+        }
+        if due(self.voice.drop_at) {
+            self.voice.drop_at = None;
+            self.voice.say = None;
+            self.draw_hud()?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn shows_hud(&self) -> bool {
+        self.settings.value.voice_hud && self.active && self.output.is_some()
+    }
+
+    /// The voice HUD: at the bottom centre, or compact at the bottom
+    /// right while flown into a pane.
+    pub(crate) fn draw_hud(&mut self) -> Result<(), ClientError> {
+        if !self.shows_hud() {
+            return Ok(());
+        }
+        let out = [self.lens.w, self.lens.h];
+        let level = self.voice.level(Instant::now());
+        let (compact, glow) = (self.flown.is_some(), !self.glass.hidden);
+        let commands = self.fitted(|s| s.voice.hud(&s.styled(), out, compact, level, glow))?;
+        if commands.is_empty() {
+            return Ok(());
+        }
+        self.rt.conn.apply(commands)
+    }
+
+    /// The question of the voice agent, on top, made anew.
+    pub(crate) fn draw_ask(&mut self) -> Result<(), ClientError> {
+        if !self.shows_hud() {
+            return Ok(());
+        }
+        let out = [self.lens.w, self.lens.h];
+        let glow = !self.glass.hidden;
+        let mut commands = self.fitted(|s| {
+            let look = Look {
+                style: &s.settings.value.style,
+                colors: s.settings.value.style.colors(s.settings.value.theme),
+                plain: s.glass.plain,
+                shader: &s.glass_shader,
+                metrics: &s.metrics,
+            };
+            s.voice.ask(&look, out, glow)
+        })?;
+        if self.rt.conn.query(&format!("id:{}", hud::ASK))?.is_empty() {
+            commands.remove(0);
+        }
+        self.rt.conn.apply(commands)
+    }
+
+    /// The pane label: the name of the pane under the pointer, else of the
+    /// pane ahead, 8 below its bottom edge; hidden while flown in, while
+    /// the list is open, and when the pane does not show. The text and the
+    /// pill change only with the pane.
+    pub(crate) fn label_commands(&mut self) -> Vec<Command> {
+        let hidden = self.flown.is_some()
+            || self.list.is_some()
+            || self.glide.as_ref().is_some_and(|g| g.into.is_some());
+        let pick = if hidden { None } else { self.focus() };
+        let Some(k) = pick else {
+            return match self.labelled.take() {
+                Some(_) => Look::label_hide(),
+                None => Vec::new(),
+            };
+        };
+        let fresh = self.labelled.is_none();
+        let name = self.panes[k].name.clone();
+        let fitted = self.fitted(|s| s.styled().label(&name, fresh));
+        let (label, pill) = fitted.unwrap_or_else(|err| {
+            eprintln!("chora-construct: measure the label: {err}");
+            self.styled().label(&name, fresh)
+        });
+        let pane = &self.panes[k];
+        let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
+        let [x, y] = space::project(&matrix, pane.size[0] / 2.0, pane.size[1]);
+        let unit = self.settings.value.style.unit;
+        let place = Transform::translate((x - pill / 2.0).round(), (y + unit).round(), 0.0);
+        let mut commands = vec![update(
+            hud::LABEL,
+            PropsUpdate {
+                transform: Some(place),
+                ..PropsUpdate::default()
+            },
+        )];
+        if self.labelled.as_deref() != Some(pane.name.as_str()) {
+            self.labelled = Some(pane.name.clone());
+            commands.extend(label);
+        }
+        commands
+    }
+}
