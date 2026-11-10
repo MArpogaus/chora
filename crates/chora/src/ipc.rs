@@ -939,8 +939,8 @@ impl State {
             .name(conn)
             .ok_or_else(|| rejected("send hello first"))?;
         self.check_socket_grant(conn, Capability::SessionQuit)?;
-        tracing::info!(client = name, "session.quit");
-        self.loop_signal.stop();
+        let reason = format!("session.quit of {name}");
+        self.quit(&reason);
         Ok(Value::Null)
     }
 

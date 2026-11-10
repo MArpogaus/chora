@@ -423,8 +423,9 @@ The safety layer is the only built-in behavior (see
   the emergency reset; only the binding and SIGUSR1 do.
 - **Hang watchdog** ([D64](decisions.md)). A thread of its own logs a
   stall of the main loop and aborts chora when the loop hangs, for
-  example in a shader that never returns.
-  `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
+  example in a shader that never returns. The time that the watchdog
+  thread itself did not run, after SIGSTOP or on a starved host, counts
+  for no stall. `tests/gate-0.9-shader-hang.sh` checks it on llvmpipe.
 
 ## Permissions
 

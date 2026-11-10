@@ -7,6 +7,11 @@
 //! session can start again; 0 means never. A hung shader blocks the main
 //! loop, and with it the frame watchdog and SIGUSR1, but not this thread.
 //!
+//! The watchdog counts only the time that it watched: a look that comes
+//! later than [`LATE`] after the one before means that the thread itself
+//! did not run, after SIGSTOP or on a starved host, and that time is no
+//! stall of the main loop.
+//!
 //! The stall and the abort lines go to fd 2 with a raw `write(2)`, not
 //! through tracing or `std::io::stderr`: a main loop that hangs inside a
 //! log write holds their lock, and the watchdog must not wait for it. The
@@ -32,6 +37,9 @@ const STALL_AFTER: Duration = Duration::from_secs(3);
 const ABORT_AFTER: Duration = Duration::from_secs(30);
 /// How often the watchdog looks at the heartbeat.
 const TICK: Duration = Duration::from_millis(250);
+/// A look this long after the one before means that the watchdog thread
+/// did not run in between.
+const LATE: Duration = Duration::from_secs(1);
 
 /// What the watchdog sees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +56,7 @@ enum Hang {
 struct Watch {
     beat: u64,
     since: Instant,
+    looked: Instant,
     stalled: bool,
     abort: Option<Duration>,
 }
@@ -57,13 +66,20 @@ impl Watch {
         Self {
             beat: 0,
             since: now,
+            looked: now,
             stalled: false,
             abort,
         }
     }
 
-    /// Looks at the heartbeat at a time.
+    /// Looks at the heartbeat at a time. The time that the watchdog
+    /// itself did not run counts for no stall.
     fn check(&mut self, beat: u64, now: Instant) -> Option<Hang> {
+        let step = now - self.looked;
+        self.looked = now;
+        if step >= LATE {
+            self.since += step.saturating_sub(TICK);
+        }
         let gap = now - self.since;
         if beat != self.beat {
             self.beat = beat;
@@ -199,29 +215,37 @@ mod tests {
 
     const S: Duration = Duration::from_secs(1);
 
+    /// Looks at a beat every [`TICK`] after a time, until another time.
+    fn looks(watch: &mut Watch, beat: u64, after: Instant, until: Instant) -> Vec<Hang> {
+        let ticks = (until - after).as_millis() / TICK.as_millis();
+        (1..=u32::try_from(ticks).unwrap())
+            .filter_map(|tick| watch.check(beat, after + tick * TICK))
+            .collect()
+    }
+
     #[test]
     fn a_stall_logs_once_then_aborts_or_runs_again() {
         let start = Instant::now();
+        let at = |s: u32| start + s * S;
         let mut watch = Watch::new(Some(10 * S), start);
-        assert_eq!(watch.check(0, start + 2 * S), None);
         assert_eq!(
-            watch.check(0, start + 3 * S),
-            Some(Hang::Stall(3 * S, Some(10 * S)))
+            looks(&mut watch, 0, start, at(4)),
+            [Hang::Stall(3 * S, Some(10 * S))]
         );
-        assert_eq!(watch.check(0, start + 4 * S), None);
-        assert_eq!(watch.check(1, start + 5 * S), Some(Hang::Runs(5 * S)));
-        assert_eq!(watch.check(2, start + 6 * S), None);
         assert_eq!(
-            watch.check(2, start + 9 * S),
-            Some(Hang::Stall(3 * S, Some(10 * S)))
+            looks(&mut watch, 1, at(4), at(5)),
+            [Hang::Runs(4 * S + TICK)]
         );
-        assert_eq!(watch.check(2, start + 16 * S), Some(Hang::Abort(10 * S)));
+        assert_eq!(looks(&mut watch, 2, at(5), at(6)), []);
+        assert_eq!(
+            looks(&mut watch, 2, at(6), at(15) + TICK),
+            [Hang::Stall(3 * S, Some(10 * S)), Hang::Abort(10 * S)]
+        );
         let mut never = Watch::new(None, start);
         assert_eq!(
-            never.check(0, start + 3 * S),
-            Some(Hang::Stall(3 * S, None))
+            looks(&mut never, 0, start, at(3600)),
+            [Hang::Stall(3 * S, None)]
         );
-        assert_eq!(never.check(0, start + 3600 * S), None);
     }
 
     /// A stopped or starved process stops the watchdog thread too: the
@@ -234,7 +258,7 @@ mod tests {
         assert_eq!(watch.check(1, start + 40 * S), None, "after SIGCONT");
         assert_eq!(watch.check(2, start + 40 * S + TICK), None);
         let later = start + 40 * S + TICK;
-        let seen: Vec<Hang> = (1..=48)
+        let seen: Vec<Hang> = (1..=40)
             .filter_map(|tick| watch.check(2, later + tick * TICK))
             .collect();
         assert_eq!(
