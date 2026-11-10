@@ -435,6 +435,26 @@ mod tests {
         assert!(widest < 2.0 * size[0], "a point at {widest} px");
     }
 
+    /// Springs that came with a give sit at the place of the window of
+    /// the receiver, which can be far from where its grid began: the next
+    /// step is no jump.
+    #[test]
+    fn received_springs_stay_at_a_far_window() {
+        let size = [400.0, 300.0];
+        let mut giver = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
+        giver.step([60.0, 0.0], 1.0 / 60.0);
+        let springs = giver.springs([60.0, 0.0]);
+        let far = [-524_288.0, 100.0];
+        let mut taker = Wobble::new(size, [0.0, 0.0], [200.0, 10.0]);
+        taker.take_springs(far, &springs);
+        taker.step(far, 1.0 / 60.0);
+        assert!(
+            taker.bend(far) < 400.0,
+            "the grid lags {} px",
+            taker.bend(far)
+        );
+    }
+
     #[test]
     fn the_grid_settles_where_the_window_is() {
         let mut w = Wobble::new([400.0, 300.0], [0.0, 0.0], [200.0, 10.0]);
