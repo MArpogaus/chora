@@ -1366,7 +1366,8 @@ draft stays too, because the process stays. `chat-field.quit` ends the
 program. The host holds `chat.open` and `chat.close` for the chat; the
 field never calls them.
 
-**Events.** `chat-field.keyboard {on}` when the field gets or loses the
+**Events.** `chat-field.shown` when a new surface is ready,
+`chat-field.keyboard {on}` when the field gets or loses the
 keyboard, `chat-field.sent {name}` after a text reached the helper, and
 `chat-field.closed` after Esc or when the compositor closed the
 surface. No event carries text.

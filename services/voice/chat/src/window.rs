@@ -327,11 +327,15 @@ impl Window {
 
     /// The compositor configured the surface.
     pub fn configured(&mut self, serial: u32) {
+        let mut first = false;
         if let Some(shown) = &mut self.shown {
             shown.layer.ack_configure(serial);
-            shown.configured = true;
+            first = !std::mem::replace(&mut shown.configured, true);
         }
         self.changed();
+        if first {
+            self.emit("chat-field.shown", json!({}));
+        }
     }
 
     /// The compositor closed the surface, for example with its output.

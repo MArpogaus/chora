@@ -105,6 +105,7 @@ state() {
     ctl call voice agent '{"tool": "agent_status", "name": "coder"}' | tr -d '"'
 }
 place() { ctl call chat-field place "$1" >/dev/null; }
+shown() { wait_for "the field shows" "$tmp/events" chat-field.shown "$1"; }
 bottom='{"anchor": "bottom", "margin": [0, 0, 40, 0], "width": 400}'
 top='{"anchor": "top", "margin": [40, 0, 0, 0], "width": 400}'
 field_bottom=(640 742)
@@ -118,6 +119,7 @@ for _ in $(seq 100); do
     sleep 0.1
 done
 wait_for "the window has the keyboard" "$tmp/window" enter
+shown 1
 stays "a field without a token took the keyboard" "$tmp/events" '"on":true'
 [[ $(count "$tmp/events" '"on":true') == 0 ]] || fail "a field without a token took the keyboard"
 echo "ok: a field placed without a token takes no keyboard"
@@ -181,6 +183,7 @@ wait_for "the window has the keyboard back" "$tmp/window" enter $((windows + 1))
 echo "ok: Esc closes the field and the window gets the keyboard back"
 
 place "$bottom"
+shown 2
 click "${field_bottom[@]}"
 wait_for "the field again" "$tmp/events" '"on":true' 3
 press Return
