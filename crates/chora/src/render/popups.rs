@@ -316,6 +316,33 @@ fn a_drag_that_leaves_the_pane_keeps_sending_points() {
     assert_eq!(released.last(), Some(&PointerEvent::Leave), "off the pane");
 }
 
+/// While a press holds the pointer behind a pane that stands almost edge
+/// on, a point of the screen maps to the virtual output or, behind the
+/// eye, to nothing: never to the screen.
+#[test]
+fn a_held_press_behind_a_pane_never_falls_back_to_the_screen() {
+    let mut core = Core::new();
+    core.add_output("test-1", (800, 600));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let m = pane_in_a_context(&mut core, &mut wm, [100.0, 80.0]);
+    move_to(&mut core, shown(&m, [400.0, 300.0], 50.0, 40.0).into());
+    click(&mut core, true);
+    let edge_on = chain(&[
+        translate(400.0, 300.0, 200.0),
+        turn_y(89.0),
+        translate(-50.0, -40.0, 0.0),
+    ]);
+    let turned = json!({"commands": [{"update": {"id": "pane",
+        "props": {"transform": {"matrix": edge_on}}}}]});
+    wm.ok(&mut core, "scene.apply", turned);
+    let spots: Vec<_> = (0..80)
+        .map(|step| core.state.spot((f64::from(step) * 10.0, 300.0).into()))
+        .collect();
+    let outputs = spots.iter().flatten().map(|spot| spot.output.name());
+    assert!(outputs.clone().all(|name| name == "VIRTUAL-1"));
+    assert!(spots.iter().any(Option::is_none), "a point behind the eye");
+}
+
 type TwoWindows = (Core, Wayland, Toplevel, Toplevel, Shown, Shown, Client);
 
 /// Two windows with a gap between them on a virtual output behind a pane.

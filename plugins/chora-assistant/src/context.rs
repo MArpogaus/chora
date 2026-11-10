@@ -894,4 +894,19 @@ mod tests {
             Change::Reload
         );
     }
+
+    /// A card on a virtual output would show only inside a pane, where a
+    /// shader can draw over it: the place is always on a screen.
+    #[test]
+    fn the_place_is_never_a_virtual_output() {
+        let face = OutputInfo {
+            is_virtual: Some(true),
+            owner: Some("construct".into()),
+            ..output("VIRTUAL-1", [-262_144, -262_144])
+        };
+        let outputs = [face, output("A", [0, 0])];
+        let on_the_face = place_of(Some(&window("xp", "x", "VIRTUAL-1")), &[], &outputs);
+        assert_eq!(on_the_face.output, "A");
+        assert_eq!(place_of(None, &[], &outputs).output, "A");
+    }
 }

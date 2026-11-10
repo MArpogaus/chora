@@ -227,6 +227,11 @@ fn a_node_drag_stays_pinned_and_its_release_reports_the_screen_point() {
     let on_the_face = [f64::from(SLOT_1) - off_the_pane, f64::from(SLOT_1) + below];
     assert_eq!(of("pointer.moved")["position"], json!(on_the_face));
     assert_eq!(of("pointer.released")["position"], json!([4.0, 90.0]));
+    assert_eq!(
+        of("pointer.released")["local"],
+        of("pointer.moved")["local"],
+        "the point on the node stays the last one of the drag"
+    );
     assert_eq!(spot_output(&faced), "screen", "the press ended");
 }
 
@@ -257,4 +262,129 @@ fn a_point_far_off_the_pane_stays_in_the_gap_of_the_slot() {
         assert_eq!(spot.output.name(), "VIRTUAL-1");
         assert_eq!((spot.local.x, spot.local.y), (clamped, clamped));
     }
+}
+
+fn off_the_pane(faced: &mut Faced) {
+    input::move_pointer(&mut faced.core.state, (4.0, 4.0).into(), InputTime::now());
+}
+
+/// A real press through the pane, which holds the pointer behind it.
+fn held(forward: bool) -> Faced {
+    let mut faced = paned(forward);
+    point_at(&mut faced, 10, 20);
+    button(&mut faced, ButtonState::Pressed, false);
+    off_the_pane(&mut faced);
+    assert_eq!(spot_output(&faced), "VIRTUAL-1", "the press holds");
+    faced
+}
+
+#[test]
+fn an_injected_hold_pins_no_real_click() {
+    let mut faced = paned(true);
+    point_at(&mut faced, 10, 20);
+    button(&mut faced, ButtonState::Pressed, true);
+    off_the_pane(&mut faced);
+    assert_eq!(
+        spot_output(&faced),
+        "screen",
+        "an injected press holds nothing"
+    );
+    click(&mut faced);
+    assert_eq!(spot_output(&faced), "screen", "after a real click");
+}
+
+#[test]
+fn an_injected_release_ends_no_real_drag() {
+    let mut faced = held(true);
+    button(&mut faced, ButtonState::Released, true);
+    assert_eq!(spot_output(&faced), "VIRTUAL-1");
+}
+
+#[test]
+fn a_button_that_went_down_twice_needs_one_release() {
+    let mut faced = held(true);
+    button(&mut faced, ButtonState::Pressed, false);
+    button(&mut faced, ButtonState::Released, false);
+    assert_eq!(spot_output(&faced), "screen");
+}
+
+#[test]
+fn a_lock_ends_the_press() {
+    let mut faced = held(true);
+    let _lock = faced.wayland.lock(&mut faced.core);
+    assert!(faced.core.state.press_via.is_none());
+}
+
+#[test]
+fn the_end_of_the_output_ends_the_press() {
+    let mut faced = held(true);
+    let remove = json!({"output": "VIRTUAL-1"});
+    faced.construct.ok(&mut faced.core, "output.remove", remove);
+    assert!(faced.core.state.press_via.is_none());
+}
+
+#[test]
+fn the_reset_ends_the_press() {
+    let mut faced = held(true);
+    faced.core.state.reset();
+    assert!(faced.core.state.press_via.is_none());
+}
+
+/// A press whose pane left the scene has no spot: the screen spot would
+/// send the drag from the virtual output to the screen, far away.
+#[test]
+fn a_press_whose_pane_went_has_no_spot() {
+    let mut faced = held(true);
+    let remove = json!({"commands": [{"remove": {"id": "pane"}}]});
+    faced.construct.ok(&mut faced.core, "scene.apply", remove);
+    let state = &faced.core.state;
+    assert!(state.spot(state.pointer_layout).is_none());
+    button(&mut faced, ButtonState::Released, false);
+    assert_eq!(spot_output(&faced), "screen", "the release ends it");
+}
+
+#[test]
+fn a_pane_maps_to_the_logical_size_of_a_scaled_output() {
+    let mut core = crate::testing::Core::new();
+    core.add_output("screen", (128, 96));
+    let mut construct = core.named("construct");
+    let add = json!({"spec": "64x64@2", "virtual": true});
+    construct.ok(&mut core, "output.add", add);
+    let props = json!({"size": [64, 64], "shader": "/face.frag", "forward": true,
+        "uniforms": {"face": {"output": "VIRTUAL-1"}},
+        "transform": {"translate": [PANE.0, PANE.1]}});
+    let create = json!({"id": "pane", "kind": "shader", "parent": "root", "props": props});
+    construct.ok(
+        &mut core,
+        "scene.apply",
+        json!({"commands": [{"create": create}]}),
+    );
+    let on_the_pane = (f64::from(PANE.0 + 20), f64::from(PANE.1 + 40));
+    let spot = core.state.spot(on_the_pane.into()).expect("a spot");
+    assert_eq!(spot.output.name(), "VIRTUAL-1");
+    assert_eq!((spot.local.x, spot.local.y), (10.0, 20.0));
+}
+
+#[test]
+fn forward_needs_exactly_one_output_uniform() {
+    let mut faced = paned(true);
+    let shader = face_shader(&faced.dir);
+    let mut create = |id: &str, uniforms: Value| {
+        let props = json!({"size": [8, 8], "shader": shader, "forward": true,
+            "uniforms": uniforms});
+        let node = json!({"id": id, "kind": "shader", "parent": "root", "props": props});
+        let commands = json!({"commands": [{"create": node}]});
+        faced
+            .construct
+            .fails(&mut faced.core, "scene.apply", commands)
+            .1
+    };
+    let none = create("none", json!({}));
+    assert!(none.contains("forward"), "{none}");
+    let face = json!({"output": "VIRTUAL-1"});
+    let two = create("two", json!({"a": face, "b": face}));
+    assert!(two.contains("forward"), "{two}");
+    let drop = json!({"commands": [{"update": {"id": "pane", "props": {"uniforms": {}}}}]});
+    let (_, kept) = faced.construct.fails(&mut faced.core, "scene.apply", drop);
+    assert!(kept.contains("forward"), "{kept}");
 }
