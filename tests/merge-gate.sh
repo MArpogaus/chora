@@ -58,7 +58,7 @@ test|cargo test --workspace
 clippy|cargo clippy --workspace --all-targets -- -D warnings
 2d-guard|tests/2d-guard.sh 8742dee
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh
 STEPS
 }

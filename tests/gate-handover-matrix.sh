@@ -31,6 +31,10 @@
 #
 # Usage: tests/gate-handover-matrix.sh   BIN: directory with the binaries
 #   SHOTS: directory for the log (default: a temp dir)
+#   HOLDER: the window manager that starts first and so holds the give
+#   keys (default construct); only that one may serve the keys, and the
+#   gate fails when another does
+#   CAP: the most seconds of the run (default 240)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
 # shellcheck disable=SC2016
@@ -136,15 +140,22 @@ mkdir -p "$shots" "$work/chora"
 export PATH=$bin:$PATH
 export CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000}
 theme=$repo/flavors/xp/theme
-time_cap=240
+time_cap=${CAP:-240}
 log=$shots/matrix.log
 : >"$log"
 
+holder=${HOLDER:-construct}
+case $holder in construct | xp | tiling | mc) ;; *) fail "HOLDER $holder is no window manager" ;; esac
+
 session_start 1280x800
 grant input.inject screen.capture methods.call methods.privileged
-"$bin/chora-construct" >"$shots/construct.log" 2>&1 &
-pids+=($!)
-ctl wait --timeout 20 id:construct-look >/dev/null || fail "the flavor shows no space: $(tail -n 3 "$shots/construct.log")"
+
+start_construct() {
+    "$bin/chora-construct" >"$shots/construct.log" 2>&1 &
+    pids+=($!)
+    ctl wait --timeout 20 id:construct-look >/dev/null || fail "the flavor shows no space: $(tail -n 3 "$shots/construct.log")"
+}
+[ "$holder" != construct ] || start_construct
 for x in 1280 2560 3840; do
     ctl add-output "1280x800+$x+0" >/dev/null || fail "add-output +$x"
 done
@@ -158,20 +169,39 @@ plugin() {
     "$bin/chora-$name" "$@" >"$shots/$name.log" 2>&1 &
     pids+=($!)
 }
-plugin xp --theme "$theme" --output "${out_of[xp]}"
-plugin tiling --output "${out_of[tiling]}"
-plugin mc --manage-windows --output "${out_of[mc]}"
-for c in xp tiling mc; do
-    ctl wait "owner:$c" --timeout 20 >/dev/null || fail "$c does not start: $(tail -n 3 "$shots/$c.log")"
-done
+start_plugin() {
+    case $1 in
+    xp) plugin xp --theme "$theme" --output "${out_of[xp]}" ;;
+    tiling) plugin tiling --output "${out_of[tiling]}" ;;
+    mc) plugin mc --manage-windows --output "${out_of[mc]}" ;;
+    esac
+    ctl wait "owner:$1" --timeout 20 >/dev/null || fail "$1 does not start: $(tail -n 3 "$shots/$1.log")"
+}
+if [ "$holder" = construct ]; then
+    for c in xp tiling mc; do start_plugin "$c"; done
+else
+    start_plugin "$holder"
+    for c in xp tiling mc; do [ "$c" = "$holder" ] || start_plugin "$c"; done
+    start_construct
+fi
 
 inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null || fail "inject $1"; }
 inject "[{\"pointer_move\": {\"position\": [640, 300], \"output\": \"${out_of[xp]}\"}}]"
 foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
 run_pid $!
-w=$(ctl wait "app_id:probe kind:surface owner:xp" --timeout 20 | jq -r '.[0].id') ||
-    fail "foot does not show in xp"
+w=$(ctl wait "app_id:probe kind:surface" --timeout 20 | jq -r '.[0].id') ||
+    fail "foot does not show"
+for _ in $(seq 50); do
+    first_owner=$(ctl query "id:$w" | jq -r '.[0].owner // "none"')
+    [ "$first_owner" != none ] && break
+    sleep 0.2
+done
+if [ "$first_owner" != xp ]; then
+    ctl call "$first_owner" window.give "{\"surface\": \"$w\", \"to\": \"xp\"}" >/dev/null 2>&1 ||
+        fail "foot starts with $first_owner and does not go to xp"
+    ctl wait "id:$w owner:xp" --timeout 20 >/dev/null || fail "foot does not show in xp"
+fi
 
 owner_of() { ctl query "id:$w" | jq -r '.[0].owner // "none"'; }
 
@@ -387,7 +417,7 @@ expected_of() { echo "$EXPECTED" | awk -v k="$1 $2 $3" '$1" "$2" "$3 == k {print
 
 cell() {
     local src=$1 dst=$2 path=$3 want result owner_s settle_s=1 t0=$SECONDS o
-    [ $SECONDS -le $time_cap ] || fail "the run takes more than $time_cap s at $src $dst $path"
+    [ "$SECONDS" -le "$time_cap" ] || fail "the run takes more than $time_cap s at $src $dst $path"
     want=$(expected_of "$src" "$dst" "$path")
     [ -n "$want" ] || fail "no EXPECTED line for $src $dst $path"
     case $path in drag | key) owner_s=1.5 ;; voice) owner_s=12 ;; *) owner_s=0.8 ;; esac
@@ -460,6 +490,17 @@ for pair in "${pairs[@]}"; do
     done
     echo
 done
+served_by() {
+    local c
+    for c in construct xp tiling mc; do
+        if grep -q "key give" "$shots/$c.log" 2>/dev/null; then echo "$c"; fi
+    done
+}
+keys_ran=0
+for k in "${!got[@]}"; do [[ $k == *" key" ]] && keys_ran=1; done
+if [ "$keys_ran" = 1 ] && [ "$(served_by | tr '\n' ' ')" != "$holder " ]; then
+    fail "the give keys were served by [$(served_by | tr '\n' ' ')], expected only $holder"
+fi
 [ -z "${ONLY:-}" ] || echo "ONLY is set: the table is not fully checked"
 echo "repairs of the setup: $repairs (see $log)"
 echo "run time: ${SECONDS}s"
@@ -467,5 +508,5 @@ if [ "${#mismatches[@]}" != 0 ]; then
     printf 'MISMATCH %s\n' "${mismatches[@]}" >&2
     fail "${#mismatches[@]} cells differ from EXPECTED; see $log"
 fi
-[ $SECONDS -le $time_cap ] || fail "the run took ${SECONDS}s, more than $time_cap s"
+[ "$SECONDS" -le "$time_cap" ] || fail "the run took ${SECONDS}s, more than $time_cap s"
 ok "gate-handover-matrix: every cell as in EXPECTED${ONLY:+ that ran} in ${SECONDS}s"

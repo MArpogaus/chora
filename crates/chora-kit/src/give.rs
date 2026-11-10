@@ -110,6 +110,31 @@ pub fn plan(
     Ok(Step::Hand(node.id.clone()))
 }
 
+/// The keys that give the focused window to the window manager of this
+/// name (D55): the same on every window manager.
+pub const KEYS: [(&str, &str); 4] = [
+    ("Super+Alt+1", "tiling"),
+    ("Super+Alt+2", "xp"),
+    ("Super+Alt+3", "mc"),
+    ("Super+Alt+4", "construct"),
+];
+
+/// The time that a key waits for the owner of another window.
+pub const FORWARD_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// As [`focused`], with the time to wait for the owner of another window.
+///
+/// # Errors
+///
+/// As [`focused`], and the time ends.
+pub fn focused_within(
+    _windows: &mut impl Windows,
+    _to: &str,
+    _wait: std::time::Duration,
+) -> Result<Value, RpcError> {
+    Err(RpcError::new(RpcError::REJECTED, "not written yet"))
+}
+
 /// The key action `give: to`: gives the focused window to the window
 /// manager `to`. A window of the plugin goes through [`Windows::hand`],
 /// the window of another window manager through its `window.give`, since
@@ -208,9 +233,19 @@ fn rejected(err: impl std::fmt::Display) -> RpcError {
 
 #[cfg(test)]
 mod tests {
+    use super::focused_within;
     use super::{Step, Windows, plan};
-    use crate::conn::Conn;
-    use chora_scene::{Node, NodeKind, Props, ipc::ExportMethod};
+    use crate::conn::{
+        Conn,
+        fake_core::{self, Answer},
+    };
+    use std::time::Duration;
+
+    use chora_scene::{
+        Node, NodeKind, Props,
+        ipc::{ExportMethod, RpcError},
+    };
+    use serde_json::json;
 
     struct Own(Vec<&'static str>);
 
@@ -298,5 +333,108 @@ mod tests {
         assert_eq!(required, &serde_json::json!(["surface", "to"]));
         let params = serde_json::json!({"to": "xp"});
         assert!(serde_json::from_value::<super::Give>(params).is_err());
+    }
+
+    #[test]
+    fn a_window_that_is_with_the_target_already_is_not_forwarded() {
+        let node = surface("s1", Some("tiling"));
+        let err = plan(Some(&node), "xp", "tiling", &Own(vec![])).unwrap_err();
+        assert!(err.message.contains("already"), "{}", err.message);
+    }
+
+    #[test]
+    fn an_own_window_is_never_forwarded() {
+        let node = surface("s1", Some("tiling"));
+        let step = plan(Some(&node), "tiling", "xp", &Own(vec!["s1"]));
+        assert_eq!(step.unwrap(), Step::Hand("s1".into()));
+    }
+
+    /// A window manager on a fake core: the focused window is `focus`.
+    struct Wm {
+        conn: Conn,
+        own: Vec<&'static str>,
+        handed: Vec<(String, String)>,
+    }
+
+    impl Windows for Wm {
+        fn conn(&mut self) -> &mut Conn {
+            &mut self.conn
+        }
+
+        fn has(&self, surface: &str) -> bool {
+            self.own.contains(&surface)
+        }
+
+        fn hand(&mut self, surface: &str, to: &str) -> Result<serde_json::Value, RpcError> {
+            self.handed.push((surface.into(), to.into()));
+            Ok(json!(surface))
+        }
+    }
+
+    const WAIT: Duration = Duration::from_millis(150);
+
+    fn wm_on(
+        owner: &str,
+        calls: impl Fn(&serde_json::Value) -> Answer + Send + 'static,
+    ) -> (Wm, std::thread::JoinHandle<Vec<String>>) {
+        let focus = serde_json::to_value(surface("s1", Some(owner))).unwrap();
+        let (path, core) = fake_core::serve(move |method, params| match method {
+            "scene.query" => Answer::Result(json!([focus])),
+            "methods.call" => calls(params),
+            _ => Answer::Result(json!(null)),
+        });
+        let conn = Conn::connect_at("xp", &path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        let wm = Wm {
+            conn,
+            own: vec!["s1"],
+            handed: Vec::new(),
+        };
+        (wm, core)
+    }
+
+    #[test]
+    fn a_window_of_another_manager_is_given_by_its_owner() {
+        let (mut wm, core) = wm_on("tiling", |params| {
+            assert_eq!(params["client"], "tiling");
+            assert_eq!(params["method"], "window.give");
+            assert_eq!(params["params"], json!({"surface": "s1", "to": "mc"}));
+            Answer::Result(json!("s1"))
+        });
+        assert_eq!(focused_within(&mut wm, "mc", WAIT).unwrap(), json!("s1"));
+        assert_eq!(wm.handed, []);
+        drop(wm);
+        assert!(core.join().unwrap().contains(&"methods.call".to_owned()));
+    }
+
+    #[test]
+    fn an_own_window_makes_no_call_to_another_manager() {
+        let (mut wm, core) = wm_on("xp", |_| Answer::Error("never called"));
+        focused_within(&mut wm, "tiling", WAIT).unwrap();
+        assert_eq!(wm.handed, [("s1".to_owned(), "tiling".to_owned())]);
+        drop(wm);
+        assert!(!core.join().unwrap().contains(&"methods.call".to_owned()));
+    }
+
+    #[test]
+    fn an_owner_that_is_gone_fails_the_key() {
+        let (mut wm, _core) = wm_on("tiling", |_| Answer::Error("tiling is not connected"));
+        let err = focused_within(&mut wm, "mc", WAIT).unwrap_err();
+        assert!(err.message.contains("not connected"), "{}", err.message);
+    }
+
+    #[test]
+    fn an_owner_that_refuses_fails_the_key() {
+        let (mut wm, _core) = wm_on("tiling", |_| Answer::Error("tiling has no window s1"));
+        let err = focused_within(&mut wm, "mc", WAIT).unwrap_err();
+        assert!(err.message.contains("no window"), "{}", err.message);
+    }
+
+    #[test]
+    fn an_owner_that_does_not_answer_ends_the_wait() {
+        let (mut wm, _core) = wm_on("tiling", |_| Answer::Silence);
+        let start = std::time::Instant::now();
+        assert!(focused_within(&mut wm, "mc", WAIT).is_err());
+        assert!(start.elapsed() < Duration::from_secs(2));
     }
 }

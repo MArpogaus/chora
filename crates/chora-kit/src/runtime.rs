@@ -68,6 +68,11 @@ pub struct Runtime<A> {
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, A)>,
+    /// Makes the action of a give key; none when the plugin has no give
+    /// keys.
+    give_keys: Option<fn(&'static str) -> A>,
+    /// The last try to grab give keys that another client held.
+    give_tried: Option<Instant>,
 }
 
 impl<A> Runtime<A> {
@@ -107,7 +112,34 @@ impl<A> Runtime<A> {
             name: name.into(),
             outputs,
             grabs: Vec::new(),
+            give_keys: None,
+            give_tried: None,
         }
+    }
+
+    /// Sets the action of a give key of [`crate::give::KEYS`] by its
+    /// target, or none for no give keys.
+    pub fn give_keys(&mut self, make: Option<fn(&'static str) -> A>) {
+        self.give_keys = make;
+    }
+
+    /// Grabs the give keys that the plugin does not hold.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn grab_give_keys(&mut self) -> Result<(), ClientError> {
+        Ok(())
+    }
+
+    /// As [`Self::grab_give_keys`], at most once in a while.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn regrab_give_keys(&mut self) -> Result<(), ClientError> {
+        self.give_tried.take();
+        Ok(())
     }
 
     /// Subscribes to `events` and exports `methods`. The events of the
@@ -554,5 +586,37 @@ mod tests {
             }
         }
         panic!("the plugin never gave up");
+    }
+
+    #[test]
+    fn the_give_keys_are_grabbed_again_when_another_client_lets_them_go() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let released = Arc::new(AtomicBool::new(false));
+        let seen = Arc::clone(&released);
+        let (path, _core) = fake_core::serve(move |method, params| match method {
+            "input.grab" if params["binding"] == "Super+Alt+2" && !seen.load(Ordering::SeqCst) => {
+                Answer::Error("Super+Alt+2 is grabbed already")
+            }
+            "input.grab" => Answer::Result(params["binding"].clone()),
+            _ => Answer::Result(Value::Null),
+        });
+        let conn = Conn::connect_at("mc", &path).unwrap();
+        let mut rt: Runtime<&'static str> = Runtime::with(conn, "mc", Vec::new());
+        rt.give_keys(Some(|to| to));
+        rt.grab_give_keys().unwrap();
+        for (key, to) in [("Super+Alt+1", "tiling"), ("Super+Alt+3", "mc")] {
+            assert_eq!(rt.action(key), Some(&to));
+        }
+        assert_eq!(rt.action("Super+Alt+4"), Some(&"construct"));
+        assert_eq!(rt.action("Super+Alt+2"), None);
+        released.store(true, Ordering::SeqCst);
+        rt.grab_give_keys().unwrap();
+        assert_eq!(rt.action("Super+Alt+2"), Some(&"xp"));
     }
 }
