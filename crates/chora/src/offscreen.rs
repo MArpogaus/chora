@@ -645,6 +645,8 @@ mod tests {
         assert!(!core.state.watchdog.slow(&output.name()));
     }
 
+    mod forward;
+
     /// The corner of the first slot in the layout.
     const SLOT_1: i32 = -262_144;
 

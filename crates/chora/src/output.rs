@@ -322,9 +322,14 @@ impl State {
         }
     }
 
-    /// The output at a point of the layout, and the point in output and in
-    /// scene coordinates.
+    /// Where the pointer is for the input: the spot on the screen.
     pub fn spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
+        self.screen_spot(layout)
+    }
+
+    /// The screen at a point of the layout, and the point in output and in
+    /// scene coordinates.
+    pub fn screen_spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
         let output = self
             .outputs
             .iter()
