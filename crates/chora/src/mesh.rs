@@ -157,6 +157,10 @@ pub struct Layers {
     told: bool,
     /// The nodes whose layers the budget left out of the current frame.
     pub left_out: Vec<String>,
+    /// The last version that a render gave a texture. One counter for all
+    /// slots, so that a texture that the cap evicted and made again never
+    /// repeats the version of the texture before it.
+    versions: u64,
 }
 
 impl Layers {
@@ -345,6 +349,7 @@ impl Layers {
     where
         E: RenderElement<GlesRenderer>,
     {
+        let next = self.versions + 1;
         let entry = self
             .slot((gles, stats), (node, slot, size))
             .map_err(|e| e.to_string())?;
@@ -360,8 +365,12 @@ impl Layers {
         let drew = render_into(gles, &mut texture, (&mut tracker, age), scale, elements)?;
         entry.tracker = Some((bits, tracker));
         stats.textures_rendered += u64::from(drew);
-        entry.version += u64::from(drew);
-        Ok((texture, entry.version))
+        if drew {
+            entry.version = next;
+        }
+        let version = entry.version;
+        self.versions = self.versions.max(version);
+        Ok((texture, version))
     }
 
     /// The id of the element of a layer, and its commit: a new one when
