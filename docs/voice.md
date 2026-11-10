@@ -1293,8 +1293,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   the value of a key such as `token`, `authorization` or `api_key` is
   `(hidden)`. `seq` counts up from 1 for each
   entry of the agent and never repeats while it runs; `voice.state`
-  carries the last `seq`, so a reader pulls with `agent.read {name,
-  after}` when it grew. `chat.open {name}` marks a chat of the agent as
+  carries the last `seq` and the `epoch` of the start of the agent, so a
+  reader pulls with `agent.read {name, after}` when it grew, and again
+  from 0 when the epoch changed. `chat.open {name}` marks a chat of the agent as
   open for the caller, and `chat.close {name}` ends it; the chat also
   ends on `client.disconnected` of the caller, when the voice agent
   connects to chora again, and when the caller has not read the agent
@@ -1357,7 +1358,7 @@ and stdout, without `CHORA_SOCKET` and without `XDG_ACTIVATION_TOKEN`,
 and the field ignores both. Each line is one JSON object.
 
 - Host to field: `{"place": {...}}`, `{"question": true}`,
-  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}` and `"quit"`.
+  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`, `"hide"` and `"quit"`.
   The host builds `question` from `voice.state` of the helper of the
   field, and `keys` from `voice.confirm`, which names no helper today.
 - Field to host: `{"say": "text"}`, which the host sends with `voice
@@ -1426,9 +1427,16 @@ bottom.
   token that comes with `chat.show` (from `chora-chat`, started by a key
   or a launcher) is handed on as it is. The voice agent has no token, so
   its `chat.show` shows the view and leaves the keyboard where it is.
-- Esc in the field, `chat.hide`, a click on Close and `chat.close` of the
-  host end the chat with `chat.close`. Esc keeps the field process and so
-  its draft; `chat.hide` and Close end the process.
+- Esc in the field, `chat.hide` and a click on Close end the chat with
+  `chat.close`. The field process stays, and so does its draft: Esc
+  closes the surface itself, and the host tells the field `"hide"` for
+  the others. A field that dies is started again at once. A `chat.show`
+  for another helper without a token, as the voice agent sends it, leaves
+  an open chat alone; with the token of an act it replaces it.
+- Both methods refuse a caller on a confined connection, because the host
+  acts in its own name. If voice does not answer, the host asks again
+  every 5 s and opens the chat again; a helper that voice does not know
+  or that ended has its own line.
 - A switch of look places the same field again in the new look, keeps the
   transcript and the draft, and moves nothing else. The context holds
   while the field has the keyboard.

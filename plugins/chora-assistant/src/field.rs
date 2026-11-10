@@ -184,10 +184,12 @@ impl Link for Field {
     }
 
     fn alive(&mut self) -> bool {
-        true
+        self.child.try_wait().ok().flatten().is_none()
     }
 
-    fn hide(&mut self) {}
+    fn hide(&mut self) {
+        log(self.send(&json!("hide")));
+    }
 }
 
 fn log(result: std::io::Result<()>) {

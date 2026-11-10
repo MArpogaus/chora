@@ -98,7 +98,19 @@ fn is_mark(c: char) -> bool {
 pub fn sanitize(text: &str) -> String {
     let mut clean = String::with_capacity(text.len());
     let mut marks = 0;
-    for c in text.chars() {
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            skip_sequence(&mut chars);
+            continue;
+        }
+        if matches!(
+            c,
+            '\u{9b}' | '\u{9d}' | '\u{90}' | '\u{98}' | '\u{9e}' | '\u{9f}'
+        ) {
+            skip_body(&mut chars, c);
+            continue;
+        }
         if hidden(c) {
             continue;
         }
@@ -113,6 +125,48 @@ pub fn sanitize(text: &str) -> String {
         clean.push(if odd_space(c) { ' ' } else { c });
     }
     clean
+}
+
+/// Skips what follows an ESC: a sequence of a terminal, which a text must
+/// not leave behind in part.
+fn skip_sequence(chars: &mut std::iter::Peekable<std::str::Chars>) {
+    let Some(kind) = chars.next() else {
+        return;
+    };
+    match kind {
+        '[' | ']' | 'P' | 'X' | '^' | '_' => skip_body(chars, kind),
+        '\u{20}'..='\u{2f}' => {
+            while chars
+                .next_if(|c| ('\u{20}'..='\u{2f}').contains(c))
+                .is_some()
+            {}
+            chars.next();
+        }
+        _ => {}
+    }
+}
+
+/// Skips the body of a control sequence (`[`, 0x9b: up to its final byte)
+/// or of a string sequence (up to BEL or ST).
+fn skip_body(chars: &mut std::iter::Peekable<std::str::Chars>, kind: char) {
+    if matches!(kind, '[' | '\u{9b}') {
+        for c in chars.by_ref() {
+            if ('\u{40}'..='\u{7e}').contains(&c) {
+                return;
+            }
+        }
+        return;
+    }
+    while let Some(c) = chars.next() {
+        match c {
+            '\u{7}' | '\u{9c}' => return,
+            '\u{1b}' if chars.peek() == Some(&'\\') => {
+                chars.next();
+                return;
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Who an entry is from, and so how a host styles its lines.

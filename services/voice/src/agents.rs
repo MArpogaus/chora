@@ -216,7 +216,8 @@ impl Sub {
     fn record(&self, name: &str) -> Value {
         json!({"name": name, "state": self.state, "task": self.task, "said": self.said,
             "voice": self.voice, "plan": self.plan, "question": self.question,
-            "log": self.log, "seq": self.seq, "chat": !self.chats.is_empty()})
+            "log": self.log, "seq": self.seq, "epoch": self.id,
+            "chat": !self.chats.is_empty()})
     }
 
     /// Adds an entry to the transcript, hidden and cut to `ENTRY_BYTES`;

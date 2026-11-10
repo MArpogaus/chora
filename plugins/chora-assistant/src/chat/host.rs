@@ -11,12 +11,15 @@ use chora_draw::{
     theme::Picture,
 };
 use chora_kit::{conn::Conn, hud::Chat as Look, runtime, words::Word};
-use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, ipc::ClientError};
+use chora_scene::{
+    Command, InputMode, NodeKind, PropsUpdate,
+    ipc::{ClientError, RpcError},
+};
 use serde_json::{Value, json};
 
 use super::{
     Frame, Link, Outside, colours, rgba,
-    view::{CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, style_of},
+    view::{CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of},
 };
 use crate::{
     Agent,
@@ -38,6 +41,8 @@ fn due(last: Instant) -> Instant {
 const ROW_GROUP: &str = "hud-rows";
 /// How often the host looks at the field while a chat is open.
 const FIELD_POLL: Duration = Duration::from_millis(100);
+/// How often the host asks voice again while it does not answer.
+const RETRY: Duration = Duration::from_secs(5);
 
 /// The parameters of `chat.show`.
 #[derive(serde::Deserialize)]
@@ -75,15 +80,13 @@ pub fn exported() -> Vec<chora_scene::ipc::ExportMethod> {
 /// # Errors
 ///
 /// The caller is confined.
-#[allow(
-    unused_variables,
-    clippy::unused_self,
-    clippy::missing_const_for_fn,
-    clippy::unnecessary_wraps,
-    clippy::needless_pass_by_value,
-    reason = "a stub for the red commit"
-)]
-pub fn guard(method: &str, confined: bool) -> Result<(), chora_scene::ipc::RpcError> {
+pub fn guard(method: &str, confined: bool) -> Result<(), RpcError> {
+    if confined {
+        return Err(RpcError::new(
+            RpcError::REJECTED,
+            format!("{method}: not for a confined connection"),
+        ));
+    }
     Ok(())
 }
 
@@ -91,16 +94,13 @@ pub fn guard(method: &str, confined: bool) -> Result<(), chora_scene::ipc::RpcEr
 pub type Announced = (bool, Option<String>, String);
 
 /// The data of `assistant.chat` when it differs from the last one.
-#[allow(
-    unused_variables,
-    clippy::unused_self,
-    clippy::missing_const_for_fn,
-    clippy::unnecessary_wraps,
-    clippy::needless_pass_by_value,
-    reason = "a stub for the red commit"
-)]
 pub fn announcement(last: &mut Option<Announced>, now: Announced) -> Option<Value> {
-    None
+    if last.as_ref() == Some(&now) {
+        return None;
+    }
+    let data = json!({"open": now.0, "name": now.1, "output": now.2});
+    *last = Some(now);
+    Some(data)
 }
 
 /// The connection of the host as the session sees voice and the core.
@@ -165,12 +165,14 @@ impl Agent {
             return Ok(None);
         };
         self.theme.set_scale(scale);
-        Ok(Some(Frame {
+        let frame = Frame {
             output: output.name.clone(),
             size: output.size,
             area: assistant::work_area(&output),
             look: chat_look(&self.values),
-        }))
+        };
+        self.chat_seen = Some(frame.clone());
+        Ok(Some(frame))
     }
 
     /// Draws the view again, and tells the context and the drawer of mc.
@@ -188,12 +190,14 @@ impl Agent {
     }
 
     fn chat_announce(&mut self, frame: &Frame) -> Result<(), ClientError> {
-        let open = self.chat.is_open();
-        let data = json!({"open": open, "name": self.chat.helper(), "output": frame.output});
-        if self.announced == Some((open, data["name"].as_str().map(str::to_owned))) {
+        let now = (
+            self.chat.is_open(),
+            self.chat.helper().map(str::to_owned),
+            frame.output.clone(),
+        );
+        let Some(data) = announcement(&mut self.announced, now) else {
             return Ok(());
-        }
-        self.announced = Some((open, data["name"].as_str().map(str::to_owned)));
+        };
         let emit = json!({"event": "assistant.chat", "data": data});
         self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
@@ -233,7 +237,10 @@ impl Agent {
 
     /// A press on a node of the chat: the row, an entry of the list, Stop
     /// or Close. True when the node was one.
-    pub fn chat_pressed(&mut self, node: &str) -> Result<bool, ClientError> {
+    pub fn chat_pressed(&mut self, node: &str, injected: bool) -> Result<bool, ClientError> {
+        if injected && refuses_injected(node) {
+            return Ok(true);
+        }
         if node == ROW {
             self.chat_row()?;
             return Ok(true);
@@ -308,9 +315,14 @@ impl Agent {
 
     /// When the host looks at the chat next.
     pub fn chat_due(&self, now: Instant) -> Option<Instant> {
-        self.chat
-            .is_open()
-            .then(|| (now + FIELD_POLL).min(due(self.chat_pulled)))
+        let retry = self.chat.offline().then(|| self.chat_retried + RETRY);
+        self.chat.is_open().then(|| {
+            [now + FIELD_POLL, due(self.chat_pulled)]
+                .into_iter()
+                .chain(retry)
+                .min()
+                .unwrap_or(now)
+        })
     }
 
     /// Takes what the field told and keeps the chat alive.
@@ -318,7 +330,7 @@ impl Agent {
         if !self.chat.is_open() && !self.chat.keyboard() {
             return Ok(());
         }
-        let Some(frame) = self.chat_frame()? else {
+        let Some(frame) = self.chat_seen.clone() else {
             return Ok(());
         };
         let mut bridge = Bridge {
@@ -330,6 +342,10 @@ impl Agent {
         if due(self.chat_pulled) <= now {
             self.chat_pulled = now;
             changed |= self.chat.pull(&mut bridge);
+        }
+        if self.chat.offline() && self.chat_retried + RETRY <= now {
+            self.chat_retried = now;
+            changed |= self.chat.retry(&mut bridge);
         }
         if changed {
             self.chat_draw()?;

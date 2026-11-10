@@ -30,11 +30,16 @@ use crate::{
 mod host;
 mod view;
 
-pub use host::{ShowParams, exported};
+pub use host::{Announced, ShowParams, exported, guard};
 pub use view::card_origin;
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;
+const BLOCKED: &str = "blocked";
+
+fn is_error(answer: &str) -> bool {
+    answer.starts_with("error")
+}
 
 /// Where the chat shows: the output, its size and work area.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -148,6 +153,8 @@ pub struct Session {
     drawn: Option<String>,
     dirty: bool,
     states: BTreeMap<String, Value>,
+    epoch: Option<u64>,
+    last: Option<String>,
 }
 
 /// The rectangle of the view in the work area: x, y, width, height. The
@@ -285,6 +292,12 @@ impl Session {
         std::mem::take(&mut self.dirty)
     }
 
+    /// Whether voice does not answer.
+    #[must_use]
+    pub fn offline(&self) -> bool {
+        self.offline
+    }
+
     /// Whether the field has the keyboard: the context holds.
     #[must_use]
     pub fn keyboard(&self) -> bool {
@@ -307,7 +320,15 @@ impl Session {
     ) -> Result<(), String> {
         let name = name.map(sanitize).filter(|name| !name.is_empty());
         match name {
-            Some(name) => self.open_chat(out, &name),
+            Some(name) => {
+                let other = self
+                    .helper()
+                    .is_some_and(|old| !old.eq_ignore_ascii_case(&name));
+                if other && token.is_none() {
+                    return Ok(());
+                }
+                self.open_chat(out, &name);
+            }
             None => self.open_list(out),
         }
         self.place_field(out, frame, token)
@@ -315,22 +336,39 @@ impl Session {
 
     fn open_chat(&mut self, out: &mut dyn Outside, name: &str) {
         let same = self
-            .helper()
+            .last
+            .as_deref()
             .is_some_and(|old| old.eq_ignore_ascii_case(name));
         if !same {
             self.close_chat(out);
             self.transcript = Transcript::default();
             self.status = Status::default();
             self.head = 0;
+            self.epoch = None;
             self.link = None;
         }
-        self.offline = out.voice("chat.open", json!({"name": name})).is_err();
         self.mode = Mode::Chat(name.to_owned());
+        self.last = Some(name.to_owned());
+        self.announce_open(out, name);
+    }
+
+    fn announce_open(&mut self, out: &mut dyn Outside, name: &str) {
+        match out.voice("chat.open", json!({"name": name})) {
+            Ok(_) => self.offline = false,
+            Err(error) => self.refused_or_offline(&error),
+        }
         if let Some(data) = self.states.get(&name.to_lowercase()).cloned() {
             self.helper_state(out, &data);
         }
-        if !self.offline {
+        if !self.offline && self.status.state != BLOCKED {
             self.pull(out);
+        }
+    }
+
+    fn refused_or_offline(&mut self, error: &str) {
+        self.offline = !error.contains("no agent");
+        if !self.offline {
+            BLOCKED.clone_into(&mut self.status.state);
         }
     }
 
@@ -420,7 +458,9 @@ impl Session {
         self.close_chat(out);
         self.mode = Mode::Closed;
         self.keyboard = false;
-        self.link = None;
+        if let Some(link) = self.link.as_mut() {
+            link.hide();
+        }
     }
 
     fn close_view(&mut self, out: &mut dyn Outside) {
@@ -442,6 +482,14 @@ impl Session {
 
     /// Takes what the field told. True when the view changed.
     pub fn field_events(&mut self, out: &mut dyn Outside, frame: &Frame) -> bool {
+        if self.link.as_mut().is_some_and(|link| !link.alive()) {
+            self.link = None;
+            self.keyboard = false;
+            if self.is_open() {
+                let _ = self.place_field(out, frame, None);
+            }
+            return true;
+        }
         let events = self.link.as_mut().map(|link| link.events());
         let mut changed = false;
         for event in events.into_iter().flatten() {
@@ -462,9 +510,10 @@ impl Session {
         match &self.mode {
             Mode::Chat(name) => {
                 let sent = out.voice("agent", say_params(name, text));
-                if sent.is_err()
-                    && let Some(link) = self.link.as_mut()
-                {
+                let refused = sent
+                    .as_ref()
+                    .map_or(true, |answer| answer.as_str().is_some_and(is_error));
+                if refused && let Some(link) = self.link.as_mut() {
                     link.say_failed(text);
                 }
                 self.pull(out)
@@ -477,10 +526,13 @@ impl Session {
                         .position(|pick| pick.name().eq_ignore_ascii_case(text))
                         .map(|n| n + 1)
                 });
-                match index {
-                    Some(index) => self.pick(out, index, None, frame).is_ok(),
-                    None => false,
+                if let Some(index) = index {
+                    return self.pick(out, index, None, frame).is_ok();
                 }
+                if let Some(link) = self.link.as_mut() {
+                    link.say_failed(text);
+                }
+                false
             }
             Mode::Closed => false,
         }
@@ -488,6 +540,21 @@ impl Session {
 
     /// A voice event; the view is marked for drawing if it changed.
     pub fn voice_event(&mut self, out: &mut dyn Outside, event: &str, data: &Value) {
+        if event == "voice.remove"
+            && let Some(name) = data["name"].as_str()
+        {
+            self.states.remove(&name.to_lowercase());
+            if self
+                .helper()
+                .is_some_and(|open| open.eq_ignore_ascii_case(name))
+            {
+                self.status.state = "done".into();
+                self.status.task.clear();
+                self.status.steps = None;
+                self.dirty = true;
+            }
+            return;
+        }
         if event == "voice.state"
             && let Some(name) = data["name"].as_str()
             && (self.states.len() < MAX_STATES || self.states.contains_key(&name.to_lowercase()))
@@ -526,6 +593,12 @@ impl Session {
             || status.task != self.status.task
             || status.steps != self.status.steps;
         self.status = status;
+        let epoch = data["epoch"].as_u64();
+        if epoch.is_some() && self.epoch.is_some() && epoch != self.epoch {
+            self.transcript = Transcript::default();
+            changed = true;
+        }
+        self.epoch = epoch.or(self.epoch);
         self.head = data["seq"].as_u64().unwrap_or(self.head);
         if self.head > self.transcript.after() {
             changed |= self.pull(out);
@@ -591,8 +664,12 @@ impl Session {
     /// not answer, with its keys.
     #[must_use]
     pub fn hint(&self, language: Language) -> Option<String> {
-        let waits = self.card.is_some() || self.waiting();
-        (self.is_open() && waits).then(|| {
+        let waits = match self.mode {
+            Mode::Chat(_) => self.waiting(),
+            Mode::List(_) => self.card.is_some(),
+            Mode::Closed => false,
+        };
+        waits.then(|| {
             let (yes, no) = (show_key(&self.keys.yes), show_key(&self.keys.no));
             say(language, Word::TypedYes, &[("yes", &yes), ("no", &no)])
         })
@@ -606,16 +683,19 @@ impl Session {
 
     /// Asks voice again after it did not answer: the chat opens again and
     /// the transcript is pulled. True when the view changed.
-    #[allow(
-        unused_variables,
-        clippy::unused_self,
-        clippy::missing_const_for_fn,
-        clippy::unnecessary_wraps,
-        clippy::needless_pass_by_value,
-        reason = "a stub for the red commit"
-    )]
     pub fn retry(&mut self, out: &mut dyn Outside) -> bool {
-        false
+        if !self.offline {
+            return false;
+        }
+        match &self.mode {
+            Mode::Chat(name) => {
+                let name = name.clone();
+                self.announce_open(out, &name);
+            }
+            Mode::List(_) => self.open_list(out),
+            Mode::Closed => return false,
+        }
+        !self.offline
     }
 
     /// Pulls the transcript from voice, until it is up to date. True when
@@ -628,11 +708,15 @@ impl Session {
         for _ in 0..PULLS {
             let after = self.transcript.after();
             let params = json!({"name": name, "after": after});
-            let Ok(answer) = out.voice("agent.read", params) else {
-                self.offline = true;
-                break;
+            let answer = match out.voice("agent.read", params) {
+                Ok(answer) => answer,
+                Err(error) => {
+                    self.refused_or_offline(&error);
+                    break;
+                }
             };
             self.offline = false;
+            self.epoch = answer["epoch"].as_u64().or(self.epoch);
             self.transcript.apply(&answer);
             if self.transcript.after() == after || self.transcript.after() >= self.head {
                 break;

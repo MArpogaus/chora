@@ -68,6 +68,9 @@ pub struct Runtime<A> {
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, A)>,
+    /// Whether the connection of the caller of the method that runs now is
+    /// confined, for a method that acts in the name of the plugin.
+    pub confined_call: bool,
 }
 
 impl<A> Runtime<A> {
@@ -107,6 +110,7 @@ impl<A> Runtime<A> {
             name: name.into(),
             outputs,
             grabs: Vec::new(),
+            confined_call: false,
         }
     }
 
@@ -235,8 +239,10 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             call,
             method,
             params,
+            confined,
             ..
         } => {
+            rt.confined_call = confined;
             let result = match method.as_str() {
                 "settings.get" => {
                     (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))

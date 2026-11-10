@@ -66,6 +66,10 @@ impl Agent {
                 self.helper_state(helper, data, now);
                 self.chat_voice(event, data);
             }
+            if kind == Some("remove") {
+                self.helper_gone(helper, now);
+                self.chat_voice(event, data);
+            }
             return Ok(Vec::new());
         }
         match kind {
@@ -105,6 +109,13 @@ impl Agent {
         if self.helpers.len() < MAX_HELPERS || self.helpers.contains_key(name) {
             self.helpers.insert(name.to_owned(), state);
         }
+        let agents = context::agents_of(self.helpers.values().copied());
+        self.switcher.set_agents(agents, now);
+    }
+
+    /// A helper ended: it no longer counts for the context.
+    fn helper_gone(&mut self, name: &str, now: Instant) {
+        self.helpers.remove(name);
         let agents = context::agents_of(self.helpers.values().copied());
         self.switcher.set_agents(agents, now);
     }
@@ -167,14 +178,8 @@ impl Agent {
             too_long: false,
             max_width: None,
         };
-        let (theme, language) = (&self.card_theme, self.language);
-        shown.too_long = !card::fits(theme, &shown, language, output.size);
-        shown.buttons &= !shown.too_long;
-        let size = card::size(theme, &shown, language, output.size);
-        shown.origin = match self.card.as_ref().map(|old| old.origin) {
-            Some(old) => old,
-            None => self.card_origin(figure, size, &output)?,
-        };
+        self.place_card(&mut shown, figure, &output)?;
+        let language = self.language;
         if self.card.take().is_some() {
             commands.extend(card::hide());
         }
@@ -218,21 +223,43 @@ impl Agent {
         Vec::new()
     }
 
-    /// Where a card that appears now goes, and where it stays: inside the
-    /// chat view if one is open, else above the figure.
-    fn card_origin(
+    /// The width, the size and the corner of a new card; a card that
+    /// replaces another keeps the place of the old one.
+    fn place_card(
         &mut self,
+        shown: &mut Shown,
         figure: [i32; 4],
-        size: [i32; 2],
         output: &OutputInfo,
-    ) -> Result<[i32; 2], ClientError> {
-        let at_figure = card::place(figure, size, assistant::work_area(output));
+    ) -> Result<(), ClientError> {
+        let kept = self.card.as_ref().map(|old| (old.origin, old.max_width));
+        let view = match kept {
+            Some(_) => None,
+            None => self.card_view()?,
+        };
+        shown.max_width = kept.map_or(view.as_ref().map(|(_, width)| *width), |(_, w)| w);
+        let (theme, language) = (&self.card_theme, self.language);
+        shown.too_long = !card::fits(theme, shown, language, output.size);
+        shown.buttons &= !shown.too_long;
+        let size = card::size(theme, shown, language, output.size);
+        shown.origin = match (kept, view) {
+            (Some((old, _)), _) => old,
+            (None, Some((frame, _))) => chat::card_origin(&frame, size),
+            (None, None) => card::place(figure, size, assistant::work_area(output)),
+        };
+        Ok(())
+    }
+
+    /// Where a card that appears now goes, and where it stays: the frame
+    /// and the width of the chat view if one is open, else the figure.
+    fn card_view(&mut self) -> Result<Option<(chat::Frame, i32)>, ClientError> {
         if self.chat.question_asked() != Where::Chat {
-            return Ok(at_figure);
+            return Ok(None);
         }
-        Ok(self
-            .chat_frame()?
-            .map_or(at_figure, |frame| chat::card_origin(&frame, size)))
+        Ok(self.chat_frame()?.map(|frame| {
+            let (anchor, width) = frame.look.place();
+            let view = chat::view_rect(anchor, width, frame.area);
+            (frame, view[2])
+        }))
     }
 
     /// The group of the card and the badge, above the group of the folder,

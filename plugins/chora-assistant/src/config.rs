@@ -169,8 +169,34 @@ impl Default for Line {
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
+/// Where the "Chat ..." row stands: where the panel of the helpers puts
+/// it, else beside the figure, which a click on the row never covers.
+fn rows_of(
+    hud: &Hud,
+    context: &Context,
+    (anchor, margin): (Anchor, [i32; 2]),
+    figure_height: i32,
+) -> (Anchor, [i32; 2]) {
+    let panel = hud.panels.iter().find(|panel| {
+        panel.source == Source::Agents
+            && panel.action == Some(chora_kit::hud::Action::Chat)
+            && panel.when.matches(context)
+    });
+    panel.map_or(
+        (anchor, [margin[0], margin[1] + figure_height + ROW_GAP]),
+        |panel| {
+            (
+                panel.anchor.unwrap_or(NEUTRAL_ROWS.0),
+                panel.margin.unwrap_or(NEUTRAL_ROWS.1),
+            )
+        },
+    )
+}
+
 /// The gap between the figure of an asset folder and its Chat row.
 const ROW_GAP: i32 = 8;
+/// The height of the dot of the host.
+const NEUTRAL_FIGURE: i32 = 24;
 
 impl Values {
     /// The values of a HUD folder in a context. `size` gives the size of a
@@ -209,11 +235,9 @@ impl Values {
             ),
             _ => (NEUTRAL_ANCHOR, NEUTRAL_MARGIN),
         };
-        let rows = hud.panels.iter().find(|panel| {
-            panel.source == Source::Agents
-                && panel.action == Some(chora_kit::hud::Action::Chat)
-                && panel.when.matches(context)
-        });
+        let height = figure
+            .as_ref()
+            .map_or(NEUTRAL_FIGURE, |figure| figure.size()[1]);
         let mutes = figure.is_none()
             || voice.is_some_and(|panel| panel.action == Some(chora_kit::hud::Action::Mute));
         Self {
@@ -227,12 +251,7 @@ impl Values {
                 text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
                 max_chars: panel.max_chars.map(|n| n as usize),
             }),
-            rows: rows.map_or(NEUTRAL_ROWS, |panel| {
-                (
-                    panel.anchor.unwrap_or(NEUTRAL_ROWS.0),
-                    panel.margin.unwrap_or(NEUTRAL_ROWS.1),
-                )
-            }),
+            rows: rows_of(hud, context, (anchor, margin), height),
             watches: hud
                 .panels
                 .iter()

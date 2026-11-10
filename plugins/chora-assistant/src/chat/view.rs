@@ -53,16 +53,8 @@ pub fn pick_of(node: &str) -> Option<usize> {
 /// Whether a press on `node` that a program made counts for nothing: Stop
 /// and the entries of the list.
 #[must_use]
-#[allow(
-    unused_variables,
-    clippy::unused_self,
-    clippy::missing_const_for_fn,
-    clippy::unnecessary_wraps,
-    clippy::needless_pass_by_value,
-    reason = "a stub for the red commit"
-)]
 pub fn refuses_injected(node: &str) -> bool {
-    false
+    node == STOP || pick_of(node).is_some()
 }
 
 /// The top-left corner of a card inside the view, above the hint of the

@@ -266,6 +266,10 @@ impl Window {
                 let effect = self.session.key(Key::Text(text));
                 self.effect(effect);
             }
+            Msg::Hide => {
+                self.token = None;
+                self.destroy_surface();
+            }
             Msg::Quit => self.running = false,
         }
         self.changed();

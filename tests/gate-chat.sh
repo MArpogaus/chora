@@ -12,7 +12,8 @@
 # hint of the node hud-chat-hint, closes the chat and checks that voice saw
 # chat.open and chat.close.
 #
-# Usage: tests/gate-chat.sh [FOLDER...]   (default: neutral)
+# Usage: tests/gate-chat.sh [FOLDER...]   (default: every folder that
+#   chora-assistant --list-huds names)
 #   FOLDER: a HUD folder by the name that chora-assistant --list-huds gives
 #   BIN: directory with the binaries (default: target/debug)
 #   SHOTS: directory for the logs and the lines (default: a temp dir)
@@ -26,7 +27,7 @@ header: Atlas · working · Write file (2/2)
 You
 Please write notes.txt
 Atlas
-I will write]52;c;Zm9v the file now.
+I will write the file now.
 Write notes.txt
 Write notes.txt?
 Atlas
@@ -109,7 +110,8 @@ if [ "${1:-}" = --one ]; then
 fi
 
 folders=("$@")
-[ ${#folders[@]} -gt 0 ] || folders=(neutral)
+[ ${#folders[@]} -gt 0 ] || mapfile -t folders < <("$bin/chora-assistant" --list-huds | awk '{print $1}')
+[ ${#folders[@]} -gt 0 ] || fail "chora-assistant --list-huds names no folder"
 out=${SHOTS:-$(mktemp -d /tmp/gate-chat.XXXXXX)}
 mkdir -p "$out"
 for folder in "${folders[@]}"; do

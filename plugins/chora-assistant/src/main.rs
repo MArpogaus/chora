@@ -17,7 +17,6 @@
     clippy::print_stderr,
     reason = "a plugin logs to stderr, which the session keeps"
 )]
-#![allow(dead_code, reason = "the red commit holds stubs")]
 
 mod assistant;
 mod card;
@@ -184,7 +183,11 @@ struct Agent {
     /// When the chat last pulled from voice.
     chat_pulled: Instant,
     /// What `assistant.chat` last said: open, and with whom.
-    announced: Option<(bool, Option<String>)>,
+    announced: Option<chat::Announced>,
+    /// The frame that the chat was last drawn in.
+    chat_seen: Option<chat::Frame>,
+    /// When the chat last asked voice again.
+    chat_retried: Instant,
     /// The output that shows the "Chat ..." row.
     row: Option<String>,
 }
@@ -239,6 +242,10 @@ impl Plugin for Agent {
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let rejected = |e: String| RpcError::new(RpcError::REJECTED, e);
         match method {
+            "chat.show" | "chat.hide" if self.rt.confined_call => {
+                chat::guard(method, true)?;
+                Ok(Value::Null)
+            }
             "chat.show" => {
                 let ShowParams { name, token } = runtime::params(params)?;
                 self.chat_show(name.as_deref(), token.as_deref())
@@ -325,6 +332,8 @@ impl Agent {
             chat: Session::new(),
             chat_pulled: Instant::now(),
             announced: None,
+            chat_seen: None,
+            chat_retried: Instant::now(),
             row: None,
         };
         agent.look_context = agent.switcher.applied().clone();
@@ -365,7 +374,7 @@ impl Agent {
         if node == card::BADGE {
             return Ok(self.press_badge(injected));
         }
-        if self.chat_pressed(node)? {
+        if self.chat_pressed(node, injected)? {
             return Ok(Vec::new());
         }
         if Assistant::owns(node) {
