@@ -132,7 +132,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         },
     );
     match action {
-        Some(KeyAction::Quit) => state.loop_signal.stop(),
+        Some(KeyAction::Quit) => state.quit("the quit binding"),
         Some(KeyAction::Reset) => state.reset(),
         Some(KeyAction::RevokeAll) => state.revoke_all(),
         Some(KeyAction::SwitchVt(vt)) => {

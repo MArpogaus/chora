@@ -231,8 +231,7 @@ fn layers_dropped_names_the_window_that_keeps_the_keyboard() {
     );
     leave_out(&mut core, "HDMI-1", &["box"]);
     let budget = std::time::Duration::from_millis(16);
-    core.state
-        .frame_rendered("HDMI-1", budget, std::time::Duration::ZERO);
+    core.state.frame_took("HDMI-1", budget, Default::default());
     let events = wm.events_now(&mut core);
     let dropped = &events[0]["params"];
     assert_eq!(dropped["nodes"], json!(["box"]), "{events:?}");

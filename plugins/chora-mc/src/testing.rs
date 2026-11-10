@@ -25,6 +25,8 @@ pub struct Core {
     pub focuses: Vec<Option<String>>,
     /// The methods that the plugin called through `methods.call`.
     pub calls: Vec<String>,
+    /// How often the plugin asked `scene.query`.
+    pub queries: usize,
 }
 
 /// The model of each connection, in the order of the connections.
@@ -82,6 +84,7 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
                 )),
             }
         }
+        "input.grab" => Ok(params["binding"].clone()),
         "methods.call" => {
             let method = params["method"].as_str().unwrap_or_default().to_owned();
             model.lock().unwrap().calls.push(method);
@@ -91,7 +94,8 @@ fn answer(model: &Model, request: &Value) -> Result<Value, (i64, String)> {
             let id = params["selector"]
                 .as_str()
                 .and_then(|s| s.strip_prefix("id:"));
-            let core = model.lock().unwrap();
+            let mut core = model.lock().unwrap();
+            core.queries += 1;
             let found = id
                 .and_then(|id| core.scene.node(id))
                 .map(|n| json!({"id": n.id}));

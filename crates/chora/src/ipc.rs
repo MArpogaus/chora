@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -961,8 +961,8 @@ impl State {
             .name(conn)
             .ok_or_else(|| rejected("send hello first"))?;
         self.check_socket_grant(conn, Capability::SessionQuit)?;
-        tracing::info!(client = name, "session.quit");
-        self.loop_signal.stop();
+        let reason = format!("session.quit of {name}");
+        self.quit(&reason);
         Ok(Value::Null)
     }
 
@@ -1192,7 +1192,11 @@ impl State {
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
         // (D33): only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
-        let rects = self.screen_rects();
+        if nodes.is_empty() {
+            return Ok(Value::Array(Vec::new()));
+        }
+        let matched: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+        let rects = self.screen_rects(&matched);
         if let Some(filter) = &query.filter {
             nodes.retain(|n| {
                 filter.matches(
@@ -1222,8 +1226,10 @@ impl State {
     /// The screen rectangles by node: the output name maps to
     /// `[x, y, w, h]` in the logical pixels of that output, after the
     /// parent transforms and the camera of the output. Outputs where the
-    /// node does not show are left out.
-    fn screen_rects(&self) -> HashMap<&str, Value> {
+    /// node does not show are left out. Only the nodes `of` get a
+    /// rectangle: a box costs a text layout or a projection, which a
+    /// query for one node must not pay for the whole scene.
+    fn screen_rects(&self, of: &HashSet<&str>) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
         for output in &self.all_outputs() {
             let name = output.name();
@@ -1241,7 +1247,8 @@ impl State {
                     .iter()
                     .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
                     .collect();
-                let shown = list.iter().filter_map(|placed| {
+                let wanted = list.iter().filter(|p| of.contains(p.node.id.as_str()));
+                let shown = wanted.filter_map(|placed| {
                     Some((
                         placed.node.id.as_str(),
                         self.screen_rect(placed, &at, screen)?,
