@@ -120,6 +120,43 @@ pub enum Command {
         #[serde(default)]
         easing: Easing,
     },
+    /// Gives the drag of a window with the window: after a `remove` with
+    /// the same `to` in the same transaction, the core moves the pointer
+    /// grab of the caller to `to`, which gets the press of `move` with the
+    /// window and this state. Only a window manager with a claim that is
+    /// not confined gives a drag, only while the user holds the button of
+    /// a real press, and only to such a window manager that grabbed
+    /// `move`.
+    GiveGrab {
+        /// The window of the drag.
+        surface: String,
+        /// The client name that gets the window and the drag.
+        to: String,
+        /// The point of the window that the pointer holds, in the logical
+        /// pixels of the window.
+        point: [f64; 2],
+        /// The speed of the window in scene pixels per second.
+        #[serde(default)]
+        velocity: [f64; 2],
+        /// The state of the effect of the giver, for example the springs
+        /// of a wobble; the receiver reads what it knows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        wobble: Option<serde_json::Value>,
+    },
+}
+
+/// The state of a drag that a window manager hands over with its window
+/// (`give_grab`): the receiver goes on where the giver stopped.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct GivenGrab {
+    /// The point of the window that the pointer holds.
+    pub point: [f64; 2],
+    /// The speed of the window in scene pixels per second.
+    pub velocity: [f64; 2],
+    /// The state of the effect of the giver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wobble: Option<serde_json::Value>,
 }
 
 /// A state of an `xdg_toplevel`.
@@ -164,6 +201,18 @@ pub enum Effect {
         to: String,
         /// The client that gave it.
         from: String,
+    },
+    /// A window manager gave the drag of a surface that it reserved for
+    /// another one in this transaction; move the pointer grab.
+    GrabGiven {
+        /// The surface node.
+        surface: String,
+        /// The client name that gets the drag.
+        to: String,
+        /// The client that gave it.
+        from: String,
+        /// The state of the drag.
+        grab: GivenGrab,
     },
     /// The camera of an output changed; tell the clients.
     Camera(String),

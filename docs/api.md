@@ -234,6 +234,7 @@ path.
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection and hold a claim (D55). |
+| `give_grab` | Give the drag of a window with the window: `surface`, `to`, `point` (the point of the window that the pointer holds), and optionally `velocity` and `wobble`. It follows a `remove` of `surface` with the same `to` in the same transaction. See [A give during a drag](#a-give-during-a-drag). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with `node.requested` to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -422,6 +423,35 @@ forwards, and the gate fails when a manager other than the holder serves
 a key. A last run has the setting off and expects that an injected give
 key gives nothing.
 
+### A give during a drag
+
+A window manager can hand a window over while the user still drags it,
+so that the window leaves its area with the button down. Its transaction
+holds a `remove` with `to` and a `give_grab` with the same `surface` and
+`to`. When the transaction applies, the core moves the pointer grab to
+`to`: the receiver gets `surface.detached`, then `input.button` with the
+binding `move`, the state `pressed`, the `surface` and `grab`, then
+`input.moved` and the release as for any move. The giver hears no more
+of that button. The receiver attaches the window and goes on with the
+drag from `grab`: `point`, `velocity` and the state of an effect in
+`wobble`, which the core passes on unread.
+
+The core refuses the whole transaction, before any command runs, unless
+all of this holds:
+
+- the giver and `to` hold a claim, and neither is confined; the giver
+  also answers no method call of a confined caller at that time;
+- the giver holds the grab: a button binding, `move`, or a press on one
+  of its own nodes;
+- the user made that press and still holds the button; an injected
+  press, and any injected press after it, ends this;
+- `to` grabbed `move`.
+
+The grab ends without a release event when its receiver disconnects, and
+when the receiver does not own the window and no reservation keeps the
+window for it, for example 5 seconds after the give. The release of the
+button then reaches no client.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -458,7 +488,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
-| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move, and after a `give_grab` also `grab` with `point`, `velocity` and `wobble` as the giver sent them; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |

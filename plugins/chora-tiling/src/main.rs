@@ -1463,6 +1463,7 @@ mod tests {
             output: "X".into(),
             local: position,
             surface: Some(surface.into()),
+            grab: None,
         };
         let moved = |position: [f64; 2]| Event::InputMoved {
             binding: give::MOVE.into(),
@@ -1649,6 +1650,7 @@ mod tests {
             output: "X".into(),
             local: position,
             surface: Some(surface.into()),
+            grab: None,
         };
         let moved = Event::InputMoved {
             binding: give::MOVE.into(),

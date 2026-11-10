@@ -858,7 +858,8 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
-                let checked = self.check_paths(conn, &apply.commands);
+                let checked = self.check_grab_gives(conn, &apply.commands);
+                let checked = checked.and_then(|()| self.check_paths(conn, &apply.commands));
                 if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
@@ -1450,6 +1451,9 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        if self.button_grab.take_if(|g| g.conn == conn).is_some() {
+            self.refresh_pointer();
+        }
         if !closed.reserves.is_empty() {
             self.output_changed();
         }

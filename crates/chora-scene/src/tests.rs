@@ -1686,3 +1686,41 @@ fn without_planes_the_hit_list_is_the_draw_list() {
     assert_eq!(scene.hit_list(ROOT), scene.draw_list());
     assert_ne!(scene.layer_list(ROOT), scene.draw_list());
 }
+
+/// The drag goes only with the window: a `give_grab` needs a `remove` of
+/// the same surface to the same client before it in its transaction.
+#[test]
+fn a_drag_goes_only_with_a_window_given_in_the_same_transaction() {
+    let mut scene = Scene::default();
+    scene.add_surface("s1", SurfaceInfo::default());
+    let claim = |id: &str| Command::Create {
+        id: id.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 10.0, 10.0])),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("a", &[claim("a"), attach("s1", "a")]).unwrap();
+    scene.apply("b", &[claim("b")]).unwrap();
+    let grab = |to: &str| Command::GiveGrab {
+        surface: "s1".into(),
+        to: to.into(),
+        point: [1.0, 2.0],
+        velocity: [0.0; 2],
+        wobble: None,
+    };
+    let remove = Command::Remove {
+        id: "s1".into(),
+        to: Some("b".into()),
+    };
+    assert!(scene.check("a", &[grab("b")]).is_err(), "no remove");
+    assert!(scene.check("b", &[grab("b")]).is_err(), "not the giver");
+    let other = [remove.clone(), grab("a")];
+    assert!(scene.check("a", &other).is_err(), "another receiver");
+    let effects = scene.apply("a", &[remove, grab("b")]).unwrap();
+    let given = matches!(effects.last(),
+        Some(Effect::GrabGiven { to, from, .. }) if to == "b" && from == "a");
+    assert!(given, "{effects:?}");
+}
