@@ -7,6 +7,11 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+F5. A 2D guard run failed once with "no core" (the core did not come up)
+   and passed on the rerun (11-10, render-fix gate). Possibly the silent
+   core death under load (backlog 4, Fable lane); collect the core log of
+   such a run.
+
 F4. Gate waits under load: gate-hud waits 5 s for the HUD figure; at
    load 8.8 (battle tests in parallel) that timed out. Serialise load
    tests with merge gates (a lock file), and make the waits name the load.
