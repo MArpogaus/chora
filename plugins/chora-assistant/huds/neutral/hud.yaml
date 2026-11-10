@@ -12,3 +12,19 @@ panels:
   near: figure
   style: bubble
   text: '{text}'
+- id: agents
+  source: agents
+  anchor: top_right
+  margin: [16, 16]
+  rows: '{name}  {state}  {task}'
+  max_rows: 4
+  action: chat
+chat:
+  style: plain
+  size: 14
+  anchor: right
+  width: 400
+  fill: [250, 250, 250]
+  text: [32, 32, 32]
+  name: [0, 80, 160]
+  border: [60, 60, 60]

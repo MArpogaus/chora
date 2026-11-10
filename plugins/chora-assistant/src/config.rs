@@ -135,6 +135,8 @@ pub struct Values {
     pub speech: Style,
     /// The template and the length of the text of a sentence.
     pub line: Line,
+    /// Where the "Chat ..." row stands and its distance from the edges.
+    pub rows: (Anchor, [i32; 2]),
     /// The fields of the context that the folder reads in a `when`, so
     /// that the look is built again when one of them changes.
     pub watches: BTreeSet<String>,
@@ -166,6 +168,35 @@ impl Default for Line {
 /// neutral folder.
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
+const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
+/// Where the "Chat ..." row stands: where the panel of the helpers puts
+/// it, else beside the figure, which a click on the row never covers.
+fn rows_of(
+    hud: &Hud,
+    context: &Context,
+    (anchor, margin): (Anchor, [i32; 2]),
+    figure_height: i32,
+) -> (Anchor, [i32; 2]) {
+    let panel = hud.panels.iter().find(|panel| {
+        panel.source == Source::Agents
+            && panel.action == Some(chora_kit::hud::Action::Chat)
+            && panel.when.matches(context)
+    });
+    panel.map_or(
+        (anchor, [margin[0], margin[1] + figure_height + ROW_GAP]),
+        |panel| {
+            (
+                panel.anchor.unwrap_or(NEUTRAL_ROWS.0),
+                panel.margin.unwrap_or(NEUTRAL_ROWS.1),
+            )
+        },
+    )
+}
+
+/// The gap between the figure of an asset folder and its Chat row.
+const ROW_GAP: i32 = 8;
+/// The height of the dot of the host.
+const NEUTRAL_FIGURE: i32 = 24;
 
 impl Values {
     /// The values of a HUD folder in a context. `size` gives the size of a
@@ -204,6 +235,9 @@ impl Values {
             ),
             _ => (NEUTRAL_ANCHOR, NEUTRAL_MARGIN),
         };
+        let height = figure
+            .as_ref()
+            .map_or(NEUTRAL_FIGURE, |figure| figure.size()[1]);
         let mutes = figure.is_none()
             || voice.is_some_and(|panel| panel.action == Some(chora_kit::hud::Action::Mute));
         Self {
@@ -217,6 +251,7 @@ impl Values {
                 text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
                 max_chars: panel.max_chars.map(|n| n as usize),
             }),
+            rows: rows_of(hud, context, (anchor, margin), height),
             watches: hud
                 .panels
                 .iter()
@@ -251,6 +286,7 @@ impl Values {
             mutes: true,
             speech: Style::default(),
             line: Line::default(),
+            rows: NEUTRAL_ROWS,
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -267,6 +303,7 @@ impl Values {
                 size,
             }),
         };
+        let above = raw.margin[1] + figure.size()[1] + ROW_GAP;
         Self {
             font: raw.font,
             figure,
@@ -275,6 +312,7 @@ impl Values {
             mutes: true,
             speech: raw.speech,
             line: Line::default(),
+            rows: (Anchor::BottomRight, [raw.margin[0], above]),
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -508,5 +546,15 @@ mod tests {
         assert!(values.mutes);
         let quiet = text.replace(", action: mute", "");
         assert!(!self::values(&quiet).mutes);
+    }
+
+    #[test]
+    fn a_folder_without_a_chat_panel_puts_the_row_at_its_figure() {
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, anchor: bottom_left, margin: [8, 8], \
+                    picture: 'dot.svg#{state}'}\n";
+        let values = Values::from_hud(&hud::parse(text).unwrap(), &Context::default(), |_| {
+            Some([24, 24])
+        });
+        assert_eq!(values.rows.0, Anchor::BottomLeft);
     }
 }

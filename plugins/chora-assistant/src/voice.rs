@@ -17,6 +17,7 @@ use crate::{
     Agent,
     assistant::{self, Assistant},
     card::{self, Outcome, Shown},
+    chat::{self, Where},
     context,
 };
 
@@ -63,6 +64,11 @@ impl Agent {
         if let Some(helper) = name.filter(|n| *n != client) {
             if kind == Some("state") {
                 self.helper_state(helper, data, now);
+                self.chat_voice(event, data);
+            }
+            if kind == Some("remove") {
+                self.helper_gone(helper, now);
+                self.chat_voice(event, data);
             }
             return Ok(Vec::new());
         }
@@ -87,7 +93,11 @@ impl Agent {
                 }
                 Ok(commands)
             }
-            Some("confirm") => self.confirm(data, now),
+            Some("confirm") => {
+                let commands = self.confirm(data, now)?;
+                self.chat_voice(event, data);
+                Ok(commands)
+            }
             _ => Ok(Vec::new()),
         }
     }
@@ -99,6 +109,13 @@ impl Agent {
         if self.helpers.len() < MAX_HELPERS || self.helpers.contains_key(name) {
             self.helpers.insert(name.to_owned(), state);
         }
+        let agents = context::agents_of(self.helpers.values().copied());
+        self.switcher.set_agents(agents, now);
+    }
+
+    /// A helper ended: it no longer counts for the context.
+    fn helper_gone(&mut self, name: &str, now: Instant) {
+        self.helpers.remove(name);
         let agents = context::agents_of(self.helpers.values().copied());
         self.switcher.set_agents(agents, now);
     }
@@ -159,14 +176,10 @@ impl Agent {
             origin: [0, 0],
             notice: false,
             too_long: false,
+            max_width: None,
         };
-        let (theme, language) = (&self.card_theme, self.language);
-        shown.too_long = !card::fits(theme, &shown, language, output.size);
-        shown.buttons &= !shown.too_long;
-        let size = card::size(theme, &shown, language, output.size);
-        let origin = self.card.as_ref().map(|old| old.origin);
-        shown.origin =
-            origin.unwrap_or_else(|| card::place(figure, size, assistant::work_area(&output)));
+        self.place_card(&mut shown, figure, &output)?;
+        let language = self.language;
         if self.card.take().is_some() {
             commands.extend(card::hide());
         }
@@ -204,9 +217,49 @@ impl Agent {
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
             self.card = None;
+            self.chat.question_ended();
             return card::hide();
         }
         Vec::new()
+    }
+
+    /// The width, the size and the corner of a new card; a card that
+    /// replaces another keeps the place of the old one.
+    fn place_card(
+        &mut self,
+        shown: &mut Shown,
+        figure: [i32; 4],
+        output: &OutputInfo,
+    ) -> Result<(), ClientError> {
+        let kept = self.card.as_ref().map(|old| (old.origin, old.max_width));
+        let view = match kept {
+            Some(_) => None,
+            None => self.card_view()?,
+        };
+        shown.max_width = kept.map_or(view.as_ref().map(|(_, width)| *width), |(_, w)| w);
+        let (theme, language) = (&self.card_theme, self.language);
+        shown.too_long = !card::fits(theme, shown, language, output.size);
+        shown.buttons &= !shown.too_long;
+        let size = card::size(theme, shown, language, output.size);
+        shown.origin = match (kept, view) {
+            (Some((old, _)), _) => old,
+            (None, Some((frame, _))) => chat::card_origin(&frame, size),
+            (None, None) => card::place(figure, size, assistant::work_area(output)),
+        };
+        Ok(())
+    }
+
+    /// Where a card that appears now goes, and where it stays: the frame
+    /// and the width of the chat view if one is open, else the figure.
+    fn card_view(&mut self) -> Result<Option<(chat::Frame, i32)>, ClientError> {
+        if self.chat.question_asked() != Where::Chat {
+            return Ok(None);
+        }
+        Ok(self.chat_frame()?.map(|frame| {
+            let (anchor, width) = frame.look.place();
+            let view = chat::view_rect(anchor, width, frame.area);
+            (frame, view[2])
+        }))
     }
 
     /// The group of the card and the badge, above the group of the folder,
@@ -516,7 +569,7 @@ impl Agent {
     }
 
     /// Calls a method of the voice agent.
-    fn voice_call(&mut self, method: &str, params: &Value) -> Result<Value, ClientError> {
+    pub fn voice_call(&mut self, method: &str, params: &Value) -> Result<Value, ClientError> {
         let client = self.voice.as_ref().map_or(VOICE, |(c, _)| c.as_str());
         let call = json!({"client": client, "method": method, "params": params});
         self.rt.conn.call("methods.call", call)

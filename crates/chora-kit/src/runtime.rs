@@ -84,6 +84,9 @@ pub struct Runtime<A> {
     give_tried: Option<Instant>,
     /// Whether a key of `input.inject` runs a binding (test sessions).
     inject_ok: bool,
+    /// Whether the connection of the caller of the method that runs now is
+    /// confined, for a method that acts in the name of the plugin.
+    pub confined_call: bool,
 }
 
 impl<A> Runtime<A> {
@@ -126,6 +129,7 @@ impl<A> Runtime<A> {
             give_keys: None,
             give_tried: None,
             inject_ok: test_session(),
+            confined_call: false,
         }
     }
 
@@ -331,8 +335,10 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
             call,
             method,
             params,
+            confined,
             ..
         } => {
+            rt.confined_call = confined;
             let result = match method.as_str() {
                 "settings.get" => {
                     (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))

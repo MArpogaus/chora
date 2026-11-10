@@ -216,7 +216,8 @@ impl Sub {
     fn record(&self, name: &str) -> Value {
         json!({"name": name, "state": self.state, "task": self.task, "said": self.said,
             "voice": self.voice, "plan": self.plan, "question": self.question,
-            "log": self.log, "seq": self.seq, "chat": !self.chats.is_empty()})
+            "log": self.log, "seq": self.seq, "epoch": self.id,
+            "chat": !self.chats.is_empty()})
     }
 
     /// Adds an entry to the transcript, hidden and cut to `ENTRY_BYTES`;
@@ -1804,6 +1805,14 @@ exec cat >/dev/null"#;
                 )
             })
             .collect()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_state_record_carries_the_epoch() {
+        let (agents, _rx, _data) = idle_agent("epoch").await;
+        let inner = agents.lock();
+        let sub = &inner.subs["coder"];
+        assert_eq!(sub.record("coder")["epoch"], sub.id);
     }
 
     /// `agent.read` answers the entries after a seq, in order, with the

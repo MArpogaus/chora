@@ -5,11 +5,6 @@
 //! else. The host passes the activation token of a person's act with
 //! `place`, and nowhere else: the field ignores its environment.
 
-#![allow(
-    dead_code,
-    reason = "the chat of H7 starts the field and relays its events"
-)]
-
 use std::{
     io::{BufRead, BufReader, Write},
     ops::Not,
@@ -19,6 +14,8 @@ use std::{
 };
 
 use chora_kit::ask::Question;
+
+use crate::chat::Link;
 use serde_json::{Value, json};
 
 /// What the field tells the host.
@@ -88,12 +85,6 @@ impl Field {
             input,
             events,
         })
-    }
-
-    /// The pid of the field.
-    #[must_use]
-    pub fn id(&self) -> u32 {
-        self.child.id()
     }
 
     /// What the field told since the last call.
@@ -167,9 +158,44 @@ fn names_other(data: &Value, helper: &str) -> bool {
 /// The parameters of the call that sends a text to a helper:
 /// `voice agent`.
 #[must_use]
-pub fn say_call(helper: &str, text: &str) -> Value {
-    let params = json!({"tool": "agent_say", "name": helper, "text": text});
-    json!({"client": "voice", "method": "agent", "params": params})
+pub fn say_params(helper: &str, text: &str) -> Value {
+    json!({"tool": "agent_say", "name": helper, "text": text})
+}
+
+impl Link for Field {
+    fn place(&mut self, place: &Value) {
+        log(Self::place(self, place));
+    }
+
+    fn question(&mut self, waiting: bool) {
+        log(Self::question(self, waiting));
+    }
+
+    fn say_failed(&mut self, text: &str) {
+        log(Self::say_failed(self, text));
+    }
+
+    fn voice_event(&mut self, event: &str, data: &Value, helper: &str) {
+        log(Self::voice_event(self, event, data, helper));
+    }
+
+    fn events(&mut self) -> Vec<FieldEvent> {
+        Self::events(self)
+    }
+
+    fn alive(&mut self) -> bool {
+        self.child.try_wait().ok().flatten().is_none()
+    }
+
+    fn hide(&mut self) {
+        log(self.send(&json!("hide")));
+    }
+}
+
+fn log(result: std::io::Result<()>) {
+    if let Err(err) = result {
+        eprintln!("chora-assistant: field: {err}");
+    }
 }
 
 #[cfg(test)]
@@ -229,8 +255,8 @@ mod tests {
 
     #[test]
     fn a_say_is_a_voice_agent_call() {
-        let call = say_call("coder", "hello");
-        assert_eq!(call["client"], "voice");
-        assert_eq!(call["params"]["tool"], "agent_say");
+        let params = say_params("coder", "hello");
+        assert_eq!(params["tool"], "agent_say");
+        assert_eq!(params["name"], "coder");
     }
 }

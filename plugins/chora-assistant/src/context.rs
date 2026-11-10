@@ -270,6 +270,15 @@ impl Switcher {
         self.set(|context| &mut context.state, state, now);
     }
 
+    /// A chat view shows or not.
+    pub fn set_chat(&mut self, open: bool, now: Instant) {
+        self.set(
+            |context| &mut context.chat,
+            if open { "open" } else { "none" },
+            now,
+        );
+    }
+
     /// The state of the helpers, as the context names it.
     pub fn set_agents(&mut self, agents: &str, now: Instant) {
         self.set(|context| &mut context.agents, agents, now);
@@ -292,10 +301,6 @@ impl Switcher {
 
     /// The chat field has the keyboard or not: the context stays while it
     /// has.
-    #[allow(
-        dead_code,
-        reason = "the chat of H7 calls it when the field takes the keyboard"
-    )]
     pub fn hold_field(&mut self, on: bool, now: Instant) {
         let was = self.held();
         self.field = on;
@@ -357,6 +362,7 @@ impl Agent {
     /// When the context is evaluated next, if something changed.
     pub fn switch_due(&mut self, now: Instant) -> Option<Instant> {
         self.switcher.hold_question(self.card.is_some(), now);
+        self.switcher.hold_field(self.chat.keyboard(), now);
         self.switcher.due()
     }
 
@@ -465,6 +471,8 @@ impl Agent {
         }
         commands.extend(self.sync_assistant(Instant::now())?);
         commands.extend(self.sync_badge()?);
+        commands.extend(self.sync_row()?);
+        self.chat_restyle()?;
         Ok(commands)
     }
 }

@@ -86,6 +86,8 @@ pub struct Shown {
     /// The detail does not fit: the card has no buttons and the question
     /// is refused.
     pub too_long: bool,
+    /// The widest the card may be: the width of the chat view that shows it.
+    pub max_width: Option<i32>,
 }
 
 /// The lines and the buttons of a card, with the size of the card.
@@ -97,12 +99,15 @@ struct Layout {
 }
 
 /// The width of the card on an output.
-fn width(screen: [i32; 2]) -> i32 {
-    WIDTH.min(screen[0] - SIDES).max(2 * PAD + 40)
+fn width(screen: [i32; 2], most: Option<i32>) -> i32 {
+    WIDTH
+        .min(screen[0] - SIDES)
+        .min(most.unwrap_or(i32::MAX))
+        .max(2 * PAD + 40)
 }
 
 fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> Layout {
-    let width = width(screen);
+    let width = width(screen, shown.max_width);
     let inner = f64::from(width - 2 * PAD);
     let injected = Word::Injected.text(language);
     let notice = wrap(injected, inner, |line| {
@@ -515,6 +520,7 @@ mod tests {
             origin: [900, 500],
             notice: false,
             too_long: false,
+            max_width: None,
         }
     }
 
@@ -522,6 +528,17 @@ mod tests {
         json!({"id": "51", "prompt": "Atlas wants to write the file notes.txt.",
             "detail": "~/projects/notes/notes.txt (412 bytes)", "physical": true,
             "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true})
+    }
+
+    #[test]
+    fn a_card_in_the_chat_is_no_wider_than_the_view() {
+        let cache = cache("width");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        assert_eq!(size(&theme, &card, Language::En, [1280, 720])[0], 560);
+        card.max_width = Some(400);
+        assert!(size(&theme, &card, Language::En, [1280, 720])[0] <= 400);
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]
@@ -740,8 +757,8 @@ mod tests {
 
     #[test]
     fn the_card_is_at_most_560_wide_and_leaves_64_at_the_sides() {
-        assert_eq!(width([1920, 1080]), 560);
-        assert_eq!(width([500, 400]), 436);
+        assert_eq!(width([1920, 1080], None), 560);
+        assert_eq!(width([500, 400], None), 436);
     }
 
     #[test]

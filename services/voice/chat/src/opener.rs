@@ -41,6 +41,8 @@ pub fn open(name: Option<&str>) -> Result<(), ClientError> {
 
 #[cfg(test)]
 mod tests {
+    use chora_kit::words::{Language, Word};
+
     use super::*;
 
     #[test]
@@ -51,5 +53,17 @@ mod tests {
             json!({"name": "atlas", "token": "tok"})
         );
         assert_eq!(show_params(None, Some("")), json!({}));
+    }
+
+    #[test]
+    fn the_launcher_entry_carries_the_words_of_the_table() {
+        let entry = include_str!("../chora-chat.desktop");
+        let line = |key: &str| entry.lines().find_map(|l| l.strip_prefix(key));
+        assert_eq!(line("Name="), Some(Word::ChatLauncher.text(Language::En)));
+        assert_eq!(
+            line("Name[de]="),
+            Some(Word::ChatLauncher.text(Language::De))
+        );
+        assert_eq!(line("Exec="), Some("chora-chat"));
     }
 }

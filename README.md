@@ -80,6 +80,7 @@ window manager:
 |---------|--------|
 | Super+Return | start a terminal (foot) |
 | Super+r | start a launcher (fuzzel) |
+| Super+a | chat with a helper |
 | Super+Shift+c | close the focused window |
 | Super+j, Super+k | focus the next or previous window |
 | Super+1 to Super+9 | show a tag |

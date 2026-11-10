@@ -375,7 +375,7 @@ mod tests {
         assert_eq!(session.before_cursor(), "ka");
         session.commit("かな");
         session.key(Key::Text("\u{1b}]52;c;x\u{7}ok\ttab".into()));
-        assert_eq!(session.text(), "かな]52;c;xok tab");
+        assert_eq!(session.text(), "かなok tab");
         assert_eq!(session.before_cursor(), session.text());
     }
 
