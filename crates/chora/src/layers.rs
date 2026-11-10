@@ -167,6 +167,11 @@ impl State {
             .map(|(l, _)| l)
     }
 
+    /// Whether a surface is a layer surface or a popup of one.
+    pub fn is_layer_surface(&self, surface: &WlSurface) -> bool {
+        self.layer_keyboard(surface).is_some()
+    }
+
     /// Whether a surface is a layer surface that takes the keyboard on
     /// demand, as the search field of a panel does.
     pub fn on_demand_layer(&self, surface: &WlSurface) -> bool {

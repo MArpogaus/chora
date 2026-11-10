@@ -891,13 +891,44 @@ impl State {
     /// `MAX_TOKEN_AGE`, by its own deadline and by every new token. A
     /// client socket needs the capability `activation.token`, because
     /// such a token skips the focus rule of its own tokens.
+    ///
+    /// The token carries the act of the person (the last command press)
+    /// when the caller is unconfined, the act is younger than `ACT_AGE` and
+    /// no layer surface used it yet. Only such a token gives the keyboard
+    /// to an on-demand layer surface. Any other token still starts programs
+    /// and places windows. A call without an act proves nothing (#102).
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
         self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
-        let (token, _) = self.activation_state.create_external_token(None);
+        let data = self.act_stamped_data(conn);
+        let (token, _) = self.activation_state.create_external_token(data);
         let token = token.as_str().to_owned();
         let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
         Ok(serde_json::json!({"token": token}))
+    }
+
+    /// The token data of `activation.token`: stamped with the act when the
+    /// caller is unconfined and the act is young and unused. Every such
+    /// token carries it, so that no mint takes the stamp from another.
+    fn act_stamped_data(
+        &mut self,
+        conn: u64,
+    ) -> smithay::wayland::xdg_activation::XdgActivationTokenData {
+        let data = smithay::wayland::xdg_activation::XdgActivationTokenData::default();
+        let now = self.time.now();
+        let act = self.last_act.filter(|a| {
+            !a.used
+                && !self.ipc.confined(conn)
+                && now.saturating_duration_since(a.at) < crate::protocols::ACT_AGE
+        });
+        if let Some(act) = act {
+            data.user_data
+                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp {
+                    serial: u32::from(act.serial),
+                    at: now,
+                });
+        }
+        data
     }
 
     /// Ends chora as Ctrl+Alt+Backspace does, after the answer. A client

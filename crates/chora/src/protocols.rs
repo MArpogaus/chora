@@ -28,7 +28,7 @@ use smithay::{
     },
 };
 
-use crate::state::{ClientState, State};
+use crate::state::{Act, ClientState, State};
 
 /// The most requests of one surface that wait for its `surface.created`;
 /// beyond it a request is dropped, so a client that never commits cannot
@@ -243,6 +243,7 @@ impl XdgActivationHandler for State {
             client,
             data.serial.map(|(s, _)| u32::from(s)),
             focused == id,
+            self.last_real_press.map(u32::from),
         );
         if allowed && client.name.is_some() {
             // One press gives one token.
@@ -262,6 +263,14 @@ impl XdgActivationHandler for State {
         surface: WlSurface,
     ) {
         self.activation_state.remove_token(&token);
+        if self.is_layer_surface(&surface) {
+            if self.on_demand_layer(&surface) && self.layer_may_take_keyboard(&token_data, &surface)
+            {
+                self.set_layer_focus(Some(surface));
+                self.last_act = self.last_act.map(|a| Act { used: true, ..a });
+            }
+            return;
+        }
         if !self.token_use_allowed(&token_data) {
             return;
         }
@@ -288,9 +297,25 @@ impl XdgActivationHandler for State {
 
 /// Whether a client may keep an activation token with a serial: a client
 /// of a client socket needs the serial of its last press.
-fn token_allowed(client: &ClientState, serial: Option<u32>, focused: bool) -> bool {
+fn token_allowed(
+    client: &ClientState,
+    serial: Option<u32>,
+    focused: bool,
+    act: Option<u32>,
+) -> bool {
     client.name.is_none()
-        || (focused && serial.is_some_and(|s| crate::security::last_press(client, s)))
+        || (focused
+            && serial.is_some_and(|s| crate::security::last_press(client, s) && act == Some(s)))
+}
+
+/// How old the last real press may be when a token takes it as its act.
+pub(crate) const ACT_AGE: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// The act that a token carries: the serial of the press and the time of
+/// the mint.
+pub(crate) struct ActStamp {
+    pub serial: u32,
+    pub at: std::time::Instant,
 }
 
 /// How long a token may wait between creation and use: for a client of a
@@ -334,6 +359,25 @@ fn token_focused_and_fresh(focused: bool, age: std::time::Duration) -> bool {
 }
 
 impl State {
+    /// Whether a token with an act may give the keyboard to an on-demand
+    /// layer surface: the client is unnamed, the session is not locked, the
+    /// token is at most `MAX_TOKEN_AGE` old, and its act is unused and
+    /// still the last real press, because a later press means that the
+    /// person moved on.
+    fn layer_may_take_keyboard(&self, data: &XdgActivationTokenData, surface: &WlSurface) -> bool {
+        let Some(stamp) = data.user_data.get::<ActStamp>() else {
+            return false;
+        };
+        let act = self
+            .last_act
+            .filter(|a| !a.used && u32::from(a.serial) == stamp.serial);
+        self.lock.is_none()
+            && !crate::security::named(&self.display_handle, surface)
+            && self.time.now().saturating_duration_since(stamp.at) <= MAX_TOKEN_AGE
+            && act.is_some()
+            && self.last_real_press.map(u32::from) == Some(stamp.serial)
+    }
+
     /// The core forgets the unused tokens of no client that are older than
     /// `max_age`. A program of `choractl run` activates at its start; a
     /// token nobody used must not live for the life of the core. Tokens
@@ -358,16 +402,27 @@ mod tests {
         named
             .last_press
             .store(7, std::sync::atomic::Ordering::Relaxed);
-        assert!(!token_allowed(&named, None, true));
-        assert!(!token_allowed(&named, Some(6), true));
-        assert!(!token_allowed(&named, Some(7), false), "without the focus");
-        assert!(token_allowed(&named, Some(7), true));
+        assert!(!token_allowed(&named, None, true, Some(7)));
+        assert!(!token_allowed(&named, Some(6), true, Some(7)));
+        assert!(
+            !token_allowed(&named, Some(7), false, Some(7)),
+            "without the focus"
+        );
+        assert!(
+            !token_allowed(&named, Some(7), true, Some(6)),
+            "an injected press"
+        );
+        assert!(!token_allowed(&named, Some(7), true, None), "no real press");
+        assert!(token_allowed(&named, Some(7), true, Some(7)));
         named
             .last_press
             .store(0, std::sync::atomic::Ordering::Relaxed);
-        assert!(!token_allowed(&named, Some(0), true), "no press at all");
         assert!(
-            token_allowed(&ClientState::default(), None, false),
+            !token_allowed(&named, Some(0), true, Some(0)),
+            "no press at all"
+        );
+        assert!(
+            token_allowed(&ClientState::default(), None, false, None),
             "other clients"
         );
     }

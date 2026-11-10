@@ -177,6 +177,17 @@ struct Waiting {
     chosen: bool,
 }
 
+/// The last press that a person made as a command: a grabbed key or
+/// button, a key to a node, or a press on a node that is no window; never
+/// an injected press, a press in a locked session or a key typed into a
+/// window. `used` ends it when a layer surface took the keyboard with it.
+#[derive(Clone, Copy)]
+pub struct Act {
+    pub serial: Serial,
+    pub at: Instant,
+    pub used: bool,
+}
+
 /// The state of the compositor, passed to every callback of the event loop.
 #[allow(clippy::struct_field_names)] // the names of Smithay's handler traits
 pub struct State {
@@ -237,6 +248,11 @@ pub struct State {
     /// hit; a key press ends it. A client socket uses it once for
     /// `focus_node`.
     pub pressed: Option<String>,
+    /// The last real key or button press, for activation tokens.
+    pub last_act: Option<Act>,
+    /// The serial of the last real key or button press, of any kind. An
+    /// injected press ends it, and the act with it.
+    pub last_real_press: Option<Serial>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -384,6 +400,8 @@ impl State {
             hovered: None,
             pressed: None,
             watchdog: Watchdog::from_env(),
+            last_act: None,
+            last_real_press: None,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
@@ -773,6 +791,32 @@ impl State {
         self.focus_wanted.as_deref()
     }
 
+    /// Notes a key or button press. A real one is the newest real press;
+    /// an injected one ends the real press and the act before it, so that
+    /// no token carries an act that an injection hides.
+    pub fn track_press(&mut self, serial: Serial, injected: bool) {
+        self.last_real_press = (!injected).then_some(serial);
+        if injected {
+            self.last_act = None;
+        }
+    }
+
+    /// Takes the newest real press as the act that activation tokens may
+    /// carry, unless the session is locked. Called only for a press that
+    /// the core or a client took as a command.
+    pub fn note_act(&mut self) {
+        let Some(serial) = self.last_real_press.filter(|_| self.lock.is_none()) else {
+            return;
+        };
+        if self.last_act.is_none_or(|a| a.serial != serial) {
+            self.last_act = Some(Act {
+                serial,
+                at: self.time.now(),
+                used: false,
+            });
+        }
+    }
+
     /// Focuses a surface node, or nothing. A new focused surface takes the
     /// keyboard from a layer surface that a click focused. Taskbars learn
     /// first which surface lost the focus, because some expect one active
@@ -979,7 +1023,7 @@ impl ClientData for ClientState {}
 mod tests {
     use serde_json::{Value, json};
     use smithay::{
-        backend::input::{InputTime, KeyState},
+        backend::input::{ButtonState, InputTime, KeyState},
         output::Output,
     };
     use wayland_client::Proxy;
@@ -1233,6 +1277,298 @@ mod tests {
             assert_eq!(keyboard(&core), panel, "unmap={unmap}");
             assert_eq!(core.state.focused_surface(), None, "unmap={unmap}");
         }
+    }
+
+    fn mint(core: &mut Core, ctl: &mut Client) -> String {
+        let answer = ctl.ok(core, "activation.token", Value::Null);
+        answer["token"].as_str().expect("a token").to_owned()
+    }
+
+    fn token(core: &mut Core) -> String {
+        let mut ctl = core.named("tiling");
+        mint(core, &mut ctl)
+    }
+
+    const ALT: u32 = 64;
+    const Y: u32 = 29;
+    const TYPED: u32 = 38;
+
+    fn press(core: &mut Core, scancode: u32, key_state: KeyState, injected: bool) {
+        let keycode = smithay::input::keyboard::Keycode::new(scancode);
+        crate::input::key(
+            &mut core.state,
+            keycode,
+            key_state,
+            InputTime::now(),
+            injected,
+        );
+    }
+
+    fn tap(core: &mut Core, scancode: u32, injected: bool) {
+        press(core, scancode, KeyState::Pressed, injected);
+        press(core, scancode, KeyState::Released, injected);
+    }
+
+    fn chord_down(core: &mut Core, injected: bool) {
+        press(core, ALT, KeyState::Pressed, injected);
+        press(core, Y, KeyState::Pressed, injected);
+    }
+
+    fn chord_up(core: &mut Core, injected: bool) {
+        press(core, Y, KeyState::Released, injected);
+        press(core, ALT, KeyState::Released, injected);
+    }
+
+    fn chord(core: &mut Core, injected: bool) {
+        chord_down(core, injected);
+        chord_up(core, injected);
+    }
+
+    fn grab_key(core: &mut Core) -> Client {
+        let mut ctl = core.named("tiling");
+        ctl.ok(core, "input.grab", json!({"binding": "Alt+y"}));
+        ctl
+    }
+
+    fn act_token(core: &mut Core) -> String {
+        let mut ctl = grab_key(core);
+        chord(core, false);
+        mint(core, &mut ctl)
+    }
+
+    fn stamped_tokens(core: &Core) -> usize {
+        let stamped = |d: &smithay::wayland::xdg_activation::XdgActivationTokenData| {
+            d.user_data.get::<crate::protocols::ActStamp>().is_some()
+        };
+        core.state
+            .activation_state
+            .tokens()
+            .filter(|(_, d)| stamped(d))
+            .count()
+    }
+
+    fn field_core() -> (Core, Wayland, Client, Toplevel, LayerSurface) {
+        let (mut core, mut wayland, mut wm, first, _second) = two_windows();
+        core.add_output("HDMI-1", (800, 600));
+        wayland.roundtrip(&mut core);
+        wm.ok(&mut core, "scene.apply", focus(Some("s1")));
+        let field = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
+        assert_eq!(keyboard(&core), Some(id(&first)), "no token, no keyboard");
+        (core, wayland, wm, first, field)
+    }
+
+    fn field_has_no_keyboard(core: &Core, first: &Toplevel, case: &str) {
+        assert_eq!(keyboard(core), Some(id(first)), "{case}");
+        assert_eq!(core.state.layer_focus, None, "{case}");
+    }
+
+    fn click(core: &mut Core, at: (f64, f64)) {
+        crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
+        for button_state in [ButtonState::Pressed, ButtonState::Released] {
+            crate::input::press_button(&mut core.state, 272, button_state, InputTime::now(), false);
+        }
+    }
+
+    #[test]
+    fn an_on_demand_layer_with_a_token_of_a_real_press_gets_the_keyboard() {
+        let (mut core, mut wayland, _wm, _first, field) = field_core();
+        let token = act_token(&mut core);
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
+        assert!(core.state.layer_focus.is_some());
+    }
+
+    #[test]
+    fn a_layer_without_a_token_gets_no_keyboard_on_map() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        wayland.activate_layer(&mut core, &field, "no-such-token");
+        field_has_no_keyboard(&core, &first, "an unknown token");
+    }
+
+    #[test]
+    fn a_named_client_gets_no_keyboard() {
+        let dir = std::env::temp_dir().join(format!("chora-field-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut core = Core::new();
+        core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+        core.add_output("HDMI-1", (800, 600));
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = std::path::PathBuf::from(created["wayland"].as_str().unwrap());
+        let mut wayland = Wayland::connect_to(&mut core, &path);
+        let field = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
+        let token = act_token(&mut core);
+        assert_eq!(stamped_tokens(&core), 1, "the name rule must refuse");
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(keyboard(&core), None);
+        assert_eq!(core.state.layer_focus, None);
+    }
+
+    #[test]
+    fn a_click_on_a_window_takes_the_keyboard_back() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let token = act_token(&mut core);
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
+        click(&mut core, (400.0, 300.0));
+        assert_eq!(keyboard(&core), Some(id(&first)));
+    }
+
+    #[test]
+    fn a_token_minted_without_a_press_gives_no_keyboard() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let token = token(&mut core);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "no press at all");
+    }
+
+    #[test]
+    fn a_token_minted_after_an_injected_press_gives_no_keyboard() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, true);
+        let token = mint(&mut core, &mut ctl);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "an injected press");
+    }
+
+    #[test]
+    fn an_injected_press_ends_the_act_of_the_person() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        chord(&mut core, true);
+        let token = mint(&mut core, &mut ctl);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "real press, then injected press");
+    }
+
+    #[test]
+    fn a_key_typed_into_a_window_is_no_act() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        tap(&mut core, TYPED, false);
+        let token = token(&mut core);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "a key typed into a window");
+        assert!(core.state.last_act.is_none());
+    }
+
+    #[test]
+    fn a_press_on_a_node_is_an_act() {
+        let (mut core, mut wayland, mut wm, _first, field) = field_core();
+        wm.ok(&mut core, "scene.apply", crate::testing::rect("chat"));
+        click(&mut core, (5.0, 5.0));
+        let token = token(&mut core);
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
+    }
+
+    #[test]
+    fn a_press_after_the_token_keeps_the_keyboard_with_the_window() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let token = act_token(&mut core);
+        tap(&mut core, TYPED, false);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "the person kept typing");
+    }
+
+    #[test]
+    fn a_release_after_the_token_does_not_cancel_it() {
+        let (mut core, mut wayland, _wm, _first, field) = field_core();
+        let mut ctl = grab_key(&mut core);
+        chord_down(&mut core, false);
+        let token = mint(&mut core, &mut ctl);
+        chord_up(&mut core, false);
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
+    }
+
+    #[test]
+    fn a_token_minted_late_after_the_press_gives_no_keyboard() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        core.advance(std::time::Duration::from_secs(3));
+        let token = mint(&mut core, &mut ctl);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "an old press");
+    }
+
+    #[test]
+    fn a_token_used_after_ten_seconds_gives_no_keyboard() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let token = act_token(&mut core);
+        core.advance(std::time::Duration::from_secs(11));
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "an old token");
+    }
+
+    #[test]
+    fn one_act_gives_the_keyboard_to_one_layer() {
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        let second = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::OnDemand);
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        let unused = mint(&mut core, &mut ctl);
+        let used = mint(&mut core, &mut ctl);
+        wayland.activate_layer(&mut core, &second, &used);
+        assert_eq!(keyboard(&core), Some(second.surface.id().protocol_id()));
+        wayland.activate_layer(&mut core, &field, &unused);
+        assert_eq!(keyboard(&core), Some(second.surface.id().protocol_id()));
+        assert_ne!(keyboard(&core), Some(id(&first)));
+    }
+
+    #[test]
+    fn a_confined_mint_carries_no_act() {
+        let dir = std::env::temp_dir().join(format!("chora-mint-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let (mut core, mut wayland, _wm, first, field) = field_core();
+        core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+        let mut admin = core.admin();
+        let caps = json!({"name": "agent", "capabilities": ["activation.token"]});
+        let created = admin.ok(&mut core, "clients.create", caps);
+        let mut agent = core.connect_to(std::path::Path::new(created["path"].as_str().unwrap()));
+        agent.ok(&mut core, "hello", json!({"name": "agent"}));
+        let _ctl = grab_key(&mut core);
+        chord(&mut core, false);
+        let token = mint(&mut core, &mut agent);
+        let stamped = stamped_tokens(&core);
+        wayland.activate_layer(&mut core, &field, &token);
+        field_has_no_keyboard(&core, &first, "a confined mint");
+        drop(core);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(stamped, 0, "a confined mint carried the act");
+    }
+
+    #[test]
+    fn a_locked_session_gives_the_layer_no_keyboard() {
+        let (mut core, mut wayland, _wm, _first, field) = field_core();
+        let token = act_token(&mut core);
+        let _lock = wayland.lock(&mut core);
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(core.state.layer_focus, None);
+        assert_ne!(keyboard(&core), Some(field.surface.id().protocol_id()));
+    }
+
+    #[test]
+    fn a_press_while_locked_is_no_act() {
+        let (mut core, mut wayland, _wm, _first, _field) = field_core();
+        let _lock = wayland.lock(&mut core);
+        let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+        core.state.track_press(serial, false);
+        core.state.note_act();
+        assert!(core.state.last_act.is_none());
+    }
+
+    #[test]
+    fn an_activation_of_an_exclusive_layer_waits_for_no_surface() {
+        let (mut core, mut wayland, _wm, _first, _field) = field_core();
+        let panel = wayland.layer(&mut core, Layer::Top, KeyboardInteractivity::Exclusive);
+        let token = act_token(&mut core);
+        wayland.activate_layer(&mut core, &panel, &token);
+        assert_eq!(core.state.pending_activations.len(), 0);
     }
 
     #[test]

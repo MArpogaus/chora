@@ -290,6 +290,14 @@ impl Wayland {
         }
     }
 
+    /// Activates a layer surface with a token, as a field does after its
+    /// first configure.
+    pub fn activate_layer(&mut self, core: &mut Core, layer: &LayerSurface, token: &str) {
+        let activation = self.app.activation.as_ref().expect("xdg_activation");
+        activation.activate(token.into(), &layer.surface);
+        self.roundtrip(core);
+    }
+
     /// A child toplevel of `parent` after its first commit, for dialogs.
     pub fn child(&mut self, core: &mut Core, parent: &Toplevel) -> Toplevel {
         let qh = self.queue.handle();
