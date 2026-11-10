@@ -148,10 +148,10 @@ C1. One cube (user question 11-09): today `chora-xp` has its own desktop
 
 ## Track C
 
-S2. Playground: windowed chora (winit) with an agent as a 2D/3D canvas;
+S2. CUT from this session (user 11-10): Playground: windowed chora (winit) with an agent as a 2D/3D canvas;
    a distrobox/OCI image and a Nix flake to try it in minutes (user
    decision 11-10). Week 1, after the construct demo.
-S3. Effects pack, off by default, respects reduced motion: a closing
+S3. CUT from this session (user 11-10): Effects pack, off by default, respects reduced motion: a closing
    window burns with flames and falling ash, an exploding window with a
    shock wave, more; the close never waits for the effect (it plays on a
    snapshot). After the 3D wobble demo.

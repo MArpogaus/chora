@@ -4,6 +4,14 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- Decisions after the Fable judge audit (12:45 Bangkok): (1) cut the
+  effects pack, the Nix flake and the windowed playground from this
+  session (backlog, after 1.0); (2) window manager bindings ignore
+  injected keys (fail closed), automation uses the privileged methods;
+  (3) each scheduled run starts a fresh PM session from state.md;
+  (4) this branch becomes the new base after the session, and the 30-day
+  daily-use gate restarts from it.
+
 - "Don't mindlessly burn tokens. Use it (Fable) for the heavy lifting."
 
 - The user reports Fable usage. Pull as much heavy work as possible to
