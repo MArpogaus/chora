@@ -358,7 +358,9 @@ without the schema of the settings, which is about 14 KB and made the
 LLM narrate; the agent hands the patch on and the client checks it.
 Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
-security key asks with `phrases.settings_security` ("Security setting!
+security key goes on to the client, which asks every caller with
+`phrases.settings_security` (see "Security changes by a method" below:
+"Security setting!
 Shall I set llm url? The full value is on the screen. Press Alt+y for
 yes or Alt+n for no."). The security keys are `allow_programs`,
 `allow_methods`, `confirm`, `confirm_keys`, `agent_projects`,
@@ -394,30 +396,37 @@ the user agrees:
   2.6). The agent refuses `indicator.claim`, `confirm.answer`,
   `confirm`, `talk` and `mute` from a confined caller, as the
   `confined` field of `method.called` names it.
+  That closes the direct routes only. A confined client with
+  `methods.privileged` can still start a program by a method such as
+  `mc.app.open`, by `voice.agent` with `agent_start`, or by
+  `settings.set` of a setting that holds a command. So grant
+  `methods.privileged` only to a client that the user trusts as the
+  keyboard.
 - Who may answer (review A1): the agent takes `indicator.claim` and
   `confirm.answer` only from an unconfined caller whose client name is
   in the security setting `indicator_clients` (default `[assistant,
-  construct, mc]`), or that holds the core grant `indicator.claim`.
-  Any other client of the main socket, such as a program of
-  `run_program`, is refused. The setting is permanent: change it in the
-  settings file or with `settings.set`; the LLM needs a key press for
-  it, as for every security key. The grant is for the session:
-  `choractl grant NAME indicator.claim` through the admin socket, until
-  `choractl revoke NAME indicator.claim`, the revoke binding or the end
-  of the session. The agent reads both on each call, so a change decides
-  the next claim and the next answer; a claim does not outlive a
-  removed name. The rule stops a client that does not set out to get
-  through, not one that does: any client of the main socket may name
-  itself `mc` in `hello`, or edit the settings file of the agent. So
-  `sandbox_cmd` must keep the main socket out of the sandbox of the
-  agents (section 18), and a test of the voice crate checks that
-  `agent-sandbox.sh`, when it is on `PATH`, hides it. That closes the direct
-  routes only. A confined client with `methods.privileged` can still
-  start a program by a method such as `mc.app.open`, by `voice.agent`
-  with `agent_start`, or by `settings.set` of a setting that holds a
-  command. The program connects free, claims the indicator and answers.
-  So grant `methods.privileged` only to a client that the user trusts as
-  the keyboard.
+  construct, mc]`). Any other client, such as a program of
+  `run_program`, is refused. A claim belongs to the connection that
+  made it (`connection` of `method.called`), so only that connection
+  answers under it. A HUD button answers every question, also one about
+  a security key, so a name in `indicator_clients` is trusted as the
+  keyboard. Changing the setting is a security change (below); a name
+  taken out of it loses its claim at once.
+- How far the names hold: the core gives a live name of the main socket
+  only to its program (the same process or executable, see
+  [API](api.md)). While mc runs, no script can connect as `mc`. A HUD
+  of the list that is not running leaves its name free, and any process
+  of the user can take it. A process of the user can also edit the
+  settings file, which applies at the next start of the agent. So the
+  sandbox of the agents must keep the main socket out (section 18).
+- Security changes by a method: `settings.set` of a security key, or
+  `settings.reload` of a file that differs from the running settings in
+  a security key, from any caller, also the LLM and `choractl`, asks the
+  physical question with `phrases.settings_security` and answers the
+  call with a refusal that says so. The change applies when the user
+  presses the yes key of `confirm_keys` or clicks Yes on a HUD; a no or
+  a timeout drops it. A reload loads only the file that the question
+  showed. While the question waits, the LLM gets no `inject_input`.
 - An injected key or press could answer the question. The core marks an
   `input.key` event and a `pointer.pressed` event of `input.inject`
   with `injected: true`. The agent ignores an injected key of
@@ -593,7 +602,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `confirm_keys` | `{yes: Alt+y, no: Alt+n}` (the only answer to a question about a security key, section 5; two keys, other than `ptt_key`) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`); `false` turns it off; `{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}` places it, `true` is `{corner: bottom-right, offset: [12, 12]}` |
-| `indicator_clients` | `[assistant, construct, mc]` (the client names that may claim the indicator and answer with `confirm.answer`, section 5; a security key) |
+| `indicator_clients` | `[assistant, construct, mc]` (the client names that may claim the indicator and answer every question with `confirm.answer`, also one about a security key, section 5; a security key) |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
@@ -672,11 +681,11 @@ both a key variable and a key file for one server.
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
 | `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
-| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller and for a caller that is neither in `indicator_clients` nor holds the grant `indicator.claim` (section 5) |
-| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller and for a caller outside `indicator_clients` (section 5) |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand; a change of a security key waits for a key of `confirm_keys` and answers a refusal that says so (section 5) |
 | `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
 | `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
-| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller that may not claim the indicator or did not claim it, and for any other `id` (section 5) |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller outside `indicator_clients`, for a connection that did not claim the indicator, and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
 | `agent.read` (privileged) | `name`, `after: int` (default 0) | `{entries: [{seq, role, text}], seq, epoch}`: the entries of the transcript of the agent after `after`, at most 64 KiB of text, oldest first; `seq` is the last one returned, or the current one when none is; `epoch` is the number of this start of the agent, so a reader that sees a new epoch starts its transcript again, and a `seq` below the one it holds in the same epoch is a late answer to ignore; refused for a confined caller (section 18) |
@@ -1245,7 +1254,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   also name itself as a HUD (section 5). The test
   `the_sandbox_hides_the_main_socket` of the voice crate runs a probe in
   `agent-sandbox.sh` when it is on `PATH` and fails when the probe sees
-  a socket in `XDG_RUNTIME_DIR` or `CHORA_SOCKET`. The projects:
+  a socket in `XDG_RUNTIME_DIR` or `CHORA_SOCKET`. Without the script
+  it says `skip` on stderr, and with `CI` set it fails.
+  `unsandboxed: true` skips the sandbox and so this check. The projects:
   `agent_projects` and the directories of the inventory; a name matches
   in any case.
 - Protocol: `initialize` (protocol version 1, no file system, no

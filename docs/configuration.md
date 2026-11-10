@@ -161,7 +161,7 @@ showroom:
   grants: []
 ```
 
-The grants are the eight capabilities of `choractl grant` (see
+The grants are the seven capabilities of `choractl grant` (see
 [API](api.md#client-sockets)). An agent that
 drives the window manager needs `methods.call`, and one that starts apps
 needs `activation.token`. Both let it take the keyboard focus. A name
@@ -929,12 +929,17 @@ the agent is away.
 Only the clients that the voice agent names may claim its indicator and
 answer its questions with `confirm.answer`: the names of its security
 setting `indicator_clients`, by default `assistant`, `construct` and
-`mc` ([voice](voice.md), section 5), and a name with the grant
-`indicator.claim`. Any other client of the main socket is refused. To
-let another HUD answer, add its name to `indicator_clients` in
-`~/.config/chora/chora-voice.yaml` for good, or run `choractl grant NAME
-indicator.claim` for the session. A HUD on a client socket is confined
-and never answers.
+`mc` ([voice](voice.md), section 5). A button answers every question,
+also one about a security key, so a name in the list is trusted as the
+keyboard. Any other client is refused, and a claim answers only on the
+connection that made it. To let another HUD answer, add its name to
+`indicator_clients` with `choractl call voice settings.set` and press
+the yes key of `confirm_keys` when the agent asks, or edit
+`~/.config/chora/chora-voice.yaml` and restart the agent. The core
+keeps a live name for its program, so no script connects as
+`construct` while the construct runs; a name of the list whose HUD is
+not running is free to any process of the user. A HUD on a client
+socket is confined and never answers.
 
 Under the pane ahead, or under the pane where the pointer last pressed or
 let go, a pill names the pane. The core tells the pointer only from a
