@@ -178,6 +178,9 @@ struct Agent {
     /// Whether the plugin claims the state indicator of the voice agent at
     /// its next chance.
     claim_due: bool,
+    /// When the next try to ask the voice agent for its state is due, and
+    /// how many tries are left after it.
+    state_ask: Option<(Instant, u8)>,
     /// The chat with a helper.
     chat: Session,
     /// When the chat last pulled from voice.
@@ -329,6 +332,7 @@ impl Agent {
             badge: false,
             top: None,
             claim_due: true,
+            state_ask: None,
             chat: Session::new(),
             chat_pulled: Instant::now(),
             announced: None,
@@ -463,6 +467,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             agent.assistant_due(),
             agent.switch_due(now),
             agent.chat_due(now),
+            agent.ask_due(),
         ]
         .into_iter()
         .flatten()
@@ -475,6 +480,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         {
             runtime::dispatch(&mut agent, event)?;
         }
+        agent.ask_step(Instant::now())?;
         agent.chat_step(Instant::now())?;
         agent.assistant_step(Instant::now())?;
         agent.switch_step(Instant::now())?;
