@@ -8,7 +8,9 @@ use std::{
 
 use chora_scene::{InputMode, Node, NodeKind, Placed, ROOT, Scene, Transform, overlay_id};
 use smithay::{
+    backend::allocator::Fourcc,
     backend::renderer::{
+        ImportMem,
         element::{
             AsRenderElements, Id, Kind,
             memory::MemoryRenderBufferRenderElement,
@@ -201,6 +203,19 @@ pub struct Assets {
     /// The virtual outputs that rendered since the last frame callbacks,
     /// and whether they had damage.
     pub rendered_virtuals: Vec<(Output, bool)>,
+    /// One transparent pixel, for a shader node whose output is gone.
+    blank: Option<GlesTexture>,
+}
+
+impl Assets {
+    /// The transparent pixel.
+    fn blank(&mut self, gles: &mut GlesRenderer) -> Option<GlesTexture> {
+        if self.blank.is_none() {
+            let pixel = gles.import_memory(&[0; 4], Fourcc::Abgr8888, (1, 1).into(), false);
+            self.blank = pixel.ok();
+        }
+        self.blank.clone()
+    }
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.
@@ -729,7 +744,8 @@ fn node_textures(
                 let faces = parts.assets.virtuals.iter();
                 let frame = faces
                     .filter(|v| v.output().name() == read.output)
-                    .find_map(|v| v.frame(reader));
+                    .find_map(|v| v.frame(reader))
+                    .or_else(|| Some((parts.assets.blank(gles)?, 0)));
                 out.extend(frame.map(|(texture, version)| (name.clone(), texture, version)));
                 continue;
             }
@@ -1515,7 +1531,7 @@ pub(crate) fn node_size(state: &State, node: &Node) -> [f64; 2] {
 /// draw for nothing. Taskbars learn the toplevels on the output too.
 pub fn send_frames(state: &mut State, output: &Output) {
     let visible = shown_surfaces(state, output);
-    let time = state.start_time.elapsed();
+    let time = state.time.now().saturating_duration_since(state.start_time);
     for (id, window) in &state.windows {
         let on_output = visible.contains(id);
         if on_output {

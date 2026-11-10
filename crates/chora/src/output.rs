@@ -146,6 +146,7 @@ impl State {
     /// Announces new modes, scales or positions of the outputs, to plugins
     /// and to the clients of output configuration.
     pub fn output_changed(&mut self) {
+        self.sync_virtual_refresh();
         self.sync_default_cameras();
         // Every output has an overlay root; it stays when the output goes,
         // with the nodes of the clients, for its return (D43).

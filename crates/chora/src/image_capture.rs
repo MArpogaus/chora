@@ -73,7 +73,7 @@ impl State {
         match source.user_data().get::<Target>()? {
             Target::Output(weak) => weak
                 .upgrade()
-                .filter(|o| self.outputs.contains(o))
+                .filter(|o| !self.is_virtual(o))
                 .map(TargetNow::Output),
             Target::Node(id) => self
                 .windows

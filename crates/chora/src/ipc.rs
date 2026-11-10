@@ -1139,6 +1139,7 @@ impl State {
     /// ends its grace time.
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
+        self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
         self.execute_gone(effects);
         self.ipc.uploads.drop_client(name);
@@ -1444,6 +1445,7 @@ impl State {
             self.drop_nodes(&name);
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
+            self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
             self.execute_gone(effects);
         }

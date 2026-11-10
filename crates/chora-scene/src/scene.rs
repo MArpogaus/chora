@@ -1670,7 +1670,7 @@ fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
         let samplers = uniforms.values().filter(|u| u.values().is_empty());
         if samplers.count() > MAX_NODE_TEXTURES {
             return Err(SceneError::Invalid(format!(
-                "{id:?}: at most {MAX_NODE_TEXTURES} node textures"
+                "{id:?}: at most {MAX_NODE_TEXTURES} node and output textures"
             )));
         }
         let reads_itself = |u: &Uniform| matches!(u, Uniform::Texture(t) if t.node == id);

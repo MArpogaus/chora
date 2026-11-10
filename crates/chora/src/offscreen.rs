@@ -148,11 +148,7 @@ impl State {
         method: &str,
         params: Value,
     ) -> Result<Value, RpcError> {
-        if method == "output.add"
-            && params
-                .get("virtual")
-                .is_some_and(|v| *v != Value::Bool(false))
-        {
+        if method == "output.add" && params.get("virtual").and_then(Value::as_bool) == Some(true) {
             return self.add_virtual(conn, &params_of(params)?);
         }
         let named = params.get("output").and_then(Value::as_str);
@@ -192,10 +188,9 @@ impl State {
             },
         );
         let global = output.create_global::<State>(&self.display_handle);
-        let screens = self.outputs.iter().filter_map(Output::current_mode);
         let mode = Mode {
             size: spec.size.into(),
-            refresh: screens.map(|m| m.refresh).max().unwrap_or(REFRESH),
+            refresh: REFRESH,
         };
         let column = i32::try_from(slot + 1).unwrap_or(i32::MAX);
         let place = (-column * SLOT_STEP, -SLOT_STEP);
@@ -247,7 +242,13 @@ impl State {
     /// Removes a virtual output for its owner or for the admin socket: its
     /// layer surfaces close and its windows leave it.
     fn remove_virtual(&mut self, conn: u64, name: &str) -> Result<Value, RpcError> {
-        let virtuals = &mut self.assets.virtuals;
+        if self.ipc.confined(conn) {
+            return Err(RpcError::new(
+                RpcError::CLIENT_SOCKET_RULE,
+                "a client socket or a confined connection removes no virtual output",
+            ));
+        }
+        let virtuals = &self.assets.virtuals;
         let index = virtuals
             .iter()
             .position(|v| v.output().name() == name)
@@ -256,14 +257,49 @@ impl State {
         if !self.ipc.admin(conn) && self.ipc.name(conn) != Some(owner) {
             return Err(rejected(format!("only its owner {owner:?} removes {name}")));
         }
-        let gone = virtuals.remove(index);
+        self.drop_virtual(index);
+        Ok(Value::Null)
+    }
+
+    /// Removes the virtual outputs of a client that ended.
+    pub fn drop_virtuals_of(&mut self, owner: &str) {
+        let of_the_client = |v: &Virtual| v.owner() == owner;
+        while let Some(index) = self.assets.virtuals.iter().position(of_the_client) {
+            self.drop_virtual(index);
+        }
+    }
+
+    /// Takes a virtual output out of the session and announces it.
+    fn drop_virtual(&mut self, index: usize) {
+        let gone = self.assets.virtuals.remove(index);
+        let name = gone.output().name();
         crate::backend::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
         self.leave_layout(gone.target.output());
-        let _ = self.scene.release_camera(name);
-        self.scene.set_output_owner(name, None);
+        let _ = self.scene.release_camera(&name);
+        self.scene.set_output_owner(&name, None);
         self.output_changed();
         self.update_focus();
-        Ok(Value::Null)
+    }
+
+    /// Whether an output is a virtual one.
+    pub fn is_virtual(&self, output: &Output) -> bool {
+        self.assets.virtuals.iter().any(|v| v.output() == output)
+    }
+
+    /// Gives the virtual outputs the refresh rate of the fastest screen,
+    /// which paces their frames.
+    pub fn sync_virtual_refresh(&self) {
+        let screens = self.outputs.iter().filter_map(Output::current_mode);
+        let refresh = screens.map(|m| m.refresh).max().unwrap_or(REFRESH);
+        for output in self.assets.virtuals.iter().map(Virtual::output) {
+            let Some(old) = output.current_mode().filter(|m| m.refresh != refresh) else {
+                continue;
+            };
+            let mode = Mode { refresh, ..old };
+            output.change_current_state(Some(mode), None, None, None);
+            output.set_preferred(mode);
+            output.delete_mode(old);
+        }
     }
 }
 
@@ -352,20 +388,20 @@ impl OutputTexture {
     }
 }
 
-/// The names of the virtual outputs that a visible shader node reads, in
-/// the scene or in the overlay of a screen.
-fn read_outputs(scene: &Scene, screen: &str) -> Vec<String> {
+/// The virtual outputs that a visible shader node reads, in the scene or
+/// in the overlay of a screen: the name of each with the owner of the
+/// node.
+fn read_outputs(scene: &Scene, screen: &str) -> Vec<(String, Option<String>)> {
     let lists = [scene.draw_list(), scene.overlay_draw_list(screen)];
-    let uniforms = lists
-        .iter()
-        .flatten()
-        .flat_map(|placed| placed.node.props.uniforms.values());
-    uniforms
-        .filter_map(|uniform| match uniform {
-            Uniform::Output(read) => Some(read.output.clone()),
-            _ => None,
-        })
-        .collect()
+    let mut read = Vec::new();
+    for node in lists.iter().flatten().map(|placed| placed.node) {
+        for uniform in node.props.uniforms.values() {
+            if let Uniform::Output(source) = uniform {
+                read.push((source.output.clone(), node.owner.clone()));
+            }
+        }
+    }
+    read
 }
 
 /// Renders the virtual outputs that a frame of a screen reads, before the
@@ -380,7 +416,8 @@ pub fn render_virtuals(parts: &mut render::Parts<'_>, gles: &mut GlesRenderer, s
     let read = read_outputs(parts.scene, &screen.name());
     let mut virtuals = std::mem::take(&mut parts.assets.virtuals);
     for face in &mut virtuals {
-        if read.contains(&face.output().name()) && face.due(&screen.name()) {
+        let wanted = (face.output().name(), Some(face.owner.clone()));
+        if read.contains(&wanted) && face.due(&screen.name()) {
             face.render(parts, gles);
         }
     }
@@ -1027,7 +1064,12 @@ mod tests {
         assert_eq!(faced.wayland.configures(&faced.window).frames, 1);
         faced.core.state.time.advance(Duration::from_millis(1100));
         faced.frames_with_requests(60);
-        assert_eq!(faced.wayland.configures(&faced.window).frames, 2);
+        let (waited, asked_at_the_send) = (59, 1);
+        assert_eq!(
+            faced.wayland.configures(&faced.window).frames,
+            1 + waited + asked_at_the_send,
+            "one more send after a second, which answers every request so far"
+        );
     }
 
     #[test]
