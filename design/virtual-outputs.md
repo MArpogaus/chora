@@ -34,7 +34,7 @@ its owner reads that texture with the uniform `{"output": NAME}`, and with `forw
 the node passes pointer input into the output.
 
 **The smallest core change**, in one sentence: move the "render an output into a texture" of
-the headless backend into a backend-neutral `virtual.rs` with its own list, let a shader node
+the headless backend into a backend-neutral `offscreen.rs` with its own list, let a shader node
 of the owner sample it with `{"output": NAME}`, and let `State::spot` continue through a node
 with `forward` into that output.
 
@@ -60,7 +60,7 @@ Details:
   finding 18): the flag `virtual`; `forward` into an own virtual output needs no `node.portal`,
   which stays for portals onto real outputs (K6); the pixel limits of section 6.
 - **Budget.** About 450 new core lines, about 120 of them moved from `headless.rs`. All of it
-  in `virtual.rs` and `input.rs`; `ipc.rs` (4,225 lines) gets one dispatch line.
+  in `offscreen.rs` and `input.rs`; `ipc.rs` (4,225 lines) gets one dispatch line.
 
 Out of scope: output textures of real outputs and the desktop pane (K6), nested portals (a
 pane inside a virtual output that forwards again), the grab transfer E3, a resize of a
@@ -206,7 +206,7 @@ merge gate. Steps 1 to 5 are core (strongest model); 6 to 9 are plugins and scri
 
 | # | Content | Tests that fail first | Exit criterion | Risk | KISS alternative |
 |---|---|---|---|---|---|
-| 1 | `virtual.rs`: the render into a texture moves out of `headless.rs`; the headless backend calls it. No behavior change | `render_into_draws_an_output_outside_the_backend_list` | headless tests and `2d-guard.sh` unchanged | the EGL flake of backlog F2 hides a regression | leave `headless.rs` alone and copy the 45 lines |
+| 1 | `offscreen.rs`: the render into a texture moves out of `headless.rs`; the headless backend calls it. No behavior change | `render_into_draws_an_output_outside_the_backend_list` | headless tests and `2d-guard.sh` unchanged | the EGL flake of backlog F2 hides a regression | leave `headless.rs` alone and copy the 45 lines |
 | 2 | `output.add {virtual}` and `output.remove`: list, owner, slot, name, limits, `wl_output`, camera, overlay root, `output.list` | `a_virtual_output_is_in_no_list_of_screens` (pointer, management heads, lock, capture); `the_pointer_never_enters_one`; `a_client_socket_cannot_add_one`; `the_17th_and_the_pixel_budget_fail`; `only_the_owner_removes_it` | `chora-xp --output VIRTUAL-1` starts on headless and on winit and attaches a probe window | a forgotten `all_outputs` site (layer shell, enter) | xp without bars first: skip layer shell on virtual outputs |
 | 3 | The reader: `{"output": NAME}`, `render_virtuals` on demand, version, frame callbacks | capture: a flat pane shows the color of a probe window on V; `a_static_virtual_output_renders_once` in 60 frames (`RenderStats`); `an_unread_one_renders_nothing_and_gets_1_hz`; `a_commit_damages_only_its_pane`; `a_foreign_client_cannot_sample_it` | xp on V shows in a flat pane; 0 passes when static | tty: the texture of the primary GPU on an output of a second GPU | render on every frame of the first output (the headless clock) and keep only the damage check |
 | 4 | Flat input: `forward`, the spot through one portal, lock | a click on a scaled flat pane reaches the probe at the mapped point; hover; `input.button` carries V; `forward: false` gives the press to the owner; locked forwards nothing; a new toplevel under a pane goes to the manager on V; a node press through a pane stamps an act, an injected one does not; `hits_match_the_flat_walk` stays green | a foot window on V takes typed text after one click, 20 of 20 | a caller of `spot` that needed the screen | forward only for a pane with a plain transform (fly-in only) and ship K7 with that |
