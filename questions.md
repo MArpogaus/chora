@@ -78,3 +78,20 @@ of D76; the xp cube effect is removed when that geometry works, and
 until then the old cube only hides the taskbar while it turns. Answer
 "keep both" to keep the xp effect as a light switcher without the
 construct.
+
+## Q9 to Q15 (2026-11-10): launch, from marketing/usps.md and launch.md
+
+Defaults taken unless the user objects:
+- Q9 Arch: ship the release package (D14) only, no AUR (D49 stays).
+- Q10 flake.nix and the distrobox/OCI image: built by the PM's agents in
+  week 1 (backlog S2).
+- Q11 Hero capture: wait for the construct demo with wobble (D2); a
+  plain construct walk is the fallback if D2 slips.
+- Q12 HN, r/linux, Phoronix wait for the 30-day daily-use gate;
+  r/unixporn may go earlier.
+- Q13 Which account posts on r/unixporn, and does it meet the karma
+  minimum? (user only)
+- Q14 Chat room at launch: none; GitHub issues and discussions only.
+- Q15 The XP look in public: show it as "a classic desktop", without
+  Microsoft names, logos or the Bliss-like wallpaper on the website and
+  in captures, until the user decides; voice demos only in English.
