@@ -1297,6 +1297,21 @@ fn draw_pass(
 mod tests {
     use super::*;
 
+    /// A plane wholly behind the eye, such as a pane under the camera
+    /// group of a 3D context that the camera walked past, has an empty
+    /// box: `scene.query` asks for it.
+    #[test]
+    fn a_quad_behind_the_eye_has_an_empty_box() {
+        let mut behind = [0.0; 16];
+        behind[0] = 1.0;
+        behind[5] = 1.0;
+        behind[10] = 1.0;
+        behind[15] = -1.0;
+        let rect =
+            crate::render::bounding_box_from(&Transform::from_matrix(behind), [100.0, 80.0], NEAR);
+        assert!(rect.size.w <= 0.0 && rect.size.h <= 0.0, "{rect:?}");
+    }
+
     #[test]
     fn a_layer_texture_side_follows_a_smaller_gl_limit() {
         assert!((side_limit(Some(2048)) - 2048.0).abs() < f64::EPSILON);
