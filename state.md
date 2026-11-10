@@ -195,10 +195,23 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 (none)
 
-## Running
+## Running (11-10 14:25 Bangkok)
 
-- H4b chat field (sonnet), claude/hud-h4b
-- 3D step 6, 2D sampling #76 (sonnet), claude/3d-step6
+pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent; the fresh-session
+switch is off, see friction 24)
+
+- claude/render-fix (Opus): review fixes of M1, M2, M4, M5 in progress;
+  merge after the gate (in its worktree /home/user/wt/render-fix).
+- claude/core-death (Fable): silent core death, memory growth, hang
+  watchdog gate; worktree /home/user/wt/core-death.
+- claude/virtual (Opus): D69 step 1, extract virtual.rs from the
+  headless backend, no behaviour change (design/virtual-outputs.md).
+
+Merged today after reviews: merge-gate script, H4c, 3D steps 2 to 6,
+focus race, H1 to H7 and H4a/H4b, effects driver E1, give key, grab fix,
+flake fixes. Next after these: D69 steps 2 to 10 (one at a time, Opus
+author, fresh Opus review), then E2 3D wobble, then the construct (K5).
+Stability backlog F4 and the backlog track A items stay in a lane.
 
 ## Blocked
 
