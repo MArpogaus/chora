@@ -966,7 +966,8 @@ sentences in a bubble, the question of the agent as a card and a badge
 while the mic is muted. The figure shows on the output of the focused
 window, in its work area. It is a block of the XP split (D73) and connects
 with the client name `assistant`. It exports the methods of its settings
-and no other.
+and `chat.show` and `chat.hide`, which are not privileged (`voice.md`,
+section 19).
 
 | Option | Default | Meaning |
 |--------|---------|---------|

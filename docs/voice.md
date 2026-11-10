@@ -1404,7 +1404,46 @@ question ends, the text is not sent: it stays as a draft with "Not sent.
 Press Enter to send." If `agent_say` fails, the host tells the field,
 which gets the text back and says that voice does not answer.
 
-Tests: the unit tests of the crate and of `field.rs` (the field process
+**The host.** `chora-assistant` (`plugins/chora-assistant/src/chat.rs`)
+owns the one open chat. Its methods are `chat.show {name, token}` and
+`chat.hide`; neither is privileged, so the voice agent may call them.
+The host draws the view in the `chat:` look of the folder that shows, at
+the edge that `anchor` and `width` name, and puts the field at its
+bottom.
+
+- A click on the "Chat ..." row, which every look has, shows the numbered
+  list of helpers and projects (`agent_list`). A click on an entry, or its
+  number and Enter in the field, opens the chat; a project starts its
+  helper first. `chat.show` with a name opens that chat at once.
+- Opening a chat calls `chat.open`, reads the transcript with
+  `agent.read` and starts the field. The host reads again when
+  `voice.state` of the helper carries a larger `seq`, and every two
+  minutes, which keeps the chat alive. A text of the field goes out with
+  `agent_say`; if that fails, the field gets it back with `say_failed`.
+  When voice does not answer, the header says so.
+- A click is an act: the host asks the core for an activation token and
+  hands it to the field with `place`, so the field takes the keyboard. A
+  token that comes with `chat.show` (from `chora-chat`, started by a key
+  or a launcher) is handed on as it is. The voice agent has no token, so
+  its `chat.show` shows the view and leaves the keyboard where it is.
+- Esc in the field, `chat.hide`, a click on Close and `chat.close` of the
+  host end the chat with `chat.close`. Esc keeps the field process and so
+  its draft; `chat.hide` and Close end the process.
+- A switch of look places the same field again in the new look, keeps the
+  transcript and the draft, and moves nothing else. The context holds
+  while the field has the keyboard.
+- A question shows as the host's card. It appears inside the chat view if
+  the view is open when the question starts, else at the figure, and it
+  stays there until it ends. A chat that opens later shows "A question is
+  waiting." as its header. While a question waits, the view shows the
+  line that typing does not answer, with the keys.
+- The lines of the view come from `chora_kit::chat`: the text of an
+  agent is cleaned, drawn under the name of its helper, and never makes a
+  card. Only an entry of role `question` is drawn as a question.
+
+Tests: the unit tests of `chat.rs`, `tests/gate-chat.sh` (one event
+script, the same visible lines in each HUD folder named on its command
+line), the cells `chat-*` of `tests/gate-hud.sh`, and the unit tests of the crate and of `field.rs` (the field process
 has no `CHORA_SOCKET`), and `tests/chat.sh`, which runs the field beside
 a window and the fake agent in a headless session, with
 `tests/chat-host.py` as the host. A headless session has no device, so a

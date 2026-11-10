@@ -7,25 +7,34 @@
 //!
 //! The chat is no window: a switch of look is a restyle, the field stays
 //! the same process and so keeps its draft, and the context holds while
-//! the field has the keyboard.
+//! the field has the keyboard. The view is drawn from the `chat:` values
+//! of the folder, with the words of `chora_kit::words`; agent text is a
+//! message under the name of its helper and never a card.
 
-#![allow(
-    dead_code,
-    unused_variables,
-    clippy::unused_self,
-    clippy::unnecessary_wraps,
-    reason = "the red commit holds stubs"
-)]
+use std::collections::BTreeMap;
 
 use chora_kit::{
-    ask::Keys,
-    chat::{Chat as Transcript, Line, Measure},
+    ask::{Keys, Question, show_key},
+    chat::{Chat as Transcript, Line, Measure, sanitize},
     hud::{Anchor, Chat as Look},
-    words::Language,
+    words::{self, Language, Word, say},
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use crate::field::FieldEvent;
+use crate::{
+    assistant::origin,
+    check::host_chat,
+    field::{FieldEvent, say_params},
+};
+
+mod host;
+mod view;
+
+pub use host::{ShowParams, exported};
+pub use view::card_origin;
+
+const PULLS: usize = 8;
+const MAX_STATES: usize = 64;
 
 /// Where the chat shows: the output, its size and work area.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,11 +52,19 @@ pub struct Frame {
 /// What the session needs from the rest of the host.
 pub trait Outside {
     /// Calls a method of voice.
+    ///
+    /// # Errors
+    ///
+    /// Voice does not answer or refuses.
     fn voice(&mut self, method: &str, params: Value) -> Result<Value, String>;
     /// The activation token of the act that is happening now, if the core
     /// gives one.
     fn token(&mut self) -> Option<String>;
     /// Starts the field.
+    ///
+    /// # Errors
+    ///
+    /// The program does not start.
     fn start_field(&mut self) -> Result<Box<dyn Link>, String>;
 }
 
@@ -74,6 +91,14 @@ pub enum Pick {
     Project(String),
 }
 
+impl Pick {
+    fn name(&self) -> &str {
+        match self {
+            Self::Agent(name) | Self::Project(name) => name,
+        }
+    }
+}
+
 /// What the view shows.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub enum Mode {
@@ -95,6 +120,15 @@ pub enum Where {
     Figure,
 }
 
+/// What `voice.state` last said of the helper.
+#[derive(Debug, Default)]
+struct Status {
+    name: String,
+    state: String,
+    task: String,
+    steps: Option<(u64, u64)>,
+}
+
 /// The chat of the host.
 #[derive(Default)]
 pub struct Session {
@@ -102,28 +136,111 @@ pub struct Session {
     transcript: Transcript,
     link: Option<Box<dyn Link>>,
     keyboard: bool,
-    waiting: bool,
     keys: Keys,
     card: Option<Where>,
+    status: Status,
+    head: u64,
+    offline: bool,
+    drawn: Option<String>,
+    dirty: bool,
+    states: BTreeMap<String, Value>,
 }
 
-/// The rectangle of the view in the work area: x, y, width, height.
+/// The rectangle of the view in the work area: x, y, width, height. The
+/// view takes the height of the work area at the left and right edge, and
+/// six tenths of it elsewhere.
 #[must_use]
-pub fn view_rect(_anchor: Anchor, _width: u32, _area: [i32; 4]) -> [i32; 4] {
-    [0, 0, 0, 0]
+pub fn view_rect(anchor: Anchor, width: u32, area: [i32; 4]) -> [i32; 4] {
+    let w = i32::try_from(width).unwrap_or(i32::MAX).min(area[2]);
+    let h = match anchor {
+        Anchor::Left | Anchor::Right => area[3],
+        _ => area[3] * 6 / 10,
+    };
+    let [x, y] = origin(anchor, area, [w, h], [0, 0]);
+    [x, y, w, h]
+}
+
+/// The colours of the view: the `chat:` values over those of the host.
+#[derive(Clone, Copy)]
+struct Colours {
+    fill: [u8; 3],
+    text: [u8; 3],
+    name: [u8; 3],
+    border: [u8; 3],
+}
+
+fn colours(look: &Look) -> Colours {
+    let host = host_chat();
+    let pick =
+        |own: Option<[u8; 3]>, hosts: Option<[u8; 3]>, last: [u8; 3]| own.or(hosts).unwrap_or(last);
+    Colours {
+        fill: pick(look.fill, host.fill, [250, 250, 250]),
+        text: pick(look.text, host.text, [32, 32, 32]),
+        name: pick(look.name, host.name, [0, 80, 160]),
+        border: pick(look.border, host.border, [60, 60, 60]),
+    }
+}
+
+fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
+    [r, g, b, 255]
 }
 
 /// The `place` line of the field for a frame, with the token if there is
-/// one.
+/// one: at the bottom of the view, as wide as the view.
 #[must_use]
-pub fn field_place(_frame: &Frame, _token: Option<&str>) -> Value {
-    Value::Null
+pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
+    let (anchor, width) = frame.look.place();
+    let [x, y, w, h] = view_rect(anchor, width, frame.area);
+    let colours = colours(&frame.look);
+    let mut place = json!({
+        "anchor": "bottom_left",
+        "margin": [0, 0, frame.size[1] - (y + h), x],
+        "width": w,
+        "output": frame.output,
+        "look": {
+            "background": rgba(colours.fill),
+            "text": rgba(colours.text),
+            "border": rgba(colours.border),
+            "hint": rgba(colours.text),
+        },
+    });
+    if let Some(token) = token {
+        place["token"] = token.into();
+    }
+    place
 }
 
-/// The entries of the text that `agent_list` answers.
+/// The entries of the text that `agent_list` answers:
+/// `projects: a, b; agents: x (a, idle)`. A project that has a helper is
+/// not listed again.
 #[must_use]
-pub fn parse_list(_text: &str) -> Vec<Pick> {
-    Vec::new()
+pub fn parse_list(text: &str) -> Vec<Pick> {
+    let part = |key: &str| {
+        text.split(';')
+            .find_map(|part| part.trim().strip_prefix(key))
+            .map(str::trim)
+            .filter(|rest| *rest != "none")
+            .unwrap_or_default()
+    };
+    let agents: Vec<(String, String)> = part("agents:")
+        .split("),")
+        .filter_map(|entry| {
+            let (name, rest) = entry.split_once('(')?;
+            let project = rest.split(',').next()?.trim_end_matches(')').trim();
+            Some((sanitize(name.trim()), project.to_owned()))
+        })
+        .collect();
+    let mut picks: Vec<Pick> = agents
+        .iter()
+        .map(|(name, _)| Pick::Agent(name.clone()))
+        .collect();
+    for project in part("projects:").split(',').map(str::trim) {
+        let started = agents.iter().any(|(_, p)| p == project);
+        if !project.is_empty() && !started {
+            picks.push(Pick::Project(sanitize(project)));
+        }
+    }
+    picks
 }
 
 impl Session {
@@ -134,6 +251,7 @@ impl Session {
     }
 
     /// What the view shows.
+    #[cfg(test)]
     #[must_use]
     pub fn mode(&self) -> &Mode {
         &self.mode
@@ -142,34 +260,107 @@ impl Session {
     /// Whether a view shows.
     #[must_use]
     pub fn is_open(&self) -> bool {
-        false
+        self.mode != Mode::Closed
     }
 
     /// The helper of the chat, if one is open.
     #[must_use]
     pub fn helper(&self) -> Option<&str> {
-        None
+        match &self.mode {
+            Mode::Chat(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    fn waiting(&self) -> bool {
+        self.status.state == "question"
+    }
+
+    /// Whether the view is to be drawn again, and the mark taken away.
+    pub fn take_dirty(&mut self) -> bool {
+        std::mem::take(&mut self.dirty)
     }
 
     /// Whether the field has the keyboard: the context holds.
     #[must_use]
     pub fn keyboard(&self) -> bool {
-        false
+        self.keyboard
     }
 
     /// Shows the chat with `name`, or the list without one. `token` is the
-    /// activation token of the act, if the caller has one.
+    /// activation token of the act, if the caller has one. A voice that
+    /// does not answer shows the view with the line that says so.
     ///
     /// # Errors
     ///
-    /// Voice does not answer.
+    /// The field does not start.
     pub fn show(
         &mut self,
-        _out: &mut dyn Outside,
-        _name: Option<&str>,
-        _token: Option<String>,
-        _frame: &Frame,
+        out: &mut dyn Outside,
+        name: Option<&str>,
+        token: Option<&str>,
+        frame: &Frame,
     ) -> Result<(), String> {
+        let name = name.map(sanitize).filter(|name| !name.is_empty());
+        match name {
+            Some(name) => self.open_chat(out, &name),
+            None => self.open_list(out),
+        }
+        self.place_field(out, frame, token)
+    }
+
+    fn open_chat(&mut self, out: &mut dyn Outside, name: &str) {
+        let same = self
+            .helper()
+            .is_some_and(|old| old.eq_ignore_ascii_case(name));
+        if !same {
+            self.close_chat(out);
+            self.transcript = Transcript::default();
+            self.status = Status::default();
+            self.head = 0;
+            self.link = None;
+        }
+        self.offline = out.voice("chat.open", json!({"name": name})).is_err();
+        self.mode = Mode::Chat(name.to_owned());
+        if let Some(data) = self.states.get(&name.to_lowercase()).cloned() {
+            self.helper_state(out, &data);
+        }
+        if !self.offline {
+            self.pull(out);
+        }
+    }
+
+    fn open_list(&mut self, out: &mut dyn Outside) {
+        self.close_chat(out);
+        let listed = out.voice("agent", json!({"tool": "agent_list"}));
+        self.offline = listed.is_err();
+        let picks = listed
+            .ok()
+            .and_then(|text| text.as_str().map(parse_list))
+            .unwrap_or_default();
+        self.mode = Mode::List(picks);
+    }
+
+    fn close_chat(&mut self, out: &mut dyn Outside) {
+        if let Mode::Chat(name) = &self.mode {
+            let _ = out.voice("chat.close", json!({"name": name}));
+        }
+    }
+
+    fn place_field(
+        &mut self,
+        out: &mut dyn Outside,
+        frame: &Frame,
+        token: Option<&str>,
+    ) -> Result<(), String> {
+        if self.link.is_none() {
+            self.link = Some(out.start_field()?);
+        }
+        let waiting = self.waiting();
+        if let Some(link) = self.link.as_mut() {
+            link.question(waiting);
+            link.place(&field_place(frame, token));
+        }
         Ok(())
     }
 
@@ -178,73 +369,265 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Voice does not answer.
-    pub fn clicked_row(&mut self, _out: &mut dyn Outside, _frame: &Frame) -> Result<(), String> {
-        Ok(())
+    /// The field does not start.
+    pub fn clicked_row(&mut self, out: &mut dyn Outside, frame: &Frame) -> Result<(), String> {
+        let token = out.token();
+        self.show(out, None, token.as_deref(), frame)
     }
 
-    /// A click on entry `index` (from 1) of the list.
+    /// A click on entry `index` (from 1) of the list; a project starts
+    /// its helper first.
     ///
     /// # Errors
     ///
-    /// Voice does not answer.
+    /// The field does not start.
     pub fn clicked_pick(
         &mut self,
-        _out: &mut dyn Outside,
-        _index: usize,
-        _frame: &Frame,
+        out: &mut dyn Outside,
+        index: usize,
+        frame: &Frame,
     ) -> Result<(), String> {
-        Ok(())
+        let token = out.token();
+        self.pick(out, index, token.as_deref(), frame)
+    }
+
+    fn pick(
+        &mut self,
+        out: &mut dyn Outside,
+        index: usize,
+        token: Option<&str>,
+        frame: &Frame,
+    ) -> Result<(), String> {
+        let Mode::List(picks) = &self.mode else {
+            return Ok(());
+        };
+        let Some(pick) = index.checked_sub(1).and_then(|n| picks.get(n)).cloned() else {
+            return Ok(());
+        };
+        if let Pick::Project(project) = &pick {
+            let start = json!({"tool": "agent_start", "project": project, "name": project});
+            let _ = out.voice("agent", start);
+        }
+        self.show(out, Some(pick.name()), token, frame)
     }
 
     /// Closes the view and the field.
-    pub fn hide(&mut self, _out: &mut dyn Outside) {}
+    pub fn hide(&mut self, out: &mut dyn Outside) {
+        self.close_chat(out);
+        self.mode = Mode::Closed;
+        self.keyboard = false;
+        self.link = None;
+    }
+
+    fn close_view(&mut self, out: &mut dyn Outside) {
+        self.close_chat(out);
+        self.mode = Mode::Closed;
+        self.keyboard = false;
+    }
 
     /// The same chat in the look of another folder or on another output:
     /// the field moves, it does not restart.
-    pub fn restyle(&mut self, _frame: &Frame) {}
-
-    /// Takes what the field told. True when the view changed.
-    pub fn field_events(&mut self, _out: &mut dyn Outside, _frame: &Frame) -> bool {
-        false
+    pub fn restyle(&mut self, frame: &Frame) {
+        if !self.is_open() {
+            return;
+        }
+        if let Some(link) = self.link.as_mut() {
+            link.place(&field_place(frame, None));
+        }
     }
 
-    /// A voice event. True when the view changed.
-    pub fn voice_event(&mut self, _out: &mut dyn Outside, _event: &str, _data: &Value) -> bool {
-        false
+    /// Takes what the field told. True when the view changed.
+    pub fn field_events(&mut self, out: &mut dyn Outside, frame: &Frame) -> bool {
+        let events = self.link.as_mut().map(|link| link.events());
+        let mut changed = false;
+        for event in events.into_iter().flatten() {
+            match event {
+                FieldEvent::Say(text) => changed |= self.said(out, &text, frame),
+                FieldEvent::Shown => {}
+                FieldEvent::Keyboard(on) => self.keyboard = on,
+                FieldEvent::Closed => {
+                    self.close_view(out);
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+
+    fn said(&mut self, out: &mut dyn Outside, text: &str, frame: &Frame) -> bool {
+        match &self.mode {
+            Mode::Chat(name) => {
+                let sent = out.voice("agent", say_params(name, text));
+                if sent.is_err()
+                    && let Some(link) = self.link.as_mut()
+                {
+                    link.say_failed(text);
+                }
+                self.pull(out)
+            }
+            Mode::List(picks) => {
+                let text = text.trim();
+                let index = text.parse::<usize>().ok().or_else(|| {
+                    picks
+                        .iter()
+                        .position(|pick| pick.name().eq_ignore_ascii_case(text))
+                        .map(|n| n + 1)
+                });
+                match index {
+                    Some(index) => self.pick(out, index, None, frame).is_ok(),
+                    None => false,
+                }
+            }
+            Mode::Closed => false,
+        }
+    }
+
+    /// A voice event; the view is marked for drawing if it changed.
+    pub fn voice_event(&mut self, out: &mut dyn Outside, event: &str, data: &Value) {
+        if event == "voice.state"
+            && let Some(name) = data["name"].as_str()
+            && (self.states.len() < MAX_STATES || self.states.contains_key(&name.to_lowercase()))
+        {
+            self.states.insert(name.to_lowercase(), data.clone());
+        }
+        let Some(helper) = self.helper().map(str::to_owned) else {
+            return;
+        };
+        if let Some(link) = self.link.as_mut() {
+            link.voice_event(event, data, &helper);
+        }
+        let changed = match event {
+            "voice.state" if names(data, &helper) => self.helper_state(out, data),
+            "voice.confirm" => {
+                if let Some(question) = Question::from_event(data, None) {
+                    self.keys = question.keys;
+                }
+                self.card.is_some()
+            }
+            _ => false,
+        };
+        self.dirty |= changed;
+    }
+
+    fn helper_state(&mut self, out: &mut dyn Outside, data: &Value) -> bool {
+        let text = |key: &str| data[key].as_str().unwrap_or_default();
+        let steps = data["step"].as_u64().zip(data["steps"].as_u64());
+        let status = Status {
+            name: sanitize(text("name")),
+            state: text("state").to_owned(),
+            task: sanitize(text("task")),
+            steps,
+        };
+        let mut changed = status.state != self.status.state
+            || status.task != self.status.task
+            || status.steps != self.status.steps;
+        self.status = status;
+        self.head = data["seq"].as_u64().unwrap_or(self.head);
+        if self.head > self.transcript.after() {
+            changed |= self.pull(out);
+        }
+        changed
     }
 
     /// A question appeared: where its card goes, fixed until it ends.
     pub fn question_asked(&mut self) -> Where {
-        Where::Figure
+        let place = if self.is_open() {
+            Where::Chat
+        } else {
+            Where::Figure
+        };
+        *self.card.insert(place)
     }
 
     /// The question ended.
     pub fn question_ended(&mut self) {
         self.card = None;
+        self.dirty = true;
     }
 
     /// Where the card of the question that waits stays.
+    #[cfg(test)]
     #[must_use]
     pub fn card_place(&self) -> Option<Where> {
-        None
+        self.card
+    }
+
+    fn label(&self) -> String {
+        match &self.mode {
+            Mode::Chat(name) if self.status.name.is_empty() => name.clone(),
+            _ => self.status.name.clone(),
+        }
     }
 
     /// The header line of the view.
     #[must_use]
-    pub fn header(&self, _language: Language) -> String {
-        String::new()
+    pub fn header(&self, language: Language) -> String {
+        match &self.mode {
+            Mode::Closed => String::new(),
+            _ if self.card == Some(Where::Figure) => say(language, Word::Waiting, &[]),
+            _ if self.offline => say(language, Word::Offline, &[]),
+            Mode::List(picks) if picks.is_empty() => say(language, Word::NoHelper, &[]),
+            Mode::List(_) => say(language, Word::ChatLauncher, &[]),
+            Mode::Chat(_) => {
+                let row = words::row(
+                    language,
+                    &self.label(),
+                    &self.status.state,
+                    &self.status.task,
+                );
+                match self.status.steps {
+                    Some((step, steps)) => format!("{row} ({step}/{steps})"),
+                    None => row,
+                }
+            }
+        }
+    }
+
+    /// The hint above the field: while a question waits, that typing does
+    /// not answer, with its keys.
+    #[must_use]
+    pub fn hint(&self, language: Language) -> Option<String> {
+        let waits = self.card.is_some() || self.waiting();
+        (self.is_open() && waits).then(|| {
+            let (yes, no) = (show_key(&self.keys.yes), show_key(&self.keys.no));
+            say(language, Word::TypedYes, &[("yes", &yes), ("no", &no)])
+        })
     }
 
     /// The transcript as lines.
-    pub fn lines(&mut self, _language: Language, _measure: &Measure) -> Vec<Line> {
-        Vec::new()
+    pub fn lines(&mut self, language: Language, measure: &Measure) -> Vec<Line> {
+        let label = self.label();
+        self.transcript.lines(language, &label, measure)
     }
 
-    /// Pulls the transcript from voice.
-    pub fn pull(&mut self, _out: &mut dyn Outside) -> bool {
-        false
+    /// Pulls the transcript from voice, until it is up to date. True when
+    /// it grew or when voice stopped answering.
+    pub fn pull(&mut self, out: &mut dyn Outside) -> bool {
+        let Some(name) = self.helper().map(str::to_owned) else {
+            return false;
+        };
+        let before = (self.transcript.after(), self.offline);
+        for _ in 0..PULLS {
+            let after = self.transcript.after();
+            let params = json!({"name": name, "after": after});
+            let Ok(answer) = out.voice("agent.read", params) else {
+                self.offline = true;
+                break;
+            };
+            self.offline = false;
+            self.transcript.apply(&answer);
+            if self.transcript.after() == after || self.transcript.after() >= self.head {
+                break;
+            }
+        }
+        before != (self.transcript.after(), self.offline)
     }
+}
+
+fn names(data: &Value, helper: &str) -> bool {
+    data["name"]
+        .as_str()
+        .is_some_and(|name| name.eq_ignore_ascii_case(helper))
 }
 
 #[cfg(test)]
@@ -386,7 +769,7 @@ mod tests {
         let (mut session, mut out, log) = setup();
         let neutral = frame(Look::default());
         session
-            .show(&mut out, Some("atlas"), Some("act-1".into()), &neutral)
+            .show(&mut out, Some("atlas"), Some("act-1"), &neutral)
             .expect("open");
         let answer = json!({"entries": [{"seq": 1, "role": "agent", "text": "Hello"}],
             "seq": 1, "epoch": 1});

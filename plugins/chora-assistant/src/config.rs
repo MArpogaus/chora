@@ -135,6 +135,8 @@ pub struct Values {
     pub speech: Style,
     /// The template and the length of the text of a sentence.
     pub line: Line,
+    /// Where the "Chat ..." row stands and its distance from the edges.
+    pub rows: (Anchor, [i32; 2]),
     /// The fields of the context that the folder reads in a `when`, so
     /// that the look is built again when one of them changes.
     pub watches: BTreeSet<String>,
@@ -166,6 +168,7 @@ impl Default for Line {
 /// neutral folder.
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
+const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
 
 impl Values {
     /// The values of a HUD folder in a context. `size` gives the size of a
@@ -204,6 +207,11 @@ impl Values {
             ),
             _ => (NEUTRAL_ANCHOR, NEUTRAL_MARGIN),
         };
+        let rows = hud.panels.iter().find(|panel| {
+            panel.source == Source::Agents
+                && panel.action == Some(chora_kit::hud::Action::Chat)
+                && panel.when.matches(context)
+        });
         let mutes = figure.is_none()
             || voice.is_some_and(|panel| panel.action == Some(chora_kit::hud::Action::Mute));
         Self {
@@ -216,6 +224,12 @@ impl Values {
             line: sentence.map_or_else(Line::default, |panel| Line {
                 text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
                 max_chars: panel.max_chars.map(|n| n as usize),
+            }),
+            rows: rows.map_or(NEUTRAL_ROWS, |panel| {
+                (
+                    panel.anchor.unwrap_or(NEUTRAL_ROWS.0),
+                    panel.margin.unwrap_or(NEUTRAL_ROWS.1),
+                )
             }),
             watches: hud
                 .panels
@@ -251,6 +265,7 @@ impl Values {
             mutes: true,
             speech: Style::default(),
             line: Line::default(),
+            rows: NEUTRAL_ROWS,
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -275,6 +290,7 @@ impl Values {
             mutes: true,
             speech: raw.speech,
             line: Line::default(),
+            rows: NEUTRAL_ROWS,
             watches: BTreeSet::new(),
             hud: None,
         }

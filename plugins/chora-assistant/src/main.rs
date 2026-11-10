@@ -57,6 +57,7 @@ use serde_json::Value;
 use crate::{
     assistant::Assistant,
     card::Shown,
+    chat::{Session, ShowParams},
     config::{Config, DOT, Kind, NEUTRAL, Raw, Values},
     context::Switcher,
 };
@@ -177,6 +178,14 @@ struct Agent {
     /// Whether the plugin claims the state indicator of the voice agent at
     /// its next chance.
     claim_due: bool,
+    /// The chat with a helper.
+    chat: Session,
+    /// When the chat last pulled from voice.
+    chat_pulled: Instant,
+    /// What `assistant.chat` last said: open, and with whom.
+    announced: Option<(bool, Option<String>)>,
+    /// The output that shows the "Chat ..." row.
+    row: Option<String>,
 }
 
 impl Plugin for Agent {
@@ -226,11 +235,24 @@ impl Plugin for Agent {
         self.apply(commands)
     }
 
-    fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
-        Err(RpcError::new(
-            RpcError::METHOD_NOT_FOUND,
-            format!("{NAME} has no method {method}"),
-        ))
+    fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
+        let rejected = |e: String| RpcError::new(RpcError::REJECTED, e);
+        match method {
+            "chat.show" => {
+                let ShowParams { name, token } = runtime::params(params)?;
+                self.chat_show(name.as_deref(), token.as_deref())
+                    .map_err(rejected)?;
+                Ok(Value::Object(serde_json::Map::new()))
+            }
+            "chat.hide" => {
+                self.chat_hide().map_err(|e| rejected(e.to_string()))?;
+                Ok(Value::Object(serde_json::Map::new()))
+            }
+            _ => Err(RpcError::new(
+                RpcError::METHOD_NOT_FOUND,
+                format!("{NAME} has no method {method}"),
+            )),
+        }
     }
 
     fn settings(&mut self) -> Option<&mut dyn Store> {
@@ -273,13 +295,9 @@ impl Agent {
     ) -> Result<Self, String> {
         let card_theme = card::theme(&source.cache, HOST_FAMILY)?;
         source.loads = source.loads.max(1);
-        let rt = Runtime::start(
-            NAME,
-            Vec::new(),
-            EVENTS,
-            settings::File::<Config>::methods(),
-        )
-        .map_err(|e| e.to_string())?;
+        let mut methods = chat::exported();
+        methods.extend(settings::File::<Config>::methods());
+        let rt = Runtime::start(NAME, Vec::new(), EVENTS, methods).map_err(|e| e.to_string())?;
         let mut agent = Self {
             rt,
             settings,
@@ -303,9 +321,15 @@ impl Agent {
             badge: false,
             top: None,
             claim_due: true,
+            chat: Session::new(),
+            chat_pulled: Instant::now(),
+            announced: None,
+            row: None,
         };
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
+        let row = agent.sync_row().map_err(|e| e.to_string())?;
+        agent.apply(row).map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
         Ok(agent)
     }
@@ -339,6 +363,9 @@ impl Agent {
         }
         if node == card::BADGE {
             return Ok(self.press_badge(injected));
+        }
+        if self.chat_pressed(node)? {
+            return Ok(Vec::new());
         }
         if Assistant::owns(node) {
             return Ok(self.press_assistant(injected));
@@ -422,11 +449,15 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut agent = Agent::start((source, theme, values, cache), (settings, name))?;
     loop {
         let now = Instant::now();
-        let wait = [agent.assistant_due(), agent.switch_due(now)]
-            .into_iter()
-            .flatten()
-            .min()
-            .map_or(IDLE, |due| due.saturating_duration_since(now));
+        let wait = [
+            agent.assistant_due(),
+            agent.switch_due(now),
+            agent.chat_due(now),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+        .map_or(IDLE, |due| due.saturating_duration_since(now));
         if let Some(event) = agent
             .rt
             .conn
@@ -434,6 +465,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         {
             runtime::dispatch(&mut agent, event)?;
         }
+        agent.chat_step(Instant::now())?;
         agent.assistant_step(Instant::now())?;
         agent.switch_step(Instant::now())?;
     }

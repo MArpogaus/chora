@@ -73,10 +73,10 @@ run_folder() {
     "$bin/chora-assistant" >"$out/assistant.log" 2>&1 &
     pids+=($!)
     emit() { echo "$1 $2" >&3; }
+    ctl wait id:hud-row-chat --timeout 20 >/dev/null || fail "$folder: no Chat row"
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
     emit voice.state '{"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 5}'
     sleep 1
-    ctl wait id:hud-row-chat --timeout 15 >/dev/null || fail "$folder: no Chat row"
     ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "$folder: chat.show failed"
     ctl wait id:hud-chat --timeout 10 >/dev/null || fail "$folder: no chat view"
     local text lines=$out/$folder.lines
@@ -94,6 +94,7 @@ run_folder() {
     ctl wait id:hud-chat-hint --timeout 10 >/dev/null || fail "$folder: no hint while a question waits"
     echo "hint: $(ctl query id:hud-chat-hint | jq -r '.[0].meta.text // empty')" >>"$lines"
     ctl wait id:hud-card --timeout 10 >/dev/null || fail "$folder: the question shows no card"
+    ctl capture "$out/$folder.png" --output HEADLESS-1 >/dev/null || fail "$folder: no capture"
     emit voice.confirm '{"id": "51", "done": true}'
     ctl call assistant chat.hide '{}' >/dev/null || fail "$folder: chat.hide failed"
     ctl wait id:hud-chat --gone --timeout 10 >/dev/null || fail "$folder: the chat stays after chat.hide"

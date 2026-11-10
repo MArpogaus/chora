@@ -68,11 +68,11 @@ card-injected-click-refused pass
 context-held-for-question pass
 context-picks-folder pass
 card-stays-on-focus-move pass
-chat-row-always missing
-chat-row-click-opens missing
-chat-show-hide missing
+chat-row-always pass
+chat-row-click-opens pass
+chat-show-hide pass
 chat-super-a-esc missing
-typed-yes-held missing
+typed-yes-held pass
 agents-row-text missing
 voice-state-rate pass
 layers-dropped-empty pass

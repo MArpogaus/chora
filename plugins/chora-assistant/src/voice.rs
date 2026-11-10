@@ -17,6 +17,7 @@ use crate::{
     Agent,
     assistant::{self, Assistant},
     card::{self, Outcome, Shown},
+    chat::{self, Where},
     context,
 };
 
@@ -63,6 +64,7 @@ impl Agent {
         if let Some(helper) = name.filter(|n| *n != client) {
             if kind == Some("state") {
                 self.helper_state(helper, data, now);
+                self.chat_voice(event, data);
             }
             return Ok(Vec::new());
         }
@@ -87,7 +89,11 @@ impl Agent {
                 }
                 Ok(commands)
             }
-            Some("confirm") => self.confirm(data, now),
+            Some("confirm") => {
+                let commands = self.confirm(data, now)?;
+                self.chat_voice(event, data);
+                Ok(commands)
+            }
             _ => Ok(Vec::new()),
         }
     }
@@ -164,9 +170,10 @@ impl Agent {
         shown.too_long = !card::fits(theme, &shown, language, output.size);
         shown.buttons &= !shown.too_long;
         let size = card::size(theme, &shown, language, output.size);
-        let origin = self.card.as_ref().map(|old| old.origin);
-        shown.origin =
-            origin.unwrap_or_else(|| card::place(figure, size, assistant::work_area(&output)));
+        shown.origin = match self.card.as_ref().map(|old| old.origin) {
+            Some(old) => old,
+            None => self.card_origin(figure, size, &output)?,
+        };
         if self.card.take().is_some() {
             commands.extend(card::hide());
         }
@@ -204,9 +211,27 @@ impl Agent {
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
             self.card = None;
+            self.chat.question_ended();
             return card::hide();
         }
         Vec::new()
+    }
+
+    /// Where a card that appears now goes, and where it stays: inside the
+    /// chat view if one is open, else above the figure.
+    fn card_origin(
+        &mut self,
+        figure: [i32; 4],
+        size: [i32; 2],
+        output: &OutputInfo,
+    ) -> Result<[i32; 2], ClientError> {
+        let at_figure = card::place(figure, size, assistant::work_area(output));
+        if self.chat.question_asked() != Where::Chat {
+            return Ok(at_figure);
+        }
+        Ok(self
+            .chat_frame()?
+            .map_or(at_figure, |frame| chat::card_origin(&frame, size)))
     }
 
     /// The group of the card and the badge, above the group of the folder,
@@ -516,7 +541,7 @@ impl Agent {
     }
 
     /// Calls a method of the voice agent.
-    fn voice_call(&mut self, method: &str, params: &Value) -> Result<Value, ClientError> {
+    pub fn voice_call(&mut self, method: &str, params: &Value) -> Result<Value, ClientError> {
         let client = self.voice.as_ref().map_or(VOICE, |(c, _)| c.as_str());
         let call = json!({"client": client, "method": method, "params": params});
         self.rt.conn.call("methods.call", call)
