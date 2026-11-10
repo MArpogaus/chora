@@ -38,6 +38,19 @@ pub struct Program {
     time: ffi::types::GLint,
 }
 
+impl Program {
+    /// The GL name of the program.
+    pub fn id(&self) -> ffi::types::GLuint {
+        self.id
+    }
+
+    /// Whether the shader reads the clock, so that its picture changes
+    /// without any input changing.
+    pub fn reads_time(&self) -> bool {
+        self.time >= 0
+    }
+}
+
 const VERTEX: &str = "
 attribute vec4 position;
 attribute vec2 uv;

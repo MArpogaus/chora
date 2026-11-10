@@ -153,23 +153,28 @@ fn a_static_2d_scene_renders_once() {
 }
 
 #[test]
-fn a_rounded_rect_takes_two_offscreen_passes_per_frame() {
+fn a_rounded_rect_takes_two_offscreen_passes_once_and_none_while_it_stays() {
     let (mut core, mut wm, output) = core_with_output();
     let rect = json!({"create": {"id": "r", "kind": "rect", "parent": "root",
         "props": {"size": [40, 30], "color": [1, 0, 0, 1], "radius": 6,
                   "transform": {"translate": [4, 4]}}}});
     apply(&mut wm, &mut core, &[rect]);
+    let before = stats(&core);
     assert_eq!(variants(&mut core, &output), [Variant::Mesh]);
-    for frame in 0..3 {
-        let before = stats(&core);
-        render_frames(&mut core, 1);
-        let after = stats(&core);
-        assert_eq!(
-            after.textures_rendered - before.textures_rendered,
-            1,
-            "the content, frame {frame}"
-        );
-        assert_eq!(after.passes - before.passes, 1, "the shape, frame {frame}");
-        assert_eq!(after.offscreen() - before.offscreen(), 2);
-    }
+    render_frames(&mut core, 1);
+    let first = stats(&core);
+    assert_eq!(
+        first.textures_rendered - before.textures_rendered,
+        1,
+        "the content"
+    );
+    assert_eq!(first.passes - before.passes, 1, "the shape");
+    render_frames(&mut core, 5);
+    let after = stats(&core);
+    assert_eq!(after.offscreen(), first.offscreen(), "nothing changed");
+    let recolor = json!({"update": {"id": "r", "props": {"color": [0, 1, 0, 1]}}});
+    apply(&mut wm, &mut core, &[recolor]);
+    render_frames(&mut core, 1);
+    let changed = stats(&core);
+    assert_eq!(changed.offscreen() - after.offscreen(), 2, "a new color");
 }

@@ -17,7 +17,7 @@
 //! and the built-in shape of a clip. The raw GL calls are in [`crate::gl`].
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, hash_map::Entry},
     time::{Duration, Instant},
 };
 
@@ -43,6 +43,8 @@ use smithay::{
 const MAX_SIDE: f64 = 4096.0;
 /// The most pixels of layer textures in one frame of an output.
 const FRAME_PIXELS: u64 = 64 << 20;
+/// The slot of the texture of a node as the shaders of other nodes read it.
+pub const SOURCE_SLOT: usize = 3;
 /// How long an unused layer texture stays.
 const UNUSED_FOR: Duration = Duration::from_secs(2);
 
@@ -80,17 +82,48 @@ impl MeshRenderer for GlesRenderer {
     }
 }
 
+/// A texture of a layer with the damage tracker of its content, and the
+/// time of its last use.
+struct Slot {
+    texture: GlesTexture,
+    used: Instant,
+    /// The tracker of the renders into the texture, with the scale that it
+    /// renders at; the texture keeps what the last render drew.
+    tracker: Option<(u64, OutputDamageTracker)>,
+}
+
+/// How a mesh element looked in the last frame, so that its commit counts
+/// only what changed.
+struct Seen {
+    vertices: Vec<Vertex>,
+    indices: Vec<u16>,
+    geometry: Rectangle<i32, Physical>,
+    alpha: f32,
+    texture: u32,
+}
+
+/// The id of a mesh element and what it showed last.
+struct Tracked {
+    id: Id,
+    commit: CommitCounter,
+    seen: Option<Seen>,
+}
+
 /// The textures and the ids of the layers by node, kept between frames:
 /// slot 0 holds the content of a layer, slots 1 and 2 the passes of its
-/// effects.
+/// effects, slot 3 the node texture of the node for the shaders that read
+/// it.
 #[derive(Default)]
 pub struct Layers {
     /// By node, slot and size, so that outputs of other scales keep their
-    /// own; with the time of the last use.
-    textures: HashMap<(String, usize, i32, i32), (GlesTexture, Instant)>,
+    /// own.
+    textures: HashMap<(String, usize, i32, i32), Slot>,
     /// By node and piece: 0 for a whole layer, the others for the pieces
     /// of a plane of a 3D context.
-    ids: HashMap<(String, usize), (Id, CommitCounter)>,
+    ids: HashMap<(String, usize), Tracked>,
+    /// By node and size: the signature of the passes that made the last
+    /// result of a layer, and the slot of that result.
+    passed: HashMap<(String, i32, i32), (u64, usize)>,
     /// The pixels of layer textures in the current frame.
     pixels: u64,
     /// The budget ran out in this frame, and the log tells it once.
@@ -105,8 +138,9 @@ impl Layers {
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
         let now = Instant::now();
         self.textures
-            .retain(|(id, ..), (_, used)| keep(id) && now - *used < UNUSED_FOR);
+            .retain(|(id, ..), slot| keep(id) && now - slot.used < UNUSED_FOR);
         self.ids.retain(|(id, _), _| keep(id));
+        self.passed.retain(|(id, ..), _| keep(id));
         self.new_budget();
     }
 
@@ -140,36 +174,124 @@ impl Layers {
         }
     }
 
+    /// The slot of a layer of a size, a new one when no frame made it yet.
+    fn slot(
+        &mut self,
+        (gles, stats): (&mut GlesRenderer, &mut RenderStats),
+        key: (&str, usize, Size<i32, BufferCoords>),
+    ) -> Result<&mut Slot, GlesError> {
+        let (node, slot, size) = key;
+        let key = (node.to_string(), slot, size.w, size.h);
+        let slot = match self.textures.entry(key) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                let texture: GlesTexture = gles.create_buffer(Fourcc::Abgr8888, size)?;
+                stats.textures_allocated += 1;
+                entry.insert(Slot {
+                    texture,
+                    used: Instant::now(),
+                    tracker: None,
+                })
+            }
+        };
+        slot.used = Instant::now();
+        Ok(slot)
+    }
+
     /// A texture of a slot of a layer of a size, the one of an earlier
     /// frame if there is one.
     pub fn texture(
         &mut self,
-        (gles, stats): (&mut GlesRenderer, &mut RenderStats),
+        gpu: (&mut GlesRenderer, &mut RenderStats),
         node: &str,
         slot: usize,
         size: Size<i32, BufferCoords>,
     ) -> Result<GlesTexture, GlesError> {
-        let key = (node.to_string(), slot, size.w, size.h);
-        let now = Instant::now();
-        if let Some((texture, used)) = self.textures.get_mut(&key) {
-            *used = now;
-            return Ok(texture.clone());
-        }
-        let texture: GlesTexture = gles.create_buffer(Fourcc::Abgr8888, size)?;
-        stats.textures_allocated += 1;
-        self.textures.insert(key, (texture.clone(), now));
-        Ok(texture)
+        Ok(self.slot(gpu, (node, slot, size))?.texture.clone())
     }
 
-    /// The id of the element of a layer, and a new commit: a layer counts
-    /// as changed in each frame.
-    fn next(&mut self, node: &str, piece: usize) -> (Id, CommitCounter) {
+    /// The texture of a slot that an earlier frame made, without making
+    /// one.
+    fn existing(
+        &mut self,
+        node: &str,
+        slot: usize,
+        size: Size<i32, BufferCoords>,
+    ) -> Option<GlesTexture> {
+        let slot = self
+            .textures
+            .get_mut(&(node.to_string(), slot, size.w, size.h))?;
+        slot.used = Instant::now();
+        Some(slot.texture.clone())
+    }
+
+    /// Renders elements into the texture of a slot of a layer, which
+    /// keeps what the last render drew: the damage tracker of the slot
+    /// draws only what changed since. Returns the texture and whether
+    /// anything drew.
+    pub fn draw<E>(
+        &mut self,
+        (gles, stats): (&mut GlesRenderer, &mut RenderStats),
+        (node, slot): (&str, usize),
+        (size, scale): (Size<i32, BufferCoords>, f64),
+        elements: &[E],
+    ) -> Result<(GlesTexture, bool), String>
+    where
+        E: RenderElement<GlesRenderer>,
+    {
+        let entry = self
+            .slot((gles, stats), (node, slot, size))
+            .map_err(|e| e.to_string())?;
+        let mut texture = entry.texture.clone();
+        let bits = scale.to_bits();
+        let known = entry.tracker.take().filter(|(kept, _)| *kept == bits);
+        let age = usize::from(known.is_some());
+        let (_, mut tracker) = known.unwrap_or_else(|| {
+            let pixels = (size.w, size.h);
+            let fresh = OutputDamageTracker::new(pixels, scale, smithay::utils::Transform::Normal);
+            (bits, fresh)
+        });
+        let drew = render_into(gles, &mut texture, (&mut tracker, age), scale, elements)?;
+        entry.tracker = Some((bits, tracker));
+        stats.textures_rendered += u64::from(drew);
+        Ok((texture, drew))
+    }
+
+    /// The id of the element of a layer, and its commit: a new one when
+    /// the element shows something else than it did, or `changed`, which
+    /// says that its texture drew anew.
+    fn next(
+        &mut self,
+        (node, piece): (&str, usize),
+        (shape, alpha, texture): (&Shape, f32, u32),
+        changed: bool,
+    ) -> (Id, CommitCounter) {
         let entry = self
             .ids
             .entry((node.into(), piece))
-            .or_insert_with(|| (Id::new(), CommitCounter::default()));
-        entry.1.increment();
-        entry.clone()
+            .or_insert_with(|| Tracked {
+                id: Id::new(),
+                commit: CommitCounter::default(),
+                seen: None,
+            });
+        let same = entry.seen.as_ref().is_some_and(|seen| {
+            seen.texture == texture
+                && seen.alpha.to_bits() == alpha.to_bits()
+                && seen.geometry == shape.bounds
+                && seen.indices == shape.indices
+                && seen.vertices == shape.vertices
+        });
+        if changed || !same {
+            entry.commit.increment();
+            entry.seen = Some(Seen {
+                vertices: shape.vertices.clone(),
+                indices: shape.indices.clone(),
+                geometry: shape.bounds,
+                alpha,
+                texture,
+            });
+        }
+        (entry.id.clone(), entry.commit)
     }
 }
 
@@ -209,24 +331,31 @@ pub fn pixel_size([w, h]: [f64; 2], scale: f64) -> Option<Size<i32, BufferCoords
     (w > 0.0 && h > 0.0).then(|| Size::from((side(w), side(h))))
 }
 
-/// Renders elements into a layer texture, transparent where they leave it
-/// empty, and opaque where an element says it is opaque.
-pub fn render_into<E>(
+/// Renders elements into a layer texture through the tracker of the
+/// texture, transparent where they leave it empty, and opaque where an
+/// element says it is opaque. `age` is 0 for a texture without content and
+/// 1 when it holds the last render of the tracker. Returns whether
+/// anything drew.
+fn render_into<E>(
     gles: &mut GlesRenderer,
     texture: &mut GlesTexture,
+    (tracker, age): (&mut OutputDamageTracker, usize),
     scale: f64,
     elements: &[E],
-) -> Result<(), String>
+) -> Result<bool, String>
 where
     E: RenderElement<GlesRenderer>,
 {
     let size = Texture::size(texture);
     let mut target = gles.bind(texture).map_err(|e| e.to_string())?;
-    let mut tracker =
-        OutputDamageTracker::new((size.w, size.h), scale, smithay::utils::Transform::Normal);
-    tracker
-        .render_output(gles, &mut target, 0, elements, [0.0; 4])
-        .map_err(|e| format!("{e:?}"))?;
+    let drew = tracker
+        .render_output(gles, &mut target, age, elements, [0.0; 4])
+        .map_err(|e| format!("{e:?}"))?
+        .damage
+        .is_some();
+    if !drew {
+        return Ok(false);
+    }
     // An output shows no alpha, so a window that says it is opaque shows
     // there whatever alpha it draws, for example a GL client with the 2
     // bits of alpha of ARGB2101010. A texture keeps that alpha; alpha 1
@@ -242,7 +371,7 @@ where
         })
         .collect();
     if opaque.is_empty() {
-        return Ok(());
+        return Ok(true);
     }
     let mut frame = gles
         .render(
@@ -252,7 +381,8 @@ where
         )
         .map_err(|e| e.to_string())?;
     gl::make_opaque(&mut frame, &opaque).map_err(|e| e.to_string())?;
-    frame.finish().map(drop).map_err(|e| e.to_string())
+    frame.finish().map(drop).map_err(|e| e.to_string())?;
+    Ok(true)
 }
 
 /// A vertex of a mesh: the position in physical output coordinates in
@@ -309,23 +439,25 @@ impl MeshElement {
     pub fn new(
         layers: &mut Layers,
         node: &Node,
-        texture: GlesTexture,
+        drawn: (GlesTexture, bool),
         shape: Shape,
         alpha: f32,
     ) -> Self {
-        Self::piece(layers, (node, 0), texture, shape, alpha)
+        Self::piece(layers, (node, 0), drawn, shape, alpha)
     }
 
     /// The element of a piece of a plane of a 3D context: piece 0 is the
-    /// whole layer, each other piece has an id of its own.
+    /// whole layer, each other piece has an id of its own. `changed` says that
+    /// the texture drew anew since the last frame.
     pub fn piece(
         layers: &mut Layers,
         (node, piece): (&Node, usize),
-        texture: GlesTexture,
+        (texture, changed): (GlesTexture, bool),
         shape: Shape,
         alpha: f32,
     ) -> Self {
-        let (id, commit) = layers.next(&node.id, piece);
+        let seen = (&shape, alpha, texture.tex_id());
+        let (id, commit) = layers.next((&node.id, piece), seen, changed);
         Self {
             id,
             commit,
@@ -540,8 +672,11 @@ impl Element for MeshElement {
     fn damage_since(
         &self,
         scale: Scale<f64>,
-        _commit: Option<CommitCounter>,
+        commit: Option<CommitCounter>,
     ) -> DamageSet<i32, Physical> {
+        if commit.is_some_and(|seen| seen == self.commit) {
+            return DamageSet::default();
+        }
         DamageSet::from_slice(&[Rectangle::from_size(self.geometry(scale).size)])
     }
 
@@ -612,6 +747,7 @@ fn float_size(texture: &GlesTexture) -> [f32; 2] {
 }
 
 /// One pass of a layer texture through a shader.
+#[derive(Debug)]
 pub enum Pass<'a> {
     /// The built-in shape: rounded corners and a border, in pixels of the
     /// texture, the border color premultiplied.
@@ -668,29 +804,54 @@ pub fn passes(node: &Node, scale: f64) -> Vec<Pass<'_>> {
 }
 
 /// Runs the passes of a layer node over its texture and returns the
-/// texture of the last pass. A pass whose shader fails is left out; its
-/// error goes to `errors`. `textures` holds the node textures of a shader
-/// node by the names of their samplers.
+/// texture of the last pass, and whether it drew anew. `changed` says that
+/// the texture or a node texture drew anew since the last frame; passes
+/// that read neither the clock nor a changed input and are the same as
+/// before keep their last result. A pass whose shader fails is left out;
+/// its error goes to `errors`. `textures` holds the node textures of a
+/// shader node by the names of their samplers.
 pub fn apply_passes(
     gles: &mut GlesRenderer,
     (layers, errors, stats): (&mut Layers, &mut Vec<String>, &mut RenderStats),
     node: &Node,
-    mut texture: GlesTexture,
+    (texture, changed): (GlesTexture, bool),
     (scale, textures): (f64, &[(String, GlesTexture)]),
-) -> GlesTexture {
-    // The slot of the current texture: 0 for the content, then the two
-    // textures of passes take turns, so that no pass reads its own target.
+) -> (GlesTexture, bool) {
+    let wanted = passes(node, scale);
+    if wanted.is_empty() {
+        return (texture, changed);
+    }
+    let compiled: Vec<(Pass<'_>, Compiled)> = wanted
+        .into_iter()
+        .filter_map(|pass| {
+            let compiled = program_of(gles, &pass, (scale, textures), errors)?;
+            Some((pass, compiled))
+        })
+        .collect();
+    let size = Texture::size(&texture);
+    let key = (node.id.clone(), size.w, size.h);
+    let timed = compiled
+        .iter()
+        .any(|(_, (program, ..))| program.reads_time());
+    let signature = signature(scale, &compiled);
+    if !changed
+        && !timed
+        && let Some((kept, slot)) = layers.passed.get(&key).copied()
+        && kept == signature
+        && let Some(result) = layers.existing(&node.id, slot, size)
+    {
+        return (result, false);
+    }
+    let errors_before = errors.len();
+    let mut texture = texture;
     let mut slot = 0;
-    for pass in passes(node, scale) {
-        let Some((program, uniforms, extra)) = program_of(gles, &pass, textures, errors) else {
-            continue;
-        };
+    for (_, (program, uniforms, extra)) in &compiled {
         let size = Texture::size(&texture);
         let next = if slot == 1 { 2 } else { 1 };
         let Ok(mut target) = layers.texture((gles, stats), &node.id, next, size) else {
             continue;
         };
-        match draw_pass(gles, &program, &texture, &mut target, (&uniforms, &extra)) {
+        match draw_pass(gles, program, &texture, &mut target, (uniforms, extra)) {
             Ok(()) => {
                 stats.passes += 1;
                 texture = target;
@@ -699,7 +860,37 @@ pub fn apply_passes(
             Err(err) => errors.push(err),
         }
     }
-    texture
+    if timed || errors.len() > errors_before || compiled.len() != passes(node, scale).len() {
+        layers.passed.remove(&key);
+    } else {
+        layers.passed.insert(key, (signature, slot));
+    }
+    (texture, true)
+}
+
+/// A hash of what the passes draw: the passes with their uniforms, their
+/// programs and their node textures.
+fn signature(scale: f64, compiled: &[(Pass<'_>, Compiled)]) -> u64 {
+    use std::{
+        fmt::Write,
+        hash::{Hash, Hasher},
+    };
+
+    struct Feed(std::collections::hash_map::DefaultHasher);
+    impl Write for Feed {
+        fn write_str(&mut self, text: &str) -> std::fmt::Result {
+            self.0.write(text.as_bytes());
+            Ok(())
+        }
+    }
+    let mut feed = Feed(std::collections::hash_map::DefaultHasher::new());
+    scale.to_bits().hash(&mut feed.0);
+    for (pass, (program, uniforms, extra)) in compiled {
+        let _ = write!(feed, "{pass:?}{uniforms:?}");
+        program.id().hash(&mut feed.0);
+        extra.hash(&mut feed.0);
+    }
+    feed.0.finish()
 }
 
 /// A program with its uniforms and its node textures.
@@ -709,7 +900,7 @@ type Compiled = (gl::Program, BTreeMap<String, Uniform>, Vec<(String, u32)>);
 fn program_of(
     gles: &mut GlesRenderer,
     pass: &Pass<'_>,
-    textures: &[(String, GlesTexture)],
+    (scale, textures): (f64, &[(String, GlesTexture)]),
     errors: &mut Vec<String>,
 ) -> Option<Compiled> {
     match pass {
@@ -738,7 +929,9 @@ fn program_of(
             } else {
                 Vec::new()
             };
-            Some((program?, (*uniforms).clone(), extra))
+            let mut uniforms = (*uniforms).clone();
+            uniforms.insert("scale".into(), Uniform::Float(scale));
+            Some((program?, uniforms, extra))
         }
     }
 }

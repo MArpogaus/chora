@@ -137,11 +137,14 @@ fn the_split_order_is_computed_once_per_scene_generation() {
         node_under(&core.state, &spot)
     };
     let orders = |core: &Core| core.state.assets.stats.orders.get();
+    frames(&mut core, 1);
+    assert!(hit(&core).is_some());
+    let before = orders(&core);
     frames(&mut core, 10);
     for _ in 0..10 {
         assert!(hit(&core).is_some());
     }
-    assert_eq!(orders(&core), 1, "frames and hits share one order");
+    assert_eq!(orders(&core), before, "frames and hits share one order");
     let update = json!({"commands": [
         {"update": {"id": "a", "props": {"transform":
             {"matrix": turned(20.0, [480.0, 120.0, 0.0])}}}},
@@ -151,7 +154,7 @@ fn the_split_order_is_computed_once_per_scene_generation() {
     for _ in 0..10 {
         assert!(hit(&core).is_some());
     }
-    assert_eq!(orders(&core), 2, "one more for the new generation");
+    assert_eq!(orders(&core), before + 1, "one more for the new generation");
 }
 
 fn ring_matrix(index: u32) -> Matrix {

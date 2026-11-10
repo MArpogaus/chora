@@ -179,6 +179,9 @@ pub struct Assets {
     /// The version of the image and the ids of the cells by node.
     pub cells: HashMap<String, (Option<Id>, Vec<Id>)>,
     pub layers: Layers,
+    /// The drawing orders of the 3D contexts, which the draw and the hit
+    /// test share.
+    pub orders: space::Orders,
     /// Errors of effect shaders since the last report.
     pub effect_errors: Vec<String>,
     /// The time of each shader file that compiled in a check.
@@ -368,8 +371,10 @@ fn context_elements<R: MeshRenderer>(
     let list = scene.context_list(context);
     let pieces = {
         let (windows, assets) = (parts.windows, &*parts.assets);
-        assets.stats.orders.set(assets.stats.orders.get() + 1);
-        space::order(context, &list, |p| flat(windows, assets, p))
+        let computed = &assets.stats.orders;
+        assets
+            .orders
+            .get(computed, context, &list, |p| flat(windows, assets, p))
     };
     let mut textures = HashMap::new();
     let mut out = Vec::new();
@@ -444,7 +449,7 @@ type Piece<'a> = (
     &'a space::Part,
     usize,
     [f64; 2],
-    &'a mut HashMap<String, Option<GlesTexture>>,
+    &'a mut HashMap<String, Option<(GlesTexture, bool)>>,
 );
 
 /// The element of a piece of a plane of a context: the texture of the
@@ -464,12 +469,12 @@ fn piece_element<R: MeshRenderer>(
     if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
         return None;
     }
-    let texture = if let Some(texture) = textures.get(&node.id) {
-        texture.clone()
+    let drawn = if let Some(drawn) = textures.get(&node.id) {
+        drawn.clone()
     } else {
-        let texture = node_texture(parts, renderer.gles(), &node, view.scale);
-        textures.insert(node.id.clone(), texture.clone());
-        texture
+        let drawn = node_texture(parts, renderer.gles(), &node, view.scale);
+        textures.insert(node.id.clone(), drawn.clone());
+        drawn
     }?;
     parts.assets.stats.splits += 1;
     #[allow(clippy::cast_possible_truncation)]
@@ -477,7 +482,7 @@ fn piece_element<R: MeshRenderer>(
     let element = MeshElement::piece(
         &mut parts.assets.layers,
         (&node, piece),
-        texture,
+        drawn,
         shape,
         alpha,
     );
@@ -558,21 +563,21 @@ fn layer<R: MeshRenderer>(
     if !shape.bounds.overlaps(Rectangle::from_size(view.size)) {
         return None;
     }
-    let texture = node_texture(parts, renderer.gles(), node, view.scale)?;
+    let drawn = node_texture(parts, renderer.gles(), node, view.scale)?;
     #[allow(clippy::cast_possible_truncation)]
     let alpha = placed.opacity as f32;
-    let element = MeshElement::new(&mut parts.assets.layers, node, texture, shape, alpha);
+    let element = MeshElement::new(&mut parts.assets.layers, node, drawn, shape, alpha);
     Some(SceneElement::Mesh(element))
 }
 
-/// The texture of a layer node with its passes, if the budget of the frame
-/// has room for it.
+/// The texture of a layer node with its passes, and whether it drew anew
+/// since the last frame, if the budget of the frame has room for it.
 fn node_texture(
     parts: &mut Parts<'_>,
     gles: &mut GlesRenderer,
     node: &Node,
     scale: f64,
-) -> Option<GlesTexture> {
+) -> Option<(GlesTexture, bool)> {
     let size = mesh::texture_size(node, scale)?;
     let textures = 1 + mesh::passes(node, scale).len().min(2);
     if !parts.assets.layers.spend(&node.id, size, textures) {
@@ -582,14 +587,15 @@ fn node_texture(
 }
 
 /// Renders a layer node with its descendants into its texture, and applies
-/// its effects.
+/// its effects. The texture keeps its content, so that only what changed
+/// since the last frame draws; the flag tells whether anything did.
 fn layer_texture(
     parts: &mut Parts<'_>,
     gles: &mut GlesRenderer,
     node: &chora_scene::Node,
     size: smithay::utils::Size<i32, smithay::utils::Buffer>,
     scale: f64,
-) -> Option<GlesTexture> {
+) -> Option<(GlesTexture, bool)> {
     let inner = View {
         camera: Transform::IDENTITY,
         scale,
@@ -597,22 +603,21 @@ fn layer_texture(
     };
     let content = flat_elements(parts, gles, &node.id, &inner)?;
     let assets = &mut *parts.assets;
-    let mut texture = assets
-        .layers
-        .texture((gles, &mut assets.stats), &node.id, 0, size)
+    let drawn = assets.layers.draw(
+        (gles, &mut assets.stats),
+        (&node.id, 0),
+        (size, scale),
+        &content,
+    );
+    let (texture, mut changed) = drawn
+        .inspect_err(|err| tracing::warn!(%err, "a layer failed"))
         .ok()?;
-    if let Err(err) = mesh::render_into(gles, &mut texture, scale, &content) {
-        tracing::warn!(%err, "a layer failed");
-        return None;
-    }
-    parts.assets.stats.textures_rendered += 1;
-    // Texture pixels per logical pixel, also when the texture hit its
-    // largest size.
     let pixels = node
         .props
         .size
         .map_or(scale, |[w, _]| f64::from(size.w) / w.max(f64::MIN_POSITIVE));
-    let textures = node_textures(parts, gles, node, pixels);
+    let (textures, sources_changed) = node_textures(parts, gles, node, pixels);
+    changed |= sources_changed;
     let assets = &mut *parts.assets;
     Some(mesh::apply_passes(
         gles,
@@ -622,26 +627,28 @@ fn layer_texture(
             &mut assets.stats,
         ),
         node,
-        texture,
+        (texture, changed),
         (pixels, &textures),
     ))
 }
 
 /// The node textures of a shader node by the names of their uniforms: each
-/// node that a uniform names, rendered on its own at its size. Inside a node
-/// texture, shader nodes get none, so that shader nodes that read each
-/// other do not recurse.
+/// node that a uniform names, rendered on its own at its size, once for
+/// all the nodes that read it. Inside a node texture, shader nodes get
+/// none, so that shader nodes that read each other do not recurse. The
+/// flag tells whether any drew anew since the last frame.
 fn node_textures(
     parts: &mut Parts<'_>,
     gles: &mut GlesRenderer,
     node: &chora_scene::Node,
     scale: f64,
-) -> Vec<(String, GlesTexture)> {
-    if node.kind != NodeKind::Shader || parts.depth > 0 {
-        return Vec::new();
-    }
+) -> (Vec<(String, GlesTexture)>, bool) {
     let mut out = Vec::new();
-    for (slot, (name, uniform)) in (3..).zip(&node.props.uniforms) {
+    let mut changed = false;
+    if node.kind != NodeKind::Shader || parts.depth > 0 {
+        return (out, changed);
+    }
+    for (name, uniform) in &node.props.uniforms {
         let chora_scene::Uniform::Texture(source) = uniform else {
             continue;
         };
@@ -662,19 +669,18 @@ fn node_textures(
         parts.depth -= 1;
         let Some(content) = content else { continue };
         let assets = &mut *parts.assets;
-        let Ok(mut texture) =
-            assets
-                .layers
-                .texture((gles, &mut assets.stats), &node.id, slot, size)
-        else {
-            continue;
-        };
-        if mesh::render_into(gles, &mut texture, scale, &content).is_ok() {
-            parts.assets.stats.textures_rendered += 1;
+        let drawn = assets.layers.draw(
+            (gles, &mut assets.stats),
+            (&source.node, mesh::SOURCE_SLOT),
+            (size, scale),
+            &content,
+        );
+        if let Ok((texture, drew)) = drawn {
+            changed |= drew;
             out.push((name.clone(), texture));
         }
     }
-    out
+    (out, changed)
 }
 
 /// The logical size of a node as a node texture: its size, or the window
@@ -820,6 +826,7 @@ fn prune_assets(parts: &mut Parts<'_>) {
     assets.cells.retain(|id, _| kind_is(id, NodeKind::Image));
     assets.texts.retain(|id| kind_is(id, NodeKind::Text));
     assets.layers.retain(|id| scene.node(id).is_some());
+    assets.orders.retain(|id| scene.node(id).is_some());
 }
 
 fn rect<R>(
@@ -1128,9 +1135,11 @@ fn context_hit<'a>(
     pos: Point<f64, Logical>,
 ) -> Option<Found<'a>> {
     let list = state.scene.context_list(context);
-    let counted = &state.assets.stats.orders;
-    counted.set(counted.get() + 1);
-    let pieces = space::order(context, &list, |p| flat(&state.windows, &state.assets, p));
+    let (windows, assets) = (&state.windows, &state.assets);
+    let computed = &assets.stats.orders;
+    let pieces = assets
+        .orders
+        .get(computed, context, &list, |p| flat(windows, assets, p));
     pieces.iter().rev().find_map(|piece| {
         let entry = &list[piece.plane];
         let input = if outer == InputMode::Accept {
