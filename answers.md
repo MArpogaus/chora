@@ -4,6 +4,8 @@ Newest first. The PM reads this file at the start of each run.
 
 ## 2026-11-10
 
+- "Don't mindlessly burn tokens. Use it (Fable) for the heavy lifting."
+
 - The user reports Fable usage. Pull as much heavy work as possible to
   Fable this week while it performs well.
 

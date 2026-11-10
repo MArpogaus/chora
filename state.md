@@ -40,11 +40,13 @@ week 1 has room for playful 3D demos and feature sprints):
 
 ## Next step
 
-Fable heavy lane (11-10, user): each freed build slot goes to a Fable
-senior-developer step, in this order: construct on 3D (K5); virtual
-outputs (D69); cube geometry (K9/K11, xp on four faces); give with grab
-(E3); XP split X3 to X5; the voice policy crate; grants steps 2 to 7.
-Opus reviews each. Sonnet lanes only for small steps and fixes.
+Fable (11-10, user: no mindless burning, heavy lifting only): Fable
+takes only the hard steps where a stronger model changes the outcome:
+construct on 3D (K5), virtual outputs (D69), the cube geometry, give
+with grab (E3), plus the judge audits. Everything else (XP split X3 to
+X5, grants steps, the voice policy crate, fixes, docs) stays on sonnet
+with opus reviews. One Fable lane at a time; its brief names the exit
+criterion so that it stops when done.
 
 Order until the foundation holds (charter section 1 item 20):
 stability and bug fixes, 3D, plugin separation; no feature sprints.
