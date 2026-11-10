@@ -231,7 +231,7 @@ pub struct Assistant {
     /// The top-left corner of the picture, in output coordinates.
     origin: [i32; 2],
     /// The width of the output.
-    screen: i32,
+    area: [i32; 4],
     /// The state of the voice agent, as [`context_state`] names it.
     state: &'static str,
     pose: Pose,
@@ -251,20 +251,21 @@ pub struct Assistant {
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
 /// and whether it hangs below the figure without a tail. A balloon sits
-/// above the tip, which is a point of a screen of a width, with its tail
-/// pointing down at it; where it would leave the top of the screen, it
-/// sits below the bottom of the figure instead.
+/// above the tip, with its tail pointing down at it, inside an area of
+/// the output; where it would leave the top of the area, it sits below
+/// the bottom of the figure instead.
 fn place(
     style: &Style,
     [w, h]: [i32; 2],
     [tip_x, tip_y]: [i32; 2],
-    (screen, figure_bottom): (i32, i32),
+    (area, figure_bottom): ([i32; 4], i32),
 ) -> ([i32; 2], i32, bool) {
-    let right = (tip_x + style.tail_inset).min(screen - 2);
-    let left = (right - w).max(0);
+    let [ax, ay, aw, _] = area;
+    let right = (tip_x + style.tail_inset).min(ax + aw - 2);
+    let left = (right - w).max(ax);
     let tail = (tip_x - left).clamp(style.radius + style.tail_base, w - style.radius);
     let above = tip_y - style.tail - h;
-    if above >= 0 {
+    if above >= ay {
         ([left, above], tail, false)
     } else {
         ([left, figure_bottom], tail, true)
@@ -272,12 +273,12 @@ fn place(
 }
 
 /// A balloon with text only, as the assistant speaks: its picture and its
-/// top-left corner, for a tail tip at a point of a screen of a width.
+/// top-left corner, for a tail tip at a point of an area of the output.
 fn speech(
     theme: &mut Theme,
     style: &Style,
     text: &str,
-    (tip, anchor): ([i32; 2], (i32, i32)),
+    (tip, anchor): ([i32; 2], ([i32; 4], i32)),
 ) -> (Picture, [i32; 2], i32) {
     let width = |s: &str| theme.text_width(s, Font::Ui);
     let lines = wrap(text, MAX_SPEECH, width);
@@ -319,11 +320,10 @@ impl Assistant {
             values = Values::neutral(&values.font);
             origin = origin_of(&values, area);
         }
-        let screen = output.size[0];
         let assistant = Self {
             values,
             origin,
-            screen,
+            area,
             state,
             pose: pose(state),
             shut: false,
@@ -461,7 +461,7 @@ impl Assistant {
         let [x, y] = self.origin;
         let [head_x, head_y] = self.values.figure.head();
         let tip = [x + head_x, y + head_y];
-        let anchor = (self.screen, y + self.values.figure.size()[1]);
+        let anchor = (self.area, y + self.values.figure.size()[1]);
         let (picture, [bx, by], _) = speech(theme, &self.values.speech, text, (tip, anchor));
         self.speech_node(theme, &picture, [bx - x, by - y])
     }
@@ -582,9 +582,9 @@ mod tests {
             tail: 18,
             ..Style::default()
         };
-        let (origin, _, below) = place(&style, [120, 40], [100, 300], (1000, 330));
+        let (origin, _, below) = place(&style, [120, 40], [100, 300], ([0, 0, 1000, 800], 330));
         assert_eq!((origin[1], below), (300 - 18 - 40, false));
-        let (origin, _, below) = place(&style, [120, 40], [100, 10], (1000, 40));
+        let (origin, _, below) = place(&style, [120, 40], [100, 10], ([0, 0, 1000, 800], 40));
         assert_eq!((origin[1], below), (40, true));
     }
 
@@ -612,7 +612,7 @@ mod tests {
         Assistant {
             values: values.clone(),
             origin: [800, 500],
-            screen: 1024,
+            area: [0, 0, 1024, 768],
             state,
             pose: pose(state),
             shut: false,
@@ -682,6 +682,16 @@ mod tests {
         assert_eq!(at(Anchor::BottomLeft), [4, 64]);
         assert_eq!(at(Anchor::Bottom), [40, 64]);
         assert_eq!(at(Anchor::BottomRight), [76, 64]);
+    }
+
+    #[test]
+    fn a_balloon_keeps_below_a_bar_at_the_top() {
+        let style = Style::default();
+        let area = [0, 40, 1000, 760];
+        let (origin, _, below) = place(&style, [120, 40], [100, 70], (area, 90));
+        assert_eq!((origin[1], below), (90, true), "no room above the bar");
+        let (origin, _, _) = place(&style, [120, 40], [995, 300], (area, 330));
+        assert!(origin[0] + 120 <= 998, "{origin:?}");
     }
 
     #[test]

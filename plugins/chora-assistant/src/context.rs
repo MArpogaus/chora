@@ -16,8 +16,14 @@ use serde_json::Value;
 
 use crate::{Agent, assistant::Assistant, card};
 
-/// How long the host waits after a change before it re-evaluates.
+/// How long the host waits after the last change before it re-evaluates.
 pub const DEBOUNCE: Duration = Duration::from_millis(150);
+
+/// The longest that a burst of changes can keep the host from evaluating.
+pub const MAX_WAIT: Duration = Duration::from_secs(1);
+
+/// The shortest time that a context shows before the next switch.
+pub const DWELL: Duration = Duration::from_secs(1);
 
 /// A claim of a window manager: its owner and its area in scene
 /// coordinates.
@@ -34,14 +40,17 @@ pub struct Place {
     pub app: String,
     /// The output that shows the focused window.
     pub output: String,
+    /// A window has the focus.
+    pub focused: bool,
 }
 
-/// The claims of the nodes of a query: owner and area, for each node that
-/// claims one.
+/// The claims of the nodes of a query: owner and area, for each visible node
+/// that claims one.
 #[must_use]
 pub fn claims_of(nodes: &[Value]) -> Vec<Claim> {
     nodes
         .iter()
+        .filter(|node| node["visible"].as_bool().unwrap_or(true))
         .filter_map(|node| {
             let owner = node["owner"].as_str()?.to_owned();
             let area = node["claim"].as_array()?;
@@ -71,18 +80,24 @@ fn output_of(node: &Value) -> Option<String> {
 }
 
 /// The owner of the largest claim that contains a point: the window
-/// manager of the whole space, around those of its panes.
+/// manager of the whole space, around those of its panes. Of equal claims,
+/// the owner that comes first by name.
 fn claimant(claims: &[Claim], [px, py]: [f64; 2]) -> Option<&str> {
     claims
         .iter()
         .filter(|(_, [x, y, w, h])| (*x..x + w).contains(&px) && (*y..y + h).contains(&py))
-        .max_by(|(_, a), (_, b)| (a[2] * a[3]).total_cmp(&(b[2] * b[3])))
+        .max_by(|(owner_a, a), (owner_b, b)| {
+            (a[2] * a[3])
+                .total_cmp(&(b[2] * b[3]))
+                .then_with(|| owner_b.cmp(owner_a))
+        })
         .map(|(owner, _)| owner.as_str())
 }
 
 /// The place of the focus, from the focused surface of a query (none: no
 /// focus), the claims and the outputs. Without a focus, the window manager
-/// is the one that claims the first output and the app is empty.
+/// is the one that claims the first output and the app is empty; the
+/// [`Switcher`] keeps the output and the space of before.
 #[must_use]
 pub fn place_of(focused: Option<&Value>, claims: &[Claim], outputs: &[OutputInfo]) -> Place {
     let named = focused.and_then(output_of);
@@ -107,6 +122,7 @@ pub fn place_of(focused: Option<&Value>, claims: &[Claim], outputs: &[OutputInfo
             .unwrap_or_default()
             .to_owned(),
         output: output.map(|o| o.name.clone()).unwrap_or_default(),
+        focused: focused.is_some(),
     }
 }
 
@@ -132,12 +148,51 @@ pub fn agents_of<'a>(states: impl IntoIterator<Item = &'a str>) -> &'static str 
     })
 }
 
+/// What a new context does to the look on the screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Change {
+    /// Nothing.
+    Keep,
+    /// The values are picked again from the folder, and the figure is built
+    /// again if they differ.
+    Pick,
+    /// The figure is built again on another output.
+    Move,
+    /// Another folder loads.
+    Reload,
+}
+
+/// The change for a new context. `now` is the folder on the screen,
+/// `wanted` the folder that the rules name and `failed` a folder that did
+/// not load, which is not asked for again. `watches` are the fields that
+/// the panels of the folder read.
+#[must_use]
+pub fn change(
+    (now, wanted, failed): (&str, &str, Option<&str>),
+    watches: &std::collections::BTreeSet<String>,
+    (old, new): (&Context, &Context),
+) -> Change {
+    if wanted != now && failed != Some(wanted) {
+        Change::Reload
+    } else if old.output != new.output {
+        Change::Move
+    } else if watches.iter().any(|key| old.get(key) != new.get(key)) {
+        Change::Pick
+    } else {
+        Change::Keep
+    }
+}
+
 /// The context of the host, and the time of its next re-evaluation.
 #[derive(Debug)]
 pub struct Switcher {
     applied: Context,
     wanted: Context,
     due: Option<Instant>,
+    first: Option<Instant>,
+    switched: Option<Instant>,
+    focused: Option<String>,
+    app: String,
     scene: bool,
     question: bool,
     field: bool,
@@ -164,7 +219,11 @@ impl Switcher {
             applied: context.clone(),
             wanted: context,
             due: None,
-            scene: false,
+            first: None,
+            switched: None,
+            focused: None,
+            app: String::new(),
+            scene: true,
             question: false,
             field: false,
         }
@@ -176,11 +235,34 @@ impl Switcher {
         &self.applied
     }
 
-    /// Something of the scene changed: re-evaluate after [`DEBOUNCE`]. A
-    /// change inside a pending burst joins it.
+    /// Something of the scene changed: re-evaluate [`DEBOUNCE`] after the
+    /// last change of the burst, at the latest [`MAX_WAIT`] after its first
+    /// and [`DWELL`] after the last switch.
     pub fn touch(&mut self, now: Instant) {
         self.scene = true;
-        self.due.get_or_insert(now + DEBOUNCE);
+        self.schedule(now);
+    }
+
+    fn schedule(&mut self, now: Instant) {
+        let first = *self.first.get_or_insert(now);
+        let due = (now + DEBOUNCE).min(first + MAX_WAIT);
+        self.due = Some(self.switched.map_or(due, |at| due.max(at + DWELL)));
+    }
+
+    /// The keyboard focus moved to a surface, or to none.
+    pub fn focus_changed(&mut self, surface: Option<&str>, now: Instant) {
+        self.focused = surface.map(str::to_owned);
+        self.touch(now);
+    }
+
+    /// A surface changed its title, size or app id: only the app id of the
+    /// focused window, when it differs, is a change of the context.
+    pub fn surface_changed(&mut self, surface: &str, app_id: Option<&str>, now: Instant) {
+        let app = app_id.unwrap_or_default();
+        if self.focused.as_deref() == Some(surface) && self.app != app {
+            app.clone_into(&mut self.app);
+            self.touch(now);
+        }
     }
 
     /// The state of the voice agent, as the context names it.
@@ -197,7 +279,7 @@ impl Switcher {
         let slot = field(&mut self.wanted);
         if slot != value {
             value.clone_into(slot);
-            self.due.get_or_insert(now + DEBOUNCE);
+            self.schedule(now);
         }
     }
 
@@ -226,6 +308,7 @@ impl Switcher {
 
     fn after_hold(&mut self, was: bool, now: Instant) {
         if was && !self.held() && self.due.is_some() {
+            self.first = Some(now);
             self.due = Some(now + DEBOUNCE);
         }
     }
@@ -246,16 +329,24 @@ impl Switcher {
 
     /// Ends a burst with the place of the focus, when it was read. The new
     /// context, when it differs from the one that shows.
-    pub fn resolve(&mut self, place: Option<Place>) -> Option<Context> {
+    pub fn resolve(&mut self, place: Option<Place>, now: Instant) -> Option<Context> {
         self.due = None;
+        self.first = None;
         self.scene = false;
         if let Some(place) = place {
-            self.wanted.wm = place.wm;
-            self.wanted.space = place.space;
+            self.app.clone_from(&place.app);
+            let seen = !self.wanted.output.is_empty();
+            if place.focused || !seen {
+                self.wanted.wm = place.wm;
+                self.wanted.space = place.space;
+                self.wanted.output = place.output;
+            } else {
+                self.wanted.wm.clone_from(&self.wanted.space);
+            }
             self.wanted.app = place.app;
-            self.wanted.output = place.output;
         }
         (self.wanted != self.applied).then(|| {
+            self.switched = Some(now);
             self.applied = self.wanted.clone();
             self.applied.clone()
         })
@@ -271,8 +362,16 @@ impl Agent {
 
     /// Evaluates the context when its burst of changes has ended.
     pub fn switch_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        if !self.deferred.is_empty() && self.card.is_none() {
+            self.deferred.clear();
+            let commands = self.replace_assistant()?;
+            self.apply(commands)?;
+            for old in std::mem::take(&mut self.stale) {
+                let _ = std::fs::remove_dir_all(old);
+            }
+        }
         if self.switch_due(now).is_some_and(|due| due <= now) {
-            self.evaluate()?;
+            self.evaluate(now)?;
         }
         Ok(())
     }
@@ -280,13 +379,13 @@ impl Agent {
     /// Reads the place of the focus and, when the context changed, builds
     /// the look of the folder that its rule names. The question card is not
     /// touched: no evaluation runs while one waits.
-    pub fn evaluate(&mut self) -> Result<(), ClientError> {
+    pub fn evaluate(&mut self, now: Instant) -> Result<(), ClientError> {
         let place = if self.switcher.wants_place() {
             Some(self.read_place()?)
         } else {
             None
         };
-        let Some(context) = self.switcher.resolve(place) else {
+        let Some(context) = self.switcher.resolve(place, now) else {
             return Ok(());
         };
         let commands = self.restyle(&context)?;
@@ -310,30 +409,49 @@ impl Agent {
     }
 
     /// The commands that show the context: the look of the folder of the
-    /// rules when the folder or a field that it reads changed, the figure
-    /// on the output of the focus. A folder that fails to load leaves the
-    /// look as it is.
+    /// rules when the folder changed, the values picked again when a field
+    /// that a panel reads changed, the figure on the output of the focus. A
+    /// folder that fails to load leaves the look as it is and is not asked
+    /// for again.
     fn restyle(&mut self, context: &Context) -> Result<Vec<Command>, ClientError> {
-        let folder = self.settings.value.folder(context).to_owned();
-        let read = |field: &String| self.look_context.get(field) != context.get(field);
-        let rebuilt = self.source.assets.is_none()
-            && (folder != self.folder || self.values.watches.iter().any(read));
-        let moved = self.look_context.output != context.output;
-        if rebuilt {
-            match self.source.load(&folder, context) {
+        let wanted = if self.source.assets.is_some() {
+            self.folder.clone()
+        } else {
+            self.settings.value.folder(context).to_owned()
+        };
+        let shown = (
+            self.folder.as_str(),
+            wanted.as_str(),
+            self.failed.as_deref(),
+        );
+        let how = change(shown, &self.values.watches, (&self.look_context, context));
+        self.look_context = context.clone();
+        match how {
+            Change::Keep => return Ok(Vec::new()),
+            Change::Move => {}
+            Change::Pick => {
+                let theme = &self.theme;
+                let picked = self.values.repick(context, |sheet| theme.sheet_size(sheet));
+                match picked.filter(|picked| *picked != self.values) {
+                    Some(picked) => self.values = picked,
+                    None => return Ok(Vec::new()),
+                }
+            }
+            Change::Reload => match self.source.load(&wanted, context) {
                 Ok((theme, values, cache)) => {
                     self.theme = theme;
                     self.values = values;
-                    self.folder = folder;
+                    self.folder = wanted;
+                    self.failed = None;
                     let old = std::mem::replace(&mut self.look_cache, cache);
                     let _ = std::fs::remove_dir_all(old);
                 }
-                Err(err) => eprintln!("chora-assistant: hud {folder}: {err}; the look stays"),
-            }
-        }
-        self.look_context = context.clone();
-        if !(rebuilt || moved) || self.card.is_some() {
-            return Ok(Vec::new());
+                Err(err) => {
+                    eprintln!("chora-assistant: hud {wanted}: {err}; the look stays");
+                    self.failed = Some(wanted);
+                    return Ok(Vec::new());
+                }
+            },
         }
         let mut commands = Vec::new();
         if self.assistant.take().is_some() {
@@ -392,7 +510,7 @@ mod tests {
 
     fn context(place: &Place) -> Context {
         let mut switcher = Switcher::new();
-        switcher.resolve(Some(place.clone()));
+        switcher.resolve(Some(place.clone()), Instant::now());
         switcher.applied().clone()
     }
 
@@ -470,18 +588,18 @@ mod tests {
         let due = switcher.due().expect("a change is pending");
         assert_eq!(
             due,
-            start + DEBOUNCE,
-            "the burst waits from its first change"
+            start + Duration::from_millis(90) + DEBOUNCE,
+            "the burst waits for its end"
         );
         let xp = Place {
             wm: "xp".into(),
             space: "xp".into(),
             ..Place::default()
         };
-        assert!(switcher.resolve(Some(xp.clone())).is_some());
+        assert!(switcher.resolve(Some(xp.clone()), start).is_some());
         assert_eq!(switcher.due(), None);
         assert!(
-            switcher.resolve(Some(xp)).is_none(),
+            switcher.resolve(Some(xp), start).is_none(),
             "the same place switches nothing"
         );
     }
@@ -494,9 +612,9 @@ mod tests {
             wm: "tiling".into(),
             ..Place::default()
         };
-        assert!(switcher.resolve(Some(tiling.clone())).is_some());
+        assert!(switcher.resolve(Some(tiling.clone()), now).is_some());
         switcher.touch(now);
-        assert!(switcher.resolve(Some(tiling)).is_none());
+        assert!(switcher.resolve(Some(tiling), now).is_none());
     }
 
     #[test]
@@ -537,15 +655,16 @@ mod tests {
     fn a_state_that_changes_a_rule_is_a_change() {
         let now = Instant::now();
         let mut switcher = Switcher::new();
+        switcher.resolve(Some(Place::default()), now);
         switcher.set_state("listening", now);
         assert!(switcher.due().is_some());
         assert!(!switcher.wants_place(), "a state needs no new place");
-        switcher.resolve(None);
+        switcher.resolve(None, now);
         assert_eq!(switcher.applied().state, "listening");
         switcher.set_state("listening", now);
         assert_eq!(switcher.due(), None, "the same state is no change");
         switcher.set_agents("working", now);
-        switcher.resolve(None);
+        switcher.resolve(None, now);
         assert_eq!(switcher.applied().agents, "working");
     }
 
@@ -558,13 +677,211 @@ mod tests {
     }
 
     #[test]
-    fn a_fresh_context_matches_every_field_of_a_rule() {
-        let context = Switcher::new().applied().clone();
+    fn a_rule_reads_each_field_of_the_context() {
+        let place = Place {
+            wm: "xp".into(),
+            space: "construct".into(),
+            app: "foot".into(),
+            output: "DP-1".into(),
+            focused: true,
+        };
+        let context = context(&place);
         for key in chora_kit::hud::CONTEXT_KEYS {
-            assert!(context.get(key).is_some(), "{key}");
+            let value = context.get(key).unwrap();
+            let same =
+                |value: &str| -> When { serde_json::from_value(json!({ key: value })).unwrap() };
+            assert!(same(value).matches(&context), "{key} equals {value:?}");
+            assert!(!same("no such value").matches(&context), "{key}");
         }
-        let chat_none: When =
-            serde_json::from_str(r#"{"chat": "none", "agents": "none"}"#).unwrap();
-        assert!(chat_none.matches(&context));
+        assert_eq!(
+            (
+                context.state.as_str(),
+                context.agents.as_str(),
+                context.chat.as_str()
+            ),
+            ("asleep", "none", "none"),
+        );
+    }
+
+    #[test]
+    fn the_host_reads_the_context_at_its_start() {
+        let mut switcher = Switcher::new();
+        assert!(
+            switcher.wants_place(),
+            "the first evaluation reads the scene"
+        );
+        let place = Place {
+            wm: "xp".into(),
+            space: "xp".into(),
+            ..Place::default()
+        };
+        let context = switcher.resolve(Some(place), Instant::now()).unwrap();
+        assert_eq!(rules(SHIPPED).folder(&context), "xp");
+    }
+
+    fn alternating(place: u64) -> Place {
+        let wm = if place.is_multiple_of(2) { "xp" } else { "mc" };
+        Place {
+            wm: wm.into(),
+            space: wm.into(),
+            ..Place::default()
+        }
+    }
+
+    fn switches(from: u64, to: u64, touching: impl Fn(u64) -> bool) -> Vec<u64> {
+        let start = Instant::now();
+        let mut switcher = Switcher::new();
+        switcher.resolve(Some(Place::default()), start);
+        let mut found = Vec::new();
+        for ms in (from..to).step_by(10) {
+            let now = start + Duration::from_millis(ms);
+            if touching(ms) {
+                switcher.touch(now);
+            }
+            if switcher.due().is_some_and(|due| due <= now)
+                && switcher.resolve(Some(alternating(ms / 10)), now).is_some()
+            {
+                found.push(ms);
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn a_burst_gives_exactly_one_switch() {
+        let found = switches(0, 3000, |ms| ms < 100);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(
+            found[0] >= 100 + 150 - 10,
+            "{found:?}: after the end of the burst"
+        );
+    }
+
+    #[test]
+    fn a_long_burst_switches_at_most_once_a_second() {
+        let found = switches(0, 5000, |ms| ms < 4000);
+        assert!(found.len() <= 5, "{found:?}");
+        assert!(
+            found.windows(2).all(|pair| pair[1] - pair[0] >= 1000),
+            "{found:?}: a dwell of a second"
+        );
+    }
+
+    #[test]
+    fn only_the_focused_window_changing_its_app_is_a_change() {
+        let now = Instant::now();
+        let mut switcher = Switcher::new();
+        switcher.focus_changed(Some("s1"), now);
+        switcher.resolve(
+            Some(Place {
+                app: "foot".into(),
+                ..Place::default()
+            }),
+            now,
+        );
+        switcher.surface_changed("s2", Some("firefox"), now);
+        assert_eq!(switcher.due(), None, "another window");
+        switcher.surface_changed("s1", Some("foot"), now);
+        assert_eq!(switcher.due(), None, "the same app");
+        switcher.surface_changed("s1", Some("vim"), now);
+        assert!(switcher.due().is_some());
+    }
+
+    #[test]
+    fn equal_claims_go_to_the_owner_first_by_name_and_a_hidden_claim_is_none() {
+        let area = [0.0, 0.0, 1280.0, 800.0];
+        let outputs = [output("A", [0, 0])];
+        let pick = |claims: Vec<Value>| place_of(None, &claims_of(&claims), &outputs).space;
+        let both = vec![group("xp", area), group("mc", area)];
+        assert_eq!(pick(both.clone()), "mc");
+        assert_eq!(pick(both.into_iter().rev().collect()), "mc");
+        let mut hidden = group("mc", area);
+        hidden["visible"] = json!(false);
+        assert_eq!(pick(vec![hidden, group("xp", area)]), "xp");
+    }
+
+    #[test]
+    fn without_a_focus_the_output_and_the_space_stay() {
+        let now = Instant::now();
+        let mut switcher = Switcher::new();
+        let on_b = Place {
+            wm: "tiling".into(),
+            space: "xp".into(),
+            app: "foot".into(),
+            output: "B".into(),
+            focused: true,
+        };
+        switcher.resolve(Some(on_b), now);
+        let none = Place {
+            wm: "mc".into(),
+            space: "mc".into(),
+            output: "A".into(),
+            ..Place::default()
+        };
+        switcher.touch(now);
+        let kept = switcher.resolve(Some(none), now).unwrap();
+        assert_eq!((kept.output.as_str(), kept.space.as_str()), ("B", "xp"));
+        assert_eq!(kept.app, "");
+    }
+
+    fn at(wm: &str, output: &str, state: &str) -> Context {
+        Context {
+            wm: wm.into(),
+            output: output.into(),
+            state: state.into(),
+            ..Context::default()
+        }
+    }
+
+    fn reads(keys: &[&str]) -> std::collections::BTreeSet<String> {
+        keys.iter().map(|key| (*key).to_owned()).collect()
+    }
+
+    #[test]
+    fn the_folder_loads_again_only_when_the_folder_changes() {
+        let watches = reads(&["wm", "state"]);
+        let same = at("xp", "A", "idle");
+        let ask = |now, wanted, failed, new: &Context| {
+            change((now, wanted, failed), &watches, (&same, new))
+        };
+        assert_eq!(ask("xp", "xp", None, &at("xp", "A", "idle")), Change::Keep);
+        assert_eq!(
+            ask("neutral", "xp", None, &at("xp", "A", "idle")),
+            Change::Reload
+        );
+        assert_eq!(
+            ask("xp", "xp", None, &at("tiling", "A", "idle")),
+            Change::Pick
+        );
+        assert_eq!(
+            ask("xp", "xp", None, &at("xp", "A", "speaking")),
+            Change::Pick
+        );
+        assert_eq!(ask("xp", "xp", None, &at("xp", "B", "idle")), Change::Move);
+    }
+
+    #[test]
+    fn a_field_that_no_panel_reads_changes_nothing() {
+        let old = at("xp", "A", "idle");
+        let new = at("xp", "A", "speaking");
+        assert_eq!(
+            change(("xp", "xp", None), &reads(&["wm"]), (&old, &new)),
+            Change::Keep
+        );
+    }
+
+    #[test]
+    fn a_folder_that_failed_is_not_asked_for_again() {
+        let old = at("xp", "A", "idle");
+        let new = at("tiling", "A", "idle");
+        let watches = reads(&[]);
+        assert_eq!(
+            change(("neutral", "xp", Some("xp")), &watches, (&old, &new)),
+            Change::Keep
+        );
+        assert_eq!(
+            change(("neutral", "mc", Some("xp")), &watches, (&old, &new)),
+            Change::Reload
+        );
     }
 }

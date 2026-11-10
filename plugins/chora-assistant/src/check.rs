@@ -253,9 +253,16 @@ pub fn use_hud(name: &str, roots: &[PathBuf], file: PathBuf) -> Result<String, S
         .set(json!({ "hud": value }))
         .map_err(|e| e.to_string())?;
     settings.save().map_err(|e| e.to_string())?;
+    let warning = match settings.value.huds.len() {
+        0 => String::new(),
+        n => format!(
+            "Warning: huds has {n} rule(s); a rule that matches the context \
+             overrides hud.\n"
+        ),
+    };
     Ok(format!(
         "{} is set in {}. A running chora-assistant takes it with: \
-         choractl call assistant settings.reload\n",
+         choractl call assistant settings.reload\n{warning}",
         if name == "default" {
             "the neutral folder".to_owned()
         } else {
@@ -361,6 +368,20 @@ mod tests {
         assert!(err.contains("--list-huds"), "{err}");
         let err = use_hud("fancy", &roots, file).unwrap_err();
         assert!(err.contains("chat.size"), "{err}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn use_hud_warns_when_a_rule_of_huds_overrides_it() {
+        let dir = temp("override");
+        let roots = vec![fixture("")];
+        let file = dir.join("chora-assistant.yaml");
+        let plain = use_hud("mine", &roots, file.clone()).unwrap();
+        assert!(!plain.contains("Warning"), "{plain}");
+        let rules = "enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {wm: xp}, folder: xp}\n";
+        std::fs::write(&file, rules).unwrap();
+        let said = use_hud("mine", &roots, file).unwrap();
+        assert!(said.contains("Warning: huds"), "{said}");
         let _ = std::fs::remove_dir_all(dir);
     }
 
