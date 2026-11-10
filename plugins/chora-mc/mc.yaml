@@ -8,6 +8,11 @@ theme: dark
 # For tests only: take the keys of input.inject as keys of the user. Off,
 # the bindings ignore injected keys; keep it off outside tests.
 test_accept_injected_keys: false
+# Who draws the voice HUD: own, mc shows the state, the sentence and the
+# question of the voice agent; host, the HUD host chora-assistant draws
+# them with the folder plugins/chora-mc/hud, and mc opens its drawer for
+# the chat of the host.
+voice_hud: own
 # Each color is RGBA from 0 to 1. A style names a color of the theme;
 # each theme needs a background.
 themes:
@@ -204,6 +209,9 @@ contents:
   agents: {kind: agents}
   notify: {kind: text, title: Notifications}
   urgent: {kind: text, style: {base: running_head, color: red}}
+  # The box of the chat of the HUD host, alone in the drawer while the
+  # host shows the chat on the output of mc.
+  chat: {kind: text, title: Chat}
   # A spoken confirmation of voice.confirm, alone in the drawer.
   confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}

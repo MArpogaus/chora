@@ -304,6 +304,50 @@ impl Mc {
             .collect()
     }
 
+    /// A click on the column of a helper in the agents scene asks the HUD
+    /// host to show the chat with that helper. Answers whether the click
+    /// was on such a column.
+    pub fn click_agent(&mut self, node: &str, at: [f64; 2]) -> bool {
+        if self.current.as_deref() != Some(SCENE) || node != crate::wheel_id(SCENE) {
+            return false;
+        }
+        let Some(output) = &self.output else {
+            return false;
+        };
+        let scroll = self.scroll.get(SCENE).copied().unwrap_or_default();
+        let [x, y] = [
+            at[0] - f64::from(output.position[0]),
+            at[1] - f64::from(output.position[1]) + scroll,
+        ];
+        let shown: Vec<String> = match &self.agent_focus {
+            Some(name) => vec![name.clone()],
+            None => self.agents.iter().map(|a| a.name.clone()).collect(),
+        };
+        let Some(scene) = self.scenes.get(SCENE) else {
+            return false;
+        };
+        let hit = scene.panels.iter().find_map(|panel| {
+            let n: usize = panel.id.strip_prefix("agent-")?.parse().ok()?;
+            let [px, py, pw, ph] = self.place(SCENE, panel)?;
+            let inside = (px..px + pw).contains(&x) && (py..py + ph).contains(&y);
+            inside
+                .then(|| shown.get(n.checked_sub(1)?).cloned())
+                .flatten()
+        });
+        let Some(name) = hit else {
+            return false;
+        };
+        let mut params = json!({"name": name});
+        if let Some(token) = self.rt.conn.activation_token() {
+            params["token"] = json!(token);
+        }
+        let call = json!({"client": "assistant", "method": "chat.show", "params": params});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-mc: chat.show {name}: {err}");
+        }
+        true
+    }
+
     /// Shows one agent alone in the agents scene, with its transcript in
     /// the other columns; an empty name shows all agents again.
     pub fn focus_agent(&mut self, focus: &Focus) -> Result<(), RpcError> {

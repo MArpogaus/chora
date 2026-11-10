@@ -485,10 +485,16 @@ impl Mc {
 
 /// The client name of the voice agent.
 const VOICE: &str = "voice";
+/// The client name of the HUD host.
+const ASSISTANT: &str = "assistant";
+/// The content that holds the drawer for the chat of the HUD host.
+const CHAT: &str = "chat";
 
-/// The events; `voice.*` are those of the voice agent (D65).
-const EVENTS: [&str; 12] = [
+/// The events; `voice.*` are those of the voice agent (D65),
+/// `assistant.chat` says where the HUD host shows its chat.
+const EVENTS: [&str; 13] = [
     "voice.*",
+    "assistant.chat",
     "client.connected",
     "client.disconnected",
     "pointer.scroll",
@@ -765,13 +771,23 @@ impl Plugin for Mc {
                 client,
                 data,
             } if client == VOICE => self.follow(&event, &client, data),
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if client == ASSISTANT && event == "assistant.chat" => self.chat_drawer(&data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             Event::PointerPressed {
                 node,
                 position,
                 injected,
                 ..
-            } => self.click(&node, position, injected),
+            } => {
+                if self.click_agent(&node, position) {
+                    return Ok(());
+                }
+                self.click(&node, position, injected)
+            }
             _ => Ok(()),
         }
     }
@@ -941,6 +957,15 @@ impl Mc {
             self.claim_indicator(true);
         }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
+        let host = client == VOICE && self.settings.value.voice_hud == config::VoiceHud::Host;
+        let hosts_it = match kind {
+            Some("confirm" | "say") => true,
+            Some("state") => data.get("name").is_none(),
+            _ => false,
+        };
+        if host && hosts_it {
+            return Ok(());
+        }
         let done = match kind {
             Some("state") => {
                 if let Some(object) = data.as_object_mut() {
@@ -967,12 +992,31 @@ impl Mc {
     /// an agent without the method, only leaves it due; after an event
     /// of the agent (`last`) it is no longer due.
     fn claim_indicator(&mut self, last: bool) {
-        if !self.claim_due {
+        if !self.claim_due || self.settings.value.voice_hud == config::VoiceHud::Host {
             return;
         }
         let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
         let done = self.rt.conn.call::<_, Value>("methods.call", call).is_ok();
         self.claim_due = !done && !last;
+    }
+
+    /// `assistant.chat` of the HUD host: while it shows the chat on the
+    /// output of mc, the drawer shows alone and mc emits its box as
+    /// `mc.chat.slot {output, rect}`; else the drawer shows as before.
+    fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
+        let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
+            return Ok(());
+        };
+        let here = data.get("output").and_then(Value::as_str) == Some(output.as_str());
+        let open = here && data.get("open").and_then(Value::as_bool) == Some(true);
+        let shows = self.solo.as_ref().is_some_and(|s| s.content == CHAT);
+        if open == shows {
+            return Ok(());
+        }
+        self.solo(CHAT, Region::Drawer, Some(open), false)?;
+        let rect = if open { self.drawer_box() } else { None };
+        let emit = json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
 
     /// The methods of the agents and the notifications.
@@ -2794,6 +2838,8 @@ mod tests {
     fn an_open_chat_opens_the_drawer_and_emits_its_box() {
         use serde_json::json;
         let (mut mc, model) = crate::testing::mc("chat-drawer", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
         let chat = |client: &str, open: bool, output: &str| chora_scene::Event::Emitted {
             event: "assistant.chat".into(),
             client: client.into(),

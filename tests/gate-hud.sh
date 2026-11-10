@@ -83,7 +83,7 @@ typed-yes-held pass
 agents-row-text missing
 xp-tray-rows missing
 mc-host-hud pass
-mc-chat-drawer pass
+mc-chat-drawer missing
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
@@ -457,12 +457,12 @@ chat_in_slot() {
         '($c | to_entries[0].value) as $r |
          ([range(4)] | all(. as $i | (($r[$i] - $s[$i]) | fabs) < 2))' >/dev/null 2>&1
 }
-slots_file=$work/slots.jsonl
+slots_file=$shots/slots.jsonl
 cell_mc_chat_drawer() {
     local shown
     use_folder mc || return 1
     start_mc || return 1
-    ctl events >"$slots_file" 2>/dev/null &
+    ctl events mc.chat.slot assistant.chat >"$slots_file" 2>/dev/null &
     pids+=($!)
     ctl call assistant chat.show '{"name": "atlas"}' >/dev/null 2>&1 || return 1
     waiting "$settle_s" node_exists hud-chat || return 1

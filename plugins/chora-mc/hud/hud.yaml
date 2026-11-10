@@ -1,0 +1,31 @@
+hud: 1
+font: Inter
+panels:
+- id: state
+  source: voice
+  anchor: top_right
+  margin: [32, 16]
+  picture: state.svg#{state}
+  action: mute
+- id: line
+  source: say
+  near: state
+  style: plain
+  text: '{text}'
+  max_chars: 160
+- id: agents
+  source: agents
+  anchor: top_right
+  margin: [32, 56]
+  style: plain
+  rows: '{name} · {state} · {task}'
+  max_rows: 4
+  action: chat
+chat:
+  style: plain
+  font: TeX Gyre Pagella
+  size: 18
+  fill: [28, 28, 28]
+  text: [217, 212, 201]
+  name: [140, 138, 130]
+  border: [66, 66, 64]

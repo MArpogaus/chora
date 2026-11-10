@@ -389,6 +389,18 @@ agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
+With the setting `voice_hud: host` (default `own`), the HUD host
+`chora-assistant` draws the voice HUD of mc with the folder
+`plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
+of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
+indicator; it still shows the helpers that `voice.state` names. A click
+on the column of a helper in the scene `agents` calls `assistant
+chat.show {name}`. While the event `assistant.chat` of the client
+`assistant` says that the chat is open on the output of mc, the drawer
+shows alone with the content `chat`, and mc emits its box as
+`mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
+output, `null` when the drawer closes).
+
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
