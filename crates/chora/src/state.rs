@@ -166,15 +166,15 @@ struct Waiting {
 /// The last press that a person made as a command: a grabbed key or
 /// button, a key to a node, or a press on a node that is no window; never
 /// an injected press, a press in a locked session or a key typed into a
-/// window. `client` is the client name that received it: the holder of
-/// the grab or the owner of the node. Only a token of that client carries
-/// the act, and only one: `stamped` ends the stamping, `used` ends the act
-/// when a layer surface took the keyboard with it.
+/// window. `conns` are the connections that received it: the one of the
+/// grab, or those of the owner of the node at the press. Only a token of
+/// one of them carries the act, and only one: `stamped` ends the stamping,
+/// `used` ends the act when a layer surface took the keyboard with it.
 #[derive(Clone)]
 pub struct Act {
     pub serial: Serial,
     pub at: Instant,
-    pub client: String,
+    pub conns: Vec<u64>,
     pub stamped: bool,
     pub used: bool,
 }
@@ -798,25 +798,30 @@ impl State {
     }
 
     /// Takes the newest real press as the act that activation tokens of
-    /// the client `client` may carry, unless the session is locked. Called
-    /// only for a press that a client took as a command: a key or button
-    /// it grabbed, a key to its node, or a press on its node.
-    pub fn note_act(&mut self, client: Option<&str>) {
+    /// the connections `conns` may carry, unless the session is locked.
+    /// Called only for a press that a client took as a command: a key or
+    /// button it grabbed, a key to its node, or a press on its node.
+    pub fn note_act(&mut self, conns: Vec<u64>) {
         let Some(serial) = self.last_real_press.filter(|_| self.lock.is_none()) else {
             return;
         };
-        let Some(client) = client else {
+        if conns.is_empty() {
             return;
-        };
+        }
         if self.last_act.as_ref().is_none_or(|a| a.serial != serial) {
             self.last_act = Some(Act {
                 serial,
                 at: self.time.now(),
-                client: client.to_owned(),
+                conns,
                 stamped: false,
                 used: false,
             });
         }
+    }
+
+    /// The connections of the owner of a node, for [`Self::note_act`].
+    pub fn owner_conns(&self, owner: Option<&str>) -> Vec<u64> {
+        owner.map_or_else(Vec::new, |name| self.ipc.conns_of(name))
     }
 
     /// Focuses a surface node, or nothing. A new focused surface takes the
@@ -1629,7 +1634,7 @@ mod tests {
         let _lock = wayland.lock(&mut core);
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         core.state.track_press(serial, false);
-        core.state.note_act(Some("tiling"));
+        core.state.note_act(vec![1]);
         assert!(core.state.last_act.is_none());
     }
 

@@ -358,10 +358,12 @@ the core or a client took as a command: a grabbed key or button (Super+a),
 a key to a node with the focus, or a press on a node that is no window. A
 key or button that goes to a window is no act, nor is a press while the
 session is locked, nor an injected press; an injected press also ends the
-act before it. The act belongs to the client that received it: the holder
-of the grab or the owner of the node. `activation.token` stamps one token
-with the act: the first one that this client mints, unconfined, while the
-act is under 2 s old. `chora_kit::run` and `chora_kit::launch` mint on the
+act before it. The act belongs to the connections that received it: the
+connection of the grab, or those of the owner of the node at the press.
+`activation.token` stamps one token with the act: the first one that such
+a connection mints, unconfined and outside a method call of a confined
+caller, while the act is under 2 s old; the kit gives a plugin no token at
+all during such a call. `chora_kit::run` and `chora_kit::launch` mint on the
 connection of the plugin and hand the token to `choractl run --token`. The
 layer surface of an unnamed client gets the keyboard on
 `xdg-activation` only when its token is stamped, no real press came after

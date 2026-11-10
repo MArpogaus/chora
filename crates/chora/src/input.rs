@@ -141,13 +141,12 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
             }
         }
         Some(KeyAction::Grab(conn, binding, injected)) => {
-            let holder = state.ipc.name(conn).map(str::to_owned);
-            state.note_act(holder.as_deref());
+            state.note_act(vec![conn]);
             hold_grab(state, conn, binding, code, injected);
         }
         Some(KeyAction::Node(owner, event)) => {
             if key_state == KeyState::Pressed {
-                state.note_act(Some(&owner));
+                state.note_act(state.owner_conns(Some(&owner)));
             }
             state.ipc.send_to_client(&owner, &event);
         }
@@ -716,8 +715,7 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
     };
     let (conn, binding, press) = grab;
     if press == PressState::Pressed {
-        let holder = state.ipc.name(conn).map(str::to_owned);
-        state.note_act(holder.as_deref());
+        state.note_act(vec![conn]);
     }
     let moved = binding == MOVE;
     send_button(state, conn, binding, press, None);
@@ -857,7 +855,7 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
     }
     if area {
         let owner = hit.and_then(|n| n.owner.clone());
-        state.note_act(owner.as_deref());
+        state.note_act(state.owner_conns(owner.as_deref()));
     }
     let position = position_for(&state.scene, &state.outputs, &node, &spot);
     state.emit(&SceneEvent::PointerPressed {

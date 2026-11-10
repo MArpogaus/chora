@@ -14,6 +14,8 @@ use serde_json::Value;
 pub struct Conn {
     client: Client,
     name: String,
+    /// Whether the plugin handles a method call of a confined caller now.
+    pub(crate) serving_confined: bool,
 }
 
 impl Conn {
@@ -44,6 +46,7 @@ impl Conn {
         Ok(Self {
             client: Client::connect(path, &hello)?,
             name: name.into(),
+            serving_confined: false,
         })
     }
 
@@ -56,8 +59,14 @@ impl Conn {
     /// An activation token of the plugin for [`crate::run`] and
     /// [`crate::launch`]. It carries the act of the person when the act
     /// went to this plugin: a key or button it grabbed, a key to its node
-    /// or a press on its node. `None` when the core refuses one.
+    /// or a press on its node. `None` when the core refuses one, and while
+    /// the plugin handles a method call of a confined caller, so that such
+    /// a caller never turns an earlier act of the person into a token; the
+    /// core refuses the stamp then too.
     pub fn activation_token(&mut self) -> Option<String> {
+        if self.serving_confined {
+            return None;
+        }
         let answer: Value = self.call("activation.token", Value::Null).ok()?;
         answer["token"].as_str().map(str::to_owned)
     }

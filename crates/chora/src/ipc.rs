@@ -893,9 +893,10 @@ impl State {
     /// such a token skips the focus rule of its own tokens.
     ///
     /// The token carries the act of the person (the last command press)
-    /// when the caller is unconfined, has the client name that received
-    /// the act, the act is younger than `ACT_AGE` and no token carries it
-    /// yet: one act, one stamped token. Only such a token gives the
+    /// when the caller is unconfined, is a connection that received the
+    /// act, handles no method call of a confined caller, the act is
+    /// younger than `ACT_AGE` and no token carries it yet: one act, one
+    /// stamped token. Only such a token gives the
     /// keyboard to an on-demand layer surface. Any other token still
     /// starts programs and places windows. A call without an act proves
     /// nothing (#102).
@@ -910,20 +911,19 @@ impl State {
     }
 
     /// The token data of `activation.token`: stamped with the act when the
-    /// caller is unconfined and is the client that received the act, and
-    /// the act is young and carried by no token yet.
+    /// caller is unconfined, received the act and handles no call of a
+    /// confined caller, and the act is young and carried by no token yet.
     fn act_stamped_data(
         &mut self,
         conn: u64,
     ) -> smithay::wayland::xdg_activation::XdgActivationTokenData {
         let data = smithay::wayland::xdg_activation::XdgActivationTokenData::default();
         let now = self.time.now();
-        let confined = self.ipc.confined(conn);
-        let caller = self.ipc.name(conn).map(str::to_owned);
+        let confined = self.ipc.confined(conn) || self.methods.serves_confined(conn);
         let act = self.last_act.as_mut().filter(|a| {
             !a.stamped
                 && !confined
-                && caller.as_deref() == Some(a.client.as_str())
+                && a.conns.contains(&conn)
                 && now.saturating_duration_since(a.at) < crate::protocols::ACT_AGE
         });
         if let Some(act) = act {
