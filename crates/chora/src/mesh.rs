@@ -143,14 +143,18 @@ pub struct Layers {
     textures: HashMap<(String, usize, i32, i32), Slot>,
     /// By node and piece: 0 for a whole layer, the others for the pieces
     /// of a plane of a 3D context.
-    ids: HashMap<(String, usize), Tracked>,
+    ids: HashMap<(String, String, usize), Tracked>,
     /// By node: what made the last result of the passes of a layer.
-    passed: HashMap<String, Passed>,
+    passed: HashMap<(String, String), Passed>,
     /// The most bytes of textures that [`Self::retain`] keeps.
     cap: Option<u64>,
     /// By node: the step of the texture scale of a plane, as a power of
     /// two below the output scale.
-    steps: HashMap<String, i32>,
+    steps: HashMap<(String, String), i32>,
+    /// The view that renders now: an output, or the capture of one. The
+    /// ids, the results of passes and the steps are kept per view, so that
+    /// two outputs of other scales or cameras do not flip them.
+    view: String,
     /// The pixels of layer textures in the current frame.
     pixels: u64,
     /// The budget ran out in this frame, and the log tells it once.
@@ -180,9 +184,9 @@ impl Layers {
         self.textures
             .retain(|(id, ..), slot| keep(id) && now - slot.used < UNUSED_FOR);
         self.evict_over_cap();
-        self.ids.retain(|(id, _), _| keep(id));
-        self.passed.retain(|id, _| keep(id));
-        self.steps.retain(|id, _| keep(id));
+        self.ids.retain(|(_, id, _), _| keep(id));
+        self.passed.retain(|(_, id), _| keep(id));
+        self.steps.retain(|(_, id), _| keep(id));
         self.new_budget();
     }
 
@@ -236,6 +240,11 @@ impl Layers {
         (self.passed.len(), self.textures.len())
     }
 
+    /// Names the view that renders next: an output, or the capture of one.
+    pub fn set_view(&mut self, view: String) {
+        self.view = view;
+    }
+
     /// Starts the budget of a new frame or capture.
     pub fn new_budget(&mut self) {
         self.pixels = 0;
@@ -282,12 +291,13 @@ impl Layers {
     /// forgets the step.
     pub fn step(&mut self, node: &str, ratio: Option<f64>) -> f64 {
         let Some(ratio) = ratio.filter(|r| *r > 0.0) else {
-            self.steps.remove(node);
+            self.steps.remove(&(self.view.clone(), node.to_owned()));
             return 1.0;
         };
         #[allow(clippy::cast_possible_truncation)]
         let wanted = (ratio.log2().ceil() as i32).clamp(-MAX_STEPS, 0);
-        let kept = self.steps.get(node).copied();
+        let key = (self.view.clone(), node.to_owned());
+        let kept = self.steps.get(&key).copied();
         let step = kept.map_or(wanted, |kept| {
             if wanted >= kept - 1 {
                 wanted.max(kept)
@@ -295,7 +305,7 @@ impl Layers {
                 wanted
             }
         });
-        self.steps.insert(node.to_owned(), step);
+        self.steps.insert(key, step);
         2.0_f64.powi(step)
     }
 
@@ -399,7 +409,7 @@ impl Layers {
     ) -> (Id, CommitCounter) {
         let entry = self
             .ids
-            .entry((node.into(), piece))
+            .entry((self.view.clone(), node.into(), piece))
             .or_insert_with(|| Tracked {
                 id: Id::new(),
                 commit: CommitCounter::default(),
@@ -1073,7 +1083,8 @@ pub fn apply_passes(
         .iter()
         .any(|(_, (program, ..))| program.reads_time());
     let signature = signature((scale, version, sources), &compiled);
-    let last = layers.passed.get(&node.id).map(|last| {
+    let key = (layers.view.clone(), node.id.clone());
+    let last = layers.passed.get(&key).map(|last| {
         (
             last.reusable && last.signature == signature && last.size == size_key,
             last.slot,
@@ -1101,7 +1112,7 @@ pub fn apply_passes(
         runs,
         reusable,
     };
-    layers.passed.insert(node.id.clone(), passed);
+    layers.passed.insert(key, passed);
     (texture, result)
 }
 

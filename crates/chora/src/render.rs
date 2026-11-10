@@ -278,6 +278,9 @@ where
         return elements;
     }
     prune_assets(parts);
+    let shown = if view.stepped { "" } else { " capture" };
+    let name = format!("{}{shown}", output.name());
+    parts.assets.layers.set_view(name);
     let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
     let scene = parts.scene;
     // The overlay of the output, above the scene and without its camera
