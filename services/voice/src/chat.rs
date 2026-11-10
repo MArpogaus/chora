@@ -165,7 +165,7 @@ fn listed(config: &Config, tool: &str, args: &Value) -> bool {
 /// settings keys and their values, the program and its arguments, the
 /// method and its parameters, or the tool and its arguments. Secrets are
 /// hidden as in the journal: each subscriber of `voice.*` gets it.
-fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
+pub(crate) fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
     let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
     let (mut patch, mut args) = (patch.cloned(), args.clone());
     patch.iter_mut().for_each(hide);
@@ -1087,6 +1087,9 @@ impl Chat {
             || own
                 .and_then(Value::as_object)
                 .is_some_and(|p| p.keys().any(|k| crate::config::security_key(k)));
+        if physical {
+            return Ok(());
+        }
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
@@ -2439,8 +2442,9 @@ mod tests {
     }
 
     /// Each change of the agent's own settings asks with its key and
-    /// value; a security setting says so (log 2026-10-31: "set the
-    /// barge-in RMS to 15").
+    /// value (log 2026-10-31: "set the barge-in RMS to 15"); a security
+    /// setting goes on: the client thread asks for its key (review A1,
+    /// high 2).
     #[tokio::test]
     async fn a_change_of_the_own_settings_asks_with_key_and_value() {
         let script = vec![
@@ -2469,14 +2473,7 @@ mod tests {
         assert!(chat.system.contains("only after describe_screen or"));
         let (_, events) = turn(&mut chat, "Setz den Barge-in auf 15.", true).await;
         let asked: Vec<_> = events.iter().filter(|e| e.starts_with("confirm")).collect();
-        assert_eq!(
-            asked,
-            [
-                "confirm Shall I set barge in min rms to 15?",
-                "confirm Security setting! Shall I set llm url? The full value is on the screen. \
-                 Press Alt+y for yes or Alt+n for no."
-            ]
-        );
+        assert_eq!(asked, ["confirm Shall I set barge in min rms to 15?"]);
         assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 
@@ -2501,9 +2498,11 @@ mod tests {
     }
 
     /// Review rc3 round 2, 4.4, the user's decision: a security setting
-    /// asks for a key press, never for a spoken yes.
+    /// asks for a key press, never for a spoken yes. Review A1, high 2:
+    /// the client thread asks it for every caller, so the chat asks only
+    /// the other change.
     #[tokio::test]
-    async fn a_security_setting_asks_for_a_key() {
+    async fn a_security_setting_is_asked_by_the_client_thread() {
         let script = vec![
             Reply::Tool(
                 "voice__settings__set",
@@ -2537,7 +2536,7 @@ mod tests {
             }
         })
         .await;
-        assert_eq!(asked.into_inner().unwrap(), [(true, true), (false, false)]);
+        assert_eq!(asked.into_inner().unwrap(), [(false, false)]);
         assert!(!chat.tools.physical.load(Ordering::SeqCst));
         for key in [
             "indicator",
@@ -2570,9 +2569,10 @@ mod tests {
     }
 
     /// Review rc3 round 3, 2.4: a reload of a file that differs in a
-    /// security key asks for a key press; any other reload, a spoken yes.
+    /// security key asks for a key press, in the client thread (review
+    /// A1, high 2); any other reload, a spoken yes.
     #[tokio::test]
-    async fn a_reload_with_a_new_security_key_asks_for_a_key() {
+    async fn a_reload_with_a_new_security_key_is_asked_by_the_client_thread() {
         let script = [
             Reply::Tool("voice__settings__reload", "{}"),
             Reply::Text("Erledigt."),
@@ -2606,7 +2606,7 @@ mod tests {
             std::fs::write(&file, format!("{{llm_url: '{url}', {yaml}}}")).unwrap();
             chat.turn("Lade neu.", &on).await;
         }
-        assert_eq!(asked.into_inner().unwrap(), [true, false]);
+        assert_eq!(asked.into_inner().unwrap(), [false]);
     }
 
     /// Review rc3 round 2, 4.2: the screen and the event get no secret.

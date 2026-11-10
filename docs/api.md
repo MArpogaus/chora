@@ -234,6 +234,7 @@ path.
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection and hold a claim (D55). |
+| `give_grab` | Give the drag of a window with the window: `surface`, `to`, `point` (the point of the window that the pointer holds), and optionally `velocity` and `wobble`. It follows a `remove` of `surface` with the same `to` in the same transaction. See [A give during a drag](#a-give-during-a-drag). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with `node.requested` to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -422,6 +423,61 @@ forwards, and the gate fails when a manager other than the holder serves
 a key. A last run has the setting off and expects that an injected give
 key gives nothing.
 
+### A give during a drag
+
+A window manager can hand a window over while the user still drags it,
+so that the window leaves its area with the button down. Its transaction
+holds a `remove` with `to` and a `give_grab` with the same `surface` and
+`to`. When the transaction applies, the core moves the pointer grab to
+`to`: the receiver gets `surface.detached`, then `input.button` with the
+binding `move`, the state `pressed`, the `surface` and `grab`, then
+`input.moved` and the release as for any move. The giver hears no more
+of that button. The receiver attaches the window and goes on with the
+drag from `grab`: `point`, `velocity` and the state of an effect in
+`wobble`.
+
+The core refuses the whole transaction unless all of this holds:
+
+- the giver and `to` hold a claim, and neither is confined; the giver
+  also answers no method call of a confined caller at that time;
+- no other client holds a button of the pointer;
+- the giver holds the button press: the grab of a button binding or of
+  `move`, or a press on one of its own nodes;
+- that press drags `surface`: the window asked for the move, was under
+  the pointer at the press of the binding, or sits in the group of the
+  pressed node, as under a title bar;
+- the user made that button press and still holds the button; any
+  injected input after it, also a move of the pointer or a key, ends
+  this;
+- the pointer is on an output, and `to` grabbed `move`;
+- `point` and `velocity` are finite, and `wobble` has at most 16 kB as
+  JSON.
+
+The core checks this twice: when the transaction arrives, before any
+command runs, and again when it applies, since a transaction can wait
+for its clients. At the second check the button press must be the one of
+the first; when the user let go and pressed again in between, or any
+rule fails by then, the whole transaction fails with an error, and the
+window and the drag stay with the giver.
+
+The core passes `velocity` and `wobble` on unread. No window manager of
+the repository uses `velocity` yet.
+
+`window.give` of every window manager takes `grab` and sends the
+`give_grab`. `chora-tiling` and `chora-xp` add the springs of their
+wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
+unless the caller sent some, and stop their own drag. `chora-tiling`
+goes on with a drag that it receives: the window sits with `point`,
+kept inside the window, under the pointer and wobbles on from the
+springs. `chora-xp`, `chora-mc` and `chora-construct` grab no `move` and
+so receive no drag.
+
+The grab ends when its receiver disconnects, and when the receiver does
+not own the window and no reservation keeps the window for it, for
+example 5 seconds after the give. In the second case the receiver gets
+`input.button` with `move` and `released`; the release of the button
+itself then reaches no client.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -458,7 +514,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
-| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move, and after a `give_grab` also `grab` with `point`, `velocity` and `wobble` as the giver sent them; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
@@ -467,11 +523,11 @@ by default; a timeout exits 1 with the reason on stderr.
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again; `keyboard` names the surface node with the keyboard focus when one of these nodes holds it, so that the person types into a window that shows nothing; the core leaves the focus there, and the window manager of that window may move it |
-| `effects.dropped` | the watchdog removed the effects, the meshes, the shaders of shader nodes and the perspectives of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of `client`; a perspective stays, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
-| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, and `confined: true` when the connection of the caller is confined (the field is absent otherwise); only the exporting connection gets it, subscribed or not |
+| `method.called` | another client calls a method that this connection exported: `call` id, `caller`, `method` and `params`, `confined: true` when the connection of the caller is confined (the field is absent otherwise), and `connection`, the number of the connection of the caller, unique while the core runs; only the exporting connection gets it, subscribed or not |
 | `NAME.something` | a client emitted it with `events.emit`, for example `voice.state`: `client`, the name of the emitter, and its `data`; only to the connections that name the event or a pattern of it (D65) |
 
 Every event carries `seq`, the count of its connection (D32). Every event
@@ -664,6 +720,14 @@ A `hello` with `resume` also fails while another connection of the name
 is live. So a second instance of a plugin cannot take the nodes of the
 first. The error says that the name is connected.
 
+On the main and the admin socket, a live name belongs to its program: a
+`hello` with a name that has a live connection fails with code 7 unless
+it comes from the same process or from the same executable, such as a
+second `choractl` (review A1). So a script cannot connect as `mc` while
+mc runs and use what the name has, such as a claim of the indicator of
+the voice agent or a grant. A name without a live connection is free to
+any process. Connections of a client socket share their fixed name.
+
 `resume` lets a plugin restart without a loss, for example after a crash
 or a change of its configuration. When the last connection of a name
 with `resume` closes, the core keeps the nodes of the name for a grace
@@ -777,7 +841,7 @@ message.
 | 4 | a capability the method needs | `screen.capture` without a grant |
 | 5 | an unknown node | `update` of a node id that never existed |
 | 6 | a limit of the core is reached | a request longer than 1 MiB |
-| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` with `resume` on a name that is connected |
+| 7 | a client name that is taken, or in use with other settings | a `hello` with a name that has a client socket; a `hello` whose `confined`, `keep_nodes` or `resume` differs from a live connection of its name; a `hello` on the main or admin socket with a name that another program has connected (a different process and a different executable); a `hello` with `resume` on a name that is connected |
 | 8 | a method of the admin socket | `grants.set` on the main socket |
 | 9 | a rule of client sockets | a `hello` with another name on `clients/agent/ipc.sock` |
 
@@ -1186,7 +1250,7 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
-| `window.give` | `surface`, and `to`: a client name | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
+| `window.give` | `surface`, `to`: a client name, and optionally `grab` with `point`, `velocity` and `wobble` | hands the window to `to` with a `remove` with `to`, and answers with its surface id; with `grab` the drag goes too (see [A give during a drag](#a-give-during-a-drag)) |
 
 Window effects need no API of their own. A window manager that sets
 `effects` in its settings sends `mesh` updates for its own nodes through

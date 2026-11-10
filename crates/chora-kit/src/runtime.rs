@@ -142,6 +142,13 @@ impl<A> Runtime<A> {
         self.inject_ok = setting || test_session();
     }
 
+    /// Whether the plugin takes input of `input.inject` as the person's:
+    /// the setting of [`Self::accept_injected`] or a test session.
+    #[must_use]
+    pub fn accepts_injected(&self) -> bool {
+        self.inject_ok
+    }
+
     /// Sets the action of a give key of [`crate::give::KEYS`] by its
     /// target, or none for no give keys.
     pub fn give_keys(&mut self, make: Option<fn(&'static str) -> A>) {
@@ -377,7 +384,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 ///
 /// The plugin has no settings, a change is wrong, the plugin cannot apply
 /// it, or the file cannot be written.
-fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
+pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
     let no_settings = || no_settings("settings.set");
     let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
     apply(plugin)?;

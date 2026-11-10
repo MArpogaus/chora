@@ -622,7 +622,7 @@ pub fn render_and_present(
     output: &Output,
     render: impl FnOnce(&mut State) -> Result<bool, String>,
 ) {
-    let start = Instant::now();
+    let frame = crate::safety::FrameClock::start();
     match render(state) {
         Ok(damaged) => {
             if damaged {
@@ -639,7 +639,7 @@ pub fn render_and_present(
         }
         Err(err) => tracing::warn!(output = output.name(), "{err}"),
     }
-    state.frame_rendered(&output.name(), frame_duration(output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(output), frame);
     render::send_frames(state, output);
 }
 

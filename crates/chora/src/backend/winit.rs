@@ -122,7 +122,7 @@ fn handle(state: &mut State, event: WinitEvent) {
         }
         WinitEvent::Input(event) => crate::input::process(state, event),
         WinitEvent::Redraw => redraw(state),
-        WinitEvent::CloseRequested => state.loop_signal.stop(),
+        WinitEvent::CloseRequested => state.quit("the host closed the window"),
         // The host gets the releases of keys that went down here, for
         // example Super for its overview, so chora lets them go too.
         WinitEvent::Focus(false) => crate::input::release_keys(state),
@@ -150,9 +150,9 @@ fn redraw(state: &mut State) {
     let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
-    let start = std::time::Instant::now();
+    let frame = crate::safety::FrameClock::start();
     let rendered = render_frame(state, &output);
-    state.frame_rendered(&output.name(), frame_duration(&output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(&output), frame);
     let submitted = shown(state, &output, rendered);
     render::send_frames(state, &output);
     if submitted {

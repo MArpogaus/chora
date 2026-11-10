@@ -830,6 +830,9 @@ impl Default for Bounds {
 impl Bounds {
     /// The box of what was added; a box of nothing overlaps nothing.
     pub(crate) fn rect(&self) -> smithay::utils::Rectangle<f64, smithay::utils::Logical> {
+        if self.min[0] > self.max[0] || self.min[1] > self.max[1] {
+            return smithay::utils::Rectangle::default();
+        }
         smithay::utils::Rectangle::new(
             (self.min[0], self.min[1]).into(),
             (self.max[0] - self.min[0], self.max[1] - self.min[1]).into(),
@@ -847,6 +850,16 @@ impl Bounds {
             Point::<i32, Physical>::from((clamp(self.max[0].ceil()), clamp(self.max[1].ceil())));
         let size = Size::from(((end.x - loc.x).max(1), (end.y - loc.y).max(1)));
         Rectangle::new(loc, size)
+    }
+
+    /// Adds the screen point of (x, y, w) when it lies at `w > near`.
+    pub(crate) fn add_point_at(&mut self, [x, y, w]: [f64; 3], near: f64) {
+        if w > near {
+            for (axis, v) in [x / w, y / w].into_iter().enumerate() {
+                self.min[axis] = self.min[axis].min(v);
+                self.max[axis] = self.max[axis].max(v);
+            }
+        }
     }
 
     /// Adds the screen points of corners with a w in front of the eye.
@@ -1296,6 +1309,21 @@ fn draw_pass(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A plane wholly behind the eye, such as a pane under the camera
+    /// group of a 3D context that the camera walked past, has an empty
+    /// box: `scene.query` asks for it.
+    #[test]
+    fn a_quad_behind_the_eye_has_an_empty_box() {
+        let mut behind = [0.0; 16];
+        behind[0] = 1.0;
+        behind[5] = 1.0;
+        behind[10] = 1.0;
+        behind[15] = -1.0;
+        let rect =
+            crate::render::bounding_box_from(&Transform::from_matrix(behind), [100.0, 80.0], NEAR);
+        assert_eq!(rect, smithay::utils::Rectangle::default());
+    }
 
     #[test]
     fn a_layer_texture_side_follows_a_smaller_gl_limit() {

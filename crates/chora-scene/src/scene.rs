@@ -525,8 +525,48 @@ impl Scene {
             Command::Focus { surface } => self.focus_command(owner, surface.as_deref(), effects),
             Command::FocusNode { node } => self.focus_node_command(owner, node.as_deref()),
             Command::Close { .. } => self.close_command(owner, command, effects),
+            Command::GiveGrab { .. } => Self::give_grab_command(owner, command, effects),
             camera @ Command::Camera { .. } => self.camera_command(owner, camera, effects),
         }
+    }
+
+    /// `give_grab`: the drag goes with a surface that the owner reserved
+    /// for `to` earlier in this transaction, and with no other.
+    fn give_grab_command(
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::GiveGrab {
+            surface,
+            to,
+            point,
+            velocity,
+            wobble,
+        } = command
+        else {
+            unreachable!("only give_grab");
+        };
+        let reserved = effects.iter().any(|e| {
+            matches!(e, Effect::Reserved { surface: s, to: t, from }
+                if s == surface && t == to && from == owner)
+        });
+        if !reserved {
+            return Err(SceneError::Invalid(format!(
+                "the drag of {surface:?} goes only with a remove to {to:?} in the same transaction"
+            )));
+        }
+        effects.push(Effect::GrabGiven {
+            surface: surface.clone(),
+            to: to.clone(),
+            from: owner.into(),
+            grab: crate::GivenGrab {
+                point: *point,
+                velocity: *velocity,
+                wobble: wobble.clone(),
+            },
+        });
+        Ok(())
     }
 
     /// `move`: a node of another client answers with a request (D31).
@@ -1806,17 +1846,14 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     Ok(())
 }
 
-/// Removes the mesh, the effects, the shader and the perspective of
-/// properties. Returns whether there were some.
+/// Removes the mesh, the effects and the shader of properties. Returns
+/// whether there were some. A perspective stays: it costs no pass, and
+/// without it a context would show and hit its planes flat.
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some()
-        || !props.effects.is_empty()
-        || props.shader.is_some()
-        || props.perspective.is_some();
+    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
     props.mesh = None;
     props.effects.clear();
     props.shader = None;
-    props.perspective = None;
     found
 }
 

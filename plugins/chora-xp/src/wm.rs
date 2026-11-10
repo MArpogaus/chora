@@ -677,9 +677,9 @@ impl Wm {
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
             Call::Move { surface, output } => self.move_to_output(&surface, &output)?,
-            Call::Give(give::Give { surface, to }) => {
+            Call::Give(give::Give { surface, to, grab }) => {
                 known(self.index(&surface).is_some(), &surface)?;
-                let (answer, commands) = self.give(&surface, &to)?;
+                let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
                 self.apply(commands)
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 return Ok(answer);
@@ -2288,7 +2288,27 @@ impl Wm {
     /// Hands a window to the window manager `to` (D55), which gives it the
     /// focus: the answer of `window.give`, and the commands.
     fn give(&mut self, surface: &str, to: &str) -> Result<(Value, Vec<Command>), RpcError> {
-        let answer = self.rt.conn.give(surface, to)?;
+        self.give_dragged(surface, to, None)
+    }
+
+    /// As [`Self::give`]; with `grab` the drag of the title bar goes too,
+    /// with the springs of the wobble unless the caller sent some, and the
+    /// drag of chora-xp ends.
+    fn give_dragged(
+        &mut self,
+        surface: &str,
+        to: &str,
+        mut grab: Option<chora_scene::GivenGrab>,
+    ) -> Result<(Value, Vec<Command>), RpcError> {
+        if let Some(grab) = &mut grab {
+            let springs = self.wobble_springs(surface);
+            grab.wobble = grab.wobble.take().or(springs);
+        }
+        let dragged = grab.is_some();
+        let answer = self.rt.conn.give_dragged(surface, to, grab)?;
+        if dragged {
+            self.drag.take_if(|d| d.surface == surface);
+        }
         // No window of chora-xp takes the focus.
         if self.is_active(surface) {
             self.focused = None;

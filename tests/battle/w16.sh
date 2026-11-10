@@ -173,7 +173,10 @@ step "== 2 reload restarts chora_mcp"
 before=$(cat "$work/mcp.log" 2> /dev/null | tr '\n' ' ')
 sed -i 's/echo A >>/echo B >>/' "$cfg"
 l0=$(mark "$vlog")
-ctl call voice settings.reload '{}' > "$work/reload.json" 2>&1 || finding "W16: settings.reload refused: $(head -c 150 "$work/reload.json")" breaks "choractl call voice settings.reload"
+ctl call voice settings.reload '{}' > "$work/reload.json" 2>&1
+grep -q 'waits for the user' "$work/reload.json" || finding "W16: a reload of chora_mcp did not wait for a key: $(head -c 150 "$work/reload.json")" endangers "choractl call voice settings.reload"
+sleep 3
+key Alt+y
 expect "2: the log shows no restart of the tool process" breaks "since $vlog $l0 | grep -q 'mcp: restart with'" 10
 tool call_method '{"client": "mc", "method": "scene.list", "params": {}}'
 reply "Listed."

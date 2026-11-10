@@ -418,6 +418,11 @@ outlines line by line, and the fill follows. This happens when a scene
 shows and when `panel.set` changes the text of a panel; the same text
 again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
+When the animation ends, the plugin removes the effect, so a page that
+rests costs no shader pass. After the watchdog of the core dropped the
+effects of `chora-mc` (`effects.dropped`), new text shows at once and no
+panel blurs, until the settings change; that change builds the page
+anew, with the blur.
 
 The page of each scene, with its head and its panels, carries the tag
 `meta:pane=NAME`, also while the scene is hidden. Another plugin finds it
@@ -691,12 +696,27 @@ the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.
 
-The space has the keyboard, so its keys need no modifier. A drag looks
-around, and the wheel walks. A walk slows down in the outer quarter of
-the leash radius and stops at it. A click on a pane, or `Return` for the
-pane nearest the middle of the view, flies into the pane. At the end of
-the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
-and the pointer. `Alt+Escape` flies back to the pose before.
+The space is a 3D context of the core (D75): a group with the
+`perspective` of the focal length and a camera group whose transform is
+the pose. The core sorts, splits and clips the panes, and casts the ray
+of the pointer. A window of the construct stands in its pane: a click on
+the pane, also on a tilted one, reaches the window at the point under
+the pointer, gives it the keyboard and does not move the view; where
+panes overlap, the nearer one gets the click. Each pane draws through
+the effect `pane.frag`, which reads `depth` and `facing` for the haze
+and the edge of the focus, so a walk updates no pane.
+
+A press on the empty space gives the keyboard back to the walk, so its
+keys need no modifier. A drag there looks around, and the wheel there or
+over a pane that shows the window of another client or a plugin walks;
+over a window of the construct, the wheel scrolls the window.
+A walk slows down in the outer quarter of the leash radius and stops at
+it. `Return` flies into the pane nearest the middle of the view, and a
+click on a pane that shows the window of another client or a plugin
+flies into that pane. At the end of the fly-in, the window itself shows
+at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
+flies back to the pose before. `tests/gate-construct-3d.sh` checks the
+direct input.
 
 `t` starts the terminal, and its window becomes a pane in the view
 direction. `space` starts the launcher. The launcher itself is no pane:
@@ -725,6 +745,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
+| `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
@@ -735,7 +756,12 @@ pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
 The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes
-up or down. The same key with the wheel over a pane resizes it. A window
+up or down. As the flavor, the construct grabs this drag, so it reaches
+no window; without the grab, which another client may hold, a press with
+the key on a window of the construct reaches the window. The same key
+with the wheel over a pane that shows the window of another client or a
+plugin resizes it; over a window of the construct the wheel goes to the
+window, since the core grabs no wheel. A window
 of the flavor gets the new size, so that it stays at 1:1. Other panes
 stretch. The default `Super` is the drag modifier of tiling and chora-xp.
 
@@ -925,6 +951,21 @@ cannot tell an injected click (`input.inject`) from a real one.
 The construct claims the indicator of the agent (`indicator.claim`) at
 the start and on each connection of the agent, and hides the HUD while
 the agent is away.
+
+Only the clients that the voice agent names may claim its indicator and
+answer its questions with `confirm.answer`: the names of its security
+setting `indicator_clients`, by default `assistant`, `construct` and
+`mc` ([voice](voice.md), section 5). A button answers every question,
+also one about a security key, so a name in the list is trusted as the
+keyboard. Any other client is refused, and a claim answers only on the
+connection that made it. To let another HUD answer, add its name to
+`indicator_clients` with `choractl call voice settings.set` and press
+the yes key of `confirm_keys` when the agent asks, or edit
+`~/.config/chora/chora-voice.yaml` and restart the agent. The core
+keeps a live name for its program, so no script connects as
+`construct` while the construct runs; a name of the list whose HUD is
+not running is free to any process of the user. A HUD on a client
+socket is confined and never answers.
 
 Under the pane ahead, or under the pane where the pointer last pressed or
 let go, a pill names the pane. The core tells the pointer only from a

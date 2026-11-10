@@ -149,7 +149,7 @@ struct Surface {
     /// The generation of the lock of the frame on the screen.
     shown_lock: Option<u64>,
     /// The start of the render of the queued frame, for the watchdog.
-    rendered_at: Option<std::time::Instant>,
+    rendered_at: Option<crate::safety::FrameClock>,
     /// The timer of the next render after a frame without damage.
     timer: Option<RegistrationToken>,
 }
@@ -726,7 +726,7 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
     };
     let view = View::of(state, &output);
     let pointer = pointer_on(state, &output);
-    let start = std::time::Instant::now();
+    let frame = crate::safety::FrameClock::start();
     let queued = draw(state, node, crtc, &view, pointer)
         .and_then(|damaged| Ok(damaged && queue(state, node, crtc, &output)?))
         .unwrap_or_else(|err| {
@@ -734,7 +734,7 @@ fn render(state: &mut State, node: DrmNode, crtc: crtc::Handle) {
             false
         });
     if queued && let Some(surface) = surface(state, node, crtc) {
-        surface.rendered_at = Some(start);
+        surface.rendered_at = Some(frame);
     }
     if !queued {
         // Without damage, the screen keeps the frame of an earlier lock,
@@ -889,9 +889,9 @@ fn vblank(state: &mut State, node: DrmNode, crtc: crtc::Handle, meta: Option<&Dr
     let output = entry.output.clone();
     // The GPU work and the wait for the vblank count; one refresh of wait
     // is normal.
-    if let Some(start) = entry.rendered_at.take() {
+    if let Some(frame) = entry.rendered_at.take() {
         let budget = frame_duration(&output) * 2;
-        state.frame_rendered(&output.name(), budget, start.elapsed());
+        state.frame_rendered(&output.name(), budget, frame);
     }
     let Some(surface) = surface(state, node, crtc) else {
         return;

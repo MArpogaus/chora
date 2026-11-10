@@ -126,6 +126,10 @@ pub enum Event {
         /// binding `move`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         surface: Option<String>,
+        /// The state of a drag that another window manager gave with the
+        /// window (`give_grab`): only at such a press of `move`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grab: Option<crate::GivenGrab>,
     },
     /// The pointer moved while the button of a grabbed binding is down.
     #[serde(rename = "input.moved")]
@@ -352,6 +356,10 @@ pub enum Event {
         /// `false`.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         confined: bool,
+        /// The number of the connection of the caller, unique while the
+        /// core runs: a plugin can tell two connections of one name apart.
+        #[serde(default)]
+        connection: u64,
     },
     /// An event that a client emitted with `events.emit` (D65). Its name
     /// starts with the name of the client and a dot, for example

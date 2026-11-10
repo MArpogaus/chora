@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -140,6 +140,8 @@ struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
     pid: Option<Pid>,
+    /// The program of that process, from `/proc/PID/exe`.
+    exe: Option<PathBuf>,
     input: Vec<u8>,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
@@ -453,6 +455,19 @@ impl Ipc {
         self.clients.contains_key(name)
     }
 
+    /// Whether a live connection of `name` comes from the process of
+    /// `conn`, or from the same program, such as a second `choractl`
+    /// (review A1): a live name of the main socket belongs to its program.
+    fn same_program(&self, conn: u64, name: &str) -> bool {
+        let Some(me) = self.conns.get(&conn) else {
+            return false;
+        };
+        let same = |c: &Conn| {
+            (me.pid.is_some() && c.pid == me.pid) || (me.exe.is_some() && c.exe == me.exe)
+        };
+        (self.conns.values()).any(|c| c.name.as_deref() == Some(name) && same(c))
+    }
+
     /// Whether a connection came through the admin socket.
     pub(crate) fn admin(&self, conn: u64) -> bool {
         self.conns
@@ -736,9 +751,12 @@ impl State {
                 move |_, _, state| Ok(state.ipc_readable(id)),
             )
             .map_err(failed)?;
+        let exe =
+            pid.and_then(|p| std::fs::read_link(format!("/proc/{}/exe", p.as_raw_nonzero())).ok());
         let conn = Conn {
             stream,
             pid,
+            exe,
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
@@ -840,11 +858,15 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
+                let drag = match self.check_grab_gives(conn, &apply.commands) {
+                    Ok(drag) => drag,
+                    Err(e) => return Some(Err(e)),
+                };
                 let checked = self.check_paths(conn, &apply.commands);
                 if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
-                self.submit_transaction(conn, id, owner, apply.commands);
+                self.submit_transaction(conn, id, owner, (apply.commands, drag));
                 return None;
             }
             "events.subscribe" => {
@@ -943,8 +965,8 @@ impl State {
             .name(conn)
             .ok_or_else(|| rejected("send hello first"))?;
         self.check_socket_grant(conn, Capability::SessionQuit)?;
-        tracing::info!(client = name, "session.quit");
-        self.loop_signal.stop();
+        let reason = format!("session.quit of {name}");
+        self.quit(&reason);
         Ok(Value::Null)
     }
 
@@ -1061,6 +1083,15 @@ impl State {
             .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
             .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
         let confined = hello.confined || self.ipc.fixed(conn).is_some();
+        if peer.is_some()
+            && self.ipc.fixed(conn).is_none()
+            && !self.ipc.same_program(conn, &hello.name)
+        {
+            return Err(name_taken(format!(
+                "{:?} is connected from another program",
+                hello.name
+            )));
+        }
         if let Some(peer_confined) = peer_conn
             .map(|id| self.ipc.confined(id))
             .filter(|p| *p != confined)
@@ -1165,7 +1196,11 @@ impl State {
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
         // (D33): only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
-        let rects = self.screen_rects();
+        if nodes.is_empty() {
+            return Ok(Value::Array(Vec::new()));
+        }
+        let matched: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+        let rects = self.screen_rects(&matched);
         if let Some(filter) = &query.filter {
             nodes.retain(|n| {
                 filter.matches(
@@ -1195,8 +1230,10 @@ impl State {
     /// The screen rectangles by node: the output name maps to
     /// `[x, y, w, h]` in the logical pixels of that output, after the
     /// parent transforms and the camera of the output. Outputs where the
-    /// node does not show are left out.
-    fn screen_rects(&self) -> HashMap<&str, Value> {
+    /// node does not show are left out. Only the nodes `of` get a
+    /// rectangle: a box costs a text layout or a projection, which a
+    /// query for one node must not pay for the whole scene.
+    fn screen_rects(&self, of: &HashSet<&str>) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
         for output in &self.all_outputs() {
             let name = output.name();
@@ -1214,7 +1251,8 @@ impl State {
                     .iter()
                     .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
                     .collect();
-                let shown = list.iter().filter_map(|placed| {
+                let wanted = list.iter().filter(|p| of.contains(p.node.id.as_str()));
+                let shown = wanted.filter_map(|placed| {
                     Some((
                         placed.node.id.as_str(),
                         self.screen_rect(placed, &at, screen)?,
@@ -1416,6 +1454,9 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        if self.button_grab.take_if(|g| g.conn == conn).is_some() {
+            self.refresh_pointer();
+        }
         if !closed.reserves.is_empty() {
             self.output_changed();
         }
@@ -1548,7 +1589,7 @@ fn layer_box(node: &Node, transform: &Transform, near: f64) -> Option<Rectangle<
     let Some(mesh) = &node.props.mesh else {
         return Some(bounding_box_from(transform, size, near));
     };
-    Some(projected_box(transform, mesh.points.iter().copied()))
+    Some(projected_box(transform, mesh.points.iter().copied(), near))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.
@@ -2325,6 +2366,31 @@ mod tests {
         let (error_code, _) =
             second.fails(&mut core, "hello", json!({"name": "wm", "resume": true}));
         assert_eq!(error_code, RpcError::NAME_TAKEN);
+    }
+
+    /// Review A1, high 1: while a name is connected, another program may
+    /// not say `hello` under it, so a script cannot answer as `mc`; the
+    /// same process may, and so may the same program, such as a second
+    /// `choractl`.
+    #[test]
+    fn a_live_name_belongs_to_its_program() {
+        let mut core = Core::new();
+        let _mc = core.named("mc");
+        let mut script = core.connect();
+        let last = |core: &mut Core| *core.state.ipc.conns.keys().max().unwrap();
+        let id = last(&mut core);
+        let conn = core.state.ipc.conns.get_mut(&id).unwrap();
+        conn.pid = Pid::from_raw(1_000_000);
+        conn.exe = Some("/usr/bin/python3".into());
+        let (error_code, message) = script.fails(&mut core, "hello", json!({"name": "mc"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("another program"), "{message}");
+        let mut same = core.connect();
+        same.ok(&mut core, "hello", json!({"name": "mc"}));
+        let mut twin = core.connect();
+        let id = last(&mut core);
+        core.state.ipc.conns.get_mut(&id).unwrap().pid = Pid::from_raw(1_000_001);
+        twin.ok(&mut core, "hello", json!({"name": "mc"}));
     }
 
     #[test]

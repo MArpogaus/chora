@@ -8,7 +8,10 @@
 
 use std::{sync::atomic::Ordering, time::Duration};
 
-use chora_scene::{Binding, Event as SceneEvent, MOVE, NodeKind, ScrollSource, ipc::PressState};
+use chora_scene::{
+    Binding, Command, Event as SceneEvent, GivenGrab, MOVE, NodeKind, ScrollSource,
+    ipc::{PressState, RpcError},
+};
 use smithay::{
     backend::input::{
         AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
@@ -132,7 +135,7 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         },
     );
     match action {
-        Some(KeyAction::Quit) => state.loop_signal.stop(),
+        Some(KeyAction::Quit) => state.quit("the quit binding"),
         Some(KeyAction::Reset) => state.reset(),
         Some(KeyAction::RevokeAll) => state.revoke_all(),
         Some(KeyAction::SwitchVt(vt)) => {
@@ -578,6 +581,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
     let Some(spot) = state.spot(layout) else {
         return;
     };
+    state.drop_stray_grab();
     if state.node_grab.is_none() && state.button_grab.is_none() {
         hover(state, &spot, moved);
     }
@@ -717,23 +721,36 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
             return false;
         };
         let binding = binding.to_string();
+        let to_pointer = binding == MOVE;
+        let window = window_under_pointer(state);
         state.button_grab = Some(ButtonGrab {
             conn,
             binding: binding.clone(),
             button: code,
+            real: real_press_of(state, code),
+            to_pointer,
+            given: None,
+            window,
         });
-        (conn, binding, PressState::Pressed)
+        (conn, binding, PressState::Pressed, to_pointer)
     } else {
+        if state.drop_stray_grab() {
+            state.refresh_pointer();
+        }
         let Some(grab) = state.button_grab.take_if(|g| g.button == code) else {
             return false;
         };
-        (grab.conn, grab.binding, PressState::Released)
+        (
+            grab.conn,
+            grab.binding,
+            PressState::Released,
+            grab.to_pointer,
+        )
     };
-    let (conn, binding, press) = grab;
+    let (conn, binding, press, moved) = grab;
     if press == PressState::Pressed {
         state.note_act(vec![conn]);
     }
-    let moved = binding == MOVE;
     send_button(state, conn, binding, press, None);
     if moved {
         // The press of a move reached the pointer, so its release does too,
@@ -752,6 +769,12 @@ fn grab_button(state: &mut State, code: u32, button_state: ButtonState, time: In
     // release.
     move_pointer(state, state.pointer_layout, time);
     true
+}
+
+/// The window under the pointer, for the press of a button binding.
+fn window_under_pointer(state: &State) -> Option<String> {
+    let spot = state.spot(state.pointer_layout)?;
+    render::surface_under(state, &spot)?.node
 }
 
 /// Starts the drag of an interactive move (`xdg_toplevel.move`) while a
@@ -790,32 +813,295 @@ pub fn start_move(state: &mut State, toplevel: &WlSurface, surface: &str, serial
         conn,
         binding: MOVE.into(),
         button,
+        real: real_press_of(state, button),
+        to_pointer: true,
+        given: None,
+        window: Some(surface.into()),
     });
-    send_button(state, conn, MOVE.into(), PressState::Pressed, Some(surface));
+    let window = Some((surface, None));
+    send_button(state, conn, MOVE.into(), PressState::Pressed, window);
     move_pointer(state, state.pointer_layout, InputTime::now());
 }
 
 /// Sends `input.button` to the connection of a button grab, with the
-/// window of a move.
+/// window of a move and the state of a drag that came with it. Without
+/// an output under the pointer the event has the pointer in the layout
+/// and no output name, so that a release always arrives.
 fn send_button(
     state: &mut State,
     conn: u64,
     binding: String,
     press: PressState,
-    surface: Option<&str>,
+    window: Option<(&str, Option<GivenGrab>)>,
 ) {
-    let Some(spot) = state.spot(state.pointer_layout) else {
-        return;
-    };
+    let (surface, grab) = window.unzip();
+    let layout = [state.pointer_layout.x, state.pointer_layout.y];
+    let (position, output, local) =
+        state
+            .spot(state.pointer_layout)
+            .map_or((layout, String::new(), layout), |spot| {
+                let scene = [spot.scene.x, spot.scene.y];
+                (scene, spot.output.name(), [spot.local.x, spot.local.y])
+            });
     let event = SceneEvent::InputButton {
         binding,
         state: press,
-        position: [spot.scene.x, spot.scene.y],
-        output: spot.output.name(),
-        local: [spot.local.x, spot.local.y],
+        position,
+        output,
+        local,
         surface: surface.map(String::from),
+        grab: grab.flatten(),
     };
     state.ipc.send_to(conn, &event);
+}
+
+/// The serial of the press of a button when the user made it and the
+/// button is still down; `None` after an injected press.
+fn real_press_of(state: &State, button: u32) -> Option<Serial> {
+    let (serial, pressed) = state.last_real_button?;
+    (pressed == button).then_some(serial)
+}
+
+impl State {
+    /// The press of the pointer grab that a client name holds: the grab
+    /// of a button binding or of `move`, or the press on one of its own
+    /// nodes.
+    fn held_press(&self, name: &str) -> Option<HeldPress> {
+        let of_button = (self.button_grab.as_ref())
+            .filter(|g| self.ipc.name(g.conn) == Some(name))
+            .map(|g| HeldPress {
+                button: g.button,
+                real: g.real,
+                window: g.window.clone(),
+                node: None,
+            });
+        let owns = |node: &str| {
+            let owner = self.scene.node(node).and_then(|n| n.owner.as_deref());
+            owner == Some(name)
+        };
+        let of_node = (self.node_grab.as_ref())
+            .filter(|g| owns(&g.node))
+            .map(|g| HeldPress {
+                button: g.button,
+                real: g.real,
+                window: None,
+                node: Some(g.node.clone()),
+            });
+        of_button.or(of_node)
+    }
+
+    /// Whether a press drags a window: the window asked for the move or
+    /// was under the pointer at the press of a binding, or the press hit
+    /// a node of the group that holds the window, as a title bar.
+    fn drags(&self, held: &HeldPress, surface: &str) -> bool {
+        if held.window.as_deref() == Some(surface) {
+            return true;
+        }
+        let Some(group) = (held.node.as_deref())
+            .and_then(|node| self.scene.node(node))
+            .and_then(|node| node.parent.as_deref())
+        else {
+            return false;
+        };
+        let mut parent = self.scene.node(surface).and_then(|n| n.parent.as_deref());
+        while let Some(id) = parent {
+            if id == group {
+                return true;
+            }
+            parent = self.scene.node(id).and_then(|n| n.parent.as_deref());
+        }
+        false
+    }
+
+    /// Why the window manager `name` with the connections `conns` must
+    /// not give its drag of `surface` to the window manager `to`
+    /// (`give_grab`), if so; else the connection of `to` that gets it and
+    /// the press. The grab moves only between window managers: both hold
+    /// a claim, neither is confined, and the giver answers no method call
+    /// of a confined caller. No other client holds a button. The giver
+    /// holds the press of a button that the user made and still holds,
+    /// with no injected input since, and that press drags `surface`. The
+    /// receiver grabbed `move`, which carries the rest of the drag.
+    fn grab_give_refusal(
+        &self,
+        conns: &[u64],
+        name: &str,
+        (surface, to): (&str, &str),
+    ) -> Result<(u64, Press), String> {
+        let confined = |c: &u64| self.ipc.confined(*c) || self.methods.serves_confined(*c);
+        if conns.is_empty() || conns.iter().any(confined) {
+            return Err("a confined client, or a call of one, gives no drag".into());
+        }
+        if !self.scene.holds_claim(name) || !self.scene.holds_claim(to) {
+            return Err("a drag goes only between window managers with a claim".into());
+        }
+        let foreign = |g: &ButtonGrab| self.ipc.name(g.conn) != Some(name);
+        if self.button_grab.as_ref().is_some_and(foreign) {
+            return Err("another client holds a button of the pointer".into());
+        }
+        let Some(held) = self.held_press(name) else {
+            return Err(format!("{name} holds no pointer grab"));
+        };
+        let press = (held.real).filter(|s| self.last_real_button == Some((*s, held.button)));
+        let Some(press) = press.filter(|_| self.lock.is_none()) else {
+            return Err("only the drag of a real press that the user still holds goes".into());
+        };
+        if !self.drags(&held, surface) {
+            return Err(format!("the press is no drag of {surface}"));
+        }
+        if self.spot(self.pointer_layout).is_none() {
+            return Err("the pointer is on no output".into());
+        }
+        let receiver = (self.ipc.move_grab_of(to)).filter(|c| !self.ipc.confined(*c));
+        let receiver = receiver.ok_or_else(|| format!("{to} grabbed no `move`, or is confined"))?;
+        Ok((receiver, (press, held.button)))
+    }
+
+    /// Refuses a transaction with a `give_grab` that must not move the
+    /// pointer grab, before any command of it runs: by the rules of the
+    /// grab, and a state of the drag that is not finite or larger than
+    /// [`MAX_WOBBLE`]. Answers the press of the drag, which the
+    /// transaction keeps until it applies.
+    pub fn check_grab_gives(
+        &self,
+        conn: u64,
+        commands: &[Command],
+    ) -> Result<Option<Press>, RpcError> {
+        let refuse = |why: String| RpcError::new(RpcError::REJECTED, why);
+        let name = self.ipc.name(conn).unwrap_or_default();
+        let mut press = None;
+        for command in commands {
+            let Command::GiveGrab {
+                surface,
+                to,
+                point,
+                velocity,
+                wobble,
+            } = command
+            else {
+                continue;
+            };
+            if !point.iter().chain(velocity).all(|v| v.is_finite()) {
+                return Err(refuse(
+                    "the point and the velocity of a drag are finite".into(),
+                ));
+            }
+            let size = wobble.as_ref().map_or(0, |w| w.to_string().len());
+            if size > MAX_WOBBLE {
+                return Err(refuse(format!(
+                    "the wobble of a drag has at most {MAX_WOBBLE} bytes"
+                )));
+            }
+            let (_, seen) = self
+                .grab_give_refusal(&[conn], name, (surface, to))
+                .map_err(refuse)?;
+            press = Some(seen);
+        }
+        Ok(press)
+    }
+
+    /// Refuses a transaction with a `give_grab` when it applies: the
+    /// rules hold again, and the press is the one of the check, so a
+    /// release and a new press while the transaction waited give nothing.
+    /// The whole transaction fails and the window stays.
+    pub fn check_grab_still_gives(
+        &self,
+        owner: &str,
+        commands: &[Command],
+        checked: Option<Press>,
+    ) -> Result<(), RpcError> {
+        let refuse = |why: String| RpcError::new(RpcError::REJECTED, why);
+        let conns = self.ipc.conns_of(owner);
+        for command in commands {
+            if let Command::GiveGrab { surface, to, .. } = command {
+                let (_, press) = self
+                    .grab_give_refusal(&conns, owner, (surface, to))
+                    .map_err(refuse)?;
+                if checked != Some(press) {
+                    return Err(refuse(
+                        "the press of the drag ended while the transaction waited".into(),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Moves the pointer grab of the window manager `from` to `to` with
+    /// the window that `from` gave it in this transaction: `to` gets the
+    /// press of `move` with the window and the state of the drag, and
+    /// `from` hears no more of the button. The transaction passed
+    /// [`Self::check_grab_still_gives`] just before it applied.
+    pub fn move_grab(&mut self, surface: &str, to: &str, from: &str, grab: GivenGrab) {
+        let receiver = (self.ipc.move_grab_of(to)).filter(|c| !self.ipc.confined(*c));
+        let held = self.held_press(from);
+        let press = held.and_then(|h| Some((h.real?, h.button)));
+        let (Some(receiver), Some((real, button))) = (receiver, press) else {
+            tracing::warn!(%surface, %from, %to, "the drag stays: its press or its receiver went");
+            return;
+        };
+        let own = |g: &mut ButtonGrab| self.ipc.name(g.conn) == Some(from);
+        let of_button = self.button_grab.take_if(own);
+        let to_pointer = of_button.as_ref().is_none_or(|g| g.to_pointer);
+        if of_button.is_none() {
+            self.node_grab = None;
+        }
+        self.button_grab = Some(ButtonGrab {
+            conn: receiver,
+            binding: MOVE.into(),
+            button,
+            real: Some(real),
+            to_pointer,
+            given: Some(surface.into()),
+            window: Some(surface.into()),
+        });
+        let window = Some((surface, Some(grab)));
+        send_button(self, receiver, MOVE.into(), PressState::Pressed, window);
+    }
+
+    /// Ends a pointer grab that came with a window when its holder does
+    /// not have the window, and no reservation keeps it for the holder:
+    /// the grab never stays with a client that did not get the window.
+    /// The holder gets the release of `move`, so that its drag ends too.
+    /// Returns whether a grab ended.
+    pub fn drop_stray_grab(&mut self) -> bool {
+        let Some(grab) = &self.button_grab else {
+            return false;
+        };
+        let Some(window) = &grab.given else {
+            return false;
+        };
+        let holder = self.ipc.name(grab.conn);
+        let kept = self.scene.node(window).is_some_and(|node| {
+            let holds = |name: &Option<String>| name.as_deref() == holder;
+            holder.is_some() && (holds(&node.owner) || node.owner.is_none() && holds(&node.to))
+        });
+        if kept {
+            return false;
+        }
+        if let Some(stray) = self.button_grab.take() {
+            send_button(self, stray.conn, stray.binding, PressState::Released, None);
+        }
+        true
+    }
+}
+
+/// The press of a drag: its serial and its button.
+pub type Press = (Serial, u32);
+
+/// The most bytes of the `wobble` of a `give_grab`, as JSON: the springs
+/// of a 4x4 grid take about 2 kB.
+const MAX_WOBBLE: usize = 16 * 1024;
+
+/// The press that a client holds and may give with its window.
+struct HeldPress {
+    button: u32,
+    /// The serial of the press when the user made it.
+    real: Option<Serial>,
+    /// The window of a button grab.
+    window: Option<String>,
+    /// The node of a press on a node.
+    node: Option<String>,
 }
 
 /// Scrolls by logical pixels, as a touchpad does.
@@ -883,11 +1169,13 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         injected,
     });
     if area {
+        let real = real_press_of(state, button).filter(|_| !injected);
         state.node_grab = Some(NodeGrab {
             node,
             button,
             position,
             local,
+            real,
         });
     }
 }
@@ -1968,5 +2256,344 @@ mod tests {
             key_states(&mut agent, &mut core, "Tab"),
             Vec::<String>::new()
         );
+    }
+
+    /// tiling on the left half and xp on the right half, each with a
+    /// claim, the button binding and `move`. tiling has the window s1 and
+    /// drags it: Super is down and the left button went down on the
+    /// window at (10, 10), as an injected press when `injected`.
+    fn mid_drag(injected: bool) -> (Core, Wayland, Client, Client) {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut wayland = Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "win");
+        wayland.attach(&mut core, &window, (40, 30));
+        let mut tiling = claimer(&mut core, "tiling", [0.0, 0.0, 400.0, 600.0]);
+        let mut xp = claimer(&mut core, "xp", [400.0, 0.0, 400.0, 600.0]);
+        for wm in [&mut tiling, &mut xp] {
+            wm.ok(
+                &mut core,
+                "input.grab",
+                json!({"binding": "Super+BTN_LEFT"}),
+            );
+            wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        }
+        let attach = json!([{"attach": {"surface": "s1", "parent": "tiling"}}]);
+        apply(&mut tiling, &mut core, &attach);
+        move_to(&mut core, 10.0, 10.0);
+        press(&mut core, SUPER, true);
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), injected);
+        events(&mut tiling, &mut core);
+        events(&mut xp, &mut core);
+        (core, wayland, tiling, xp)
+    }
+
+    /// The transaction of tiling that gives s1 to xp with the drag.
+    fn give_with_the_drag() -> Value {
+        json!({"commands": [
+            {"remove": {"id": "s1", "to": "xp"}},
+            {"give_grab": {"surface": "s1", "to": "xp", "point": [12.0, 8.0],
+                "velocity": [300.0, 0.0], "wobble": {"points": [1.5, 2.5]}}},
+        ]})
+    }
+
+    /// The press that the receiver of a drag gets: `move` with the window
+    /// at the pointer, and the state that the giver sent.
+    fn is_the_press_of_the_given_drag(pressed: &Value) {
+        assert_eq!(pressed["binding"], "move");
+        assert_eq!(pressed["state"], "pressed");
+        assert_eq!(pressed["surface"], "s1");
+        assert_eq!(pressed["position"], json!([10.0, 10.0]));
+        let grab = json!({"point": [12.0, 8.0], "velocity": [300.0, 0.0],
+            "wobble": {"points": [1.5, 2.5]}});
+        assert_eq!(pressed["grab"], grab);
+    }
+
+    /// E3: tiling gives a window to xp while the button is down. The core
+    /// moves the pointer grab in the same transaction: xp gets the press
+    /// of `move` with the window and the state of the drag, then the moves
+    /// and the release, and tiling gets nothing more.
+    #[test]
+    fn a_give_in_the_middle_of_a_drag_moves_the_grab_to_the_receiver() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        let got = events(&mut xp, &mut core);
+        let names: Vec<&str> = got.iter().filter_map(|e| e["event"].as_str()).collect();
+        assert_eq!(names, ["surface.detached", "input.button"], "{got:?}");
+        is_the_press_of_the_given_drag(&got[1]);
+        let take = json!([{"attach": {"surface": "s1", "parent": "xp"}}]);
+        apply(&mut xp, &mut core, &take);
+        move_to(&mut core, 500.0, 300.0);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        assert_eq!(buttons(&mut xp, &mut core), ["moved", "released"]);
+        assert_eq!(buttons(&mut tiling, &mut core), Vec::<String>::new());
+        assert!(core.state.button_grab.is_none());
+        assert!(core.pointer_free());
+    }
+
+    /// The drag of an injected press stays with its window manager: the
+    /// whole transaction fails and the window stays too.
+    #[test]
+    fn a_give_with_the_drag_of_an_injected_press_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(true);
+        let (_, message) = tiling.fails(&mut core, "scene.apply", give_with_the_drag());
+        assert!(message.contains("real press"), "{message}");
+        let owner = core.state.scene.node("s1").unwrap().owner.clone();
+        assert_eq!(owner.as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        click(&mut core, false);
+        assert_eq!(buttons(&mut tiling, &mut core), ["released"]);
+    }
+
+    /// A window manager that answers a method call of a confined caller
+    /// gives no drag: a confined agent must not move the pointer grab of
+    /// the user through `window.give`.
+    #[test]
+    fn a_give_with_the_drag_for_a_confined_caller_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(
+            &mut core,
+            "methods.export",
+            json!({"names": ["window.give"]}),
+        );
+        let mut admin = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["methods.call"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "agent", "confined": true}),
+        );
+        let call = json!({"client": "tiling", "method": "window.give", "params": {}});
+        agent.send("methods.call", call);
+        core.dispatch();
+        let (_, message) = tiling.fails(&mut core, "scene.apply", give_with_the_drag());
+        assert!(message.contains("confined"), "{message}");
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        let mut boxed = core.connect();
+        boxed.ok(&mut core, "hello", json!({"name": "box", "confined": true}));
+        let (_, message) = boxed.fails(&mut core, "scene.apply", give_with_the_drag());
+        assert!(message.contains("confined"), "{message}");
+    }
+
+    /// The receiver ends in the middle of the drag: the grab goes with
+    /// it, the release of the button reaches no client and the pointer is
+    /// free again.
+    #[test]
+    fn a_receiver_that_dies_in_the_middle_of_the_drag_frees_the_press() {
+        let (mut core, _wayland, mut tiling, xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        assert!(core.state.button_grab.is_some());
+        drop(xp);
+        core.dispatch();
+        assert!(core.state.button_grab.is_none(), "the grab outlived xp");
+        move_to(&mut core, 500.0, 300.0);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        assert_eq!(buttons(&mut tiling, &mut core), Vec::<String>::new());
+        assert!(core.pointer_free());
+    }
+
+    /// The grab follows the window: a receiver that does not attach the
+    /// window loses the grab when the core frees the window again, and
+    /// gets the release, so that its drag ends too.
+    #[test]
+    fn a_receiver_that_does_not_take_the_window_loses_the_grab() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        tiling.ok(&mut core, "scene.apply", give_with_the_drag());
+        events(&mut xp, &mut core);
+        core.advance(std::time::Duration::from_secs(6));
+        move_to(&mut core, 500.0, 300.0);
+        assert_eq!(buttons(&mut xp, &mut core), ["released"]);
+        assert!(core.state.button_grab.is_none());
+    }
+
+    /// xp drags a window by a press on its own title bar, a rect node: it
+    /// gives that press with the window, and tiling gets the rest of the
+    /// drag as `move`. xp hears no release.
+    #[test]
+    fn a_press_on_an_own_node_goes_with_the_window_too() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        tiling.ok(
+            &mut core,
+            "scene.apply",
+            json!({"commands": [{"remove": {"id": "s1", "to": "xp"}}]}),
+        );
+        let title = json!({"create": {"id": "title", "kind": "rect", "parent": "xp",
+            "props": {"size": [100, 20], "transform": {"translate": [500, 100]}}}});
+        let take = json!({"attach": {"surface": "s1", "parent": "xp"}});
+        apply(&mut xp, &mut core, &json!([take, title]));
+        xp.ok(
+            &mut core,
+            "events.subscribe",
+            json!({"events": ["pointer.*"]}),
+        );
+        move_to(&mut core, 510.0, 110.0);
+        click(&mut core, true);
+        events(&mut xp, &mut core);
+        events(&mut tiling, &mut core);
+        let give = json!({"commands": [
+            {"remove": {"id": "s1", "to": "tiling"}},
+            {"give_grab": {"surface": "s1", "to": "tiling", "point": [10.0, 10.0]}},
+        ]});
+        xp.ok(&mut core, "scene.apply", give);
+        assert!(core.state.node_grab.is_none());
+        move_to(&mut core, 100.0, 100.0);
+        click(&mut core, false);
+        assert_eq!(
+            buttons(&mut tiling, &mut core),
+            ["pressed", "moved", "released"]
+        );
+        let after = events(&mut xp, &mut core);
+        let released = named(&after, "pointer.released");
+        assert_eq!(released.len(), 0, "{after:?}");
+        assert!(core.pointer_free());
+    }
+
+    /// The answer of tiling's give with the drag, as an error message.
+    fn refused_give(core: &mut Core, tiling: &mut Client) -> String {
+        tiling.fails(core, "scene.apply", give_with_the_drag()).1
+    }
+
+    /// The owner of the window s1.
+    fn owner_of_s1(core: &Core) -> Option<String> {
+        core.state.scene.node("s1").unwrap().owner.clone()
+    }
+
+    /// Review of E3: the press that the core saw at the check must still
+    /// be the press when the transaction applies. The transaction waits
+    /// for a configure; the user lets go and presses again in between, and
+    /// the whole transaction fails: the window and the new drag stay.
+    #[test]
+    fn a_give_that_waited_fails_when_the_press_is_another_one() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        let mut give = give_with_the_drag();
+        let resize = json!({"configure": {"surface": "s1", "size": [50, 40], "states": []}});
+        give["commands"].as_array_mut().unwrap().insert(0, resize);
+        let id = tiling.send("scene.apply", give);
+        core.dispatch();
+        assert_eq!(tiling.answer(&mut core, id), None, "the transaction waits");
+        click(&mut core, false);
+        click(&mut core, true);
+        core.advance(crate::transaction::DEADLINE);
+        let answer = tiling.answer(&mut core, id).expect("the deadline passed");
+        let error = answer.expect_err("the press is another one");
+        assert!(
+            error["message"].as_str().unwrap().contains("press"),
+            "{error}"
+        );
+        assert_eq!(owner_of_s1(&core).as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+        click(&mut core, false);
+        let seen = buttons(&mut tiling, &mut core);
+        assert_eq!(
+            seen.last().map(String::as_str),
+            Some("released"),
+            "{seen:?}"
+        );
+    }
+
+    /// Review of E3: a lock in the middle of the drag ends it, and with
+    /// it the give.
+    #[test]
+    fn a_give_after_a_lock_in_the_middle_of_the_drag_is_refused() {
+        let (mut core, mut wayland, mut tiling, mut xp) = mid_drag(false);
+        let _lock = wayland.lock(&mut core);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("holds no pointer grab"), "{message}");
+        assert_eq!(owner_of_s1(&core).as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+    }
+
+    /// Review of E3: any injected input ends the real press, also a move
+    /// of the pointer: an agent must not steer a drag that then changes
+    /// its window manager.
+    #[test]
+    fn a_give_after_an_injected_move_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        let mut admin = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let moved = json!({"events": [{"pointer_move": {"position": [500.0, 300.0]}}]});
+        agent.ok(&mut core, "input.inject", moved);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("real press"), "{message}");
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+    }
+
+    /// Review of E3: a real press that ended is no licence for a later
+    /// injected one of the same button.
+    #[test]
+    fn a_give_with_an_injected_press_after_a_real_one_is_refused() {
+        let (mut core, _wayland, mut tiling, _xp) = mid_drag(false);
+        click(&mut core, false);
+        let down = ButtonState::Pressed;
+        super::press_button(&mut core.state, 272, down, InputTime::now(), true);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("real press"), "{message}");
+    }
+
+    /// Review of E3: only the drag of the window itself goes. A press
+    /// beside the window is no drag of it.
+    #[test]
+    fn a_give_of_a_window_that_the_press_did_not_hit_is_refused() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        click(&mut core, false);
+        move_to(&mut core, 200.0, 200.0);
+        click(&mut core, true);
+        let message = refused_give(&mut core, &mut tiling);
+        assert!(message.contains("s1"), "{message}");
+        assert_eq!(owner_of_s1(&core).as_deref(), Some("tiling"));
+        assert_eq!(buttons(&mut xp, &mut core), Vec::<String>::new());
+    }
+
+    /// Review of E3: xp holds a press on its own node while tiling holds
+    /// the grab of a button binding. xp must not give a drag then, and
+    /// the grab of tiling stays.
+    #[test]
+    fn a_give_does_not_take_the_grab_of_another_client() {
+        let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
+        click(&mut core, false);
+        press(&mut core, SUPER, false);
+        let hand = json!({"commands": [{"remove": {"id": "s1", "to": "xp"}}]});
+        tiling.ok(&mut core, "scene.apply", hand);
+        let title = json!({"create": {"id": "title", "kind": "rect", "parent": "xp",
+            "props": {"size": [100, 20], "transform": {"translate": [500, 100]}}}});
+        let take = json!({"attach": {"surface": "s1", "parent": "xp"}});
+        apply(&mut xp, &mut core, &json!([take, title]));
+        move_to(&mut core, 510.0, 110.0);
+        click(&mut core, true);
+        assert!(core.state.node_grab.is_some());
+        let other = json!({"binding": "Super+BTN_RIGHT"});
+        tiling.ok(&mut core, "input.grab", other);
+        press(&mut core, SUPER, true);
+        let right = ButtonState::Pressed;
+        super::press_button(&mut core.state, 273, right, InputTime::now(), false);
+        let held = core.state.button_grab.as_ref().map(|g| g.conn);
+        assert!(held.is_some(), "tiling holds the right button");
+        let give = json!({"commands": [
+            {"remove": {"id": "s1", "to": "tiling"}},
+            {"give_grab": {"surface": "s1", "to": "tiling", "point": [10.0, 10.0]}},
+        ]});
+        let (_, message) = xp.fails(&mut core, "scene.apply", give);
+        assert!(message.contains("another client"), "{message}");
+        assert_eq!(core.state.button_grab.as_ref().map(|g| g.conn), held);
+    }
+
+    /// Review of E3: the state of a drag is data of another client: the
+    /// core refuses a wobble past its size limit.
+    #[test]
+    fn a_give_with_a_huge_wobble_is_refused() {
+        let (mut core, _wayland, mut tiling, _xp) = mid_drag(false);
+        let mut give = give_with_the_drag();
+        give["commands"][1]["give_grab"]["wobble"] = json!("w".repeat(20_000));
+        let (_, message) = tiling.fails(&mut core, "scene.apply", give);
+        assert!(message.contains("wobble"), "{message}");
     }
 }

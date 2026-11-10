@@ -40,11 +40,18 @@ repos:
     entry: session logs, reports and media belong outside the repository
     language: fail
     files: ^(plans/autonomy/|reports/|reflections/|media/|drafts/|(charter|state|ledger|friction|answers|questions|backlog|HANDOFF)\.md$)
+  - id: no-foreign-kill
+    name: no process picked or signalled by its name alone in test scripts
+    entry: tests/no-foreign-kill.sh
+    language: script
+    files: ^tests/.*\.sh$
+    exclude: ^tests/(no-foreign-kill\.sh|guards\.sh)$
+    stages: [pre-commit]
   - id: guards
     name: guard test (tests/guards.sh proves the commit guards red and green)
     entry: bash tests/guards.sh
     language: system
-    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py)|\.pre-commit-config\.yaml)$
+    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py|no-foreign-kill\.sh)|\.pre-commit-config\.yaml)$
     pass_filenames: false
     stages: [pre-commit]
   - id: lychee
