@@ -55,6 +55,7 @@ impl crate::state::State {
             self.end_call(call, Err(rejected("the method gave no answer in time")));
         }
         self.complete_transactions();
+        self.expire_stranded(now);
         self.expire_reservations(now);
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
     }
