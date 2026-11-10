@@ -1504,3 +1504,80 @@ fn a_free_surface_placed_by_the_core_shows_and_stays_free_to_take() {
     scene.place_free("s1", [0.0, 0.0]);
     assert_eq!(scene.node("s1").unwrap().parent.as_deref(), Some("a"));
 }
+
+fn plane_scene() -> Scene {
+    let mut scene = Scene::default();
+    let turn = serde_json::json!({"transform": {"rotate": 30}});
+    let sized = serde_json::json!({"size": [100, 50], "transform": {"translate": [5, 5]}});
+    let child = |id: &str, parent: &str, props: &serde_json::Value| -> Command {
+        serde_json::from_value(serde_json::json!({
+            "create": {"id": id, "kind": "rect", "parent": parent, "props": props}
+        }))
+        .unwrap()
+    };
+    let group = |id: &str, parent: &str, props: &serde_json::Value| -> Command {
+        serde_json::from_value(serde_json::json!({
+            "create": {"id": id, "kind": "group", "parent": parent, "props": props}
+        }))
+        .unwrap()
+    };
+    let leaf = serde_json::json!({"size": [10, 10]});
+    scene
+        .apply(
+            "wm",
+            &[
+                group("turned", ROOT, &turn),
+                group("plane", "turned", &sized),
+                child("inside", "plane", &leaf),
+                child("flat", ROOT, &leaf),
+            ],
+        )
+        .unwrap();
+    scene
+}
+
+#[test]
+fn a_sized_node_under_a_rotated_group_is_a_plane_that_stops_the_lists() {
+    let scene = plane_scene();
+    let ids = |list: Vec<crate::Placed<'_>>| -> Vec<String> {
+        list.iter().map(|p| p.node.id.clone()).collect()
+    };
+    assert_eq!(
+        ids(scene.draw_list()),
+        ["turned", "plane", "inside", "flat"]
+    );
+    assert_eq!(ids(scene.hit_list(ROOT)), ["turned", "plane", "flat"]);
+    assert_eq!(ids(scene.layer_list(ROOT)), ["turned", "plane", "flat"]);
+    let inner = scene.hit_list("plane");
+    assert_eq!(ids(inner.clone()), ["plane", "inside"]);
+    assert_eq!(inner[1].transform, Transform::IDENTITY);
+    assert_eq!(ids(scene.layer_list("plane")), ["plane", "inside"]);
+}
+
+#[test]
+fn without_planes_the_hit_list_is_the_draw_list() {
+    let mut scene = scene_with_surface();
+    let layer = serde_json::json!({"size": [50, 50], "radius": 4, "color": [1, 1, 1, 1],
+        "transform": {"translate": [3, 4], "scale": 2}});
+    let clipped = serde_json::json!({"size": [30, 30], "clip": {"radius": 2},
+        "transform": {"translate": [1, 1], "scale": 0.5}});
+    let inner = serde_json::json!({"size": [5, 5], "transform": {"scale": 0.5}});
+    let nested: Command = serde_json::from_value(serde_json::json!({
+        "create": {"id": "inner", "kind": "rect", "parent": "clipped", "props": inner}
+    }))
+    .unwrap();
+    scene
+        .apply(
+            "wm",
+            &[
+                create("layer", "rect", &layer),
+                create("clipped", "group", &clipped),
+                nested,
+                attach("s1", ROOT),
+            ],
+        )
+        .unwrap();
+    assert!(scene.node("clipped").unwrap().is_layer());
+    assert_eq!(scene.hit_list(ROOT), scene.draw_list());
+    assert_ne!(scene.layer_list(ROOT), scene.draw_list());
+}

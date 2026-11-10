@@ -98,9 +98,8 @@ pub struct Layers {
 }
 
 impl Layers {
-    /// Drops the layers of nodes that are gone or no layers any more, and
-    /// textures that no frame used for a while; starts the budget of a new
-    /// frame.
+    /// Drops the layers of nodes that are gone, and textures that no frame
+    /// used for a while; starts the budget of a new frame.
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
         let now = Instant::now();
         self.textures
@@ -285,13 +284,17 @@ pub struct Shape {
 }
 
 /// The shape of a layer node: its mesh, or a quad, with a transform to
-/// logical output coordinates. `None` when no triangle is in front of the viewer.
+/// logical output coordinates. `None` when no triangle is in front of the
+/// viewer, or when a quad is edge on or collapsed.
 pub fn shape(node: &Node, at: &Placing<'_>) -> Option<Shape> {
     let size = node.props.size?;
     let flat;
     let mesh = if let Some(mesh) = &node.props.mesh {
         mesh
     } else {
+        if !at.transform.is_plain() {
+            at.transform.plane_inverse()?;
+        }
         flat = Mesh::flat(1, 1, size);
         &flat
     };
@@ -322,24 +325,26 @@ impl MeshElement {
 
 /// The vertices of a mesh in physical output coordinates, with texture
 /// coordinates, the triangles that show, and their bounding box. A
-/// triangle with a point behind the viewer does not show. The
-/// transform projects the points with their depth, and the clip position
-/// keeps the w of each point, so the texture maps perspective-correct.
-/// `None` when no triangle shows, or when the mesh has more points
-/// than 16-bit indices reach.
+/// triangle with all points behind the viewer does not show; the box of
+/// one with some of them behind comes from its polygon clipped at the near
+/// plane, and the GPU clips the drawing the same way. The transform
+/// projects the points with their depth, and the clip position keeps the w
+/// of each point, so the texture maps perspective-correct. `None` when no
+/// triangle shows, or when the mesh has more points than 16-bit indices
+/// reach.
 #[allow(clippy::cast_possible_truncation)] // GL takes 32-bit floats
 fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
     let m = transform.matrix();
     let (cols, rows) = (f64::from(mesh.cols), f64::from(mesh.rows));
     let stride = mesh.cols as usize + 1;
     let mut vertices = Vec::with_capacity(mesh.points.len());
-    let mut screen = Vec::with_capacity(mesh.points.len());
+    let mut points = Vec::with_capacity(mesh.points.len());
     for (index, [px, py]) in mesh.points.iter().enumerate() {
         let pz = mesh.z(index);
         let hx = m[0] * px + m[4] * py + m[8] * pz + m[12];
         let hy = m[1] * px + m[5] * py + m[9] * pz + m[13];
         let hw = m[3] * px + m[7] * py + m[11] * pz + m[15];
-        screen.push((hw > NEAR).then(|| [hx * scale / hw, hy * scale / hw]));
+        points.push([hx * scale, hy * scale, hw]);
         #[allow(clippy::cast_precision_loss)] // at most 65 points per side
         let uv = [
             ((index % stride) as f64 / cols) as f32,
@@ -348,23 +353,18 @@ fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
         vertices.push(([(hx * scale) as f32, (hy * scale) as f32, hw as f32], uv));
     }
     u16::try_from(vertices.len()).ok()?;
-    let mut indices = triangles(mesh.cols, mesh.rows);
-    let shows = |i: &u16| screen.get(usize::from(*i)).copied().flatten();
-    let kept: Vec<u16> = indices
-        .chunks(3)
-        .filter(|t| t.iter().all(|i| shows(i).is_some()))
-        .flatten()
-        .copied()
-        .collect();
+    let mut bounds = Bounds::default();
+    let mut kept = Vec::new();
+    for triangle in triangles(mesh.cols, mesh.rows).chunks(3) {
+        let corners: Vec<[f64; 3]> = triangle.iter().map(|i| points[usize::from(*i)]).collect();
+        if bounds.add_clipped(&corners) {
+            kept.extend_from_slice(triangle);
+        }
+    }
     if kept.is_empty() {
         return None;
     }
-    let (mut min, mut max) = ([f64::MAX; 2], [f64::MIN; 2]);
-    for [x, y] in kept.iter().filter_map(shows) {
-        min = [min[0].min(x), min[1].min(y)];
-        max = [max[0].max(x), max[1].max(y)];
-    }
-    indices = kept;
+    let (min, max) = (bounds.min, bounds.max);
     // A point close to the eye lands far away; the box stays in i32.
     let clamp = |v: f64| v.clamp(-FAR, FAR) as i32;
     let loc = Point::from((clamp(min[0].floor()), clamp(min[1].floor())));
@@ -372,13 +372,67 @@ fn project(mesh: &Mesh, transform: &Transform, scale: f64) -> Option<Shape> {
     let size = Size::from(((end.x - loc.x).max(1), (end.y - loc.y).max(1)));
     Some(Shape {
         vertices,
-        indices,
+        indices: kept,
         bounds: Rectangle::new(loc, size),
     })
 }
 
+/// The box of the screen points of polygons.
+pub(crate) struct Bounds {
+    min: [f64; 2],
+    max: [f64; 2],
+}
+
+impl Default for Bounds {
+    fn default() -> Self {
+        Self {
+            min: [f64::MAX; 2],
+            max: [f64::MIN; 2],
+        }
+    }
+}
+
+impl Bounds {
+    /// The box of what was added; a box of nothing overlaps nothing.
+    pub(crate) fn rect(&self) -> smithay::utils::Rectangle<f64, smithay::utils::Logical> {
+        smithay::utils::Rectangle::new(
+            (self.min[0], self.min[1]).into(),
+            (self.max[0] - self.min[0], self.max[1] - self.min[1]).into(),
+        )
+    }
+
+    /// Adds the part of a polygon of (x, y, w) points that lies at
+    /// `w >= NEAR`. Returns whether any of it does.
+    pub(crate) fn add_clipped(&mut self, polygon: &[[f64; 3]]) -> bool {
+        let mut shown = false;
+        let mut add = |[x, y, w]: [f64; 3]| {
+            shown = true;
+            for (axis, v) in [x / w, y / w].into_iter().enumerate() {
+                self.min[axis] = self.min[axis].min(v);
+                self.max[axis] = self.max[axis].max(v);
+            }
+        };
+        for (index, from) in polygon.iter().enumerate() {
+            let to = &polygon[(index + 1) % polygon.len()];
+            let (from_in, to_in) = (from[2] > NEAR, to[2] > NEAR);
+            if from_in {
+                add(*from);
+            }
+            if from_in != to_in {
+                let t = (NEAR - from[2]) / (to[2] - from[2]);
+                add([
+                    from[0] + (to[0] - from[0]) * t,
+                    from[1] + (to[1] - from[1]) * t,
+                    NEAR,
+                ]);
+            }
+        }
+        shown
+    }
+}
+
 /// The least w of a point that shows.
-const NEAR: f64 = 1e-6;
+pub(crate) const NEAR: f64 = 1e-6;
 /// The farthest physical coordinate of the box of a mesh.
 const FAR: f64 = (1 << 24) as f64;
 
@@ -674,7 +728,7 @@ mod tests {
     }
 
     #[test]
-    fn a_point_behind_the_viewer_hides_only_its_triangles() {
+    fn a_point_behind_the_viewer_clips_its_triangles_and_all_behind_hide_them() {
         let mesh = Mesh::flat(1, 1, [10.0, 10.0]);
         let mut m = *Transform::IDENTITY.matrix();
         m[15] = -1.0;
@@ -682,13 +736,15 @@ mod tests {
         let shape = project(&mesh, &Transform::IDENTITY, 2.0).unwrap();
         assert_eq!((shape.vertices.len(), shape.indices.len()), (4, 6));
         assert_eq!(shape.bounds.size, (20, 20).into());
-        // Two cells; the depth puts the right column behind the eye.
         let mut mesh = Mesh::flat(2, 1, [20.0, 10.0]);
         mesh.depth = vec![0.0, 0.0, 2.0, 0.0, 0.0, 2.0];
         let mut m = *Transform::IDENTITY.matrix();
         m[11] = -1.0;
         let shape = project(&mesh, &Transform::from_matrix(m), 1.0).unwrap();
-        assert_eq!(shape.indices, [0, 1, 3, 1, 4, 3]);
-        assert_eq!(shape.bounds.size, (10, 10).into());
+        assert_eq!(shape.indices, [0, 1, 3, 1, 4, 3, 1, 2, 4, 2, 5, 4]);
+        assert_eq!(shape.bounds.loc, (0, 0).into());
+        assert!(shape.bounds.size.w > 1_000_000, "{:?}", shape.bounds);
+        mesh.depth = vec![2.0; 6];
+        assert!(project(&mesh, &Transform::from_matrix(m), 1.0).is_none());
     }
 }

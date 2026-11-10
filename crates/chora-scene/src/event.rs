@@ -175,6 +175,11 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The pointer in the coordinates of the node: the point of its
+        /// own plane that the pointer shows; for a window, relative to the
+        /// origin of its geometry.
+        #[serde(default)]
+        local: [f64; 2],
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
@@ -210,6 +215,12 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The pointer in the coordinates of the node: the point of its
+        /// own plane that the pointer shows, also while a drag leaves the
+        /// node. A plane that shows the pointer behind the eye keeps the
+        /// last point.
+        #[serde(default)]
+        local: [f64; 2],
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
@@ -224,6 +235,12 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The pointer in the coordinates of the node: the point of its
+        /// own plane that the pointer shows, also while a drag leaves the
+        /// node. A plane that shows the pointer behind the eye keeps the
+        /// last point.
+        #[serde(default)]
+        local: [f64; 2],
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,

@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use chora_scene::{InputMode, Node, NodeKind, Placed, Scene, Transform};
+use chora_scene::{InputMode, Node, NodeKind, Placed, ROOT, Scene, Transform, overlay_id};
 use smithay::{
     backend::renderer::{
         element::{
@@ -126,6 +126,9 @@ pub struct RenderStats {
     pub frames: u64,
     /// The frames of those that had damage.
     pub damaged_frames: u64,
+    /// The nodes that drew as planes: nodes whose transform is not a 2D
+    /// translation with a positive scale.
+    pub planes: u64,
 }
 
 impl RenderStats {
@@ -318,11 +321,68 @@ fn elements<R: MeshRenderer>(
     for placed in list.iter().rev() {
         if placed.node.is_layer() {
             out.extend(layer(parts, renderer, placed, view));
+        } else if let Some(size) = plane_size(parts, placed, view) {
+            out.extend(plane(parts, renderer, placed, size, view));
         } else {
             out.extend(node_elements(parts, renderer, placed, view));
         }
     }
     out
+}
+
+/// The size of a node that is a plane without being a layer: a node with
+/// a content size whose transform below its layer is not a 2D translation
+/// with a positive scale. The content size is the size, the window
+/// geometry of a surface, the file of an image or the layout of a text.
+fn plane_size(parts: &Parts<'_>, placed: &Placed<'_>, view: &View) -> Option<[f64; 2]> {
+    if view.camera.then(&placed.transform).is_plain() {
+        return None;
+    }
+    content_size(parts.windows, parts.assets, placed.node)
+}
+
+/// The size of the content of a node that draws or takes input as a
+/// plane: its size, the window geometry of a surface, the file of an
+/// image without a size, the layout of a text. `None` when it has none.
+pub(crate) fn content_size(
+    windows: &HashMap<String, Window>,
+    assets: &Assets,
+    node: &Node,
+) -> Option<[f64; 2]> {
+    let props = &node.props;
+    let size = match node.kind {
+        NodeKind::Surface => {
+            let size = windows.get(&node.id)?.geometry().size;
+            [f64::from(size.w), f64::from(size.h)]
+        }
+        NodeKind::Text => assets.texts.size(node)?,
+        NodeKind::Image => props.size.or_else(|| {
+            let image = assets.images.get(props.image.as_deref()?)?;
+            Some([f64::from(image.size[0]), f64::from(image.size[1])])
+        })?,
+        NodeKind::Rect | NodeKind::Shader | NodeKind::Group => props.size?,
+    };
+    (size[0] > 0.0 && size[1] > 0.0).then_some(size)
+}
+
+/// The element of a plane: its content renders into a texture of its
+/// size, which draws through the homography of the plane.
+fn plane<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    placed: &Placed<'_>,
+    size: [f64; 2],
+    view: &View,
+) -> Option<SceneElement<R>> {
+    let mut node = placed.node.clone();
+    node.props.size = Some(size);
+    let sized = Placed {
+        node: &node,
+        ..placed.clone()
+    };
+    let element = layer(parts, renderer, &sized, view)?;
+    parts.assets.stats.planes += 1;
+    Some(element)
 }
 
 /// The element of a layer node: renders the node and its descendants into
@@ -581,9 +641,7 @@ fn prune_assets(parts: &mut Parts<'_>) {
     assets.rects.retain(|id, _| kind_is(id, NodeKind::Rect));
     assets.cells.retain(|id, _| kind_is(id, NodeKind::Image));
     assets.texts.retain(|id| kind_is(id, NodeKind::Text));
-    assets
-        .layers
-        .retain(|id| scene.node(id).is_some_and(chora_scene::Node::is_layer));
+    assets.layers.retain(|id| scene.node(id).is_some());
 }
 
 fn rect<R>(
@@ -666,6 +724,15 @@ pub fn window_origin(state: &State, id: &str) -> Option<Point<i32, Logical>> {
     Some((x.round() as i32, y.round() as i32).into())
 }
 
+/// Whether the transform of a node in the scene is not a 2D translation
+/// with a positive scale, so that a plane carries it.
+pub fn under_plane(state: &State, id: &str) -> bool {
+    let list = state.scene.draw_list();
+    list.iter()
+        .find(|p| p.node.id == id)
+        .is_some_and(|p| !p.transform.is_plain())
+}
+
 /// The surface under the pointer: a layer surface above the scene, a
 /// surface of the scene, or a layer surface below the scene.
 pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
@@ -677,6 +744,7 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
             surface: surface.clone(),
             location: offset,
             node: None,
+            plane: None,
         });
     }
     let layer = |layers: &[Layer]| {
@@ -684,13 +752,14 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
             surface,
             location: loc.to_f64() + offset,
             node: None,
+            plane: None,
         })
     };
     if let Some(under) = layer(&layers::ABOVE) {
         return Some(under);
     }
     // The overlay of the output sits in its coordinates, as layer surfaces.
-    let overlay = state.scene.overlay_draw_list(&spot.output.name());
+    let overlay = state.scene.hit_list(&overlay_id(&spot.output.name()));
     match scene_under(state, &overlay, spot.local) {
         Target::Surface(under) => {
             return Some(Under {
@@ -701,7 +770,7 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
         Target::Blocked => return None,
         Target::Nothing => {}
     }
-    match scene_under(state, &state.scene.draw_list(), spot.scene) {
+    match scene_under(state, &state.scene.hit_list(ROOT), spot.scene) {
         Target::Surface(under) => Some(under),
         Target::Blocked => None,
         Target::Nothing => layer(&layers::BELOW),
@@ -712,23 +781,24 @@ pub fn surface_under(state: &State, spot: &Spot) -> Option<Under> {
 /// surface, a rect or an image. `None` over the lock screen, over a layer
 /// surface above the scene, and over nothing.
 pub fn node_under(state: &State, spot: &Spot) -> Option<String> {
+    node_hit(state, spot).map(|(node, _)| node)
+}
+
+/// As [`node_under`], with the point in the coordinates of the node: the
+/// point that its plane maps to the pointer.
+pub fn node_hit(state: &State, spot: &Spot) -> Option<(String, Point<f64, Logical>)> {
     if state.lock.is_some()
         || layers::surface_under(&spot.output, &layers::ABOVE, spot.local).is_some()
     {
         return None;
     }
     // The overlay of the output first, in its coordinates (D43).
-    let overlay = state.scene.overlay_draw_list(&spot.output.name());
-    let scene = state.scene.draw_list();
-    let (placed, _) = [(&overlay, spot.local), (&scene, spot.scene)]
+    let overlay = state.scene.hit_list(&overlay_id(&spot.output.name()));
+    let scene = state.scene.hit_list(ROOT);
+    let found = [(&overlay, spot.local), (&scene, spot.scene)]
         .into_iter()
-        .find_map(|(list, pos)| {
-            list.iter()
-                .rev()
-                .filter(|p| p.input != InputMode::Pass)
-                .find_map(|p| Some((p, hit(state, p, pos)?)))
-        })?;
-    (placed.input == InputMode::Accept).then(|| placed.node.id.clone())
+        .find_map(|(list, pos)| found(state, list, InputMode::Accept, pos))?;
+    (found.input == InputMode::Accept).then(|| (found.node.id.clone(), found.local))
 }
 
 /// What a point of the scene hits.
@@ -742,20 +812,20 @@ enum Target {
 
 /// The surface of the scene under a point. A node with `pass` lets the
 /// input through.
-fn scene_under(state: &State, draw_list: &[Placed<'_>], pos: Point<f64, Logical>) -> Target {
-    let found = draw_list
-        .iter()
-        .rev()
-        .filter(|p| p.input != InputMode::Pass)
-        .find_map(|p| Some((p, hit(state, p, pos)?)));
-    match found {
-        Some((placed, Hit::Surface(surface, location))) if placed.input == InputMode::Accept => {
-            Target::Surface(Under {
-                surface,
-                location,
-                node: Some(placed.node.id.clone()),
-            })
-        }
+fn scene_under(state: &State, hit_list: &[Placed<'_>], pos: Point<f64, Logical>) -> Target {
+    match found(state, hit_list, InputMode::Accept, pos) {
+        Some(Found {
+            node,
+            input: InputMode::Accept,
+            hit: Hit::Surface(surface, on_surface),
+            local,
+            planar,
+        }) => Target::Surface(Under {
+            surface,
+            location: pos - on_surface,
+            node: Some(node.id.clone()),
+            plane: planar.then(|| local - on_surface),
+        }),
         Some(_) => Target::Blocked,
         None => Target::Nothing,
     }
@@ -772,18 +842,59 @@ pub struct Under {
     pub location: Point<f64, Logical>,
     /// The surface node; `None` for a layer surface.
     pub node: Option<String>,
+    /// The origin of the surface in the coordinates of its node, when a
+    /// plane carries the node; a press then maps every motion through that
+    /// plane.
+    pub plane: Option<Point<f64, Logical>>,
 }
 
 /// What a point hits.
 enum Hit {
-    /// A surface, and the point minus the point on the surface, as in
-    /// [`Under::location`].
+    /// A surface, and the point on it in its own units.
     Surface(WlSurface, Point<f64, Logical>),
     /// A rect: an area without a client.
     Area,
 }
 
-fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
+/// The top node of a list under a point, with what it hit.
+struct Found<'a> {
+    node: &'a Node,
+    /// The input mode of the node after those of its ancestors.
+    input: InputMode,
+    hit: Hit,
+    /// The point in the coordinates of the node.
+    local: Point<f64, Logical>,
+    /// Whether the node sits under a plane.
+    planar: bool,
+}
+
+/// The first node of a list, from the top, that a point hits. `outer` is
+/// the input mode above the list: a mode other than `accept` rules all of
+/// it. A node with `pass` lets the point through.
+fn found<'a>(
+    state: &'a State,
+    list: &[Placed<'a>],
+    outer: InputMode,
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
+    list.iter().rev().find_map(|placed| {
+        let input = if outer == InputMode::Accept {
+            placed.input
+        } else {
+            outer
+        };
+        (input != InputMode::Pass)
+            .then(|| hit(state, placed, input, pos))
+            .flatten()
+    })
+}
+
+fn hit<'a>(
+    state: &'a State,
+    placed: &Placed<'a>,
+    input: InputMode,
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
     if !placed
         .clips
         .iter()
@@ -792,42 +903,177 @@ fn hit(state: &State, placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<H
         return None;
     }
     let Some((offset, (sx, sy))) = location_and_scale(&placed.transform) else {
-        return layer_hit(placed, pos);
+        return plane_hit(state, placed, input, pos);
     };
     let local = Point::<f64, Logical>::from(((pos.x - offset.x) / sx, (pos.y - offset.y) / sy));
-    match placed.node.kind {
+    let hit = match placed.node.kind {
         NodeKind::Surface => {
             let window = state.windows.get(&placed.node.id)?;
             let geo = window.geometry().loc.to_f64();
             let (surface, loc) = window.surface_under(local + geo, WindowSurfaceType::ALL)?;
             // The point on the surface in its own units: Smithay gives the
             // client `pos - location`, which a scaled node must not scale.
-            let on_surface = local - (loc.to_f64() - geo);
-            Some(Hit::Surface(surface, pos - on_surface))
+            Hit::Surface(surface, local - (loc.to_f64() - geo))
         }
         NodeKind::Rect | NodeKind::Image | NodeKind::Shader => {
             let [w, h] = node_size(state, placed.node);
-            ((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)).then_some(Hit::Area)
+            if !((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)) {
+                return None;
+            }
+            Hit::Area
         }
         // A group is empty and text takes no pointer input.
-        NodeKind::Group | NodeKind::Text => None,
+        NodeKind::Group | NodeKind::Text => return None,
+    };
+    Some(Found {
+        node: placed.node,
+        input,
+        hit,
+        local,
+        planar: false,
+    })
+}
+
+/// What a point hits of a node under a transform that is not a 2D
+/// translation with a positive scale. The inverse of the homography of
+/// the plane maps the point into the node; a point that the plane shows
+/// behind the eye or outside its content hits nothing. A plane that the
+/// layer budget left out of the last frame shows nothing, so it takes the
+/// input and gives it to nobody. A group is a layer: its own list answers
+/// inside its size. A node with a mesh takes
+/// the input over the bounding box of its shape.
+fn plane_hit<'a>(
+    state: &'a State,
+    placed: &Placed<'a>,
+    input: InputMode,
+    pos: Point<f64, Logical>,
+) -> Option<Found<'a>> {
+    let node = placed.node;
+    let take = |hit, local| Found {
+        node,
+        input,
+        hit,
+        local,
+        planar: true,
+    };
+    if node.props.mesh.is_some() {
+        return layer_hit(placed, pos).map(|hit| take(hit, pos));
+    }
+    let [w, h] = content_size(&state.windows, &state.assets, node)?;
+    let local = plane_point(&placed.transform, pos)?;
+    if !((0.0..w).contains(&local.x) && (0.0..h).contains(&local.y)) {
+        return None;
+    }
+    if state
+        .assets
+        .frame_left_out
+        .values()
+        .any(|ids| ids.contains(&node.id))
+    {
+        return Some(Found {
+            input: InputMode::Block,
+            ..take(Hit::Area, local)
+        });
+    }
+    match node.kind {
+        NodeKind::Surface => {
+            let window = state.windows.get(&node.id)?;
+            let geo = window.geometry().loc.to_f64();
+            let (surface, loc) = window.surface_under(local + geo, WindowSurfaceType::ALL)?;
+            let on_surface = local - (loc.to_f64() - geo);
+            Some(take(Hit::Surface(surface, on_surface), local))
+        }
+        NodeKind::Group => {
+            let list = state.scene.hit_list(&node.id);
+            found(state, &list, input, local).map(|inner| Found {
+                planar: true,
+                ..inner
+            })
+        }
+        NodeKind::Rect | NodeKind::Image | NodeKind::Shader => Some(take(Hit::Area, local)),
+        NodeKind::Text => None,
     }
 }
 
-/// Whether a point of the scene is inside the clip of a node with a
-/// transform and a size. A clip under a transform that is not a plain 2D
-/// one takes the input over its bounding box, as a layer does.
-fn inside(transform: &Transform, [w, h]: [f64; 2], pos: Point<f64, Logical>) -> bool {
-    let Some((offset, (sx, sy))) = location_and_scale(transform) else {
-        return true;
-    };
-    let (x, y) = ((pos.x - offset.x) / sx, (pos.y - offset.y) / sy);
-    (0.0..w).contains(&x) && (0.0..h).contains(&y)
+/// The point of the plane z = 0 that a transform shows at a point of the
+/// screen: the inverse of its homography. `None` when the plane is edge
+/// on, or shows the point behind the eye.
+pub(crate) fn plane_point(
+    transform: &Transform,
+    pos: Point<f64, Logical>,
+) -> Option<Point<f64, Logical>> {
+    let inverse = transform.plane_inverse()?;
+    let scale = inverse[2] * pos.x + inverse[5] * pos.y + inverse[8];
+    let u = (inverse[0] * pos.x + inverse[3] * pos.y + inverse[6]) / scale;
+    let v = (inverse[1] * pos.x + inverse[4] * pos.y + inverse[7]) / scale;
+    let matrix = transform.matrix();
+    let depth = matrix[3] * u + matrix[7] * v + matrix[15];
+    (u.is_finite() && v.is_finite() && depth > mesh::NEAR).then_some((u, v).into())
 }
 
-/// What a point hits of a node under a transform that is not a plain 2D
-/// one: the bounding box of a layer takes the input, so that it does not
-/// fall through to the nodes behind.
+/// The screen point that a transform shows for a point of the plane
+/// z = 0. `None` when the point lies at or behind the eye.
+pub(crate) fn project_point(transform: &Transform, x: f64, y: f64) -> Option<(f64, f64)> {
+    let m = transform.matrix();
+    let w = m[3] * x + m[7] * y + m[15];
+    (w > mesh::NEAR).then(|| {
+        (
+            (m[0] * x + m[4] * y + m[12]) / w,
+            (m[1] * x + m[5] * y + m[13]) / w,
+        )
+    })
+}
+
+/// The point of a node's own coordinates that a transform shows at a
+/// point of the screen, without any test of the inside.
+fn node_point(transform: &Transform, pos: Point<f64, Logical>) -> Option<Point<f64, Logical>> {
+    match location_and_scale(transform) {
+        Some((offset, (sx, sy))) => Some(((pos.x - offset.x) / sx, (pos.y - offset.y) / sy).into()),
+        None => plane_point(transform, pos),
+    }
+}
+
+/// The point of a node, in its own coordinates, that a point of the list
+/// of `start` (the root, an overlay root or a plane) shows, also outside
+/// the node: a press that drags a node maps every motion this way, so that
+/// the node needs no hit. `None` when a plane on the way shows the point
+/// behind the eye, or the node is not under `start`.
+pub fn local_in(
+    scene: &Scene,
+    start: &str,
+    pos: Point<f64, Logical>,
+    id: &str,
+) -> Option<Point<f64, Logical>> {
+    let list = scene.hit_list(start);
+    if let Some(placed) = list.iter().find(|p| p.node.id == id) {
+        return node_point(&placed.transform, pos);
+    }
+    let plane = list
+        .iter()
+        .find(|p| is_plane(p) && scene.is_within(id, &p.node.id))?;
+    local_in(
+        scene,
+        &plane.node.id,
+        plane_point(&plane.transform, pos)?,
+        id,
+    )
+}
+
+/// Whether a listed node is a plane: it has a size and its transform is
+/// not a 2D translation with a positive scale.
+fn is_plane(placed: &Placed<'_>) -> bool {
+    placed.node.props.size.is_some() && !placed.transform.is_plain()
+}
+
+/// Whether a point of the scene is inside the clip of a node with a
+/// transform and a size.
+fn inside(transform: &Transform, [w, h]: [f64; 2], pos: Point<f64, Logical>) -> bool {
+    node_point(transform, pos).is_some_and(|p| (0.0..w).contains(&p.x) && (0.0..h).contains(&p.y))
+}
+
+/// What a point hits of a node with a mesh under a transform that is not
+/// a plain 2D one: the bounding box of the shape takes the input, so that
+/// it does not fall through to the nodes behind.
 fn layer_hit(placed: &Placed<'_>, pos: Point<f64, Logical>) -> Option<Hit> {
     if !placed.node.is_layer() {
         return None;
@@ -939,20 +1185,87 @@ pub fn take_feedback(state: &State, output: &Output) -> OutputPresentationFeedba
 }
 
 /// The scene rectangle of a window with its subsurfaces and popups. The
-/// transform places its geometry origin and scales it.
+/// transform places its geometry origin and scales it; under a plane it is
+/// the box of the projected corners.
 pub(crate) fn window_rect(window: &Window, transform: &Transform) -> Rectangle<f64, Logical> {
-    let (x, y) = transform.translation_2d();
-    let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
     let bbox = window.bbox().to_f64();
     let geo = window.geometry().loc.to_f64();
+    if !transform.is_plain() {
+        let (x, y) = (bbox.loc.x - geo.x, bbox.loc.y - geo.y);
+        let (right, bottom) = (x + bbox.size.w, y + bbox.size.h);
+        return polygon_box(
+            transform,
+            [[x, y], [right, y], [right, bottom], [x, bottom]],
+        );
+    }
+    let (x, y) = transform.translation_2d();
+    let (sx, sy) = transform.scale_2d().unwrap_or((1.0, 1.0));
     Rectangle::new(
         (x + (bbox.loc.x - geo.x) * sx, y + (bbox.loc.y - geo.y) * sy).into(),
         (bbox.size.w * sx, bbox.size.h * sy).into(),
     )
 }
 
+/// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
+/// `(w, h)` after the transform.
+pub(crate) fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
+    polygon_box(transform, [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]])
+}
+
+/// The smallest axis-aligned rectangle that holds the part of a quad in
+/// front of the eye after the transform, as the renderer clips it. The
+/// corners go around the quad. A quad with no corner in front overlaps
+/// nothing.
+pub(crate) fn polygon_box(
+    transform: &Transform,
+    corners: [[f64; 2]; 4],
+) -> Rectangle<f64, Logical> {
+    let m = transform.matrix();
+    let polygon = corners.map(|[px, py]| {
+        [
+            m[0] * px + m[4] * py + m[12],
+            m[1] * px + m[5] * py + m[13],
+            m[3] * px + m[7] * py + m[15],
+        ]
+    });
+    let mut bounds = mesh::Bounds::default();
+    bounds.add_clipped(&polygon);
+    bounds.rect()
+}
+
+/// The smallest axis-aligned rectangle that holds the points after the
+/// transform. The points go through the projection of the renderer, so
+/// that a matrix which divides by w moves them as the frame does; the
+/// depth of mesh points stays out, as in `Transform::apply`. A point at
+/// or behind the eye is left out, and a box of no point in front overlaps
+/// nothing.
+pub(crate) fn projected_box(
+    transform: &Transform,
+    points: impl Iterator<Item = [f64; 2]>,
+) -> Rectangle<f64, Logical> {
+    let m = transform.matrix();
+    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for [px, py] in points {
+        let hw = m[3] * px + m[7] * py + m[15];
+        if hw <= mesh::NEAR {
+            continue;
+        }
+        let (x, y) = (
+            (m[0] * px + m[4] * py + m[12]) / hw,
+            (m[1] * px + m[5] * py + m[13]) / hw,
+        );
+        x0 = x0.min(x);
+        y0 = y0.min(y);
+        x1 = x1.max(x);
+        y1 = y1.max(y);
+    }
+    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
+}
+
 #[cfg(test)]
 mod hit_guard;
+#[cfg(test)]
+mod planes;
 
 #[cfg(test)]
 mod tests {

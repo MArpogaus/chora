@@ -81,6 +81,28 @@ pub struct Placed<'a> {
     pub clips: Vec<(Transform, [f64; 2])>,
 }
 
+/// Where a walk stops to descend.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stop {
+    /// Nowhere: all visible nodes.
+    Never,
+    /// At layers and planes, which render into a texture of their own.
+    Layers,
+    /// At planes, which a hit test enters through their homography.
+    Planes,
+}
+
+impl Stop {
+    fn at(self, node: &Node, transform: &Transform) -> bool {
+        let plane = node.props.size.is_some() && !transform.is_plain();
+        match self {
+            Self::Never => false,
+            Self::Layers => node.is_layer() || plane,
+            Self::Planes => plane,
+        }
+    }
+}
+
 /// A node of a walk with the transform, the opacity, the input mode and the
 /// clips of its parent.
 type Step<'a> = (
@@ -819,20 +841,31 @@ impl Scene {
     /// call stack.
     #[must_use]
     pub fn draw_list(&self) -> Vec<Placed<'_>> {
-        self.walk(ROOT, false)
+        self.walk(ROOT, Stop::Never)
+    }
+
+    /// The visible nodes of a hit test, bottom first: the nodes below
+    /// the root, the overlay root of an output, or a plane, in the
+    /// coordinates of that start. A plane is a node with a size whose
+    /// transform is not a 2D translation with a positive scale; the list
+    /// holds it, and the hit test maps the point into it and walks its own
+    /// list. Without planes it equals [`Self::draw_list`].
+    #[must_use]
+    pub fn hit_list(&self, id: &str) -> Vec<Placed<'_>> {
+        self.walk(id, Stop::Planes)
     }
 
     /// The visible nodes under the overlay root of an output, bottom first,
     /// in the logical coordinates of the output (D43).
     #[must_use]
     pub fn overlay_draw_list(&self, output: &str) -> Vec<Placed<'_>> {
-        self.walk(&overlay_id(output), false)
+        self.walk(&overlay_id(output), Stop::Never)
     }
 
     /// The nodes that the overlay root of an output shows as a layer list.
     #[must_use]
     pub fn overlay_layer_list(&self, output: &str) -> Vec<Placed<'_>> {
-        self.walk(&overlay_id(output), true)
+        self.walk(&overlay_id(output), Stop::Layers)
     }
 
     /// Adds the overlay root of an output: a group without owner, outside
@@ -901,16 +934,16 @@ impl Scene {
     /// not.
     #[must_use]
     pub fn layer_list(&self, id: &str) -> Vec<Placed<'_>> {
-        self.walk(id, true)
+        self.walk(id, Stop::Layers)
     }
 
-    fn walk(&self, start: &str, layers: bool) -> Vec<Placed<'_>> {
+    fn walk(&self, start: &str, stop: Stop) -> Vec<Placed<'_>> {
         let Some(first) = self.nodes.get(start) else {
             return Vec::new();
         };
         let mut out = Vec::new();
         let mut stack = Vec::new();
-        if start == ROOT || is_overlay(start) || !layers {
+        if start == ROOT || is_overlay(start) || stop == Stop::Never {
             stack.push((
                 first,
                 Transform::IDENTITY,
@@ -950,7 +983,7 @@ impl Scene {
                 },
                 clips,
             };
-            if !(layers && node.is_layer()) {
+            if !stop.at(node, &transform) {
                 self.push_children(&mut stack, &placed);
             }
             if node.id != ROOT {
@@ -1106,7 +1139,7 @@ impl Scene {
         let mut load = BTreeMap::new();
         let overlays = self.nodes.keys().filter(|id| is_overlay(id));
         for start in std::iter::once(ROOT).chain(overlays.map(String::as_str)) {
-            for placed in self.walk(start, false) {
+            for placed in self.walk(start, Stop::Never) {
                 let node = placed.node;
                 let Some(owner) = &node.owner else {
                     continue;

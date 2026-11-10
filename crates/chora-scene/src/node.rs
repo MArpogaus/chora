@@ -244,8 +244,9 @@ pub struct Node {
 
 impl Node {
     /// Whether the node renders into a texture of its size first: a node
-    /// with a size and a mesh, or with a transform that is not a plain 2D
-    /// translation and scale, for example a rotation or a perspective.
+    /// with a size and a mesh, or with a transform that is not a 2D
+    /// translation with a positive scale, for example a rotation, a mirror
+    /// or a perspective.
     #[must_use]
     pub fn is_layer(&self) -> bool {
         let props = &self.props;
@@ -254,7 +255,7 @@ impl Node {
             && props.size.is_some()
             && (props.mesh.is_some()
                 || !props.effects.is_empty()
-                || props.transform.scale_2d().is_none()
+                || !props.transform.is_plain()
                 || props.clip.is_some()
                 || shape
                 || self.kind == NodeKind::Shader)

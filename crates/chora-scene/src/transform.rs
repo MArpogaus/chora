@@ -238,6 +238,13 @@ impl Transform {
         plain.then_some((m[0], m[5]))
     }
 
+    /// Whether the transform is a 2D translation with a positive scale, so
+    /// that a node under it draws and hits without a texture of its own.
+    #[must_use]
+    pub fn is_plain(&self) -> bool {
+        self.scale_2d().is_some_and(|(sx, sy)| sx > 0.0 && sy > 0.0)
+    }
+
     /// The inverse, or `None` if the matrix is singular.
     #[must_use]
     pub fn inverse(&self) -> Option<Self> {
@@ -344,6 +351,27 @@ mod tests {
         let (x, y) = t.apply(1.0, 0.0);
         assert!(x.abs() < 1e-9 && (y - 1.0).abs() < 1e-9);
         assert_eq!(t.scale_2d(), None);
+    }
+
+    #[test]
+    fn only_a_translation_with_a_positive_scale_is_plain() {
+        for plain in [
+            Transform::IDENTITY,
+            Transform::translate(5.0, -3.0, 2.0),
+            Transform::scale(2.0, 0.5, 1.0),
+        ] {
+            assert!(plain.is_plain(), "{plain:?}");
+        }
+        for not_plain in [
+            Transform::rotate_z(30.0),
+            Transform::scale(-1.0, 1.0, 1.0),
+            Transform::scale(1.0, 0.0, 1.0),
+            Transform::from_matrix([
+                1.0, 0.0, 0.0, 0.01, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ]),
+        ] {
+            assert!(!not_plain.is_plain(), "{not_plain:?}");
+        }
     }
 
     #[test]

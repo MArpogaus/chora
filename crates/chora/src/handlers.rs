@@ -469,11 +469,15 @@ impl State {
 
     /// The area for the popups of a toplevel or a layer surface, relative to
     /// that surface: the area of the output that shows it.
-    fn popup_area(&self, root: &WlSurface) -> Option<Rectangle<i32, Logical>> {
-        if let Some(origin) = self
-            .surface_id(root)
-            .and_then(|id| crate::render::window_origin(self, &id))
+    pub(crate) fn popup_area(&self, root: &WlSurface) -> Option<Rectangle<i32, Logical>> {
+        let id = self.surface_id(root);
+        let window = id.as_ref().and_then(|id| self.windows.get(id));
+        if let Some((window, id)) = window.zip(id.as_deref())
+            && crate::render::under_plane(self, id)
         {
+            return Some(window.geometry());
+        }
+        if let Some(origin) = id.and_then(|id| crate::render::window_origin(self, &id)) {
             let mut area = self.scene_area_at(origin.to_f64());
             area.loc -= origin;
             return Some(area);

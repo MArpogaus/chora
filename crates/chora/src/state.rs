@@ -84,6 +84,22 @@ pub struct NodeGrab {
     pub node: String,
     pub button: u32,
     pub position: [f64; 2],
+    /// The last point of the press in the coordinates of the node.
+    pub local: [f64; 2],
+}
+
+/// The press on a surface under a plane: its node, the origin of the
+/// surface in the coordinates of the node, and the last point on the
+/// surface that the client got. Each motion of the press maps through the
+/// plane, also outside the node.
+#[derive(Clone)]
+pub struct PlaneGrab {
+    pub node: String,
+    pub surface: WlSurface,
+    pub origin: Point<f64, Logical>,
+    pub last: Point<f64, Logical>,
+    /// The buttons that are down since the press.
+    pub held: u32,
 }
 
 /// A grab of a button that is down: the connection of the grab, the
@@ -211,6 +227,8 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
+    /// The press on a surface under a plane, until the button goes up.
+    pub plane_grab: Option<PlaneGrab>,
     /// The grab of a button with modifiers, until the button goes up.
     pub button_grab: Option<ButtonGrab>,
     /// The node of the last `pointer.entered`.
@@ -361,6 +379,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            plane_grab: None,
             button_grab: None,
             hovered: None,
             pressed: None,
