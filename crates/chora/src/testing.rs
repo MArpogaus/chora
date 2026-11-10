@@ -101,6 +101,17 @@ impl Core {
         output
     }
 
+    /// Whether nothing holds the pointer: no grab of Smithay, no press on
+    /// a node or a plane, no button grab and no drag of a client.
+    pub fn pointer_free(&self) -> bool {
+        let state = &self.state;
+        !state.pointer().is_grabbed()
+            && state.node_grab.is_none()
+            && state.plane_grab.is_none()
+            && state.button_grab.is_none()
+            && !state.client_drag
+    }
+
     /// Moves the time of the deadlines and runs what expired.
     pub fn advance(&mut self, by: Duration) {
         self.state.time.advance(by);

@@ -668,3 +668,43 @@ fn a_window_with_a_shadow_has_the_box_of_its_geometry_under_a_plane() {
         assert!((got - want).abs() < 1e-9, "{rect:?} != {want:?}");
     }
 }
+
+#[test]
+fn a_move_of_a_window_in_a_plane_frees_the_pointer_at_the_release() {
+    use wayland_client::Proxy;
+    let (mut core, mut wayland, window, total, mut wm) =
+        window_under(&json!({"translate": [200, 100], "rotate": 40}));
+    let second = wayland.toplevel(&mut core, "second");
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s2", "parent": "root"}},
+        {"update": {"id": "s2", "props": {"transform": {"translate": [600, 400]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    wayland.attach(&mut core, &second, (100, 100));
+    wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
+    move_to(&mut core, forward(&total, 50.0, 40.0));
+    click(&mut core, true);
+    wayland.roundtrip(&mut core);
+    let serial = (wayland.take_pointer_events().into_iter().rev())
+        .find_map(|e| match e {
+            PointerEvent::Button {
+                serial,
+                pressed: true,
+            } => Some(serial),
+            _ => None,
+        })
+        .expect("a press");
+    wayland.request_move(&mut core, &window, serial);
+    click(&mut core, false);
+    move_to(&mut core, (650.0, 450.0).into());
+    wayland.roundtrip(&mut core);
+    let events = wayland.take_pointer_events();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            PointerEvent::Enter { surface, .. } if *surface == second.surface.id()
+        )),
+        "the second window gets the enter: {events:?}"
+    );
+    assert!(core.pointer_free(), "nothing holds the pointer");
+}
