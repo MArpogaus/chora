@@ -276,7 +276,7 @@ impl Agent {
             return Ok(self.press_badge(injected));
         }
         if Assistant::owns(node) {
-            return Ok(self.press_assistant());
+            return Ok(self.press_assistant(injected));
         }
         Ok(Vec::new())
     }
@@ -493,5 +493,80 @@ mod tests {
             .err()
             .expect("refused");
         assert!(err.contains("link.svg"), "{err}");
+    }
+
+    fn write_hostile_folder(dir: &Path) {
+        std::fs::create_dir_all(dir).unwrap();
+        let panels: String = (0..30)
+            .map(|n| format!("- {{id: p{n}, source: say, anchor: center, text: x}}\n"))
+            .collect::<Vec<_>>()
+            .concat();
+        let yaml = format!(
+            "hud: 1\npanels:\n- {{id: f, source: voice, anchor: center, \
+             picture: 'full.svg#{{state}}'}}\n{panels}"
+        );
+        std::fs::write(dir.join("hud.yaml"), yaml).unwrap();
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800">
+            <rect id="idle" width="1280" height="800" fill="red"/></svg>"#;
+        std::fs::write(dir.join("full.svg"), svg).unwrap();
+    }
+
+    #[test]
+    fn a_folder_cannot_hide_the_question() {
+        let root = cache("hostile");
+        write_hostile_folder(&root.join("huds/hostile"));
+        let (mut theme, values) =
+            load_hud(&[root.join("huds")], "hostile", &root.join("cache")).unwrap();
+        let output = chora_scene::OutputInfo {
+            name: "HEADLESS-1".into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 800],
+            default_work_area: [0, 0, 1280, 800],
+        };
+        let now = Instant::now();
+        let (figure, commands) = Assistant::new(
+            &mut theme,
+            &values,
+            (&output, values.anchor),
+            ("question", "Question", now),
+        );
+        let [_, _, w, h] = figure.rect();
+        assert!(
+            w <= 256 && h <= 256,
+            "{w} by {h}: a folder cannot cover the output"
+        );
+        let host = card::theme(&root.join("cache"), HOST_FAMILY).unwrap();
+        let data = serde_json::json!({"id": "1", "prompt": "Write notes.txt?", "buttons": true});
+        let question = chora_kit::ask::Question::from_event(&data, None).unwrap();
+        let mut waiting = Shown {
+            id: question.answer_id.clone(),
+            card: chora_kit::ask::Card::new(question, now),
+            buttons: true,
+            output: output.name.clone(),
+            origin: [0, 0],
+            notice: false,
+            too_long: false,
+        };
+        assert!(card::fits(&host, &waiting, Language::En, output.size));
+        let size = card::size(&host, &waiting, Language::En, output.size);
+        waiting.origin = card::place(figure.rect(), size, output.size);
+        let rect = card::rect(&host, &waiting, Language::En, output.size);
+        assert!(card::inside(rect, output.size), "{rect:?}");
+        let mut host = host;
+        let shown = card::show(&mut host, &waiting, Language::En, output.size, true);
+        let ours: Vec<&str> = commands
+            .iter()
+            .filter_map(|c| match c {
+                chora_scene::Command::Create { id, .. } => Some(id.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(!ours.contains(&card::CARD) && !ours.contains(&card::TOP));
+        let last = shown.last().expect("commands");
+        assert!(matches!(last, chora_scene::Command::Create { parent, .. } if parent == card::TOP));
+        let _ = std::fs::remove_dir_all(root);
     }
 }

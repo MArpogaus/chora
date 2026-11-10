@@ -1004,7 +1004,9 @@ a question about a security key (`physical`), the keys of the event. With
 `buttons`, the card has the buttons Yes and No; a press of a person calls
 `voice.confirm.answer {id, yes}`. An injected press (`input.inject`)
 answers nothing and puts the line "Please use your own mouse or keyboard."
-on the card. The card, its words and its fonts are the host's; a HUD
+on the card. A question whose whole text, with the whole detail, does not fit
+on the card has no buttons, says "Too long to show. Refused." and is
+refused at once. The card, its words and its fonts are the host's; a HUD
 folder cannot change them (`hud.md`).
 
 While the assistant is enabled, `chora-assistant` calls `indicator.claim`
@@ -1012,7 +1014,7 @@ of the agent at its start and after the agent connects. A click on the
 figure mutes the mic of the agent through its method `mute`. While the mic
 is muted, the badge "Microphone off. Click to turn it on." shows beside
 the figure, and a click of a person on it turns the mic on; an injected
-click does not. The figure goes when the agent disconnects, and
+click on the badge or the figure does not. The figure goes when the agent disconnects, and
 `enabled: false` turns it off.
 
 The asset folder of a flavor holds:

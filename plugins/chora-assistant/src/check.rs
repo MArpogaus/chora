@@ -112,8 +112,30 @@ fn picture_names_in(text: &str) -> Vec<String> {
     files
 }
 
-/// The number of pictures checked so far, for a cache directory of its own.
-static CHECKS: AtomicUsize = AtomicUsize::new(0);
+/// The number of directories made so far, for names that differ.
+static MADE: AtomicUsize = AtomicUsize::new(0);
+
+/// A new directory in the temporary files that only this user can enter.
+/// It never exists before: a name that is taken is skipped.
+fn private_dir() -> std::io::Result<PathBuf> {
+    use std::os::unix::fs::DirBuilderExt as _;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.subsec_nanos());
+    for _ in 0..100 {
+        let n = MADE.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "chora-assistant-check-{}-{nanos:x}-{n}",
+            std::process::id()
+        ));
+        match std::fs::DirBuilder::new().mode(0o700).create(&path) {
+            Ok(()) => return Ok(path),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Err(std::io::ErrorKind::AlreadyExists.into())
+}
 
 /// Reads a picture as the host would and adds what is wrong with it.
 fn check_picture(dir: &Path, name: &str, font: &str, errors: &mut Vec<String>) {
@@ -130,11 +152,10 @@ fn check_picture(dir: &Path, name: &str, font: &str, errors: &mut Vec<String>) {
             "{name}: a picture links to {target}, outside the folder"
         ));
     }
-    let cache = std::env::temp_dir().join(format!(
-        "chora-assistant-check-{}-{}",
-        std::process::id(),
-        CHECKS.fetch_add(1, Ordering::Relaxed)
-    ));
+    let Ok(cache) = private_dir() else {
+        errors.push("no private directory for the check in the temporary files".into());
+        return;
+    };
     let sheet = Sheet(Box::leak(name.to_owned().into_boxed_str()));
     if let Err(e) = Theme::load_hud(dir, &cache, &[sheet], font) {
         errors.push(e);
@@ -233,7 +254,8 @@ pub fn use_hud(name: &str, roots: &[PathBuf], file: PathBuf) -> Result<String, S
         .map_err(|e| e.to_string())?;
     settings.save().map_err(|e| e.to_string())?;
     Ok(format!(
-        "{} is set in {}. A running chora-assistant takes it with: choractl call assistant settings.reload\n",
+        "{} is set in {}. A running chora-assistant takes it with: \
+         choractl call assistant settings.reload\n",
         if name == "default" {
             "the neutral folder".to_owned()
         } else {
@@ -263,6 +285,18 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn the_check_renders_into_a_new_directory_that_only_the_user_enters() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let first = private_dir().unwrap();
+        let second = private_dir().unwrap();
+        assert_ne!(first, second);
+        let mode = std::fs::metadata(&first).unwrap().permissions().mode();
+        assert_eq!(mode & 0o077, 0, "{mode:o}");
+        let _ = std::fs::remove_dir_all(first);
+        let _ = std::fs::remove_dir_all(second);
     }
 
     #[test]
@@ -332,7 +366,8 @@ mod tests {
 
     #[test]
     fn links_inside_a_picture_pass_and_others_are_named() {
-        let svg = r##"<use href="#a"/><image href="data:image/png;base64,AAAA"/><image xlink:href="x.png"/>
+        let svg = r##"<use href="#a"/><image href="data:image/png;base64,AAAA"/>
+            <image xlink:href="x.png"/>
             <image href="/etc/passwd"/><image href='../up.png'/><image href="file:///x"/>"##;
         assert_eq!(
             outside_links(svg),
@@ -342,7 +377,8 @@ mod tests {
 
     #[test]
     fn pictures_are_found_in_a_file_that_does_not_parse() {
-        let text = "panels:\n- picture: a.svg#{state}\n- {id: b, picture: 'b.svg#x', source: voice}\n- picture: \"c.svg\"\n";
+        let text = "panels:\n- picture: a.svg#{state}\n\
+            - {id: b, picture: 'b.svg#x', source: voice}\n- picture: \"c.svg\"\n";
         assert_eq!(picture_names_in(text), ["a.svg", "b.svg", "c.svg"]);
     }
 

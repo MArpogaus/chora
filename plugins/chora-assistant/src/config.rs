@@ -22,8 +22,9 @@ pub const DEFAULT: &str = include_str!("../assistant.yaml");
 /// The name of the neutral folder, which `hud` names by default.
 pub const NEUTRAL: &str = "neutral";
 
-/// The smallest side of the figure of a voice panel.
+/// The smallest and the largest side of the figure of a voice panel.
 const MIN_FIGURE: i32 = 12;
+const MAX_FIGURE: i32 = 256;
 
 /// The settings of the plugin.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -115,7 +116,8 @@ const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 
 impl Values {
-    /// The values of a HUD folder. `size` gives the size of a sheet. A folder without a voice panel that shows in the
+    /// The values of a HUD folder. `size` gives the size of a sheet. A folder
+    /// without a voice panel that shows in the
     /// neutral context, with a picture and an element of at least 12 by 12
     /// pixels, gets the dot of the host.
     #[must_use]
@@ -131,7 +133,9 @@ impl Values {
         let figure = voice.and_then(|panel| {
             let (file, template) = panel.picture.as_deref()?.split_once('#')?;
             let sheet = Sheet(leak(file));
-            let size = size(sheet).filter(|[w, h]| *w >= MIN_FIGURE && *h >= MIN_FIGURE)?;
+            let size = size(sheet).filter(|[w, h]| {
+                (MIN_FIGURE..=MAX_FIGURE).contains(w) && (MIN_FIGURE..=MAX_FIGURE).contains(h)
+            })?;
             Some(Figure::Sheet {
                 sheet,
                 template: template.to_owned(),
@@ -277,7 +281,8 @@ mod tests {
         let only_a_line =
             "hud: 1\npanels:\n- {id: line, source: say, anchor: top, text: '{text}'}\n";
         let none = "hud: 1\n";
-        let hidden = "hud: 1\npanels:\n- {id: f, source: voice, when: {wm: [xp]}, anchor: top, picture: 'a.svg#{state}'}\n";
+        let hidden = "hud: 1\npanels:\n- {id: f, source: voice, when: {wm: [xp]}, \
+            anchor: top, picture: 'a.svg#{state}'}\n";
         let no_picture = "hud: 1\npanels:\n- {id: f, source: voice, anchor: top, text: x}\n";
         for text in [only_a_line, none, hidden, no_picture] {
             let values = values(text);
@@ -292,6 +297,14 @@ mod tests {
             |_| Some([8, 40]),
         );
         assert_eq!(tiny.figure, Figure::Dot, "under 12 by 12 pixels");
+        let huge = Values::from_hud(
+            &hud::parse(
+                "hud: 1\npanels:\n- {id: f, source: voice, anchor: top, picture: 'a.svg#x'}\n",
+            )
+            .unwrap(),
+            |_| Some([257, 40]),
+        );
+        assert_eq!(huge.figure, Figure::Dot, "over 256 pixels");
         let missing = Values::from_hud(
             &hud::parse(
                 "hud: 1\npanels:\n- {id: f, source: voice, anchor: top, picture: 'a.svg#x'}\n",
@@ -304,7 +317,8 @@ mod tests {
 
     #[test]
     fn a_voice_panel_sets_the_place_and_the_mute_click() {
-        let text = "hud: 1\npanels:\n- {id: f, source: voice, anchor: top_left, margin: [3, 4], picture: 'a.svg#{state}', action: mute}\n";
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, anchor: top_left, \
+            margin: [3, 4], picture: 'a.svg#{state}', action: mute}\n";
         let values = values(text);
         assert!(matches!(values.figure, Figure::Sheet { .. }));
         assert_eq!((values.anchor, values.margin), (Anchor::TopLeft, [3, 4]));

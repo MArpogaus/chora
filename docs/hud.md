@@ -239,9 +239,13 @@ card appears in one place and stays there until the question ends. It
 is drawn with the host fonts at 14 px, dark text on a light fill. A press
 on a button answers with `confirm.answer`, except an injected press, which
 shows "Please use your own mouse or keyboard." on the card, and a click in
-the first 400 ms after the card appeared, which does nothing. A detail
-that does not fit in 80 percent of the height of the output ends in a
-count of the lines that are left out.
+the first 400 ms after the card appeared, which does nothing. The card is
+at most 560 px wide and leaves 64 px at the sides of the output. The key
+line and the note are always there. When the whole text, with the whole
+detail, does not fit in 80 percent of the height of the output, the card
+shows no buttons and says "Too long to show. Refused.", and the host
+answers `confirm.answer {yes: false}` at once. The host removes control,
+bidi and zero-width characters from the prompt and the detail.
 
 ### The mic
 
@@ -249,5 +253,6 @@ A panel with `source: voice` and `action: mute` mutes the mic on a
 click and never unmutes it. While the mic is muted, the host draws a
 badge, "Microphone off. Click to turn it on.", beside the figure, above
 the card; a click on it that a person made turns the mic on. An injected
-click on the badge does not. A folder whose voice panel has no `mute`
+click on the badge or the figure does not; it shows the line "Please use your own mouse or
+keyboard.". A folder whose voice panel has no `mute`
 action has a figure that takes no click, and the badge is still there.

@@ -12,7 +12,7 @@ use chora_draw::{
     theme::{Picture, Theme},
 };
 use chora_kit::{
-    ask::{Button, Card, Press, Question},
+    ask::{Button, Card, Press},
     words::{Language, Word},
 };
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
@@ -30,7 +30,9 @@ pub const NO: &str = "hud-card-no";
 /// The badge of a muted mic.
 pub const BADGE: &str = "hud-badge";
 
-const WIDTH: i32 = 380;
+/// The widest card, and the room that it leaves at the sides of the output.
+const WIDTH: i32 = 560;
+const SIDES: i32 = 64;
 const PAD: i32 = 14;
 const LINE: i32 = 20;
 const GAP: i32 = 6;
@@ -81,21 +83,9 @@ pub struct Shown {
     pub origin: [i32; 2],
     /// The card says that an injected press does not count.
     pub notice: bool,
-}
-
-/// The question of a `voice.confirm` event, with its id as sent. The id of
-/// the agent is a text such as `"3"`; a number is taken too. `None` for the
-/// end of a question or an event without a usable id or prompt.
-#[must_use]
-pub fn question(data: &Value, agent: Option<&str>) -> Option<(Question, String)> {
-    let id = match &data["id"] {
-        Value::String(text) => text.clone(),
-        Value::Number(number) => number.to_string(),
-        _ => return None,
-    };
-    let mut numbered = data.clone();
-    numbered["id"] = json!(id.parse::<u64>().ok()?);
-    Question::from_event(&numbered, agent).map(|question| (question, id))
+    /// The detail does not fit: the card has no buttons and the question
+    /// is refused.
+    pub too_long: bool,
 }
 
 /// The lines and the buttons of a card, with the size of the card.
@@ -103,44 +93,36 @@ struct Layout {
     picture: Picture,
     buttons: Option<[[i32; 2]; 2]>,
     text: String,
+    too_long: bool,
 }
 
-/// The lines of the parts of a card, wrapped to a width.
-fn content(theme: &Theme, card: &Card, language: Language, width: f64) -> Vec<(Font, String)> {
-    let mut rows = Vec::new();
-    for (part, text) in card.parts(language) {
-        let font = match part {
-            chora_kit::ask::Part::Title => Font::BodyBold,
-            _ => Font::Body,
-        };
-        let lines = wrap(&text, width, |line| theme.text_width(line, font));
-        rows.extend(lines.into_iter().map(|line| (font, line)));
-    }
-    rows
+/// The width of the card on an output.
+fn width(screen: [i32; 2]) -> i32 {
+    WIDTH.min(screen[0] - SIDES).max(2 * PAD + 40)
 }
 
 fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> Layout {
-    let width = WIDTH.min(screen[0] - 2 * EDGE);
+    let width = width(screen);
     let inner = f64::from(width - 2 * PAD);
-    let measure = |font| move |s: &str| theme.text_width(s, font);
-    let parts = shown.card.parts(language);
-    let mut rows = content(theme, &shown.card, language, inner);
     let injected = Word::Injected.text(language);
-    let notice = wrap(injected, inner, measure(Font::BodyBold));
+    let notice = wrap(injected, inner, |line| {
+        theme.text_width(line, Font::BodyBold)
+    });
     let notice_lines = i32::try_from(notice.len()).unwrap_or(0);
-    let below = if shown.buttons {
+    let below = if shown.buttons && !shown.too_long {
         2 * GAP + BUTTON[1] + notice_lines * LINE
     } else {
         0
     };
     let most = usize::try_from((screen[1] * 8 / 10 - 2 * PAD - below) / LINE)
         .unwrap_or(1)
-        .max(1);
-    let all = rows.len();
-    if all > most {
-        rows.truncate(most - 1);
-        rows.push((Font::Body, format!("… +{}", all - most + 1)));
+        .max(2);
+    let mut rows = content_of(theme, &shown.card, language, inner, usize::MAX);
+    let too_long = shown.too_long || rows.len() > most;
+    if too_long {
+        rows = refusal_rows(theme, &shown.card, language, inner, most);
     }
+    let buttons_shown = shown.buttons && !too_long;
     let lines = i32::try_from(rows.len()).unwrap_or(0);
     let height = 2 * PAD + lines * LINE + below;
     let ink = [TEXT[0], TEXT[1], TEXT[2], 255];
@@ -150,28 +132,78 @@ fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) ->
         picture = picture.text(Text::new(line, *font, ink, line_at(n)));
     }
     let top = PAD + lines * LINE + GAP;
-    let buttons = shown
-        .buttons
-        .then_some([[PAD, top], [PAD + BUTTON[0] + BUTTON_GAP, top]]);
-    if shown.buttons && shown.notice {
+    let buttons = buttons_shown.then_some([[PAD, top], [PAD + BUTTON[0] + BUTTON_GAP, top]]);
+    if buttons_shown && shown.notice {
         for (n, line) in (0..).zip(&notice) {
             let at = line_at(lines + n);
             let rect = [at[0], at[1] + GAP + BUTTON[1] + GAP, at[2], at[3]];
             picture = picture.text(Text::new(line, Font::BodyBold, ink, rect));
         }
     }
-    let mut text: String = parts
+    let mut text = rows
         .iter()
-        .map(|(_, text)| text.as_str())
-        .chain((shown.buttons && shown.notice).then_some(injected))
+        .map(|(_, line)| line.as_str())
         .collect::<Vec<_>>()
         .join("\n");
+    if buttons_shown && shown.notice {
+        text = format!("{text}\n{injected}");
+    }
     text.truncate(floor_boundary(&text, MAX_TEXT_META));
     Layout {
         picture,
         buttons,
         text,
+        too_long,
     }
+}
+
+/// The title and the prompt, and the words that the question is refused.
+fn refusal_rows(
+    theme: &Theme,
+    card: &Card,
+    language: Language,
+    width: f64,
+    most: usize,
+) -> Vec<(Font, String)> {
+    let mut rows = content_of(theme, card, language, width, 2);
+    rows.truncate(most - 1);
+    let long = wrap(Word::TooLong.text(language), width, |line| {
+        theme.text_width(line, Font::BodyBold)
+    });
+    rows.extend(long.into_iter().map(|line| (Font::BodyBold, line)));
+    rows
+}
+
+/// The first `parts` parts of a card, wrapped: the title and the prompt.
+fn content_of(
+    theme: &Theme,
+    card: &Card,
+    language: Language,
+    width: f64,
+    parts: usize,
+) -> Vec<(Font, String)> {
+    let mut rows = Vec::new();
+    for (part, text) in card.parts(language).into_iter().take(parts) {
+        let font = if part == chora_kit::ask::Part::Title {
+            Font::BodyBold
+        } else {
+            Font::Body
+        };
+        let lines = wrap(&text, width, |line| theme.text_width(line, font));
+        rows.extend(lines.into_iter().map(|line| (font, line)));
+    }
+    rows
+}
+
+/// Whether the whole question, with its detail, key line and note, fits on
+/// a card on the screen.
+#[must_use]
+pub fn fits(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> bool {
+    let whole = Shown {
+        too_long: false,
+        ..shown.clone()
+    };
+    !layout(theme, &whole, language, screen).too_long
 }
 
 fn floor_boundary(text: &str, at: usize) -> usize {
@@ -251,6 +283,7 @@ pub fn show(
         picture,
         buttons,
         text,
+        ..
     } = layout(theme, shown, language, screen);
     let [x, y] = shown.origin;
     let card = image(theme.render(&picture), shown.origin, &text, InputMode::Pass);
@@ -325,18 +358,64 @@ pub fn press(shown: &Shown, node: &str, injected: bool, now: Instant) -> Option<
     })
 }
 
-/// The badge of a muted mic: a click on it turns the mic on.
+/// Whether two rectangles, x, y, width and height, share a pixel.
+fn overlap([ax, ay, aw, ah]: [i32; 4], [bx, by, bw, bh]: [i32; 4]) -> bool {
+    ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah
+}
+
+/// The size of the badge on an output.
+fn badge_size(theme: &Theme, language: Language, screen: [i32; 2]) -> [i32; 2] {
+    let width = theme
+        .text_width(Word::Muted.text(language), Font::Body)
+        .ceil();
+    #[allow(clippy::cast_possible_truncation)]
+    let w = (width as i32 + 2 * PAD).min(screen[0] - 2 * EDGE);
+    [w, LINE + 12]
+}
+
+/// The place of the badge: beside the figure, on the side of the middle of
+/// the output; above or below the card where the card is in the way.
+fn badge_place(
+    [w, h]: [i32; 2],
+    figure: [i32; 4],
+    screen: [i32; 2],
+    avoid: Option<[i32; 4]>,
+) -> [i32; 2] {
+    let [fx, fy, fw, fh] = figure;
+    let beside = if fx + fw / 2 > screen[0] / 2 {
+        fx - EDGE - w
+    } else {
+        fx + fw + EDGE
+    };
+    let clamp = |x: i32, y: i32| {
+        [
+            x.clamp(EDGE, (screen[0] - w - EDGE).max(EDGE)),
+            y.clamp(EDGE, (screen[1] - h - EDGE).max(EDGE)),
+        ]
+    };
+    let at = clamp(beside, fy + (fh - h) / 2);
+    let Some(card) = avoid.filter(|card| overlap([at[0], at[1], w, h], *card)) else {
+        return at;
+    };
+    let above = card[1] - EDGE - h;
+    let y = if above >= EDGE {
+        above
+    } else {
+        card[1] + card[3] + EDGE
+    };
+    clamp(at[0], y)
+}
+
+/// The badge of a muted mic: a click on it turns the mic on. It keeps clear
+/// of the card, if there is one.
 pub fn badge(
     theme: &mut Theme,
     language: Language,
-    figure: [i32; 4],
-    screen: [i32; 2],
+    (figure, screen): ([i32; 4], [i32; 2]),
+    avoid: Option<[i32; 4]>,
 ) -> Vec<Command> {
     let text = Word::Muted.text(language);
-    let width = theme.text_width(text, Font::Body).ceil();
-    #[allow(clippy::cast_possible_truncation)]
-    let w = (width as i32 + 2 * PAD).min(screen[0] - 2 * EDGE);
-    let h = LINE + 12;
+    let [w, h] = badge_size(theme, language, screen);
     let picture = Picture::new(w, h)
         .svg(style().shape([w, h], 0))
         .text(Text::new(
@@ -345,16 +424,7 @@ pub fn badge(
             [TEXT[0], TEXT[1], TEXT[2], 255],
             [PAD, 6, w - 2 * PAD, LINE],
         ));
-    let [fx, fy, fw, fh] = figure;
-    let beside = if fx + fw / 2 > screen[0] / 2 {
-        fx - EDGE - w
-    } else {
-        fx + fw + EDGE
-    };
-    let at = [
-        beside.clamp(EDGE, (screen[0] - w - EDGE).max(EDGE)),
-        (fy + (fh - h) / 2).clamp(EDGE, (screen[1] - h - EDGE).max(EDGE)),
-    ];
+    let at = badge_place([w, h], figure, screen, avoid);
     vec![Command::Create {
         id: BADGE.into(),
         kind: NodeKind::Image,
@@ -363,12 +433,65 @@ pub fn badge(
     }]
 }
 
+/// The command that moves the badge clear of the card.
+#[must_use]
+pub fn badge_move(
+    theme: &Theme,
+    language: Language,
+    (figure, screen): ([i32; 4], [i32; 2]),
+    avoid: [i32; 4],
+) -> Command {
+    let size = badge_size(theme, language, screen);
+    let [x, y] = badge_place(size, figure, screen, Some(avoid));
+    Command::Update {
+        id: BADGE.into(),
+        props: PropsUpdate {
+            transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+/// The rectangle of the card on the screen: x, y, width and height.
+#[must_use]
+pub fn rect(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> [i32; 4] {
+    let [w, h] = size(theme, shown, language, screen);
+    [shown.origin[0], shown.origin[1], w, h]
+}
+
+/// Whether a rectangle lies inside the output.
+#[must_use]
+pub fn inside([x, y, w, h]: [i32; 4], screen: [i32; 2]) -> bool {
+    x >= 0 && y >= 0 && x + w <= screen[0] && y + h <= screen[1]
+}
+
+/// Keeps a card where it is, unless its output is another one or it no
+/// longer fits inside the output: then it takes the place of a new card and
+/// its buttons take no click for [`chora_kit::ask::GUARD`]. True when it
+/// moved.
+pub fn settle(
+    shown: &mut Shown,
+    (output, screen): (&str, [i32; 2]),
+    (theme, language, figure): (&Theme, Language, [i32; 4]),
+    now: Instant,
+) -> bool {
+    let other = shown.output != output;
+    output.clone_into(&mut shown.output);
+    let [w, h] = size(theme, shown, language, screen);
+    if !other && inside([shown.origin[0], shown.origin[1], w, h], screen) {
+        return false;
+    }
+    shown.origin = place(figure, [w, h], screen);
+    shown.card.moved(now);
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
     use chora_draw::theme::Layer;
-    use chora_kit::hud;
+    use chora_kit::{ask::Question, hud};
 
     use super::*;
 
@@ -377,14 +500,15 @@ mod tests {
     }
 
     fn shown(data: &Value, now: Instant) -> Shown {
-        let (question, id) = question(data, Some("Atlas")).unwrap();
+        let question = Question::from_event(data, Some("Atlas")).unwrap();
         Shown {
+            id: question.answer_id.clone(),
             card: Card::new(question, now),
-            id,
             buttons: data["buttons"] == true,
             output: "HEADLESS-1".into(),
             origin: [900, 500],
             notice: false,
+            too_long: false,
         }
     }
 
@@ -397,9 +521,8 @@ mod tests {
     #[test]
     fn the_card_draws_with_host_fonts_only() {
         let cache = cache("fonts");
-        let mut theme = theme(&cache, "sans-serif").unwrap();
+        let theme = theme(&cache, "sans-serif").unwrap();
         assert!(theme.fonts().is_host());
-        assert!(!theme.confined() || theme.fonts().is_host());
         let s = shown(&notes(), Instant::now());
         let laid = layout(&theme, &s, Language::En, [1280, 800]);
         let fonts: Vec<Font> = laid
@@ -416,7 +539,6 @@ mod tests {
             assert!(matches!(font, Font::Body | Font::BodyBold), "{font:?}");
             assert!(theme.fonts().size(font) >= 14);
         }
-        theme.set_scale(1.0);
         let _ = std::fs::remove_dir_all(cache);
     }
 
@@ -446,45 +568,6 @@ mod tests {
     }
 
     #[test]
-    fn a_folder_cannot_hide_the_question() {
-        let cache = cache("hide");
-        let mut theme = theme(&cache, "sans-serif").unwrap();
-        let lines: Vec<String> = (0..32)
-            .map(|n| format!("- {{id: p{n}, source: say, anchor: center, text: x}}\n"))
-            .collect();
-        let panels = lines.concat();
-        let hud = hud::parse(&format!("hud: 1\npanels:\n{panels}")).unwrap();
-        let folder = crate::config::Values::from_hud(&hud, |_| None);
-        let waiting = shown(&notes(), Instant::now());
-        let screen = [1280, 800];
-        let commands = show(&mut theme, &waiting, Language::En, screen, true);
-        let ids: Vec<&str> = commands
-            .iter()
-            .filter_map(|c| match c {
-                Command::Create { id, .. } => Some(id.as_str()),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(ids, [CARD, YES, NO]);
-        for command in &commands {
-            let Command::Create { parent, props, .. } = command else {
-                panic!("{command:?}")
-            };
-            assert_eq!(parent, TOP);
-            assert_eq!((props.visible, props.opacity), (Some(true), Some(1.0)));
-        }
-        let [left, top] = waiting.origin;
-        let [width, height] = size(&theme, &waiting, Language::En, screen);
-        assert!(left >= 0 && top >= 0 && left + width <= screen[0] && top + height <= screen[1]);
-        assert_eq!(
-            folder.anchor,
-            chora_kit::hud::Anchor::BottomRight,
-            "the folder has no say"
-        );
-        let _ = std::fs::remove_dir_all(cache);
-    }
-
-    #[test]
     fn an_injected_press_shows_the_line_and_a_early_one_does_nothing() {
         let now = Instant::now();
         let s = shown(&notes(), now);
@@ -501,16 +584,6 @@ mod tests {
             Some(Outcome::Answer(json!({"id": "51", "yes": false})))
         );
         assert_eq!(press(&s, CARD, false, later), None);
-    }
-
-    #[test]
-    fn the_id_goes_back_as_it_came() {
-        let (q, id) = question(&json!({"id": "7", "prompt": "p"}), None).unwrap();
-        assert_eq!((q.id, id.as_str()), (7, "7"));
-        let (_, id) = question(&json!({"id": 8, "prompt": "p"}), None).unwrap();
-        assert_eq!(id, "8");
-        assert!(question(&json!({"id": "x", "prompt": "p"}), None).is_none());
-        assert!(question(&json!({"id": "7", "done": true}), None).is_none());
     }
 
     #[test]
@@ -533,26 +606,116 @@ mod tests {
         assert!(hud::contrast(BORDER, FILL) >= 3.0);
     }
 
-    #[test]
-    fn a_long_detail_ends_in_a_count_and_the_text_node_has_all_it_can() {
-        let cache = cache("long");
-        let theme = theme(&cache, "sans-serif").unwrap();
-        let detail = (0..300)
+    fn with_detail(lines: usize) -> Value {
+        let detail = (0..lines)
             .map(|n| format!("line {n}"))
             .collect::<Vec<_>>()
             .join("\n");
-        let data = json!({"id": "1", "prompt": "p", "detail": detail});
-        let s = shown(&data, Instant::now());
-        let [_, h] = size(&theme, &s, Language::En, [1280, 800]);
-        assert!(h <= 800 * 8 / 10 + 2 * PAD, "{h}");
+        let mut data = notes();
+        data["detail"] = json!(detail);
+        data
+    }
+
+    fn texts(theme: &Theme, shown: &Shown) -> String {
+        layout(theme, shown, Language::En, [1280, 800]).text
+    }
+
+    #[test]
+    fn a_detail_that_does_not_fit_is_refused_without_buttons() {
+        let cache = cache("toolong");
+        let mut theme = theme(&cache, "sans-serif").unwrap();
+        let hidden = "padding\n".repeat(100) + "; rm -rf ~";
+        let mut data = notes();
+        data["detail"] = json!(hidden);
+        let mut waiting = shown(&data, Instant::now());
+        assert!(!fits(&theme, &waiting, Language::En, [1280, 800]));
+        waiting.too_long = true;
+        waiting.buttons = false;
+        let laid = layout(&theme, &waiting, Language::En, [1280, 800]);
+        assert!(laid.too_long && laid.buttons.is_none());
+        let said = "Too long to show. Refused.";
+        assert!(laid.text.contains(said), "{}", laid.text);
+        assert!(laid.picture.size[1] <= 800 * 8 / 10 + 2 * PAD);
+        let commands = show(&mut theme, &waiting, Language::En, [1280, 800], true);
+        assert_eq!(commands.len(), 1, "no buttons");
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_key_line_and_the_note_are_never_cut() {
+        let cache = cache("keys");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut refused = 0;
+        for lines in [0, 1, 5, 12, 20, 25, 30, 60, 100, 400] {
+            let waiting = shown(&with_detail(lines), Instant::now());
+            if fits(&theme, &waiting, Language::En, [1280, 800]) {
+                let text = texts(&theme, &waiting);
+                assert!(text.contains("Press Alt+Y to allow"), "{lines}: {text}");
+                assert!(text.contains("spoken"), "{lines}: {text}");
+                if lines > 0 {
+                    assert!(text.contains(&format!("line {}", lines - 1)));
+                }
+            } else {
+                refused += 1;
+            }
+        }
+        assert!(refused >= 3, "{refused}");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_card_that_no_longer_fits_moves_and_waits_for_the_guard() {
+        let cache = cache("settle");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let now = Instant::now();
+        let mut waiting = shown(&notes(), now);
+        let later = now + Duration::from_secs(1);
+        let big = [1280, 800];
+        let figure = [1240, 760, 24, 24];
+        let en = Language::En;
+        waiting.origin = place(figure, size(&theme, &waiting, en, big), big);
+        assert!(!settle(
+            &mut waiting,
+            ("HEADLESS-1", big),
+            (&theme, en, figure),
+            later
+        ));
+        let yes = Outcome::Answer(json!({"id": "51", "yes": true}));
+        assert_eq!(press(&waiting, YES, false, later), Some(yes.clone()));
+        let small = [800, 600];
+        let near = (&theme, en, [760, 560, 24, 24]);
+        assert!(settle(&mut waiting, ("HEADLESS-1", small), near, later));
+        assert!(inside(rect(&theme, &waiting, en, small), small));
+        assert_eq!(press(&waiting, YES, false, later), Some(Outcome::Ignored));
+        let after = later + Duration::from_millis(500);
+        assert_eq!(press(&waiting, YES, false, after), Some(yes));
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_badge_keeps_clear_of_the_card() {
+        let figure = [1240, 760, 24, 24];
+        let screen = [1280, 800];
+        let card = [880, 700, 380, 90];
+        let free = badge_place([250, 32], figure, screen, None);
+        assert!(overlap([free[0], free[1], 250, 32], card));
+        let moved = badge_place([250, 32], figure, screen, Some(card));
+        assert!(!overlap([moved[0], moved[1], 250, 32], card), "{moved:?}");
+        assert!(inside([moved[0], moved[1], 250, 32], screen));
+    }
+
+    #[test]
+    fn the_card_is_at_most_560_wide_and_leaves_64_at_the_sides() {
+        assert_eq!(width([1920, 1080]), 560);
+        assert_eq!(width([500, 400]), 436);
     }
 
     #[test]
     fn the_badge_names_the_way_back_and_takes_clicks() {
         let cache = cache("badge");
         let mut theme = theme(&cache, "sans-serif").unwrap();
-        let commands = badge(&mut theme, Language::En, [1240, 760, 24, 24], [1280, 800]);
+        let place = ([1240, 760, 24, 24], [1280, 800]);
+        let commands = badge(&mut theme, Language::En, place, None);
         let [Command::Create { id, props, .. }] = commands.as_slice() else {
             panic!("{commands:?}")
         };

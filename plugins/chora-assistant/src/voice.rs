@@ -5,8 +5,12 @@
 
 use std::time::{Duration, Instant};
 
-use chora_kit::words::{self, Word};
-use chora_scene::{Command, NodeKind, PropsUpdate, ipc::ClientError};
+use chora_kit::{
+    ask::Question,
+    hud::Anchor,
+    words::{self, Word},
+};
+use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, ipc::ClientError};
 use serde_json::{Value, json};
 
 use crate::{
@@ -95,22 +99,34 @@ impl Agent {
         a.say(&mut self.theme, &shown, time, now)
     }
 
+    /// The figure of the output, or where the neutral dot would stand.
+    fn figure_rect(&self, output: &OutputInfo) -> [i32; 4] {
+        self.assistant.as_ref().map_or_else(
+            || {
+                let size = [24, 24];
+                let [x, y] = assistant::origin(Anchor::BottomRight, output.size, size, [16, 16]);
+                [x, y, size[0], size[1]]
+            },
+            Assistant::rect,
+        )
+    }
+
     /// The question of `voice.confirm` as a card, once and in one place
-    /// until it ends; its end takes the card away.
+    /// until it ends; its end takes the card away. A question whose whole
+    /// text does not fit has no buttons and is refused at once.
     fn confirm(&mut self, data: &Value, now: Instant) -> Result<Vec<Command>, ClientError> {
-        let Some(figure) = self.assistant.as_ref().map(Assistant::rect) else {
-            return Ok(Vec::new());
-        };
-        let Some((question, id)) = card::question(data, None) else {
+        let Some(question) = Question::from_event(data, None) else {
             return Ok(self.end_card(data));
         };
-        if self.card.as_ref().is_some_and(|c| c.id == id) {
+        let id = question.answer_id.clone();
+        if !self.settings.value.enabled || self.card.as_ref().is_some_and(|c| c.id == id) {
             return Ok(Vec::new());
         }
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
         };
         self.card_theme.set_scale(scale);
+        let figure = self.figure_rect(&output);
         let mut commands = self.ensure_top(&output.name);
         let mut shown = Shown {
             card: chora_kit::ask::Card::new(question, now),
@@ -119,22 +135,39 @@ impl Agent {
             output: output.name.clone(),
             origin: [0, 0],
             notice: false,
+            too_long: false,
         };
-        let size = card::size(&self.card_theme, &shown, self.language, output.size);
-        shown.origin = self
-            .card
-            .as_ref()
-            .map_or_else(|| card::place(figure, size, output.size), |old| old.origin);
+        let (theme, language) = (&self.card_theme, self.language);
+        shown.too_long = !card::fits(theme, &shown, language, output.size);
+        shown.buttons &= !shown.too_long;
+        let size = card::size(theme, &shown, language, output.size);
+        let origin = self.card.as_ref().map(|old| old.origin);
+        shown.origin = origin.unwrap_or_else(|| card::place(figure, size, output.size));
         if self.card.take().is_some() {
             commands.extend(card::hide());
         }
         commands.extend(card::show(
             &mut self.card_theme,
             &shown,
-            self.language,
+            language,
             output.size,
             true,
         ));
+        if self.badge {
+            let rect = card::rect(&self.card_theme, &shown, language, output.size);
+            commands.push(card::badge_move(
+                &self.card_theme,
+                language,
+                (figure, output.size),
+                rect,
+            ));
+        }
+        if shown.too_long {
+            let refusal = json!({"id": shown.id, "yes": false});
+            if let Err(err) = self.voice_call("confirm.answer", &refusal) {
+                eprintln!("chora-assistant: voice: confirm.answer: {err}");
+            }
+        }
         self.card = Some(shown);
         commands.extend(self.raise_badge());
         Ok(commands)
@@ -142,10 +175,8 @@ impl Agent {
 
     /// The end of a question, by `done` with its id.
     fn end_card(&mut self, data: &Value) -> Vec<Command> {
-        let id = match &data["id"] {
-            Value::String(id) => id.clone(),
-            Value::Number(n) => n.to_string(),
-            _ => return Vec::new(),
+        let Some(id) = chora_kit::ask::event_id(data) else {
+            return Vec::new();
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
             self.card = None;
@@ -210,11 +241,16 @@ impl Agent {
         };
         self.card_theme.set_scale(scale);
         let mut commands = self.ensure_top(&output.name);
+        let (theme, language) = (&self.card_theme, self.language);
+        let avoid = self
+            .card
+            .as_ref()
+            .map(|shown| card::rect(theme, shown, language, output.size));
         commands.extend(card::badge(
             &mut self.card_theme,
-            self.language,
-            figure,
-            output.size,
+            language,
+            (figure, output.size),
+            avoid,
         ));
         self.badge = true;
         Ok(commands)
@@ -318,29 +354,22 @@ impl Agent {
     /// settings. A card stays in its place on its output; on another output
     /// it appears anew, and its buttons take no click for a moment.
     pub fn replace_assistant(&mut self) -> Result<Vec<Command>, ClientError> {
-        if self.assistant.take().is_none() {
-            return self.sync_assistant(Instant::now());
-        }
         let now = Instant::now();
-        let mut commands = vec![Assistant::remove()];
+        let had_figure = self.assistant.take().is_some();
         let card = self.card.take();
+        let mut commands = if had_figure {
+            vec![Assistant::remove()]
+        } else {
+            Vec::new()
+        };
         commands.extend(self.drop_top());
         commands.extend(self.sync_assistant(now)?);
-        commands.extend(self.sync_badge()?);
-        if let (Some(mut shown), Some(figure)) =
-            (card, self.assistant.as_ref().map(Assistant::rect))
-        {
-            let Some((output, scale)) = self.output()? else {
-                return Ok(commands);
-            };
+        if let (Some(mut shown), Some((output, scale))) = (card, self.output()?) {
             self.card_theme.set_scale(scale);
+            let figure = self.figure_rect(&output);
             commands.extend(self.ensure_top(&output.name));
-            if shown.output != output.name {
-                shown.output.clone_from(&output.name);
-                let size = card::size(&self.card_theme, &shown, self.language, output.size);
-                shown.origin = card::place(figure, size, output.size);
-                shown.card.moved(now);
-            }
+            let theme = (&self.card_theme, self.language, figure);
+            card::settle(&mut shown, (&output.name, output.size), theme, now);
             commands.extend(card::show(
                 &mut self.card_theme,
                 &shown,
@@ -349,8 +378,8 @@ impl Agent {
                 true,
             ));
             self.card = Some(shown);
-            commands.extend(self.raise_badge());
         }
+        commands.extend(self.sync_badge()?);
         Ok(commands)
     }
 
@@ -370,9 +399,13 @@ impl Agent {
 
     /// A click on the figure mutes the mic, if the folder says so; the
     /// badge that follows turns it on again. A click never unmutes here.
-    pub fn press_assistant(&mut self) -> Vec<Command> {
+    pub fn press_assistant(&mut self, injected: bool) -> Vec<Command> {
         if !self.assistant.as_ref().is_some_and(Assistant::mutes) {
             return Vec::new();
+        }
+        if injected {
+            let text = Word::Injected.text(self.language);
+            return self.say(text, Duration::ZERO, Instant::now());
         }
         let muted = self.voice_call("mute", &json!({"mic": true})).map(|_| true);
         self.mic_says(muted.as_ref().ok().copied(), &muted)

@@ -33,7 +33,10 @@ pub fn roots(exe: Option<&Path>) -> Vec<PathBuf> {
     let user = xdg::data_home().map(|home| home.join("chora/huds"));
     let tree = exe
         .and_then(Path::parent)
-        .and_then(|dir| dir.join("../..").canonicalize().ok());
+        .and_then(Path::parent)
+        .filter(|target| target.file_name().is_some_and(|name| name == "target"))
+        .and_then(Path::parent)
+        .map(Path::to_path_buf);
     let source = tree.into_iter().flat_map(|root| {
         SOURCE
             .iter()
@@ -120,6 +123,17 @@ mod tests {
         let names: Vec<String> = list(&roots).into_iter().map(|(name, _)| name).collect();
         assert_eq!(names, ["mine", "neutral", "xp"]);
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn the_source_tree_counts_only_for_a_binary_in_a_target_folder() {
+        let tree = |exe: &str| roots(Some(Path::new(exe))).len();
+        let without = tree("/nonexistent/bin/chora-assistant");
+        assert_eq!(
+            tree("/nonexistent/x/target/debug/chora-assistant"),
+            without + 1
+        );
+        assert_eq!(tree("/nonexistent/x/other/debug/chora-assistant"), without);
     }
 
     #[test]
