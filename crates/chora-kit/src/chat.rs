@@ -449,7 +449,7 @@ pub fn wrap(text: &str, max: f32, width: impl Fn(char) -> f32) -> Vec<String> {
 pub enum Submit {
     /// Send this text; the field is empty.
     Send(String),
-    /// A question waits: the text stays and goes after it ends.
+    /// A question waits: the text stays as a draft.
     Held,
     /// Nothing to send.
     Empty,
@@ -460,11 +460,9 @@ pub enum Submit {
 enum Hold {
     #[default]
     Free,
-    /// Enter held the text for the end of the question.
+    /// Enter held the text while the question waits.
     Held,
-    /// The text changed after Enter, and the question goes on.
-    Edited,
-    /// The question ended and the changed text was not sent.
+    /// The question ended and the text was not sent.
     Unsent,
 }
 
@@ -485,14 +483,11 @@ impl Field {
         &self.text
     }
 
-    /// Replaces the text. A text that Enter held is no longer held; if
-    /// the question ends before the next Enter, the field says so.
+    /// Replaces the text. A change ends the hint that the text was not
+    /// sent.
     pub fn set_text(&mut self, text: &str) {
-        if text != self.text {
-            self.hold = match self.hold {
-                Hold::Held | Hold::Edited => Hold::Edited,
-                Hold::Free | Hold::Unsent => Hold::Free,
-            };
+        if text != self.text && self.hold == Hold::Unsent {
+            self.hold = Hold::Free;
         }
         text.clone_into(&mut self.text);
     }
@@ -511,29 +506,20 @@ impl Field {
     }
 
     /// A question of the helper starts or ends. A new question drops
-    /// every earlier Enter. At its end the text that Enter held is
-    /// answered as the text to send, and the field is empty; text
-    /// without an Enter stays as a draft.
-    pub fn set_waiting(&mut self, waiting: bool) -> Option<String> {
+    /// every earlier Enter. At its end the text that Enter held is not
+    /// sent: it stays as a draft with the hint that it was not sent, as
+    /// a person who typed during the question may not mean it any more.
+    pub fn set_waiting(&mut self, waiting: bool) {
         self.waiting = waiting;
         let before = std::mem::take(&mut self.hold);
-        if waiting {
-            return None;
-        }
-        match before {
-            Hold::Held => Some(std::mem::take(&mut self.text)),
-            Hold::Edited => {
-                self.hold = Hold::Unsent;
-                None
-            }
-            Hold::Free | Hold::Unsent => None,
+        if !waiting && before == Hold::Held {
+            self.hold = Hold::Unsent;
         }
     }
 
     /// The line to show: while Enter holds text, the hint that typing
-    /// does not answer, naming the keys of the question; after a held
-    /// text was changed and its question ended, that the text is not
-    /// sent.
+    /// does not answer, naming the keys of the question; after its
+    /// question ended, that the text is not sent.
     #[must_use]
     pub fn hint(&self, language: Language, keys: &Keys) -> Option<String> {
         if self.waiting && self.hold == Hold::Held {
@@ -741,35 +727,35 @@ mod tests {
     }
 
     #[test]
-    fn held_text_is_sent_after_the_question_ends() {
+    fn held_text_stays_a_draft_after_the_question_ends() {
         let mut field = Field::default();
         field.set_waiting(true);
         field.set_text("yes please");
         assert_eq!(field.submit(), Submit::Held);
-        assert_eq!(field.set_waiting(false), Some("yes please".into()));
-        assert_eq!(field.text(), "");
-        assert_eq!(field.hint(Language::En, &Keys::default()), None);
+        field.set_waiting(false);
+        assert_eq!(field.text(), "yes please");
+        assert_eq!(
+            field.hint(Language::En, &Keys::default()).unwrap(),
+            "Not sent. Press Enter to send."
+        );
+        assert_eq!(field.submit(), Submit::Send("yes please".into()));
 
         field.set_waiting(true);
         field.set_text("draft");
-        assert_eq!(field.set_waiting(false), None, "no Enter, no send");
+        field.set_waiting(false);
         assert_eq!(field.text(), "draft");
         assert_eq!(field.hint(Language::En, &Keys::default()), None);
     }
 
     #[test]
-    fn an_edit_after_enter_is_not_sent_and_says_so() {
+    fn an_edit_ends_the_not_sent_hint() {
         let mut field = Field::default();
         field.set_waiting(true);
         field.set_text("old");
         field.submit();
+        field.set_waiting(false);
+        assert!(field.hint(Language::En, &Keys::default()).is_some());
         field.set_text("old, edited");
-        assert_eq!(field.set_waiting(false), None, "an edit cancels the hold");
-        assert_eq!(
-            field.hint(Language::En, &Keys::default()).unwrap(),
-            "Not sent. Press Enter to send."
-        );
-        field.set_text("old, edited again");
         assert_eq!(field.hint(Language::En, &Keys::default()), None);
     }
 
@@ -781,11 +767,8 @@ mod tests {
         field.submit();
         field.set_waiting(true);
         assert_eq!(field.hint(Language::En, &Keys::default()), None);
-        assert_eq!(
-            field.set_waiting(false),
-            None,
-            "the first Enter is not valid"
-        );
+        field.set_waiting(false);
+        assert_eq!(field.hint(Language::En, &Keys::default()), None);
         assert_eq!(field.text(), "yes");
     }
 

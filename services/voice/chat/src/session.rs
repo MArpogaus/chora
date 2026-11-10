@@ -2,9 +2,8 @@
 //! IPC: the window loop feeds keys in and carries the effects out.
 //!
 //! The field answers no question. It cannot tell typed text from pasted
-//! or injected text, so while a question waits [`Session`] never asks for
-//! anything but the held text after the question ended, which goes as a
-//! message to the helper, as any other text does.
+//! or injected text, so while a question waits [`Session`] sends nothing,
+//! and text that Enter held stays a draft after the question ended.
 
 use chora_kit::{
     ask::Keys,
@@ -14,6 +13,10 @@ use chora_kit::{
 
 /// The most bytes of a draft.
 const MAX_DRAFT: usize = 8192;
+
+/// The most lines of a draft that Enter sends at once; a longer draft
+/// needs a second Enter.
+pub const MAX_LINES: usize = 4;
 
 /// A key of the field, as the window loop reads it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -59,6 +62,7 @@ pub struct Session {
     language: Language,
     offline: bool,
     waiting: bool,
+    confirm: bool,
 }
 
 impl Session {
@@ -98,6 +102,9 @@ impl Session {
     /// A key.
     pub fn key(&mut self, key: Key) -> Option<Effect> {
         self.offline = false;
+        if key != Key::Enter {
+            self.confirm = false;
+        }
         match key {
             Key::Text(text) => self.insert(&text),
             Key::Newline => self.insert("\n"),
@@ -115,6 +122,7 @@ impl Session {
 
     /// Text that the input method commits; it ends the preedit.
     pub fn commit(&mut self, text: &str) {
+        self.confirm = false;
         self.preedit.clear();
         self.insert(text);
     }
@@ -126,6 +134,7 @@ impl Session {
 
     /// The input method deletes bytes around the cursor.
     pub fn delete_surrounding(&mut self, before: usize, after: usize) {
+        self.confirm = false;
         let text = self.text();
         let start = floor(text, self.cursor.saturating_sub(before));
         let end = floor(text, (self.cursor + after).min(text.len()));
@@ -139,13 +148,12 @@ impl Session {
         self.keys = keys;
     }
 
-    /// A question of the helper starts or ends. At its end the text that
-    /// Enter held goes.
-    pub fn set_waiting(&mut self, waiting: bool) -> Option<Effect> {
+    /// A question of the helper starts or ends. Text that Enter held
+    /// stays a draft.
+    pub fn set_waiting(&mut self, waiting: bool) {
         self.waiting = waiting;
-        let held = self.field.set_waiting(waiting)?;
-        self.cursor = 0;
-        Some(Effect::Say(held))
+        self.confirm = false;
+        self.field.set_waiting(waiting);
     }
 
     /// The text did not reach the helper: the draft gets it back.
@@ -166,7 +174,19 @@ impl Session {
         if self.offline {
             return Some(say(self.language, Word::Offline, &[]));
         }
+        let lines = self.lines().to_string();
+        if self.confirm {
+            return Some(say(self.language, Word::SendLines, &[("n", &lines)]));
+        }
+        if self.lines() > MAX_LINES {
+            return Some(say(self.language, Word::Lines, &[("n", &lines)]));
+        }
         self.waiting.then(|| say(self.language, Word::Waiting, &[]))
+    }
+
+    /// The lines of the draft, by its line breaks.
+    fn lines(&self) -> usize {
+        self.text().matches('\n').count() + 1
     }
 
     /// The line in an empty field.
@@ -177,6 +197,10 @@ impl Session {
     }
 
     fn enter(&mut self) -> Option<Effect> {
+        if self.lines() > MAX_LINES && !self.confirm && !self.text().trim().is_empty() {
+            self.confirm = true;
+            return None;
+        }
         match self.field.submit() {
             Submit::Send(text) => {
                 self.cursor = 0;
@@ -268,14 +292,37 @@ mod tests {
     }
 
     #[test]
-    fn held_text_goes_after_the_question_ends() {
+    fn held_text_stays_a_draft_after_the_question_ends() {
         let mut session = Session::new(Language::En);
         session.set_waiting(true);
         type_text(&mut session, "yes");
         session.key(Key::Enter);
-        let effect = session.set_waiting(false);
-        assert_eq!(effect, Some(Effect::Say("yes".into())));
-        assert_eq!(session.text(), "");
+        session.set_waiting(false);
+        assert_eq!(session.text(), "yes");
+        assert!(session.status().expect("a hint").starts_with("Not sent"));
+        assert_eq!(session.key(Key::Enter), Some(Effect::Say("yes".into())));
+    }
+
+    #[test]
+    fn a_long_paste_needs_a_second_enter() {
+        let mut session = Session::new(Language::En);
+        session.key(Key::Text("a\nb\nc\nd\ne\nf".into()));
+        assert_eq!(session.status().as_deref(), Some("6 lines"));
+        assert_eq!(session.key(Key::Enter), None);
+        assert_eq!(
+            session.status().as_deref(),
+            Some("Press Enter again to send 6 lines")
+        );
+        assert!(matches!(session.key(Key::Enter), Some(Effect::Say(_))));
+    }
+
+    #[test]
+    fn an_edit_cancels_the_second_enter() {
+        let mut session = Session::new(Language::En);
+        session.key(Key::Text("a\nb\nc\nd\ne".into()));
+        session.key(Key::Enter);
+        session.key(Key::Left);
+        assert_eq!(session.key(Key::Enter), None);
     }
 
     #[test]

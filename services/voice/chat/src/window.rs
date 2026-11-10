@@ -8,6 +8,7 @@ use std::{
     fs::File,
     io::{ErrorKind, Read, Write},
     os::fd::{AsFd, OwnedFd},
+    sync::Arc,
     sync::mpsc::{Receiver, Sender},
     time::{Duration, Instant},
 };
@@ -19,7 +20,7 @@ use rustix::{
 use serde::Deserialize;
 use serde_json::json;
 use wayland_client::{
-    Connection, EventQueue, Proxy, QueueHandle,
+    EventQueue, Proxy, QueueHandle,
     backend::WaylandError,
     protocol::{
         wl_buffer::WlBuffer,
@@ -49,7 +50,7 @@ use xkbcommon::xkb;
 
 use crate::{
     draw::{Look, Painter},
-    ipc::{Msg, Request},
+    host::{Msg, Request, Wake},
     keys::{self, Decoded, Mods},
     paste,
     session::{Effect, Key, Session},
@@ -57,6 +58,9 @@ use crate::{
 
 /// The width of the field when a place names none.
 const DEFAULT_WIDTH: u32 = 400;
+/// The narrowest and the widest field.
+const MIN_WIDTH: u32 = 1;
+const MAX_WIDTH: u32 = 1600;
 /// The most bytes of the surrounding text that the input method gets.
 const SURROUNDING: usize = 4000;
 
@@ -86,6 +90,15 @@ pub struct Place {
 
 fn default_width() -> u32 {
     DEFAULT_WIDTH
+}
+
+impl Place {
+    /// The place with a width that a surface can have.
+    #[must_use]
+    pub fn clamped(mut self) -> Self {
+        self.width = self.width.clamp(MIN_WIDTH, MAX_WIDTH);
+        self
+    }
 }
 
 /// The anchor of a place: the edges that its name lists.
@@ -158,17 +171,17 @@ pub struct Window {
     painter: Painter,
     repeat: Option<Repeat>,
     requests: Sender<Request>,
-    conn: Connection,
+    wake: Arc<Wake>,
 }
 
 impl Window {
     /// A window with no surface yet.
     #[must_use]
     pub fn new(
-        conn: Connection,
         qh: QueueHandle<Self>,
         session: Session,
         requests: Sender<Request>,
+        wake: Arc<Wake>,
     ) -> Self {
         Self {
             qh,
@@ -182,12 +195,12 @@ impl Window {
             rate: (25, 400),
             shown: None,
             place: None,
-            token: std::env::var("XDG_ACTIVATION_TOKEN").ok(),
+            token: None,
             session,
             painter: Painter::new(),
             repeat: None,
             requests,
-            conn,
+            wake,
         }
     }
 
@@ -246,12 +259,13 @@ impl Window {
     fn msg(&mut self, msg: Msg) {
         match msg {
             Msg::Place(place) => self.apply_place(*place),
-            Msg::Question(waiting) => {
-                let effect = self.session.set_waiting(waiting);
-                self.effect(effect);
-            }
+            Msg::Question(waiting) => self.session.set_waiting(waiting),
             Msg::Keys(keys) => self.session.set_keys(keys),
             Msg::SayFailed(text) => self.session.say_failed(&text),
+            Msg::Paste(text) => {
+                let effect = self.session.key(Key::Text(text));
+                self.effect(effect);
+            }
             Msg::Quit => self.running = false,
         }
         self.changed();
@@ -334,7 +348,7 @@ impl Window {
         }
         self.changed();
         if first {
-            self.emit("chat-field.shown", json!({}));
+            self.emit("shown", json!({}));
         }
     }
 
@@ -347,7 +361,7 @@ impl Window {
     fn close(&mut self) {
         self.token = None;
         self.destroy_surface();
-        self.emit("chat-field.closed", json!({}));
+        self.emit("closed", json!({}));
     }
 
     fn emit(&self, event: &'static str, data: serde_json::Value) {
@@ -360,7 +374,7 @@ impl Window {
             return;
         }
         self.focused = focused;
-        self.emit("chat-field.keyboard", json!({"on": focused}));
+        self.emit("keyboard", json!({"on": focused}));
         if let Some(input) = &self.globals.text_input {
             if focused {
                 input.enable();
@@ -481,20 +495,33 @@ impl Window {
         let sym = state.key_get_one_sym(keycode).raw();
         match keys::decode(sym, mods, &state.key_get_utf8(keycode)) {
             Decoded::Key(key) => Some(key),
-            Decoded::Paste => self.paste(),
+            Decoded::Paste => {
+                self.paste();
+                None
+            }
             Decoded::Ignore => None,
         }
     }
 
-    fn paste(&mut self) -> Option<Key> {
-        let offer = self.selection.as_ref()?;
-        let mimes = offer.data::<crate::events::Mimes>()?.0.lock().ok()?.clone();
-        let mime = paste::text_type(&mimes)?;
-        let (read, write) = rustix::pipe::pipe_with(rustix::pipe::PipeFlags::CLOEXEC).ok()?;
+    /// Asks the selection for its text; a thread reads it, so that a slow
+    /// source does not stop the window.
+    fn paste(&mut self) {
+        let Some(offer) = &self.selection else {
+            return;
+        };
+        let mimes = (offer.data::<crate::events::Mimes>())
+            .and_then(|m| m.0.lock().ok().map(|list| list.clone()))
+            .unwrap_or_default();
+        let (Some(mime), Ok((read, write))) = (
+            paste::text_type(&mimes),
+            rustix::pipe::pipe_with(rustix::pipe::PipeFlags::CLOEXEC),
+        ) else {
+            return;
+        };
         offer.receive(mime.to_owned(), write.as_fd());
         drop(write);
-        self.conn.flush().ok()?;
-        Some(Key::Text(paste::read_text(read)))
+        let wake = Arc::clone(&self.wake);
+        std::thread::spawn(move || wake.tell(Msg::Paste(paste::read_text(read))));
     }
 
     fn press(&mut self, key: Key) {
@@ -565,6 +592,17 @@ fn buffer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_width_is_clamped_to_what_a_surface_can_be() {
+        let place = |width| {
+            serde_json::from_value::<Place>(json!({"anchor": "top", "width": width}))
+                .expect("a place")
+                .clamped()
+                .width
+        };
+        assert_eq!((place(0), place(400), place(100_000)), (1, 400, 1600));
+    }
 
     #[test]
     fn an_anchor_names_its_edges() {

@@ -104,6 +104,10 @@ pub enum Word {
     Dropped,
     /// Typed text waits and was changed after Enter.
     NotSent,
+    /// The draft has more lines than show.
+    Lines,
+    /// Enter again sends a draft of many lines.
+    SendLines,
     /// A look with one problem.
     HudNoticeOne,
     /// A look with several problems.
@@ -111,7 +115,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 40] = [
+pub const ALL: [Word; 42] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -150,6 +154,8 @@ pub const ALL: [Word; 40] = [
     Word::NoHelper,
     Word::Dropped,
     Word::NotSent,
+    Word::Lines,
+    Word::SendLines,
     Word::HudNoticeOne,
     Word::HudNotice,
 ];
@@ -204,6 +210,8 @@ impl Word {
             Self::NoHelper => "No helper is set up. Ask the person who set up this computer.",
             Self::Dropped => "Earlier messages were dropped.",
             Self::NotSent => "Not sent. Press Enter to send.",
+            Self::Lines => "{n} lines",
+            Self::SendLines => "Press Enter again to send {n} lines",
             Self::HudNoticeOne => {
                 "The look \"{name}\" has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
             }
@@ -257,6 +265,8 @@ impl Word {
             }
             Self::Dropped => "Frühere Nachrichten wurden verworfen.",
             Self::NotSent => "Nicht gesendet. Zum Senden Enter drücken.",
+            Self::Lines => "{n} Zeilen",
+            Self::SendLines => "Zum Senden von {n} Zeilen noch einmal Enter drücken",
             Self::HudNoticeOne => {
                 "Das Aussehen „{name}“ hat 1 Fehler, das alte bleibt. Wählen Sie in den Einstellungen ein anderes oder fragen Sie, wer es gemacht hat."
             }

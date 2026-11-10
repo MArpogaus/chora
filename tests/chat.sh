@@ -2,6 +2,8 @@
 # Test of the chat field (docs/voice.md, "The chat field") in a headless
 # session: chora-chat --input runs as a layer surface beside a window of
 # chora-probe and the fake ACP agent of services/voice/tests/fake-acp.sh.
+# tests/chat-host.py plays the host: it starts the field with a pipe and
+# without CHORA_SOCKET, and relays between the field and voice.
 #
 # It checks that the field takes the keyboard only by a click and never by
 # a token without a real act, that typed, composed (text-input-v3) and
@@ -67,8 +69,8 @@ PATH=$bin:$PATH "$bin/chora-voice" >"$tmp/voice.log" 2>&1 &
 pids+=($!)
 until ctl call voice state >/dev/null 2>&1; do sleep 0.2; done
 
-ctl events 'chat-field.*' >"$tmp/events" 2>&1 &
-pids+=($!)
+mkfifo "$tmp/field.fifo"
+: >"$tmp/events"
 "$bin/chora-probe" clip clipboard-text >"$tmp/window" 2>&1 &
 pids+=($!)
 window_id=$(ctl wait 'kind:surface' | python3 -c 'import json,sys; print(json.loads(sys.stdin.readline())[0]["id"])')
@@ -104,25 +106,28 @@ agent_log=$XDG_DATA_HOME/chora/agents/coder.log
 state() {
     ctl call voice agent '{"tool": "agent_status", "name": "coder"}' | tr -d '"'
 }
-place() { ctl call chat-field place "$1" >/dev/null; }
-shown() { wait_for "the field shows" "$tmp/events" chat-field.shown "$1"; }
+to_field() { printf '%s\n' "$1" | timeout 5 tee "$tmp/field.fifo" >/dev/null; }
+place() { to_field "{\"place\": $1}"; }
+shown() { wait_for "the field shows" "$tmp/events" '"event":"shown"' "$1"; }
 bottom='{"anchor": "bottom", "margin": [0, 0, 40, 0], "width": 400}'
 top='{"anchor": "top", "margin": [40, 0, 0, 0], "width": 400}'
 field_bottom=(640 742)
 field_top=(640 58)
 
 ctl call voice agent '{"tool": "agent_start", "project": "demo", "name": "coder"}' >/dev/null
-"$bin/chora-chat" --input coder >"$tmp/field.log" 2>&1 &
+token=$(ctl run sh -c true | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+XDG_ACTIVATION_TOKEN=$token python3 "$repo/tests/chat-host.py" "$bin/chora-chat" "$bin/choractl" coder \
+    "$tmp/events" "$tmp/field.fifo" "$tmp/field.pid" >"$tmp/field.log" 2>&1 &
 pids+=($!)
-for _ in $(seq 100); do
-    ctl call chat-field place "$bottom" >/dev/null 2>&1 && break
-    sleep 0.1
-done
+host=$!
+place "$bottom"
 wait_for "the window has the keyboard" "$tmp/window" enter
 shown 1
 stays "a field without a token took the keyboard" "$tmp/events" '"on":true'
 [[ $(count "$tmp/events" '"on":true') == 0 ]] || fail "a field without a token took the keyboard"
-echo "ok: a field placed without a token takes no keyboard"
+! tr '\0' '\n' <"/proc/$(<"$tmp/field.pid")/environ" | grep -q CHORA_SOCKET ||
+    fail "the field has CHORA_SOCKET"
+echo "ok: a field placed without a token takes no keyboard, and has no chora socket"
 
 token=$(ctl run sh -c true | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
 place "{\"anchor\": \"bottom\", \"margin\": [0, 0, 40, 0], \"token\": \"$token\"}"
@@ -164,9 +169,12 @@ wait_for "the field at its new place" "$tmp/events" '"on":true' 2
 echo "ok: the field moves to a new place"
 
 ctl call voice confirm '{"answer": "no"}' >/dev/null
-wait_for "the held text goes after the question" "$agent_log" '"text":"yes"'
-[[ $(count "$agent_log" 'session/prompt') == 2 ]] || fail "the held text was not one prompt"
-echo "ok: the draft survived the new place and goes after the question"
+sleep 1.5
+[[ $(count "$agent_log" 'session/prompt') == 1 ]] || fail "the held text went out when the question ended"
+press Return
+wait_for "the kept draft" "$agent_log" '"text":"yes"'
+[[ $(count "$agent_log" 'session/prompt') == 2 ]] || fail "the kept draft was not one prompt"
+echo "ok: the held draft survived the new place, is not sent by the end of the question, and goes with Enter"
 
 for _ in $(seq 50); do
     [[ $(state) == *question* ]] && break
@@ -178,7 +186,7 @@ sleep 1
 type_text draft
 windows=$(count "$tmp/window" enter)
 press Escape
-wait_for "Esc closes the field" "$tmp/events" 'chat-field.closed'
+wait_for "Esc closes the field" "$tmp/events" '"event":"closed"'
 wait_for "the window has the keyboard back" "$tmp/window" enter $((windows + 1))
 echo "ok: Esc closes the field and the window gets the keyboard back"
 
@@ -193,5 +201,12 @@ echo "ok: the draft stays after Esc"
 if grep -qiE 'panic|error' "$tmp/field.log"; then
     fail "the field logged: $(tail -n 3 "$tmp/field.log")"
 fi
-ctl call chat-field quit >/dev/null
+field_pid=$(<"$tmp/field.pid")
+kill -KILL "$host"
+for _ in $(seq 50); do
+    kill -0 "$field_pid" 2>/dev/null || break
+    sleep 0.1
+done
+kill -0 "$field_pid" 2>/dev/null && fail "the field outlived its host"
+echo "ok: the field ends with its host"
 echo "ok: chat field"

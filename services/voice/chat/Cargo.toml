@@ -8,7 +8,7 @@ chora-kit.workspace = true
 chora-scene.workspace = true
 clap.workspace = true
 resvg = { version = "0.48", default-features = false, features = ["memmap-fonts", "system-fonts", "text"] }
-rustix = { version = "1", features = ["event", "fs", "pipe"] }
+rustix = { version = "1", features = ["event", "fs", "pipe", "process"] }
 serde.workspace = true
 serde_json.workspace = true
 wayland-client = "0.31"
