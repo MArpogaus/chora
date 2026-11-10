@@ -7,6 +7,11 @@ is found (charter section 8). Started from charter section 15 on
 
 ## Track A
 
+F1. The focus race fixed in tiling (1275e15: a relayout after a hand
+   sent a stale `focus` that cleared the receiver's focus) may exist in
+   the hand code of xp, mc and construct. Check each, with the same kind
+   of test (`a_handed_window_leaves_the_focus_to_its_receiver`).
+
 C1. One cube (user question 11-09): today `chora-xp` has its own desktop
    cube (`cube.rs`, 327 lines), a transform of the desktop layer only;
    the taskbar is a separate layer outside it and stays flat while the
