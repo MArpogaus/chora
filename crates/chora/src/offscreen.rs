@@ -9,7 +9,7 @@
 
 use std::time::Instant;
 
-use chora_scene::{Scene, Uniform, ipc::RpcError};
+use chora_scene::{Node, Scene, Uniform, ipc::RpcError};
 use serde::Deserialize;
 use serde_json::Value;
 use smithay::{
@@ -26,14 +26,14 @@ use smithay::{
         wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
         wayland_server::backend::GlobalId,
     },
-    utils::{Buffer, Size},
+    utils::{Buffer, Point, Size},
     wayland::presentation::Refresh,
 };
 
 use crate::{
     backend::headless::{Spec, parse_specs},
     ipc::{params_of, rejected},
-    output::frame_duration,
+    output::{Spot, frame_duration, output_area, to_scene},
     render,
     state::State,
 };
@@ -72,6 +72,13 @@ impl Virtual {
             return None;
         }
         Some((self.target.texture.clone()?, self.target.version))
+    }
+
+    /// Whether a node of the owner reads the output.
+    fn read_by(&self, node: &Node) -> bool {
+        let name = self.output().name();
+        let reads = |u: &Uniform| matches!(u, Uniform::Output(read) if read.output == name);
+        node.owner.as_deref() == Some(&self.owner) && node.props.uniforms.values().any(reads)
     }
 
     /// Renders a frame and notes it for the frame callbacks.
@@ -279,6 +286,29 @@ impl State {
         self.scene.set_output_owner(&name, None);
         self.output_changed();
         self.update_focus();
+    }
+
+    /// The spot on a virtual output that a pane shows at a spot of a
+    /// screen: the node hit there is a shader node with `forward` that
+    /// reads an output of its owner. The point of the node maps to the
+    /// output by their sizes. One level only: the result is not looked up
+    /// again. A locked session hits no node, so it forwards nothing.
+    pub fn through_pane(&self, screen: &Spot) -> Option<Spot> {
+        if self.assets.virtuals.is_empty() {
+            return None;
+        }
+        let (id, at) = render::node_hit(self, screen)?;
+        let pane = self.scene.node(&id).filter(|n| n.props.forward)?;
+        let [width, height] = pane.props.size?;
+        let face = self.assets.virtuals.iter().find(|v| v.read_by(pane))?;
+        let output = face.output().clone();
+        let size = output_area(&output).size.to_f64();
+        let local = Point::from((at.x / width * size.w, at.y / height * size.h));
+        Some(Spot {
+            scene: to_scene(&self.camera(&output), local),
+            output,
+            local,
+        })
     }
 
     /// Whether an output is a virtual one.

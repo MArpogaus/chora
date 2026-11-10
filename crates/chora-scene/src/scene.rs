@@ -1617,7 +1617,8 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
         return wrong("image");
     }
-    if kind != NodeKind::Shader && (props.shader.is_some() || props.uniforms.is_some()) {
+    let shader_only = props.shader.is_some() || props.uniforms.is_some() || props.forward.is_some();
+    if kind != NodeKind::Shader && shader_only {
         return wrong("shader");
     }
     if kind != NodeKind::Group && props.perspective.is_some() {

@@ -569,10 +569,10 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         state.ipc.send_to(conn, &event);
     }
     // The drag of a node goes to plugins only, with each new position.
+    let outputs = state.all_outputs();
     let under = if let Some(grab) = &mut state.node_grab {
-        let position = position_for(&state.scene, &state.outputs, &grab.node, &spot);
-        let local =
-            local_for(&state.scene, &state.outputs, &grab.node, &spot).unwrap_or(grab.local);
+        let position = position_for(&state.scene, &outputs, &grab.node, &spot);
+        let local = local_for(&state.scene, &outputs, &grab.node, &spot).unwrap_or(grab.local);
         #[allow(clippy::float_cmp)] // the same input gives the same numbers
         if (grab.position, grab.local) != (position, local) {
             grab.position = position;
@@ -858,7 +858,7 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         let owner = hit.and_then(|n| n.owner.clone());
         state.note_act(state.owner_conns(owner.as_deref()));
     }
-    let position = position_for(&state.scene, &state.outputs, &node, &spot);
+    let position = position_for(&state.scene, &state.all_outputs(), &node, &spot);
     state.emit(&SceneEvent::PointerPressed {
         node: node.clone(),
         button,
@@ -990,7 +990,7 @@ impl Pin {
         location: Point<f64, Logical>,
     ) -> Option<(WlSurface, Point<f64, Logical>)> {
         let spot = state.spot(state.pointer_layout)?;
-        let (start, at) = anchor(&state.scene, &state.outputs, &self.node, &spot);
+        let (start, at) = anchor(&state.scene, &state.all_outputs(), &self.node, &spot);
         if !state.scene.is_within(&self.node, &start)
             || render::left_out(state, &spot.output, &self.node)
         {
@@ -1161,10 +1161,10 @@ fn release_node(state: &mut State, button: u32) {
     };
     let spot = state.spot(state.pointer_layout);
     let position = spot.as_ref().map_or([0.0; 2], |s| {
-        position_for(&state.scene, &state.outputs, &node, s)
+        position_for(&state.scene, &state.all_outputs(), &node, s)
     });
     let local = spot
-        .and_then(|s| local_for(&state.scene, &state.outputs, &node, &s))
+        .and_then(|s| local_for(&state.scene, &state.all_outputs(), &node, &s))
         .unwrap_or(local);
     let modifiers = modifiers(state);
     state.emit(&SceneEvent::PointerReleased {
@@ -1232,7 +1232,7 @@ fn scroll_node(state: &mut State, delta: [f64; 2], discrete: [f64; 2], source: A
     let Some(owner) = owner else {
         return;
     };
-    let position = position_for(&state.scene, &state.outputs, &node, &spot);
+    let position = position_for(&state.scene, &state.all_outputs(), &node, &spot);
     let event = SceneEvent::PointerScroll {
         node,
         position,

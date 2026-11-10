@@ -322,9 +322,11 @@ impl State {
         }
     }
 
-    /// Where the pointer is for the input: the spot on the screen.
+    /// Where the pointer is for the input: the spot on the screen, or the
+    /// spot on a virtual output that a forwarding pane shows there.
     pub fn spot(&self, layout: Point<f64, Logical>) -> Option<Spot> {
-        self.screen_spot(layout)
+        let screen = self.screen_spot(layout)?;
+        Some(self.through_pane(&screen).unwrap_or(screen))
     }
 
     /// The screen at a point of the layout, and the point in output and in

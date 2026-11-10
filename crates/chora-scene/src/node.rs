@@ -342,6 +342,10 @@ pub struct Props {
     /// The uniforms of the shader of a shader node.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub uniforms: BTreeMap<String, Uniform>,
+    /// Whether a shader node passes the pointer into the virtual output
+    /// that it reads.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub forward: bool,
     /// The scene area of the owner as a window manager: x, y, width and
     /// height in scene coordinates (D55).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -423,6 +427,7 @@ impl Default for Props {
             shader: None,
             perspective: None,
             uniforms: BTreeMap::new(),
+            forward: false,
             claim: None,
             text: None,
             family: None,
@@ -518,6 +523,11 @@ pub struct PropsUpdate {
     /// The uniforms of the shader of a shader node. Replaces all uniforms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uniforms: Option<BTreeMap<String, Uniform>>,
+    /// Whether a shader node passes the pointer into the virtual output
+    /// that it reads with `{"output": NAME}`: the pointer is then at the
+    /// point of the output that the node shows under it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forward: Option<bool>,
     /// The scene area of the owner as a window manager: x, y, width and
     /// height in scene coordinates. A new toplevel can go to the owner
     /// (D55). `null` removes the claim.
@@ -666,6 +676,9 @@ impl Props {
         }
         if let Some(uniforms) = &update.uniforms {
             self.uniforms.clone_from(uniforms);
+        }
+        if let Some(forward) = update.forward {
+            self.forward = forward;
         }
     }
 }
