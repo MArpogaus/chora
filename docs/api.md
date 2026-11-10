@@ -366,11 +366,12 @@ The key action `give` is the same on every window manager. A binding
 focused window and reads its owner. A window of the plugin goes through
 `Windows::hand`, which does what `window.give` does: `Conn::give`, then
 the bookkeeping and the relayout of the plugin. It refuses a window that
-the plugin does not know, and a give to the plugin itself. A window of
-another window manager goes through `methods.call` to `window.give` of
-its owner, because a key has one holder (D55), whoever owns the focused
-window. Without a focused window or an owner the action fails and only
-logs. A new window manager implements `chora_kit::give::Windows` with
+the plugin does not know, and a give to the window manager that owns
+the window already. A window of another window manager goes through
+`methods.call` to `window.give` of its owner, because a key has one
+holder (D55), whoever owns the focused window; the call waits 2 seconds
+at most. Without a focused window or an owner, or when the owner is gone
+or refuses, the action fails and only logs. A new window manager implements `chora_kit::give::Windows` with
 `conn`, `has` and `hand`, and binds the key with one line:
 
 ```rust
@@ -383,10 +384,27 @@ impl give::Windows for MyWm {
 }
 ```
 
-The default keys are `Super+Alt+1` for `tiling`, `Super+Alt+2` for `xp`,
-`Super+Alt+3` for `mc` and `Super+Alt+4` for `construct`, in tiling, xp,
-mc and construct. `tests/gate-handover-matrix.sh` checks the key for
-every pair.
+The table `chora_kit::give::KEYS` holds the default keys: `Super+Alt+1`
+for `tiling`, `Super+Alt+2` for `xp`, `Super+Alt+3` for `mc` and
+`Super+Alt+4` for `construct`. tiling, xp, mc and construct grab them
+with `Runtime::give_keys` and `Runtime::grab_give_keys`, so a settings
+file without give bindings has them too. A key that another client holds
+stays free: the plugin tries again after an event, every 2 seconds at
+most, so the keys pass to the next window manager when their holder
+leaves. The holder is the window manager that started first, and it
+serves the keys for every window. A binding `give: NAME` of the settings
+of tiling or mc grabs another key, which that window manager holds.
+
+A client with the grant `input.inject` can press these keys, as it can
+press every binding of every window manager and type into a terminal, so
+that grant includes a privileged `window.give`.
+
+`tests/gate-handover-matrix.sh` presses the key for every pair with
+construct as the holder, since it starts first. `tests/gate-give-holders.sh`
+repeats two pairs with xp, tiling and mc as the holder, one for a window
+of the holder and one for a window of another manager that the holder
+forwards, and the gate fails when a manager other than the holder serves
+a key.
 
 ## Selectors
 
