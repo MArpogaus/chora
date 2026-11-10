@@ -880,3 +880,55 @@ fn two_agent_windows_keep_their_own_directory() {
     let _ = std::fs::remove_dir_all(first);
     let _ = std::fs::remove_dir_all(second);
 }
+
+/// The pull-out of E3: xp on the virtual output of a face drags a window
+/// by its title bar and gives it with the drag to the window manager of
+/// the space. The drag then leaves its pane: the receiver gets the
+/// pointer of the screen, not the point that the pane maps.
+#[test]
+fn a_drag_given_out_of_a_pane_goes_on_at_the_screen_point() {
+    let mut core = Core::new();
+    core.add_output("test-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (100, 80));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let m = pane_in_a_context(&mut core, &mut wm, [100.0, 80.0]);
+    let desk = json!({"create": {"id": "desk", "kind": "group", "parent": "root",
+        "props": {"claim": [0.0, 0.0, 800.0, 600.0]}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [desk]}));
+    wm.ok(&mut core, "input.grab", json!({"binding": "move"}));
+    wm.ok(&mut core, "events.subscribe", json!({"events": []}));
+    let mut xp = core.named("xp");
+    let face = json!({"create": {"id": "xp", "kind": "group", "parent": "root",
+        "props": {"claim": [FACE, FACE, 100.0, 80.0]}}});
+    let title = json!({"create": {"id": "title", "kind": "rect", "parent": "xp",
+        "props": {"size": [100, 20], "transform": {"translate": [FACE, FACE]}}}});
+    let commands = json!({"commands": [
+        face,
+        {"attach": {"surface": "s1", "parent": "xp"}},
+        {"update": {"id": "s1", "props": {"transform": {"translate": [FACE, FACE]}}}},
+        title,
+    ]});
+    xp.ok(&mut core, "scene.apply", commands);
+    move_to(&mut core, shown(&m, [400.0, 300.0], 30.0, 10.0).into());
+    click(&mut core, true);
+    assert!(core.state.node_grab.is_some(), "the press is on the title");
+    let give = json!({"commands": [
+        {"remove": {"id": "s1", "to": "wm"}},
+        {"give_grab": {"surface": "s1", "to": "wm", "point": [30.0, 10.0]}},
+    ]});
+    xp.ok(&mut core, "scene.apply", give);
+    move_to(&mut core, (700.0, 500.0).into());
+    let got = wm.events_now(&mut core);
+    let moved: Vec<&serde_json::Value> = got
+        .iter()
+        .map(|e| &e["params"])
+        .filter(|p| p["event"] == "input.moved")
+        .collect();
+    let last = moved.last().expect("a move for the receiver");
+    assert_eq!(last["output"], "test-1", "{got:?}");
+    assert_eq!(last["position"], json!([700.0, 500.0]), "{got:?}");
+    click(&mut core, false);
+    assert!(core.pointer_free());
+}
