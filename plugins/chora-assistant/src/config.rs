@@ -169,6 +169,8 @@ impl Default for Line {
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
+/// The gap between the figure of an asset folder and its Chat row.
+const ROW_GAP: i32 = 8;
 
 impl Values {
     /// The values of a HUD folder in a context. `size` gives the size of a
@@ -282,6 +284,7 @@ impl Values {
                 size,
             }),
         };
+        let above = raw.margin[1] + figure.size()[1] + ROW_GAP;
         Self {
             font: raw.font,
             figure,
@@ -290,7 +293,7 @@ impl Values {
             mutes: true,
             speech: raw.speech,
             line: Line::default(),
-            rows: NEUTRAL_ROWS,
+            rows: (Anchor::BottomRight, [raw.margin[0], above]),
             watches: BTreeSet::new(),
             hud: None,
         }
