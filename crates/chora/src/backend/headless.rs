@@ -29,9 +29,9 @@ use chora_scene::ipc::RpcError;
 use super::Backend;
 use crate::{
     ipc::{params_of, rejected},
+    offscreen::{OutputTexture, render_and_present},
     render,
     state::State,
-    r#virtual::{OutputTexture, render_and_present},
 };
 
 /// The refresh rate of the virtual outputs, in mHz.
@@ -53,7 +53,7 @@ pub struct Headless {
 /// A virtual output: its global and the texture that its frames go to.
 struct Virtual {
     global: GlobalId,
-    frames: OutputTexture,
+    texture: OutputTexture,
 }
 
 /// A virtual output of the command line or of `output.add`.
@@ -197,7 +197,7 @@ fn add(state: &mut State, spec: &Spec) -> Result<Output, String> {
     output.set_preferred(mode);
     headless.outputs.push(Virtual {
         global,
-        frames: OutputTexture::new(output.clone()),
+        texture: OutputTexture::new(output.clone()),
     });
     state.add_output(output.clone());
     if let Some(position) = spec.position {
@@ -259,14 +259,14 @@ impl State {
         let index = headless
             .outputs
             .iter()
-            .position(|v| v.frames.output().name() == name)
+            .position(|v| v.texture.output().name() == name)
             .ok_or_else(|| rejected(format!("no virtual output {name:?}")))?;
         if headless.outputs.len() == 1 {
             return Err(rejected("the last output stays"));
         }
         let gone = headless.outputs.remove(index);
         super::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
-        self.remove_output(gone.frames.output());
+        self.remove_output(gone.texture.output());
         self.outputs_configured();
         Ok(Value::Null)
     }
@@ -281,7 +281,7 @@ pub(crate) fn render_all(state: &mut State) {
     let outputs: Vec<Output> = headless
         .outputs
         .iter()
-        .map(|v| v.frames.output().clone())
+        .map(|v| v.texture.output().clone())
         .filter(|o| state.outputs.contains(o))
         .collect();
     for output in outputs {
@@ -307,7 +307,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     let Some(target) = headless
         .outputs
         .iter_mut()
-        .find(|v| v.frames.output() == output)
+        .find(|v| v.texture.output() == output)
     else {
         return Ok(false);
     };
@@ -319,7 +319,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         depth: 0,
     };
     target
-        .frames
+        .texture
         .render(&mut headless.renderer, &mut parts, &view)
 }
 
