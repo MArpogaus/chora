@@ -224,6 +224,26 @@ mod tests {
         assert_eq!(never.check(0, start + 3600 * S), None);
     }
 
+    /// A stopped or starved process stops the watchdog thread too: the
+    /// time that the watchdog did not watch is no stall of the main loop.
+    #[test]
+    fn a_watchdog_that_did_not_run_counts_no_stall() {
+        let start = Instant::now();
+        let mut watch = Watch::new(Some(10 * S), start);
+        assert_eq!(watch.check(1, start + TICK), None);
+        assert_eq!(watch.check(1, start + 40 * S), None, "after SIGCONT");
+        assert_eq!(watch.check(2, start + 40 * S + TICK), None);
+        let later = start + 40 * S + TICK;
+        let seen: Vec<Hang> = (1..=48)
+            .filter_map(|tick| watch.check(2, later + tick * TICK))
+            .collect();
+        assert_eq!(
+            seen,
+            [Hang::Stall(3 * S, Some(10 * S)), Hang::Abort(10 * S)],
+            "the stall counts from the last beat"
+        );
+    }
+
     /// The stall line does not wait for the stdout lock of tracing, which
     /// a main loop that hangs inside a log write holds.
     #[test]
