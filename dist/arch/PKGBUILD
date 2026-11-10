@@ -44,13 +44,14 @@ build() {
 package() {
   cd "$CHORA_SOURCE"
   local bin
-  for bin in chora choractl chora-tiling chora-xp chora-notify chora-assistant chora-mc chora-voice chora-construct; do
+  for bin in chora choractl chora-tiling chora-xp chora-notify chora-assistant chora-mc chora-voice chora-chat chora-construct; do
     install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
   # The X11 units of the flavors start it from this path.
   install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
   install -Dm644 dist/session/*.desktop -t "$pkgdir/usr/share/wayland-sessions/"
+  install -Dm644 services/voice/chat/chora-chat.desktop -t "$pkgdir/usr/share/applications/"
   install -Dm644 dist/session/env-chora -t "$pkgdir/etc/xdg/uwsm/"
   # Screen sharing through xdg-desktop-portal-wlr (D37).
   install -Dm644 dist/portal/chora-portals.conf -t "$pkgdir/usr/share/xdg-desktop-portal/"
