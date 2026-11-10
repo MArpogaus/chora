@@ -279,6 +279,9 @@ mod tests {
         let proc = DEFAULT.replace("  effects: []", "  effects: [{shader: /proc/self/mem}]");
         let err = parse::<Config>(&proc).unwrap_err();
         assert!(err.contains("not a regular file"), "{err}");
+        let lamp = DEFAULT.replace("\neffects: []\n", "\neffects: [lamp]\n");
+        let err = parse::<Config>(&lamp).unwrap_err();
+        assert!(err.contains("effects"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");
         assert!(parse::<Config>(&modifier).is_err());
     }

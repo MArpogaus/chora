@@ -341,4 +341,46 @@ mod tests {
         driver.grab("w", &target(), [200.0, 110.0]);
         assert!(!driver.animating());
     }
+
+    fn pour() -> Lamp {
+        Lamp::new(
+            [100.0, 100.0, 200.0, 100.0],
+            [0.0, 500.0, 80.0, 20.0],
+            Duration::from_millis(100),
+            false,
+        )
+    }
+
+    #[test]
+    fn a_finished_lamp_leaves_the_driver() {
+        let mut driver = Driver::new(&[Kind::Lamp]);
+        driver.lamp_toward("w", &target(), pour());
+        let frame = driver.tick(Instant::now() + Duration::from_secs(1), |_| Some(target()));
+        assert_eq!(frame.lamps_done, ["w"]);
+        assert!(!driver.animating(), "the driver ends the lamp itself");
+    }
+
+    #[test]
+    fn a_lamp_turned_around_at_its_start_ends_at_once() {
+        let mut driver = Driver::new(&[Kind::Lamp]);
+        driver.lamp_toward("w", &target(), pour());
+        let back = Lamp::new(
+            [100.0, 100.0, 200.0, 100.0],
+            [0.0; 4],
+            Duration::from_secs(9),
+            true,
+        );
+        driver.lamp_toward("w", &target(), back);
+        let later = Instant::now() + Duration::from_millis(50);
+        let frame = driver.tick(later, |_| Some(target()));
+        assert_eq!(frame.lamps_done, ["w"], "flipped, not a second lamp");
+    }
+
+    #[test]
+    fn a_drop_ends_the_lamps_and_names_them() {
+        let mut driver = Driver::new(&[Kind::Lamp]);
+        driver.lamp_toward("w", &target(), pour());
+        assert_eq!(driver.dropped(), ["w"]);
+        assert!(!driver.animating(), "nothing animates after a drop");
+    }
 }

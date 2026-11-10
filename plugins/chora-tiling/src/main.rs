@@ -1392,6 +1392,31 @@ mod tests {
         (tiling, methods)
     }
 
+    /// Presses on a window, moves the pointer through the points and lets
+    /// go at the last.
+    fn drag(tiling: &mut Tiling, surface: &str, points: &[[f64; 2]]) {
+        let press = |state, position: [f64; 2]| Event::InputButton {
+            binding: give::MOVE.into(),
+            state,
+            position,
+            output: "X".into(),
+            local: position,
+            surface: Some(surface.into()),
+        };
+        let moved = |position: [f64; 2]| Event::InputMoved {
+            binding: give::MOVE.into(),
+            position,
+            output: "X".into(),
+            local: position,
+        };
+        tiling.event(press(PressState::Pressed, points[0])).unwrap();
+        for point in &points[1..] {
+            tiling.event(moved(*point)).unwrap();
+        }
+        let last = points[points.len() - 1];
+        tiling.event(press(PressState::Released, last)).unwrap();
+    }
+
     /// Drags a floating window of 40 by 20 from its place to another and
     /// lets go; the transactions that tiling sent are the answer.
     fn drag_a_floating_window(tiling: &mut Tiling, methods: &Arc<Mutex<Vec<String>>>) -> String {
@@ -1402,38 +1427,180 @@ mod tests {
         tiling.wm.act(&Action::ToggleFloating);
         assert!(tiling.wm.set_size("s1", [40, 20]));
         tiling.relayout().unwrap();
-        let press = |state, position: [f64; 2]| Event::InputButton {
-            binding: give::MOVE.into(),
-            state,
-            position,
-            output: "X".into(),
-            local: position,
-            surface: Some("s1".into()),
-        };
-        let moved = |position: [f64; 2]| Event::InputMoved {
-            binding: give::MOVE.into(),
-            position,
-            output: "X".into(),
-            local: position,
-        };
-        tiling
-            .event(press(PressState::Pressed, [190.0, 150.0]))
-            .unwrap();
-        tiling.event(moved([230.0, 170.0])).unwrap();
-        tiling.event(moved([260.0, 190.0])).unwrap();
-        tiling
-            .event(press(PressState::Released, [260.0, 190.0]))
-            .unwrap();
+        drag(
+            tiling,
+            "s1",
+            &[[190.0, 150.0], [230.0, 170.0], [260.0, 190.0]],
+        );
         methods.lock().unwrap().join("\n")
     }
 
+    /// The commands of the transactions that tiling sent, in order.
+    fn sent_commands(methods: &Arc<Mutex<Vec<String>>>) -> Vec<Value> {
+        let calls = methods.lock().unwrap().clone();
+        let applies = calls.iter().filter_map(|m| m.strip_prefix("scene.apply "));
+        applies
+            .flat_map(|params| {
+                let params: Value = serde_json::from_str(params).unwrap();
+                params["commands"].as_array().cloned().unwrap_or_default()
+            })
+            .collect()
+    }
+
+    /// The updates of a node that set a mesh with points.
+    fn bends(methods: &Arc<Mutex<Vec<String>>>, node: &str) -> usize {
+        let meshes = sent_commands(methods);
+        let bent = |c: &&Value| {
+            let update = &c["update"];
+            update["id"] == node
+                && update["props"]["mesh"]["points"]
+                    .as_array()
+                    .is_some_and(|p| !p.is_empty())
+        };
+        meshes.iter().filter(bent).count()
+    }
+
+    /// The updates of a node that remove its mesh.
+    fn unbends(methods: &Arc<Mutex<Vec<String>>>, node: &str) -> usize {
+        let unmesh = |c: &&Value| {
+            let update = &c["update"];
+            update["id"] == node
+                && update["props"]["mesh"].is_object()
+                && update["props"]["mesh"]["points"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)
+        };
+        sent_commands(methods).iter().filter(unmesh).count()
+    }
+
+    fn settle(tiling: &mut Tiling) {
+        let mut now = std::time::Instant::now();
+        for _ in 0..600 {
+            now += std::time::Duration::from_millis(16);
+            tiling.frame(now).unwrap();
+            if !tiling.effects.animating() {
+                return;
+            }
+        }
+    }
+
+    const WOBBLY: [chora_kit::effects::Kind; 1] = [chora_kit::effects::Kind::Wobbly];
+
     #[test]
     fn a_tiling_window_wobbles_with_the_opt_in() {
-        let (mut tiling, methods) =
-            on_fake_core_with("wobble", &[chora_kit::effects::Kind::Wobbly]);
-        let sent = drag_a_floating_window(&mut tiling, &methods);
-        assert!(sent.contains("\"mesh\""), "a dragged window bends: {sent}");
+        let (mut tiling, methods) = on_fake_core_with("wobble", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        assert!(bends(&methods, "s1") > 0, "the dragged node bends");
         assert!(tiling.effects.animating(), "and shakes after the release");
+    }
+
+    #[test]
+    fn the_frames_stop_when_the_window_settles() {
+        let (mut tiling, methods) = on_fake_core_with("settles", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        settle(&mut tiling);
+        assert!(!tiling.effects.animating());
+        assert_eq!(unbends(&methods, "s1"), 1, "one unmesh at the end");
+    }
+
+    #[test]
+    fn a_rejected_transaction_in_a_wobble_leaves_no_mesh_behind() {
+        let (mut tiling, methods) = on_fake_core_with("rejected", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        tiling.forget();
+        settle(&mut tiling);
+        assert_eq!(unbends(&methods, "s1"), 1, "the window is flat again");
+    }
+
+    #[test]
+    fn a_window_closed_in_a_wobble_ends_it() {
+        let (mut tiling, methods) = on_fake_core_with("closed", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        let gone = Event::SurfaceDestroyed {
+            surface: "s1".into(),
+        };
+        tiling.event(gone).unwrap();
+        assert!(!tiling.effects.animating());
+        let before = sent_commands(&methods).len();
+        tiling.frame(std::time::Instant::now()).unwrap();
+        assert_eq!(sent_commands(&methods).len(), before, "nothing to send");
+    }
+
+    #[test]
+    fn a_tiled_window_never_wobbles() {
+        let (mut tiling, methods) = on_fake_core_with("tiled", &WOBBLY);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.relayout().unwrap();
+        drag(&mut tiling, "s1", &[[190.0, 150.0], [230.0, 170.0]]);
+        assert!(!tiling.effects.animating());
+        assert_eq!(bends(&methods, "s1"), 0);
+    }
+
+    #[test]
+    fn a_window_loses_its_mesh_before_the_hand_over() {
+        let (mut tiling, methods) = on_fake_core_with("hand", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        tiling.hand("s1", "other").unwrap();
+        let sent = sent_commands(&methods);
+        let position = |wanted: &dyn Fn(&Value) -> bool| sent.iter().position(wanted).unwrap();
+        let unmesh = position(&|c| {
+            c["update"]["id"] == "s1"
+                && c["update"]["props"]["mesh"]["points"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)
+                && c["update"]["props"]["mesh"].is_object()
+        });
+        let give = position(&|c| c["remove"]["to"] == "other");
+        assert!(unmesh < give, "the mesh goes before the window");
+        assert!(!tiling.effects.animating());
+    }
+
+    #[test]
+    fn the_watchdog_of_the_core_ends_the_wobble() {
+        let (mut tiling, methods) = on_fake_core_with("dropped", &WOBBLY);
+        drag_a_floating_window(&mut tiling, &methods);
+        let dropped = Event::EffectsDropped {
+            client: NAME.into(),
+        };
+        tiling.event(dropped).unwrap();
+        assert!(!tiling.effects.animating());
+    }
+
+    #[test]
+    fn a_new_press_lets_go_of_the_window_before() {
+        let (mut tiling, methods) = on_fake_core_with("twice", &WOBBLY);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        for id in ["s1", "s2"] {
+            tiling.wm.add_window(id);
+            tiling.wm.act(&Action::ToggleFloating);
+            assert!(tiling.wm.set_size(id, [40, 20]));
+        }
+        tiling.relayout().unwrap();
+        let press = |surface: &str, position: [f64; 2]| Event::InputButton {
+            binding: give::MOVE.into(),
+            state: PressState::Pressed,
+            position,
+            output: "X".into(),
+            local: position,
+            surface: Some(surface.into()),
+        };
+        let moved = Event::InputMoved {
+            binding: give::MOVE.into(),
+            position: [230.0, 170.0],
+            output: "X".into(),
+            local: [230.0, 170.0],
+        };
+        tiling.event(press("s1", [190.0, 150.0])).unwrap();
+        tiling.event(moved).unwrap();
+        tiling.event(press("s2", [50.0, 50.0])).unwrap();
+        settle(&mut tiling);
+        assert!(bends(&methods, "s1") > 0);
+        assert!(!tiling.effects.animating(), "s1 shakes to its end");
     }
 
     #[test]
