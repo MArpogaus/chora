@@ -1196,6 +1196,111 @@ fn the_watchdog_takes_the_shader_of_a_shader_node() {
     assert!(scene.node("s").unwrap().props.shader.is_none());
 }
 
+/// A child of `parent` from JSON props.
+fn create_in(id: &str, kind: &str, parent: &str, props: &serde_json::Value) -> Command {
+    serde_json::from_value(serde_json::json!({
+        "create": {"id": id, "kind": kind, "parent": parent, "props": props}
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_watchdog_counts_planes_and_drops_the_perspective() {
+    let mut scene = Scene::default();
+    let space = serde_json::json!({"size": [100, 100], "perspective": 500});
+    let turned = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
+        "transform": {"rotate": 30}});
+    let deep = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
+        "transform": {"translate": [0, 0, 100]}});
+    scene
+        .apply(
+            "wm",
+            &[
+                create("space", "group", &space),
+                create_in("deep", "rect", "space", &deep),
+                create(
+                    "spin",
+                    "group",
+                    &serde_json::json!({"transform": {"rotate": 30}}),
+                ),
+                create_in("t", "text", "spin", &serde_json::json!({"text": "a"})),
+                create("r", "rect", &turned),
+            ],
+        )
+        .unwrap();
+    let load = scene.load_by_owner();
+    assert_eq!(load.get("wm"), Some(&(1 + 26 + 1 + 26 + 26)));
+    assert!(scene.drop_effects("wm"));
+    assert_eq!(scene.node("space").unwrap().props.perspective, None);
+    assert_eq!(
+        scene.load_by_owner().get("wm"),
+        Some(&(1 + 1 + 1 + 26 + 26))
+    );
+}
+
+#[test]
+fn a_perspective_belongs_to_a_group_and_has_a_range() {
+    let mut scene = Scene::default();
+    for (kind, perspective) in [("rect", 100.0), ("group", 0.5), ("group", 2e6)] {
+        let props = serde_json::json!({"size": [10, 10], "perspective": perspective});
+        assert!(
+            scene.apply("wm", &[create("n", kind, &props)]).is_err(),
+            "{kind} {perspective}"
+        );
+    }
+    let props = serde_json::json!({"size": [10, 10], "perspective": 1});
+    scene.apply("wm", &[create("n", "group", &props)]).unwrap();
+    let remove: Command = serde_json::from_value(serde_json::json!({
+        "update": {"id": "n", "props": {"perspective": null}}
+    }))
+    .unwrap();
+    scene.apply("wm", &[remove]).unwrap();
+    assert_eq!(scene.node("n").unwrap().props.perspective, None);
+}
+
+#[test]
+fn a_context_projects_its_descendants_in_the_draw_list() {
+    let mut scene = Scene::default();
+    let space = serde_json::json!({"size": [200, 100], "perspective": 400,
+        "transform": {"translate": [10, 20]}});
+    let deep = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
+        "transform": {"translate": [0, 0, 400]}});
+    scene
+        .apply(
+            "wm",
+            &[
+                create("space", "group", &space),
+                create_in("eye", "group", "space", &serde_json::json!({})),
+                create_in("deep", "rect", "eye", &deep),
+            ],
+        )
+        .unwrap();
+    let list = scene.draw_list();
+    let deep = list.iter().find(|p| p.node.id == "deep").unwrap();
+    let m = deep.transform.matrix();
+    let shown = |u: f64, v: f64| {
+        let w = m[3] * u + m[7] * v + m[15];
+        (
+            (m[0] * u + m[4] * v + m[12]) / w,
+            (m[1] * u + m[5] * v + m[13]) / w,
+        )
+    };
+    for ((u, v), want) in [((0.0, 0.0), (60.0, 45.0)), ((10.0, 10.0), (65.0, 50.0))] {
+        let got = shown(u, v);
+        assert!(
+            (got.0 - want.0).abs() < 1e-9 && (got.1 - want.1).abs() < 1e-9,
+            "{got:?} != {want:?}"
+        );
+    }
+    let hits = scene.hit_list(ROOT);
+    assert_eq!(
+        hits.iter().map(|p| p.node.id.as_str()).collect::<Vec<_>>(),
+        ["space"],
+        "the hit list stops at a context"
+    );
+    assert_eq!(scene.layer_list(ROOT).len(), 1);
+}
+
 #[test]
 fn a_client_that_cleared_the_focus_gives_it_back() {
     let mut scene = scene_with_surface();

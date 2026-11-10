@@ -202,6 +202,18 @@ impl Transform {
         t
     }
 
+    /// The projection of a 3D context with the eye at distance `d` in front
+    /// of `centre`, looking along +z: a point shows with w = 1 + z / d
+    /// around the centre, and keeps z for the depth order.
+    #[must_use]
+    pub fn perspective([cx, cy]: [f64; 2], d: f64) -> Self {
+        let mut t = Self::IDENTITY;
+        t.m[8] = cx / d;
+        t.m[9] = cy / d;
+        t.m[11] = 1.0 / d;
+        t
+    }
+
     /// The transform that applies `inner` first and then `self`.
     #[must_use]
     pub fn then(&self, inner: &Self) -> Self {
