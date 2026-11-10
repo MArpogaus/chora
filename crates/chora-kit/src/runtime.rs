@@ -76,6 +76,8 @@ pub struct Runtime<A> {
     give_keys: Option<fn(&'static str) -> A>,
     /// The last try to grab give keys that another client held.
     give_tried: Option<Instant>,
+    /// Whether a key of `input.inject` runs a binding (test sessions).
+    inject_ok: bool,
 }
 
 impl<A> Runtime<A> {
@@ -117,7 +119,17 @@ impl<A> Runtime<A> {
             grabs: Vec::new(),
             give_keys: None,
             give_tried: None,
+            inject_ok: false,
         }
+    }
+
+    /// Sets whether a key of `input.inject` runs a binding of the plugin;
+    /// off by default, since only a person presses the keys of a
+    /// window manager. The environment variable
+    /// `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` of the test sessions turns it
+    /// on too.
+    pub fn accept_injected(&mut self, setting: bool) {
+        let _ = (setting, self.inject_ok);
     }
 
     /// Sets the action of a give key of [`crate::give::KEYS`] by its
@@ -667,5 +679,61 @@ mod tests {
         released.store(true, Ordering::SeqCst);
         rt.grab_give_keys().unwrap();
         assert_eq!(rt.action("Alt+Super+2"), Some(&"xp"));
+    }
+
+    struct Recorder {
+        rt: Runtime<()>,
+        seen: Vec<Event>,
+    }
+
+    impl Plugin for Recorder {
+        type Action = ();
+
+        fn runtime(&mut self) -> &mut Runtime<()> {
+            &mut self.rt
+        }
+
+        fn event(&mut self, event: Event) -> Result<(), ClientError> {
+            self.seen.push(event);
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+    }
+
+    fn key(injected: bool) -> Event {
+        Event::InputKey {
+            binding: "Alt+Super+2".into(),
+            state: chora_scene::ipc::PressState::Pressed,
+            injected,
+        }
+    }
+
+    fn recorder() -> Recorder {
+        use crate::conn::fake_core::{self, Answer};
+
+        let (path, _core) = fake_core::serve(|_, _| Answer::Result(Value::Null));
+        let conn = Conn::connect_at("tiling", &path).unwrap();
+        Recorder {
+            rt: Runtime::with(conn, "tiling", Vec::new()),
+            seen: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn an_injected_key_runs_no_binding_unless_the_setting_is_on() {
+        let mut plugin = recorder();
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen, []);
+        dispatch(&mut plugin, key(false)).unwrap();
+        assert_eq!(plugin.seen.len(), 1);
+        plugin.rt.accept_injected(true);
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen.len(), 2);
+        plugin.rt.accept_injected(false);
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen.len(), 2);
     }
 }

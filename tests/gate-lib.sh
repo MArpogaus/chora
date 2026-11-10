@@ -27,6 +27,7 @@ need_bins() {
         test -x "$bin/$b" || fail "no $bin/$b; build it first"
     done
 }
+export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 pids=()
 tmp_dirs=()
 # gate_cleanup [STATUS]: the EXIT trap. It ends the session and the

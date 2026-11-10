@@ -34,6 +34,9 @@
 #   HOLDER: the window manager that starts first and so holds the give
 #   keys (default construct); only that one may serve the keys, and the
 #   gate fails when another does
+#   CHORA_TEST_ACCEPT_INJECTED_KEYS: 1 (default) lets the window managers
+#   take the keys of `input.inject`; 0 is production: the key cells of
+#   tiling, xp and mc expect gap, and no manager may serve a key
 #   CAP: the most seconds of the run (default 240)
 #   ONLY: a regular expression that must match all of "SRC DST PATH"; only
 #   those cells run, the table is not fully checked, and the gate says so
@@ -144,6 +147,7 @@ time_cap=${CAP:-240}
 log=$shots/matrix.log
 : >"$log"
 
+injected_keys=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
 holder=${HOLDER:-construct}
 case $holder in construct | xp | tiling | mc) ;; *) fail "HOLDER $holder is no window manager" ;; esac
 
@@ -420,6 +424,9 @@ cell() {
     [ "$SECONDS" -le "$time_cap" ] || fail "the run takes more than $time_cap s at $src $dst $path"
     want=$(expected_of "$src" "$dst" "$path")
     [ -n "$want" ] || fail "no EXPECTED line for $src $dst $path"
+    if [ "$injected_keys" = 0 ] && [ "$path" = key ] && [ "$src" != construct ]; then
+        want=gap
+    fi
     case $path in drag | key) owner_s=1.5 ;; voice) owner_s=12 ;; *) owner_s=0.8 ;; esac
     if [ "$want" = pass ]; then
         settle_s=10
@@ -498,7 +505,10 @@ served_by() {
 }
 keys_ran=0
 for k in "${!got[@]}"; do [[ $k == *" key" ]] && keys_ran=1; done
-if [ "$keys_ran" = 1 ] && [ "$(served_by | tr '\n' ' ')" != "$holder " ]; then
+if [ "$keys_ran" = 1 ] && [ "$injected_keys" = 0 ] && [ -n "$(served_by)" ]; then
+    fail "an injected give key was served by [$(served_by | tr '\n' ' ')] with the setting off"
+fi
+if [ "$keys_ran" = 1 ] && [ "$injected_keys" != 0 ] && [ "$(served_by | tr '\n' ' ')" != "$holder " ]; then
     fail "the give keys were served by [$(served_by | tr '\n' ' ')], expected only $holder"
 fi
 [ -z "${ONLY:-}" ] || echo "ONLY is set: the table is not fully checked"

@@ -4,7 +4,9 @@
 # two cells run per holder through tests/gate-handover-matrix.sh. One cell
 # gives a window of the holder (the holder hands it over); the other gives
 # a window of another manager (the holder forwards to its owner). The
-# default run of the matrix gate has construct as the holder.
+# default run of the matrix gate has construct as the holder. A last run
+# turns the setting off that lets the managers take injected keys, and
+# expects that the injected give keys give nothing.
 #
 # Usage: tests/gate-give-holders.sh   BIN: directory with the binaries
 #   SHOTS: directory for the logs (default: a temp dir per holder)
@@ -24,4 +26,10 @@ for entry in "${cells[@]}"; do
         exit 1
     }
 done
+echo "holder construct, injected keys refused"
+CHORA_TEST_ACCEPT_INJECTED_KEYS=0 ONLY='^(tiling xp|xp mc|mc tiling) key$' CAP=120 \
+    SHOTS=${SHOTS:+$SHOTS/refused} "$repo/tests/gate-handover-matrix.sh" || {
+    echo "FAIL: gate-give-holders: an injected key gave a window" >&2
+    exit 1
+}
 echo "ok: gate-give-holders: xp, tiling and mc each served the give keys"
