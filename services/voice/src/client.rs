@@ -62,6 +62,8 @@ struct Client {
     claims: Claims,
     /// The keys of `confirm_keys` are grabbed.
     confirming: bool,
+    /// A change of a security key that waits for a key press.
+    waiting: Option<(Waiting, oneshot::Receiver<bool>)>,
 }
 
 /// The clients that show the state of the agent themselves and claimed
@@ -80,17 +82,14 @@ impl Claims {
     }
 
     /// Whether the connection `conn` of `client` holds a claim.
-    fn holds(&self, _conn: u64, client: &str) -> bool {
-        self.0.values().any(|c| c == client)
+    fn holds(&self, conn: u64, client: &str) -> bool {
+        self.0.get(&conn).is_some_and(|c| c == client)
     }
 
     /// Keeps only the claims of `names`; answers whether the dot still
     /// hides.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the stub of review A1 before its fix")
-    )]
-    fn keep(&mut self, _names: &[String]) -> bool {
+    fn keep(&mut self, names: &[String]) -> bool {
+        self.0.retain(|_, c| names.contains(c));
         !self.0.is_empty()
     }
 
@@ -196,25 +195,54 @@ fn may_answer(config: &Config, caller: &str, confined: bool) -> bool {
     !confined && config.indicator_clients.iter().any(|c| c == caller)
 }
 
-/// The patch of a `settings.set` or `settings.reload` that changes a
-/// security key; `None` for any other change.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the stub of review A1 before its fix")
-)]
-fn security_patch(_config: &Config, _method: &str, _params: &Value, _file: &Path) -> Option<Value> {
-    None
+/// The change of a `settings.set` with `params`, or of a
+/// `settings.reload` of `file` against `config`, when it touches a
+/// security key (review A1, high 2); `None` for any other change or
+/// method. A file that cannot be read or parsed changes nothing: its
+/// reload fails anyway.
+fn security_patch(config: &Config, method: &str, params: &Value, file: &Path) -> Option<Value> {
+    let patch = match method {
+        "settings.set" => params.clone(),
+        "settings.reload" => {
+            let text = std::fs::read_to_string(file).ok()?;
+            let new = serde_json::to_value(settings::parse::<Config>(&text).ok()?).ok()?;
+            let old = serde_json::to_value(config).ok()?;
+            let changed = (new.as_object()?.iter())
+                .filter(|(key, value)| old[key.as_str()] != **value)
+                .map(|(key, value)| (key.clone(), value.clone()));
+            Value::Object(changed.collect())
+        }
+        _ => return None,
+    };
+    let keys = patch.as_object()?.keys();
+    keys.into_iter()
+        .any(|k| crate::config::security_key(k))
+        .then_some(patch)
 }
 
-/// Asks the user for a key press of `confirm_keys` before `patch`
-/// applies; the answer comes through the receiver.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the stub of review A1 before its fix")
-)]
-fn ask_key(_tx: &Sender<Input>, _config: &Config, _patch: &Value) -> oneshot::Receiver<bool> {
-    let (_answer, rx) = oneshot::channel();
+/// Asks the user for a key of `confirm_keys`, or a click on a HUD
+/// button, before `patch` applies, as the agent asks before the LLM
+/// changes a security key; the answer comes through the receiver.
+fn ask_key(tx: &Sender<Input>, config: &Config, patch: &Value) -> oneshot::Receiver<bool> {
+    let (answer, rx) = oneshot::channel();
+    let config = config.localized();
+    let _ = tx.send(Input::Agent(crate::agents::Event::Ask {
+        name: "settings".into(),
+        voice: config.voice.clone(),
+        prompt: config.settings_question(patch),
+        detail: crate::chat::detail("voice.settings.set", Some(patch), &json!({})),
+        physical: true,
+        answer,
+    }));
     rx
+}
+
+/// A change of a security key that waits for the answer of the user.
+enum Waiting {
+    Set(Value),
+    /// The reload of the file with this change; a file that changed
+    /// since the question does not load.
+    Reload(Value),
 }
 
 /// The refusal of `indicator.claim` and `confirm.answer`.
@@ -329,6 +357,7 @@ fn session(
         tx: tx.clone(),
         claims: Claims::default(),
         confirming: false,
+        waiting: None,
     };
     // The claims of the session before are gone.
     let _ = tx.send(Input::Claimed(false));
@@ -419,9 +448,10 @@ fn serve(
                 let settings = without_headers(client.settings.get());
                 client.rt.conn.answer(call, Ok(settings))?;
             }
-            Some(event) => runtime::dispatch(client, event)?,
+            Some(event) => client.dispatch(event)?,
             None => {}
         }
+        client.settle();
         let new: Vec<crate::mc::Emit> = emits.try_iter().collect();
         for (event, data) in &new {
             if *event == "confirm" {
@@ -556,8 +586,9 @@ fn exported_methods() -> Vec<ExportMethod> {
         // programs and changes security settings.
         runtime::privileged(runtime::method(
             "confirm.answer",
-            "The Yes or No button of a HUD that holds indicator.claim: answers the question \
-             of voice.confirm with this id, also one that waits for a key.",
+            "The Yes or No button of a HUD of indicator_clients that claimed the indicator on \
+             this connection: answers the question of voice.confirm with this id, also one \
+             that waits for a key.",
             json!({"id": {"type": "string"}, "yes": {"type": "boolean"}}),
             &["id", "yes"],
         )),
@@ -616,7 +647,8 @@ fn exported_methods() -> Vec<ExportMethod> {
         runtime::privileged(runtime::method(
             "indicator.claim",
             "Hides the state dot of the agent while the calling client is connected: the \
-             caller shows the state itself. Call it again after the voice client connects.",
+             caller shows the state itself, and lets it answer with confirm.answer. Only for a \
+             client of indicator_clients. Call it again after the voice client connects.",
             none,
             &[],
         )),
@@ -669,9 +701,95 @@ impl Client {
         self.rt.ungrab_all().map_err(rejected)?;
         self.grab().map_err(rejected)?;
         let config = Box::new(self.settings.value.clone());
-        self.tx
-            .send(Input::Settings(config))
-            .map_err(|_| RpcError::new(RpcError::REJECTED, "the core does not answer"))
+        let hidden = self.claims.keep(&self.settings.value.indicator_clients);
+        let gone = |_| RpcError::new(RpcError::REJECTED, "the core does not answer");
+        self.tx.send(Input::Claimed(hidden)).map_err(gone)?;
+        self.tx.send(Input::Settings(config)).map_err(gone)
+    }
+
+    /// The runtime handles an event, unless [`Client::hold_security`]
+    /// holds it.
+    fn dispatch(&mut self, event: Event) -> Result<(), ClientError> {
+        match self.hold_security(event)? {
+            Some(event) => runtime::dispatch(self, event),
+            None => Ok(()),
+        }
+    }
+
+    /// Holds a `settings.set` or `settings.reload` that changes a security
+    /// key until the user presses a key of `confirm_keys` (review A1,
+    /// high 2): the caller gets a refusal that says so, and the change
+    /// applies on yes. Any other event comes back.
+    fn hold_security(&mut self, event: Event) -> Result<Option<Event>, ClientError> {
+        let Event::MethodCalled {
+            call,
+            method,
+            params,
+            ..
+        } = &event
+        else {
+            return Ok(Some(event));
+        };
+        let file = self.settings.file().to_owned();
+        let Some(patch) = security_patch(&self.settings.value, method, params, &file) else {
+            return Ok(Some(event));
+        };
+        let answer = ask_key(&self.tx, &self.settings.value, &patch);
+        let keys = self.settings.value.confirm_keys.clone();
+        let message = format!(
+            "{method}: a security setting waits for the user: {} applies it, {} declines",
+            keys.yes, keys.no
+        );
+        let change = if method == "settings.set" {
+            Waiting::Set(patch)
+        } else {
+            Waiting::Reload(patch)
+        };
+        self.waiting = Some((change, answer));
+        self.rt
+            .conn
+            .answer(*call, Err(RpcError::new(RpcError::REJECTED, message)))?;
+        Ok(None)
+    }
+
+    /// Applies the change that waits once the user said yes; a no, a
+    /// timeout or a file that changed since the question drops it.
+    fn settle(&mut self) {
+        let Some((_, answer)) = &mut self.waiting else {
+            return;
+        };
+        let yes = match answer.try_recv() {
+            Err(oneshot::error::TryRecvError::Empty) => return,
+            Ok(yes) => yes,
+            Err(oneshot::error::TryRecvError::Closed) => false,
+        };
+        let Some((change, _)) = self.waiting.take() else {
+            return;
+        };
+        if !yes {
+            crate::log::info("settings: the user declined a security setting");
+            return;
+        }
+        let file = self.settings.file().to_owned();
+        let result = match change {
+            Waiting::Set(patch) => runtime::set_settings(self, patch).map(drop),
+            Waiting::Reload(patch) => {
+                let now =
+                    security_patch(&self.settings.value, "settings.reload", &json!({}), &file);
+                if now == Some(patch) {
+                    runtime::reload_settings(self).map(drop)
+                } else {
+                    Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "the file changed since the question",
+                    ))
+                }
+            }
+        };
+        match result {
+            Ok(()) => crate::log::info("settings: a security setting applies after the key"),
+            Err(e) => crate::log::info(&format!("settings: {}", e.message)),
+        }
     }
 }
 

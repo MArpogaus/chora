@@ -229,6 +229,7 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     tools.coder = Some(coder.clone());
     let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
     tools.agents = Some(agents.clone());
+    let physical = tools.physical.clone();
     let mut chat = net.block_on(Chat::start(
         config.clone(),
         mcp,
@@ -237,6 +238,7 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     ))?;
     chat.settings_file = Some(settings.file().to_path_buf());
     let mut agent = Agent::new(config.clone(), chat, net, tx.clone());
+    agent.physical = physical;
     agent.coder = Some(coder);
     agent.agents = Some(agents.clone());
     agent.warm();
@@ -286,6 +288,9 @@ struct Agent {
     tx: mpsc::Sender<Input>,
     /// An interim transcription runs; the next interval waits for it.
     interim_busy: Arc<AtomicBool>,
+    /// A question waits for a key: the LLM may not inject input, so no
+    /// injected click hits a HUD button (`Tools::physical`).
+    physical: Arc<AtomicBool>,
     chat: Arc<tokio::sync::Mutex<Chat>>,
     /// The reply in progress: the control of its speech, and its stop
     /// with the words that played.
@@ -326,6 +331,7 @@ impl Agent {
             net,
             tx,
             interim_busy: Arc::default(),
+            physical: Arc::default(),
             chat: Arc::new(tokio::sync::Mutex::new(chat)),
             reply: None,
             mc: None,
@@ -530,14 +536,22 @@ impl Agent {
                 prompt,
                 detail,
                 physical,
-            } => mc::Report::Confirm {
-                id,
-                prompt,
-                detail,
-                hud: !self.claimed,
-                keys: physical.then(|| self.core.config().confirm_keys.clone()),
-            },
-            Effect::ConfirmDone(id) => mc::Report::ConfirmDone(id),
+            } => {
+                if physical {
+                    self.physical.store(true, Ordering::Relaxed);
+                }
+                mc::Report::Confirm {
+                    id,
+                    prompt,
+                    detail,
+                    hud: !self.claimed,
+                    keys: physical.then(|| self.core.config().confirm_keys.clone()),
+                }
+            }
+            Effect::ConfirmDone(id) => {
+                self.physical.store(false, Ordering::Relaxed);
+                mc::Report::ConfirmDone(id)
+            }
             _ => return,
         };
         if let Some(mc) = &self.mc {

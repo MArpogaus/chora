@@ -165,7 +165,7 @@ fn listed(config: &Config, tool: &str, args: &Value) -> bool {
 /// settings keys and their values, the program and its arguments, the
 /// method and its parameters, or the tool and its arguments. Secrets are
 /// hidden as in the journal: each subscriber of `voice.*` gets it.
-fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
+pub(crate) fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
     let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
     let (mut patch, mut args) = (patch.cloned(), args.clone());
     patch.iter_mut().for_each(hide);
@@ -1087,6 +1087,9 @@ impl Chat {
             || own
                 .and_then(Value::as_object)
                 .is_some_and(|p| p.keys().any(|k| crate::config::security_key(k)));
+        if physical {
+            return Ok(());
+        }
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
