@@ -161,6 +161,9 @@ impl Settings for Config {
         if !(0.0..=1.0).contains(&self.style.opacity) {
             return Err("style.opacity: from 0 to 1".into());
         }
+        if self.effects.contains(&chora_kit::effects::Kind::Lamp) {
+            return Err("effects: tiling has no task button, so only wobbly".into());
+        }
         // Checked here, so that settings.set refuses it, and not at every
         // new window.
         for effect in &self.style.effects {

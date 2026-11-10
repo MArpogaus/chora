@@ -279,7 +279,7 @@ frame, and returns `mesh` updates for the nodes that the caller owns, so
 every window manager sends them as the owner and the core needs no new
 rule. A window manager opts in with `effects: [wobbly, lamp]`. `chora-xp`
 turns on both through its Control Panel toggles; `chora-tiling` takes
-`wobbly` from its setting `effects`, off by default; `chora-mc` has no
+`wobbly` from its setting `effects`, off by default, and refuses `lamp`; `chora-mc` has no
 window drag, and `chora-construct` waits for the 3D step. X6 keeps the
 requests of one client for the windows of another, unchanged.
 

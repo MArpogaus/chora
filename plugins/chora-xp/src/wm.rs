@@ -926,8 +926,7 @@ impl Wm {
         if self.resize.as_ref().is_some_and(|r| r.surface == surface) {
             self.resize = None;
         }
-        self.effects.driver.wobbles.remove(surface);
-        self.effects.driver.lamps.remove(surface);
+        self.effects.driver.cancel(surface);
         commands.push(Command::Remove {
             id: decoration::group_id(surface),
             to: None,

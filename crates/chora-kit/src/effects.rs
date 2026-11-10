@@ -44,7 +44,18 @@ pub struct Target {
     pub size: [f64; 2],
     /// Whether the mesh update also sets the `size` of the node, as for a
     /// group; a surface has its size from its content.
-    pub layer: bool,
+    pub set_size: bool,
+}
+
+/// The way of a lamp.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Pour {
+    /// The window in the scene: x, y, width and height.
+    pub bounds: [f64; 4],
+    /// The task button in the scene.
+    pub button: [f64; 4],
+    /// How long the lamp takes.
+    pub duration: Duration,
 }
 
 /// What a frame did.
@@ -52,17 +63,16 @@ pub struct Target {
 pub struct Frame {
     /// The updates of the meshes.
     pub commands: Vec<Command>,
-    /// The nodes whose lamp ended; the manager hides or shows them.
+    /// The keys whose lamp ended and left the driver; the manager hides
+    /// or shows their windows.
     pub lamps_done: Vec<String>,
 }
 
 /// The running effects of one window manager.
 #[derive(Default)]
 pub struct Driver {
-    /// Windows that wobble, by key.
-    pub wobbles: HashMap<String, Wobble>,
-    /// Windows that minimize or restore, by key.
-    pub lamps: HashMap<String, Lamp>,
+    wobbles: HashMap<String, Wobble>,
+    lamps: HashMap<String, Lamp>,
     wobbly: bool,
     lamp: bool,
     calm_until: Option<Instant>,
@@ -81,18 +91,6 @@ impl Driver {
     pub fn set(&mut self, kinds: &[Kind]) {
         self.wobbly = kinds.contains(&Kind::Wobbly);
         self.lamp = kinds.contains(&Kind::Lamp);
-    }
-
-    /// Whether wobbly windows are on.
-    #[must_use]
-    pub fn wobbly(&self) -> bool {
-        self.wobbly
-    }
-
-    /// Whether the magic lamp is on.
-    #[must_use]
-    pub fn lamp(&self) -> bool {
-        self.lamp
     }
 
     /// Whether effects may run: not for a while after the watchdog of the
@@ -116,6 +114,41 @@ impl Driver {
         }
     }
 
+    /// Whether a lamp runs for a window.
+    #[must_use]
+    pub fn has_lamp(&self, key: &str) -> bool {
+        self.lamps.contains_key(key)
+    }
+
+    /// Ends the wobble of a window without a mesh update; true when it
+    /// wobbled. The manager removes the mesh itself.
+    pub fn cancel_wobble(&mut self, key: &str) -> bool {
+        self.wobbles.remove(key).is_some()
+    }
+
+    /// Ends the wobble and the lamp of a window without a mesh update.
+    pub fn cancel(&mut self, key: &str) {
+        self.wobbles.remove(key);
+        self.lamps.remove(key);
+    }
+
+    /// Ends every wobble and answers their keys.
+    pub fn take_wobbles(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.wobbles).into_keys().collect()
+    }
+
+    /// Ends every lamp and answers their keys.
+    pub fn take_lamps(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.lamps).into_keys().collect()
+    }
+
+    /// Ends the wobble of a window that leaves the manager, for example
+    /// to another window manager: the update that removes the mesh of its
+    /// node, if it wobbled.
+    pub fn unbend(&mut self, key: &str, node: &str) -> Option<Command> {
+        self.cancel_wobble(key).then(|| unmesh(node))
+    }
+
     /// Whether a window wobbles.
     #[must_use]
     pub fn wobbles(&self, key: &str) -> bool {
@@ -137,23 +170,34 @@ impl Driver {
         }
     }
 
-    /// Starts or turns around the lamp of a window: it goes into its task
-    /// button, or with `restore` comes out of it. Returns the first mesh;
-    /// `None` when the lamp is off or the core dropped the effects, and
-    /// the manager hides or shows the window at once. `fresh` is the lamp
-    /// to start when none runs for the window.
-    pub fn lamp_toward(&mut self, key: &str, target: &Target, fresh: Lamp) -> Option<Command> {
+    /// Starts the lamp that pours a window into its task button, or turns
+    /// a running lamp around. The first mesh; `None` when the lamp is off
+    /// or the core dropped the effects, and the manager hides the window
+    /// at once.
+    pub fn lamp_out(&mut self, key: &str, target: &Target, pour: Pour) -> Option<Command> {
+        self.lamp(key, target, pour, false)
+    }
+
+    /// Starts the lamp that pours a window out of its task button, or turns
+    /// a running lamp around. The first mesh; `None` when the lamp is off
+    /// or the core dropped the effects, and the manager shows the window
+    /// at once.
+    pub fn lamp_in(&mut self, key: &str, target: &Target, pour: Pour) -> Option<Command> {
+        self.lamp(key, target, pour, true)
+    }
+
+    fn lamp(&mut self, key: &str, target: &Target, pour: Pour, restore: bool) -> Option<Command> {
         if !(self.lamp && self.calm()) {
             return None;
         }
         let now = Instant::now();
         let lamp = match self.lamps.remove(key) {
-            Some(mut lamp) if lamp.restore != fresh.restore => {
+            Some(mut lamp) if lamp.restore != restore => {
                 lamp.flip(now);
                 lamp
             }
             Some(lamp) => lamp,
-            None => fresh,
+            None => Lamp::new(pour.bounds, pour.button, pour.duration, restore),
         };
         let first = mesh(target, lamp.mesh(lamp.time(now)));
         self.lamps.insert(key.into(), lamp);
@@ -194,16 +238,20 @@ impl Driver {
                 frame.lamps_done.push(key.clone());
             }
         }
+        for key in &frame.lamps_done {
+            self.lamps.remove(key);
+        }
         frame
     }
 
     /// The watchdog of the core removed all meshes because frames were
-    /// slow: every wobble ends and the driver goes calm for a while. The
-    /// keys of the running lamps come back, so that the manager ends them.
+    /// slow: every wobble and lamp ends and the driver goes calm for a
+    /// while. The keys of the lamps come back, so that the manager shows
+    /// or hides their windows.
     pub fn dropped(&mut self) -> Vec<String> {
         self.calm_until = Some(Instant::now() + CALM);
         self.wobbles.clear();
-        self.lamps.keys().cloned().collect()
+        self.take_lamps()
     }
 }
 
@@ -212,7 +260,7 @@ fn mesh(target: &Target, mesh: Mesh) -> Command {
     Command::Update {
         id: target.node.clone(),
         props: PropsUpdate {
-            size: target.layer.then_some(target.size),
+            size: target.set_size.then_some(target.size),
             mesh: Some(mesh),
             ..PropsUpdate::default()
         },
@@ -220,8 +268,7 @@ fn mesh(target: &Target, mesh: Mesh) -> Command {
 }
 
 /// Removes the mesh of a node, at the end of an effect.
-#[must_use]
-pub fn unmesh(node: &str) -> Command {
+fn unmesh(node: &str) -> Command {
     Command::Update {
         id: node.into(),
         props: PropsUpdate {
@@ -245,7 +292,7 @@ mod tests {
             node: "w".into(),
             origin: [100.0, 100.0],
             size: [200.0, 100.0],
-            layer: false,
+            set_size: false,
         }
     }
 
@@ -293,8 +340,6 @@ mod tests {
         driver.grab("w", &target(), [200.0, 110.0]);
         assert!(!driver.animating());
         assert!(driver.motion("w", &at(160.0)).is_none());
-        let off = Driver::new(&[]);
-        assert!(!off.wobbly() && !off.lamp());
     }
 
     #[test]
@@ -304,7 +349,7 @@ mod tests {
         let flat = driver.motion("w", &at(150.0));
         assert!(matches!(flat, Some(Command::Update { props, .. }) if props.size.is_none()));
         let group = Target {
-            layer: true,
+            set_size: true,
             ..at(150.0)
         };
         let sized = driver.motion("w", &group);
@@ -313,23 +358,55 @@ mod tests {
         );
     }
 
+    fn pour() -> Pour {
+        Pour {
+            bounds: [100.0, 100.0, 200.0, 100.0],
+            button: [0.0, 500.0, 80.0, 20.0],
+            duration: Duration::from_millis(100),
+        }
+    }
+
     #[test]
     fn the_lamp_runs_to_its_end_and_reports_it() {
         let mut driver = Driver::new(&[Kind::Lamp]);
-        let bounds = [100.0, 100.0, 200.0, 100.0];
-        let lamp = Lamp::new(
-            bounds,
-            [0.0, 500.0, 80.0, 20.0],
-            Duration::from_millis(100),
-            false,
-        );
-        let first = driver.lamp_toward("w", &target(), lamp);
+        let first = driver.lamp_out("w", &target(), pour());
         assert!(first.as_ref().is_some_and(has_mesh));
+        assert!(driver.has_lamp("w"));
         let frame = driver.tick(Instant::now() + Duration::from_secs(1), |_| Some(target()));
         assert_eq!(frame.lamps_done, ["w"]);
-        let lamp = Lamp::new(bounds, bounds, Duration::from_millis(100), false);
-        let calm = Driver::new(&[]).lamp_toward("w", &target(), lamp);
-        assert!(calm.is_none(), "no lamp without the opt-in");
+        assert!(!driver.animating(), "the driver ends the lamp itself");
+        let off = Driver::new(&[]).lamp_out("w", &target(), pour());
+        assert!(off.is_none(), "no lamp without the opt-in");
+    }
+
+    #[test]
+    fn a_lamp_turned_around_at_its_start_ends_at_once() {
+        let mut driver = Driver::new(&[Kind::Lamp]);
+        driver.lamp_out("w", &target(), pour());
+        driver.lamp_in("w", &target(), pour());
+        let later = Instant::now() + Duration::from_millis(50);
+        let frame = driver.tick(later, |_| Some(target()));
+        assert_eq!(frame.lamps_done, ["w"], "flipped, not a second lamp");
+    }
+
+    #[test]
+    fn a_drop_ends_the_lamps_and_names_them() {
+        let mut driver = Driver::new(&[Kind::Lamp]);
+        driver.lamp_out("w", &target(), pour());
+        assert_eq!(driver.dropped(), ["w"]);
+        assert!(!driver.animating(), "nothing animates after a drop");
+    }
+
+    #[test]
+    fn a_wobble_that_leaves_loses_its_mesh() {
+        let mut driver = Driver::new(&[Kind::Wobbly]);
+        driver.grab("w", &target(), [200.0, 110.0]);
+        assert!(matches!(
+            driver.unbend("w", "w"),
+            Some(Command::Update { .. })
+        ));
+        assert!(driver.unbend("w", "w").is_none());
+        assert!(!driver.animating());
     }
 
     #[test]
@@ -340,47 +417,5 @@ mod tests {
         assert!(!driver.animating() && !driver.calm());
         driver.grab("w", &target(), [200.0, 110.0]);
         assert!(!driver.animating());
-    }
-
-    fn pour() -> Lamp {
-        Lamp::new(
-            [100.0, 100.0, 200.0, 100.0],
-            [0.0, 500.0, 80.0, 20.0],
-            Duration::from_millis(100),
-            false,
-        )
-    }
-
-    #[test]
-    fn a_finished_lamp_leaves_the_driver() {
-        let mut driver = Driver::new(&[Kind::Lamp]);
-        driver.lamp_toward("w", &target(), pour());
-        let frame = driver.tick(Instant::now() + Duration::from_secs(1), |_| Some(target()));
-        assert_eq!(frame.lamps_done, ["w"]);
-        assert!(!driver.animating(), "the driver ends the lamp itself");
-    }
-
-    #[test]
-    fn a_lamp_turned_around_at_its_start_ends_at_once() {
-        let mut driver = Driver::new(&[Kind::Lamp]);
-        driver.lamp_toward("w", &target(), pour());
-        let back = Lamp::new(
-            [100.0, 100.0, 200.0, 100.0],
-            [0.0; 4],
-            Duration::from_secs(9),
-            true,
-        );
-        driver.lamp_toward("w", &target(), back);
-        let later = Instant::now() + Duration::from_millis(50);
-        let frame = driver.tick(later, |_| Some(target()));
-        assert_eq!(frame.lamps_done, ["w"], "flipped, not a second lamp");
-    }
-
-    #[test]
-    fn a_drop_ends_the_lamps_and_names_them() {
-        let mut driver = Driver::new(&[Kind::Lamp]);
-        driver.lamp_toward("w", &target(), pour());
-        assert_eq!(driver.dropped(), ["w"]);
-        assert!(!driver.animating(), "nothing animates after a drop");
     }
 }

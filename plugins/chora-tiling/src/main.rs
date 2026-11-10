@@ -20,7 +20,7 @@ use std::{
 };
 
 use chora_kit::{
-    effects::{self, Driver, Target},
+    effects::{Driver, Target},
     give::{self, Give, MOVE},
     runtime::{self, Plugin, Runtime},
     settings::{self, Store},
@@ -127,6 +127,9 @@ struct Tiling {
     dragged: Option<(String, [f64; 2])>,
     /// The window effects of the setting `effects`.
     effects: Driver,
+    /// Where the effects last bent each wobbling window, for a frame after
+    /// the transaction state was forgotten.
+    bent: HashMap<String, Target>,
     /// The meshes of a drag that the next transaction carries.
     meshes: Vec<Command>,
 }
@@ -169,6 +172,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         claimed: None,
         dragged: None,
         effects: Driver::new(&settings_effects),
+        bent: HashMap::new(),
         meshes: Vec::new(),
     };
     tiling.start()?;
@@ -223,6 +227,9 @@ impl Plugin for Tiling {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        if matches!(&event, Event::EffectsDropped { client } if client == NAME) {
+            return self.effects_dropped();
+        }
         self.handle(event)
     }
 
@@ -611,8 +618,9 @@ impl Tiling {
         only(self.wm.has(surface), || {
             format!("tiling has no window {surface}")
         })?;
-        if self.effects.wobbles.remove(surface).is_some() {
-            self.apply(vec![effects::unmesh(surface)])
+        self.bent.remove(surface);
+        if let Some(flat) = self.effects.unbend(surface, surface) {
+            self.apply(vec![flat])
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let answer = self.rt.conn.give(surface, to)?;
@@ -638,6 +646,9 @@ impl Tiling {
             return;
         }
         if state == PressState::Pressed {
+            if let Some((old, _)) = self.dragged.take() {
+                self.effects.release(&old);
+            }
             let grabbed = taken(asked, |id| self.wm.has(id), || self.window_at(point));
             self.dragged = grabbed.map(|id| {
                 let [x, y] = (self.sent.get(&id))
@@ -689,7 +700,7 @@ impl Tiling {
             node: id.into(),
             origin,
             size: size.map(f64::from),
-            layer: false,
+            set_size: false,
         })
     }
 
@@ -704,21 +715,39 @@ impl Tiling {
         }
         let mesh = self.effects.motion(id, &target);
         self.meshes.extend(mesh);
+        if self.effects.wobbles(id) {
+            self.bent.insert(id.into(), target);
+        }
     }
 
-    /// Moves the effects one frame forward.
+    /// The watchdog of the core removed the meshes: the effects end.
+    #[allow(clippy::unnecessary_wraps, reason = "an event handler")]
+    fn effects_dropped(&mut self) -> Result<(), ClientError> {
+        eprintln!("chora-tiling: frames were slow, the core dropped the effects");
+        self.effects.dropped();
+        self.bent.clear();
+        Ok(())
+    }
+
+    /// Moves the effects one frame forward. A window sits where the last
+    /// transaction put it, else where the effects last bent it.
     fn frame(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
-        let (sent, wm) = (&self.sent, &self.wm);
+        let (sent, wm, bent) = (&self.sent, &self.wm, &self.bent);
         let frame = self.effects.tick(now, |id| {
             let window = wm.windows.iter().find(|w| w.id == id)?;
-            let placement = sent.get(id)?;
+            let kept = bent.get(id)?;
+            let placement = sent.get(id);
+            let origin = placement.and_then(|p| p.at);
+            let size = placement.and_then(|p| p.size).or(window.size);
             Some(Target {
                 node: id.into(),
-                origin: placement.at?.map(f64::from),
-                size: placement.size.or(window.size)?.map(f64::from),
-                layer: false,
+                origin: origin.map_or(kept.origin, |at| at.map(f64::from)),
+                size: size.map_or(kept.size, |size| size.map(f64::from)),
+                set_size: false,
             })
         });
+        let effects = &self.effects;
+        self.bent.retain(|id, _| effects.wobbles(id));
         if frame.commands.is_empty() {
             return Ok(());
         }
@@ -927,7 +956,8 @@ impl Tiling {
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);
-        self.effects.wobbles.remove(id);
+        self.effects.cancel_wobble(id);
+        self.bent.remove(id);
         // The focus on it is no longer that of tiling: when the window
         // comes back, tiling sends it again.
         if self.focus.surface.as_deref() == Some(id) {
@@ -1387,6 +1417,7 @@ mod tests {
             claimed: None,
             dragged: None,
             effects: Driver::new(effects),
+            bent: HashMap::new(),
             meshes: Vec::new(),
         };
         (tiling, methods)

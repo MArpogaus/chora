@@ -4,13 +4,11 @@
 
 use std::time::{Duration, Instant};
 
-use chora_kit::{
-    effects::{Driver, Target},
-    lamp::Lamp,
-};
+use chora_kit::effects::{Driver, Pour, Target};
 use chora_scene::Command;
 
-use super::Wm;
+use super::{Panel, Wm};
+use crate::window::Window;
 use crate::{control::Toggles, cube::Turn, decoration};
 
 /// How long the magic lamp takes, before slow motion.
@@ -70,12 +68,8 @@ impl Wm {
             .as_secs_f64();
         self.effects.last = now;
         let mut commands = self.resize_frame();
-        let frame = {
-            let mut driver = std::mem::take(&mut self.effects.driver);
-            let frame = driver.tick(now, |key| self.wobble_target(key));
-            self.effects.driver = driver;
-            frame
-        };
+        let (windows, panels) = (&self.windows, &self.panels);
+        let frame = (self.effects.driver).tick(now, |key| target_of(windows, panels, key));
         commands.extend(frame.commands);
         for surface in frame.lamps_done {
             commands.extend(self.end_lamp(&surface));
@@ -89,26 +83,7 @@ impl Wm {
     /// The group that wobbles for a key, a surface or the group of a
     /// dialog, with its top-left corner in the scene and its size.
     fn wobble_target(&self, key: &str) -> Option<Target> {
-        if let Some(w) = self.windows.iter().find(|w| w.surface == key) {
-            return Some(Target {
-                node: decoration::group_id(key),
-                origin: w.origin(),
-                size: w.area(),
-                layer: true,
-            });
-        }
-        let dialog = self
-            .panels
-            .iter()
-            .map(super::Panel::window_ref)
-            .find(|d| d.group() == key)?;
-        let (origin, size) = dialog.layer();
-        Some(Target {
-            node: key.into(),
-            origin,
-            size,
-            layer: true,
-        })
+        target_of(&self.windows, &self.panels, key)
     }
 
     /// A window or a dialog starts to wobble, grabbed at a point of the
@@ -136,13 +111,17 @@ impl Wm {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
-        self.effects.driver.wobbles.remove(surface);
+        self.effects.driver.cancel_wobble(surface);
         let duration = self.slow(LAMP_TIME);
         let w = &mut self.windows[i];
         w.minimized = true;
-        let lamp = Lamp::new(w.bounds(), button, duration, false);
+        let pour = Pour {
+            bounds: w.bounds(),
+            button,
+            duration,
+        };
         let target = self.wobble_target(surface);
-        let first = target.and_then(|t| self.effects.driver.lamp_toward(surface, &t, lamp));
+        let first = target.and_then(|t| self.effects.driver.lamp_out(surface, &t, pour));
         let w = &mut self.windows[i];
         let Some(first) = first else {
             return vec![w.unmesh(), w.place()];
@@ -159,9 +138,13 @@ impl Wm {
         let duration = self.slow(LAMP_TIME);
         let w = &mut self.windows[i];
         w.minimized = false;
-        let lamp = Lamp::new(w.bounds(), button, duration, true);
+        let pour = Pour {
+            bounds: w.bounds(),
+            button,
+            duration,
+        };
         let target = self.wobble_target(surface);
-        let first = target.and_then(|t| self.effects.driver.lamp_toward(surface, &t, lamp));
+        let first = target.and_then(|t| self.effects.driver.lamp_in(surface, &t, pour));
         let w = &mut self.windows[i];
         let Some(mut update) = first else {
             return vec![w.unmesh(), w.place()];
@@ -177,7 +160,7 @@ impl Wm {
     /// The end of a lamp: a minimized window hides, a restored one is
     /// flat again.
     pub(super) fn end_lamp(&mut self, surface: &str) -> Vec<Command> {
-        self.effects.driver.lamps.remove(surface);
+        self.effects.driver.cancel(surface);
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
@@ -204,4 +187,28 @@ impl Wm {
     pub(super) fn slow(&self, duration: Duration) -> Duration {
         duration.mul_f64(self.slow.max(0.01))
     }
+}
+
+/// The node that wobbles for a key, a surface or the group of a dialog,
+/// with its top-left corner in the scene and its size.
+fn target_of(windows: &[Window], panels: &[Panel], key: &str) -> Option<Target> {
+    if let Some(w) = windows.iter().find(|w| w.surface == key) {
+        return Some(Target {
+            node: decoration::group_id(key),
+            origin: w.origin(),
+            size: w.area(),
+            set_size: true,
+        });
+    }
+    let dialog = panels
+        .iter()
+        .map(Panel::window_ref)
+        .find(|d| d.group() == key)?;
+    let (origin, size) = dialog.layer();
+    Some(Target {
+        node: key.into(),
+        origin,
+        size,
+        set_size: true,
+    })
 }
