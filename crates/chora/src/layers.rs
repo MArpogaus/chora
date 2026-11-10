@@ -54,7 +54,7 @@ impl WlrLayerShellHandler for State {
             .as_ref()
             .and_then(Output::from_resource)
             .or_else(|| self.outputs.first().cloned())
-            .filter(|o| self.outputs.contains(o));
+            .filter(|o| self.all_outputs().contains(o));
         let Some(output) = output else {
             surface.send_close();
             return;
@@ -71,7 +71,7 @@ impl WlrLayerShellHandler for State {
     }
 
     fn layer_destroyed(&mut self, surface: WlrLayerSurface) {
-        for output in self.outputs.clone() {
+        for output in self.all_outputs() {
             let mut map = layer_map_for_output(&output);
             let layer = map
                 .layers()
@@ -129,7 +129,7 @@ impl State {
 
     /// The output that shows a layer surface.
     pub fn output_of_layer(&self, surface: &WlSurface) -> Option<Output> {
-        self.outputs
+        self.all_outputs()
             .iter()
             .find(|o| {
                 layer_map_for_output(o)
@@ -182,7 +182,7 @@ impl State {
     /// The layer surface of a surface, or of the root of a popup, and how
     /// it takes the keyboard.
     fn layer_keyboard(&self, surface: &WlSurface) -> Option<(WlSurface, KeyboardInteractivity)> {
-        self.outputs.iter().find_map(|output| {
+        self.all_outputs().iter().find_map(|output| {
             let map = layer_map_for_output(output);
             map.layer_for_surface(surface, WindowSurfaceType::ALL)
                 .map(|l| (l.wl_surface().clone(), self.interactivity(l)))
@@ -205,7 +205,7 @@ impl State {
     /// The topmost layer surface that takes the keyboard as long as it is
     /// mapped, as a launcher does.
     pub fn exclusive_layer(&self) -> Option<WlSurface> {
-        self.outputs.iter().find_map(|output| {
+        self.all_outputs().iter().find_map(|output| {
             let map = layer_map_for_output(output);
             ABOVE.iter().find_map(|layer| {
                 map.layers_on(*layer)

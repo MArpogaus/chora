@@ -454,7 +454,7 @@ impl Ipc {
     }
 
     /// Whether a connection came through the admin socket.
-    fn admin(&self, conn: u64) -> bool {
+    pub(crate) fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
             .is_some_and(|c| c.socket == Socket::Admin)
@@ -861,7 +861,7 @@ impl State {
                 params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
             }
             "output.add" | "output.remove" => {
-                self.ipc_headless_output(conn, &request.method, params)
+                self.ipc_output_hotplug(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
@@ -1197,7 +1197,7 @@ impl State {
     /// node does not show are left out.
     fn screen_rects(&self) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             let name = output.name();
             let screen = Rectangle::from_size(output_area(output).size).to_f64();
             // The overlay sits in the coordinates of its output, without

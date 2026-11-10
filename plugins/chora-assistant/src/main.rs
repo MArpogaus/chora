@@ -660,6 +660,8 @@ mod tests {
             camera: chora_scene::Transform::default(),
             work_area: [0, 0, 1280, 800],
             default_work_area: [0, 0, 1280, 800],
+            is_virtual: None,
+            owner: None,
         };
         let now = Instant::now();
         let (figure, commands) = Assistant::new(

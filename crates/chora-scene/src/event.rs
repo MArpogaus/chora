@@ -427,6 +427,13 @@ pub struct OutputInfo {
     /// windows of a plugin, which a camera move or a zoom does not change.
     #[serde(default)]
     pub default_work_area: [i32; 4],
+    /// Whether no screen shows the output: its frames go into a texture
+    /// that a shader node of its owner reads.
+    #[serde(default, rename = "virtual", skip_serializing_if = "Option::is_none")]
+    pub is_virtual: Option<bool>,
+    /// The client that added a virtual output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
 }
 
 impl OutputInfo {

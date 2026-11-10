@@ -194,7 +194,7 @@ impl State {
         for window in self.windows.values() {
             window.with_surfaces(|_, states| prefer_scale(states, scale));
         }
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             let scale = output.current_scale().fractional_scale();
             for layer in layer_map_for_output(output).layers() {
                 layer.with_surfaces(|_, states| prefer_scale(states, scale));

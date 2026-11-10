@@ -168,7 +168,8 @@ impl Dispatch2<ZwlrScreencopyFrameV1, State> for FrameData {
             resource.post_error(frame::Error::AlreadyUsed, "the frame was copied already");
             return;
         }
-        let Some((output, part)) = self.target.clone() else {
+        let screen = |(output, _): &(Output, [u32; 4])| state.outputs.contains(output);
+        let Some((output, part)) = self.target.clone().filter(screen) else {
             resource.failed();
             return;
         };

@@ -196,6 +196,8 @@ pub struct Assets {
     pub frame_dark: HashMap<String, Vec<String>>,
     /// What rendering counted since the start of the core.
     pub stats: RenderStats,
+    /// The virtual outputs, which render into textures.
+    pub virtuals: Vec<crate::offscreen::Virtual>,
 }
 
 /// How an output shows the scene: its camera, its scale factor and its size.

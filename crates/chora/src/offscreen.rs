@@ -1,8 +1,17 @@
 //! An output that no screen shows: its frames go into a texture, with
 //! damage. The headless backend renders its outputs with it.
+//!
+//! A virtual output (D69) is such an output that a client adds on any
+//! backend. It is an output to a window manager, with a `wl_output`, a
+//! camera, a work area, an overlay root and layer surfaces. No list of
+//! screens holds it: it lives in a list of its own, and the pointer never
+//! enters it.
 
 use std::time::Instant;
 
+use chora_scene::ipc::RpcError;
+use serde::Deserialize;
+use serde_json::Value;
 use smithay::{
     backend::{
         allocator::Fourcc,
@@ -12,13 +21,213 @@ use smithay::{
             gles::{GlesRenderer, GlesTexture},
         },
     },
-    output::Output,
-    reexports::wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
+    output::{Mode, Output, PhysicalProperties, Scale, Subpixel},
+    reexports::{
+        wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
+        wayland_server::backend::GlobalId,
+    },
     utils::{Buffer, Size},
     wayland::presentation::Refresh,
 };
 
-use crate::{output::frame_duration, render, state::State};
+use crate::{
+    backend::headless::{Spec, parse_specs},
+    ipc::{params_of, rejected},
+    output::frame_duration,
+    render,
+    state::State,
+};
+
+/// The most virtual outputs of a session.
+const MAX_VIRTUALS: usize = 16;
+/// The most pixels of a side of a virtual output.
+const MAX_SIDE: i32 = 4096;
+/// The most pixels of all virtual outputs together: 256 MiB of RGBA.
+const MAX_PIXELS: i64 = 1 << 26;
+/// The distance of the slots in the layout. The screens lie right of and
+/// below the origin, the slots left of and above it, so no screen shows
+/// the scene area of a virtual output by default.
+const SLOT_STEP: i32 = 262_144;
+/// The refresh rate of a virtual output in a session without a screen,
+/// in mHz.
+const REFRESH: i32 = 60_000;
+
+/// A virtual output: the client that added it, its place and its global.
+pub struct Virtual {
+    owner: String,
+    slot: usize,
+    global: GlobalId,
+    target: OutputTexture,
+}
+
+impl Virtual {
+    /// The output.
+    pub fn output(&self) -> &Output {
+        self.target.output()
+    }
+
+    /// The client that added the output.
+    pub fn owner(&self) -> &str {
+        &self.owner
+    }
+
+    fn pixels(&self) -> i64 {
+        let size = self
+            .output()
+            .current_mode()
+            .map_or((0, 0).into(), |m| m.size);
+        i64::from(size.w) * i64::from(size.h)
+    }
+}
+
+/// The parameters of `output.add` for a virtual output.
+#[derive(Deserialize)]
+struct VirtualAdd {
+    spec: String,
+    #[serde(rename = "virtual")]
+    _is_virtual: bool,
+}
+
+/// The parameters of `output.remove`.
+#[derive(Deserialize)]
+struct OutputRemove {
+    output: String,
+}
+
+fn limit(message: String) -> RpcError {
+    RpcError::new(RpcError::LIMIT_REACHED, message)
+}
+
+impl State {
+    /// The screens and, after them, the virtual outputs: for what a
+    /// window manager sees of an output. A screen is in `outputs` only.
+    pub fn all_outputs(&self) -> Vec<Output> {
+        let virtuals = self.assets.virtuals.iter().map(Virtual::output);
+        self.outputs.iter().chain(virtuals).cloned().collect()
+    }
+
+    /// `output.add` and `output.remove`: a virtual output on every
+    /// backend, or the hotplug of the headless backend.
+    pub fn ipc_output_hotplug(
+        &mut self,
+        conn: u64,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, RpcError> {
+        if method == "output.add"
+            && params
+                .get("virtual")
+                .is_some_and(|v| *v != Value::Bool(false))
+        {
+            return self.add_virtual(conn, &params_of(params)?);
+        }
+        let named = params.get("output").and_then(Value::as_str);
+        if method == "output.remove"
+            && named.is_some_and(|n| self.assets.virtuals.iter().any(|v| v.output().name() == n))
+        {
+            let OutputRemove { output } = params_of(params)?;
+            return self.remove_virtual(conn, &output);
+        }
+        self.ipc_headless_output(conn, method, params)
+    }
+
+    /// Adds a virtual output of a free client of the main socket, in the
+    /// first free slot, and answers with the output.
+    fn add_virtual(&mut self, conn: u64, add: &VirtualAdd) -> Result<Value, RpcError> {
+        let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
+            return Err(rejected("send hello first"));
+        };
+        if self.ipc.confined(conn) {
+            return Err(RpcError::new(
+                RpcError::CLIENT_SOCKET_RULE,
+                "a client socket or a confined connection adds no virtual output",
+            ));
+        }
+        let [spec] = <[Spec; 1]>::try_from(parse_specs(&add.spec).map_err(rejected)?)
+            .map_err(|_| rejected("output.add takes one output"))?;
+        let slot = self.free_slot(&spec)?;
+        let name = format!("VIRTUAL-{}", slot + 1);
+        let output = Output::new(
+            name,
+            PhysicalProperties {
+                size: (0, 0).into(),
+                subpixel: Subpixel::Unknown,
+                make: "chora".into(),
+                model: "virtual".into(),
+                serial_number: String::new(),
+            },
+        );
+        let global = output.create_global::<State>(&self.display_handle);
+        let screens = self.outputs.iter().filter_map(Output::current_mode);
+        let mode = Mode {
+            size: spec.size.into(),
+            refresh: screens.map(|m| m.refresh).max().unwrap_or(REFRESH),
+        };
+        let column = i32::try_from(slot + 1).unwrap_or(i32::MAX);
+        let place = (-column * SLOT_STEP, -SLOT_STEP);
+        let scale = Scale::Fractional(spec.scale);
+        output.change_current_state(Some(mode), None, Some(scale), Some(place.into()));
+        output.set_preferred(mode);
+        self.assets.virtuals.push(Virtual {
+            owner,
+            slot,
+            global,
+            target: OutputTexture::new(output.clone()),
+        });
+        self.output_changed();
+        let info = self
+            .output_info()
+            .into_iter()
+            .find(|i| i.name == output.name());
+        Ok(serde_json::json!(info))
+    }
+
+    /// The first free slot for a virtual output of a spec, within the
+    /// limits of size and count.
+    fn free_slot(&self, spec: &Spec) -> Result<usize, RpcError> {
+        let (w, h) = spec.size;
+        if w > MAX_SIDE || h > MAX_SIDE {
+            return Err(rejected(format!(
+                "a side of a virtual output has at most {MAX_SIDE} pixels"
+            )));
+        }
+        if spec.position.is_some() {
+            return Err(rejected("the core picks the position of a virtual output"));
+        }
+        let virtuals = &self.assets.virtuals;
+        let slot = (0..MAX_VIRTUALS)
+            .find(|slot| virtuals.iter().all(|v| v.slot != *slot))
+            .ok_or_else(|| limit(format!("at most {MAX_VIRTUALS} virtual outputs live")))?;
+        let pixels: i64 = virtuals.iter().map(Virtual::pixels).sum();
+        if pixels + i64::from(w) * i64::from(h) > MAX_PIXELS {
+            return Err(limit(format!(
+                "all virtual outputs together hold at most {MAX_PIXELS} pixels"
+            )));
+        }
+        Ok(slot)
+    }
+
+    /// Removes a virtual output for its owner or for the admin socket: its
+    /// layer surfaces close and its windows leave it.
+    fn remove_virtual(&mut self, conn: u64, name: &str) -> Result<Value, RpcError> {
+        let virtuals = &mut self.assets.virtuals;
+        let index = virtuals
+            .iter()
+            .position(|v| v.output().name() == name)
+            .ok_or_else(|| rejected(format!("no virtual output {name:?}")))?;
+        let owner = virtuals[index].owner();
+        if !self.ipc.admin(conn) && self.ipc.name(conn) != Some(owner) {
+            return Err(rejected(format!("only its owner {owner:?} removes {name}")));
+        }
+        let gone = virtuals.remove(index);
+        crate::backend::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
+        self.leave_layout(gone.target.output());
+        let _ = self.scene.release_camera(name);
+        self.output_changed();
+        self.update_focus();
+        Ok(Value::Null)
+    }
+}
 
 /// The texture that the frames of an output go to.
 pub struct OutputTexture {
