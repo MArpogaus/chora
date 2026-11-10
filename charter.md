@@ -1054,3 +1054,9 @@ a `WAYLAND_DEBUG=1` log of foot), the gate issues #30 and #91, the
 organization `chora-desktop`, the website repository, the SELinux type of
 the Gufo containers, the vkms VM job, the split of the plugin
 repositories.
+
+Model use this week (user, 11-10 18:05): Fable takes the heavy work
+(dev lanes, reviews, security reviews, judge) until its pool runs out;
+the user resets it if the work is not through, else Fable starts fresh
+on Monday. The rest of the week runs on the other models' remaining
+budget (opus for dev, sonnet for light tasks).
