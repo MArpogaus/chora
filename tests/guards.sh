@@ -235,6 +235,21 @@ message_case "leading blank line is no subject" fail "\n$subject_69\n"
 message_case "body after a leading blank line" fail "\nshort\n\n$body_73\n"
 message_case "subject after a leading blank line" pass "\n$subject_68\n"
 
+kill_case() {
+  local label=$1 want=$2 text=$3
+  printf '%b' "$text" >"$work/script.sh"
+  bash "$tests_dir/no-foreign-kill.sh" "$work/script.sh" >/dev/null
+  verdict "no-foreign-kill: $label" "$want" $?
+}
+
+kill_case "the newest core of the machine" fail 'core=\x24(pgrep -x chora | tail -1)\n'
+kill_case "the core of the own session" pass 'core=\x24(pgrep -P "\x24session" -x chora)\n'
+kill_case "a plugin by its name is no core" pass 'pgrep -x chora-tiling\n'
+kill_case "pkill by name" fail 'pkill -f chora-tiling\n'
+kill_case "pkill of the children of a pid" pass 'pkill -P "\x24voice" -x foot\n'
+kill_case "killall" fail 'killall chora\n'
+kill_case "a scoped lookup does not excuse a pkill after it" fail 'pgrep -P 1 -x chora; pkill chora\n'
+
 message_output_case() {
   local label=$1 text=$2 want=$3
   printf '%b' "$text" >"$work/message"
