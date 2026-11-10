@@ -7,10 +7,7 @@
 //! so that frame callbacks, presentation feedback, transactions and the
 //! watchdog work as on a screen. Input comes only through `input.inject`.
 
-use std::{
-    sync::{Mutex, PoisonError},
-    time::Duration,
-};
+use std::{sync::Mutex, time::Duration};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -117,9 +114,14 @@ fn parse_spec(text: &str) -> Result<Spec, String> {
 /// lock, and panics inside that lock when a thread finds a display whose
 /// last user just went; that would poison the lock for every renderer
 /// after it. With one display that never closes, no thread finds it gone.
+/// A poisoned lock of this function (`DISPLAY`, not the one of smithay) is
+/// recovered, and logged as a warning.
 fn shared_display(device: EGLDevice) -> Result<EGLDisplay, String> {
     static DISPLAY: Mutex<Option<EGLDisplay>> = Mutex::new(None);
-    let mut shared = DISPLAY.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut shared = DISPLAY.lock().unwrap_or_else(|poisoned| {
+        tracing::warn!("the lock of the shared EGL display was poisoned");
+        poisoned.into_inner()
+    });
     if let Some(display) = shared.as_ref() {
         return Ok(display.clone());
     }

@@ -24,11 +24,12 @@ pub struct Core {
 }
 
 /// A new, empty directory in the temporary directory for one test: no
-/// other test of any process uses it, so that a test may remove it.
+/// other test uses it, and what an earlier run left there is gone.
 pub fn scratch_dir(name: &str) -> std::path::PathBuf {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("{name}-{}-{n}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a scratch directory");
     dir
 }
