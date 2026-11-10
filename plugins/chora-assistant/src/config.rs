@@ -3,6 +3,8 @@
 //! reference. The look comes from a HUD folder, named by `hud`, or from
 //! the asset folder of a flavor (`--assets`).
 
+use std::collections::BTreeSet;
+
 use chora_draw::{
     bubble::{Corner, Style},
     theme::Sheet,
@@ -11,8 +13,6 @@ use chora_kit::{
     hud::{Anchor, Context, Hud, Source, When},
     settings::Settings,
 };
-use std::collections::BTreeSet;
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -138,6 +138,10 @@ pub struct Values {
     /// The fields of the context that the folder reads in a `when`, so
     /// that the look is built again when one of them changes.
     pub watches: BTreeSet<String>,
+    /// The folder that the values come from, to pick them again in another
+    /// context without loading it again; none for the dot and an asset
+    /// folder.
+    pub hud: Option<Hud>,
 }
 
 /// The panel of the sentence.
@@ -219,7 +223,21 @@ impl Values {
                 .flat_map(|panel| panel.when.keys())
                 .map(str::to_owned)
                 .collect(),
+            hud: Some(hud.clone()),
         }
+    }
+
+    /// The values of the same folder in another context, none for values
+    /// that do not come from a folder.
+    #[must_use]
+    pub fn repick(
+        &self,
+        context: &Context,
+        size: impl Fn(Sheet) -> Option<[i32; 2]>,
+    ) -> Option<Self> {
+        self.hud
+            .as_ref()
+            .map(|hud| Self::from_hud(hud, context, size))
     }
 
     /// The dot of the host in the neutral place, where a click mutes.
@@ -234,6 +252,7 @@ impl Values {
             speech: Style::default(),
             line: Line::default(),
             watches: BTreeSet::new(),
+            hud: None,
         }
     }
 
@@ -257,6 +276,7 @@ impl Values {
             speech: raw.speech,
             line: Line::default(),
             watches: BTreeSet::new(),
+            hud: None,
         }
     }
 }
@@ -453,6 +473,29 @@ mod tests {
         assert_eq!(in_context("tiling").figure, Figure::Dot);
         let watches: Vec<_> = in_context("xp").watches.into_iter().collect();
         assert_eq!(watches, ["app", "wm"]);
+    }
+
+    #[test]
+    fn the_values_are_picked_again_from_the_folder_in_another_context() {
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, when: {state: speaking}, \
+            anchor: top_left, picture: 'a.svg#{state}'}\n";
+        let hud = hud::parse(text).unwrap();
+        let quiet = Context {
+            state: "listening".into(),
+            ..Context::default()
+        };
+        let values = Values::from_hud(&hud, &quiet, |_| Some([24, 24]));
+        assert_eq!(values.figure, Figure::Dot);
+        let speaking = Context {
+            state: "speaking".into(),
+            ..Context::default()
+        };
+        let again = values.repick(&speaking, |_| Some([24, 24])).unwrap();
+        assert!(matches!(again.figure, Figure::Sheet { .. }));
+        assert_eq!(
+            Values::neutral("sans-serif").repick(&speaking, |_| None),
+            None
+        );
     }
 
     #[test]

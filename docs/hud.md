@@ -89,14 +89,22 @@ huds:
   - {when: {wm: xp}, folder: xp}
 ```
 
+A matching rule overrides `hud`, and so `--use-hud`, which prints a warning
+when `huds` has rules.
+
 A rule with a key that is no field of the context, a value that a field
 with a closed list does not know, or a `folder` that is no folder name
 (see `--list-huds`) is an error that names `huds[N]` and the key; the
 setting is refused. A folder that is not found keeps the look on the
 screen and the host logs it.
 
-The host keeps one context and reads it again 150 ms after the first
-change of a burst, so that a run of focus changes switches the look once.
+The host reads the context at its start. Then it reads it again 150 ms
+after the last change of a burst, at the latest 1 s after its first, so
+that a run of focus changes switches the look once; a look shows at least
+1 s before the next switch. Another folder loads only when a rule names
+it; a change of a field that a panel reads picks the panels again from the
+loaded folder, and the figure is built again only if they differ. A folder
+that fails to load keeps the look and is not asked for again.
 The look then changes for the folder and the panels of the new context,
 with the cross-fade of the figure, on the output of the focused window.
 The context stays as it is:
@@ -208,7 +216,7 @@ All keys must match. A value of `state`, `agents` or `chat` that is not in the l
 |---|---|
 | `wm` | Name of the window manager that owns the focused window: `tiling`, `xp`, `mc`, `construct`. |
 | `space` | Name of the client that claims the real output of the focused window; it differs from `wm` when a window manager runs in a construct pane. |
-| `app` | The `app_id` of the focused window. |
+| `app` | The `app_id` of the focused window. The client chooses it, so a rule on `app` is a style choice and no security boundary. |
 | `state` | `asleep`, `listening`, `thinking`, `working`, `question`, `speaking`. |
 | `agents` | `none`, `any`, `working`, `question`. |
 | `chat` | `open`, `none`. |

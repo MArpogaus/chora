@@ -148,6 +148,41 @@ pub fn agents_of<'a>(states: impl IntoIterator<Item = &'a str>) -> &'static str 
     })
 }
 
+/// What a new context does to the look on the screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Change {
+    /// Nothing.
+    Keep,
+    /// The values are picked again from the folder, and the figure is built
+    /// again if they differ.
+    Pick,
+    /// The figure is built again on another output.
+    Move,
+    /// Another folder loads.
+    Reload,
+}
+
+/// The change for a new context. `now` is the folder on the screen,
+/// `wanted` the folder that the rules name and `failed` a folder that did
+/// not load, which is not asked for again. `watches` are the fields that
+/// the panels of the folder read.
+#[must_use]
+pub fn change(
+    (now, wanted, failed): (&str, &str, Option<&str>),
+    watches: &std::collections::BTreeSet<String>,
+    (old, new): (&Context, &Context),
+) -> Change {
+    if wanted != now && failed != Some(wanted) {
+        Change::Reload
+    } else if old.output != new.output {
+        Change::Move
+    } else if watches.iter().any(|key| old.get(key) != new.get(key)) {
+        Change::Pick
+    } else {
+        Change::Keep
+    }
+}
+
 /// The context of the host, and the time of its next re-evaluation.
 #[derive(Debug)]
 pub struct Switcher {
@@ -327,6 +362,14 @@ impl Agent {
 
     /// Evaluates the context when its burst of changes has ended.
     pub fn switch_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        if !self.deferred.is_empty() && self.card.is_none() {
+            self.deferred.clear();
+            let commands = self.replace_assistant()?;
+            self.apply(commands)?;
+            for old in std::mem::take(&mut self.stale) {
+                let _ = std::fs::remove_dir_all(old);
+            }
+        }
         if self.switch_due(now).is_some_and(|due| due <= now) {
             self.evaluate(now)?;
         }
@@ -366,30 +409,49 @@ impl Agent {
     }
 
     /// The commands that show the context: the look of the folder of the
-    /// rules when the folder or a field that it reads changed, the figure
-    /// on the output of the focus. A folder that fails to load leaves the
-    /// look as it is.
+    /// rules when the folder changed, the values picked again when a field
+    /// that a panel reads changed, the figure on the output of the focus. A
+    /// folder that fails to load leaves the look as it is and is not asked
+    /// for again.
     fn restyle(&mut self, context: &Context) -> Result<Vec<Command>, ClientError> {
-        let folder = self.settings.value.folder(context).to_owned();
-        let read = |field: &String| self.look_context.get(field) != context.get(field);
-        let rebuilt = self.source.assets.is_none()
-            && (folder != self.folder || self.values.watches.iter().any(read));
-        let moved = self.look_context.output != context.output;
-        if rebuilt {
-            match self.source.load(&folder, context) {
+        let wanted = if self.source.assets.is_some() {
+            self.folder.clone()
+        } else {
+            self.settings.value.folder(context).to_owned()
+        };
+        let shown = (
+            self.folder.as_str(),
+            wanted.as_str(),
+            self.failed.as_deref(),
+        );
+        let how = change(shown, &self.values.watches, (&self.look_context, context));
+        self.look_context = context.clone();
+        match how {
+            Change::Keep => return Ok(Vec::new()),
+            Change::Move => {}
+            Change::Pick => {
+                let theme = &self.theme;
+                let picked = self.values.repick(context, |sheet| theme.sheet_size(sheet));
+                match picked.filter(|picked| *picked != self.values) {
+                    Some(picked) => self.values = picked,
+                    None => return Ok(Vec::new()),
+                }
+            }
+            Change::Reload => match self.source.load(&wanted, context) {
                 Ok((theme, values, cache)) => {
                     self.theme = theme;
                     self.values = values;
-                    self.folder = folder;
+                    self.folder = wanted;
+                    self.failed = None;
                     let old = std::mem::replace(&mut self.look_cache, cache);
                     let _ = std::fs::remove_dir_all(old);
                 }
-                Err(err) => eprintln!("chora-assistant: hud {folder}: {err}; the look stays"),
-            }
-        }
-        self.look_context = context.clone();
-        if !(rebuilt || moved) || self.card.is_some() {
-            return Ok(Vec::new());
+                Err(err) => {
+                    eprintln!("chora-assistant: hud {wanted}: {err}; the look stays");
+                    self.failed = Some(wanted);
+                    return Ok(Vec::new());
+                }
+            },
         }
         let mut commands = Vec::new();
         if self.assistant.take().is_some() {
@@ -760,5 +822,66 @@ mod tests {
         let kept = switcher.resolve(Some(none), now).unwrap();
         assert_eq!((kept.output.as_str(), kept.space.as_str()), ("B", "xp"));
         assert_eq!(kept.app, "");
+    }
+
+    fn at(wm: &str, output: &str, state: &str) -> Context {
+        Context {
+            wm: wm.into(),
+            output: output.into(),
+            state: state.into(),
+            ..Context::default()
+        }
+    }
+
+    fn reads(keys: &[&str]) -> std::collections::BTreeSet<String> {
+        keys.iter().map(|key| (*key).to_owned()).collect()
+    }
+
+    #[test]
+    fn the_folder_loads_again_only_when_the_folder_changes() {
+        let watches = reads(&["wm", "state"]);
+        let same = at("xp", "A", "idle");
+        let ask = |now, wanted, failed, new: &Context| {
+            change((now, wanted, failed), &watches, (&same, new))
+        };
+        assert_eq!(ask("xp", "xp", None, &at("xp", "A", "idle")), Change::Keep);
+        assert_eq!(
+            ask("neutral", "xp", None, &at("xp", "A", "idle")),
+            Change::Reload
+        );
+        assert_eq!(
+            ask("xp", "xp", None, &at("tiling", "A", "idle")),
+            Change::Pick
+        );
+        assert_eq!(
+            ask("xp", "xp", None, &at("xp", "A", "speaking")),
+            Change::Pick
+        );
+        assert_eq!(ask("xp", "xp", None, &at("xp", "B", "idle")), Change::Move);
+    }
+
+    #[test]
+    fn a_field_that_no_panel_reads_changes_nothing() {
+        let old = at("xp", "A", "idle");
+        let new = at("xp", "A", "speaking");
+        assert_eq!(
+            change(("xp", "xp", None), &reads(&["wm"]), (&old, &new)),
+            Change::Keep
+        );
+    }
+
+    #[test]
+    fn a_folder_that_failed_is_not_asked_for_again() {
+        let old = at("xp", "A", "idle");
+        let new = at("tiling", "A", "idle");
+        let watches = reads(&[]);
+        assert_eq!(
+            change(("neutral", "xp", Some("xp")), &watches, (&old, &new)),
+            Change::Keep
+        );
+        assert_eq!(
+            change(("neutral", "mc", Some("xp")), &watches, (&old, &new)),
+            Change::Reload
+        );
     }
 }

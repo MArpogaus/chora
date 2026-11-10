@@ -386,9 +386,6 @@ impl When {
             })
         })
     }
-}
-
-impl When {
     /// Adds an error for each key that is no field of the context and for
     /// each value that a field with a closed list does not know, as
     /// `AT.when.KEY: message`.

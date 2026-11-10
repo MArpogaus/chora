@@ -120,11 +120,17 @@ impl Source {
     fn load(&mut self, hud: &str, context: &Context) -> Result<(Theme, Values, PathBuf), String> {
         self.loads += 1;
         let cache = self.cache.join(format!("look-{}", self.loads));
-        let (theme, values) = match &self.assets {
-            Some(dir) => load_assets(dir, &cache)?,
-            None => load_hud(&self.roots, hud, context, &cache)?,
+        let loaded = match &self.assets {
+            Some(dir) => load_assets(dir, &cache),
+            None => load_hud(&self.roots, hud, context, &cache),
         };
-        Ok((theme, values, cache))
+        match loaded {
+            Ok((theme, values)) => Ok((theme, values, cache)),
+            Err(err) => {
+                let _ = std::fs::remove_dir_all(&cache);
+                Err(err)
+            }
+        }
     }
 }
 
@@ -141,6 +147,12 @@ struct Agent {
     switcher: Switcher,
     /// The context that the look on the screen was built for.
     look_context: Context,
+    /// A folder that did not load: it is not asked for again.
+    failed: Option<String>,
+    /// Why the figure is to be built again when the question ends.
+    deferred: Vec<&'static str>,
+    /// Cache directories of looks that a figure on the screen still uses.
+    stale: Vec<PathBuf>,
     /// The state of each helper that the agent named.
     helpers: BTreeMap<String, &'static str>,
     /// The cache directory of the look on the screen.
@@ -177,7 +189,12 @@ impl Plugin for Agent {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
                 self.switcher.touch(Instant::now());
-                self.replace_assistant()?
+                if self.card.is_some() {
+                    self.deferred.push("outputs");
+                    Vec::new()
+                } else {
+                    self.replace_assistant()?
+                }
             }
             Event::FocusChanged { surface } => {
                 self.switcher
@@ -228,7 +245,13 @@ impl Plugin for Agent {
         self.values = values;
         self.folder = folder;
         self.look_context = context;
+        self.failed = None;
         let old = std::mem::replace(&mut self.look_cache, cache);
+        if self.card.is_some() {
+            self.deferred.push("settings");
+            self.stale.push(old);
+            return Ok(());
+        }
         let result = self
             .replace_assistant()
             .and_then(|commands| self.apply(commands))
@@ -264,6 +287,9 @@ impl Agent {
             folder,
             switcher: Switcher::new(),
             look_context: Context::default(),
+            failed: None,
+            deferred: Vec::new(),
+            stale: Vec::new(),
             helpers: BTreeMap::new(),
             look_cache,
             card_theme,
@@ -501,6 +527,14 @@ mod tests {
             .load(NEUTRAL, &Context::default())
             .expect("the neutral folder loads");
         assert!(theme.confined(), "a HUD folder is read as untrusted");
+        let fancy = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/hud");
+        source.roots = vec![fancy];
+        assert!(source.load("fancy", &Context::default()).is_err());
+        assert!(
+            !source.cache.join("look-2").exists(),
+            "a folder that fails leaves no cache directory"
+        );
+        source.roots = vec![huds()];
         assert_eq!(
             source
                 .load("nothing", &Context::default())
