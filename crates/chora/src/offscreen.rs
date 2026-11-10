@@ -333,6 +333,7 @@ impl State {
     fn drop_virtual(&mut self, index: usize) {
         let gone = self.assets.virtuals.remove(index);
         let name = gone.output().name();
+        self.press_via = None;
         self.note_stranded(gone.output());
         crate::backend::tty::retire_global(&self.display_handle, &self.loop_handle, gone.global);
         self.leave_layout(gone.target.output());

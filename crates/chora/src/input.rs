@@ -547,6 +547,29 @@ impl State {
     }
 }
 
+/// The drag of a node goes to plugins only, with each new position.
+fn drag_node(state: &mut State, spot: &Spot) {
+    let outputs = state.all_outputs();
+    let Some(grab) = &mut state.node_grab else {
+        return;
+    };
+    let position = position_for(&state.scene, &outputs, &grab.node, spot);
+    let local = local_for(&state.scene, &outputs, &grab.node, spot).unwrap_or(grab.local);
+    #[allow(clippy::float_cmp, reason = "the same input gives the same numbers")]
+    if (grab.position, grab.local) != (position, local) {
+        grab.position = position;
+        grab.local = local;
+        let node = grab.node.clone();
+        let modifiers = modifiers(state);
+        state.emit(&SceneEvent::PointerMoved {
+            node,
+            position,
+            local,
+            modifiers,
+        });
+    }
+}
+
 /// Moves the pointer to a point of the layout and tells the surface under
 /// it.
 pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
@@ -568,24 +591,8 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         };
         state.ipc.send_to(conn, &event);
     }
-    // The drag of a node goes to plugins only, with each new position.
-    let outputs = state.all_outputs();
-    let under = if let Some(grab) = &mut state.node_grab {
-        let position = position_for(&state.scene, &outputs, &grab.node, &spot);
-        let local = local_for(&state.scene, &outputs, &grab.node, &spot).unwrap_or(grab.local);
-        #[allow(clippy::float_cmp)] // the same input gives the same numbers
-        if (grab.position, grab.local) != (position, local) {
-            grab.position = position;
-            grab.local = local;
-            let node = grab.node.clone();
-            let modifiers = modifiers(state);
-            state.emit(&SceneEvent::PointerMoved {
-                node,
-                position,
-                local,
-                modifiers,
-            });
-        }
+    let under = if state.node_grab.is_some() {
+        drag_node(state, &spot);
         None
     } else if state.button_grab.is_some() {
         None
@@ -644,10 +651,14 @@ pub fn press_button(
     if button_state == ButtonState::Pressed {
         state.pressed = None;
     }
-    match button_state {
-        ButtonState::Pressed => state.hold_press(),
-        ButtonState::Released => state.release_press(),
-    }
+    let left_a_pane = !injected
+        && match button_state {
+            ButtonState::Pressed => {
+                state.hold_press(code);
+                false
+            }
+            ButtonState::Released => state.release_press(code),
+        };
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         state.track_press(serial, injected);
@@ -668,7 +679,7 @@ pub fn press_button(
         start_plane_grab(state, &pointer, code, serial);
     } else {
         note_input(state, pointer.current_focus(), serial, false);
-        release_node(state, code);
+        release_node(state, code, left_a_pane);
     }
     pointer.button(
         state,
@@ -960,6 +971,8 @@ fn start_plane_grab(
 /// point on the surface that the client got.
 struct Pin {
     node: String,
+    /// The pane that forwarded the press.
+    via: Option<String>,
     surface: WlSurface,
     origin: Point<f64, Logical>,
     last: Point<f64, Logical>,
@@ -976,6 +989,7 @@ impl Pin {
         };
         (focus == Some(&under.surface)).then(|| Self {
             node,
+            via: spot.via,
             last: spot.scene - under.location,
             surface: under.surface,
             origin,
@@ -986,8 +1000,9 @@ impl Pin {
     /// the plane maps to the pointer at `location`. The node is reached
     /// from the root or the overlay of an output, as `anchor` tells. When
     /// the plane shows the pointer behind the eye, the client keeps its
-    /// last point. `None` when the node left the scene or the last frame
-    /// left its plane out.
+    /// last point. `None` when the node left the scene, the last frame
+    /// left its plane out, or the pointer left the pane of the press, as
+    /// an injected drag does.
     fn mapped(
         &mut self,
         state: &State,
@@ -995,7 +1010,8 @@ impl Pin {
     ) -> Option<(WlSurface, Point<f64, Logical>)> {
         let spot = state.spot(state.pointer_layout)?;
         let (start, at) = anchor(&state.scene, &state.all_outputs(), &self.node, &spot);
-        if !state.scene.is_within(&self.node, &start)
+        if spot.via != self.via
+            || !state.scene.is_within(&self.node, &start)
             || render::left_out(state, &spot.output, &self.node)
         {
             return None;
@@ -1158,8 +1174,9 @@ impl PointerGrab<State> for PlaneGrab {
     }
 }
 
-/// Ends the drag of a node when its button goes up.
-fn release_node(state: &mut State, button: u32) {
+/// Ends the drag of a node when its button goes up. After a press through
+/// a pane, the release is on the screen and the node keeps its last point.
+fn release_node(state: &mut State, button: u32, left_a_pane: bool) {
     let Some(NodeGrab { node, local, .. }) = state.node_grab.take_if(|g| g.button == button) else {
         return;
     };
@@ -1168,6 +1185,7 @@ fn release_node(state: &mut State, button: u32) {
         position_for(&state.scene, &state.all_outputs(), &node, s)
     });
     let local = spot
+        .filter(|_| !left_a_pane)
         .and_then(|s| local_for(&state.scene, &state.all_outputs(), &node, &s))
         .unwrap_or(local);
     let modifiers = modifiers(state);

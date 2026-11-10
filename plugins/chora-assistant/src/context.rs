@@ -97,14 +97,18 @@ fn claimant(claims: &[Claim], [px, py]: [f64; 2]) -> Option<&str> {
 /// The place of the focus, from the focused surface of a query (none: no
 /// focus), the claims and the outputs. Without a focus, the window manager
 /// is the one that claims the first output and the app is empty; the
-/// [`Switcher`] keeps the output and the space of before.
+/// [`Switcher`] keeps the output and the space of before. The output is
+/// never a virtual one: its content shows only where a pane of its owner
+/// draws it.
 #[must_use]
 pub fn place_of(focused: Option<&Value>, claims: &[Claim], outputs: &[OutputInfo]) -> Place {
     let named = focused.and_then(output_of);
+    let mut screens = outputs.iter().filter(|o| o.is_virtual != Some(true));
+    let first = screens.clone().next();
     let output = named
         .as_deref()
-        .and_then(|name| outputs.iter().find(|o| o.name == name))
-        .or_else(|| outputs.first());
+        .and_then(|name| screens.find(|o| o.name == name))
+        .or(first);
     let space = output
         .and_then(|output| {
             let [x, y, w, h] = output.layout_area().map(f64::from);
