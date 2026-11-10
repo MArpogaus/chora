@@ -134,6 +134,9 @@ pub struct Config {
     pub focus: Focus,
     /// How a new window looks.
     pub style: Style,
+    /// The window effects that tiling drives: `wobbly` and `lamp`.
+    #[serde(default)]
+    pub effects: Vec<chora_kit::effects::Kind>,
     /// Binding with `MOD`, and its action.
     pub bindings: BTreeMap<String, Action>,
 }
@@ -268,12 +271,12 @@ mod tests {
         let err = parse::<Config>(&opacity).unwrap_err();
         assert!(err.contains("style.opacity"), "{err}");
         let missing = DEFAULT.replace(
-            "effects: []",
-            "effects: [{shader: /nonexistent/chora-test.frag}]",
+            "  effects: []",
+            "  effects: [{shader: /nonexistent/chora-test.frag}]",
         );
         let err = parse::<Config>(&missing).unwrap_err();
         assert!(err.contains("/nonexistent/chora-test.frag"), "{err}");
-        let proc = DEFAULT.replace("effects: []", "effects: [{shader: /proc/self/mem}]");
+        let proc = DEFAULT.replace("  effects: []", "  effects: [{shader: /proc/self/mem}]");
         let err = parse::<Config>(&proc).unwrap_err();
         assert!(err.contains("not a regular file"), "{err}");
         let modifier = DEFAULT.replace("modifier: Super", "modifier: Shift");

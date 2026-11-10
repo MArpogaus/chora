@@ -40,6 +40,9 @@ focus: follow_mouse
 style:
   opacity: 1.0
   effects: []
+# The effects that tiling drives on its own windows: wobbly (a floating
+# window bends while it is dragged) and lamp. Empty turns them off.
+effects: []
 
 bindings:
   # Windows

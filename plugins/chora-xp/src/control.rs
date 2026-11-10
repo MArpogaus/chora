@@ -69,6 +69,14 @@ impl Toggles {
         }
     }
 
+    /// The effects of the shared driver that are on.
+    #[cfg_attr(not(test), allow(dead_code, reason = "wired in the next commit"))]
+    pub fn kinds(self) -> Vec<chora_kit::effects::Kind> {
+        use chora_kit::effects::Kind::{Lamp, Wobbly};
+        let _ = self.cube;
+        vec![Wobbly, Lamp]
+    }
+
     /// Turns an effect on or off.
     pub fn flip(&mut self, effect: Effect) {
         let on = match effect {
@@ -186,7 +194,19 @@ pub fn name_of(stem: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use chora_kit::effects::Kind as Shared;
+
     use super::*;
+
+    #[test]
+    fn xp_keeps_its_wobble_and_lamp() {
+        let mut toggles = crate::config::defaults().effects;
+        assert_eq!(toggles.kinds(), [Shared::Wobbly, Shared::Lamp]);
+        toggles.flip(Effect::Wobbly);
+        assert_eq!(toggles.kinds(), [Shared::Lamp]);
+        toggles.flip(Effect::Lamp);
+        assert_eq!(toggles.kinds(), Vec::<Shared>::new());
+    }
 
     fn picks(node: &Node) -> Vec<(&str, bool)> {
         let Kind::Group(children) = &node.kind else {

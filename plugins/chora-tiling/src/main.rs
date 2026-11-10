@@ -1251,6 +1251,13 @@ mod tests {
     /// A tiling on a fake core that answers every request, `input.grab`
     /// with its binding, and keeps the names of the methods called.
     fn on_fake_core(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+        on_fake_core_with(tag, &[])
+    }
+
+    fn on_fake_core_with(
+        tag: &str,
+        effects: &[chora_kit::effects::Kind],
+    ) -> (Tiling, Arc<Mutex<Vec<String>>>) {
         let dir = std::env::temp_dir().join(format!("chora-tiling-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -1278,7 +1285,8 @@ mod tests {
         });
         let conn = Conn::connect_at(NAME, &path).unwrap();
         let file = dir.join("chora-tiling.yaml");
-        let settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
+        let mut settings = settings::File::<Config>::load(file, config::DEFAULT).unwrap();
+        settings.value.effects = effects.to_vec();
         let tiling = Tiling {
             rt: Runtime::with(conn, NAME, Vec::new()),
             wm: Wm::new(settings.value.clone()),
@@ -1292,6 +1300,57 @@ mod tests {
             dragged: None,
         };
         (tiling, methods)
+    }
+
+    /// Drags a floating window of 40 by 20 from its place to another and
+    /// lets go; the transactions that tiling sent are the answer.
+    fn drag_a_floating_window(tiling: &mut Tiling, methods: &Arc<Mutex<Vec<String>>>) -> String {
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.act(&Action::ToggleFloating);
+        assert!(tiling.wm.set_size("s1", [40, 20]));
+        tiling.relayout().unwrap();
+        let press = |state, position: [f64; 2]| Event::InputButton {
+            binding: give::MOVE.into(),
+            state,
+            position,
+            output: "X".into(),
+            local: position,
+            surface: Some("s1".into()),
+        };
+        let moved = |position: [f64; 2]| Event::InputMoved {
+            binding: give::MOVE.into(),
+            position,
+            output: "X".into(),
+            local: position,
+        };
+        tiling
+            .event(press(PressState::Pressed, [190.0, 150.0]))
+            .unwrap();
+        tiling.event(moved([230.0, 170.0])).unwrap();
+        tiling.event(moved([260.0, 190.0])).unwrap();
+        tiling
+            .event(press(PressState::Released, [260.0, 190.0]))
+            .unwrap();
+        methods.lock().unwrap().join("\n")
+    }
+
+    #[test]
+    fn a_tiling_window_wobbles_with_the_opt_in() {
+        let (mut tiling, methods) =
+            on_fake_core_with("wobble", &[chora_kit::effects::Kind::Wobbly]);
+        let sent = drag_a_floating_window(&mut tiling, &methods);
+        assert!(sent.contains("\"mesh\""), "a dragged window bends: {sent}");
+    }
+
+    #[test]
+    fn a_manager_without_the_opt_in_sends_no_mesh() {
+        let (mut tiling, methods) = on_fake_core("flat");
+        let sent = drag_a_floating_window(&mut tiling, &methods);
+        assert!(sent.contains("scene.apply"), "the window moved: {sent}");
+        assert!(!sent.contains("\"mesh\""), "{sent}");
     }
 
     /// With `--output X` before X exists, the grab of a pointer binding
