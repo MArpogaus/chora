@@ -76,7 +76,7 @@ chat-show-hide pass
 chat-super-a-esc missing
 typed-yes-held pass
 agents-row-text missing
-xp-tray-rows pass
+xp-tray-rows missing
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
