@@ -293,7 +293,6 @@ impl State {
         self.forget_unused_tokens(std::time::Duration::ZERO);
         self.inject_mark = None;
         self.node_grab = None;
-        self.plane_grab = None;
         self.button_grab = None;
         let pointer = self.pointer();
         pointer.unset_grab(

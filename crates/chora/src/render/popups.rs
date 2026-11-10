@@ -593,7 +593,8 @@ fn button_grab(windows: &mut Windows) {
         now,
         false,
     );
-    press_on_source(windows, false);
+    move_to(&mut windows.0, (windows.4)(50.0, 40.0));
+    click(&mut windows.0, true);
     release_on(windows);
     crate::input::key(
         &mut windows.0.state,

@@ -225,7 +225,6 @@ impl State {
     /// session locked or unlocked.
     fn lock_changed(&mut self) {
         self.node_grab = None;
-        self.plane_grab = None;
         self.button_grab = None;
         let pointer = self.pointer();
         pointer.unset_grab(self, SERIAL_COUNTER.next_serial(), InputTime::now());

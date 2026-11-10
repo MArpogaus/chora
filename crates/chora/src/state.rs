@@ -88,21 +88,6 @@ pub struct NodeGrab {
     pub local: [f64; 2],
 }
 
-/// The press on a surface under a plane, until a popup grab or a drag and
-/// drop of a client takes the pointer: its node, the origin of the
-/// surface in the coordinates of the node, and the last point on the
-/// surface that the client got. Each motion of the press maps through the
-/// plane, also outside the node.
-#[derive(Clone)]
-pub struct PlaneGrab {
-    pub node: String,
-    pub surface: WlSurface,
-    pub origin: Point<f64, Logical>,
-    pub last: Point<f64, Logical>,
-    /// The buttons that are down since the press.
-    pub held: u32,
-}
-
 /// A grab of a button that is down: the connection of the grab, the
 /// binding, and the button.
 pub struct ButtonGrab {
@@ -239,8 +224,6 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
-    /// The press on a surface under a plane, until the button goes up.
-    pub plane_grab: Option<PlaneGrab>,
     /// Whether a drag and drop of a client holds the pointer: its target is
     /// the surface under the pointer, so no press pins a surface.
     pub client_drag: bool,
@@ -257,6 +240,9 @@ pub struct State {
     /// The serial of the last real key or button press, of any kind. An
     /// injected press ends it, and the act with it.
     pub last_real_press: Option<Serial>,
+    /// The serial and the button of the last real button press, while the
+    /// button is down. An injected button press ends it.
+    pub last_real_button: Option<(Serial, u32)>,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -399,7 +385,6 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
-            plane_grab: None,
             client_drag: false,
             button_grab: None,
             hovered: None,
@@ -407,6 +392,7 @@ impl State {
             watchdog: Watchdog::from_env(),
             last_act: None,
             last_real_press: None,
+            last_real_button: None,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,

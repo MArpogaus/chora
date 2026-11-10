@@ -299,8 +299,9 @@ impl WaylandDndGrabHandler for State {
     /// grabbed with. The target is the surface under the pointer, so the
     /// press stops pinning the surface that it hit, also under a plane.
     /// The icon of the drag is not shown. Only the client under the press
-    /// may drag, only for a press of the person, never while the session
-    /// is locked, and never for a confined client.
+    /// may drag, only for a button press of the person that is still
+    /// down, never while the session is locked, and never for a confined
+    /// client.
     fn dnd_requested<S: Source>(
         &mut self,
         source: S,
@@ -321,7 +322,6 @@ impl WaylandDndGrabHandler for State {
             source.cancel();
             return;
         };
-        self.plane_grab = None;
         let grab = DnDGrab::new_pointer(&self.display_handle, start_data, source, seat);
         pointer.set_grab(self, grab, serial, Focus::Keep);
         self.client_drag = true;
@@ -330,7 +330,8 @@ impl WaylandDndGrabHandler for State {
 
 impl State {
     /// Whether the client of `source` may start a drag from the pressed
-    /// surface `origin` with the press `serial`.
+    /// surface `origin` with `serial`: the newest real press, of a button,
+    /// while a button is down.
     fn drag_allowed(&self, source: &dyn Any, origin: &WlSurface, serial: Serial) -> bool {
         let source = source
             .downcast_ref::<WlDataSource>()
@@ -339,6 +340,9 @@ impl State {
         source.is_some_and(|id| id.same_client_as(&origin.id()))
             && self.lock.is_none()
             && self.last_real_press == Some(serial)
+            && self
+                .last_real_button
+                .is_some_and(|(press, _)| press == serial)
             && self.pressed(origin, serial)
             && self.takes_part_in_drags(origin)
     }
@@ -486,8 +490,8 @@ impl XdgShellHandler for State {
             }
             keyboard.set_focus(self, grab.current_grab(), serial);
             keyboard.set_grab(self, PopupKeyboardGrab::new(&grab), serial);
-            self.plane_grab = None;
-            pointer.set_grab(self, PopupPointerGrab::new(&grab), serial, Focus::Keep);
+            let grab = crate::input::PlaneGrab::popup(PopupPointerGrab::new(&grab));
+            pointer.set_grab(self, grab, serial, Focus::Keep);
         }
     }
 }
