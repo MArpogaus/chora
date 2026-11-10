@@ -195,22 +195,28 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 (none)
 
-## Running (11-10 15:20 Bangkok)
+## Running (11-10 17:00 Bangkok)
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent)
 
-Workers (own containers, Fable 5.2; check with get_session, merge here):
-- session_016iS3kL1yG8R47DGySmB65H: core stability on claude/core-death
-  (handover-core-death.md: starvation-robust frame watchdog, mc
-  effects.dropped, hang gate 2, #89, memory re-check).
-- session_016iS3kNteKAJNer4zC9m3qk: D69 virtual outputs steps 2 and 3 on
-  claude/virtual-2; stops after step 3 for review and merge.
+Workers (own containers; check with get_session, merge here):
+- session_016iS3kL1yG8R47DGySmB65H (Fable): core-death review fixes done
+  at ea4b02d (gate green, merge that commit); now mc on 300 panels and
+  the 58 MB heap, stacked on claude/core-death (it may push only there).
+- session_016iS3kNteKAJNer4zC9m3qk (Fable): virtual-2 review fixes at
+  366817d3 (merge gate running); now D69 step 4 on claude/virtual-2.
+- session_016iS3kNS7t5CrXkYfk8LgjU (opus): HUD looks H8 to H10 on
+  claude/hud-looks, with captures hud-{xp,mc,construct}.png.
 
-Local: claude/wobble3d (E2) merge gate queued after the virtual merge.
+Local: K5 construct on 3D (agent afab03f7e183f96f0, /home/user/wt/k5),
+plus construct wobble in 3D and construct-3d.png / construct-wobble.png.
+
+Merge queue: virtual-2 (366817d3, gate running), core-death (ea4b02d).
 
 Merged today: merge-gate script, H4c, 3D steps 2 to 6, focus race, HUD
 H1 to H7 and H4a/H4b, effects driver, give key, grab fix, flake fixes,
-render fixes, D69 step 1 (offscreen.rs). sccache on.
+render fixes, D69 step 1, grants2 (2a1e2d2), hud-start (c81144a),
+wobble3d E2 (3dc1eb6). sccache on. Cap: four heavy lanes.
 
 ## Blocked
 
