@@ -1336,3 +1336,67 @@ OpenAI-compatible provider, `permission.edit: ask`):
   got no answer and was a no after 120 s. The ASR heard "Coder" as
   "Coda"; that utterance went to the LLM, which sent it on with
   `agent_say`.
+
+## 19. The chat field
+
+`chora-chat` has two modes (`services/voice/chat`).
+
+- `chora-chat [NAME]` is the opener for a launcher or a key. It calls
+  `assistant chat.show {name, token}`, with the helper if one is named
+  and the `XDG_ACTIVATION_TOKEN` of its environment. It draws nothing.
+- `chora-chat --input NAME` is the text field of the chat view with the
+  helper NAME, a layer surface that the host starts, one at a time. It
+  draws with `chora-draw` into `wl_shm`, in the font size of the body
+  text (14 px at least), uses `text-input-v3` for input methods and the
+  data device for a paste.
+
+**Connection.** The field is an ordinary plugin, named `chat-field`, on
+the main socket of the session, so its connection is unconfined and it
+may call `voice agent`. It needs no grant. A confined caller cannot use
+it: `place` and `quit` are privileged, and the chat methods of voice
+refuse a confined caller (`not for a confined connection`).
+
+**Methods.** `chat-field.place {anchor, margin, width, output, look,
+token}` shows the field and moves it: `anchor` is `top`, `bottom`,
+`left`, `right` or two of them joined by `_`, `margin` is top, right,
+bottom, left, `look` holds the colors `background`, `text`, `border`
+and `hint` as RGBA. A new place on the same output only moves the
+surface; the draft stays. Another output makes a new surface, and the
+draft stays too, because the process stays. `chat-field.quit` ends the
+program. The host holds `chat.open` and `chat.close` for the chat; the
+field never calls them.
+
+**Events.** `chat-field.keyboard {on}` when the field gets or loses the
+keyboard, `chat-field.sent {name}` after a text reached the helper, and
+`chat-field.closed` after Esc or when the compositor closed the
+surface. No event carries text.
+
+**Keys.** Enter sends the draft with `voice agent {tool: agent_say}`.
+Shift+Enter breaks a line. The field grows to four lines, then scrolls.
+Esc closes the field and keeps the draft for the next `place`. Ctrl+V
+and Shift+Insert paste the text of the selection (64 KiB at most, a
+second to read). Left, Right, Home, End, Backspace and Delete edit. A
+key with Ctrl or Alt is never text. Pasted and composed text pass
+`chora_kit::chat::sanitize`.
+
+**Keyboard.** The surface is on layer `top` with the keyboard on demand.
+It takes the keyboard in two ways: a click on it, and the activation
+token of a person's act (a real key or button, see the keyboard rule of
+the core in `architecture.md`) that `place` hands it. Without a token,
+or with a token that no real press stamped, it takes none. Esc destroys
+the surface, so the window gets the keyboard back.
+
+**Questions.** The field answers no question. It cannot tell typed text
+from pasted or injected text, so a typed yes is no proof. It follows
+`voice.state` of its helper: while the state is `question`, Enter keeps
+the text, and the field shows "Typing does not answer" with the keys of
+`voice.confirm`. When the question ends, the held text goes to the
+helper as one message. If `agent_say` fails, the text is back in the
+field and the field says that voice does not answer.
+
+Tests: the unit tests of the crate (the keys, the draft, the layout, the
+paste pipe) and `tests/chat.sh`, which runs the field beside a window
+and the fake agent in a headless session. A headless session has no
+device, so a real press is missing there: the script checks that a click
+takes the keyboard and that a token without a real act does not. The
+token of a real act is a test of the core.

@@ -1,0 +1,586 @@
+//! The layer surface of the field: where it sits, what it draws and what
+//! its keyboard, input method and clipboard do to the draft. The surface
+//! is on layer `top` with the keyboard on demand. It takes the keyboard
+//! with the activation token of the act that opened the chat, or when the
+//! person clicks it, and never otherwise.
+
+use std::{
+    fs::File,
+    io::{ErrorKind, Read, Write},
+    os::fd::{AsFd, OwnedFd},
+    sync::mpsc::{Receiver, Sender},
+    time::{Duration, Instant},
+};
+
+use rustix::{
+    event::{PollFd, PollFlags, Timespec, poll},
+    fs::{MemfdFlags, memfd_create},
+};
+use serde::Deserialize;
+use serde_json::json;
+use wayland_client::{
+    Connection, EventQueue, Proxy, QueueHandle,
+    backend::WaylandError,
+    protocol::{
+        wl_buffer::WlBuffer,
+        wl_compositor::WlCompositor,
+        wl_data_device::WlDataDevice,
+        wl_data_device_manager::WlDataDeviceManager,
+        wl_data_offer::WlDataOffer,
+        wl_keyboard::WlKeyboard,
+        wl_output::WlOutput,
+        wl_seat::WlSeat,
+        wl_shm::{self, WlShm},
+        wl_surface::WlSurface,
+    },
+};
+use wayland_protocols::{
+    wp::text_input::zv3::client::{
+        zwp_text_input_manager_v3::ZwpTextInputManagerV3,
+        zwp_text_input_v3::{ChangeCause, ContentHint, ContentPurpose, ZwpTextInputV3},
+    },
+    xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1,
+};
+use wayland_protocols_wlr::layer_shell::v1::client::{
+    zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
+    zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity, ZwlrLayerSurfaceV1},
+};
+use xkbcommon::xkb;
+
+use crate::{
+    draw::{Look, Painter},
+    ipc::{Msg, Request},
+    keys::{self, Decoded, Mods},
+    paste,
+    session::{Effect, Key, Session},
+};
+
+/// The width of the field when a place names none.
+const DEFAULT_WIDTH: u32 = 400;
+/// The most bytes of the surrounding text that the input method gets.
+const SURROUNDING: usize = 4000;
+
+/// Where the field sits and how it looks.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Place {
+    /// The output by its name; any output when missing.
+    #[serde(default)]
+    pub output: Option<String>,
+    /// The edges that the field sticks to: `top`, `bottom`, `left`,
+    /// `right`, or two of them joined by `_`, such as `bottom_right`.
+    pub anchor: String,
+    /// The distance to the edges: top, right, bottom, left.
+    #[serde(default)]
+    pub margin: [i32; 4],
+    /// The width in pixels.
+    #[serde(default = "default_width")]
+    pub width: u32,
+    /// The activation token of the act that opened the chat.
+    #[serde(default)]
+    pub token: Option<String>,
+    /// The colors.
+    #[serde(default)]
+    pub look: Look,
+}
+
+fn default_width() -> u32 {
+    DEFAULT_WIDTH
+}
+
+/// The anchor of a place: the edges that its name lists.
+#[must_use]
+pub fn anchor_of(name: &str) -> Anchor {
+    name.split('_')
+        .fold(Anchor::empty(), |anchor, edge| match edge {
+            "top" => anchor | Anchor::Top,
+            "bottom" => anchor | Anchor::Bottom,
+            "left" => anchor | Anchor::Left,
+            "right" => anchor | Anchor::Right,
+            _ => anchor,
+        })
+}
+
+/// The globals of the compositor that the field uses.
+#[derive(Default)]
+pub struct Globals {
+    pub compositor: Option<WlCompositor>,
+    pub shm: Option<WlShm>,
+    pub layer_shell: Option<ZwlrLayerShellV1>,
+    pub seat: Option<WlSeat>,
+    pub activation: Option<XdgActivationV1>,
+    pub text_manager: Option<ZwpTextInputManagerV3>,
+    pub data_manager: Option<WlDataDeviceManager>,
+    pub keyboard: Option<WlKeyboard>,
+    pub text_input: Option<ZwpTextInputV3>,
+    pub data_device: Option<WlDataDevice>,
+}
+
+/// The surface while the field shows.
+struct Shown {
+    surface: WlSurface,
+    layer: ZwlrLayerSurfaceV1,
+    output: Option<String>,
+    configured: bool,
+    size: [u32; 2],
+}
+
+/// The key that repeats.
+struct Repeat {
+    code: u32,
+    key: Key,
+    next: Instant,
+}
+
+/// What the input method sent since its last `done`.
+#[derive(Default)]
+pub struct Pending {
+    pub commit: Option<String>,
+    pub preedit: Option<String>,
+    pub delete: Option<(u32, u32)>,
+}
+
+/// The window of the field.
+pub struct Window {
+    pub qh: QueueHandle<Self>,
+    pub globals: Globals,
+    pub outputs: Vec<(WlOutput, Option<String>)>,
+    pub xkb: Option<xkb::State>,
+    pub pending: Pending,
+    pub selection: Option<WlDataOffer>,
+    pub focused: bool,
+    pub running: bool,
+    pub rate: (i32, i32),
+    shown: Option<Shown>,
+    place: Option<Place>,
+    token: Option<String>,
+    session: Session,
+    painter: Painter,
+    repeat: Option<Repeat>,
+    requests: Sender<Request>,
+    conn: Connection,
+}
+
+impl Window {
+    /// A window with no surface yet.
+    #[must_use]
+    pub fn new(
+        conn: Connection,
+        qh: QueueHandle<Self>,
+        session: Session,
+        requests: Sender<Request>,
+    ) -> Self {
+        Self {
+            qh,
+            globals: Globals::default(),
+            outputs: Vec::new(),
+            xkb: None,
+            pending: Pending::default(),
+            selection: None,
+            focused: false,
+            running: true,
+            rate: (25, 400),
+            shown: None,
+            place: None,
+            token: std::env::var("XDG_ACTIVATION_TOKEN").ok(),
+            session,
+            painter: Painter::new(),
+            repeat: None,
+            requests,
+            conn,
+        }
+    }
+
+    /// Serves the compositor and the messages of the connection until the
+    /// program ends.
+    ///
+    /// # Errors
+    ///
+    /// The Wayland connection fails.
+    pub fn run(
+        &mut self,
+        queue: &mut EventQueue<Self>,
+        msgs: &Receiver<Msg>,
+        wake: OwnedFd,
+    ) -> Result<(), String> {
+        let mut wake = File::from(wake);
+        while self.running {
+            while let Ok(msg) = msgs.try_recv() {
+                self.msg(msg);
+            }
+            queue.flush().map_err(|e| e.to_string())?;
+            queue.dispatch_pending(self).map_err(|e| e.to_string())?;
+            self.repeat_due();
+            queue.flush().map_err(|e| e.to_string())?;
+            let Some(guard) = queue.prepare_read() else {
+                continue;
+            };
+            let timeout = self.repeat_wait();
+            let ready = {
+                let display = guard.connection_fd();
+                let mut fds = [
+                    PollFd::new(&display, PollFlags::IN),
+                    PollFd::new(&wake, PollFlags::IN),
+                ];
+                let timeout = timeout.and_then(|t| Timespec::try_from(t).ok());
+                poll(&mut fds, timeout.as_ref()).unwrap_or(0);
+                [fds[0].revents(), fds[1].revents()]
+            };
+            if ready[0].contains(PollFlags::IN) {
+                match guard.read() {
+                    Err(WaylandError::Io(e)) if e.kind() == ErrorKind::WouldBlock => {}
+                    other => {
+                        other.map_err(|e| e.to_string())?;
+                    }
+                }
+            } else {
+                drop(guard);
+            }
+            if ready[1].contains(PollFlags::IN) {
+                let _ = wake.read(&mut [0_u8; 64]);
+            }
+        }
+        Ok(())
+    }
+
+    fn msg(&mut self, msg: Msg) {
+        match msg {
+            Msg::Place(place) => self.apply_place(*place),
+            Msg::Question(waiting) => {
+                let effect = self.session.set_waiting(waiting);
+                self.effect(effect);
+            }
+            Msg::Keys(keys) => self.session.set_keys(keys),
+            Msg::SayFailed(text) => self.session.say_failed(&text),
+            Msg::Quit => self.running = false,
+        }
+        self.changed();
+    }
+
+    fn output_named(&self, name: &str) -> Option<&WlOutput> {
+        (self.outputs.iter())
+            .find(|(_, n)| n.as_deref() == Some(name))
+            .map(|(o, _)| o)
+    }
+
+    fn apply_place(&mut self, place: Place) {
+        let moved = (self.shown.as_ref()).is_some_and(|s| s.output != place.output);
+        if moved {
+            self.destroy_surface();
+        }
+        if self.shown.is_none() {
+            self.create_surface(&place);
+        } else if let Some(shown) = &self.shown {
+            shown.layer.set_anchor(anchor_of(&place.anchor));
+            let [top, right, bottom, left] = place.margin;
+            shown.layer.set_margin(top, right, bottom, left);
+        }
+        if place.token.is_some() {
+            self.token.clone_from(&place.token);
+        }
+        self.place = Some(place);
+    }
+
+    fn create_surface(&mut self, place: &Place) {
+        let (Some(compositor), Some(shell)) = (&self.globals.compositor, &self.globals.layer_shell)
+        else {
+            eprintln!("chora-chat: the compositor has no layer shell");
+            self.running = false;
+            return;
+        };
+        let surface = compositor.create_surface(&self.qh, ());
+        let output = place.output.as_deref().and_then(|n| self.output_named(n));
+        let layer = shell.get_layer_surface(
+            &surface,
+            output,
+            Layer::Top,
+            "chora-chat".into(),
+            &self.qh,
+            (),
+        );
+        layer.set_anchor(anchor_of(&place.anchor));
+        let [top, right, bottom, left] = place.margin;
+        layer.set_margin(top, right, bottom, left);
+        layer.set_keyboard_interactivity(KeyboardInteractivity::OnDemand);
+        layer.set_exclusive_zone(0);
+        let layout = self.painter.layout(&self.session, place.width);
+        let size = [place.width, layout.height()];
+        layer.set_size(size[0], size[1]);
+        surface.commit();
+        self.shown = Some(Shown {
+            surface,
+            layer,
+            output: place.output.clone(),
+            configured: false,
+            size,
+        });
+    }
+
+    fn destroy_surface(&mut self) {
+        if let Some(shown) = self.shown.take() {
+            shown.layer.destroy();
+            shown.surface.destroy();
+        }
+        self.repeat = None;
+        self.set_focused(false);
+    }
+
+    /// The compositor configured the surface.
+    pub fn configured(&mut self, serial: u32) {
+        if let Some(shown) = &mut self.shown {
+            shown.layer.ack_configure(serial);
+            shown.configured = true;
+        }
+        self.changed();
+    }
+
+    /// The compositor closed the surface, for example with its output.
+    pub fn closed_by_compositor(&mut self) {
+        self.close();
+    }
+
+    /// Esc: the field goes and the draft stays.
+    fn close(&mut self) {
+        self.token = None;
+        self.destroy_surface();
+        self.emit("chat-field.closed", json!({}));
+    }
+
+    fn emit(&self, event: &'static str, data: serde_json::Value) {
+        let _ = self.requests.send(Request::Emit(event, data));
+    }
+
+    /// The keyboard came or went.
+    pub fn set_focused(&mut self, focused: bool) {
+        if self.focused == focused {
+            return;
+        }
+        self.focused = focused;
+        self.emit("chat-field.keyboard", json!({"on": focused}));
+        if let Some(input) = &self.globals.text_input {
+            if focused {
+                input.enable();
+            } else {
+                input.disable();
+            }
+            input.commit();
+        }
+        if !focused {
+            self.repeat = None;
+        }
+        self.changed();
+    }
+
+    /// The draft or the surface changed: draw again and tell the input method.
+    pub fn changed(&mut self) {
+        self.draw();
+        self.sync_ime();
+    }
+
+    fn draw(&mut self) {
+        let Some(place) = &self.place else {
+            return;
+        };
+        let layout = self.painter.layout(&self.session, place.width);
+        let size = [place.width, layout.height()];
+        let pixels = self
+            .painter
+            .paint(&layout, &place.look, size[0], self.focused);
+        let token = self.token.take();
+        let Some(shown) = self.shown.as_mut().filter(|s| s.configured) else {
+            self.token = token;
+            return;
+        };
+        if shown.size != size {
+            shown.layer.set_size(size[0], size[1]);
+            shown.size = size;
+        }
+        if let Some(buffer) = buffer(&self.globals, &self.qh, &pixels, size) {
+            let [w, h] = size.map(|v| i32::try_from(v).unwrap_or(i32::MAX));
+            shown.surface.attach(Some(&buffer), 0, 0);
+            shown.surface.damage_buffer(0, 0, w, h);
+        }
+        shown.surface.commit();
+        if let (Some(token), Some(activation)) = (token, &self.globals.activation) {
+            activation.activate(token, &shown.surface);
+        }
+    }
+
+    fn sync_ime(&self) {
+        let (Some(input), true) = (&self.globals.text_input, self.focused) else {
+            return;
+        };
+        let cursor = self.session.cursor();
+        let (from, text) = surrounding(self.session.text(), cursor);
+        let at = i32::try_from(cursor - from).unwrap_or(0);
+        input.set_surrounding_text(text.to_owned(), at, at);
+        input.set_text_change_cause(ChangeCause::Other);
+        input.set_content_type(ContentHint::None, ContentPurpose::Normal);
+        input.set_cursor_rectangle(8, 8, 1, 20);
+        input.commit();
+    }
+
+    /// The input method finished a batch of changes.
+    pub fn ime_done(&mut self) {
+        let pending = std::mem::take(&mut self.pending);
+        if let Some((before, after)) = pending.delete {
+            self.session
+                .delete_surrounding(before as usize, after as usize);
+        }
+        if let Some(text) = pending.commit {
+            self.session.commit(&text);
+        }
+        self.session
+            .set_preedit(&pending.preedit.unwrap_or_default());
+        self.changed();
+    }
+
+    /// A key went down or up, with the keycode of evdev.
+    pub fn key(&mut self, code: u32, pressed: bool) {
+        if !pressed {
+            if self.repeat.as_ref().is_some_and(|r| r.code == code) {
+                self.repeat = None;
+            }
+            return;
+        }
+        let Some(key) = self.decode(code) else {
+            return;
+        };
+        if keys::repeats(&key) && self.xkb_repeats(code) {
+            let (rate, delay) = self.rate;
+            if rate > 0 {
+                let next =
+                    Instant::now() + Duration::from_millis(u64::try_from(delay).unwrap_or(0));
+                self.repeat = Some(Repeat {
+                    code,
+                    key: key.clone(),
+                    next,
+                });
+            }
+        }
+        self.press(key);
+    }
+
+    fn xkb_repeats(&self, code: u32) -> bool {
+        (self.xkb.as_ref()).is_some_and(|s| s.get_keymap().key_repeats(xkb::Keycode::new(code + 8)))
+    }
+
+    fn decode(&mut self, code: u32) -> Option<Key> {
+        let state = self.xkb.as_ref()?;
+        let keycode = xkb::Keycode::new(code + 8);
+        let active = |name: &str| state.mod_name_is_active(name, xkb::STATE_MODS_EFFECTIVE);
+        let mods = Mods {
+            ctrl: active(xkb::MOD_NAME_CTRL),
+            shift: active(xkb::MOD_NAME_SHIFT),
+            alt: active(xkb::MOD_NAME_ALT),
+        };
+        let sym = state.key_get_one_sym(keycode).raw();
+        match keys::decode(sym, mods, &state.key_get_utf8(keycode)) {
+            Decoded::Key(key) => Some(key),
+            Decoded::Paste => self.paste(),
+            Decoded::Ignore => None,
+        }
+    }
+
+    fn paste(&mut self) -> Option<Key> {
+        let offer = self.selection.as_ref()?;
+        let mimes = offer.data::<crate::events::Mimes>()?.0.lock().ok()?.clone();
+        let mime = paste::text_type(&mimes)?;
+        let (read, write) = rustix::pipe::pipe_with(rustix::pipe::PipeFlags::CLOEXEC).ok()?;
+        offer.receive(mime.to_owned(), write.as_fd());
+        drop(write);
+        self.conn.flush().ok()?;
+        Some(Key::Text(paste::read_text(read)))
+    }
+
+    fn press(&mut self, key: Key) {
+        let effect = self.session.key(key);
+        self.effect(effect);
+        self.changed();
+    }
+
+    fn effect(&mut self, effect: Option<Effect>) {
+        match effect {
+            Some(Effect::Say(text)) => {
+                let _ = self.requests.send(Request::Say(text));
+            }
+            Some(Effect::Close) => self.close(),
+            None => {}
+        }
+    }
+
+    fn repeat_wait(&self) -> Option<Duration> {
+        let repeat = self.repeat.as_ref()?;
+        Some(repeat.next.saturating_duration_since(Instant::now()))
+    }
+
+    fn repeat_due(&mut self) {
+        let (rate, _) = self.rate;
+        let Some(repeat) = self.repeat.as_mut().filter(|r| r.next <= Instant::now()) else {
+            return;
+        };
+        let key = repeat.key.clone();
+        let interval = Duration::from_millis(1000 / u64::try_from(rate.max(1)).unwrap_or(1));
+        repeat.next = Instant::now() + interval;
+        self.press(key);
+    }
+}
+
+/// The text around the cursor that fits the limit of the input method,
+/// and where it starts in the text.
+fn surrounding(text: &str, cursor: usize) -> (usize, &str) {
+    let mut from = cursor.saturating_sub(SURROUNDING / 2);
+    while !text.is_char_boundary(from) {
+        from += 1;
+    }
+    let mut to = (from + SURROUNDING).min(text.len());
+    while !text.is_char_boundary(to) {
+        to -= 1;
+    }
+    (from, &text[from..to])
+}
+
+/// A shm buffer with the pixels, one pool per buffer.
+fn buffer(
+    globals: &Globals,
+    qh: &QueueHandle<Window>,
+    pixels: &[u8],
+    [w, h]: [u32; 2],
+) -> Option<WlBuffer> {
+    let shm = globals.shm.as_ref()?;
+    let fd = memfd_create("chora-chat", MemfdFlags::CLOEXEC).ok()?;
+    let mut file = File::from(fd);
+    file.write_all(pixels).ok()?;
+    let [w, h] = [i32::try_from(w).ok()?, i32::try_from(h).ok()?];
+    let pool = shm.create_pool(file.as_fd(), w * h * 4, qh, ());
+    let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, qh, ());
+    pool.destroy();
+    Some(buffer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_anchor_names_its_edges() {
+        assert_eq!(anchor_of("bottom"), Anchor::Bottom);
+        assert_eq!(anchor_of("top_right"), Anchor::Top | Anchor::Right);
+        assert_eq!(anchor_of("middle"), Anchor::empty());
+    }
+
+    #[test]
+    fn a_place_refuses_unknown_keys_and_has_defaults() {
+        let place: Place = serde_json::from_value(json!({"anchor": "bottom"})).expect("a place");
+        assert_eq!((place.width, place.margin), (400, [0; 4]));
+        let wrong = serde_json::from_value::<Place>(json!({"anchor": "bottom", "size": 3}));
+        assert!(wrong.is_err());
+    }
+
+    #[test]
+    fn the_surrounding_text_stays_on_char_boundaries() {
+        let text = "ä".repeat(5000);
+        let (from, around) = surrounding(&text, 6000);
+        assert!(around.len() <= SURROUNDING && text.is_char_boundary(from));
+    }
+}
