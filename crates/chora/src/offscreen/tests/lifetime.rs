@@ -29,8 +29,8 @@ struct Session {
     core: Core,
     construct: Option<Client>,
     xp: Option<Client>,
-    _desk: Client,
-    _wayland: Wayland,
+    desk: Option<Client>,
+    wayland: Wayland,
 }
 
 fn session() -> Session {
@@ -61,8 +61,8 @@ fn session() -> Session {
         core,
         construct: Some(construct),
         xp: Some(xp),
-        _desk: desk,
-        _wayland: wayland,
+        desk: Some(desk),
+        wayland,
     }
 }
 
@@ -106,6 +106,61 @@ fn a_stranded_window_lands_on_a_screen_after_5_s() {
     );
     session.core.advance(RESERVATION * 2);
     assert!(session.on_the_screen(), "the core shows it at last");
+}
+
+/// The owner of a virtual output aims its camera at a window that another
+/// window manager keeps off the screens, and removes the output: the
+/// window stays with its manager.
+#[test]
+fn a_camera_on_the_window_of_another_manager_takes_nothing() {
+    let mut session = session();
+    let second = session.wayland.toplevel(&mut session.core, "second");
+    session.wayland.attach(&mut session.core, &second, (20, 20));
+    let far = json!([
+        {"attach": {"surface": "s2", "parent": "desk"}},
+        {"update": {"id": "s2", "props": {"transform": {"translate": [5000, 5000]}}}},
+    ]);
+    let desk = session.desk.as_mut().expect("desk");
+    apply(desk, &mut session.core, &far);
+    let aim = json!([{"camera": {"output": "VIRTUAL-1",
+        "transform": {"translate": [-5000, -5000]}}}]);
+    let construct = session.construct.as_mut().expect("the construct");
+    apply(construct, &mut session.core, &aim);
+    session.remove_the_output();
+    session.core.advance(RESERVATION * 2);
+    let owner = |core: &Core| core.state.scene.node("s2").expect("s2").owner.clone();
+    assert_eq!(owner(&session.core).as_deref(), Some("desk"));
+}
+
+#[test]
+fn the_owner_hears_that_the_core_took_its_stranded_window() {
+    let mut session = session();
+    let xp = session.xp.as_mut().expect("xp");
+    let subscribe = json!({"events": ["surface.detached"]});
+    xp.ok(&mut session.core, "events.subscribe", subscribe);
+    session.remove_the_output();
+    session.core.advance(RESERVATION * 2);
+    let xp = session.xp.as_mut().expect("xp");
+    assert_eq!(xp.event_names(&mut session.core), ["surface.detached"]);
+}
+
+/// A window manager that took a free window got it from nobody: when it
+/// goes, the client that gave the window to an earlier one is no giver.
+#[test]
+fn a_giver_counts_only_for_the_manager_that_it_gave_to() {
+    let mut session = session();
+    let xp = session.xp.as_mut().expect("xp");
+    apply(xp, &mut session.core, &json!([{"remove": {"id": "s1"}}]));
+    let mut late = manager(&mut session.core, "late", [0, 200, 10, 10]);
+    let take = json!([{"attach": {"surface": "s1", "parent": "late"}}]);
+    apply(&mut late, &mut session.core, &take);
+    drop(late);
+    session.core.dispatch();
+    assert_eq!(
+        session.reserved_for().as_deref(),
+        Some("desk"),
+        "the manager under the pointer, since nobody gave it to late"
+    );
 }
 
 #[test]
@@ -155,36 +210,68 @@ fn pick(seed: &mut u64, below: u64) -> u64 {
     (*seed >> 33) % below
 }
 
-/// One random step of a session: the output goes or comes back, xp or
-/// the construct ends, xp moves the window, or time passes.
+fn ask(client: &mut Option<Client>, method: &str, params: Value) {
+    let _ = client.as_mut().map(|c| c.send(method, params));
+}
+
+fn change(client: &mut Option<Client>, commands: Value) {
+    let params = serde_json::Map::from_iter([("commands".to_owned(), commands)]);
+    ask(client, "scene.apply", Value::Object(params));
+}
+
+/// One random step of a session: the output goes or comes back under its
+/// name, a window manager or the construct ends, xp moves, hides or gives
+/// the window, desk takes or gives it, the construct aims the camera of
+/// the output elsewhere, or time passes.
 fn step(session: &mut Session, seed: &mut u64) {
     let Session {
         core,
         construct,
         xp,
+        desk,
         ..
     } = session;
-    let mut ask = |method: &str, params: Value| {
-        let _ = construct.as_mut().map(|c| c.send(method, params));
-    };
-    match pick(seed, 6) {
-        0 => ask("output.remove", json!({"output": "VIRTUAL-1"})),
-        1 => ask("output.add", json!({"spec": "32x32", "virtual": true})),
+    let at = [pick(seed, 100), pick(seed, 80)];
+    let give = |to: &str| json!([{"remove": {"id": "s1", "to": to}}]);
+    match pick(seed, 12) {
+        0 => ask(construct, "output.remove", json!({"output": "VIRTUAL-1"})),
+        1 => ask(
+            construct,
+            "output.add",
+            json!({"spec": "32x32", "virtual": true}),
+        ),
         2 => drop(xp.take()),
-        3 => {
-            let at = [pick(seed, 100), pick(seed, 80)];
-            let moved = json!({"commands": [{"update": {"id": "s1",
-                "props": {"transform": {"translate": at}}}}]});
-            let _ = xp.as_mut().map(|xp| xp.send("scene.apply", moved));
-        }
+        3 => change(
+            xp,
+            json!([{"update": {"id": "s1",
+            "props": {"transform": {"translate": at}}}}]),
+        ),
         4 => drop(construct.take()),
+        5 => change(xp, give("desk")),
+        6 => change(
+            desk,
+            json!([{"attach": {"surface": "s1", "parent": "desk"}},
+            {"update": {"id": "s1", "props": {"transform": {"translate": [70, 10]}}}}]),
+        ),
+        7 => change(desk, give("construct")),
+        8 => drop(desk.take()),
+        9 => change(
+            construct,
+            json!([{"camera": {"output": "VIRTUAL-1",
+            "transform": {"translate": at}}}]),
+        ),
+        10 => change(
+            xp,
+            json!([{"update": {"id": "s1", "props": {"visible": false}}}]),
+        ),
         _ => core.advance(RESERVATION / 3),
     }
     core.dispatch();
 }
 
-/// The window is with a live client that shows it on an output, or the
-/// core shows it on the screen.
+/// The window is with a live client that keeps it on the screen, in the
+/// slot of a virtual output that lives, or hidden; or the core shows it
+/// on the screen.
 fn settled(session: &mut Session) -> bool {
     let state = &session.core.state;
     let node = state
@@ -192,10 +279,14 @@ fn settled(session: &mut Session) -> bool {
         .node("s1")
         .expect("the window stays in the scene");
     let (x, y) = node.props.transform.translation_2d();
-    let on_the_screen = (0.0..128.0).contains(&x) && y >= 0.0;
-    let on_the_face = x < 0.0 && state.all_outputs().len() == 2;
+    let on_the_screen = (0.0..128.0).contains(&x) && (0.0..96.0).contains(&y);
+    let slot = f64::from(SLOT_1);
+    let in_the_slot = (slot..slot + f64::from(SIDE)).contains(&x);
+    let on_the_face = in_the_slot && state.all_outputs().len() == 2;
     match &node.owner {
-        Some(owner) => state.ipc.has_client(owner) && (on_the_screen || on_the_face),
+        Some(owner) => {
+            state.ipc.has_client(owner) && (on_the_screen || on_the_face || !node.props.visible)
+        }
         None => node.parent.as_deref() == Some("root") && on_the_screen,
     }
 }

@@ -324,6 +324,23 @@ fn the_end_of_the_output_ends_the_press() {
 }
 
 #[test]
+fn the_end_of_another_output_keeps_the_press() {
+    let mut faced = held(true);
+    let add = json!({"spec": "8x8", "virtual": true});
+    let other = faced.construct.ok(&mut faced.core, "output.add", add);
+    let remove = json!({"output": other["name"]});
+    faced.construct.ok(&mut faced.core, "output.remove", remove);
+    assert_eq!(spot_output(&faced), "VIRTUAL-1");
+}
+
+#[test]
+fn a_removed_input_device_ends_the_press() {
+    let mut faced = held(true);
+    faced.core.state.device_removed("event1");
+    assert!(faced.core.state.press_via.is_none());
+}
+
+#[test]
 fn the_reset_ends_the_press() {
     let mut faced = held(true);
     faced.core.state.reset();

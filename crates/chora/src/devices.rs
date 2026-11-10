@@ -211,6 +211,7 @@ impl State {
     pub fn device_removed(&mut self, sysname: &str) {
         self.input_devices.retain(|d| d.sysname() != sysname);
         self.last_real_button = None;
+        self.press_via = None;
     }
 
     /// The key repeat: repeats per second, 0 for none, and the delay in

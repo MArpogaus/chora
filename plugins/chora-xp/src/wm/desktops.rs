@@ -46,7 +46,7 @@ impl Wm {
     /// Moves the focused window to the next desktop and turns the cube
     /// with it.
     pub(super) fn carry(&mut self, steps: i32) -> Vec<Command> {
-        if self.effects.turn.is_some() {
+        if self.effects.turn.is_some() || self.cube_off() {
             return Vec::new();
         }
         let target = cube::offset(self.desktop, steps);
@@ -63,23 +63,15 @@ impl Wm {
         commands
     }
 
-    /// Whether the desktop cube turns: its toggle is on and not all the
-    /// outputs of xp are virtual.
-    fn cube_on(&self) -> bool {
-        let all_virtual =
-            !self.bars.is_empty() && (self.bars.iter()).all(|b| self.virtuals.contains(&b.output));
-        self.effects.toggles.cube && !all_virtual
-    }
-
     /// Starts a turn of the cube by some quarter turns.
     pub(super) fn turn(&mut self, steps: i32) -> Vec<Command> {
-        if self.effects.turn.is_some() || steps == 0 {
+        if self.effects.turn.is_some() || steps == 0 || self.cube_off() {
             return Vec::new();
         }
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if !self.effects_on() || !self.cube_on() {
+        if !self.effects_on() || !self.effects.toggles.cube {
             return self.show_desktop(cube::offset(self.desktop, steps));
         }
         let duration = self
@@ -97,7 +89,8 @@ impl Wm {
         let Some(area) = self.bars.first().map(Bar::area) else {
             return Vec::new();
         };
-        if self.effects.turn.is_some() || !self.effects_on() || !self.cube_on() {
+        let off = !self.effects_on() || !self.effects.toggles.cube || self.cube_off();
+        if self.effects.turn.is_some() || off {
             return Vec::new();
         }
         self.cube_grab = Some(x);

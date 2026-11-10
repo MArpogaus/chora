@@ -408,6 +408,7 @@ impl State {
         self.inject_mark = None;
         self.node_grab = None;
         self.press_via = None;
+        self.given_by.clear();
         self.button_grab = None;
         self.last_real_button = None;
         let pointer = self.pointer();

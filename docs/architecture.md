@@ -196,10 +196,15 @@ until the last button goes up.
 
 A virtual output goes when its owner removes it or ends, after the grace
 time of a `resume`, and the emergency reset removes all of them first. Its
-layer surfaces close and `output.removed` goes out. A window that only
-that output showed gets 5 s: then the core takes it from a window manager
-that left it there and hands it to the client that gave it, else to
-another window manager, else it shows the window on the first screen.
+layer surfaces close and `output.removed` goes out. A window that lies in
+the scene area of that output, as its default camera showed it, gets 5 s.
+Then the core takes it from a window manager that left it there: it tells
+that one with `surface.detached` and hands the window to the client that
+gave it to that window manager, else to another window manager, else it
+shows the window on the first screen. The camera of the output does not
+decide which windows these are, so no client takes the windows of
+another one with it. The core remembers the giver of a window only while
+the window manager that got it has it.
 
 ### Renderer
 

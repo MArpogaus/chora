@@ -1359,7 +1359,14 @@ window, and a double click maximizes it. `chora-xp` claims the box around the wo
 of its outputs (D55). `--output NAME` limits it to some outputs. A window
 dragged out of these work areas goes to the window manager whose claim
 holds the drop point, with `remove` and `to`. Without one there, or when
-the core refuses, the window stays. A drag of the border of the frame
+the core refuses, the window stays. A new window opens on the output
+that the pointer entered last, else on the first one. A title bar
+dropped on an output of `chora-xp` that shows no part of the window, as
+on another virtual output, puts the window there, under the pointer. When
+all outputs of `chora-xp` are virtual ones, it has no desktop cube of
+its own: the taskbars show no desktop buttons, the keys and Super with
+the left button turn nothing, and `turn_to` does nothing. A construct
+shows such outputs on a cube of its own. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the
@@ -1624,9 +1631,7 @@ the meshes of its own windows as their owner:
   click on the button pours it out again.
 - **Desktop cube.** Four desktops sit on the faces of a cube. A turn shows
   the cube in perspective, and the windows fly off their faces and land
-  again. When all outputs of xp are virtual, as on the faces of the cube
-  of chora-construct, the desktop cube is off and the desktops switch
-  flat: there is one cube. The taskbar lists the windows of the current desktop.
+  again. The taskbar lists the windows of the current desktop.
 
 If frames get too slow because of `chora-xp`, the core drops its effects;
 `chora-xp` then goes without them for 15 seconds. A drop of the effects
@@ -1660,6 +1665,7 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+| `window.move` | `surface`, and `output`: the name of an output that `chora-xp` manages | a drag of the title bar onto that output: the window goes to the same place there, as far as it fits, and is raised and focused |
 | `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
