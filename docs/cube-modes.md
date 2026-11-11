@@ -101,6 +101,18 @@ The voice agent says what happened in the same words: "I stepped back",
 | a still cube in navigate mode | the method `render.stats` counts no pass for any output between two looks |
 | a turn | no face takes a click while it runs |
 
+## Hover, drag, voice and plain Escape
+
+The four acts that complete the flows above. Each has a second path
+(principle 2), and none takes the keyboard (principle 11).
+
+| Act | The person does | The person sees | Rules |
+|-----|-----------------|-----------------|-------|
+| find the face to step into | in navigate mode, moves the pointer over a face or over a window that floats in front of it | the edge of that face lit in the accent colour, 2 px; it goes out when the pointer leaves | not during a turn and not in use mode; the keyboard needs no edge, as `Return` always steps into the front face |
+| turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube turns by one face in the direction of the drag when the pointer moved a third of the width of the view, and again for each further third | a press that does not move that far is a click and steps in on the release; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected drag does nothing outside a test session |
+| speak | says "step back", "step in", "turn left" or "turn right", or the German words of the table of words | the same states as with the chips; the agent answers "I stepped back", "I stepped in", "I turned the cube to the left" | the agent calls `view.step_back`, `view.step_in` and `cube.turn` as its other plugin tools; the keyboard stays where it is |
+| step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and steps in again in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
+
 ## What the construct does today
 
 While the cube stands back or turns, the windows on its faces float in
