@@ -85,7 +85,8 @@ change it there, not here.
 13. **Narrow outputs.** 1280 logical pixels is a main target, not an
     edge case. A page shows only as many columns as fit at `min_panel`;
     the other panels wrap into new rows in reading order. A row is never
-    lower than `min_panel`. When the page is longer than the output, it
+    lower than `min_panel`, except a row of only empty panels with their
+    words: it is as high as the words, so that each message shows. When the page is longer than the output, it
     scrolls with the wheel.
 14. **Columns follow the content.** The agents scene has as many
     columns as agents: one agent takes the whole width, two take half

@@ -410,6 +410,8 @@ click on it asks the host to open the chat. mc names its theme to the host
 with `mc.theme {theme}` at its start, when its settings change and on
 `assistant.ready` of the host, and the host draws the mc folder in that
 theme.
+The host emits `assistant.chat.keyboard {on}` when the field of the chat
+gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 
 | Method | Parameters |
 |--------|------------|
@@ -516,7 +518,9 @@ with `settings.reload`:
   be narrower, the page shows fewer columns and the panels wrap into new
   rows in reading order, each at the top-most, then left-most place
   below the panels before it; an empty panel takes no room. A row is
-  never lower than the least height. A page that is longer than the
+  never lower than the least height, except a row of only empty panels
+  that say why they are empty: it is as high as those words (two lines),
+  so that every such message shows at 1280 by 800. A page that is longer than the
   output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `order`: the scenes in their order (default `agenda`, `morning`,
@@ -539,9 +543,10 @@ with `settings.reload`:
 - `test_accept_injected_keys`: `false`; for tests only, the bindings
   take the keys of `input.inject` as keys of the user (see
   [Injected keys](#injected-keys)).
-- `voice_hud`: `own`; `own` draws the voice HUD of mc, `host` leaves it
-  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`
-  and its chat drawer.
+- `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
+  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
+  The chat shows in the margin column of mc, in the box that mc announces
+  (see the HUD host above).
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
