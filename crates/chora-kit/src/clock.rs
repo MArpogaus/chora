@@ -37,7 +37,12 @@ thread_local! {
 /// thread, else now.
 #[must_use]
 pub fn now() -> Instant {
-    STEPPED.get().unwrap_or_else(Instant::now)
+    at(Instant::now())
+}
+
+/// The time of the animations at a time of the monotonic clock.
+fn at(real: Instant) -> Instant {
+    STEPPED.get().unwrap_or(real)
 }
 
 /// The time that passed since `earlier` on the clock of the animations.
@@ -121,5 +126,31 @@ mod tests {
         let running = now();
         std::thread::sleep(Duration::from_millis(5));
         assert!(now() > running);
+    }
+
+    #[test]
+    fn a_stepped_clock_runs_again_when_no_step_comes() {
+        step(json!({"ms": 0.0})).unwrap();
+        let stopped = now();
+        let soon = Instant::now() + Duration::from_millis(500);
+        assert_eq!(at(soon), stopped, "between the steps of a slow frame");
+        let late = Instant::now() + Duration::from_secs(3);
+        assert_eq!(at(late), late, "the recording died: the clock runs");
+        assert_eq!(
+            at(late + Duration::from_secs(1)),
+            late + Duration::from_secs(1)
+        );
+        set(None);
+    }
+
+    #[test]
+    fn a_new_recording_starts_from_the_time_of_the_plugin() {
+        step(json!({"ms": 5000.0})).unwrap();
+        step(json!({"ms": 5033.0})).unwrap();
+        std::thread::sleep(Duration::from_millis(5));
+        let before = Instant::now();
+        step(json!({"ms": 0.0})).unwrap();
+        assert!(now() >= before, "a time that goes down starts anew");
+        set(None);
     }
 }

@@ -367,6 +367,51 @@ mod tests {
         assert_eq!(again["png"], picture["png"], "a frame without a step");
     }
 
+    /// A shader node of the client `wm` that shows the time; the node
+    /// lives as long as the client.
+    fn clock_shader(core: &mut Core, name: &str) -> crate::testing::Client {
+        let dir = crate::testing::scratch_dir(name);
+        let shader = dir.join("clock.frag");
+        std::fs::write(
+            &shader,
+            "precision highp float;\nuniform float time;\n\
+             void main() { gl_FragColor = vec4(time * 0.01, 0.0, 0.0, 1.0); }\n",
+        )
+        .unwrap();
+        let mut wm = core.named("wm");
+        let props = json!({"size": [64, 48], "shader": shader});
+        let create = json!({"create": {"id": "s", "kind": "shader", "parent": "root",
+            "props": props}});
+        wm.ok(core, "scene.apply", json!({"commands": [create]}));
+        wm
+    }
+
+    #[test]
+    fn the_stepped_time_belongs_to_one_core() {
+        let _one = one_recording();
+        let mut recording = Core::with_renderer();
+        recording.add_output("test-1", (64, 48));
+        let _shown = clock_shader(&mut recording, "chora-record-a");
+        let mut admin = recording.admin();
+        for _ in 0..1500 {
+            admin.ok(&mut recording, "record.step", json!({"fps": 30}));
+        }
+        let stepped = admin.ok(&mut recording, "record.frame", json!({}));
+        let at_fifty = red_of_first_pixel(&stepped);
+        assert!((126..=129).contains(&at_fifty), "50 s: {at_fifty}");
+        let mut other = Core::with_renderer();
+        other.add_output("test-1", (64, 48));
+        let mut wm = clock_shader(&mut other, "chora-record-b");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        other.admin().ok(&mut other, "grants.set", grant);
+        let running = wm.ok(&mut other, "screen.capture", json!({"output": "test-1"}));
+        let red = red_of_first_pixel(&running);
+        assert!(
+            red < 100,
+            "the other core shows its own time, not 50 s: {red}"
+        );
+    }
+
     fn pixel(picture: &Value, x: usize, y: usize) -> [u8; 4] {
         let png = STANDARD.decode(picture["png"].as_str().unwrap()).unwrap();
         let mut reader = png::Decoder::new(std::io::Cursor::new(png))

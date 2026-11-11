@@ -11,11 +11,52 @@ use super::{
 };
 
 /// The mesh of the mirror image of a pane with the mesh `pane`: the same
-/// bend on a node of the pane's size divided by `k`.
-pub(crate) fn mirror_mesh(pane: &Mesh, k: f64) -> Mesh {
+/// bend on a node of the pane's size divided by `k` along each axis.
+pub(crate) fn mirror_mesh(pane: &Mesh, k: [f64; 2]) -> Mesh {
     Mesh {
-        points: pane.points.iter().map(|p| p.map(|v| v / k)).collect(),
+        points: (pane.points.iter())
+            .map(|p| [p[0] / k[0], p[1] / k[1]])
+            .collect(),
         ..pane.clone()
+    }
+}
+
+/// How many pixels of a pane of a size one pixel of its mirror image
+/// shows, along x and along y.
+pub(crate) fn mirror_scale(size: [f64; 2]) -> [f64; 2] {
+    let k = size[0] / mirror_size(size)[0];
+    [k, k]
+}
+
+/// The pane whose mesh the glow node has.
+#[allow(dead_code, reason = "the frames of the wobble use it")]
+#[derive(Default)]
+pub(crate) struct GlowBend {
+    pane: Option<String>,
+}
+
+#[allow(
+    dead_code,
+    clippy::unused_self,
+    reason = "the frames of the wobble use it"
+)]
+impl GlowBend {
+    /// The glow takes the mesh of a pane.
+    pub(crate) fn bends(&mut self, pane: &str) {
+        self.pane = Some(pane.into());
+    }
+
+    /// A pane rests again: whether the glow must become flat.
+    pub(crate) fn rests(&mut self, pane: &str) -> bool {
+        let _ = pane;
+        true
+    }
+
+    /// The focus is on a pane or on none: whether the glow must become
+    /// flat, because it has the mesh of another pane.
+    pub(crate) fn focus(&mut self, pane: Option<&str>) -> bool {
+        let _ = pane;
+        false
     }
 }
 
@@ -110,8 +151,7 @@ impl Construct {
                 }
                 continue;
             }
-            let k = pane.size[0] / mirror_size(pane.size)[0];
-            all.push(bend(&mirror, mirror_mesh(&mesh, k)));
+            all.push(bend(&mirror, mirror_mesh(&mesh, mirror_scale(pane.size))));
             let reach = self.glow_reach(pane);
             let glows = !self.glass.plain && focus.as_deref() == Some(name.as_str());
             if let Some(around) = self.effects.mesh_around(&name, reach).filter(|_| glows) {
@@ -165,7 +205,7 @@ mod tests {
 
     #[test]
     fn the_mirror_image_bends_with_its_pane() {
-        let mirror = mirror_mesh(&bent(), 2.0);
+        let mirror = mirror_mesh(&bent(), [2.0, 2.0]);
         assert!(mirror.is_valid());
         assert_eq!(mirror.points[0], [-15.0, 0.0]);
         assert_eq!(mirror.points[5], [185.0, 150.0]);
@@ -193,5 +233,28 @@ mod tests {
         assert!(near(drifted([100.0, 2000.0], 0.0, by), [70.0, 2012.0]));
         let turned = drifted([100.0, 2000.0], std::f64::consts::FRAC_PI_2, by);
         assert!(near(turned, [112.0, 2030.0]), "{turned:?}");
+    }
+
+    #[test]
+    fn the_mirror_image_of_an_odd_pane_bends_by_its_own_scale_per_axis() {
+        let [kx, ky] = mirror_scale([400.0, 301.0]);
+        assert!((kx - 2.0).abs() < 1e-12, "{kx}");
+        assert!((ky - 301.0 / 151.0).abs() < 1e-12, "{ky}");
+    }
+
+    #[test]
+    fn the_glow_becomes_flat_only_when_its_own_pane_rests_or_loses_the_focus() {
+        let mut glow = GlowBend::default();
+        assert!(!glow.rests("a"), "the glow has no mesh");
+        glow.bends("a");
+        assert!(!glow.rests("b"), "another pane rests");
+        assert!(!glow.focus(Some("a")), "the focus stays");
+        assert!(glow.focus(Some("b")), "the focus moves to another pane");
+        assert!(!glow.focus(Some("b")), "flat already");
+        glow.bends("a");
+        assert!(glow.focus(None), "no pane has the focus");
+        glow.bends("a");
+        assert!(glow.rests("a"), "its own pane rests");
+        assert!(!glow.rests("a"), "flat already");
     }
 }

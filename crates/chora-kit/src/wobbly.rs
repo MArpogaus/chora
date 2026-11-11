@@ -885,6 +885,14 @@ mod tests {
         assert_eq!(bent.depth.len(), around.depth.len());
     }
 
+    #[test]
+    fn a_mesh_around_a_window_without_a_side_is_its_mesh() {
+        let thin = Wobble::new_3d([0.0, 100.0], [0.0; 3], [0.0, 50.0, 0.0], [0.0; 2]);
+        let around = thin.mesh_around([0.0; 2], 16.0);
+        assert!(around.points.iter().flatten().all(|v| v.is_finite()));
+        assert_eq!(around, thin.mesh([0.0; 2]));
+    }
+
     /// The springs of a grid go to another window manager with a drag and
     /// come back the same; a value of another shape, or with numbers out
     /// of range, leaves the grid flat.
