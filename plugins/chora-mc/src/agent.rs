@@ -47,6 +47,12 @@ pub struct Agent {
     pub since: String,
 }
 
+/// The fields of `agent.set` that a state of the voice agent may carry; the
+/// others, such as `seq` and `epoch` for the host, are not for mc.
+pub const STATE_FIELDS: [&str; 8] = [
+    "name", "state", "task", "said", "voice", "plan", "question", "log",
+];
+
 /// Parameters of `agent.set`; a missing field keeps its value.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

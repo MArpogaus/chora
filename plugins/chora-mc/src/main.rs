@@ -1020,6 +1020,7 @@ impl Mc {
             Some("state") => {
                 if let Some(object) = data.as_object_mut() {
                     object.entry("name").or_insert_with(|| client.into());
+                    object.retain(|key, _| agent::STATE_FIELDS.contains(&key.as_str()));
                 }
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
@@ -3107,6 +3108,23 @@ mod tests {
         let items = right_items(&mc);
         let name = items.iter().find(|i| i.id.ends_with("-0-name")).unwrap();
         assert_eq!(name.props.text.as_deref(), Some("Atlas"));
+    }
+
+    /// The voice agent adds `seq`, `epoch`, `chat` and the steps to the
+    /// state of a helper, for the host: mc still shows the helper.
+    #[test]
+    fn a_state_of_a_helper_with_the_fields_of_the_host_shows_the_helper() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("host-fields", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let state = json!({"name": "Atlas", "state": "working", "task": "Tidy",
+            "seq": 4, "epoch": 2, "chat": true, "step": 1, "steps": 2});
+        mc.follow("voice.state", "voice", state).unwrap();
+        let items = right_items(&mc);
+        assert!(
+            items.iter().any(|i| i.id.ends_with("-0-name")),
+            "a row for Atlas"
+        );
     }
 
     /// A new state of an agent changes the text of its column in place:
