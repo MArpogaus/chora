@@ -484,7 +484,13 @@ first. A pane of an own window that a drag drops over a resting face of
 the cube goes back: the construct gives the window to the window
 manager whose claim holds the drop point on the output of that face, as
 a drop on a screen does, and asks it, with `window.move` and `at`, to
-put it there. So a move from face to face looks like a move inside that window
+put it there. `window.move` of `chora-xp` is privileged, and the
+construct calls it as a free client of the main socket. A construct on
+a client socket or a confined connection never gets there: the core
+refuses its virtual outputs, so `cube.open` fails with code 9, and
+without a face it pulls no window out and drops none on one. If the
+call still fails, the window stays a window of the manager that got
+it, at the place that manager chose, and the construct logs the error. So a move from face to face looks like a move inside that window
 manager. `chora-xp` and `chora-mc` grab no `move` and so receive no
 drag.
 
