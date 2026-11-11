@@ -499,12 +499,16 @@ with `settings.reload`:
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`,
+  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
-  construct with no line in the file.
+  construct with no line in the file. `drag` is for a pointer button
+  (the default `Super+BTN_LEFT`) and works with `--manage-windows`: a
+  window of mc that is pressed and let go on the area of another window
+  manager goes to that one. mc moves no window itself, so a release
+  elsewhere changes nothing.
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
