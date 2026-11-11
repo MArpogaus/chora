@@ -139,6 +139,9 @@ struct Passed {
 /// it.
 #[derive(Default)]
 pub struct Layers {
+    /// The `time` of the shaders while a recording steps it; the time
+    /// since the start for `None`.
+    pub clock: Option<f32>,
     /// By node, slot and size, so that outputs of other scales keep their
     /// own.
     textures: HashMap<(String, usize, i32, i32), Slot>,
@@ -992,6 +995,7 @@ impl<R: MeshRenderer> RenderElement<R> for MeshElement {
             size: float_size(&self.texture),
             uniforms: None,
             textures: &[],
+            seconds: None,
         };
         gl::draw(frame, &program, &call).map_err(R::from_gles)
     }
@@ -1169,7 +1173,18 @@ fn run_passes(
         let Ok(mut target) = layers.texture((gles, stats), node, next, size) else {
             continue;
         };
-        match draw_pass(gles, program, &texture, &mut target, (uniforms, extra)) {
+        let seconds = layers.clock;
+        match draw_pass(
+            gles,
+            program,
+            &texture,
+            &mut target,
+            &PassInputs {
+                uniforms,
+                textures: extra,
+                seconds,
+            },
+        ) {
             Ok(()) => {
                 stats.passes += 1;
                 texture = target;
@@ -1263,14 +1278,28 @@ fn program_of(
     }
 }
 
+/// What a pass draws with besides its source: the uniforms and the node
+/// textures of its effect, and the `time` of a recording.
+#[derive(Clone, Copy)]
+struct PassInputs<'a> {
+    uniforms: &'a BTreeMap<String, Uniform>,
+    textures: &'a [(String, u32)],
+    seconds: Option<f32>,
+}
+
 /// Draws a texture through the shader of a pass into another one.
 fn draw_pass(
     gles: &mut GlesRenderer,
     program: &gl::Program,
     source: &GlesTexture,
     target: &mut GlesTexture,
-    (uniforms, textures): (&BTreeMap<String, Uniform>, &[(String, u32)]),
+    with: &PassInputs<'_>,
 ) -> Result<(), String> {
+    let PassInputs {
+        uniforms,
+        textures,
+        seconds,
+    } = *with;
     let size = Texture::size(target);
     let mut framebuffer = gles.bind(target).map_err(|e| e.to_string())?;
     let mut frame = gles
@@ -1301,6 +1330,7 @@ fn draw_pass(
         size: float_size(source),
         uniforms: Some(uniforms),
         textures,
+        seconds,
     };
     gl::draw(&mut frame, program, &call).map_err(|e| e.to_string())?;
     frame.finish().map(drop).map_err(|e| e.to_string())

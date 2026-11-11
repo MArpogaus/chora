@@ -707,6 +707,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
+| `record.step(fps)`, `record.frame(output, pointer)`, `record.stop` | a recording with a stepped scene clock (see [Recording](#recording)); they work only on the admin socket and only on the headless backend, `choractl record` calls them |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit`, `methods.privileged` and `activation.token` count only on connections with `confined: true` in their `hello`, such as `choractl mcp`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
@@ -1176,6 +1177,61 @@ whose origin is (0, 0), or in the coordinates of the node.
 
 `choractl capture FILE` saves a picture, for example
 `choractl --name agent capture --node s1 window.png`.
+
+## Recording
+
+A recording saves frames whose motion does not depend on the speed of
+the renderer. It is for demo media and tests of a headless session.
+
+- `record.step(fps)` starts a recording, or moves a running one by one
+  frame: the animations of the scene and the `time` of the shaders move
+  by exactly `1 / fps` seconds. Between the steps they stand still. The
+  answer has the count of the steps as `frame` and the scene time of the
+  recording as `time_ms`. `fps` is 1 to 240 and stays the same during a
+  recording.
+- `record.frame(output, pointer)` answers the picture of an output, as
+  `screen.capture` does; the first output if `output` is missing. It
+  fails while the session is locked. `pointer` says how the picture
+  shows the pointer: `mark` (the default) as the screen does, with no
+  cursor and with the mark of injected input; `arrow` with a plain arrow
+  at the pointer and without the mark; `none` with neither. The mark
+  stays on the screen in every case.
+- `record.stop` ends the recording, and so does the end of its
+  connection: the clock runs again.
+
+The three methods work only on the admin socket and only on the headless
+backend, because a recording stops the animations of the whole session
+and shows every output. One connection records at a time.
+
+A plugin with animations of its own takes their time from
+`chora_kit::clock` and exports the method `clock.step(ms)`: it stops the
+clock of the plugin at `ms` of the recording and draws one frame;
+`null` lets the clock run again. The first step stops the clock where
+it is, and the later steps move it on by the difference of their `ms`;
+an `ms` below the one before starts anew. A clock that gets no step
+for two seconds runs again, so a recording that ends without `null`,
+or a call on a session that nobody records, stops no animation for
+long. The method is privileged.
+`chora-construct` exports it for the glide of the camera and the wobble
+of the panes.
+
+`choractl record --fps 30 --frames N --out DIR` writes
+`DIR/frame-00001.png` and on. A first step stops all clocks. Then, for
+each frame, it calls `record.step`, then `clock.step` of every plugin
+that exports it, then `record.frame`.
+At the end, also after a failure, it lets all clocks run again. With
+`--pointer arrow` or `--pointer none`, the frames show an arrow or
+nothing in place of the mark of injected input. With `--script FILE`,
+it sends requests at given frames, before the step of
+the frame; the file has one JSON object per line:
+
+```json
+{"frame": 12, "method": "input.inject", "params": {"events": [{"pointer_move": {"position": [640, 360]}}]}}
+```
+
+The requests go through the admin socket under the client name of
+`choractl`, so `input.inject` and `methods.call` need their grants for
+that name.
 
 ## Input injection
 

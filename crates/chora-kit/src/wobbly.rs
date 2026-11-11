@@ -32,9 +32,22 @@ const COUNT: usize = SIDE * SIDE;
 const CELLS: u32 = 20;
 /// `KWin`'s default level (`set_0`): spring stiffness, the share of the
 /// velocity kept per step, and the scale from velocity to movement.
-const STIFFNESS: f64 = 0.15;
-const DRAG: f64 = 0.80;
-const MOVE_FACTOR: f64 = 0.10;
+const KWIN: Level = Level {
+    stiffness: 0.15,
+    drag: 0.80,
+    move_factor: 0.10,
+};
+/// The level of a sail: looser springs, so that a pane that swings
+/// through a space bends far and still rests within a second.
+const SAIL: Level = Level {
+    stiffness: 0.045,
+    drag: 0.91,
+    move_factor: 0.10,
+};
+/// The depth of the bow of a sail per pixel that a point trails its
+/// place, and the trail below which the bow starts softly.
+const BOW: f64 = 1.6;
+const BOW_SOFT: f64 = 12.0;
 /// The cap of velocity and acceleration, per axis.
 const MAX: f64 = 1000.0;
 /// The grid rests when the summed accelerations and velocities fall below
@@ -44,8 +57,21 @@ const STOP_VELOCITY: f64 = 0.5;
 /// The integration step, in milliseconds.
 const STEP_MS: f64 = 10.0;
 
+/// The springs of a grid.
+#[derive(Clone, Copy)]
+struct Level {
+    stiffness: f64,
+    /// The share of the velocity kept per step.
+    drag: f64,
+    /// The scale from velocity to movement.
+    move_factor: f64,
+}
+
 /// The state of the grid of one window.
 pub struct Wobble {
+    level: Level,
+    /// The depth of the bow per pixel of trail; 0 without a sail.
+    bow: f64,
     /// The width and height of the window.
     size: [f64; 2],
     /// The origin of the window at the last step.
@@ -84,6 +110,8 @@ impl Wobble {
                 .clamp(0.0, (SIDE - 1) as f64) as usize
         };
         let mut wobble = Self {
+            level: KWIN,
+            bow: 0.0,
             size,
             origin,
             at: [[0.0; 3]; COUNT],
@@ -94,7 +122,7 @@ impl Wobble {
             grab: index(1) * SIDE + index(0),
             held: true,
             moving: true,
-            last: Instant::now(),
+            last: crate::clock::now(),
             pending: 0.0,
         };
         for i in 0..COUNT {
@@ -240,16 +268,47 @@ impl Wobble {
     /// With a grid of `new_3d` it has a depth for each point.
     #[must_use]
     pub fn mesh(&self, origin: [f64; 2]) -> Mesh {
-        let n = CELLS as usize;
-        let mut points = Vec::with_capacity((n + 1) * (n + 1));
+        self.mesh_around(origin, 0.0)
+    }
+
+    /// Makes the grid of `new_3d` the sail of a pane that stands in a
+    /// space: looser springs, and a bow in depth where the pane trails
+    /// its place.
+    #[must_use]
+    pub fn sail(mut self) -> Self {
+        self.level = SAIL;
+        self.bow = BOW;
+        self
+    }
+
+    /// The drawn mesh as `mesh` gives it, for a node that reaches
+    /// `margin` past the window on each side, for example its glow: the
+    /// surface goes on past the edges of the window. A window without a
+    /// width or a height has only its own mesh.
+    #[must_use]
+    pub fn mesh_around(&self, origin: [f64; 2], margin: f64) -> Mesh {
+        let cells = CELLS as usize;
+        let around = margin != 0.0 && self.size.iter().all(|side| *side > 0.0);
+        let along = |cell: usize, side: f64| {
+            let t = cell as f64 / cells as f64;
+            if around {
+                (t * (side + 2.0 * margin) - margin) / side
+            } else {
+                t
+            }
+        };
+        let mut points = Vec::with_capacity((cells + 1) * (cells + 1));
         let mut depth = Vec::new();
-        for row in 0..=n {
-            for col in 0..=n {
-                let [x, y, z] = self.bezier(col as f64 / n as f64, row as f64 / n as f64);
+        for row in 0..=cells {
+            for col in 0..=cells {
+                let (u, v) = (along(col, self.size[0]), along(row, self.size[1]));
+                let [x, y, depth_here] = self.bezier(u, v);
                 points.push([x - origin[0], y - origin[1]]);
                 if self.three_d {
-                    let z = (z - self.lift).clamp(-MAX, MAX);
-                    depth.push(or_zero(z));
+                    let trail =
+                        (x - origin[0] - u * self.size[0]).hypot(y - origin[1] - v * self.size[1]);
+                    let bow = self.bow * (trail.hypot(BOW_SOFT) - BOW_SOFT);
+                    depth.push(or_zero((depth_here - self.lift + bow).clamp(-MAX, MAX)));
                 }
             }
         }
@@ -274,15 +333,15 @@ impl Wobble {
 
     /// One step of 10 ms.
     fn integrate(&mut self, origin: [f64; 2]) {
-        let ms = STEP_MS;
+        let (ms, level) = (STEP_MS, self.level);
         let mut acceleration = [[0.0; 3]; COUNT];
         for (i, acc) in acceleration.iter_mut().enumerate() {
             let place = self.place(i, origin);
             if i == self.grab {
                 *acc = [
-                    (place[0] - self.at[i][0]) * STIFFNESS,
-                    (place[1] - self.at[i][1]) * STIFFNESS,
-                    (place[2] - self.at[i][2]) * STIFFNESS,
+                    (place[0] - self.at[i][0]) * level.stiffness,
+                    (place[1] - self.at[i][1]) * level.stiffness,
+                    (place[2] - self.at[i][2]) * level.stiffness,
                 ];
                 continue;
             }
@@ -294,7 +353,7 @@ impl Wobble {
                 for axis in [0, 1, 2] {
                     let stretch =
                         (self.at[*j][axis] - self.at[i][axis]) - (rest[axis] - place[axis]);
-                    acc[axis] += stretch * STIFFNESS;
+                    acc[axis] += stretch * level.stiffness;
                 }
             }
             for value in acc.iter_mut() {
@@ -306,7 +365,7 @@ impl Wobble {
         for (velocity, acc) in self.velocity.iter_mut().zip(acceleration) {
             for axis in [0, 1, 2] {
                 let acc = acc[axis].clamp(-MAX, MAX);
-                velocity[axis] = acc * ms + velocity[axis] * DRAG;
+                velocity[axis] = acc * ms + velocity[axis] * level.drag;
                 acc_sum += acc.abs();
             }
         }
@@ -315,7 +374,7 @@ impl Wobble {
         for (at, velocity) in self.at.iter_mut().zip(&mut self.velocity) {
             for axis in [0, 1, 2] {
                 velocity[axis] = velocity[axis].clamp(-MAX, MAX);
-                at[axis] += velocity[axis] * ms * MOVE_FACTOR;
+                at[axis] += velocity[axis] * ms * level.move_factor;
                 vel_sum += velocity[axis].abs();
             }
         }
@@ -336,7 +395,8 @@ impl Wobble {
                 // Moved on by the time since the last step.
                 let i = row * SIDE + col;
                 let p = [0, 1, 2].map(|axis| {
-                    self.at[i][axis] + self.velocity[i][axis] * self.pending * MOVE_FACTOR
+                    self.at[i][axis]
+                        + self.velocity[i][axis] * self.pending * self.level.move_factor
                 });
                 point[0] += a * b * p[0];
                 point[1] += a * b * p[1];
@@ -758,6 +818,81 @@ mod tests {
                     .all(|p| p[0].is_finite() && p[1].is_finite())
             );
         }
+    }
+
+    /// Swings a pane of 480 by 360 along its face at 3000 pixels a
+    /// second for 200 ms, held at its middle: the mesh with the deepest
+    /// bend, and the frames from the release until it settles.
+    fn swing(mut w: Wobble) -> (Mesh, u32) {
+        let mut now = w.last;
+        let mut bent = w.mesh([0.0; 2]);
+        let mut x = 0.0;
+        for _ in 0..20 {
+            x += 30.0;
+            now += std::time::Duration::from_millis(10);
+            w.advance_3d([x, 0.0, 0.0], now);
+            let mesh = w.mesh([x, 0.0]);
+            if deepest(&mesh) > deepest(&bent) {
+                bent = mesh;
+            }
+        }
+        w.release();
+        let mut frames = 0;
+        while !w.settled() && frames < 600 {
+            now += FRAME;
+            w.advance_3d([x, 0.0, 0.0], now);
+            frames += 1;
+        }
+        (bent, frames)
+    }
+
+    fn pane() -> Wobble {
+        Wobble::new_3d([480.0, 360.0], [0.0; 3], [240.0, 180.0, 0.0], [0.0; 2])
+    }
+
+    #[test]
+    fn a_swung_sail_bows_in_depth_and_its_edges_trail_more_than_its_middle() {
+        let (bent, _) = swing(pane().sail());
+        assert!(bent.is_valid());
+        assert!(deepest(&bent) >= 260.0, "the bow: {}", deepest(&bent));
+        let (middle, edge) = (bent.depth[10 * 21 + 10], bent.depth[10 * 21]);
+        assert!(edge > middle + 90.0, "edge {edge}, middle {middle}");
+        let (plain, _) = swing(pane());
+        assert!(
+            deepest(&plain) < 1e-9,
+            "without the sail: {}",
+            deepest(&plain)
+        );
+    }
+
+    #[test]
+    fn a_sail_settles_within_a_second() {
+        let (_, frames) = swing(pane().sail());
+        let (_, plain) = swing(pane());
+        assert!(frames > plain, "{frames} frames, {plain} without the sail");
+        assert!(f64::from(frames) * FRAME.as_secs_f64() <= 1.0, "{frames}");
+    }
+
+    #[test]
+    fn a_mesh_around_goes_on_past_the_edges_of_the_window() {
+        let flat = pane();
+        assert_eq!(flat.mesh_around([0.0; 2], 0.0), flat.mesh([0.0; 2]));
+        let around = flat.mesh_around([0.0; 2], 24.0);
+        assert!(around.is_valid());
+        let (first, last) = (around.points[0], around.points[21 * 21 - 1]);
+        let near = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        assert!(near(first[0], -24.0) && near(first[1], -24.0), "{first:?}");
+        assert!(near(last[0], 504.0) && near(last[1], 384.0), "{last:?}");
+        let (bent, _) = swing(pane().sail());
+        assert_eq!(bent.depth.len(), around.depth.len());
+    }
+
+    #[test]
+    fn a_mesh_around_a_window_without_a_side_is_its_mesh() {
+        let thin = Wobble::new_3d([0.0, 100.0], [0.0; 3], [0.0, 50.0, 0.0], [0.0; 2]);
+        let around = thin.mesh_around([0.0; 2], 16.0);
+        assert!(around.points.iter().flatten().all(|v| v.is_finite()));
+        assert_eq!(around, thin.mesh([0.0; 2]));
     }
 
     /// The springs of a grid go to another window manager with a drag and

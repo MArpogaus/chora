@@ -22,6 +22,7 @@ chora/
 │   └── chora-construct/ # experimental: a spatial desktop with panes that float in a space
 ├── flavors/           # systemd units of the flavors (tiling, xp, construct); the theme and the asset folders of the XP flavor
 ├── examples/          # loader prototype and showcase apps over the API
+├── demo/              # the scene and the recording of the demo clips; the content is generated, with no asset of a third party
 ├── services/voice/    # the voice agent and the quadlets of its models
 ├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
 ├── tests/             # end-to-end scripts, headless sessions, input probe

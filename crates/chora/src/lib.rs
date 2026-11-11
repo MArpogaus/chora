@@ -25,6 +25,7 @@ mod output;
 mod output_management;
 mod process;
 mod protocols;
+mod record;
 mod render;
 mod safety;
 mod screencopy;
