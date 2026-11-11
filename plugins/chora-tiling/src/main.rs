@@ -210,8 +210,27 @@ fn launch(argv: &[String]) -> ExitCode {
         return ExitCode::from(2);
     };
     let dirs = theme::config_dirs();
-    let line = theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs));
-    let err = std::process::Command::new(&line[0]).args(&line[1..]).exec();
+    let line = match theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs)) {
+        Ok(line) => line,
+        Err(err) => {
+            eprintln!("chora-tiling: cannot start {program}: {err}");
+            let (title, text) = err.notice();
+            let _ = std::process::Command::new("notify-send")
+                .args(["-a", "chora-tiling", "-u", "critical", title, text])
+                .stdin(std::process::Stdio::null())
+                .status();
+            return ExitCode::FAILURE;
+        }
+    };
+    let mut command = std::process::Command::new(&line[0]);
+    command.args(&line[1..]);
+    if program == "fuzzel" {
+        let current = std::env::var("XDG_DATA_DIRS").ok();
+        if let Some(data) = theme::data_dirs(&dirs, current.as_deref()) {
+            command.env("XDG_DATA_DIRS", data);
+        }
+    }
+    let err = command.exec();
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
 }

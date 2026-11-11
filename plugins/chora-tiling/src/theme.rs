@@ -476,10 +476,115 @@ pub fn config_dirs() -> Vec<std::path::PathBuf> {
         .or_else(|| std::env::var_os("HOME").map(|h| Path::new(&h).join(".config")));
     dirs.extend(config.map(|c| c.join("chora").join("tiling")));
     dirs.extend(default_dir());
-    let flavor = std::env::var_os("CHORA_FLAVOR_DIR")
-        .map_or_else(|| "/usr/share/chora/flavors/tiling".into(), Into::into);
-    dirs.push(flavor);
+    dirs.extend(flavor_dirs());
     dirs
+}
+
+/// Where the files of the flavor are, first the one that wins:
+/// `CHORA_FLAVOR_DIR`, the installed path, and the checkout that the
+/// running binary comes from (`target/debug/chora-tiling` of a build in
+/// a repository), so a session without the variable finds them too.
+#[must_use]
+pub fn flavor_dirs() -> Vec<std::path::PathBuf> {
+    let mut dirs = Vec::new();
+    dirs.extend(
+        std::env::var_os("CHORA_FLAVOR_DIR")
+            .filter(|v| !v.is_empty())
+            .map(std::path::PathBuf::from),
+    );
+    dirs.push(INSTALLED.into());
+    let exe = std::env::current_exe().ok();
+    dirs.extend(
+        exe.iter()
+            .flat_map(|e| e.ancestors().skip(1))
+            .map(|a| a.join("flavors").join("tiling"))
+            .find(|d| d.is_dir()),
+    );
+    dirs
+}
+
+/// The value of `XDG_DATA_DIRS` that lets the launcher list the
+/// `applications` folder of the flavor (the entries Screenshot and
+/// Screenshot of an area): the first directory that has one, in front
+/// of what `current` says, or of the default of the specification.
+#[must_use]
+pub fn data_dirs(dirs: &[std::path::PathBuf], current: Option<&str>) -> Option<String> {
+    let flavor = dirs.iter().find(|d| d.join("applications").is_dir())?;
+    let rest = current
+        .filter(|c| !c.is_empty())
+        .unwrap_or("/usr/local/share:/usr/share");
+    Some(format!("{}:{rest}", flavor.display()))
+}
+
+/// The directory of the flavor in an installed system.
+pub const INSTALLED: &str = "/usr/share/chora/flavors/tiling";
+
+/// The script that a program of the flavor runs, `sh power.sh` for
+/// `power` and `sh screenshot.sh` for `screenshot`, or the name of the
+/// script that no directory has.
+fn script_line(program: &str, dirs: &[std::path::PathBuf]) -> Result<Vec<String>, LaunchError> {
+    let name = format!("{program}.sh");
+    dirs.iter()
+        .map(|d| d.join(&name))
+        .find(|f| f.is_file())
+        .map(|f| vec!["sh".to_owned(), f.to_string_lossy().into_owned()])
+        .ok_or_else(|| LaunchError::Missing {
+            program: program.to_owned(),
+            name,
+            searched: dirs.to_vec(),
+        })
+}
+
+/// Why a program of the flavor does not start.
+#[derive(Debug, PartialEq, Eq)]
+pub enum LaunchError {
+    /// The script of the program is in none of the directories.
+    Missing {
+        program: String,
+        name: String,
+        searched: Vec<std::path::PathBuf>,
+    },
+}
+
+impl std::fmt::Display for LaunchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self::Missing { name, searched, .. } = self;
+        let list: Vec<_> = searched.iter().map(|d| d.display().to_string()).collect();
+        write!(f, "{name} is in none of {}", list.join(", "))
+    }
+}
+
+impl LaunchError {
+    /// The title and the text of the notice for a person.
+    #[must_use]
+    pub fn notice(&self) -> (&'static str, &'static str) {
+        let german = matches!(
+            std::env::var("LC_ALL")
+                .or_else(|_| std::env::var("LC_MESSAGES"))
+                .or_else(|_| std::env::var("LANG"))
+                .as_deref(),
+            Ok(l) if l.starts_with("de")
+        );
+        let Self::Missing { program, .. } = self;
+        match (program.as_str(), german) {
+            ("power", false) => (
+                "Power menu not installed",
+                "The file power.sh of the tiling flavor was not found.",
+            ),
+            ("power", true) => (
+                "Ausschaltmenü nicht installiert",
+                "Die Datei power.sh des Tiling-Flavors fehlt.",
+            ),
+            (_, false) => (
+                "Screenshot not installed",
+                "The file screenshot.sh of the tiling flavor was not found.",
+            ),
+            (_, true) => (
+                "Bildschirmfoto nicht installiert",
+                "Die Datei screenshot.sh des Tiling-Flavors fehlt.",
+            ),
+        }
+    }
 }
 
 /// The command line of a program of the flavor with its config file:
@@ -489,13 +594,16 @@ pub fn config_dirs() -> Vec<std::path::PathBuf> {
 /// alone when no file exists. The wallpaper of a scheme is
 /// `wallpaper.png` for Ink and `wallpaper-paper.png` for Paper; a
 /// `wallpaper.png` of the user, found first, serves both.
-#[must_use]
+///
+/// # Errors
+///
+/// `screenshot` or `power` has no script in any directory.
 pub fn launch_line(
     program: &str,
     rest: &[String],
     dirs: &[std::path::PathBuf],
     scheme: Scheme,
-) -> Vec<String> {
+) -> Result<Vec<String>, LaunchError> {
     let find = |names: &[&str]| {
         dirs.iter()
             .flat_map(|d| names.iter().map(move |n| d.join(n)))
@@ -519,11 +627,7 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "screenshot" | "power" => {
-            let name = format!("{program}.sh");
-            line = find(&[&name])
-                .map_or_else(|| vec!["true".to_owned()], |f| vec!["sh".to_owned(), f]);
-        }
+        "screenshot" | "power" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {
@@ -534,7 +638,7 @@ pub fn launch_line(
         _ => {}
     }
     line.extend(rest.iter().cloned());
-    line
+    Ok(line)
 }
 
 /// The file name of the wallpaper of a scheme.
@@ -639,7 +743,7 @@ mod tests {
         }
         let dirs = [user.clone(), generated.clone(), flavor.clone()];
         let rest = vec!["-f".to_owned()];
-        let line = |p: &str, s| launch_line(p, &rest, &dirs, s);
+        let line = |p: &str, s| launch_line(p, &rest, &dirs, s).unwrap();
         assert_eq!(line("foot", Scheme::Ink), ["foot", "-f"]);
         assert_eq!(line("swaybg", Scheme::Ink)[..2], ["swaybg", "-c"]);
         std::fs::write(flavor.join("foot.ini"), "").unwrap();
@@ -660,6 +764,47 @@ mod tests {
             user.join("wallpaper.png").to_string_lossy()
         );
         std::fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn the_launcher_lists_the_applications_of_the_flavor() {
+        let temp = std::env::temp_dir().join(format!("tiling-data-{}", std::process::id()));
+        let (bare_dir, flavor) = (temp.join("b"), temp.join("f"));
+        std::fs::create_dir_all(flavor.join("applications")).unwrap();
+        std::fs::create_dir_all(&bare_dir).unwrap();
+        let dirs = [bare_dir, flavor.clone()];
+        let want = format!("{}:/a:/b", flavor.display());
+        assert_eq!(data_dirs(&dirs, Some("/a:/b")), Some(want));
+        assert!(
+            data_dirs(&dirs, None)
+                .unwrap()
+                .ends_with(":/usr/local/share:/usr/share")
+        );
+        assert_eq!(data_dirs(&dirs[..1], None), None);
+        std::fs::remove_dir_all(temp).unwrap();
+        let apps = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/applications");
+        let shot = std::fs::read_to_string(apps.join("chora-screenshot.desktop")).unwrap();
+        assert!(shot.contains("\nName=Screenshot\n"));
+        assert!(shot.contains("\nExec=chora-tiling --launch screenshot\n"));
+    }
+
+    #[test]
+    fn a_missing_script_is_an_error_and_never_true() {
+        let none = [std::path::PathBuf::from("/nonexistent/flavor")];
+        for program in ["power", "screenshot"] {
+            let err = launch_line(program, &[], &none, Scheme::Ink).unwrap_err();
+            assert!(err.to_string().contains(&format!("{program}.sh")));
+            assert!(err.notice().0.contains("not installed"));
+        }
+    }
+
+    #[test]
+    fn the_checkout_of_the_binary_is_a_flavor_directory() {
+        let dirs = flavor_dirs();
+        assert!(
+            dirs.iter().any(|d| d.join("power.sh").is_file()),
+            "{dirs:?}"
+        );
     }
 
     #[test]
