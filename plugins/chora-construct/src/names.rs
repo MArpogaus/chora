@@ -69,10 +69,22 @@ pub fn manager_name(manager: &str) -> String {
     }
 }
 
+/// The error of the core without the index of its command before it and
+/// the code after it.
+fn plain_error(error: &str) -> &str {
+    let error = error.trim();
+    let error = error.strip_prefix("command ").map_or(error, |rest| {
+        let digits = rest.trim_start_matches(|c: char| c.is_ascii_digit());
+        digits.strip_prefix(": ").unwrap_or(error)
+    });
+    let error = error.rsplit_once(" (code ").map_or(error, |(text, _)| text);
+    error.trim_end_matches('.')
+}
+
 /// What a refused give says as a reason, from the error of the core.
 #[must_use]
 pub fn reason(error: &str, language: Language) -> String {
-    let error = error.trim().trim_end_matches('.');
+    let error = plain_error(error);
     let words = |en: &str, de: &str| match language {
         Language::En => en.to_owned(),
         Language::De => de.to_owned(),
@@ -80,7 +92,7 @@ pub fn reason(error: &str, language: Language) -> String {
     if error.is_empty() {
         return words("it said no", "es hat abgelehnt");
     }
-    if error.ends_with("has no connection") {
+    if error.contains("has no connection") || error.contains("holds no claim") {
         return words("it is not running", "es läuft nicht");
     }
     let mut chars = error.chars();
