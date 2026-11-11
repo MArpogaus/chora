@@ -369,6 +369,10 @@ impl Agent {
             chat_row: None,
             said: None,
         };
+        let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
+        (agent.rt.conn)
+            .call::<_, Value>("events.emit", ready)
+            .map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;

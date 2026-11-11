@@ -70,7 +70,7 @@ impl Plugin for Construct {
                 }
                 Ok(())
             }
-            Event::ClientConnected { name } if name == "assistant" => self.name_theme(),
+            event if host_ready(&event) => self.name_theme(),
             event => self.other(event),
         }
     }
@@ -226,4 +226,11 @@ impl Plugin for Construct {
         self.name_theme().map_err(rejected)?;
         self.frame().map_err(rejected)
     }
+}
+
+/// Whether the event is `assistant.ready` of the HUD host, which then
+/// listens for the theme.
+fn host_ready(event: &Event) -> bool {
+    matches!(event, Event::Emitted { event, client, .. }
+        if client == "assistant" && event == "assistant.ready")
 }

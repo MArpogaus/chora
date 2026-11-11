@@ -132,7 +132,7 @@ pub struct DarkPanel {
 
 /// The event of a window manager that names its theme, `CLIENT.theme
 /// {theme: light|dark}`, as `events.emit` takes it. A window manager emits
-/// it at its start, on a change and when the HUD host connects.
+/// it at its start, on a change and on `assistant.ready` of the HUD host.
 #[must_use]
 pub fn theme_event(client: &str, dark: bool) -> serde_json::Value {
     let theme = if dark { "dark" } else { "light" };

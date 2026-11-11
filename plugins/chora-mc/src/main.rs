@@ -510,9 +510,10 @@ const CHAT: &str = "chat";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 14] = [
+const EVENTS: [&str; 15] = [
     "voice.*",
     "assistant.chat",
+    "assistant.ready",
     "effects.dropped",
     "client.connected",
     "client.disconnected",
@@ -770,7 +771,6 @@ impl Plugin for Mc {
                 node: Some(node), ..
             } => self.timer(&node),
             Event::EffectsDropped { client } if client == NAME => self.effects_dropped(),
-            Event::ClientConnected { name } if name == ASSISTANT => self.name_theme(),
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
@@ -1024,12 +1024,13 @@ impl Mc {
     }
 
     /// An event of a client (D65): of the voice agent, or `assistant.chat`
-    /// of the HUD host. `voice.*` also matches a client named `voice.evil`:
+    /// and `assistant.ready` of the HUD host. `voice.*` also matches a client named `voice.evil`:
     /// only the agent itself shows its state (review 4.9).
     fn emitted(&mut self, event: &str, client: &str, data: Value) -> Result<(), ClientError> {
         match client {
             VOICE => self.follow(event, client, data),
             ASSISTANT if event == "assistant.chat" => self.chat_drawer(&data),
+            ASSISTANT if event == "assistant.ready" => self.name_theme(),
             _ => Ok(()),
         }
     }
@@ -3030,16 +3031,20 @@ mod tests {
         );
     }
 
-    /// mc names its theme to the HUD host when the host connects and when
-    /// the settings change.
+    /// mc names its theme to the HUD host when the host says that it
+    /// listens and when the settings change.
     #[test]
     fn mc_names_its_theme_to_the_hud_host() {
         let (mut mc, model) = crate::testing::mc("theme", [1920, 1080]);
         mc.settings.value.theme = crate::config::Theme::Light;
-        let connected = chora_scene::Event::ClientConnected {
-            name: "assistant".into(),
+        let ready = |client: &str| chora_scene::Event::Emitted {
+            event: "assistant.ready".into(),
+            client: client.into(),
+            data: serde_json::json!({}),
         };
-        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
+        chora_kit::runtime::Plugin::event(&mut mc, ready("evil")).unwrap();
+        assert_eq!(model.lock().unwrap().emits.last(), None, "only the host");
+        chora_kit::runtime::Plugin::event(&mut mc, ready("assistant")).unwrap();
         let last = || model.lock().unwrap().emits.last().cloned();
         assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", false)));
         mc.settings.value.theme = crate::config::Theme::Dark;

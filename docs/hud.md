@@ -279,8 +279,9 @@ when: {wm: [xp, mc], agents: any}
 ### Themes
 
 A window manager names its theme with its event `NAME.theme {theme:
-light|dark}`, at its start, when its settings change and when the host
-connects; mc and construct do. The host listens to `construct.theme`,
+light|dark}`, at its start, when its settings change and on the event
+`assistant.ready`, which the host emits once it listens; mc and
+construct do. The host listens to `construct.theme`,
 `mc.theme`, `tiling.theme` and `xp.theme`, and the context field `theme`
 is the theme of the client of `space`, else of `wm`, else `light`.
 

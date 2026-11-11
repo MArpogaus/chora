@@ -400,8 +400,9 @@ chat.show {name}`. While the event `assistant.chat` of the client
 shows alone with the content `chat`, and mc emits its box as
 `mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
 output, `null` when the drawer closes). mc names its theme to the host
-with `mc.theme {theme}` at its start, when its settings change and when
-the host connects, and the host draws the mc folder in that theme.
+with `mc.theme {theme}` at its start, when its settings change and on
+`assistant.ready` of the host, and the host draws the mc folder in that
+theme.
 
 | Method | Parameters |
 |--------|------------|
