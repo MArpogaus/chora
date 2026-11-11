@@ -273,8 +273,9 @@ one target. A node texture leaves it out. Before a frame,
 backdrop with those of its last frame, by id, commit, box and alpha, and
 by the damage of a changed commit inside the box. Only a change gives
 the backdrop a new commit: the damage tracker then redraws its whole box
-behind it, and the draw blurs again. Otherwise the draw reuses the blur,
-so a still screen renders nothing.
+behind it, and the draw blurs again. A new opacity or uniform of the
+glass alone, as in a fade, draws again with the kept blur. Otherwise
+nothing draws, so a still screen renders nothing.
 
 The frames import the buffer of a window lazily, with the damage of all
 commits since the last import. A commit imports at once in two cases

@@ -77,8 +77,11 @@ struct Behind {
 
 /// What a backdrop saw in its last frame.
 struct Seen {
-    /// A hash of its shape and its parameters.
-    signature: u64,
+    /// A hash of what the blur reads: the box and the halvings.
+    reads: u64,
+    /// A hash of what the glass draws besides: the shape, the alpha and
+    /// the uniforms.
+    look: u64,
     behind: Vec<Behind>,
 }
 
@@ -152,7 +155,12 @@ impl Backdrops {
                 Uniform::Float(backdrop.saturation),
             ),
         ]);
-        let signature = signature(&shape, &uniforms, (iterations, offset, alpha));
+        let reads = hash_of(&(
+            [bounds.loc.x, bounds.loc.y, bounds.size.w, bounds.size.h],
+            iterations,
+            offset.to_bits(),
+        ));
+        let look = look_of(&shape, &uniforms, alpha);
         Some(BackdropElement {
             key,
             id: entry.id.clone(),
@@ -163,7 +171,8 @@ impl Backdrops {
             uniforms,
             iterations,
             offset,
-            signature,
+            reads,
+            look,
         })
     }
 
@@ -191,8 +200,8 @@ impl Backdrops {
                 .iter()
                 .filter(|e| e.geometry(scale).overlaps(bounds))
                 .collect();
-            let changed = entry.seen.as_ref().is_none_or(|seen| {
-                seen.signature != element.signature
+            let blurs = entry.seen.as_ref().is_none_or(|seen| {
+                seen.reads != element.reads
                     || seen.behind.len() != under.len()
                     || seen
                         .behind
@@ -200,25 +209,33 @@ impl Backdrops {
                         .zip(&under)
                         .any(|(old, e)| moved(old, *e, scale, bounds))
             });
+            let changed = blurs
+                || entry
+                    .seen
+                    .as_ref()
+                    .is_some_and(|seen| seen.look != element.look);
             if changed {
                 entry.commit.increment();
+            }
+            if blurs {
                 if let Ok(mut blur) = entry.blur.lock() {
                     blur.stale = true;
                 }
                 passes += 2 * u64::from(element.iterations) - 1;
-                entry.seen = Some(Seen {
-                    signature: element.signature,
-                    behind: under
-                        .iter()
-                        .map(|e| Behind {
-                            id: e.id().clone(),
-                            commit: e.current_commit(),
-                            geometry: e.geometry(scale),
-                            alpha: e.alpha().to_bits(),
-                        })
-                        .collect(),
-                });
             }
+            entry.seen = Some(Seen {
+                reads: element.reads,
+                look: element.look,
+                behind: under
+                    .iter()
+                    .map(|e| Behind {
+                        id: e.id().clone(),
+                        commit: e.current_commit(),
+                        geometry: e.geometry(scale),
+                        alpha: e.alpha().to_bits(),
+                    })
+                    .collect(),
+            });
             element.commit = entry.commit;
         }
         passes
@@ -247,20 +264,25 @@ fn moved<E: Element>(
         .any(|d| Rectangle::new(d.loc + geometry.loc, d.size).overlaps(bounds))
 }
 
-fn signature(
-    shape: &Shape,
-    uniforms: &BTreeMap<String, Uniform>,
-    (iterations, offset, alpha): (u32, f64, f32),
-) -> u64 {
-    use std::hash::{Hash, Hasher};
+fn hash_of(value: &impl std::hash::Hash) -> u64 {
+    use std::hash::Hasher;
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    for ([x, y, w], [u, v]) in &shape.vertices {
-        [x, y, w, u, v].map(|n| n.to_bits()).hash(&mut hasher);
-    }
-    shape.indices.hash(&mut hasher);
-    format!("{uniforms:?}").hash(&mut hasher);
-    (iterations, offset.to_bits(), alpha.to_bits()).hash(&mut hasher);
+    value.hash(&mut hasher);
     hasher.finish()
+}
+
+fn look_of(shape: &Shape, uniforms: &BTreeMap<String, Uniform>, alpha: f32) -> u64 {
+    let vertices: Vec<[u32; 5]> = shape
+        .vertices
+        .iter()
+        .map(|([x, y, w], [u, v])| [x, y, w, u, v].map(|n| n.to_bits()))
+        .collect();
+    hash_of(&(
+        vertices,
+        &shape.indices,
+        format!("{uniforms:?}"),
+        alpha.to_bits(),
+    ))
 }
 
 /// The backdrop of a rect in one frame.
@@ -276,7 +298,9 @@ pub struct BackdropElement {
     uniforms: BTreeMap<String, Uniform>,
     iterations: u32,
     offset: f64,
-    signature: u64,
+    /// The hashes of [`Seen`].
+    reads: u64,
+    look: u64,
 }
 
 impl Element for BackdropElement {
