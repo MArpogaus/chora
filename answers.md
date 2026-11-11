@@ -254,10 +254,12 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 11-11 (chat, copied late; friction 33)
 - 68% at 15:08 UTC; 71% at 16:42 UTC (weekly limit, all models).
-- Use the remaining budget for mass haiku user tests, data only, no fixes yet; cap at 85% weekly use, the rest for major fixes and the review loop. Haiku must use far fewer tokens; keep testing only while new data arrives.
-- The reset is Saturday 10:59; the rest of this week's heavy work then runs on Fable until it is used up, and the user resets again.
+- Use the remaining budget for mass haiku user tests, data only, no fixes yet; haiku swarms may run up to 85% weekly use while they find new issues (not a week cap; user correction 11-11), the rest for major fixes and the review loop. Haiku must use far fewer tokens; keep testing only while new data arrives.
+- The reset is Saturday 10:59; after the reset heavy work runs on Fable until it is used up ("no more fable for this week", 13:13 Bangkok), and the user resets again.
 - After the RC (user, earlier 11-11): an extensive user testing round. Release authorized when all is clean.
 - Context management leaks after compaction: note as a major issue; the PM session must stay robust (friction 33).
 - 71% at 17:02 UTC (user); usage.py estimate since 16:42: 1.88 M units, i.e. under 1%, consistent.
 - Correction (user, 11-11 ~17:55 UTC): 85 % is not a cap for the week; it is the limit up to which the haiku test swarms may run while they keep finding new issues. The rest of the week goes to major fixes and the review loop.
 - 11-11 ~18:10 UTC (user): a subagent screens the transcripts and the session log files for every user decision, and the PM hook is made more robust.
+- Copied late by the transcript screen (11-11, see decisions-now.md for the verbatim quotes): no more Fable this week, second Fable reset next week; respect the 5-hour limit with up to four heavy lanes; rc reflection loop and opus for reflections this week; voice uses local, interchangeable models with configurable endpoints; construct HUD rework details (glass, no buttons, bindings overlay, shareable plugin); xp balloon behaviour; "Close stale ones".
+- 11-11 ~18:30 UTC: swarm 4 brought no new findings; the swarms stop per the user's rule.

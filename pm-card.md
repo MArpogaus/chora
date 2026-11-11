@@ -6,7 +6,8 @@ The compaction summary is lossy. It is not the plan. Before the next action:
    `answers.md` and of `friction.md`. Do not act on the summary alone.
 2. List live lanes: local agents, worker sessions, background commands.
 3. Read `decisions-now.md` (injected below); every new user decision goes there
-   verbatim the same turn, and into `answers.md`.
+   verbatim the same turn, and into `answers.md`; then bump its `screened-through:`
+   line. After a container replacement recreate the hooks from `reports/pm-hook.md`.
 4. Resume at once: do the first open pending item before replying. Never end a
    turn with a "next" item that needs no user input (friction 34).
 
