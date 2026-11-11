@@ -40,13 +40,13 @@ const KWIN: Level = Level {
 /// The level of a sail: looser springs, so that a pane that swings
 /// through a space bends far and still rests within a second.
 const SAIL: Level = Level {
-    stiffness: 0.06,
-    drag: 0.90,
+    stiffness: 0.045,
+    drag: 0.91,
     move_factor: 0.10,
 };
 /// The depth of the bow of a sail per pixel that a point trails its
 /// place, and the trail below which the bow starts softly.
-const BOW: f64 = 0.9;
+const BOW: f64 = 1.6;
 const BOW_SOFT: f64 = 12.0;
 /// The cap of velocity and acceleration, per axis.
 const MAX: f64 = 1000.0;
