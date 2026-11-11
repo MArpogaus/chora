@@ -442,3 +442,5 @@ look); the taskbar, the tray and the Start menu become shared widgets in
 chora-kit (a bar widget that renders as an XP taskbar, a top bar or a
 dock), so a look is a theme plus a widget layout. Needs its own design
 document (design/looks/) and the user's approval of mockups first.
+
+## F9 closed (11-11): the wm-pane cell typed before xp gave the keyboard; it now waits for focus (d00a626).

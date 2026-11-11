@@ -205,6 +205,7 @@ Workers, 11-11 16:30: all fix lanes of persona round 3 merged.
 Fable workers idle until Monday: core 016iS3kL1yG8R47DGySmB65H,
 virtual 016iS3kNteKAJNer4zC9m3qk, HUD 016iS3kNBZGoJk1MQrWZ4pBV, demos
 016iS3kN2vNDneETCgRK3tan.
+Merged 11-11 late: ux-construct (67f93a9), F9 gate fix (d00a626), xp one balloon + polish (5acea88).
 Merged 11-11 pm: HUD looks, demo scene, stale-frame, wm-pane, fix-chat
 (cfcc239, 5bd349b), fix-cube (157f991), fix-basics (536aaee).
 
