@@ -17,10 +17,24 @@
 #    turn. Alt+Escape steps back and takes the keyboard; Return steps in
 #    and the window of before takes typed text again, but not after a
 #    step into another face. A click on a face and a click on the chip
-#    STEP IN step in. After the switcher of xp showed and closed,
+#    STEP IN step in. In navigate mode the edge of the face under the
+#    pointer is lit, and a drag on a face turns the cube by one face.
+#    With the grant input.grab-any and fly_out Escape, Escape alone
+#    steps back; without the grant the chip names no key. After the
+#    switcher of xp showed and closed,
 #    Alt+Escape steps back again; that the switcher has Alt+Escape while
 #    it shows is a unit test of the construct, as injected keys do not
 #    stay down between two requests.
+# 2b. Floating windows: stood back, each window of xp on a face floats
+#    in front of it as a plane of its own, the upper one farther, and
+#    the face keeps the wallpaper and the taskbar; a still cube with
+#    floating windows draws nothing; after the step in the windows are
+#    in the face again, pixel for pixel. A window floats during a turn.
+#    A window that opens while the cube floats gets a plane by the
+#    event xp.floating, and loses it when it closes.
+#    While the window manager does not answer, a window keeps its
+#    plane, so it never shows nowhere; it lands when the answer comes.
+#    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
 #    the window to the output of the next face.
@@ -189,6 +203,20 @@ until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "typed text after the 
 ok "Alt+Escape steps back, Return steps in, and typed text reaches the window of before"
 
 key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back before a step in by a method"
+call view.step_in >/dev/null || fail "view.step_in after a step back of the person"
+until_ok "$stepped_in" 20 || fail "view.step_in did not step in after a step back of the person"
+before=$(keys_got 30)
+plain a
+sleep 0.5
+[ "$(keys_got 30)" = "$before" ] || fail "view.step_in, a method, gave the keyboard to the window"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back after a step in by a method"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in after a step in by a method"
+ok "a step in by a method moves no keyboard"
+
+key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a second time"
 key Ctrl+Alt+Right
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube in navigate mode"
@@ -212,18 +240,143 @@ inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, 
 until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
 ok "a click on a face and a click on the chip STEP IN step in"
 
+[ "$(prop construct-cube-edge visible)" != True ] || fail "the edge of a face is lit in use mode"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the hover"
+inject '[{"pointer_move": {"position": [10, 10]}}, {"pointer_move": {"position": [640, 400]}}]'
+until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge of the face under the pointer is not lit: $(prop construct-cube-edge visible)"
+inject '[{"pointer_move": {"position": [10, 10]}}]'
+until_ok 'test "$(prop construct-cube-edge visible)" = False' 20 || fail "the edge stays lit after the pointer left the face"
+ok "in navigate mode the edge of the face under the pointer is lit"
+
+drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}, {\"pointer_move\": {\"position\": [$(( ($1 + $2) / 2 )), 400]}}, {\"pointer_move\": {\"position\": [$2, 400]}}, {\"button\": {\"state\": \"released\"}}]"; }
+drag 800 300
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "a drag to the left did not turn the cube to the next face"
+sleep 1
+[ "$(prop construct-cube-face-1 forward)" = False ] || fail "a drag on the cube stepped in"
+drag 500 1000
+until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a drag to the right did not turn the cube back"
+sleep 1
+drag 640 700
+sleep 1
+eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
+plain Return
+until_ok "$stepped_in" 20 || fail "no step in after the drags"
+ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
+
+call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
+sleep 0.5
+if prop construct-mode-step-back-text text | grep -q "Esc"; then fail "the chip names Escape although the construct cannot grab it: $(prop construct-mode-step-back-text text)"; fi
+"$bin/choractl" grant construct input.grab-any || fail "the grant input.grab-any"
+call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape with the grant"
+until_ok 'prop construct-mode-step-back-text text | grep -q "  Esc$"' 20 || fail "the chip does not name Escape: $(prop construct-mode-step-back-text text)"
+plain Escape
+until_ok "$stood_back" 20 || fail "Escape alone did not step back with input.grab-any"
+plain Escape
+until_ok "$stepped_in" 20 || fail "Escape did not step in again"
+call settings.set '{"fly_out": "Alt+Escape"}' >/dev/null || fail "settings.set fly_out Alt+Escape"
+until_ok 'prop construct-mode-step-back-text text | grep -q "Alt+Esc"' 20 || fail "the chip does not name Alt+Escape again"
+ok "with input.grab-any and fly_out Escape, Escape alone steps back and in; without the grant the chip names no key"
+
 inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "Tab", "state": "pressed"}}, {"key": {"key": "Tab", "state": "released"}}, {"key": {"key": "Alt_L", "state": "released"}}]'
 sleep 0.5
 [ "$(prop xp-alttab visible)" = gone ] || fail "the switcher of xp stays after Alt went up"
 eval "$stepped_in" || fail "Alt+Tab moved the view"
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape does not step back after the switcher closed"
-call view.step_in >/dev/null || fail "view.step_in after the switcher"
+plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the switcher: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 ok "after the switcher of xp closed, Alt+Escape steps back again"
 
+"$bin/chora-probe" window 200 40 40 >"$work/probe2.log" 2>&1 &
+second_probe=$!
+pids+=("$second_probe")
+others() { probe | awk -v s="$surface" '$1 != s && $2 == "xp" {print $1}' | head -n 1; }
+until_ok 'test -n "$(others)"' 40 || fail "the second probe window came to no xp face: $(probe)"
+upper=$(others)
+opacity() { ctl query "id:xp-win-$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print("%g" % n[0].get("opacity", 1) if n else "gone")'; }
+lifted() {
+    ctl query "id:construct-cube-float-0-$1" | python3 -I -c '
+import json, sys
+n = json.load(sys.stdin)
+face = float(sys.argv[1])
+if not n or "HEADLESS-1" not in n[0]["rects"]:
+    print(0)
+else:
+    print(round(1000 * n[0]["rects"]["HEADLESS-1"][2] / (n[0]["size"][0] * face / 1280)))' "$(width construct-cube-face-0)"
+}
+floats() {
+    sleep 1
+    ctl capture "$work/flat.png" >/dev/null || return 1
+    call view.step_back >/dev/null || return 1
+    until_ok "$stood_back" 20 || return 1
+    sleep 1
+    [ "$(prop "construct-cube-float-0-$surface" visible)" = True ] && [ "$(prop "construct-cube-float-0-$upper" visible)" = True ] ||
+        { echo "the planes do not show: $(prop "construct-cube-float-0-$surface" visible) $(prop "construct-cube-float-0-$upper" visible)"; return 1; }
+    [ "$(opacity "$surface")" = 0 ] && [ "$(opacity "$upper")" = 0 ] || { echo "the windows stay in the face: opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
+    lower_lift=$(lifted "$surface")
+    upper_lift=$(lifted "$upper")
+    [ "$lower_lift" -gt 1030 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
+    [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
+    [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
+    still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }
+    call view.step_in >/dev/null || return 1
+    until_ok "$stepped_in" 20 || return 1
+    until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||
+        { echo "the windows did not land: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
+    sleep 0.5
+    ctl capture "$work/landed.png" >/dev/null || return 1
+    cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back"; return 1; }
+    echo "$lower_lift and $upper_lift"
+}
+rest() {
+    call view.step_in >/dev/null 2>&1
+    until_ok "$stepped_in" 20 && until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone' 20
+}
+why=$(floats) || { rest && why=$(floats); } || fail "floating windows: $why"
+ok "stood back, the windows float off the face, the upper one farther ($why per mille of the flat width), and land pixel for pixel"
+call view.step_back >/dev/null || fail "view.step_back for a new window"
+until_ok "$stood_back" 20 || fail "no step back for a new window"
+"$bin/chora-probe" window 40 200 40 >"$work/probe3.log" 2>&1 &
+third_probe=$!
+pids+=("$third_probe")
+newest() { probe | awk -v a="$surface" -v b="$upper" '$1 != a && $1 != b && $2 == "xp" {print $1}' | head -n 1; }
+until_ok 'test -n "$(newest)"' 40 || fail "the third probe window came to no xp face: $(probe)"
+new=$(newest)
+until_ok 'test "$(prop "construct-cube-float-0-$new" visible)" = True && test "$(opacity "$new")" = 0' 20 ||
+    fail "a window that opens while the cube floats does not float: plane $(prop "construct-cube-float-0-$new" visible), opacity $(opacity "$new")"
+run_pid "$third_probe"
+kill "$third_probe"
+until_ok 'test "$(prop "construct-cube-float-0-$new" visible)" = gone' 40 || fail "the plane of a closed window stays"
+[ "$(prop "construct-cube-float-0-$surface" visible)" = True ] || fail "the other windows do not float on after a window closed"
+call view.step_in >/dev/null || fail "view.step_in after a new window"
+until_ok "$stepped_in" 20 || fail "no step in after a new window"
+ok "a window that opens while the cube floats gets a plane, and loses it when it closes"
+manager=$(pid_of chora-xp)
+[ -n "$manager" ] || fail "no xp process of this session"
+call view.step_back >/dev/null || fail "view.step_back for a deaf window manager"
+until_ok "$stood_back" 20 || fail "no step back for a deaf window manager"
+until_ok 'test "$(opacity "$surface")" = 0' 20 || fail "the window does not float before the window manager stops"
+kill -STOP "$manager"
+call view.step_in >/dev/null || { kill -CONT "$manager"; fail "view.step_in with a deaf window manager"; }
+sleep 3
+deaf_plane=$(prop "construct-cube-float-0-$surface" visible)
+timeout 2 "$bin/choractl" --name agent call construct construct.list >/dev/null 2>&1
+deaf_answer=$?
+kill -CONT "$manager"
+[ "$deaf_answer" = 0 ] || fail "the construct does not answer while the window manager is deaf"
+[ "$deaf_plane" = True ] || fail "the plane went although the window manager did not answer: the window shows nowhere ($deaf_plane)"
+until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1' 40 ||
+    fail "the windows did not land after the window manager answered again: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface")"
+until_ok "$stepped_in" 20 || fail "no step in after the window manager answered again"
+ok "a window keeps its plane while the window manager does not answer, and lands when it does"
+run_pid "$second_probe"
+kill "$second_probe"
+until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
+
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
 sleep 1
+[ "$(prop "construct-cube-float-0-$surface" visible)" != gone ] || fail "the window does not float during a turn"
 [ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 [ "$(prop construct-cube-face-0 forward)" = False ] && [ "$(prop construct-cube-face-1 forward)" = False ] ||
     fail "a face forwards during the turn: $(prop construct-cube-face-0 forward) $(prop construct-cube-face-1 forward)"

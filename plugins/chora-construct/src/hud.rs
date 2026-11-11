@@ -641,6 +641,7 @@ impl Look<'_> {
             update(
                 &format!("{id}-text"),
                 PropsUpdate {
+                    text: Some(text.into()),
                     transform: at(x + pad, y + unit / 2.0),
                     visible: Some(show),
                     ..PropsUpdate::default()

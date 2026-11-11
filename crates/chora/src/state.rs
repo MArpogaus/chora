@@ -273,6 +273,9 @@ pub struct State {
     /// that press. Nothing else changes: no act, no token. A gate without
     /// a real pointer pulls a window out of a face with it.
     pub injected_drag_gives: bool,
+    /// The core runs the events of an `input.inject` request: the moves
+    /// and the releases of a node drag carry `injected`.
+    pub injecting: bool,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -433,6 +436,7 @@ impl State {
             last_real_press: None,
             last_real_button: None,
             injected_drag_gives: false,
+            injecting: false,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,

@@ -1600,6 +1600,26 @@ mod tests {
         assert_eq!(chat.history.last().unwrap()["content"], "Gut. Ich warte.");
     }
 
+    /// The words of `docs/cube-modes.md` reach the cube of the construct
+    /// through its methods, which the agent has as plugin tools.
+    #[test]
+    fn the_prompt_maps_the_words_of_the_cube_to_its_methods() {
+        for needed in [
+            "view.step_back",
+            "view.step_in",
+            "cube.turn",
+            "step back",
+            "step in",
+            "turn left",
+            "turn right",
+            "zurücktreten",
+            "hineingehen",
+            "\"turn left\" or \"nach links drehen\" is cube.turn with by -1",
+            "\"turn right\" or \"nach rechts drehen\" is cube.turn with by 1",
+        ] {
+            assert!(SYSTEM.contains(needed), "the prompt lacks {needed:?}");
+        }
+    }
     #[test]
     fn a_stopped_answer_keeps_only_whole_sentences_or_words() {
         assert_eq!(complete("Gut. Die Blö"), "Gut.");

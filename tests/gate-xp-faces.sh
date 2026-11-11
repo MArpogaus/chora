@@ -10,6 +10,9 @@
 #                        pane is under the pointer, here the second one
 #   moves-to-face        `window.move` of xp moves the window to the third
 #                        virtual output, where it shows with the focus
+#   tasks-of-own-face    the task button of the window is on the taskbar
+#                        of the virtual output that shows it, and on no
+#                        other taskbar
 #   face-removed         the window is on the fourth virtual output and
 #                        that one goes: xp moves the window to another of
 #                        its outputs and keeps three taskbars
@@ -24,10 +27,19 @@
 #                        on the screen drew a pass or had damage. The
 #                        clock of a taskbar can change in that time, so
 #                        the cell looks again once
+#   float-is-guarded     `windows.float` is refused for the screen and
+#                        for the confined client `stranger`, which has
+#                        `methods.call` without `methods.privileged`;
+#                        a refused call hides no window
+#   float-survives-restart  the windows of a virtual output float, so
+#                        their groups have opacity 0; after `restart` of
+#                        xp the window shows again, with opacity 1
 #   drag-keeps-rect      an injected drag of the title bar from the first
 #                        virtual output to the second, which jumps far in
 #                        one move: the window shows on an output at every
-#                        look in the 2 s after the release
+#                        look in the 2 s after the release; then it shows on
+#                        the second output, and its task button is on
+#                        the taskbar there only
 #
 # A cell measures pass or gap; a line `missing` in the table EXPECTED is a
 # cell that xp cannot pass yet and that does not run. The gate fails on
@@ -45,10 +57,13 @@ EXPECTED='
 faces-have-bars pass
 opens-under-pointer pass
 moves-to-face pass
+tasks-of-own-face pass
 face-removed pass
 no-cube-on-faces pass
 drag-keeps-rect pass
 still-faces-draw-nothing pass
+float-is-guarded pass
+float-survives-restart pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -122,6 +137,15 @@ cell_moves_to_face() {
     on_face "${faces[2]}" 10
 }
 
+cell_tasks_of_own_face() {
+    local face n
+    on_face "${faces[2]}" 4 || return 1
+    for face in "${faces[@]}"; do
+        n=$(ctl query "id:xp-task-$w-$face" | jq length)
+        if [ "$face" = "${faces[2]}" ]; then [ "$n" = 1 ] || return 1; else [ "$n" = 0 ] || return 1; fi
+    done
+}
+
 cell_face_removed() {
     local left
     move_to "${faces[3]}"
@@ -166,6 +190,9 @@ cell_drag_keeps_rect() {
         ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null || return 1
         sleep 0.2
     done
+    on_face "${faces[1]}" 2 || return 1
+    [ "$(ctl query "id:xp-task-$w-${faces[1]}" | jq length)" = 1 ] || return 1
+    [ "$(ctl query "id:xp-task-$w-$face" | jq length)" = 0 ]
 }
 
 drawn() { ctl render-stats | jq -c '.outputs | map_values([.damaged_frames, .passes])'; }
@@ -179,6 +206,59 @@ cell_still_faces_draw_nothing() {
         [ "$before" != "$(drawn)" ] || return 0
     done
     echo "render.stats moved: $before then $(drawn)" >>"$shots/stats.log"
+    return 1
+}
+
+opacity() { ctl query "id:xp-win-$w" | jq -r '(.[0].opacity // 1) * 100 | round'; }
+float() { ctl call xp windows.float "{\"output\": \"$1\", \"on\": $2}" >/dev/null 2>&1; }
+
+confined_float() {
+    timeout 10 python3 -I - "$CHORA_SOCKET" "$1" <<'PY'
+import json, socket, sys
+sock = socket.socket(socket.AF_UNIX)
+sock.connect(sys.argv[1])
+lines = sock.makefile("r")
+def call(number, method, params):
+    request = {"jsonrpc": "2.0", "id": number, "method": method, "params": params}
+    sock.sendall((json.dumps(request) + "\n").encode())
+    while True:
+        answer = json.loads(lines.readline())
+        if answer.get("id") == number:
+            return answer
+call(1, "hello", {"name": "stranger", "confined": True})
+asked = {"client": "xp", "method": "windows.float", "params": {"output": sys.argv[2], "on": True}}
+sys.exit(1 if "error" in call(2, "methods.call", asked) else 0)
+PY
+}
+
+cell_float_is_guarded() {
+    local face=${faces[1]}
+    on_face "$face" 4 || { echo "guard: the window is not on $face" >>"$shots/float.log"; return 1; }
+    if float "$screen" true; then
+        echo "guard: the screen was not refused" >>"$shots/float.log"
+        return 1
+    fi
+    "$bin/choractl" grant stranger methods.call >/dev/null || return 1
+    if confined_float "$face"; then
+        float "$face" false
+        echo "guard: a caller without methods.privileged was not refused" >>"$shots/float.log"
+        return 1
+    fi
+    [ "$(opacity)" = 100 ] || { echo "guard: opacity $(opacity)" >>"$shots/float.log"; return 1; }
+}
+
+cell_float_survives_restart() {
+    local face=${faces[1]}
+    on_face "$face" 4 || return 1
+    float "$face" true || return 1
+    [ "$(opacity)" = 0 ] || return 1
+    ctl call xp restart >/dev/null 2>&1 || return 1
+    sleep 2
+    ctl wait "id:xp-bar-$face" --timeout 20 >/dev/null || return 1
+    for _ in $(seq 25); do
+        [ "$(opacity)" = 100 ] && ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null && return 0
+        sleep 0.2
+    done
     return 1
 }
 
@@ -199,7 +279,7 @@ cell() {
         fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
 }
 
-cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing)
+cells=(faces-have-bars opens-under-pointer moves-to-face tasks-of-own-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing float-is-guarded float-survives-restart)
 for id in "${cells[@]}"; do cell "$id"; done
 ctl capture "$shots/faces.png" >/dev/null 2>&1
 

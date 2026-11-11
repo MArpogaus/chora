@@ -228,6 +228,10 @@ pub enum Event {
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The event came from `input.inject`, not from a pointer. A
+        /// client that takes a drag for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The button of a press over a rect or an image went up.
     #[serde(rename = "pointer.released")]
@@ -248,6 +252,10 @@ pub enum Event {
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The event came from `input.inject`, not from a pointer. A
+        /// client that takes a drag for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The wheel or the touchpad scrolled over a rect, an image or a shader
     /// node that takes pointer input. Only the connections of the owner of

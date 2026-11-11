@@ -348,6 +348,7 @@ impl State {
     fn run_steps(&mut self, steps: &[Step]) {
         let seat = self.seat.clone();
         self.idle_notifier_state.notify_activity(&seat);
+        self.injecting = true;
         let mut keys_down = Vec::new();
         let mut buttons_down = Vec::new();
         for step in steps {
@@ -381,6 +382,7 @@ impl State {
         for button in buttons_down {
             input::press_button(self, button, ButtonState::Released, InputTime::now(), true);
         }
+        self.injecting = false;
     }
 }
 
@@ -691,6 +693,48 @@ mod tests {
         let physical = presses(&mut watcher, &mut core);
         assert_eq!(physical.len(), 1, "{physical:?}");
         assert!(physical[0].get("injected").is_none(), "{physical:?}");
+    }
+
+    /// A client that takes a drag for the user must know which moves and
+    /// which release came from `input.inject`: during a press of a real
+    /// button, an injected move and an injected release carry `injected`,
+    /// and a move of a real pointer does not.
+    #[test]
+    fn injected_moves_and_releases_of_a_node_drag_carry_the_mark() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut watcher = core.named("watcher");
+        let menu = json!({"commands": [{"create": {"id": "menu", "kind": "rect",
+            "parent": "root", "props": {"size": [100, 100], "color": [1, 1, 1, 1]}}}]});
+        watcher.ok(&mut core, "scene.apply", menu);
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let named = |watcher: &mut crate::testing::Client, core: &mut Core, name: &str| {
+            let events = watcher.events_now(core).into_iter();
+            let params = events.map(|e| e["params"].clone());
+            params
+                .filter(|p| p["event"] == name)
+                .collect::<Vec<Value>>()
+        };
+        let now = InputTime::now;
+        input::move_pointer(&mut core.state, (50.0, 50.0).into(), now());
+        input::press_button(&mut core.state, 272, ButtonState::Pressed, now(), false);
+        input::move_pointer(&mut core.state, (60.0, 50.0).into(), now());
+        let real = named(&mut watcher, &mut core, "pointer.moved");
+        assert_eq!(real.len(), 1, "{real:?}");
+        assert!(real[0].get("injected").is_none(), "{real:?}");
+        let moves = json!({"events": [{"pointer_move": {"position": [70.0, 50.0]}}]});
+        agent.ok(&mut core, "input.inject", moves);
+        let injected = named(&mut watcher, &mut core, "pointer.moved");
+        assert_eq!(injected.len(), 1, "{injected:?}");
+        assert_eq!(injected[0]["injected"], true);
+        let release = json!({"events": [{"button": {"state": "released"}}]});
+        agent.ok(&mut core, "input.inject", release);
+        let released = named(&mut watcher, &mut core, "pointer.released");
+        assert_eq!(released.len(), 1, "{released:?}");
+        assert_eq!(released[0]["injected"], true);
     }
 
     /// Gate check 9 of 0.7: the limit of a request has its own code.
