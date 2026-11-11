@@ -569,9 +569,11 @@ impl Construct {
         Ok(true)
     }
 
-    /// Stood back, a press on a pane in front of the cube starts to move
-    /// it, as a plain drag on a floating plane pulls a window out: a drop
-    /// over a face gives the window back. Whether it took the press.
+    /// Stood back, a press on a pane starts to move it, as a plain drag
+    /// on a floating plane pulls a window out: a drop over a face gives
+    /// the window back. On the empty space any pane under the pointer
+    /// takes the press, on a face only a pane nearer than the face.
+    /// Whether it took the press.
     fn press_on_a_pane(&mut self, event: &Event) -> Result<bool, ClientError> {
         let Event::PointerPressed {
             node,
@@ -583,8 +585,14 @@ impl Construct {
         else {
             return Ok(false);
         };
-        let over = *node == LOOK || cube::face_of(node).is_some();
-        if *button != BTN_LEFT || !over || self.pane_before_cube(*position).is_none() {
+        let pane = if *node == LOOK {
+            self.pane_at(*position)
+        } else if cube::face_of(node).is_some() {
+            self.pane_before_cube(*position)
+        } else {
+            None
+        };
+        if *button != BTN_LEFT || pane.is_none() {
             return Ok(false);
         }
         if *injected && !self.rt.accepts_injected() {

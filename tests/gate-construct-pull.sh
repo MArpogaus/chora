@@ -240,6 +240,7 @@ sleep 1
 [ "$(owner)" = construct ] || fail "the window pulled from the stood-back cube is lost after the drop: $(probe)"
 [ "$(pane_of "$surface")" = shown ] || fail "the pulled window is no pane in view: $(pane_of "$surface")"
 ok "stood back, a drag on a floating plane pulls its window out; dropped beside the cube it is a pane: $(probe)"
+call pane.move '{"name": "chora-probe", "ahead": 300}' >/dev/null || fail "pane.move chora-probe"
 until_ok 'test -n "$(pane_middle)"' 40 || fail "the pulled pane shows nowhere on the screen"
 read -r qx qy <<<"$(pane_middle)"
 inject "[{\"pointer_move\": {\"position\": [$qx, $qy]}},
