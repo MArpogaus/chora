@@ -186,10 +186,11 @@ impl Construct {
                 state: PressState::Pressed,
                 ..
             } => {
-                if let Some(&Grab::Give(to)) = self.rt.action(&binding) {
-                    return self.give_key(to);
-                }
-                return self.fly_out();
+                return match self.rt.action(&binding) {
+                    Some(&Grab::Give(to)) => self.give_key(to),
+                    Some(Grab::Terminal) => self.terminal_beside(),
+                    _ => self.fly_out(),
+                };
             }
             Event::InputButton {
                 state, position, ..

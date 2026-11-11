@@ -977,11 +977,20 @@ At the bottom centre a glass capsule shows two to four hints, each the
 keycaps of a key and a word: walking, `W A S D Walk`, `Return Fly in`,
 `Tab Windows`, `F1 All keys` and, without a cube, `Super C Cube`, for 6
 seconds after the start and after a fly-out; in a
-pane, `Alt Esc Step back` for 3 seconds after the fly-in; stood back
+pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in; stood back
 from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and `Turn right
 Ctrl Alt →`, whose hints are the chips of the cube. A click on a hint
-does its act. The hints hide while the window list or the help shows, a
+does its act: the capsule lets a click through, and the node of each
+hint takes it. The hints hide while the window list or the help shows, a
 question waits or a pane moves.
+
+A program that the person starts, with `Super+t` or a click on the start
+card, opens flown in: its pane shows at 1:1 with the keyboard, and typed
+keys reach it during the fly-in too. `Alt+Escape` steps back at any time
+of the fly-in. `Super+t` in a pane steps back, opens a second terminal
+right of the first at the same distance and flies into it over 480 ms;
+the keys that start a terminal and carry a modifier are grabbed while
+the camera is in a pane.
 
 ### Notices
 

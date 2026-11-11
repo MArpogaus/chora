@@ -487,7 +487,7 @@ impl Construct {
     fn hint_set(&mut self) -> Option<crate::hints::Set> {
         use crate::hints::{FLOWN, Set, WALK};
         let now = Instant::now();
-        let flown = self.flown.is_some();
+        let flown = self.in_pane();
         if !self.hints.started || flown != self.hints.flown {
             self.hints.announce = true;
             self.hints.started = true;
@@ -503,7 +503,7 @@ impl Construct {
             || self.help
             || self.asked
             || self.moving.is_some()
-            || self.glide.is_some()
+            || (self.glide.is_some() && !self.flying_into())
             || self.cube_turns()
             || self.effects.animating();
         if busy || !self.active {

@@ -79,6 +79,16 @@ impl Construct {
         self.radius.unwrap_or(self.settings.value.radius)
     }
 
+    /// Whether the camera is in a pane or on its way into one.
+    pub(crate) fn in_pane(&self) -> bool {
+        self.flown.is_some() || self.flying_into()
+    }
+
+    /// Whether the camera glides into a pane.
+    pub(crate) fn flying_into(&self) -> bool {
+        self.glide.as_ref().is_some_and(|g| g.into.is_some())
+    }
+
     /// The target of the walk: the end of the glide, or the pose.
     pub(crate) fn target(&self) -> Pose {
         self.glide.as_ref().map_or(self.pose, |g| g.to)
@@ -252,12 +262,12 @@ impl Construct {
         };
         let window = matches!(pane.content, Content::Window { .. }).then(|| pane.source.clone());
         self.glide_to(to, FLY_MS, into);
-        match window {
-            Some(surface) => self.rt.conn.apply(vec![Command::Focus {
+        if let Some(surface) = window {
+            self.rt.conn.apply(vec![Command::Focus {
                 surface: Some(surface),
-            }]),
-            None => Ok(()),
+            }])?;
         }
+        self.regrab()
     }
 
     pub(crate) fn step_glide(&mut self) -> Result<(), ClientError> {
@@ -379,9 +389,12 @@ impl Construct {
             }
         }
         self.rt.grab_give_keys()?;
-        if self.flown.is_some() {
+        if self.in_pane() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
+            for key in self.terminal_keys() {
+                self.rt.grab(parse(key)?, Grab::Terminal)?;
+            }
         }
         self.grab_cube_keys();
         Ok(())
@@ -426,13 +439,47 @@ impl Construct {
         self.regrab()
     }
 
+    /// Steps back out of the pane that the camera is in, or on its way
+    /// into: the window goes back into its pane and the camera glides to
+    /// where the fly-in began.
     pub(crate) fn fly_out(&mut self) -> Result<(), ClientError> {
-        let Some(flown) = self.flown.take() else {
+        let flown = self
+            .flown
+            .take()
+            .or_else(|| self.glide.take().and_then(|g| g.into));
+        let Some(flown) = flown else {
             return Ok(());
         };
         self.unsnap(flown.attached.then_some(&flown.surface), true)?;
         self.draw_hud()?;
         self.glide_to(flown.back, FLY_MS, None);
         self.frame()
+    }
+
+    /// The keys that start a terminal and carry a modifier: the keys that
+    /// a program in the pane never gets, so that they work from use mode.
+    fn terminal_keys(&self) -> Vec<String> {
+        (self.settings.value.keys.iter())
+            .filter(|(key, action)| **action == Action::Terminal && key.contains('+'))
+            .map(|(key, _)| key.clone())
+            .collect()
+    }
+
+    /// A terminal from use mode: steps back, then starts the terminal
+    /// to open right of the pane that the camera stood in, at the same
+    /// distance from where the fly-in began, and fly into it.
+    pub(crate) fn terminal_beside(&mut self) -> Result<(), ClientError> {
+        let back = (self.flown.as_ref())
+            .or_else(|| self.glide.as_ref().and_then(|g| g.into.as_ref()))
+            .map(|f| f.back);
+        self.fly_out()?;
+        let spot = back.map(|back| {
+            let size = [self.lens.w, self.lens.h];
+            let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
+            let at = space::beside(&back, self.settings.value.pane_distance, size[0], &others);
+            (at, space::facing([back.x, back.z], at))
+        });
+        self.start_terminal_at(spot);
+        Ok(())
     }
 }

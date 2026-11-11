@@ -232,7 +232,7 @@ pub fn list(look: &Look, model: &ListModel<'_>, parent: &str, out: [f64; 2]) -> 
             radius: PANEL_RADIUS,
             strong: true,
             name: "window-list",
-            input: InputMode::Pass,
+            input: InputMode::Accept,
         },
     ));
     commands.extend(search(

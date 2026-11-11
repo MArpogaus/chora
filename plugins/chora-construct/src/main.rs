@@ -418,6 +418,9 @@ impl Waiting {
 enum Grab {
     Drag,
     FlyOut,
+    /// A key that starts a terminal, grabbed while the camera is in a
+    /// pane.
+    Terminal,
     Give(&'static str),
     /// With a cube: the step back from its face, and a turn of it.
     StepBack,

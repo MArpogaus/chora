@@ -209,6 +209,12 @@ impl Construct {
     /// Starts the program of the key `terminal`; its window becomes a
     /// pane ahead, as a program pane of a construct.
     pub(crate) fn start_terminal(&mut self) {
+        self.start_terminal_at(None);
+    }
+
+    /// Starts the terminal; its pane stands at the place and yaw `spot`,
+    /// or where a new pane goes.
+    pub(crate) fn start_terminal_at(&mut self, spot: Option<([f64; 2], f64)>) {
         self.waiting.retain(|w| !w.stale());
         let command = self.settings.value.terminal.clone();
         let mint = self.rt.conn.activation_token();
@@ -219,8 +225,8 @@ impl Construct {
             plugin: None,
             scene: None,
             manager: None,
-            at: None,
-            yaw: None,
+            at: spot.map(|(at, _)| at),
+            yaw: spot.map(|(_, yaw)| yaw),
             size: None,
         };
         self.waiting.push(Waiting {

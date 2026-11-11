@@ -13,7 +13,7 @@ use chora_kit::glass::{CAPSULE, Material, Type, margin};
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
-    glass::{Surface, face, keycaps, keycaps_width, rect, surface, text},
+    glass::{Surface, face, group, keycaps, keycaps_width, rect, surface, text},
     hud::Look,
 };
 
@@ -23,6 +23,10 @@ pub const FACE_LABEL: &str = "construct-face-label";
 pub const HINTS: &str = "construct-hints";
 /// The prefix of the nodes that take the click of a hint.
 pub const HINT: &str = "construct-hint-";
+/// The group of those nodes: it takes input, and it sits at the origin
+/// of the output, because the glass of the hints lets input through, which
+/// every node under it would inherit.
+pub const HITS: &str = "construct-hints-hit";
 /// How long the hints of the walk and of a pane stay.
 pub const WALK: Duration = Duration::from_secs(6);
 pub const FLOWN: Duration = Duration::from_secs(3);
@@ -115,6 +119,7 @@ pub fn draw(look: &Look, items: &[Item], out: [f64; 2], hovered: Option<&str>) -
             input: InputMode::Pass,
         },
     );
+    commands.push(group(HITS, crate::NAME, [0.0, 0.0], InputMode::Accept));
     let mut left = PAD;
     for (k, item) in items.iter().enumerate() {
         let iw = width_of(look, item).ceil();
@@ -188,7 +193,7 @@ fn hit(item: &Item, [x, y, w]: [f64; 3], fill: [f64; 4]) -> Vec<Command> {
         return vec![Command::Create {
             id: item.hit.clone(),
             kind: NodeKind::Rect,
-            parent: HINTS.into(),
+            parent: HITS.into(),
             props,
         }];
     }
@@ -325,10 +330,12 @@ pub fn places(look: &Look, items: &[Item], out: [f64; 2]) -> Vec<[f64; 2]> {
 /// hiding with their mode.
 #[must_use]
 pub fn remove() -> Vec<Command> {
-    vec![Command::Remove {
-        id: HINTS.into(),
-        to: None,
-    }]
+    [HINTS, HITS]
+        .map(|id| Command::Remove {
+            id: id.into(),
+            to: None,
+        })
+        .into()
 }
 
 #[cfg(test)]
