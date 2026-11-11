@@ -48,7 +48,9 @@ change it there, not here.
 6. **Three roles.** `text` is for content. `muted` is for panel titles,
    labels, notes, the scene number and its bar. `faint` is for hairlines
    and for an agent that rests. Do not set text that people must read in
-   `faint`.
+   `faint`. Text colors keep their contrast on the page: `text` at
+   least 7:1 and `muted`, `accent` and the four state colors at least
+   4.5:1, in both themes; a test of the default checks it.
 7. **One accent.** The `accent` color is on the scene title and on the
    state of the voice agent only. The
    colors `green`, `amber`, `blue` and `red` show a state, for example of

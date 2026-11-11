@@ -515,6 +515,46 @@ mod tests {
 
     use super::*;
 
+    /// The relative luminance of a color, as WCAG 2 has it.
+    fn luminance([r, g, b, _]: [f64; 4]) -> f64 {
+        let lin = |c: f64| {
+            if c <= 0.039_28 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    fn contrast(a: [f64; 4], b: [f64; 4]) -> f64 {
+        let (x, y) = (luminance(a), luminance(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    /// The colors that carry text read on the paper: `text` at 7:1, the
+    /// rest at 4.5:1, in both themes.
+    #[test]
+    fn the_text_colors_have_contrast_on_the_page() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for (theme, colors) in [
+            ("light", &config.themes.light),
+            ("dark", &config.themes.dark),
+        ] {
+            let page = colors["background"];
+            let least = [("text", 7.0)]
+                .into_iter()
+                .chain(["muted", "accent", "green", "amber", "blue", "red"].map(|c| (c, 4.5)));
+            for (name, least) in least {
+                let ratio = contrast(colors[name], page);
+                assert!(
+                    ratio >= least,
+                    "{theme} {name}: {ratio:.2} is under {least}"
+                );
+            }
+        }
+    }
+
     /// The default drags a window of mc with Super and the left button.
     #[test]
     fn the_default_binds_the_drag_to_a_pointer_button() {
