@@ -109,6 +109,11 @@ impl Field {
         self.send(&json!({"say_failed": text}))
     }
 
+    /// Empties the draft, for a chat with another helper.
+    pub fn clear(&mut self) -> std::io::Result<()> {
+        self.send(&json!("clear"))
+    }
+
     /// Gives a line back that was typed before a helper was picked.
     pub fn pick_first(&mut self, text: &str) -> std::io::Result<()> {
         self.send(&json!({"pick_first": text}))
@@ -182,6 +187,10 @@ impl Link for Field {
 
     fn pick_first(&mut self, text: &str) {
         log(Self::pick_first(self, text));
+    }
+
+    fn clear(&mut self) {
+        log(Self::clear(self));
     }
 
     fn voice_event(&mut self, event: &str, data: &Value, helper: &str) {

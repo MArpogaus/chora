@@ -206,6 +206,8 @@ pub trait Link {
     fn say_failed(&mut self, text: &str);
     /// A line was typed in the list before a helper was picked.
     fn pick_first(&mut self, text: &str);
+    /// The chat goes to another helper: the draft goes.
+    fn clear(&mut self);
     /// A voice event, for the field if it concerns the helper.
     fn voice_event(&mut self, event: &str, data: &Value, helper: &str);
     /// What the field told since the last call.
@@ -501,7 +503,9 @@ impl Session {
             self.status = Status::default();
             self.head = 0;
             self.epoch = None;
-            self.link = None;
+            if let Some(link) = self.link.as_mut() {
+                link.clear();
+            }
         }
         self.mode = Mode::Chat(name.to_owned());
         self.last = Some(name.to_owned());
@@ -925,6 +929,7 @@ mod tests {
         open_error: Option<String>,
         dead: bool,
         hides: u32,
+        clears: u32,
     }
 
     struct Fake(Rc<RefCell<Log>>);
@@ -993,6 +998,10 @@ mod tests {
 
         fn hide(&mut self) {
             self.0.borrow_mut().hides += 1;
+        }
+
+        fn clear(&mut self) {
+            self.0.borrow_mut().clears += 1;
         }
     }
 
@@ -1368,6 +1377,23 @@ mod tests {
         assert_eq!(log.borrow().unpicked, ["zzz"]);
         assert!(log.borrow().failed.is_empty(), "voice is not offline");
         assert!(!session.offline());
+    }
+
+    #[test]
+    fn a_pick_by_keyboard_keeps_the_field_and_clears_its_draft() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        log.borrow_mut().events.push(FieldEvent::Say("1".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.helper(), Some("atlas"));
+        assert_eq!(log.borrow().started, 1, "the field and its keyboard stay");
+        assert_eq!(log.borrow().clears, 1);
+        session
+            .show(&mut out, Some("notes"), Some("act"), &frame)
+            .unwrap();
+        assert_eq!(log.borrow().started, 1);
+        assert_eq!(log.borrow().clears, 2, "another helper gets no old draft");
     }
 
     #[test]

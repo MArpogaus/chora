@@ -167,6 +167,16 @@ impl Session {
         self.given_back = Some(Word::Offline);
     }
 
+    /// The chat goes to another helper: the draft and its line go, so no
+    /// text meant for one helper reaches another.
+    pub fn clear(&mut self) {
+        self.field.set_text("");
+        self.cursor = 0;
+        self.preedit.clear();
+        self.given_back = None;
+        self.confirm = false;
+    }
+
     /// The text was typed before a helper was picked: the draft gets it
     /// back, and the line under it says to pick first.
     pub fn pick_first(&mut self, text: &str) {
@@ -399,6 +409,17 @@ mod tests {
         session.delete_surrounding(1, 1);
         assert_eq!(session.text(), "ab");
         assert_eq!(session.cursor(), 2);
+    }
+
+    #[test]
+    fn clear_empties_the_draft_for_another_helper() {
+        let mut session = Session::new(Language::En);
+        type_text(&mut session, "for atlas");
+        session.pick_first("x");
+        session.clear();
+        assert_eq!(session.text(), "");
+        assert_eq!(session.cursor(), 0);
+        assert_eq!(session.status(), None);
     }
 
     #[test]

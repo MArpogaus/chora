@@ -263,6 +263,7 @@ impl Window {
             Msg::Keys(keys) => self.session.set_keys(keys),
             Msg::SayFailed(text) => self.session.say_failed(&text),
             Msg::PickFirst(text) => self.session.pick_first(&text),
+            Msg::Clear => self.session.clear(),
             Msg::Paste(text) => {
                 let effect = self.session.key(Key::Text(text));
                 self.effect(effect);
