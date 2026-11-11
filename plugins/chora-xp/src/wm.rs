@@ -2689,6 +2689,7 @@ impl Wm {
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
+            Action::Help => self.open_help(0),
         }
     }
 

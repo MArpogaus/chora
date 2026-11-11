@@ -14,9 +14,9 @@ use chora_scene::{Command, NodeKind, PropsUpdate, Transform};
 use crate::{
     apps::{self, Node},
     cascade::{self, Cascade, Margins, Row},
-    config::{Config, Program},
+    config::Config,
     context::{Key, wrap},
-    control::Setting,
+    control::{self, Setting},
     desktop_icons, sheets,
     text::{Font, Text},
     theme::{Picture, Rect, Theme},
@@ -29,12 +29,12 @@ const FOOTER: i32 = 40;
 const FRAME: i32 = 2;
 const LEFT: i32 = 189;
 const PROGRAM_ROW: i32 = 36;
+const PINNED_ROW: i32 = 48;
 const PLACE_ROW: i32 = 30;
 const SEPARATOR: i32 = 8;
 const ALL_PROGRAMS: i32 = 24;
 /// XP opens and closes cascades after the pointer rests this long.
 const HOVER_DELAY: Duration = Duration::from_millis(350);
-const MIN_BODY: i32 = 330;
 const GROUP: &str = "xp-menu";
 /// The node that takes the keyboard while the menu is open.
 pub const FOCUS: &str = GROUP;
@@ -52,6 +52,8 @@ pub enum Action {
     TurnOff,
     /// Changes a setting of the Control Panel.
     Set(Setting),
+    /// Opens Help and Support on its first topic.
+    Help,
 }
 
 /// The column or the footer of an entry.
@@ -152,6 +154,9 @@ impl Menu {
             ALL_PROGRAMS,
         ];
         let mut separators = vec![[FRAME + 2, all[1] - 2 - SEPARATOR, LEFT - 8, SEPARATOR]];
+        if entries.len() > 2 {
+            separators.push([FRAME + 2, top + 2 * PINNED_ROW, LEFT - 8, SEPARATOR]);
+        }
         separators.extend(place_separators(&places, top));
         entries.push(Entry {
             title: "All Programs".into(),
@@ -171,9 +176,7 @@ impl Menu {
             .position(|e| e.kind == Kind::AllPrograms)
             .unwrap_or(0);
         Self {
-            user: std::env::var("USER")
-                .or_else(|_| std::env::var("LOGNAME"))
-                .unwrap_or_else(|_| "User".into()),
+            user: account_name(),
             entries,
             separators,
             height,
@@ -359,9 +362,7 @@ impl Menu {
             Press::Entry(i) => {
                 let e = &self.entries[i];
                 let program = match e.kind {
-                    // The terminal comes first and is no program of the
-                    // settings.
-                    Kind::Program => i.checked_sub(1),
+                    Kind::Program => i.checked_sub(2),
                     Kind::Place if !e.cascade => None,
                     _ => return None,
                 };
@@ -830,25 +831,69 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
 /// the settings first.
 fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
     let top = HEADER + 1 + 5;
-    let terminal = Program {
-        title: "Terminal".into(),
-        command: config.terminal.clone(),
-        icon: "utilities-terminal".into(),
-    };
-    std::iter::once(&terminal)
-        .chain(&config.programs)
+    let pinned = [
+        (
+            "Terminal",
+            "Type commands",
+            config.terminal.clone(),
+            icons.program("utilities-terminal"),
+        ),
+        (
+            "Chat with a helper",
+            "Ask the helper in your words",
+            control::CHAT.to_string(),
+            icons
+                .first_sized(&["chora-chat", "user-available", "dialog-information"], 32)
+                .or_else(|| icons.program("")),
+        ),
+    ];
+    let mut entries: Vec<Entry> = pinned
+        .into_iter()
         .zip(0..)
-        .map(|(program, i)| Entry {
-            title: program.title.clone(),
-            subtitle: Some(program.command.clone()),
-            icon: icons.program(&program.icon),
+        .map(|((title, subtitle, command, icon), i)| Entry {
+            title: title.into(),
+            subtitle: Some(subtitle.into()),
+            icon,
             bold: true,
             kind: Kind::Program,
-            action: Action::Run(program.command.clone()),
+            action: Action::Run(command),
             cascade: false,
-            rect: [FRAME + 2, top + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
+            rect: [FRAME + 2, top + i * PINNED_ROW, LEFT - 4, PINNED_ROW],
         })
-        .collect()
+        .collect();
+    let recent = top + 2 * PINNED_ROW + SEPARATOR;
+    entries.extend(config.programs.iter().zip(0..).map(|(program, i)| Entry {
+        title: program.title.clone(),
+        subtitle: None,
+        icon: icons.program(&program.icon),
+        bold: false,
+        kind: Kind::Program,
+        action: Action::Run(program.command.clone()),
+        cascade: false,
+        rect: [FRAME + 2, recent + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
+    }));
+    entries
+}
+
+/// The name that the header shows: the full name of the account, else its
+/// login name.
+fn account_name() -> String {
+    let login = std::env::var("USER")
+        .or_else(|_| std::env::var("LOGNAME"))
+        .unwrap_or_else(|_| "User".into());
+    let passwd = std::fs::read_to_string("/etc/passwd").unwrap_or_default();
+    full_name(&passwd, &login).unwrap_or(login)
+}
+
+/// The first field of the comment of an account in the text of
+/// `/etc/passwd`, when it is not empty.
+fn full_name(passwd: &str, login: &str) -> Option<String> {
+    let line = passwd
+        .lines()
+        .find(|l| l.split(':').next() == Some(login))?;
+    let gecos = line.split(':').nth(4)?;
+    let name = gecos.split(',').next()?.trim();
+    (!name.is_empty()).then(|| name.to_string())
 }
 
 /// The places of the right column; an empty title is a separator.
@@ -880,6 +925,7 @@ fn places(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         // A cascade, as with XP's "Display as a menu".
         (CONTROL_PANEL, run(""), "preferences-system", false),
         ("", run(""), "", false),
+        ("Help and Support", Action::Help, "help-browser", false),
         ("Run...", run(&config.launcher), "system-run", false),
     ];
     let mut y = HEADER + 1 + 5;
@@ -928,7 +974,7 @@ fn place_separators(places: &[Entry], top: i32) -> Vec<Rect> {
     out
 }
 
-/// The height of the columns: the higher of both, at least 330 pixels.
+/// The height of the columns: the higher of both.
 fn body_height(programs: &[Entry], places: &[Entry]) -> i32 {
     let bottom = |entries: &[Entry]| {
         entries
@@ -942,7 +988,7 @@ fn body_height(programs: &[Entry], places: &[Entry]) -> i32 {
     // The left column ends with a separator and All Programs.
     let left = bottom(programs) + SEPARATOR + 2 + ALL_PROGRAMS + 6;
     let right = bottom(places) + 6;
-    left.max(right).max(MIN_BODY)
+    left.max(right)
 }
 
 /// Log Off and Turn Off Computer at the right of the footer.
@@ -1084,6 +1130,7 @@ fn at(x: i32, y: i32) -> PropsUpdate {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Program;
 
     /// The default settings with kitty and no programs.
     fn config() -> Config {
@@ -1099,7 +1146,7 @@ mod tests {
         let programs = programs(&config(), &mut icons);
         assert_eq!(programs[0].action, Action::Run("kitty".into()));
         let places = places(&config(), &mut icons);
-        assert_eq!(body_height(&programs, &places), MIN_BODY);
+        assert!(body_height(&programs, &places) < 330);
         assert_eq!(place_separators(&places, HEADER + 1).len(), 2);
         let cascades: Vec<&str> = places
             .iter()
@@ -1107,6 +1154,85 @@ mod tests {
             .map(|e| e.title.as_str())
             .collect();
         assert_eq!(cascades, [CONTROL_PANEL]);
+    }
+
+    fn with_programs(n: usize) -> Config {
+        let mut config = config();
+        config.programs = (0..n)
+            .map(|i| Program {
+                title: format!("Notes {i}"),
+                command: format!("chora-notes-{i}"),
+                icon: String::new(),
+            })
+            .collect();
+        config
+    }
+
+    #[test]
+    fn the_pinned_rows_have_plain_subtitles_and_the_recent_rows_none() {
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let config = with_programs(3);
+        let programs = programs(&config, &mut icons);
+        assert_eq!(programs[0].title, "Terminal");
+        assert_eq!(programs[1].title, "Chat with a helper");
+        assert_eq!(programs[1].action, Action::Run("chora-chat".into()));
+        let commands: Vec<String> = programs
+            .iter()
+            .filter_map(|e| match &e.action {
+                Action::Run(c) => Some(c.clone()),
+                _ => None,
+            })
+            .collect();
+        for entry in &programs {
+            if let Some(sub) = &entry.subtitle {
+                assert!(!commands.contains(sub), "{sub} is a command");
+                assert_eq!(entry.rect[3], PINNED_ROW);
+            }
+        }
+        assert!(
+            programs[2..]
+                .iter()
+                .all(|e| e.subtitle.is_none() && !e.bold)
+        );
+        assert!(programs[2..].iter().all(|e| e.rect[3] == PROGRAM_ROW));
+    }
+
+    #[test]
+    fn the_menu_has_no_filler_when_the_left_column_is_the_taller() {
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let config = with_programs(4);
+        let programs = programs(&config, &mut icons);
+        let places = places(&config, &mut icons);
+        let top = HEADER + 1;
+        let body = body_height(&programs, &places);
+        let last = programs
+            .iter()
+            .map(|e| e.rect[1] + e.rect[3])
+            .max()
+            .unwrap();
+        let all = top + body - 6 - ALL_PROGRAMS;
+        assert!(all - last <= SEPARATOR + 2 + 12, "{} px", all - last);
+    }
+
+    #[test]
+    fn the_right_column_has_help_and_support_above_run() {
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let places = places(&config(), &mut icons);
+        let titles: Vec<&str> = places.iter().map(|e| e.title.as_str()).collect();
+        let help = titles
+            .iter()
+            .position(|t| *t == "Help and Support")
+            .unwrap();
+        assert_eq!(titles[help + 1], "Run...");
+        assert_eq!(places[help].action, Action::Help);
+    }
+
+    #[test]
+    fn the_header_shows_the_full_name_of_the_account() {
+        let passwd = "root:x:0:0:root:/root:/bin/bash\nerika:x:1000:1000:Erika Muster,,,:/home/erika:/bin/sh\nplain:x:1001:1001:::/home/plain:/bin/sh\n";
+        assert_eq!(full_name(passwd, "erika").as_deref(), Some("Erika Muster"));
+        assert_eq!(full_name(passwd, "plain"), None);
+        assert_eq!(full_name(passwd, "nobody"), None);
     }
 
     #[test]
@@ -1134,6 +1260,11 @@ mod tests {
         let mut key = |menu: &mut Menu, k: &str| menu.key(&mut theme, &mut icons, k);
         key(&mut menu, "Down");
         assert_eq!(menu.entries[menu.hovered.unwrap()].title, "Terminal");
+        key(&mut menu, "Down");
+        assert_eq!(
+            menu.entries[menu.hovered.unwrap()].title,
+            "Chat with a helper"
+        );
         // Down again reaches All Programs; Right opens it on its group,
         // and Right again opens the group on its program.
         key(&mut menu, "Down");

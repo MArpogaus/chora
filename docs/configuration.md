@@ -1644,8 +1644,12 @@ reads the insets of a slice in pixels of the file. The pictures:
 - a taskbar at the bottom of the work area of each output, with the start
   button, one button per window of the current desktop, four desktop
   buttons and a clock;
-- the start menu with the user name, programs, places, the Control Panel,
-  Log Off and Turn Off Computer, and All Programs with the applications of
+- the start menu with the full name of the account (the login name when
+  the comment of the account is empty), two pinned rows, Terminal with
+  "Type commands" and Chat with a helper with "Ask the helper in your
+  words", then the `programs` without subtitles, places, the Control Panel,
+  Help and Support, Run, Log Off and Turn Off Computer, and All Programs
+  with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
 - the icons of the desktop, between the wallpaper and the windows;
@@ -2047,7 +2051,7 @@ that the file leaves out takes its default:
 | `terminal` | `foot` | the terminal of Super+e and of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `programs` | none | the programs at the top left of the start menu below Terminal, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
+| `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
 | `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |

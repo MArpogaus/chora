@@ -43,3 +43,14 @@ something off? If yes, it is a finding. The second rule is chora's own:
    "Windows", one key cap per chord: button face, 1 px `#8C8A7F`, 2 px at
    the bottom. A binding that the plugin does not hold is not listed, and
    a test fails when a bound key is missing from the table.
+
+## The Start menu
+
+6. **Two pinned rows, then recent programs.** The pinned rows are 48 px
+   high with a bold name and a grey line of plain words: Terminal "Type
+   commands", Chat with a helper "Ask the helper in your words". The
+   rows below a rule are 36 px high, in regular weight, with no subtitle:
+   a raw command is never a subtitle. The right column has Help and
+   Support above Run. The height of the menu follows its rows; no filler.
+7. **The header names the person**: the full name of the account, else
+   its login name.
