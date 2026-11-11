@@ -547,6 +547,7 @@ impl Construct {
         };
         if host.set_hover(now) {
             self.frame()?;
+            self.draw_hints()?;
         }
         Ok(true)
     }

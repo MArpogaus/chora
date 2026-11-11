@@ -617,6 +617,7 @@ impl Construct {
         self.draw_start()?;
         self.draw_face_card()?;
         let set = self.hint_set();
+        self.hint_hover = self.hint_hover.take().filter(|_| set.is_some());
         if std::mem::take(&mut self.hints.announce) {
             let view = chora_kit::hud::view_event(NAME, self.hints.flown);
             if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", view) {
@@ -629,7 +630,7 @@ impl Construct {
             }
             _ => self.cube_stamp(),
         };
-        let wanted = set.map(|s| (s, self.hint_hover.clone(), stamp));
+        let wanted = set.map(|s| (s, self.hovered_hint(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
             return self.turn_dots();
         }
@@ -642,7 +643,7 @@ impl Construct {
         if let Some(set) = set {
             let items = self.hint_items(set);
             let out = [self.lens.w, self.lens.h];
-            let hover = self.hint_hover.clone();
+            let hover = self.hovered_hint();
             commands.extend(self.fitted(|s| {
                 let look = s.styled();
                 let mut commands = crate::hints::draw(&look, &items, out, hover.as_deref());
@@ -669,6 +670,17 @@ impl Construct {
         self.hints.weights.clear();
         self.rt.conn.apply(commands)?;
         self.turn_dots()
+    }
+
+    /// The hint with the hover fill: the one under the pointer, or Step
+    /// in while the pointer lights the edge of a face.
+    fn hovered_hint(&self) -> Option<String> {
+        let lit = self
+            .cube
+            .as_ref()
+            .is_some_and(crate::cube::Host::lights_edge);
+        let step_in = crate::modes::chip_node(chora_kit::words::Word::StepIn);
+        crate::hints::hovered(self.hint_hover.as_deref(), lit, &step_in)
     }
 
     /// What the hints of the cube show of its face: the face that the

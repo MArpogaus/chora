@@ -159,7 +159,9 @@ still() {
 key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
 plain() { inject "[{\"key\": {\"key\": \"$1\", \"state\": \"pressed\"}}, {\"key\": {\"key\": \"$1\", \"state\": \"released\"}}]"; }
 keys_got() { grep -c "^key $1\$" "$work/probe.log"; }
+front_face0_label() { prop construct-face-label-words text | grep -q "face 1 of 4"; }
 front_is() { test "$(prop "construct-cube-face-$1" visible)" = True && test "$(prop "construct-cube-face-$1" forward)" = True; }
+alpha_of() { prop "$1" color | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())[3])'; }
 stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
 stepped_in='test "$(prop construct-cube-face-0 forward)" = True && test "$(width construct-cube-face-0)" = 1280'
 
@@ -285,9 +287,35 @@ key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the hover"
 inject '[{"pointer_move": {"position": [10, 10]}}, {"pointer_move": {"position": [640, 400]}}]'
 until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge of the face under the pointer is not lit: $(prop construct-cube-edge visible)"
+sleep 1
+edge_units=$(prop construct-cube-edge border | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())["width"])')
+python3 -I -c '
+import sys
+width, face = float(sys.argv[1]), float(sys.argv[2])
+sys.exit(not abs(width * face / 1280 - 2.0) < 0.3)' "$edge_units" "$(width construct-cube-face-0)" || fail "the lit edge is $edge_units units of the face wide on a face $(width construct-cube-face-0) px wide, not 2 px on the screen"
+[ "$(prop construct-cube-edge-glow visible)" = True ] || fail "the lit edge has no glow"
+[ "$(alpha_of construct-mode-step-in)" != 0.0 ] || fail "the hint Step in has no hover fill while the pointer is on the face"
+ok "the pointer on a face lights its edge at 2 px on the screen with a glow, and the hint Step in has its hover fill"
 inject '[{"pointer_move": {"position": [10, 10]}}]'
 until_ok 'test "$(prop construct-cube-edge visible)" = False' 20 || fail "the edge stays lit after the pointer left the face"
-ok "in navigate mode the edge of the face under the pointer is lit"
+until_ok 'test "$(prop construct-cube-edge-glow visible)" = False' 20 || fail "the glow stays after the pointer left the face"
+until_ok 'test "$(alpha_of construct-mode-step-in)" = 0.0' 20 || fail "the hint Step in keeps its hover fill after the pointer left the face: $(alpha_of construct-mode-step-in)"
+ok "the edge, its glow and the hover fill go out when the pointer leaves the face"
+inject '[{"pointer_move": {"position": [640, 400]}}]'
+until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge is not lit again"
+call cube.turn '{"by": 1, "ms": 2500}' >/dev/null || fail "a slow cube.turn for the hover"
+quick 'test "$(prop construct-cube-edge visible)" = False' || fail "the edge stays lit while the cube turns"
+sleep 1
+[ "$(prop construct-cube-edge visible)" = False ] || fail "the edge came back during a turn of the cube"
+until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge does not light again when the turn ended with the pointer on the face"
+key Ctrl+Alt+Left
+until_ok 'front_face0_label' 20 || fail "Ctrl+Alt+Left did not turn back after the hover"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in after the pointer lit an edge: the keyboard is lost to the pointer"
+ok "no edge shows during a turn, and Return steps in after the hover"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back after the hover"
+sleep 1
 
 drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}, {\"pointer_move\": {\"position\": [$(( ($1 + $2) / 2 )), 400]}}, {\"pointer_move\": {\"position\": [$2, 400]}}, {\"button\": {\"state\": \"released\"}}]"; }
 press_at() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"; }
@@ -315,7 +343,6 @@ until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live dra
 windows_before=$(ctl query kind:surface | jq length)
 rest_width=$(width construct-cube-face-0)
 navigating='test "$(prop construct-mode-step-in visible)" = True'
-alpha_of() { prop "$1" color | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())[3])'; }
 press_at 840
 previous=$rest_width
 for x in 740 640 540 440 340 240 140; do

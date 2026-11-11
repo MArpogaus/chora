@@ -142,8 +142,8 @@ pub const DIM: f64 = 0.45;
 /// steps into that face.
 #[must_use]
 #[allow(dead_code, reason = "a stub until the next commit")]
-pub fn hovered(pointer: Option<&str>, _face_lit: bool, _step_in: &str) -> Option<String> {
-    pointer.map(str::to_owned)
+pub fn hovered(pointer: Option<&str>, face_lit: bool, step_in: &str) -> Option<String> {
+    (pointer.map(str::to_owned)).or_else(|| face_lit.then(|| step_in.to_owned()))
 }
 
 /// The updates that dim a hint to `DIM` while the cube turns: its keycaps

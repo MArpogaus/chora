@@ -43,11 +43,8 @@ const EDGE_WIDTH: f64 = 2.0;
 const EDGE_LIFT: f64 = 1.0;
 /// The glow around the lit edge: its node, its strength, and how long the
 /// edge and the glow take to go out.
-#[allow(dead_code, reason = "a stub until the next commit")]
 const EDGE_GLOW: &str = "construct-cube-edge-glow";
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub(crate) const LIT_GLOW: f64 = 0.35;
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub(crate) const EDGE_OUT: f64 = 120.0;
 /// How far the pointer moves at most between the press and the release
 /// of a click on a face.
@@ -134,6 +131,7 @@ pub(crate) struct Host {
     /// in navigate mode, and the binding that steps back while the
     /// construct holds it.
     hover: Option<usize>,
+    lit: Option<usize>,
     press: Option<Press>,
     live: Option<Live>,
     step_back_key: Option<String>,
@@ -344,7 +342,6 @@ const IDENTITY: Matrix = [
 
 /// What the lit edge does in a frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub(crate) enum Edge {
     /// Nothing: the edge is out and stays out.
     Off,
@@ -511,7 +508,6 @@ impl Host {
             commands.push(self.mirror(i, shows && self.stand > 0.0, ground));
             commands.extend(self.planes(i, shows));
         }
-        commands.push(self.edge());
         commands
     }
 
@@ -532,37 +528,43 @@ impl Host {
     /// What the lit edge does now: it lights the face under the pointer
     /// while the cube rests in navigate mode, fades out when the pointer
     /// leaves, and is out at once when the cube turns or steps.
-    #[allow(
-        dead_code,
-        clippy::unused_self,
-        reason = "a stub until the next commit"
-    )]
     pub(crate) fn edge_plan(&mut self) -> Edge {
-        Edge::Off
+        let face = self.lights();
+        let was = std::mem::replace(&mut self.lit, face);
+        match (face, was) {
+            (Some(face), _) => Edge::Lit {
+                face,
+                scale: self.edge_scale(face),
+            },
+            (None, Some(_)) if self.rests() => Edge::Fade,
+            (None, Some(_)) => Edge::Hide,
+            (None, None) => Edge::Off,
+        }
     }
 
-    /// The update of the lit edge: over the face under the pointer while
+    /// The face whose edge the pointer lights: the face under it while
     /// the cube rests in navigate mode.
-    fn edge(&self) -> Command {
+    fn lights(&self) -> Option<usize> {
         let rests = self.rests() && !self.view.forwards();
-        let face = self
-            .hover
-            .filter(|i| rests && self.shown.get(*i) == Some(&true));
-        let placed = face.map(|i| {
-            let plane = self
-                .cube
-                .lifted(i, self.drawn_angle(), [0.0, 0.0], EDGE_LIFT);
-            (Transform::from_matrix(plane), self.cube.size_of(i))
-        });
-        update(
-            EDGE,
-            PropsUpdate {
-                transform: placed.map(|(transform, _)| transform),
-                size: placed.map(|(_, size)| size),
-                visible: Some(face.is_some()),
-                ..PropsUpdate::default()
-            },
-        )
+        (self.hover).filter(|i| rests && self.shown.get(*i) == Some(&true))
+    }
+
+    /// Whether the pointer lights the edge of a face now.
+    pub(crate) fn lights_edge(&self) -> bool {
+        self.lights().is_some()
+    }
+
+    /// How many units of face `face` one pixel of the screen is at its
+    /// middle: the distance of the eye over the focal length.
+    fn edge_scale(&self, face: usize) -> f64 {
+        let m = self.cube.face(face, self.drawn_angle());
+        let [w, h] = self.cube.size_of(face);
+        let centre = [0, 1, 2].map(|r| m[r] * w / 2.0 + m[4 + r] * h / 2.0 + m[12 + r]);
+        let reach = (0..3)
+            .map(|k| (centre[k] - self.seen_from[k]).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        reach / super::space::Lens::new(self.cube.size[0], self.cube.size[1]).focal
     }
 
     /// The health of face `i`.
@@ -1033,7 +1035,7 @@ impl Construct {
         let mut host = self.host(outputs.clone(), (child, tail), (&manager, &command), cube);
         let mut commands = vec![create(CUBE, NodeKind::Group, PANES, PropsUpdate::default())];
         commands.extend(self.face_nodes(&outputs, &cube));
-        commands.push(self.edge_node());
+        commands.extend(self.edge_nodes());
         commands.extend(host.faces([self.pose.x, self.pose.z], self.lens.ground));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
             end(&mut host.child);
@@ -1085,6 +1087,7 @@ impl Construct {
             switching: false,
             landing: None,
             hover: None,
+            lit: None,
             press: None,
             live: None,
             step_back_key: None,
@@ -1201,13 +1204,18 @@ impl Construct {
         self.sync_float()
     }
 
-    /// The updates of the faces of the cube for the pose now.
+    /// The updates of the faces of the cube for the pose now, and of the
+    /// lit edge.
     pub(crate) fn cube_faces(&mut self) -> Vec<Command> {
         let eye = [self.pose.x, self.pose.z];
         let ground = self.lens.ground;
-        (self.cube.as_mut())
-            .map(|h| h.faces(eye, ground))
-            .unwrap_or_default()
+        let Some(host) = self.cube.as_mut() else {
+            return Vec::new();
+        };
+        let mut commands = host.faces(eye, ground);
+        let plan = host.edge_plan();
+        commands.extend(self.edge_commands(plan));
+        commands
     }
 
     /// The effects of the mirror images of the faces for `look`.
@@ -1305,26 +1313,117 @@ impl Construct {
             .collect()
     }
 
-    /// The lit edge of a face, hidden: a border in the accent colour that
-    /// passes the pointer to the face behind it.
-    fn edge_node(&self) -> Command {
+    /// The glow and the lit edge of a face, hidden: the glow in the accent
+    /// colour, and a border in it; both pass the pointer to the face
+    /// behind them.
+    fn edge_nodes(&self) -> [Command; 2] {
         let [r, g, b] = self.settings.value.style.accent;
-        create(
-            EDGE,
-            NodeKind::Rect,
-            CUBE,
-            PropsUpdate {
-                size: Some([1.0, 1.0]),
-                color: Some([0.0; 4]),
-                border: Some(Some(Border {
-                    width: EDGE_WIDTH,
-                    color: [r, g, b, 1.0],
-                })),
-                visible: Some(false),
-                input: Some(InputMode::Pass),
-                ..PropsUpdate::default()
-            },
-        )
+        let hidden = PropsUpdate {
+            visible: Some(false),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        };
+        [
+            create(
+                EDGE_GLOW,
+                NodeKind::Shader,
+                CUBE,
+                PropsUpdate {
+                    size: Some([1.0, 1.0]),
+                    shader: Some(self.glow_shader.clone()),
+                    ..hidden.clone()
+                },
+            ),
+            create(
+                EDGE,
+                NodeKind::Rect,
+                CUBE,
+                PropsUpdate {
+                    size: Some([1.0, 1.0]),
+                    color: Some([0.0; 4]),
+                    border: Some(Some(Border {
+                        width: EDGE_WIDTH,
+                        color: [r, g, b, 1.0],
+                    })),
+                    ..hidden
+                },
+            ),
+        ]
+    }
+
+    /// The edge and the glow lit around face `face`, `scale` units of it
+    /// to a pixel of the screen.
+    fn lit_edge(&self, host: &Host, face: usize, scale: f64) -> Vec<Command> {
+        let style = &self.settings.value.style;
+        let [r, g, b] = style.accent;
+        let size = host.cube.size_of(face);
+        let angle = host.drawn_angle();
+        let lit = PropsUpdate {
+            visible: Some(true),
+            opacity: Some(1.0),
+            ..PropsUpdate::default()
+        };
+        let edge = PropsUpdate {
+            transform: Some(Transform::from_matrix(host.cube.lifted(
+                face,
+                angle,
+                [0.0, 0.0],
+                EDGE_LIFT,
+            ))),
+            size: Some(size),
+            border: Some(Some(Border {
+                width: EDGE_WIDTH * scale,
+                color: [r, g, b, 1.0],
+            })),
+            ..lit.clone()
+        };
+        let reach = style.glow * scale;
+        let k = super::FOCUS_SCALE;
+        let inner = [size[0] / k, size[1] / k];
+        let mut uniforms = self
+            .styled()
+            .glow_uniforms(inner, 0.0, reach / k, [0.0; 4], 0.0);
+        uniforms.insert("accent".into(), Uniform::Vector(vec![r, g, b, LIT_GLOW]));
+        let mut grown = IDENTITY;
+        (grown[0], grown[5], grown[12], grown[13]) = (k, k, -reach, -reach);
+        let place = mul4(
+            &host.cube.lifted(face, angle, [0.0, 0.0], EDGE_LIFT / 2.0),
+            &grown,
+        );
+        let glow = PropsUpdate {
+            transform: Some(Transform::from_matrix(place)),
+            size: Some([inner[0] + 2.0 * reach / k, inner[1] + 2.0 * reach / k]),
+            uniforms: Some(uniforms),
+            ..lit
+        };
+        vec![update(EDGE_GLOW, glow), update(EDGE, edge)]
+    }
+
+    /// What the lit edge and its glow do in this frame (`Host::edge_plan`).
+    /// Lit, the edge is 2 px wide on the screen and the glow reaches 16 px
+    /// out at 0.35, however far the cube stands.
+    fn edge_commands(&self, plan: Edge) -> Vec<Command> {
+        let Some(host) = &self.cube else {
+            return Vec::new();
+        };
+        let shown = |id: &str, visible: bool| {
+            update(
+                id,
+                PropsUpdate {
+                    visible: Some(visible),
+                    ..PropsUpdate::default()
+                },
+            )
+        };
+        match plan {
+            Edge::Off => Vec::new(),
+            Edge::Hide => vec![shown(EDGE_GLOW, false), shown(EDGE, false)],
+            Edge::Fade => vec![
+                crate::hud::fade(EDGE_GLOW, 0.0, EDGE_OUT),
+                crate::hud::fade(EDGE, 0.0, EDGE_OUT),
+            ],
+            Edge::Lit { face, scale } => self.lit_edge(host, face, scale),
+        }
     }
 
     /// Removes the virtual outputs that the construct added before it
@@ -1529,6 +1628,7 @@ mod tests {
             floats: vec![None; faces],
             landing: None,
             hover: None,
+            lit: None,
             press: None,
             live: None,
             step_back_key: None,
