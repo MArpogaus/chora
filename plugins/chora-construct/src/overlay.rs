@@ -500,6 +500,8 @@ impl Construct {
             || self.help
             || self.asked
             || self.moving.is_some()
+            || self.glide.is_some()
+            || self.cube_turns()
             || self.effects.animating();
         if busy || !self.active {
             return None;
@@ -580,8 +582,9 @@ impl Construct {
             return Ok(());
         }
         let set = self.hint_set();
-        let wanted = set.map(|s| (s, self.hint_hover.clone()));
-        if wanted == self.hints.shown {
+        let front = self.cube.as_ref().map_or(0, |c| c.front_face().0);
+        let wanted = set.map(|s| (s, self.hint_hover.clone(), front));
+        if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
             return Ok(());
         }
         let had = self.hints.shown.take();
@@ -604,6 +607,8 @@ impl Construct {
                 commands
             })?);
             if set == crate::hints::Set::Cube {
+                let corner = crate::hints::origin(&self.styled(), &items, out);
+                commands.extend(self.face_label(corner)?);
                 commands.push(Command::Move {
                     id: crate::modes::MODES.into(),
                     parent: None,
@@ -613,6 +618,46 @@ impl Construct {
         }
         self.hints.shown = wanted;
         self.rt.conn.apply(commands)
+    }
+
+    /// The face label under the front face of the cube stood back.
+    fn face_label(&mut self, [hx, hy]: [f64; 2]) -> Result<Vec<Command>, ClientError> {
+        use chora_kit::words::{Language, Word, say};
+        let Some((front, faces)) = self.cube.as_ref().map(crate::cube::Host::front_face) else {
+            return Ok(Vec::new());
+        };
+        let node = crate::cube::face_id(front);
+        let nodes: Vec<Value> = self
+            .rt
+            .conn
+            .call("scene.query", Query::new(format!("id:{node}")))?;
+        let rect = nodes
+            .first()
+            .and_then(|n| n["rects"].as_object()?.values().next()?.as_array().cloned());
+        let Some(rect) = rect.filter(|r| r.len() == 4) else {
+            return Ok(Vec::new());
+        };
+        let r: Vec<f64> = rect.iter().filter_map(Value::as_f64).collect();
+        let at = [r[0] + r[2] / 2.0 - hx, r[1] + r[3] - hy];
+        let manager = self.settings.value.cube_manager.clone();
+        let manager = manager
+            .strip_prefix("chora-")
+            .unwrap_or(&manager)
+            .to_owned();
+        let (face, count) = ((front + 1).to_string(), faces.to_string());
+        let words = say(
+            Language::of_session(),
+            Word::Face,
+            &[("face", &face), ("faces", &count)],
+        );
+        self.fitted(|s| {
+            crate::hints::face_label(
+                &s.styled(),
+                (&manager, &format!("· {words}")),
+                (front, faces),
+                at,
+            )
+        })
     }
 
     /// The pointer rests low or not: the hints of the walk follow it.
@@ -651,7 +696,7 @@ impl Construct {
                 .hints
                 .shown
                 .as_ref()
-                .is_some_and(|(s, _)| *s == crate::hints::Set::Cube)
+                .is_some_and(|(s, _, _)| *s == crate::hints::Set::Cube)
                 && crate::modes::is_chip(node));
         if !hint {
             return Ok(false);

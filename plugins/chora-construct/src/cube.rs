@@ -162,7 +162,7 @@ fn turned_at(press: &mut Option<Press>, x: f64) {
     }
 }
 
-fn face_id(i: usize) -> String {
+pub(crate) fn face_id(i: usize) -> String {
     format!("{FACE}{i}")
 }
 
@@ -582,6 +582,11 @@ impl Host {
     pub(crate) fn take_focus(&mut self) -> Option<String> {
         let (window, front) = self.focus.take()?;
         (front == self.front).then_some(window)
+    }
+
+    /// The face at the front and the number of faces.
+    pub(crate) fn front_face(&self) -> (usize, usize) {
+        (self.front, self.outputs.len())
     }
 
     /// The output of the face at the front.

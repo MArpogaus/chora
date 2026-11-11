@@ -276,7 +276,7 @@ impl Construct {
             commands
         })?;
         self.rt.conn.try_apply(commands)?;
-        self.hints.shown = None;
+        self.hints.stale = true;
         self.draw_hints()
     }
 

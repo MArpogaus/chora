@@ -79,6 +79,7 @@ impl Construct {
             self.tick()?;
             self.check_cube()?;
             self.animation_frame()?;
+            self.draw_hints()?;
         }
     }
 
