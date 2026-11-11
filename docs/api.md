@@ -472,30 +472,39 @@ wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
 unless the caller sent some, and stop their own drag. `chora-tiling`
 goes on with a drag that it receives: the window sits with `point`,
 kept inside the window, under the pointer and wobbles on from the
-springs. `chora-construct` grabs `move` too: a window that
+springs. `chora-construct` grabs `move` too, while the camera
+is in no window; inside a window a press of `move` goes to that window,
+so a window that draws its own title bar keeps its click. A window that
 comes with its drag becomes a pane, moved so that `point` is under the
 pointer, and the moves and the release of `move` drag and drop the pane
 as a drag with the modifier does. The pane of an own window wobbles on
-with a depth, and the camera stays where it is. A pane of an own window
-that a drag drops over a face of the cube goes back: the construct
-gives the window to the window manager of the cube and asks it, with
-`window.move` and `at`, to put it on the output of that face at the drop
-point. So a move from face to face looks like a move inside that window
+with a depth, and the camera stays where it is: it leaves a window
+that it is in, and a pane with a corner behind the eye goes ahead of it
+first. A pane of an own window that a drag drops over a resting face of
+the cube goes back: the construct gives the window to the window
+manager whose claim holds the drop point on the output of that face, as
+a drop on a screen does, and asks it, with `window.move` and `at`, to
+put it there. So a move from face to face looks like a move inside that window
 manager. `chora-xp` and `chora-mc` grab no `move` and so receive no
 drag.
 
 `chora-xp` gives by itself on a virtual output: when the drag of a title
-bar leaves the output where it started, the window goes with the drag
+bar is more than 8 pixels outside the output where it started, the
+window goes with the drag
 to the owner of that output, the client that shows it as a pane. When
 the core refuses, as for an injected drag, the window stays with
 `chora-xp` for the rest of the drag.
 
-A gate has no real pointer. On the headless backend only, the
-environment variable `CHORA_TEST_INJECTED_DRAG_GIVES` makes an injected
+A gate has no real pointer. The flag `--test-injected-drag-gives` of
+the core, valid only right after `--headless SPECS`, makes an injected
 button press count as a button press of the user for `give_grab`, and
-for nothing else; the core logs a warning at its start. It is for tests.
+for nothing else. It also turns off the rule that no input was injected
+since the press, as every input of a gate is injected. The core logs a
+warning at its start, and no child inherits the mode, as it is no
+variable of the environment. It is for tests.
 `tests/gate-construct-pull.sh` pulls a window out of a face of the cube
-with it, and checks without it that an injected drag gives nothing.
+with it, and checks without it that the core refuses the give of an
+injected drag.
 
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for
