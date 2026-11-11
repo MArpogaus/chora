@@ -783,7 +783,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+slash`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -960,13 +960,13 @@ terminal inside them.
 
 ### The help panel
 
-`F1`, the key `help`, shows the help over a scrim: a glass panel at the
+`Super+/` and `F1`, the key `help`, show the help over a scrim: a glass panel at the
 top centre, 880 wide in two columns, with the keys that work now in
 groups, the construct's own at the left (Walk, Panes, Cube while a cube
 is open) and those that every look shares at the right (Helper and chat,
 Give a window, Everywhere). Each key is a keycap. The keys come from the
 settings, so a change, for example `modifier: Alt`, shows at once, and a
-key that is not bound has no row. Typing searches the words and the key
+key that is not bound has no row. The row of `Super+/` stands in Everywhere, the row of `F1` in Walk. Typing searches the words and the key
 names: the panel is then 560 wide in one column, the found words are
 marked, `Up` and `Down` move the chosen row, and the footer counts the
 keys that match. `Escape` clears the search, then hides the help; `F1`

@@ -210,6 +210,8 @@ help_contrast() {
     fi
 }
 
+help_shown() { ctl query id:construct-help | jq -e 'length > 0 and (.[0].visible != false) and (.[0].opacity // 1) > 0.9' >/dev/null 2>&1; }
+
 first_floor() {
     local tag=$1 scale=1 w=${2%x*} h=${2#*x} x y cw ch
     [[ $2 == *@* ]] && scale=${2#*@}
@@ -480,6 +482,11 @@ SCRIPT
     audit help-search "$tag"
     key Escape
     key Escape
+    key Super+slash
+    until_ok 'help_shown' || { echo "FAIL: $tag: Super+slash shows no help"; failed=1; }
+    key Super+slash
+    until_ok '! help_shown' || { echo "FAIL: $tag: Super+slash does not hide the help"; failed=1; }
+    ok "$tag: Super+slash shows and hides the help"
     ctl query 'app_id:sunset kind:surface' | jq -e 'length == 1' >/dev/null ||
         echo "FAIL: $tag: the window of the pane is lost"
     more_panes "$tag" "$size"

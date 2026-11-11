@@ -385,6 +385,16 @@ impl Config {
         let letters =
             |actions: &[Action]| -> Vec<String> { actions.iter().flat_map(|a| one(*a)).collect() };
         let second = |action: Action| bound(action).into_iter().nth(1).unwrap_or_default();
+        let help = bound(Action::Help);
+        let shared_help = (help
+            .iter()
+            .find(|k| k.first().is_some_and(|m| m == "Super")))
+        .or_else(|| help.first())
+        .cloned()
+        .unwrap_or_default();
+        let walk_help = (help.iter().find(|k| **k != shared_help))
+            .cloned()
+            .unwrap_or_default();
         let walk = KeyGroup {
             head: "Walk".into(),
             shared: false,
@@ -407,6 +417,7 @@ impl Config {
                 row("Back to the start", one(Action::Home), Vec::new()),
                 row("Fly into the pane ahead", one(Action::FlyIn), Vec::new()),
                 row("Show the windows", one(Action::Windows), Vec::new()),
+                row("Show the keys of the walk", walk_help, Vec::new()),
                 row(
                     "Open the cube",
                     if cube { Vec::new() } else { one(Action::Cube) },
@@ -486,7 +497,7 @@ impl Config {
                 shared: true,
                 rows: vec![
                     row("Back out one step", chord("Escape"), Vec::new()),
-                    row("Show these keys", one(Action::Help), Vec::new()),
+                    row("Show these keys", shared_help, Vec::new()),
                 ],
             },
         ]);
