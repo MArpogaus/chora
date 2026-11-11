@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~08:00 Bangkok: "New cube has no floating Windows. Ensure same look as before." The old xp desktop cube lifted each window as its own plane in front of its face, staggered by stacking (status/img/xp-cube-3d.png). The construct cube must look the same: windows float while standing back or turning, flat at 1:1 in use mode. Sent to the D69 worker as the next lane, design note first.
 - 11-11 05:59 Bangkok (message during the 5-hour stop): Fable 40 %, all 58 %. "Floating windows in cube still working?" The 5-hour limit stopped all lanes at about 18:25 Bangkok (reset 21:20); the container restarted; resumed at 06:00. Five heavy lanes hit the 5-hour limit in about 3 h: run at most four, with demo polish and virtual-2 held until a slot frees.
 - 18:00 Bangkok: "Reset Fable when it hits the limit, keep going." No throttling: the user resets Fable at its limit. Heavy lanes lean on Fable workers; demo polish D2 started as a Fable worker (session_016iS3kMz3yvq4o7Xxb8ASmu, claude/demo).
 - 17:52 Bangkok: Fable 30 %, all 52 %. Today used about 37 points of the week (15 % at the end of 11-09); the week resets Saturday. Pace from now: about 14 points a day for the rest of the week; heavy work leans on Fable (its pool can be reset), no new lanes tonight, reviews stay compact.
