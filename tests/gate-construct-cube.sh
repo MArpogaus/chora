@@ -12,11 +12,11 @@
 #    TURN LEFT, TURN RIGHT and STEP IN show; a still cube draws nothing,
 #    by render.stats. The method leaves the keyboard with the window.
 #    The chips are at least 24 px high, below the title band of a window
-#    and above the taskbar. In use mode Escape reaches the window, the
-#    turn keys turn the cube, and a turn key during a turn queues one
-#    turn. Alt+Escape steps back and takes the keyboard; Return steps in
-#    and the window of before takes typed text again, but not after a
-#    step into another face. A click on a face and a click on the chip
+#    and above the taskbar; the chip STEP BACK covers no desktop icon.
+#    In use mode Escape reaches the window, the turn keys turn the cube,
+#    and a turn key during a turn queues one turn. Alt+Escape steps back
+#    and takes the keyboard; Return steps in and the window of before
+#    takes typed text again, but not after a step into another face. A click on a face and a click on the chip
 #    STEP IN step in. In navigate mode the edge of the face under the
 #    pointer is lit, and a drag on a face turns the cube by one face.
 #    With the grant input.grab-any and fly_out Escape, Escape alone
@@ -168,6 +168,18 @@ ok "a still cube renders 0 passes and has no damage, by render.stats"
 call view.step_in >/dev/null || fail "view.step_in"
 until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
 prop construct-mode-step-back-text text | grep -q "Alt+Esc" || fail "the chip STEP BACK does not name its key: $(prop construct-mode-step-back-text text)"
+covered_icons() {
+    { ctl query id:construct-mode-step-back; ctl query "owner:xp kind:image"; } | python3 -I -c '
+import json, sys
+chip, images = [json.loads(part) for part in sys.stdin.read().replace("]\n[", "]\0[").split("\0")]
+c = chip[0]["rects"]["HEADLESS-1"]
+for n in images:
+    r = n["rects"].get(sys.argv[1])
+    if n["id"].startswith("xp-icon-") and r and r[0] < c[0] + c[2] and c[0] < r[0] + r[2] and r[1] < c[1] + c[3] and c[1] < r[1] + r[3]:
+        print(n["id"])' "$front"
+}
+until_ok 'test -z "$(covered_icons)"' 20 || fail "the chip STEP BACK covers the desktop icons $(covered_icons)"
+ok "the chip STEP BACK covers no desktop icon of the face"
 
 before=$(keys_got 1)
 plain Escape
