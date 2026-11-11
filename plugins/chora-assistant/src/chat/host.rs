@@ -175,10 +175,7 @@ fn voice_client(voice: Option<&(String, &'static str)>) -> String {
 
 /// The `chat:` values of the folder on the screen.
 fn chat_look(values: &Values) -> Look {
-    values
-        .hud
-        .as_ref()
-        .map_or_else(Look::default, |hud| hud.chat.clone())
+    values.chat()
 }
 
 /// The rows by id, each with its text and its words in their colours:

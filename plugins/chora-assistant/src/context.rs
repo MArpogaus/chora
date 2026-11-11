@@ -5,7 +5,10 @@
 //! never switches while a question waits or the chat field has the
 //! keyboard.
 
-use std::time::{Duration, Instant};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 use chora_kit::hud::Context;
 use chora_scene::{
@@ -208,6 +211,8 @@ pub struct Switcher {
     scene: bool,
     question: bool,
     field: bool,
+    /// The theme that each window manager named, by client.
+    themes: BTreeMap<String, String>,
 }
 
 impl Default for Switcher {
@@ -238,6 +243,7 @@ impl Switcher {
             scene: true,
             question: false,
             field: false,
+            themes: BTreeMap::new(),
         }
     }
 
@@ -294,6 +300,24 @@ impl Switcher {
     /// The state of the helpers, as the context names it.
     pub fn set_agents(&mut self, agents: &str, now: Instant) {
         self.set(|context| &mut context.agents, agents, now);
+    }
+
+    /// A window manager named its theme, `light` or `dark`; another word
+    /// changes nothing.
+    pub fn set_theme(&mut self, client: &str, theme: &str, now: Instant) {
+        if !["light", "dark"].contains(&theme) {
+            return;
+        }
+        self.themes.insert(client.to_owned(), theme.to_owned());
+        let theme = self.theme_of(&self.wanted);
+        self.set(|context| &mut context.theme, &theme, now);
+    }
+
+    /// The theme of the space, else of the window manager, else light.
+    fn theme_of(&self, context: &Context) -> String {
+        (self.themes.get(&context.space))
+            .or_else(|| self.themes.get(&context.wm))
+            .map_or_else(|| "light".to_owned(), String::clone)
     }
 
     fn set(&mut self, field: fn(&mut Context) -> &mut String, value: &str, now: Instant) {
@@ -365,6 +389,7 @@ impl Switcher {
                 self.wanted.wm.clone_from(&self.wanted.space);
             }
             self.wanted.app = place.app;
+            self.wanted.theme = self.theme_of(&self.wanted);
         }
         if self.wanted.space.is_empty() {
             self.scene = true;
@@ -544,6 +569,33 @@ mod tests {
         let mut switcher = Switcher::new();
         switcher.resolve(Some(place.clone()), Instant::now());
         switcher.applied().clone()
+    }
+
+    #[test]
+    fn the_theme_is_that_of_the_space_else_of_the_window_manager() {
+        let now = Instant::now();
+        let mut switcher = Switcher::new();
+        let place = |wm: &str, space: &str| Place {
+            wm: wm.into(),
+            space: space.into(),
+            app: "foot".into(),
+            output: "HEADLESS-1".into(),
+            focused: true,
+            screens: vec!["HEADLESS-1".into()],
+        };
+        switcher.set_theme("mc", "dark", now);
+        switcher.set_theme("construct", "light", now);
+        switcher.set_theme("mc", "purple", now);
+        switcher.resolve(Some(place("mc", "mc")), now);
+        assert_eq!(switcher.applied().theme, "dark");
+        switcher.resolve(Some(place("mc", "construct")), now);
+        assert_eq!(switcher.applied().theme, "light", "a pane of the construct");
+        switcher.resolve(Some(place("mc", "tiling")), now);
+        assert_eq!(switcher.applied().theme, "dark", "tiling names no theme");
+        switcher.set_theme("mc", "light", now);
+        assert!(switcher.due().is_some());
+        switcher.resolve(None, now);
+        assert_eq!(switcher.applied().theme, "light");
     }
 
     #[test]

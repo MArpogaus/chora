@@ -81,6 +81,10 @@ const EVENTS: &[&str] = &[
     "pointer.pressed",
     "output.changed",
     "output.removed",
+    "construct.theme",
+    "mc.theme",
+    "tiling.theme",
+    "xp.theme",
 ];
 
 /// The assistant of the voice agent.
@@ -243,6 +247,10 @@ impl Plugin for Agent {
                 client,
                 data,
             } => {
+                if event == format!("{client}.theme") {
+                    let theme = data["theme"].as_str().unwrap_or_default();
+                    self.switcher.set_theme(&client, theme, Instant::now());
+                }
                 self.slot_event(&event, &client, &data)?;
                 self.voice_event(&event, &client, &data)?
             }

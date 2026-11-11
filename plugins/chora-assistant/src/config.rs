@@ -151,6 +151,8 @@ pub struct Values {
     /// context without loading it again; none for the dot and an asset
     /// folder.
     pub hud: Option<Hud>,
+    /// The look is in the dark theme.
+    pub dark: bool,
 }
 
 /// The panel of the sentence.
@@ -274,6 +276,16 @@ fn clicks(figure: bool, voice: Option<&chora_kit::hud::Panel>) -> (bool, bool) {
     )
 }
 
+/// The fields of the context that a folder reads: those of its `when`s,
+/// and the theme when it has a dark block.
+fn watches(folder: &Hud) -> BTreeSet<String> {
+    (folder.panels.iter())
+        .flat_map(|panel| panel.when.keys())
+        .chain(folder.dark.as_ref().map(|_| "theme"))
+        .map(str::to_owned)
+        .collect()
+}
+
 /// The gap between the figure of an asset folder and its Chat row.
 const ROW_GAP: i32 = 8;
 /// The height of the dot of the host.
@@ -286,10 +298,12 @@ impl Values {
     /// of the host.
     #[must_use]
     pub fn from_hud(
-        hud: &Hud,
+        folder: &Hud,
         context: &Context,
         size: impl Fn(Sheet) -> Option<[i32; 2]>,
     ) -> Self {
+        let themed = folder.in_theme(context.dark());
+        let hud = &themed;
         let voice = hud.panels.iter().find(|panel| {
             panel.source == Source::Voice && panel.picture.is_some() && panel.when.matches(context)
         });
@@ -342,14 +356,21 @@ impl Values {
             ),
             row_box: helpers_panel(hud, context)
                 .map_or((None, None), |panel| (panel.fill, panel.border)),
-            watches: hud
-                .panels
-                .iter()
-                .flat_map(|panel| panel.when.keys())
-                .map(str::to_owned)
-                .collect(),
-            hud: Some(hud.clone()),
+            watches: watches(folder),
+            hud: Some(folder.clone()),
+            dark: context.dark(),
         }
+    }
+
+    /// The look of the chat in the theme of the values; the host's for
+    /// values that do not come from a folder.
+    #[must_use]
+    pub fn chat(&self) -> chora_kit::hud::Chat {
+        self.hud
+            .as_ref()
+            .map_or_else(chora_kit::hud::Chat::default, |hud| {
+                hud.in_theme(self.dark).chat
+            })
     }
 
     /// The values of the same folder in another context, none for values
@@ -383,6 +404,7 @@ impl Values {
             row_box: (None, None),
             watches: BTreeSet::new(),
             hud: None,
+            dark: false,
         }
     }
 
@@ -410,6 +432,7 @@ impl Values {
             row_box: (None, None),
             watches: BTreeSet::new(),
             hud: None,
+            dark: false,
         }
     }
 }
@@ -726,6 +749,30 @@ mod tests {
         assert!(values.mutes);
         let quiet = text.replace(", action: mute", "");
         assert!(!self::values(&quiet).mutes);
+    }
+
+    #[test]
+    fn the_dark_theme_takes_the_dark_colours_of_the_folder() {
+        let text = "hud: 1\npanels:\n- {id: rows, source: agents, anchor: top_right, rows: '{name}', \
+            action: chat, fill: [255, 255, 255], colours: {text: [20, 20, 20]}}\nchat:\n  fill: \
+            [250, 250, 250]\n  text: [20, 20, 20]\ndark:\n  chat: {fill: [28, 28, 28], text: \
+            [217, 212, 201]}\n  panels:\n    rows: {fill: [28, 28, 28], colours: {text: [217, 212, 201]}}\n";
+        let hud = hud::parse(text).unwrap();
+        let dark = Context {
+            theme: "dark".into(),
+            ..Context::default()
+        };
+        let values = Values::from_hud(&hud, &dark, |_| None);
+        assert_eq!(values.row_box.0, Some([28, 28, 28]));
+        assert_eq!(values.helpers.1.text, Some([217, 212, 201]));
+        assert_eq!(values.chat().fill, Some([28, 28, 28]));
+        assert!(
+            values.watches.contains("theme"),
+            "a change of theme picks again"
+        );
+        let light = Values::from_hud(&hud, &Context::default(), |_| None);
+        assert_eq!(light.chat().fill, Some([250, 250, 250]));
+        assert_eq!(Values::neutral("sans-serif").chat(), hud::Chat::default());
     }
 
     #[test]
