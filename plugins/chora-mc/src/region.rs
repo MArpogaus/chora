@@ -154,6 +154,10 @@ pub struct Content {
     /// The format of a clock, as `date` takes it.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub format: String,
+    /// A text shows `Nothing new.` while it has no lines, in the language
+    /// of the session, under its title.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub empty: bool,
     /// The style of the text: `running_head` without a base for the head,
     /// the clock and the state, `hud` for the HUD, `margin` for a text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -607,7 +611,10 @@ impl Mc {
                 self.key_items(slot, name, content, region)
             };
         }
-        let (title, text) = self.content_text(name, content, scene);
+        let (title, mut text) = self.content_text(name, content, scene);
+        if content.empty && text.is_empty() && !region.is_line() {
+            text = crate::keys::nothing_new(chora_kit::words::Language::of_session()).into();
+        }
         let id = format!("{}-{name}", self.region_id(region));
         let item = |id: String, is_title: bool, text: &str, first: bool| {
             let props = self.content_type(content, is_title).props(text);

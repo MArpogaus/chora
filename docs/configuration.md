@@ -425,7 +425,7 @@ theme.
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`; a critical one also shows in red in the text `urgent` until the next one |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one also shows in red in the text `urgent` until the next one |
 | `notify.clear` | none; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
@@ -602,7 +602,7 @@ The `contents` are named. Their `kind` is one of:
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | the sign and the name of each agent of `agent.set`, each in the color of its state, in the style `hud` |
-| `text` | a `title` and `lines` that `content.set` and `content.add` change |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) under its title while it has no lines, as `notify` does |
 | `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all bindings and then the six again |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 

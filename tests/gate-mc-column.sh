@@ -144,5 +144,19 @@ column_at() {
     shot "$size"
     ok "at $size the column stands at $left to $((left + width)), nothing is clipped"
 }
+notices() { texts | grep -c ' Note [0-9]$'; }
+has_text "NOTIFICATIONS" || fail "no NOTIFICATIONS head on an empty column"
+has_text "Nothing new." || fail "the empty notifications do not say so"
+ok "an empty column says Nothing new. under its head"
+for n in 1 2 3 4; do
+    ctl call mc notify.push "{\"title\": \"Note $n\"}" >/dev/null || fail "notify.push"
+done
+until_ok '[ "$(notices)" = 3 ]' 20 || fail "the column shows $(notices) notifications, not 3: $(texts | tr '\n' '|')"
+has_text "Nothing new." && fail "Nothing new. stays beside notifications"
+shot notifications
+ok "three notifications show, the newest first, and no Nothing new."
+ctl call mc notify.clear '{}' >/dev/null
+until_ok 'has_text "Nothing new."' 20 || fail "Nothing new. does not come back"
+
 column_at 1280x720 888 336
 column_at 1920x1080 1416 448

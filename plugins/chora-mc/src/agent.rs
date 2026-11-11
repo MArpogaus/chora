@@ -13,13 +13,15 @@ use crate::{
     Mc,
     config::{Color, Style},
     invalid,
-    region::{self, Content, Item, MAX_LINES, Region},
+    region::{self, Content, Item, Region},
     scene::{Panel, check_name},
 };
 
 /// The scene that shows the agents, one column each.
 const SCENE: &str = "agents";
 
+/// The lines of the notifications: three, with a blank line between them.
+const NOTIFY_LINES: usize = 5;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
@@ -510,7 +512,7 @@ impl Mc {
                 lines.push(String::new());
             }
             lines.extend(old);
-            lines.truncate(MAX_LINES);
+            lines.truncate(NOTIFY_LINES);
             while lines.last().is_some_and(String::is_empty) {
                 lines.pop();
             }

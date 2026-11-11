@@ -4,6 +4,14 @@
 
 use crate::config::{Action, Config};
 
+/// The words of an empty list of notifications.
+pub fn nothing_new(language: chora_kit::words::Language) -> &'static str {
+    match language {
+        chora_kit::words::Language::En => "Nothing new.",
+        chora_kit::words::Language::De => "Nichts Neues.",
+    }
+}
+
 /// How much of the key list shows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum List {

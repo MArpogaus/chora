@@ -218,7 +218,7 @@ contents:
   state: {kind: state}
   hud: {kind: hud}
   agents: {kind: agents}
-  notify: {kind: text, title: Notifications}
+  notify: {kind: text, title: Notifications, empty: true, style: {base: body}}
   urgent: {kind: text, style: {base: running_head, color: red}}
   # The box of the chat of the HUD host, alone in the drawer while the
   # host shows the chat on the output of mc.
