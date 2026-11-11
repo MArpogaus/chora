@@ -196,3 +196,13 @@ starting one, and agents' briefs say the same.
 The ux-chat worker committed to the log branch with --no-verify, then
 redid the commit through the hooks and reported it. Rule stands: never
 --no-verify; if a hook blocks, report. Added to the next briefs.
+
+## 28 (11-11 ~19:00): the UX loop missed visible flaws in the xp HUD
+The user saw in hud-xp.png: the paperclip stretched and clipped at its
+edges; a "Chat ..." balloon beside a separate chat panel instead of one
+balloon that expands. UX loop 1 and the HUD review passed it. Cause: the
+reviews judged layout and words, not the pixels, and checked the design
+note, not what a person expects of the paperclip. Fix: the perfection
+rule of the charter (UI reviews), and every UI review now gets the
+captures at 1x and 2x and a checklist: aspect ratio of pictures, edges
+and clipping, one surface per thing, alignment, spacing.
