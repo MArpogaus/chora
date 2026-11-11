@@ -42,6 +42,8 @@ pub struct Place {
     pub output: String,
     /// A window has the focus.
     pub focused: bool,
+    /// The screens: the outputs that are not virtual.
+    pub screens: Vec<String>,
 }
 
 /// The claims of the nodes of a query: owner and area, for each visible node
@@ -97,7 +99,9 @@ fn claimant(claims: &[Claim], [px, py]: [f64; 2]) -> Option<&str> {
 /// The place of the focus, from the focused surface of a query (none: no
 /// focus), the claims and the outputs. Without a focus, the window manager
 /// is the one that claims the first output and the app is empty; the
-/// [`Switcher`] keeps the output and the space of before. The output is
+/// [`Switcher`] keeps the space of before. The [`Switcher`] keeps the
+/// output of the HUD while it is a screen, so that the HUD does not jump
+/// between screens with the focus. The output is
 /// never a virtual one: its content shows only where a pane of its owner
 /// draws it.
 #[must_use]
@@ -127,6 +131,10 @@ pub fn place_of(focused: Option<&Value>, claims: &[Claim], outputs: &[OutputInfo
             .to_owned(),
         output: output.map(|o| o.name.clone()).unwrap_or_default(),
         focused: focused.is_some(),
+        screens: (outputs.iter())
+            .filter(|o| o.is_virtual != Some(true))
+            .map(|o| o.name.clone())
+            .collect(),
     }
 }
 
@@ -344,12 +352,14 @@ impl Switcher {
         self.scene = false;
         if let Some(place) = place {
             self.app.clone_from(&place.app);
-            let seen = !self.wanted.output.is_empty();
-            if place.focused || !seen {
+            let kept = place.screens.contains(&self.wanted.output);
+            if place.focused || !kept {
                 self.wanted.wm = place.wm;
                 self.wanted.space = place.space;
+            }
+            if !kept {
                 self.wanted.output = place.output;
-            } else {
+            } else if !place.focused {
                 self.wanted.wm.clone_from(&self.wanted.space);
             }
             self.wanted.app = place.app;
@@ -583,6 +593,30 @@ mod tests {
         assert_eq!(on_a.space, "mc");
     }
 
+    /// M4: the HUD stays on its screen while the focus moves between
+    /// window managers on two screens; only the look follows the focus.
+    /// When its screen goes, it moves to the screen of the focus.
+    #[test]
+    fn the_hud_keeps_its_screen_while_the_focus_moves() {
+        let claims = claims_of(&[
+            group("tiling", [0.0, 0.0, 1280.0, 800.0]),
+            group("xp", [1280.0, 0.0, 1280.0, 800.0]),
+        ]);
+        let both = [output("A", [0, 0]), output("B", [1280, 0])];
+        let mut switcher = Switcher::new();
+        let now = Instant::now();
+        let mut focus = |wm: &str, on: &str, outputs: &[OutputInfo]| {
+            switcher.touch(now);
+            let place = place_of(Some(&window(wm, "x", on)), &claims, outputs);
+            switcher.resolve(Some(place), now);
+            let applied = switcher.applied();
+            (applied.wm.clone(), applied.output.clone())
+        };
+        assert_eq!(focus("tiling", "A", &both), ("tiling".into(), "A".into()));
+        assert_eq!(focus("xp", "B", &both), ("xp".into(), "A".into()));
+        assert_eq!(focus("xp", "B", &both[1..]), ("xp".into(), "B".into()));
+    }
+
     #[test]
     fn without_a_focus_the_claimant_of_the_first_output_stands_in() {
         let claims = claims_of(&[group("mc", [0.0, 0.0, 1280.0, 800.0])]);
@@ -700,6 +734,7 @@ mod tests {
             app: "foot".into(),
             output: "DP-1".into(),
             focused: true,
+            screens: vec!["DP-1".into()],
         };
         let context = context(&place);
         for key in chora_kit::hud::CONTEXT_KEYS {
@@ -826,12 +861,14 @@ mod tests {
             app: "foot".into(),
             output: "B".into(),
             focused: true,
+            screens: vec!["A".into(), "B".into()],
         };
         switcher.resolve(Some(on_b), now);
         let none = Place {
             wm: "mc".into(),
             space: "mc".into(),
             output: "A".into(),
+            screens: vec!["A".into(), "B".into()],
             ..Place::default()
         };
         switcher.touch(now);
