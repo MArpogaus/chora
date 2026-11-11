@@ -992,13 +992,15 @@ keys reach it during the fly-in too. `Alt+Escape` steps back at any time
 of the fly-in. `Super+t` in a pane steps back, opens a second terminal
 right of the first at the same distance and flies into it over 480 ms;
 the keys that start a terminal and carry a modifier are grabbed while
-the camera is in a pane.
+the camera is in a pane. A terminal that `Super+t` starts from the walk
+while a pane stands opens beside the panes at the same distance from the
+camera, not far off in the fog.
 
 ### Notices
 
 A notice of the construct, such as a refused give or the hint that the
 keys walk, shows for 4 seconds as one line of text on a glass capsule
-under the island at the top right, 32 from the edge and at most 360
+under the island at the top right, 32 from the edge and at most 520
 wide, while the host draws the HUD (`voice_hud: host`). A refused give
 names the window manager by its display name (`XP`, `Tiling`, `Media
 center`, `Construct`) and the reason, as in `Tiling did not take the

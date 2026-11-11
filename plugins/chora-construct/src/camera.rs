@@ -465,6 +465,15 @@ impl Construct {
             .collect()
     }
 
+    /// The place right of the panes for a new pane, as seen from `from`, at
+    /// the distance of the panes, and the yaw that faces `from`.
+    pub(crate) fn beside_spot(&self, from: Pose) -> ([f64; 2], f64) {
+        let size = [self.lens.w, self.lens.h];
+        let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
+        let at = space::beside(&from, self.settings.value.pane_distance, size[0], &others);
+        (at, space::facing([from.x, from.z], at))
+    }
+
     /// A terminal from use mode: steps back, then starts the terminal
     /// to open right of the pane that the camera stood in, at the same
     /// distance from where the fly-in began, and fly into it.
@@ -473,12 +482,7 @@ impl Construct {
             .or_else(|| self.glide.as_ref().and_then(|g| g.into.as_ref()))
             .map(|f| f.back);
         self.fly_out()?;
-        let spot = back.map(|back| {
-            let size = [self.lens.w, self.lens.h];
-            let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
-            let at = space::beside(&back, self.settings.value.pane_distance, size[0], &others);
-            (at, space::facing([back.x, back.z], at))
-        });
+        let spot = back.map(|back| self.beside_spot(back));
         self.start_terminal_at(spot);
         Ok(())
     }

@@ -247,7 +247,8 @@ impl Construct {
     /// Starts the program of the key `terminal`; its window becomes a
     /// pane ahead, as a program pane of a construct.
     pub(crate) fn start_terminal(&mut self) {
-        self.start_terminal_at(None);
+        let spot = (!self.panes.is_empty()).then(|| self.beside_spot(self.target()));
+        self.start_terminal_at(spot);
     }
 
     /// Starts the terminal; its pane stands at the place and yaw `spot`,
