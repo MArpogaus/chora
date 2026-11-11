@@ -22,7 +22,8 @@ use chora_kit::{
     notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
-    volume::{self, Volume},
+    volume::{self, Mixer, Reading},
+    words::Language,
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -56,6 +57,9 @@ use crate::{
     window::{self, Window},
 };
 
+/// How often the speakers read the volume again; a change reads it at
+/// once.
+const VOLUME_AGAIN: Duration = Duration::from_secs(5);
 /// The client name, and the group of all nodes of the plugin.
 pub const NAME: &str = "xp";
 const WALLPAPERS: &str = "xp-wallpapers";
@@ -310,10 +314,13 @@ pub struct Wm {
     /// The programs that started and show no window yet.
     launches: Launches,
     notifier: Notifier,
-    /// The volume that the speaker of the taskbars shows.
-    volume: Option<Volume>,
-    /// The indicator of the volume keys.
-    indicator: volume::Indicator,
+    /// The reading that the speaker of the taskbars shows; none before
+    /// the first.
+    volume: Option<Reading>,
+    /// Runs wpctl off the main loop.
+    mixer: Mixer,
+    /// When the volume was last read.
+    volume_read: Instant,
 }
 
 impl Plugin for Wm {
@@ -421,8 +428,9 @@ impl Wm {
             kept: HashMap::new(),
             launches: Launches::new(),
             notifier: Notifier::new(),
-            volume: volume::read(),
-            indicator: volume::Indicator::default(),
+            volume: None,
+            mixer: Mixer::new(NAME),
+            volume_read: Instant::now(),
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
@@ -541,7 +549,8 @@ impl Wm {
         );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
-        let tray = (self.clock.as_str(), self.volume);
+        let words = self.volume_words();
+        let tray = (self.clock.as_str(), words.as_str());
         commands.extend(bar.create(&mut self.theme, BARS, tray, self.desktop));
         self.bars.push(bar);
         commands
@@ -774,35 +783,67 @@ impl Wm {
         if !commands.is_empty() {
             self.apply(commands)?;
         }
+        if self.volume_read.elapsed() >= VOLUME_AGAIN {
+            self.volume_read = Instant::now();
+            self.mixer.refresh();
+        }
         let now = self.now();
-        let volume = volume::read();
-        if now != self.clock || volume != self.volume {
+        let reading = self.mixer.take();
+        let changed = reading.is_some_and(|r| Some(r) != self.volume);
+        if changed {
+            self.volume = reading;
+            let commands = self.show_volume();
+            self.apply(commands)?;
+        }
+        if now != self.clock {
             self.clock = now;
-            self.volume = volume;
             let commands = self.trays();
             self.apply(commands)?;
         }
         Ok(())
     }
 
+    /// The words of the speaker, in the language of the session.
+    fn volume_words(&self) -> String {
+        self.volume
+            .map(|r| r.words(Language::of_session()))
+            .unwrap_or_default()
+    }
+
     /// The notification areas of every taskbar, with the clock and the
     /// volume.
     fn trays(&mut self) -> Vec<Command> {
+        let words = self.volume_words();
         self.bars
             .iter()
-            .map(|bar| bar.tray(&mut self.theme, &self.clock, self.volume))
+            .map(|bar| bar.tray(&mut self.theme, &self.clock, &words))
             .collect()
     }
 
-    /// Changes the volume, by a key with the indicator, and shows it on
-    /// the speakers.
+    /// Shows a new reading: the speakers grow or shrink to fit its words,
+    /// and the tasks and the desktop buttons move with them.
+    fn show_volume(&mut self) -> Vec<Command> {
+        let words = self.volume_words();
+        let text = self.theme.text_width(&words, crate::text::Font::Ui);
+        #[allow(clippy::cast_possible_truncation, reason = "a width in pixels")]
+        let width = text.ceil() as i32 + taskbar::SPEAKER_TEXT + 6;
+        let mut moved = false;
+        for bar in &mut self.bars {
+            moved |= bar.set_speaker(width);
+        }
+        let mut commands = self.trays();
+        if moved {
+            commands.extend(self.sync_tasks());
+        }
+        commands
+    }
+
+    /// Changes the volume off the main loop; a key shows the indicator.
+    /// The speakers show the reading after it at the next tick.
     fn change_volume(&mut self, change: volume::Change, by_key: bool) -> Vec<Command> {
-        self.volume = if by_key {
-            self.indicator.change(NAME, change)
-        } else {
-            volume::change(change)
-        };
-        self.trays()
+        self.mixer.change(change, by_key);
+        self.volume_read = Instant::now();
+        Vec::new()
     }
 
     /// The bindings of Keyboard Shortcuts that the plugin holds.
@@ -1390,7 +1431,8 @@ impl Wm {
             &self.settings.value.wallpaper,
             output,
         )];
-        let tray = (self.clock.as_str(), self.volume);
+        let words = self.volume_words();
+        let tray = (self.clock.as_str(), words.as_str());
         commands.extend(self.bars[i].resize(&mut self.theme, output, tray));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
@@ -2977,7 +3019,8 @@ impl Wm {
         for i in 0..self.bars.len() {
             let before = self.bars[i].usable();
             self.bars[i].configure(settings);
-            commands.push(self.bars[i].tray(&mut self.theme, &self.clock, self.volume));
+            let words = self.volume_words();
+            commands.push(self.bars[i].tray(&mut self.theme, &self.clock, &words));
             commands.extend(self.refit(before, self.bars[i].usable()));
         }
         if old.on_top != settings.on_top {
@@ -3142,7 +3185,7 @@ impl Wm {
             current.as_deref(),
             &walls,
             self.effects.toggles,
-            self.volume,
+            self.volume.unwrap_or(Reading::Failed),
             &self.held_shortcuts(),
         )
     }

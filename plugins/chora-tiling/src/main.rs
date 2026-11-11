@@ -136,7 +136,7 @@ struct Tiling {
     /// The meshes of a drag that the next transaction carries.
     meshes: Vec<Command>,
     /// The indicator of the volume keys.
-    volume: chora_kit::volume::Indicator,
+    volume: chora_kit::volume::Mixer,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -180,7 +180,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         effects: Driver::new(&settings_effects),
         bent: HashMap::new(),
         meshes: Vec::new(),
-        volume: chora_kit::volume::Indicator::default(),
+        volume: chora_kit::volume::Mixer::new(NAME),
     };
     tiling.start()?;
     Ok(serve(&mut tiling)?)
@@ -884,7 +884,7 @@ impl Tiling {
             }
             Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
             Some(Effect::Volume(change)) => {
-                self.volume.change(NAME, change);
+                self.volume.change(change, true);
                 Ok(())
             }
             // The same path as the method `settings.reload`.
@@ -1500,7 +1500,7 @@ mod tests {
             effects: Driver::new(effects),
             bent: HashMap::new(),
             meshes: Vec::new(),
-            volume: chora_kit::volume::Indicator::default(),
+            volume: chora_kit::volume::Mixer::new(NAME),
         };
         (tiling, methods)
     }

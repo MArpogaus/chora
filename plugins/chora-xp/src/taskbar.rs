@@ -4,7 +4,6 @@
 
 use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
-use chora_kit::volume::Volume;
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
@@ -34,9 +33,11 @@ const TASK_WIDTH: i32 = 160;
 const TRAY_WIDTH: i32 = 82;
 /// The notification area without the clock.
 const TRAY_EMPTY: i32 = 14;
-/// The speaker of the notification area, left of the clock: a click
-/// mutes or unmutes.
-const SPEAKER: i32 = 64;
+/// The speaker of the notification area, left of the clock, at its
+/// narrowest: a click mutes or unmutes. It grows to fit its words.
+pub const SPEAKER: i32 = 64;
+/// The left of the words of the speaker, right of its shape.
+pub const SPEAKER_TEXT: i32 = 18;
 /// The speaker, drawn in the coordinates of the notification area.
 const SPEAKER_SHAPE: &str = r##"<path d="M7 12h3l5-4v14l-5-4H7z" fill="#ffffff"/>"##;
 /// What shows of a taskbar that hides itself, as on XP.
@@ -146,6 +147,8 @@ pub struct Bar {
     auto_hide: bool,
     /// The clock shows.
     clock: bool,
+    /// The width of the speaker, to fit its words.
+    speaker: i32,
     /// The buttons of the desktops show: not on a virtual output, where
     /// the plugin has no cube of its own.
     pager: bool,
@@ -166,6 +169,7 @@ impl Bar {
             shown: HashMap::new(),
             auto_hide: false,
             clock: true,
+            speaker: SPEAKER,
             pager: output.is_virtual != Some(true),
             kind: Kind::of(output),
             offset: 0.0,
@@ -281,7 +285,7 @@ impl Bar {
         &self,
         theme: &mut Theme,
         parent: &str,
-        (clock, volume): (&str, Option<Volume>),
+        (clock, words): (&str, &str),
         desktop: usize,
     ) -> Vec<Command> {
         let image = |id: String| Command::Create {
@@ -304,7 +308,7 @@ impl Bar {
         commands.extend((0..DESKTOPS).map(|d| image(self.pager_id(d))));
         commands.extend(self.layout(theme));
         commands.push(self.start(theme, "normal"));
-        commands.push(self.tray(theme, clock, volume));
+        commands.push(self.tray(theme, clock, words));
         commands.extend(self.pager(theme, desktop, None));
         commands
     }
@@ -314,11 +318,11 @@ impl Bar {
         &mut self,
         theme: &mut Theme,
         output: &OutputInfo,
-        (clock, volume): (&str, Option<Volume>),
+        (clock, words): (&str, &str),
     ) -> Vec<Command> {
         self.area = output.layout_area();
         let mut commands = self.layout(theme);
-        commands.push(self.tray(theme, clock, volume));
+        commands.push(self.tray(theme, clock, words));
         commands
     }
 
@@ -398,7 +402,16 @@ impl Bar {
 
     /// The width of the notification area.
     fn tray_width(&self) -> i32 {
-        tray_width(self.clock)
+        tray_width(self.clock, self.speaker)
+    }
+
+    /// Sets the width of the speaker, at least [`SPEAKER`]; true when it
+    /// changed, and the tasks and the desktop buttons move.
+    pub fn set_speaker(&mut self, width: i32) -> bool {
+        let width = width.max(SPEAKER);
+        let changed = width != self.speaker;
+        self.speaker = width;
+        changed
     }
 
     /// The clock in scene coordinates, while it shows: a double click
@@ -412,15 +425,20 @@ impl Bar {
     /// The speaker in scene coordinates: a click there mutes or unmutes.
     pub fn speaker_rect(&self) -> Rect {
         let [x, y, w, h] = self.area;
-        [x + w - self.tray_width(), y + h - HEIGHT, SPEAKER, HEIGHT]
+        [
+            x + w - self.tray_width(),
+            y + h - HEIGHT,
+            self.speaker,
+            HEIGHT,
+        ]
     }
 
     /// The notification area with the speaker and the clock, at the right
     /// edge.
-    pub fn tray(&self, theme: &mut Theme, clock: &str, volume: Option<Volume>) -> Command {
+    pub fn tray(&self, theme: &mut Theme, clock: &str, words: &str) -> Command {
         let width = self.tray_width();
         let clock = self.clock.then_some(clock);
-        let picture = tray(width, clock, volume);
+        let picture = tray(width, self.speaker, clock, words);
         update(
             &format!("xp-tray-{}", self.output),
             PropsUpdate {
@@ -530,21 +548,21 @@ impl Bar {
 }
 
 /// The width of a notification area with or without the clock.
-fn tray_width(clock: bool) -> i32 {
-    SPEAKER + if clock { TRAY_WIDTH } else { TRAY_EMPTY }
+fn tray_width(clock: bool, speaker: i32) -> i32 {
+    speaker + if clock { TRAY_WIDTH } else { TRAY_EMPTY }
 }
 
 /// The notification area of a width, with the speaker and its volume at
 /// the left and the clock at the right.
-fn tray(width: i32, clock: Option<&str>, volume: Option<Volume>) -> Picture {
+fn tray(width: i32, speaker: i32, clock: Option<&str>, words: &str) -> Picture {
     let mut picture = Picture::new(width, HEIGHT)
         .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
     picture = picture.svg(SPEAKER_SHAPE).text(Text::new(
-        &chora_kit::volume::label(volume),
+        words,
         Font::Ui,
         WHITE,
-        [18, 0, SPEAKER - 18, HEIGHT],
+        [SPEAKER_TEXT, 0, speaker - SPEAKER_TEXT, HEIGHT],
     ));
     if let Some(clock) = clock {
         let left = width - TRAY_WIDTH;
@@ -621,13 +639,10 @@ pub fn preview(
             }
         }
         Some(clock) => {
-            let width = tray_width(!clock.is_empty());
+            let width = tray_width(!clock.is_empty(), SPEAKER);
             let clock = (!clock.is_empty()).then_some(clock);
-            let sample = Volume {
-                percent: 50,
-                muted: false,
-            };
-            picture = picture.layers_of(tray(width, clock, Some(sample)), [w - width, bar_y]);
+            let tray = tray(width, SPEAKER, clock, "50%");
+            picture = picture.layers_of(tray, [w - width, bar_y]);
         }
     }
     if !on_top {
@@ -689,6 +704,7 @@ mod tests {
             shown: HashMap::new(),
             auto_hide: false,
             clock: true,
+            speaker: SPEAKER,
             pager: true,
             kind: Kind::Screen,
             offset: 0.0,
@@ -750,23 +766,30 @@ mod tests {
     }
 
     #[test]
-    fn the_tray_has_a_speaker_with_the_volume() {
-        let at = |percent, muted| Some(chora_kit::volume::Volume { percent, muted });
-        let width = tray_width(true);
+    fn the_tray_has_a_speaker_with_the_words_of_the_volume() {
+        let width = tray_width(true, SPEAKER);
         assert_eq!(
-            texts(&tray(width, Some("6:46 AM"), at(40, false))),
+            texts(&tray(width, SPEAKER, Some("6:46 AM"), "40%")),
             ["40%", "6:46 AM"]
         );
-        assert_eq!(texts(&tray(width, None, at(40, true))), ["Muted"]);
-        assert_eq!(texts(&tray(width, None, None)), ["No sound"]);
-        let bar = bar(0);
+        assert_eq!(texts(&tray(width, SPEAKER, None, "Muted")), ["Muted"]);
+    }
+
+    #[test]
+    fn the_speaker_grows_to_fit_its_words() {
+        let mut bar = bar(0);
         let [x, y, w, h] = bar.speaker_rect();
         assert_eq!([y, h], [800 - HEIGHT, HEIGHT]);
-        assert!(
-            x + w <= bar.clock_rect().expect("a clock")[0],
-            "left of the clock"
-        );
+        assert_eq!(x + w, bar.clock_rect().expect("a clock")[0]);
         assert!(w >= 24, "a click target of 24 px");
+        let before = bar.task_rect(39);
+        assert!(bar.set_speaker(120), "No output device needs room");
+        assert!(!bar.set_speaker(120), "no change");
+        let [x, _, w, _] = bar.speaker_rect();
+        assert_eq!((w, x + w), (120, bar.clock_rect().expect("a clock")[0]));
+        assert!(bar.task_rect(39)[0] <= before[0], "the tasks make room");
+        assert!(bar.set_speaker(10), "back to the narrowest");
+        assert_eq!(bar.speaker_rect()[2], SPEAKER, "never narrower");
     }
 
     #[test]

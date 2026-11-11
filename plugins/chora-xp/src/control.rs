@@ -7,7 +7,10 @@
 
 use std::path::{Path, PathBuf};
 
-use chora_kit::volume::{Change, Volume};
+use chora_kit::{
+    volume::{Change, Reading},
+    words::Language,
+};
 
 use crate::apps::{Kind, Node};
 
@@ -133,7 +136,7 @@ pub fn menu(
     wallpaper: Option<&Path>,
     walls: &[PathBuf],
     toggles: Toggles,
-    volume: Option<Volume>,
+    reading: Reading,
     held: &[&str],
 ) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
@@ -183,7 +186,7 @@ pub fn menu(
             kind: Kind::Pick(Setting::Display, false),
         },
         group("Effects", "preferences-desktop-effects", effects),
-        group("Sound", "audio-volume-medium", sound(volume)),
+        group("Sound", "audio-volume-medium", sound(reading)),
         Node {
             title: "Taskbar and Start Menu".into(),
             icon: "preferences-system-windows".into(),
@@ -201,16 +204,17 @@ pub fn menu(
 }
 
 /// The rows of Sound: Mute and the volumes, the current one checked
-/// when it is one of them;
-/// without a sound output one row that says so.
-fn sound(volume: Option<Volume>) -> Vec<Node> {
+/// when it is one of them; without a volume one row that says why, in
+/// the language of the session.
+fn sound(reading: Reading) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
         title,
         icon: String::new(),
         kind: Kind::Pick(setting, checked),
     };
-    let Some(volume) = volume else {
-        return vec![pick(chora_kit::volume::label(None), Setting::Note, false)];
+    let Reading::Level(volume) = reading else {
+        let words = reading.words(Language::of_session());
+        return vec![pick(words, Setting::Note, false)];
     };
     let current = (!volume.muted).then_some(volume.percent);
     let mut rows = vec![pick(
@@ -282,7 +286,7 @@ pub fn name_of(stem: &str) -> String {
 mod tests {
     use chora_kit::{
         effects::Kind as Shared,
-        volume::{Change, Volume},
+        volume::{Change, Reading, Volume},
     };
 
     use super::*;
@@ -315,7 +319,13 @@ mod tests {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
         let mut toggles = crate::config::defaults().effects;
         toggles.flip(Effect::Lamp);
-        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles, None, &[]);
+        let menu = menu(
+            Some(Path::new("/w/b.svg")),
+            &walls,
+            toggles,
+            Reading::NoWpctl,
+            &[],
+        );
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
         assert_eq!(name_of("purplef"), "Purple flower");
@@ -346,7 +356,7 @@ mod tests {
     #[test]
     fn sound_shows_the_volume_and_mutes() {
         let toggles = crate::config::defaults().effects;
-        let at = |percent, muted| Some(Volume { percent, muted });
+        let at = |percent, muted| Reading::Level(Volume { percent, muted });
         let loud = menu(None, &[], toggles, at(50, false), &ALL_HELD);
         assert_eq!(
             picks(group(&loud, "Sound")),
@@ -374,14 +384,20 @@ mod tests {
             picks(group(&muted, "Sound"))[..3],
             [("Mute", true), ("25%", false), ("50%", false)]
         );
-        let silent = menu(None, &[], toggles, None, &ALL_HELD);
-        assert_eq!(picks(group(&silent, "Sound")), [("No sound", false)]);
+        for (reading, words) in [
+            (Reading::NoWpctl, "wpctl not found"),
+            (Reading::NoOutput, "No output device"),
+            (Reading::Failed, "Change failed"),
+        ] {
+            let menu = menu(None, &[], toggles, reading, &ALL_HELD);
+            assert_eq!(picks(group(&menu, "Sound")), [(words, false)]);
+        }
     }
 
     #[test]
     fn the_keys_of_every_window_manager_are_on_the_menu() {
         let toggles = crate::config::defaults().effects;
-        let menu = menu(None, &[], toggles, None, &ALL_HELD);
+        let menu = menu(None, &[], toggles, Reading::NoWpctl, &ALL_HELD);
         let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
             panic!("a group");
         };
@@ -405,7 +421,7 @@ mod tests {
     #[test]
     fn only_the_held_keys_are_on_the_menu() {
         let toggles = crate::config::defaults().effects;
-        let menu = menu(None, &[], toggles, None, &["Super+Alt+2"]);
+        let menu = menu(None, &[], toggles, Reading::NoWpctl, &["Super+Alt+2"]);
         let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
             panic!("a group");
         };

@@ -228,7 +228,7 @@ default map:
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
 | `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl` and shows it for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -1549,7 +1549,8 @@ settings, as `settings.set` does:
   and its refusal logs one line. A click on an entry does what its key
   does;
 - **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
-  sound output, through `wpctl`; without one, the entry "No sound";
+  sound output, through `wpctl`; without a volume, one entry says why:
+  "wpctl not found", "No output device" or "Change failed";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -1574,9 +1575,12 @@ keyboard does not work it (D45):
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
-  clock, the speaker shows the volume of the default sound output, as
-  `wpctl` reads it each second: `40%`, `Muted` or `No sound`; a click on
-  it mutes or unmutes. Group
+  clock, the speaker shows the volume of the default sound output:
+  `40%` or `Muted`, or why there is none: `wpctl not found`, `No output
+  device` or `Change failed`, in the language of the session, and it
+  grows to fit the words. `wpctl` runs on a thread of its own, at most 2
+  seconds a call, after each change and every 5 seconds; a click on the
+  speaker mutes or unmutes. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
