@@ -330,7 +330,8 @@ balloon of its own, and a question that it shows has its card inside.
 
 A `bubble` chat of a folder with a figure is the balloon of the figure
 itself, as in xp: it stands above the head of the figure, `width` wide
-and at most six tenths of the work area high, inside the work area, with
+and as high as its content, at most six tenths of the work area, so it
+grows with the transcript, inside the work area, with
 a tail that ends at the head, and the field inside it. A click on the
 balloon of a sentence or on a figure with `action: chat` expands the
 balloon into the chat; a click on the figure or Close collapses it, and

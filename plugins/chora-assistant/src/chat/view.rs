@@ -216,6 +216,17 @@ fn measured(theme: &Theme) -> impl Fn(char) -> f32 + '_ {
     |c| theme.text_width(&c.to_string(), Font::Body) as f32
 }
 
+/// The rectangle of the view: a balloon of the figure as high as its
+/// content, up to its most, its bottom at the tail; any other view as it
+/// is.
+fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
+    if frame.tail().is_none() {
+        return [x, y, w, h];
+    }
+    let high = content.min(h);
+    [x, y + h - high, w, high]
+}
+
 impl Session {
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
@@ -237,8 +248,10 @@ impl Session {
         let room = usize::try_from((rect[3] - body_top - listed - below) / LINE).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
         rows.drain(..rows.len().saturating_sub(room));
+        let content =
+            body_top + listed + LINE * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
         Parts {
-            rect,
+            rect: fitted(frame, rect, content),
             header: self.header(language),
             hint,
             rows,
@@ -455,6 +468,44 @@ mod tests {
         assert_eq!(buttons(&list), [(CLOSE, Word::Close)]);
         let chat = Mode::Chat("atlas".into());
         assert_eq!(buttons(&chat), [(STOP, Word::Stop), (CLOSE, Word::Close)]);
+    }
+
+    #[test]
+    fn a_balloon_is_as_high_as_its_content_up_to_its_most() {
+        let (theme, _, cache) = crate::tests::loaded("balloon-height");
+        let mut frame = Frame {
+            output: "HEADLESS-1".into(),
+            size: [1280, 720],
+            area: [0, 0, 1280, 690],
+            look: Look {
+                style: ChatStyle::Bubble,
+                width: Some(340),
+                ..Look::default()
+            },
+            slot: None,
+            clear: Vec::new(),
+            tip: Some([1144, 560]),
+        };
+        let most = frame.rect();
+        let mut session = Session::new();
+        session.agent_said("Atlas is writing your notes.");
+        let short = session.parts(&theme, &frame, Language::En).rect;
+        assert!(short[3] < most[3] / 2, "{short:?} in {most:?}");
+        assert_eq!(
+            short[1] + short[3],
+            most[1] + most[3],
+            "the tail stays at the head"
+        );
+        session.agent_said(&"many words ".repeat(400));
+        let full = session.parts(&theme, &frame, Language::En).rect;
+        assert_eq!(full, most, "it grows up to its most");
+        frame.tip = None;
+        assert_eq!(
+            session.parts(&theme, &frame, Language::En).rect,
+            frame.rect(),
+            "a panel keeps its size"
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]
