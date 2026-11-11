@@ -23,15 +23,27 @@ panels:
   max_rows: 4
   action: chat
   colours:
-    text: [217, 212, 201]
-    muted: [140, 138, 130]
-    accent: [204, 120, 102]
+    text: [41, 38, 36]
+    muted: [110, 105, 99]
+    accent: [140, 36, 31]
 chat:
   style: plain
   font: TeX Gyre Pagella
   size: 18
   slot: mc
-  fill: [28, 28, 28]
-  text: [217, 212, 201]
-  name: [140, 138, 130]
-  border: [66, 66, 64]
+  fill: [247, 245, 237]
+  text: [41, 38, 36]
+  name: [110, 105, 99]
+  border: [212, 207, 196]
+dark:
+  chat:
+    fill: [28, 28, 28]
+    text: [217, 212, 201]
+    name: [140, 138, 130]
+    border: [66, 66, 64]
+  panels:
+    agents:
+      colours:
+        text: [217, 212, 201]
+        muted: [140, 138, 130]
+        accent: [204, 120, 102]

@@ -81,6 +81,10 @@ const EVENTS: &[&str] = &[
     "pointer.pressed",
     "output.changed",
     "output.removed",
+    "construct.theme",
+    "mc.theme",
+    "tiling.theme",
+    "xp.theme",
 ];
 
 /// The assistant of the voice agent.
@@ -243,6 +247,10 @@ impl Plugin for Agent {
                 client,
                 data,
             } => {
+                if event == format!("{client}.theme") {
+                    let theme = data["theme"].as_str().unwrap_or_default();
+                    self.switcher.set_theme(&client, theme, Instant::now());
+                }
                 self.slot_event(&event, &client, &data)?;
                 self.voice_event(&event, &client, &data)?
             }
@@ -361,6 +369,10 @@ impl Agent {
             chat_row: None,
             said: None,
         };
+        let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
+        (agent.rt.conn)
+            .call::<_, Value>("events.emit", ready)
+            .map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;

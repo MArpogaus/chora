@@ -7,6 +7,14 @@ use super::{
 };
 
 impl Construct {
+    /// Names the theme of the space to the HUD host, which colours its
+    /// look by it.
+    pub(crate) fn name_theme(&mut self) -> Result<(), ClientError> {
+        let dark = self.settings.value.theme == crate::config::Theme::Dark;
+        let emit = chora_kit::hud::theme_event(NAME, dark);
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+    }
+
     /// Builds the space, then takes the events and the free windows.
     pub(crate) fn start(&mut self) -> Result<(), ClientError> {
         if !self.rt.conn.query(&format!("id:{NAME}"))?.is_empty() {
@@ -23,6 +31,7 @@ impl Construct {
         if self.overlay {
             return Ok(());
         }
+        self.name_theme()?;
         self.active = true;
         self.build()?;
         self.regrab()?;

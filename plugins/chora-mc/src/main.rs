@@ -510,9 +510,10 @@ const CHAT: &str = "chat";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 14] = [
+const EVENTS: [&str; 15] = [
     "voice.*",
     "assistant.chat",
+    "assistant.ready",
     "effects.dropped",
     "client.connected",
     "client.disconnected",
@@ -888,6 +889,8 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
+        self.name_theme()
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
         self.rt
             .ungrab_all()
@@ -1021,12 +1024,13 @@ impl Mc {
     }
 
     /// An event of a client (D65): of the voice agent, or `assistant.chat`
-    /// of the HUD host. `voice.*` also matches a client named `voice.evil`:
+    /// and `assistant.ready` of the HUD host. `voice.*` also matches a client named `voice.evil`:
     /// only the agent itself shows its state (review 4.9).
     fn emitted(&mut self, event: &str, client: &str, data: Value) -> Result<(), ClientError> {
         match client {
             VOICE => self.follow(event, client, data),
             ASSISTANT if event == "assistant.chat" => self.chat_drawer(&data),
+            ASSISTANT if event == "assistant.ready" => self.name_theme(),
             _ => Ok(()),
         }
     }
@@ -1056,6 +1060,13 @@ impl Mc {
         self.solo(CHAT, Region::Drawer, Some(open), false)?;
         let rect = if open { self.drawer_box() } else { None };
         let emit = json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+    }
+
+    /// Names the theme of mc to the HUD host, which colours its look by it.
+    fn name_theme(&mut self) -> Result<(), ClientError> {
+        let dark = self.settings.value.theme == config::Theme::Dark;
+        let emit = chora_kit::hud::theme_event(NAME, dark);
         self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
 
@@ -1369,6 +1380,7 @@ impl Mc {
         // After the removal: it detaches the kept windows, and those
         // events would adopt them a second time.
         self.rt.announce(&EVENTS, methods)?;
+        self.name_theme()?;
         self.grab_all()?;
         self.build()?;
         self.grab_drags()?;
@@ -3017,6 +3029,27 @@ mod tests {
                 .iter()
                 .any(|m| m == "indicator.claim")
         );
+    }
+
+    /// mc names its theme to the HUD host when the host says that it
+    /// listens and when the settings change.
+    #[test]
+    fn mc_names_its_theme_to_the_hud_host() {
+        let (mut mc, model) = crate::testing::mc("theme", [1920, 1080]);
+        mc.settings.value.theme = crate::config::Theme::Light;
+        let ready = |client: &str| chora_scene::Event::Emitted {
+            event: "assistant.ready".into(),
+            client: client.into(),
+            data: serde_json::json!({}),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, ready("evil")).unwrap();
+        assert_eq!(model.lock().unwrap().emits.last(), None, "only the host");
+        chora_kit::runtime::Plugin::event(&mut mc, ready("assistant")).unwrap();
+        let last = || model.lock().unwrap().emits.last().cloned();
+        assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", false)));
+        mc.settings.value.theme = crate::config::Theme::Dark;
+        chora_kit::runtime::Plugin::settings_changed(&mut mc).unwrap();
+        assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", true)));
     }
 
     /// `assistant.chat` of the host opens the drawer on the output of mc
