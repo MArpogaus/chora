@@ -6,8 +6,6 @@
 //! in use mode, TURN LEFT, TURN RIGHT and STEP IN in navigate mode. `chora_kit::modes` holds the
 //! model; this file draws it and takes its input.
 
-use std::time::Instant;
-
 use chora_kit::{
     modes::{Act, Mode, View},
     words::{Language, Word},
@@ -31,6 +29,8 @@ pub(crate) const SWITCHER: &str = "xp.switcher";
 /// The event of the window manager of the cube when the floating
 /// windows of an output change (`chora_kit::float`).
 pub(crate) const FLOATING: &str = "xp.floating";
+/// The prefix of the desktop icons of the window manager of the cube.
+const ICON: &str = "xp-icon-";
 /// The room that the chips leave for a taskbar that the construct
 /// cannot see yet.
 const BAR: f64 = 40.0;
@@ -118,6 +118,22 @@ fn cube_bindings(mode: Mode, switching: bool, step_back: Option<&String>) -> Vec
     wanted
 }
 
+/// The chips that show: those of the mode, and none while the camera is
+/// in a pane, where the keys of the cube do not hold.
+fn chips_of(view: View, flown: bool) -> &'static [Word] {
+    if flown { &[] } else { view.controls() }
+}
+
+/// The right edge of the chips in the row `[top, bottom]` of a view
+/// `width` wide: left of the desktop icons in the right half that reach
+/// into the row.
+fn clear_right(width: f64, [top, bottom]: [f64; 2], icons: &[[f64; 4]]) -> f64 {
+    (icons.iter())
+        .filter(|[x, y, w, h]| x + w > width / 2.0 && *y < bottom && y + h > top)
+        .map(|[x, ..]| *x)
+        .fold(width, f64::min)
+}
+
 fn no_cube() -> ClientError {
     ClientError::Rpc(RpcError::new(
         RpcError::REJECTED,
@@ -171,19 +187,44 @@ impl Construct {
         Ok(top.unwrap_or(self.lens.h - BAR))
     }
 
+    /// The boxes of the desktop icons of the window manager on the front
+    /// face, in use mode, where the face shows at 1:1 on the screen.
+    fn face_icons(&mut self) -> Result<Vec<[f64; 4]>, ClientError> {
+        let Some(output) = (self.cube.as_ref())
+            .filter(|c| c.view().forwards())
+            .map(cube::Host::front_output)
+        else {
+            return Ok(Vec::new());
+        };
+        let selector = format!("owner:{} kind:image", cube::MANAGER);
+        let images: Vec<Value> = (self.rt.conn).call("scene.query", Query::new(&selector))?;
+        let icon = |node: &Value| {
+            let id = node["id"].as_str()?;
+            let r = node["rects"]
+                .get(&output)
+                .filter(|_| id.starts_with(ICON))?;
+            Some([0, 1, 2, 3].map(|i| r.get(i).and_then(Value::as_f64).unwrap_or(0.0)))
+        };
+        Ok(images.iter().filter_map(icon).collect())
+    }
+
     /// Places the chips of the mode at the bottom right, above the
     /// taskbar of the face, where they cover no title band and no button
-    /// of a window, and hides the others. Also after the output changed.
+    /// of a window, and hides the others; none while the camera is in a
+    /// pane. Also after the output changed.
+    /// They stay left of the desktop icons in their row.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
         self.draw_open_cube()?;
-        let Some(shown) = self.cube.as_ref().map(|c| c.view().controls()) else {
+        let flown = self.flown.is_some();
+        let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
             return Ok(());
         };
         let texts = self.chip_texts();
         let (width, bottom) = (self.lens.w, self.bar_top()?);
+        let icons = self.face_icons()?;
         let commands = self.fitted(|s| {
             let look = s.styled();
-            let mut right = width;
+            let mut right = clear_right(width, look.chip_row(bottom), &icons);
             let mut commands = Vec::new();
             for (word, text) in texts.iter().rev() {
                 let show = shown.contains(word);
@@ -234,8 +275,10 @@ impl Construct {
                 Err(err) => eprintln!("chora-construct: the cube key {binding}: {err}"),
             }
         }
-        let renamed = (self.cube.as_mut()).is_some_and(|host| host.set_step_back_key(step_back));
-        if renamed && let Err(err) = self.draw_modes() {
+        if let Some(host) = self.cube.as_mut() {
+            host.set_step_back_key(step_back);
+        }
+        if let Err(err) = self.draw_modes() {
             eprintln!("chora-construct: the chips of the cube: {err}");
         }
     }
@@ -253,7 +296,8 @@ impl Construct {
         if act == Act::StepBack && self.flown.is_some() {
             self.fly_out()?;
         }
-        let changed = (self.cube.as_mut()).is_some_and(|host| host.act(act, Instant::now()));
+        let changed =
+            (self.cube.as_mut()).is_some_and(|host| host.act(act, chora_kit::clock::now()));
         if !changed {
             return Ok(());
         }
@@ -347,24 +391,26 @@ impl Construct {
         (at, injected): ([f64; 2], bool),
     ) -> Option<Pressed> {
         let chip = CHIPS.into_iter().find(|w| chip_id(*w) == node);
-        let face = cube::face_index(node).filter(|_| view.mode() == Mode::Navigate);
+        let face = cube::face_of(node).filter(|_| view.mode() == Mode::Navigate);
         let pressed = press_of(chip, face, injected && !self.rt.accepts_injected())?;
         if let (Pressed::Face(face), Some(host)) = (&pressed, &mut self.cube) {
-            host.press(*face, at);
+            let window = super::float::plane_window(*face, node).map(String::from);
+            host.press(*face, window, at);
             return Some(Pressed::Nothing);
         }
         Some(pressed)
     }
 
     /// The pointer moved during a press on a face: a drag turns the
-    /// cube, and goes on from there when the cube took the turn. An
+    /// cube, and goes on from there when the cube took the turn; a drag
+    /// on the floating plane of a window pulls the window out. An
     /// injected move ends the press: it is not the hand of the person.
     fn drag_act(
         &mut self,
         node: &str,
         (at, injected): ([f64; 2], bool),
     ) -> Result<Option<Pressed>, ClientError> {
-        if cube::face_index(node).is_none() {
+        if cube::face_of(node).is_none() {
             return Ok(None);
         }
         let ignored = injected && !self.rt.accepts_injected();
@@ -376,11 +422,19 @@ impl Construct {
             host.forget_press();
             return Ok(Some(Pressed::Nothing));
         }
-        if let cube::Dragged::Turn(by) = host.drag(at, third)
-            && self.turn_cube(by, None, true)?
-            && let Some(host) = &mut self.cube
-        {
-            host.drag_turned(at[0]);
+        match host.drag(at, third) {
+            cube::Dragged::Turn(by) => {
+                if self.turn_cube(by, None, true)?
+                    && let Some(host) = &mut self.cube
+                {
+                    host.drag_turned(at[0]);
+                }
+            }
+            cube::Dragged::Pull(window) => {
+                host.forget_press();
+                self.pull_plane(&window, at)?;
+            }
+            cube::Dragged::Nothing => {}
         }
         Ok(Some(Pressed::Nothing))
     }
@@ -388,7 +442,7 @@ impl Construct {
     /// The release of a press on a face: a click steps into the face,
     /// when the cube rests in navigate mode. Not an injected release.
     fn release_act(&mut self, view: View, node: &str, injected: bool) -> Option<Pressed> {
-        cube::face_index(node)?;
+        cube::face_of(node)?;
         let ignored = injected && !self.rt.accepts_injected();
         let face = self.cube.as_mut()?.release().filter(|_| !ignored);
         let rests = view.mode() == Mode::Navigate && !view.turning();
@@ -401,7 +455,7 @@ impl Construct {
     /// The pointer came over a face or left it: the edge of the face
     /// under the pointer is lit in navigate mode.
     fn hover_act(&mut self, node: &str, over: bool) -> Result<bool, ClientError> {
-        let Some(face) = cube::face_index(node) else {
+        let Some(face) = cube::face_of(node) else {
             return Ok(false);
         };
         let Some(host) = &mut self.cube else {
@@ -426,6 +480,9 @@ impl Construct {
             return Ok(false);
         };
         if let Some(done) = self.manager_event(event) {
+            return done.map(|()| true);
+        }
+        if let Some(done) = self.plane_drag(event) {
             return done.map(|()| true);
         }
         let pressed = match event {
@@ -569,6 +626,29 @@ mod tests {
         let right = Pressed::Act(Act::Turn(1));
         assert_eq!(press_of(Some(Word::TurnRight), Some(0), false), Some(right));
         assert_eq!(press_of(None, Some(2), false), Some(Pressed::Face(2)));
+    }
+
+    #[test]
+    fn the_chips_stay_left_of_the_desktop_icons_in_their_row() {
+        let bin = [1202.0, 684.0, 78.0, 70.0];
+        assert!((clear_right(1280.0, [722.0, 762.0], &[bin]) - 1202.0).abs() < 1e-9);
+        let above = [1202.0, 500.0, 78.0, 70.0];
+        let left = [0.0, 700.0, 78.0, 70.0];
+        let free = clear_right(1280.0, [722.0, 762.0], &[above, left]);
+        assert!(
+            (free - 1280.0).abs() < 1e-9,
+            "no icon in the row at the right"
+        );
+    }
+
+    #[test]
+    fn no_chip_shows_while_the_camera_is_in_a_pane() {
+        let mut view = View::default();
+        assert_eq!(chips_of(view, false), &[Word::StepBack]);
+        assert_eq!(chips_of(view, true), []);
+        view.act(Act::StepBack);
+        assert_eq!(chips_of(view, false).len(), 3);
+        assert_eq!(chips_of(view, true), [], "navigate mode too");
     }
 
     #[test]

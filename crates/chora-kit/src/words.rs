@@ -145,10 +145,14 @@ pub enum Word {
     /// A typed key that does nothing in the construct; `{key}` shows the
     /// keys.
     KeysWalk,
+    /// A line typed before a helper was picked from the list.
+    PickFirst,
+    /// The entry of the list that starts a helper for a project.
+    NewHelper,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 53] = [
+pub const ALL: [Word; 55] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -202,6 +206,8 @@ pub const ALL: [Word; 53] = [
     Word::NoOutputDevice,
     Word::ChangeFailed,
     Word::KeysWalk,
+    Word::PickFirst,
+    Word::NewHelper,
 ];
 
 impl Word {
@@ -214,6 +220,7 @@ impl Word {
         }
     }
 
+    #[allow(clippy::too_many_lines, reason = "one line per word")]
     fn en(self) -> &'static str {
         match self {
             Self::Asleep => "Asleep. Say \"Hey Chora\".",
@@ -273,6 +280,8 @@ impl Word {
             Self::NoOutputDevice => "No output device",
             Self::ChangeFailed => "Change failed",
             Self::KeysWalk => "The keys walk here. {key} shows them all.",
+            Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
+            Self::NewHelper => "New helper for {project}",
         }
     }
 
@@ -340,6 +349,10 @@ impl Word {
             Self::NoOutputDevice => "Kein Ausgabegerät",
             Self::ChangeFailed => "Änderung fehlgeschlagen",
             Self::KeysWalk => "Hier bewegen die Tasten die Ansicht. {key} zeigt alle.",
+            Self::PickFirst => {
+                "Wählen Sie zuerst einen Helfer: Nummer eingeben und Enter drücken, oder anklicken."
+            }
+            Self::NewHelper => "Neuer Helfer für {project}",
         }
     }
 }

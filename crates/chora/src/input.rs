@@ -1176,7 +1176,7 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         position,
         local,
         modifiers: modifiers(state),
-        injected,
+        injected: injected && !state.injected_press_is_real,
     });
     if area {
         let real =

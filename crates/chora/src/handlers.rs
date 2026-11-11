@@ -55,6 +55,7 @@ use smithay::{
 };
 
 use crate::{
+    backend::import::CommitImports,
     output::output_area,
     state::{ClientState, State},
 };
@@ -76,7 +77,14 @@ impl CompositorHandler for State {
     }
 
     fn commit(&mut self, surface: &WlSurface) {
+        let imports = (!is_sync_subsurface(surface)).then(|| CommitImports::of(surface));
+        if let (Some(imports), Some(backend)) = (&imports, &mut self.backend) {
+            imports.before(backend);
+        }
         on_commit_buffer_handler::<Self>(surface);
+        if let (Some(imports), Some(backend)) = (&imports, &mut self.backend) {
+            imports.after(backend);
+        }
         if !is_sync_subsurface(surface) {
             let root = root_surface(surface);
             if let Some(id) = self.surface_id(&root) {
@@ -151,6 +159,29 @@ impl State {
         (pid, token)
     }
 
+    /// The window manager of a new toplevel when the pointer is over a
+    /// pane that forwards into a virtual output: a `host` of that pane
+    /// that would get the toplevel, as a node of it has the keyboard,
+    /// passes it to the manager whose claim on the output holds the
+    /// pointer. A window of the host with the keyboard keeps the toplevel,
+    /// and so does a manager that a click chose. The caller names no host
+    /// for a toplevel with a parent, which stays with the manager of its
+    /// parent.
+    fn under_the_pane_of(
+        &self,
+        to: Option<String>,
+        host: Option<&str>,
+        new: &chora_scene::NewToplevel,
+        live: impl Fn(&str) -> bool,
+    ) -> Option<String> {
+        let keyboard = self.scene.focused_node_owner();
+        if new.chosen.is_some() || host.is_none() || to.as_deref() != host || keyboard != host {
+            return to;
+        }
+        let behind = chora_scene::claimant_at(self.scene.nodes(), new.point, live);
+        behind.map(String::from).or(to)
+    }
+
     /// Sends `surface.created` for the toplevels of the last batch, and
     /// the requests that waited for it.
     fn announce(&mut self) {
@@ -193,23 +224,27 @@ impl State {
             let info = self.surface_info(id);
             self.scene.add_surface(id, info.clone());
             // Without an output, the pointer is in no claim.
-            let pointer = self
-                .spot(self.pointer_layout)
+            let spot = self.spot(self.pointer_layout);
+            let pointer = spot
+                .as_ref()
                 .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+            let host = (spot.as_ref().and_then(|s| s.via.as_deref()))
+                .and_then(|pane| self.scene.node(pane)?.owner.clone());
             let focused = self.focused_surface().map(String::from);
             let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
             let ipc = &self.ipc;
             // A client socket manages only the windows of its own name.
             let own = |n: &str| !ipc.has_socket(n) || info.client.as_deref() == Some(n);
+            let live = |n: &str| ipc.live(n) && own(n);
             let new = chora_scene::NewToplevel {
                 parent: parent.as_deref(),
                 focused: focused.as_deref(),
                 chosen: self.chosen_manager(),
                 point: pointer,
             };
-            let to = (self.scene)
-                .manager_of_new(&new, |n| ipc.live(n) && own(n))
-                .map(String::from);
+            let to = (self.scene).manager_of_new(&new, live).map(String::from);
+            let host = host.filter(|_| parent.is_none());
+            let to = self.under_the_pane_of(to, host.as_deref(), &new, live);
             self.scene.reserve(id, to.as_deref());
             self.reserved(id, None, false);
             self.list_toplevel(id);

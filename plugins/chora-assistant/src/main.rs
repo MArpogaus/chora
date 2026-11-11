@@ -262,17 +262,16 @@ impl Plugin for Agent {
     fn method(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let rejected = |e: String| RpcError::new(RpcError::REJECTED, e);
         match method {
-            "chat.show" | "chat.hide" if self.rt.confined_call => {
-                chat::guard(method, true)?;
-                Ok(Value::Null)
-            }
             "chat.show" => {
+                let confined = self.chat_guard(method)?;
                 let ShowParams { name, token } = runtime::params(params)?;
+                let token = chat::token_of(token, confined);
                 self.chat_show(name.as_deref(), token.as_deref())
                     .map_err(rejected)?;
                 Ok(Value::Object(serde_json::Map::new()))
             }
             "chat.hide" => {
+                self.chat_guard(method)?;
                 self.chat_hide().map_err(|e| rejected(e.to_string()))?;
                 Ok(Value::Object(serde_json::Map::new()))
             }
@@ -434,7 +433,7 @@ fn tools(args: &Args) -> Option<ExitCode> {
     let roots = folders::roots(exe.as_deref());
     let mut out = std::io::stdout();
     if let Some(dir) = &args.check_hud {
-        let (text, fine) = check::check_report(dir);
+        let (text, fine) = check::check_report(dir, &roots);
         let _ = out.write_all(text.as_bytes());
         return Some(if fine {
             ExitCode::SUCCESS

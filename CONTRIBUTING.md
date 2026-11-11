@@ -240,15 +240,22 @@ manager runs by hand on the reference machine.
 
 ## Demo media
 
-`demo/record.sh OUT_DIR` makes the demo clips of `chora-construct`: a
-walk through a construct and a pane that wobbles in 3D, each as a GIF
-and an MP4. `demo/scene-construct.sh` starts the scene: a headless
-session with five panes whose content `demo/content.py` generates, so
-no clip holds an asset of a third party. `choractl record` steps the
-scene clock by 1/30 s per frame, so the clips show the same motion on
-any renderer. `tests/gate-demo.sh` checks the scene and the clips. A
-caption of a clip names the renderer, for example software GL in a
-container.
+`demo/record.sh OUT_DIR` makes the demo media of `chora-construct`,
+each clip as a GIF and an MP4: a walk through a construct, a pane that
+wobbles in 3D, the cube turned once around with its windows floating
+off the faces, a window pulled off a face of the cube into the space,
+and a still of the cube in a turn. `demo/scene-construct.sh` starts the
+scene of the first two: a headless session with five panes.
+`demo/scene-cube.sh` starts the scene of the others: the cube with two
+windows on each of its four faces. `demo/content.py` generates the
+content, so no clip holds an asset of a third party. `choractl record`
+steps the scene clock by 1/30 s per frame, so the clips show the same
+motion on any renderer. In the clips the cube turns in 1.5 s a quarter,
+through `cube.turn`, slower than the 0.5 s of its keys and chips, and
+the pull-out runs with `--test-injected-press-is-real`, as the core gives
+no injected drag away otherwise. `tests/gate-demo.sh` checks the scenes
+and the clips. A caption of a clip names the renderer, for example
+software GL in a container.
 
 ## Releases
 

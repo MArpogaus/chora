@@ -260,6 +260,7 @@ fn a_waiting_program_expires_and_is_not_saved() {
         command: Some("xterm".into()),
         plugin: None,
         scene: None,
+        manager: None,
         at: None,
         yaw: None,
         size: None,
@@ -271,6 +272,10 @@ fn a_waiting_program_expires_and_is_not_saved() {
     assert!(!Waiting::new(None, pane(Kind::Program)).stale());
     assert!(old(Kind::Program).stale());
     assert!(!old(Kind::Plugin).stale());
+    assert!(
+        !old(Kind::Manager).stale(),
+        "a manager pane waits for its name"
+    );
     assert!(Waiting::new(None, pane(Kind::Program)).file().is_none());
     assert!(old(Kind::Plugin).file().is_some());
 }
@@ -294,4 +299,14 @@ fn the_notice_of_the_walk_keys_waits_ten_seconds() {
     assert!(keys_walk_due(None, now));
     assert!(!keys_walk_due(Some(now), now + Duration::from_secs(9)));
     assert!(keys_walk_due(Some(now), now + Duration::from_secs(10)));
+}
+
+/// A manager pane of a file names a manager that the setting `managers`
+/// lacks: it goes, with the reason, and does not wait.
+#[test]
+fn a_manager_pane_without_its_manager_goes_with_a_reason() {
+    let managers = std::collections::BTreeMap::from([("xp".to_owned(), "chora-xp".to_owned())]);
+    assert_eq!(wm::unknown_manager(&managers, "xp"), None);
+    let reason = wm::unknown_manager(&managers, "twm").expect("a reason");
+    assert!(reason.contains("twm"), "{reason}");
 }

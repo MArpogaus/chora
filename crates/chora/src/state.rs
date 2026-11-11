@@ -268,11 +268,15 @@ pub struct State {
     /// button is down. An injected button press ends it.
     pub last_real_button: Option<(Serial, u32)>,
     /// For tests on the headless backend only, set by the flag
-    /// `--test-injected-press-is-real`: an injected button press counts as a
-    /// press of the user for `give_grab` and for the choice of the window
-    /// manager of a new window, and injected input does not end that
-    /// press. Nothing else changes: no act, no token. A gate without a
-    /// real pointer pulls a window out of a face with it.
+    /// `--test-injected-press-is-real`: an injected key or button press
+    /// counts as a press of the user: for `give_grab`, for the choice of
+    /// the window manager of a new window, and as the act of the person
+    /// that an activation token carries, so a token minted after it gives
+    /// an on-demand layer surface the keyboard; the `pointer.pressed` of
+    /// such a press on a node carries no `injected`. Injected input does not
+    /// end that press. Gates and persona runs without real devices test
+    /// these flows with it. Only the headless backend takes the flag, its
+    /// start logs a warning, and no program of the session inherits it.
     pub injected_press_is_real: bool,
     /// The window manager that the user chose for the next new windows
     /// with a click on its empty claim, and the keyboard focus, of a
@@ -961,8 +965,10 @@ impl State {
 
     /// Notes a key or button press. A real one is the newest real press;
     /// an injected one ends the real press and the act before it, so that
-    /// no token carries an act that an injection hides.
+    /// no token carries an act that an injection hides. In the test mode
+    /// of `injected_press_is_real` every press is real.
     pub fn track_press(&mut self, serial: Serial, injected: bool) {
+        let injected = injected && !self.injected_press_is_real;
         self.last_real_press = (!injected).then_some(serial);
         if injected {
             self.last_act = None;
@@ -1068,6 +1074,7 @@ impl State {
             .layer_focus
             .take()
             .and_then(|l| self.keyboard_layer(&l));
+
         if self.lock.is_some() {
             self.scene.unfocus_node();
             let target = self.lock_focus();
@@ -1617,6 +1624,17 @@ mod tests {
         let token = mint(&mut core, &mut ctl);
         wayland.activate_layer(&mut core, &field, &token);
         field_has_no_keyboard(&core, &first, "an injected press");
+    }
+
+    #[test]
+    fn the_test_mode_makes_an_injected_key_press_an_act() {
+        let (mut core, mut wayland, _wm, _first, field) = field_core();
+        core.state.injected_press_is_real = true;
+        let mut ctl = grab_key(&mut core);
+        chord(&mut core, true);
+        let token = mint(&mut core, &mut ctl);
+        wayland.activate_layer(&mut core, &field, &token);
+        assert_eq!(keyboard(&core), Some(field.surface.id().protocol_id()));
     }
 
     #[test]

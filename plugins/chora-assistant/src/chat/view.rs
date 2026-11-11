@@ -175,6 +175,15 @@ pub fn create(id: &str, parent: &str, props: PropsUpdate) -> Command {
     }
 }
 
+/// The buttons of the view, left to right: Close in every view, so that a
+/// person who uses only the mouse can always leave; Stop only in a chat.
+fn buttons(mode: &Mode) -> &'static [(&'static str, Word)] {
+    match mode {
+        Mode::Chat(_) => &[(STOP, Word::Stop), (CLOSE, Word::Close)],
+        _ => &[(CLOSE, Word::Close)],
+    }
+}
+
 /// What a view shows, laid out.
 struct Parts {
     rect: [i32; 4],
@@ -182,7 +191,7 @@ struct Parts {
     hint: Option<String>,
     rows: Vec<Row>,
     list: Vec<String>,
-    chat: bool,
+    buttons: &'static [(&'static str, Word)],
     top_row: i32,
     body_top: i32,
 }
@@ -207,21 +216,10 @@ impl Session {
         };
         let lines = self.lines(language, &measure);
         let hint = self.hint(language);
-        let list: Vec<String> = match &self.mode {
-            Mode::List(picks) => picks
-                .iter()
-                .enumerate()
-                .map(|(n, pick)| format!("{}  {}", n + 1, pick.name()))
-                .collect(),
-            _ => Vec::new(),
-        };
-        let chat = matches!(self.mode, Mode::Chat(_));
+        let list = self.entries(language);
+        let buttons = buttons(&self.mode);
         let top_row = PAD + LINE + GAP;
-        let body_top = if chat {
-            top_row + BUTTON[1] + GAP
-        } else {
-            top_row
-        };
+        let body_top = top_row + BUTTON[1] + GAP;
         let below = FIELD_ROOM + if hint.is_some() { LINE + GAP } else { 0 };
         let room = usize::try_from((rect[3] - body_top - below) / LINE).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
@@ -232,7 +230,7 @@ impl Session {
             hint,
             rows,
             list,
-            chat,
+            buttons,
             top_row,
             body_top,
         }
@@ -336,7 +334,7 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         picture = picture.text(Text::new(&row.text, row.font, rgba(row.colour), at));
     }
     for (n, entry) in (0..).zip(&parts.list) {
-        let at = [PAD, parts.top_row + n * LINE, w - 2 * PAD, LINE];
+        let at = [PAD, parts.body_top + n * LINE, w - 2 * PAD, LINE];
         picture = picture.text(Text::new(entry, Font::Body, rgba(colours.text), at));
     }
     let shown = std::iter::once(parts.header.as_str())
@@ -378,17 +376,15 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
             image(path, [0, 0], hint, InputMode::Pass),
         ));
     }
-    if parts.chat {
-        let [stop, close] = [Word::Stop, Word::Close].map(|word| word.text(language));
-        for (n, (id, label)) in (0..).zip([(STOP, stop), (CLOSE, close)]) {
-            let path = button(theme, label, colours);
-            let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
-            commands.push(create(id, VIEW, image(path, at, label, InputMode::Accept)));
-        }
+    for (n, (id, word)) in (0..).zip(parts.buttons) {
+        let label = word.text(language);
+        let path = button(theme, label, colours);
+        let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
+        commands.push(create(id, VIEW, image(path, at, label, InputMode::Accept)));
     }
     for (n, entry) in (0..).zip(&parts.list) {
         let blank = theme.render(&Picture::new(w - 2 * PAD, LINE));
-        let at = [PAD, parts.top_row + n * LINE];
+        let at = [PAD, parts.body_top + n * LINE];
         let id = format!("{PICK}{}", n + 1);
         commands.push(create(
             &id,
@@ -425,6 +421,14 @@ mod tests {
         assert_eq!(rows[0].font, Font::Body);
         assert_eq!(rows[1].font, Font::BodyBold);
         assert_eq!(rows[0].indent, 0);
+    }
+
+    #[test]
+    fn close_shows_in_the_list_and_in_the_chat_and_stop_only_in_the_chat() {
+        let list = Mode::List(Vec::new());
+        assert_eq!(buttons(&list), [(CLOSE, Word::Close)]);
+        let chat = Mode::Chat("atlas".into());
+        assert_eq!(buttons(&chat), [(STOP, Word::Stop), (CLOSE, Word::Close)]);
     }
 
     #[test]

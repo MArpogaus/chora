@@ -83,20 +83,31 @@ pub fn exported() -> Vec<chora_scene::ipc::ExportMethod> {
     ]
 }
 
-/// Refuses a caller on a confined connection: the host acts in its own
-/// unconfined name, so only an unconfined caller may ask it to.
+/// The rule *voice opens the chat*: a confined caller may show and close
+/// the chat only when it is the tool connection of the voice agent that
+/// the host follows, `VOICE-mcp`, so that "show the chat with Atlas" works
+/// by voice (F1). Every other confined caller is refused: the host acts in
+/// its own unconfined name. A confined caller never hands over a token
+/// (see [`token_of`]).
 ///
 /// # Errors
 ///
-/// The caller is confined.
-pub fn guard(method: &str, confined: bool) -> Result<(), RpcError> {
-    if confined {
+/// The caller is confined and not the tools of `voice`.
+pub fn guard(method: &str, (confined, caller): (bool, &str), voice: &str) -> Result<(), RpcError> {
+    if confined && caller != format!("{voice}-mcp") {
         return Err(RpcError::new(
             RpcError::REJECTED,
             format!("{method}: not for a confined connection"),
         ));
     }
     Ok(())
+}
+
+/// The activation token of a `chat.show`: only an unconfined caller hands
+/// one over, so only the act of the person gives the field the keyboard.
+#[must_use]
+pub fn token_of(token: Option<String>, confined: bool) -> Option<String> {
+    token.filter(|_| !confined)
 }
 
 /// What `assistant.chat` said last: open, with whom, and where.
@@ -243,6 +254,19 @@ impl Agent {
         self.chat.show(&mut bridge, name, token, &frame)?;
         self.chat_pulled = Instant::now();
         self.chat_draw().map_err(|err| err.to_string())
+    }
+
+    /// Applies [`guard`] to the caller of `method`; answers whether the
+    /// caller is confined.
+    ///
+    /// # Errors
+    ///
+    /// The rule refuses the caller.
+    pub fn chat_guard(&self, method: &str) -> Result<bool, RpcError> {
+        let confined = self.rt.confined_call;
+        let voice = voice_client(self.voice.as_ref());
+        guard(method, (confined, &self.rt.caller), &voice)?;
+        Ok(confined)
     }
 
     /// Closes the chat.
@@ -567,9 +591,17 @@ mod tests {
 
     #[test]
     fn a_confined_caller_cannot_show_or_hide_the_chat() {
-        assert!(guard("chat.show", true).is_err());
-        assert!(guard("chat.hide", true).is_err());
-        assert!(guard("chat.show", false).is_ok());
+        assert!(guard("chat.show", (true, "agent"), "voice").is_err());
+        assert!(guard("chat.hide", (true, "agent"), "voice").is_err());
+        assert!(guard("chat.show", (false, "agent"), "voice").is_ok());
+    }
+
+    #[test]
+    fn the_tools_of_the_voice_agent_may_show_and_close_the_chat() {
+        assert!(guard("chat.show", (true, "voice-mcp"), "voice").is_ok());
+        assert!(guard("chat.hide", (true, "voice-mcp"), "voice").is_ok());
+        assert!(guard("chat.show", (true, "voice-mcp"), "other").is_err());
+        assert!(guard("chat.show", (true, "voice-hud"), "voice").is_err());
     }
 
     #[test]

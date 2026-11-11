@@ -4,9 +4,9 @@
 use chora_scene::ShaderEffect;
 
 use super::{
-    BTreeMap, ClientError, Command, Construct, FOCUS, FOG, FOG_SCALE, FRONT, InputMode, Kind, LOOK,
-    Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, NodeTexture, PANE_MAX, PANE_MIN, PANES, POSE,
-    Pane, PaneFile, PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS,
+    BTreeMap, ClientError, Command, Construct, Content, FOCUS, FOG, FOG_SCALE, FRONT, InputMode,
+    Kind, LOOK, Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, PANE_MAX, PANE_MIN, PANES, POSE, Pane,
+    PaneFile, PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS,
     overlay_id, space, unique,
 };
 
@@ -125,6 +125,7 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
         command: None,
         plugin: None,
         scene: None,
+        manager: None,
         at: None,
         yaw: None,
         size: Some(size),
@@ -133,19 +134,13 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
 
 /// The uniforms of a mirror image: the pane's node, the gloss of the
 /// floor and the distances of the haze and the fresnel.
-pub(crate) fn mirror_uniforms(source: &str, look: &PaneLook) -> BTreeMap<String, Uniform> {
+pub(crate) fn mirror_uniforms(win: Uniform, look: &PaneLook) -> BTreeMap<String, Uniform> {
     BTreeMap::from([
-        ("win".into(), node_texture(source)),
+        ("win".into(), win),
         ("gloss".into(), Uniform::Float(look.gloss)),
         ("reach".into(), Uniform::Float(look.reach)),
         ("ground".into(), Uniform::Float(look.ground)),
     ])
-}
-
-fn node_texture(source: &str) -> Uniform {
-    Uniform::Texture(NodeTexture {
-        node: source.into(),
-    })
 }
 
 pub(crate) fn mirror_size(size: [f64; 2]) -> [f64; 2] {
@@ -216,6 +211,9 @@ impl Construct {
         let Some(surface) = self.panes[i].window().map(String::from) else {
             let pane = self.panes.remove(i);
             self.rt.conn.apply(pane.remove().into())?;
+            if let Content::Manager { manager } = &pane.content {
+                self.end_manager(manager);
+            }
             if self
                 .flown
                 .as_ref()
@@ -257,7 +255,7 @@ impl Construct {
                         NodeKind::Shader,
                         PANES,
                         PropsUpdate {
-                            shader: Some(self.glass_shader.clone()),
+                            shader: Some(self.glow_shader.clone()),
                             visible: Some(false),
                             input: Some(InputMode::Pass),
                             ..PropsUpdate::default()
@@ -376,7 +374,7 @@ impl Construct {
             update(
                 &pane.mirror(),
                 PropsUpdate {
-                    uniforms: Some(mirror_uniforms(&pane.source, look)),
+                    uniforms: Some(mirror_uniforms(pane.reads(), look)),
                     ..PropsUpdate::default()
                 },
             ),
@@ -440,7 +438,7 @@ impl Construct {
                 PropsUpdate {
                     size: Some(mirror),
                     shader: Some(self.mirror_shader.clone()),
-                    uniforms: Some(mirror_uniforms(&pane.source, &look)),
+                    uniforms: Some(mirror_uniforms(pane.reads(), &look)),
                     transform: Some(Transform::from_matrix(space::mirror_model(
                         &self.lens, pane.at, pane.size, pane.yaw, k,
                     ))),
@@ -469,7 +467,8 @@ impl Construct {
                 PropsUpdate {
                     size: Some(pane.size),
                     shader: Some(self.source_shader.clone()),
-                    uniforms: Some(BTreeMap::from([("win".into(), node_texture(&pane.source))])),
+                    uniforms: Some(BTreeMap::from([("win".into(), pane.reads())])),
+                    forward: pane.forwards(),
                     ..PropsUpdate::default()
                 },
             ));

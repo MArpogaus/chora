@@ -105,9 +105,16 @@ tiling)
     companions=(
         "swaybg --color #2e3440"
         "waybar --config $repo/flavors/tiling/waybar/config.jsonc"
+        "chora-assistant"
     )
     ;;
-xp) companions=("chora-notify --assets $repo/flavors/xp/assets/notify") ;;
+xp)
+    companions=(
+        "chora-notify --assets $repo/flavors/xp/assets/notify"
+        "chora-assistant --assets $repo/flavors/xp/assets/assistant"
+    )
+    ;;
+construct) companions=("chora-assistant --assets $repo/plugins/chora-construct/hud") ;;
 *) companions=() ;;
 esac
 

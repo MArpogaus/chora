@@ -48,8 +48,8 @@ use crate::state::State;
 const USAGE: &str = "usage: chora [--version] \
      [--headless WxH[@SCALE][+X+Y][,...] [--test-injected-press-is-real]] [-- COMMAND [ARGS...]]";
 
-/// The flag of the headless backend, for tests: an injected button press
-/// counts as a press of the user for `give_grab`.
+/// The flag of the headless backend, for tests: an injected key or button
+/// press counts as a press and an act of the user.
 const TEST_INJECTED_PRESS_IS_REAL: &str = "--test-injected-press-is-real";
 
 /// The virtual outputs of `--headless` with its test flag, and the
@@ -79,7 +79,7 @@ fn headless_outputs(
 fn test_mode<T>(state: &mut State, specs: T, test: bool) -> T {
     if test {
         tracing::warn!(
-            "{TEST_INJECTED_PRESS_IS_REAL}: an injected button press counts as one of the user; for tests only"
+            "{TEST_INJECTED_PRESS_IS_REAL}: an injected key or button press counts as one of the user and as the act of a token; for tests only"
         );
         state.injected_press_is_real = true;
     }

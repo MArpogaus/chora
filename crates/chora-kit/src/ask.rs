@@ -56,7 +56,8 @@ pub struct Question {
 
 impl Question {
     /// The question of a `voice.confirm` event, `None` when it is the
-    /// end of a question (`done`) or has no id or prompt.
+    /// end of a question (`done`) or has no id or prompt. The helper that
+    /// asks is `agent`, else the `name` of the event.
     #[must_use]
     pub fn from_event(data: &Value, agent: Option<&str>) -> Option<Self> {
         if data["done"] == true {
@@ -75,7 +76,7 @@ impl Question {
             detail: text(&data["detail"]).unwrap_or_default(),
             physical: data["physical"] == true,
             keys,
-            agent: agent.map(str::to_owned),
+            agent: agent.map(str::to_owned).or_else(|| text(&data["name"])),
         })
     }
 }
@@ -245,6 +246,15 @@ mod tests {
             "id": 7, "prompt": "Write notes.txt?", "detail": "~/notes.txt (412 bytes)",
             "physical": true, "keys": {"yes": yes, "no": no},
         }))
+    }
+
+    #[test]
+    fn the_title_names_the_helper_of_the_event() {
+        let data = json!({"id": "1", "prompt": "Write notes.txt?", "name": "Atlas"});
+        let question = Question::from_event(&data, None).unwrap();
+        let card = Card::new(question, Instant::now());
+        let (_, title) = &card.parts(Language::De)[0];
+        assert_eq!(title, "Frage von Atlas");
     }
 
     #[test]

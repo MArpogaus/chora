@@ -520,6 +520,13 @@ mod tests {
         assert_eq!(config.bindings["Super+BTN_LEFT"], Action::Drag);
     }
 
+    /// The host draws the voice HUD by default: one voice indicator.
+    #[test]
+    fn the_default_leaves_the_voice_hud_to_the_host() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.voice_hud, VoiceHud::Host);
+    }
+
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();

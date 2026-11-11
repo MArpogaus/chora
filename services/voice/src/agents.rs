@@ -316,7 +316,7 @@ fn redact_line(line: &str) -> String {
 }
 
 /// A name with a capital first letter, as spoken and as mc shows it.
-fn title(name: &str) -> String {
+pub fn title(name: &str) -> String {
     let mut chars = name.chars();
     chars.next().map_or_else(String::new, |first| {
         first.to_uppercase().chain(chars).collect()

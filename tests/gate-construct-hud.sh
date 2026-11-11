@@ -3,7 +3,9 @@
 # label and the restyled window list (docs/construct-style.md). A fake
 # voice agent (tests/fake-voice.py) emits the events of the real one.
 #
-# For each theme and for 1920x1080 and 1280x720:
+# For each theme and for 1920x1080 and 1280x720, with the flag
+# --test-injected-press-is-real of the core, so that the injected click
+# on Ja counts as a click of the person:
 # 1. The construct claims the indicator of voice once.
 # 2. Each state shows its label in construct-hud-state.
 # 3. voice.say of 800 ms shows its sentence; 3.1 s later it is gone.
@@ -109,8 +111,9 @@ round() {
     # shellcheck disable=SC2034 # until_ok reads it
     w=${size%x*}
     local tag=$theme-$size
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
-    CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
+    CHORA_TEST_FLAGS=--test-injected-press-is-real \
+        CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
     local session=${pids[-1]}
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
@@ -282,7 +285,7 @@ done
 
 # The watchdog takes the shaders of a client that makes the frames slow.
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=1 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
@@ -306,7 +309,7 @@ done
 # The focused pane (rule 16 of the guide): the pane ahead shows clear,
 # with an accent hairline and a soft glow under it; two others beside.
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
@@ -337,7 +340,7 @@ done
 # No room in view (C7): a pane fills the view, so a new window becomes no
 # pane; it waits in the window list, the HUD says so, and window.show
 # makes its pane. No window gets lost.
-printf 'theme: light\n' >"$work/chora/chora-construct.yaml"
+printf 'theme: light\nvoice_hud: own\n' >"$work/chora/chora-construct.yaml"
 CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
 session=${pids[-1]}
 grant screen.capture input.inject
@@ -362,7 +365,7 @@ wait "$session" 2>/dev/null || true
 # modifier shows at once, and help.toggle hides it.
 helped() { node "id:construct-help-row-$1-keys" 'n[0]["text"]'; }
 for theme in ${THEMES:-light dark}; do
-    printf 'theme: %s\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
     session=${pids[-1]}
     grant screen.capture input.inject
