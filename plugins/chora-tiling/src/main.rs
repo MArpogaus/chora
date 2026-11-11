@@ -10,6 +10,7 @@
 )]
 
 mod config;
+mod dress;
 mod keys;
 mod layout;
 mod theme;
@@ -38,6 +39,7 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config},
+    dress::Dress,
     layout::Layout,
     wm::{Effect, Mark, Placement, States, WINDOW_KEY, Wm},
 };
@@ -154,6 +156,15 @@ struct Tiling {
     /// The path of the shader of the borders; none without a runtime
     /// directory, and the windows then have no border.
     border: Option<String>,
+    /// The path of the shader of the shadows; none without a runtime
+    /// directory.
+    shadow: Option<String>,
+    /// The first tag of the current output when the windows were last
+    /// placed, to know the direction of a tag switch.
+    last_tag: usize,
+    /// Whether the next placement is a rebuild, not a change a person made:
+    /// nothing moves.
+    still: bool,
     /// Whether the key list shows, and holds the keyboard.
     keys_open: bool,
     /// When the layout chip leaves.
@@ -259,7 +270,10 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         volume: chora_kit::volume::Mixer::new(NAME),
         groups: HashSet::new(),
         stale: Vec::new(),
-        border: border_shader(),
+        border: runtime_shader("border.frag", include_str!("../border.frag")),
+        shadow: runtime_shader("shadow.frag", dress::SHADOW_SHADER),
+        last_tag: 0,
+        still: true,
         keys_open: false,
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
@@ -268,6 +282,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     };
     tiling.apply_theme(false);
     tiling.start()?;
+    tiling.still = false;
     Ok(serve(&mut tiling)?)
 }
 
@@ -511,7 +526,10 @@ impl Tiling {
             self.hide_keys()?;
             self.toggle_keys()?;
         }
-        self.relayout()
+        self.still = true;
+        let done = self.relayout();
+        self.still = false;
+        done
     }
 
     fn query(&mut self, selector: &str) -> Result<Vec<Value>, ClientError> {
@@ -832,7 +850,10 @@ impl Tiling {
         self.apply_theme(true);
         if self.colors != before {
             self.sent.clear();
-            self.relayout()?;
+            self.still = true;
+            let done = self.relayout();
+            self.still = false;
+            done?;
             if self.keys_open {
                 self.hide_keys()?;
                 self.toggle_keys()?;
@@ -866,7 +887,8 @@ impl Tiling {
         if self.apply_report(commands)? {
             let guess = keys::guess(keys::layout_word(layout, lang));
             let measured = self.measured(&format!("{}-word", keys::CHIP));
-            self.apply(keys::chip_fit(size, measured.unwrap_or(guess)))?;
+            let animate = self.wm.config.look.animations;
+            self.apply(keys::chip_fit(size, measured.unwrap_or(guess), animate))?;
         }
         Ok(())
     }
@@ -906,6 +928,15 @@ impl Tiling {
         let rows = keys::rows(&self.wm.config, lang);
         let mut commands =
             keys::key_list(&format!("screen:{output}"), size, &rows, &self.colors, lang);
+        let fade = self.wm.config.look.animations.then_some(dress::FADE);
+        commands.push(dress::change(
+            keys::KEYS.into(),
+            PropsUpdate {
+                opacity: Some(1.0),
+                ..PropsUpdate::default()
+            },
+            fade,
+        ));
         commands.push(Command::FocusNode {
             node: Some(keys::KEYS.into()),
         });
@@ -1264,7 +1295,11 @@ impl Tiling {
         }
         let mut commands = Vec::new();
         if !self.groups.contains(surface) {
-            commands.extend(frame_nodes(surface, self.border.as_deref()));
+            commands.extend(frame_nodes(
+                surface,
+                self.border.as_deref(),
+                self.shadow.as_deref(),
+            ));
         }
         commands.push(Command::Attach {
             surface: surface.into(),
@@ -1343,6 +1378,7 @@ impl Tiling {
         self.saved = saved;
         self.claimed = claim;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
+        self.last_tag = self.wm.current_tag_index();
         self.order = order;
         if send_focus {
             self.focus.sent(focus);
@@ -1363,10 +1399,22 @@ impl Tiling {
     fn window_changes(&self, placements: &[Placement]) -> Vec<Command> {
         let c = &self.colors;
         let colors = [&c.accent, &c.accent_2, &c.line, &c.urgent].map(|h| theme::channels(h));
-        let shown = self.border.is_some().then_some(&colors);
+        let look = &self.wm.config.look;
+        let width = self.wm.current_output().map_or(0.0, |(_, size)| size[0]);
+        let tag = self.wm.current_tag_index();
+        let dress = Dress {
+            colors: self.border.is_some().then_some(&colors),
+            shadows: look.shadows,
+            animate: look.animations && !self.still,
+            slide: match tag.cmp(&self.last_tag) {
+                std::cmp::Ordering::Greater => width,
+                std::cmp::Ordering::Less => -width,
+                std::cmp::Ordering::Equal => 0.0,
+            },
+        };
         placements
             .iter()
-            .flat_map(|p| changes(self.sent.get(&p.id), p, shown))
+            .flat_map(|p| changes(self.sent.get(&p.id), p, &dress))
             .collect()
     }
 
@@ -1492,7 +1540,7 @@ fn border_of(surface: &str) -> String {
 
 /// The nodes of a new window: the group that carries it, the border and
 /// the clip that holds the surface.
-fn frame_nodes(surface: &str, border: Option<&str>) -> Vec<Command> {
+fn frame_nodes(surface: &str, border: Option<&str>, shadow: Option<&str>) -> Vec<Command> {
     let create = |id: String, kind, parent: String, props| Command::Create {
         id,
         kind,
@@ -1510,6 +1558,9 @@ fn frame_nodes(surface: &str, border: Option<&str>) -> Vec<Command> {
         NAME.into(),
         hidden.clone(),
     )];
+    if let Some(shader) = shadow {
+        nodes.extend(dress::shadow_nodes(surface, shader, &group_of(surface)));
+    }
     if let Some(shader) = border {
         let props = PropsUpdate {
             shader: Some(shader.into()),
@@ -1520,7 +1571,17 @@ fn frame_nodes(surface: &str, border: Option<&str>) -> Vec<Command> {
             border_of(surface),
             NodeKind::Shader,
             group_of(surface),
-            props,
+            props.clone(),
+        ));
+        let focus = PropsUpdate {
+            opacity: Some(0.0),
+            ..props
+        };
+        nodes.push(create(
+            dress::focus_of(surface),
+            NodeKind::Shader,
+            group_of(surface),
+            focus,
         ));
     }
     nodes.push(create(
@@ -1535,13 +1596,12 @@ fn frame_nodes(surface: &str, border: Option<&str>) -> Vec<Command> {
     nodes
 }
 
-/// The shader of the borders, written into the runtime directory of the
-/// user; none when there is none, or it is no absolute path (the shared
-/// temporary directory would let another user plant it first).
-fn border_shader() -> Option<String> {
+/// A shader of the plugin, written into the runtime directory of the user;
+/// none when there is none, or it is no absolute path (the shared temporary
+/// directory would let another user plant it first).
+fn runtime_shader(name: &str, text: &str) -> Option<String> {
     let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
-    let path = runtime.join("chora-tiling").join("border.frag");
-    let text = include_str!("../border.frag");
+    let path = runtime.join("chora-tiling").join(name);
     runtime.is_absolute().then_some(())?;
     if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
         .ok()
@@ -1639,29 +1699,17 @@ fn styled(style: &config::Style, surface: &str) -> Command {
 
 /// The commands that bring a window from what was sent to its placement.
 /// `colors` are the colours of the palette when the window has a border.
-fn changes(
-    sent: Option<&Placement>,
-    placement: &Placement,
-    colors: Option<&[[f64; 3]; 4]>,
-) -> Vec<Command> {
+fn changes(sent: Option<&Placement>, placement: &Placement, dress: &Dress) -> Vec<Command> {
     let id = &placement.id;
-    let Some([x, y]) = placement.at else {
+    let Some(at) = placement.at else {
         return hide(sent, id);
     };
     let mut commands = Vec::new();
     if sent.is_none_or(|s| s.size != placement.size || s.states != placement.states) {
         commands.push(configure(id, placement.size, placement.states));
     }
-    let moved = sent.is_none_or(|s| s.at != placement.at);
-    if moved {
-        commands.push(update(
-            group_of(id),
-            PropsUpdate {
-                transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
-                visible: Some(true),
-                ..PropsUpdate::default()
-            },
-        ));
+    if sent.is_none_or(|s| s.at != placement.at) {
+        commands.extend(dress::place(sent, placement, at, dress));
     }
     let reshaped = sent.is_none_or(|s| s.frame != placement.frame);
     let rounded = sent.is_none_or(|s| s.radius != placement.radius);
@@ -1677,15 +1725,17 @@ fn changes(
         }
         commands.push(update(clip_of(id), props));
     }
-    if let Some(colors) = colors
-        && sent.is_none_or(|s| {
+    if let Some(colors) = dress.colors {
+        if sent.is_none_or(|s| {
             s.frame != placement.frame
                 || s.radius != placement.radius
                 || s.border != placement.border
                 || s.mark != placement.mark
-        })
-    {
-        commands.push(border_update(id, placement, colors));
+        }) {
+            commands.extend(border_updates(placement, colors));
+            commands.extend(dress::shadow_updates(placement, dress.shadows));
+        }
+        commands.extend(dress::fade(sent, placement, dress.animate));
     }
     commands
 }
@@ -1694,19 +1744,32 @@ fn update(id: String, props: PropsUpdate) -> Command {
     Command::Update { id, props }
 }
 
-/// The update of the border node of a window: its size and place around
-/// the window, its colours and whether it shows.
-fn border_update(id: &str, placement: &Placement, colors: &[[f64; 3]; 4]) -> Command {
-    let width = f64::from(placement.border);
-    let [from, to] = match placement.mark {
-        Mark::Focus => [colors[0], colors[1]],
-        Mark::Line => [colors[2]; 2],
-        Mark::Urgent => [colors[3]; 2],
+/// The updates of the two border nodes of a window: the ring in the line
+/// colour (urgent for a window that asked for attention) and the gradient
+/// of the focus, which shows through its opacity.
+fn border_updates(placement: &Placement, colors: &[[f64; 3]; 4]) -> Vec<Command> {
+    let line = match placement.mark {
+        Mark::Urgent => colors[3],
+        Mark::Line | Mark::Focus => colors[2],
     };
+    vec![
+        ring_update(border_of(&placement.id), placement, [line, line]),
+        ring_update(
+            dress::focus_of(&placement.id),
+            placement,
+            [colors[0], colors[1]],
+        ),
+    ]
+}
+
+/// The update of a border node: its size and place around the window, its
+/// colours and whether it shows.
+fn ring_update(node: String, placement: &Placement, [from, to]: [[f64; 3]; 2]) -> Command {
+    let width = f64::from(placement.border);
     let color = |[r, g, b]: [f64; 3]| Uniform::Vector(vec![r, g, b, 1.0]);
     let [w, h] = placement.frame.map(f64::from);
     update(
-        border_of(id),
+        node,
         PropsUpdate {
             visible: Some(placement.border > 0),
             size: Some([w + 2.0 * width, h + 2.0 * width]),
@@ -2036,6 +2099,9 @@ mod tests {
             groups: HashSet::new(),
             stale: Vec::new(),
             border: None,
+            shadow: None,
+            last_tag: 0,
+            still: true,
             keys_open: false,
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
@@ -2542,8 +2608,12 @@ mod tests {
             border: 0,
             mark: Mark::Line,
         };
-        assert!(changes(None, &placed, None).iter().all(|c| !matches!(c,
-            Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some())));
+        assert!(
+            changes(None, &placed, &Dress::default())
+                .iter()
+                .all(|c| !matches!(c,
+            Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some()))
+        );
     }
 
     #[test]
@@ -2564,12 +2634,12 @@ mod tests {
             border: 0,
             mark: Mark::Line,
         };
-        let commands = changes(None, &hidden, None);
+        let commands = changes(None, &hidden, &Dress::default());
         assert!(matches!(
             &commands[..],
             [Command::Update { props, .. }] if props.visible == Some(false)
         ));
-        assert_eq!(changes(Some(&hidden), &hidden, None).len(), 0);
+        assert_eq!(changes(Some(&hidden), &hidden, &Dress::default()).len(), 0);
     }
 }
 

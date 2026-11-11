@@ -520,7 +520,15 @@ pub fn key_list(
     };
     let body = format!("{KEYS}-body");
     let mut commands = vec![
-        create(KEYS, NodeKind::Group, parent, PropsUpdate::default()),
+        create(
+            KEYS,
+            NodeKind::Group,
+            parent,
+            PropsUpdate {
+                opacity: Some(0.0),
+                ..PropsUpdate::default()
+            },
+        ),
         create(&format!("{KEYS}-scrim"), NodeKind::Rect, KEYS, scrim),
         glass(&format!("{KEYS}-panel"), KEYS, origin, plan.size, colors),
         create(
@@ -534,13 +542,20 @@ pub fn key_list(
         ),
     ];
     commands.extend(header(&body, colors, lang));
+    commands.extend(draw(&plan.items, &body, colors));
+    commands
+}
+
+/// The commands of the items of a plan, under the group `body`.
+fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
+    let mut commands = Vec::new();
     let (text_rgb, muted_rgb) = (channels(&colors.text), channels(&colors.muted));
-    for (n, item) in plan.items.iter().enumerate() {
+    for (n, item) in items.iter().enumerate() {
         let id = format!("{body}-{n}");
         match item {
             Item::Title { at, text: words } => {
                 let face = Face::new(*at, 14.0, 600, muted_rgb);
-                commands.push(text(&id, &body, words, &face));
+                commands.push(text(&id, body, words, &face));
             }
             Item::Cap { at, size, keys } => {
                 let keycap = PropsUpdate {
@@ -550,14 +565,14 @@ pub fn key_list(
                     transform: Some(Transform::translate(at[0], at[1], 0.0)),
                     ..PropsUpdate::default()
                 };
-                commands.push(create(&format!("{id}-cap"), NodeKind::Rect, &body, keycap));
+                commands.push(create(&format!("{id}-cap"), NodeKind::Rect, body, keycap));
                 let mut mono = Face::new([at[0] + CAP_PAD, at[1] + 2.0], 13.0, 400, text_rgb);
                 mono.mono = true;
-                commands.push(text(&format!("{id}-k"), &body, keys, &mono));
+                commands.push(text(&format!("{id}-k"), body, keys, &mono));
             }
             Item::Label { at, text: words } => {
                 let face = Face::new(*at, 14.0, 400, text_rgb);
-                commands.push(text(&format!("{id}-l"), &body, words, &face));
+                commands.push(text(&format!("{id}-l"), body, words, &face));
             }
         }
     }
@@ -637,9 +652,10 @@ pub fn chip(parent: &str, output: [f64; 2], word: &str, colors: &Colors) -> Vec<
     ]
 }
 
-/// The updates that fit the chip to the measured word and show it.
+/// The updates that fit the chip to the measured word and show it, in a
+/// fade when `animate`.
 #[must_use]
-pub fn chip_fit(output: [f64; 2], measured: [f64; 2]) -> Vec<Command> {
+pub fn chip_fit(output: [f64; 2], measured: [f64; 2], animate: bool) -> Vec<Command> {
     let (at, size, word_at) = chip_places(output, measured);
     let update = |id: String, props| Command::Update { id, props };
     vec![
@@ -658,12 +674,13 @@ pub fn chip_fit(output: [f64; 2], measured: [f64; 2]) -> Vec<Command> {
                 ..PropsUpdate::default()
             },
         ),
-        update(
+        crate::dress::change(
             CHIP.into(),
             PropsUpdate {
                 opacity: Some(1.0),
                 ..PropsUpdate::default()
             },
+            animate.then_some(crate::dress::FADE),
         ),
     ]
 }

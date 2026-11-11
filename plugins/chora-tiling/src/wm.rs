@@ -517,6 +517,13 @@ impl Wm {
         self.current_tag().map(|t| (t.layout, t.params))
     }
 
+    /// The first shown tag of the current output, from 0.
+    pub fn current_tag_index(&self) -> usize {
+        self.outputs
+            .get(self.current)
+            .map_or(0, |o| first_tag(o.selected))
+    }
+
     /// The name and the size of the current output.
     pub fn current_output(&self) -> Option<(String, [f64; 2])> {
         let output = self.outputs.get(self.current)?;

@@ -24,6 +24,11 @@ look:
   # The width of the border around each window, outside it; 0 for none. The
   # max and fullscreen layouts have none.
   border: 2
+  # Whether changes move over time (a window opens in 180 ms, slides to its
+  # tile or into view with a tag in 200 ms, the focus mark cross-fades in
+  # 120 ms); false makes every change at once. Shadows under the windows.
+  animations: true
+  shadows: true
   # Which palette the look takes: system follows the colour scheme of the
   # system (Paper when it asks for light, Ink when it asks for dark or says
   # nothing), ink is the dark one and paper the light one.

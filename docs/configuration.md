@@ -221,7 +221,7 @@ default map:
 |--------|---------|
 | `modifier` | what `MOD` means in the bindings: Super or Alt |
 | `gap` | the gap of the old look, in logical pixels: the edge gets it, two tiles get twice; it applies where `look` has `null` for a gap, and `set_layout` sets it |
-| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window, `theme` (`system`, `ink` or `paper`: the palette; `system` takes Paper when the system asks for the light colour scheme and Ink when it asks for dark or says nothing) and `palette`, colours that replace those of the theme (`base`, `surface`, `surface_2`, `line`, `text`, `muted`, `accent`, `on_accent`, `accent_2`, `urgent`, each `#rrggbb`); `gap_outer` and `gap_inner` take `gap` when `null`; the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
+| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window, `animations` (true) whether changes move over time, `shadows` (true), `theme` (`system`, `ink` or `paper`: the palette; `system` takes Paper when the system asks for the light colour scheme and Ink when it asks for dark or says nothing) and `palette`, colours that replace those of the theme (`base`, `surface`, `surface_2`, `line`, `text`, `muted`, `accent`, `on_accent`, `accent_2`, `urgent`, each `#rrggbb`); `gap_outer` and `gap_inner` take `gap` when `null`; the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
 | `tags` | the number of tags of each output, at most 16 |
 | `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
@@ -290,7 +290,24 @@ The focus mark is the border: the focused window has a 2 px gradient at
 135 degrees from `look.palette.accent` to `accent_2` (the same colour twice
 makes it solid), the others `line`, and a window that asked for attention
 `urgent`, without blinking. Light means focus, so no other part of the
-look uses `accent_2`.
+look uses `accent_2`. Under the border each window has a shadow, drawn by
+a shader of `chora-tiling`: `0 4 12` at 25 % for a window without the
+focus and `0 8 28` at 45 % for the focused one. The group of a window
+holds, from the bottom, `ts-ID` and `tf-ID` (the two shadows), `tb-ID`
+(the border in the line colour), `tg-ID` (the gradient) and `tc-ID`. The
+mark cross-fades by the opacity of `tf` and `tg`.
+
+With `look.animations` (on by default) a new window opens in 180 ms from
+94 % and transparent, about its centre; a window that a layout change,
+a swap or a change of the master width moves slides to its tile in 200 ms
+while its size snaps when the client commits; the windows that a tag
+switch brings in slide in from the side, by one output width, in the
+direction of the tag, in 200 ms; the focus mark cross-fades in 120 ms; the
+key list and the layout chip fade in in 140 ms. All ease out, nothing
+bounces and nothing moves while the scene is still, so an idle scene draws
+no frame. `animations: false` makes every change at once; `shadows: false`
+hides the shadows. A reload or a change of the theme rebuilds the windows
+without motion.
 
 No `MOD` chord that no binding uses reaches a program: `chora-tiling`
 grabs `MOD+KEY`, `MOD+Shift+KEY` and `MOD+Ctrl+KEY` for the letters, the

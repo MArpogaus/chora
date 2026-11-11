@@ -223,6 +223,12 @@ pub struct Look {
     pub radius: u16,
     /// The width of the border around a window, outside it; 0 for none.
     pub border: u16,
+    /// Whether changes move over time: a window opens, slides to its new
+    /// tile or into view with a tag, and the focus mark cross-fades. Off,
+    /// every change is at once.
+    pub animations: bool,
+    /// Whether the windows have shadows.
+    pub shadows: bool,
     /// Which palette the look takes: `system` follows the colour scheme
     /// of the system and takes Ink when it says nothing; `ink` and `paper`
     /// are fixed.
@@ -329,6 +335,8 @@ impl Default for Look {
             gap_inner: Some(10),
             radius: 10,
             border: 2,
+            animations: true,
+            shadows: true,
             theme: Theme::System,
             palette: Palette::default(),
         }
