@@ -9,6 +9,8 @@
 # Usage: tests/last-words.sh   CHORA_BIN: directory with the binaries
 set -u
 repo=$(cd "$(dirname "$0")/.." && pwd)
+. "$(dirname "$0")/gate-lock.sh"
+gate_lock "$(basename "$0")"
 bin=${CHORA_BIN:-$repo/target/debug}
 work=$(mktemp -d -t last-words.XXXXXX)
 session=

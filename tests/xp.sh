@@ -28,6 +28,8 @@
 # Mesa driver. The file manager
 # is thunar when it is installed, else foot in the folder.
 set -euo pipefail
+. "$(dirname "$0")/gate-lock.sh"
+gate_lock "$(basename "$0")"
 
 bin=$(realpath "$1")
 # The plugins start apps with `choractl run` from PATH (D42).

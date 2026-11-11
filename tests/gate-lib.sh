@@ -28,6 +28,8 @@ need_bins() {
     done
 }
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
+. "$repo/tests/gate-lock.sh"
+gate_lock "$(basename "$0")" || fail "cannot take the gate lock"
 pids=()
 tmp_dirs=()
 # gate_cleanup [STATUS]: the EXIT trap. It ends the session and the
@@ -36,6 +38,7 @@ tmp_dirs=()
 gate_cleanup() {
     local status=${1:-$?}
     kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    kill -CONT "${pids[@]}" "${run_pids[@]}" 2>/dev/null
     wait 2>/dev/null
     [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
 }

@@ -20,6 +20,8 @@
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
+. "$(dirname "$0")/gate-lock.sh"
+gate_lock "$(basename "$0")"
 [[ $# -eq 1 ]] || {
     echo "usage: $0 BASE_SHA" >&2
     exit 2

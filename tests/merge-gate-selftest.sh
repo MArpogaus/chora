@@ -32,8 +32,9 @@ check() {
 
 run_gate() {
     : >"$work/git.log"
-    PATH=$work/bin:$PATH FAKE_GIT_LOG=$work/git.log MERGE_GATE_STEPS=$work/steps \
-        MERGE_GATE_RUNS=$work/runs "$gate" "$@" >"$work/out" 2>&1
+    env -u CHORA_GATE_LOCK_HELD CHORA_GATE_LOCK="$work/gate.lock" \
+        PATH="$work/bin:$PATH" FAKE_GIT_LOG="$work/git.log" MERGE_GATE_STEPS="$work/steps" \
+        MERGE_GATE_RUNS="$work/runs" "$gate" "$@" >"$work/out" 2>&1
     rc=$?
     pushes=$(grep -c '^push ' "$work/git.log")
 }
@@ -87,6 +88,41 @@ check "--only with an unknown step is a usage error" "$rc" 2
 
 run_gate --help
 check "--help exits 0" "$rc" 0
+
+hold_lock() {
+    rm -f "$work/held" "$work/released"
+    (
+        flock 9
+        touch "$work/held"
+        sleep 2
+        date +%s.%N >"$work/released"
+    ) 9>"$work/gate.lock" &
+    holder=$!
+    for _ in $(seq 50); do
+        [ -e "$work/held" ] && break
+        sleep 0.1
+    done
+}
+after_release() {
+    awk -v a="$(cat "$work/$1" 2>/dev/null || echo 0)" -v b="$(cat "$work/released" 2>/dev/null || echo 9e99)" \
+        'BEGIN { print (a >= b) ? "after" : "before" }'
+}
+
+printf 'one|date +%%s.%%N >%s/started\n' "$work" >"$work/steps"
+hold_lock
+run_gate
+wait "$holder"
+check "a second gate passes after the first one" "$rc" 0
+check "a second gate starts its steps after the first one ends" "$(after_release started)" after
+check "a second gate prints that it waits" "$(grep -c '^merge-gate: waits for' "$work/out")" 1
+
+printf 'one|timeout 5 bash -c %s\n' "'. tests/gate-lib.sh'" >"$work/steps"
+run_gate
+check "a gate script inside the gate does not wait for the lock of the gate" "$rc" 0
+
+env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock" \
+    MERGE_GATE_RUNS="$work/runs" "$gate" --only gate-lib >"$work/out" 2>&1
+check "the step gate-lib runs the self-test of tests/gate-lib.sh" "$?" 0
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
