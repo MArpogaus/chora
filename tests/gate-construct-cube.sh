@@ -28,6 +28,8 @@
 #    in the face again, pixel for pixel. A window floats during a turn.
 #    A window that opens while the cube floats gets a plane by the
 #    event xp.floating, and loses it when it closes.
+#    While the window manager does not answer, a window keeps its
+#    plane, so it never shows nowhere; it lands when the answer comes.
 #    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
@@ -253,6 +255,8 @@ floats() {
     call view.step_back >/dev/null || return 1
     until_ok "$stood_back" 20 || return 1
     sleep 1
+    [ "$(prop "construct-cube-float-0-$surface" visible)" = True ] && [ "$(prop "construct-cube-float-0-$upper" visible)" = True ] ||
+        { echo "the planes do not show: $(prop "construct-cube-float-0-$surface" visible) $(prop "construct-cube-float-0-$upper" visible)"; return 1; }
     [ "$(opacity "$surface")" = 0 ] && [ "$(opacity "$upper")" = 0 ] || { echo "the windows stay in the face: opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
     lower_lift=$(lifted "$surface")
     upper_lift=$(lifted "$upper")
@@ -269,7 +273,11 @@ floats() {
     cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back"; return 1; }
     echo "$lower_lift and $upper_lift"
 }
-why=$(floats) || why=$(floats) || fail "floating windows: $why"
+rest() {
+    call view.step_in >/dev/null 2>&1
+    until_ok "$stepped_in" 20 && until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone' 20
+}
+why=$(floats) || { rest && why=$(floats); } || fail "floating windows: $why"
 ok "stood back, the windows float off the face, the upper one farther ($why per mille of the flat width), and land pixel for pixel"
 call view.step_back >/dev/null || fail "view.step_back for a new window"
 until_ok "$stood_back" 20 || fail "no step back for a new window"
@@ -288,6 +296,24 @@ until_ok 'test "$(prop "construct-cube-float-0-$new" visible)" = gone' 40 || fai
 call view.step_in >/dev/null || fail "view.step_in after a new window"
 until_ok "$stepped_in" 20 || fail "no step in after a new window"
 ok "a window that opens while the cube floats gets a plane, and loses it when it closes"
+manager=$(pid_of chora-xp)
+[ -n "$manager" ] || fail "no xp process of this session"
+call view.step_back >/dev/null || fail "view.step_back for a deaf window manager"
+until_ok "$stood_back" 20 || fail "no step back for a deaf window manager"
+until_ok 'test "$(opacity "$surface")" = 0' 20 || fail "the window does not float before the window manager stops"
+kill -STOP "$manager"
+call view.step_in >/dev/null || { kill -CONT "$manager"; fail "view.step_in with a deaf window manager"; }
+sleep 3
+deaf_plane=$(prop "construct-cube-float-0-$surface" visible)
+timeout 2 "$bin/choractl" --name agent call construct construct.list >/dev/null 2>&1
+deaf_answer=$?
+kill -CONT "$manager"
+[ "$deaf_answer" = 0 ] || fail "the construct does not answer while the window manager is deaf"
+[ "$deaf_plane" = True ] || fail "the plane went although the window manager did not answer: the window shows nowhere ($deaf_plane)"
+until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1' 40 ||
+    fail "the windows did not land after the window manager answered again: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface")"
+until_ok "$stepped_in" 20 || fail "no step in after the window manager answered again"
+ok "a window keeps its plane while the window manager does not answer, and lands when it does"
 run_pid "$second_probe"
 kill "$second_probe"
 until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
