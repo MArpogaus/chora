@@ -166,12 +166,15 @@ pub fn human(key: &str) -> String {
 /// A thin space.
 const THIN: char = '\u{2009}';
 
-/// Two keys that differ in their last part, as `Super+← →`.
+/// Two keys that differ in their last part, as `Super+←→` with a thin space
+/// between the arrows too, so that the pair reads as one key.
 fn pair(first: &str, second: &str) -> String {
     let (a, b) = (human(first), human(second));
     match (a.rsplit_once('+'), b.rsplit_once('+')) {
         (Some((head, x)), Some((other, y))) if head == other => {
-            format!("{head}+{x} {}", y.trim_start_matches(THIN))
+            let arrows = [x, y].iter().all(|key| key.contains(['←', '→']));
+            let gap = if arrows { THIN } else { ' ' };
+            format!("{head}+{x}{gap}{}", y.trim_start_matches(THIN))
         }
         _ => format!("{a} {b}"),
     }
@@ -192,7 +195,7 @@ mod tests {
         assert_eq!(rows.len(), 6, "{rows:?}");
         assert_eq!(rows[0].key, "Super+F1");
         assert_eq!(rows[0].words, "All keys");
-        assert_eq!(rows[1].key, "Super+\u{2009}← →");
+        assert_eq!(rows[1].key, "Super+\u{2009}←\u{2009}→");
         assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
         assert_eq!(rows[2].key, "Super+Space");
         assert_eq!(rows[5].binding, None);
