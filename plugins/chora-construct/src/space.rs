@@ -207,6 +207,21 @@ pub fn pane_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: 
     to_screen(lens, pose, &model(at, size, yaw))
 }
 
+/// The matrix for the `transform` of a node whose place in the camera
+/// group is the column-major `world`, as [`pane_matrix`] gives it for a
+/// pane: it takes the point (u, v) of the node to the output.
+#[must_use]
+#[allow(dead_code, reason = "used by the cube in the next commit")]
+pub fn screen_matrix(lens: &Lens, pose: &Pose, world: &[f64; 16]) -> [f64; 16] {
+    let mut rows = [[0.0; 4]; 4];
+    for (c, column) in world.as_chunks::<4>().0.iter().enumerate() {
+        for (r, cell) in column.iter().enumerate() {
+            rows[r][c] = *cell;
+        }
+    }
+    to_screen(lens, pose, &rows)
+}
+
 /// The projection of a model to the output, column-major.
 fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
     let proj = [

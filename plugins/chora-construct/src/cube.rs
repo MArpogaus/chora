@@ -58,6 +58,13 @@ const FILL: &str = "construct-cube-fill-";
 const FILL_LIFT: f64 = 0.5;
 /// How often the construct looks whether a starting manager exited.
 const POLL: Duration = Duration::from_millis(100);
+/// How far the cube turns off square toward the next face when it
+/// stands back, in radians: 14 degrees.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) const REST: f64 = 14.0 * std::f64::consts::PI / 180.0;
+/// The mirror image of a face in the floor.
+#[allow(dead_code, reason = "a stub until the next commit")]
+const MIRROR: &str = "construct-cube-mirror-";
 /// The most faces: the side faces of a cube.
 pub(crate) const FACES: usize = 4;
 /// The most that a window lifts off its face to clear the planes of a
@@ -275,6 +282,12 @@ pub(crate) fn face_id(i: usize) -> String {
     format!("{FACE}{i}")
 }
 
+/// The id of the mirror image of face `i`.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) fn mirror_id(i: usize) -> String {
+    format!("{MIRROR}{i}")
+}
+
 /// The face of a node id of a face.
 pub(crate) fn face_index(node: &str) -> Option<usize> {
     node.strip_prefix(FACE)?.parse().ok()
@@ -316,6 +329,18 @@ fn turned(angle: f64) -> f64 {
 /// face, stays as far as a face at rest, with a margin.
 fn step_back(angle: f64, depth: f64) -> f64 {
     (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * turned(angle)
+}
+
+/// The product of two column-major matrices: `b` first, then `a`.
+#[allow(dead_code, reason = "a stub until the next commit")]
+fn mul4(a: &Matrix, b: &Matrix) -> Matrix {
+    let mut m = [0.0; 16];
+    for c in 0..4 {
+        for r in 0..4 {
+            m[c * 4 + r] = (0..4).map(|k| a[k * 4 + r] * b[c * 4 + k]).sum();
+        }
+    }
+    m
 }
 
 /// A floating window and its lift at full float.
@@ -366,6 +391,41 @@ impl Host {
         rests && self.view.forwards() && super::space::depth(pose, at) > self.front_depth(pose)
     }
 
+    /// The angle at which the faces show: the angle of the turn, and the
+    /// rest pose of a cube that stands back.
+    #[allow(dead_code, reason = "a stub until the next commit")]
+    pub(crate) fn drawn_angle(&self) -> f64 {
+        self.angle
+    }
+
+    /// The shadows of the cube on the floor, in the form of the shadows of
+    /// panes: centre x and z, half width, and the lift with the yaw.
+    #[allow(
+        dead_code,
+        clippy::unused_self,
+        reason = "a stub until the next commit"
+    )]
+    pub(crate) fn shadows(&self, _ground: f64) -> Vec<[f64; 4]> {
+        Vec::new()
+    }
+
+    /// The place of face `i` in the camera group: the cube group over the
+    /// face.
+    #[allow(dead_code, reason = "a stub until the next commit")]
+    pub(crate) fn world(&self, i: usize) -> Matrix {
+        mul4(
+            &placement(self.centre(), self.yaw),
+            &self.cube.face(i, self.drawn_angle()),
+        )
+    }
+
+    /// The place of the mirror image of face `i` in the floor, `ground`
+    /// below the eye, for a node of the face's size divided by its scale.
+    #[allow(dead_code, reason = "a stub until the next commit")]
+    pub(crate) fn mirror_world(&self, i: usize, _ground: f64) -> Matrix {
+        self.world(i)
+    }
+
     /// The centre now: the place, stepped back along the view of the open.
     fn centre(&self) -> [f64; 2] {
         let back = step_back(self.angle, self.cube.size[0]) + self.stand * self.far;
@@ -376,7 +436,7 @@ impl Host {
     /// The updates of the cube at the angle now: its place, the transform
     /// of each face, whether it shows, sent on a change, and whether it
     /// forwards, which it does only while the cube rests.
-    pub(crate) fn faces(&mut self, eye: [f64; 2]) -> Vec<Command> {
+    pub(crate) fn faces(&mut self, eye: [f64; 2], _ground: f64) -> Vec<Command> {
         let eye = self.eye(eye);
         self.seen_from = eye;
         let mut commands = vec![update(
@@ -909,7 +969,7 @@ impl Construct {
         let mut commands = vec![create(CUBE, NodeKind::Group, PANES, PropsUpdate::default())];
         commands.extend(self.face_nodes(&outputs, &cube));
         commands.push(self.edge_node());
-        commands.extend(host.faces([self.pose.x, self.pose.z]));
+        commands.extend(host.faces([self.pose.x, self.pose.z], self.lens.ground));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
             end(&mut host.child);
             self.remove_outputs(&outputs);
@@ -1079,7 +1139,10 @@ impl Construct {
     /// The updates of the faces of the cube for the pose now.
     pub(crate) fn cube_faces(&mut self) -> Vec<Command> {
         let eye = [self.pose.x, self.pose.z];
-        self.cube.as_mut().map(|h| h.faces(eye)).unwrap_or_default()
+        let ground = self.lens.ground;
+        (self.cube.as_mut())
+            .map(|h| h.faces(eye, ground))
+            .unwrap_or_default()
     }
 
     /// Whether the cube turns or steps and needs frames.
@@ -1513,5 +1576,148 @@ mod tests {
             "a press that stays is a click"
         );
         assert!(host.turn.is_none() && host.angle == 0.0);
+    }
+
+    fn lens_of(host: &Host) -> super::super::space::Lens {
+        super::super::space::Lens::new(host.cube.size[0], host.cube.size[1])
+    }
+
+    fn visibility(commands: &[Command], id: &str) -> Option<bool> {
+        commands.iter().find_map(|c| match c {
+            Command::Update { id: i, props } if i == id => props.visible,
+            _ => None,
+        })
+    }
+
+    fn at_point(m: &Matrix, [u, v]: [f64; 2]) -> [f64; 3] {
+        [0, 1, 2].map(|r| m[r] * u + m[4 + r] * v + m[12 + r])
+    }
+
+    #[test]
+    fn a_cube_that_stands_back_rests_14_degrees_off_square_toward_the_next_face() {
+        let mut host = host_of(4);
+        assert!(
+            (REST - degrees(14.0)).abs() < 1e-12,
+            "the rest pose is 14 degrees"
+        );
+        assert!(host.drawn_angle().abs() < 1e-12, "in use mode it is square");
+        host.stand = 1.0;
+        assert!(
+            ((host.drawn_angle() - host.angle).abs() - REST).abs() < 1e-9,
+            "stood back it is turned by 14 degrees: {}",
+            host.drawn_angle()
+        );
+        let eye = host.eye([0.0, 0.0]);
+        assert!(host.cube.faces_eye(0, host.drawn_angle(), eye), "the front");
+        assert!(
+            host.cube.faces_eye(1, host.drawn_angle(), eye),
+            "the next face"
+        );
+        assert!(
+            !host.cube.faces_eye(3, host.drawn_angle(), eye),
+            "not the one before"
+        );
+        host.stand = 0.5;
+        assert!(
+            ((host.drawn_angle() - host.angle).abs() - REST / 2.0).abs() < 1e-9,
+            "the step glides the offset away with the stand"
+        );
+    }
+
+    #[test]
+    fn the_rest_pose_goes_with_a_turn_by_key_or_by_hand() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let rest = host.drawn_angle() - host.angle;
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([560.0, 300.0], 1280.0, Instant::now());
+        assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
+        assert!(host.angle < 0.0, "the hand still turns the cube");
+        host.angle = Cube::turn_of(1);
+        assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
+        let eye = host.eye([0.0, 0.0]);
+        assert!(
+            host.cube.faces_eye(2, host.drawn_angle(), eye),
+            "the next face of face 1 shows"
+        );
+        let _ = host.child.wait();
+    }
+
+    #[test]
+    fn a_cube_that_stepped_in_shows_its_face_at_one_to_one() {
+        let host = host_of(4);
+        let lens = lens_of(&host);
+        let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(0));
+        let [x0, y0] = super::super::space::project(&m, 0.0, 0.0);
+        let [x1, y1] = super::super::space::project(&m, lens.w, lens.h);
+        for (got, want) in [(x0, 0.0), (y0, 0.0), (x1, lens.w), (y1, lens.h)] {
+            assert!((got - want).abs() < 1e-6, "{got} is not {want}");
+        }
+    }
+
+    #[test]
+    fn the_cube_has_the_floor_shadow_of_a_pane() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let ground = 560.0;
+        let shadows = host.shadows(ground);
+        assert_eq!(shadows.len(), 2, "two ovals across each other");
+        let centre = host.centre();
+        for s in &shadows {
+            assert!((s[0] - centre[0]).abs() < 1e-9 && (s[1] - centre[1]).abs() < 1e-9);
+            assert!((s[2] - 640.0).abs() < 1e-9, "half the width of a face");
+            assert!(s[3] >= 0.0 && s[3] < 1e6);
+        }
+        let yaw = |w: f64| (w.fract() / 0.99 - 0.5) * std::f64::consts::TAU;
+        let across = (yaw(shadows[1][3]) - yaw(shadows[0][3])).rem_euclid(std::f64::consts::PI);
+        assert!(
+            (across - FRAC_PI_2).abs() < 1e-2,
+            "a quarter apart: {across}"
+        );
+        let face = host.world(0);
+        let towards = face[8].atan2(face[10]);
+        let off = (yaw(shadows[0][3]) - towards).rem_euclid(FRAC_PI_2);
+        assert!(
+            off < 1e-2 || FRAC_PI_2 - off < 1e-2,
+            "turned with the cube: {off}"
+        );
+    }
+
+    #[test]
+    fn the_mirror_image_of_a_face_hangs_under_the_floor() {
+        let host = host_of(4);
+        let ground = 560.0;
+        let (face, mirror) = (host.world(0), host.mirror_world(0, ground));
+        let k = 2.0;
+        for p in [[0.0, 0.0], [1280.0, 0.0], [300.0, 800.0], [1280.0, 800.0]] {
+            let (a, b) = (at_point(&face, p), at_point(&mirror, [p[0] / k, p[1] / k]));
+            assert!((a[0] - b[0]).abs() < 1e-6 && (a[2] - b[2]).abs() < 1e-6);
+            assert!((b[1] - (-2.0 * ground - a[1])).abs() < 1e-6, "{a:?} {b:?}");
+        }
+    }
+
+    #[test]
+    fn the_mirror_images_of_the_faces_that_show_come_with_the_step_back() {
+        let mut host = host_of(4);
+        host.shown = vec![false; 4];
+        let in_use = host.faces([0.0, 0.0], 560.0);
+        assert_ne!(
+            visibility(&in_use, &mirror_id(0)),
+            Some(true),
+            "in use mode"
+        );
+        host.stand = 1.0;
+        let back = host.faces([0.0, 0.0], 560.0);
+        assert_eq!(visibility(&back, &mirror_id(0)), Some(true));
+        assert_eq!(
+            visibility(&back, &mirror_id(1)),
+            Some(true),
+            "the next face"
+        );
+        assert_ne!(
+            visibility(&back, &mirror_id(3)),
+            Some(true),
+            "a face that looks away"
+        );
     }
 }
