@@ -26,6 +26,8 @@
 #    the face keeps the wallpaper and the taskbar; a still cube with
 #    floating windows draws nothing; after the step in the windows are
 #    in the face again, pixel for pixel. A window floats during a turn.
+#    A window that opens while the cube floats gets a plane by the
+#    event xp.floating, and loses it when it closes.
 #    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
@@ -269,6 +271,23 @@ floats() {
 }
 why=$(floats) || why=$(floats) || fail "floating windows: $why"
 ok "stood back, the windows float off the face, the upper one farther ($why per mille of the flat width), and land pixel for pixel"
+call view.step_back >/dev/null || fail "view.step_back for a new window"
+until_ok "$stood_back" 20 || fail "no step back for a new window"
+"$bin/chora-probe" window 40 200 40 >"$work/probe3.log" 2>&1 &
+third_probe=$!
+pids+=("$third_probe")
+newest() { probe | awk -v a="$surface" -v b="$upper" '$1 != a && $1 != b && $2 == "xp" {print $1}' | head -n 1; }
+until_ok 'test -n "$(newest)"' 40 || fail "the third probe window came to no xp face: $(probe)"
+new=$(newest)
+until_ok 'test "$(prop "construct-cube-float-0-$new" visible)" = True && test "$(opacity "$new")" = 0' 20 ||
+    fail "a window that opens while the cube floats does not float: plane $(prop "construct-cube-float-0-$new" visible), opacity $(opacity "$new")"
+run_pid "$third_probe"
+kill "$third_probe"
+until_ok 'test "$(prop "construct-cube-float-0-$new" visible)" = gone' 40 || fail "the plane of a closed window stays"
+[ "$(prop "construct-cube-float-0-$surface" visible)" = True ] || fail "the other windows do not float on after a window closed"
+call view.step_in >/dev/null || fail "view.step_in after a new window"
+until_ok "$stepped_in" 20 || fail "no step in after a new window"
+ok "a window that opens while the cube floats gets a plane, and loses it when it closes"
 run_pid "$second_probe"
 kill "$second_probe"
 until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"

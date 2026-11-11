@@ -10,6 +10,9 @@
 #                        pane is under the pointer, here the second one
 #   moves-to-face        `window.move` of xp moves the window to the third
 #                        virtual output, where it shows with the focus
+#   tasks-of-own-face    the task button of the window is on the taskbar
+#                        of the virtual output that shows it, and on no
+#                        other taskbar
 #   face-removed         the window is on the fourth virtual output and
 #                        that one goes: xp moves the window to another of
 #                        its outputs and keeps three taskbars
@@ -45,6 +48,7 @@ EXPECTED='
 faces-have-bars pass
 opens-under-pointer pass
 moves-to-face pass
+tasks-of-own-face pass
 face-removed pass
 no-cube-on-faces pass
 drag-keeps-rect pass
@@ -120,6 +124,15 @@ cell_opens_under_pointer() {
 cell_moves_to_face() {
     move_to "${faces[2]}"
     on_face "${faces[2]}" 10
+}
+
+cell_tasks_of_own_face() {
+    local face n
+    on_face "${faces[2]}" 4 || return 1
+    for face in "${faces[@]}"; do
+        n=$(ctl query "id:xp-task-$w-$face" | jq length)
+        if [ "$face" = "${faces[2]}" ]; then [ "$n" = 1 ] || return 1; else [ "$n" = 0 ] || return 1; fi
+    done
 }
 
 cell_face_removed() {
@@ -199,7 +212,7 @@ cell() {
         fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
 }
 
-cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing)
+cells=(faces-have-bars opens-under-pointer moves-to-face tasks-of-own-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing)
 for id in "${cells[@]}"; do cell "$id"; done
 ctl capture "$shots/faces.png" >/dev/null 2>&1
 
