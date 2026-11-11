@@ -260,6 +260,21 @@ keeps its own tracker, is keyed by its source and draws only when the
 source changes, for all the shader nodes that read it, so a pane and its
 mirror share the texture of their window.
 
+The frames import the buffer of a window lazily, with the damage of all
+commits since the last import. A commit imports at once in two cases
+(`backend/import.rs`). When a new buffer replaces one whose damage no
+renderer has imported yet, the old buffer goes into the texture before
+the commit replaces it, so the new buffer brings only its own damage. A
+**damage-less attach** keeps the texture as it is and uploads no pixel of
+the new buffer. The protocol makes the new buffer the content of the
+surface, so this is a deliberate leniency, as in wlroots; foot relies on
+it, because it commits its second buffer, which still holds an older
+frame, without damage when the picture did not change. A node texture
+built later reads the kept texture. The commits of a paused tty session
+go into the textures with the first frame after the resume, with the
+merged damage of the pause, and a damage-less attach of the pause shows
+the attached buffer in full.
+
 A plane renders its texture at the output scale times a power of two,
 at most 1, that follows the size of the plane on screen: a far plane
 renders fewer pixels, and a camera walk allocates nothing until a plane

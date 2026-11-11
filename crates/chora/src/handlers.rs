@@ -55,6 +55,7 @@ use smithay::{
 };
 
 use crate::{
+    backend::import::CommitImports,
     output::output_area,
     state::{ClientState, State},
 };
@@ -76,7 +77,14 @@ impl CompositorHandler for State {
     }
 
     fn commit(&mut self, surface: &WlSurface) {
+        let imports = (!is_sync_subsurface(surface)).then(|| CommitImports::of(surface));
+        if let (Some(imports), Some(backend)) = (&imports, &mut self.backend) {
+            imports.before(backend);
+        }
         on_commit_buffer_handler::<Self>(surface);
+        if let (Some(imports), Some(backend)) = (&imports, &mut self.backend) {
+            imports.after(backend);
+        }
         if !is_sync_subsurface(surface) {
             let root = root_surface(surface);
             if let Some(id) = self.surface_id(&root) {
