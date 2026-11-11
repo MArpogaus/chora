@@ -131,6 +131,9 @@ pub struct Values {
     /// A click on the figure opens the chat, which then has no "Chat ..."
     /// row.
     pub chats: bool,
+    /// The template of the state word beside the figure, `{state}` being
+    /// the word of the state; none shows no word.
+    pub word: Option<String>,
     /// The look of the bubble of a sentence.
     pub speech: Style,
     /// The template and the length of the text of a sentence.
@@ -323,6 +326,7 @@ impl Values {
             font: hud.font.clone(),
             mutes,
             chats,
+            word: voice.and_then(|panel| panel.text.clone()),
             figure: figure.unwrap_or(Figure::Dot),
             anchor,
             margin,
@@ -371,6 +375,7 @@ impl Values {
             margin: NEUTRAL_MARGIN,
             mutes: true,
             chats: false,
+            word: None,
             speech: Style::default(),
             line: Line::default(),
             rows: NEUTRAL_ROWS,
@@ -397,6 +402,7 @@ impl Values {
             margin: raw.margin,
             mutes: true,
             chats: false,
+            word: None,
             speech: raw.speech,
             line: Line::default(),
             rows: (Anchor::BottomRight, [raw.margin[0], above]),

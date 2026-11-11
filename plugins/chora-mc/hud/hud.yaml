@@ -6,6 +6,7 @@ panels:
   anchor: top_right
   margin: [32, 16]
   picture: state.svg#{state}
+  text: '{state}'
   action: mute
 - id: line
   source: say

@@ -26,6 +26,8 @@ const CLIP: &str = "hud-figure";
 const SPEECH: &str = "hud-line";
 /// The node that names the state in words, for readers of the scene.
 const STATE: &str = "hud-state";
+/// The state word beside the figure, if the folder shows one.
+const WORD: &str = "hud-word";
 const PAD: i32 = 10;
 const LINE: i32 = 13;
 const MIN_WIDTH: i32 = 120;
@@ -275,6 +277,8 @@ pub struct Assistant {
     speech: bool,
     /// When the balloon fades out.
     fades_at: Option<Instant>,
+    /// The size of the state word, none without one.
+    word: [i32; 2],
 }
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
@@ -365,15 +369,24 @@ impl Assistant {
             blinks_at: now + blink_gap(0),
             speech: false,
             fades_at: None,
+            word: [0, 0],
         };
+        let mut assistant = assistant;
         let commands = assistant.created(theme, &output.name, label);
         (assistant, commands)
     }
 
     /// The commands that create the nodes of the figure on an output.
-    fn created(&self, theme: &mut Theme, output: &str, label: &str) -> Vec<Command> {
+    fn created(&mut self, theme: &mut Theme, output: &str, label: &str) -> Vec<Command> {
         let [x, y] = self.origin.map(f64::from);
-        let figure = &self.values.figure;
+        let figure = self.values.figure.clone();
+        let figure = &figure;
+        let word = self.word(theme, label).map(|props| Command::Create {
+            id: WORD.into(),
+            kind: NodeKind::Image,
+            parent: GROUP.into(),
+            props,
+        });
         vec![
             group(
                 GROUP,
@@ -406,6 +419,77 @@ impl Assistant {
                 },
             },
         ]
+        .into_iter()
+        .chain(word)
+        .collect()
+    }
+
+    /// The picture of the state word on the backing of a plain sentence,
+    /// beside the figure, toward the middle of the area; none for a folder
+    /// without a word.
+    fn word(&mut self, theme: &mut Theme, label: &str) -> Option<PropsUpdate> {
+        let template = self.values.word.as_deref()?;
+        let text = chora_kit::hud::render(template, &serde_json::json!({ "state": label }));
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "a word is narrower than a screen"
+        )]
+        let size = [
+            theme.text_width(&text, Font::Ui).ceil() as i32 + 2 * BACKING,
+            LINE + 2 * BACKING,
+        ];
+        self.word = size;
+        let [x, y, ..] = self.word_at(size);
+        let [red, green, blue] = self.values.speech.fill;
+        let [w, h] = size;
+        let backing = format!(
+            r#"<rect width="{w}" height="{h}" rx="{BACKING}" fill="rgb({red},{green},{blue})"/>"#
+        );
+        let place = [BACKING, BACKING, w - 2 * BACKING, LINE];
+        let colour = self.values.speech.text_rgba();
+        let picture =
+            Picture::new(w, h)
+                .svg(backing)
+                .text(Text::new(&text, Font::Ui, colour, place));
+        Some(PropsUpdate {
+            image: Some(theme.render(&picture)),
+            transform: Some(Transform::translate(
+                f64::from(x - self.origin[0]),
+                f64::from(y - self.origin[1]),
+                0.0,
+            )),
+            input: Some(InputMode::Pass),
+            meta: Some([("text".to_owned(), text)].into()),
+            ..PropsUpdate::default()
+        })
+    }
+
+    /// The rectangle of a word of `size` beside the figure, in the middle
+    /// of its height.
+    fn word_at(&self, [w, h]: [i32; 2]) -> [i32; 4] {
+        let [fx, fy, fw, fh] = self.rect();
+        let [x, _] = beside([w, h], [fx, fy, fw, fh], self.area);
+        [x, fy + (fh - h) / 2, w, h]
+    }
+
+    /// The rectangle of the figure and its state word.
+    fn with_word(&self) -> [i32; 4] {
+        let [fx, fy, fw, fh] = self.rect();
+        let [x, y, w, h] = self.word_rect();
+        if w == 0 {
+            return [fx, fy, fw, fh];
+        }
+        let (left, top) = (fx.min(x), fy.min(y));
+        let (right, bottom) = ((fx + fw).max(x + w), (fy + fh).max(y + h));
+        [left, top, right - left, bottom - top]
+    }
+
+    /// The rectangle of the state word on the output, empty without one.
+    pub fn word_rect(&self) -> [i32; 4] {
+        if self.word == [0, 0] {
+            return [0; 4];
+        }
+        self.word_at(self.word)
     }
 
     /// Whether a node is the figure.
@@ -452,6 +536,10 @@ impl Assistant {
         self.pose = pose(state);
         self.step = 0;
         self.moves_at = Some(now);
+        let word = self.word(theme, label).map(|props| Command::Update {
+            id: WORD.into(),
+            props,
+        });
         vec![
             self.face(theme),
             Command::Update {
@@ -462,6 +550,9 @@ impl Assistant {
                 },
             },
         ]
+        .into_iter()
+        .chain(word)
+        .collect()
     }
 
     fn face(&self, theme: &mut Theme) -> Command {
@@ -492,7 +583,7 @@ impl Assistant {
     /// x, y, width, height. A balloon is at most `MAX_SPEECH` wide and
     /// stands above or below the figure.
     pub fn reach(&self) -> [i32; 4] {
-        let [x, y, w, h] = self.rect();
+        let [x, y, w, h] = self.with_word();
         if self.values.line.plain {
             #[allow(clippy::cast_possible_truncation)]
             let most = [MAX_PLAIN as i32 + 2 * BACKING, BALLOON_REACH];
@@ -530,7 +621,7 @@ impl Assistant {
             let place = [BACKING, y, w - 2 * BACKING, LINE];
             picture = picture.text(Text::new(line, Font::Ui, colour, place));
         }
-        let [bx, by] = beside([w, h], self.rect(), self.area);
+        let [bx, by] = beside([w, h], self.with_word(), self.area);
         self.speech_node(theme, &picture, [bx - self.origin[0], by - self.origin[1]])
     }
 
@@ -714,6 +805,7 @@ mod tests {
             blinks_at: now,
             speech: false,
             fades_at: None,
+            word: [0, 0],
         }
     }
 
@@ -743,6 +835,44 @@ mod tests {
                 if id == STATE && props.meta.as_ref().is_some_and(|m| m["text"] == "Listening"))
         });
         assert!(said, "{commands:?}");
+    }
+
+    #[test]
+    fn a_folder_with_a_voice_text_shows_the_state_word_beside_the_figure() {
+        let (mut theme, values, _) = crate::tests::loaded("word");
+        let output = OutputInfo {
+            name: "HEADLESS-1".into(),
+            position: [0, 0],
+            size: [1280, 720],
+            scale: 1.0,
+            camera: Transform::default(),
+            work_area: [0, 0, 1280, 720],
+            default_work_area: [0, 0, 1280, 720],
+            is_virtual: None,
+            owner: None,
+        };
+        let now = Instant::now();
+        let (mut figure, created) = Assistant::new(
+            &mut theme,
+            &values,
+            (&output, Anchor::BottomRight),
+            ("listening", "Listening", now),
+        );
+        let word = |commands: &[Command], text: &str| {
+            commands.iter().any(|c| match c {
+                Command::Create { id, props, .. } | Command::Update { id, props } => {
+                    id == WORD && props.meta.as_ref().is_some_and(|m| m["text"] == text)
+                }
+                _ => false,
+            })
+        };
+        assert!(word(&created, "Listening"), "{created:?}");
+        let [left, top, width, height] = figure.word_rect();
+        let [fx, fy, _, fh] = figure.rect();
+        assert!(left + width < fx, "left of a figure at the right");
+        assert!(top >= fy - 8 && top + height <= fy + fh + 8, "beside it");
+        let thinking = figure.set_state(&mut theme, ("thinking", "Thinking"), now);
+        assert!(word(&thinking, "Thinking"), "{thinking:?}");
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 The look of the assistant when no setting names another folder: a dot at
 the bottom right that changes its colour with the state of the voice
-agent, and a flat bubble for its sentences. A click on the dot mutes the
+agent, the state word beside it, and a flat bubble for its sentences. A click on the dot mutes the
 mic. The row "Chat ..." at the top right opens the chat, which shows as a
 plain panel of 400 pixels at the right edge. The text uses the
 `sans-serif` family of the system; the folder has no font file. The question card and the badge of a muted mic are the
