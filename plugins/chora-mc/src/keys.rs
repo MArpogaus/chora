@@ -83,17 +83,47 @@ pub fn short(config: &Config) -> Vec<Row> {
     rows
 }
 
-/// Every binding as key and words, then the keys of other plugins that
-/// the list names.
+/// Every binding as key and words, in the order of the tasks: the keys,
+/// the page, the scenes, programs, the chat, the column, the header and
+/// the footer, the rest, and Esc last. The two keys of the page are one
+/// row, as in the short list.
 pub fn all(config: &Config) -> Vec<Row> {
-    let mut rows: Vec<Row> = (config.bindings.iter())
-        .filter_map(|(key, action)| Some(Row::new(human(key), &words(action)?, Some(key))))
-        .collect();
+    let scene_at = |name: &str| config.order.iter().position(|n| n == name);
+    let mut found: Vec<(u8, usize, Row)> = Vec::new();
+    for (key, action) in &config.bindings {
+        let (rank, at) = match action {
+            Action::Keys => (0, 0),
+            Action::NextScene => (1, 0),
+            Action::Scene(name) => (2, scene_at(name).unwrap_or(usize::MAX)),
+            Action::Run(_) => (3, 0),
+            Action::Chat => (4, 0),
+            Action::Toggle(crate::region::Region::Right) => (5, 0),
+            Action::Toggle(region) => (6, usize::from(*region != crate::region::Region::Header)),
+            Action::Solo { .. } => (7, 0),
+            Action::Give(_) => (8, 0),
+            Action::PreviousScene | Action::Drag => continue,
+        };
+        let row = match action {
+            Action::NextScene => short_page(config, key),
+            _ => words(action).map(|words| Row::new(human(key), &words, Some(key))),
+        };
+        found.extend(row.map(|row| (rank, at, row)));
+    }
+    found.sort_by_key(|(rank, at, _)| (*rank, *at));
+    let mut rows: Vec<Row> = found.into_iter().map(|(_, _, row)| row).collect();
     rows.push(Row::new("Esc".to_owned(), "Back one step", None));
     rows
 }
 
-/// What an action does, in words; none for a drag, which the pointer does.
+fn short_page(config: &Config, next: &str) -> Option<Row> {
+    let previous = (config.bindings.iter())
+        .find(|(_, a)| **a == Action::PreviousScene)
+        .map(|(k, _)| k.as_str())?;
+    Some(Row::new(pair(previous, next), "Turn the page", Some(next)))
+}
+
+/// What an action does, in words, the same words as the short list; none
+/// for a drag, which the pointer does.
 fn words(action: &Action) -> Option<String> {
     Some(match action {
         Action::NextScene => "Next page".to_owned(),
@@ -103,6 +133,7 @@ fn words(action: &Action) -> Option<String> {
         Action::Run(command) => format!("Run {}", command.split_whitespace().next()?),
         Action::Give(to) => format!("Give the window to {to}"),
         Action::Drag => return None,
+        Action::Toggle(crate::region::Region::Right) => "Hide this column".to_owned(),
         Action::Toggle(region) => format!("Show or hide the {}", region.name()),
         Action::Solo { content, .. } => format!("Show the {content}"),
         Action::Keys => "All keys".to_owned(),
@@ -111,23 +142,37 @@ fn words(action: &Action) -> Option<String> {
 }
 
 /// A key as people read it: arrows for the arrow keys, a capital Space.
+/// A thin space after the plus keeps an arrow off it.
 pub fn human(key: &str) -> String {
-    key.split('+')
-        .map(|part| match part {
-            "Left" => "←".to_owned(),
-            "Right" => "→".to_owned(),
-            "space" => "Space".to_owned(),
-            other => other.to_owned(),
-        })
-        .collect::<Vec<_>>()
-        .join("+")
+    let mut out = String::new();
+    for (i, part) in key.split('+').enumerate() {
+        let (shown, arrow) = match part {
+            "Left" => ("←", true),
+            "Right" => ("→", true),
+            "space" => ("Space", false),
+            other => (other, false),
+        };
+        if i > 0 {
+            out.push('+');
+            if arrow {
+                out.push(THIN);
+            }
+        }
+        out.push_str(shown);
+    }
+    out
 }
+
+/// A thin space.
+const THIN: char = '\u{2009}';
 
 /// Two keys that differ in their last part, as `Super+← →`.
 fn pair(first: &str, second: &str) -> String {
     let (a, b) = (human(first), human(second));
     match (a.rsplit_once('+'), b.rsplit_once('+')) {
-        (Some((head, x)), Some((other, y))) if head == other => format!("{head}+{x} {y}"),
+        (Some((head, x)), Some((other, y))) if head == other => {
+            format!("{head}+{x} {}", y.trim_start_matches(THIN))
+        }
         _ => format!("{a} {b}"),
     }
 }
@@ -147,16 +192,42 @@ mod tests {
         assert_eq!(rows.len(), 6, "{rows:?}");
         assert_eq!(rows[0].key, "Super+F1");
         assert_eq!(rows[0].words, "All keys");
-        assert_eq!(rows[1].key, "Super+← →");
+        assert_eq!(rows[1].key, "Super+\u{2009}← →");
         assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
         assert_eq!(rows[2].key, "Super+Space");
         assert_eq!(rows[5].binding, None);
     }
 
     #[test]
-    fn the_full_list_has_a_row_for_each_binding_but_the_drag() {
+    fn the_full_list_has_a_row_for_each_task_but_the_drag_and_one_for_the_page() {
         let config = config();
         let rows = all(&config);
-        assert_eq!(rows.len(), config.bindings.len(), "{rows:?}");
+        assert_eq!(rows.len(), config.bindings.len() - 1, "{rows:?}");
+    }
+
+    #[test]
+    fn the_full_list_goes_by_task_in_the_words_of_the_short_list() {
+        let words: Vec<String> = all(&config()).into_iter().map(|r| r.words).collect();
+        let want = [
+            "All keys",
+            "Turn the page",
+            "Show agenda",
+            "Show terminal",
+            "Show overview",
+            "Start a program",
+            "Chat with a helper",
+            "Hide this column",
+            "Show or hide the header",
+            "Show or hide the footer",
+            "Show the overlay",
+            "Back one step",
+        ];
+        assert_eq!(words, want);
+    }
+
+    #[test]
+    fn an_arrow_keeps_a_thin_space_off_the_plus() {
+        assert_eq!(human("Super+Left"), "Super+\u{2009}←");
+        assert_eq!(human("Super+Return"), "Super+Return");
     }
 }
