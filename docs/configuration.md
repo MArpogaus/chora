@@ -1268,18 +1268,19 @@ swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 its own package and needs no configuration.
 
 - **The panel**: waybar with the configuration of the flavor. It shows only
-  modules that need no IPC of sway: the tags of the output, the layout of
-  the current tag, the clock, the volume, the network, the processor, the
-  memory, the battery and the tray. The layout module calls
-  `choractl call tiling get_layout` each second. The tags module calls
+  modules that need no IPC of sway, in the words of a person: the tags of
+  the output, the clock, the volume, the network (`Connected`, the name of
+  a wireless network or `Offline`, with the address in its tooltip), the
+  battery and the tray. The tags module calls
   `choractl call tiling get_tags` each second, and `jq` with
   `waybar/tags.jq` turns the answer into the text: the shown and the
   occupied tags, shown ones underlined, focused ones bold and urgent ones
   red. The volume module runs `waybar/volume.sh` each second, which asks
-  `wpctl` of WirePlumber for at most 2 seconds and prints `vol 40%` or
-  `vol muted`, or why there is no volume: `vol: wpctl not found`, `vol:
-  no output device` or `vol: no answer`, in German with a German
-  locale; a click mutes or unmutes, and the wheel changes the volume.
+  `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
+  `Muted` or `Sound unavailable`; the tooltip of `Sound unavailable` says
+  why: `wpctl not found`, `No output device` or `No answer`, in German
+  with a German locale. A click mutes or unmutes, and the wheel changes
+  the volume.
   The unit starts waybar through `waybar/waybar.sh`, which leaves out
   the outputs that are not tiling's, such as the output of `chora-xp`
   beside tiling. It reads the outputs again every 2 seconds and starts
