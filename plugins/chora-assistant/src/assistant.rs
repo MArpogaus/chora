@@ -147,7 +147,7 @@ fn draw(theme: &Theme, look: &Figure, state: &str, shut: bool) -> Picture {
         } => {
             let has = |id: &str| theme.size(*sheet, id).is_some();
             let id = element_of(has, template, state, shut);
-            Picture::new(*w, *h).element(*sheet, &id, [0, 0, *w, *h])
+            Picture::new(*w, *h).in_place(*sheet, &id, [0, 0, *w, *h])
         }
     }
 }
@@ -502,6 +502,12 @@ impl Assistant {
         self.values.mutes
     }
 
+    /// The head of the figure on the output, where a tail points.
+    pub fn tip(&self) -> [i32; 2] {
+        let [hx, hy] = self.values.figure.head();
+        [self.origin[0] + hx, self.origin[1] + hy]
+    }
+
     /// The rectangle of the figure on the output: x, y, width, height.
     pub fn rect(&self) -> [i32; 4] {
         let [w, h] = self.values.figure.size();
@@ -579,6 +585,27 @@ impl Assistant {
         self.balloon(theme, text)
     }
 
+    /// Hides the balloon of the sentence at once, while the chat is the
+    /// open balloon of the figure.
+    pub fn hush(&mut self) -> Vec<Command> {
+        self.fades_at = None;
+        if !self.speech {
+            return Vec::new();
+        }
+        vec![Command::Update {
+            id: SPEECH.into(),
+            props: PropsUpdate {
+                visible: Some(false),
+                ..PropsUpdate::default()
+            },
+        }]
+    }
+
+    /// Whether a node is the balloon of the sentence.
+    pub fn speaks(node: &str) -> bool {
+        node == SPEECH
+    }
+
     /// The part of the output that the figure and its balloon may take:
     /// x, y, width, height. A balloon is at most `MAX_SPEECH` wide and
     /// stands above or below the figure.
@@ -651,7 +678,11 @@ impl Assistant {
             transform: Some(Transform::translate(f64::from(bx), f64::from(by), 0.0)),
             opacity: Some(1.0),
             visible: Some(true),
-            input: Some(InputMode::Pass),
+            input: Some(if self.values.chats {
+                InputMode::Accept
+            } else {
+                InputMode::Pass
+            }),
             ..PropsUpdate::default()
         };
         if std::mem::replace(&mut self.speech, true) {

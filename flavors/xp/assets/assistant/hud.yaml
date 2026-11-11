@@ -15,18 +15,7 @@ panels:
   text: '{text}'
   max_chars: 160
   action: chat
-  fill: [255, 255, 225]
-  border: [0, 0, 0]
   tail: right
-- id: tray
-  source: agents
-  when: {agents: [working, question], chat: none}
-  anchor: bottom_right
-  margin: [184, 2]
-  style: bubble
-  rows: '{name} · {state} · {task}'
-  max_rows: 4
-  action: chat
 chat:
   style: bubble
   font: Tahoma

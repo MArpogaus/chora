@@ -179,6 +179,10 @@ impl Agent {
     /// Shows a sentence in the balloon, through the template and the length
     /// of the folder.
     fn say(&mut self, text: &str, time: Duration, now: Instant) -> Vec<Command> {
+        if self.chat.is_open() {
+            self.chat.agent_said(text);
+            return Vec::new();
+        }
         let Some(a) = self.assistant.as_mut() else {
             return Vec::new();
         };
@@ -188,6 +192,53 @@ impl Agent {
             shown = shown.chars().take(most).collect();
         }
         a.say(&mut self.theme, &shown, time, now)
+    }
+
+    /// A question opens the balloon of the figure, so that its card shows
+    /// inside: with the helper that asks, else with the list.
+    fn open_balloon_for_question(&mut self) {
+        if self.card.is_some() || !self.balloon_chat() || self.chat.is_open() {
+            return;
+        }
+        let asking = (self.helpers.iter())
+            .find(|(_, helper)| helper.state == "question")
+            .map(|(name, _)| name.clone());
+        if let Err(err) = self.chat_show(asking.as_deref(), None) {
+            eprintln!("chora-assistant: the balloon for the question: {err}");
+        }
+    }
+
+    /// Whether the chat is the balloon of the figure: a `bubble` chat of a
+    /// folder whose figure shows.
+    pub fn balloon_chat(&self) -> bool {
+        self.assistant.is_some() && self.values.chat().style == chora_kit::hud::ChatStyle::Bubble
+    }
+
+    /// The chat opened or closed. Open, it is the one surface: it takes
+    /// in the sentence, the last one when it is the balloon of the figure,
+    /// else the one still spoken, and the balloon of the sentence goes.
+    /// Closed, the balloon of the figure shows the last sentence again, and
+    /// another look the sentence that the agent still speaks.
+    pub fn chat_toggled(&mut self, open: bool, now: Instant) -> Vec<Command> {
+        let balloon = self.balloon_chat();
+        let last = (self.said.as_ref())
+            .filter(|(_, until)| balloon || *until > now)
+            .map(|(text, _)| text.clone());
+        if open {
+            if let Some(text) = &last {
+                self.chat.agent_said(text);
+            }
+            return self
+                .assistant
+                .as_mut()
+                .map(Assistant::hush)
+                .unwrap_or_default();
+        }
+        if !balloon {
+            return self.say_again(now);
+        }
+        last.map(|text| self.say(&text, Duration::ZERO, now))
+            .unwrap_or_default()
     }
 
     /// Shows the sentence again that the agent still speaks, on a figure
@@ -229,6 +280,7 @@ impl Agent {
         if !self.settings.value.enabled || self.card.as_ref().is_some_and(|c| c.id == id) {
             return Ok(Vec::new());
         }
+        self.open_balloon_for_question();
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
         };
@@ -310,7 +362,11 @@ impl Agent {
         let size = card::size(theme, shown, language, output.size);
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
-            (None, Some((frame, _))) => chat::card_origin(&frame, size),
+            (None, Some((frame, _))) => {
+                let origin = chat::card_origin(&frame, size);
+                self.chat.card_shown(origin[1], size[1]);
+                origin
+            }
             (None, None) => card::place(figure, size, assistant::work_area(output)),
         };
         Ok(())
@@ -323,7 +379,7 @@ impl Agent {
             return Ok(None);
         }
         Ok(self.chat_frame()?.map(|frame| {
-            let width = frame.rect()[2];
+            let width = chat::card_width(&frame);
             (frame, width)
         }))
     }
@@ -531,6 +587,38 @@ impl Agent {
             self.card = Some(shown);
         }
         commands.extend(self.sync_badge()?);
+        Ok(commands)
+    }
+
+    /// The card in the balloon of the figure follows the balloon when the
+    /// field changes its height, so that it stands above the hint; its
+    /// buttons take no click for a moment, as after any move.
+    pub fn card_follows(&mut self) -> Result<Vec<Command>, ClientError> {
+        if !self.balloon_chat() || self.chat.card_top().is_none() {
+            return Ok(Vec::new());
+        }
+        let (Some(frame), Some((output, _))) = (self.chat_frame()?, self.output()?) else {
+            return Ok(Vec::new());
+        };
+        let Some(mut shown) = self.card.take() else {
+            return Ok(Vec::new());
+        };
+        let size = card::size(&self.card_theme, &shown, self.language, output.size);
+        let origin = chat::card_origin(&frame, size);
+        if origin == shown.origin {
+            self.card = Some(shown);
+            return Ok(Vec::new());
+        }
+        shown.origin = origin;
+        shown.card.moved(Instant::now());
+        self.chat.card_shown(origin[1], size[1]);
+        let mut commands = card::hide();
+        if !shown.buttons {
+            commands.truncate(1);
+        }
+        let (theme, language) = (&mut self.card_theme, self.language);
+        commands.extend(card::show(theme, &shown, language, output.size, true));
+        self.card = Some(shown);
         Ok(commands)
     }
 

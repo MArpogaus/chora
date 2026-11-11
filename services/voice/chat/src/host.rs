@@ -6,8 +6,9 @@
 //! The host writes one JSON object per line to stdin: `{"place": {...}}`,
 //! `{"question": true}`, `{"keys": {"yes", "no"}}`, `{"say_failed":
 //! "text"}`, `{"pick_first": "text"}`, `"clear"`, `"hide"` and `"quit"`. The field writes one per line to stdout:
-//! `{"say": "text"}` and `{"event": "shown" | "keyboard" | "closed",
-//! "data": {...}}`. The end of stdin ends the field.
+//! `{"say": "text"}` and `{"event": "shown" | "keyboard" | "closed" |
+//! "height", "data": {...}}`, `height` with the height of the field in
+//! logical pixels when it changes. The end of stdin ends the field.
 
 use std::{
     fs::File,

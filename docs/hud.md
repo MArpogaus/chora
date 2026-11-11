@@ -195,7 +195,7 @@ chat:
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
 | `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |
-| `fill`, `border` | The colour inside the box of a sentence or of a row, and of its hairline. Left out, a sentence has the light card of the host and a row the fill of the chat. The text needs 4.5:1 against the fill, the hairline 1.5:1. |
+| `fill`, `border` | The colour inside the box of a sentence or of a row, and of its hairline. Left out, a sentence has the light card of the host, or with a `bubble` chat the fill, hairline and text of the chat, and a row the fill of the chat. The text needs 4.5:1 against the fill, the hairline 1.5:1. |
 | `tail` | `left` or `right`: the bubble of a sentence gets a tail that points at the figure, near that end; the bubble grows to the other side. Left out: no tail. |
 
 A panel needs at least one of `picture`, `text` or `rows`.
@@ -305,7 +305,7 @@ values only. A folder without the block gets the neutral chat.
 
 | Key | Meaning |
 |---|---|
-| `style` | `plain`, `bubble` or `glass`. |
+| `style` | `plain`, `bubble` or `glass`; `bubble` is the balloon of the figure, see below. |
 | `fill`, `text`, `name`, `border` | Colours as `[r, g, b]`, 0 to 255. A colour left out takes the host's. |
 | `font` | Font family. Default: the font of the folder. |
 | `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. |
@@ -323,6 +323,21 @@ white pane.
 The view never covers the figure, its bubble or the "Chat ..." row: a
 view that would, moves sideways beside them, also a view in a slot. A
 view at `left` or `right` is a side panel and keeps its edge.
+
+The open chat is the one surface of the helpers in every look: a
+sentence of the agent shows inside it, under the transcript, not in a
+balloon of its own, and a question that it shows has its card inside.
+
+A `bubble` chat of a folder with a figure is the balloon of the figure
+itself, as in xp: it stands above the head of the figure, `width` wide
+and as high as its content, at most six tenths of the work area, so it
+grows with the transcript, inside the work area, with
+a tail that ends at the head, and the field inside it. A click on the
+balloon of a sentence or on a figure with `action: chat` expands the
+balloon into the chat; a click on the figure or Close collapses it, and
+it shows the last sentence again. A question opens it, with the card
+inside. A figure that opens the chat draws no rows:
+the balloon lists the helpers.
 
 A font family that the system does not have, such as TeX Gyre Pagella
 of the mc folder on a system without the TeX Gyre fonts, falls back to
