@@ -344,6 +344,9 @@ that runs, the next open without a name (Super+a, a click on the door)
 shows its chat with its draft, not a list of one; with two helpers or
 none that was chosen, the list shows.
 
+The field of a plain chat draws at the scale of the output, so that its text
+is as sharp as the view, and its empty-field hint is in the colour `name`.
+
 A `glass` chat is the glass column of the construct style (rules 18 to
 25, the tokens of `chora_kit::glass`, light or dark after the theme): 28
 hundredths of the work area wide, from 400 to its `width`, corners of

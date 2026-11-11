@@ -478,11 +478,12 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
         "margin": [0, 0, frame.size[1] - (y + h), x],
         "width": w,
         "output": frame.output,
+        "scale": frame.scale,
         "look": {
             "background": rgba(colours.fill),
             "text": rgba(colours.text),
             "border": rgba(colours.border),
-            "hint": rgba(colours.text),
+            "hint": rgba(colours.name),
         },
     });
     if let Some(token) = token {
@@ -1511,6 +1512,20 @@ mod tests {
         let place = field_place(&frame, None);
         assert_eq!(place["width"], 1200);
         assert_eq!(place["margin"], json!([0, 0, 40, 40]));
+    }
+
+    #[test]
+    fn the_field_of_a_plain_chat_draws_at_the_scale_with_a_muted_hint() {
+        let mut frame = frame(Look {
+            text: Some([41, 38, 36]),
+            name: Some([110, 105, 99]),
+            ..Look::default()
+        });
+        frame.scale = 2;
+        let place = field_place(&frame, None);
+        assert_eq!(place["scale"], 2);
+        assert_eq!(place["look"]["hint"], json!([110, 105, 99, 255]));
+        assert_eq!(place["look"]["text"], json!([41, 38, 36, 255]));
     }
 
     #[test]
