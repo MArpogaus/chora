@@ -2011,6 +2011,28 @@ mod tests {
     }
 
     #[test]
+    fn the_next_face_stands_at_the_right_and_a_drag_to_the_left_follows_the_hand() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let front = bottom_of(&host, 0)[0];
+        assert!(
+            bottom_of(&host, 1)[0] > front,
+            "the next face is at the right of the front face"
+        );
+        assert!(
+            bottom_of(&host, 3)[0] < front,
+            "the face before is at the left"
+        );
+        host.angle = yaw_of(-100.0, 1280.0);
+        assert!(
+            bottom_of(&host, 0)[0] < front,
+            "a drag to the left moves the front face to the left"
+        );
+        host.angle = yaw_of(100.0, 1280.0);
+        assert!(bottom_of(&host, 0)[0] > front, "a drag to the right, right");
+    }
+
+    #[test]
     fn the_face_label_hangs_under_the_projected_bottom_edge_of_the_front_face() {
         let mut host = host_of(4);
         host.stand = 1.0;
