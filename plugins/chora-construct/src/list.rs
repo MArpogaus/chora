@@ -117,7 +117,7 @@ impl Construct {
         if self.flown.is_some() {
             self.fly_out()?;
         }
-        self.fly_in(i);
+        self.fly_in(i)?;
         Ok(self.panes[i].name.clone())
     }
 
@@ -300,7 +300,6 @@ impl Construct {
         if self.flown.is_some() {
             self.fly_out()?;
         }
-        self.fly_in(i);
-        Ok(())
+        self.fly_in(i)
     }
 }

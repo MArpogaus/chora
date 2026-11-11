@@ -265,13 +265,16 @@ impl Construct {
     }
 
     /// Flies out of the window that the camera is in, or turns back from
-    /// the flight into it.
+    /// the flight into it, and the walk takes the keyboard back.
     pub(crate) fn leave_window(&mut self) -> Result<(), ClientError> {
         if self.flown.is_some() {
             return self.fly_out();
         }
         if let Some(into) = self.glide.take().and_then(|g| g.into) {
             self.glide_to(into.back, FLY_MS, None);
+            return self.rt.conn.apply(vec![Command::FocusNode {
+                node: Some(LOOK.into()),
+            }]);
         }
         Ok(())
     }
@@ -295,8 +298,7 @@ impl Construct {
         }
         let click = self.drag.take().is_some_and(|d| !d.moved && !d.injected);
         if let Some(i) = pane.filter(|_| click) {
-            self.fly_in(i);
-            return Ok(());
+            return self.fly_in(i);
         }
         let commands = self.label_commands();
         self.rt.conn.apply(commands)
