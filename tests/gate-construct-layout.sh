@@ -7,6 +7,7 @@
 # long title.
 #
 # The cells, each an audit of the whole screen, in each theme and output:
+#   start        the start card of the empty floor, centred, with no hints
 #   walk         the pane label and the walk hints
 #   question     a physical question with Yes and No
 #   chat         the chat open with its transcript
@@ -20,6 +21,11 @@
 # text past its surface. Each cell prints `ok:` or `FAIL:` with the
 # findings; the gate fails when a cell fails. Each round ends with the
 # window audit: the window of the pane is still there.
+#
+# The empty floor of each round is also driven: a real press on the row
+# Terminal of the start card starts a terminal and the card fades; the
+# close of its pane brings the card back; Super+T after that starts the
+# terminal again (the keyboard after the act), and its close ends it.
 #
 # Usage: tests/gate-construct-layout.sh   BIN: directory with the binaries
 #   SIZES   the outputs (default "1280x720 2560x1440@2")
@@ -45,6 +51,17 @@ failed=0
 key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null; }
 typed() { echo "[{\"text\": {\"text\": \"$1\"}}]" | ctl inject >/dev/null; }
 emit() { echo "$1 $2" >&3; }
+rect_of() { ctl query "id:$1" | jq -r '.[0].rects | to_entries[0].value | @tsv' 2>/dev/null; }
+card_shows() { ctl query id:construct-start | jq -e 'length > 0 and (.[0].visible != false) and (.[0].opacity // 1) > 0.9' >/dev/null 2>&1; }
+card_gone() { ! ctl query id:construct-start | jq -e '.[0] | (.visible != false) and (.opacity // 1) > 0.05' >/dev/null 2>&1; }
+until_ok() {
+    for _ in $(seq 40); do
+        eval "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+pane_named() { ctl call construct construct.list | jq -e --arg n "$1" '.panes | any(.name | test($n; "i"))' >/dev/null 2>&1; }
 shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
 until_shows() {
     for _ in $(seq 40); do
@@ -93,16 +110,49 @@ audit() {
     fi
 }
 
+first_floor() {
+    local tag=$1 w=${2%x*} h=${2#*x} x y cw ch
+    w=${w%@*}
+    h=${h%@*}
+    until_ok card_shows || { echo "FAIL: $tag: the empty floor shows no start card"; failed=1; return; }
+    audit start "$tag"
+    read -r x y cw ch < <(rect_of construct-start-glass)
+    awk -v x="$x" -v y="$y" -v cw="$cw" -v ch="$ch" -v w="$w" -v h="$h" 'BEGIN {
+        exit !(cw == 448 && x + cw / 2 == w / 2 && y + ch / 2 == h / 2)
+    }' || { echo "FAIL: $tag: the card $x,$y ${cw}x$ch is not 448 wide and centred in ${w}x$h"; failed=1; }
+    ctl query id:construct-hints | jq -e 'length == 0 or (.[0].rects | length == 0) or .[0].visible == false' >/dev/null ||
+        { echo "FAIL: $tag: a hint bar shows with the start card"; failed=1; }
+    read -r x y cw ch < <(rect_of construct-start-row-0)
+    echo "[{\"pointer_move\": {\"position\": [$((${x%.*} + ${cw%.*} / 2)), $((${y%.*} + ${ch%.*} / 2))]}}, {\"click\": {}}]" | ctl inject >/dev/null
+    until_ok 'pane_named startcell' || { echo "FAIL: $tag: a click on the row Terminal started no terminal"; failed=1; return; }
+    until_ok card_gone || { echo "FAIL: $tag: the card stays with a pane"; failed=1; }
+    ok "$tag: a click on the row Terminal started a terminal and the card went"
+    key Alt+Escape
+    key Super+x
+    until_ok 'ctl call construct construct.list | jq -e ".panes | length == 0" >/dev/null' ||
+        { echo "FAIL: $tag: the terminal pane did not close"; failed=1; return; }
+    until_ok card_shows || { echo "FAIL: $tag: the card did not come back on the empty floor"; failed=1; return; }
+    key Super+t
+    until_ok 'pane_named startcell' || { echo "FAIL: $tag: Super+T after the click started no terminal"; failed=1; return; }
+    until_ok card_gone || { echo "FAIL: $tag: the card stays after Super+T"; failed=1; }
+    ok "$tag: Super+T started a terminal and the card went"
+    key Alt+Escape
+    key Super+x
+    until_ok 'ctl query app_id:startcell | jq -e "length == 0" >/dev/null' ||
+        { echo "FAIL: $tag: the window of the start cell is left"; failed=1; }
+}
+
 round() {
     local theme=$1 size=$2 tag=$1-$2 voice_pid
-    printf 'theme: %s\nvoice_hud: host\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'theme: %s\nvoice_hud: host\nterminal: foot -a startcell sleep 600\n' "$theme" >"$work/chora/chora-construct.yaml"
     printf 'enabled: true\nposition: null\nhud: construct\nhuds:\n  - {when: {space: construct}, folder: construct}\n' \
         >"$work/chora/chora-assistant.yaml"
     entries >"$work/entries.json"
-    session_start "$size" -- "$bin/chora-construct"
+    CHORA_TEST_FLAGS=--test-injected-press-is-real session_start "$size" -- "$bin/chora-construct"
     local session=${pids[-1]}
     grant screen.capture input.inject methods.call
     ctl wait id:construct-look --timeout 20 >/dev/null || fail "$tag: no space: $(tail -n 5 "$GATE_ENV")"
+    first_floor "$tag" "$size"
     rm -f "$work/voice.in"
     mkfifo "$work/voice.in"
     FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$work/claims" \
