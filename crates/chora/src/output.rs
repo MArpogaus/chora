@@ -143,6 +143,7 @@ impl State {
         self.assets.frame_left_out.remove(&output.name());
         self.assets.frame_dark.remove(&output.name());
         self.assets.stats.by_output.remove(&output.name());
+        self.assets.backdrops.forget(&output.name());
         self.emit(&Event::OutputRemoved {
             name: output.name(),
         });

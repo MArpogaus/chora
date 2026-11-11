@@ -331,9 +331,7 @@ where
     crate::offscreen::render_virtuals(parts, renderer.gles(), output);
     let passes_before = parts.assets.stats.offscreen();
     prune_assets(parts);
-    let shown = if view.stepped { "" } else { " capture" };
-    let name = format!("{}{shown}", output.name());
-    parts.assets.layers.set_view(name);
+    begin_view(parts.assets, output, view);
     let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
     let scene = parts.scene;
     // The overlay of the output, above the scene and without its camera
@@ -373,17 +371,30 @@ where
     out
 }
 
-/// Settles the backdrops of a list of elements, front first, and counts
-/// the passes of the blurs that the next draw runs.
+/// Names the view that renders next, the output or a capture of it, to
+/// the layers and the backdrops.
+fn begin_view(assets: &mut Assets, output: &Output, view: &View) {
+    let shown = if view.stepped {
+        ""
+    } else {
+        crate::backdrop::CAPTURE
+    };
+    let name = format!("{}{shown}", output.name());
+    assets.backdrops.begin(&name);
+    assets.layers.set_view(name);
+}
+
+/// Settles the backdrops of a list of elements, front first. The draws
+/// count their passes apart, so that `render.stats` does not tell when
+/// the frame behind a backdrop changed.
 fn settle_backdrops<R: MeshRenderer>(
     assets: &mut Assets,
     list: &mut [SceneElement<R>],
     scale: f64,
 ) {
-    let passes = assets
+    assets
         .backdrops
         .settle(list, backdrop_of, Scale::from(scale));
-    assets.stats.passes += passes;
 }
 
 fn backdrop_of<R: MeshRenderer>(element: &mut SceneElement<R>) -> Option<&mut BackdropElement> {
@@ -479,6 +490,10 @@ fn backdrop<R: MeshRenderer>(
 ) -> Option<SceneElement<R>> {
     let shape = shape.filter(|s| s.bounds.overlaps(Rectangle::from_size(view.size)))?;
     if parts.depth > 0 || placed.opacity <= 0.0 {
+        return None;
+    }
+    let size = (shape.bounds.size.w, shape.bounds.size.h).into();
+    if !parts.assets.layers.afford(size, 2) {
         return None;
     }
     #[allow(clippy::cast_possible_truncation)]

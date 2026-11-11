@@ -84,7 +84,7 @@ fn report(line: &str) {
 
 /// The passes of the blurs of backdrops.
 fn passes(core: &Core) -> u64 {
-    core.state.assets.stats.passes
+    core.state.assets.backdrops.passes()
 }
 
 /// The passes that `render.stats` tells for the output.

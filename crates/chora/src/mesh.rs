@@ -290,6 +290,19 @@ impl Layers {
         true
     }
 
+    /// Takes pixels of the budget of the frame for textures that are not a
+    /// layer, as the blur of a backdrop, which draws its plain tint without
+    /// them. Returns `false` when they do not fit.
+    pub fn afford(&mut self, size: Size<i32, BufferCoords>, textures: u64) -> bool {
+        let area = u64::try_from(size.w * size.h).unwrap_or(u64::MAX);
+        let pixels = area.saturating_mul(textures);
+        if self.pixels.saturating_add(pixels) > FRAME_PIXELS {
+            return false;
+        }
+        self.pixels += pixels;
+        true
+    }
+
     /// Notes a node whose layer stays out of the frame; the log tells it
     /// once.
     fn leave_out(&mut self, id: &str) {

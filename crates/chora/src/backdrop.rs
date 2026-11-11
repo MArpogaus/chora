@@ -2,24 +2,32 @@
 //! blurred, under its own fill, the glass of a panel.
 //!
 //! The element of a backdrop sits in the list of render elements right
-//! behind the element of its rect. When the renderer draws it, the frame
-//! already holds everything behind it: the element copies the part of
-//! the frame under its box into a texture, blurs that with a dual Kawase
-//! blur, and draws the result through the shape of the rect. So it sees
-//! windows, node textures and 3D contexts as they show, and nothing in
-//! front of it. The blur samples only inside the box of the rect, with
-//! clamped edges, so that nothing drawn later leaks in.
+//! behind the element of its rect. It is a framebuffer effect of the
+//! damage tracker of Smithay: when the frame behind it changed, the
+//! tracker draws everything behind its box, also under opaque elements in
+//! front, and then calls [`RenderElement::capture_framebuffer`], which
+//! copies the part of the frame under the box into a texture and blurs
+//! that with a dual Kawase blur. The draw then shows the result through
+//! the shape of the rect. So it sees windows, node textures and 3D
+//! contexts as they show, and nothing in front of it. The blur samples
+//! only inside the box of the rect, with clamped edges, so that nothing
+//! drawn later leaks in.
 //!
 //! The blur runs only when something behind the box changed: before the
 //! frame, [`Backdrops::settle`] compares the elements behind each
 //! backdrop with those of its last frame, by id, commit, box and alpha,
 //! and with the damage of a changed commit. A changed backdrop gets a new
-//! commit, so that the damage tracker redraws its whole box behind it
-//! first. A still screen blurs nothing and has no damage.
+//! commit and blurs again; a new look alone, as in a fade, only draws. A
+//! still screen blurs nothing and has no damage. The draws count the
+//! passes apart from `render.stats`, and a view shows at most
+//! [`MAX_SHOWN`] backdrops.
 
 use std::{
     collections::{BTreeMap, HashMap},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -46,6 +54,11 @@ use crate::{
 const UNUSED_FOR: Duration = Duration::from_secs(2);
 /// The most halvings of the blur.
 const MAX_ITERATIONS: u32 = 6;
+/// The most backdrops in a frame of a view; the others draw their plain
+/// tint.
+const MAX_SHOWN: usize = 8;
+/// The end of the name of the view of a capture.
+pub const CAPTURE: &str = " capture";
 
 /// A backdrop by view, node and piece: 0 for a whole rect, the others for
 /// the pieces of a plane of a 3D context.
@@ -97,31 +110,66 @@ struct Entry {
 #[derive(Default)]
 pub struct Backdrops {
     entries: HashMap<Key, Entry>,
+    /// The start of the last frame of each view.
+    frames: HashMap<String, Instant>,
+    /// The backdrops of the current frame of each view.
+    shown: HashMap<String, usize>,
+    /// The passes of all blurs, which the draws count.
+    passes: Arc<AtomicU64>,
 }
 
 /// The number of halvings and the offset of the taps of a dual Kawase
 /// blur of a radius in pixels, for a box of a size: each halving doubles
 /// the reach of the taps, so the radius is about `offset * 2^(n + 1)`.
-/// At least two halvings, so that the result at half the size has been
-/// through an upsample.
+/// At least two halvings, also for a small box, so that the result at
+/// half the size has been through an upsample and the least blur blurs.
 fn iterations(radius: f64, [w, h]: [i32; 2]) -> (u32, f64) {
     let mut n = 2;
     while n < MAX_ITERATIONS && radius / f64::from(1u32 << (n + 1)) > 3.0 {
         n += 1;
     }
-    while n > 1 && w.min(h) >> n < 2 {
+    while n > 2 && w.min(h) >> n < 2 {
         n -= 1;
     }
     (n, (radius / f64::from(1u32 << (n + 1))).max(0.5))
 }
 
 impl Backdrops {
-    /// Drops the blurs of nodes that are gone, and those that no frame used
-    /// for a while.
+    /// Drops the blurs of nodes that are gone, and the views of captures
+    /// that took no picture for a while.
     pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
         let now = Instant::now();
+        self.frames
+            .retain(|view, last| !view.ends_with(CAPTURE) || now - *last < UNUSED_FOR);
+        let frames = &self.frames;
         self.entries
-            .retain(|(_, id, _), entry| keep(id) && now - entry.used < UNUSED_FOR);
+            .retain(|(view, id, _), _| keep(id) && frames.contains_key(view));
+    }
+
+    /// Starts a frame of a view: drops the blurs that its last frame did
+    /// not show, and counts its backdrops anew.
+    pub fn begin(&mut self, view: &str) {
+        let now = Instant::now();
+        if let Some(last) = self.frames.insert(view.to_owned(), now) {
+            self.entries
+                .retain(|(of, ..), entry| of != view || entry.used >= last);
+        }
+        self.shown.insert(view.to_owned(), 0);
+    }
+
+    /// Drops the blurs of an output that went, and of its captures.
+    pub fn forget(&mut self, output: &str) {
+        let capture = format!("{output}{CAPTURE}");
+        let gone = |view: &str| view == output || view == capture;
+        self.frames.retain(|view, _| !gone(view));
+        self.shown.retain(|view, _| !gone(view));
+        self.entries.retain(|(view, ..), _| !gone(view));
+    }
+
+    /// The passes of all blurs since the start.
+    #[cfg(test)]
+    pub fn passes(&self) -> u64 {
+        self.passes.load(Ordering::Relaxed)
     }
 
     /// The element of the backdrop of a rect in a view, through a shape:
@@ -135,6 +183,11 @@ impl Backdrops {
     ) -> Option<BackdropElement> {
         let backdrop = node.props.backdrop?;
         let size = node.props.size?;
+        let shown = self.shown.entry(view.to_owned()).or_default();
+        if *shown >= MAX_SHOWN {
+            return None;
+        }
+        *shown += 1;
         let key = (view.to_owned(), node.id.clone(), piece);
         let entry = self.entries.entry(key.clone()).or_insert_with(|| Entry {
             blur: Arc::default(),
@@ -173,20 +226,19 @@ impl Backdrops {
             offset,
             reads,
             look,
+            passes: self.passes.clone(),
         })
     }
 
     /// Settles the backdrops of a list of elements, front first, before a
     /// frame: a backdrop whose elements behind changed under its box since
     /// its last frame gets a new commit and blurs again in its next draw.
-    /// Returns the passes of those blurs.
     pub fn settle<E: Element>(
         &mut self,
         elements: &mut [E],
         backdrop: impl Fn(&mut E) -> Option<&mut BackdropElement>,
         scale: Scale<f64>,
-    ) -> u64 {
-        let mut passes = 0;
+    ) {
         for index in 0..elements.len() {
             let (head, behind) = elements.split_at_mut(index + 1);
             let Some(element) = backdrop(&mut head[index]) else {
@@ -217,11 +269,8 @@ impl Backdrops {
             if changed {
                 entry.commit.increment();
             }
-            if blurs {
-                if let Ok(mut blur) = entry.blur.lock() {
-                    blur.stale = true;
-                }
-                passes += 2 * u64::from(element.iterations) - 1;
+            if blurs && let Ok(mut blur) = entry.blur.lock() {
+                blur.stale = true;
             }
             entry.seen = Some(Seen {
                 reads: element.reads,
@@ -238,7 +287,6 @@ impl Backdrops {
             });
             element.commit = entry.commit;
         }
-        passes
     }
 }
 
@@ -301,6 +349,7 @@ pub struct BackdropElement {
     /// The hashes of [`Seen`].
     reads: u64,
     look: u64,
+    passes: Arc<AtomicU64>,
 }
 
 impl Element for BackdropElement {
@@ -349,9 +398,50 @@ impl Element for BackdropElement {
     fn kind(&self) -> Kind {
         Kind::Unspecified
     }
+
+    /// The damage tracker calls [`RenderElement::capture_framebuffer`]
+    /// before the draw when the frame behind changed, and then draws
+    /// everything behind the box, also under opaque elements in front.
+    fn is_framebuffer_effect(&self) -> bool {
+        true
+    }
 }
 
 impl<R: MeshRenderer> RenderElement<R> for BackdropElement {
+    /// Copies the frame under the box and blurs it, when what lies behind
+    /// changed since the last blur.
+    fn capture_framebuffer(
+        &self,
+        frame: &mut R::Frame<'_, '_>,
+        _src: Rectangle<f64, BufferCoords>,
+        _dst: Rectangle<i32, Physical>,
+        _cache: &smithay::utils::user_data::UserDataMap,
+    ) -> Result<(), R::Error> {
+        let frame = R::gles_frame(frame);
+        let Ok(mut blur) = self.blur.lock() else {
+            return Ok(());
+        };
+        if !blur.stale && blur.result.is_some() {
+            return Ok(());
+        }
+        let Some(window) =
+            gl::backdrop::window_rect(frame, self.shape.bounds).map_err(R::from_gles)?
+        else {
+            return Ok(());
+        };
+        let grabbed =
+            gl::backdrop::grab(frame, window, blur.grabbed.as_ref()).map_err(R::from_gles)?;
+        blur.grabbed = Some(grabbed);
+        if let Err(err) = self.blur_passes(frame, &mut blur, window) {
+            tracing::warn!(%err, "a backdrop failed");
+            return Ok(());
+        }
+        blur.stale = false;
+        let passes = 2 * u64::from(self.iterations) - 1;
+        self.passes.fetch_add(passes, Ordering::Relaxed);
+        Ok(())
+    }
+
     fn draw(
         &self,
         frame: &mut R::Frame<'_, '_>,
@@ -362,24 +452,9 @@ impl<R: MeshRenderer> RenderElement<R> for BackdropElement {
         _cache: Option<&smithay::utils::user_data::UserDataMap>,
     ) -> Result<(), R::Error> {
         let frame = R::gles_frame(frame);
-        let Ok(mut blur) = self.blur.lock() else {
+        let Ok(blur) = self.blur.lock() else {
             return Ok(());
         };
-        if blur.stale || blur.result.is_none() {
-            let Some(window) =
-                gl::backdrop::window_rect(frame, self.shape.bounds).map_err(R::from_gles)?
-            else {
-                return Ok(());
-            };
-            let grabbed =
-                gl::backdrop::grab(frame, window, blur.grabbed.as_ref()).map_err(R::from_gles)?;
-            blur.grabbed = Some(grabbed);
-            if let Err(err) = self.blur_passes(frame, &mut blur, window) {
-                tracing::warn!(%err, "a backdrop failed");
-                return Ok(());
-            }
-            blur.stale = false;
-        }
         let Some((texture, window)) = &blur.result else {
             return Ok(());
         };
