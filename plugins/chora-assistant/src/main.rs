@@ -391,6 +391,7 @@ impl Agent {
             return Ok(());
         }
         self.theme.size_images(&mut commands);
+        self.card_theme.size_images(&mut commands);
         self.rt.conn.apply(commands)
     }
 
