@@ -265,3 +265,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-11 ~18:30 UTC: swarm 4 brought no new findings; the swarms stop per the user's rule.
 - 11-11 ~18:40 UTC (user, verbatim in decisions-now.md): goal of this week is UI/UX polish toward perfection; design agents per look; tiling Hyprland-like and hackable; mc helper into the right notification margin.
 - 11-11 ~18:50 UTC (user, verbatim in decisions-now.md): xp and construct design passes in parallel; the PM decides taste and everything else autonomously until Saturday; no user intervention; self-adapt to frictions, keep logging.
+- 11-11 ~19:00 UTC (user, verbatim in decisions-now.md): product brief per plugin (deliverables, requirements, USPs, target groups); clear worker instructions.
