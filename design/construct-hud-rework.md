@@ -37,3 +37,14 @@ default unless the user decides otherwise:
    key (number keys or Super+G).
 6. The help shows only for now; Return on a row does nothing (KISS);
    revisit after the rc.
+
+## User, 11-11 ~21:30
+
+"Go with your defaults for the HUD mockups. Look good already. Have a
+UX/UI refinement loop to polish all rough edges. Construct reflections
+shall get similar realistic blur effects (like polished marble). Push
+this towards visual perfectionism." Defaults 1-6 above are decided.
+Build lane starts now (tint fallback until the core blur merges); the
+floor reflection gets a roughness blur like polished marble (blurred,
+fading with distance from the pane, a faint Fresnel); then a UI
+refinement loop of up to 3 rounds with a separate reviewer.

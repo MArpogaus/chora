@@ -432,3 +432,13 @@ opened chat without keyboard (V1); injected Alt+Y and No give no
 feedback; question card white in dark chat, covers transcript, hint cut;
 xp chat without a helper covers the taskbar; OPEN CUBE overlaps the chat
 and moves at 2x; pulled pane cut at the right edge.
+
+## N1 (11-11, user idea): a modern look on xp's stacking window manager
+"Now that we have blur: modern UI on top of xp's stacked WM code. Like
+a separate macOS-inspired theme with dock and top bar. (Taskbar shall
+be generalized to a widget?)" Plan after the rc: the stacking window
+manager of chora-xp becomes the base of two looks (xp and a new modern
+look); the taskbar, the tray and the Start menu become shared widgets in
+chora-kit (a bar widget that renders as an XP taskbar, a top bar or a
+dock), so a look is a theme plus a widget layout. Needs its own design
+document (design/looks/) and the user's approval of mockups first.
