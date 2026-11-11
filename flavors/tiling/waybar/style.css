@@ -56,7 +56,9 @@ tooltip label {
 
 #custom-apps {
   font-weight: 500;
-  border-radius: 6px;
+  margin-right: 4px;
+  border-right: 1px solid @line;
+  border-radius: 0;
 }
 
 #custom-layout,

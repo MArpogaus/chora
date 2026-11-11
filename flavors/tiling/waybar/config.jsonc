@@ -11,62 +11,96 @@
   "margin-top": 8,
   "margin-left": 12,
   "margin-right": 12,
-  "modules-left": ["custom/tag1", "custom/tag2", "custom/tag3", "custom/tag4", "custom/tag5", "custom/tag6", "custom/tag7", "custom/tag8", "custom/tag9"],
+  "modules-left": ["custom/apps", "custom/tag1", "custom/tag2", "custom/tag3", "custom/tag4", "custom/tag5", "custom/tag6", "custom/tag7", "custom/tag8", "custom/tag9", "custom/layout"],
   "modules-center": ["clock"],
-  "modules-right": ["custom/volume", "network", "battery", "tray"],
+  "modules-right": ["custom/volume", "network", "battery", "tray", "custom/keys", "custom/power"],
   "custom/tag1": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 1",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 1}'",
     "tooltip": false
   },
   "custom/tag2": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 2",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 2}'",
     "tooltip": false
   },
   "custom/tag3": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 3",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 3}'",
     "tooltip": false
   },
   "custom/tag4": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 4",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 4}'",
     "tooltip": false
   },
   "custom/tag5": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 5",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 5}'",
     "tooltip": false
   },
   "custom/tag6": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 6",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 6}'",
     "tooltip": false
   },
   "custom/tag7": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 7",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 7}'",
     "tooltip": false
   },
   "custom/tag8": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 8",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 8}'",
     "tooltip": false
   },
   "custom/tag9": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 9",
     "return-type": "json",
     "interval": 1,
+    "on-click": "choractl call tiling view_tag '{\"tag\": 9}'",
     "tooltip": false
+  },
+  "custom/apps": {
+    "exec": "echo Apps",
+    "interval": "once",
+    "format": "▦ {}",
+    "on-click": "choractl run fuzzel",
+    "tooltip-format": "Run a program (Super+Space)"
+  },
+  "custom/layout": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/layout.sh\"",
+    "return-type": "json",
+    "interval": 1,
+    "on-click": "choractl call tiling next_layout"
+  },
+  "custom/keys": {
+    "exec": "echo Keys",
+    "interval": "once",
+    "format": "⌨ {}",
+    "tooltip-format": "Every key (Super+/)"
+  },
+  "custom/power": {
+    "exec": "echo ⏻",
+    "interval": "once",
+    "on-click": "loginctl lock-session",
+    "tooltip-format": "Lock (Super+Shift+Escape)"
   },
   "clock": {
     "format": "{:%a %d %b %H:%M}",

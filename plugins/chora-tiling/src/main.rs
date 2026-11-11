@@ -575,6 +575,10 @@ impl Tiling {
                 self.wm.config.gap = change.gap.unwrap_or(self.wm.config.gap);
                 false
             }
+            "next_layout" => {
+                self.wm.act(&Action::NextLayout);
+                false
+            }
             "view_tag" => {
                 let ViewTag { tag } = runtime::params(params)?;
                 self.check_tag(tag)?;
@@ -1311,6 +1315,12 @@ fn exported_methods() -> Vec<ExportMethod> {
             &[],
         ),
         runtime::method(
+            "next_layout",
+            "Goes to the next layout of the current tag, as the binding does.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
             "get_layout",
             "Answers the layout of the current tag.",
             json!({}),
@@ -1599,6 +1609,18 @@ mod tests {
     }
 
     const WOBBLY: [chora_kit::effects::Kind; 1] = [chora_kit::effects::Kind::Wobbly];
+
+    #[test]
+    fn the_method_next_layout_goes_to_the_next_layout() {
+        let (mut tiling, _) = on_fake_core("next-layout");
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        let first = tiling.run("get_layout", json!({})).unwrap();
+        assert_eq!(first["layout"], "tile");
+        let next = tiling.run("next_layout", json!({})).unwrap();
+        assert_eq!(next["layout"], "tile_left");
+    }
 
     #[test]
     fn a_tiling_window_wobbles_with_the_opt_in() {

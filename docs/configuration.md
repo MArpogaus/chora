@@ -264,6 +264,7 @@ the gap of the file again.
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
+| `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
@@ -1308,6 +1309,7 @@ The package installs the tiling flavor (D51):
     ├── style.css                     # the look of the panel, three islands
     ├── colors.css                    # the palette, Ink; style.css reads it
     ├── tag.sh                        # one tag module, from one shared answer
+    ├── layout.sh                     # the layout word
     └── tags.jq                       # the class of a tag module
 ```
 
@@ -1336,6 +1338,13 @@ its own package and needs no configuration.
   Change a colour in `colors.css` and the whole panel follows. An empty
   tag is `muted` at 50 %, an inactive control; every other label keeps
   4.5:1 on `surface`.
+  Every part of the panel is a door for the mouse. Left island: **Apps**
+  runs the launcher (`choractl run fuzzel`), the numbers 1 to 9 view that
+  tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
+  the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
+  the word, in German with a German locale. Right island: **Keys** and the
+  power icon, which locks the session (`loginctl lock-session`). Change
+  the commands in `on-click` of `config.jsonc`.
   The volume module runs `waybar/volume.sh` each second, which asks
   `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
   `Muted` or `Sound unavailable`; the tooltip of `Sound unavailable` says
