@@ -112,7 +112,10 @@ fn a_sharp_edge_behind_a_backdrop_blurs_to_a_gradient() {
         "grey on the edge: {}",
         at(EDGE)
     );
-    assert!(row.windows(2).all(|w| w[1] + 2 >= w[0]), "it only rises");
+    assert!(
+        row.windows(2).all(|w| w[1].saturating_add(2) >= w[0]),
+        "it only rises"
+    );
     let width = ramp(&row);
     report(&format!("blur 16: 10 % to 90 % over {width} px"));
     assert!((12..=48).contains(&width), "a gradient of {width} px");
@@ -259,32 +262,69 @@ fn a_backdrop_in_a_3d_context_blurs_what_lies_behind_its_plane() {
 }
 
 #[test]
-fn a_backdrop_is_cheap_on_the_software_renderer() {
+fn a_backdrop_blurs_in_three_passes_on_the_software_renderer() {
     let (mut core, mut wm) = world();
     let props = json!({"size": [400, 300], "color": [1, 1, 1, 0.3], "radius": 12,
         "transform": {"translate": [120, 90]}, "backdrop": {"blur": 24}});
     wm.ok(&mut core, "scene.apply", glass("glass", &props));
     frames(&mut core, 2);
-    let mut colors = [0.0, 1.0].iter().cycle();
+    let mut shade = 0.0;
     let mut timed = |core: &mut Core, wm: &mut Client, blurred: bool| {
-        let started = Instant::now();
-        for _ in 0..20 {
-            let shade = colors.next().copied().unwrap_or(0.0);
-            let update = json!({"commands": [
-                {"update": {"id": "dark", "props": {"color": [shade, 0, 0, 1]}}},
-                {"update": {"id": "glass", "props": {"visible": blurred}}}]});
-            wm.ok(core, "scene.apply", update);
-            frames(core, 1);
-        }
-        started.elapsed().as_secs_f64() * 1000.0 / 20.0
+        let mut times: Vec<f64> = (0..21)
+            .map(|_| {
+                shade = 1.0 - shade;
+                let update = json!({"commands": [
+                    {"update": {"id": "dark", "props": {"color": [shade, 0, 0, 1]}}},
+                    {"update": {"id": "glass", "props": {"visible": blurred}}}]});
+                wm.ok(core, "scene.apply", update);
+                let started = Instant::now();
+                frames(core, 1);
+                started.elapsed().as_secs_f64() * 1000.0
+            })
+            .collect();
+        times.sort_by(f64::total_cmp);
+        times[times.len() / 2]
     };
+    let before = passes(&core);
     let plain = timed(&mut core, &mut wm, false);
+    assert_eq!(passes(&core), before, "a hidden glass blurs nothing");
     let blurred = timed(&mut core, &mut wm, true);
     report(&format!(
-        "640x480, glass 400x300 blur 24: {plain:.2} ms a frame without, {blurred:.2} ms with"
+        "640x480, glass 400x300 blur 24, median frame: {plain:.2} ms without, {blurred:.2} ms with"
     ));
-    assert!(
-        blurred - plain < 12.0,
-        "{blurred:.2} ms against {plain:.2} ms"
+    assert_eq!(
+        passes(&core) - before,
+        21 * 3,
+        "two halvings and one doubling per frame with a change behind"
     );
+}
+
+#[test]
+fn a_backdrop_inside_a_clip_layer_blurs_what_the_layer_drew_behind_it() {
+    let (mut core, mut wm) = world();
+    let commands = json!({"commands": [
+        {"create": {"id": "panel", "kind": "group", "parent": "root",
+            "props": {"size": [640, 480], "clip": {"radius": 0}}}},
+        {"move": {"id": "dark", "parent": "panel"}},
+        {"move": {"id": "light", "parent": "panel"}},
+        {"create": {"id": "glass", "kind": "rect", "parent": "panel", "props": {
+            "size": [200, 200], "color": [0, 0, 0, 0], "backdrop": {"blur": 16},
+            "transform": {"translate": [220, 140]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    let row = screen(&mut core);
+    let at = |x: i32| row[usize::try_from(x - 220).unwrap()];
+    assert!(
+        at(EDGE - 2) > 40,
+        "black next to the edge lightens: {}",
+        at(EDGE - 2)
+    );
+    assert!(
+        at(EDGE + 1) < 215,
+        "white next to the edge darkens: {}",
+        at(EDGE + 1)
+    );
+    let first = passes(&core);
+    frames(&mut core, 10);
+    assert_eq!(passes(&core), first, "a still layer blurs nothing");
 }
