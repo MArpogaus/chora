@@ -52,6 +52,129 @@ pub struct Frame {
     pub area: [i32; 4],
     /// The `chat:` values of the folder that draws.
     pub look: Look,
+    /// The box that the client of `chat.slot` announced on this output.
+    pub slot: Option<[i32; 4]>,
+    /// What the view never covers: the figure with its balloon and the
+    /// "Chat ..." row, each as x, y, width, height.
+    pub clear: Vec<[i32; 4]>,
+}
+
+impl Frame {
+    /// The rectangle of the view: the box of the slot inside the work
+    /// area, else the place of the `chat:` values, `margin` away from the
+    /// edges of the work area; beside what the view must not cover.
+    #[must_use]
+    pub fn rect(&self) -> [i32; 4] {
+        if let Some(slot) = self.slot.and_then(|slot| self.clipped(slot)) {
+            return self.aside(slot);
+        }
+        let (anchor, width) = self.look.place();
+        let margin = i32::try_from(self.look.margin).unwrap_or(0);
+        let [x, y, w, h] = self.area;
+        let inside = [
+            x + margin,
+            y + margin,
+            (w - 2 * margin).max(1),
+            (h - 2 * margin).max(1),
+        ];
+        let view = view_rect(anchor, width, inside);
+        if matches!(anchor, Anchor::Left | Anchor::Right) {
+            return view;
+        }
+        self.aside(view)
+    }
+
+    /// The part of a slot box inside the work area, no wider than a chat
+    /// may be; none for a box that lies outside the area.
+    fn clipped(&self, [x, y, w, h]: [i32; 4]) -> Option<[i32; 4]> {
+        let [ax, ay, aw, ah] = self.area;
+        let widest = i32::try_from(chora_kit::hud::MAX_CHAT_WIDTH).unwrap_or(i32::MAX);
+        let (left, top) = (x.max(ax), y.max(ay));
+        let right = x.saturating_add(w).min(ax + aw);
+        let bottom = y.saturating_add(h).min(ay + ah);
+        (right > left && bottom > top)
+            .then(|| [left, top, (right - left).min(widest), bottom - top])
+    }
+
+    /// The view moved sideways, beside what it would cover, where it fits
+    /// in the work area; the shorter way wins. A panel at the left or the
+    /// right edge keeps its edge.
+    fn aside(&self, [x, y, w, h]: [i32; 4]) -> [i32; 4] {
+        let covered =
+            |[cx, cy, cw, ch]: &&[i32; 4]| *cx < x + w && x < cx + cw && *cy < y + h && y < cy + ch;
+        let spans = self.clear.iter().filter(covered);
+        let Some((from, to)) = spans
+            .map(|[cx, _, cw, _]| (*cx, cx + cw))
+            .reduce(|a, b| (a.0.min(b.0), a.1.max(b.1)))
+        else {
+            return [x, y, w, h];
+        };
+        let [ax, _, aw, _] = self.area;
+        let fits = |left: &i32| *left >= ax && left + w <= ax + aw;
+        let moved = [from - ASIDE - w, to + ASIDE]
+            .into_iter()
+            .filter(fits)
+            .min_by_key(|left| (left - x).abs());
+        [moved.unwrap_or(x), y, w, h]
+    }
+}
+
+/// The gap between the view and what it stands beside.
+const ASIDE: i32 = 8;
+
+/// A box that a client announced for its slot: the client, the output and
+/// the box.
+pub type Held = (String, String, [i32; 4]);
+
+/// The box that holds the view on an output: the one that the client of
+/// `chat.slot` of the folder on the screen announced there. A box of
+/// another client, kept from another folder, holds nothing.
+#[must_use]
+pub fn held_box(held: Option<&Held>, slot: Option<&str>, output: &str) -> Option<[i32; 4]> {
+    let (client, on, rect) = held?;
+    (Some(client.as_str()) == slot && on == output).then_some(*rect)
+}
+
+/// The box of a slot on an output; none when its client took it away.
+pub type SlotBox = (String, Option<[i32; 4]>);
+
+/// The output and the box of the event `CLIENT.chat.slot {output, rect}`,
+/// if the client is the one that the folder names in `chat.slot`: no other
+/// client fills the slot. A box has four sides that are numbers and a
+/// size; the host clips it to the work area when it draws.
+#[must_use]
+pub fn slot_box(
+    slot: Option<&str>,
+    (event, client): (&str, &str),
+    data: &Value,
+) -> Option<SlotBox> {
+    let named = slot.filter(|slot| *slot == client)?;
+    if event.strip_prefix(named) != Some(".chat.slot") {
+        return None;
+    }
+    let output = data.get("output")?.as_str()?.to_owned();
+    let rect = &data["rect"];
+    if rect.is_null() {
+        return Some((output, None));
+    }
+    let sides = rect.as_array().filter(|sides| sides.len() == 4)?;
+    let sides: Vec<i32> = sides
+        .iter()
+        .map(|side| side.as_f64().filter(|n| n.is_finite() && n.abs() < 1e6))
+        .collect::<Option<Vec<f64>>>()?
+        .into_iter()
+        .map(pixels)
+        .collect();
+    let rect: [i32; 4] = sides.try_into().ok()?;
+    (rect[2] > 0 && rect[3] > 0).then_some((output, Some(rect)))
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "a side of a box is below a million pixels"
+)]
+fn pixels(side: f64) -> i32 {
+    side.round() as i32
 }
 
 /// What the session needs from the rest of the host.
@@ -184,12 +307,35 @@ fn colours(look: &Look) -> Colours {
     let host = host_chat();
     let pick =
         |own: Option<[u8; 3]>, hosts: Option<[u8; 3]>, last: [u8; 3]| own.or(hosts).unwrap_or(last);
+    let fill = pick(look.fill, host.fill, [250, 250, 250]);
+    let border = pick(look.border, host.border, [60, 60, 60]);
     Colours {
-        fill: pick(look.fill, host.fill, [250, 250, 250]),
+        fill,
         text: pick(look.text, host.text, [32, 32, 32]),
         name: pick(look.name, host.name, [0, 80, 160]),
-        border: pick(look.border, host.border, [60, 60, 60]),
+        border: if look.style == chora_kit::hud::ChatStyle::Glass {
+            hairline(border, fill)
+        } else {
+            border
+        },
     }
+}
+
+/// The opacity of the edge of glass: a hairline, not a line.
+const GLASS_EDGE: f64 = 0.24;
+
+/// The hairline of a glass chat: its border at the opacity of an edge,
+/// over the fill.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a mix of two colour values is from 0 to 255"
+)]
+fn hairline(border: [u8; 3], fill: [u8; 3]) -> [u8; 3] {
+    std::array::from_fn(|i| {
+        let mixed = f64::from(border[i]) * GLASS_EDGE + f64::from(fill[i]) * (1.0 - GLASS_EDGE);
+        mixed.round() as u8
+    })
 }
 
 fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
@@ -200,8 +346,7 @@ fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
 /// one: at the bottom of the view, as wide as the view.
 #[must_use]
 pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
-    let (anchor, width) = frame.look.place();
-    let [x, y, w, h] = view_rect(anchor, width, frame.area);
+    let [x, y, w, h] = frame.rect();
     let colours = colours(&frame.look);
     let mut place = json!({
         "anchor": "bottom_left",
@@ -829,7 +974,146 @@ mod tests {
             size: [1280, 720],
             area: [0, 0, 1280, 720],
             look,
+            slot: None,
+            clear: Vec::new(),
         }
+    }
+
+    #[test]
+    fn the_view_stands_beside_the_figure_and_its_balloon() {
+        let look = Look {
+            anchor: Some(Anchor::BottomRight),
+            width: Some(340),
+            ..Look::default()
+        };
+        let mut frame = frame(look);
+        frame.area = [0, 0, 1280, 690];
+        assert_eq!(frame.rect(), [940, 276, 340, 414]);
+        frame.clear = vec![[1024, 430, 240, 404], [1106, 642, 70, 32]];
+        assert_eq!(frame.rect(), [1024 - ASIDE - 340, 276, 340, 414]);
+        frame.clear = vec![[1024, 0, 240, 100]];
+        assert_eq!(frame.rect()[0], 940, "nothing in the way");
+        let side = Look {
+            anchor: Some(Anchor::Right),
+            ..Look::default()
+        };
+        let mut panel = self::frame(side);
+        panel.clear = vec![[1240, 680, 24, 24]];
+        assert_eq!(
+            panel.rect(),
+            [880, 0, 400, 720],
+            "a side panel keeps its edge"
+        );
+    }
+
+    #[test]
+    fn a_slot_box_stays_in_the_work_area_and_in_the_limits_of_the_chat() {
+        let mut frame = frame(Look::default());
+        frame.area = [0, 24, 1280, 696];
+        frame.slot = Some([-500, -500, 100_000, 100_000]);
+        assert_eq!(frame.rect(), [0, 24, 1280, 696], "clipped to the work area");
+        frame.area = [0, 0, 3840, 2160];
+        frame.slot = Some([0, 0, 3840, 400]);
+        let width = i32::try_from(chora_kit::hud::MAX_CHAT_WIDTH).unwrap();
+        assert_eq!(frame.rect(), [0, 0, width, 400], "no wider than a chat");
+        frame.area = [0, 0, 1280, 720];
+        frame.slot = Some([5000, 5000, 300, 300]);
+        assert_eq!(
+            frame.rect(),
+            [880, 0, 400, 720],
+            "a box off the area is no box"
+        );
+        frame.slot = Some([40, 400, 600, 280]);
+        frame.clear = vec![[500, 500, 100, 100]];
+        assert_eq!(
+            frame.rect(),
+            [608, 400, 600, 280],
+            "beside what it would cover"
+        );
+    }
+
+    #[test]
+    fn a_box_holds_only_the_view_of_its_client_and_output() {
+        let held = ("mc".to_owned(), "DP-1".to_owned(), [1, 2, 3, 4]);
+        assert_eq!(
+            held_box(Some(&held), Some("mc"), "DP-1"),
+            Some([1, 2, 3, 4])
+        );
+        assert_eq!(held_box(Some(&held), Some("xp"), "DP-1"), None);
+        assert_eq!(held_box(Some(&held), None, "DP-1"), None);
+        assert_eq!(held_box(Some(&held), Some("mc"), "DP-2"), None);
+        assert_eq!(held_box(None, Some("mc"), "DP-1"), None);
+    }
+
+    #[test]
+    fn a_box_with_a_side_that_is_no_number_is_refused() {
+        let event = ("mc.chat.slot", "mc");
+        for bad in [
+            json!([0, 0, "wide", 10]),
+            json!([0, 0, 10, 10, "x"]),
+            json!([0, 0, 10, 10, 5]),
+            json!([0, null, 10, 10]),
+            json!([0, 0, 1e300, 10]),
+            json!({"x": 0}),
+        ] {
+            let data = json!({"output": "HEADLESS-1", "rect": bad});
+            assert_eq!(slot_box(Some("mc"), event, &data), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn the_view_fills_the_box_of_its_slot() {
+        let look = Look {
+            slot: Some("mc".into()),
+            ..Look::default()
+        };
+        let mut frame = frame(look);
+        assert_eq!(
+            frame.rect(),
+            [880, 0, 400, 720],
+            "no box: the default place"
+        );
+        frame.slot = Some([40, 400, 1200, 280]);
+        assert_eq!(frame.rect(), [40, 400, 1200, 280]);
+        let place = field_place(&frame, None);
+        assert_eq!(place["width"], 1200);
+        assert_eq!(place["margin"], json!([0, 0, 40, 40]));
+    }
+
+    #[test]
+    fn the_margin_keeps_the_view_from_the_edges() {
+        let look = Look {
+            anchor: Some(Anchor::Right),
+            width: Some(480),
+            margin: 32,
+            ..Look::default()
+        };
+        let mut frame = frame(look);
+        frame.area = [0, 24, 1280, 696];
+        assert_eq!(frame.rect(), [768, 56, 480, 632]);
+    }
+
+    #[test]
+    fn only_the_named_client_fills_the_slot() {
+        let data = json!({"output": "HEADLESS-1", "rect": [40.0, 400.4, 1200.0, 280.0]});
+        let event = ("mc.chat.slot", "mc");
+        let here = "HEADLESS-1".to_owned();
+        assert_eq!(
+            slot_box(Some("mc"), event, &data),
+            Some((here.clone(), Some([40, 400, 1200, 280])))
+        );
+        let gone = json!({"output": "HEADLESS-1", "rect": null});
+        assert_eq!(slot_box(Some("mc"), event, &gone), Some((here, None)));
+        assert_eq!(slot_box(None, event, &data), None);
+        assert_eq!(slot_box(Some("xp"), event, &data), None);
+        let forged = ("mc.chat.slot", "mc.evil");
+        assert_eq!(slot_box(Some("mc"), forged, &data), None);
+        let other = ("mc.chat.other", "mc");
+        assert_eq!(slot_box(Some("mc"), other, &data), None);
+        let flat = json!({"output": "HEADLESS-1", "rect": [0, 0, -5, 10]});
+        assert_eq!(slot_box(Some("mc"), event, &flat), None);
+        let short = json!({"output": "HEADLESS-1", "rect": [0, 0, 5]});
+        assert_eq!(slot_box(Some("mc"), event, &short), None);
     }
 
     fn setup() -> (Session, Fake, Rc<RefCell<Log>>) {

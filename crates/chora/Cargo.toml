@@ -98,9 +98,12 @@ assets = [
   { source = "../../flavors/xp/assets/notify/values.yaml", dest = "/usr/share/chora/flavors/xp/assets/notify/values.yaml", mode = "644" },
   { source = "../../flavors/xp/assets/notify/*.svg", dest = "/usr/share/chora/flavors/xp/assets/notify/", mode = "644" },
   { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/assets/notify/fonts/", mode = "644" },
-  { source = "../../flavors/xp/assets/assistant/README.md", dest = "/usr/share/chora/flavors/xp/assets/assistant/README.md", mode = "644" },
-  { source = "../../flavors/xp/assets/assistant/values.yaml", dest = "/usr/share/chora/flavors/xp/assets/assistant/values.yaml", mode = "644" },
-  { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/assets/assistant/fonts/", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/README.md", dest = "/usr/share/chora/huds/xp/README.md", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/hud.yaml", dest = "/usr/share/chora/huds/xp/hud.yaml", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/paperclip.svg", dest = "/usr/share/chora/huds/xp/paperclip.svg", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/fonts/*", dest = "/usr/share/chora/huds/xp/fonts/", mode = "644" },
+  { source = "../../plugins/chora-mc/hud/*", dest = "/usr/share/chora/huds/mc/", mode = "644" },
+  { source = "../../plugins/chora-construct/hud/*", dest = "/usr/share/chora/huds/construct/", mode = "644" },
   # The cursors of the XP session, where XCURSOR_THEME=ModernXP finds them.
   { source = "../../flavors/xp/theme/cursors/ModernXP/**/*", dest = "/usr/share/icons/ModernXP/", mode = "644" }
 ]

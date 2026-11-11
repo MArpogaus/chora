@@ -455,6 +455,7 @@ impl Agent {
                     self.failed = None;
                     let old = std::mem::replace(&mut self.look_cache, cache);
                     let _ = std::fs::remove_dir_all(old);
+                    self.watch_slot()?;
                 }
                 Err(err) => {
                     eprintln!("chora-assistant: hud {wanted}: {err}; the look stays");
@@ -474,6 +475,7 @@ impl Agent {
             });
         }
         commands.extend(self.sync_assistant(Instant::now())?);
+        commands.extend(self.say_again(Instant::now()));
         commands.extend(self.sync_badge()?);
         commands.extend(self.sync_row()?);
         self.chat_restyle()?;

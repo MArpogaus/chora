@@ -87,12 +87,17 @@ package() {
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
   install -Dm644 plugins/chora-notify/assets/* -t "$pkgdir/usr/share/chora/notify/assets/"
   install -Dm644 plugins/chora-assistant/huds/neutral/* -t "$pkgdir/usr/share/chora/huds/neutral/"
-  local block dir
-  for block in notify assistant; do
-    find "flavors/xp/assets/$block" -maxdepth 1 -type f \
-      -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/assets/$block/" {} +
-    ln -s ../../theme/fonts "$pkgdir/usr/share/chora/flavors/xp/assets/$block/fonts"
-  done
+  # The HUD folders of the looks. A HUD folder holds no link that leaves
+  # it, so the XP folder gets its own copy of the font.
+  install -Dm644 plugins/chora-mc/hud/* -t "$pkgdir/usr/share/chora/huds/mc/"
+  install -Dm644 plugins/chora-construct/hud/* -t "$pkgdir/usr/share/chora/huds/construct/"
+  find flavors/xp/assets/assistant -maxdepth 1 -type f \
+    -exec install -Dm644 -t "$pkgdir/usr/share/chora/huds/xp/" {} +
+  install -Dm644 flavors/xp/assets/assistant/fonts/* -t "$pkgdir/usr/share/chora/huds/xp/fonts/"
+  local dir
+  find flavors/xp/assets/notify -maxdepth 1 -type f \
+    -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/assets/notify/" {} +
+  ln -s ../../theme/fonts "$pkgdir/usr/share/chora/flavors/xp/assets/notify/fonts"
   for dir in . expose fonts wallpaper winxp; do
     find "flavors/xp/theme/$dir" -maxdepth 1 -type f \
       -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/theme/$dir/" {} +

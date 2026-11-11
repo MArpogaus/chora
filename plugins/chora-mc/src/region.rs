@@ -1328,7 +1328,7 @@ mod tests {
         assert_eq!(
             names(&moved, Region::Left),
             [
-                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+                "chat", "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
             ]
         );
         assert!(!moved.contains_key(&Region::Right));

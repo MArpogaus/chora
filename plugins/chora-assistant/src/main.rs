@@ -26,7 +26,7 @@ mod config;
 mod context;
 mod field;
 mod folders;
-mod paperclip;
+mod rows;
 mod voice;
 
 use std::{
@@ -58,7 +58,7 @@ use crate::{
     assistant::Assistant,
     card::Shown,
     chat::{Session, ShowParams},
-    config::{Config, DOT, Kind, NEUTRAL, Raw, Values},
+    config::{Config, DOT, NEUTRAL, Raw, Values},
     context::Switcher,
 };
 
@@ -87,8 +87,9 @@ const EVENTS: &[&str] = &[
 #[derive(Parser)]
 #[command(version)]
 struct Args {
-    /// The asset folder of a flavor, with `values.yaml` and the pictures,
-    /// which replaces the HUD folder of the setting `hud`.
+    /// The folder of a flavor, which replaces the HUD folder of the
+    /// setting `hud`: a HUD folder with `hud.yaml`, read as any HUD
+    /// folder, or an asset folder with `values.yaml` and the pictures.
     #[arg(long, env = "CHORA_ASSISTANT_ASSETS")]
     assets: Option<PathBuf>,
     /// The settings file. Without it, chora-assistant reads
@@ -124,6 +125,7 @@ impl Source {
         self.loads += 1;
         let cache = self.cache.join(format!("look-{}", self.loads));
         let loaded = match &self.assets {
+            Some(dir) if dir.join("hud.yaml").is_file() => load_folder(dir, context, &cache),
             Some(dir) => load_assets(dir, &cache),
             None => load_hud(&self.roots, hud, context, &cache),
         };
@@ -156,8 +158,13 @@ struct Agent {
     deferred: Vec<&'static str>,
     /// Cache directories of looks that a figure on the screen still uses.
     stale: Vec<PathBuf>,
-    /// The state of each helper that the agent named.
-    helpers: BTreeMap<String, &'static str>,
+    /// What the agent last said of each helper that it named.
+    helpers: BTreeMap<String, rows::Helper>,
+    /// The box of the slot of the chat: the client that announced it, the
+    /// output and the box.
+    slot: Option<chat::Held>,
+    /// The client whose event `chat.slot` the host subscribed to.
+    slot_client: Option<String>,
     /// The cache directory of the look on the screen.
     look_cache: PathBuf,
     /// The theme of the card and the badge, with the fonts of the host.
@@ -193,6 +200,10 @@ struct Agent {
     chat_retried: Instant,
     /// The output that shows the "Chat ..." row.
     row: Option<String>,
+    /// The rectangle of the "Chat ..." row on that output.
+    chat_row: Option<[i32; 4]>,
+    /// The sentence that the agent speaks, and when it ends.
+    said: Option<(String, Instant)>,
 }
 
 impl Plugin for Agent {
@@ -231,12 +242,18 @@ impl Plugin for Agent {
                 event,
                 client,
                 data,
-            } => self.voice_event(&event, &client, &data)?,
+            } => {
+                self.slot_event(&event, &client, &data)?;
+                self.voice_event(&event, &client, &data)?
+            }
             Event::ClientConnected { name } => {
                 self.voice_connected(&name);
                 Vec::new()
             }
-            Event::ClientDisconnected { name } => self.voice_gone(&name)?,
+            Event::ClientDisconnected { name } => {
+                self.slot_gone(&name)?;
+                self.voice_gone(&name)?
+            }
             _ => Vec::new(),
         };
         self.apply(commands)
@@ -281,6 +298,7 @@ impl Plugin for Agent {
         self.folder = folder;
         self.look_context = context;
         self.failed = None;
+        self.watch_slot().map_err(|e| rejected(e.to_string()))?;
         let old = std::mem::replace(&mut self.look_cache, cache);
         if self.card.is_some() {
             self.deferred.push("settings");
@@ -322,6 +340,8 @@ impl Agent {
             deferred: Vec::new(),
             stale: Vec::new(),
             helpers: BTreeMap::new(),
+            slot: None,
+            slot_client: None,
             look_cache,
             card_theme,
             language: language(),
@@ -339,9 +359,12 @@ impl Agent {
             chat_seen: None,
             chat_retried: Instant::now(),
             row: None,
+            chat_row: None,
+            said: None,
         };
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
+        agent.watch_slot().map_err(|e| e.to_string())?;
         let row = agent.sync_row().map_err(|e| e.to_string())?;
         agent.apply(row).map_err(|e| e.to_string())?;
         agent.ask_voice().map_err(|e| e.to_string())?;
@@ -492,11 +515,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 /// start with an error that names it.
 fn load_assets(dir: &Path, cache: &Path) -> Result<(Theme, Values), String> {
     let raw: Raw = assets::values(dir)?;
-    let sheets: &[Sheet] = match raw.figure {
-        Kind::Dot => &[DOT],
-        Kind::Paperclip => &[],
-    };
-    let theme = Theme::load(dir, cache, sheets, &raw.font)?;
+    let theme = Theme::load(dir, cache, &[DOT], &raw.font)?;
     let values = Values::from_assets(raw, |sheet| theme.sheet_size(sheet));
     Ok((theme, values))
 }
@@ -511,12 +530,23 @@ fn load_hud(
 ) -> Result<(Theme, Values), String> {
     let dir = folders::find(roots, name)
         .ok_or_else(|| format!("no HUD folder named {name}; --list-huds lists them"))?;
-    let hud = hud::load(&dir).map_err(|errors| errors.join("; "))?;
+    load_folder(&dir, context, cache)
+}
+
+/// The values and the pictures of the HUD folder `dir`, read as untrusted
+/// data.
+fn load_folder(dir: &Path, context: &Context, cache: &Path) -> Result<(Theme, Values), String> {
+    let hud = hud::load(dir).map_err(|errors| errors.join("; "))?;
+    let unread = hud.contrast_errors(&check::host_chat());
+    if !unread.is_empty() {
+        return Err(unread.join("; "));
+    }
     let mut files: Vec<&str> = hud
         .panels
         .iter()
         .filter_map(|panel| panel.picture.as_deref())
         .filter_map(|picture| picture.split('#').next())
+        .chain(hud.figure.as_deref())
         .collect();
     files.sort_unstable();
     files.dedup();
@@ -524,7 +554,7 @@ fn load_hud(
         .into_iter()
         .map(|file| Sheet(Box::leak(file.to_owned().into_boxed_str())))
         .collect();
-    let theme = Theme::load_hud(&dir, cache, &sheets, &hud.font)?;
+    let theme = Theme::load_hud(dir, cache, &sheets, &hud.font)?;
     let values = Values::from_hud(&hud, context, |sheet| theme.sheet_size(sheet));
     Ok((theme, values))
 }
@@ -597,17 +627,31 @@ mod tests {
         let (theme, ..) = source
             .load(NEUTRAL, &Context::default())
             .expect("the XP folder loads");
-        assert!(!theme.confined(), "the asset folder of a flavor is trusted");
+        assert!(
+            theme.confined(),
+            "an asset folder with hud.yaml is a HUD folder"
+        );
         let _ = std::fs::remove_dir_all(source.cache);
     }
 
     #[test]
-    fn the_xp_folder_loads() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
-        let cache = cache("xp");
-        let (_, values) = load_assets(&dir, &cache).expect("the XP folder loads");
-        assert_eq!(values.figure, Figure::Paperclip);
-        let _ = std::fs::remove_dir_all(cache);
+    fn the_xp_folder_shows_the_paperclip_of_its_hud_yaml() {
+        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
+        let mut source = Source {
+            assets: Some(xp),
+            roots: Vec::new(),
+            cache: cache("xp"),
+            loads: 0,
+        };
+        let (_, values, _) = source
+            .load(NEUTRAL, &Context::default())
+            .expect("the XP folder loads");
+        let Figure::Sheet { sheet, size, .. } = values.figure else {
+            panic!("the figure is {:?}", values.figure);
+        };
+        assert_eq!((sheet.0, size), ("paperclip.svg", [80, 116]));
+        assert!(values.hud.is_some(), "the chat look of the folder");
+        let _ = std::fs::remove_dir_all(source.cache);
     }
 
     #[test]
@@ -619,6 +663,33 @@ mod tests {
         let err = load_assets(&dir, &cache("empty")).err().expect("an error");
         assert!(err.contains("dot.svg"), "{err}");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_folder_that_is_hard_to_read_never_loads() {
+        let root = cache("pale");
+        let dir = root.join("huds/pale");
+        std::fs::create_dir_all(&dir).unwrap();
+        let yaml = "hud: 1\nchat: {fill: [255, 255, 255], text: [200, 200, 200]}\n";
+        std::fs::write(dir.join("hud.yaml"), yaml).unwrap();
+        let context = Context::default();
+        let by_name = load_hud(&[root.join("huds")], "pale", &context, &root.join("c1"));
+        let err = by_name.err().expect("refused by name");
+        assert!(
+            err.contains("chat.text") && err.contains("contrast"),
+            "{err}"
+        );
+        let mut source = Source {
+            assets: Some(dir),
+            roots: Vec::new(),
+            cache: root.join("c2"),
+            loads: 0,
+        };
+        assert!(
+            source.load(NEUTRAL, &context).is_err(),
+            "refused as --assets"
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

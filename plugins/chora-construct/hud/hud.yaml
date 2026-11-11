@@ -1,0 +1,37 @@
+hud: 1
+font: Inter
+panels:
+- id: ring
+  source: voice
+  anchor: top
+  margin: [0, 32]
+  picture: ring.svg#{state}
+  action: mute
+- id: line
+  source: say
+  near: ring
+  style: bubble
+  text: '{text}'
+  max_chars: 160
+- id: chips
+  source: agents
+  anchor: bottom_left
+  margin: [32, 32]
+  style: bubble
+  rows: '{name} · {state}'
+  max_rows: 4
+  action: chat
+  fill: [255, 252, 249]
+  border: [187, 186, 185]
+chat:
+  style: glass
+  font: Inter
+  size: 16
+  anchor: right
+  width: 480
+  margin: 32
+  fill: [255, 252, 249]
+  text: [20, 23, 31]
+  name: [74, 82, 97]
+  border: [20, 23, 31]
+  glow: [38, 128, 181]

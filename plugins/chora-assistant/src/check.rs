@@ -22,12 +22,7 @@ use crate::{
 /// where it leaves a colour out.
 #[must_use]
 pub fn host_chat() -> Chat {
-    Chat {
-        fill: Some([250, 250, 250]),
-        text: Some([32, 32, 32]),
-        name: Some([0, 80, 160]),
-        ..Chat::default()
-    }
+    Chat::host()
 }
 
 /// Every problem of the folder `dir`, in plain words, each with its file and
@@ -60,7 +55,7 @@ pub fn problems(dir: &Path) -> Vec<String> {
         }
     }
     if let Some(hud) = &hud {
-        errors.extend(hud.chat.contrast_errors(&host_chat()));
+        errors.extend(hud.contrast_errors(&host_chat()));
     }
     errors
 }
@@ -88,6 +83,7 @@ fn picture_files(hud: &Hud) -> Vec<String> {
         .iter()
         .filter_map(|panel| panel.picture.as_deref())
         .filter_map(|picture| picture.split('#').next())
+        .chain(hud.figure.as_deref())
         .map(str::to_owned)
         .collect();
     files.sort();

@@ -28,6 +28,20 @@
 #   chat-*, typed-yes-held  the "Chat ..." row, chat.show and chat.hide,
 #                           Super+a and Esc (A3, A9), a typed yes (A5)
 #   agents-row-text         the helper row (A7)
+#   xp-tray-rows            the xp folder shows the row of a working helper
+#                           in its tray balloon (H8, F7)
+#   mc-host-hud             chora-mc with `voice_hud: host` and the mc
+#                           folder: the host draws the figure and the card,
+#                           mc shows no sentence, no question, no claim (H9)
+#   mc-chat-drawer          the chat of the mc folder fills the box that mc
+#                           announces with mc.chat.slot (H9, F8)
+#   construct-host-hud      chora-construct with `voice_hud: host` and the
+#                           construct folder: the host draws the figure and
+#                           the card, construct draws no HUD, no question
+#                           glass and makes no claim (H10)
+#   construct-chat-panel    the chat of the construct folder is a panel at
+#                           the right, 480 wide, 32 from the edges of the
+#                           work area (H10, F9)
 #   voice-state-rate, layers-dropped-empty, host-idle-cpu   100 voice.state
 #                           in 5 s, then no dropped layers and under 1 % CPU
 #
@@ -56,12 +70,12 @@ set -uo pipefail
 
 EXPECTED='
 check-neutral pass
-check-xp missing
-check-mc missing
-check-construct missing
+check-xp pass
+check-mc pass
+check-construct pass
 check-ok-names-use pass
 check-names-four-errors pass
-list-huds missing
+list-huds pass
 use-hud-writes-setting pass
 card-names-file pass
 card-injected-click-refused pass
@@ -73,7 +87,12 @@ chat-row-click-opens pass
 chat-show-hide pass
 chat-super-a-esc missing
 typed-yes-held pass
-agents-row-text missing
+agents-row-text pass
+xp-tray-rows pass
+mc-host-hud pass
+mc-chat-drawer pass
+construct-host-hud pass
+construct-chat-panel pass
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
@@ -128,7 +147,7 @@ fi
 need jq
 need foot
 need python3
-need_bins chora choractl chora-assistant chora-tiling
+need_bins chora choractl chora-assistant chora-tiling chora-mc chora-construct
 temp_config
 work=$XDG_CONFIG_HOME
 shots=${SHOTS:-$work}
@@ -283,6 +302,9 @@ ensure_session() {
     ctl wait owner:tiling --timeout 20 >/dev/null || fail "tiling does not start: $(tail -n 3 "$shots/tiling.log")"
     mkdir -p "$work/data/chora/huds"
     cp -r "$fixtures/mine" "$work/data/chora/huds/mine"
+    cp -rL "$repo/flavors/xp/assets/assistant" "$work/data/chora/huds/xp"
+    [ ! -d "$repo/plugins/chora-mc/hud" ] || cp -rL "$repo/plugins/chora-mc/hud" "$work/data/chora/huds/mc"
+    [ ! -d "$repo/plugins/chora-construct/hud" ] || cp -rL "$repo/plugins/chora-construct/hud" "$work/data/chora/huds/construct"
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {app: probe2}, folder: mine}\n' >"$work/chora/chora-assistant.yaml"
     start_assistant || fail "chora-assistant does not connect: $(tail -n 3 "$shots/assistant.log")"
     foot -f "DejaVu Sans Mono:size=10" -a probe sh -c 'sleep 900' >"$shots/foot.log" 2>&1 &
@@ -394,6 +416,136 @@ cell_agents_row_text() {
     waiting "$settle_s" node_has hud-row-Atlas "Atlas · working · Write file (2/2)"
 }
 
+probe2_rule='{"when": {"app": "probe2"}, "folder": "mine"}'
+use_folder() {
+    local rules=
+    [ "$1" != neutral ] || rules=$probe2_rule
+    ctl call assistant settings.set "{\"hud\": \"$1\", \"huds\": [$rules]}" >/dev/null 2>&1
+}
+cell_xp_tray_rows() {
+    local shown
+    use_folder xp || return 1
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2}'
+    waiting "$settle_s" node_has hud-row-Atlas "Atlas · working · Write file (2/2)"
+    shown=$?
+    use_folder neutral
+    return "$shown"
+}
+
+mc_pid=0
+start_mc() {
+    [ "$mc_pid" = 0 ] || return 0
+    printf 'voice_hud: host\n' >"$work/chora/chora-mc.yaml"
+    "$bin/chora-mc" >"$shots/mc.log" 2>&1 &
+    mc_pid=$!
+    pids+=("$mc_pid")
+    ctl wait owner:mc --timeout 20 >/dev/null
+}
+stop_mc() {
+    [ "$mc_pid" != 0 ] || return 0
+    kill "$mc_pid"
+    wait "$mc_pid" 2>/dev/null
+    mc_pid=0
+}
+claims_now() { cat "$work/claims" 2>/dev/null || echo 0; }
+node_shows() { ctl query "id:$1" | jq -e '.[0] | . != null and .visible != false and (.opacity // 1) > 0' >/dev/null; }
+owner_says() { ctl query "owner:$1" | jq -e --arg t "$2" 'any(.[]; (.meta.text // "") | contains($t))'; }
+cell_mc_host_hud() {
+    local before
+    use_folder mc || return 1
+    start_mc || return 1
+    before=$(claims_now)
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    emit voice.say '{"text": "Your updates are ready to install.", "duration_ms": 1000}'
+    waiting "$settle_s" node_exists hud-figure || return 1
+    waiting "$settle_s" node_exists hud-line || return 1
+    ! owner_says mc "Your updates" || return 1
+    ask_notes
+    waiting "$settle_s" node_exists hud-card || return 1
+    sleep 1
+    ! node_exists mc-answers || return 1
+    ! owner_says mc notes.txt || return 1
+    [ "$(claims_now)" = "$before" ]
+}
+slot_rect() {
+    jq -c 'select(.event == "mc.chat.slot" and .data.rect != null) | .data.rect' "$slots_file" | tail -n 1
+}
+chat_in_slot() {
+    local slot
+    slot=$(slot_rect)
+    [ -n "$slot" ] || return 1
+    jq -ne --argjson s "$slot" --argjson c "$(node_rect hud-chat)" \
+        '($c | to_entries[0].value) as $r |
+         ([range(4)] | all(. as $i | (($r[$i] - $s[$i]) | fabs) < 2))' >/dev/null 2>&1
+}
+slots_file=$shots/slots.jsonl
+cell_mc_chat_drawer() {
+    local shown
+    use_folder mc || return 1
+    start_mc || return 1
+    ctl events mc.chat.slot assistant.chat >"$slots_file" 2>/dev/null &
+    pids+=($!)
+    ctl call assistant chat.show '{"name": "atlas"}' >/dev/null 2>&1 || return 1
+    waiting "$settle_s" node_exists hud-chat || return 1
+    waiting "$settle_s" chat_in_slot
+    shown=$?
+    stop_mc
+    use_folder neutral
+    return "$shown"
+}
+
+construct_pid=0
+start_construct() {
+    [ "$construct_pid" = 0 ] || return 0
+    printf 'voice_hud: host\n' >"$work/chora/chora-construct.yaml"
+    "$bin/chora-construct" >"$shots/construct.log" 2>&1 &
+    construct_pid=$!
+    pids+=("$construct_pid")
+    ctl wait owner:construct --timeout 20 >/dev/null
+}
+stop_construct() {
+    [ "$construct_pid" != 0 ] || return 0
+    kill "$construct_pid"
+    wait "$construct_pid" 2>/dev/null
+    construct_pid=0
+}
+cell_construct_host_hud() {
+    local before
+    use_folder construct || return 1
+    start_construct || return 1
+    before=$(claims_now)
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    emit voice.say '{"text": "Your updates are ready to install.", "duration_ms": 1000}'
+    waiting "$settle_s" node_exists hud-figure || return 1
+    waiting "$settle_s" node_exists hud-line || return 1
+    sleep 1
+    ! node_shows construct-hud || return 1
+    ask_notes
+    waiting "$settle_s" node_exists hud-card || return 1
+    sleep 1
+    ! node_shows construct-ask || return 1
+    [ "$(claims_now)" = "$before" ]
+}
+chat_at_right() {
+    local area
+    area=$(ctl outputs | jq -c '.[0].work_area')
+    jq -ne --argjson a "$area" --argjson c "$(node_rect hud-chat)" \
+        '($c | to_entries[0].value) as $r |
+         $r[2] == 480 and $r[0] + $r[2] == $a[0] + $a[2] - 32 and $r[1] == $a[1] + 32' >/dev/null 2>&1
+}
+cell_construct_chat_panel() {
+    local shown
+    use_folder construct || return 1
+    start_construct || return 1
+    ctl call assistant chat.show '{"name": "atlas"}' >/dev/null 2>&1 || return 1
+    waiting "$settle_s" node_exists hud-chat || return 1
+    waiting "$settle_s" chat_at_right
+    shown=$?
+    stop_construct
+    use_folder neutral
+    return "$shown"
+}
+
 figure_shows() { node_exists hud-figure; }
 cpu_ticks() { awk '{print $14 + $15}' "/proc/$assistant_pid/stat"; }
 idle_window() { timeout 6 sleep "$1"; }
@@ -492,6 +644,11 @@ run_cell chat-show-hide cell_chat_show_hide session
 run_cell chat-super-a-esc cell_chat_super_a_esc session
 run_cell typed-yes-held cell_typed_yes_held session
 run_cell agents-row-text cell_agents_row_text session
+run_cell xp-tray-rows cell_xp_tray_rows session
+run_cell mc-host-hud cell_mc_host_hud session
+run_cell mc-chat-drawer cell_mc_chat_drawer session
+run_cell construct-host-hud cell_construct_host_hud session
+run_cell construct-chat-panel cell_construct_chat_panel session
 run_cell voice-state-rate cell_voice_state_rate session
 run_cell layers-dropped-empty cell_layers_dropped_empty session
 run_cell host-idle-cpu cell_host_idle_cpu session

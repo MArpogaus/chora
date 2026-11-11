@@ -29,8 +29,10 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/share/chora/flavors/xp/chora-xp-assistant.service \
     usr/share/chora/flavors/xp/assets/notify/values.yaml \
     usr/share/chora/flavors/xp/assets/notify/fonts \
-    usr/share/chora/flavors/xp/assets/assistant/values.yaml \
-    usr/share/chora/flavors/xp/assets/assistant/fonts \
+    usr/share/chora/huds/xp/hud.yaml usr/share/chora/huds/xp/paperclip.svg \
+    usr/share/chora/huds/xp/fonts/tahoma.ttf \
+    usr/share/chora/huds/xp/fonts/LICENSE.Tahoma-Wine.LGPL-2.1 \
+    usr/share/chora/huds/mc/hud.yaml usr/share/chora/huds/construct/hud.yaml \
     usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
     usr/share/wayland-sessions/chora-construct.desktop \
     etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \

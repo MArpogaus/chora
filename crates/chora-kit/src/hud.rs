@@ -34,6 +34,8 @@ pub const MIN_CHAT_SIZE: u32 = 14;
 pub const MAX_CHAT_SIZE: u32 = 48;
 /// The widest chat, in pixels.
 pub const MAX_CHAT_WIDTH: u32 = 1600;
+/// The widest gap between the chat and the edges of the work area.
+pub const MAX_CHAT_MARGIN: u32 = 128;
 /// The most characters of `max_chars`.
 pub const MAX_CHARS: u32 = 2000;
 /// The most rows of `max_rows`.
@@ -76,6 +78,10 @@ pub struct Hud {
     /// chat.
     #[serde(default)]
     pub chat: Chat,
+    /// The picture of the figure: an SVG file of the folder with one
+    /// element for each state of the voice agent. It shows where no voice
+    /// panel with a picture does.
+    pub figure: Option<String>,
 }
 
 fn default_font() -> String {
@@ -118,6 +124,48 @@ pub struct Panel {
     pub rows: Option<String>,
     /// The most rows of a list, from 1 to [`MAX_ROWS`].
     pub max_rows: Option<u32>,
+    /// The colours of the text: of the rows of the helpers, and `text`
+    /// of a sentence.
+    #[serde(default)]
+    pub colours: Colours,
+    /// The colour inside the box of a sentence or of a row, `[r, g, b]`.
+    pub fill: Option<[u8; 3]>,
+    /// The colour of the hairline of the box.
+    pub border: Option<[u8; 3]>,
+    /// The tail of the bubble of a sentence, which points at the figure.
+    pub tail: Option<Tail>,
+}
+
+/// The end of a bubble that carries its tail; the bubble grows to the
+/// other side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Tail {
+    /// The tail is near the left end.
+    Left,
+    /// The tail is near the right end.
+    Right,
+}
+
+/// The fill, the text and the hairline of a bubble that names none.
+pub const BUBBLE: ([u8; 3], [u8; 3], [u8; 3]) = ([250, 250, 250], [32, 32, 32], [140, 140, 140]);
+/// The lowest contrast of the hairline of a box against its fill: a
+/// hairline that shows.
+pub const MIN_EDGE_CONTRAST: f64 = 1.5;
+/// The opacity of the fill of a glass chat.
+pub const GLASS_ALPHA: f64 = 0.94;
+
+/// The colours of the text of a panel, `[r, g, b]` each; a colour left out
+/// takes the text colour of the chat.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Colours {
+    /// The name of a helper.
+    pub text: Option<[u8; 3]>,
+    /// The task of a helper.
+    pub muted: Option<[u8; 3]>,
+    /// The state word of a helper.
+    pub accent: Option<[u8; 3]>,
 }
 
 /// Where the data of a panel comes from: a closed list.
@@ -212,6 +260,15 @@ pub struct Chat {
     pub anchor: Option<Anchor>,
     /// The width in pixels, at most [`MAX_CHAT_WIDTH`]; 400 if left out.
     pub width: Option<u32>,
+    /// The gap between the view and the edges of the work area, in pixels,
+    /// at most [`MAX_CHAT_MARGIN`].
+    pub margin: u32,
+    /// The client whose box holds the view: the window manager announces
+    /// the box with its event `chat.slot`. Without a box the view stands at
+    /// `anchor`.
+    pub slot: Option<String>,
+    /// The colour of the glow around a glass chat.
+    pub glow: Option<[u8; 3]>,
 }
 
 impl Default for Chat {
@@ -226,6 +283,9 @@ impl Default for Chat {
             size: MIN_CHAT_SIZE,
             anchor: None,
             width: None,
+            margin: 0,
+            slot: None,
+            glow: None,
         }
     }
 }
@@ -243,6 +303,18 @@ pub enum ChatStyle {
 }
 
 impl Chat {
+    /// The colours of the chat of the host, which the block `chat:` of a
+    /// folder takes where it leaves a colour out.
+    #[must_use]
+    pub fn host() -> Self {
+        Self {
+            fill: Some([250, 250, 250]),
+            text: Some([32, 32, 32]),
+            name: Some([0, 80, 160]),
+            ..Self::default()
+        }
+    }
+
     /// The anchor and the width of the view: the right edge, 400 wide, if
     /// left out.
     #[must_use]
@@ -265,7 +337,41 @@ impl Chat {
                 "chat.width: {width} is not from 1 to {MAX_CHAT_WIDTH}"
             ));
         }
+        if self.margin > MAX_CHAT_MARGIN {
+            errors.push(format!(
+                "chat.margin: {} is not from 0 to {MAX_CHAT_MARGIN}",
+                self.margin
+            ));
+        }
+        if let Some(slot) = self.slot.as_deref().filter(|slot| !plain_name(slot)) {
+            errors.push(format!(
+                "chat.slot: {slot:?} is not the name of a client, 1 to {MAX_ID} characters of a-z, 0-9, _ and -"
+            ));
+        }
     }
+}
+
+impl Chat {
+    /// The fill as it shows: itself, or for a glass chat the fill over a
+    /// black and over a white pane.
+    fn seen_fills(&self, fill: [u8; 3]) -> Vec<[u8; 3]> {
+        if self.style != ChatStyle::Glass {
+            return vec![fill];
+        }
+        [0.0, 255.0]
+            .into_iter()
+            .map(|pane| fill.map(|side| over(side, pane)))
+            .collect()
+    }
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a mix of two colour values is from 0 to 255"
+)]
+fn over(side: u8, pane: f64) -> u8 {
+    (f64::from(side) * GLASS_ALPHA + pane * (1.0 - GLASS_ALPHA)).round() as u8
 }
 
 /// The lowest contrast of text against its fill, as a ratio.
@@ -311,12 +417,57 @@ impl Chat {
             let Some(colour) = own.or(hosts) else {
                 continue;
             };
-            let ratio = contrast(colour, fill);
+            let ratio = self
+                .seen_fills(fill)
+                .into_iter()
+                .map(|seen| contrast(colour, seen))
+                .fold(f64::INFINITY, f64::min);
             if ratio < MIN_TEXT_CONTRAST {
                 errors.push(format!(
                     "hud.yaml: chat.{key}: contrast {ratio:.1}:1 against chat.fill is below {MIN_TEXT_CONTRAST}:1"
                 ));
             }
+        }
+        errors
+    }
+}
+
+impl Hud {
+    /// The colours of the chat and of the panels below
+    /// [`MIN_TEXT_CONTRAST`] against the fill of the chat, one message
+    /// each; `host` gives the colours that the folder leaves out.
+    #[must_use]
+    pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
+        let mut errors = self.chat.contrast_errors(host);
+        let page = self.chat.fill.or(host.fill);
+        let ink = self.chat.text.or(host.text);
+        for (index, panel) in self.panels.iter().enumerate() {
+            let boxed = panel.source != Source::Agents && panel.style != Some(Style::Plain);
+            let (fill, text) = if boxed {
+                (Some(BUBBLE.0), Some(BUBBLE.1))
+            } else {
+                (page, ink)
+            };
+            let Some(fill) = panel.fill.or(fill) else {
+                continue;
+            };
+            let colours = panel.colours;
+            let shown = panel.fill.and(text);
+            let mut check = |key: &str, colour: Option<[u8; 3]>, least: f64| {
+                let Some(ratio) = colour.map(|colour| contrast(colour, fill)) else {
+                    return;
+                };
+                if ratio < least {
+                    errors.push(format!(
+                        "hud.yaml: panels[{index}].{key}: contrast {ratio:.1}:1 against its fill is below {least}:1"
+                    ));
+                }
+            };
+            check("colours.text", colours.text.or(shown), MIN_TEXT_CONTRAST);
+            check("colours.muted", colours.muted, MIN_TEXT_CONTRAST);
+            check("colours.accent", colours.accent, MIN_TEXT_CONTRAST);
+            let edge = panel.border.or(panel.fill.and(boxed.then_some(BUBBLE.2)));
+            check("border", edge, MIN_EDGE_CONTRAST);
         }
         errors
     }
@@ -536,6 +687,11 @@ impl Hud {
             }
         }
         self.chat.check(&mut errors);
+        if let Some(figure) = self.figure.as_deref().filter(|file| !picture_file(file)) {
+            errors.push(format!(
+                "figure: {figure:?} is not the name of an SVG file of the folder"
+            ));
+        }
         errors
     }
 
@@ -554,6 +710,15 @@ impl Hud {
     }
 }
 
+fn plain_name(name: &str) -> bool {
+    let plain = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
+    (1..=MAX_ID).contains(&name.chars().count()) && name.chars().all(plain)
+}
+
+fn picture_file(file: &str) -> bool {
+    !file.is_empty() && !file.contains(['#', '{', '}'])
+}
+
 fn fail(errors: &mut Vec<String>, at: &str, key: &str, message: &str) {
     errors.push(format!("{at}.{key}: {message}"));
 }
@@ -568,8 +733,7 @@ impl Panel {
     }
 
     fn check_id(&self, at: &str, errors: &mut Vec<String>) {
-        let plain = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
-        if !(1..=MAX_ID).contains(&self.id.chars().count()) || !self.id.chars().all(plain) {
+        if !plain_name(&self.id) {
             let message = format!(
                 "{:?} is not 1 to {MAX_ID} characters of a-z, 0-9, _ and -",
                 self.id
@@ -674,6 +838,11 @@ pub fn load(dir: &Path) -> Result<Hud, Vec<String>> {
         if let Err(e) = file(dir, name) {
             errors.push(format!("panels[{index}].picture: {name}: {e}"));
         }
+    }
+    if let Some(figure) = &hud.figure
+        && let Err(e) = file(dir, figure)
+    {
+        errors.push(format!("figure: {figure}: {e}"));
     }
     if errors.is_empty() {
         Ok(hud)
@@ -1105,9 +1274,117 @@ mod tests {
     }
 
     #[test]
-    fn a_folder_cannot_place_the_question() {
-        let slot = errors(parse("hud: 1\nchat: {slot: mc}\n"));
-        assert!(slot.contains("slot"), "{slot}");
+    fn the_chat_names_the_client_of_its_slot() {
+        let hud = parse("hud: 1\nchat: {slot: mc}\n").unwrap();
+        assert_eq!(hud.chat.slot.as_deref(), Some("mc"));
+        assert_eq!(parse("hud: 1\n").unwrap().chat.slot, None);
+        for bad in ["''", "a.b", "../x", "A b", "mc.chat"] {
+            let text = format!("hud: 1\nchat: {{slot: {bad}}}\n");
+            assert!(errors(parse(&text)).contains("chat.slot"), "{bad}");
+        }
+    }
+
+    #[test]
+    fn the_chat_margin_is_from_0_to_128() {
+        assert_eq!(parse("hud: 1\n").unwrap().chat.margin, 0);
+        let hud = parse("hud: 1\nchat: {margin: 32}\n").unwrap();
+        assert_eq!(hud.chat.margin, 32);
+        assert_eq!(
+            parse("hud: 1\nchat: {margin: 128}\n").unwrap().chat.margin,
+            128
+        );
+        let over = errors(parse("hud: 1\nchat: {margin: 129}\n"));
+        assert!(over.contains("chat.margin"), "{over}");
+    }
+
+    #[test]
+    fn panel_colours_keep_the_contrast_of_rule_5() {
+        let with = |colours: &str| {
+            parse(&format!(
+                "hud: 1\npanels:\n  - {{id: a, source: agents, anchor: top, rows: x, colours: \
+                 {colours}}}\nchat: {{fill: [28, 28, 28], text: [217, 212, 201]}}\n"
+            ))
+        };
+        let host = Chat::default();
+        let fine = with("{text: [217, 212, 201], muted: [140, 138, 130], accent: [255, 200, 90]}")
+            .unwrap();
+        assert_eq!(fine.panels[0].colours.accent, Some([255, 200, 90]));
+        assert_eq!(fine.contrast_errors(&host), Vec::<String>::new());
+        for key in ["text", "muted", "accent"] {
+            let dark = with(&format!("{{{key}: [60, 60, 60]}}")).unwrap();
+            let found = dark.contrast_errors(&host).join("\n");
+            assert!(
+                found.contains(&format!("panels[0].colours.{key}")),
+                "{found}"
+            );
+        }
+        assert!(errors(with("{shade: [1, 2, 3]}")).contains("shade"));
+    }
+
+    #[test]
+    fn a_bubble_takes_a_fill_a_border_and_a_tail() {
+        let with = |keys: &str| {
+            parse(&format!(
+                "hud: 1\npanels:\n  - {{id: a, source: say, anchor: top, style: bubble, text: \
+                 '{{text}}', {keys}}}\n"
+            ))
+        };
+        let host = Chat::default();
+        for good in [
+            "fill: [255, 255, 225], border: [0, 0, 0], tail: right",
+            "tail: left",
+            "fill: [20, 20, 20], colours: {text: [240, 240, 240]}",
+        ] {
+            let hud = with(good).unwrap_or_else(|e| panic!("{good}: {e:?}"));
+            assert_eq!(hud.contrast_errors(&host), Vec::<String>::new(), "{good}");
+        }
+        assert!(errors(with("tail: up")).contains("tail"));
+        let dark = with("fill: [20, 20, 20]").unwrap();
+        let found = dark.contrast_errors(&host).join("\n");
+        assert!(found.contains("panels[0].colours.text"), "{found}");
+        let pale = with("fill: [255, 255, 225], border: [250, 250, 215]").unwrap();
+        let found = pale.contrast_errors(&host).join("\n");
+        assert!(found.contains("panels[0].border"), "{found}");
+    }
+
+    #[test]
+    fn glass_is_checked_over_a_black_and_a_white_pane() {
+        let with = |text: &str| {
+            parse(&format!(
+                "hud: 1\nchat: {{style: glass, fill: [255, 252, 249], text: {text}, glow: [38, \
+                 128, 181]}}\n"
+            ))
+            .unwrap()
+        };
+        let host = Chat::default();
+        assert_eq!(
+            with("[20, 23, 31]").contrast_errors(&host),
+            Vec::<String>::new()
+        );
+        let grey = with("[112, 112, 112]");
+        assert!(contrast([112, 112, 112], [255, 252, 249]) >= MIN_TEXT_CONTRAST);
+        let found = grey.contrast_errors(&host).join("\n");
+        assert!(found.contains("chat.text"), "over a black pane: {found}");
+    }
+
+    #[test]
+    fn the_figure_is_a_picture_of_the_folder() {
+        let hud = parse("hud: 1\nfigure: paperclip.svg\n").unwrap();
+        assert_eq!(hud.figure.as_deref(), Some("paperclip.svg"));
+        assert_eq!(parse("hud: 1\n").unwrap().figure, None);
+        for bad in ["'a.svg#idle'", "'{state}.svg'", "''"] {
+            let text = format!("hud: 1\nfigure: {bad}\n");
+            assert!(errors(parse(&text)).contains("figure"), "{bad}");
+        }
+        let folder = Dir::new("figure");
+        folder.put("hud.yaml", b"hud: 1\nfigure: paperclip.svg\n");
+        let missing = load(&folder.0).unwrap_err().join("\n");
+        assert!(missing.contains("figure: paperclip.svg"), "{missing}");
+        folder.put(
+            "paperclip.svg",
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        );
+        assert!(load(&folder.0).is_ok());
     }
 
     #[test]

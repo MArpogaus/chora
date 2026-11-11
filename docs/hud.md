@@ -19,9 +19,10 @@ fancy/
   fonts/          optional
 ```
 
-A shipped folder lives in `/usr/share/chora/huds/NAME`, a user folder in
-`$XDG_DATA_HOME/chora/huds/NAME`. A user folder wins over a shipped one
-of the same name. A folder that is dropped in changes nothing until a
+A shipped folder lives in `chora/huds/NAME` of a directory of
+`$XDG_DATA_DIRS`, by default `/usr/share/chora/huds/NAME`, a user folder
+in `$XDG_DATA_HOME/chora/huds/NAME`. A user folder wins over a shipped one
+of the same name. chora ships `neutral`, `xp`, `mc` and `construct`. A folder that is dropped in changes nothing until a
 setting names it.
 
 ### Limits
@@ -61,9 +62,11 @@ is fine prints `OK. Turn it on: chora-assistant --use-hud NAME` and exits
 
 One setting names the folder: `hud: NAME` in
 `~/.config/chora/chora-assistant.yaml`, `neutral` by default. The host
-looks for `NAME` in `$XDG_DATA_HOME/chora/huds`, then in
-`/usr/share/chora/huds`, then in the source tree of a binary run from
-`target/<profile>/`.
+looks for `NAME` in `$XDG_DATA_HOME/chora/huds`, then in `chora/huds` of
+each directory of `$XDG_DATA_DIRS` (`/usr/local/share` and `/usr/share`
+when the variable is empty), then, for a binary run from
+`target/<profile>/`, in its own `plugins/chora-assistant/huds` of the
+source tree, which links the folders of xp, mc and construct.
 
 | Command | Does |
 |---|---|
@@ -71,10 +74,12 @@ looks for `NAME` in `$XDG_DATA_HOME/chora/huds`, then in
 | `chora-assistant --use-hud NAME` | Checks the folder and writes `hud: NAME`; refuses a folder with problems. `default` takes the line out. |
 | `choractl call assistant settings.reload` | Makes a running host take the new setting. A folder that fails keeps the look on the screen, and the host logs the error. |
 
-The host reads a folder only through `Theme::load_hud`. The asset
-folder of a flavor (`--assets`, `CHORA_ASSISTANT_ASSETS`) is the one
-other way to name a look; it is trusted and replaces the folder of the
-setting.
+The host reads a folder only through `Theme::load_hud`. The folder of a
+flavor (`--assets`, `CHORA_ASSISTANT_ASSETS`) is the one other way to
+name a look, and it replaces the folder of the setting. With a
+`hud.yaml` it is a HUD folder and is read as one, as the XP flavor does;
+without one it is an asset folder with `values.yaml`, which the host
+trusts.
 
 ### Folders by context
 
@@ -129,6 +134,7 @@ the key, for example `hud.yaml: chat.size: 11 is not from 14 to 48`.
 ```yaml
 hud: 1
 font: sans-serif
+figure: paperclip.svg
 panels:
   - id: figure
     source: voice
@@ -149,17 +155,20 @@ panels:
     rows: "{name}  {state}  {task}"
     max_rows: 4
     action: chat
+    colours: {text: [32, 32, 32], muted: [90, 90, 90], accent: [0, 80, 160]}
 chat:
   style: plain
   size: 16
   anchor: right
   width: 400
+  margin: 0
 ```
 
 | Key | Meaning |
 |---|---|
 | `hud` | The version. Must be `1`; any other number is refused. |
 | `font` | The default font family. Default `sans-serif`. |
+| `figure` | The picture of the figure, for a folder that needs no place for it: an SVG file of the folder with one element for each state, named `idle`, `asleep`, `listening`, `thinking`, `working`, `speaking` and `question`; a missing one shows `idle`. It shows at the bottom right of the work area, 16 pixels from the edges, and a click on it mutes the mic. A panel with `source: voice` and a `picture` that shows in the context takes its place. Optional. |
 | `panels` | A list of panels. |
 | `chat` | The look of the chat. Optional. |
 
@@ -181,8 +190,34 @@ chat:
 | `max_chars` | The most characters of the text, 1 to 2000. |
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
+| `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |
+| `fill`, `border` | The colour inside the box of a sentence or of a row, and of its hairline. Left out, a sentence has the light card of the host and a row the fill of the chat. The text needs 4.5:1 against the fill, the hairline 1.5:1. |
+| `tail` | `left` or `right`: the bubble of a sentence gets a tail that points at the figure, near that end; the bubble grows to the other side. Left out: no tail. |
 
 A panel needs at least one of `picture`, `text` or `rows`.
+
+A sentence (`source: say`) shows in a bubble above the figure, or below
+a figure at the top. With `style: plain` it has no hairline and no
+tail: the text stands beside the figure, on the side of the middle of
+the output, in the text colour of the chat on a backing in the fill of
+the chat, so that it reads on any window behind it. A sentence that the agent still speaks shows again
+when the look is built again.
+
+A picture of a figure may hold an element `ID-shut` beside an element
+`ID`, for example `idle-shut`: the figure then blinks with it, a
+moment every few seconds.
+
+The host draws the rows of the helpers itself: a panel with
+`source: agents` and `action: chat` gives their place, `max_rows` (4 if
+left out) and `colours`. Below the "Chat ..." row stands one row for each
+helper, `Atlas · working · Write file (2/2)`: the name, the state word of
+the word table and the task with its step. The rows stack away from the
+edge of the anchor; while the `when` of the panel does not match, only
+the "Chat ..." row shows, in the same place. A click on a row opens the chat with that helper. The
+words and their order are the same in every folder; `rows` does not
+change them. The node of a row is `hud-row-NAME`. A helper whose name
+has other characters than letters, digits, `_` and `-`, or that is named
+`chat`, has no row.
 
 The data of a source is not computed in a folder. A person who needs
 other data writes an ordinary plugin that emits an event, and the folder
@@ -239,6 +274,22 @@ values only. A folder without the block gets the neutral chat.
 | `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. |
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
+| `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
+| `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
+| `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
+
+A `glass` chat has corners of 12 pixels, its `fill` at an opacity of
+0.94 and its `border` as a hairline at 0.24, after the construct style
+guide. Its text is checked against the fill over a black and over a
+white pane.
+
+The view never covers the figure, its bubble or the "Chat ..." row: a
+view that would, moves sideways beside them, also a view in a slot. A
+view at `left` or `right` is a side panel and keeps its edge.
+
+A font family that the system does not have, such as TeX Gyre Pagella
+of the mc folder on a system without the TeX Gyre fonts, falls back to
+the default family of the system; the folder still loads.
 
 ## Pictures, fonts and colours
 
@@ -260,8 +311,11 @@ The host loads a folder with `chora_draw::theme::Theme::load_hud`.
   the text of the folder uses. The first 256 entries are listed, at most
   16 files load, and a `fonts` that is a link loads nothing. The question
   card uses the host fonts (`Fonts::host`) and never a font of a folder.
+- The host loads no folder with a colour below these contrasts, however
+  the folder is named: by `hud`, by a rule of `huds` or by `--assets`.
 - Text colours need a contrast of 4.5:1 against their fill
-  (`chora_kit::hud::contrast`, `Chat::contrast_errors`). The key line and
+  (`chora_kit::hud::contrast`, `Hud::contrast_errors`): the `text` and
+  `name` of the chat and the `colours` of a panel. The key line and
   the buttons of the question card are the host's and keep 7:1.
 
 ## What a folder cannot do

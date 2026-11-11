@@ -503,10 +503,16 @@ impl Mc {
 
 /// The client name of the voice agent.
 const VOICE: &str = "voice";
+/// The client name of the HUD host.
+const ASSISTANT: &str = "assistant";
+/// The content that holds the drawer for the chat of the HUD host.
+const CHAT: &str = "chat";
 
-/// The events; `voice.*` are those of the voice agent (D65).
-const EVENTS: [&str; 13] = [
+/// The events; `voice.*` are those of the voice agent (D65),
+/// `assistant.chat` says where the HUD host shows its chat.
+const EVENTS: [&str; 14] = [
     "voice.*",
+    "assistant.chat",
     "effects.dropped",
     "client.connected",
     "client.disconnected",
@@ -789,20 +795,18 @@ impl Plugin for Mc {
                 self.drag(&binding, state, position, surface);
                 Ok(())
             }
-            // `voice.*` also matches a client named `voice.evil`: only
-            // the agent itself shows its state (review 4.9).
             Event::Emitted {
                 event,
                 client,
                 data,
-            } if client == VOICE => self.follow(&event, &client, data),
+            } => self.emitted(&event, &client, data),
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
             Event::PointerPressed {
                 node,
                 position,
                 injected,
                 ..
-            } => self.click(&node, position, injected),
+            } => self.press(&node, position, injected),
             _ => Ok(()),
         }
     }
@@ -973,6 +977,15 @@ impl Mc {
             self.claim_indicator(true);
         }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
+        let host = client == VOICE && self.settings.value.voice_hud == config::VoiceHud::Host;
+        let hosts_it = match kind {
+            Some("confirm" | "say") => true,
+            Some("state") => data.get("name").is_none(),
+            _ => false,
+        };
+        if host && hosts_it {
+            return Ok(());
+        }
         let done = match kind {
             Some("state") => {
                 if let Some(object) = data.as_object_mut() {
@@ -999,12 +1012,51 @@ impl Mc {
     /// an agent without the method, only leaves it due; after an event
     /// of the agent (`last`) it is no longer due.
     fn claim_indicator(&mut self, last: bool) {
-        if !self.claim_due {
+        if !self.claim_due || self.settings.value.voice_hud == config::VoiceHud::Host {
             return;
         }
         let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
         let done = self.rt.conn.call::<_, Value>("methods.call", call).is_ok();
         self.claim_due = !done && !last;
+    }
+
+    /// An event of a client (D65): of the voice agent, or `assistant.chat`
+    /// of the HUD host. `voice.*` also matches a client named `voice.evil`:
+    /// only the agent itself shows its state (review 4.9).
+    fn emitted(&mut self, event: &str, client: &str, data: Value) -> Result<(), ClientError> {
+        match client {
+            VOICE => self.follow(event, client, data),
+            ASSISTANT if event == "assistant.chat" => self.chat_drawer(&data),
+            _ => Ok(()),
+        }
+    }
+
+    /// A press of the pointer: on a column of a helper it opens the chat,
+    /// else it is a click.
+    fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
+        if self.click_agent(node, at) {
+            return Ok(());
+        }
+        self.click(node, at, injected)
+    }
+
+    /// `assistant.chat` of the HUD host: while it shows the chat on the
+    /// output of mc, the drawer shows alone and mc emits its box as
+    /// `mc.chat.slot {output, rect}`; else the drawer shows as before.
+    fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
+        let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
+            return Ok(());
+        };
+        let here = data.get("output").and_then(Value::as_str) == Some(output.as_str());
+        let open = here && data.get("open").and_then(Value::as_bool) == Some(true);
+        let shows = self.solo.as_ref().is_some_and(|s| s.content == CHAT);
+        if open == shows {
+            return Ok(());
+        }
+        self.solo(CHAT, Region::Drawer, Some(open), false)?;
+        let rect = if open { self.drawer_box() } else { None };
+        let emit = json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
 
     /// The methods of the agents and the notifications.
@@ -2911,6 +2963,88 @@ mod tests {
         chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
         assert_eq!(claims(), 2);
         assert!(!mc.claim_due);
+    }
+
+    /// With `voice_hud: host` the host draws the voice HUD and the
+    /// question: mc shows neither the state nor the sentence of the voice
+    /// agent nor its question, and still shows its helpers.
+    #[test]
+    fn voice_hud_host_draws_no_voice_status() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("host-status", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
+        mc.follow("voice.state", "voice", json!({"state": "listening"}))
+            .unwrap();
+        mc.follow(
+            "voice.say",
+            "voice",
+            json!({"text": "Hello there", "duration_ms": 0}),
+        )
+        .unwrap();
+        let ask = json!({"id": "1", "prompt": "Atlas wants to write notes.txt.",
+            "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
+        mc.follow("voice.confirm", "voice", ask).unwrap();
+        mc.follow(
+            "voice.state",
+            "voice",
+            json!({"name": "Atlas", "state": "working"}),
+        )
+        .unwrap();
+        assert!(mc.hud.state.is_empty() && mc.hud.text.is_empty());
+        assert!(!mc.agents.iter().any(|a| a.name == "voice"));
+        assert!(mc.confirming.is_none() && mc.solo.is_none());
+        assert!(mc.agents.iter().any(|a| a.name == "Atlas"));
+    }
+
+    /// With `voice_hud: host` mc never claims the indicator of voice.
+    #[test]
+    fn voice_hud_host_claims_no_indicator() {
+        let (mut mc, model) = crate::testing::mc("host-claim", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Host;
+        mc.claim_indicator(false);
+        mc.follow("voice.state", "voice", serde_json::json!({}))
+            .unwrap();
+        let connected = chora_scene::Event::ClientConnected {
+            name: "voice".into(),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
+        assert!(
+            !model
+                .lock()
+                .unwrap()
+                .calls
+                .iter()
+                .any(|m| m == "indicator.claim")
+        );
+    }
+
+    /// `assistant.chat` of the host opens the drawer on the output of mc
+    /// and mc emits its box as `mc.chat.slot`; a close hides the drawer
+    /// again. Another output or another client changes nothing.
+    #[test]
+    fn an_open_chat_opens_the_drawer_and_emits_its_box() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("chat-drawer", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        let chat = |client: &str, open: bool, output: &str| chora_scene::Event::Emitted {
+            event: "assistant.chat".into(),
+            client: client.into(),
+            data: json!({"open": open, "name": "Atlas", "output": output}),
+        };
+        assert_eq!(mc.drawer_box(), None);
+        chora_kit::runtime::Plugin::event(&mut mc, chat("evil", true, "test")).unwrap();
+        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "other")).unwrap();
+        assert_eq!(mc.drawer_box(), None);
+        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "test")).unwrap();
+        let rect = mc.drawer_box().expect("the drawer shows");
+        let emits = model.lock().unwrap().emits.clone();
+        assert_eq!(
+            emits.last(),
+            Some(&json!({"event": "mc.chat.slot", "data": {"output": "test", "rect": rect}}))
+        );
+        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", false, "test")).unwrap();
+        assert_eq!(mc.drawer_box(), None);
     }
 
     /// Only the voice agent sets the agent `voice`, by its events or by

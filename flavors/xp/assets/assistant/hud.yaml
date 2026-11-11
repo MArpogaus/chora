@@ -1,0 +1,39 @@
+hud: 1
+font: Tahoma
+panels:
+- id: clip
+  source: voice
+  anchor: bottom_right
+  margin: [96, 32]
+  picture: paperclip.svg#{state}
+  action: mute
+- id: line
+  source: say
+  anchor: bottom_right
+  margin: [96, 120]
+  style: bubble
+  text: '{text}'
+  max_chars: 160
+  action: chat
+  fill: [255, 255, 225]
+  border: [0, 0, 0]
+  tail: right
+- id: tray
+  source: agents
+  when: {agents: [working, question], chat: none}
+  anchor: bottom_right
+  margin: [184, 32]
+  style: bubble
+  rows: '{name} · {state} · {task}'
+  max_rows: 4
+  action: chat
+chat:
+  style: bubble
+  font: Tahoma
+  size: 14
+  anchor: bottom_right
+  width: 340
+  fill: [255, 255, 225]
+  text: [0, 0, 0]
+  name: [0, 60, 116]
+  border: [127, 157, 185]
