@@ -257,7 +257,7 @@ impl Construct {
                         NodeKind::Shader,
                         PANES,
                         PropsUpdate {
-                            shader: Some(self.glass_shader.clone()),
+                            shader: Some(self.glow_shader.clone()),
                             visible: Some(false),
                             input: Some(InputMode::Pass),
                             ..PropsUpdate::default()
