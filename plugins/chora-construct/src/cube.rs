@@ -49,6 +49,10 @@ const TURN: Duration = Duration::from_millis(500);
 const CONNECT: Duration = Duration::from_secs(10);
 /// The most faces: the side faces of a cube.
 const FACES: usize = 4;
+/// The most that a window lifts off its face to clear the planes of a
+/// neighbour face, and the room it keeps from them.
+const CLEAR_CAP: f64 = 2.0 * float::LIFT;
+const CLEAR_GAP: f64 = 8.0;
 /// How far the cube stands back in navigate mode, in focal lengths: the
 /// front face shows at 1 / (1 + STAND) of its size.
 const STAND: f64 = 0.6;
@@ -203,6 +207,32 @@ fn step_back(angle: f64, depth: f64) -> f64 {
     (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * turned(angle)
 }
 
+/// A floating window and its lift at full float.
+type Lifted<'a> = (&'a Floating, f64);
+
+/// The lift of a window of `width` wide faces at full float, `base` by
+/// its place in the stack, grown until its plane clears the planes of
+/// the windows across its left and its right edge, each with its own
+/// base lift; at most `CLEAR_CAP`.
+fn cleared(window: &Floating, base: f64, width: f64, (left, right): (&[Lifted], &[Lifted])) -> f64 {
+    let [_, y, _, h] = window.rect;
+    let level = |q: &Floating| q.rect[1] < y + h && y < q.rect[1] + q.rect[3];
+    let past_left = |q: &Floating| -q.rect[0];
+    let past_right = |q: &Floating| q.rect[0] + q.rect[2] - width;
+    let reach = |reach: f64, others: &[Lifted], past: &dyn Fn(&Floating) -> f64| {
+        (others.iter())
+            .filter(|(q, lift)| level(q) && reach > *lift && past(q) > base)
+            .map(|(q, _)| past(q) + CLEAR_GAP)
+            .fold(base, f64::max)
+    };
+    let grown = reach(past_right(window), right, &past_left).max(reach(
+        past_left(window),
+        left,
+        &past_right,
+    ));
+    grown.min(CLEAR_CAP.max(base))
+}
+
 impl Host {
     /// Where the eye at `eye` on the ground is in the space of the cube.
     fn eye(&self, eye: [f64; 2]) -> [f64; 3] {
@@ -352,14 +382,34 @@ impl Host {
         changed
     }
 
+    /// The lifts at full float of the windows of face `i`: each starts at
+    /// the lift of its place in the stack and grows until it clears the
+    /// planes across the shared edges (`cleared`).
+    fn lifts(&self, i: usize) -> Vec<f64> {
+        let based = |face: usize| -> Vec<Lifted> {
+            let windows = self.floats_of(face).unwrap_or_default();
+            let count = windows.len();
+            let lifted = |(k, w)| (w, float::lift(1.0, k, count));
+            windows.iter().enumerate().map(lifted).collect()
+        };
+        let own = based(i);
+        let sides = (i < FACES).then(|| (based((i + 1) % FACES), based((i + FACES - 1) % FACES)));
+        let (left, right) = sides.unwrap_or_default();
+        let width = self.cube.size_of(i)[0];
+        (own.iter())
+            .map(|(w, base)| cleared(w, *base, width, (&left, &right)))
+            .collect()
+    }
+
     /// The updates of the planes of the floating windows of face `i`:
     /// each at the place of its window, off the face by its lift, which
     /// grows with the stand back and with the turn.
     fn planes(&self, i: usize, shows: bool) -> Vec<Command> {
         let windows = self.floats_of(i).unwrap_or_default();
         let phase = self.stand.max(turned(self.angle));
+        let lifts = self.lifts(i);
         let plane = |(k, window): (usize, &Floating)| {
-            let lift = float::lift(phase, k, windows.len());
+            let lift = lifts.get(k).copied().unwrap_or_default() * phase;
             let at = [window.rect[0], window.rect[1]];
             update(
                 &super::float::plane_id(i, &window.surface),
@@ -895,6 +945,40 @@ mod tests {
             drag_of(&mut held, [100.0, 300.0], 400.0),
             Dragged::Pull("s1".into())
         );
+    }
+
+    fn floating(rect: [f64; 4]) -> Floating {
+        Floating {
+            node: "xp-win-s".into(),
+            surface: "s".into(),
+            rect,
+        }
+    }
+
+    #[test]
+    fn a_window_over_a_shared_edge_floats_until_it_clears_the_neighbour() {
+        let width = 1280.0;
+        let over_right = floating([1180.0, 100.0, 300.0, 200.0]);
+        let over_left = floating([-150.0, 150.0, 300.0, 200.0]);
+        let lift = cleared(&over_right, 100.0, width, (&[], &[(&over_left, 100.0)]));
+        assert!(lift > 150.0, "past the reach of the neighbour: {lift}");
+        let low = floating([-150.0, 500.0, 300.0, 200.0]);
+        let apart = cleared(&over_right, 100.0, width, (&[], &[(&low, 100.0)]));
+        assert!((apart - 100.0).abs() < 1e-9, "no overlap in height");
+        let short = floating([-50.0, 150.0, 300.0, 200.0]);
+        let clear = cleared(&over_right, 100.0, width, (&[], &[(&short, 100.0)]));
+        assert!(
+            (clear - 100.0).abs() < 1e-9,
+            "the neighbour does not reach the plane"
+        );
+        let far = floating([-900.0, 150.0, 1000.0, 200.0]);
+        let capped = cleared(&over_right, 100.0, width, (&[], &[(&far, 100.0)]));
+        assert!(
+            (capped - CLEAR_CAP).abs() < 1e-9,
+            "at most the cap: {capped}"
+        );
+        let mirrored = cleared(&over_left, 100.0, width, (&[(&over_right, 100.0)], &[]));
+        assert!(mirrored > 200.0, "across the left edge: {mirrored}");
     }
 
     #[test]
