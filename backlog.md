@@ -332,3 +332,8 @@ stood back, a window half over the right edge shows in full.
 The K7 fix set PR_SET_PDEATHSIG for manager panes only. If the construct
 crashes, the cube's xp keeps running and the next cube.open waits on "a
 client xp runs already". Same one-line fix in the cube's pre_exec.
+
+## V2 (11-11): M1 for voice's own key-only questions
+A spoken "Ja" now gets "For this I need a key press or a click" for a
+helper's question, but a key-only question of voice's own turn still
+gets only the earcon (its reply waits blocked). Speak the same phrase.
