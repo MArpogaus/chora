@@ -211,7 +211,9 @@ moment every few seconds.
 
 The host draws the rows of the helpers itself: a panel with
 `source: agents` and `action: chat` gives their place, `max_rows` (4 if
-left out) and `colours`. Below the "Chat ..." row stands one row for each
+left out) and `colours`. While the voice agent is awake and not idle,
+the "Chat ..." row ends with its state word, `Chat ... · listening`, in
+the `accent` colour, in every folder. Below the "Chat ..." row stands one row for each
 helper, `Atlas · working · Write file (2/2)`: the name, the state word of
 the word table and the task with its step. The rows stack away from the
 edge of the anchor; while the `when` of the panel does not match, only

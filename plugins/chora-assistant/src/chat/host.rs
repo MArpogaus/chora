@@ -14,7 +14,6 @@ use chora_kit::{
     conn::Conn,
     hud::{Anchor, Chat as Look},
     runtime,
-    words::Word,
 };
 use chora_scene::{
     Command, InputMode, NodeKind, PropsUpdate,
@@ -463,8 +462,13 @@ impl Agent {
     /// the "Chat ..." row, then the helpers.
     fn row_lines(&self) -> Vec<(String, String, Vec<Tinted>)> {
         let (most, tints) = self.values.helpers;
-        let label = Word::ChatRow.text(self.language).to_owned();
-        let chat = (ROW.to_owned(), label.clone(), vec![(label, None)]);
+        let voice = self.voice.as_ref().map(|(_, state)| *state);
+        let words = rows::chat_words(self.language, voice);
+        let text = words.join(rows::SEPARATOR);
+        let tinted = (words.into_iter().enumerate())
+            .map(|(k, word)| (word, (k > 0).then_some(tints.accent).flatten()))
+            .collect();
+        let chat = (ROW.to_owned(), text, tinted);
         let helpers = rows::rows(self.language, &self.helpers, most);
         let helpers = helpers.into_iter().map(|row| {
             let text = row.text();

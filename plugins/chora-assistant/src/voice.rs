@@ -126,17 +126,25 @@ impl Agent {
         match kind {
             Some("state") => {
                 let state = data.get("state").and_then(Value::as_str).unwrap_or("");
-                self.voice = Some((client.to_owned(), assistant::context_state(state)));
+                let before = self
+                    .voice
+                    .replace((client.to_owned(), assistant::context_state(state)));
                 if let Some(mic) = data["muted"]["mic"].as_bool() {
                     self.muted = mic;
                 }
                 let mut commands = self.sync_assistant(now)?;
                 commands.extend(self.sync_badge()?);
+                if before != self.voice {
+                    commands.extend(self.sync_row()?);
+                }
                 Ok(commands)
             }
             Some("say") => {
-                self.voice = Some((client.to_owned(), "speaking"));
+                let before = self.voice.replace((client.to_owned(), "speaking"));
                 let mut commands = self.sync_assistant(now)?;
+                if before != self.voice {
+                    commands.extend(self.sync_row()?);
+                }
                 let text = data.get("text").and_then(Value::as_str).unwrap_or("");
                 let time = Duration::from_millis(data["duration_ms"].as_u64().unwrap_or(0));
                 if !text.is_empty() && self.card.is_none() {
