@@ -120,10 +120,14 @@ pub enum Word {
     TurnLeft,
     /// The control that turns a cube to the right.
     TurnRight,
+    /// A line typed before a helper was picked from the list.
+    PickFirst,
+    /// The entry of the list that starts a helper for a project.
+    NewHelper,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 46] = [
+pub const ALL: [Word; 48] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -170,6 +174,8 @@ pub const ALL: [Word; 46] = [
     Word::StepIn,
     Word::TurnLeft,
     Word::TurnRight,
+    Word::PickFirst,
+    Word::NewHelper,
 ];
 
 impl Word {
@@ -234,6 +240,8 @@ impl Word {
             Self::StepIn => "Step in",
             Self::TurnLeft => "Turn left",
             Self::TurnRight => "Turn right",
+            Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
+            Self::NewHelper => "New helper for {project}",
         }
     }
 
@@ -293,6 +301,10 @@ impl Word {
             Self::StepIn => "Hineingehen",
             Self::TurnLeft => "Nach links drehen",
             Self::TurnRight => "Nach rechts drehen",
+            Self::PickFirst => {
+                "Wählen Sie zuerst einen Helfer: Nummer eingeben und Enter drücken, oder anklicken."
+            }
+            Self::NewHelper => "Neuer Helfer für {project}",
         }
     }
 }

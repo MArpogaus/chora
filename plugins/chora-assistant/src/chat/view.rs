@@ -207,14 +207,7 @@ impl Session {
         };
         let lines = self.lines(language, &measure);
         let hint = self.hint(language);
-        let list: Vec<String> = match &self.mode {
-            Mode::List(picks) => picks
-                .iter()
-                .enumerate()
-                .map(|(n, pick)| format!("{}  {}", n + 1, pick.name()))
-                .collect(),
-            _ => Vec::new(),
-        };
+        let list = self.entries(language);
         let chat = matches!(self.mode, Mode::Chat(_));
         let top_row = PAD + LINE + GAP;
         let body_top = if chat {

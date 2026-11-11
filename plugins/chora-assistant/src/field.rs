@@ -109,6 +109,11 @@ impl Field {
         self.send(&json!({"say_failed": text}))
     }
 
+    /// Gives a line back that was typed before a helper was picked.
+    pub fn pick_first(&mut self, text: &str) -> std::io::Result<()> {
+        self.send(&json!({"pick_first": text}))
+    }
+
     /// Passes a voice event to the field if it concerns its helper.
     pub fn voice_event(&mut self, event: &str, data: &Value, helper: &str) -> std::io::Result<()> {
         match voice_line(event, data, helper) {
@@ -173,6 +178,10 @@ impl Link for Field {
 
     fn say_failed(&mut self, text: &str) {
         log(Self::say_failed(self, text));
+    }
+
+    fn pick_first(&mut self, text: &str) {
+        log(Self::pick_first(self, text));
     }
 
     fn voice_event(&mut self, event: &str, data: &Value, helper: &str) {

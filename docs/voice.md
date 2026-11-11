@@ -1401,9 +1401,10 @@ and stdout, without `CHORA_SOCKET` and without `XDG_ACTIVATION_TOKEN`,
 and the field ignores both. Each line is one JSON object.
 
 - Host to field: `{"place": {...}}`, `{"question": true}`,
-  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`, `"hide"` and `"quit"`.
-  The host builds `question` from `voice.state` of the helper of the
-  field, and `keys` from `voice.confirm`, which names no helper today.
+  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`,
+  `{"pick_first": "text"}`, `"hide"` and `"quit"`. The host builds
+  `question` from `voice.state` of the helper of the field, and `keys`
+  from `voice.confirm`.
 - Field to host: `{"say": "text"}`, which the host sends with `voice
   agent {tool: agent_say}` (`say_call`), and `{"event": "shown" |
   "keyboard" | "closed", "data": {...}}`. No event carries text.
@@ -1456,9 +1457,12 @@ the edge that `anchor` and `width` name, and puts the field at its
 bottom.
 
 - A click on the "Chat ..." row, which every look has, shows the numbered
-  list of helpers and projects (`agent_list`). A click on an entry, or its
-  number and Enter in the field, opens the chat; a project starts its
-  helper first. `chat.show` with a name opens that chat at once.
+  list: a helper by its name, a project without one as "New helper for
+  PROJECT" (`agent_list`). A click on an entry, or its number or name and
+  Enter in the field, opens the chat; a project starts its helper first.
+  Any other text in the list comes back to the field with `pick_first`,
+  which says "Pick a helper first: type its number and press Enter, or
+  click it." `chat.show` with a name opens that chat at once.
 - Opening a chat calls `chat.open`, reads the transcript with
   `agent.read` and starts the field. The host reads again when
   `voice.state` of the helper carries a larger `seq`, and every two

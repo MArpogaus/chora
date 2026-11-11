@@ -60,7 +60,9 @@ pub struct Session {
     preedit: String,
     keys: Keys,
     language: Language,
-    offline: bool,
+    /// Why the field gave the last text back: voice is offline, or no
+    /// helper was picked.
+    given_back: Option<Word>,
     waiting: bool,
     confirm: bool,
 }
@@ -101,7 +103,7 @@ impl Session {
 
     /// A key.
     pub fn key(&mut self, key: Key) -> Option<Effect> {
-        self.offline = false;
+        self.given_back = None;
         if key != Key::Enter {
             self.confirm = false;
         }
@@ -162,7 +164,17 @@ impl Session {
             self.field.set_text(text);
             self.cursor = text.len();
         }
-        self.offline = true;
+        self.given_back = Some(Word::Offline);
+    }
+
+    /// The text was typed before a helper was picked: the draft gets it
+    /// back, and the line under it says to pick first.
+    pub fn pick_first(&mut self, text: &str) {
+        if self.text().is_empty() {
+            self.field.set_text(text);
+            self.cursor = text.len();
+        }
+        self.given_back = Some(Word::PickFirst);
     }
 
     /// The line under the text: what the field holds back and why.
@@ -171,8 +183,8 @@ impl Session {
         if let Some(hint) = self.field.hint(self.language, &self.keys) {
             return Some(hint);
         }
-        if self.offline {
-            return Some(say(self.language, Word::Offline, &[]));
+        if let Some(word) = self.given_back {
+            return Some(say(self.language, word, &[]));
         }
         let lines = self.lines().to_string();
         if self.confirm {
@@ -387,6 +399,20 @@ mod tests {
         session.delete_surrounding(1, 1);
         assert_eq!(session.text(), "ab");
         assert_eq!(session.cursor(), 2);
+    }
+
+    #[test]
+    fn a_line_before_a_pick_asks_to_pick_a_helper_first() {
+        let mut session = Session::new(Language::En);
+        type_text(&mut session, "Hallo");
+        session.key(Key::Enter);
+        session.pick_first("Hallo");
+        assert_eq!(session.text(), "Hallo");
+        let status = session.status().unwrap_or_default();
+        assert_eq!(status, say(Language::En, Word::PickFirst, &[]));
+        assert!(!status.contains("voice control"), "{status}");
+        session.key(Key::Text("!".into()));
+        assert_ne!(session.status(), Some(status));
     }
 
     #[test]

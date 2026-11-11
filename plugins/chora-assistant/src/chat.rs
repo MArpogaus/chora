@@ -204,6 +204,8 @@ pub trait Link {
     fn question(&mut self, waiting: bool);
     /// A text did not reach the helper.
     fn say_failed(&mut self, text: &str);
+    /// A line was typed in the list before a helper was picked.
+    fn pick_first(&mut self, text: &str);
     /// A voice event, for the field if it concerns the helper.
     fn voice_event(&mut self, event: &str, data: &Value, helper: &str);
     /// What the field told since the last call.
@@ -227,6 +229,15 @@ impl Pick {
     fn name(&self) -> &str {
         match self {
             Self::Agent(name) | Self::Project(name) => name,
+        }
+    }
+
+    /// The words of the entry: a helper by its name, a project as the
+    /// helper that a pick starts for it.
+    fn label(&self, language: Language) -> String {
+        match self {
+            Self::Agent(name) => name.clone(),
+            Self::Project(project) => say(language, Word::NewHelper, &[("project", project)]),
         }
     }
 }
@@ -675,7 +686,7 @@ impl Session {
                     return self.pick(out, index, None, frame).is_ok();
                 }
                 if let Some(link) = self.link.as_mut() {
-                    link.say_failed(text);
+                    link.pick_first(text);
                 }
                 false
             }
@@ -805,6 +816,18 @@ impl Session {
         }
     }
 
+    /// The numbered entries of the list, empty outside of it.
+    #[must_use]
+    pub fn entries(&self, language: Language) -> Vec<String> {
+        match &self.mode {
+            Mode::List(picks) => (1..)
+                .zip(picks)
+                .map(|(n, pick)| format!("{n}  {}", pick.label(language)))
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
     /// The hint above the field: while a question waits, that typing does
     /// not answer, with its keys.
     #[must_use]
@@ -894,6 +917,7 @@ mod tests {
         places: Vec<Value>,
         questions: Vec<bool>,
         failed: Vec<String>,
+        unpicked: Vec<String>,
         events: Vec<FieldEvent>,
         tokens: u32,
         read: Vec<Value>,
@@ -951,6 +975,10 @@ mod tests {
 
         fn say_failed(&mut self, text: &str) {
             self.0.borrow_mut().failed.push(text.to_owned());
+        }
+
+        fn pick_first(&mut self, text: &str) {
+            self.0.borrow_mut().unpicked.push(text.to_owned());
         }
 
         fn voice_event(&mut self, _: &str, _: &Value, _: &str) {}
@@ -1331,13 +1359,30 @@ mod tests {
     }
 
     #[test]
-    fn a_text_that_matches_no_entry_is_given_back() {
+    fn a_text_that_matches_no_entry_asks_to_pick_a_helper_first() {
         let (mut session, mut out, log) = setup();
         let frame = frame(Look::default());
         session.clicked_row(&mut out, &frame).unwrap();
         log.borrow_mut().events.push(FieldEvent::Say("zzz".into()));
         session.field_events(&mut out, &frame);
-        assert_eq!(log.borrow().failed, ["zzz"]);
+        assert_eq!(log.borrow().unpicked, ["zzz"]);
+        assert!(log.borrow().failed.is_empty(), "voice is not offline");
+        assert!(!session.offline());
+    }
+
+    #[test]
+    fn the_list_names_helpers_by_name_and_offers_a_new_one_for_a_project() {
+        let (mut session, mut out, _) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(
+            session.entries(Language::En),
+            ["1  atlas", "2  New helper for notes"]
+        );
+        assert_eq!(
+            session.entries(Language::De)[1],
+            "2  Neuer Helfer für notes"
+        );
     }
 
     #[test]
