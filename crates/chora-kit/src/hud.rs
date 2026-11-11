@@ -81,7 +81,6 @@ pub struct Hud {
     /// The picture of the figure: an SVG file of the folder with one
     /// element for each state of the voice agent. It shows where no voice
     /// panel with a picture does.
-    #[serde(skip)]
     pub figure: Option<String>,
 }
 
@@ -126,7 +125,7 @@ pub struct Panel {
     /// The most rows of a list, from 1 to [`MAX_ROWS`].
     pub max_rows: Option<u32>,
     /// The colours of the rows of the helpers.
-    #[serde(skip)]
+    #[serde(default)]
     pub colours: Colours,
 }
 
@@ -237,12 +236,10 @@ pub struct Chat {
     pub width: Option<u32>,
     /// The gap between the view and the edges of the work area, in pixels,
     /// at most [`MAX_CHAT_MARGIN`].
-    #[serde(skip)]
     pub margin: u32,
     /// The client whose box holds the view: the window manager announces
     /// the box with its event `chat.slot`. Without a box the view stands at
     /// `anchor`.
-    #[serde(skip)]
     pub slot: Option<String>,
 }
 
@@ -297,6 +294,17 @@ impl Chat {
         if let Some(width) = self.width.filter(|w| !(1..=MAX_CHAT_WIDTH).contains(w)) {
             errors.push(format!(
                 "chat.width: {width} is not from 1 to {MAX_CHAT_WIDTH}"
+            ));
+        }
+        if self.margin > MAX_CHAT_MARGIN {
+            errors.push(format!(
+                "chat.margin: {} is not from 0 to {MAX_CHAT_MARGIN}",
+                self.margin
+            ));
+        }
+        if let Some(slot) = self.slot.as_deref().filter(|slot| !plain_name(slot)) {
+            errors.push(format!(
+                "chat.slot: {slot:?} is not the name of a client, 1 to {MAX_ID} characters of a-z, 0-9, _ and -"
             ));
         }
     }
@@ -362,7 +370,28 @@ impl Hud {
     /// each; `host` gives the colours that the folder leaves out.
     #[must_use]
     pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
-        self.chat.contrast_errors(host)
+        let mut errors = self.chat.contrast_errors(host);
+        let Some(fill) = self.chat.fill.or(host.fill) else {
+            return errors;
+        };
+        for (index, panel) in self.panels.iter().enumerate() {
+            let colours = panel.colours;
+            for (key, colour) in [
+                ("text", colours.text),
+                ("muted", colours.muted),
+                ("accent", colours.accent),
+            ] {
+                let Some(ratio) = colour.map(|colour| contrast(colour, fill)) else {
+                    continue;
+                };
+                if ratio < MIN_TEXT_CONTRAST {
+                    errors.push(format!(
+                        "hud.yaml: panels[{index}].colours.{key}: contrast {ratio:.1}:1 against chat.fill is below {MIN_TEXT_CONTRAST}:1"
+                    ));
+                }
+            }
+        }
+        errors
     }
 }
 
@@ -580,6 +609,11 @@ impl Hud {
             }
         }
         self.chat.check(&mut errors);
+        if let Some(figure) = self.figure.as_deref().filter(|file| !picture_file(file)) {
+            errors.push(format!(
+                "figure: {figure:?} is not the name of an SVG file of the folder"
+            ));
+        }
         errors
     }
 
@@ -598,6 +632,15 @@ impl Hud {
     }
 }
 
+fn plain_name(name: &str) -> bool {
+    let plain = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
+    (1..=MAX_ID).contains(&name.chars().count()) && name.chars().all(plain)
+}
+
+fn picture_file(file: &str) -> bool {
+    !file.is_empty() && !file.contains(['#', '{', '}'])
+}
+
 fn fail(errors: &mut Vec<String>, at: &str, key: &str, message: &str) {
     errors.push(format!("{at}.{key}: {message}"));
 }
@@ -612,8 +655,7 @@ impl Panel {
     }
 
     fn check_id(&self, at: &str, errors: &mut Vec<String>) {
-        let plain = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
-        if !(1..=MAX_ID).contains(&self.id.chars().count()) || !self.id.chars().all(plain) {
+        if !plain_name(&self.id) {
             let message = format!(
                 "{:?} is not 1 to {MAX_ID} characters of a-z, 0-9, _ and -",
                 self.id
@@ -718,6 +760,11 @@ pub fn load(dir: &Path) -> Result<Hud, Vec<String>> {
         if let Err(e) = file(dir, name) {
             errors.push(format!("panels[{index}].picture: {name}: {e}"));
         }
+    }
+    if let Some(figure) = &hud.figure
+        && let Err(e) = file(dir, figure)
+    {
+        errors.push(format!("figure: {figure}: {e}"));
     }
     if errors.is_empty() {
         Ok(hud)
