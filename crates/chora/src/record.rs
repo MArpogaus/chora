@@ -270,6 +270,45 @@ mod tests {
         assert_eq!(again["png"], picture["png"], "a frame without a step");
     }
 
+    fn pixel(picture: &Value, x: usize, y: usize) -> [u8; 4] {
+        let png = STANDARD.decode(picture["png"].as_str().unwrap()).unwrap();
+        let mut reader = png::Decoder::new(std::io::Cursor::new(png))
+            .read_info()
+            .unwrap();
+        let mut rgba = vec![0; reader.output_buffer_size().unwrap()];
+        let info = reader.next_frame(&mut rgba).unwrap();
+        let at = (y * info.width as usize + x) * 4;
+        [rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]]
+    }
+
+    #[test]
+    fn a_frame_shows_an_arrow_for_the_pointer_and_no_injection_mark() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut admin = core.admin();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        admin.ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let to = json!({"events": [{"pointer_move": {"position": [20.0, 10.0]}}]});
+        agent.ok(&mut core, "input.inject", to);
+        let (yellow, white, black) = ([255, 255, 0, 255], [255, 255, 255, 255], [0, 0, 0, 255]);
+        let marked = admin.ok(&mut core, "record.frame", json!({}));
+        assert_eq!(pixel(&marked, 30, 20), yellow, "the mark, by default");
+        assert_eq!(pixel(&marked, 22, 16), black, "no arrow, by default");
+        let arrow = admin.ok(&mut core, "record.frame", json!({"pointer": "arrow"}));
+        assert_eq!(pixel(&arrow, 30, 20), black, "no mark in the frame");
+        assert_eq!(pixel(&arrow, 22, 16), white, "the arrow at the pointer");
+        assert_eq!(pixel(&arrow, 19, 10), black, "left of the tip");
+        let none = admin.ok(&mut core, "record.frame", json!({"pointer": "none"}));
+        assert_eq!(pixel(&none, 30, 20), black);
+        assert_eq!(pixel(&none, 22, 16), black);
+        assert!(
+            core.state.scene.node(chora_scene::INJECTION).is_some(),
+            "the mark stays on the screen"
+        );
+        admin.fails(&mut core, "record.frame", json!({"pointer": "hand"}));
+    }
+
     #[test]
     fn the_clock_runs_again_after_the_stop_and_after_the_connection() {
         let _one = one_recording();
