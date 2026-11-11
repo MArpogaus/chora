@@ -3,7 +3,10 @@
 # may be pushed. It runs the steps in order, each without a pipe and with
 # its whole output in its own log, and stops at the first step that failed.
 #
-# Steps: build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
+# One gate runs at a time: the gate and the gate scripts take the lock
+# of tests/gate-lock.sh, and a second one prints a line and waits.
+#
+# Steps: gate-lib, build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
 # layout, chat-keys, last-words, cube, pull, winit, wm-pane. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
 # chat in tiling with Super+a and types into its field. `matrix` ends with the click that
@@ -26,6 +29,7 @@
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
 #                     steps above (the self-test uses it)
 #   MERGE_GATE_RUNS   directory for the run directories (default: /tmp)
+#   CHORA_GATE_LOCK   the lock file of the gates (see tests/gate-lock.sh)
 # Exit status: 0 all steps passed, 1 a step failed or the push was
 # refused, 2 a usage error.
 set -u
@@ -62,6 +66,7 @@ done
 
 default_steps() {
     cat <<STEPS
+gate-lib|tests/gate-lib-selftest.sh
 build|cargo build --workspace
 test|cargo test --workspace
 clippy|cargo clippy --workspace --all-targets -- -D warnings
@@ -119,6 +124,9 @@ if [ -n "$push_branch" ] && [ -z "$only" ]; then
         exit 1
     fi
 fi
+
+. "$repo/tests/gate-lock.sh"
+gate_lock merge-gate || die "cannot take the gate lock"
 
 runs=${MERGE_GATE_RUNS:-/tmp}
 mkdir -p "$runs" || die "no run directory"

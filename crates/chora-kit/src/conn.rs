@@ -50,6 +50,13 @@ impl Conn {
         })
     }
 
+    /// Whether the core renders in software, as on llvmpipe, so that a
+    /// plugin can choose a cheaper look.
+    #[must_use]
+    pub fn software(&self) -> bool {
+        self.client.software()
+    }
+
     /// The client name of the plugin.
     #[must_use]
     pub fn name(&self) -> &str {
