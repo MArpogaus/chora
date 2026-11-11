@@ -35,7 +35,9 @@
 #    While the window manager does not answer, a window keeps its
 #    plane, so it never shows nowhere; it lands when the answer comes.
 #    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
-# 3. A slow cube.turn forwards nothing while it runs; then the next face
+# 3. A slow cube.turn forwards nothing while it runs; at a third of it
+#    the screen shows two faces; the gate prints the frame time of the
+#    turn; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
 #    the window to the output of the next face.
 # 4. When xp ends, the construct removes the outputs and the cube, and
@@ -374,8 +376,14 @@ run_pid "$second_probe"
 kill "$second_probe"
 until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
 
+frames() { ctl render-stats | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])'; }
+turn_frames=$(frames)
+turn_start=$(date +%s%N)
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
-sleep 1
+sleep 0.4
+[ "$(width construct-cube-face-0)" -gt 0 ] && [ "$(width construct-cube-face-1)" -gt 0 ] ||
+    fail "at a third of the turn the screen does not show two faces: widths $(width construct-cube-face-0) and $(width construct-cube-face-1)"
+sleep 0.6
 [ "$(prop "construct-cube-float-0-$surface" visible)" != gone ] || fail "the window does not float during a turn"
 [ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 [ "$(prop construct-cube-face-0 forward)" = False ] && [ "$(prop construct-cube-face-1 forward)" = False ] ||
@@ -383,6 +391,10 @@ sleep 1
 call cube.turn '{"by": 1}' >/dev/null || fail "cube.turn during a turn"
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False && test "$(prop construct-cube-face-1 forward)" = True' 40 ||
     fail "the cube did not turn: face 0 $(prop construct-cube-face-0 visible), face 1 $(prop construct-cube-face-1 visible) $(prop construct-cube-face-1 forward)"
+turn_ms=$(( ($(date +%s%N) - turn_start) / 1000000 ))
+turn_frames=$(( $(frames) - turn_frames ))
+[ "$turn_frames" -gt 0 ] || fail "the screen drew no frame during the turn"
+echo "frame time: $turn_frames frames of the screen in $turn_ms ms of the turn, $(( turn_ms / turn_frames )) ms a frame"
 [ "$(prop construct-cube-face-2 visible)" = False ] || fail "a turn during a turn went on to face 2"
 ok "a slow turn forwarded nothing, a turn during it was ignored, and face 1 is at the front"
 second=$(echo "$opened" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"][1])')
