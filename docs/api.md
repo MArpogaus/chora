@@ -356,11 +356,16 @@ focus changes, for example when the chosen manager focuses its new
 window. An injected press neither chooses nor ends a choice.
 
 One case differs. When the pointer is over a pane that forwards into a
-virtual output, and rule 2 names the owner of that pane, the host of the
-output, the toplevel goes to the owner of the smallest claim that
-contains the pointer on the virtual output instead: a host that has the
-keyboard passes a new window to the window manager under its pane. A
-dialog stays with rule 1.
+virtual output, no click chose a manager, and the rule of the keyboard
+focus names the owner of that pane, the host of the output, through a
+node of the host with the keyboard focus, the toplevel goes to the owner
+of the smallest claim that contains the pointer on the virtual output
+instead: a host that has the keyboard passes a new window to the window
+manager under its pane. A window of the host with the keyboard focus
+keeps the new window with the host, and a dialog stays with rule 1. As
+in rule 4, the pointer is where the last motion put it, real or
+injected: a client with `input.inject` that moves the pointer over a
+pane opens its next window there, as a person does.
 
 Only clients with a connection or in their grace time count. Only the
 chosen client can attach the surface, and `surface.created` names it in

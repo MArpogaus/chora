@@ -153,21 +153,24 @@ impl State {
 
     /// The window manager of a new toplevel when the pointer is over a
     /// pane that forwards into a virtual output: a `host` of that pane
-    /// that would get the toplevel, as it has the keyboard, passes it to
-    /// the manager whose claim on the output holds the pointer. The
-    /// caller names no host for a toplevel with a parent, which stays
-    /// with the manager of its parent.
+    /// that would get the toplevel, as a node of it has the keyboard,
+    /// passes it to the manager whose claim on the output holds the
+    /// pointer. A window of the host with the keyboard keeps the toplevel,
+    /// and so does a manager that a click chose. The caller names no host
+    /// for a toplevel with a parent, which stays with the manager of its
+    /// parent.
     fn under_the_pane_of(
         &self,
         to: Option<String>,
         host: Option<&str>,
-        pointer: [f64; 2],
+        new: &chora_scene::NewToplevel,
         live: impl Fn(&str) -> bool,
     ) -> Option<String> {
-        if host.is_none() || to.as_deref() != host {
+        let keyboard = self.scene.focused_node_owner();
+        if new.chosen.is_some() || host.is_none() || to.as_deref() != host || keyboard != host {
             return to;
         }
-        let behind = chora_scene::claimant_at(self.scene.nodes(), pointer, live);
+        let behind = chora_scene::claimant_at(self.scene.nodes(), new.point, live);
         behind.map(String::from).or(to)
     }
 
@@ -233,7 +236,7 @@ impl State {
             };
             let to = (self.scene).manager_of_new(&new, live).map(String::from);
             let host = host.filter(|_| parent.is_none());
-            let to = self.under_the_pane_of(to, host.as_deref(), pointer, live);
+            let to = self.under_the_pane_of(to, host.as_deref(), &new, live);
             self.scene.reserve(id, to.as_deref());
             self.reserved(id, None, false);
             self.list_toplevel(id);
