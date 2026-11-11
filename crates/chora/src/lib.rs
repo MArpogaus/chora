@@ -1,6 +1,7 @@
 //! The chora Wayland compositor as a library: the binary runs it, and the
 //! unit tests reach its parts.
 
+mod backdrop;
 mod backend;
 mod capture;
 mod copies;

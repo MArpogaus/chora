@@ -40,6 +40,7 @@ use smithay::{
 };
 
 use crate::{
+    backdrop::{BackdropElement, Backdrops},
     images::{self, CellElement, Images, Placement},
     layers,
     lock::Lock,
@@ -59,6 +60,7 @@ render_elements! {
     Image = CellElement<R>,
     Mesh = MeshElement,
     Text = RescaleRenderElement<MemoryRenderBufferRenderElement<R>>,
+    Backdrop = BackdropElement,
 }
 
 /// The kind of a [`SceneElement`].
@@ -71,6 +73,7 @@ pub enum Variant {
     Image,
     Mesh,
     Text,
+    Backdrop,
 }
 
 impl<R: MeshRenderer> SceneElement<R> {
@@ -84,6 +87,7 @@ impl<R: MeshRenderer> SceneElement<R> {
             Self::Image(_) => Variant::Image,
             Self::Mesh(_) => Variant::Mesh,
             Self::Text(_) => Variant::Text,
+            Self::Backdrop(_) => Variant::Backdrop,
             Self::_GenericCatcher((_, never)) => match *never {},
         }
     }
@@ -99,6 +103,7 @@ pub struct ElementCounts {
     image: u64,
     mesh: u64,
     text: u64,
+    backdrop: u64,
 }
 
 impl ElementCounts {
@@ -111,6 +116,7 @@ impl ElementCounts {
             Variant::Image => &mut self.image,
             Variant::Mesh => &mut self.mesh,
             Variant::Text => &mut self.text,
+            Variant::Backdrop => &mut self.backdrop,
         }
     }
 }
@@ -198,6 +204,8 @@ pub struct Assets {
     /// The version of the image and the ids of the cells by node.
     pub cells: HashMap<String, (Option<Id>, Vec<Id>)>,
     pub layers: Layers,
+    /// The blurs of the backdrops of rects.
+    pub backdrops: Backdrops,
     /// The drawing orders of the 3D contexts, which the draw and the hit
     /// test share.
     pub orders: space::Orders,
@@ -342,6 +350,7 @@ where
     let list = scene.layer_list(chora_scene::ROOT);
     out.extend(elements(parts, renderer, &list, view));
     out.extend(layer_elements(renderer, output, &layers::BELOW, view.scale));
+    settle_backdrops(parts.assets, &mut out, view.scale);
     // The layers that this frame of the output leaves out, for
     // `layers.dropped` once the frame shows.
     let assets = &mut *parts.assets;
@@ -362,6 +371,26 @@ where
             .passes += passes;
     }
     out
+}
+
+/// Settles the backdrops of a list of elements, front first, and counts
+/// the passes of the blurs that the next draw runs.
+fn settle_backdrops<R: MeshRenderer>(
+    assets: &mut Assets,
+    list: &mut [SceneElement<R>],
+    scale: f64,
+) {
+    let passes = assets
+        .backdrops
+        .settle(list, backdrop_of, Scale::from(scale));
+    assets.stats.passes += passes;
+}
+
+fn backdrop_of<R: MeshRenderer>(element: &mut SceneElement<R>) -> Option<&mut BackdropElement> {
+    match element {
+        SceneElement::Backdrop(backdrop) => Some(backdrop),
+        _ => None,
+    }
 }
 
 /// The layer surfaces of an output on some layers, front first.
@@ -415,7 +444,7 @@ fn entry_elements<R: MeshRenderer>(
     placed: &Placed<'_>,
     view: &View,
 ) -> Vec<SceneElement<R>> {
-    if placed.node.is_layer() {
+    let mut out = if placed.node.is_layer() {
         layer(parts, renderer, placed, view).into_iter().collect()
     } else if placed.node.is_context() && view.camera.then(&placed.transform).is_plain() {
         context_elements(parts, renderer, placed, view)
@@ -425,7 +454,43 @@ fn entry_elements<R: MeshRenderer>(
             .collect()
     } else {
         node_elements(parts, renderer, placed, view)
+    };
+    if placed.node.props.backdrop.is_some() {
+        let transform = view.camera.then(&placed.transform);
+        let at = Placing {
+            transform: &transform,
+            scale: view.scale,
+            near: view.near,
+        };
+        let shape = mesh::shape(placed.node, &at);
+        out.extend(backdrop(parts, placed, (shape, 0), view));
     }
+    out
+}
+
+/// The element of the backdrop of a rect behind its shape, or a piece of
+/// it. A node texture shows no backdrop, so that no shader reads what
+/// lies behind a node.
+fn backdrop<R: MeshRenderer>(
+    parts: &mut Parts<'_>,
+    placed: &Placed<'_>,
+    (shape, piece): (Option<mesh::Shape>, usize),
+    view: &View,
+) -> Option<SceneElement<R>> {
+    let shape = shape.filter(|s| s.bounds.overlaps(Rectangle::from_size(view.size)))?;
+    if parts.depth > 0 || placed.opacity <= 0.0 {
+        return None;
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    let alpha = placed.opacity as f32;
+    let assets = &mut *parts.assets;
+    let element = assets.backdrops.element(
+        assets.layers.view(),
+        (placed.node, piece),
+        shape,
+        (alpha, view.scale),
+    )?;
+    Some(SceneElement::Backdrop(element))
 }
 
 /// The render elements of the planes of a 3D context, front first: sorted,
@@ -467,6 +532,11 @@ fn context_elements<R: MeshRenderer>(
             (Some(part), Some(size)) => {
                 let at = (part, index + 1, size, &mut textures);
                 out.extend(piece_element(parts, renderer, &entry, at, view));
+                if entry.node.props.backdrop.is_some() {
+                    let transform = view.camera.then(&entry.transform);
+                    let shape = mesh::piece_shape(&part.corners, size, &transform, view.scale);
+                    out.extend(backdrop(parts, &entry, (shape, index + 1), view));
+                }
             }
             (Some(_), None) => {}
         }
@@ -719,7 +789,8 @@ fn layer_texture(
         near: mesh::NEAR,
         stepped: true,
     };
-    let content = flat_elements(parts, gles, &node.id, &inner)?;
+    let mut content = flat_elements(parts, gles, &node.id, &inner)?;
+    settle_backdrops(parts.assets, &mut content, scale);
     let assets = &mut *parts.assets;
     let drawn = assets.layers.draw(
         (gles, &mut assets.stats),
@@ -961,6 +1032,9 @@ fn prune_assets(parts: &mut Parts<'_>) {
     assets.cells.retain(|id, _| kind_is(id, NodeKind::Image));
     assets.texts.retain(|id| kind_is(id, NodeKind::Text));
     assets.layers.retain(|id| scene.node(id).is_some());
+    assets
+        .backdrops
+        .retain(|id| scene.node(id).is_some_and(|n| n.props.backdrop.is_some()));
     assets.orders.retain(|id| scene.node(id).is_some());
 }
 
