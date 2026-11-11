@@ -3,10 +3,10 @@
 # four virtual outputs, starts one chora-xp on them and shows each as a
 # forwarding face of a cube in its 3D context.
 #
-# 1. Without a cube no chip shows: the walk hints name the key Super+C
-#    of the cube. cube.open without params: four virtual outputs come,
-#    each with an xp taskbar, and the hint goes; a second cube.open is
-#    refused.
+# 1. Without a cube no chip shows: the start card of the empty floor
+#    names the key Super+C of the cube, with no hint bar. cube.open
+#    without params: four virtual outputs come, each with an xp taskbar;
+#    a second cube.open is refused.
 # 2. A probe window opens on the front face, which shows its output at
 #    1:1: a click near its corner reaches it at that point.
 # 2a. Standing back (K4, docs/cube-modes.md): view.step_back shows the
@@ -111,11 +111,12 @@ grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
 [ "$(prop construct-open-cube visible)" = gone ] || fail "a chip OPEN CUBE shows: no buttons in the construct"
-until_ok 'ctl query id:construct-hint-cube | grep -q construct-hint-cube' || fail "the walk hints do not name the key of the cube"
-ok "no chip OPEN CUBE, and the walk hints name the key of the cube"
+until_ok 'ctl query id:construct-start-row-2-keys-1-text | grep -q "\"text\": \"C\""' || fail "the start card does not name the key of the cube"
+ctl query id:construct-hint-cube | grep -q construct-hint-cube && fail "a hint bar shows with the start card"
+ok "no chip OPEN CUBE, and the start card names the key of the cube"
 opened=$(call cube.open) || fail "cube.open without params: $opened"
 until_ok '! ctl query id:construct-hint-cube | grep -q construct-hint-cube' || fail "the hint of the cube stays with a cube"
-ok "cube.open without params opens four faces, and the hint of the cube goes"
+ok "cube.open without params opens four faces, and no hint of the cube shows"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no four virtual outputs: $(virtuals)"
 until_ok 'test "$(bars)" = 4' 80 || fail "xp shows $(bars) taskbars on $(virtuals)"
 ok "the cube shows four xp taskbars on $(virtuals)"
