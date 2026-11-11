@@ -1,17 +1,17 @@
 #!/bin/sh
 # The volume module of the panel: prints the volume of the default sound
 # output, as wpctl of WirePlumber reads it within 2 seconds, as the JSON
-# of a custom module of waybar: "Volume 40%" or "Muted", or "Sound
-# unavailable" with the reason in the tooltip: "wpctl not found", "No
+# of a custom module of waybar: "Volume 40%" or "Muted", or "No
+# sound" with the reason in the tooltip: "wpctl not found", "No
 # output device" or "No answer". German with a German locale.
 # Usage: sh volume.sh
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
 de*)
-    volume="Lautstärke" muted="Stumm" unavailable="Ton nicht verfügbar"
+    volume="Lautstärke" muted="Stumm" unavailable="Kein Ton"
     missing="wpctl nicht gefunden" none="Kein Ausgabegerät" hung="Keine Antwort"
     ;;
 *)
-    volume="Volume" muted="Muted" unavailable="Sound unavailable"
+    volume="Volume" muted="Muted" unavailable="No sound"
     missing="wpctl not found" none="No output device" hung="No answer"
     ;;
 esac

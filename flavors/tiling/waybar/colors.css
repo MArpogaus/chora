@@ -1,0 +1,17 @@
+/* The palette of the tiling flavor. One accent; accent-2 is only the far end
+ * of the focus gradient. Written by chora-tiling --apply-theme from the
+ * theme and the palette of chora-tiling.yaml; change them there. */
+@define-color base #11131a;
+@define-color surface #1a1d27;
+@define-color surface-2 #242836;
+@define-color line #3a4054;
+@define-color text #e6e8ef;
+@define-color muted #9aa1b4;
+@define-color accent #a78bfa;
+@define-color on-accent #11131a;
+@define-color accent-2 #5eead4;
+@define-color urgent #f87171;
+@define-color terminal #161922;
+@define-color green #86e0a0;
+@define-color yellow #f0cd6e;
+@define-color blue #7aa2f7;

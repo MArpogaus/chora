@@ -10,11 +10,14 @@
 )]
 
 mod config;
+mod dress;
+mod keys;
 mod layout;
+mod theme;
 mod wm;
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
     process::ExitCode,
 };
@@ -26,8 +29,8 @@ use chora_kit::{
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, GivenGrab, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
-    ToplevelState, Transform,
+    Clip, Command, Event, GivenGrab, InputMode, NodeKind, OutputInfo, PropsUpdate, ROOT,
+    SurfaceRequest, ToplevelState, Transform, Uniform,
     ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
 };
 use clap::Parser;
@@ -36,8 +39,9 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config},
+    dress::Dress,
     layout::Layout,
-    wm::{Effect, Placement, States, WINDOW_KEY, Wm},
+    wm::{Effect, Mark, OutputTags, Placement, States, WINDOW_KEY, Wm},
 };
 
 /// The client name, and the group that holds the windows.
@@ -62,6 +66,14 @@ struct Args {
     /// window managers; all outputs without it. Repeatable.
     #[arg(long = "output", value_name = "NAME")]
     outputs: Vec<String>,
+    /// Write the files of the palette (the colours of the panel, the
+    /// launcher, the terminal and the lock screen) and exit.
+    #[arg(long)]
+    apply_theme: bool,
+    /// The directory that --apply-theme writes; by default `chora-tiling/
+    /// theme` in the runtime directory.
+    #[arg(long, value_name = "DIR", requires = "apply_theme")]
+    theme_dir: Option<PathBuf>,
 }
 
 /// Parameters of `tiling.set_layout`; a missing field keeps its value.
@@ -98,7 +110,12 @@ struct ForSurface {
 #[derive(Serialize)]
 struct LayoutInfo {
     layout: Layout,
+    /// The gap of the old look, as `set_layout` sets it.
     gap: u16,
+    /// The gap to the edge of the work area that the tiles have.
+    gap_outer: i32,
+    /// The gap between two tiles that they have.
+    gap_inner: i32,
     master_width: f64,
     masters: usize,
     columns: usize,
@@ -137,10 +154,47 @@ struct Tiling {
     meshes: Vec<Command>,
     /// The indicator of the volume keys.
     volume: chora_kit::volume::Mixer,
+    /// The windows that have a group in the core, by surface id.
+    groups: HashSet<String>,
+    /// The windows that left and whose groups the next transaction removes.
+    stale: Vec<String>,
+    /// The path of the shader of the borders; none without a runtime
+    /// directory, and the windows then have no border.
+    border: Option<String>,
+    /// The path of the shader of the shadows; none without a runtime
+    /// directory.
+    shadow: Option<String>,
+    /// The first tag of the current output when the windows were last
+    /// placed, to know the direction of a tag switch.
+    last_tag: usize,
+    /// What the panel was last told: the layout and the tags.
+    bar: Option<(Option<Layout>, Vec<OutputTags>)>,
+    /// Whether the next placement is a rebuild, not a change a person made:
+    /// nothing moves.
+    still: bool,
+    /// Whether the key list shows, and holds the keyboard.
+    keys_open: bool,
+    /// When the layout chip leaves.
+    chip_until: Option<std::time::Instant>,
+    /// The colours of the look, and the scheme they come from.
+    colors: theme::Colors,
+    scheme: theme::Scheme,
+    /// When the system is asked for its colour scheme again.
+    theme_check: Option<std::time::Instant>,
+    /// What the system asked for at the last answer.
+    system: Option<theme::Scheme>,
+    /// The question to the system that a thread is asking, and answers.
+    theme_query: Option<std::sync::mpsc::Receiver<Option<theme::Scheme>>>,
+    /// How the system is asked, in a thread of its own.
+    ask_system: fn() -> Option<theme::Scheme>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.first().is_some_and(|a| a == "--launch") {
+        return launch(&words[1..]);
+    }
     let args = Args::try_parse().unwrap_or_else(|err| {
         if err.kind() == clap::error::ErrorKind::UnknownArgument {
             eprintln!(
@@ -154,7 +208,72 @@ fn main() -> ExitCode {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
+    if args.apply_theme {
+        return apply_theme(&args);
+    }
     runtime::run(NAME, || play(&args))
+}
+
+/// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
+/// config file of the flavor, in the palette; another program as it is.
+fn launch(argv: &[String]) -> ExitCode {
+    use std::os::unix::process::CommandExt as _;
+    let Some((program, rest)) = argv.split_first() else {
+        eprintln!("usage: chora-tiling --launch PROGRAM [ARGS]");
+        return ExitCode::from(2);
+    };
+    let dirs = theme::config_dirs();
+    let line = match theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs)) {
+        Ok(line) => line,
+        Err(err) => {
+            eprintln!("chora-tiling: cannot start {program}: {err}");
+            let (title, text) = err.notice();
+            let _ = std::process::Command::new("notify-send")
+                .args(["-a", "chora-tiling", "-u", "critical", title, text])
+                .stdin(std::process::Stdio::null())
+                .status();
+            return ExitCode::FAILURE;
+        }
+    };
+    let mut command = std::process::Command::new(&line[0]);
+    command.args(&line[1..]);
+    if program == "fuzzel" {
+        let current = std::env::var("XDG_DATA_DIRS").ok();
+        if let Some(data) = theme::data_dirs(&dirs, current.as_deref()) {
+            command.env("XDG_DATA_DIRS", data);
+        }
+    }
+    let err = command.exec();
+    eprintln!("chora-tiling: cannot start {program}: {err}");
+    ExitCode::FAILURE
+}
+
+/// `--apply-theme`: the files of the palette of the configuration.
+fn apply_theme(args: &Args) -> ExitCode {
+    let result = settings::File::<Config>::path(args.config.clone(), "chora-tiling")
+        .and_then(|path| settings::File::<Config>::load(path, config::DEFAULT))
+        .map_err(|e| e.clone())
+        .and_then(|settings| {
+            let look = &settings.value.look;
+            let scheme = look.theme.scheme(system_for(look.theme));
+            let dir = args.theme_dir.clone().or_else(theme::default_dir);
+            let dir = dir.ok_or("no directory: give --theme-dir")?;
+            theme::apply(&dir, &look.palette.over(scheme), scheme).map_err(|e| e.to_string())
+        });
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("chora-tiling: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// What the system asks for, when the theme follows it.
+fn system_for(theme: theme::Theme) -> Option<theme::Scheme> {
+    (theme == theme::Theme::System)
+        .then(theme::system_scheme)
+        .flatten()
 }
 
 /// One connection to the core: window management until it goes away.
@@ -181,10 +300,41 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bent: HashMap::new(),
         meshes: Vec::new(),
         volume: chora_kit::volume::Mixer::new(NAME),
+        groups: HashSet::new(),
+        stale: Vec::new(),
+        border: runtime_shader("border.frag", include_str!("../border.frag")),
+        shadow: runtime_shader("shadow.frag", dress::SHADOW_SHADER),
+        last_tag: 0,
+        bar: None,
+        still: true,
+        keys_open: false,
+        chip_until: None,
+        colors: theme::Colors::of(theme::Scheme::Ink),
+        scheme: theme::Scheme::Ink,
+        theme_check: None,
+        system: None,
+        theme_query: None,
+        ask_system: theme::system_scheme,
     };
+    tiling.system = system_for(tiling.settings.value.look.theme);
+    tiling.apply_theme(false);
     tiling.start()?;
+    tiling.still = false;
     Ok(serve(&mut tiling)?)
 }
+
+/// How often the system is asked for its colour scheme.
+const THEME_CHECK: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// How often the loop looks for the answer of a question to the system.
+const ANSWER_CHECK: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// The units of the panel and of the wallpaper of the flavor.
+const PANEL_UNIT: &str = "chora-tiling-waybar.service";
+const WALLPAPER_UNIT: &str = "chora-tiling-swaybg.service";
+
+/// How long the layout chip shows.
+const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
 
 /// The time between two frames of the effects, 60 Hz.
 const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
@@ -193,25 +343,32 @@ const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
 fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
     let mut next = std::time::Instant::now();
     loop {
-        let event = if tiling.effects.animating() {
-            let wait = next.saturating_duration_since(std::time::Instant::now());
-            tiling.rt.conn.next_event_timeout(wait)?
+        let now = std::time::Instant::now();
+        let wake = tiling.wake(next);
+        let event = if let Some(at) = wake {
+            tiling
+                .rt
+                .conn
+                .next_event_timeout(at.saturating_duration_since(now))?
         } else {
             Some(tiling.rt.conn.next_event()?)
         };
         if let Some(event) = event {
             runtime::dispatch(tiling, event)?;
+            tiling.push_bar();
         }
         let now = std::time::Instant::now();
         if tiling.effects.animating() && now >= next {
             tiling.frame(now)?;
             next = now + FRAME;
         }
+        tiling.end_chip(now)?;
+        tiling.follow_system(now)?;
     }
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 12] = [
+const EVENTS: [&str; 13] = [
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -224,6 +381,7 @@ const EVENTS: [&str; 12] = [
     "pointer.pressed",
     "focus.changed",
     "input.button",
+    "node.key",
 ];
 
 impl Plugin for Tiling {
@@ -355,6 +513,10 @@ impl Tiling {
                 Some((n["id"].as_str()?.to_owned(), text))
             })
             .collect();
+        for node in kept {
+            let surface = node["id"].as_str().and_then(|id| id.strip_prefix(GROUP));
+            self.groups.extend(surface.map(str::to_owned));
+        }
         self.wm.restore(&group, &windows);
         for (id, _) in &windows {
             if !self.wm.has(id) {
@@ -383,6 +545,12 @@ impl Tiling {
         // The title bars of the clients drag as `drag` does.
         let moves = MOVE.parse().expect("move is a binding");
         self.rt.grab(moves, Action::Drag)?;
+        let swallowed: Vec<_> = self.wm.config.swallowed().collect();
+        for binding in swallowed {
+            if self.rt.action(&binding.to_string()).is_none() {
+                self.rt.grab(binding, Action::Swallow)?;
+            }
+        }
         Ok(())
     }
 
@@ -390,18 +558,37 @@ impl Tiling {
     fn reconfigure(&mut self) -> Result<(), ClientError> {
         self.check_shaders()?;
         self.rt.ungrab_all()?;
+        self.apply_theme(true);
+        if self.theme_check.is_some() {
+            self.theme_check = Some(std::time::Instant::now());
+        }
         self.wm.reconfigure(self.settings.value.clone());
         self.effects.set(&self.settings.value.effects);
+        self.sent.clear();
         self.grab_all()?;
-        self.relayout()
+        if self.keys_open {
+            self.hide_keys()?;
+            self.toggle_keys()?;
+        }
+        self.still = true;
+        let done = self.relayout();
+        self.still = false;
+        done
     }
 
     fn query(&mut self, selector: &str) -> Result<Vec<Value>, ClientError> {
         self.rt.conn.call("scene.query", Query::new(selector))
     }
 
-    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+        match self.overlay_event(&event) {
+            Some(done) => done,
+            None => self.handle_scene(event),
+        }
+    }
+
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
+    fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             // The start adopts surfaces that the events then announce.
             Event::SurfaceCreated { surface, .. } if self.wm.has(&surface) => return Ok(()),
@@ -543,16 +730,25 @@ impl Tiling {
             if focuses || self.wm.focused() != before.as_deref() {
                 self.focus.take();
             }
-            self.relayout()
-                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+            let shown = self.relayout().and_then(|()| {
+                if method == "next_layout" {
+                    self.show_chip()
+                } else {
+                    Ok(())
+                }
+            });
+            shown.map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let (layout, params) = self
             .wm
             .current()
             .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no output"))?;
+        let (gap_outer, gap_inner) = self.wm.config.gaps();
         let info = LayoutInfo {
             layout,
             gap: self.wm.config.gap,
+            gap_outer,
+            gap_inner,
             master_width: params.master_width,
             masters: params.masters,
             columns: params.columns,
@@ -567,12 +763,13 @@ impl Tiling {
     /// True when the method focuses a window on its own.
     fn tune(&mut self, method: &str, params: Value) -> Result<bool, RpcError> {
         Ok(match method {
-            "set_layout" => {
-                let change: SetLayout = runtime::params(params)?;
-                if let Some(layout) = change.layout {
-                    self.wm.set_layout(layout);
-                }
-                self.wm.config.gap = change.gap.unwrap_or(self.wm.config.gap);
+            "show_keys" => {
+                self.toggle_keys()
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                false
+            }
+            "set_layout" | "next_layout" => {
+                self.change_layout(method, params)?;
                 false
             }
             "view_tag" => {
@@ -620,6 +817,306 @@ impl Tiling {
                 ));
             }
         })
+    }
+
+    /// The events of the key list: `Esc` and a click outside hide it, and
+    /// the keys that it takes go nowhere else. `None` for any other event.
+    fn overlay_event(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
+        match event {
+            Event::NodeKey { key, state, .. } => {
+                let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
+                Some(if escape { self.hide_keys() } else { Ok(()) })
+            }
+            Event::PointerPressed { node, .. }
+                if self.keys_open && node.starts_with(keys::KEYS) =>
+            {
+                Some(if node.ends_with("scrim") {
+                    self.hide_keys()
+                } else {
+                    Ok(())
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// When the loop must wake without an event: the next frame of an
+    /// effect, or the end of the layout chip.
+    fn wake(&self, frame: std::time::Instant) -> Option<std::time::Instant> {
+        let frame = self.effects.animating().then_some(frame);
+        [frame, self.chip_until, self.theme_check]
+            .into_iter()
+            .flatten()
+            .min()
+    }
+
+    /// Takes the colours of the theme and writes the files of the flavor
+    /// that carry them; `reload` asks the panel to read its style again,
+    /// which it must when the colours changed under it, and the wallpaper
+    /// to start again when the scheme changed. A panel or wallpaper that
+    /// `waybar.sh` or `wallpaper.sh` runs gets `SIGUSR2`, else the unit is
+    /// reloaded or restarted; without a user manager there is nothing
+    /// to do.
+    fn apply_theme(&mut self, reload: bool) {
+        let look = &self.settings.value.look;
+        let scheme = look.theme.scheme(
+            (look.theme == theme::Theme::System)
+                .then_some(self.system)
+                .flatten(),
+        );
+        let colors = look.palette.over(scheme);
+        let changed = colors != self.colors;
+        let new_scheme = scheme != self.scheme;
+        self.theme_check =
+            (look.theme == theme::Theme::System).then(|| std::time::Instant::now() + THEME_CHECK);
+        self.scheme = scheme;
+        self.colors = colors;
+        let Some(dir) = theme::default_dir() else {
+            return;
+        };
+        if let Err(err) = theme::apply(&dir, &self.colors, scheme) {
+            eprintln!("chora-tiling: the files of the theme: {err}");
+            return;
+        }
+        let user_unit = |verb: &str, unit: &str| {
+            let _ = std::process::Command::new("systemctl")
+                .args(["--user", "--no-block", verb, unit])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        };
+        if reload && changed {
+            match theme::companion("panel", "waybar.sh") {
+                Some(pid) => theme::signal(pid, "USR2"),
+                None => user_unit("reload", PANEL_UNIT),
+            }
+        }
+        if reload && new_scheme {
+            match theme::companion("wallpaper", "wallpaper.sh") {
+                Some(pid) => theme::signal(pid, "USR2"),
+                None => user_unit("restart", WALLPAPER_UNIT),
+            }
+        }
+    }
+
+    /// Asks the system for its colour scheme when it is time, in a thread
+    /// so that the loop never waits for the answer, and takes the new
+    /// colours of the theme when the answer changed them.
+    fn follow_system(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
+        use std::sync::mpsc::TryRecvError;
+        let Some(query) = &self.theme_query else {
+            if self.theme_check.is_none_or(|at| now < at) {
+                return Ok(());
+            }
+            let (send, receive) = std::sync::mpsc::channel();
+            let ask = self.ask_system;
+            std::thread::spawn(move || {
+                let _ = send.send(ask());
+            });
+            self.theme_query = Some(receive);
+            self.theme_check = Some(now + ANSWER_CHECK);
+            return Ok(());
+        };
+        match query.try_recv() {
+            Ok(answer) => self.system = answer,
+            Err(TryRecvError::Empty) => {
+                self.theme_check = Some(now + ANSWER_CHECK);
+                return Ok(());
+            }
+            Err(TryRecvError::Disconnected) => {}
+        }
+        self.theme_query = None;
+        let before = self.colors.clone();
+        self.apply_theme(true);
+        if self.colors != before {
+            self.sent.clear();
+            self.still = true;
+            let done = self.relayout();
+            self.still = false;
+            done?;
+            if self.keys_open {
+                self.hide_keys()?;
+                self.toggle_keys()?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Tells the panel at once when the tags or the layout changed, with
+    /// `SIGRTMIN+1` to waybar, which the modules of the tags and of the
+    /// layout answer by asking again; without a panel nothing happens.
+    fn push_bar(&mut self) {
+        if !self.bar_changed() {
+            return;
+        }
+        if let Some(pid) = theme::companion("waybar", "waybar") {
+            theme::signal(pid, "RTMIN+1");
+        }
+    }
+
+    /// Whether the layout or the tags differ from what the panel was last
+    /// told; takes the new state.
+    fn bar_changed(&mut self) -> bool {
+        let layout = self.wm.current().map(|(layout, _)| layout);
+        let state = (layout, self.wm.tags());
+        if self.bar.as_ref() == Some(&state) {
+            return false;
+        }
+        self.bar = Some(state);
+        true
+    }
+
+    /// Shows the chip that names the layout of the current tag for 700 ms.
+    fn show_chip(&mut self) -> Result<(), ClientError> {
+        let (Some((output, size)), Some((layout, _))) =
+            (self.wm.current_output(), self.wm.current())
+        else {
+            return Ok(());
+        };
+        let lang = chora_kit::words::Language::of_session();
+        let mut commands = Vec::new();
+        if self.chip_until.is_some() {
+            commands.push(Command::Remove {
+                id: keys::CHIP.into(),
+                to: None,
+            });
+        }
+        commands.extend(keys::chip(
+            &format!("screen:{output}"),
+            size,
+            keys::layout_word(layout, lang),
+            &self.colors,
+        ));
+        self.chip_until = Some(std::time::Instant::now() + CHIP_TIME);
+        if self.apply_report(commands)? {
+            let guess = keys::guess(keys::layout_word(layout, lang));
+            let measured = self.measured(&format!("{}-word", keys::CHIP));
+            let animate = self.wm.config.look.animations;
+            self.apply(keys::chip_fit(size, measured.unwrap_or(guess), animate))?;
+        }
+        Ok(())
+    }
+
+    /// The size that the renderer gave a text node, in logical pixels.
+    fn measured(&mut self, id: &str) -> Option<[f64; 2]> {
+        let nodes = self.query(&format!("id:{id}")).ok()?;
+        let rect = nodes
+            .first()
+            .and_then(|n| n["rects"].as_object())
+            .and_then(|r| r.values().next())
+            .and_then(Value::as_array);
+        rect.and_then(|r| Some([r.get(2)?.as_f64()?, r.get(3)?.as_f64()?]))
+    }
+
+    /// Takes the chip away when its time is up.
+    fn end_chip(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
+        if self.chip_until.is_some_and(|at| now >= at) {
+            self.chip_until = None;
+            self.apply(vec![Command::Remove {
+                id: keys::CHIP.into(),
+                to: None,
+            }])?;
+        }
+        Ok(())
+    }
+
+    /// Shows the key list when it is hidden, and hides it when it shows.
+    fn toggle_keys(&mut self) -> Result<(), ClientError> {
+        if self.keys_open {
+            return self.hide_keys();
+        }
+        let Some((output, size)) = self.wm.current_output() else {
+            return Ok(());
+        };
+        let lang = chora_kit::words::Language::of_session();
+        let rows = keys::rows(&self.wm.config, lang);
+        let commands = keys::key_list(&format!("screen:{output}"), size, &rows, &self.colors, lang);
+        if self.apply_report(commands)? {
+            let fit = self.key_list_fit(size);
+            if !fit.is_empty() {
+                self.apply(fit)?;
+            }
+        }
+        let fade = self.wm.config.look.animations.then_some(dress::FADE);
+        let mut commands = vec![dress::change(
+            keys::KEYS.into(),
+            PropsUpdate {
+                opacity: Some(1.0),
+                ..PropsUpdate::default()
+            },
+            fade,
+        )];
+        commands.push(Command::FocusNode {
+            node: Some(keys::KEYS.into()),
+        });
+        self.apply(commands)?;
+        self.keys_open = true;
+        Ok(())
+    }
+
+    /// The updates that make the panel of the key list as wide as the
+    /// longest word that the renderer drew; none when it reports nothing.
+    fn key_list_fit(&mut self, output: [f64; 2]) -> Vec<Command> {
+        let rect = |node: &Value| {
+            let r = node["rects"].as_object()?.values().next()?.as_array()?;
+            Some([
+                r.first()?.as_f64()?,
+                r.get(1)?.as_f64()?,
+                r.get(2)?.as_f64()?,
+                r.get(3)?.as_f64()?,
+            ])
+        };
+        let Some(panel) = self
+            .query(&format!("id:{}-panel", keys::KEYS))
+            .ok()
+            .and_then(|nodes| nodes.first().and_then(rect))
+        else {
+            return Vec::new();
+        };
+        let words = self.query("kind:text").unwrap_or_default();
+        let right = words
+            .iter()
+            .filter(|n| {
+                n["id"]
+                    .as_str()
+                    .is_some_and(|id| id.starts_with(keys::KEYS) && id.ends_with("-l"))
+            })
+            .filter_map(rect)
+            .map(|r| r[0] + r[2] - panel[0])
+            .fold(0.0, f64::max);
+        if right <= 0.0 {
+            return Vec::new();
+        }
+        keys::fit_list(output, panel[3], right)
+    }
+
+    /// Hides the key list and gives the keyboard back.
+    fn hide_keys(&mut self) -> Result<(), ClientError> {
+        self.keys_open = false;
+        self.apply(vec![
+            Command::FocusNode { node: None },
+            Command::Remove {
+                id: keys::KEYS.into(),
+                to: None,
+            },
+        ])
+    }
+
+    /// `set_layout` and `next_layout`.
+    fn change_layout(&mut self, method: &str, params: Value) -> Result<(), RpcError> {
+        if method == "next_layout" {
+            self.wm.act(&Action::NextLayout);
+            return Ok(());
+        }
+        let change: SetLayout = runtime::params(params)?;
+        if let Some(layout) = change.layout {
+            self.wm.set_layout(layout);
+        }
+        if let Some(gap) = change.gap {
+            self.wm.set_gap(gap);
+        }
+        Ok(())
     }
 
     /// A tag number of the configuration.
@@ -870,13 +1367,21 @@ impl Tiling {
             self.give_focused(to);
             return Ok(());
         }
+        if action == Action::ShowKeys {
+            return self.toggle_keys();
+        }
         let before = self.wm.focused().map(String::from);
         let effect = self.wm.act(&action);
         // A binding that moves the focus of tiling takes it back.
         if self.wm.focused() != before.as_deref() {
             self.focus.take();
         }
+        let layout_key = matches!(action, Action::NextLayout | Action::PreviousLayout);
         match effect {
+            Some(Effect::Relayout) if layout_key => {
+                self.relayout()?;
+                self.show_chip()
+            }
             Some(Effect::Relayout) => self.relayout(),
             Some(Effect::Run(command)) => {
                 chora_kit::run(&command, self.rt.conn.activation_token().as_deref());
@@ -932,12 +1437,21 @@ impl Tiling {
         if ignored {
             return self.pass_on_reserved(surface);
         }
-        let attach = Command::Attach {
+        let mut commands = Vec::new();
+        if !self.groups.contains(surface) {
+            commands.extend(frame_nodes(
+                surface,
+                self.border.as_deref(),
+                self.shadow.as_deref(),
+            ));
+        }
+        commands.push(Command::Attach {
             surface: surface.into(),
-            parent: NAME.into(),
-        };
-        match self.call_apply(vec![attach]) {
+            parent: clip_of(surface),
+        });
+        match self.call_apply(commands) {
             Ok(()) => {
+                self.groups.insert(surface.into());
                 // A new window of tiling takes the focus.
                 self.wm.add_window(surface);
                 if let Some(size) = size {
@@ -965,13 +1479,11 @@ impl Tiling {
     fn relayout(&mut self) -> Result<(), ClientError> {
         let placements = self.wm.arrange();
         let mut commands = Vec::new();
-        for placement in &placements {
-            commands.extend(changes(self.sent.get(&placement.id), placement));
-        }
+        commands.extend(self.window_changes(&placements));
         let order: Vec<String> = placements.iter().map(|p| p.id.clone()).collect();
         if order != self.order {
             commands.extend(order.iter().enumerate().map(|(index, id)| Command::Move {
-                id: id.clone(),
+                id: group_of(id),
                 parent: None,
                 index: Some(index),
             }));
@@ -999,6 +1511,10 @@ impl Tiling {
             });
         }
         commands.append(&mut self.meshes);
+        commands.extend(self.stale.drain(..).map(|id| Command::Remove {
+            id: group_of(&id),
+            to: None,
+        }));
         if commands.is_empty() {
             return Ok(());
         }
@@ -1006,6 +1522,7 @@ impl Tiling {
         self.saved = saved;
         self.claimed = claim;
         self.sent = placements.into_iter().map(|p| (p.id.clone(), p)).collect();
+        self.last_tag = self.wm.current_tag_index();
         self.order = order;
         if send_focus {
             self.focus.sent(focus);
@@ -1019,6 +1536,30 @@ impl Tiling {
             self.grab_all()?;
         }
         Ok(())
+    }
+
+    /// The commands that bring the windows from what was sent to their
+    /// placements.
+    fn window_changes(&self, placements: &[Placement]) -> Vec<Command> {
+        let c = &self.colors;
+        let colors = [&c.accent, &c.accent_2, &c.line, &c.urgent].map(|h| theme::channels(h));
+        let look = &self.wm.config.look;
+        let width = self.wm.current_output().map_or(0.0, |(_, size)| size[0]);
+        let tag = self.wm.current_tag_index();
+        let dress = Dress {
+            colors: self.border.is_some().then_some(&colors),
+            shadows: look.shadows,
+            animate: look.animations && !self.still,
+            slide: match tag.cmp(&self.last_tag) {
+                std::cmp::Ordering::Greater => width,
+                std::cmp::Ordering::Less => -width,
+                std::cmp::Ordering::Equal => 0.0,
+            },
+        };
+        placements
+            .iter()
+            .flat_map(|p| changes(self.sent.get(&p.id), p, &dress))
+            .collect()
     }
 
     /// The meta of the group and of each window, by node.
@@ -1036,6 +1577,9 @@ impl Tiling {
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);
+        if self.groups.remove(id) {
+            self.stale.push(id.into());
+        }
         self.effects.cancel_wobble(id);
         self.bent.remove(id);
         // The focus on it is no longer that of tiling: when the window
@@ -1125,6 +1669,100 @@ fn taken(
     }
 }
 
+/// The prefix of the id of the group that frames a window.
+const GROUP: &str = "tw-";
+
+/// The id of the node that clips a window to its corners.
+fn clip_of(surface: &str) -> String {
+    format!("tc-{surface}")
+}
+
+/// The id of the node that draws the border of a window.
+fn border_of(surface: &str) -> String {
+    format!("tb-{surface}")
+}
+
+/// The nodes of a new window: the group that carries it, the border and
+/// the clip that holds the surface.
+fn frame_nodes(surface: &str, border: Option<&str>, shadow: Option<&str>) -> Vec<Command> {
+    let create = |id: String, kind, parent: String, props| Command::Create {
+        id,
+        kind,
+        parent,
+        props,
+    };
+    let hidden = PropsUpdate {
+        size: Some([1.0, 1.0]),
+        visible: Some(false),
+        ..PropsUpdate::default()
+    };
+    let mut nodes = vec![create(
+        group_of(surface),
+        NodeKind::Group,
+        NAME.into(),
+        hidden.clone(),
+    )];
+    if let Some(shader) = shadow {
+        nodes.extend(dress::shadow_nodes(surface, shader, &group_of(surface)));
+    }
+    if let Some(shader) = border {
+        let props = PropsUpdate {
+            shader: Some(shader.into()),
+            input: Some(InputMode::Pass),
+            ..hidden
+        };
+        nodes.push(create(
+            border_of(surface),
+            NodeKind::Shader,
+            group_of(surface),
+            props.clone(),
+        ));
+        let focus = PropsUpdate {
+            opacity: Some(0.0),
+            ..props
+        };
+        nodes.push(create(
+            dress::focus_of(surface),
+            NodeKind::Shader,
+            group_of(surface),
+            focus,
+        ));
+    }
+    nodes.push(create(
+        clip_of(surface),
+        NodeKind::Group,
+        group_of(surface),
+        PropsUpdate {
+            size: Some([1.0, 1.0]),
+            ..PropsUpdate::default()
+        },
+    ));
+    nodes
+}
+
+/// A shader of the plugin, written into the runtime directory of the user;
+/// none when there is none, or it is no absolute path (the shared temporary
+/// directory would let another user plant it first).
+fn runtime_shader(name: &str, text: &str) -> Option<String> {
+    let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
+    let path = runtime.join("chora-tiling").join(name);
+    runtime.is_absolute().then_some(())?;
+    if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
+        .ok()
+        .as_deref()
+        != Some(text)
+    {
+        chora_kit::write_file(&path, text.as_bytes()).ok()?;
+    }
+    Some(path.to_string_lossy().into_owned())
+}
+
+/// The id of the group of a window: it holds the surface, clips it to the
+/// rounded corners and carries its position.
+fn group_of(surface: &str) -> String {
+    format!("{GROUP}{surface}")
+}
+
 /// Whether an answered request takes the window out of tiling: the core
 /// accepted a `move` to a parent that is not the tiling group. A rejected
 /// transaction leaves the window managed (D31).
@@ -1152,10 +1790,13 @@ fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Co
         }]),
         "move" => Some(vec![Command::Move {
             id: node.into(),
-            parent: args
-                .get("parent")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
+            parent: args.get("parent").and_then(Value::as_str).map(|p| {
+                if p == NAME {
+                    group_of(node)
+                } else {
+                    p.to_owned()
+                }
+            }),
             index: args
                 .get("index")
                 .and_then(Value::as_u64)
@@ -1201,9 +1842,10 @@ fn styled(style: &config::Style, surface: &str) -> Command {
 }
 
 /// The commands that bring a window from what was sent to its placement.
-fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
+/// `colors` are the colours of the palette when the window has a border.
+fn changes(sent: Option<&Placement>, placement: &Placement, dress: &Dress) -> Vec<Command> {
     let id = &placement.id;
-    let Some([x, y]) = placement.at else {
+    let Some(at) = placement.at else {
         return hide(sent, id);
     };
     let mut commands = Vec::new();
@@ -1211,16 +1853,87 @@ fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
         commands.push(configure(id, placement.size, placement.states));
     }
     if sent.is_none_or(|s| s.at != placement.at) {
-        commands.push(Command::Update {
-            id: id.clone(),
-            props: PropsUpdate {
-                transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
-                visible: Some(true),
-                ..PropsUpdate::default()
-            },
-        });
+        commands.extend(dress::place(sent, placement, at, dress));
+    }
+    let reshaped = sent.is_none_or(|s| s.frame != placement.frame);
+    let rounded = sent.is_none_or(|s| s.radius != placement.radius);
+    if reshaped || rounded {
+        let mut props = PropsUpdate::default();
+        if reshaped {
+            props.size = Some(placement.frame.map(f64::from));
+        }
+        if rounded {
+            props.clip = Some((placement.radius > 0).then(|| Clip {
+                radius: f64::from(placement.radius),
+            }));
+        }
+        commands.push(update(clip_of(id), props));
+    }
+    if let Some(colors) = dress.colors {
+        if sent.is_none_or(|s| {
+            s.frame != placement.frame
+                || s.radius != placement.radius
+                || s.border != placement.border
+                || s.mark != placement.mark
+        }) {
+            commands.extend(border_updates(placement, colors));
+            commands.extend(dress::shadow_updates(placement, dress.shadows));
+        }
+        commands.extend(dress::fade(sent, placement, dress.animate));
     }
     commands
+}
+
+fn update(id: String, props: PropsUpdate) -> Command {
+    Command::Update { id, props }
+}
+
+/// The updates of the two border nodes of a window: the ring in the line
+/// colour (urgent for a window that asked for attention) and the gradient
+/// of the focus, which shows through its opacity.
+fn border_updates(placement: &Placement, colors: &[[f64; 3]; 4]) -> Vec<Command> {
+    let line = match placement.mark {
+        Mark::Urgent => colors[3],
+        Mark::Line | Mark::Focus => colors[2],
+    };
+    vec![
+        ring_update(border_of(&placement.id), placement, [line, line]),
+        ring_update(
+            dress::focus_of(&placement.id),
+            placement,
+            [colors[0], colors[1]],
+        ),
+    ]
+}
+
+/// The update of a border node: its size and place around the window, its
+/// colours and whether it shows.
+fn ring_update(node: String, placement: &Placement, [from, to]: [[f64; 3]; 2]) -> Command {
+    let width = f64::from(placement.border);
+    let color = |[r, g, b]: [f64; 3]| Uniform::Vector(vec![r, g, b, 1.0]);
+    let [w, h] = placement.frame.map(f64::from);
+    update(
+        node,
+        PropsUpdate {
+            visible: Some(placement.border > 0),
+            size: Some([w + 2.0 * width, h + 2.0 * width]),
+            transform: Some(Transform::translate(-width, -width, 0.0)),
+            uniforms: Some(BTreeMap::from([
+                ("from".to_owned(), color(from)),
+                ("to".to_owned(), color(to)),
+                (
+                    "radius".to_owned(),
+                    Uniform::Float(f64::from(placement.radius) + width),
+                ),
+                ("width".to_owned(), Uniform::Float(width)),
+                (
+                    "logical".to_owned(),
+                    Uniform::Vector(vec![w + 2.0 * width, h + 2.0 * width]),
+                ),
+            ])),
+            ..PropsUpdate::default()
+        },
+    )
 }
 
 /// The update from the saved meta of a node to its new meta. A key that
@@ -1254,7 +1967,7 @@ fn hide(sent: Option<&Placement>, id: &str) -> Vec<Command> {
         commands.push(configure(id, sent.size, states));
     }
     commands.push(Command::Update {
-        id: id.into(),
+        id: group_of(id),
         props: PropsUpdate {
             visible: Some(false),
             ..PropsUpdate::default()
@@ -1296,10 +2009,14 @@ fn layout_schema() -> Value {
 /// The methods that other clients call, with description and schema of
 /// their parameters, as `methods.list` answers them.
 fn exported_methods() -> Vec<ExportMethod> {
+    let mut methods = layout_methods();
+    methods.extend(window_methods());
+    methods
+}
+
+/// The methods about layouts, tags and the key list.
+fn layout_methods() -> Vec<ExportMethod> {
     let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
-    let window = || field("string", "The surface id of the window.");
-    let tag = || field("integer", "The tag number, from 1.");
-    let on_surface = json!({"surface": window()});
     vec![
         runtime::method(
             "set_layout",
@@ -1308,6 +2025,18 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "layout": layout_schema(),
                 "gap": field("integer", "The gap in logical pixels."),
             }),
+            &[],
+        ),
+        runtime::method(
+            "show_keys",
+            "Shows the list of all keys, or hides it, as the binding does.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "next_layout",
+            "Goes to the next layout of the current tag, as the binding does.",
+            json!({}),
             &[],
         ),
         runtime::method(
@@ -1323,6 +2052,16 @@ fn exported_methods() -> Vec<ExportMethod> {
             &[],
         ),
         give::method(),
+    ]
+}
+
+/// The methods about tags and windows.
+fn window_methods() -> Vec<ExportMethod> {
+    let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
+    let window = || field("string", "The surface id of the window.");
+    let tag = || field("integer", "The tag number, from 1.");
+    let on_surface = json!({"surface": window()});
+    vec![
         runtime::method(
             "view_tag",
             "Shows a tag on the current output.",
@@ -1452,6 +2191,7 @@ mod tests {
         on_fake_core_with(tag, &[])
     }
 
+    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
     fn on_fake_core_with(
         tag: &str,
         effects: &[chora_kit::effects::Kind],
@@ -1501,6 +2241,21 @@ mod tests {
             bent: HashMap::new(),
             meshes: Vec::new(),
             volume: chora_kit::volume::Mixer::new(NAME),
+            groups: HashSet::new(),
+            stale: Vec::new(),
+            border: None,
+            shadow: None,
+            last_tag: 0,
+            bar: None,
+            still: true,
+            keys_open: false,
+            chip_until: None,
+            colors: theme::Colors::of(theme::Scheme::Ink),
+            scheme: theme::Scheme::Ink,
+            theme_check: None,
+            system: None,
+            theme_query: None,
+            ask_system: || None,
         };
         (tiling, methods)
     }
@@ -1599,6 +2354,75 @@ mod tests {
     }
 
     const WOBBLY: [chora_kit::effects::Kind; 1] = [chora_kit::effects::Kind::Wobbly];
+
+    #[test]
+    fn get_layout_answers_the_gaps_in_use() {
+        let (mut tiling, _) = on_fake_core("gaps");
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        let info = tiling.run("get_layout", json!({})).unwrap();
+        assert_eq!(
+            (info["gap_outer"].as_i64(), info["gap_inner"].as_i64()),
+            (Some(12), Some(10))
+        );
+        let info = tiling.run("set_layout", json!({"gap": 3})).unwrap();
+        assert_eq!(
+            (info["gap_outer"].as_i64(), info["gap_inner"].as_i64()),
+            (Some(3), Some(6))
+        );
+        assert_eq!(info["gap"], 3);
+    }
+
+    #[test]
+    fn the_panel_hears_of_tags_and_layouts_only_when_they_change() {
+        let (mut tiling, _) = on_fake_core("bar-changes");
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        assert!(tiling.bar_changed(), "the first state");
+        assert!(!tiling.bar_changed(), "nothing changed");
+        tiling.wm.add_window("w");
+        assert!(tiling.bar_changed(), "the tag is occupied");
+        assert!(!tiling.bar_changed());
+        tiling.run("next_layout", json!({})).unwrap();
+        assert!(tiling.bar_changed(), "a new layout");
+        tiling.run("set_layout", json!({"gap": 5})).unwrap();
+        assert!(!tiling.bar_changed(), "a gap is no concern of the panel");
+    }
+
+    #[test]
+    fn the_loop_does_not_wait_for_the_system() {
+        let (mut tiling, _) = on_fake_core("slow-system");
+        tiling.ask_system = || {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            Some(theme::Scheme::Paper)
+        };
+        let now = std::time::Instant::now();
+        tiling.theme_check = Some(now);
+        tiling.follow_system(now).unwrap();
+        assert!(now.elapsed() < std::time::Duration::from_millis(300));
+        assert!(tiling.theme_query.is_some(), "the question is out");
+        assert_eq!(tiling.system, None);
+        assert!(
+            tiling.theme_check.is_some_and(|at| at > now),
+            "the loop looks again soon"
+        );
+        tiling.follow_system(std::time::Instant::now()).unwrap();
+        assert!(tiling.theme_query.is_some(), "still no answer");
+    }
+
+    #[test]
+    fn the_method_next_layout_goes_to_the_next_layout() {
+        let (mut tiling, _) = on_fake_core("next-layout");
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        let first = tiling.run("get_layout", json!({})).unwrap();
+        assert_eq!(first["layout"], "tile");
+        let next = tiling.run("next_layout", json!({})).unwrap();
+        assert_eq!(next["layout"], "tile_left");
+    }
 
     #[test]
     fn a_tiling_window_wobbles_with_the_opt_in() {
@@ -1985,9 +2809,17 @@ mod tests {
             at: Some([0, 0]),
             size: Some([10, 10]),
             states: States::default(),
+            radius: 0,
+            frame: [10, 10],
+            border: 0,
+            mark: Mark::Line,
         };
-        assert!(changes(None, &placed).iter().all(|c| !matches!(c,
-            Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some())));
+        assert!(
+            changes(None, &placed, &Dress::default())
+                .iter()
+                .all(|c| !matches!(c,
+            Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some()))
+        );
     }
 
     #[test]
@@ -2003,13 +2835,17 @@ mod tests {
             at: None,
             size: None,
             states: States::default(),
+            radius: 0,
+            frame: [10, 10],
+            border: 0,
+            mark: Mark::Line,
         };
-        let commands = changes(None, &hidden);
+        let commands = changes(None, &hidden, &Dress::default());
         assert!(matches!(
             &commands[..],
             [Command::Update { props, .. }] if props.visible == Some(false)
         ));
-        assert_eq!(changes(Some(&hidden), &hidden).len(), 0);
+        assert_eq!(changes(Some(&hidden), &hidden, &Dress::default()).len(), 0);
     }
 }
 
@@ -2026,7 +2862,9 @@ mod panel {
     };
 
     /// The tools of the scripts, linked into the PATH of a test.
-    const TOOLS: [&str; 7] = ["sh", "awk", "timeout", "sleep", "cat", "kill", "dirname"];
+    const TOOLS: [&str; 10] = [
+        "sh", "awk", "timeout", "sleep", "cat", "kill", "dirname", "mkdir", "cp", "date",
+    ];
 
     fn waybar_dir() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/waybar")
@@ -2100,8 +2938,8 @@ mod panel {
         let (en, de) = ("C.UTF-8", "de_DE.UTF-8");
         let muted = Some("echo 'Volume: 0.40 [MUTED]'");
         let none = Some("exit 1");
-        let unavailable = "Sound unavailable";
-        let (lautlos, keiner) = ("Ton nicht verfügbar", "Kein Ausgabegerät");
+        let unavailable = "No sound";
+        let (lautlos, keiner) = ("Kein Ton", "Kein Ausgabegerät");
         for (name, wpctl, lang, words) in [
             ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%"; 2]),
             ("muted", muted, en, ["Muted"; 2]),
@@ -2126,7 +2964,7 @@ mod panel {
         let start = Instant::now();
         assert_eq!(
             said(&volume("hung", Some("sleep 10"), "C")),
-            ["Sound unavailable", "No answer"].map(str::to_owned)
+            ["No sound", "No answer"].map(str::to_owned)
         );
         let took = start.elapsed();
         assert!(took < Duration::from_secs(5), "{took:?}");
@@ -2145,9 +2983,26 @@ mod panel {
     #[test]
     fn the_panel_shows_no_internal_text() {
         let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
-        for internal in ["\"cpu\"", "\"memory\"", "\"custom/layout\"", "{ipaddr}\","] {
+        for internal in ["\"cpu\"", "\"memory\"", "{ipaddr}\","] {
             assert!(!config.contains(internal), "{internal} in {config}");
         }
+    }
+
+    #[test]
+    fn the_layout_word_is_a_word_of_a_person() {
+        if !has_jq() {
+            return;
+        }
+        let said = |layout: &str, lang: &str| {
+            let fake = format!("echo '{{\"layout\": \"{layout}\"}}'");
+            let bin = bin("layout", true, &[("choractl", &fake)]);
+            said(&printed(&run(&bin, "layout.sh", &[], lang)))
+        };
+        let [word, tip] = said("fair_horizontal", "C");
+        assert_eq!(word, "Fair rows");
+        assert!(tip.contains("Super+Shift+Space"), "{tip}");
+        assert_eq!(said("tile", "de_DE.UTF-8")[0], "Kacheln");
+        assert_eq!(said("nonsense", "C")[0], "");
     }
 
     /// The stand-in of choractl: tiling has the outputs in the file
@@ -2228,6 +3083,92 @@ exec sleep 30"#;
         let _ = script.wait();
         assert!(followed, "{}", seen(&bin));
         assert_eq!(seen(&bin).matches("\"!B\"").count(), 2, "{}", seen(&bin));
+    }
+
+    #[test]
+    fn the_signal_traps_stand_before_the_pids_are_written() {
+        let flavor = waybar_dir().join("..");
+        for (script, pid) in [
+            ("waybar/waybar.sh", "panel.pid"),
+            ("wallpaper.sh", "wallpaper.pid"),
+        ] {
+            let text = std::fs::read_to_string(flavor.join(script)).expect("the script");
+            let trap = text
+                .find("' USR2")
+                .unwrap_or_else(|| panic!("{script} has no USR2 trap"));
+            let written = text
+                .find(&format!(">\"$pids/{pid}\""))
+                .expect("the pid file");
+            assert!(trap < written, "{script} writes {pid} before it traps USR2");
+        }
+    }
+
+    #[test]
+    fn the_log_out_names_a_session_only_when_there_is_one() {
+        let marks = "echo \"$@\" >>\"$(dirname \"$0\")/marks\"";
+        let bin = bin("logout", false, &[("loginctl", marks)]);
+        let power = |session: Option<&str>| {
+            let mut run = command(&bin, "../power.sh", &["logout"], "C");
+            run.env("USER", "zed");
+            if let Some(id) = session {
+                run.env("XDG_SESSION_ID", id);
+            }
+            run.output().expect("sh runs");
+            std::fs::read_to_string(bin.join("marks")).unwrap_or_default()
+        };
+        assert_eq!(power(Some("7")), "terminate-session 7\n");
+        std::fs::remove_file(bin.join("marks")).expect("marks");
+        assert_eq!(power(None), "terminate-user zed\n");
+        std::fs::remove_file(bin.join("marks")).expect("marks");
+        assert_eq!(power(Some("")), "terminate-user zed\n");
+    }
+
+    #[test]
+    fn the_screenshot_goes_where_xdg_user_dir_says() {
+        let grim = "for last; do :; done; : >\"$last\"";
+        let pictures = "echo \"$(dirname \"$0\")/Bilder\"";
+        let bin = bin(
+            "pictures",
+            false,
+            &[("grim", grim), ("xdg-user-dir", pictures)],
+        );
+        let mut run = command(&bin, "../screenshot.sh", &[], "C");
+        run.env("HOME", &bin)
+            .env("XDG_PICTURES_DIR", bin.join("env"));
+        assert!(run.status().expect("sh runs").success());
+        assert!(bin.join("Bilder/Screenshots").is_dir());
+        assert!(!bin.join("env").exists());
+    }
+
+    #[test]
+    fn the_colours_of_the_panel_are_the_generated_ones_unless_the_user_file_is_newer() {
+        if !has_jq() {
+            return;
+        }
+        let bin = bin(
+            "colours",
+            true,
+            &[("choractl", CHORACTL), ("waybar", "exit 0")],
+        );
+        outputs(&bin, &["A"], &["A"]);
+        let (made, own) = (bin.join("chora-tiling/theme"), bin.join("cfg/chora/tiling"));
+        std::fs::create_dir_all(&made).expect("theme");
+        std::fs::create_dir_all(&own).expect("own");
+        std::fs::write(own.join("colors.css"), "own").expect("own file");
+        std::thread::sleep(Duration::from_millis(1100));
+        std::fs::write(made.join("colors.css"), "made").expect("generated file");
+        let dir = waybar_dir();
+        let start = |bin: &Path| {
+            let mut run = command(bin, "waybar.sh", &[dir.to_str().expect("a path")], "C");
+            run.env("XDG_CONFIG_HOME", bin.join("cfg"))
+                .output()
+                .expect("sh runs");
+            std::fs::read_to_string(bin.join("chora-tiling-waybar/colors.css")).expect("colors")
+        };
+        assert_eq!(start(&bin), "made", "the older file of the user won");
+        std::thread::sleep(Duration::from_millis(1100));
+        std::fs::write(own.join("colors.css"), "own").expect("own file");
+        assert_eq!(start(&bin), "own", "the newer file of the user lost");
     }
 
     #[test]
