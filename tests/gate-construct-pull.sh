@@ -14,7 +14,8 @@
 #    still its pane, with a name, in front of the face at least at
 #    1:1. Then the pane rests when the pointer
 #    moves, and the camera is in no window; with the focus glow on the
-#    pane, a still desktop draws nothing (P1). The window exists at
+#    pane, a still desktop draws nothing (P1). A key typed during the
+#    fly-in into the pane reaches the window. The window exists at
 #    every step.
 #    The task button of the window leaves the taskbar of its face.
 # 2. A pane dropped over a face goes back to xp on the output of that
@@ -95,7 +96,7 @@ pull() {
     edge=$(timeout 10 "$bin/choractl" add-output "640x800+1280+0" |
         python3 -I -c 'import json, sys; print(json.load(sys.stdin)["name"])') || fail "no second output"
     inject '[{"pointer_move": {"position": [640, 400]}}]'
-    "$bin/chora-probe" window 40 120 200 --server-deco >"$work/$1-probe.log" 2>&1 &
+    "$bin/chora-probe" window 40 120 200 --server-deco --report >"$work/$1-probe.log" 2>&1 &
     pids+=($!)
     until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
     read -r surface _ _ x y <<<"$(probe)"
@@ -170,6 +171,11 @@ still() {
 }
 still || fail "a still desktop with a focused pane draws: $(drawn), 2 s later $(sleep 2; drawn)"
 ok "a still desktop with a focused pane draws nothing, by render.stats"
+call pane.fly "{\"name\": \"$(pane_name "$surface")\"}" >/dev/null || fail "pane.fly"
+inject '[{"key": {"key": "x", "state": "pressed"}}, {"key": {"key": "x", "state": "released"}}]'
+until_ok 'grep -q "^key 45$" "$work/given-probe.log"' 20 ||
+    fail "a key typed during the fly-in did not reach the window: $(tail -n 3 "$work/given-probe.log")"
+ok "a key typed during the fly-in reaches the window"
 end_session
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
@@ -201,7 +207,7 @@ stood() {
     call cube.open '{}' >/dev/null || fail "cube.open"
     until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
     inject '[{"pointer_move": {"position": [640, 400]}}]'
-    "$bin/chora-probe" window 40 120 200 --server-deco >"$work/$1-probe.log" 2>&1 &
+    "$bin/chora-probe" window 40 120 200 --server-deco --report >"$work/$1-probe.log" 2>&1 &
     pids+=($!)
     until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
     read -r surface _ <<<"$(probe)"
