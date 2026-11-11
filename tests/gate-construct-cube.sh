@@ -10,9 +10,15 @@
 # 2a. Standing back (K4, docs/cube-modes.md): view.step_back shows the
 #    cube from a step back, the front face forwards nothing and the chips
 #    TURN LEFT, TURN RIGHT and STEP IN show; a still cube draws nothing,
-#    by render.stats; Ctrl+Alt+Right and Ctrl+Alt+Left turn it; Return
-#    steps in; Alt+Escape steps back from a face, which shows the chip
-#    STEP BACK; a click on the chip STEP IN steps in.
+#    by render.stats. The method leaves the keyboard with the window.
+#    The chips are at least 24 px high, below the title band of a window
+#    and above the taskbar. In use mode Escape reaches the window, the
+#    turn keys turn the cube, and a turn key during a turn queues one
+#    turn. Alt+Escape steps back and takes the keyboard; Return steps in
+#    and the window of before takes typed text again, but not after a
+#    step into another face. A click on a face and a click on the chip
+#    STEP IN step in. While the switcher of xp shows, Alt+Escape cancels
+#    it and the view stays.
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
 #    the window to the output of the next face.
@@ -104,6 +110,7 @@ grep '^press' "$work/probe.log" | tail -n 1 | awk '{ dx = $2 - 3; dy = $3 - 2; e
 ok "a click near the corner of the xp window on the front face came at (3, 2): 1:1"
 
 width() { ctl query "id:$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0]["rects"]["HEADLESS-1"][2]) if n and n[0]["rects"] else 0)'; }
+edge() { ctl query "id:$1" | python3 -I -c "import json, sys; n = json.load(sys.stdin); print(round(n[0]['rects']['HEADLESS-1'][$2]) if n and n[0]['rects'] else -1)"; }
 drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items()))'; }
 still() {
     local before
@@ -115,33 +122,102 @@ still() {
     return 1
 }
 key() { inject "[{\"shortcut\": {\"keys\": \"$1\"}}]"; }
+plain() { inject "[{\"key\": {\"key\": \"$1\", \"state\": \"pressed\"}}, {\"key\": {\"key\": \"$1\", \"state\": \"released\"}}]"; }
+keys_got() { grep -c "^key $1\$" "$work/probe.log"; }
+front_is() { test "$(prop "construct-cube-face-$1" visible)" = True && test "$(prop "construct-cube-face-$1" forward)" = True; }
 stood_back='test "$(prop construct-cube-face-0 forward)" = False && test "$(width construct-cube-face-0)" -lt 1100 && test "$(width construct-cube-face-0)" -gt 300'
 stepped_in='test "$(prop construct-cube-face-0 forward)" = True && test "$(width construct-cube-face-0)" = 1280'
+until_ok 'test "$(prop "$surface" focused)" = True' 20 || fail "the probe window has no keyboard before the step back"
+
 call view.step_back >/dev/null || fail "view.step_back"
 until_ok "$stood_back" 20 || fail "no step back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 for chip in turn-left turn-right step-in; do
     [ "$(prop "construct-mode-$chip" visible)" = True ] || fail "the chip $chip does not show in navigate mode"
 done
 [ "$(prop construct-mode-step-back visible)" != True ] || fail "the chip STEP BACK shows in navigate mode"
-ok "view.step_back: the cube stands back, the face forwards nothing, three chips show"
+[ "$(prop "$surface" focused)" = True ] || fail "view.step_back, a method, took the keyboard from the window"
+ok "view.step_back: the cube stands back, the face forwards nothing, three chips show, the keyboard stays"
+[ "$(edge construct-mode-step-in 1)" -gt 400 ] || fail "the chips are in the upper half, over the title band: y $(edge construct-mode-step-in 1)"
+[ "$(edge construct-mode-step-in 3)" -ge 24 ] || fail "a chip is $(edge construct-mode-step-in 3) px high, less than 24"
+bar_top=$(ctl query "id:xp-bar-$front" | python3 -I -c "import json, sys; print(round(json.load(sys.stdin)[0]['rects']['$front'][1]))")
+[ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le "$bar_top" ] || fail "the chips are over the taskbar at y $bar_top"
+ok "the chips are at least 24 px high, below the title band and above the taskbar"
 sleep 2
 still || fail "a still cube draws: $(drawn)"
 ok "a still cube renders 0 passes and has no damage, by render.stats"
+call view.step_in >/dev/null || fail "view.step_in"
+until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
+prop construct-mode-step-back-text text | grep -q "Alt+Esc" || fail "the chip STEP BACK does not name its key: $(prop construct-mode-step-back-text text)"
+
+before=$(keys_got 1)
+plain Escape
+until_ok 'test "$(keys_got 1)" -gt "$before"' 20 || fail "Escape in use mode did not reach the window"
+sleep 0.5
+eval "$stepped_in" || fail "Escape in use mode moved the view"
+ok "in use mode Escape reaches the window on the face, and the view stays"
+
 key Ctrl+Alt+Right
-until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube"
-sleep 1
+until_ok 'front_is 1' 20 || fail "Ctrl+Alt+Right did not turn the cube in use mode"
 key Ctrl+Alt+Left
-until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "Ctrl+Alt+Left did not turn the cube back"
+until_ok 'front_is 0' 20 || fail "Ctrl+Alt+Left did not turn the cube back in use mode"
+key Ctrl+Alt+Right
+key Ctrl+Alt+Right
+key Ctrl+Alt+Right
+until_ok 'front_is 2' 20 || fail "a turn key during a turn did not queue one turn: $(prop construct-cube-face-1 forward) $(prop construct-cube-face-2 forward) $(prop construct-cube-face-3 forward)"
 sleep 1
-ok "Ctrl+Alt+Right and Ctrl+Alt+Left turn the cube in navigate mode"
-inject '[{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}]'
-until_ok "$stepped_in" 20 || fail "Return did not step in: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
-[ "$(prop construct-mode-step-back visible)" = True ] || fail "the chip STEP BACK does not show in use mode"
+front_is 2 || fail "a third turn key during a turn turned on"
+key Ctrl+Alt+Left
+key Ctrl+Alt+Left
+until_ok 'front_is 0' 20 || fail "two turn keys to the left did not come back to face 0"
+ok "the turn keys turn the cube in use mode, and a turn key during a turn queues one turn"
+
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back from the face"
+[ "$(prop "$surface" focused)" != True ] || fail "after Alt+Escape the window still has the keyboard"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
+[ "$(prop construct-mode-step-back visible)" = True ] || fail "the chip STEP BACK does not show in use mode"
+until_ok 'test "$(prop "$surface" focused)" = True' 20 || fail "the window did not get the keyboard back at the step in"
+before=$(keys_got 30)
+plain a
+until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "typed text after the step in did not reach the window"
+ok "Alt+Escape steps back, Return steps in, and typed text reaches the window of before"
+
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a second time"
+key Ctrl+Alt+Right
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube in navigate mode"
+plain Return
+until_ok 'front_is 1' 20 || fail "Return did not step into face 1"
+sleep 0.5
+[ "$(prop "$surface" focused)" != True ] || fail "the step into face 1 gave the keyboard to a window on face 0"
+key Ctrl+Alt+Left
+until_ok 'front_is 0' 20 || fail "Ctrl+Alt+Left did not turn back to face 0"
+ok "a step into another face does not give the keyboard to the window of the face of before"
+
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a third time"
+inject '[{"pointer_move": {"position": [640, 400]}}, {"click": {}}]'
+until_ok "$stepped_in" 20 || fail "a click on the front face in navigate mode did not step in"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a fourth time"
 inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, {"click": {}}]'
 until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
-ok "Return steps in, Alt+Escape steps back, and a click on STEP IN steps in"
+ok "a click on a face and a click on the chip STEP IN step in"
+
+inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "Tab", "state": "pressed"}}, {"key": {"key": "Tab", "state": "released"}}]'
+until_ok 'test "$(prop xp-alttab visible)" != gone' 20 || fail "Alt+Tab did not open the switcher of xp"
+sleep 0.3
+plain Escape
+until_ok 'test "$(prop xp-alttab visible)" = gone' 20 || fail "Alt+Escape did not cancel the switcher of xp"
+inject '[{"key": {"key": "Alt_L", "state": "released"}}]'
+sleep 0.5
+eval "$stepped_in" || fail "Alt+Escape under the switcher of xp stepped back"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape does not step back after the switcher closed"
+call view.step_in >/dev/null || fail "view.step_in after the switcher"
+until_ok "$stepped_in" 20 || fail "no step in after the switcher"
+ok "while the switcher of xp shows, Alt+Escape cancels it and the view stays"
 
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
 sleep 1

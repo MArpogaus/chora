@@ -1423,6 +1423,19 @@ mod tests {
     }
 
     #[test]
+    fn render_stats_are_not_for_a_client_socket() {
+        let mut faced = faced();
+        faced.core.state.ipc.path = Some(faced.dir.join("wayland-1.sock"));
+        let mut admin = faced.core.admin();
+        let created = admin.ok(&mut faced.core, "clients.create", json!({"name": "agent"}));
+        let path = std::path::PathBuf::from(created["path"].as_str().expect("a path"));
+        let mut agent = faced.core.connect_to(&path);
+        agent.ok(&mut faced.core, "hello", json!({"name": "agent"}));
+        let (number, error) = agent.fails(&mut faced.core, "render.stats", json!({}));
+        assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+    }
+
+    #[test]
     fn a_locked_session_renders_no_virtual_output() {
         let mut faced = faced();
         faced.show_pane();
