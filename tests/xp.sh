@@ -353,6 +353,13 @@ desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
 
+step "12b. Super+F1 opens Help and Support on the keyboard shortcuts, and Escape closes it"
+keys 125+59 || fail "the keys failed: $out/probe.log"
+wait_for has_node id:xp-dlg-help
+grim "$out/help.png"
+keys 1 || fail "the keys failed: $out/probe.log"
+wait_for has_node_count 0 id:xp-dlg-help
+
 step "13. My Documents of the start menu starts the file manager"
 # Only its window is checked here. tests/gate-0.8-xp-token.sh checks the
 # activation token of its surface.created (gate check 3 of 0.8).

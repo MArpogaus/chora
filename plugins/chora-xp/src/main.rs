@@ -20,6 +20,7 @@ mod decoration;
 mod desktop_icons;
 mod dialog;
 mod display;
+mod help;
 mod launch;
 mod session;
 mod sheets;

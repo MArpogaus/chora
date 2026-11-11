@@ -45,6 +45,7 @@ use crate::{
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
+    help::{self, HelpDialog},
     launch::{self, Change, Launches},
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
@@ -164,13 +165,17 @@ pub enum Key {
     Volume(volume::Change),
     /// Opens the chat, as on tiling.
     Chat,
+    /// F1 opens Help and Support on the keyboard shortcuts.
+    Help,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them. The media keys and the chat
 /// key are those of tiling.
-const KEYS: [(&str, &str, Key); 14] = [
+pub const KEYS: [(&str, &str, Key); 16] = [
     ("Ctrl+Escape", "", Key::Start),
+    ("F1", "", Key::Help),
+    ("Super+F1", "", Key::Help),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
@@ -1625,6 +1630,7 @@ impl Wm {
                 self.start_program(control::CHAT);
                 Vec::new()
             }
+            Some(Key::Help) => self.open_help(help::KEYBOARD),
             Some(Key::Cube) | None => Vec::new(),
         }
     }
@@ -2031,6 +2037,11 @@ impl Wm {
                 context::Key::Act(act) => self.close_and_act(act, area),
                 context::Key::Close => self.close_context(),
             };
+        }
+        if key == "Escape"
+            && let Some(i) = self.panels.iter().position(|p| matches!(p, Panel::Help(_)))
+        {
+            return self.close_panel(i);
         }
         if !self.menu.is_open() {
             return if key == MENU_KEY {
@@ -2709,6 +2720,36 @@ impl Wm {
         commands
     }
 
+    /// Help and Support on a topic, in the middle of the work area, or the
+    /// open one on top, showing that topic. The window takes the keyboard,
+    /// so that Escape closes it.
+    fn open_help(&mut self, topic: usize) -> Vec<Command> {
+        let mut commands = Vec::new();
+        if let Some(i) = self.panels.iter().position(|p| matches!(p, Panel::Help(_))) {
+            if let Panel::Help(panel) = &mut self.panels[i] {
+                panel.show_topic(topic);
+            }
+            commands.extend(self.redraw_panel(i));
+            commands.extend(
+                self.raise_panel(|p| matches!(p, Panel::Help(_)))
+                    .unwrap_or_default(),
+            );
+        } else {
+            let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+            let rows = help::rows(|binding| self.rt.holds(binding));
+            let mut panel = HelpDialog::new(topic, rows, area);
+            let page = panel.page(&self.theme);
+            commands.extend(panel.dialog.create(&mut self.theme, DIALOGS, page));
+            self.panels.push(Panel::Help(panel));
+        }
+        if let Some(Panel::Help(panel)) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.dialog.group()),
+            });
+        }
+        commands
+    }
+
     /// Date and Time Properties in the middle of a work area, or the open
     /// one on top.
     fn open_date_dialog(&mut self, area: Rect) -> Vec<Command> {
@@ -2977,8 +3018,21 @@ impl Wm {
             commands.extend(self.click_display(i, &hit));
             return commands;
         }
+        if let Panel::Help(panel) = &mut self.panels[i] {
+            match panel.click(&hit) {
+                help::Click::Redraw => commands.extend(self.redraw_panel(i)),
+                help::Click::Close => commands.extend(self.close_panel(i)),
+                help::Click::Helper => {
+                    commands.extend(self.close_panel(i));
+                    self.start_program(control::CHAT);
+                }
+            }
+            return commands;
+        }
         let outcome = match (&mut self.panels[i], &hit) {
-            (_, Hit::Close) | (Panel::Display(_) | Panel::Effects(_), _) => Outcome::Close,
+            (_, Hit::Close) | (Panel::Display(_) | Panel::Effects(_) | Panel::Help(_), _) => {
+                Outcome::Close
+            }
             (Panel::Taskbar(panel), hit) => panel.click(hit),
             (Panel::Clock(panel), hit) => match panel.click(hit) {
                 Click::Redraw => Outcome::Redraw,
@@ -3026,6 +3080,10 @@ impl Wm {
                 panel.dialog.show(&mut self.theme, page)
             }
             Panel::Effects(_) => Vec::new(),
+            Panel::Help(panel) => {
+                let page = panel.page(&self.theme);
+                panel.dialog.show(&mut self.theme, page)
+            }
         }
     }
 
@@ -3443,6 +3501,8 @@ enum Panel {
     Display(DisplayDialog),
     /// Effects of Display Properties.
     Effects(EffectsDialog),
+    /// Help and Support.
+    Help(HelpDialog),
 }
 
 /// What a context menu of an icon or of the start menu acts on.
@@ -3460,6 +3520,7 @@ impl Panel {
             Self::Clock(panel) => &mut panel.dialog,
             Self::Display(panel) => &mut panel.dialog,
             Self::Effects(panel) => &mut panel.dialog,
+            Self::Help(panel) => &mut panel.dialog,
         }
     }
 
@@ -3476,6 +3537,7 @@ impl Panel {
             Self::Clock(panel) => &panel.dialog,
             Self::Display(panel) => &panel.dialog,
             Self::Effects(panel) => &panel.dialog,
+            Self::Help(panel) => &panel.dialog,
         }
     }
 }
