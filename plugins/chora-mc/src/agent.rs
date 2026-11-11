@@ -294,12 +294,7 @@ impl Mc {
                     .and_then(|c| config.colors().get(c))
                     .copied()
                     .unwrap_or(base);
-                Item {
-                    id: format!("{id}-{i}"),
-                    slot,
-                    props: ty.props(&text),
-                    first: i == 0,
-                }
+                Item::text(format!("{id}-{i}"), slot, ty.props(&text), i == 0)
             })
             .collect()
     }

@@ -14,6 +14,7 @@
 
 mod agent;
 mod config;
+mod keys;
 mod manage;
 mod region;
 mod scene;
@@ -333,6 +334,8 @@ struct Mc {
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
     solo: Option<Solo>,
+    /// How much of the key list shows.
+    keys: keys::List,
     /// The spoken confirmation that shows, until its answer.
     confirming: Option<agent::Confirming>,
     /// Whether mc claims the state indicator of the voice agent at its
@@ -492,6 +495,7 @@ impl Mc {
             agents: Vec::new(),
             agent_focus: None,
             solo: None,
+            keys: keys::List::default(),
             confirming: None,
             claim_due: true,
             scroll: BTreeMap::new(),
@@ -2823,6 +2827,13 @@ impl Mc {
             Action::Solo { content, region } => {
                 if let Err(err) = self.solo(&content, region, None, true) {
                     eprintln!("chora-mc: solo {content}: {err}");
+                }
+                return;
+            }
+            Action::Keys => {
+                self.keys = self.keys.flip();
+                if let Err(err) = self.render() {
+                    eprintln!("chora-mc: keys: {err}");
                 }
                 return;
             }

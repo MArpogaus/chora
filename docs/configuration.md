@@ -590,6 +590,7 @@ The `contents` are named. Their `kind` is one of:
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | the sign and the name of each agent of `agent.set`, each in the color of its state, in the style `hud` |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all bindings and then the six again |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -605,15 +606,17 @@ back to the scene. When the app ends, its region hides. A drawer that a
 preset or a scene shows starts its app when the settings load.
 
 The default bindings are `Super+Return` for the drawer, `Super+n` for the
-right side, and `Super+Up` and `Super+Down` for the header and the
-footer.
+right side, `Super+Up` and `Super+Down` for the header and the footer, and
+`Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
+needs the grant `input.grab-any`, so the key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
 the agents, the state of the agent and the clock right; the footer shows
 the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
 content `next`); the right side shows the notes, which an agent fills
-with `content.add`, and the notifications below them, newest on top;
+with `content.add`, and the notifications below them, newest on top, and
+the key list at its foot;
 `Super+Return` opens `foot` in the drawer in the colors of the theme.
 Over an app, the words of the agent move into the middle of the header.
 On a narrow page the header has no room for many agents and the long

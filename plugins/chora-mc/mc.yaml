@@ -157,7 +157,8 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # --manage-windows), {toggle: REGION}, which shows or hides a region; a docked
 # app in it takes the focus first, the next press hides it, or
 # {solo: {content: NAME, region: REGION}}, which shows the content alone
-# in the region over any scene; the next press hides it again.
+# in the region over any scene; the next press hides it again, or keys,
+# which shows all keys in the key list of the right side, or six again.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
@@ -168,6 +169,7 @@ bindings:
   Super+n: {toggle: right}
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
+  Super+F1: keys
   Super+F12: {solo: {content: overlay, region: drawer}}
   Super+BTN_LEFT: drag
 # The states of an agent of agent.set: the sign and the color of each,
@@ -219,6 +221,7 @@ contents:
   confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
+  keys: {kind: keys}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
   # foot in the colors of the theme, also in the terminal scene. The
@@ -254,6 +257,7 @@ rules:
 - {content: next, scenes: ['@page'], region: footer, slot: 1}
 - {content: notes, region: right}
 - {content: notify, region: right, slot: 1}
+- {content: keys, region: right, slot: 9}
 - {content: shell, region: drawer}
 # The arrangement of the regions: a name of presets. A preset sets which
 # regions show and its own rules; without rules, those above apply.
@@ -299,3 +303,4 @@ presets:
     - {content: state, region: footer, slot: 1}
     - {content: notes, region: right}
     - {content: notify, region: right, slot: 1}
+    - {content: keys, region: right, slot: 9}

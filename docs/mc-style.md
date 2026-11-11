@@ -91,3 +91,11 @@ change it there, not here.
     a named style in `mc.yaml` and a rule on this page. Before a merge,
     capture the scene at 1920x1080 and at 1280x720, in the dark and the
     light theme, and compare it with these rules.
+
+## The margin column
+
+16. **The key list.** The column ends with six rows of a key and its
+    words under a hairline and the head `Keys`: the key in `text` with
+    weight 500, the words in `muted`, both in the style `margin`, on the
+    baseline grid. It shows until the user hides the column with
+    `Super+n`; `Super+F1` shows all keys in its place.

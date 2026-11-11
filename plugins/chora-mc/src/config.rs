@@ -49,6 +49,8 @@ pub enum Action {
         content: String,
         region: Region,
     },
+    /// Shows all keys in the key list, or only the six that show first.
+    Keys,
 }
 
 /// How an agent of `agent.set` shows in a state.

@@ -131,6 +131,9 @@ pub enum Kind {
     /// An app docked in a side or the drawer; it starts when its region
     /// shows the first time.
     App,
+    /// The keys of the bindings, each a key and its words, pinned to the
+    /// foot of a side; the key Super+F1 shows all of them.
+    Keys,
 }
 
 /// A content of the regions.
@@ -332,6 +335,46 @@ pub struct Item {
     pub props: PropsUpdate,
     /// Where a stack in a side puts space before it: a new content.
     pub first: bool,
+    /// The place across a side, from its left edge.
+    pub x: f64,
+    pub put: Put,
+}
+
+/// Where an item of a side stands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Put {
+    /// One under the other from the top.
+    Stack,
+    /// At the foot of the side, above its lower edge.
+    Foot,
+    /// At the foot, with a hairline over the width of the side above it.
+    FootRule,
+    /// At the foot, in the line of the item before it.
+    FootRow,
+}
+
+impl Put {
+    fn foot(self) -> bool {
+        matches!(self, Self::Foot | Self::FootRule | Self::FootRow)
+    }
+
+    fn row(self) -> bool {
+        self == Self::FootRow
+    }
+}
+
+impl Item {
+    /// A text item that stacks in a side.
+    pub fn text(id: String, slot: i32, props: PropsUpdate, first: bool) -> Self {
+        Self {
+            id,
+            slot,
+            props,
+            first,
+            x: 0.0,
+            put: Put::Stack,
+        }
+    }
 }
 
 /// The items and the docked app of each region.
@@ -450,7 +493,7 @@ impl Mc {
             _ if title => "running_head",
             Kind::Head | Kind::Clock | Kind::State => "running_head",
             Kind::Hud | Kind::Agents => "hud",
-            Kind::Text | Kind::App => "margin",
+            Kind::Text | Kind::App | Kind::Keys => "margin",
         };
         let style = content.style.as_ref().filter(|_| !title);
         let mut ty = self.ty(base, style);
@@ -482,7 +525,7 @@ impl Mc {
                 .get(name)
                 .map(|(title, lines)| (title.clone(), lines.join("\n")))
                 .unwrap_or_default(),
-            Kind::App => (String::new(), String::new()),
+            Kind::App | Kind::Keys => (String::new(), String::new()),
         }
     }
 
@@ -553,13 +596,18 @@ impl Mc {
         if content.kind == Kind::Agents {
             return self.agent_items(region, slot, name, content);
         }
+        if content.kind == Kind::Keys {
+            return if region.is_line() {
+                Vec::new()
+            } else {
+                self.key_items(slot, name, content, region)
+            };
+        }
         let (title, text) = self.content_text(name, content, scene);
         let id = format!("{}-{name}", self.region_id(region));
-        let item = |id: String, is_title: bool, text: &str, first: bool| Item {
-            id,
-            slot,
-            props: self.content_type(content, is_title).props(text),
-            first,
+        let item = |id: String, is_title: bool, text: &str, first: bool| {
+            let props = self.content_type(content, is_title).props(text);
+            Item::text(id, slot, props, first)
         };
         if region.is_line() {
             let text = text.replace('\n', "  ·  ");
@@ -958,12 +1006,22 @@ impl Mc {
             let rule = [0.0, -(baseline / 2.0).round(), width, 1.0];
             commands.push(rect(&format!("{id}-rule"), &id, rule, faint));
         }
+        let faint = colors.get("faint").copied().unwrap_or(config.background());
         for item in items {
+            let room = (width - item.x).max(1.0);
             let props = PropsUpdate {
-                max_width: (!region.is_line()).then_some(width),
+                max_width: (!region.is_line()).then_some(room),
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
+            if item.put == Put::FootRule {
+                commands.push(rect(
+                    &format!("{}-rule", item.id),
+                    &id,
+                    [0.0, 0.0, width, 1.0],
+                    faint,
+                ));
+            }
         }
         commands
     }
@@ -976,7 +1034,6 @@ impl Mc {
         boxes: &Boxes,
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
-        let baseline = self.settings.value.scale.baseline;
         let mut commands = Vec::new();
         for (region, (items, _)) in items {
             let [_, _, width, height] = boxes.regions[region];
@@ -984,17 +1041,85 @@ impl Mc {
                 commands.extend(self.line(items, [width, height], probed)?);
                 continue;
             }
-            let mut y = 0.0;
-            for item in items {
-                if item.first && y > 0.0 {
-                    y += baseline;
-                }
-                commands.push(move_to(item.id.clone(), 0.0, y));
-                let [_, _, _, item_height] = self.measure(&item.id, probed)?;
-                y += item_height.max(baseline);
+            commands.extend(self.stack(items, [width, height], probed)?);
+        }
+        Ok(commands)
+    }
+
+    /// Places the items of a side: one under the other from the top, the
+    /// items of the foot above the lower edge, a row beside its first item.
+    fn stack(
+        &mut self,
+        items: &[Item],
+        [width, height]: [f64; 2],
+        probed: bool,
+    ) -> Result<Vec<Command>, ClientError> {
+        let baseline = self.settings.value.scale.baseline;
+        let mut heights = Vec::new();
+        for item in items {
+            let [_, _, _, h] = self.measure(&item.id, probed)?;
+            heights.push(h.max(baseline));
+        }
+        let (flow, end) = lines(items, &heights, false, baseline);
+        let (foot, foot_end) = lines(items, &heights, true, baseline);
+        let top = (height - foot_end).max(end);
+        let mut commands = Vec::new();
+        for (item, y) in flow
+            .into_iter()
+            .chain(foot.into_iter().map(|(i, y)| (i, y + top)))
+        {
+            let item = &items[item];
+            commands.push(move_to(item.id.clone(), item.x, y));
+            if item.put == Put::FootRule {
+                let y = y - (baseline / 2.0).round();
+                commands.push(move_to(format!("{}-rule", item.id), 0.0, y));
+                commands.push(Command::Update {
+                    id: format!("{}-rule", item.id),
+                    props: PropsUpdate {
+                        size: Some([width, 1.0]),
+                        ..PropsUpdate::default()
+                    },
+                });
             }
         }
         Ok(commands)
+    }
+
+    /// The rows of the key list: the key in the text color, its words in
+    /// the margin color beside it, and a head over them.
+    fn key_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        let config = &self.settings.value;
+        let full = self.keys == crate::keys::List::All;
+        let rows = if full {
+            crate::keys::all(config)
+        } else {
+            crate::keys::short(config)
+        };
+        let id = format!("{}-{name}", self.region_id(region));
+        let title = if full { "All keys" } else { "Keys" };
+        let head = self.content_type(content, true).props(title);
+        let mut items = vec![Item {
+            put: Put::FootRule,
+            ..Item::text(format!("{id}-title"), slot, head, true)
+        }];
+        let mut ty = self.content_type(content, false);
+        let words_x = (ty.size * 8.7).round();
+        let words = ty.clone();
+        ty.color = config.colors().get("text").copied().unwrap_or(ty.color);
+        for (i, (key, text)) in rows.iter().enumerate() {
+            let mut props = ty.props(key);
+            props.weight = Some(500);
+            items.push(Item {
+                put: Put::Foot,
+                ..Item::text(format!("{id}-{i}-key"), slot, props, false)
+            });
+            items.push(Item {
+                put: Put::FootRow,
+                x: words_x,
+                ..Item::text(format!("{id}-{i}-words"), slot, words.props(text), false)
+            });
+        }
+        items
     }
 
     /// Places the items of a line: the end keeps its place, the start ends
@@ -1197,6 +1322,30 @@ impl Mc {
     }
 }
 
+/// The vertical places of the items that sit in the foot, or of those
+/// that do not, from 0, and where they end.
+fn lines(items: &[Item], heights: &[f64], foot: bool, baseline: f64) -> (Vec<(usize, f64)>, f64) {
+    let (mut y, mut line, mut out) = (0.0, 0.0, Vec::new());
+    for (i, item) in items
+        .iter()
+        .enumerate()
+        .filter(|(_, it)| it.put.foot() == foot)
+    {
+        if item.put.row() {
+            out.push((i, line));
+            y = f64::max(y, line + heights[i]);
+            continue;
+        }
+        if item.first && y > 0.0 {
+            y += baseline;
+        }
+        line = y;
+        out.push((i, y));
+        y += heights[i];
+    }
+    (out, y)
+}
+
 /// Cuts the text of an item to a share of its width, with an ellipsis;
 /// nothing below a few letters.
 // ponytail: by the share of the letters, not by their widths, and one
@@ -1307,7 +1456,7 @@ mod tests {
             ["head", "agents", "state", "clock"]
         );
         assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
-        assert_eq!(names(&page, Region::Right), ["notes", "notify"]);
+        assert_eq!(names(&page, Region::Right), ["notes", "notify", "keys"]);
         assert_eq!(names(&page, Region::Drawer), ["shell"]);
         // Over an app, the words of the agent go to the header.
         assert_eq!(
@@ -1331,9 +1480,9 @@ mod tests {
                 "chat", "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
             ]
         );
-        assert!(!moved.contains_key(&Region::Right));
+        assert_eq!(names(&moved, Region::Right), ["keys"]);
         let other = layout(&rules, &config.contents, "mail", false);
-        assert_eq!(names(&other, Region::Right), ["notes", "notify"]);
+        assert_eq!(names(&other, Region::Right), ["notes", "notify", "keys"]);
     }
 
     #[test]
