@@ -394,8 +394,8 @@ With the setting `voice_hud: host`, the default, the HUD host
 `plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
 of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
 indicator; it still shows the helpers that `voice.state` names. A click
-on the column of a helper in the scene `agents` calls `assistant
-chat.show {name}`. While the event `assistant.chat` of the client
+on the column of a helper in the scene `agents`, or on its row in a
+region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
 `assistant` says that the chat is open on the output of mc, the drawer
 shows alone with the content `chat`, and mc emits its box as
 `mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
@@ -579,6 +579,14 @@ toggle, else from the `regions` of the scene file (for example
 `regions`. Over an app, the left and the right side show only after a
 toggle, and the app window leaves the header, the footer, the drawer and
 a shown side free. A toggle stays for all scenes.
+
+The pointer works on the items that a click acts on: a row of the key
+list, a helper in a region, a row of a page with a time and a line of the
+overview. Under the pointer an item shows a focus mark, a bar of 2 by 20
+pixels in the `text` color, 12 pixels left of it. A click on a key row
+does what its key does, a click on a helper opens the chat with it, a
+click on a line of the overview shows that scene, and a click on another
+row of a page makes mc emit `mc.row.chosen {scene, panel, index}`.
 
 The `contents` are named. Their `kind` is one of:
 

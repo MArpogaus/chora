@@ -338,6 +338,9 @@ pub struct Item {
     /// The place across a side, from its left edge.
     pub x: f64,
     pub put: Put,
+    /// What a click on it does: a binding as `key:Super+n`, a helper as
+    /// `agent:NAME`; it also shows the focus mark under the pointer.
+    pub hit: Option<String>,
 }
 
 /// Where an item of a side stands.
@@ -373,12 +376,13 @@ impl Item {
             first,
             x: 0.0,
             put: Put::Stack,
+            hit: None,
         }
     }
 }
 
 /// The items and the docked app of each region.
-type Plan = BTreeMap<Region, (Vec<Item>, Option<String>)>;
+pub type Plan = BTreeMap<Region, (Vec<Item>, Option<String>)>;
 
 /// The boxes of the regions and of the window of an app scene, x, y,
 /// width and height on the output.
@@ -562,7 +566,7 @@ impl Mc {
     }
 
     /// The items of the regions of a scene, and the docked app of each.
-    fn items(&self, name: &str) -> Plan {
+    pub fn items(&self, name: &str) -> Plan {
         let contents = &self.settings.value.contents;
         let mut out = Plan::new();
         for (region, slots) in self.placed(name) {
@@ -1014,6 +1018,10 @@ impl Mc {
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
+            if item.hit.is_some() {
+                let ink = colors.get("text").copied().unwrap_or(faint);
+                commands.extend(hit_nodes(&item.id, &id, ink));
+            }
             if item.put == Put::FootRule {
                 commands.push(rect(
                     &format!("{}-rule", item.id),
@@ -1068,8 +1076,12 @@ impl Mc {
             .into_iter()
             .chain(foot.into_iter().map(|(i, y)| (i, y + top)))
         {
-            let item = &items[item];
+            let idx = item;
+            let item = &items[idx];
             commands.push(move_to(item.id.clone(), item.x, y));
+            if item.hit.is_some() {
+                commands.extend(hit_place(&item.id, [0.0, y, width, heights[idx]], item.x));
+            }
             if item.put == Put::FootRule {
                 let y = y - (baseline / 2.0).round();
                 commands.push(move_to(format!("{}-rule", item.id), 0.0, y));
@@ -1106,17 +1118,23 @@ impl Mc {
         let words_x = (ty.size * 8.7).round();
         let words = ty.clone();
         ty.color = config.colors().get("text").copied().unwrap_or(ty.color);
-        for (i, (key, text)) in rows.iter().enumerate() {
-            let mut props = ty.props(key);
+        for (i, row) in rows.iter().enumerate() {
+            let mut props = ty.props(&row.key);
             props.weight = Some(500);
             items.push(Item {
                 put: Put::Foot,
+                hit: row.binding.as_ref().map(|b| format!("key:{b}")),
                 ..Item::text(format!("{id}-{i}-key"), slot, props, false)
             });
             items.push(Item {
                 put: Put::FootRow,
                 x: words_x,
-                ..Item::text(format!("{id}-{i}-words"), slot, words.props(text), false)
+                ..Item::text(
+                    format!("{id}-{i}-words"),
+                    slot,
+                    words.props(&row.words),
+                    false,
+                )
             });
         }
         items
@@ -1175,6 +1193,9 @@ impl Mc {
                 }
                 let y = ((height - h.max(baseline)) / 2.0).round();
                 commands.push(move_to(item.id.clone(), x, y));
+                if item.hit.is_some() {
+                    commands.extend(hit_place(&item.id, [x, y, w.min(left), h.max(baseline)], x));
+                }
                 x += w.min(left) + gap;
             }
         }
@@ -1230,6 +1251,79 @@ impl Mc {
         }
         self.render()?;
         Ok(new)
+    }
+
+    /// Shows the focus mark of a hit while the pointer is over it, and
+    /// hides it when the pointer leaves.
+    pub fn mark(&mut self, node: &str, on: bool) -> Result<(), ClientError> {
+        let Some(base) = node
+            .strip_suffix("-hit")
+            .filter(|_| node.starts_with("mc-"))
+        else {
+            return Ok(());
+        };
+        self.apply(vec![Command::Update {
+            id: mark_id(base),
+            props: PropsUpdate {
+                opacity: Some(if on { 1.0 } else { 0.0 }),
+                ..PropsUpdate::default()
+            },
+        }])
+    }
+
+    /// What a click on a hit does: a key row acts as its key, a helper
+    /// opens the chat with it, a row of the overview shows its scene, a
+    /// row of another page is announced as `mc.row.chosen`. Answers
+    /// whether the node is a hit.
+    pub fn click_hit(&mut self, node: &str) -> bool {
+        let Some(base) = node.strip_suffix("-hit") else {
+            return false;
+        };
+        let name = self.current.clone().unwrap_or_default();
+        let token = (self.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id == base)
+            .and_then(|i| i.hit);
+        match token.as_deref().and_then(|t| t.split_once(':')) {
+            Some(("key", binding)) => self.act(binding),
+            Some(("agent", agent)) => self.chat_with(agent),
+            _ => return self.click_row(base),
+        }
+        true
+    }
+
+    /// A click on a row of a page: `mc-s-SCENE-panels-PANEL-row-N`.
+    fn click_row(&mut self, base: &str) -> bool {
+        let Some((scene, rest)) = base
+            .strip_prefix("mc-s-")
+            .and_then(|b| b.split_once("-panels-"))
+        else {
+            return false;
+        };
+        let Some((panel, index)) = rest.rsplit_once("-row-") else {
+            return false;
+        };
+        let Ok(index) = index.parse::<usize>() else {
+            return false;
+        };
+        if scene == crate::manage::OVERVIEW {
+            if let Some(target) = self.order().get(index).cloned()
+                && let Err(err) = self.show(&target, true)
+            {
+                eprintln!("chora-mc: {target}: {}", err.message);
+            }
+            return true;
+        }
+        let emit = serde_json::json!({"event": "mc.row.chosen",
+            "data": {"scene": scene, "panel": panel, "index": index}});
+        if let Err(err) = self
+            .rt
+            .conn
+            .call::<_, serde_json::Value>("events.emit", emit)
+        {
+            eprintln!("chora-mc: mc.row.chosen: {err}");
+        }
+        true
     }
 
     /// Starts the docked apps of the regions that show in the current
@@ -1321,6 +1415,64 @@ impl Mc {
         serde_json::json!({"scene": name, "regions": regions, "contents": contents})
     }
 }
+
+/// The id of the focus mark of a hit.
+pub fn mark_id(base: &str) -> String {
+    format!("{base}-mark")
+}
+
+/// The transparent rect that takes the pointer over something that a
+/// click acts on, and the focus mark that shows beside it under the
+/// pointer: a bar of 2 by 20 pixels in the color `ink`.
+pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
+    let mark = PropsUpdate {
+        input: Some(chora_scene::InputMode::Pass),
+        opacity: Some(0.0),
+        ..PropsUpdate::default()
+    };
+    [
+        rect(
+            &format!("{base}-hit"),
+            parent,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0; 4],
+        ),
+        Command::Create {
+            id: mark_id(base),
+            kind: NodeKind::Rect,
+            parent: parent.into(),
+            props: PropsUpdate {
+                size: Some([MARK[0], MARK[1]]),
+                color: Some(ink),
+                ..mark
+            },
+        },
+    ]
+}
+
+/// Sizes the hit of an item to its box, and puts its mark 12 pixels left
+/// of the item at `item_x`, in the middle of the height of the box.
+pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3] {
+    [
+        move_to(format!("{base}-hit"), x, y),
+        Command::Update {
+            id: format!("{base}-hit"),
+            props: PropsUpdate {
+                size: Some([w.max(1.0), h.max(1.0)]),
+                ..PropsUpdate::default()
+            },
+        },
+        move_to(
+            mark_id(base),
+            item_x - MARK_GAP - MARK[0],
+            y + ((h - MARK[1]) / 2.0).round(),
+        ),
+    ]
+}
+
+/// The size of the focus mark, and its distance from what it marks.
+const MARK: [f64; 2] = [2.0, 20.0];
+const MARK_GAP: f64 = 12.0;
 
 /// The vertical places of the items that sit in the foot, or of those
 /// that do not, from 0, and where they end.

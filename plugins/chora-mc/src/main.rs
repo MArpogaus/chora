@@ -49,6 +49,8 @@ use crate::{
 
 /// The client name, and the id of the group that holds the scenes.
 const NAME: &str = "mc";
+/// The most panels of a scene whose rows take the pointer.
+const MAX_HIT_PANELS: usize = 24;
 /// The id of the line of the HUD before the regions; a start removes it.
 const HUD: &str = "mc-hud";
 /// The id of a hidden node whose empty animations time the typewriter.
@@ -514,7 +516,7 @@ const CHAT: &str = "chat";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 15] = [
+const EVENTS: [&str; 17] = [
     "voice.*",
     "assistant.chat",
     "assistant.ready",
@@ -523,6 +525,8 @@ const EVENTS: [&str; 15] = [
     "client.disconnected",
     "pointer.scroll",
     "pointer.pressed",
+    "pointer.entered",
+    "pointer.left",
     "animation.done",
     "surface.created",
     "surface.destroyed",
@@ -812,6 +816,8 @@ impl Plugin for Mc {
                 injected,
                 ..
             } => self.press(&node, position, injected),
+            Event::PointerEntered { node, .. } => self.mark(&node, true),
+            Event::PointerLeft { node } => self.mark(&node, false),
             _ => Ok(()),
         }
     }
@@ -1042,7 +1048,7 @@ impl Mc {
     /// A press of the pointer: on a column of a helper it opens the chat,
     /// else it is a click.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.click_agent(node, at) {
+        if self.click_agent(node, at) || self.click_hit(node) {
             return Ok(());
         }
         self.click(node, at, injected)
@@ -1996,8 +2002,9 @@ impl Mc {
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
-                #[allow(clippy::cast_precision_loss)] // rows of one screen
+                #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
                 let y = top + i as f64 * body.line;
+                commands.extend(self.row_hit(name, &id, i, [indent, y, w, body.line]));
                 commands.push(add(
                     &format!("line-{i}"),
                     text(&body, line, indent, y, true),
@@ -2008,9 +2015,36 @@ impl Mc {
                 }
             }
         } else if !panel.lines.is_empty() {
+            if name == manage::OVERVIEW {
+                for i in 0..panel.lines.len() {
+                    #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
+                    let y = top + i as f64 * body.line;
+                    commands.extend(self.row_hit(name, &id, i, [indent, y, w, body.line]));
+                }
+            }
             let props = text(&body, &panel.text(), indent, top, true);
             commands.push(add("lines", props));
         }
+        commands
+    }
+
+    /// Whether the rows of a scene take the pointer: not those of a scene
+    /// with very many panels, which would build slowly.
+    fn has_hits(&self, scene: &str) -> bool {
+        (self.scenes.get(scene)).is_some_and(|s| s.panels.len() <= MAX_HIT_PANELS)
+    }
+
+    /// The hit and the focus mark of row `i` of a panel, at a box of the
+    /// panel group: the hit spans the margin and the text.
+    fn row_hit(&self, scene: &str, panel: &str, row: usize, at: [f64; 4]) -> Vec<Command> {
+        if !self.has_hits(scene) {
+            return Vec::new();
+        }
+        let [x, y, w, h] = at;
+        let ink = (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
+        let base = format!("{panel}-row-{row}");
+        let mut commands = region::hit_nodes(&base, panel, ink).to_vec();
+        commands.extend(region::hit_place(&base, [0.0, y, x + w, h], x));
         commands
     }
 
@@ -2056,11 +2090,18 @@ impl Mc {
             };
             let body = self.ty("body", panel.style.as_ref());
             let note = self.ty("margin", panel.note_style.as_ref());
+            let wide = self.place(name, panel).map_or(0.0, |p| p[2] + indent);
             for (i, (time, _)) in rows.iter().enumerate() {
                 let Some([_, _, _, height]) = rect(&format!("{id}-line-{i}")) else {
                     break; // below the panel
                 };
                 commands.push(move_to(format!("{id}-line-{i}"), indent, y));
+                let hit = region::hit_place(
+                    &format!("{id}-row-{i}"),
+                    [0.0, y, wide, height.max(body.line)],
+                    indent,
+                );
+                commands.extend(hit);
                 let note_id = format!("{id}-note-{i}");
                 if !time.is_empty()
                     && let Some([_, _, width, _]) = rect(&note_id)
@@ -2077,7 +2118,9 @@ impl Mc {
     /// Scrolls the page of the current scene by `dy`, from its top to its
     /// last panel at the bottom of the text block.
     fn scroll_page(&mut self, node: &str, dy: f64) -> Result<(), ClientError> {
-        let Some(name) = self.current.clone().filter(|n| wheel_id(n) == node) else {
+        let over =
+            |n: &String| wheel_id(n) == node || node.starts_with(&format!("{}-", panels_id(n)));
+        let Some(name) = self.current.clone().filter(over) else {
             return Ok(());
         };
         let (Some(scene), Some(geo)) = (self.scenes.get(&name), self.geometry(&name)) else {
@@ -2791,7 +2834,7 @@ impl Mc {
         }
     }
 
-    fn act(&mut self, binding: &str) {
+    pub fn act(&mut self, binding: &str) {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
         };

@@ -294,7 +294,10 @@ impl Mc {
                     .and_then(|c| config.colors().get(c))
                     .copied()
                     .unwrap_or(base);
-                Item::text(format!("{id}-{i}"), slot, ty.props(&text), i == 0)
+                Item {
+                    hit: Some(format!("agent:{}", agent.name)),
+                    ..Item::text(format!("{id}-{i}"), slot, ty.props(&text), i == 0)
+                }
             })
             .collect()
     }
@@ -332,6 +335,12 @@ impl Mc {
         let Some(name) = hit else {
             return false;
         };
+        self.chat_with(&name);
+        true
+    }
+
+    /// Asks the HUD host to show the chat with a helper.
+    pub fn chat_with(&mut self, name: &str) {
         let mut params = json!({"name": name});
         if let Some(token) = self.rt.conn.activation_token() {
             params["token"] = json!(token);
@@ -340,7 +349,6 @@ impl Mc {
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
             eprintln!("chora-mc: chat.show {name}: {err}");
         }
-        true
     }
 
     /// Shows one agent alone in the agents scene, with its transcript in
@@ -798,6 +806,31 @@ mod tests {
             called.last(),
             Some(
                 &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Bert"}})
+            )
+        );
+    }
+
+    /// A click on the row of a helper in the margin asks the host to show
+    /// the chat with that helper, with no key.
+    #[test]
+    fn a_click_on_the_row_of_a_helper_shows_its_chat() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("row-chat", [1920, 1080]);
+        let state = json!({"name": "Atlas", "state": "working"});
+        mc.follow("voice.state", "voice", state).unwrap();
+        mc.show("agenda", false).unwrap();
+        let name = mc.current.clone().unwrap();
+        let id = (mc.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.hit.as_deref() == Some("agent:Atlas"))
+            .map(|i| i.id)
+            .expect("an item for Atlas that takes a click");
+        assert!(mc.click_hit(&format!("{id}-hit")));
+        let called = model.lock().unwrap().called.clone();
+        assert_eq!(
+            called.last(),
+            Some(
+                &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Atlas"}})
             )
         );
     }

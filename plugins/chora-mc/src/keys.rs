@@ -24,8 +24,27 @@ impl List {
     }
 }
 
-/// The rows that always show, as key and words.
-pub fn short(config: &Config) -> Vec<(String, String)> {
+/// A row of the key list: the key as people read it, its words, and the
+/// binding that a click on the row acts like.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Row {
+    pub key: String,
+    pub words: String,
+    pub binding: Option<String>,
+}
+
+impl Row {
+    fn new(key: String, words: &str, binding: Option<&str>) -> Self {
+        Self {
+            key,
+            words: words.to_owned(),
+            binding: binding.map(str::to_owned),
+        }
+    }
+}
+
+/// The rows that always show.
+pub fn short(config: &Config) -> Vec<Row> {
     let mut rows = Vec::new();
     let find = |want: &dyn Fn(&Action) -> bool| {
         config
@@ -35,34 +54,34 @@ pub fn short(config: &Config) -> Vec<(String, String)> {
             .map(|(k, _)| k.as_str())
     };
     if let Some(key) = find(&|a| *a == Action::Keys) {
-        rows.push((human(key), "All keys".to_owned()));
+        rows.push(Row::new(human(key), "All keys", Some(key)));
     }
     if let (Some(next), Some(previous)) = (
         find(&|a| *a == Action::NextScene),
         find(&|a| *a == Action::PreviousScene),
     ) {
-        rows.push((pair(previous, next), "Turn the page".to_owned()));
+        rows.push(Row::new(pair(previous, next), "Turn the page", Some(next)));
     }
     if let Some(key) = find(&|a| matches!(a, Action::Run(_))) {
-        rows.push((human(key), "Start a program".to_owned()));
+        rows.push(Row::new(human(key), "Start a program", Some(key)));
     }
     if let Some(key) = find(&|a| matches!(a, Action::Scene(s) if s == "agenda")) {
-        rows.push((human(key), "Show the agenda".to_owned()));
+        rows.push(Row::new(human(key), "Show the agenda", Some(key)));
     }
     if let Some(key) = find(&|a| *a == Action::Toggle(crate::region::Region::Right)) {
-        rows.push((human(key), "Hide this column".to_owned()));
+        rows.push(Row::new(human(key), "Hide this column", Some(key)));
     }
-    rows.push(("Esc".to_owned(), "Back one step".to_owned()));
+    rows.push(Row::new("Esc".to_owned(), "Back one step", None));
     rows
 }
 
 /// Every binding as key and words, then the keys of other plugins that
 /// the list names.
-pub fn all(config: &Config) -> Vec<(String, String)> {
-    let mut rows: Vec<(String, String)> = (config.bindings.iter())
-        .filter_map(|(key, action)| Some((human(key), words(action)?)))
+pub fn all(config: &Config) -> Vec<Row> {
+    let mut rows: Vec<Row> = (config.bindings.iter())
+        .filter_map(|(key, action)| Some(Row::new(human(key), &words(action)?, Some(key))))
         .collect();
-    rows.push(("Esc".to_owned(), "Back one step".to_owned()));
+    rows.push(Row::new("Esc".to_owned(), "Back one step", None));
     rows
 }
 
@@ -117,9 +136,12 @@ mod tests {
     fn six_rows_name_the_keys_of_the_bindings() {
         let rows = short(&config());
         assert_eq!(rows.len(), 6, "{rows:?}");
-        assert_eq!(rows[0], ("Super+F1".into(), "All keys".into()));
-        assert_eq!(rows[1].0, "Super+← →");
-        assert_eq!(rows[2], ("Super+Space".into(), "Start a program".into()));
+        assert_eq!(rows[0].key, "Super+F1");
+        assert_eq!(rows[0].words, "All keys");
+        assert_eq!(rows[1].key, "Super+← →");
+        assert_eq!(rows[1].binding.as_deref(), Some("Super+Right"));
+        assert_eq!(rows[2].key, "Super+Space");
+        assert_eq!(rows[5].binding, None);
     }
 
     #[test]

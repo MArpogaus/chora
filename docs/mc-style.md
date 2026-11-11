@@ -99,3 +99,6 @@ change it there, not here.
     weight 500, the words in `muted`, both in the style `margin`, on the
     baseline grid. It shows until the user hides the column with
     `Super+n`; `Super+F1` shows all keys in its place.
+17. **One focus mark.** What a click acts on shows a bar of 2 by 20
+    pixels in `text`, 12 pixels left of it, while the pointer is over it:
+    no underline, no fill and no change of color.
