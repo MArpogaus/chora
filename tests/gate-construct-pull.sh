@@ -19,6 +19,9 @@
 # 2. A pane dropped over a face goes back to xp on the output of that
 #    face, at the drop point: a move from face to face stays in xp.
 #    Its task button is on the taskbar of that face only.
+# 2a. Stood back (K12): a drag on the floating plane of a window pulls
+#    the window out of the cube; dropped beside the cube it is a pane in
+#    view, dropped over the front face it is a window of xp again.
 # 3. Without the flag the core refuses the give of an injected drag:
 #    past the edge the window is still with xp, and no pane shows it;
 #    back in the face it goes on with the drag, and stays after the
@@ -165,6 +168,50 @@ until_ok near_the_drop 20 || fail "the window is not at the drop point (700, 400
 until_ok 'test "$(task_on VIRTUAL-1)" = 1 && test "$(task_on VIRTUAL-2)" = 0' 20 ||
     fail "the task button of the window that came back is not on the taskbar of its face only: $(task_on VIRTUAL-1) $(task_on VIRTUAL-2)"
 ok "a pane dropped over a face is a window of xp on that face again, at the drop point: $(probe)"
+end_session
+
+plane_middle() {
+    ctl query "id:construct-cube-float-0-$surface" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+r = nodes[0]["rects"].get("HEADLESS-1") if nodes and nodes[0].get("visible") else None
+print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
+}
+stood() {
+    env_file=$work/$1.env session_start 1280x800 -- "$bin/chora-construct"
+    grant input.inject screen.capture
+    ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+    call cube.open '{}' >/dev/null || fail "cube.open"
+    until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
+    inject '[{"pointer_move": {"position": [640, 400]}}]'
+    "$bin/chora-probe" window 40 120 200 --server-deco >"$work/$1-probe.log" 2>&1 &
+    pids+=($!)
+    until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
+    read -r surface _ <<<"$(probe)"
+    call view.step_back '{}' >/dev/null || fail "view.step_back"
+    until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
+    read -r px py <<<"$(plane_middle)"
+    inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
+        {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+        {\"pointer_move\": {\"position\": [$((px + 30)), $py]}},
+        {\"pointer_move\": {\"position\": [$((px + 60)), $py]}}]"
+}
+
+CHORA_TEST_FLAGS=--test-injected-press-is-real stood plane_beside
+until_ok 'test "$(owner)" = construct' 40 || fail "a drag on the floating plane did not pull the window out: $(probe)"
+inject '[{"pointer_move": {"position": [1200, 100]}}, {"button": {"state": "released"}}]'
+sleep 1
+[ "$(owner)" = construct ] || fail "the window pulled from the stood-back cube is lost after the drop: $(probe)"
+[ "$(pane_of "$surface")" = shown ] || fail "the pulled window is no pane in view: $(pane_of "$surface")"
+ok "stood back, a drag on a floating plane pulls its window out; dropped beside the cube it is a pane: $(probe)"
+end_session
+
+CHORA_TEST_FLAGS=--test-injected-press-is-real stood plane_back
+until_ok 'test "$(owner)" = construct' 40 || fail "a drag on the floating plane did not pull the window out: $(probe)"
+inject '[{"pointer_move": {"position": [600, 350]}}, {"button": {"state": "released"}}]'
+until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 || fail "a pane dropped over the stood-back front face did not go back to xp: $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "the pane stays after its window went back: $(pane_of "$surface")"
+ok "stood back, a pulled window dropped over the front face is a window of xp again: $(probe)"
 end_session
 
 pull injected
