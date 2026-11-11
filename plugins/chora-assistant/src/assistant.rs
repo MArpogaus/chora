@@ -576,6 +576,19 @@ impl Assistant {
         commands
     }
 
+    /// Shows or hides the island: an open glass chat is its expanded form
+    /// and takes its place (one surface, U3). None for a figure.
+    pub fn island_shown(&self, shown: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        Some(Command::Update {
+            id: GROUP.into(),
+            props: PropsUpdate {
+                visible: Some(shown),
+                ..PropsUpdate::default()
+            },
+        })
+    }
+
     /// The task of the helper that the island shows after the state word.
     pub fn set_task(&mut self, theme: &mut Theme, task: &str) -> Vec<Command> {
         match &mut self.island {

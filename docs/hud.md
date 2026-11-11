@@ -325,10 +325,21 @@ values only. A folder without the block gets the neutral chat.
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
 
-A `glass` chat has corners of 12 pixels, its `fill` at an opacity of
-0.94 and its `border` as a hairline at 0.24, after the construct style
-guide. Its text is checked against the fill over a black and over a
-white pane.
+A `glass` chat is the glass column of the construct style (rules 18 to
+25, the tokens of `chora_kit::glass`, light or dark after the theme): 28
+hundredths of the work area wide, from 400 to its `width`, corners of
+24, the strong tint and a long shadow. Its header names the state of the
+helper beside the ring of the folder's figure and, at the right, the
+helper, its task and its step. The person's messages stand at the right
+in accent bubbles, the helper's in Inter 16 under its name, its tool
+steps in the mono family with a check, the running one with an arc. The
+field is a well of 48 with the focus ring while it has the keyboard; the
+key line under it names Return (send), Ctrl+. (stop) and Esc (close),
+and a click on the words of Stop or Close does the same, without a
+button. The island of the folder hides while the chat is open: the
+header takes its place. A question card in the chat keeps its place,
+and the transcript flows under it. The text of a glass chat is checked
+against its `fill` over a black and over a white pane.
 
 The view never covers the figure, its bubble or the "Chat ..." row: a
 view that would, moves sideways beside them, also a view in a slot. A

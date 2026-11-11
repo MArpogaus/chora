@@ -262,6 +262,18 @@ impl Session {
         if !self.is_open() {
             return commands;
         }
+        if frame.look.style == ChatStyle::Glass {
+            commands.extend(self.glass_commands(theme, frame, language));
+            if top {
+                commands.push(Command::Move {
+                    id: crate::card::TOP.into(),
+                    parent: None,
+                    index: None,
+                });
+            }
+            self.drawn = Some(frame.output.clone());
+            return commands;
+        }
         let parts = self.parts(theme, frame, language);
         let colours = colours(&frame.look);
         commands.extend(panel(theme, frame, &parts, colours));

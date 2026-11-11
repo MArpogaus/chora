@@ -1423,8 +1423,14 @@ host methods that start and place it are the host's.
 
 **Place.** `place` has `anchor` (`top`, `bottom`, `left`, `right`, or two
 of them joined by `_`, such as `bottom_right`), `margin` (top, right,
-bottom, left), `width` (1 to 1600, 400 by default), `output`, `look` (the
+bottom, left), `width` (1 to 1600, 400 by default), `output`, `scale`
+(1 to 4, the pixels of the buffer for each logical pixel), `look` (the
 colors `background`, `text`, `border` and `hint` as RGBA) and `token`.
+`look.glass` with the RGBA `accent` and `halo` makes the field of a glass
+chat: a well with corners of 16 in `background`, 48 high for a line, the
+text in Inter 16 on lines of 24, the caret in the accent, and, while the
+field has the keyboard, the focus ring of 2 in the accent and the halo of
+4 in the 6 pixels around the well.
 A new place on the same output only moves the surface; another output
 makes a new surface. The draft stays in both cases, because the process
 stays.

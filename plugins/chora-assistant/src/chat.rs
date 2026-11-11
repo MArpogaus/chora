@@ -27,6 +27,7 @@ use crate::{
     field::{FieldEvent, say_params},
 };
 
+mod glass;
 mod host;
 mod view;
 
@@ -57,6 +58,16 @@ pub struct Frame {
     /// What the view never covers: the figure with its balloon and the
     /// "Chat ..." row, each as x, y, width, height.
     pub clear: Vec<[i32; 4]>,
+    /// The sheet of the figure, whose element of a state a glass view
+    /// shows as its ring.
+    pub ring: Option<chora_draw::theme::Sheet>,
+    /// The look is in the dark theme.
+    pub dark: bool,
+    /// The scale of the output, for the field.
+    pub scale: u32,
+    /// The question card on the output, x, y, width and height: the
+    /// transcript of a glass view flows under it.
+    pub card: Option<[i32; 4]>,
 }
 
 impl Frame {
@@ -372,6 +383,9 @@ fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
 /// one: at the bottom of the view, as wide as the view.
 #[must_use]
 pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
+    if frame.look.style == chora_kit::hud::ChatStyle::Glass {
+        return glass_field_place(frame, token);
+    }
     let [x, y, w, h] = frame.rect();
     let colours = colours(&frame.look);
     let mut place = json!({
@@ -384,6 +398,44 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
             "text": rgba(colours.text),
             "border": rgba(colours.border),
             "hint": rgba(colours.text),
+        },
+    });
+    if let Some(token) = token {
+        place["token"] = token.into();
+    }
+    place
+}
+
+/// The `place` of the field of a glass chat: the well of 48 above the key
+/// line, inset 8 in the view, with room of 6 around it for the focus ring,
+/// in the colours of the glass at the scale of the output.
+#[allow(
+    clippy::many_single_char_names,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a rect and a colour as bytes, clamped from 0 to 255"
+)]
+fn glass_field_place(frame: &Frame, token: Option<&str>) -> Value {
+    const RING_ROOM: i32 = 6;
+    let [x, y, w, h] = frame.rect();
+    let tokens = chora_kit::glass::Material::of(frame.dark);
+    let byte = |c: [f64; 4]| c.map(|v| (v * 255.0).round().clamp(0.0, 255.0) as u8);
+    let halo = {
+        let [r, g, b, _] = tokens.accent;
+        [r, g, b, chora_kit::glass::HALO_ALPHA]
+    };
+    let mut place = json!({
+        "anchor": "bottom_left",
+        "margin": [0, 0, frame.size[1] - (y + h) + 40 + 8 - RING_ROOM, x + 8 - RING_ROOM],
+        "width": w - 16 + 2 * RING_ROOM,
+        "output": frame.output,
+        "scale": frame.scale,
+        "look": {
+            "background": byte(tokens.well),
+            "text": byte(tokens.text),
+            "border": [0, 0, 0, 0],
+            "hint": byte(tokens.muted),
+            "glass": {"accent": byte(tokens.accent), "halo": byte(halo)},
         },
     });
     if let Some(token) = token {
@@ -1037,6 +1089,10 @@ mod tests {
             look,
             slot: None,
             clear: Vec::new(),
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
         }
     }
 
