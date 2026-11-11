@@ -186,18 +186,34 @@ fn outside_links(svg: &str) -> Vec<String> {
     found
 }
 
-/// The text of `--check-hud`, and whether the folder is fine.
+/// The text of `--check-hud`, and whether the folder is fine. A fine
+/// folder that `--use-hud` would not find among `roots` gets the search
+/// path instead of the command that turns it on.
 #[must_use]
-pub fn check_report(dir: &Path) -> (String, bool) {
+pub fn check_report(dir: &Path, roots: &[PathBuf]) -> (String, bool) {
     let found = problems(dir);
     if found.is_empty() {
-        let name = dir
-            .canonicalize()
-            .ok()
-            .and_then(|real| real.file_name().map(|n| n.to_string_lossy().into_owned()))
-            .unwrap_or_else(|| dir.display().to_string());
+        let real = dir.canonicalize().ok();
+        let name = real.as_deref().and_then(Path::file_name).map_or_else(
+            || dir.display().to_string(),
+            |n| n.to_string_lossy().into_owned(),
+        );
+        let found = folders::find(roots, &name).and_then(|f| f.canonicalize().ok());
+        if found.is_some() && found == real {
+            return (
+                format!("OK. Turn it on: chora-assistant --use-hud {name}\n"),
+                true,
+            );
+        }
+        let path: Vec<String> = roots.iter().map(|r| r.display().to_string()).collect();
+        let first = path.first().map_or("", String::as_str);
         return (
-            format!("OK. Turn it on: chora-assistant --use-hud {name}\n"),
+            format!(
+                "OK, but chora-assistant --use-hud {name} looks only in: {}\n\
+                 Copy the folder there first, for example: cp -r {} {first}/{name}\n",
+                path.join(", "),
+                dir.display()
+            ),
             true,
         );
     }
@@ -306,7 +322,8 @@ mod tests {
     fn the_neutral_folder_and_a_copy_are_fine() {
         assert_eq!(problems(&neutral()), Vec::<String>::new());
         assert_eq!(problems(&fixture("mine")), Vec::<String>::new());
-        let (text, ok) = check_report(&fixture("mine"));
+        let roots = [fixture("")];
+        let (text, ok) = check_report(&fixture("mine"), &roots);
         assert!(
             ok && text.starts_with("OK. Turn it on: chora-assistant --use-hud mine"),
             "{text}"
@@ -314,8 +331,20 @@ mod tests {
     }
 
     #[test]
+    fn a_fine_folder_outside_the_search_path_names_the_path() {
+        let roots = [temp("search-a"), temp("search-b")];
+        let (text, ok) = check_report(&fixture("mine"), &roots);
+        assert!(ok, "{text}");
+        assert!(!text.contains("Turn it on"), "{text}");
+        for root in &roots {
+            assert!(text.contains(&root.display().to_string()), "{text}");
+        }
+        assert!(text.contains("--use-hud mine"), "{text}");
+    }
+
+    #[test]
     fn four_problems_are_named_with_their_files() {
-        let (text, ok) = check_report(&fixture("fancy"));
+        let (text, ok) = check_report(&fixture("fancy"), &[]);
         assert!(!ok);
         for file in ["link.svg", "href.svg", "huge.svg", "hud.yaml: chat.size"] {
             assert!(text.contains(file), "{file} in {text}");

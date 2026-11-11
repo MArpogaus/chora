@@ -433,7 +433,7 @@ fn tools(args: &Args) -> Option<ExitCode> {
     let roots = folders::roots(exe.as_deref());
     let mut out = std::io::stdout();
     if let Some(dir) = &args.check_hud {
-        let (text, fine) = check::check_report(dir);
+        let (text, fine) = check::check_report(dir, &roots);
         let _ = out.write_all(text.as_bytes());
         return Some(if fine {
             ExitCode::SUCCESS
