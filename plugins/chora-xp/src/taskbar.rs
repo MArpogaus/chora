@@ -249,6 +249,16 @@ impl Bar {
         [x, y, w, (h - bar).max(1)]
     }
 
+    /// The height that the taskbar reserves at the bottom of its output:
+    /// its own, its strip when it hides itself, none on a virtual output.
+    pub fn reserve(&self) -> i32 {
+        match (self.is_virtual(), self.auto_hide) {
+            (true, _) => 0,
+            (false, true) => HIDDEN_STRIP,
+            (false, false) => HEIGHT,
+        }
+    }
+
     /// Whether the taskbar shows the buttons of the desktops.
     pub fn has_pager(&self) -> bool {
         self.pager

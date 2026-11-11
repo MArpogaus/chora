@@ -15,7 +15,7 @@ panels:
   max_chars: 160
 - id: chips
   source: agents
-  anchor: bottom_left
+  anchor: top_left
   margin: [32, 32]
   style: bubble
   rows: '{name} · {state}'
@@ -35,3 +35,20 @@ chat:
   name: [74, 82, 97]
   border: [20, 23, 31]
   glow: [38, 128, 181]
+dark:
+  chat:
+    fill: [10, 13, 18]
+    text: [237, 237, 242]
+    name: [163, 171, 181]
+    border: [237, 237, 242]
+  panels:
+    line:
+      fill: [10, 13, 18]
+      border: [90, 94, 102]
+      colours:
+        text: [237, 237, 242]
+    chips:
+      fill: [10, 13, 18]
+      border: [90, 94, 102]
+      colours:
+        text: [237, 237, 242]

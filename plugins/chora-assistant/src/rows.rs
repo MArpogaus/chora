@@ -81,18 +81,6 @@ pub fn rows(language: Language, helpers: &BTreeMap<String, Helper>, most: usize)
         .collect()
 }
 
-/// The words of the "Chat ..." row: the label, and the state word of the
-/// voice agent while it is awake and not idle.
-#[must_use]
-pub fn chat_words(language: Language, voice: Option<&str>) -> Vec<String> {
-    let state = (voice.filter(|state| !matches!(*state, "idle" | "asleep")))
-        .and_then(words::state)
-        .map(|word| word.text(language).to_lowercase());
-    std::iter::once(words::Word::ChatRow.text(language).to_owned())
-        .chain(state)
-        .collect()
-}
-
 /// The task of a helper, cut to [`MAX_TASK`] characters.
 fn task_of(helper: &Helper) -> String {
     helper.task.chars().take(MAX_TASK).collect()
@@ -142,18 +130,6 @@ mod tests {
         let german = rows(Language::De, &helpers, 4);
         assert_eq!(german[0].text(), "Atlas · arbeitet · Write file (2/2)");
         assert_eq!(rows(Language::En, &helpers, 1).len(), 1);
-    }
-
-    #[test]
-    fn the_chat_row_names_the_state_of_the_voice() {
-        assert_eq!(chat_words(Language::En, None), ["Chat ..."]);
-        assert_eq!(chat_words(Language::En, Some("idle")), ["Chat ..."]);
-        assert_eq!(
-            chat_words(Language::En, Some("listening")),
-            ["Chat ...", "listening"]
-        );
-        assert_eq!(chat_words(Language::En, Some("asleep")), ["Chat ..."]);
-        assert_eq!(chat_words(Language::De, Some("thinking")).len(), 2);
     }
 
     #[test]

@@ -4,7 +4,8 @@ The HUD folder of `chora-construct` for the HUD host `chora-assistant`,
 after `docs/construct-style.md` in its light theme: one glass card at the
 top centre of the work area with the state ring, the host's state word
 and one line of speech below it. One chip per helper with its state
-stands at the bottom left, 32 from the edges, on glass.
+stands at the top left, 32 from the edges, on glass, away from OPEN CUBE
+at the bottom left.
 A click on the ring mutes the mic; a click on a chip opens the chat with
 that helper. The chat is a glass panel at the right, 480 pixels wide, in
 Inter 16: the fill is `glass` of the light theme at its opacity of 0.94,

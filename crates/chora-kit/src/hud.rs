@@ -42,11 +42,13 @@ pub const MAX_CHARS: u32 = 2000;
 pub const MAX_ROWS: u32 = 200;
 
 /// The keys that `when` may compare, and the fields of [`Context`].
-pub const CONTEXT_KEYS: [&str; 7] = ["wm", "space", "app", "state", "agents", "chat", "output"];
+pub const CONTEXT_KEYS: [&str; 8] = [
+    "wm", "space", "app", "state", "agents", "chat", "output", "theme",
+];
 
 /// The fields of the context with a closed list of values; the other
 /// fields are names that the system gives.
-pub const CONTEXT_VALUES: [(&str, &[&str]); 3] = [
+pub const CONTEXT_VALUES: [(&str, &[&str]); 4] = [
     (
         "state",
         &[
@@ -60,6 +62,7 @@ pub const CONTEXT_VALUES: [(&str, &[&str]); 3] = [
     ),
     ("agents", &["none", "any", "working", "question"]),
     ("chat", &["open", "none"]),
+    ("theme", &["light", "dark"]),
 ];
 
 /// A parsed and checked `hud.yaml`.
@@ -82,6 +85,89 @@ pub struct Hud {
     /// element for each state of the voice agent. It shows where no voice
     /// panel with a picture does.
     pub figure: Option<String>,
+    /// The colours of the dark theme; a folder without it looks the same
+    /// in both themes.
+    #[serde(default)]
+    pub dark: Option<Dark>,
+}
+
+/// The colours of the dark theme of a folder, over those of `chat` and of
+/// the panels by id; a colour left out stays as it is.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Dark {
+    /// The colours of the chat.
+    pub chat: DarkChat,
+    /// The colours of panels, by their `id`.
+    pub panels: BTreeMap<String, DarkPanel>,
+}
+
+/// The colours of the chat in the dark theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DarkChat {
+    /// The fill.
+    pub fill: Option<[u8; 3]>,
+    /// The text.
+    pub text: Option<[u8; 3]>,
+    /// The names of the speakers.
+    pub name: Option<[u8; 3]>,
+    /// Lines and edges.
+    pub border: Option<[u8; 3]>,
+    /// The glow of a glass chat.
+    pub glow: Option<[u8; 3]>,
+}
+
+/// The colours of a panel in the dark theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DarkPanel {
+    /// The fill of its box.
+    pub fill: Option<[u8; 3]>,
+    /// The hairline of its box.
+    pub border: Option<[u8; 3]>,
+    /// The colours of its text.
+    pub colours: Colours,
+}
+
+/// The event of a window manager that names its theme, `CLIENT.theme
+/// {theme: light|dark}`, as `events.emit` takes it. A window manager emits
+/// it at its start, on a change and on `assistant.ready` of the HUD host.
+#[must_use]
+pub fn theme_event(client: &str, dark: bool) -> serde_json::Value {
+    let theme = if dark { "dark" } else { "light" };
+    serde_json::json!({"event": format!("{client}.theme"), "data": {"theme": theme}})
+}
+
+impl Hud {
+    /// The folder in a theme: in the dark one, the colours of `dark` over
+    /// those of the chat and the panels.
+    #[must_use]
+    pub fn in_theme(&self, dark: bool) -> Self {
+        let mut hud = self.clone();
+        let Some(over) = self.dark.as_ref().filter(|_| dark) else {
+            return hud;
+        };
+        let chat = &mut hud.chat;
+        chat.fill = over.chat.fill.or(chat.fill);
+        chat.text = over.chat.text.or(chat.text);
+        chat.name = over.chat.name.or(chat.name);
+        chat.border = over.chat.border.or(chat.border);
+        chat.glow = over.chat.glow.or(chat.glow);
+        for panel in &mut hud.panels {
+            let Some(own) = over.panels.get(&panel.id) else {
+                continue;
+            };
+            panel.fill = own.fill.or(panel.fill);
+            panel.border = own.border.or(panel.border);
+            panel.colours = Colours {
+                text: own.colours.text.or(panel.colours.text),
+                muted: own.colours.muted.or(panel.colours.muted),
+                accent: own.colours.accent.or(panel.colours.accent),
+            };
+        }
+        hud
+    }
 }
 
 fn default_font() -> String {
@@ -435,9 +521,22 @@ impl Chat {
 impl Hud {
     /// The colours of the chat and of the panels below
     /// [`MIN_TEXT_CONTRAST`] against the fill of the chat, one message
-    /// each; `host` gives the colours that the folder leaves out.
+    /// each, in both themes; `host` gives the colours that the folder
+    /// leaves out.
     #[must_use]
     pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
+        let mut errors = self.colour_errors(host);
+        if self.dark.is_some() {
+            let dark = self.in_theme(true).colour_errors(host);
+            errors.extend(
+                dark.into_iter()
+                    .map(|e| e.replacen("hud.yaml: ", "hud.yaml: dark: ", 1)),
+            );
+        }
+        errors
+    }
+
+    fn colour_errors(&self, host: &Chat) -> Vec<String> {
         let mut errors = self.chat.contrast_errors(host);
         let page = self.chat.fill.or(host.fill);
         let ink = self.chat.text.or(host.text);
@@ -491,9 +590,17 @@ pub struct Context {
     pub chat: String,
     /// The output of the focused window.
     pub output: String,
+    /// `light` or `dark`: the theme of the window manager of the look.
+    pub theme: String,
 }
 
 impl Context {
+    /// Whether the look is in the dark theme.
+    #[must_use]
+    pub fn dark(&self) -> bool {
+        self.theme == "dark"
+    }
+
     /// The value of a field, `None` for a name that is no field.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&str> {
@@ -505,6 +612,7 @@ impl Context {
             "agents" => &self.agents,
             "chat" => &self.chat,
             "output" => &self.output,
+            "theme" => &self.theme,
             _ => return None,
         })
     }
@@ -687,6 +795,11 @@ impl Hud {
             }
         }
         self.chat.check(&mut errors);
+        for id in self.dark.iter().flat_map(|dark| dark.panels.keys()) {
+            if !ids.contains(id.as_str()) {
+                errors.push(format!("dark.panels.{id}: no panel has this id"));
+            }
+        }
         if let Some(figure) = self.figure.as_deref().filter(|file| !picture_file(file)) {
             errors.push(format!(
                 "figure: {figure:?} is not the name of an SVG file of the folder"
@@ -1543,5 +1656,58 @@ mod tests {
         assert!(errors[0].contains("chat.text"), "{errors:?}");
         assert_eq!(Chat::default().contrast_errors(&host), Vec::<String>::new());
         assert_eq!(own.contrast_errors(&Chat::default()), Vec::<String>::new());
+    }
+
+    const DARK: &str = "hud: 1\npanels:\n- {id: rows, source: agents, anchor: top_right, rows: '{name}', \
+        action: chat, fill: [255, 255, 255], colours: {text: [20, 20, 20]}}\nchat:\n  fill: [250, 250, 250]\n  \
+        text: [20, 20, 20]\ndark:\n  chat: {fill: [28, 28, 28], text: [217, 212, 201]}\n  \
+        panels:\n    rows: {fill: [28, 28, 28], colours: {text: [217, 212, 201]}}\n";
+
+    #[test]
+    fn a_dark_block_gives_the_colours_of_the_dark_theme() {
+        let hud = parse(DARK).unwrap();
+        let light = hud.in_theme(false);
+        assert_eq!(light.chat.fill, Some([250, 250, 250]));
+        let dark = hud.in_theme(true);
+        assert_eq!(dark.chat.fill, Some([28, 28, 28]));
+        assert_eq!(dark.chat.text, Some([217, 212, 201]));
+        assert_eq!(dark.panels[0].fill, Some([28, 28, 28]));
+        assert_eq!(dark.panels[0].colours.text, Some([217, 212, 201]));
+        assert_eq!(
+            dark.panels[0].anchor,
+            Some(Anchor::TopRight),
+            "only colours change"
+        );
+        assert_eq!(hud.contrast_errors(&Chat::default()), Vec::<String>::new());
+    }
+
+    #[test]
+    fn the_dark_block_passes_the_contrast_check_and_names_panels_only() {
+        let low = DARK.replace(
+            "{fill: [28, 28, 28], text: [217, 212, 201]}",
+            "{fill: [28, 28, 28]}",
+        );
+        let errors = parse(&low).unwrap().contrast_errors(&Chat::default());
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("dark") && e.contains("chat.text")),
+            "{errors:?}"
+        );
+        let stray = DARK.replace("    rows: {fill", "    other: {fill");
+        let errors = parse(&stray).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.contains("dark.panels.other")),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn a_window_manager_names_its_theme_in_one_event() {
+        assert_eq!(
+            theme_event("mc", true),
+            serde_json::json!({"event": "mc.theme", "data": {"theme": "dark"}})
+        );
+        assert_eq!(theme_event("construct", false)["data"]["theme"], "light");
     }
 }

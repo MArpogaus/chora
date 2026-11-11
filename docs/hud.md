@@ -87,7 +87,8 @@ trusts.
 
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
-always matches.
+always matches. The shipped settings have these rules, so each look
+shows its own folder and tiling shows `hud`:
 
 ```yaml
 huds:
@@ -173,6 +174,7 @@ chat:
 | `figure` | The picture of the figure, for a folder that needs no place for it: an SVG file of the folder with one element for each state, named `idle`, `asleep`, `listening`, `thinking`, `working`, `speaking` and `question`; a missing one shows `idle`. It shows at the bottom right of the work area, 16 pixels from the edges, and a click on it mutes the mic. A panel with `source: voice` and a `picture` that shows in the context takes its place. Optional. |
 | `panels` | A list of panels. |
 | `chat` | The look of the chat. Optional. |
+| `dark` | The colours of the dark theme; see Themes. Optional. |
 
 ### Panels
 
@@ -186,7 +188,7 @@ chat:
 | `margin` | `[horizontal, vertical]` gap to the edges. |
 | `near` | The `id` of another panel to stand beside. Use `anchor` or `near`, one of them. The chain of `near` must end at a panel with an `anchor`; a cycle is an error. |
 | `picture` | `FILE#ID`: an SVG file of the folder and an element id in it. Only the id is a template; the file name must not contain `{`. A missing id shows `idle`. |
-| `action` | What a click does: `mute`, `cancel`, `sleep`, `wake` or `chat`. Nothing else exists. `mute` only on a panel with `source: voice`, and it only mutes. |
+| `action` | What a click does: `mute`, `cancel`, `sleep`, `wake` or `chat`. Nothing else exists. `mute` only on a panel with `source: voice`, and it only mutes. `chat` on a panel with `source: voice` opens the chat on a click on the figure, which then stands in for the "Chat ..." row. |
 | `style` | `bubble` or `plain`. |
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
@@ -197,6 +199,13 @@ chat:
 | `tail` | `left` or `right`: the bubble of a sentence gets a tail that points at the figure, near that end; the bubble grows to the other side. Left out: no tail. |
 
 A panel needs at least one of `picture`, `text` or `rows`.
+
+The `text` of a panel with `source: voice` is the state word beside the
+figure, toward the middle of the output, on the backing of a plain
+sentence: `text: '{state}'` shows `Listening` in the language of the
+screen. There `{state}` is the word of the word table, not the name of
+the state. The neutral and the mc folders show it, so the state never
+depends on a colour alone.
 
 A sentence (`source: say`) shows in a bubble above the figure, or below
 a figure at the top. With `style: plain` it has no hairline and no
@@ -211,13 +220,14 @@ moment every few seconds.
 
 The host draws the rows of the helpers itself: a panel with
 `source: agents` and `action: chat` gives their place, `max_rows` (4 if
-left out) and `colours`. While the voice agent is awake and not idle,
-the "Chat ..." row ends with its state word, `Chat ... · listening`, in
-the `accent` colour, in every folder. Below the "Chat ..." row stands one row for each
+left out) and `colours`. Below the "Chat ..." row stands one row for each
 helper, `Atlas · working · Write file (2/2)`: the name, the state word of
 the word table and the task with its step. The rows stack away from the
 edge of the anchor; while the `when` of the panel does not match, only
-the "Chat ..." row shows, in the same place. A click on a row opens the chat with that helper. The
+the "Chat ..." row shows, in the same place. A folder whose figure
+opens the chat has no "Chat ..." row. A click on a row opens the chat with that helper.
+While the chat is open, no row shows: its header names the helper, and
+the rows would stand over it. The
 words and their order are the same in every folder; `rows` does not
 change them. The node of a row is `hud-row-NAME`. A helper whose name
 has other characters than letters, digits, `_` and `-`, or that is named
@@ -242,14 +252,14 @@ The fields of each source:
 | `say` | `text`, the sentence of `voice.say` |
 | `agents` | `name`, `state`, `task`, once per helper in `rows` |
 | `chat` | `name`, once per open chat |
-| `context` | `wm`, `space`, `app`, `state`, `agents`, `chat`, `output` |
+| `context` | `wm`, `space`, `app`, `state`, `agents`, `chat`, `output`, `theme` |
 | `clock` | `time` |
 | `event` | the fields of the data of the event, as `{field}` and `{field.sub}` |
 
 ### When
 
 `when` compares fields of the context with a value or a list of values.
-All keys must match. A value of `state`, `agents` or `chat` that is not in the list below is an error that names the key, for example `when.chat: "opened" is not one of open, none`. The other fields take any name. The fields:
+All keys must match. A value of `state`, `agents`, `chat` or `theme` that is not in the list below is an error that names the key, for example `when.chat: "opened" is not one of open, none`. The other fields take any name. The fields:
 
 | Field | Values |
 |---|---|
@@ -260,9 +270,32 @@ All keys must match. A value of `state`, `agents` or `chat` that is not in the l
 | `agents` | `none`, `any`, `working`, `question`. |
 | `chat` | `open`, `none`. |
 | `output` | The name of the output. |
+| `theme` | `light`, `dark`: the theme of the client of `space`, else of `wm`, else `light`. |
 
 ```yaml
 when: {wm: [xp, mc], agents: any}
+```
+
+### Themes
+
+A window manager names its theme with its event `NAME.theme {theme:
+light|dark}`, at its start, when its settings change and on the event
+`assistant.ready`, which the host emits once it listens; mc and
+construct do. The host listens to `construct.theme`,
+`mc.theme`, `tiling.theme` and `xp.theme`, and the context field `theme`
+is the theme of the client of `space`, else of `wm`, else `light`.
+
+The block `dark:` gives the colours of the dark theme over those of the
+folder: `chat` takes `fill`, `text`, `name`, `border` and `glow`, and
+`panels` takes, by the `id` of a panel, `fill`, `border` and `colours`.
+A colour left out stays as it is in the light theme. An id that no panel
+has is an error, and the dark colours pass the same contrast check.
+
+```yaml
+dark:
+  chat: {fill: [28, 28, 28], text: [217, 212, 201]}
+  panels:
+    agents: {colours: {text: [217, 212, 201]}}
 ```
 
 ### Chat

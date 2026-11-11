@@ -1,9 +1,9 @@
 [Unit]
-Description=chora-assistant with the XP HUD folder
+Description=chora-assistant, the voice HUD and the chat in the look of the focused window
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/chora-assistant --assets /usr/share/chora/huds/xp
+ExecStart=/usr/bin/chora-assistant
 Restart=on-failure
 RestartSec=1

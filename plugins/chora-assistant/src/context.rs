@@ -5,7 +5,10 @@
 //! never switches while a question waits or the chat field has the
 //! keyboard.
 
-use std::time::{Duration, Instant};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 use chora_kit::hud::Context;
 use chora_scene::{
@@ -208,6 +211,8 @@ pub struct Switcher {
     scene: bool,
     question: bool,
     field: bool,
+    /// The theme that each window manager named, by client.
+    themes: BTreeMap<String, String>,
 }
 
 impl Default for Switcher {
@@ -238,6 +243,7 @@ impl Switcher {
             scene: true,
             question: false,
             field: false,
+            themes: BTreeMap::new(),
         }
     }
 
@@ -296,6 +302,24 @@ impl Switcher {
         self.set(|context| &mut context.agents, agents, now);
     }
 
+    /// A window manager named its theme, `light` or `dark`; another word
+    /// changes nothing.
+    pub fn set_theme(&mut self, client: &str, theme: &str, now: Instant) {
+        if !["light", "dark"].contains(&theme) {
+            return;
+        }
+        self.themes.insert(client.to_owned(), theme.to_owned());
+        let theme = self.theme_of(&self.wanted);
+        self.set(|context| &mut context.theme, &theme, now);
+    }
+
+    /// The theme of the space, else of the window manager, else light.
+    fn theme_of(&self, context: &Context) -> String {
+        (self.themes.get(&context.space))
+            .or_else(|| self.themes.get(&context.wm))
+            .map_or_else(|| "light".to_owned(), String::clone)
+    }
+
     fn set(&mut self, field: fn(&mut Context) -> &mut String, value: &str, now: Instant) {
         let slot = field(&mut self.wanted);
         if slot != value {
@@ -345,7 +369,9 @@ impl Switcher {
     }
 
     /// Ends a burst with the place of the focus, when it was read. The new
-    /// context, when it differs from the one that shows.
+    /// context, when it differs from the one that shows. While no window
+    /// manager claims the screen, the place is read again after
+    /// [`MAX_WAIT`], since a claim sends no event.
     pub fn resolve(&mut self, place: Option<Place>, now: Instant) -> Option<Context> {
         self.due = None;
         self.first = None;
@@ -353,7 +379,7 @@ impl Switcher {
         if let Some(place) = place {
             self.app.clone_from(&place.app);
             let kept = place.screens.contains(&self.wanted.output);
-            if place.focused || !kept {
+            if place.focused || !kept || place.output == self.wanted.output {
                 self.wanted.wm = place.wm;
                 self.wanted.space = place.space;
             }
@@ -363,6 +389,11 @@ impl Switcher {
                 self.wanted.wm.clone_from(&self.wanted.space);
             }
             self.wanted.app = place.app;
+            self.wanted.theme = self.theme_of(&self.wanted);
+        }
+        if self.wanted.space.is_empty() {
+            self.scene = true;
+            self.due = Some(now + MAX_WAIT);
         }
         (self.wanted != self.applied).then(|| {
             self.switched = Some(now);
@@ -541,6 +572,56 @@ mod tests {
     }
 
     #[test]
+    fn the_theme_is_that_of_the_space_else_of_the_window_manager() {
+        let now = Instant::now();
+        let mut switcher = Switcher::new();
+        let place = |wm: &str, space: &str| Place {
+            wm: wm.into(),
+            space: space.into(),
+            app: "foot".into(),
+            output: "HEADLESS-1".into(),
+            focused: true,
+            screens: vec!["HEADLESS-1".into()],
+        };
+        switcher.set_theme("mc", "dark", now);
+        switcher.set_theme("construct", "light", now);
+        switcher.set_theme("mc", "purple", now);
+        switcher.resolve(Some(place("mc", "mc")), now);
+        assert_eq!(switcher.applied().theme, "dark");
+        switcher.resolve(Some(place("mc", "construct")), now);
+        assert_eq!(switcher.applied().theme, "light", "a pane of the construct");
+        switcher.resolve(Some(place("mc", "tiling")), now);
+        assert_eq!(switcher.applied().theme, "dark", "tiling names no theme");
+        switcher.set_theme("mc", "light", now);
+        assert!(switcher.due().is_some());
+        switcher.resolve(None, now);
+        assert_eq!(switcher.applied().theme, "light");
+    }
+
+    #[test]
+    fn a_screen_that_no_window_manager_claims_yet_is_read_again() {
+        let start = Instant::now();
+        let mut switcher = Switcher::new();
+        let desk = |space: &str| Place {
+            wm: space.into(),
+            space: space.into(),
+            app: String::new(),
+            output: "HEADLESS-1".into(),
+            focused: false,
+            screens: vec!["HEADLESS-1".into()],
+        };
+        switcher.resolve(Some(desk("")), start);
+        assert!(switcher.wants_place());
+        assert_eq!(switcher.due(), Some(start + MAX_WAIT), "xp claims later");
+        let later = start + MAX_WAIT;
+        let shown = switcher
+            .resolve(Some(desk("xp")), later)
+            .expect("a new look");
+        assert_eq!((shown.wm.as_str(), shown.space.as_str()), ("xp", "xp"));
+        assert_eq!(switcher.due(), None);
+    }
+
+    #[test]
     fn focus_on_an_xp_window_picks_xp() {
         let claims = claims_of(&[group("xp", [0.0, 0.0, 1280.0, 800.0])]);
         let place = place_of(
@@ -705,7 +786,11 @@ mod tests {
     fn a_state_that_changes_a_rule_is_a_change() {
         let now = Instant::now();
         let mut switcher = Switcher::new();
-        switcher.resolve(Some(Place::default()), now);
+        let tiling = Place {
+            space: "tiling".into(),
+            ..Place::default()
+        };
+        switcher.resolve(Some(tiling), now);
         switcher.set_state("listening", now);
         assert!(switcher.due().is_some());
         assert!(!switcher.wants_place(), "a state needs no new place");
@@ -826,6 +911,7 @@ mod tests {
         switcher.resolve(
             Some(Place {
                 app: "foot".into(),
+                space: "tiling".into(),
                 ..Place::default()
             }),
             now,

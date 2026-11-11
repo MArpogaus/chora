@@ -1,14 +1,15 @@
 # XP HUD of chora-assistant
 
 The look of the assistant in the XP flavor, a HUD folder (`docs/hud.md`).
-The XP flavor passes this folder to chora-assistant with `--assets`, which
-reads `hud.yaml`: the paperclip with eyes and eyebrows above the right end
+chora-assistant shows it for windows of chora-xp, by the rules of `huds`,
+and reads `hud.yaml`: the paperclip with eyes and eyebrows above the right end
 of the taskbar, which blinks, the pale yellow sentence balloon with a
-black border and a tail, the "Chat ..." row beside the paperclip with the
-rows of the helpers while a helper works and no chat is open, and the chat
+black border and a tail, the rows of the helpers beside the paperclip
+while a helper works and no chat is open, and the chat
 balloon, 340 pixels wide, in Tahoma 14 with the 1-pixel border of an XP
-edit box (#7F9DB9), which stands beside the paperclip and its balloon. A click on a row or on the
-sentence balloon opens the chat; a click on the paperclip mutes the mic.
+edit box (#7F9DB9), which stands beside the paperclip and its balloon. A click on the paperclip, a row
+or the sentence balloon opens the chat; the paperclip is the way in, so
+the folder has no "Chat ..." row.
 
 | File | Content | Source | License |
 |------|---------|--------|---------|

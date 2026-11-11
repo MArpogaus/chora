@@ -399,7 +399,10 @@ chat.show {name}`. While the event `assistant.chat` of the client
 `assistant` says that the chat is open on the output of mc, the drawer
 shows alone with the content `chat`, and mc emits its box as
 `mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
-output, `null` when the drawer closes).
+output, `null` when the drawer closes). mc names its theme to the host
+with `mc.theme {theme}` at its start, when its settings change and on
+`assistant.ready` of the host, and the host draws the mc folder in that
+theme.
 
 | Method | Parameters |
 |--------|------------|
@@ -693,8 +696,8 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
 `flavors/construct/` holds its target and its services: `chora-construct`
-and `chora-assistant --assets /usr/share/chora/huds/construct`, the
-voice HUD and the chat. The first output shows
+and `chora-assistant`, the voice HUD and the chat in the construct
+folder, in the theme that `construct.theme` names. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
 lies over a smooth, white, glossy floor, as in a photo studio. In the
 dark theme, a black void lies over a black glossy floor. A crisp
@@ -1279,18 +1282,19 @@ swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 its own package and needs no configuration.
 
 - **The panel**: waybar with the configuration of the flavor. It shows only
-  modules that need no IPC of sway: the tags of the output, the layout of
-  the current tag, the clock, the volume, the network, the processor, the
-  memory, the battery and the tray. The layout module calls
-  `choractl call tiling get_layout` each second. The tags module calls
+  modules that need no IPC of sway, in the words of a person: the tags of
+  the output, the clock, the volume, the network (`Connected`, the name of
+  a wireless network or `Offline`, with the address in its tooltip), the
+  battery and the tray. The tags module calls
   `choractl call tiling get_tags` each second, and `jq` with
   `waybar/tags.jq` turns the answer into the text: the shown and the
   occupied tags, shown ones underlined, focused ones bold and urgent ones
   red. The volume module runs `waybar/volume.sh` each second, which asks
-  `wpctl` of WirePlumber for at most 2 seconds and prints `vol 40%` or
-  `vol muted`, or why there is no volume: `vol: wpctl not found`, `vol:
-  no output device` or `vol: no answer`, in German with a German
-  locale; a click mutes or unmutes, and the wheel changes the volume.
+  `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
+  `Muted` or `Sound unavailable`; the tooltip of `Sound unavailable` says
+  why: `wpctl not found`, `No output device` or `No answer`, in German
+  with a German locale. A click mutes or unmutes, and the wheel changes
+  the volume.
   The unit starts waybar through `waybar/waybar.sh`, which leaves out
   the outputs that are not tiling's, such as the output of `chora-xp`
   beside tiling. It reads the outputs again every 2 seconds and starts
@@ -1344,7 +1348,7 @@ connects with the client name `xp`.
 ├── chora-xp.target              # wants the units below
 ├── chora-xp.service             # chora-xp
 ├── chora-xp-notify.service      # chora-notify --assets .../assets/notify
-├── chora-xp-assistant.service   # chora-assistant --assets /usr/share/chora/huds/xp
+├── chora-xp-assistant.service   # chora-assistant, the xp folder by the rules of huds
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
 ├── assets/notify/               # the XP folder of chora-notify, with a link to the fonts
 └── theme/                       # SVG files, fonts, wallpaper and cursors
@@ -1579,8 +1583,9 @@ settings, as `settings.set` does:
   and its refusal logs one line. A click on an entry does what its key
   does;
 - **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
-  sound output, through `wpctl`; without a volume, one entry says why:
-  "wpctl not found", "No output device" or "Change failed";
+  sound output, through `wpctl`; without a volume, "Sound unavailable"
+  and an entry that says why, "wpctl not found" or "No output device",
+  or "Change failed";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -1602,12 +1607,15 @@ keyboard does not work it (D45):
   the pointer left them, down to a strip of 2 pixels at the bottom
   edge; the pointer on the strip brings a taskbar back. The work area
   then reaches down to the strip, and maximized windows grow into it.
+  Each taskbar of a screen reserves its height, or its strip, at the
+  bottom of the work area of the core with `output.reserve`, so that the
+  chat, the notifications and other clients keep clear of it.
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
   clock, the speaker shows the volume of the default sound output:
-  `40%` or `Muted`, or why there is none: `wpctl not found`, `No output
-  device` or `Change failed`, in the language of the session, and it
+  `40%`, `Muted`, `Sound unavailable` or `Change failed`, in the
+  language of the session, and it
   grows to fit the words. `wpctl` runs on a thread of its own, at most 2
   seconds a call, after each change and every 5 seconds; a click on the
   speaker mutes or unmutes. Group

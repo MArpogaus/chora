@@ -3,7 +3,10 @@
 //! [`Outside`], the field program, and the steps that keep view, field and
 //! context together. The "Chat ..." row is drawn here too.
 
-use std::time::{Duration, Instant};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 use chora_draw::{
     bubble::Style,
@@ -14,6 +17,7 @@ use chora_kit::{
     conn::Conn,
     hud::{Anchor, Chat as Look},
     runtime,
+    words::{Language, Word},
 };
 use chora_scene::{
     Command, InputMode, NodeKind, PropsUpdate,
@@ -171,10 +175,36 @@ fn voice_client(voice: Option<&(String, &'static str)>) -> String {
 
 /// The `chat:` values of the folder on the screen.
 fn chat_look(values: &Values) -> Look {
-    values
-        .hud
-        .as_ref()
-        .map_or_else(Look::default, |hud| hud.chat.clone())
+    values.chat()
+}
+
+/// The rows by id, each with its text and its words in their colours:
+/// the "Chat ..." row, unless the figure opens the chat, then the
+/// helpers; none while the chat is `open`, whose header names its helper
+/// and which the rows would cover.
+fn row_lines(
+    language: Language,
+    helpers: &BTreeMap<String, rows::Helper>,
+    values: &Values,
+    open: bool,
+) -> Vec<(String, String, Vec<Tinted>)> {
+    if open {
+        return Vec::new();
+    }
+    let (most, tints) = values.helpers;
+    let label = Word::ChatRow.text(language).to_owned();
+    let chat = (!values.chats).then(|| (ROW.to_owned(), label.clone(), vec![(label, None)]));
+    let helpers = rows::rows(language, helpers, most).into_iter().map(|row| {
+        let text = row.text();
+        let words = [
+            (row.name, tints.text),
+            (row.state, tints.accent),
+            (row.task, tints.muted),
+        ];
+        let shown = words.into_iter().filter(|(word, _)| !word.is_empty());
+        (row.id, text, shown.collect())
+    });
+    chat.into_iter().chain(helpers).collect()
 }
 
 impl Agent {
@@ -220,7 +250,13 @@ impl Agent {
             .commands(&mut self.theme, &frame, (self.language, top));
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());
-        self.chat_announce(&frame)
+        let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);
+        self.chat_announce(&frame)?;
+        if self.chat.is_open() != was_open {
+            let rows = self.sync_row()?;
+            self.apply(rows)?;
+        }
+        Ok(())
     }
 
     fn chat_announce(&mut self, frame: &Frame) -> Result<(), ClientError> {
@@ -315,7 +351,9 @@ impl Agent {
         }
     }
 
-    fn chat_row(&mut self) -> Result<(), ClientError> {
+    /// A click on the "Chat ..." row, or on a figure that opens the chat:
+    /// the list.
+    pub fn chat_row(&mut self) -> Result<(), ClientError> {
         let Some(frame) = self.chat_frame()? else {
             return Ok(());
         };
@@ -406,7 +444,8 @@ impl Agent {
 
     /// The "Chat ..." row and one row for each helper, drawn again on the
     /// output of the focus. The rows stack away from the edge of their
-    /// anchor, the "Chat ..." row first.
+    /// anchor, the "Chat ..." row first; a figure that opens the chat
+    /// stands in for that row.
     pub fn sync_row(&mut self) -> Result<Vec<Command>, ClientError> {
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
@@ -425,7 +464,13 @@ impl Agent {
             parent: format!("screen:{}", output.name),
             props: PropsUpdate::default(),
         });
-        let lines = self.row_lines();
+        let lines = row_lines(
+            self.language,
+            &self.helpers,
+            &self.values,
+            self.chat.is_open(),
+        );
+        self.chat_row = None;
         let (anchor, margin) = self.values.rows;
         let area = assistant::work_area(&output);
         let step = LINE + GAP * 3;
@@ -438,7 +483,7 @@ impl Agent {
             let [x, y] = origin(anchor, area, size, margin);
             let away = if up { -index * step } else { index * step };
             let at = [x, y + away];
-            if index == 0 {
+            if id == ROW {
                 self.chat_row = Some([at[0], at[1], size[0], size[1]]);
             }
             commands.push(create(
@@ -456,31 +501,6 @@ impl Agent {
         }
         self.row = Some(output.name);
         Ok(commands)
-    }
-
-    /// The rows by id, each with its text and its words in their colours:
-    /// the "Chat ..." row, then the helpers.
-    fn row_lines(&self) -> Vec<(String, String, Vec<Tinted>)> {
-        let (most, tints) = self.values.helpers;
-        let voice = self.voice.as_ref().map(|(_, state)| *state);
-        let words = rows::chat_words(self.language, voice);
-        let text = words.join(rows::SEPARATOR);
-        let tinted = (words.into_iter().enumerate())
-            .map(|(k, word)| (word, (k > 0).then_some(tints.accent).flatten()))
-            .collect();
-        let chat = (ROW.to_owned(), text, tinted);
-        let helpers = rows::rows(self.language, &self.helpers, most);
-        let helpers = helpers.into_iter().map(|row| {
-            let text = row.text();
-            let words = [
-                (row.name, tints.text),
-                (row.state, tints.accent),
-                (row.task, tints.muted),
-            ];
-            let shown = words.into_iter().filter(|(word, _)| !word.is_empty());
-            (row.id, text, shown.collect())
-        });
-        std::iter::once(chat).chain(helpers).collect()
     }
 
     /// The picture of a row: its words, each in its colour or in the text
@@ -606,6 +626,26 @@ mod tests {
         assert!(guard("chat.hide", (true, "voice-mcp"), "voice").is_ok());
         assert!(guard("chat.show", (true, "voice-mcp"), "other").is_err());
         assert!(guard("chat.show", (true, "voice-hud"), "voice").is_err());
+    }
+
+    #[test]
+    fn no_row_stands_over_an_open_chat() {
+        let helpers: BTreeMap<String, rows::Helper> =
+            [("Atlas".to_owned(), rows::Helper::default())].into();
+        let neutral = Values::neutral("sans-serif");
+        let ids = |values: &Values, open| -> Vec<String> {
+            row_lines(Language::En, &helpers, values, open)
+                .into_iter()
+                .map(|(id, ..)| id)
+                .collect()
+        };
+        assert_eq!(ids(&neutral, false), [ROW, "hud-row-Atlas"]);
+        assert_eq!(ids(&neutral, true), Vec::<String>::new());
+        let clip = Values {
+            chats: true,
+            ..neutral
+        };
+        assert_eq!(ids(&clip, false), ["hud-row-Atlas"], "the figure opens it");
     }
 
     #[test]

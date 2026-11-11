@@ -81,6 +81,10 @@ const EVENTS: &[&str] = &[
     "pointer.pressed",
     "output.changed",
     "output.removed",
+    "construct.theme",
+    "mc.theme",
+    "tiling.theme",
+    "xp.theme",
 ];
 
 /// The assistant of the voice agent.
@@ -243,6 +247,10 @@ impl Plugin for Agent {
                 client,
                 data,
             } => {
+                if event == format!("{client}.theme") {
+                    let theme = data["theme"].as_str().unwrap_or_default();
+                    self.switcher.set_theme(&client, theme, Instant::now());
+                }
                 self.slot_event(&event, &client, &data)?;
                 self.voice_event(&event, &client, &data)?
             }
@@ -361,6 +369,10 @@ impl Agent {
             chat_row: None,
             said: None,
         };
+        let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
+        (agent.rt.conn)
+            .call::<_, Value>("events.emit", ready)
+            .map_err(|e| e.to_string())?;
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
         agent.watch_slot().map_err(|e| e.to_string())?;
@@ -390,8 +402,9 @@ impl Agent {
         Ok(outputs.into_iter().nth(at).map(|o| (o, scale)))
     }
 
-    /// A press on the figure mutes the mic, one on the badge turns it on, and
-    /// one on a button of the question answers it.
+    /// A press on the figure mutes the mic or opens the chat, as the
+    /// folder says, one on the badge turns it on, and one on a button of
+    /// the question answers it.
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
@@ -401,6 +414,10 @@ impl Agent {
             return Ok(self.press_badge(injected));
         }
         if self.chat_pressed(node, injected)? {
+            return Ok(Vec::new());
+        }
+        if Assistant::owns(node) && self.values.chats {
+            self.chat_row()?;
             return Ok(Vec::new());
         }
         if Assistant::owns(node) {
