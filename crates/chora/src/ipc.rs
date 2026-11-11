@@ -134,6 +134,12 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     Ok(Trigger::Key(sym))
 }
 
+/// Whether a key is one of the XF86 media and hardware keys, such as
+/// the volume keys, which type no text.
+fn media_key(trigger: Trigger) -> bool {
+    matches!(trigger, Trigger::Key(sym) if (0x1008_ff00..=0x1008_ffff).contains(&sym.raw()))
+}
+
 // Each bool is one fact of the connection; no state machine joins them.
 #[allow(clippy::struct_excessive_bools)]
 struct Conn {
@@ -1369,7 +1375,8 @@ impl State {
 
     /// Grabs a binding of a key or a pointer button for a named connection.
     /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
-    /// work; `input.grab-any` lifts this (D45). Ctrl+Alt with the keys of
+    /// work; `input.grab-any` lifts this (D45), and a media key such as
+    /// `XF86AudioRaiseVolume` needs none, as it types nothing. Ctrl+Alt with the keys of
     /// the safety layer belongs to the safety layer either way. The result
     /// is the binding in the normal form of `input.key`.
     fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
@@ -1378,7 +1385,9 @@ impl State {
         };
         let m = binding.mods;
         let trigger = trigger(&binding)?;
-        let free = trigger == Trigger::Move || self.grants.allows(&name, Capability::GrabAny);
+        let free = trigger == Trigger::Move
+            || media_key(trigger)
+            || self.grants.allows(&name, Capability::GrabAny);
         if !(m.ctrl || m.alt || m.logo || free) {
             return Err(RpcError::new(
                 RpcError::MISSING_CAPABILITY,
@@ -3901,6 +3910,20 @@ mod tests {
         ] {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
             assert_eq!((error_code, got.as_str()), (code, message));
+        }
+    }
+
+    #[test]
+    fn a_media_key_needs_no_modifier() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        for key in [
+            "XF86AudioRaiseVolume",
+            "XF86AudioLowerVolume",
+            "XF86AudioMute",
+        ] {
+            let grabbed = wm.ok(&mut core, "input.grab", json!({"binding": key}));
+            assert_eq!(grabbed, key);
         }
     }
 
