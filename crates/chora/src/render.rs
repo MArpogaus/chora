@@ -1723,6 +1723,8 @@ pub(crate) fn projected_box(
 }
 
 #[cfg(test)]
+mod blur;
+#[cfg(test)]
 mod budget;
 #[cfg(test)]
 mod context;
