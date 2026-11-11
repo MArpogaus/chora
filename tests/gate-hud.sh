@@ -38,7 +38,11 @@
 #                           folder: the host draws the figure and the card,
 #                           mc shows no sentence, no question, no claim (H9)
 #   mc-chat-drawer          the chat of the mc folder fills the box that mc
-#                           announces with mc.chat.slot (H9, F8)
+#                           announces with mc.chat.slot, all four numbers, and
+#                           the host draws no row beside it (H9, F8)
+#   chat-row-below-bar      the "Chat ..." row of the neutral folder stands at
+#                           least 48 px from the top, under the islands of the
+#                           bar of tiling, which reach y 40
 #   construct-host-hud      chora-construct with `voice_hud: host` and the
 #                           construct folder: the host draws the figure and
 #                           the card, construct draws no HUD, no question
@@ -97,6 +101,7 @@ agents-row-text pass
 xp-one-balloon pass
 mc-host-hud pass
 mc-chat-drawer pass
+chat-row-below-bar pass
 construct-host-hud pass
 construct-chat-panel pass
 voice-state-rate pass
@@ -390,6 +395,10 @@ cell_card_stays_on_focus_move() {
     watch_for 1.5 card_rect_is "$before"
 }
 cell_chat_row_always() { waiting "$settle_s" node_exists hud-row-chat; }
+cell_chat_row_below_bar() {
+    waiting "$settle_s" node_exists hud-row-chat || return 1
+    jq -ne --argjson r "$(node_rect hud-row-chat)" '($r | to_entries[0].value)[1] >= 48' >/dev/null
+}
 cell_chat_row_click_opens() {
     waiting "$settle_s" node_exists hud-row-chat || return 1
     click hud-row-chat
@@ -515,6 +524,7 @@ cell_mc_chat_drawer() {
     waiting "$settle_s" node_exists hud-chat || return 1
     waiting "$settle_s" chat_in_slot
     shown=$?
+    ctl query owner:assistant | jq -e '[.[] | select(.id | startswith("hud-row-"))] | length == 0' >/dev/null || shown=1
     stop_mc
     use_folder neutral
     return "$shown"
@@ -665,6 +675,7 @@ run_cell context-held-for-question cell_context_held_for_question session
 run_cell context-picks-folder cell_context_picks_folder session
 run_cell card-stays-on-focus-move cell_card_stays_on_focus_move session
 run_cell chat-row-always cell_chat_row_always session
+run_cell chat-row-below-bar cell_chat_row_below_bar session
 run_cell chat-row-click-opens cell_chat_row_click_opens session
 run_cell chat-show-hide cell_chat_show_hide session
 run_cell sentence-in-open-chat cell_sentence_in_open_chat session
