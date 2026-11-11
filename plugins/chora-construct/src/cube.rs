@@ -13,13 +13,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::geometry::{Cube, Matrix, Turn};
+use chora_kit::{
+    geometry::{Cube, Matrix, Turn},
+    modes::{Act, View},
+};
 use chora_scene::{Event, NodeKind, OutputInfo, OutputTexture};
 use serde_json::{Value, json};
 
 use super::{
-    BTreeMap, ClientError, Command, Construct, PANES, PropsUpdate, RpcError, Transform, Uniform,
-    create, update,
+    BTreeMap, ClientError, Command, Construct, FLY_MS, PANES, Pose, PropsUpdate, RpcError,
+    Transform, Uniform, create, update,
 };
 
 /// The group of the cube in the camera group, and the prefix of a face.
@@ -33,6 +36,9 @@ const TURN: Duration = Duration::from_millis(500);
 const CONNECT: Duration = Duration::from_secs(10);
 /// The most faces: the side faces of a cube.
 const FACES: usize = 4;
+/// How far the cube stands back in navigate mode, in focal lengths: the
+/// front face shows at 1 / (1 + STAND) of its size.
+const STAND: f64 = 0.6;
 
 /// The cube that the construct hosts: its outputs in face order, the
 /// process of the window manager, where it stands and how it is turned.
@@ -52,10 +58,26 @@ pub(crate) struct Host {
     turn: Option<Turn>,
     /// Whether each face shows, as last sent.
     shown: Vec<bool>,
+    /// The mode of the view (K4), how far the cube stands back in
+    /// navigate mode, the part of that way it stands at now, 0 to 1, and
+    /// the running step.
+    view: View,
+    far: f64,
+    stand: f64,
+    step: Option<Turn>,
+    /// The pose that shows the front face at 1:1, and the window that
+    /// had the keyboard before the step back.
+    home: Pose,
+    focus: Option<String>,
 }
 
 fn face_id(i: usize) -> String {
     format!("{FACE}{i}")
+}
+
+/// The face of a node id of a face.
+pub(crate) fn face_index(node: &str) -> Option<usize> {
+    node.strip_prefix(FACE)?.parse().ok()
 }
 
 /// The transform of the cube group in the camera group: the space of the
@@ -96,7 +118,7 @@ impl Host {
 
     /// The centre now: the place, stepped back along the view of the open.
     fn centre(&self) -> [f64; 2] {
-        let back = step_back(self.angle, self.cube.size[0]);
+        let back = step_back(self.angle, self.cube.size[0]) + self.stand * self.far;
         let (s, c) = self.yaw.sin_cos();
         [self.at[0] + s * back, self.at[1] + c * back]
     }
@@ -124,12 +146,57 @@ impl Host {
                 PropsUpdate {
                     transform: Some(Transform::from_matrix(self.cube.face(i, self.angle))),
                     visible: changed.then_some(shows),
-                    forward: Some(self.turn.is_none()),
+                    forward: Some(self.view.forwards() && self.stand <= 0.0),
                     ..PropsUpdate::default()
                 },
             ));
         }
         commands
+    }
+
+    /// The mode of the view.
+    pub(crate) fn view(&self) -> View {
+        self.view
+    }
+
+    /// The pose that shows the front face at 1:1.
+    pub(crate) fn home(&self) -> Pose {
+        self.home
+    }
+
+    /// Does a step back or a step in: the cube starts on its way. Answers
+    /// whether the mode changed.
+    pub(crate) fn act(&mut self, act: Act, now: Instant) -> bool {
+        let changed = self.view.act(act);
+        if changed {
+            let to = if act == Act::StepBack { 1.0 } else { 0.0 };
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "380 ms"
+            )]
+            let time = Duration::from_millis(FLY_MS as u64);
+            self.step = Some(Turn::new(self.stand, to, now, time));
+        }
+        changed
+    }
+
+    /// Notes the window that had the keyboard before the step back.
+    pub(crate) fn note_focus(&mut self, window: Option<String>) {
+        self.focus = window;
+    }
+
+    /// The window that gets the keyboard again at the step in.
+    pub(crate) fn take_focus(&mut self) -> Option<String> {
+        self.focus.take()
+    }
+
+    /// The quarter turns from the front face to `face`, the short way.
+    pub(crate) fn turns_to(&self, face: usize) -> i32 {
+        let n = i32::try_from(self.outputs.len()).unwrap_or(1).max(1);
+        let face = i32::try_from(face).unwrap_or(0);
+        let by = (face - i32::try_from(self.front).unwrap_or(0)).rem_euclid(n);
+        if by * 2 > n { by - n } else { by }
     }
 }
 
@@ -171,20 +238,7 @@ impl Construct {
         self.glide = None;
         self.pose.pitch = 0.0;
         let cube = Cube { size, caps: false };
-        let [fx, fz] = self.pose.forward();
-        let reach = self.lens.focal + size[0] / 2.0;
-        let mut host = Host {
-            outputs: outputs.clone(),
-            child,
-            connect_by: Some(Instant::now() + CONNECT),
-            cube,
-            at: [self.pose.x + fx * reach, self.pose.z + fz * reach],
-            yaw: self.pose.yaw,
-            front: 0,
-            angle: 0.0,
-            turn: None,
-            shown: vec![false; faces],
-        };
+        let mut host = self.host(outputs.clone(), child, cube);
         let mut commands = vec![create(CUBE, NodeKind::Group, PANES, PropsUpdate::default())];
         commands.extend(self.face_nodes(&outputs, &cube));
         commands.extend(host.faces([self.pose.x, self.pose.z]));
@@ -194,8 +248,33 @@ impl Construct {
             return Err(ClientError::Rpc(err));
         }
         self.cube = Some(host);
+        self.open_modes()?;
         self.frame()?;
         Ok(json!({"outputs": outputs}))
+    }
+
+    /// The host of a new cube ahead of the camera, in use mode.
+    fn host(&self, outputs: Vec<String>, child: Child, cube: Cube) -> Host {
+        let [fx, fz] = self.pose.forward();
+        let reach = self.lens.focal + cube.size[0] / 2.0;
+        Host {
+            shown: vec![false; outputs.len()],
+            outputs,
+            child,
+            connect_by: Some(Instant::now() + CONNECT),
+            cube,
+            at: [self.pose.x + fx * reach, self.pose.z + fz * reach],
+            yaw: self.pose.yaw,
+            front: 0,
+            angle: 0.0,
+            turn: None,
+            view: View::default(),
+            far: STAND * self.lens.focal,
+            stand: 0.0,
+            step: None,
+            home: self.pose,
+            focus: None,
+        }
     }
 
     /// Whether a client of the name of the window manager is connected.
@@ -240,7 +319,7 @@ impl Construct {
                 "no cube is open; cube.open first",
             )));
         };
-        if host.turn.is_some() {
+        if !host.view.act(Act::Turn(by)) {
             return Ok(());
         }
         let front = next_front(host.front, by, host.outputs.len());
@@ -265,6 +344,13 @@ impl Construct {
             host.angle = turn.at(now);
             if turn.done(now) {
                 host.turn = None;
+                host.view.turn_ended();
+            }
+        }
+        if let Some(step) = host.step {
+            host.stand = step.at(now);
+            if step.done(now) {
+                host.step = None;
             }
         }
         self.frame()
@@ -276,9 +362,9 @@ impl Construct {
         self.cube.as_mut().map(|h| h.faces(eye)).unwrap_or_default()
     }
 
-    /// Whether the cube turns and needs frames.
+    /// Whether the cube turns or steps and needs frames.
     pub(crate) fn cube_turns(&self) -> bool {
-        self.cube.as_ref().is_some_and(|c| c.turn.is_some())
+        (self.cube.as_ref()).is_some_and(|c| c.turn.is_some() || c.step.is_some())
     }
 
     /// Closes the cube: its window manager ends, and its outputs and the
@@ -293,7 +379,7 @@ impl Construct {
             id: CUBE.into(),
             to: None,
         }])?;
-        Ok(())
+        self.close_modes()
     }
 
     /// The shader nodes of the faces, hidden until the first frame: each

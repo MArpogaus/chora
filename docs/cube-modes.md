@@ -89,3 +89,15 @@ The voice agent says what happened in the same words: "I stepped back",
 | type in a terminal on a face, press `Escape` in an editor | the editor gets `Escape`; the view stays |
 | a still cube in navigate mode | the method `render.stats` counts no pass for any output between two looks |
 | a turn | no face takes a click while it runs |
+
+## What the construct does today
+
+The construct has the two modes, the four chips, the keys of the table
+and the methods `view.step_back` and `view.step_in`. A step in also
+brings the camera back to where the front face shows at 1:1, and gives
+the keyboard back to the window that had it. A click on a face in
+navigate mode turns the cube to that face and steps in.
+
+Not there yet: a drag on the cube that turns it, the lit edge of the
+face under the pointer, `Escape` alone in use mode with the grant
+`input.grab-any`, and the phrases of the voice agent.

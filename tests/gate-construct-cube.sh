@@ -129,8 +129,10 @@ still || fail "a still cube draws: $(drawn)"
 ok "a still cube renders 0 passes and has no damage, by render.stats"
 key Ctrl+Alt+Right
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube"
+sleep 1
 key Ctrl+Alt+Left
 until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "Ctrl+Alt+Left did not turn the cube back"
+sleep 1
 ok "Ctrl+Alt+Right and Ctrl+Alt+Left turn the cube in navigate mode"
 inject '[{"key": {"key": "Return", "state": "pressed"}}, {"key": {"key": "Return", "state": "released"}}]'
 until_ok "$stepped_in" 20 || fail "Return did not step in: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"

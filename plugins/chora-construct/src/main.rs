@@ -41,6 +41,7 @@ mod hud;
 mod input;
 mod list;
 mod methods;
+mod modes;
 mod overlay;
 mod panes;
 mod plugin;
@@ -364,6 +365,9 @@ enum Grab {
     Drag,
     FlyOut,
     Give(&'static str),
+    /// With a cube: the step back from its face, and a turn of it.
+    StepBack,
+    Turn(i32),
 }
 
 /// A drag with the modifier: the pane, the press, and its centre and
