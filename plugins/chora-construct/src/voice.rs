@@ -163,8 +163,9 @@ impl Construct {
                 ..PropsUpdate::default()
             },
         )];
-        if self.labelled.as_deref() != Some(pane.name.as_str()) {
+        if self.labelled.as_deref() != Some(pane.name.as_str()) || self.label_text != name {
             self.labelled = Some(pane.name.clone());
+            self.label_text = name;
             self.label_drawn = true;
             commands.extend(label);
         }

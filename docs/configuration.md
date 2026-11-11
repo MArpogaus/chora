@@ -999,7 +999,26 @@ the camera is in a pane.
 A notice of the construct, such as a refused give or the hint that the
 keys walk, shows for 4 seconds as one line of text on a glass capsule
 under the island at the top right, 32 from the edge and at most 360
-wide, while the host draws the HUD (`voice_hud: host`).
+wide, while the host draws the HUD (`voice_hud: host`). A refused give
+names the window manager by its display name (`XP`, `Tiling`, `Media
+center`, `Construct`) and the reason, as in `Tiling did not take the
+window: it is not running.`; the German words are `Tiling hat das
+Fenster nicht genommen: es läuft nicht.`.
+
+### The pane label
+
+The pane label is the title of the window of the pane. While the title
+is empty or only names the program, as `foot` does, the terminal that
+the construct started is `Terminal`, and any other program is its app id
+as a name, such as `Gedit` for `org.gnome.gedit`; the app id itself is
+never the label. The label changes when the title does, fades out over
+120 ms with its pane or when another pane takes it, and does not show
+in use mode.
+
+A pane whose window has no first buffer yet shows a placeholder: a glass
+fill the size of the pane with the working ring and the name of the
+window, under the window. It goes with the first buffer, so that the
+pane never shows a grey slab.
 
 ### The window list
 

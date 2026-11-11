@@ -136,13 +136,25 @@ impl Construct {
         self.frame()
     }
 
+    /// Whether the window has no buffer yet: the core knows no size of it.
+    fn no_buffer(&mut self, surface: &str) -> bool {
+        let size = (self.rt.conn.query(&format!("id:{surface}")).ok())
+            .and_then(|nodes| nodes.into_iter().next()?.surface?.size);
+        size.is_none_or(|[w, h]| w <= 0 || h <= 0)
+    }
+
     /// Puts the placeholder of the pane into its commands, right after
-    /// the node of the pane, so that it lies under the window.
+    /// the node of the pane, so that it lies under the window, unless the
+    /// window has its first buffer.
     fn add_placeholder(
         &mut self,
         commands: &mut Vec<Command>,
         pane: &Pane,
     ) -> Result<(), ClientError> {
+        if !self.no_buffer(&pane.source) {
+            return Ok(());
+        }
+        self.unfilled.push(pane.source.clone());
         let command = match &pane.content {
             Content::Window { command } => command.clone(),
             _ => None,
@@ -282,6 +294,14 @@ impl Construct {
         if self.launcher_window.as_deref() == Some(surface) {
             return self.rt.conn.apply(vec![self.snap_place(size, surface)]);
         }
+        if size[0] > 0.0 && size[1] > 0.0 && self.unfilled.iter().any(|s| s == surface) {
+            self.unfilled.retain(|s| s != surface);
+            let gone = Command::Remove {
+                id: crate::placeholder::id(surface),
+                to: None,
+            };
+            self.rt.conn.try_apply(vec![gone])?;
+        }
         let Some(i) = (self.panes.iter()).position(|p| p.window() == Some(surface)) else {
             return Ok(());
         };
@@ -313,6 +333,7 @@ impl Construct {
             return Ok(());
         };
         let pane = self.panes.remove(i);
+        self.unfilled.retain(|s| s != surface);
         self.rt.conn.apply(pane.remove().into())?;
         if let Some(flown) = self.flown.take_if(|f| f.surface == surface) {
             self.unsnap(None, walk)?;

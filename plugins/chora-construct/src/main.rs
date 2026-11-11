@@ -536,6 +536,11 @@ struct Construct {
     hint_hover: Option<String>,
     /// The capsule of the pane label exists.
     label_drawn: bool,
+    /// The text of the label that is drawn.
+    label_text: String,
+    /// The windows of the panes that have no buffer yet, which show the
+    /// placeholder.
+    unfilled: Vec<String>,
     /// The notice under the island exists.
     notice_drawn: bool,
     claim: Claim,
@@ -660,6 +665,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         asked: false,
         hint_hover: None,
         label_drawn: false,
+        label_text: String::new(),
+        unfilled: Vec::new(),
         notice_drawn: false,
         claim: Claim { due: true },
         glass: Glass::default(),

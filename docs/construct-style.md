@@ -224,3 +224,12 @@ mockups rendered over real captures.
     its key does. No hint bar shows while the card does. The card fades
     out over 120 ms when the first pane appears, and also while the
     window list, the help, a question, the launcher or a cube shows.
+27. **A pane is never a slab, and a label is never an id.** A pane whose
+    window has no first buffer shows a glass placeholder the size of the
+    pane with the working ring and the name of the window, until the
+    buffer comes. The pane label is the window title; while the title is
+    empty or only names the program it reads `Terminal` for the terminal
+    that the construct started, else the app id as a name, never the id.
+    A label fades out over 120 ms with its pane, and no label shows in
+    use mode. A refused give says `Tiling did not take the window:
+    <reason>.` with the display name of the manager.

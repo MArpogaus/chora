@@ -5,6 +5,27 @@
 
 use chora_kit::words::Language;
 
+/// The first word of a command line, without its path.
+fn program(command: &str) -> &str {
+    let first = command.split_whitespace().next().unwrap_or_default();
+    first.rsplit('/').next().unwrap_or_default()
+}
+
+/// A name with its first letter in capitals.
+fn capitalised(name: &str) -> String {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect())
+}
+
+/// A program as a name: the last part of its app id, with spaces for `-`
+/// and `_`, in capitals at the start.
+fn app_name(app_id: &str) -> String {
+    let last = app_id.rsplit('.').next().unwrap_or(app_id);
+    capitalised(&last.replace(['-', '_'], " "))
+}
+
 /// The label of the pane of a window: its title, but not while the title
 /// says nothing, which is when it is empty or only names the program, as
 /// the app id or the first word of its command does. Then the terminal
@@ -16,33 +37,68 @@ pub fn pane_label(
     (command, terminal): (Option<&str>, &str),
     language: Language,
 ) -> String {
-    let _ = (command, terminal, language);
-    title
-        .filter(|t| !t.trim().is_empty())
-        .or(app_id)
-        .unwrap_or_default()
-        .to_owned()
+    let title = title.map_or("", str::trim);
+    let app = app_id.unwrap_or_default();
+    let called = command.map_or("", program);
+    let says_nothing = title.is_empty()
+        || title.eq_ignore_ascii_case(app)
+        || (!called.is_empty() && title.eq_ignore_ascii_case(called));
+    if !says_nothing {
+        return title.to_owned();
+    }
+    if !called.is_empty() && called == program(terminal) {
+        return crate::hints::terminal_word(language).to_owned();
+    }
+    if app.is_empty() {
+        return match language {
+            Language::En => "Window",
+            Language::De => "Fenster",
+        }
+        .to_owned();
+    }
+    app_name(app)
 }
 
 /// The display name of a window manager.
 #[must_use]
 pub fn manager_name(manager: &str) -> String {
-    manager.to_owned()
+    match manager {
+        "xp" => "XP".to_owned(),
+        "mc" => "Media center".to_owned(),
+        other => capitalised(other),
+    }
 }
 
 /// What a refused give says as a reason, from the error of the core.
 #[must_use]
 pub fn reason(error: &str, language: Language) -> String {
-    let _ = language;
-    error.to_owned()
+    let error = error.trim().trim_end_matches('.');
+    let words = |en: &str, de: &str| match language {
+        Language::En => en.to_owned(),
+        Language::De => de.to_owned(),
+    };
+    if error.is_empty() {
+        return words("it said no", "es hat abgelehnt");
+    }
+    if error.ends_with("has no connection") {
+        return words("it is not running", "es läuft nicht");
+    }
+    let mut chars = error.chars();
+    chars
+        .next()
+        .map_or_else(String::new, |c| c.to_lowercase().chain(chars).collect())
 }
 
 /// The notice that a window manager did not take a window, with the
 /// reason.
 #[must_use]
 pub fn refused(language: Language, manager: &str, reason: &str) -> String {
-    let _ = (language, reason);
-    format!("{} did not take the window.", manager_name(manager))
+    let name = manager_name(manager);
+    let reason = reason.trim_end_matches('.');
+    match language {
+        Language::En => format!("{name} did not take the window: {reason}."),
+        Language::De => format!("{name} hat das Fenster nicht genommen: {reason}."),
+    }
 }
 
 #[cfg(test)]
