@@ -419,6 +419,24 @@ mod tests {
         assert_eq!(host.voice_hud, VoiceHud::Host);
     }
 
+    /// `true` and `false`, the values of the setting before `own` and
+    /// `host`, stay aliases for one release.
+    #[test]
+    fn true_and_false_are_aliases_of_own_and_host() {
+        let with = |value: &str| {
+            let text = DEFAULT.replace("voice_hud: own", &format!("voice_hud: {value}"));
+            serde_saphyr::from_str::<Config>(&text)
+                .ok()
+                .map(|config| config.voice_hud)
+        };
+        assert_eq!(with("true"), Some(VoiceHud::Own));
+        assert_eq!(with("false"), Some(VoiceHud::Host));
+        assert_eq!(with("host"), Some(VoiceHud::Host));
+        assert_eq!(with("maybe"), None);
+        let written = serde_json::to_value(VoiceHud::Own).unwrap();
+        assert_eq!(written, serde_json::json!("own"));
+    }
+
     /// With `voice_hud: host` the construct never claims the indicator of
     /// voice, also not when the claim is due.
     #[test]

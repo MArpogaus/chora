@@ -34,6 +34,8 @@ pub const MIN_CHAT_SIZE: u32 = 14;
 pub const MAX_CHAT_SIZE: u32 = 48;
 /// The widest chat, in pixels.
 pub const MAX_CHAT_WIDTH: u32 = 1600;
+/// The widest gap between the chat and the edges of the work area.
+pub const MAX_CHAT_MARGIN: u32 = 128;
 /// The most characters of `max_chars`.
 pub const MAX_CHARS: u32 = 2000;
 /// The most rows of `max_rows`.
@@ -76,6 +78,11 @@ pub struct Hud {
     /// chat.
     #[serde(default)]
     pub chat: Chat,
+    /// The picture of the figure: an SVG file of the folder with one
+    /// element for each state of the voice agent. It shows where no voice
+    /// panel with a picture does.
+    #[serde(skip)]
+    pub figure: Option<String>,
 }
 
 fn default_font() -> String {
@@ -118,6 +125,22 @@ pub struct Panel {
     pub rows: Option<String>,
     /// The most rows of a list, from 1 to [`MAX_ROWS`].
     pub max_rows: Option<u32>,
+    /// The colours of the rows of the helpers.
+    #[serde(skip)]
+    pub colours: Colours,
+}
+
+/// The colours of the text of a panel, `[r, g, b]` each; a colour left out
+/// takes the text colour of the chat.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Colours {
+    /// The name of a helper.
+    pub text: Option<[u8; 3]>,
+    /// The task of a helper.
+    pub muted: Option<[u8; 3]>,
+    /// The state word of a helper.
+    pub accent: Option<[u8; 3]>,
 }
 
 /// Where the data of a panel comes from: a closed list.
@@ -212,6 +235,15 @@ pub struct Chat {
     pub anchor: Option<Anchor>,
     /// The width in pixels, at most [`MAX_CHAT_WIDTH`]; 400 if left out.
     pub width: Option<u32>,
+    /// The gap between the view and the edges of the work area, in pixels,
+    /// at most [`MAX_CHAT_MARGIN`].
+    #[serde(skip)]
+    pub margin: u32,
+    /// The client whose box holds the view: the window manager announces
+    /// the box with its event `chat.slot`. Without a box the view stands at
+    /// `anchor`.
+    #[serde(skip)]
+    pub slot: Option<String>,
 }
 
 impl Default for Chat {
@@ -226,6 +258,8 @@ impl Default for Chat {
             size: MIN_CHAT_SIZE,
             anchor: None,
             width: None,
+            margin: 0,
+            slot: None,
         }
     }
 }
@@ -319,6 +353,16 @@ impl Chat {
             }
         }
         errors
+    }
+}
+
+impl Hud {
+    /// The colours of the chat and of the panels below
+    /// [`MIN_TEXT_CONTRAST`] against the fill of the chat, one message
+    /// each; `host` gives the colours that the folder leaves out.
+    #[must_use]
+    pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
+        self.chat.contrast_errors(host)
     }
 }
 
@@ -1105,9 +1149,71 @@ mod tests {
     }
 
     #[test]
-    fn a_folder_cannot_place_the_question() {
-        let slot = errors(parse("hud: 1\nchat: {slot: mc}\n"));
-        assert!(slot.contains("slot"), "{slot}");
+    fn the_chat_names_the_client_of_its_slot() {
+        let hud = parse("hud: 1\nchat: {slot: mc}\n").unwrap();
+        assert_eq!(hud.chat.slot.as_deref(), Some("mc"));
+        assert_eq!(parse("hud: 1\n").unwrap().chat.slot, None);
+        for bad in ["''", "a.b", "../x", "A b", "mc.chat"] {
+            let text = format!("hud: 1\nchat: {{slot: {bad}}}\n");
+            assert!(errors(parse(&text)).contains("chat.slot"), "{bad}");
+        }
+    }
+
+    #[test]
+    fn the_chat_margin_is_from_0_to_128() {
+        assert_eq!(parse("hud: 1\n").unwrap().chat.margin, 0);
+        let hud = parse("hud: 1\nchat: {margin: 32}\n").unwrap();
+        assert_eq!(hud.chat.margin, 32);
+        assert_eq!(
+            parse("hud: 1\nchat: {margin: 128}\n").unwrap().chat.margin,
+            128
+        );
+        let over = errors(parse("hud: 1\nchat: {margin: 129}\n"));
+        assert!(over.contains("chat.margin"), "{over}");
+    }
+
+    #[test]
+    fn panel_colours_keep_the_contrast_of_rule_5() {
+        let with = |colours: &str| {
+            parse(&format!(
+                "hud: 1\npanels:\n  - {{id: a, source: agents, anchor: top, rows: x, colours: \
+                 {colours}}}\nchat: {{fill: [28, 28, 28], text: [217, 212, 201]}}\n"
+            ))
+        };
+        let host = Chat::default();
+        let fine = with("{text: [217, 212, 201], muted: [140, 138, 130], accent: [255, 200, 90]}")
+            .unwrap();
+        assert_eq!(fine.panels[0].colours.accent, Some([255, 200, 90]));
+        assert_eq!(fine.contrast_errors(&host), Vec::<String>::new());
+        for key in ["text", "muted", "accent"] {
+            let dark = with(&format!("{{{key}: [60, 60, 60]}}")).unwrap();
+            let found = dark.contrast_errors(&host).join("\n");
+            assert!(
+                found.contains(&format!("panels[0].colours.{key}")),
+                "{found}"
+            );
+        }
+        assert!(errors(with("{shade: [1, 2, 3]}")).contains("shade"));
+    }
+
+    #[test]
+    fn the_figure_is_a_picture_of_the_folder() {
+        let hud = parse("hud: 1\nfigure: paperclip.svg\n").unwrap();
+        assert_eq!(hud.figure.as_deref(), Some("paperclip.svg"));
+        assert_eq!(parse("hud: 1\n").unwrap().figure, None);
+        for bad in ["'a.svg#idle'", "'{state}.svg'", "''"] {
+            let text = format!("hud: 1\nfigure: {bad}\n");
+            assert!(errors(parse(&text)).contains("figure"), "{bad}");
+        }
+        let folder = Dir::new("figure");
+        folder.put("hud.yaml", b"hud: 1\nfigure: paperclip.svg\n");
+        let missing = load(&folder.0).unwrap_err().join("\n");
+        assert!(missing.contains("figure: paperclip.svg"), "{missing}");
+        folder.put(
+            "paperclip.svg",
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        );
+        assert!(load(&folder.0).is_ok());
     }
 
     #[test]

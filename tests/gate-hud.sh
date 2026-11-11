@@ -75,7 +75,7 @@ check-mc pass
 check-construct pass
 check-ok-names-use pass
 check-names-four-errors pass
-list-huds missing
+list-huds pass
 use-hud-writes-setting pass
 card-names-file pass
 card-injected-click-refused pass
@@ -87,12 +87,12 @@ chat-row-click-opens pass
 chat-show-hide pass
 chat-super-a-esc missing
 typed-yes-held pass
-agents-row-text missing
-xp-tray-rows missing
+agents-row-text pass
+xp-tray-rows pass
 mc-host-hud pass
-mc-chat-drawer missing
+mc-chat-drawer pass
 construct-host-hud pass
-construct-chat-panel missing
+construct-chat-panel pass
 voice-state-rate pass
 layers-dropped-empty pass
 host-idle-cpu pass
