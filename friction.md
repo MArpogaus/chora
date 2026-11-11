@@ -182,3 +182,12 @@
     battle load tests; the step passed alone. Rule: no merge gate while
     battle or load tests run (F4 in the backlog: make gate waits robust
     to load, or serialise load tests with gates).
+
+## 26 (11-11 ~13:50): two merge gates ran at the same time
+A local agent's gate (wt/stale) and my HUD gate overlapped, beside a
+third build; the cube cell "float during a turn" failed once on a fixed
+sleep. Not pushed (the gate stops on FAIL). Fixes: the cell now waits
+for the float within the turn (7d188b1); I killed my run by pid and
+queue gates behind each other (wait on the other gate's pid). Rule
+again: one gate at a time, check `pgrep -f tests/merge-gate.sh` before
+starting one, and agents' briefs say the same.
