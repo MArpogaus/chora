@@ -38,6 +38,7 @@ impl Construct {
             ("fog".into(), vec3(palette.horizon)),
             ("ground".into(), vec3(palette.ground)),
             ("sheen".into(), vec3(palette.sheen)),
+            ("marble".into(), Uniform::Vector(palette.marble.to_vec())),
         ]);
         for k in 0..SHADOWS {
             let shadow = near.get(k).map_or(vec![0.0; 4], |p| {

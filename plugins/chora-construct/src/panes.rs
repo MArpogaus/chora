@@ -132,11 +132,17 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
     }
 }
 
+/// The roughness of the polished floor in a mirror image (mirror.frag):
+/// the blur in pixels of its texture at the contact line and at the top,
+/// the stretch of the blur along the view, and the waver of the bumps.
+pub(crate) const ROUGH: [f64; 4] = [0.6, 10.0, 1.6, 1.2];
+
 /// The uniforms of a mirror image: the pane's node, the gloss of the
-/// floor and the distances of the haze and the fresnel.
+/// floor, the distances of the haze and the fresnel, and the roughness.
 pub(crate) fn mirror_uniforms(win: Uniform, look: &PaneLook) -> BTreeMap<String, Uniform> {
     BTreeMap::from([
         ("win".into(), win),
+        ("rough".into(), Uniform::Vector(ROUGH.to_vec())),
         ("gloss".into(), Uniform::Float(look.gloss)),
         ("reach".into(), Uniform::Float(look.reach)),
         ("ground".into(), Uniform::Float(look.ground)),

@@ -126,17 +126,23 @@ fn report(line: &str) {
 
 #[test]
 fn the_floor_is_calm_marble_with_scratches_in_the_light() {
-    for (name, theme, calm) in [("light", LIGHT, 40.0), ("dark", DARK, 40.0)] {
-        let (mut core, mut wm) = world();
-        floor(&mut core, &mut wm, &theme);
-        let (width, rgba) = capture(&mut core, &mut wm);
-        let (fine, spread) = detail(&rgba, width, (60, 380), 64);
-        let (glint, _) = detail(&rgba, width, (288, 320), 64);
-        report(&format!(
-            "{name}: detail {fine:.2} beside the light, {glint:.2} in it, spread {spread:.1}"
-        ));
+    let measured: Vec<(&str, f64, f64, f64)> = [("light", LIGHT), ("dark", DARK)]
+        .into_iter()
+        .map(|(name, theme)| {
+            let (mut core, mut wm) = world();
+            floor(&mut core, &mut wm, &theme);
+            let (width, rgba) = capture(&mut core, &mut wm);
+            let (fine, spread) = detail(&rgba, width, (60, 380), 64);
+            let (glint, _) = detail(&rgba, width, (288, 320), 64);
+            report(&format!(
+                "{name}: detail {fine:.2} beside the light, {glint:.2} in it, spread {spread:.1}"
+            ));
+            (name, fine, glint, spread)
+        })
+        .collect();
+    for (name, fine, glint, spread) in measured {
         assert!(fine > 0.15, "{name}: the floor has a texture: {fine:.2}");
-        assert!(spread < calm, "{name}: and stays calm: {spread:.1}");
+        assert!(spread < 40.0, "{name}: and stays calm: {spread:.1}");
         assert!(glint > fine * 1.3, "{name}: scratches glint in the light");
     }
 }

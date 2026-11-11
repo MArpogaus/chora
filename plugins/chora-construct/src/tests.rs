@@ -330,3 +330,16 @@ fn the_window_list_names_the_windows_in_plain_words() {
         assert_eq!(row.note, "not in view", "{pane}");
     }
 }
+
+/// The floor of both themes is marble, and a mirror image blurs more far
+/// from the pane than at the contact line (fog.frag, mirror.frag).
+#[test]
+fn the_floor_is_marble_and_its_mirror_images_are_rough() {
+    for theme in [config::Theme::Light, config::Theme::Dark] {
+        let [veins, bumps, scratches, size] = theme.palette().marble;
+        assert!(veins > 0.0 && bumps > 0.0 && scratches > 0.0, "{theme:?}");
+        assert!(size >= 200.0, "{theme:?}: the veins are long");
+    }
+    let [near, far, stretch, _] = panes::ROUGH;
+    assert!(near < far && stretch >= 1.0);
+}

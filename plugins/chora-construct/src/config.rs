@@ -73,6 +73,10 @@ pub struct Palette {
     pub ground: [f64; 3],
     /// The light that glints in the glossy floor.
     pub sheen: [f64; 3],
+    /// The marble of the floor: the strength of its veins, its micro
+    /// bumps and its scratches, from 0 to 1, and the size of the pattern
+    /// of the veins in logical pixels (fog.frag).
+    pub marble: [f64; 4],
 }
 
 impl Theme {
@@ -93,12 +97,14 @@ impl Theme {
                 horizon: [1.0, 1.0, 1.0],
                 ground: [0.93, 0.93, 0.925],
                 sheen: [1.0, 1.0, 1.0],
+                marble: [0.8, 1.0, 1.0, 900.0],
             },
             Self::Dark => Palette {
                 sky: [0.0, 0.0, 0.0],
                 horizon: [0.15, 0.15, 0.16],
                 ground: [0.012, 0.012, 0.014],
                 sheen: [0.35, 0.35, 0.37],
+                marble: [0.6, 1.0, 1.0, 900.0],
             },
         }
     }

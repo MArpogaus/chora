@@ -1,9 +1,13 @@
 #extension GL_OES_standard_derivatives : enable
-// The mirror image of a pane in a glossy floor: its node texture at a
-// reduced size, a little softer the deeper it lies, faded out downwards.
-// The transform flips it. The gloss of the floor falls with the haze of
-// the distance and rises with the fresnel of a grazing view, from the
-// `depth` that the core gives in its 3D context.
+// The mirror image of a pane in a floor of polished marble: its node
+// texture at a reduced size, faded out downwards. The roughness of the
+// polish blurs it: sharp where the pane meets the floor, softer the
+// farther the reflected point lies from that line, and stretched along
+// the view, as a reflection on a polished floor is. Micro bumps of the
+// polish waver it by a pixel or two. The transform flips it. The gloss
+// of the floor falls with the haze of the distance and rises with the
+// fresnel of a grazing view, from the `depth` that the core gives in its
+// 3D context. It reads no clock: a still pane costs no frame.
 precision highp float;
 
 // Texture pixels per screen pixel: the screen derivative where the driver
@@ -23,17 +27,52 @@ uniform float gloss;  // the strength of the floor
 uniform float depth;  // distance of the eye over the focal length
 uniform float reach;  // the focal length over the leash radius
 uniform float ground; // the height of the eye over the focal length
+uniform vec4 rough;   // the blur in texture pixels at the contact line
+                      // and at the top, its stretch along the view, and
+                      // the waver of the bumps in texture pixels
 varying vec2 v_uv;
+
+float hash(vec2 p) {
+    vec3 q = fract(vec3(p.xyx) * 0.1031);
+    q += dot(q, q.yzx + 33.33);
+    return fract((q.x + q.y) * q.z);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+// The texture blurred by an ellipse of radii r over 13 taps on a golden
+// spiral, weighted as a Gauss.
+vec4 blurred(vec2 uv, vec2 r) {
+    vec4 sum = texture2D(win, uv);
+    float total = 1.0;
+    for (int i = 1; i < 13; i++) {
+        float t = float(i) / 12.0;
+        float a = float(i) * 2.3999632;
+        vec2 o = vec2(cos(a), sin(a)) * sqrt(t) * r / size;
+        float w = exp(-2.0 * t);
+        sum += texture2D(win, uv + o) * w;
+        total += w;
+    }
+    return sum / total;
+}
 
 void main() {
     vec2 p = v_uv * size;
     float w = texels(p);
     float d = min(min(p.x, p.y), min(size.x - p.x, size.y - p.y));
     float k = v_uv.y;   // 1 at the pane's bottom edge, nearest the ground
-    vec2 o = vec2(0.0, 1.5 * (1.0 - k)) / size;
-    vec4 c = 0.5 * texture2D(win, v_uv)
-           + 0.25 * (texture2D(win, v_uv + o) + texture2D(win, v_uv - o));
-    float soft = smoothstep(0.0, 0.02, v_uv.x) * smoothstep(1.0, 0.98, v_uv.x)
+    float r = mix(rough.y, rough.x, k);
+    float waver = (noise(p / vec2(48.0, 14.0)) - 0.5) * 2.0 * rough.w;
+    vec2 uv = v_uv + vec2(waver / size.x, 0.0);
+    vec4 c = blurred(uv, vec2(r, r * rough.z));
+    float side = max(0.02, 1.5 * r / size.x);
+    float soft = smoothstep(0.0, side, v_uv.x) * smoothstep(1.0, 1.0 - side, v_uv.x)
                * smoothstep(1.0, 0.98, k) * smoothstep(0.0, 1.25 * w, d);
     float haze = (1.0 - exp(-max(depth - 1.0, 0.0) * reach * 1.5)) * 0.9;
     float grazing = 1.0 - ground / length(vec2(ground, depth));
