@@ -192,6 +192,35 @@ fn a_new_toplevel_under_a_pane_goes_to_the_manager_on_the_virtual_output() {
     assert_eq!(to.as_deref(), Some("xp"));
 }
 
+/// A host shows window managers in panes and has the keyboard itself, as
+/// the construct does while the person walks: a new toplevel under one
+/// of its panes goes to the manager on that output, and one beside the
+/// panes to the host.
+#[test]
+fn a_host_with_the_keyboard_passes_a_new_toplevel_under_its_pane_to_the_manager() {
+    let mut faced = paned(true);
+    let look = json!({"commands": [
+        {"create": {"id": "look", "kind": "rect", "parent": "root",
+            "props": {"size": [1, 1], "claim": [0, 0, 128, 96]}}},
+        {"focus_node": {"node": "look"}},
+    ]});
+    faced.construct.ok(&mut faced.core, "scene.apply", look);
+    let mut xp = faced.core.named("xp");
+    let claim = json!({"commands": [{"create": {"id": "xp", "kind": "group",
+        "parent": "root", "props": {"claim": [SLOT_1, SLOT_1, SIDE, SIDE]}}}]});
+    xp.ok(&mut faced.core, "scene.apply", claim);
+    let reserved = |faced: &Faced, surface: &str| {
+        let scene = &faced.core.state.scene;
+        scene.node(surface).and_then(|n| n.to.clone())
+    };
+    point_at(&mut faced, 10, 20);
+    faced.wayland.toplevel(&mut faced.core, "under-the-pane");
+    assert_eq!(reserved(&faced, "s2").as_deref(), Some("xp"));
+    input::move_pointer(&mut faced.core.state, (4.0, 4.0).into(), InputTime::now());
+    faced.wayland.toplevel(&mut faced.core, "beside-the-pane");
+    assert_eq!(reserved(&faced, "s3").as_deref(), Some("construct"));
+}
+
 #[test]
 fn a_node_press_through_a_pane_stamps_an_act_and_an_injected_one_does_not() {
     let mut faced = paned(true);
