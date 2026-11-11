@@ -465,7 +465,9 @@ rows of the list of helpers show the one focus mark of mc while the pointer
 is over them: a frame of 2 pixels round a button of the card, a bar of 2 by
 20 pixels, 12 pixels left of Stop or of a row, in the text colour. A row of
 the list is a line of 28 pixels with its number in `name`, and the mark
-stays when the view is drawn again under the pointer.
+stays when the view is drawn again under the pointer. Stop is a word in
+`name`, flush right at the top of the view, and shows only while the helper
+works, thinks, speaks or asks.
 
 A folder that names a `slot` gets the card in the page of its look: the
 fill of its chat, one rule of a pixel in its text colour, square corners,

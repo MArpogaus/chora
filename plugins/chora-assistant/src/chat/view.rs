@@ -385,6 +385,7 @@ struct Parts {
     rows: Vec<Row>,
     list: Vec<String>,
     buttons: &'static [(&'static str, Word)],
+    running: bool,
     top_row: i32,
     body_top: i32,
     field_room: i32,
@@ -499,6 +500,7 @@ impl Session {
             rows,
             list,
             buttons,
+            running: self.running(),
             top_row,
             body_top,
             field_room: field_room(frame),
@@ -600,7 +602,7 @@ fn link(theme: &mut Theme, label: &str, colours: Colours) -> (String, [i32; 2]) 
     let picture = Picture::new(w, LINE).text(Text::new(
         label,
         Font::Body,
-        rgba(colours.text),
+        rgba(colours.name),
         [0, 0, w, LINE],
     ));
     (theme.render(&picture), [w, LINE])
@@ -732,6 +734,9 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
         commands.push(create(HINT, VIEW, image(path, at, &text, InputMode::Pass)));
     }
     for (n, (id, word)) in (0..).zip(parts.buttons) {
+        if *id == STOP && !parts.running {
+            continue;
+        }
         let label = word.text(language);
         let (path, at) = if parts.margin {
             let (path, [width, _]) = link(theme, label, colours);

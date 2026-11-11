@@ -596,6 +596,13 @@ impl Session {
         self.status.state == "question" && self.answered == Answered::No
     }
 
+    /// Whether the helper of the chat runs a prompt that Stop can end: it
+    /// works, thinks, speaks or asks.
+    #[must_use]
+    pub fn running(&self) -> bool {
+        ["working", "thinking", "speaking", "question"].contains(&self.status.state.as_str())
+    }
+
     /// Whether the view is to be drawn again, and the mark taken away.
     pub fn take_dirty(&mut self) -> bool {
         std::mem::take(&mut self.dirty)

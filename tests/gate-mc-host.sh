@@ -227,6 +227,10 @@ run_theme() {
     until_ok '! node_exists hud-card' 20 || fail "$theme: the card stays after Alt+y"
     grep -c '"yes": true' "$work/claims.answers" | grep -qx 2 || fail "$theme: Alt+y did not answer"
     ok "$theme: Alt+y answers and takes the card away"
+    node_exists hud-chat-stop || fail "$theme: no Stop while the helper works or asks"
+    emit voice.state '{"name": "Atlas", "state": "idle", "task": "", "seq": 9}'
+    until_ok '! node_exists hud-chat-stop' 20 || fail "$theme: Stop stays while the helper is idle"
+    ok "$theme: Stop shows only while the helper runs a prompt"
     key Escape
 }
 
