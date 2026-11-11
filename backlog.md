@@ -224,7 +224,7 @@ S1. Feature sprint "HUDs and ACP chat" (user request 11-09 evening,
 2. Five USPs, website on `claude/website`, announcement in German and
    English (charter section 9).
 
-## CI1 (11-10): CI has no agent sandbox
+## CI1 (11-10): CI has no agent sandbox — DONE 2f6c3e0 (not run on GitHub yet)
 grants2 makes `the_sandbox_hides_the_main_socket` fail when `CI` is set
 and `agent-sandbox.sh` is missing. The script is not in the repo, so
 ci.yaml on main/dev goes red. Before the first PR to main: ship a
