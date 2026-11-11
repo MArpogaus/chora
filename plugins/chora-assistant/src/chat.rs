@@ -206,7 +206,7 @@ pub trait Link {
     fn say_failed(&mut self, text: &str);
     /// A line was typed in the list before a helper was picked.
     fn pick_first(&mut self, text: &str);
-    /// The chat goes to another helper: the draft goes.
+    /// The chat goes to another helper or to the list: the draft goes.
     fn clear(&mut self);
     /// A voice event, for the field if it concerns the helper.
     fn voice_event(&mut self, event: &str, data: &Value, helper: &str);
@@ -541,6 +541,9 @@ impl Session {
             .and_then(|text| text.as_str().map(parse_list))
             .unwrap_or_default();
         self.mode = Mode::List(picks);
+        if let Some(link) = self.link.as_mut() {
+            link.clear();
+        }
     }
 
     fn close_chat(&mut self, out: &mut dyn Outside) {
@@ -1394,6 +1397,23 @@ mod tests {
             .unwrap();
         assert_eq!(log.borrow().started, 1);
         assert_eq!(log.borrow().clears, 2, "another helper gets no old draft");
+    }
+
+    #[test]
+    fn the_list_opens_with_an_empty_field_so_a_number_picks() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), Some("act"), &frame)
+            .unwrap();
+        session.hide(&mut out);
+        let before = log.borrow().clears;
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(
+            log.borrow().clears,
+            before + 1,
+            "the draft stays out of the list"
+        );
     }
 
     #[test]
