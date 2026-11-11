@@ -18,3 +18,6 @@ User call at 71% model use: use the remaining budget to test massively with haik
 - Launch a new tester only while the last reports still bring new findings.
 - Haiku runs are trimmed: 512 px looks, at most 45 actions and 20 looks, reports of at most 40 lines (brief updated after wave 2 started).
 - The weekly reset is Saturday 10:59. After it, the heavy work (fixes, code review, RC) runs on Fable until it is used up, then on a reset.
+
+## Usage estimate (11-11 ~17:00 UTC)
+The old cross-check (total_cost_usd of the newest result event) no longer works: the PM session runs as one long turn, so there is no recent result event. New: `usage.py SINCE [UNTIL]` sums the local transcripts of the PM and its local agents into weighted units (opus 1, sonnet 0.6, haiku 0.2; output 5, cache write 1.25, cache read 0.1). Calibrated on the user's readings 68% (15:08 UTC) and 71% (16:42 UTC): 8.35 M units, so about 2.8 M units per percent. Cloud workers are not counted. One haiku tester costs about 0.1 M units, about 0.04%.
