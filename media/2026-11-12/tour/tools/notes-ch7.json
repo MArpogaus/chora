@@ -1,0 +1,15 @@
+{
+ "07-01-two-screens": "Left: xp desktop with taskbar. Right: the tiling screen, empty and plain black (no wallpaper process, no bar in this session).",
+ "07-02-start": "The Start menu opens on the left (xp) screen; the tiling screen is unchanged.",
+ "07-03-notes-open": "Notes opens on xp at (28,54), size 700x500; owner xp. The right screen stays black.",
+ "07-04-drag-xp-to-tiling": "DRAG 1 worked: after the title bar drag across the screen edge, Notes is owned by tiling and fills the right screen (4,4,1272x712) with no title bar; xp is empty. Focus stays on the window.",
+ "07-05-drag-tiling-to-construct": "DRAG 2 worked (only when Super and the press are in one request): Notes is a pane of the construct at 1272x712, filling the construct screen; the tiling screen is empty. The construct shows the OPEN CUBE chip over the pane.",
+ "07-06-drag-construct-to-xp": "DRAG 3 worked: the pane leaves the construct and Notes appears in xp with a title bar at (58,84), a task button Notes; the construct screen is the empty marble floor.",
+ "07-07-drag-xp-to-mc": "DRAG 4 worked: Notes becomes the window of a new mc scene 7 NOTES (light header, the window under it), owner mc, 1280x666; xp is empty.",
+ "07-08-drag-mc-out": "DRAG 5 (mc out) worked: Notes is back in xp at (4,30); mc shows 1 AGENDA again with only its head (the agenda has no entries in this session).",
+ "07-09-give-key-tiling": "Super+Alt+1 gives the focused window to tiling: Notes fills the tiling screen; xp is empty.",
+ "07-10-give-key-xp": "Super+Alt+2 gives it back: Notes is in xp at (4,30) with the title bar; tiling is empty. Key gives were served by xp (the holder, started first).",
+ "07-11-menu-control-panel": "Start menu open with Control Panel highlighted and its submenu (Date and Time, Desktop, Display, Effects, Keyboard Shortcuts, Sound, Taskbar and Start Menu).",
+ "07-12-menu-shortcuts": "FAILED take: the menu is gone and the window stays. My pointer went diagonally from Control Panel to Keyboard Shortcuts across the Run... row, which closed the submenu, so the click landed on the desktop and closed the menu. See 07b for the corrected path.",
+ "07-13-give-menu-tiling": "FAILED take: Notes stayed in xp (owner xp, no focus); the click at the place of the entry hit the desktop. See 07b."
+}

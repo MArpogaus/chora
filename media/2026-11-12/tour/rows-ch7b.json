@@ -1,0 +1,69 @@
+{
+ "rows": [
+  {
+   "chapter": "7b give by menu",
+   "act": 1,
+   "frame": 92,
+   "kind": "pointer",
+   "description": "Click Start",
+   "expected": "The Start menu opens on the xp screen",
+   "still": "07b-01-start",
+   "happened": "",
+   "abs": 92
+  },
+  {
+   "chapter": "7b give by menu",
+   "act": 2,
+   "frame": 207,
+   "kind": "pointer",
+   "description": "Click Notes",
+   "expected": "A Notes window opens on the xp screen",
+   "still": "07b-02-notes-open",
+   "happened": "",
+   "abs": 207
+  },
+  {
+   "chapter": "7b give by menu",
+   "act": 3,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "GIVE BY MENU: Start > Control Panel",
+   "expected": "The menu opens with Control Panel highlighted",
+   "still": "07b-03-menu-control-panel",
+   "happened": "",
+   "abs": 389
+  },
+  {
+   "chapter": "7b give by menu",
+   "act": 4,
+   "frame": 207,
+   "kind": "pointer",
+   "description": "Move right into the submenu and click Keyboard Shortcuts",
+   "expected": "The submenu lists Super+Alt+1: window to tiling and the others",
+   "still": "07b-04-menu-shortcuts",
+   "happened": "",
+   "abs": 565
+  },
+  {
+   "chapter": "7b give by menu",
+   "act": 5,
+   "frame": 346,
+   "kind": "pointer",
+   "description": "Click Super+Alt+1: window to tiling",
+   "expected": "Notes goes to tiling and the menu closes",
+   "still": "07b-05-give-menu-tiling",
+   "happened": "",
+   "abs": 704
+  }
+ ],
+ "observed": {
+  "07b-02-notes-open": "owner xp, focused True, rects {'HEADLESS-2': [28.0, 54.0, 700.0, 500.0]}",
+  "07b-05-give-menu-tiling": "owner tiling, focused True, rects {'HEADLESS-3': [4.0, 4.0, 1272.0, 712.0]}",
+  "audit": [
+   [
+    "s1",
+    "tiling"
+   ]
+  ]
+ }
+}

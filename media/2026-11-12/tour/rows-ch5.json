@@ -1,0 +1,112 @@
+[
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 1,
+  "frame": 92,
+  "kind": "look",
+  "description": "Look at the construct with two manager panes",
+  "expected": "xp is the pane ahead, tiling a pane to the right (black, empty), labels XP and TILING",
+  "still": "05-01-start",
+  "happened": "",
+  "abs": 92
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 2,
+  "frame": 161,
+  "kind": "camera glide (method)",
+  "description": "Glide the camera in front of the xp pane",
+  "expected": "The xp desktop shows large in the middle of the view",
+  "still": "05-02-xp-view",
+  "happened": "",
+  "abs": 161
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 3,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Move to the Start button in the xp pane and click",
+  "expected": "The Start menu opens inside the pane",
+  "still": "05-03-xp-start-menu",
+  "happened": "",
+  "abs": 322
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 4,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click Terminal in the menu",
+  "expected": "A terminal window opens inside the xp pane",
+  "still": "05-04-xp-terminal",
+  "happened": "",
+  "abs": 459
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 5,
+  "frame": 227,
+  "kind": "keys",
+  "description": "Type 'echo hello from xp' and press Return",
+  "expected": "The text appears in the xp terminal and the shell answers hello from xp",
+  "still": "05-05-xp-typed",
+  "happened": "",
+  "abs": 655
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 6,
+  "frame": 393,
+  "kind": "camera glide (method)",
+  "description": "Glide the camera to the tiling pane",
+  "expected": "The tiling pane (black) fills the middle of the view",
+  "still": "05-06-tiling-view",
+  "happened": "",
+  "abs": 821
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 7,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click into the tiling pane",
+  "expected": "The pane takes the keyboard (its edge lights up)",
+  "still": "05-07-tiling-click",
+  "happened": "",
+  "abs": 982
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 8,
+  "frame": 152,
+  "kind": "key",
+  "description": "Press Super+Return in the tiling pane",
+  "expected": "tiling opens a terminal that fills its pane",
+  "still": "05-08-tiling-terminal",
+  "happened": "",
+  "abs": 1103
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 9,
+  "frame": 333,
+  "kind": "keys",
+  "description": "Type 'echo hello from tiling' and press Return",
+  "expected": "The text appears in the tiling terminal and the shell answers",
+  "still": "05-09-tiling-typed",
+  "happened": "",
+  "abs": 1284
+ },
+ {
+  "chapter": "5 construct with manager panes",
+  "act": 10,
+  "frame": 519,
+  "kind": "camera glide (method)",
+  "description": "Glide back to the start pose",
+  "expected": "Both panes in view again, both with a terminal",
+  "still": "05-10-both",
+  "happened": "",
+  "abs": 1470
+ }
+]

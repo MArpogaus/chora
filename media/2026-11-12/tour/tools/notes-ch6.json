@@ -1,0 +1,22 @@
+{
+ "06-01-use-mode": "Use mode: the front face fills the screen with xp: sunset and chora windows, taskbar, tray reading 40%, a STEP BACK Alt+Esc chip over the lower right (it overlaps the chora window and the Recycle Bin label).",
+ "06-02-stepped-back": "Alt+Escape steps back: the face shows whole at 800x450 on the marble floor, the windows float in front of it and the chora window overhangs the face edge at the right; chips TURN LEFT, TURN RIGHT, STEP IN bottom right. The pointer arrow stays.",
+ "06-03-floating": "Still stepped back: windows on their own planes (the chora window overhangs the face).",
+ "06-04-turn-key-mid": "Ctrl+Alt+Right: 0.5 s after the key the turn is already over; face 2 (wobbly.rs and load) stands in front. The mid-turn is not caught at this time; the turn is faster than 0.5 s.",
+ "06-05-turned-key": "Face 2 after the key turn; the chips stay.",
+ "06-06-drag-on-window-mid": "A drag that starts on the floating load window moves that window across the face (to the left); the cube does not turn. The window now half hides wobbly.rs.",
+ "06-07-after-drag-on-window": "After the drag the load window sits lower left and overhangs the bottom edge of the face.",
+ "06-06b-drag-turn-mid": "Drag from the empty desktop at the top right to the left: at 60 percent of the drag the face has not moved yet (the picture still shows face 2).",
+ "06-07b-turned-drag": "After the release the cube has turned to face 3 (cube.rs and chart). So the cube turns after the release, not while the pointer drags.",
+ "06-08-hover-off": "Pointer off the face (top right, over the floor): no lit edge.",
+ "06-09-hover-edge": "Pointer on the face: a thin lit edge is hard to see at this size; the face looks the same as before.",
+ "06-10-turn-chip": "Click on TURN LEFT: the cube turns one face back to face 2; the moved load window is still where I left it.",
+ "06-11-turn-back": "Ctrl+Alt+Left: back on face 1 (sunset and chora).",
+ "06-12-step-in": "A click on the face steps in: xp at 1:1 with the STEP BACK Alt+Esc chip.",
+ "06-13-step-back-again": "Alt+Escape steps back again to the face with floating windows.",
+ "06-14-stood-off": "The camera glide (a method call) shows the face at an angle with its windows.",
+ "06-15-pulling": "A drag of the title bar of sunset: the window leaves the face as a flat pane in front of it.",
+ "06-16-pane": "Released: the sunset window is a pane beside the face with the label SUNSET; the taskbar button of sunset is gone from the face taskbar.",
+ "06-17-drag-back-mid": "A Super+drag of the pane over the face: the pane moves over the face and floats in front.",
+ "06-18-dropped": "Dropped: sunset is an xp window again on the face with its title bar (task button back), partly over the chora window."
+}

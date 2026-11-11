@@ -1,0 +1,222 @@
+[
+ {
+  "chapter": "6 xp cube",
+  "act": 1,
+  "frame": 92,
+  "kind": "look",
+  "description": "Look at the cube in use mode",
+  "expected": "The front face fills the screen: xp with sunset and chora windows, a STEP BACK Alt+Esc chip",
+  "still": "06-01-use-mode",
+  "happened": "",
+  "abs": 92
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 2,
+  "frame": 176,
+  "kind": "key",
+  "description": "Press Alt+Escape (step back)",
+  "expected": "The camera steps back: the whole face shows with chips TURN LEFT, TURN RIGHT, STEP IN",
+  "still": "06-02-stepped-back",
+  "happened": "",
+  "abs": 176
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 3,
+  "frame": 327,
+  "kind": "look",
+  "description": "Look at the floating windows",
+  "expected": "The windows float in front of the face on their own planes",
+  "still": "06-03-floating",
+  "happened": "",
+  "abs": 327
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 4,
+  "frame": 447,
+  "kind": "key",
+  "description": "Press Ctrl+Alt+Right (turn by key), look mid-turn",
+  "expected": "The cube starts to turn to the next face",
+  "still": "06-04-turn-key-mid",
+  "happened": "",
+  "abs": 447
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 5,
+  "frame": 523,
+  "kind": "look",
+  "description": "Wait for the turn to end",
+  "expected": "The next face (desktop 2: wobbly.rs and load) stands in front",
+  "still": "06-05-turned-key",
+  "happened": "",
+  "abs": 523
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 6,
+  "frame": 703,
+  "kind": "pointer",
+  "description": "Drag that starts on a floating window (load), from right to left",
+  "expected": "The cube turns (or the window moves)",
+  "still": "06-06-drag-on-window-mid",
+  "happened": "",
+  "abs": 703
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 7,
+  "frame": 866,
+  "kind": "look",
+  "description": "Look at the face after that drag",
+  "expected": "Either the face turned or the window moved on the face",
+  "still": "06-07-after-drag-on-window",
+  "happened": "",
+  "abs": 866
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 8,
+  "frame": 986,
+  "kind": "pointer",
+  "description": "Drag that starts on the empty desktop (top right), right to left",
+  "expected": "The cube follows the drag and turns to the next face",
+  "still": "06-06b-drag-turn-mid",
+  "happened": "",
+  "abs": 986
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 9,
+  "frame": 1149,
+  "kind": "look",
+  "description": "Wait for the turn to settle",
+  "expected": "Face 3 (cube.rs and chart) stands in front",
+  "still": "06-07b-turned-drag",
+  "happened": "",
+  "abs": 1149
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 10,
+  "frame": 1344,
+  "kind": "pointer",
+  "description": "Move the pointer off the face, then onto it",
+  "expected": "The edge of the face lights when the pointer is over it",
+  "still": "06-08-hover-off",
+  "happened": "",
+  "abs": 1344
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 11,
+  "frame": 1464,
+  "kind": "pointer",
+  "description": "Move onto the face",
+  "expected": "The edge of the face is lit",
+  "still": "06-09-hover-edge",
+  "happened": "",
+  "abs": 1464
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 12,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click the TURN LEFT chip",
+  "expected": "The cube turns back one face",
+  "still": "06-10-turn-chip",
+  "happened": "",
+  "abs": 1585
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 13,
+  "frame": 212,
+  "kind": "key",
+  "description": "Press Ctrl+Alt+Left (turn back)",
+  "expected": "The cube is on the first face again (sunset, chora)",
+  "still": "06-11-turn-back",
+  "happened": "",
+  "abs": 1766
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 14,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Click the face to step in",
+  "expected": "The camera goes into the face: the xp desktop at 1:1 with the STEP BACK chip",
+  "still": "06-12-step-in",
+  "happened": "",
+  "abs": 1903
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 15,
+  "frame": 212,
+  "kind": "key",
+  "description": "Press Alt+Escape (step back again)",
+  "expected": "The camera steps back from the face",
+  "still": "06-13-step-back-again",
+  "happened": "",
+  "abs": 2084
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 16,
+  "frame": 348,
+  "kind": "camera glide (method)",
+  "description": "Glide the camera to a view from the side",
+  "expected": "The face seen at an angle, windows on it",
+  "still": "06-14-stood-off",
+  "happened": "",
+  "abs": 2220
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 17,
+  "frame": 478,
+  "kind": "pointer",
+  "description": "Drag the title bar of the sunset window off the face",
+  "expected": "The window leaves the face and becomes a pane in the space, with the label SUNSET",
+  "still": "06-15-pulling",
+  "happened": "",
+  "abs": 2350
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 18,
+  "frame": 650,
+  "kind": "look",
+  "description": "Wait for the pane to settle",
+  "expected": "The pane floats beside the face, the taskbar button of sunset is gone",
+  "still": "06-16-pane",
+  "happened": "",
+  "abs": 2522
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 19,
+  "frame": 830,
+  "kind": "pointer",
+  "description": "Super-drag the pane back onto the face",
+  "expected": "While dragged the pane moves over the face",
+  "still": "06-17-drag-back-mid",
+  "happened": "",
+  "abs": 2702
+ },
+ {
+  "chapter": "6 xp cube",
+  "act": 20,
+  "frame": 996,
+  "kind": "look",
+  "description": "Wait after the drop",
+  "expected": "The pane is an xp window again on the face, its task button is back",
+  "still": "06-18-dropped",
+  "happened": "",
+  "abs": 2868
+ }
+]

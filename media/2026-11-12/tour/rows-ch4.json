@@ -1,0 +1,167 @@
+[
+ {
+  "chapter": "4 construct",
+  "act": 1,
+  "frame": 92,
+  "kind": "look",
+  "description": "Look at the construct",
+  "expected": "A pale sky over a marble floor, three panes ahead, HUD chips",
+  "still": "04-01-start",
+  "happened": "",
+  "abs": 92
+ },
+ {
+  "chapter": "4 construct",
+  "act": 2,
+  "frame": 176,
+  "kind": "key",
+  "description": "Hold w for 2 s (walk forward)",
+  "expected": "The camera walks forward, the panes grow",
+  "still": "04-02-walk-forward",
+  "happened": "",
+  "abs": 176
+ },
+ {
+  "chapter": "4 construct",
+  "act": 3,
+  "frame": 312,
+  "kind": "key",
+  "description": "Hold e for 1.2 s (turn right)",
+  "expected": "The view turns right toward the chora pane",
+  "still": "04-03-turn-right",
+  "happened": "",
+  "abs": 312
+ },
+ {
+  "chapter": "4 construct",
+  "act": 4,
+  "frame": 424,
+  "kind": "key",
+  "description": "Hold q for 2.4 s (turn left)",
+  "expected": "The view turns left toward the wobbly.rs pane",
+  "still": "04-04-turn-left",
+  "happened": "",
+  "abs": 424
+ },
+ {
+  "chapter": "4 construct",
+  "act": 5,
+  "frame": 572,
+  "kind": "key",
+  "description": "Hold e for 1.2 s (back to the middle)",
+  "expected": "The sunset pane is in the middle again",
+  "still": "04-05-turn-back",
+  "happened": "",
+  "abs": 572
+ },
+ {
+  "chapter": "4 construct",
+  "act": 6,
+  "frame": 684,
+  "kind": "key",
+  "description": "Hold s for 1.5 s (walk back)",
+  "expected": "The camera walks back",
+  "still": "04-06-walk-back",
+  "happened": "",
+  "abs": 684
+ },
+ {
+  "chapter": "4 construct",
+  "act": 7,
+  "frame": 805,
+  "kind": "key",
+  "description": "Press Return (fly in)",
+  "expected": "The camera flies into the pane in the middle; the window shows 1:1",
+  "still": "04-07-fly-in",
+  "happened": "",
+  "abs": 805
+ },
+ {
+  "chapter": "4 construct",
+  "act": 8,
+  "frame": 956,
+  "kind": "key",
+  "description": "Press Alt+Escape (fly out)",
+  "expected": "The camera flies back out to the pose before",
+  "still": "04-08-fly-out",
+  "happened": "",
+  "abs": 956
+ },
+ {
+  "chapter": "4 construct",
+  "act": 9,
+  "frame": 1107,
+  "kind": "key",
+  "description": "Press Tab (window list)",
+  "expected": "A glass list shows the five windows, hidden ones marked not in view",
+  "still": "04-09-window-list",
+  "happened": "",
+  "abs": 1107
+ },
+ {
+  "chapter": "4 construct",
+  "act": 10,
+  "frame": 1213,
+  "kind": "key",
+  "description": "Press Down twice",
+  "expected": "The selection moves down two rows",
+  "still": "04-10-list-down",
+  "happened": "",
+  "abs": 1213
+ },
+ {
+  "chapter": "4 construct",
+  "act": 11,
+  "frame": 1314,
+  "kind": "key",
+  "description": "Press Return (choose)",
+  "expected": "The camera flies to the chosen pane",
+  "still": "04-11-list-choice",
+  "happened": "",
+  "abs": 1314
+ },
+ {
+  "chapter": "4 construct",
+  "act": 12,
+  "frame": 1480,
+  "kind": "key",
+  "description": "Press Alt+Escape (fly out)",
+  "expected": "The camera flies back out",
+  "still": "04-12-fly-out-2",
+  "happened": "",
+  "abs": 1480
+ },
+ {
+  "chapter": "4 construct",
+  "act": 13,
+  "frame": 1631,
+  "kind": "key",
+  "description": "Press F1 (help)",
+  "expected": "A glass help panel lists the keys",
+  "still": "04-13-help",
+  "happened": "",
+  "abs": 1631
+ },
+ {
+  "chapter": "4 construct",
+  "act": 14,
+  "frame": 1737,
+  "kind": "key",
+  "description": "Press F1 again",
+  "expected": "The help panel hides",
+  "still": "04-14-help-gone",
+  "happened": "",
+  "abs": 1737
+ },
+ {
+  "chapter": "4 construct",
+  "act": 15,
+  "frame": 1834,
+  "kind": "key",
+  "description": "Press z (a key that does nothing)",
+  "expected": "A notice: The keys walk here. F1 shows them all.",
+  "still": "04-15-notice",
+  "happened": "",
+  "abs": 1834
+ }
+]

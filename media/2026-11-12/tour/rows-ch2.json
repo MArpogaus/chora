@@ -1,0 +1,222 @@
+[
+ {
+  "chapter": "2 tiling",
+  "act": 1,
+  "frame": 92,
+  "kind": "look",
+  "description": "Look at the empty tiling desktop",
+  "expected": "Dark background, waybar at the top with the tag and the clock, the Chat pill",
+  "still": "02-01-empty",
+  "happened": "",
+  "abs": 92
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 2,
+  "frame": 176,
+  "kind": "key",
+  "description": "Press Super+Return (first window)",
+  "expected": "A new terminal opens and tiles (1 window)",
+  "still": "02-02-window-1",
+  "happened": "",
+  "abs": 176
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 3,
+  "frame": 327,
+  "kind": "key",
+  "description": "Press Super+Return (second window)",
+  "expected": "A new terminal opens and tiles (2 windows)",
+  "still": "02-03-window-2",
+  "happened": "",
+  "abs": 327
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 4,
+  "frame": 478,
+  "kind": "key",
+  "description": "Press Super+Return (third window)",
+  "expected": "A new terminal opens and tiles (3 windows)",
+  "still": "02-04-window-3",
+  "happened": "",
+  "abs": 478
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 5,
+  "frame": 629,
+  "kind": "key",
+  "description": "Press Super+Return (fourth window)",
+  "expected": "A new terminal opens and tiles (4 windows)",
+  "still": "02-05-window-4",
+  "happened": "",
+  "abs": 629
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 6,
+  "frame": 780,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in the layout tile_left",
+  "still": "02-07-layout-tile_left",
+  "happened": "",
+  "abs": 780
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 7,
+  "frame": 886,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in the layout tile_bottom",
+  "still": "02-08-layout-tile_bottom",
+  "happened": "",
+  "abs": 886
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 8,
+  "frame": 992,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in the layout tile_top",
+  "still": "02-09-layout-tile_top",
+  "happened": "",
+  "abs": 992
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 9,
+  "frame": 1098,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in the layout fair",
+  "still": "02-10-layout-fair",
+  "happened": "",
+  "abs": 1098
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 10,
+  "frame": 1204,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in the layout fair_horizontal",
+  "still": "02-11-layout-fair_horizontal",
+  "happened": "",
+  "abs": 1204
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 11,
+  "frame": 1310,
+  "kind": "key",
+  "description": "Press Super+j (focus next window)",
+  "expected": "Focus moves to the next window",
+  "still": "02-12-focus-next",
+  "happened": "",
+  "abs": 1310
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 12,
+  "frame": 1401,
+  "kind": "key",
+  "description": "Press Super+Shift+j (swap with next)",
+  "expected": "The focused window swaps places",
+  "still": "02-13-swap",
+  "happened": "",
+  "abs": 1401
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 13,
+  "frame": 1498,
+  "kind": "key",
+  "description": "Press Super+l (wider master)",
+  "expected": "The master area grows by 5 percent",
+  "still": "02-14-master-wider",
+  "happened": "",
+  "abs": 1498
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 14,
+  "frame": 1595,
+  "kind": "key",
+  "description": "Press Super+2 (tag 2)",
+  "expected": "An empty tag 2 shows, the bar marks tag 2",
+  "still": "02-15-tag-2",
+  "happened": "",
+  "abs": 1595
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 15,
+  "frame": 1692,
+  "kind": "key",
+  "description": "Press Super+1 (back to tag 1)",
+  "expected": "The four windows come back",
+  "still": "02-16-tag-1",
+  "happened": "",
+  "abs": 1692
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 16,
+  "frame": 31,
+  "kind": "pointer",
+  "description": "Move the pointer over the bar",
+  "expected": "The bar stays calm",
+  "still": "02-17-bar-hover",
+  "happened": "",
+  "abs": 1790
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 17,
+  "frame": 136,
+  "kind": "key",
+  "description": "Press Super+a (chat panel)",
+  "expected": "The chat opens as a side panel",
+  "still": "02-18-chat-panel",
+  "happened": "",
+  "abs": 1895
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 18,
+  "frame": 272,
+  "kind": "keys",
+  "description": "Type 'Hello, are you there?' without a helper picked",
+  "expected": "Text shows in the field",
+  "still": "02-19-typed",
+  "happened": "",
+  "abs": 2031
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 19,
+  "frame": 452,
+  "kind": "key",
+  "description": "Press Return",
+  "expected": "A hint: pick a helper first",
+  "still": "02-20-no-helper",
+  "happened": "",
+  "abs": 2211
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 20,
+  "frame": 558,
+  "kind": "key",
+  "description": "Press Escape",
+  "expected": "The chat panel closes",
+  "still": "02-21-chat-closed",
+  "happened": "",
+  "abs": 2317
+ }
+]

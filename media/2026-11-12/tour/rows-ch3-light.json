@@ -1,0 +1,167 @@
+[
+ {
+  "chapter": "3 mc",
+  "act": 1,
+  "frame": 92,
+  "kind": "look",
+  "description": "Look at mc at start",
+  "expected": "The first scene fills the screen, header with the running head",
+  "still": "03-01-start-light",
+  "happened": "",
+  "abs": 92
+ },
+ {
+  "chapter": "3 mc",
+  "act": 2,
+  "frame": 176,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 2",
+  "still": "03-02-next-scene-2-light",
+  "happened": "",
+  "abs": 176
+ },
+ {
+  "chapter": "3 mc",
+  "act": 3,
+  "frame": 297,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 3",
+  "still": "03-03-next-scene-3-light",
+  "happened": "",
+  "abs": 297
+ },
+ {
+  "chapter": "3 mc",
+  "act": 4,
+  "frame": 418,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 4",
+  "still": "03-04-next-scene-4-light",
+  "happened": "",
+  "abs": 418
+ },
+ {
+  "chapter": "3 mc",
+  "act": 5,
+  "frame": 539,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 5",
+  "still": "03-05-next-scene-5-light",
+  "happened": "",
+  "abs": 539
+ },
+ {
+  "chapter": "3 mc",
+  "act": 6,
+  "frame": 660,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 6",
+  "still": "03-06-next-scene-6-light",
+  "happened": "",
+  "abs": 660
+ },
+ {
+  "chapter": "3 mc",
+  "act": 7,
+  "frame": 781,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 7",
+  "still": "03-07-next-scene-7-light",
+  "happened": "",
+  "abs": 781
+ },
+ {
+  "chapter": "3 mc",
+  "act": 8,
+  "frame": 902,
+  "kind": "key",
+  "description": "Press Super+o (overview)",
+  "expected": "The overview lists the scenes as N | Title",
+  "still": "03-08-overview-light",
+  "happened": "",
+  "abs": 902
+ },
+ {
+  "chapter": "3 mc",
+  "act": 9,
+  "frame": 1023,
+  "kind": "key",
+  "description": "Press Super+a (agenda)",
+  "expected": "The agenda with times in the margin",
+  "still": "03-09-agenda-light",
+  "happened": "",
+  "abs": 1023
+ },
+ {
+  "chapter": "3 mc",
+  "act": 10,
+  "frame": 1144,
+  "kind": "key",
+  "description": "Press Super+Return (drawer)",
+  "expected": "A terminal drawer slides in",
+  "still": "03-10-drawer-light",
+  "happened": "",
+  "abs": 1144
+ },
+ {
+  "chapter": "3 mc",
+  "act": 11,
+  "frame": 1280,
+  "kind": "key",
+  "description": "Press Super+Return again",
+  "expected": "The drawer closes",
+  "still": "03-11-drawer-closed-light",
+  "happened": "",
+  "abs": 1280
+ },
+ {
+  "chapter": "3 mc",
+  "act": 12,
+  "frame": 1401,
+  "kind": "key",
+  "description": "Press Super+n (right side)",
+  "expected": "The right side with notes shows",
+  "still": "03-12-right-light",
+  "happened": "",
+  "abs": 1401
+ },
+ {
+  "chapter": "3 mc",
+  "act": 13,
+  "frame": 1522,
+  "kind": "key",
+  "description": "Press Super+n again",
+  "expected": "The right side hides",
+  "still": "03-13-right-hidden-light",
+  "happened": "",
+  "abs": 1522
+ },
+ {
+  "chapter": "3 mc",
+  "act": 14,
+  "frame": 121,
+  "kind": "pointer",
+  "description": "Click the HUD figure to open the chat",
+  "expected": "The chat opens in a drawer",
+  "still": "03-14-chat-drawer-light",
+  "happened": "",
+  "abs": 1719
+ },
+ {
+  "chapter": "3 mc",
+  "act": 15,
+  "frame": 287,
+  "kind": "key",
+  "description": "Press Escape",
+  "expected": "The chat drawer closes",
+  "still": "03-15-chat-closed-light",
+  "happened": "",
+  "abs": 1885
+ }
+]

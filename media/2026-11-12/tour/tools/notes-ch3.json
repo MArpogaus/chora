@@ -1,0 +1,17 @@
+{
+ "03-01-start": "mc opens on 1 AGENDA: cream page, small-caps head, the times in the margin (08:30..17:00) and the seven entries (content set by panel.set before the run). Header: helper names Atlas, Vega, Orion, the date and time; Chat ... pill at the top right.",
+ "03-02-next-scene-2": "Super+Right: scene 2 THE MORNING; lead text, weather, the day (with margin times). The lower row (mail, overnight, reading) is blank in the picture.",
+ "03-03-next-scene-3": "Scene 3 AGENTS: columns Atlas (working, task, plan) and Vega (thinking, task); Orion idle in a band below. The third helper sits low, far from its column.",
+ "03-04-next-scene-4": "Scene 4 MISSION CONTROL: headings LOAD, BUSY and JOURNAL, ERRORS TODAY, but no data under them (empty panels, no words).",
+ "03-05-next-scene-5": "Scene 5 TERMINAL: a foot terminal in a dark box; it prints errors: override:2: [colors-dark].background invalid section name: colors-dark (mc passes a colour table that this foot does not know), then the prompt.",
+ "03-06-next-scene-6": "Scene 6 OVERVIEW: list 1 | Agenda ... 6 | Overview.",
+ "03-07-next-scene-7": "A sixth press of Super+Right wraps to scene 1 AGENDA (the order wraps).",
+ "03-08-overview": "Super+o shows the overview scene (scene 6).",
+ "03-09-agenda": "Super+a shows the agenda.",
+ "03-10-drawer": "Super+Return slides a terminal drawer into the lower half over the agenda; it shows the same foot colour errors.",
+ "03-11-drawer-closed": "The second Super+Return closes the drawer.",
+ "03-12-right": "Super+n shows the right side: only the headings NOTES and NOTIFICATIONS, both empty.",
+ "03-13-right-hidden": "The second Super+n hides the right side.",
+ "03-14-chat-drawer": "A click on the Chat ... pill opens the chat drawer in the lower part: Chat with a helper, Close, 1 Atlas working, a field with caret. The pill and helper row vanish; Listening and a red dot show at the top right.",
+ "03-15-chat-closed": "Escape closes the drawer; the Chat ... pill and the helper row Atlas working Tidy notes (1/2) are back at the top right."
+}
