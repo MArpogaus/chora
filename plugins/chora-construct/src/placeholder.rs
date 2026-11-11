@@ -20,12 +20,43 @@ pub const WAIT: &str = "construct-wait-";
 const RING: f64 = 80.0;
 const WORKING: f64 = 3.0;
 /// The side of the node that draws the ring: the ring with a margin.
-const SPOT: f64 = RING + 8.0;
+pub const SPOT: f64 = RING + 8.0;
 
 /// The id of the placeholder of the pane of `source`.
 #[must_use]
 pub fn id(source: &str) -> String {
     format!("{WAIT}{source}")
+}
+
+/// The node of the working ring `id` in `parent`, centred on `centre`;
+/// none without shaders.
+#[must_use]
+pub fn ring(look: &Look, id: &str, parent: &str, centre: [f64; 2]) -> Option<Command> {
+    if look.plain {
+        return None;
+    }
+    let ring = [SPOT / 2.0, SPOT / 2.0, RING, WORKING];
+    let mut uniforms = look.glow_uniforms([SPOT, SPOT], 0.0, 0.0, ring, 0.0);
+    if let Some(Uniform::Vector(accent)) = uniforms.get_mut("accent") {
+        accent[3] = 0.0;
+    }
+    Some(create(
+        id,
+        NodeKind::Shader,
+        parent,
+        PropsUpdate {
+            size: Some([SPOT, SPOT]),
+            transform: Some(Transform::translate(
+                centre[0] - SPOT / 2.0,
+                centre[1] - SPOT / 2.0,
+                0.0,
+            )),
+            shader: Some(look.shader.into()),
+            uniforms: Some(uniforms),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        },
+    ))
 }
 
 /// The nodes of the placeholder of a pane of `size`, in the pane node
@@ -44,30 +75,7 @@ pub fn draw(look: &Look, [w, h]: [f64; 2], pane: &str, source: &str, name: &str)
         rect(&format!("{id}-fill"), &id, [0.0, 0.0, w, h], 0.0, fill),
     ];
     let centre = [w / 2.0, h / 2.0 - RING / 2.0 - 8.0];
-    if !look.plain {
-        let ring = [SPOT / 2.0, SPOT / 2.0, RING, WORKING];
-        let mut uniforms = look.glow_uniforms([SPOT, SPOT], 0.0, 0.0, ring, 0.0);
-        if let Some(Uniform::Vector(accent)) = uniforms.get_mut("accent") {
-            accent[3] = 0.0;
-        }
-        commands.push(create(
-            &format!("{id}-ring"),
-            NodeKind::Shader,
-            &id,
-            PropsUpdate {
-                size: Some([SPOT, SPOT]),
-                transform: Some(Transform::translate(
-                    centre[0] - SPOT / 2.0,
-                    centre[1] - SPOT / 2.0,
-                    0.0,
-                )),
-                shader: Some(look.shader.into()),
-                uniforms: Some(uniforms),
-                input: Some(InputMode::Pass),
-                ..PropsUpdate::default()
-            },
-        ));
-    }
+    commands.extend(ring(look, &format!("{id}-ring"), &id, centre));
     let role = face(Type::Display, 300);
     let name_w = look.size(role, name, None)[0];
     commands.push(text(

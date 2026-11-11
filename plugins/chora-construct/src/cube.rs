@@ -10,7 +10,9 @@
 use std::{
     collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
-    process::Child,
+    io::{BufRead, BufReader},
+    process::{Child, Stdio},
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -18,13 +20,14 @@ use chora_kit::{
     float::{self, Floating},
     geometry::{Cube, Matrix, Turn},
     modes::{Act, View},
+    words::Language,
 };
 use chora_scene::{Border, Event, InputMode, NodeKind, OutputInfo, OutputTexture};
 use serde_json::{Value, json};
 
 use super::{
     BTreeMap, ClientError, Command, Construct, FLY_MS, PANES, Pose, PropsUpdate, RpcError,
-    Transform, Uniform, create, update,
+    Transform, Uniform, create, faces::Health, update,
 };
 
 /// The group of the cube in the camera group, and the prefix of a face.
@@ -45,8 +48,12 @@ const CLICK: f64 = 8.0;
 pub(crate) const MANAGER: &str = "xp";
 /// How long a quarter turn takes, by default.
 const TURN: Duration = Duration::from_millis(500);
-/// How long the window manager may take to connect.
-const CONNECT: Duration = Duration::from_secs(10);
+/// The plain fill of a face whose window manager is not up, and how far
+/// it lies in front of the face.
+const FILL: &str = "construct-cube-fill-";
+const FILL_LIFT: f64 = 0.5;
+/// How often the construct looks whether a starting manager exited.
+const POLL: Duration = Duration::from_millis(100);
 /// The most faces: the side faces of a cube.
 pub(crate) const FACES: usize = 4;
 /// The most that a window lifts off its face to clear the planes of a
@@ -61,9 +68,15 @@ const STAND: f64 = 0.6;
 /// process of the window manager, where it stands and how it is turned.
 pub(crate) struct Host {
     outputs: Vec<String>,
-    /// The window manager, and until it connects, the time it has.
+    /// The window manager, how it was started, when, the last line it
+    /// wrote to its error output, and the health of each face.
     child: Child,
-    connect_by: Option<Instant>,
+    command: String,
+    program: String,
+    name: String,
+    since: Instant,
+    tail: Tail,
+    health: Vec<Health>,
     cube: Cube,
     /// The centre on the ground, (x, z), and the yaw of the cube: face 0
     /// looks back along it.
@@ -109,6 +122,36 @@ pub(crate) struct Host {
     owing: BTreeSet<usize>,
     again: Option<Instant>,
     denied: BTreeSet<usize>,
+}
+
+/// The last line that a window manager wrote to its error output.
+type Tail = Arc<Mutex<String>>;
+
+/// Starts `command` with its error output piped: each line goes on to
+/// the log of the construct, and the last one is the reason if the
+/// manager fails.
+fn launch(command: &str) -> std::io::Result<(Child, Tail)> {
+    let mut child = super::wm::child_command(command)
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let tail = Tail::default();
+    if let Some(pipe) = child.stderr.take() {
+        let last = Arc::clone(&tail);
+        std::thread::spawn(move || {
+            for line in BufReader::new(pipe).lines().map_while(Result::ok) {
+                eprintln!("chora-construct: cube manager: {line}");
+                if let (false, Ok(mut kept)) = (line.trim().is_empty(), last.lock()) {
+                    *kept = line;
+                }
+            }
+        });
+    }
+    Ok((child, tail))
+}
+
+/// The id of the plain fill of face `i`.
+fn fill_id(i: usize) -> String {
+    format!("{FILL}{i}")
 }
 
 /// A press on a face in navigate mode: the face, the window whose
@@ -283,12 +326,26 @@ impl Host {
             if let Some(slot) = self.shown.get_mut(i) {
                 *slot = shows;
             }
+            let up = self.health.get(i) == Some(&Health::Up);
             commands.push(update(
                 &face_id(i),
                 PropsUpdate {
                     transform: Some(Transform::from_matrix(self.cube.face(i, self.angle))),
                     visible: changed.then_some(shows),
-                    forward: Some(self.view.forwards() && self.stand <= 0.0),
+                    forward: Some(up && self.view.forwards() && self.stand <= 0.0),
+                    ..PropsUpdate::default()
+                },
+            ));
+            commands.push(update(
+                &fill_id(i),
+                PropsUpdate {
+                    transform: Some(Transform::from_matrix(self.cube.lifted(
+                        i,
+                        self.angle,
+                        [0.0, 0.0],
+                        FILL_LIFT,
+                    ))),
+                    visible: Some(shows && !up),
                     ..PropsUpdate::default()
                 },
             ));
@@ -318,6 +375,75 @@ impl Host {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    /// The health of face `i`.
+    pub(crate) fn health_of(&self, face: usize) -> Health {
+        self.health.get(face).cloned().unwrap_or(Health::Up)
+    }
+
+    /// Whether a face other than `face` works.
+    pub(crate) fn others_up(&self, face: usize) -> bool {
+        let up = |(i, h): (usize, &Health)| i != face && *h == Health::Up;
+        self.health.iter().enumerate().any(up)
+    }
+
+    /// Whether the face at the front failed to start.
+    pub(crate) fn front_failed(&self) -> bool {
+        matches!(self.health.get(self.front), Some(Health::Failed(_)))
+    }
+
+    /// The display name of the window manager of the faces.
+    pub(crate) fn manager_name(&self) -> &str {
+        &self.name
+    }
+
+    /// The window manager connected: every face works.
+    fn connected(&mut self) {
+        self.health.fill(Health::Up);
+    }
+
+    /// The face fails, with a reason.
+    fn fail(&mut self, reason: &str) {
+        self.health.fill(Health::Failed(reason.to_owned()));
+    }
+
+    /// When the construct looks again at a manager that starts: at the
+    /// end of its time, or soon, to see whether it exited.
+    fn start_deadline(&self, now: Instant) -> Option<Instant> {
+        let starting = self.health.contains(&Health::Starting);
+        starting.then(|| (self.since + crate::faces::LIMIT).min(now + POLL))
+    }
+
+    /// Looks whether the manager that starts exited or is late; then its
+    /// process ends, the faces fail, and the reason comes back.
+    fn check_start(&mut self, language: Language, now: Instant) -> Option<String> {
+        if !self.health.contains(&Health::Starting) {
+            return None;
+        }
+        let exited = matches!(self.child.try_wait(), Ok(Some(_)));
+        if exited {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let last = self.tail.lock().map(|t| t.clone()).unwrap_or_default();
+        let waited = now.saturating_duration_since(self.since);
+        let reason = crate::faces::failure(language, &self.program, waited, exited, &last)?;
+        end(&mut self.child);
+        self.fail(&reason);
+        Some(reason)
+    }
+
+    /// Starts the window manager again after it failed. Answers why it
+    /// could not start.
+    fn restart(&mut self, now: Instant) -> Result<(), String> {
+        end(&mut self.child);
+        let (child, tail) =
+            launch(&self.command).map_err(|e| format!("cannot start {:?}: {e}", self.command))?;
+        self.child = child;
+        self.tail = tail;
+        self.since = now;
+        self.health.fill(Health::Starting);
+        Ok(())
     }
 
     /// Whether the cube rests: no turn and no step runs.
@@ -452,7 +578,7 @@ impl Host {
     /// Not before the window manager connected.
     pub(crate) fn wants_float(&self) -> bool {
         let moves = self.turn.is_some() || self.step.is_some() || self.stand > 0.0;
-        self.connect_by.is_none() && (moves || !self.view.forwards())
+        self.health.iter().all(|h| *h == Health::Up) && (moves || !self.view.forwards())
     }
 
     /// Whether the windows of a face float now: windows float, the face
@@ -647,14 +773,11 @@ impl Construct {
         let size = [self.lens.w, self.lens.h];
         let outputs = self.add_outputs(faces, size)?;
         let flags: Vec<String> = outputs.iter().map(|o| format!("--output {o}")).collect();
-        let command = format!(
-            "exec {} {}",
-            self.settings.value.cube_manager,
-            flags.join(" ")
-        );
-        let spawned = super::wm::child_command(&command).spawn();
-        let child = match spawned {
-            Ok(child) => child,
+        let manager = self.settings.value.cube_manager.clone();
+        let command = format!("exec {manager} {}", flags.join(" "));
+        let spawned = launch(&command);
+        let (child, tail) = match spawned {
+            Ok(started) => started,
             Err(err) => {
                 self.remove_outputs(&outputs);
                 return refuse(format!("cannot start {command:?}: {err}"));
@@ -663,7 +786,7 @@ impl Construct {
         self.glide = None;
         self.pose.pitch = 0.0;
         let cube = Cube { size, caps: false };
-        let mut host = self.host(outputs.clone(), child, cube);
+        let mut host = self.host(outputs.clone(), (child, tail), (&manager, &command), cube);
         let mut commands = vec![create(CUBE, NodeKind::Group, PANES, PropsUpdate::default())];
         commands.extend(self.face_nodes(&outputs, &cube));
         commands.push(self.edge_node());
@@ -680,16 +803,28 @@ impl Construct {
     }
 
     /// The host of a new cube ahead of the camera, in use mode.
-    fn host(&self, outputs: Vec<String>, child: Child, cube: Cube) -> Host {
+    fn host(
+        &self,
+        outputs: Vec<String>,
+        (child, tail): (Child, Tail),
+        (manager, command): (&str, &str),
+        cube: Cube,
+    ) -> Host {
         let [fx, fz] = self.pose.forward();
         let reach = self.lens.focal + cube.size[0] / 2.0;
+        let faces = outputs.len();
         let mut host = Host {
-            shown: vec![false; outputs.len()],
+            shown: vec![false; faces],
             seen_from: [0.0; 3],
-            floats: vec![None; outputs.len()],
+            floats: vec![None; faces],
             outputs,
             child,
-            connect_by: Some(Instant::now() + CONNECT),
+            command: command.to_owned(),
+            program: super::names::program_of(manager).to_owned(),
+            name: super::names::cube_manager_name(manager),
+            since: Instant::now(),
+            tail,
+            health: vec![Health::Starting; faces],
             cube,
             at: [self.pose.x + fx * reach, self.pose.z + fz * reach],
             yaw: self.pose.yaw,
@@ -730,27 +865,45 @@ impl Construct {
             return self.close_cube();
         }
         if let Some(host) = &mut self.cube {
-            host.connect_by = None;
+            host.connected();
         }
-        Ok(())
+        self.frame()
     }
 
-    /// The time by which the window manager must connect.
+    /// The time by which the construct looks again at a window manager.
     pub(crate) fn cube_deadline(&self) -> Option<Instant> {
-        let cube = self.cube.as_ref().and_then(|c| c.connect_by);
+        let cube = self
+            .cube
+            .as_ref()
+            .and_then(|c| c.start_deadline(Instant::now()));
         let panes = self.manager_deadline();
         cube.into_iter().chain(panes).min()
     }
 
-    /// Closes the cube when its window manager did not connect in time.
+    /// The faces fail when their window manager exited or did not connect
+    /// in time; the cube stays, and the card says why.
     pub(crate) fn check_cube(&mut self) -> Result<(), ClientError> {
         self.check_managers()?;
-        let late = self.cube.as_ref().and_then(|c| c.connect_by);
-        if late.is_some_and(|t| t <= Instant::now()) {
-            eprintln!("chora-construct: the window manager of the cube did not connect");
-            return self.close_cube();
+        let language = Language::of_session();
+        let failed = (self.cube.as_mut()).and_then(|c| c.check_start(language, Instant::now()));
+        if let Some(reason) = failed {
+            eprintln!("chora-construct: the window manager of the cube failed: {reason}");
+            self.frame()?;
         }
         Ok(())
+    }
+
+    /// Tries again: the window manager of the faces that failed starts
+    /// anew.
+    pub(crate) fn retry_cube(&mut self) -> Result<(), ClientError> {
+        let Some(host) = &mut self.cube else {
+            return Ok(());
+        };
+        if let Err(reason) = host.restart(Instant::now()) {
+            eprintln!("chora-construct: the window manager of the cube: {reason}");
+            host.fail(&reason);
+        }
+        self.frame()
     }
 
     /// Turns the cube by `by` quarter turns in `ms`, a quarter turn in
@@ -832,23 +985,38 @@ impl Construct {
     /// The shader nodes of the faces, hidden until the first frame: each
     /// reads its output.
     fn face_nodes(&self, outputs: &[String], cube: &Cube) -> Vec<Command> {
+        let [r, g, b, _] = self.styled().glass.strong;
         (outputs.iter().enumerate())
-            .map(|(i, output)| {
+            .flat_map(|(i, output)| {
                 let win = Uniform::Output(OutputTexture {
                     output: output.clone(),
                 });
-                create(
-                    &face_id(i),
-                    NodeKind::Shader,
-                    CUBE,
-                    PropsUpdate {
-                        size: Some(cube.size_of(i)),
-                        shader: Some(self.source_shader.clone()),
-                        uniforms: Some(BTreeMap::from([("win".into(), win)])),
-                        visible: Some(false),
-                        ..PropsUpdate::default()
-                    },
-                )
+                [
+                    create(
+                        &face_id(i),
+                        NodeKind::Shader,
+                        CUBE,
+                        PropsUpdate {
+                            size: Some(cube.size_of(i)),
+                            shader: Some(self.source_shader.clone()),
+                            uniforms: Some(BTreeMap::from([("win".into(), win)])),
+                            visible: Some(false),
+                            ..PropsUpdate::default()
+                        },
+                    ),
+                    create(
+                        &fill_id(i),
+                        NodeKind::Rect,
+                        CUBE,
+                        PropsUpdate {
+                            size: Some(cube.size_of(i)),
+                            color: Some([r, g, b, 1.0]),
+                            visible: Some(false),
+                            input: Some(InputMode::Pass),
+                            ..PropsUpdate::default()
+                        },
+                    ),
+                ]
             })
             .collect()
     }
@@ -1055,7 +1223,12 @@ mod tests {
         Host {
             outputs: vec!["VIRTUAL-1".into()],
             child,
-            connect_by: None,
+            command: String::new(),
+            program: String::new(),
+            name: String::new(),
+            since: Instant::now(),
+            tail: Tail::default(),
+            health: vec![Health::Up],
             cube,
             at: [0.0, 832.0 + 640.0],
             yaw: 0.0,

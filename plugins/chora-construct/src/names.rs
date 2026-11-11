@@ -13,7 +13,6 @@ fn program(command: &str) -> &str {
 
 /// The program of a command line, without its path.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub fn program_of(command: &str) -> &str {
     program(command)
 }
@@ -79,9 +78,9 @@ pub fn manager_name(manager: &str) -> String {
 /// The display name of the window manager that a command line starts:
 /// its program without the path and without the prefix `chora-`.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub fn cube_manager_name(command: &str) -> String {
-    manager_name(command)
+    let program = program(command);
+    manager_name(program.strip_prefix("chora-").unwrap_or(program))
 }
 
 /// The error of the core without the index of its command before it and

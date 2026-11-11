@@ -16,9 +16,9 @@
 //!
 //! Files: `plugin` (the `Plugin` impl), `input`, `panes`, `scene`,
 //! `adopt`, `camera`, `frame`, `list` (window list and give menu),
-//! `overlay` (HUD glue), `voice` (voice glue), `methods` (the
-//! `construct.*` methods), `space` (camera math), `hud`, `config`
-//! and `file`.
+//! `overlay` (HUD glue), `faces` (the card of a face that starts or
+//! failed), `voice` (voice glue), `methods` (the `construct.*`
+//! methods), `space` (camera math), `hud`, `config` and `file`.
 //!
 //! Step K2b: a window list shows the windows without a visible pane, and
 //! a choice flies to the pane or takes the window of another client as a
@@ -531,6 +531,8 @@ struct Construct {
     hints: hints::State,
     /// The start card of the empty floor.
     start_card: start::State,
+    /// The key of the card of the face ahead as drawn, none without one.
+    face_card: Option<String>,
     /// A question of the voice agent waits: the hints hide.
     asked: bool,
     /// The hint under the pointer.
@@ -663,6 +665,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         help_sel: 0,
         hints: hints::State::default(),
         start_card: start::State::default(),
+        face_card: None,
         asked: false,
         hint_hover: None,
         label_drawn: false,

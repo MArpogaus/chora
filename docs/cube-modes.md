@@ -128,6 +128,34 @@ The four acts that complete the flows above. Each has a second path
 | speak | says "step back", "step in", "turn left" or "turn right", or the German words of the table of words | the same states as with the chips; the agent answers "I stepped back", "I stepped in", "I turned the cube to the left" | the agent calls `view.step_back`, `view.step_in` and `cube.turn` as its other plugin tools; the keyboard stays where it is |
 | step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and steps in again in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
 
+## Starting and failed faces
+
+A face whose window manager is starting shows its plain fill, never a
+black frame, and a flat glass card over it: the working ring and
+`Starting Media center`, with the display name of the manager (`XP`,
+`Tiling`, `Media center`, `Construct`; any other program is its name
+with a capital). The card shows within 300 ms of `cube.open`, centred on
+the face ahead, in use mode and stood back. It hides while the cube
+turns or steps and while a command surface shows.
+
+The faces fail when the manager exits before it connected, or has not
+connected within 5 s. The card then says what failed and the next step:
+`Media center did not start.`, the reason in a data well, such as
+`chora-mc stopped after 2 s: it needs foot 1.26 or later.` (the program
+and the last line it wrote to its error output) or `chora-mc did not
+connect within 5 s.`, and `The other faces still work.` while another
+face works, else `Click or press Return to try again.`. The face label
+says `did not start`, the dot of the face is a hollow ring, and the
+middle hint reads `Return Try again`. No red shows anywhere: the word
+and the hollow dot carry the failure. The cube stays, with its virtual
+outputs, and the error shows on the face only.
+
+A click on the card or on the face, `Return` and a click on the middle
+hint try again: the manager starts anew, the card reads `Starting`
+again, and the faces work when it connects. A face
+that does not work forwards no pointer input. A manager that connected
+and then ends still closes the cube with its outputs, as before.
+
 ## What the construct does today
 
 In navigate mode a drag on the floating plane of a window pulls the

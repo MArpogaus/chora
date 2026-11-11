@@ -8,22 +8,31 @@
 
 use std::time::Duration;
 
-use chora_kit::words::Language;
-use chora_scene::Command;
+use chora_kit::{
+    glass::{PANEL_RADIUS, Type, WELL_RADIUS},
+    words::Language,
+};
+use chora_scene::{Command, InputMode};
 
-use crate::hud::Look;
+use crate::{
+    glass::{Surface, face, rect, surface, text},
+    hud::{Look, Role},
+};
 
 /// The group of the card.
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub const CARD: &str = "construct-face-card";
 /// How long a window manager may take to connect.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub const LIMIT: Duration = Duration::from_secs(10);
+pub const LIMIT: Duration = Duration::from_secs(5);
+/// The width of the card, its padding and the padding of its well.
+const WIDTH: f64 = 400.0;
+const PAD: f64 = 24.0;
+const WELL_PAD: f64 = 12.0;
+/// The most lines of the reason.
+const REASON_LINES: f64 = 3.0;
 
 /// Whether the window manager of a face is starting, up, or failed with
 /// its reason.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub enum Health {
     Starting,
     Up,
@@ -32,7 +41,6 @@ pub enum Health {
 
 /// The words of the card of a face.
 #[derive(Debug, PartialEq, Eq)]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub struct Words {
     pub head: String,
     pub reason: Option<String>,
@@ -42,70 +50,235 @@ pub struct Words {
 /// The words of the card of a face of `manager` in a health; `others_up`
 /// says whether another face works.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn words(_language: Language, manager: &str, _health: &Health, _others_up: bool) -> Words {
+pub fn words(language: Language, manager: &str, health: &Health, others_up: bool) -> Words {
+    let Health::Failed(reason) = health else {
+        let head = match language {
+            Language::En => format!("Starting {manager}"),
+            Language::De => format!("{manager} wird gestartet"),
+        };
+        return Words {
+            head,
+            reason: None,
+            foot: None,
+        };
+    };
+    let (head, foot) = match (language, others_up) {
+        (Language::En, true) => (
+            format!("{manager} did not start."),
+            "The other faces still work.",
+        ),
+        (Language::En, false) => (
+            format!("{manager} did not start."),
+            "Click or press Return to try again.",
+        ),
+        (Language::De, true) => (
+            format!("{manager} wurde nicht gestartet."),
+            "Die anderen Flächen funktionieren weiter.",
+        ),
+        (Language::De, false) => (
+            format!("{manager} wurde nicht gestartet."),
+            "Klicken oder Return drücken, um es erneut zu versuchen.",
+        ),
+    };
     Words {
-        head: manager.to_owned(),
-        reason: None,
-        foot: None,
+        head,
+        reason: Some(reason.clone()),
+        foot: Some(foot.to_owned()),
     }
 }
 
 /// What the face label says of a failed face.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn label_words(_language: Language) -> &'static str {
-    ""
+pub fn label_words(language: Language) -> &'static str {
+    match language {
+        Language::En => "did not start",
+        Language::De => "nicht gestartet",
+    }
 }
 
 /// The word of the middle hint while the face ahead failed.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn retry_word(_language: Language) -> &'static str {
-    ""
+pub fn retry_word(language: Language) -> &'static str {
+    match language {
+        Language::En => "Try again",
+        Language::De => "Erneut versuchen",
+    }
 }
 
 /// The reason of a window manager that stopped after `secs` seconds,
 /// with its last line of output.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn stopped(_language: Language, program: &str, _secs: u64, _last: &str) -> String {
-    program.to_owned()
+pub fn stopped(language: Language, program: &str, secs: u64, last: &str) -> String {
+    let last = last.trim();
+    match (language, last.is_empty()) {
+        (Language::En, true) => format!("{program} stopped after {secs} s."),
+        (Language::En, false) => format!("{program} stopped after {secs} s: {last}"),
+        (Language::De, true) => format!("{program} endete nach {secs} s."),
+        (Language::De, false) => format!("{program} endete nach {secs} s: {last}"),
+    }
 }
 
 /// The reason of a window manager that did not connect within `secs`.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn late(_language: Language, program: &str, _secs: u64) -> String {
-    program.to_owned()
+pub fn late(language: Language, program: &str, secs: u64) -> String {
+    match language {
+        Language::En => format!("{program} did not connect within {secs} s."),
+        Language::De => format!("{program} hat sich nicht innerhalb von {secs} s gemeldet."),
+    }
 }
 
 /// Why a window manager that was started `waited` ago failed, if it
 /// did: it exited, or it did not connect within the limit.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub fn failure(
-    _language: Language,
-    _program: &str,
-    _waited: Duration,
-    _exited: bool,
-    _last: &str,
+    language: Language,
+    program: &str,
+    waited: Duration,
+    exited: bool,
+    last: &str,
 ) -> Option<String> {
-    None
+    if exited {
+        let secs = waited.as_secs_f64().round();
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a few seconds"
+        )]
+        return Some(stopped(language, program, secs as u64, last));
+    }
+    (waited >= LIMIT).then(|| late(language, program, LIMIT.as_secs()))
+}
+
+/// A text node of the card that wraps at `wrap`.
+fn wrapped(
+    look: &Look,
+    (id, role, line): (&str, Role, &str),
+    at: [f64; 2],
+    wrap: f64,
+    color: [f64; 4],
+) -> Command {
+    let mut node = text(look, id, CARD, (role, line), at, color);
+    if let Command::Create { props, .. } = &mut node {
+        props.max_width = Some(wrap);
+    }
+    node
+}
+
+/// The ring and the head of a card that starts, centred; the head of a
+/// card that failed, at the left. Answers the nodes and the next top.
+fn head(look: &Look, words: &Words, ring: bool) -> (Vec<Command>, f64) {
+    let m = &look.glass;
+    let role = face(Type::Text, 500);
+    let line = look.one_line(role, &words.head, WIDTH - 2.0 * PAD);
+    let id = format!("{CARD}-head");
+    if !ring {
+        let node = text(look, &id, CARD, (role, &line), [PAD, PAD], m.text);
+        return (vec![node], PAD + 24.0 + 16.0);
+    }
+    let spot = crate::placeholder::SPOT;
+    let middle = [WIDTH / 2.0, PAD + spot / 2.0];
+    let mut nodes: Vec<Command> =
+        crate::placeholder::ring(look, &format!("{CARD}-ring"), CARD, middle)
+            .into_iter()
+            .collect();
+    let top = PAD + spot + 8.0;
+    let x = ((WIDTH - look.size(role, &line, None)[0]) / 2.0).round();
+    nodes.push(text(look, &id, CARD, (role, &line), [x, top], m.text));
+    (nodes, top + 24.0)
+}
+
+/// The data well with the reason at `top`. Answers the nodes and the
+/// next top.
+fn well(look: &Look, reason: &str, top: f64) -> (Vec<Command>, f64) {
+    let m = &look.glass;
+    let data = face(Type::Data, 400);
+    let wrap = WIDTH - 2.0 * PAD - 2.0 * WELL_PAD;
+    let shown = look.last_lines(data, reason, wrap, REASON_LINES);
+    let height = look.size(data, &shown, Some(wrap))[1] + 2.0 * WELL_PAD;
+    let nodes = vec![
+        rect(
+            &format!("{CARD}-well"),
+            CARD,
+            [PAD, top, WIDTH - 2.0 * PAD, height],
+            WELL_RADIUS,
+            m.well,
+        ),
+        wrapped(
+            look,
+            (&format!("{CARD}-reason"), data, &shown),
+            [PAD + WELL_PAD, top + WELL_PAD],
+            wrap,
+            m.text,
+        ),
+    ];
+    (nodes, top + height + 16.0)
 }
 
 /// The card of a face for `words`, centred on `centre` in an output of
-/// `out`, with the working ring while the manager starts.
+/// `out`, with the working ring while the manager starts. A card with a
+/// reason takes the click that tries again.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub fn draw(
-    _look: &Look,
-    _words: &Words,
-    _ring: bool,
-    _centre: [f64; 2],
-    _out: [f64; 2],
+    look: &Look,
+    words: &Words,
+    ring: bool,
+    centre: [f64; 2],
+    out: [f64; 2],
 ) -> Vec<Command> {
-    Vec::new()
+    let (mut body, mut top) = head(look, words, ring);
+    if let Some(reason) = &words.reason {
+        let (nodes, next) = well(look, reason, top);
+        body.extend(nodes);
+        top = next;
+    }
+    if let Some(foot) = &words.foot {
+        let small = face(Type::Small, 400);
+        let inner = WIDTH - 2.0 * PAD;
+        let lines = look.size(small, foot, Some(inner))[1];
+        let id = format!("{CARD}-foot");
+        body.push(wrapped(
+            look,
+            (&id, small, foot),
+            [PAD, top],
+            inner,
+            look.glass.muted,
+        ));
+        top += lines;
+    }
+    let height = top + PAD;
+    let place =
+        |c: f64, size: f64, room: f64| (c - size / 2.0).round().clamp(0.0, (room - size).max(0.0));
+    let input = if words.reason.is_some() {
+        InputMode::Accept
+    } else {
+        InputMode::Pass
+    };
+    let mut commands = surface(
+        look,
+        &look.glass,
+        &Surface {
+            id: CARD,
+            parent: crate::NAME,
+            rect: [
+                place(centre[0], WIDTH, out[0]),
+                place(centre[1], height, out[1]),
+                WIDTH,
+                height,
+            ],
+            radius: PANEL_RADIUS,
+            strong: true,
+            name: "face-card",
+            input,
+        },
+    );
+    commands.extend(body);
+    commands
+}
+
+/// The commands that fade the card out.
+#[must_use]
+pub fn hide() -> Vec<Command> {
+    vec![crate::hud::fade(CARD, 0.0, crate::hud::FADE_OUT)]
 }
 
 #[cfg(test)]

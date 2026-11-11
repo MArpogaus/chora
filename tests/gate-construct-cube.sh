@@ -433,10 +433,12 @@ until_ok 'read -r _ owner out _ <<<"$(probe)"; test "$out" = HEADLESS-1 || { tes
     fail "the probe window $surface is lost after xp ended: $(probe)"
 ok "the probe window is not lost: $(probe)"
 
-call settings.set '{"cube_manager": "sleep 60"}' >/dev/null || fail "settings.set cube_manager"
+printf '#!/bin/sh\nexec sleep 60\n' >"$work/chora-tiling"
+chmod +x "$work/chora-tiling"
+call settings.set "{\"cube_manager\": \"$work/chora-tiling\"}" >/dev/null || fail "settings.set cube_manager"
 call cube.open '{}' >/dev/null || fail "cube.open with a manager that never connects"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs for the waiting cube"
-until_ok 'prop construct-face-card-head text | grep -q "^Sleep did not start"' 40 || fail "a manager that never connected says nothing on its face: $(prop construct-face-card-head text)"
+until_ok 'prop construct-face-card-head text | grep -q "^Tiling did not start"' 40 || fail "a manager that never connected says nothing on its face: $(prop construct-face-card-head text)"
 prop construct-face-card-reason text | grep -q "did not connect within 5 s" || fail "the card gives no reason: $(prop construct-face-card-reason text)"
 [ "$(virtuals | wc -w)" = 4 ] || fail "the outputs went with the manager that never connected: $(virtuals)"
 ok "a window manager that never connected: the face says it did not start, with the reason, and the outputs stay"
@@ -509,7 +511,7 @@ quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' |
 until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the second start did not fail on the face: $(prop construct-face-card-head text)"
 ok "Return tries again, and the second failure shows on the face again"
 call view.step_in >/dev/null || fail "view.step_in with a failed face"
-until_ok "$stepped_in" 20 || fail "no step in with a failed face"
+until_ok 'test "$(width construct-cube-face-0)" = 1280' 20 || fail "no step in with a failed face: width $(width construct-cube-face-0)"
 sleep 0.5
 inject '[{"pointer_move": {"position": [300, 200]}}, {"click": {}}]'
 until_ok 'test "$(wc -l <"$starts")" = 3' 20 || fail "a click on the face did not start the manager again: $(wc -l <"$starts") starts"

@@ -34,6 +34,7 @@ terms and no synonyms.
 | **Construct** | A YAML file of `chora-construct` with the start pose of the camera, the leash radius and the panes of one space (D66). |
 | **Pane** | A flat area that stands in the space of `chora-construct` with a fixed turn, set to face the camera where it is placed or moved. It holds a program, a plugin, a nested desktop session or a prompt. "Pane" is not "view": a view is a declarative arrangement of the configuration (D66). |
 | **Start card** | The glass card that `chora-construct` shows in the middle of the output while the space holds no pane: rows to start a terminal, the launcher or a cube, each with its key. It fades out when the first pane appears. |
+| **Face card** | The flat glass card that `chora-construct` shows on the face ahead of a cube while the window manager of the face starts (the working ring and `Starting Media center`) or failed to start (what failed, the reason in a data well, the next step). A click on it tries again. |
 | **Flavor** | A preconfigured bundle of views, plugins and services, for example "classic", "tiling" or "agentic". |
 | **Block** | A neutral plugin of the XP split that does one job for any flavor: notifications, assistant, desktop, panel or stacking window manager (D73). |
 | **Asset folder** | The folder from which a block loads its pictures and a few values. The block ships a neutral one, and a flavor ships another (D73). |

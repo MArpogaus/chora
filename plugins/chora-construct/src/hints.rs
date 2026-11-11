@@ -103,8 +103,10 @@ pub fn terminal_word(_language: chora_kit::words::Language) -> &'static str {
 /// The word of the middle hint of the cube: `Step in`, or `Try again`
 /// while the face ahead failed to start.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn middle_word(language: chora_kit::words::Language, _failed: bool) -> String {
+pub fn middle_word(language: chora_kit::words::Language, failed: bool) -> String {
+    if failed {
+        return crate::faces::retry_word(language).to_owned();
+    }
     chora_kit::words::Word::StepIn.text(language).to_owned()
 }
 
@@ -280,7 +282,7 @@ pub fn face_label(
     (manager, words): (&str, &str),
     (front, faces): (usize, usize),
     [centre, bottom]: [f64; 2],
-    _hollow: &[bool],
+    hollow: &[bool],
 ) -> Vec<Command> {
     let m = &look.glass;
     let (name_role, words_role) = (face(Type::Small, 500), face(Type::Small, 400));
@@ -322,24 +324,43 @@ pub fn face_label(
         [words_x, top],
         m.muted,
     ));
-    let mut dot_x = words_x + words_w + GAP + 4.0;
+    let dots_x = words_x + words_w + GAP + 4.0;
+    commands.extend(dots(m, (front, faces), hollow, [dots_x, (h - 6.0) / 2.0]));
+    commands
+}
+
+/// The dots of the face label at `[x, y]`: one per face, the front one
+/// in the accent; a face that failed to start has a ring and no fill.
+fn dots(
+    m: &Material,
+    (front, faces): (usize, usize),
+    hollow: &[bool],
+    [x, y]: [f64; 2],
+) -> Vec<Command> {
+    let [r, g, b, _] = m.muted;
+    let mut dots = Vec::new();
     for k in 0..faces {
-        let [r, g, b, _] = m.muted;
         let color = if k == front {
             m.accent
         } else {
             [r, g, b, 0.35]
         };
-        commands.push(rect(
+        #[allow(clippy::cast_precision_loss, reason = "a few faces")]
+        let left = x + k as f64 * 10.0;
+        let mut dot = rect(
             &format!("{FACE_LABEL}-dot-{k}"),
             FACE_LABEL,
-            [dot_x, (h - 6.0) / 2.0, 6.0, 6.0],
+            [left, y, 6.0, 6.0],
             3.0,
             color,
-        ));
-        dot_x += 10.0;
+        );
+        if let (true, Command::Create { props, .. }) = (hollow.get(k) == Some(&true), &mut dot) {
+            props.color = Some([0.0; 4]);
+            props.border = Some(Some(chora_scene::Border { width: 1.0, color }));
+        }
+        dots.push(dot);
     }
-    commands
+    dots
 }
 
 /// The top-left corner of the capsule of `items` on the screen.
