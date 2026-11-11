@@ -273,3 +273,11 @@ and a visible control that step the camera back while the face still
 forwards input; the same act in every look (principle 1). Also: turn
 keys for the cube, and a stats method so a gate can check that a still
 cube renders 0 passes.
+
+## V1 (11-11): a spoken "step in" should give the keyboard back
+Since the K4 review, view.step_in by a method moves no keyboard (only a
+person's key or chip does), so the LLM cannot take focus. But principle
+11 counts a spoken command as a person's act: after "step in" by voice
+the keyboard stays with the construct and a new window opens as a pane.
+Needs a way for the voice service to mark a call as spoken by the
+person (By::Voice), distinct from an LLM choice; design with security.
