@@ -68,6 +68,10 @@ const MENU_KEY: &str = "ContextMenu";
 
 /// The node of XP's Alt+Tab.
 const SWITCHER: &str = "xp-alttab";
+/// How often and how long apart the switcher asks for Alt+Escape: a
+/// client that holds it gives it up on the event `xp.switcher`.
+const ESCAPE_TRIES: u32 = 4;
+const ESCAPE_WAIT: Duration = Duration::from_millis(15);
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -1510,6 +1514,7 @@ impl Wm {
                 return commands;
             };
             self.switcher = Some(switcher);
+            self.tell_switcher(true);
             self.grab_switch_escape();
         }
         commands.extend(self.show_switcher(open));
@@ -1667,13 +1672,33 @@ impl Wm {
                 return;
             }
         };
-        match self
-            .rt
-            .conn
-            .call::<_, String>("input.grab", Grab { binding })
-        {
+        let mut grabbed = Err(String::new());
+        for attempt in 0..ESCAPE_TRIES {
+            if attempt > 0 {
+                std::thread::sleep(ESCAPE_WAIT);
+            }
+            let grab = Grab {
+                binding: Binding::clone(&binding),
+            };
+            grabbed =
+                (self.rt.conn.call::<_, String>("input.grab", grab)).map_err(|e| e.to_string());
+            if grabbed.is_ok() {
+                break;
+            }
+        }
+        match grabbed {
             Ok(normal) => self.switch_escape = Some(normal),
             Err(err) => eprintln!("chora-xp: {err}"),
+        }
+    }
+
+    /// Tells the other clients that the switcher shows or went, with the
+    /// event `xp.switcher`: one that holds Alt+Escape gives it up for
+    /// that time.
+    fn tell_switcher(&mut self, shown: bool) {
+        let event = serde_json::json!({"event": "xp.switcher", "data": {"shown": shown}});
+        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
+            eprintln!("chora-xp: {err}");
         }
     }
 
@@ -1692,7 +1717,11 @@ impl Wm {
                 eprintln!("chora-xp: {err}");
             }
         }
-        self.switcher.take()
+        let switcher = self.switcher.take();
+        if switcher.is_some() {
+            self.tell_switcher(false);
+        }
+        switcher
     }
 
     /// A press on a context menu goes to it; one elsewhere closes it and

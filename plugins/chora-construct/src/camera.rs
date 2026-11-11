@@ -322,6 +322,7 @@ impl Construct {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
         }
+        self.grab_cube_keys();
         Ok(())
     }
 

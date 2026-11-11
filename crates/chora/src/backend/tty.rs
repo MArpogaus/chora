@@ -815,7 +815,7 @@ fn draw(
         view,
     ));
     let damaged = present(&mut device.manager, surface, &mut renderer, &elements)?;
-    parts.assets.stats.frame(damaged);
+    parts.assets.stats.frame(&output.name(), damaged);
     Ok(damaged)
 }
 
