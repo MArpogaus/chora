@@ -677,6 +677,11 @@ impl Session {
                     self.close_view(out);
                     changed = true;
                 }
+                FieldEvent::Stop => {
+                    if let Mode::Chat(name) = &self.mode {
+                        let _ = out.voice("agent.cancel", json!({"name": name}));
+                    }
+                }
             }
         }
         changed
@@ -1293,6 +1298,19 @@ mod tests {
         switcher.hold_field(session.keyboard(), start);
         assert!(switcher.due().is_some());
         assert_eq!(calls(&log, "chat.close"), [json!({"name": "atlas"})]);
+    }
+
+    #[test]
+    fn ctrl_period_in_the_field_stops_the_helper() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), None, &frame)
+            .expect("open");
+        log.borrow_mut().events.push(FieldEvent::Stop);
+        session.field_events(&mut out, &frame);
+        assert_eq!(calls(&log, "agent.cancel"), [json!({"name": "atlas"})]);
+        assert!(session.is_open(), "the chat stays open");
     }
 
     #[test]

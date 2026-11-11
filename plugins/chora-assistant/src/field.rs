@@ -29,6 +29,8 @@ pub enum FieldEvent {
     Keyboard(bool),
     /// Esc closed the field, or the compositor did.
     Closed,
+    /// Ctrl+. in the field: stop the helper.
+    Stop,
 }
 
 /// A running field.
@@ -48,6 +50,7 @@ fn parse(line: &str) -> Option<FieldEvent> {
         "shown" => Some(FieldEvent::Shown),
         "keyboard" => Some(FieldEvent::Keyboard(value["data"]["on"] == true)),
         "closed" => Some(FieldEvent::Closed),
+        "stop" => Some(FieldEvent::Stop),
         _ => None,
     }
 }
@@ -247,6 +250,10 @@ mod tests {
         assert_eq!(
             parse(r#"{"event":"keyboard","data":{"on":true}}"#),
             Some(FieldEvent::Keyboard(true))
+        );
+        assert_eq!(
+            parse(r#"{"event":"stop","data":{}}"#),
+            Some(FieldEvent::Stop)
         );
         assert_eq!(parse(r#"{"event":"other"}"#), None);
         assert_eq!(parse("nonsense"), None);

@@ -1436,8 +1436,10 @@ lines"; only the second Enter sends, and any edit between them cancels
 it. Esc closes the field and keeps the draft for the next `place`. Ctrl+V
 and Shift+Insert paste the text of the selection (64 KiB at most; a
 thread reads it, so a slow source does not stop the field). Left, Right,
-Home, End, Backspace and Delete edit. A key with Ctrl or Alt is never
-text. Pasted and composed text pass `chora_kit::chat::sanitize`.
+Home, End, Backspace and Delete edit. Ctrl+. writes the line
+`{"event": "stop"}`, and the host stops the helper of the chat with
+`agent.cancel`, as the Stop button does; the chat stays open. A key with
+Ctrl or Alt is never text. Pasted and composed text pass `chora_kit::chat::sanitize`.
 
 **Keyboard.** The surface is on layer `top` with the keyboard on demand.
 It takes the keyboard in two ways: a click on it, and the activation

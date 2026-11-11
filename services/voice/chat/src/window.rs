@@ -505,6 +505,10 @@ impl Window {
                 self.paste();
                 None
             }
+            Decoded::Stop => {
+                self.emit("stop", json!({}));
+                None
+            }
             Decoded::Ignore => None,
         }
     }
