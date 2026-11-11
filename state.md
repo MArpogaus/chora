@@ -9,8 +9,10 @@ session branch HEAD: 06044cf (construct HUD rework merged after 39539ed marble)
 
 ## Now (11-11 17:40 UTC; sections "Plan of the day" and "Next step" below are of 11-10 and superseded)
 
+Swarms (11-11): swarm 3 found 6 new verified findings; swarm 4 (mouse only) found 0 new (13 duplicates), so the swarms stop per the user's rule (test only while new issues come). Triage in reports/swarm-2/findings.md.
+
 Running:
-- swarm 3: 4 haiku testers (t-everyday, x-everyday, m-everyday, c-handover) through `reports/swarm-3/swarm.sh` (640 px, 30 steps), reports into `feedback/`.
+- transcript screen and hook proposal (opus agent).
 - screencast worker session_016iS3kNcWCmF1YP1YaxYmP6: tour of every look, then reshoot of construct from 06044cf into media/2026-11-12/tour-v2; interim friction list received.
 
 Done 11-11 (late): swarm 2 (9 runs) triaged: 20 verified, 9 rejected (env), `reports/swarm-2/findings.md`; PM card and compact hook (friction 33, 34).
