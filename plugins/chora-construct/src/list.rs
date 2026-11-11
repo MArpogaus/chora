@@ -87,6 +87,7 @@ impl Construct {
                 command: None,
                 plugin: None,
                 scene: None,
+                manager: None,
                 at: None,
                 yaw: None,
                 size: entry.size,

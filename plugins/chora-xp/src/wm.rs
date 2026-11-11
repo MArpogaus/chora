@@ -417,7 +417,9 @@ impl Wm {
 
     /// Adopts the surfaces without an owner, as at a start, in their order
     /// before a restart. Only a window of the current desktop gets the
-    /// focus.
+    /// focus. Without a window, on virtual outputs only, the keyboard stays
+    /// where it is: the client that shows the outputs has it, and the
+    /// person did nothing here yet.
     fn adopt_all(&mut self) -> Result<(), ClientError> {
         let mut nodes: Vec<chora_scene::Node> = self
             .rt
@@ -442,7 +444,11 @@ impl Wm {
         self.opened.retain(|s| !kept.contains(s));
         self.opened.splice(0..0, kept);
         let top = self.topmost_except("");
-        let mut commands = self.focus(top.as_deref());
+        let mut commands = if top.is_none() && self.cube_off() {
+            Vec::new()
+        } else {
+            self.focus(top.as_deref())
+        };
         commands.extend(self.sync_tasks());
         self.apply(commands)
     }

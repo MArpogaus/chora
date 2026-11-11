@@ -258,6 +258,7 @@ fn a_waiting_program_expires_and_is_not_saved() {
         command: Some("xterm".into()),
         plugin: None,
         scene: None,
+        manager: None,
         at: None,
         yaw: None,
         size: None,
@@ -269,6 +270,10 @@ fn a_waiting_program_expires_and_is_not_saved() {
     assert!(!Waiting::new(None, pane(Kind::Program)).stale());
     assert!(old(Kind::Program).stale());
     assert!(!old(Kind::Plugin).stale());
+    assert!(
+        !old(Kind::Manager).stale(),
+        "a manager pane waits for its name"
+    );
     assert!(Waiting::new(None, pane(Kind::Program)).file().is_none());
     assert!(old(Kind::Plugin).file().is_some());
 }

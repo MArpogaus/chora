@@ -20,6 +20,15 @@ pub(crate) struct MovePane {
     pub(crate) ahead: f64,
 }
 
+/// Parameters of `pane.manager`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ManagerPane {
+    pub(crate) manager: String,
+    #[serde(default)]
+    pub(crate) size: Option<[f64; 2]>,
+}
+
 /// Parameters of `cube.open`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -135,6 +144,18 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             json!({"name": {"type": "string"}, "scale": {"type": "number"}}),
             &["name", "scale"],
         ),
+        runtime::privileged(runtime::method(
+            "pane.manager",
+            "Adds a pane with a window manager: a virtual output of SIZE, 1024x768 by \
+             default, with the MANAGER of the setting managers on it, such as xp or \
+             tiling. Its windows take clicks through the pane. One pane per manager.",
+            json!({
+                "manager": {"type": "string"},
+                "size": {"type": "array", "items": {"type": "number"},
+                    "minItems": 2, "maxItems": 2},
+            }),
+            &["manager"],
+        )),
         runtime::method(
             "pane.remove",
             "Removes a pane by its name; its window gets a close request.",

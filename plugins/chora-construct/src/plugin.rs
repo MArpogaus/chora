@@ -2,9 +2,9 @@
 //! construct.
 
 use super::{
-    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, MovePane, Named, OpenCube,
-    Plugin, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give, json, moved,
-    runtime,
+    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, ManagerPane, MovePane, Named,
+    OpenCube, Plugin, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give, json,
+    moved, runtime,
 };
 
 impl Plugin for Construct {
@@ -136,6 +136,10 @@ impl Plugin for Construct {
                 let i = self.pane_named(&name)?;
                 self.resize_pane(i, scale).map_err(rejected)?;
                 Ok(Value::Null)
+            }
+            "pane.manager" => {
+                let ManagerPane { manager, size } = runtime::params(params)?;
+                self.open_manager(&manager, size, None).map_err(rejected)
             }
             "pane.remove" => {
                 let Named { name } = runtime::params(params)?;

@@ -204,6 +204,7 @@ impl Construct {
             command: Some(command),
             plugin: None,
             scene: None,
+            manager: None,
             at: None,
             yaw: None,
             size: None,

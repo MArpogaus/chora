@@ -50,6 +50,7 @@ mod pull;
 mod scene;
 mod space;
 mod voice;
+mod wm;
 
 use std::{
     collections::BTreeMap,
@@ -65,8 +66,8 @@ use chora_kit::{
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, PropsUpdate, ToplevelState,
-    Transform, Uniform,
+    Command, Event, InputMode, NodeKind, NodeTexture, OutputInfo, OutputTexture, PropsUpdate,
+    ToplevelState, Transform, Uniform,
     ipc::{ClientError, ExportMethod, Filter, PressState, Query, RpcError},
     overlay_id,
 };
@@ -79,7 +80,7 @@ use crate::{
     config::{Action, Config},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Metrics, Voice},
-    methods::{MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
+    methods::{ManagerPane, MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
     panes::{PaneLook, configure, create, handed_over, shadow_w, update, vec3},
     space::{Lens, Pose},
 };
@@ -176,6 +177,9 @@ enum Content {
     Window { command: Option<String> },
     /// The node of a plugin that it tags `meta:pane=SCENE`.
     Plugin { plugin: String, scene: String },
+    /// A virtual output with the window manager of that client name on
+    /// it (`wm.rs`); the source of the pane is the output.
+    Manager { manager: String },
 }
 
 /// A pane in the space.
@@ -262,10 +266,30 @@ fn unique(base: &str, taken: impl Fn(&str) -> bool) -> String {
 
 impl Pane {
     fn node(&self) -> String {
-        match self.content {
+        match &self.content {
             Content::Window { .. } => format!("construct-pane-{}", self.source),
             Content::Plugin { .. } => format!("construct-plugin-{}", self.name),
+            Content::Manager { manager } => format!("construct-manager-{manager}"),
         }
+    }
+
+    /// The sampler that shows the source of the pane: a node, or the
+    /// virtual output of a window manager.
+    fn reads(&self) -> Uniform {
+        match self.content {
+            Content::Manager { .. } => Uniform::Output(OutputTexture {
+                output: self.source.clone(),
+            }),
+            _ => Uniform::Texture(NodeTexture {
+                node: self.source.clone(),
+            }),
+        }
+    }
+
+    /// Whether the pane passes the pointer into its source: the pane of
+    /// a window manager, into its output.
+    fn forwards(&self) -> Option<bool> {
+        matches!(self.content, Content::Manager { .. }).then_some(true)
     }
 
     fn mirror(&self) -> String {
@@ -302,6 +326,7 @@ impl Pane {
     /// The pane as a file has it; a window that the construct did not
     /// start has no command and stays out.
     fn file(&self) -> Option<PaneFile> {
+        let mut manager = None;
         let (kind, command, plugin, scene) = match &self.content {
             Content::Window { command } => (Kind::Program, Some(command.clone()?), None, None),
             Content::Plugin { plugin, scene } => (
@@ -310,12 +335,17 @@ impl Pane {
                 Some(plugin.clone()),
                 Some(scene.clone()),
             ),
+            Content::Manager { manager: name } => {
+                manager = Some(name.clone());
+                (Kind::Manager, None, None, None)
+            }
         };
         Some(PaneFile {
             kind,
             command,
             plugin,
             scene,
+            manager,
             at: Some(self.at),
             yaw: Some(self.yaw),
             size: Some(self.size),
@@ -472,6 +502,8 @@ struct Construct {
     effects: effects::Driver,
     /// The cube of virtual outputs and their window manager.
     cube: Option<cube::Host>,
+    /// The window managers of the panes (`wm.rs`).
+    managed: Vec<wm::Managed>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -558,6 +590,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         glow: None,
         effects: effects::Driver::default(),
         cube: None,
+        managed: Vec::new(),
     };
     construct.effects.set(&construct.settings.value.effects);
     construct.start()?;

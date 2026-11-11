@@ -345,6 +345,13 @@ a toplevel, the core reserves it for one window manager:
    holds a claim;
 3. else the owner of the smallest claim that contains the pointer.
 
+One case differs. When the pointer is over a pane that forwards into a
+virtual output, and rule 2 names the owner of that pane, the host of the
+output, the toplevel goes to the owner of the smallest claim that
+contains the pointer on the virtual output instead: a host that has the
+keyboard passes a new window to the window manager under its pane. A
+dialog stays with rule 1.
+
 Only clients with a connection or in their grace time count. Only the
 chosen client can attach the surface, and `surface.created` names it in
 `to`. Without a match, any client attaches the surface. When the last

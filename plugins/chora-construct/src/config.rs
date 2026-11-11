@@ -244,11 +244,25 @@ pub struct Config {
     /// `--output NAME` for each face. It runs as the client `xp`.
     #[serde(default = "cube_manager")]
     pub cube_manager: String,
+    /// The window managers of `pane.manager`: the client name of each,
+    /// and its command, which gets `--output NAME`.
+    #[serde(default = "managers")]
+    pub managers: std::collections::BTreeMap<String, String>,
     pub style: Style,
 }
 
 fn cube_manager() -> String {
     "chora-xp".into()
+}
+
+fn managers() -> std::collections::BTreeMap<String, String> {
+    [
+        ("xp", "chora-xp"),
+        ("tiling", "chora-tiling"),
+        ("mc", "chora-mc --manage-windows"),
+    ]
+    .map(|(name, command)| (name.to_owned(), command.to_owned()))
+    .into()
 }
 
 impl Settings for Config {

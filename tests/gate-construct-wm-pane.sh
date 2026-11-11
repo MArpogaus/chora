@@ -7,11 +7,14 @@
 #    10 s on a virtual output of its own, and its pane shows on the
 #    screen. A second pane of xp is refused, and so is cube.open while a
 #    pane has xp.
-# 2. A window that opens under the pane of a manager belongs to that
-#    manager, on the output of the pane. A click through the pane of xp
+# 2. While the construct has the keyboard, a window that opens under
+#    the pane of a manager belongs to that manager, on the output of the
+#    pane; a click on the empty space gives the construct the keyboard
+#    back after a window in a pane had it. A click through the pane of xp
 #    and a typed key reach its window.
 # 3. With nothing moving, render.stats counts no pass and no damaged
-#    frame in 2 s.
+#    frame of the virtual outputs in 2 s. The screen is not measured:
+#    the glow of the focused pane of the construct moves with the time.
 # 4. construct.save and construct.load bring the panes back: the
 #    managers run again on new outputs.
 # 5. When the child of the xp pane ends, the pane and its output go, and
@@ -90,7 +93,9 @@ opens_under() {
 }
 opens_under xp 40 120 200 || fail "a window under the pane of xp did not go to xp: $(ctl query kind:surface | python3 -I -c 'import json, sys; print([(n["id"], n.get("owner")) for n in json.load(sys.stdin)])')"
 xp_window=$(windows_of xp)
-opens_under tiling 200 40 40 || fail "a window under the pane of tiling did not go to tiling"
+inject '[{"pointer_move": {"position": [100, 740]}}, {"click": {}}]'
+sleep 0.5
+opens_under tiling 200 40 40 || fail "a window under the pane of tiling did not go to tiling: panes xp $(rect xp), tiling $(rect tiling); $(ctl query kind:surface | python3 -I -c 'import json, sys; print([(n["id"], n.get("owner")) for n in json.load(sys.stdin)])')"
 tiling_window=$(windows_of tiling)
 until_ok 'read -r _ _ w _ <<<"$(window_on "$xp_window" "$xp_out")"; test "$w" -gt 0' 20 || fail "the window of xp does not show on $xp_out"
 until_ok 'read -r _ _ w _ <<<"$(window_on "$tiling_window" "$tiling_out")"; test "$w" -gt 0' 20 || fail "the window of tiling does not show on $tiling_out"
@@ -106,7 +111,7 @@ until_ok "grep -q '^key 30\$' $work/probe-xp.log" 20 || fail "a typed key did no
 ok "a click through the pane of xp and a typed key reached its window"
 [ -z "${SHOT:-}" ] || ctl capture "$SHOT" >/dev/null
 
-drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items()))'; }
+drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items() if k.startswith("VIRTUAL")))'; }
 still() {
     local before
     for _ in 1 2; do
@@ -117,13 +122,13 @@ still() {
     return 1
 }
 sleep 2
-still || fail "still panes draw: $(drawn)"
-ok "still manager panes render 0 passes and have no damage, by render.stats"
+still || fail "the outputs of still panes draw: $(drawn)"
+ok "the outputs of still manager panes render 0 passes and have no damage: $(drawn)"
 
 call construct.save '{"name": "managers"}' >/dev/null || fail "construct.save"
 grep -q "manager: xp" "$work/chora/constructs/managers.yaml" || fail "the file has no pane of xp: $(cat "$work/chora/constructs/managers.yaml")"
 call construct.load '{"name": "managers"}' >/dev/null || fail "construct.load"
-until_ok 'test "$(panes | wc -w)" = 2 && test "$(virtuals | wc -w)" = 2' 40 || fail "the panes did not come back: $(panes), outputs $(virtuals)"
+until_ok 'test "$(panes | wc -w)" = 2 && test "$(virtuals | wc -w)" = 2' 40 || fail "the panes did not come back: $(panes), outputs $(virtuals): $(tail -n 3 "$XDG_RUNTIME_DIR/chora.log")"
 xp_out=$(output_of xp)
 tiling_out=$(output_of tiling)
 ctl wait "id:xp-bar-$xp_out" --timeout 10 >/dev/null || fail "xp is not live again on $xp_out"
