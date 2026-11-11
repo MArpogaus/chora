@@ -127,3 +127,12 @@ status=$?
 grep -q 'power' <<<"$out" || fail "a missing power.sh said nothing on stderr: $out"
 grep -q '^notify.*Power menu' "$marks" || fail "a missing power.sh showed no notice"
 ok "a missing script is an error and a notice"
+
+stub=$(mktemp -d "$fake/stub.XXXXXX")
+printf '#!/bin/sh\necho "$@" >"%s/args"\ncat >/dev/null\n' "$stub" >"$stub/fuzzel"
+chmod +x "$stub/fuzzel"
+PATH=$stub:$PATH sh "$flavor/power.sh" >/dev/null 2>&1
+grep -q -- '--prompt Power' "$stub/args" || fail "the power menu has no prompt: $(cat "$stub/args" 2>/dev/null)"
+LANG=de_DE.UTF-8 PATH=$stub:$PATH sh "$flavor/power.sh" >/dev/null 2>&1
+grep -q -- '--prompt Ausschalten' "$stub/args" || fail "the German power menu has no prompt: $(cat "$stub/args" 2>/dev/null)"
+ok "the power menu shows a prompt, in German too"

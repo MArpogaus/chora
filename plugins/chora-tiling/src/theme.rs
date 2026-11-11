@@ -322,14 +322,14 @@ fn icon(color: &str, shapes: &str) -> String {
 }
 
 fn fuzzel(c: &Colors) -> String {
-    let [surface, text, accent, surface_2, line] =
-        [&c.surface, &c.text, &c.accent, &c.surface_2, &c.line].map(|x| format!("{}ff", bare(x)));
+    let [surface, text, accent, on_accent, line] =
+        [&c.surface, &c.text, &c.accent, &c.on_accent, &c.line].map(|x| format!("{}ff", bare(x)));
     format!(
         "# The launcher of the tiling flavor, themed and opaque. Written by\n\
          # chora-tiling --apply-theme from the palette of chora-tiling.yaml.\n\
          [main]\n\
-         font=Inter:size=14\n\
-         prompt=\"  \"\n\
+         font=Inter:pixelsize=14\n\
+         prompt=\"Apps  \"\n\
          width=36\n\
          lines=9\n\
          horizontal-pad=20\n\
@@ -342,9 +342,9 @@ fn fuzzel(c: &Colors) -> String {
          background={surface}\n\
          text={text}\n\
          match={accent}\n\
-         selection={surface_2}\n\
-         selection-text={text}\n\
-         selection-match={accent}\n\
+         selection={accent}\n\
+         selection-text={on_accent}\n\
+         selection-match={on_accent}\n\
          border={line}\n\
          \n\
          [border]\n\
@@ -764,6 +764,38 @@ mod tests {
             user.join("wallpaper.png").to_string_lossy()
         );
         std::fs::remove_dir_all(temp).unwrap();
+    }
+
+    fn fuzzel_value(file: &str, key: &str) -> String {
+        let line = file
+            .lines()
+            .find_map(|l| l.strip_prefix(&format!("{key}=")))
+            .unwrap_or_default();
+        line.to_owned()
+    }
+
+    #[test]
+    fn the_selected_row_of_the_launcher_stands_out_from_the_panel() {
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            let all = files(&colors);
+            let file = &all.iter().find(|(n, _)| *n == "fuzzel.ini").unwrap().1;
+            let hex = |key: &str| format!("#{}", &fuzzel_value(file, key)[..6]);
+            let ratio = contrast(&hex("selection"), &hex("background"));
+            assert!(ratio >= 3.0, "{scheme:?}: the selection is {ratio:.2}:1");
+            for text in ["selection-text", "selection-match"] {
+                let ratio = contrast(&hex(text), &hex("selection"));
+                assert!(ratio >= 4.5, "{scheme:?}: {text} is {ratio:.2}:1");
+            }
+        }
+    }
+
+    #[test]
+    fn the_launcher_has_a_prompt_and_14_pixel_text() {
+        let all = files(&Colors::of(Scheme::Ink));
+        let file = &all.iter().find(|(n, _)| *n == "fuzzel.ini").unwrap().1;
+        assert!(fuzzel_value(file, "prompt").trim_matches('"').trim().len() > 1);
+        assert_eq!(fuzzel_value(file, "font"), "Inter:pixelsize=14");
     }
 
     #[test]

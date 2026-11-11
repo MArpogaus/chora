@@ -84,3 +84,23 @@ hits = sum(px(x, y) == want for x in range(500, 780, 4) for y in range(300, 500,
 assert hits > 100, f"only {hits} of the samples are the surface colour: the panel is not opaque Ink"
 PY
 ok "the launcher is opaque and in the palette"
+
+python3 -I - "$repo/tests/png-pixel.py" "$shot" <<'PY' || fail "the selected row does not stand out from the panel"
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
+px = lambda x, y: tuple(rows[y][x * 4:x * 4 + 3])
+def lum(c):
+    v = [x / 255 for x in c]
+    v = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in v]
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]
+panel = (0x1a, 0x1d, 0x27)
+rows_ = [(x, y) for x in range(420, 860, 4) for y in range(250, 560, 2) if px(x, y) not in (panel,) and abs(lum(px(x, y)) - lum(panel)) > 0.05]
+bars = [(x, y) for x, y in rows_ if px(x, y) == (0xa7, 0x8b, 0xfa)]
+assert len(bars) > 300, f"only {len(bars)} samples of the selection colour"
+a, b = lum((0xa7, 0x8b, 0xfa)), lum(panel)
+assert (max(a, b) + 0.05) / (min(a, b) + 0.05) >= 3.0
+PY
+ok "the selected row of the launcher stands out from the panel"
