@@ -17,7 +17,8 @@
 # Super with the left button for the others), key (the shortcut
 # Super+Alt+1 to 4 for tiling, xp, mc and construct as the target; in
 # construct Tab, g and Return of the window list on a window behind the
-# camera), voice (the real chora-voice with the fakes of
+# camera, after Alt+Escape gave the walk the keyboard while the construct
+# stood still for 1 s), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
 # turn takes about 7 s; all 12 pairs run, and the whole matrix takes about
 # 150 s of the 240 s that it may take. The table can mark a cell `skip`,
@@ -156,6 +157,7 @@ grant input.inject screen.capture methods.call methods.privileged
 
 start_construct() {
     "$bin/chora-construct" >"$shots/construct.log" 2>&1 &
+    construct_pid=$!
     pids+=($!)
     ctl wait --timeout 20 id:construct-look >/dev/null || fail "the flavor shows no space: $(tail -n 3 "$shots/construct.log")"
 }
@@ -307,8 +309,12 @@ construct_key() {
     local row names
     ctl call construct window.show '{"name": "probe"}' >/dev/null 2>&1
     sleep 1.5
+    kill -STOP "$construct_pid"
     key Alt+Escape
-    ctl wait --timeout 3 "id:construct-look focused:true" >/dev/null 2>&1
+    (sleep 1 && kill -CONT "$construct_pid") &
+    pids+=($!)
+    ctl wait --timeout 3 "id:construct-look focused:true" >/dev/null ||
+        fail "the walk of the construct has no keyboard after Alt+Escape"
     ctl call construct pane.move "{\"name\": \"probe\", \"ahead\": -6000}" >/dev/null 2>&1
     sleep 0.5
     row=$(ctl call construct window.list 2>/dev/null |
