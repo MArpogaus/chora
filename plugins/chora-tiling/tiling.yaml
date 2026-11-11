@@ -157,13 +157,21 @@ bindings:
   MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
   # Programs
   # chora-tiling --launch starts a program of the flavor with its config
-  # file in the palette: foot, fuzzel or swaylock.
+  # file in the palette (foot, fuzzel, swaylock), or a script of the flavor
+  # (power, screenshot).
   MOD+Return: {run: chora-tiling --launch foot}
   MOD+space: {run: chora-tiling --launch fuzzel}
   MOD+r: {run: chora-tiling --launch fuzzel}
   MOD+a: {run: chora-chat}
   # swayidle of the tiling flavor runs swaylock on this request
   MOD+Shift+Escape: {run: loginctl lock-session}
+  # The power menu: Lock, Log out, Restart, Shut down.
+  MOD+Shift+e: {run: chora-tiling --launch power}
+  # A screenshot of the output, or of an area, in ~/Pictures/Screenshots and
+  # on the clipboard. Print alone needs a grant that the core does not give
+  # yet, so these are the keys with MOD.
+  MOD+Print: {run: chora-tiling --launch screenshot}
+  MOD+Shift+s: {run: chora-tiling --launch screenshot area}
   # Sound: the media keys need no modifier, as they type nothing.
   XF86AudioRaiseVolume: {volume: up}
   XF86AudioLowerVolume: {volume: down}
@@ -181,3 +189,6 @@ labels:
   MOD+a: Chat with a helper
   MOD+r: Run a program
   MOD+Shift+Escape: Lock the screen
+  MOD+Shift+e: Power menu
+  MOD+Print: Screenshot
+  MOD+Shift+s: Screenshot of an area

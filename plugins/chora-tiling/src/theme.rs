@@ -484,7 +484,8 @@ pub fn config_dirs() -> Vec<std::path::PathBuf> {
 
 /// The command line of a program of the flavor with its config file:
 /// `foot -c FILE`, `fuzzel --config FILE`, `swaylock -C FILE` and `swaybg
-/// -i WALLPAPER -m fill`, then the arguments of the caller; the program
+/// -i WALLPAPER -m fill`, `screenshot` and `power` as `sh screenshot.sh`
+/// and `sh power.sh` of the flavor, then the arguments of the caller; the program
 /// alone when no file exists. The wallpaper of a scheme is
 /// `wallpaper.png` for Ink and `wallpaper-paper.png` for Paper; a
 /// `wallpaper.png` of the user, found first, serves both.
@@ -518,6 +519,11 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
+        "screenshot" | "power" => {
+            let name = format!("{program}.sh");
+            line = find(&[&name])
+                .map_or_else(|| vec!["true".to_owned()], |f| vec!["sh".to_owned(), f]);
+        }
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {

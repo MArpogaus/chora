@@ -99,10 +99,10 @@
     "on-click": "choractl call tiling show_keys"
   },
   "custom/power": {
-    "exec": "echo '{\"text\": \" \", \"tooltip\": \"Lock (Super+Shift+Escape)\"}'",
+    "exec": "echo '{\"text\": \" \", \"tooltip\": \"Power menu (Super+Shift+E)\"}'",
     "return-type": "json",
     "interval": "once",
-    "on-click": "loginctl lock-session"
+    "on-click": "choractl run -- chora-tiling --launch power"
   },
   "clock": {
     "format": "{:%a %d %b %H:%M}",

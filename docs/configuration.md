@@ -1371,6 +1371,8 @@ The package installs the tiling flavor (D51):
 ├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
 ├── fuzzel.ini                        # the launcher: opaque, the palette
 ├── swaylock.conf                     # the lock screen in the palette
+├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
+├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
@@ -1444,6 +1446,17 @@ its own package and needs no configuration.
   the flavor. The terminal is JetBrains Mono at 14 px with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
+- **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
+  the panel open the menu of `power.sh`, the launcher in menu mode with
+  four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
+  `loginctl terminate-session`, `systemctl reboot`, `systemctl poweroff`).
+  `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
+  area that slurp lets you select: `screenshot.sh` writes it to
+  `~/Pictures/Screenshots`, copies it with `wl-copy` when that is there and
+  names the file in a notice (`notify-send`, shown by mako). grim is needed,
+  and slurp for an area. `Print` alone needs a grant that the core does not
+  give yet, so the keys have `MOD`. Both scripts are found like the config
+  files: `chora/tiling/` of the config directory first.
 - **The lock**: swayidle runs `chora-tiling --launch swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
   runs. swaylock locks through the session lock protocol of the core.

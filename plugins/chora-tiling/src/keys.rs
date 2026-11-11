@@ -188,7 +188,7 @@ type Entry = (usize, String, String);
 
 /// The English words of the rows in the order that the key list shows
 /// them, by group; a row that is not here follows the others, by its keys.
-const ORDER: [&str; 41] = [
+const ORDER: [&str; 44] = [
     "Next window",
     "Previous window",
     "Window before",
@@ -228,6 +228,9 @@ const ORDER: [&str; 41] = [
     "Run a program",
     "Chat with a helper",
     "Lock the screen",
+    "Power menu",
+    "Screenshot",
+    "Screenshot of an area",
     "Read the settings again",
     "Show this list",
 ];
