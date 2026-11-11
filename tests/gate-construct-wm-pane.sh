@@ -11,7 +11,8 @@
 #    the pane of a manager belongs to that manager, on the output of the
 #    pane; a click on the empty space gives the construct the keyboard
 #    back after a window in a pane had it. A click through the pane of xp
-#    and a typed key reach its window.
+#    and a typed key reach its window, also while xp answers the click
+#    late: xp stands still for 1 s after the press.
 # 3. With nothing moving, render.stats counts no pass and no damaged
 #    frame of the virtual outputs in 2 s. The screen is not measured:
 #    the glow of the focused pane of the construct moves with the time.
@@ -104,8 +105,13 @@ ok "a window that opens under a pane belongs to the manager of that pane: $xp_wi
 read -r px py pw ph <<<"$(rect xp)"
 read -r wx wy ww wh <<<"$(window_on "$xp_window" "$xp_out")"
 click="$((px + (wx + ww / 2) * pw / 560)), $((py + (wy + wh / 2) * ph / 400))"
+xp_pid=$(pid_of chora-xp)
+[ -n "$xp_pid" ] || fail "no xp process of this session"
+kill -STOP "$xp_pid"
 inject "[{\"pointer_move\": {\"position\": [$click]}}, {\"click\": {}}]"
 until_ok "grep -q '^press' $work/probe-xp.log" 20 || fail "a click through the pane of xp at ($click) did not reach its window"
+(sleep 1 && kill -CONT "$xp_pid") &
+pids+=($!)
 inject '[{"key": {"key": "a", "state": "pressed"}}, {"key": {"key": "a", "state": "released"}}]'
 until_ok "grep -q '^key 30\$' $work/probe-xp.log" 20 || fail "a typed key did not reach the window in the pane of xp"
 ok "a click through the pane of xp and a typed key reached its window"
