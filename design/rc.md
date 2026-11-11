@@ -53,3 +53,14 @@ tag, persona round 5 at full breadth: all four looks, all personas
 two screens, every basic task, the cube and the panes, a long session
 (hours) for leaks and stalls, plus the opt-in battle script. Findings
 are fixed before 1.0; the rc stays the base of the 30-day gate.
+
+## User, 11-11 ~18:20
+
+After the rc gates pass: an intense reflection loop, then sharpen the
+charter, the dev rules and the plan for the next days. Plan: the Fable
+judge (fresh pool next week) reviews the whole session so far (what
+worked, what wasted time or tokens, review findings by kind, merge
+conflicts, flakes, worker handoffs, the 5-hour pacing); I add my own
+critique; the user's readings and decisions are the yardstick. Output:
+reflections/2026-11-rc.md, a charter diff (rules added, rules removed),
+dev-rules and brief templates updated, and the plan of the next days.
