@@ -58,6 +58,16 @@ voice_hud: false
 test_accept_injected_keys: true
 YAML
 
+title() {
+    case $1 in
+    sunset) echo Sunset ;;
+    chora) echo 'chora · a compositor that gives forms a place' ;;
+    load) echo 'Load' ;;
+    *.rs) echo "$1 · rust" ;;
+    *) echo "$1" ;;
+    esac
+}
+
 pane() {
     local name=$1 at=$2 yaw=$3 width=$4 height=$5 pad=14x12
     shift 5
@@ -65,7 +75,7 @@ pane() {
     cat <<YAML
   - kind: program
     command: >-
-      exec foot --app-id=$name -o pad=$pad -o colors.background=1a1b26 -o colors.foreground=c0caf5
+      exec foot --app-id=$name --title='$(title "$name")' -o pad=$pad -o colors.background=1a1b26 -o colors.foreground=c0caf5
       -o 'font=DejaVu Sans Mono:size=9' -o cursor.blink=no
       -e sh -c 'sleep 1.5; python3 -I "\$0" "\$@"; exec sleep infinity'
       $(printf '%q ' "$repo/demo/content.py" "$@")
