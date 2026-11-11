@@ -240,5 +240,5 @@ swarm: a launcher script that starts the session for the persona with
 the right env and keeps the shots, so the persona only gets act.py and
 the screen; the brief forbids reading the repo.
 
-### 32. The charter names a `--fast` train flag the script does not have (11-12)
+## 32 (11-12): the charter names a `--fast` train flag the script lacks
 The 11-11 reflection rules say "merge train with `--fast`". `train.sh` has no such flag, so it read `--fast` as a branch spec, failed to fetch it and reported a fake CONFLICT. No harm was done, but one train run was lost. Fix: either add the flag to train.sh or reword the charter rule. Rules that name a tool option must be checked against the tool.
