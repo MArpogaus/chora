@@ -2985,10 +2985,12 @@ mod tests {
     }
 
     /// A key that a window manager grabbed is an act of the person
-    /// toward it, as a click on its empty screen is: the window that the
-    /// key starts opens there, not where the last click chose (M4).
+    /// toward it, as a click on its empty screen is: when the pointer or
+    /// the keyboard focus is in its claim, the window that the key starts
+    /// opens there, not where the last click chose (M4). Elsewhere, and
+    /// for an injected key, the key chooses nobody.
     #[test]
-    fn a_grabbed_key_of_the_user_chooses_its_manager_for_a_new_window() {
+    fn a_grabbed_key_of_the_user_chooses_its_manager_where_the_person_is() {
         use smithay::backend::input::{InputTime, KeyState};
         let mut core = Core::new();
         core.add_output("A", (800, 600));
@@ -3016,16 +3018,19 @@ mod tests {
                 key(core, code, state, injected);
             }
         };
-        super_return(&mut core, true);
-        wayland.toplevel(&mut core, "one");
-        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("b"), "injected");
         super_return(&mut core, false);
+        wayland.toplevel(&mut core, "one");
+        let one = reserved_for(&core, "s1");
+        assert_eq!(one.as_deref(), Some("b"), "the pointer is in b");
+        core.state.pointer_layout = (100.0, 300.0).into();
+        super_return(&mut core, true);
         wayland.toplevel(&mut core, "two");
-        assert_eq!(
-            reserved_for(&core, "s2").as_deref(),
-            Some("a"),
-            "the key of a"
-        );
+        let two = reserved_for(&core, "s2");
+        assert_eq!(two.as_deref(), Some("b"), "injected");
+        super_return(&mut core, false);
+        wayland.toplevel(&mut core, "three");
+        let three = reserved_for(&core, "s3");
+        assert_eq!(three.as_deref(), Some("a"), "the pointer is in a");
     }
 
     /// Where a surface is: `(owner, parent, reserved for)`.

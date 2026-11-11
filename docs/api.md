@@ -351,9 +351,11 @@ A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
 window manager gets the next new windows there. A key of the user that
-a window manager grabbed chooses that one in the same way, so that the
-window that its key starts, such as the terminal of `Super+Return`,
-opens there. The choice ends with
+a window manager grabbed chooses that one in the same way when its
+claim holds the pointer or the keyboard focus, unless it has the
+keyboard focus anyway: the window that its key starts, such as the
+terminal of `Super+Return`, opens where the person is. Elsewhere the
+key changes nothing. The choice ends with
 the next press of the user that chooses nobody, and when the keyboard
 focus changes, for example when the chosen manager focuses its new
 window. An injected press neither chooses nor ends a choice.
