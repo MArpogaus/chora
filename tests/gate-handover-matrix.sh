@@ -19,9 +19,9 @@
 # construct Tab, g and Return of the window list on a window behind the
 # camera), voice (the real chora-voice with the fakes of
 # tests/battle/w16.sh, a tool call `call_method` of the fake LLM). A voice
-# turn takes about 7 s, so voice runs for 8 pairs, each window manager
-# twice as source and twice as target; the other 4 cells are `skip` in the
-# table and stay so.
+# turn takes about 7 s; all 12 pairs run, and the whole matrix takes about
+# 150 s of the 240 s that it may take. The table can mark a cell `skip`,
+# which runs nothing; no cell is one now.
 #
 # The gate fails on every cell that differs from the table EXPECTED, in
 # both directions, so a fix must flip its line. It fails too when a window
@@ -57,7 +57,7 @@ tiling mc give pass
 tiling mc cgive pass
 tiling mc cgive-s pass
 tiling mc mcp pass
-tiling mc voice skip
+tiling mc voice pass
 tiling construct key pass
 tiling construct drag pass
 tiling construct give pass
@@ -85,23 +85,23 @@ xp construct give pass
 xp construct cgive pass
 xp construct cgive-s pass
 xp construct mcp pass
-xp construct voice skip
+xp construct voice pass
 mc tiling key pass
-mc tiling drag gap
+mc tiling drag pass
 mc tiling give pass
 mc tiling cgive pass
 mc tiling cgive-s pass
 mc tiling mcp pass
-mc tiling voice skip
+mc tiling voice pass
 mc xp key pass
-mc xp drag gap
+mc xp drag pass
 mc xp give pass
 mc xp cgive pass
 mc xp cgive-s pass
 mc xp mcp pass
 mc xp voice pass
 mc construct key pass
-mc construct drag gap
+mc construct drag pass
 mc construct give pass
 mc construct cgive pass
 mc construct cgive-s pass
@@ -120,7 +120,7 @@ construct xp give pass
 construct xp cgive pass
 construct xp cgive-s pass
 construct xp mcp pass
-construct xp voice skip
+construct xp voice pass
 construct mc key pass
 mc construct leak pass
 construct mc drag pass

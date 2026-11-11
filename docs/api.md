@@ -341,9 +341,19 @@ Several window managers share the scene (D55). A window manager sets
 a toplevel, the core reserves it for one window manager:
 
 1. the owner of its parent toplevel, for a dialog;
-2. else the owner of the node or surface with the keyboard focus, if it
+2. else the window manager that a click of the user chose, if it holds
+   a claim;
+3. else the owner of the node or surface with the keyboard focus, if it
    holds a claim;
-3. else the owner of the smallest claim that contains the pointer.
+4. else the owner of the smallest claim that contains the pointer.
+
+A press of a real pointer button on a point of a claim with no window
+under it chooses the owner of the smallest such claim, unless that one
+has the keyboard focus anyway: who clicks the empty screen of another
+window manager gets the next new windows there. The choice ends with
+the next press of the user that chooses nobody, and when the keyboard
+focus changes, for example when the chosen manager focuses its new
+window. An injected press neither chooses nor ends a choice.
 
 Only clients with a connection or in their grace time count. Only the
 chosen client can attach the surface, and `surface.created` names it in
@@ -501,16 +511,18 @@ to the owner of that output, the client that shows it as a pane. When
 the core refuses, as for an injected drag, the window stays with
 `chora-xp` for the rest of the drag.
 
-A gate has no real pointer. The flag `--test-injected-drag-gives` of
+A gate has no real pointer. The flag `--test-injected-press-is-real` of
 the core, valid only right after `--headless SPECS`, makes an injected
-button press count as a button press of the user for `give_grab`, and
-for nothing else. It also turns off the rule that no input was injected
+button press count as a button press of the user for `give_grab` and
+for the choice of the window manager of a new window (see
+[Window managers](#window-managers)), and for nothing else. It also turns off the rule that no input was injected
 since the press, as every input of a gate is injected. The core logs a
 warning at its start, and no child inherits the mode, as it is no
 variable of the environment. It is for tests.
 `tests/gate-construct-pull.sh` pulls a window out of a face of the cube
 with it, and checks without it that the core refuses the give of an
-injected drag.
+injected drag. `tests/gate-click-routes.sh` checks both for the click
+that chooses a window manager.
 
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for
@@ -558,7 +570,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
-| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local` and modifiers; `pointer.released` with the button. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye, and each coordinate stops at 10^6 near the horizon of the plane; for a node with a mesh, `local` is the point of the flat quad of its size under its transform, in a press as in a drag |
+| `pointer.moved`, `pointer.released` | after a press over a rect or an image, until the button goes up: node, position, `local` and modifiers; `pointer.released` with the button. `injected: true` marks a move or a release that came from `input.inject`; a client that takes a drag for the user ignores it. `local` is the point of the plane of the node that the pointer shows, also outside the node; it stays at the last point while the plane shows the pointer behind the eye, and each coordinate stops at 10^6 near the horizon of the plane; for a node with a mesh, `local` is the point of the flat quad of its size under its transform, in a press as in a drag |
 | `pointer.scroll` | the wheel or the touchpad scrolled over a rect, an image or a shader node: node, position, `dx` and `dy` in logical pixels, `discrete` wheel steps, `source` (`wheel`, `finger`, `continuous` or `wheel_tilt`) and modifiers; only to the owner of the node |
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |

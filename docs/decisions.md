@@ -167,6 +167,15 @@ not decide. The core reserves the surface for the named window manager,
 as at a handover. Outside of all
 claims, any window manager can take the new surface.
 
+Amended on 2026-11-11: the order that the core follows is in
+[Window managers](api.md#window-managers). After the parent comes the
+window manager that a click of the user chose: a press of a real
+pointer button on a point of a claim with no window under it chooses
+the owner of the smallest such claim for the next new windows. A person
+who clicks the empty screen of another window manager expects the next
+window there. The choice ends with the next press of the user elsewhere
+and when the keyboard focus changes. An injected press chooses nobody.
+
 **The drop target.** A drag that ends outside the claim of A goes to the
 owner of the smallest other claim that holds the drop point; without one
 there, the surface stays with A.

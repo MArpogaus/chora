@@ -1614,6 +1614,8 @@ mod tests {
             "turn right",
             "zurücktreten",
             "hineingehen",
+            "\"turn left\" or \"nach links drehen\" is cube.turn with by -1",
+            "\"turn right\" or \"nach rechts drehen\" is cube.turn with by 1",
         ] {
             assert!(SYSTEM.contains(needed), "the prompt lacks {needed:?}");
         }

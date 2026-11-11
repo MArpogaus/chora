@@ -215,11 +215,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     if *backend.damage_tracker.mode() != mode {
         backend.damage_tracker = OutputDamageTracker::from_mode_source(mode);
     }
-    // The query of the buffer age needs the surface of the window current.
-    // Layers and captures render into textures and leave no surface
-    // current. Then the query fails with BAD_SURFACE, and the frame is a
-    // full redraw. A bind makes the surface current first.
-    drop(backend.graphics.bind().map_err(|e| format!("bind: {e}"))?);
+    make_current(backend)?;
     // 0 means a full redraw.
     let age = backend.graphics.buffer_age().unwrap_or(0);
     let damage = {
@@ -265,6 +261,22 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         wp_presentation_feedback::Kind::Vsync,
     );
     Ok(true)
+}
+
+/// Makes the surface of the window current with a frame that draws
+/// nothing. The query of the buffer age needs that. Layers, captures and
+/// virtual outputs render into textures and leave no surface current;
+/// then the query fails with `BAD_SURFACE`, and the frame is a full
+/// redraw. A bind alone makes nothing current.
+fn make_current(backend: &mut Winit) -> Result<(), String> {
+    use smithay::backend::renderer::{Frame as _, Renderer as _};
+    let size = backend.graphics.window_size();
+    let (renderer, mut framebuffer) = backend.graphics.bind().map_err(|e| format!("bind: {e}"))?;
+    let frame = renderer
+        .render(&mut framebuffer, size, Transform::Normal)
+        .map_err(|e| format!("an empty frame: {e}"))?;
+    drop(frame.finish().map_err(|e| format!("an empty frame: {e}"))?);
+    Ok(())
 }
 
 /// How the window shows the output: in its mode and scale, and with its

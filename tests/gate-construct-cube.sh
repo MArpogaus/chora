@@ -35,7 +35,9 @@
 #    While the window manager does not answer, a window keeps its
 #    plane, so it never shows nowhere; it lands when the answer comes.
 #    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
-# 3. A slow cube.turn forwards nothing while it runs; then the next face
+# 3. A slow cube.turn forwards nothing while it runs; at a third of it
+#    the screen shows two faces; the gate prints the frame time of the
+#    turn; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
 #    the window to the output of the next face.
 # 4. When xp ends, the construct removes the outputs and the cube, and
@@ -203,6 +205,20 @@ until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "typed text after the 
 ok "Alt+Escape steps back, Return steps in, and typed text reaches the window of before"
 
 key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back before a step in by a method"
+call view.step_in >/dev/null || fail "view.step_in after a step back of the person"
+until_ok "$stepped_in" 20 || fail "view.step_in did not step in after a step back of the person"
+before=$(keys_got 30)
+plain a
+sleep 0.5
+[ "$(keys_got 30)" = "$before" ] || fail "view.step_in, a method, gave the keyboard to the window"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back after a step in by a method"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in after a step in by a method"
+ok "a step in by a method moves no keyboard"
+
+key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a second time"
 key Ctrl+Alt+Right
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube in navigate mode"
@@ -246,9 +262,9 @@ sleep 1
 drag 640 700
 sleep 1
 eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
-call view.step_in >/dev/null || fail "view.step_in after the drags"
+plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
-ok "a drag on a face turns the cube by one face, and a short drag does nothing"
+ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
 
 call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
 sleep 0.5
@@ -270,7 +286,7 @@ sleep 0.5
 eval "$stepped_in" || fail "Alt+Tab moved the view"
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape does not step back after the switcher closed"
-call view.step_in >/dev/null || fail "view.step_in after the switcher"
+plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the switcher: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 ok "after the switcher of xp closed, Alt+Escape steps back again"
 
@@ -360,8 +376,14 @@ run_pid "$second_probe"
 kill "$second_probe"
 until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
 
+frames() { ctl render-stats | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])'; }
+turn_frames=$(frames)
+turn_start=$(date +%s%N)
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
-sleep 1
+sleep 0.4
+[ "$(width construct-cube-face-0)" -gt 0 ] && [ "$(width construct-cube-face-1)" -gt 0 ] ||
+    fail "at a third of the turn the screen does not show two faces: widths $(width construct-cube-face-0) and $(width construct-cube-face-1)"
+sleep 0.6
 [ "$(prop "construct-cube-float-0-$surface" visible)" != gone ] || fail "the window does not float during a turn"
 [ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 [ "$(prop construct-cube-face-0 forward)" = False ] && [ "$(prop construct-cube-face-1 forward)" = False ] ||
@@ -369,6 +391,10 @@ sleep 1
 call cube.turn '{"by": 1}' >/dev/null || fail "cube.turn during a turn"
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False && test "$(prop construct-cube-face-1 forward)" = True' 40 ||
     fail "the cube did not turn: face 0 $(prop construct-cube-face-0 visible), face 1 $(prop construct-cube-face-1 visible) $(prop construct-cube-face-1 forward)"
+turn_ms=$(( ($(date +%s%N) - turn_start) / 1000000 ))
+turn_frames=$(( $(frames) - turn_frames ))
+[ "$turn_frames" -gt 0 ] || fail "the screen drew no frame during the turn"
+echo "frame time: $turn_frames frames of the screen in $turn_ms ms of the turn, $(( turn_ms / turn_frames )) ms a frame"
 [ "$(prop construct-cube-face-2 visible)" = False ] || fail "a turn during a turn went on to face 2"
 ok "a slow turn forwarded nothing, a turn during it was ignored, and face 1 is at the front"
 second=$(echo "$opened" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"][1])')

@@ -222,7 +222,7 @@ impl Construct {
     /// step back from inside a pane flies out of the pane first.
     pub(crate) fn mode_act(&mut self, act: Act, by: By) -> Result<(), ClientError> {
         if let Act::Turn(turns) = act {
-            return self.turn_cube(turns, None, by == By::Person);
+            return self.turn_cube(turns, None, by == By::Person).map(drop);
         }
         if self.cube.is_none() {
             return Err(no_cube());
@@ -236,7 +236,9 @@ impl Construct {
             return Ok(());
         }
         if act == Act::StepIn {
-            self.give_the_keyboard_back();
+            if by == By::Person {
+                self.give_the_keyboard_back();
+            }
             let home = self.cube.as_ref().map(cube::Host::home);
             if let Some(home) = home.filter(|home| *home != self.pose) {
                 self.glide_to(home, FLY_MS, None);
@@ -272,8 +274,9 @@ impl Construct {
     }
 
     /// The window that had the keyboard before the step back gets it
-    /// again, through its window manager, when the face of then is at
-    /// the front again. After a turn to another face it stays without.
+    /// again, through its window manager, when the person steps in and
+    /// the face of then is at the front again. After a turn to another
+    /// face it stays without. A step in by a method moves no keyboard.
     fn give_the_keyboard_back(&mut self) {
         let Some(surface) = self.cube.as_mut().and_then(cube::Host::take_focus) else {
             return;
@@ -315,36 +318,57 @@ impl Construct {
     /// The act of a press of the left button on a chip, or on a face in
     /// navigate mode while the cube rests. An injected press does
     /// nothing, as for the other controls.
-    fn press_act(&mut self, view: View, node: &str, (x, injected): (f64, bool)) -> Option<Pressed> {
+    fn press_act(
+        &mut self,
+        view: View,
+        node: &str,
+        (at, injected): ([f64; 2], bool),
+    ) -> Option<Pressed> {
         let chip = CHIPS.into_iter().find(|w| chip_id(*w) == node);
         let face = cube::face_index(node).filter(|_| view.mode() == Mode::Navigate);
-        if chip.is_none() && face.is_none() {
-            return None;
-        }
-        if injected && !self.rt.accepts_injected() {
+        let pressed = press_of(chip, face, injected && !self.rt.accepts_injected())?;
+        if let (Pressed::Face(face), Some(host)) = (&pressed, &mut self.cube) {
+            host.press(*face, at);
             return Some(Pressed::Nothing);
         }
-        if let (None, Some(face), Some(host)) = (chip, face, &mut self.cube) {
-            host.press(face, x);
-        }
-        Some(chip.map_or(Pressed::Nothing, |word| Pressed::Act(chip_act(word))))
+        Some(pressed)
     }
 
-    /// The pointer moved during a press on a face: a drag turns the cube.
-    fn drag_act(&mut self, node: &str, x: f64) -> Option<Pressed> {
-        cube::face_index(node)?;
-        let third = self.lens.w / 3.0;
-        match self.cube.as_mut()?.drag(x, third) {
-            cube::Dragged::Turn(by) => Some(Pressed::Act(Act::Turn(by))),
-            cube::Dragged::Nothing => Some(Pressed::Nothing),
+    /// The pointer moved during a press on a face: a drag turns the
+    /// cube, and goes on from there when the cube took the turn. An
+    /// injected move ends the press: it is not the hand of the person.
+    fn drag_act(
+        &mut self,
+        node: &str,
+        (at, injected): ([f64; 2], bool),
+    ) -> Result<Option<Pressed>, ClientError> {
+        if cube::face_index(node).is_none() {
+            return Ok(None);
         }
+        let ignored = injected && !self.rt.accepts_injected();
+        let third = self.lens.w / 3.0;
+        let Some(host) = &mut self.cube else {
+            return Ok(None);
+        };
+        if ignored {
+            host.forget_press();
+            return Ok(Some(Pressed::Nothing));
+        }
+        if let cube::Dragged::Turn(by) = host.drag(at, third)
+            && self.turn_cube(by, None, true)?
+            && let Some(host) = &mut self.cube
+        {
+            host.drag_turned(at[0]);
+        }
+        Ok(Some(Pressed::Nothing))
     }
 
     /// The release of a press on a face: a click steps into the face,
-    /// when the cube rests in navigate mode.
-    fn release_act(&mut self, view: View, node: &str) -> Option<Pressed> {
+    /// when the cube rests in navigate mode. Not an injected release.
+    fn release_act(&mut self, view: View, node: &str, injected: bool) -> Option<Pressed> {
         cube::face_index(node)?;
-        let face = self.cube.as_mut()?.release();
+        let ignored = injected && !self.rt.accepts_injected();
+        let face = self.cube.as_mut()?.release().filter(|_| !ignored);
         let rests = view.mode() == Mode::Navigate && !view.turning();
         Some(
             face.filter(|_| rests)
@@ -379,23 +403,10 @@ impl Construct {
         let Some(view) = self.cube.as_ref().map(cube::Host::view) else {
             return Ok(false);
         };
+        if let Some(done) = self.manager_event(event) {
+            return done.map(|()| true);
+        }
         let pressed = match event {
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } if client == cube::MANAGER && event == SWITCHER => {
-                let shown = data["shown"].as_bool().unwrap_or(false);
-                return self.switcher(shown).map(|()| true);
-            }
-            Event::Emitted {
-                event,
-                client,
-                data,
-            } if client == cube::MANAGER && event == FLOATING => {
-                let floated = serde_json::from_value(data.clone());
-                return floated.map_or(Ok(true), |f| self.floated(f).map(|()| true));
-            }
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
@@ -417,11 +428,19 @@ impl Construct {
                 position,
                 injected,
                 ..
-            } if *button == BTN_LEFT => self.press_act(view, node, (position[0], *injected)),
-            Event::PointerMoved { node, position, .. } => self.drag_act(node, position[0]),
-            Event::PointerReleased { node, button, .. } if *button == BTN_LEFT => {
-                self.release_act(view, node)
-            }
+            } if *button == BTN_LEFT => self.press_act(view, node, (*position, *injected)),
+            Event::PointerMoved {
+                node,
+                position,
+                injected,
+                ..
+            } => self.drag_act(node, (*position, *injected))?,
+            Event::PointerReleased {
+                node,
+                button,
+                injected,
+                ..
+            } if *button == BTN_LEFT => self.release_act(view, node, *injected),
             Event::PointerEntered { node, .. } => return self.hover_act(node, true),
             Event::PointerLeft { node } => return self.hover_act(node, false),
             _ => None,
@@ -435,6 +454,31 @@ impl Construct {
         Ok(true)
     }
 
+    /// An event that the window manager of the cube emitted: its window
+    /// switcher shows or went, or the floating windows of an output
+    /// changed. None for another event.
+    fn manager_event(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
+        let Event::Emitted {
+            event,
+            client,
+            data,
+        } = event
+        else {
+            return None;
+        };
+        if client != cube::MANAGER {
+            return None;
+        }
+        match event.as_str() {
+            SWITCHER => Some(self.switcher(data["shown"].as_bool().unwrap_or(false))),
+            FLOATING => {
+                let floated = serde_json::from_value(data.clone());
+                Some(floated.map_or(Ok(()), |f| self.floated(f)))
+            }
+            _ => None,
+        }
+    }
+
     /// Steps into a face: the cube turns to it first when another one is
     /// at the front.
     fn step_into(&mut self, face: usize) -> Result<(), ClientError> {
@@ -446,7 +490,20 @@ impl Construct {
     }
 }
 
+/// What a press of the left button on a chip or on a face does; none
+/// for another node. A press that the construct must ignore, as an
+/// injected one outside a test session, does nothing.
+fn press_of(chip: Option<Word>, face: Option<usize>, ignored: bool) -> Option<Pressed> {
+    match (chip, face) {
+        (None, None) => None,
+        _ if ignored => Some(Pressed::Nothing),
+        (Some(word), _) => Some(Pressed::Act(chip_act(word))),
+        (None, Some(face)) => Some(Pressed::Face(face)),
+    }
+}
+
 /// What a key or a press of the left button does to the view.
+#[derive(Debug, PartialEq, Eq)]
 enum Pressed {
     Act(Act),
     Face(usize),
@@ -476,6 +533,19 @@ mod tests {
             !step_back_bound(Mode::Navigate, false),
             "stood back already"
         );
+    }
+
+    #[test]
+    fn an_ignored_press_does_nothing_on_a_chip_and_on_a_face() {
+        let chip = Some(Word::TurnLeft);
+        assert_eq!(press_of(chip, None, true), Some(Pressed::Nothing));
+        assert_eq!(press_of(None, Some(1), true), Some(Pressed::Nothing));
+        assert_eq!(press_of(None, None, true), None, "another node");
+        let turn = Pressed::Act(Act::Turn(-1));
+        assert_eq!(press_of(chip, None, false), Some(turn), "to the left");
+        let right = Pressed::Act(Act::Turn(1));
+        assert_eq!(press_of(Some(Word::TurnRight), Some(0), false), Some(right));
+        assert_eq!(press_of(None, Some(2), false), Some(Pressed::Face(2)));
     }
 
     #[test]
