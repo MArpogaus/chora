@@ -113,4 +113,6 @@ change it there, not here.
     The full list goes by task, in the words of the six rows.
 17. **One focus mark.** What a click acts on shows a bar of 2 by 20
     pixels in `text`, 12 pixels left of it, while the pointer is over it:
-    no underline, no fill and no change of color.
+    no underline, no fill and no change of color. A word flush right in a
+    head, `Esc  Close` and `Show`, takes its own box and its own bar, not
+    those of the row.

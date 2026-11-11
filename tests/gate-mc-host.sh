@@ -55,6 +55,15 @@ click_node() {
     echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' | ctl inject >/dev/null ||
         fail "inject click"
 }
+click_at_move() {
+    local x y
+    x=$(jq -n --argjson r "$1" '$r[0] + $r[2] / 2 | floor')
+    y=$(jq -n --argjson r "$1" '$r[1] + $r[3] / 2 | floor')
+    echo "[{\"pointer_move\": {\"position\": [$x, $y]}}]" | ctl inject >/dev/null || fail "inject move"
+}
+mark_of() {
+    ctl query "owner:mc kind:rect" | jq -ec --arg s "$1-mark" '[.[] | select((.id | endswith($s)) and .opacity == 1 and (.rects | length) > 0)][0].rects | to_entries[0].value'
+}
 ask() {
     emit voice.state '{"name": "Atlas", "state": "question", "task": "Write file", "seq": 5}'
     emit voice.confirm "{\"id\": \"$1\", \"prompt\": \"Atlas wants to write the file notes.txt.\", \"detail\": \"~/projects/notes/notes.txt (412 bytes)\", \"physical\": true, \"keys\": {\"yes\": \"Alt+y\", \"no\": \"Alt+n\"}, \"buttons\": true}"
@@ -175,6 +184,12 @@ run_theme() {
     until_ok '! node_exists hud-card' 20 || fail "$theme: the card stays after a click on Yes"
     grep -q '"yes": true' "$work/claims.answers" || fail "$theme: voice got no answer"
     until_ok '! node_exists hud-chat-hint' 20 || fail "$theme: the hint about a question stays after the card went: $(ctl query id:hud-chat-hint | jq -r '.[0].meta.text')"
+    close=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select((.id | endswith("chat-close")) and (.rects | length) > 0)][0].rects | to_entries[0].value')
+    click_at_move "$close"
+    until_ok 'mark_of chat-close' 20 || fail "$theme: no hover mark on Esc Close"
+    jq -ne --argjson m "$(mark_of chat-close)" --argjson c "$close" '$m[0] < $c[0] and $m[0] > $c[0] - 30 and $m[2] == 2 and $m[3] == 20' >/dev/null ||
+        fail "$theme: the mark $(mark_of chat-close) does not stand beside Esc Close $close"
+    ok "$theme: Esc Close shows the hover mark beside it"
     sleep 1
     key Escape
     until_ok '! node_exists hud-chat' 20 || fail "$theme: Esc does not close the chat after a click on Yes"

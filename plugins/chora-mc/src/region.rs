@@ -1217,7 +1217,13 @@ impl Mc {
             let item = &items[idx];
             commands.push(move_to(item.id.clone(), lefts[idx], y + item.dy));
             if item.hit.is_some() {
-                commands.extend(hit_place(&item.id, [0.0, y, width, heights[idx]], item.x));
+                let [x, w] = if item.put == Put::End {
+                    [lefts[idx], widths[idx]]
+                } else {
+                    [0.0, width]
+                };
+                let at = if item.put == Put::End { x } else { item.x };
+                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at));
             }
             if item.put == Put::FootRule {
                 let y = y - (baseline / 2.0).round();
