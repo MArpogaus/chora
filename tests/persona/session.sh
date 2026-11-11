@@ -17,6 +17,9 @@
 #   PERSONA_KEEP a directory that gets a copy of shots/ and actions.jsonl
 #                when the session ends (default: nothing is kept)
 #   CHORA_BIN    the directory with the binaries (default: target/debug)
+#   CHORA_TEST_FLAGS  flags of the core, as tests/headless-session.sh
+#                takes them; --test-injected-press-is-real lets the
+#                injected keys of a persona reach the chat field
 #
 # The companions that the units of the flavor start (flavors/FLAVOR/) start
 # too, with choractl run, when their programs exist on the machine; the
