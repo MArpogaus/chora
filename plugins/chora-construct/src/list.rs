@@ -36,7 +36,8 @@ impl Construct {
     }
 
     /// All windows (F29): the panes first, then the windows of any
-    /// owner that have no pane, but not the launcher's own window.
+    /// owner that have no pane, but not the launcher's own window. A pane
+    /// behind the resting front face of the cube is `covered`.
     pub(crate) fn windows(&mut self) -> Result<Vec<Entry>, ClientError> {
         let nodes = self.rt.conn.query("kind:surface")?;
         let far = self.radius();
@@ -48,7 +49,15 @@ impl Construct {
                     name: p.name.clone(),
                     surface: surface.into(),
                     owner: node.and_then(|n| n.owner.clone()),
-                    pane: space::sight(&self.lens, &self.pose, p.spot(), far),
+                    pane: if self
+                        .cube
+                        .as_ref()
+                        .is_some_and(|c| c.covers(&self.pose, p.at))
+                    {
+                        "covered"
+                    } else {
+                        space::sight(&self.lens, &self.pose, p.spot(), far)
+                    },
                     size: None,
                 })
             })

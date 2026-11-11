@@ -199,6 +199,19 @@ impl Host {
         [rel[0] * c - rel[1] * s, 0.0, rel[0] * s + rel[1] * c]
     }
 
+    /// How far the front face is from the eye of `pose`, along the view.
+    pub(crate) fn front_depth(&self, pose: &Pose) -> f64 {
+        super::space::depth(pose, self.centre()) - self.cube.size[0] / 2.0
+    }
+
+    /// Whether the front face covers a pane at `at` for the eye of
+    /// `pose`: the cube rests in use mode, where the face fills the view,
+    /// and the pane is behind the face.
+    pub(crate) fn covers(&self, pose: &Pose, at: [f64; 2]) -> bool {
+        let rests = self.turn.is_none() && self.step.is_none() && self.stand <= 0.0;
+        rests && self.view.forwards() && super::space::depth(pose, at) > self.front_depth(pose)
+    }
+
     /// The centre now: the place, stepped back along the view of the open.
     fn centre(&self) -> [f64; 2] {
         let back = step_back(self.angle, self.cube.size[0]) + self.stand * self.far;
@@ -861,5 +874,53 @@ mod tests {
         assert!(dragged([600.0, 320.0]), "up and down counts too");
         assert!(dragged([609.0, 300.0]));
         assert!(dragged([606.0, 306.0]), "the distance, not one axis");
+    }
+
+    fn host_at_rest() -> Host {
+        let child = std::process::Command::new("true").spawn().expect("true");
+        let cube = Cube {
+            size: [1280.0, 800.0],
+            caps: false,
+        };
+        Host {
+            outputs: vec!["VIRTUAL-1".into()],
+            child,
+            connect_by: None,
+            cube,
+            at: [0.0, 832.0 + 640.0],
+            yaw: 0.0,
+            front: 0,
+            angle: 0.0,
+            turn: None,
+            shown: vec![true],
+            view: View::default(),
+            far: 500.0,
+            stand: 0.0,
+            step: None,
+            home: Pose::default(),
+            focus: None,
+            queued: false,
+            switching: false,
+            floats: vec![None],
+            landing: None,
+            hover: None,
+            press: None,
+            step_back_key: None,
+            owing: BTreeSet::new(),
+            again: None,
+            denied: BTreeSet::new(),
+        }
+    }
+
+    #[test]
+    fn the_resting_front_face_covers_the_panes_behind_it_in_use_mode() {
+        let mut host = host_at_rest();
+        let pose = Pose::default();
+        assert!((host.front_depth(&pose) - 832.0).abs() < 1e-9);
+        assert!(host.covers(&pose, [0.0, 2000.0]), "behind the face");
+        assert!(!host.covers(&pose, [0.0, 700.0]), "in front of the face");
+        host.stand = 1.0;
+        assert!(!host.covers(&pose, [0.0, 2000.0]), "stood back");
+        let _ = host.child.wait();
     }
 }

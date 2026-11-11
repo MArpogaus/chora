@@ -116,6 +116,11 @@ The four acts that complete the flows above. Each has a second path
 
 ## What the construct does today
 
+A window that a title drag pulls out of a face becomes a pane under
+the pointer, a little in front of the face, so that the face never
+covers it; a pane behind the resting front face in use mode is in the
+window list as `covered`.
+
 While the cube stands back or turns, the windows on its faces float in
 front of them, the higher ones of the stack farther, as on the desktop
 cube of xp; in use mode at rest they lie in the face.

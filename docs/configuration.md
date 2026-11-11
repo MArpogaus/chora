@@ -939,8 +939,9 @@ it. The voice agent shows it with the method `help.toggle`.
 
 In the construct, every window is a pane. `Tab`, the key `windows`,
 opens the window list over the space. It shows the windows that have no
-visible pane: a pane behind the camera, beyond the leash radius, or out
-of the view, and every window without a pane, of any owner. Each row has
+visible pane: a pane behind the camera, beyond the leash radius, out
+of the view, or covered by the front face of a cube in use mode, and
+every window without a pane, of any owner. Each row has
 the label of the window, its owner and the place of its pane. `Up` and
 `Down` move the selection, and `Return` or a click chooses. A choice
 flies to the pane. A window of another client, such as tiling, xp or mc,

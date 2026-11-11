@@ -297,6 +297,38 @@ pub fn fly_in(lens: &Lens, at: [f64; 2], yaw: f64) -> Pose {
     }
 }
 
+/// Where a pane of `size` that faces the camera goes at the depth `d`,
+/// so that the point `point` of it shows under the screen x of `at`,
+/// for `(at, point)`: the
+/// pulled window stays under the pointer. A pane that fits in the view
+/// stays wholly in it, also for a pointer beside the view.
+#[must_use]
+pub fn under_pointer(
+    lens: &Lens,
+    pose: &Pose,
+    (at, point): ([f64; 2], [f64; 2]),
+    size: [f64; 2],
+    d: f64,
+) -> [f64; 2] {
+    let k = lens.focal / d;
+    let width = size[0] * k;
+    let left = (at[0] - point[0] * k).clamp(0.0, (lens.w - width).max(0.0));
+    let [fx, fz] = pose.forward();
+    let [rx, rz] = right(pose.yaw);
+    let place = |left: f64| {
+        let offset = (left + width / 2.0 - lens.w / 2.0) / k;
+        [pose.x + fx * d + rx * offset, pose.z + fz * d + rz * offset]
+    };
+    let first = place(left);
+    let turned = screen_box(lens, pose, first, size, facing([pose.x, pose.z], first));
+    let over = turned.map_or(0.0, |b| (b[2] - lens.w).max(0.0) - (-b[0]).max(0.0));
+    if over == 0.0 {
+        first
+    } else {
+        place(left - over)
+    }
+}
+
 /// Whether the whole pane lies in front of the eye. A corner at or behind
 /// it has `w <= 0`, and the core would stretch the quad over the output.
 #[must_use]
@@ -476,6 +508,25 @@ mod tests {
 
     /// A pane that faces the camera, from any side, shows upright and
     /// unmirrored, its left edge left of its right edge.
+
+    #[test]
+    fn a_pulled_pane_holds_its_point_under_the_pointer_inside_the_view() {
+        let pose = Pose::default();
+        let size = [200.0, 100.0];
+        let at = under_pointer(&LENS, &pose, ([900.0, 300.0], [50.0, 10.0]), size, 700.0);
+        assert!((depth(&pose, at) - 700.0).abs() < 1e-9);
+        let yaw = facing([pose.x, pose.z], at);
+        let shown = screen_box(&LENS, &pose, at, size, yaw).expect("in view");
+        let left = 900.0 - 50.0 * LENS.focal / 700.0;
+        assert!((shown[0] - left).abs() < 5.0, "{shown:?} {left}");
+        let beside = under_pointer(&LENS, &pose, ([1480.0, 300.0], [50.0, 10.0]), size, 700.0);
+        let yaw = facing([pose.x, pose.z], beside);
+        let shown = screen_box(&LENS, &pose, beside, size, yaw).expect("in view");
+        assert!(
+            shown[2] <= LENS.w + 5.0 && shown[0] > 0.0,
+            "in the view: {shown:?}"
+        );
+    }
     #[test]
     fn a_pane_faces_the_camera() {
         let at = [300.0, 2000.0];

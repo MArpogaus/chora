@@ -21,6 +21,10 @@ use super::{ClientError, Construct, Event, Moving, NAME, PressState, give, space
 /// How long the window manager of a face may take to place a window.
 const PLACE_WAIT: Duration = Duration::from_secs(2);
 
+/// The share of the depth of the front face at which a pulled pane
+/// comes, toward the eye.
+const PULL: f64 = 0.9;
+
 /// The ids of the faces of the cube start with this.
 const FACE: &str = "construct-cube-face-";
 
@@ -58,24 +62,6 @@ pub(crate) fn face_under(
 pub(crate) fn is_a_face(outputs: &[OutputInfo], output: &str) -> bool {
     let own = |o: &&OutputInfo| o.is_virtual == Some(true) && o.owner.as_deref() == Some(NAME);
     outputs.iter().filter(own).any(|o| o.name == output)
-}
-
-/// Where a point of a window shows on the output, for a pane with the
-/// screen box `shown` (left, top, right, bottom) and the size of the
-/// window. The point comes from another client: it is kept inside the
-/// window, and a window without a size is held at its middle.
-pub(crate) fn held_at(shown: [f64; 4], size: [f64; 2], point: [f64; 2]) -> [f64; 2] {
-    let part = |axis: usize| {
-        if size[axis] > 0.0 && point[axis].is_finite() {
-            (point[axis] / size[axis]).clamp(0.0, 1.0)
-        } else {
-            0.5
-        }
-    };
-    [
-        shown[0] + (shown[2] - shown[0]) * part(0),
-        shown[1] + (shown[3] - shown[1]) * part(1),
-    ]
 }
 
 impl Construct {
@@ -188,15 +174,21 @@ impl Construct {
         Ok(true)
     }
 
+    /// The depth of a pulled pane: a little in front of the front face of
+    /// the cube, so that the face never covers it, else at 1:1.
+    fn pull_depth(&self) -> f64 {
+        let face = self.cube.as_ref().map(|c| c.front_depth(&self.pose));
+        face.map_or(self.lens.focal, |d| d * PULL)
+    }
+
     /// The press of `move` that comes with a window and its drag, at a
     /// point of the output. The window has its pane from the handover,
     /// or gets it now; a window that gets no pane is attached hidden, so
     /// it is not lost, and the drag ends for it. The camera flies to a
     /// window that is handed over: for a window that comes in the middle
-    /// of a drag it turns back and stays where the user stands. A pane
-    /// with a corner behind the eye goes ahead of the camera first. The
-    /// pane then moves so that the point of the window that the giver
-    /// names is under the pointer, and the moves and the release of
+    /// of a drag it turns back and stays where the user stands. The pane
+    /// comes under the pointer, with the point of the window that the
+    /// giver names there, in front of the front face of the cube, and the moves and the release of
     /// `move` drag and drop it as a drag with the modifier does. A pane
     /// of an own window wobbles on in 3D, from the springs of the giver
     /// when it sent some.
@@ -227,19 +219,22 @@ impl Construct {
                 pane.yaw,
             )
         };
-        if boxed(self).is_none()
-            && let Some(ahead) = self.place(None, self.panes[i].size, true)
-        {
-            self.move_pane(i, ahead)?;
-        }
-        let Some(shown) = boxed(self) else {
+        let d = self.pull_depth();
+        let to = space::under_pointer(
+            &self.lens,
+            &self.pose,
+            (at, grab.point),
+            self.panes[i].size,
+            d,
+        );
+        self.move_pane(i, to)?;
+        if boxed(self).is_none() {
             return Ok(());
-        };
+        }
         let pane = &self.panes[i];
-        let from = held_at(shown, pane.size, grab.point);
         self.moving = Some(Moving {
             name: pane.name.clone(),
-            from,
+            from: at,
             at: pane.at,
             yaw: pane.yaw,
         });
@@ -267,7 +262,7 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{face_under, held_at, is_a_face};
+    use super::{face_under, is_a_face};
 
     /// Under a dragged pane the core names the screen: the face is the
     /// one whose box on the screen holds the point, and the point maps
@@ -320,19 +315,5 @@ mod tests {
         assert!(!is_a_face(&outputs, "VIRTUAL-2"), "of another client");
         assert!(!is_a_face(&outputs, "DP-1"), "a screen");
         assert!(!is_a_face(&outputs, "VIRTUAL-9"), "gone");
-    }
-
-    /// The pointer holds the pulled window where the giver held it: the
-    /// point of the window, scaled to the box that the pane shows in, and
-    /// never outside the window.
-    #[test]
-    fn a_pulled_window_is_held_at_the_point_of_the_giver() {
-        let shown = [100.0, 50.0, 500.0, 250.0];
-        let size = [800.0, 400.0];
-        assert_eq!(held_at(shown, size, [0.0, 0.0]), [100.0, 50.0]);
-        assert_eq!(held_at(shown, size, [400.0, 100.0]), [300.0, 100.0]);
-        assert_eq!(held_at(shown, size, [9000.0, -5.0]), [500.0, 50.0]);
-        assert_eq!(held_at(shown, [0.0, 0.0], [3.0, 3.0]), [300.0, 150.0]);
-        assert_eq!(held_at(shown, size, [f64::NAN, 100.0]), [300.0, 100.0]);
     }
 }
