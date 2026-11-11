@@ -524,7 +524,8 @@ variable of the environment. It is for tests.
 `tests/gate-construct-pull.sh` pulls a window out of a face of the cube
 with it, and checks without it that the core refuses the give of an
 injected drag. `tests/gate-click-routes.sh` checks both for the click
-that chooses a window manager.
+that chooses a window manager, and `tests/gate-chat-keys.sh` for the
+keyboard of the chat field.
 
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for
