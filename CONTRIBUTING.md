@@ -252,7 +252,7 @@ content, so no clip holds an asset of a third party. `choractl record`
 steps the scene clock by 1/30 s per frame, so the clips show the same
 motion on any renderer. In the clips the cube turns in 1.5 s a quarter,
 through `cube.turn`, slower than the 0.5 s of its keys and chips, and
-the pull-out runs with `--test-injected-drag-gives`, as the core gives
+the pull-out runs with `--test-injected-press-is-real`, as the core gives
 no injected drag away otherwise. `tests/gate-demo.sh` checks the scenes
 and the clips. A caption of a clip names the renderer, for example
 software GL in a container.

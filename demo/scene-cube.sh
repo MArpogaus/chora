@@ -16,7 +16,7 @@
 # KEY=VALUE of tests/headless-session.sh (XDG_RUNTIME_DIR,
 # WAYLAND_DISPLAY, CHORA_SOCKET) and DEMO_READY=1, and waits until a
 # signal. The client name choractl holds the grants that demo/record.sh
-# needs. The core runs with --test-injected-drag-gives, so that an
+# needs. The core runs with --test-injected-press-is-real, so that an
 # injected drag of a title bar pulls a window out of its face.
 #
 # Needs foot with sixel, python3 with Pillow and the font DejaVu Sans
@@ -64,7 +64,7 @@ YAML
 
 env_file=$config/env
 XDG_CONFIG_HOME=$config CHORA_BIN=$bin PATH=$bin:$PATH CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} \
-    CHORA_TEST_FLAGS=--test-injected-drag-gives \
+    CHORA_TEST_FLAGS=--test-injected-press-is-real \
     "$repo/tests/headless-session.sh" "$size" -- "$bin/chora-construct" >"$env_file" 2>&1 &
 session=$!
 for _ in $(seq 120); do
