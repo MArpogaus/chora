@@ -1,0 +1,13 @@
+/* The palette of the tiling flavor, Ink (dark). One accent; accent-2 is
+ * only the far end of the focus gradient. Change a token here and every
+ * rule of style.css follows. */
+@define-color base #11131a;
+@define-color surface #1a1d27;
+@define-color surface-2 #242836;
+@define-color line #2e3344;
+@define-color text #e6e8ef;
+@define-color muted #9aa1b4;
+@define-color accent #a78bfa;
+@define-color on-accent #11131a;
+@define-color accent-2 #5eead4;
+@define-color urgent #f87171;

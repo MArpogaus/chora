@@ -1305,7 +1305,10 @@ The package installs the tiling flavor (D51):
 ├── chora-tiling-kanshi.service       # the output profiles of the user
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
-    └── tags.jq                       # the text of the tags module
+    ├── style.css                     # the look of the panel, three islands
+    ├── colors.css                    # the palette, Ink; style.css reads it
+    ├── tag.sh                        # one tag module, from one shared answer
+    └── tags.jq                       # the class of a tag module
 ```
 
 Each unit starts only when its program is installed. The packages
@@ -1318,11 +1321,22 @@ its own package and needs no configuration.
   modules that need no IPC of sway, in the words of a person: the tags of
   the output, the clock, the volume, the network (`Connected`, the name of
   a wireless network or `Offline`, with the address in its tooltip), the
-  battery and the tray. The tags module calls
-  `choractl call tiling get_tags` each second, and `jq` with
-  `waybar/tags.jq` turns the answer into the text: the shown and the
-  occupied tags, shown ones underlined, focused ones bold and urgent ones
-  red. The volume module runs `waybar/volume.sh` each second, which asks
+  battery and the tray. Each of the nine tag modules runs `waybar/tag.sh N`
+  each second, which asks `choractl call tiling get_tags` once a second
+  for all nine and lets `jq` with `waybar/tags.jq` turn the answer into the
+  number and a class: `current` for a shown tag, also when empty,
+  `occupied`, `empty`, and `urgent` besides. The classes carry no markup;
+  `style.css` draws them.
+  The look is `waybar/style.css` with the palette `waybar/colors.css`
+  (`@define-color` tokens: `base`, `surface`, `surface-2`, `line`, `text`,
+  `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
+  three floating islands, left, centre and right, each 32 px high and
+  radius 10, 8 px from the top and 12 px from the sides, on a 4 px grid, in
+  Inter. The islands are `surface` at 92 % with a 1 px `line` hairline.
+  Change a colour in `colors.css` and the whole panel follows. An empty
+  tag is `muted` at 50 %, an inactive control; every other label keeps
+  4.5:1 on `surface`.
+  The volume module runs `waybar/volume.sh` each second, which asks
   `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
   `Muted` or `Sound unavailable`; the tooltip of `Sound unavailable` says
   why: `wpctl not found`, `No output device` or `No answer`, in German

@@ -1,0 +1,172 @@
+/* The look of the panel: three floating islands on the wallpaper, Ink.
+ * Everything sits on a 4 px grid; the colours come from colors.css. */
+@import url("colors.css");
+
+* {
+  font-family: "Inter", "DejaVu Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+window#waybar {
+  background: transparent;
+  color: @text;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+  background: alpha(@surface, 0.92);
+  border: 1px solid @line;
+  border-radius: 10px;
+  padding: 0 4px;
+}
+
+tooltip {
+  background: @surface;
+  border: 1px solid @line;
+  border-radius: 8px;
+}
+
+tooltip label {
+  color: @text;
+}
+
+#custom-apps,
+#custom-layout,
+#custom-keys,
+#custom-power,
+#custom-volume,
+#network,
+#battery,
+#clock,
+#tray {
+  padding: 0 8px;
+  color: @text;
+}
+
+#clock {
+  font-weight: 500;
+}
+
+#custom-apps {
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+#custom-layout,
+#custom-keys,
+#custom-power {
+  color: @muted;
+}
+
+#custom-apps:hover,
+#custom-layout:hover,
+#custom-keys:hover,
+#custom-power:hover,
+#custom-volume:hover {
+  background: @surface-2;
+  border-radius: 6px;
+}
+
+#custom-tag1,
+#custom-tag2,
+#custom-tag3,
+#custom-tag4,
+#custom-tag5,
+#custom-tag6,
+#custom-tag7,
+#custom-tag8,
+#custom-tag9 {
+  min-width: 24px;
+  min-height: 24px;
+  margin: 3px 1px;
+  padding: 0;
+  border-radius: 6px;
+  font-weight: 500;
+  color: @text;
+}
+
+#custom-tag1.empty,
+#custom-tag2.empty,
+#custom-tag3.empty,
+#custom-tag4.empty,
+#custom-tag5.empty,
+#custom-tag6.empty,
+#custom-tag7.empty,
+#custom-tag8.empty,
+#custom-tag9.empty {
+  color: alpha(@muted, 0.5);
+}
+
+#custom-tag1.current,
+#custom-tag2.current,
+#custom-tag3.current,
+#custom-tag4.current,
+#custom-tag5.current,
+#custom-tag6.current,
+#custom-tag7.current,
+#custom-tag8.current,
+#custom-tag9.current {
+  background: @accent;
+  color: @on-accent;
+}
+
+#custom-tag1.urgent,
+#custom-tag2.urgent,
+#custom-tag3.urgent,
+#custom-tag4.urgent,
+#custom-tag5.urgent,
+#custom-tag6.urgent,
+#custom-tag7.urgent,
+#custom-tag8.urgent,
+#custom-tag9.urgent {
+  color: @urgent;
+}
+
+#custom-tag1:hover,
+#custom-tag2:hover,
+#custom-tag3:hover,
+#custom-tag4:hover,
+#custom-tag5:hover,
+#custom-tag6:hover,
+#custom-tag7:hover,
+#custom-tag8:hover,
+#custom-tag9:hover {
+  background: @surface-2;
+}
+
+#custom-tag1.current:hover,
+#custom-tag2.current:hover,
+#custom-tag3.current:hover,
+#custom-tag4.current:hover,
+#custom-tag5.current:hover,
+#custom-tag6.current:hover,
+#custom-tag7.current:hover,
+#custom-tag8.current:hover,
+#custom-tag9.current:hover {
+  background: @accent;
+}
+
+#custom-layout {
+  margin-left: 4px;
+  border-left: 1px solid @line;
+  border-radius: 0;
+}
+
+#battery.warning {
+  color: @text;
+}
+
+#battery.critical {
+  color: @urgent;
+}
+
+#tray > .passive {
+  -gtk-icon-effect: dim;
+}

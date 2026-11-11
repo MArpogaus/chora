@@ -1,18 +1,69 @@
 // The panel of the tiling flavor. Only modules that need no IPC of sway
-// and only words of a person: custom/tags asks chora-tiling each second
-// for the tags of the output, and custom/volume asks wpctl for the
+// and only words of a person: the nine custom/tagN ask chora-tiling each
+// second for the tags of the output (tag.sh), and custom/volume asks wpctl for the
 // volume: a click mutes, the wheel changes it, and the tooltip says why
 // there is no sound. waybar.sh starts waybar with this file on the
 // outputs of chora-tiling only.
 {
   "layer": "top",
   "position": "top",
-  "height": 26,
-  "modules-left": ["custom/tags"],
+  "height": 32,
+  "margin-top": 8,
+  "margin-left": 12,
+  "margin-right": 12,
+  "modules-left": ["custom/tag1", "custom/tag2", "custom/tag3", "custom/tag4", "custom/tag5", "custom/tag6", "custom/tag7", "custom/tag8", "custom/tag9"],
   "modules-center": ["clock"],
   "modules-right": ["custom/volume", "network", "battery", "tray"],
-  "custom/tags": {
-    "exec": "choractl call tiling get_tags 2>/dev/null | jq -c -f \"$CHORA_FLAVOR_DIR/waybar/tags.jq\"",
+  "custom/tag1": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 1",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag2": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 2",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag3": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 3",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag4": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 4",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag5": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 5",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag6": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 6",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag7": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 7",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag8": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 8",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": false
+  },
+  "custom/tag9": {
+    "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 9",
     "return-type": "json",
     "interval": 1,
     "tooltip": false

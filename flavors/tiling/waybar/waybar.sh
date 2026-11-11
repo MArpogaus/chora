@@ -45,7 +45,7 @@ while :; do
     fi
     jq -n --arg include "$dir/config.jsonc" --argjson outputs "${outputs:-[\"*\"]}" \
         '{include: [$include], output: $outputs}' >"$config"
-    waybar --config "$config" &
+    waybar --config "$config" --style "$dir/style.css" &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
         sleep 2
