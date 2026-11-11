@@ -1,0 +1,332 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Construct HUD</title>
+<link rel="stylesheet" href="glass.css">
+<style>
+  /* ---- the voice island: the ring, the state, the door to the chat ---- */
+  #island { top: 32px; right: 32px; height: 40px; display: flex; align-items: center;
+            gap: 8px; padding: 0 16px 0 8px; }
+  #island .state { color: var(--text); }
+  #island .task { color: var(--muted); }
+  #island .dot { width: 3px; height: 3px; border-radius: 2px; background: var(--muted); }
+
+  /* ---- the pane label ---- */
+  .panelabel { height: 32px; padding: 0 16px; display: flex; align-items: center; gap: 8px;
+               transform: translateX(-50%); white-space: nowrap; }
+  .panelabel .pages { display: flex; gap: 4px; margin-left: 4px; }
+  .panelabel .pages i { width: 6px; height: 6px; border-radius: 3px; background: var(--muted); opacity: 0.35; }
+  .panelabel .pages i.on { background: var(--accent); opacity: 1; }
+
+  /* ---- context hints ---- */
+  .hints { bottom: 32px; left: 50%; transform: translateX(-50%); height: 40px; display: flex;
+           align-items: center; gap: 0; padding: 0 8px; white-space: nowrap; }
+  .hint { display: flex; align-items: center; gap: 8px; padding: 0 8px; height: 32px;
+          border-radius: var(--r-pill); }
+  .hint .small { color: var(--text); font-weight: 400; }
+  .sepdot { width: 1px; height: 16px; background: var(--sep); margin: 0 4px; }
+  .hint.dim { opacity: 0.45; }
+
+  /* ---- the question card ---- */
+  #question { top: 80px; right: 32px; width: 400px; padding: 16px; }
+  #question .head { display: flex; justify-content: space-between; align-items: center; height: 16px; }
+  #question .head .label { color: var(--text); }
+  #question .prompt { margin-top: 8px; }
+  #question .well { margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: var(--well); }
+  #question .note { margin-top: 8px; color: var(--muted); font-weight: 400; }
+  #question .answers { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .answer { height: 40px; border-radius: var(--r-inner); display: flex; align-items: center;
+            justify-content: center; gap: 8px; background: var(--well); }
+  .answer .small { font-weight: 500; }
+  #question.ask { box-shadow: inset 0 1px 0 var(--hi), inset 0 0 0 1px rgba(var(--accent-rgb),0.55),
+            0 0 0 1px var(--edge-out), 0 0 24px rgba(var(--accent-rgb),0.18), var(--shadow); }
+
+  /* ---- the chat ---- */
+  #chat { top: 32px; right: 32px; bottom: 32px; width: 400px; display: flex; flex-direction: column; }
+  #chat .header { height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 16px; flex: none; }
+  #chat .header .who { margin-left: auto; color: var(--muted); }
+  #chat .transcript { flex: 1; padding: 8px 16px 0; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+  .msg.you { align-self: flex-end; max-width: 300px; padding: 8px 16px; border-radius: 20px 20px 6px 20px;
+             background: rgba(var(--accent-rgb), 0.16); }
+  .dark .msg.you { background: rgba(var(--accent-rgb), 0.34); }
+  .msg.helper .label { margin-bottom: 4px; }
+  .step { display: flex; align-items: center; gap: 8px; color: var(--muted); margin-top: 4px; }
+  .step svg { flex: none; }
+  #chat .field { margin: 8px; height: 48px; border-radius: var(--r-inner); background: var(--well);
+                 display: flex; align-items: center; padding: 0 16px; flex: none; }
+  .caret { width: 2px; height: 20px; background: var(--accent); margin-left: 1px; border-radius: 1px; }
+  #chat .keyline { height: 40px; padding: 0 16px 8px; display: flex; align-items: center; gap: 16px;
+                   flex: none; color: var(--muted); }
+  #chat .keyline span.small { font-weight: 400; color: var(--muted); }
+  .kl { display: flex; align-items: center; gap: 6px; }
+
+  /* ---- command surfaces: window list and help ---- */
+  #scrim { position: absolute; inset: 0; background: var(--scrim); }
+  #windows { top: 104px; left: 50%; transform: translateX(-50%); width: 560px; padding: 8px; }
+  .search { height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 16px; }
+  .search .placeholder { color: var(--muted); }
+  .search .scope { margin-left: auto; }
+  .divider { height: 1px; background: var(--sep); margin: 0 8px; }
+  .rows { padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+  .row { height: 56px; border-radius: var(--r-inner); display: flex; align-items: center; gap: 12px; padding: 0 12px 0 8px; }
+  .row .thumb { width: 64px; height: 40px; border-radius: 8px; background-size: cover; background-position: center;
+                box-shadow: inset 0 0 0 1px var(--cap-edge); flex: none; }
+  .row .thumb.blank { display: flex; align-items: center; justify-content: center; background: var(--well);
+                      font: 500 14px/20px var(--f-sans); color: var(--muted); }
+  .row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .note { color: var(--muted); }
+  .footer { height: 48px; display: flex; align-items: center; gap: 16px; padding: 0 16px; color: var(--muted); }
+  .footer .small { font-weight: 400; color: var(--muted); }
+  .footer .right { margin-left: auto; }
+
+  #help { top: 64px; left: 50%; transform: translateX(-50%); width: 880px; padding: 8px; }
+  #help .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; padding: 8px 8px 8px; }
+  .group { padding: 8px 0 0; }
+  .group .label { height: 32px; display: flex; align-items: center; padding: 0 12px; }
+  .bind { height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px;
+          border-radius: 12px; }
+  .bind .what { font: 400 15px/24px var(--f-sans); }
+  .bind .what { font-size: 16px; }
+  mark { background: rgba(var(--accent-rgb), 0.24); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .dark mark { background: rgba(var(--accent-rgb), 0.45); }
+  #help.narrow { width: 560px; }
+  #help.narrow .cols { grid-template-columns: 1fr; }
+  .shared-tag { margin-left: 8px; color: var(--muted); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="scrim" class="hidden"></div>
+
+<!-- The voice island (collapsed form of the chat). -->
+<div id="island" class="glass pill">
+  <svg class="ring" id="ring" viewBox="0 0 24 24"></svg>
+  <span class="label state" id="stateword">Listening</span>
+  <span class="sepdot hidden" id="taskdot" style="margin:0 4px"></span>
+  <span class="small task hidden" id="task">Tidy notes · 1 of 2</span>
+</div>
+
+<!-- Pane label. -->
+<div id="panelabel" class="glass pill panelabel small" style="left:640px; top:436px;">Sunset</div>
+
+<!-- Cube face label. -->
+<div id="facelabel" class="glass pill panelabel small hidden" style="left:640px; top:600px;">
+  xp<span class="muted" style="font-weight:400">· face 1 of 4</span>
+  <span class="pages"><i class="on"></i><i></i><i></i><i></i></span>
+</div>
+
+<!-- Walking hints. -->
+<div id="walkhints" class="glass pill hints">
+  <div class="hint"><span class="keys"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></span><span class="small">Walk</span></div>
+  <div class="sepdot"></div>
+  <div class="hint"><span class="keys"><span class="key">Return</span></span><span class="small">Fly in</span></div>
+  <div class="sepdot"></div>
+  <div class="hint"><span class="keys"><span class="key">Tab</span></span><span class="small">Windows</span></div>
+  <div class="sepdot"></div>
+  <div class="hint"><span class="keys"><span class="key">Super</span><span class="key">/</span></span><span class="small">All keys</span></div>
+</div>
+
+<!-- Cube hints, stood back. -->
+<div id="cubehints" class="glass pill hints hidden">
+  <div class="hint"><span class="keys"><span class="key">Ctrl</span><span class="key">Alt</span><span class="key">←</span></span><span class="small">Turn left</span></div>
+  <div class="sepdot"></div>
+  <div class="hint hover"><span class="keys"><span class="key">Return</span></span><span class="small">Step in</span></div>
+  <div class="sepdot"></div>
+  <div class="hint"><span class="small">Turn right</span><span class="keys"><span class="key">Ctrl</span><span class="key">Alt</span><span class="key">→</span></span></div>
+</div>
+
+<!-- Question card. -->
+<div id="question" class="glass strong ask hidden">
+  <div class="head"><span class="label">Question from Atlas</span><span class="data muted" style="font-size:14px">0:42</span></div>
+  <div class="text prompt">Atlas wants to write the file notes.txt.</div>
+  <div class="well data">~/notes/notes.txt<br><span class="muted">412 bytes · replaces 9 lines</span></div>
+  <div class="small note">A spoken “yes” does not count.</div>
+  <div class="answers">
+    <div class="answer" id="yes"><span class="keys"><span class="key">Alt</span><span class="key">Y</span></span><span class="small">Yes</span></div>
+    <div class="answer"><span class="keys"><span class="key">Alt</span><span class="key">N</span></span><span class="small">No</span></div>
+  </div>
+</div>
+
+<!-- The chat: the island expanded. -->
+<div id="chat" class="glass strong hidden">
+  <div class="header">
+    <svg class="ring" id="ring2" viewBox="0 0 24 24"></svg>
+    <span class="label" style="color:var(--text)">Working</span>
+    <span class="small who" style="font-weight:400">Atlas · Tidy notes · 1 of 2</span>
+  </div>
+  <div class="divider"></div>
+  <div class="transcript">
+    <div class="msg you text">Please tidy the notes for Friday.</div>
+    <div class="msg helper">
+      <div class="label">Atlas</div>
+      <div class="text">I read notes.txt. I will sort the items by day and keep your wording.</div>
+      <div class="step data"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Read notes.txt</div>
+      <div class="step data"><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.2" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="7 20" stroke-linecap="round"/></svg>Sort 14 items by day</div>
+    </div>
+    <div class="msg you text">Put the dentist first on Friday.</div>
+    <div class="msg helper">
+      <div class="label">Atlas</div>
+      <div class="text">Done. Friday has three items now, the dentist first.</div>
+    </div>
+  </div>
+  <div class="field focus"><span class="text">Also move the bike to Saturday</span><span class="caret"></span></div>
+  <div class="keyline">
+    <span class="kl"><span class="key">Return</span><span class="small">Send</span></span>
+    <span class="kl"><span class="key">Ctrl</span><span class="key">.</span><span class="small">Stop</span></span>
+    <span class="kl" style="margin-left:auto"><span class="key">Esc</span><span class="small">Close</span></span>
+  </div>
+</div>
+
+<!-- Window list. -->
+<div id="windows" class="glass strong hidden">
+  <div class="search">
+    <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="var(--muted)" stroke-width="1.6"/><path d="M13 13l4 4" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <span class="display placeholder">Type to find a window</span>
+    <span class="label scope">5 windows</span>
+  </div>
+  <div class="divider"></div>
+  <div class="rows">
+    <div class="row selected"><div class="thumb" style="background-image:url(BG/thumb-0.png)"></div><span class="text name">Sunset</span><span class="data note">ahead</span></div>
+    <div class="row hover"><div class="thumb" style="background-image:url(BG/thumb-1.png)"></div><span class="text name">wobbly.rs · rust</span><span class="data note">left</span></div>
+    <div class="row"><div class="thumb" style="background-image:url(BG/thumb-2.png)"></div><span class="text name">chora · a compositor that gives forms a place</span><span class="data note">right</span></div>
+    <div class="row"><div class="thumb blank">N</div><span class="text name">Notes</span><span class="data note">not in view</span></div>
+    <div class="row"><div class="thumb blank">T</div><span class="text name">Terminal</span><span class="data note">behind you</span></div>
+  </div>
+  <div class="footer">
+    <span class="kl"><span class="key">↑</span><span class="key">↓</span><span class="small">Choose</span></span>
+    <span class="kl"><span class="key">Return</span><span class="small">Fly to it</span></span>
+    <span class="kl right"><span class="key">Esc</span><span class="small">Close</span></span>
+  </div>
+</div>
+
+<!-- Bindings overlay, construct theme. -->
+<div id="help" class="glass strong hidden">
+  <div class="search">
+    <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="var(--muted)" stroke-width="1.6"/><path d="M13 13l4 4" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <span class="display" id="helpq"><span class="placeholder">Type to search the keys</span></span>
+    <span class="label scope">Construct · walking</span>
+  </div>
+  <div class="divider"></div>
+  <div class="cols" id="helpcols"></div>
+  <div class="divider"></div>
+  <div class="footer">
+    <span class="small">Only the keys that work now are listed.</span>
+    <span class="kl right"><span class="key">Esc</span><span class="small">Close</span></span>
+  </div>
+</div>
+
+<script>
+const P = new URLSearchParams(location.search);
+const theme = P.get('theme') || 'light';
+const state = P.get('state') || 'walk';
+const BG = '../../media/2026-11-11/construct-hud/bg';
+document.documentElement.className = theme;
+const bgname = state === 'cube' ? 'cube' : 'walk';
+document.body.style.backgroundImage = `url(${BG}/${bgname}-${theme}.png)`;
+document.querySelectorAll('[style*="BG/"]').forEach(e => e.style.backgroundImage = e.style.backgroundImage.replace('BG/', BG + '/'));
+const $ = id => document.getElementById(id);
+const show = (id, on = true) => $(id).classList.toggle('hidden', !on);
+
+const A = 'var(--accent)';
+const rings = {
+  listening: `<circle cx="12" cy="12" r="9" fill="none" stroke="${A}" stroke-opacity="0.35" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="${A}"/>`,
+  working: `<circle cx="12" cy="12" r="9" fill="none" stroke="${A}" stroke-opacity="0.22" stroke-width="2.5"/><path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="${A}" stroke-width="2.5" stroke-linecap="round"/>`,
+  question: `<circle cx="12" cy="12" r="11" fill="${A}" fill-opacity="0.18"/><circle cx="12" cy="12" r="8" fill="none" stroke="${A}" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="${A}"/>`,
+};
+function island(kind, word, task) {
+  $('ring').innerHTML = rings[kind];
+  $('stateword').textContent = word;
+  show('taskdot', !!task); show('task', !!task);
+  if (task) $('task').textContent = task;
+}
+$('ring2').innerHTML = rings.working;
+
+const groups = {
+  walk: ['Walk', [
+    ['Walk forward, back, sideways', ['W','A','S','D']],
+    ['Turn left or right', ['Q','E'], ['←','→']],
+    ['Look up or down', ['R','F']],
+    ['Back to the start', ['H']],
+    ['Fly into the pane ahead', ['Return']],
+    ['Show the windows', ['Tab']],
+  ]],
+  panes: ['Panes', [
+    ['Open a terminal', ['Super','T']],
+    ['Start a program', ['Super','Space']],
+    ['Close the pane ahead', ['Super','X']],
+    ['Move or resize a pane', ['Super','~drag']],
+    ['Step back out of a pane', ['Alt','Esc']],
+  ]],
+  helper: ['Helper and chat', [
+    ['Open the chat', ['Super','A']],
+    ['Answer yes to a question', ['Alt','Y']],
+    ['Answer no to a question', ['Alt','N']],
+    ['Stop the helper', ['Ctrl','.']],
+  ]],
+  give: ['Give a window', [
+    ['Give it to tiling', ['Super','Alt','1']],
+    ['Give it to xp', ['Super','Alt','2']],
+    ['Give it to mc', ['Super','Alt','3']],
+    ['Give it to the construct', ['Super','Alt','4']],
+  ]],
+  all: ['Everywhere', [
+    ['Back out one step', ['Esc']],
+    ['Show these keys', ['Super','/'], ['F1']],
+  ]],
+};
+const caps = ks => `<span class="keys">${ks.map(k => k.startsWith('~') ? `<span class="or">${k.slice(1)}</span>` : `<span class="key">${k}</span>`).join('')}</span>`;
+function bind(row, q, sel) {
+  const [what, ks, alt] = row;
+  let w = what;
+  if (q) w = w.replace(new RegExp(q, 'i'), m => `<mark>${m}</mark>`);
+  const k = alt ? `<span class="keys">${caps(ks)}<span class="or">or</span>${caps(alt)}</span>` : caps(ks);
+  return `<div class="bind${sel ? ' selected' : ''}"><span class="what">${w}</span>${k}</div>`;
+}
+function group(key, q, firstSel) {
+  const [name, rows] = groups[key];
+  const list = q ? rows.filter(r => r[0].toLowerCase().includes(q)) : rows;
+  if (!list.length) return '';
+  const shared = ['helper', 'give', 'all'].includes(key);
+  return `<div class="group"><div class="label">${name}${shared ? '<span class="shared-tag">· every look</span>' : ''}</div>${list.map((r, i) => bind(r, q, firstSel && i === 0)).join('')}</div>`;
+}
+
+if (state === 'walk') {
+  island('working', 'Working', 'Tidy notes · 1 of 2');
+}
+if (state === 'list') {
+  island('listening', 'Listening');
+  show('scrim'); show('windows'); show('walkhints', false); show('panelabel', false);
+}
+if (state === 'question') {
+  island('question', 'Question for you');
+  show('question'); show('walkhints', false);
+}
+if (state === 'chat') {
+  show('island', false); show('chat'); show('walkhints', false);
+}
+if (state === 'cube') {
+  island('listening', 'Listening');
+  show('panelabel', false); show('walkhints', false); show('cubehints'); show('facelabel');
+}
+if (state === 'help' || state === 'help-search') {
+  island('listening', 'Listening');
+  show('scrim'); show('help'); show('walkhints', false); show('panelabel', false);
+  const q = state === 'help-search' ? 'pane' : '';
+  if (q) {
+    $('helpq').innerHTML = `<span>${q}</span><span class="caret" style="display:inline-block;vertical-align:-3px;margin-left:2px"></span>`;
+    $('help').classList.add('narrow');
+    $('helpcols').innerHTML = ['walk','panes','helper','give','all'].map((g, i) => group(g, q, i === 0)).join('');
+    document.querySelector('#help .footer').innerHTML =
+      '<span class="kl"><span class="key">↑</span><span class="key">↓</span><span class="small">Move</span></span>' +
+      `<span class="small">${document.querySelectorAll('#helpcols .bind').length} keys match</span>` +
+      '<span class="kl right"><span class="key">Esc</span><span class="small">Clear</span></span>';
+  } else {
+    $('helpcols').innerHTML =
+      `<div>${group('walk')}${group('panes')}</div><div>${group('helper')}${group('give')}${group('all')}</div>`;
+  }
+}
+</script>
+</body>
+</html>

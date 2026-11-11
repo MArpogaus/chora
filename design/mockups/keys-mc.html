@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Keys in mc</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  .light { --bg: #F7F5ED; --text: #292624; --muted: #807A73; --faint: #D4CFC4; --accent: #8C241F; }
+  .dark  { --bg: #1C1C1C; --text: #D9D4C9; --muted: #8C8A82; --faint: #424240; --accent: #CC7866; }
+  body { background: var(--bg); color: var(--text); position: relative;
+         font-family: "TeX Gyre Pagella", "Palatino Linotype", "Bitstream Charter", serif;
+         -webkit-font-smoothing: antialiased; }
+  .frame { font: 500 12px/16px Inter, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .head { position: absolute; top: 18px; left: 153px; right: 32px; height: 16px; display: flex; align-items: center; }
+  .head .date { position: absolute; left: 561px; }
+  .head .hud { margin-left: auto; display: flex; align-items: center; gap: 8px; letter-spacing: 0; text-transform: none;
+               font: 400 12px/16px Inter; color: var(--text); }
+  .head .hud i { width: 16px; height: 16px; border-radius: 8px; background: var(--accent); opacity: 0.8; }
+
+  .chapter { position: absolute; top: 72px; left: 153px; display: flex; align-items: center; gap: 18px; }
+  .chapter .num { font: 400 42px/54px Inter, sans-serif; color: var(--muted); letter-spacing: 0.02em; }
+  .chapter .bar { width: 1px; height: 30px; background: var(--muted); }
+  .chapter .title { font-size: 46px; line-height: 54px; letter-spacing: 0.06em; color: var(--accent); }
+  .search { position: absolute; top: 90px; right: 64px; display: flex; align-items: baseline; gap: 14px; }
+  .search .q { font-size: 32px; line-height: 40px; color: var(--text); border-bottom: 2px solid var(--faint); min-width: 260px; padding-bottom: 4px; }
+  .search .q .ph { color: var(--muted); }
+
+  .cols { position: absolute; top: 164px; left: 0; right: 0; display: grid; grid-template-columns: 600px 600px; gap: 0 16px; padding-left: 32px; }
+  h2 { font-weight: 400; font-size: 24px; line-height: 40px; height: 54px; padding-left: 212px; display: flex; align-items: center; }
+  h2 small { font: 500 12px/16px Inter; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-left: 16px; }
+  .row { height: 40px; display: flex; align-items: center; }
+  .row .k { width: 196px; text-align: right; font: 400 20px/27px Inter, sans-serif; color: var(--muted); letter-spacing: 0.01em; white-space: nowrap; }
+  .row .w { padding-left: 16px; font-size: 26px; line-height: 40px; white-space: nowrap; }
+  .row.sel .w { text-decoration: underline; text-decoration-color: var(--text); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+  .foot { position: absolute; bottom: 24px; left: 244px; }
+</style>
+</head>
+<body>
+<div class="head frame"><span>F1 &nbsp; Keys</span><span class="date">Wednesday 11 November &nbsp;11:55</span>
+  <span class="hud">Listening <i></i></span></div>
+
+<div class="chapter"><span class="num">F1</span><span class="bar"></span><span class="title">KEYS</span></div>
+<div class="search"><span class="frame">Search</span><span class="q"><span class="ph">type a word</span></span></div>
+
+<div class="cols">
+  <div>
+    <h2>The scenes</h2>
+    <div class="row sel"><span class="k">Super →</span><span class="w">Next scene</span></div>
+    <div class="row"><span class="k">Super ←</span><span class="w">Previous scene</span></div>
+    <div class="row"><span class="k">Super A</span><span class="w">Agenda</span></div>
+    <div class="row"><span class="k">Super O</span><span class="w">Overview</span></div>
+    <div class="row"><span class="k">Super Return</span><span class="w">Chat drawer</span></div>
+    <div class="row"><span class="k">Super N</span><span class="w">Notes at the right</span></div>
+    <div class="row"><span class="k">Super ↑ ↓</span><span class="w">Header, footer</span></div>
+    <div class="row"><span class="k">Super Space</span><span class="w">Start a program</span></div>
+  </div>
+  <div>
+    <h2>In every look<small>shared</small></h2>
+    <div class="row"><span class="k">Alt Y</span><span class="w">Yes to a question</span></div>
+    <div class="row"><span class="k">Alt N</span><span class="w">No to a question</span></div>
+    <div class="row"><span class="k">Esc</span><span class="w">Back one step</span></div>
+    <div class="row"><span class="k">Super Alt 1–4</span><span class="w">Give the window</span></div>
+    <div class="row"><span class="k">Super /</span><span class="w">These keys</span></div>
+  </div>
+</div>
+<div class="foot frame">Arrows move &nbsp;·&nbsp; Esc closes</div>
+<script>
+  document.documentElement.className = new URLSearchParams(location.search).get('theme') || 'light';
+</script>
+</body>
+</html>

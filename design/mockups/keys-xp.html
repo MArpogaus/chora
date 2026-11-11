@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Keys in xp</title>
+<style>
+  @font-face { font-family: "Tahoma"; src: url(fonts/tahoma.ttf); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  body { position: relative; font: 14px/20px Tahoma, sans-serif; color: #000;
+         background: url(../../media/2026-11-11/showcase/05-xp-paperclip-balloon-chat-helper-2x.png) 0 0 / 1280px 720px; }
+
+  /* Luna window */
+  .win { position: absolute; left: 208px; top: 40px; width: 672px; height: 600px;
+         background: #0831D9; border-radius: 8px 8px 0 0; padding: 0 3px 3px;
+         box-shadow: 2px 3px 10px rgba(0,0,0,0.35); }
+  .title { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 5px 0 6px;
+           border-radius: 7px 7px 0 0; margin: 0 -3px;
+           background: linear-gradient(#0997FF 0%, #0053EE 9%, #0050EE 18%, #0066FF 45%, #0058F5 80%, #0040E0 92%, #0034D0 100%);
+           color: #fff; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 0 #0F1089; }
+  .title .ico { width: 16px; height: 16px; border-radius: 3px; background: #FFF;
+                color: #0A5AE8; font: bold 13px/16px Tahoma; text-align: center; text-shadow: none; }
+  .title .btns { margin-left: auto; display: flex; gap: 2px; }
+  .tb { width: 21px; height: 21px; border-radius: 3px; border: 1px solid #fff;
+        background: radial-gradient(circle at 30% 30%, #5C8FFF, #2663E0 70%, #1B4FC8); position: relative; }
+  .tb.close { background: radial-gradient(circle at 30% 30%, #F0947C, #E0461D 70%, #C13A12); }
+  .tb.close::before, .tb.close::after { content: ""; position: absolute; left: 9px; top: 3px; width: 2px; height: 13px; background: #fff; transform: rotate(45deg); }
+  .tb.close::after { transform: rotate(-45deg); }
+  .tb.min::before { content: ""; position: absolute; left: 5px; bottom: 4px; width: 7px; height: 3px; background: #fff; }
+
+  .body { display: flex; height: calc(100% - 30px); background: #fff; }
+  /* XP task pane */
+  .side { width: 208px; flex: none; padding: 12px; background: linear-gradient(#7BA2E7, #6375D6); }
+  .box { border-radius: 3px 3px 0 0; margin-bottom: 12px; overflow: hidden; }
+  .box .hd { height: 25px; padding: 0 10px; display: flex; align-items: center; font-weight: bold;
+             color: #215DC6; background: linear-gradient(90deg, #fff 0%, #C6D3F7 100%); border-radius: 5px 5px 0 0; }
+  .box .bd { background: #D6DFF7; padding: 10px; border: 1px solid #fff; border-top: 0; }
+  .field { height: 24px; background: #fff; border: 1px solid #7F9DB9; display: flex; align-items: center; padding: 0 5px; }
+  .caret { width: 1px; height: 15px; background: #000; margin-left: 1px; }
+  .bd .hint { color: #4A5A8A; margin-top: 6px; }
+  .link { color: #215DC6; display: flex; align-items: center; gap: 6px; height: 22px; }
+  .link.on { font-weight: bold; }
+  .link .b { width: 6px; height: 6px; background: #215DC6; transform: rotate(45deg); flex: none; }
+  .link.hov { text-decoration: underline; color: #428EFF; }
+
+  /* content */
+  .main { flex: 1; position: relative; overflow: hidden; }
+  .scroll { position: absolute; inset: 0 17px 0 0; padding: 14px 18px; overflow: hidden; }
+  h1 { font: bold 20px/26px Tahoma; color: #003399; margin-bottom: 2px; }
+  .lead { color: #444; margin-bottom: 10px; }
+  h2 { font: bold 14px/20px Tahoma; color: #fff; background: #6D85C7; background: linear-gradient(90deg, #4C6BC4, #A3B5E6);
+       padding: 2px 6px; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: 2px 6px; height: 26px; border-bottom: 1px solid #E3E1D5; vertical-align: middle; }
+  td.k { width: 170px; font-weight: bold; white-space: nowrap; }
+  tr.sel td { background: #316AC5; color: #fff; }
+  .sbar { position: absolute; top: 0; right: 0; bottom: 0; width: 17px; background: #F4F3EE; border-left: 1px solid #EEEDE5; }
+  .sbtn { position: absolute; left: 0; width: 17px; height: 17px; border: 1px solid #B9C9EF; border-radius: 2px;
+          background: linear-gradient(90deg, #C8D6FB, #B2C7F7); }
+  .thumb { position: absolute; left: 0; top: 18px; width: 17px; height: 270px; border: 1px solid #B9C9EF; border-radius: 2px;
+           background: linear-gradient(90deg, #C9D8FC, #B7CBF8); }
+  .arrow { position: absolute; left: 4px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="title"><span class="ico">?</span>Keyboard shortcuts
+    <div class="btns"><div class="tb min"></div><div class="tb close"></div></div></div>
+  <div class="body">
+    <div class="side">
+      <div class="box"><div class="hd">Search</div>
+        <div class="bd">
+          <div>Type a word to find a key:</div>
+          <div class="field" style="margin-top:6px">cube<span class="caret"></span></div>
+          <div class="hint">Typing anywhere in this window searches.</div>
+        </div></div>
+      <div class="box"><div class="hd">Groups</div>
+        <div class="bd">
+          <div class="link"><span class="b"></span>Windows</div>
+          <div class="link on"><span class="b"></span>The cube</div>
+          <div class="link hov"><span class="b"></span>Helper and chat</div>
+          <div class="link"><span class="b"></span>Give a window</div>
+          <div class="link"><span class="b"></span>Everywhere</div>
+        </div></div>
+    </div>
+    <div class="main">
+      <div class="scroll">
+        <h1>Keyboard shortcuts</h1>
+        <div class="lead">3 keys contain “cube”. Press Esc to show all keys.</div>
+        <h2>The cube</h2>
+        <table>
+          <tr class="sel"><td class="k">Ctrl+Alt+Left, Right</td><td>Turn the cube to the next face</td></tr>
+          <tr><td class="k">Ctrl+Alt+Shift+Left</td><td>Carry the window round the cube</td></tr>
+          <tr><td class="k">Super+drag desktop</td><td>Turn the cube by hand</td></tr>
+        </table>
+        <h2 style="background:linear-gradient(90deg,#9AA6C4,#D3D9E8)">All other keys</h2>
+        <table style="color:#555">
+          <tr><td class="k">Ctrl+Esc</td><td>Open the Start menu</td></tr>
+          <tr><td class="k">Alt+Tab</td><td>Switch to the next window</td></tr>
+          <tr><td class="k">Alt+F4</td><td>Close the window</td></tr>
+          <tr><td class="k">Super+E</td><td>Open a terminal</td></tr>
+          <tr><td class="k">Shift+F10</td><td>Open the menu of the item</td></tr>
+          <tr><td class="k">Super+A</td><td>Open the chat</td></tr>
+          <tr><td class="k">Alt+Y, Alt+N</td><td>Answer yes or no to a question</td></tr>
+          <tr><td class="k">Super+Alt+1 to 4</td><td>Give the window to another look</td></tr>
+          <tr><td class="k">Esc</td><td>Back out one step</td></tr>
+          <tr><td class="k">Super+/ or F1</td><td>Show this window</td></tr>
+        </table>
+      </div>
+      <div class="sbar">
+        <div class="sbtn" style="top:0"><div class="arrow" style="top:5px;border-bottom:5px solid #4D6185"></div></div>
+        <div class="thumb"></div>
+        <div class="sbtn" style="bottom:0"><div class="arrow" style="top:6px;border-top:5px solid #4D6185"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

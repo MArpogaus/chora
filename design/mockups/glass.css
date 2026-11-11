@@ -1,0 +1,117 @@
+/* chora construct HUD: the glass tokens of construct-hud-spec.md, as CSS.
+   Logical pixels; the mockups render at 1280x720, 1x and 2x. */
+
+:root {
+  --unit: 8px;
+  --margin: 32px;
+  --accent: #2680B4;
+  --accent-rgb: 38, 128, 180;
+
+  --r-panel: 24px;          /* panels, cards, overlays */
+  --r-inner: 16px;          /* rows, field, segments: panel radius - inset 8 */
+  --r-key: 6px;             /* keycaps */
+  --r-pill: 999px;          /* capsules: ring, label, hints, notices */
+
+  --blur: 40px;
+  --sat: 180%;
+
+  --f-sans: "Inter", sans-serif;
+  --f-mono: "DejaVu Sans Mono", monospace;
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Light: a cool white tint, white inner highlight, a soft long shadow. */
+.light {
+  --tint: rgba(248, 249, 251, 0.64);
+  --tint-strong: rgba(248, 249, 251, 0.82);   /* over a dark pane (adaptive) */
+  --edge-out: rgba(16, 20, 28, 0.10);
+  --edge-in: rgba(255, 255, 255, 0.55);
+  --hi: rgba(255, 255, 255, 0.90);
+  --shadow: 0 1px 2px rgba(16, 20, 28, 0.06), 0 8px 24px rgba(16, 20, 28, 0.08),
+            0 24px 64px rgba(16, 20, 28, 0.12);
+  --text: #14181E;
+  --muted: #4A5260;
+  --hover: rgba(20, 24, 30, 0.05);
+  --select: rgba(var(--accent-rgb), 0.16);
+  --well: rgba(20, 24, 30, 0.05);
+  --cap: rgba(255, 255, 255, 0.72);
+  --cap-edge: rgba(16, 20, 28, 0.12);
+  --cap-low: rgba(16, 20, 28, 0.10);
+  --scrim: rgba(236, 239, 244, 0.40);
+  --sep: rgba(16, 20, 28, 0.08);
+  --sat-theme: 180%;
+}
+
+/* Dark: a graphite tint, a faint white top highlight, a deep shadow. */
+.dark {
+  --tint: rgba(24, 26, 32, 0.56);
+  --tint-strong: rgba(24, 26, 32, 0.84);      /* over a bright pane (adaptive) */
+  --edge-out: rgba(0, 0, 0, 0.60);
+  --edge-in: rgba(255, 255, 255, 0.10);
+  --hi: rgba(255, 255, 255, 0.16);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.30),
+            0 24px 64px rgba(0, 0, 0, 0.50);
+  --text: #ECEEF2;
+  --muted: #A3AAB5;
+  --hover: rgba(255, 255, 255, 0.07);
+  --select: rgba(var(--accent-rgb), 0.30);
+  --well: rgba(0, 0, 0, 0.22);
+  --cap: rgba(255, 255, 255, 0.10);
+  --cap-edge: rgba(255, 255, 255, 0.12);
+  --cap-low: rgba(0, 0, 0, 0.40);
+  --scrim: rgba(0, 0, 0, 0.36);
+  --sep: rgba(255, 255, 255, 0.08);
+  --sat-theme: 160%;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; }
+body {
+  position: relative;
+  font-family: var(--f-sans);
+  color: var(--text);
+  background-size: 1280px 720px;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01", "tnum";
+}
+
+/* The glass material. */
+.glass {
+  position: absolute;
+  background: var(--tint);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--sat-theme));
+  backdrop-filter: blur(var(--blur)) saturate(var(--sat-theme));
+  box-shadow: inset 0 1px 0 var(--hi), inset 0 0 0 1px var(--edge-in),
+              0 0 0 1px var(--edge-out), var(--shadow);
+  border-radius: var(--r-panel);
+}
+.glass.strong { background: var(--tint-strong); }
+.pill { border-radius: var(--r-pill); }
+
+/* Type roles. */
+.label { font: 500 11px/16px var(--f-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.small { font: 500 14px/20px var(--f-sans); }
+.data  { font: 400 14px/20px var(--f-mono); }
+.text  { font: 400 16px/24px var(--f-sans); }
+.display { font: 300 24px/32px var(--f-sans); letter-spacing: -0.01em; }
+.muted { color: var(--muted); }
+
+/* Keycaps. */
+.keys { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; padding: 0 7px;
+  font: 500 14px/24px var(--f-sans); letter-spacing: 0; color: var(--text);
+  background: var(--cap); border-radius: var(--r-key);
+  box-shadow: inset 0 0 0 1px var(--cap-edge), inset 0 -1px 0 var(--cap-low);
+}
+.or { font: 400 14px/24px var(--f-sans); color: var(--muted); margin: 0 2px; }
+
+/* Focus ring and hover. */
+.focus { box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px rgba(var(--accent-rgb), 0.22) !important; }
+.hover { background: var(--hover); }
+.selected { background: var(--select); }
+
+/* The voice ring. */
+.ring { width: 24px; height: 24px; flex: none; }
