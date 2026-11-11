@@ -204,7 +204,7 @@ from persona round 3, UX loop after them):
 - session_016iS3kMarD5B9MkUGpTGP15 (opus): claude/fix-chat, B1 B2 B4 M1 M2 M6 M8.
 - session_016iS3kPtHkcGRNN6QptStke (opus): claude/fix-basics, B3 M4 M5 M7 M9.
 - session_<cube>: claude/fix-cube, B5, K12, P1, C2, cube minors, D3a.
-Merge chain running here: demo 55bf65cf, stale-frame 12b61fb, wm-pane ba19022.
+Merged 11-11 pm: HUD looks (7d188b1), demo scene (4864640), stale-frame keep texture (d81ccbe), wm-pane K7 (3804e71).
 Merged: HUD looks (7d188b1).
 
 Local: K5 construct on 3D (agent afab03f7e183f96f0, /home/user/wt/k5),
