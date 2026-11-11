@@ -3,6 +3,14 @@
 # settings.set each answer within half the 10 s that a method call of
 # the core waits, on a debug build, and the core drops no late answer.
 #
+# Measured on 2026-11-11 with llvmpipe: a settings.set that changes more
+# than the theme builds all scenes anew and takes 2.3 to 2.9 s on a debug
+# build and 0.5 s on a release build; a change of the theme alone fades
+# the colors and takes 1.7 s and 0.3 s. Most of it is the core, which
+# applies about 1300 commands in one transaction (1.5 s debug, 0.3 s
+# release); the new grabs of the keys take 0.4 s debug and 0.06 s
+# release. So there is no partial rebuild: the release time is no stall.
+#
 # Usage: tests/gate-mc-scale.sh   BIN: directory with the binaries
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-mc

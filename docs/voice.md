@@ -1232,9 +1232,9 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
     (a list of projects and names in the settings), and should they
     survive its restart (a detached supervisor that keeps the ACP
     pipes)? Now they end with it.
-14. `agent-sandbox.sh` drops the arguments after the command, so
-    `agent-sandbox.sh opencode acp` runs `opencode` without `acp`. Fix
-    the script (`*) ARGS+=("$1") ;;`), or give `sandbox_cmd` a wrapper?
+14. Done: `dist/sandbox/agent-sandbox.sh` is in the repository and
+    passes the arguments after the command on; `tests/agent-sandbox.sh`
+    checks it.
 15. An ACP agent (opencode 1.19) calls `fs/write_text_file` although
     the client offers no file system; the client answers "method not
     found", and opencode writes the file itself. Offer the file system
@@ -1250,16 +1250,18 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `sandbox_cmd` and `agent_cmd`, with `{dir}` and `{project}` replaced,
   in the directory of the project, in its own process group. Without
   `unsandboxed: true`, `coder_cmd` and `agent_cmd` always run in
-  `sandbox_cmd` (default `agent-sandbox.sh`: podman per start, project
-  directory mounted, own home, read-only root, all capabilities
-  dropped, network `ai-net`, ACP on stdio without a tty). The sandbox
+  `sandbox_cmd` (default `agent-sandbox.sh`; `dist/sandbox` has a
+  minimal one with bubblewrap: project directory writable, own home,
+  read-only root, empty `/tmp`, `/run` and runtime directory, no
+  network unless `--net`, ACP on stdio without a tty). The sandbox
   must not mount the main socket of chora (`CHORA_SOCKET`) or its
   directory: a client of the main socket can do all that the user can,
   also name itself as a HUD (section 5). The test
   `the_sandbox_hides_the_main_socket` of the voice crate runs a probe in
   `agent-sandbox.sh` when it is on `PATH` and fails when the probe sees
   a socket in `XDG_RUNTIME_DIR` or `CHORA_SOCKET`. Without the script
-  it says `skip` on stderr, and with `CI` set it fails.
+  it says `skip` on stderr, and with `CI` set it fails; ci.yaml installs
+  bubblewrap and puts `dist/sandbox` on `PATH`.
   `unsandboxed: true` skips the sandbox and so this check. The projects:
   `agent_projects` and the directories of the inventory; a name matches
   in any case.

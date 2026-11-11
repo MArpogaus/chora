@@ -174,14 +174,16 @@ impl Construct {
         }
         let at = point.map(|v| v.round() as i32);
         let place = MethodCall {
-            client: to,
+            client: to.clone(),
             method: "window.move".into(),
             params: json!({"surface": surface, "output": output, "at": at}),
         };
         let placed: Result<Value, _> =
             (self.rt.conn).call_within("methods.call", place, PLACE_WAIT);
         if let Err(err) = placed {
-            eprintln!("chora-construct: {surface} is not at the drop point: {err}");
+            eprintln!(
+                "chora-construct: {surface} is a window of {to}, not at the drop point: {err}"
+            );
         }
         Ok(true)
     }
