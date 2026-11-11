@@ -21,7 +21,9 @@
 #    Its task button is on the taskbar of that face only.
 # 2a. Stood back (K12): a drag on the floating plane of a window pulls
 #    the window out of the cube; dropped beside the cube it is a pane in
-#    view, dropped over the front face it is a window of xp again.
+#    view, dropped over the front face it is a window of xp again. A
+#    window half over the right edge of the face shows in full on its
+#    plane, past the edge.
 # 3. Without the flag the core refuses the give of an injected drag:
 #    past the edge the window is still with xp, and no pane shows it;
 #    back in the face it goes on with the drag, and stays after the
@@ -212,6 +214,40 @@ inject '[{"pointer_move": {"position": [600, 350]}}, {"button": {"state": "relea
 until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 || fail "a pane dropped over the stood-back front face did not go back to xp: $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "the pane stays after its window went back: $(pane_of "$surface")"
 ok "stood back, a pulled window dropped over the front face is a window of xp again: $(probe)"
+end_session
+
+right_of() {
+    ctl query "id:$1" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
+print(round(r[0] + r[2]) if r else -1)'
+}
+env_file=$work/edge.env CHORA_TEST_FLAGS=--test-injected-press-is-real session_start 1280x800 -- "$bin/chora-construct"
+grant input.inject screen.capture
+ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
+call cube.open '{}' >/dev/null || fail "cube.open"
+until_ok 'ctl query id:xp-bar-VIRTUAL-1 | grep -q xp-bar' 80 || fail "xp shows no taskbar on the front face"
+inject '[{"pointer_move": {"position": [640, 400]}}]'
+"$bin/chora-probe" window 40 120 200 --server-deco >"$work/edge-probe.log" 2>&1 &
+pids+=($!)
+until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
+read -r surface _ _ x y <<<"$(probe)"
+until_ok 'ctl query "id:xp-title-$surface" | grep -q VIRTUAL-1' 40 || fail "the window has no title bar"
+inject "[{\"pointer_move\": {\"position\": [$((x + 50)), $((y - 12))]}},
+    {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+    {\"pointer_move\": {\"position\": [$((x + 300)), $((y - 12))]}},
+    {\"pointer_move\": {\"position\": [1220, $((y - 12))]}},
+    {\"button\": {\"state\": \"released\"}}]"
+until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" -gt 1100' 20 || fail "the window does not hang over the right edge: $(probe)"
+call view.step_back '{}' >/dev/null || fail "view.step_back"
+until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
+sleep 1
+plane_right=$(right_of "construct-cube-float-0-$surface")
+face_right=$(right_of construct-cube-face-0)
+[ "$plane_right" -gt $((face_right + 40)) ] ||
+    fail "the window over the right edge is clipped at the face: plane to $plane_right, face to $face_right"
+ok "stood back, a window half over the right edge shows in full, to $plane_right past the face at $face_right"
 end_session
 
 pull injected
