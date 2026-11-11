@@ -11,7 +11,8 @@
 #    only), where an injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
 #    mesh of the pane has a depth; after a drop beside the cube it is
-#    still its pane, with a name. Then the pane rests when the pointer
+#    still its pane, with a name, in front of the face at least at
+#    1:1. Then the pane rests when the pointer
 #    moves, and the camera is in no window. The window exists at every
 #    step.
 #    The task button of the window leaves the taskbar of its face.
@@ -118,7 +119,7 @@ until_ok 'test "$(task_on VIRTUAL-1)" = 0' 20 || fail "the task button of a pull
 ok "past the edge of its face the window is a pane of the construct, and its task button went"
 inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}}]"
 inject '[{"pointer_move": {"position": [900, 420]}}]'
-until_ok 'test "$(deepest "$surface")" != 0' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
+until_ok 'python3 -I -c "import sys; sys.exit(float(sys.argv[1]) <= 0)" "$(deepest "$surface")"' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
 ok "the pane wobbles on with a depth of $(deepest "$surface")"
 inject "[{\"pointer_move\": {\"position\": [220, 320], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
@@ -127,6 +128,16 @@ sleep 1
 [ "$(pane_of "$surface")" != none ] || fail "the pane went after the drop"
 [ -n "$(pane_name "$surface")" ] || fail "the pane of the window has no name"
 ok "after a drop beside the cube the window is still the pane $(pane_name "$surface") of the construct: $(probe)"
+shown_width() {
+    ctl query "id:construct-pane-$surface" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+print(round(nodes[0]["rects"].get("HEADLESS-1", [0, 0, 0, 0])[2]) if nodes else 0)'
+}
+[ "$(shown_width)" -ge 200 ] ||
+    fail "the pane of the pulled window is not in front of the face at 1:1 or nearer: $(shown_width) px wide for 200"
+[ "$(pane_of "$surface")" = shown ] || fail "the pane of the pulled window is not in view: $(pane_of "$surface")"
+ok "the pulled window shows as a pane in front of the face, $(shown_width) px wide"
 sleep 2
 rests=$(node "construct-pane-$surface")
 [ "$(node "$surface" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0])')" = "construct-pane-$surface" ] ||
