@@ -15,7 +15,7 @@ panels:
   max_chars: 160
 - id: chips
   source: agents
-  anchor: bottom_left
+  anchor: top_left
   margin: [32, 32]
   style: bubble
   rows: '{name} · {state}'
