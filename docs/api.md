@@ -1161,13 +1161,15 @@ and shows every output. One connection records at a time.
 A plugin with animations of its own takes their time from
 `chora_kit::clock` and exports the method `clock.step(ms)`: it stops the
 clock of the plugin at `ms` of the recording and draws one frame;
-`null` lets the clock run again. The method is privileged.
+`null` lets the clock run again. The first step stops the clock where
+it is, and the later steps move it on by the difference of their `ms`. The method is privileged.
 `chora-construct` exports it for the glide of the camera and the wobble
 of the panes.
 
 `choractl record --fps 30 --frames N --out DIR` writes
-`DIR/frame-00001.png` and on. For each frame, it calls `record.step`,
-then `clock.step` of every plugin that exports it, then `record.frame`.
+`DIR/frame-00001.png` and on. A first step stops all clocks. Then, for
+each frame, it calls `record.step`, then `clock.step` of every plugin
+that exports it, then `record.frame`.
 At the end, also after a failure, it lets all clocks run again. With
 `--script FILE`, it sends requests at given frames, before the step of
 the frame; the file has one JSON object per line:

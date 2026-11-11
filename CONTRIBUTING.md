@@ -238,6 +238,18 @@ need root or podman. `vkms` starts chora on the tty backend, and
 `podman` runs a client in a container. A gate check that needs a user
 manager runs by hand on the reference machine.
 
+## Demo media
+
+`demo/record.sh OUT_DIR` makes the demo clips of `chora-construct`: a
+walk through a construct and a pane that wobbles in 3D, each as a GIF
+and an MP4. `demo/scene-construct.sh` starts the scene: a headless
+session with five panes whose content `demo/content.py` generates, so
+no clip holds an asset of a third party. `choractl record` steps the
+scene clock by 1/30 s per frame, so the clips show the same motion on
+any renderer. `tests/gate-demo.sh` checks the scene and the clips. A
+caption of a clip names the renderer, for example software GL in a
+container.
+
 ## Releases
 
 A release ends a milestone, once its gate holds (see

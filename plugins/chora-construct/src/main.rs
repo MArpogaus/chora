@@ -77,7 +77,7 @@ use crate::{
     config::{Action, Config},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Metrics, Voice},
-    methods::{MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
+    methods::{GlideTo, MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
     panes::{PaneLook, configure, create, handed_over, mirror_size, shadow_w, update, vec3},
     space::{Lens, Pose},
 };
@@ -383,6 +383,9 @@ struct Glide {
     start: Instant,
     ms: f64,
     into: Option<Flown>,
+    /// Whether the move also starts slowly, as a flight of
+    /// `camera.glide` does.
+    smooth: bool,
 }
 
 /// The pose with the snap: the window of the pane that the camera flew

@@ -10,7 +10,6 @@
 
 use std::{
     cell::Cell,
-    sync::OnceLock,
     time::{Duration, Instant},
 };
 
@@ -26,10 +25,12 @@ pub const METHOD: &str = "clock.step";
 /// The longest recording: a day.
 const MAX_MS: f64 = 86_400_000.0;
 
-static START: OnceLock<Instant> = OnceLock::new();
 thread_local! {
     /// The stepped time of the thread of the plugin's loop.
     static STEPPED: Cell<Option<Instant>> = const { Cell::new(None) };
+    /// Where the recording started: the time of the plugin then, and the
+    /// time of the recording.
+    static BASE: Cell<Option<(Instant, f64)>> = const { Cell::new(None) };
 }
 
 /// The time of the animations: of the last step of a recording on this
@@ -45,12 +46,20 @@ pub fn since(earlier: Instant) -> Duration {
     now().saturating_duration_since(earlier)
 }
 
-/// Stops the clock at `ms` after the start of the plugin, or lets it run
-/// again with `None`.
+/// Stops the clock at `ms` of a recording, or lets it run again with
+/// `None`. The first step of a recording stops the clock where it is, and
+/// the later steps move it on from there, so the time never goes back.
 pub fn set(ms: Option<f64>) {
-    let start = *START.get_or_init(Instant::now);
-    let at = ms.map(|ms| start + Duration::from_secs_f64(ms.clamp(0.0, MAX_MS) / 1000.0));
-    STEPPED.set(at);
+    let Some(ms) = ms else {
+        STEPPED.set(None);
+        BASE.set(None);
+        return;
+    };
+    let ms = ms.clamp(0.0, MAX_MS);
+    let (start, first) = BASE.get().unwrap_or((Instant::now(), ms));
+    BASE.set(Some((start, first)));
+    let passed = Duration::from_secs_f64((ms - first).max(0.0) / 1000.0);
+    STEPPED.set(Some(start + passed));
 }
 
 /// The parameters of `clock.step`.
@@ -95,8 +104,13 @@ mod tests {
 
     #[test]
     fn a_stepped_clock_moves_only_with_its_steps() {
+        let before = Instant::now();
         step(json!({"ms": 1000.0})).unwrap();
         let first = now();
+        assert!(
+            first >= before,
+            "the first step keeps the time of the plugin"
+        );
         std::thread::sleep(Duration::from_millis(5));
         assert_eq!(now(), first);
         step(json!({"ms": 1000.0 + 1000.0 / 30.0})).unwrap();

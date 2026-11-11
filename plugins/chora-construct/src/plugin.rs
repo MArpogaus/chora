@@ -2,9 +2,9 @@
 //! construct.
 
 use super::{
-    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, MovePane, Named, OpenCube,
-    Plugin, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give, json, moved,
-    runtime,
+    ClientError, Command, Construct, Entry, Event, Give, GlideTo, Grab, LOOK, MovePane, Named,
+    OpenCube, Plugin, Pose, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give,
+    json, moved, runtime,
 };
 
 impl Plugin for Construct {
@@ -177,6 +177,17 @@ impl Plugin for Construct {
                 }
                 self.toggle_help().map_err(rejected)?;
                 Ok(json!({"shown": self.help}))
+            }
+            "camera.glide" => {
+                let GlideTo {
+                    x,
+                    z,
+                    yaw,
+                    pitch,
+                    ms,
+                } = runtime::params(params)?;
+                self.glide_smoothly(Pose { x, z, yaw, pitch }, ms)?;
+                Ok(Value::Null)
             }
             "pane.fly" => {
                 let Named { name } = runtime::params(params)?;

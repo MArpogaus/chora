@@ -17,7 +17,7 @@ test -x "$repo/demo/scene-construct.sh" || fail "no demo/scene-construct.sh"
 
 work=$(mktemp -d /tmp/gate-demo.XXXXXX)
 tmp_dirs+=("$work")
-CHORA_BIN=$bin "$repo/demo/scene-construct.sh" dark >"$work/env" 2>&1 &
+CHORA_BIN=$bin "$repo/demo/scene-construct.sh" >"$work/env" 2>&1 &
 pids+=($!)
 trap gate_cleanup EXIT
 for _ in $(seq 120); do

@@ -41,6 +41,19 @@ pub(crate) struct TurnCube {
     pub(crate) ms: Option<u64>,
 }
 
+/// Parameters of `camera.glide`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct GlideTo {
+    pub(crate) x: f64,
+    pub(crate) z: f64,
+    pub(crate) yaw: f64,
+    #[serde(default)]
+    pub(crate) pitch: f64,
+    #[serde(default)]
+    pub(crate) ms: f64,
+}
+
 /// Parameters of `pane.resize`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -145,6 +158,20 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
         ),
         give::method(),
         chora_kit::clock::method(),
+        runtime::method(
+            "camera.glide",
+            "Flies the camera to a pose in MS milliseconds, slow at its start and at \
+             its end: x and z on the ground inside the leash, the yaw (0 looks along \
+             +z) and the pitch in radians.",
+            json!({
+                "x": {"type": "number"},
+                "z": {"type": "number"},
+                "yaw": {"type": "number"},
+                "pitch": {"type": "number"},
+                "ms": {"type": "number"},
+            }),
+            &["x", "z", "yaw"],
+        ),
         runtime::method(
             "help.toggle",
             "Shows or hides the help panel with the key bindings of the construct; \

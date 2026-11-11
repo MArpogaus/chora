@@ -6,10 +6,11 @@
 # from outside the repository.
 #
 # Usage: demo/scene-construct.sh [THEME]
-#   THEME  light or dark (default dark)
+#   THEME  light or dark (default light)
 #
-# When the scene stands, it prints the lines KEY=VALUE of
-# tests/headless-session.sh (XDG_RUNTIME_DIR, WAYLAND_DISPLAY,
+# Before that, the camera looks to both sides once, so that every pane
+# has drawn its content. When the scene stands, it prints the lines
+# KEY=VALUE of tests/headless-session.sh (XDG_RUNTIME_DIR, WAYLAND_DISPLAY,
 # CHORA_SOCKET) and DEMO_READY=1, then waits until a signal. choractl of
 # the build talks to the session with CHORA_SOCKET. The client name
 # choractl holds the grants that demo/record.sh needs.
@@ -24,7 +25,7 @@ set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 bin=${CHORA_BIN:-$repo/target/debug}
-theme=${1:-dark}
+theme=${1:-light}
 size=${DEMO_SIZE:-1280x720}
 for tool in foot python3; do
     command -v "$tool" >/dev/null || {
@@ -73,14 +74,14 @@ pane() {
 YAML
 }
 {
-    echo "camera: {x: 0, z: -250, yaw: 0, pitch: -0.08}"
+    echo "camera: {x: 0, z: -100, yaw: 0, pitch: -0.07}"
     echo "radius: 6000"
     echo "panes:"
     pane sunset "0, 1500" 0 760 480 picture
-    pane wobbly.rs "-770, 1440" 0.42 560 470 code "$repo/crates/chora-kit/src/wobbly.rs"
-    pane chora "770, 1440" -0.42 560 470 page
-    pane load "-1550, 700" 1.1 560 400 palette
-    pane wobble.rs "1550, 700" -1.1 600 420 code "$repo/plugins/chora-construct/src/wobble.rs"
+    pane wobbly.rs "-770, 1440" -0.42 560 470 code "$repo/crates/chora-kit/src/wobbly.rs"
+    pane chora "770, 1440" 0.42 560 470 page
+    pane load "-1550, 700" -1.1 560 400 palette
+    pane wobble.rs "1550, 700" 1.1 600 420 code "$repo/plugins/chora-construct/src/wobble.rs"
 } >"$config/chora/constructs/demo.yaml"
 
 env_file=$config/env
@@ -113,7 +114,11 @@ done
     echo "$0: the panes did not start" >&2
     exit 1
 }
-sleep 3
+look() { ctl call construct camera.glide "{\"x\": 0, \"z\": -100, \"yaw\": $1, \"pitch\": -0.07}" >/dev/null; }
+for yaw in -1.2 1.2 0; do
+    look "$yaw"
+    sleep 1.5
+done
 cat "$env_file"
 echo "DEMO_READY=1"
 wait "$session"

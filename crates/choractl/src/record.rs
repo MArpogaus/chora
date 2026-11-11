@@ -105,6 +105,17 @@ fn step_clocks(client: &mut Client, clocks: &[String], ms: Option<f64>) -> Resul
     Ok(())
 }
 
+/// One step of the scene time of the core and of the plugins.
+fn step(client: &mut Client, fps: u32, clocks: &[String]) -> Result<(), String> {
+    let step: Value = client
+        .call("record.step", json!({"fps": fps}))
+        .map_err(|e| e.to_string())?;
+    step_clocks(client, clocks, step["time_ms"].as_f64())
+}
+
+/// The frames of a recording. A first step stops the clocks before the
+/// first request of the script, so that what the script starts moves
+/// only with the steps.
 fn frames(client: &mut Client, recording: &Recording, clocks: &[String]) -> Result<(), String> {
     let script = match &recording.script {
         Some(path) => parse_script(
@@ -113,16 +124,14 @@ fn frames(client: &mut Client, recording: &Recording, clocks: &[String]) -> Resu
         None => Vec::new(),
     };
     let mut cues = script.into_iter().peekable();
+    step(client, recording.fps, clocks)?;
     for frame in 1..=recording.frames {
         while let Some(cue) = cues.next_if(|c| c.frame <= frame) {
             client
                 .call::<_, Value>(&cue.method, cue.params)
                 .map_err(|e| format!("frame {frame}: {}: {e}", cue.method))?;
         }
-        let step: Value = client
-            .call("record.step", json!({"fps": recording.fps}))
-            .map_err(|e| e.to_string())?;
-        step_clocks(client, clocks, step["time_ms"].as_f64())?;
+        step(client, recording.fps, clocks)?;
         let picture: Picture = client
             .call("record.frame", json!({"output": recording.output}))
             .map_err(|e| format!("frame {frame}: {e}"))?;
