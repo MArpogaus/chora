@@ -689,7 +689,9 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
-`flavors/construct/` holds its target and service. The first output shows
+`flavors/construct/` holds its target and its services: `chora-construct`
+and `chora-assistant --assets /usr/share/chora/huds/construct`, the
+voice HUD and the chat. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
 lies over a smooth, white, glossy floor, as in a photo studio. In the
 dark theme, a black void lies over a black glossy floor. A crisp
@@ -1237,6 +1239,7 @@ The package installs the tiling flavor (D51):
 /usr/share/chora/flavors/tiling/
 ├── chora-tiling.target               # wants the units below and mako.service
 ├── chora-tiling.service              # chora-tiling
+├── chora-tiling-assistant.service    # chora-assistant: the voice HUD and the chat
 ├── chora-tiling-xwayland.service     # xwayland-satellite
 ├── chora-tiling-waybar.service       # the panel
 ├── chora-tiling-swaybg.service       # the wallpaper, a plain color

@@ -4,4 +4,4 @@
 Description=The construct flavor of chora
 BindsTo=graphical-session.target
 After=graphical-session.target
-Wants=chora-construct.service
+Wants=chora-construct.service chora-construct-assistant.service
