@@ -5,7 +5,7 @@ base_2d: the commit before 0153f0d (the 2D guard); no scene or renderer change s
 block: none (11-11 17:40 UTC)
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR
-session branch HEAD: fe3483f (tiling v2 merged 11-11 ~21:50 UTC, merge-gate 17/17 PASS)
+session branch HEAD: 59df16e (mc v2 and HUD host merged 11-11 ~23:30 UTC after tiling v2 fe3483f; merge-gate 17/17 PASS each)
 
 ## Now (11-11 17:40 UTC; sections "Plan of the day" and "Next step" below are of 11-10 and superseded)
 
@@ -32,7 +32,7 @@ After the reset (Sat 10:59, Fable): fixes of the swarm findings by area (helper 
 ## Plan of 11-12 (run 05:58 Bangkok; PM, user away)
 
 Budget about 93 % of the week by usage.py; the reset is Sat 10:59. Light work only until then:
-1. mc-v2 merge (gate running, second try after the shipped_huds test fix).
+1. mc-v2 MERGED as 59df16e (train 2 of 3 on 11-12).
 2. construct-v2 on the tour worker continues; review and merge when it reports.
 3. Disk: 7.9 GB free; remove the tiling-v2 target (merged) and the mc-v2 target after its merge; no new builds below 8 GB.
 4. review_due.py says DUE (range a03be22..HEAD, 64 critical files): every merge had its own review; the weekly round over the whole range runs as the per-area code review on Fable after the reset (decisions-now.md).
