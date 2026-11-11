@@ -110,9 +110,8 @@ impl Agent {
         }
         self.claim_indicator(true);
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
-        let name = data.get("name").and_then(Value::as_str);
         let now = Instant::now();
-        if let Some(helper) = name.filter(|n| *n != client) {
+        if let Some(helper) = helper_of(kind, data, client) {
             if kind == Some("state") {
                 self.helper_state(helper, data, now);
                 self.chat_voice(event, data);
@@ -649,6 +648,18 @@ impl Agent {
 }
 
 /// The anchor of a corner of the setting `position`.
+/// The helper that an event of the agent is about: the `name` of a state
+/// or a removal of a helper. A question names the helper that asks, for
+/// the title of its card, and is the agent's own event.
+fn helper_of<'a>(kind: Option<&str>, data: &'a Value, client: &str) -> Option<&'a str> {
+    if kind == Some("confirm") {
+        return None;
+    }
+    data.get("name")
+        .and_then(Value::as_str)
+        .filter(|name| *name != client)
+}
+
 fn anchor_of(corner: chora_draw::bubble::Corner) -> chora_kit::hud::Anchor {
     use chora_draw::bubble::Corner;
     use chora_kit::hud::Anchor;
@@ -666,6 +677,17 @@ mod tests {
     use chora_kit::hud::Anchor;
 
     use super::*;
+
+    #[test]
+    fn a_question_that_names_its_helper_is_a_question_of_the_agent() {
+        let asked = serde_json::json!({"id": "51", "prompt": "Write notes.txt?", "name": "Atlas"});
+        assert_eq!(helper_of(Some("confirm"), &asked, VOICE), None);
+        let working = serde_json::json!({"name": "Atlas", "state": "working"});
+        assert_eq!(helper_of(Some("state"), &working, VOICE), Some("Atlas"));
+        assert_eq!(helper_of(Some("remove"), &working, VOICE), Some("Atlas"));
+        let own = serde_json::json!({"name": VOICE, "state": "working"});
+        assert_eq!(helper_of(Some("state"), &own, VOICE), None);
+    }
 
     #[test]
     fn the_setting_position_names_a_corner_anchor() {
