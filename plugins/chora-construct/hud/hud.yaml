@@ -15,12 +15,14 @@ panels:
   max_chars: 160
 - id: chips
   source: agents
-  anchor: top
-  margin: [0, 104]
+  anchor: bottom_left
+  margin: [32, 32]
   style: bubble
   rows: '{name} · {state}'
   max_rows: 4
   action: chat
+  fill: [255, 252, 249]
+  border: [187, 186, 185]
 chat:
   style: glass
   font: Inter
@@ -28,7 +30,8 @@ chat:
   anchor: right
   width: 480
   margin: 32
-  fill: [240, 237, 234]
+  fill: [255, 252, 249]
   text: [20, 23, 31]
   name: [74, 82, 97]
-  border: [187, 186, 185]
+  border: [20, 23, 31]
+  glow: [38, 128, 181]

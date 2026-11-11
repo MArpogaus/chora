@@ -1,9 +1,8 @@
 //! The assistant of the voice agent: a figure above the corner of the
 //! first output that follows the state of the agent (D65) and speaks its
-//! sentences in a bubble. The figure is a dot of the asset folder, or the
-//! paperclip of the XP flavor. The core moves and scales it; the renderer
-//! draws no rotation yet, so the picture itself leans. A few frames swap
-//! the face.
+//! sentences in a bubble. The figure is a picture of the folder with one
+//! element for each state, or the dot of the host. The core moves and
+//! scales it. A picture with elements named `STATE-shut` blinks.
 
 use std::time::{Duration, Instant};
 
@@ -15,10 +14,7 @@ use chora_draw::{
 use chora_kit::hud::{Anchor, render};
 use chora_scene::{Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
 
-use crate::{
-    config::{Figure, Values},
-    paperclip,
-};
+use crate::config::{Figure, Values};
 
 /// The group of the HUD folder under `screen:OUTPUT`.
 const GROUP: &str = "hud";
@@ -48,7 +44,14 @@ const LINGER: Duration = Duration::from_secs(3);
 /// How long the balloon takes to fade out, in milliseconds.
 const FADE: f64 = 600.0;
 
-/// What the paperclip does.
+/// The widest line of a sentence without a box.
+const MAX_PLAIN: f64 = 420.0;
+/// The gap between the figure and a sentence without a box.
+const BESIDE: i32 = 8;
+/// How far above and below the figure a balloon may reach.
+const BALLOON_REACH: i32 = 144;
+
+/// What the figure does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pose {
     /// Blinks now and then.
@@ -66,7 +69,7 @@ pub enum Pose {
     Sleeping,
 }
 
-/// The opacity of the paperclip while the agent sleeps.
+/// The opacity of the figure while the agent sleeps.
 const DIM: f64 = 0.55;
 
 /// The pose for a state of the voice agent: the state of `voice.state`
@@ -138,16 +141,41 @@ fn draw(theme: &Theme, look: &Figure, state: &str, shut: bool) -> Picture {
             template,
             size: [w, h],
         } => {
-            let id = render(template, &serde_json::json!({ "state": state }));
-            let id = if theme.size(*sheet, &id).is_some() {
-                id
-            } else {
-                "idle".to_owned()
-            };
+            let has = |id: &str| theme.size(*sheet, id).is_some();
+            let id = element_of(has, template, state, shut);
             Picture::new(*w, *h).element(*sheet, &id, [0, 0, *w, *h])
         }
-        Figure::Paperclip => paperclip::draw(pose(state), shut),
     }
+}
+
+/// The id of the element of a sheet for a state: the template with the
+/// state, `idle` where the sheet has no such element, and with shut eyes
+/// the element `ID-shut` where the sheet has one.
+fn element_of(has: impl Fn(&str) -> bool, template: &str, state: &str, shut: bool) -> String {
+    let named = render(template, &serde_json::json!({ "state": state }));
+    let id = if has(&named) {
+        named
+    } else {
+        "idle".to_owned()
+    };
+    let closed = format!("{id}-shut");
+    if shut && has(&closed) { closed } else { id }
+}
+
+/// The top-left corner of a sentence without a box: beside the figure
+/// (x, y, width, height), on the side of the middle of the area, with its
+/// top at the top of the figure, inside the area.
+fn beside([w, h]: [i32; 2], [fx, fy, fw, _]: [i32; 4], [ax, ay, aw, ah]: [i32; 4]) -> [i32; 2] {
+    let at_right = fx + fw / 2 >= ax + aw / 2;
+    let x = if at_right {
+        fx - BESIDE - w
+    } else {
+        fx + fw + BESIDE
+    };
+    [
+        x.clamp(ax, (ax + aw - w).max(ax)),
+        fy.clamp(ay, (ay + ah - h).max(ay)),
+    ]
 }
 
 impl Figure {
@@ -156,25 +184,23 @@ impl Figure {
         match self {
             Self::Dot => DOT_SIZE,
             Self::Sheet { size, .. } => *size,
-            Self::Paperclip => paperclip::SIZE,
         }
     }
 
-    /// The point that the body turns around: the middle of a dot, the
-    /// bottom of the paperclip.
+    /// The point that the body turns around: the middle of a figure, the
+    /// foot of one that is taller than wide.
     fn pivot(&self) -> [f64; 2] {
-        match self {
-            Self::Paperclip => paperclip::PIVOT,
-            _ => self.size().map(|side| f64::from(side) / 2.0),
+        let [w, h] = self.size().map(f64::from);
+        if h > w {
+            [w / 2.0, h]
+        } else {
+            [w / 2.0, h / 2.0]
         }
     }
 
     /// Where the tail of the balloon points: above the head.
     fn head(&self) -> [i32; 2] {
-        match self {
-            Self::Paperclip => paperclip::HEAD,
-            _ => [self.size()[0] / 2, 0],
-        }
+        [self.size()[0] / 2, 0]
     }
 }
 
@@ -255,14 +281,18 @@ pub struct Assistant {
 /// the output; where it would leave the top of the area, it sits below
 /// the bottom of the figure instead.
 fn place(
-    style: &Style,
+    (style, tail_left): (&Style, bool),
     [w, h]: [i32; 2],
     [tip_x, tip_y]: [i32; 2],
     (area, figure_bottom): ([i32; 4], i32),
 ) -> ([i32; 2], i32, bool) {
     let [ax, ay, aw, _] = area;
-    let right = (tip_x + style.tail_inset).min(ax + aw - 2);
-    let left = (right - w).max(ax);
+    let left = if tail_left {
+        (tip_x - style.tail_inset).max(ax).min(ax + aw - w)
+    } else {
+        let right = (tip_x + style.tail_inset).min(ax + aw - 2);
+        (right - w).max(ax)
+    };
     let tail = (tip_x - left).clamp(style.radius + style.tail_base, w - style.radius);
     let above = tip_y - style.tail - h;
     if above >= ay {
@@ -276,7 +306,7 @@ fn place(
 /// top-left corner, for a tail tip at a point of an area of the output.
 fn speech(
     theme: &mut Theme,
-    style: &Style,
+    (style, tail_left): (&Style, bool),
     text: &str,
     (tip, anchor): ([i32; 2], ([i32; 4], i32)),
 ) -> (Picture, [i32; 2], i32) {
@@ -286,7 +316,7 @@ fn speech(
     #[allow(clippy::cast_possible_truncation)]
     let w = (PAD + (text_width.ceil() as i32) + PAD).max(MIN_WIDTH);
     let h = PAD + i32::try_from(lines.len()).unwrap_or(0) * LINE + PAD;
-    let (origin, tail, below) = place(style, [w, h], tip, anchor);
+    let (origin, tail, below) = place((style, tail_left), [w, h], tip, anchor);
     let style = Style {
         tail: if below { 0 } else { style.tail },
         ..style.clone()
@@ -456,13 +486,52 @@ impl Assistant {
         self.balloon(theme, text)
     }
 
+    /// The part of the output that the figure and its balloon may take:
+    /// x, y, width, height. A balloon is at most `MAX_SPEECH` wide and
+    /// stands above or below the figure.
+    pub fn reach(&self) -> [i32; 4] {
+        let [x, y, w, h] = self.rect();
+        if self.values.line.plain {
+            return [x, y, w, h];
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let widest = PAD + MAX_SPEECH as i32 + PAD;
+        let style = (&self.values.speech, self.values.line.tail_left);
+        let tip = [x + self.values.figure.head()[0], y];
+        let ([left, _], ..) = place(style, [widest, 0], tip, (self.area, y + h));
+        let from = left.min(x);
+        let to = (left + widest).max(x + w);
+        [from, y - BALLOON_REACH, to - from, h + 2 * BALLOON_REACH]
+    }
+
+    /// A sentence without a box, beside the figure.
+    fn plain(&mut self, theme: &mut Theme, text: &str) -> Vec<Command> {
+        let width = |s: &str| theme.text_width(s, Font::Ui);
+        let lines = wrap(text, MAX_PLAIN, width);
+        let widest = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
+        #[allow(clippy::cast_possible_truncation)]
+        let w = (widest.ceil() as i32).max(1);
+        let h = i32::try_from(lines.len()).unwrap_or(0).max(1) * LINE;
+        let mut picture = Picture::new(w, h);
+        let colour = self.values.speech.text_rgba();
+        for (line, y) in lines.iter().zip((0..).step_by(LINE as usize)) {
+            picture = picture.text(Text::new(line, Font::Ui, colour, [0, y, w, LINE]));
+        }
+        let [bx, by] = beside([w, h], self.rect(), self.area);
+        self.speech_node(theme, &picture, [bx - self.origin[0], by - self.origin[1]])
+    }
+
     /// The balloon of a sentence.
     fn balloon(&mut self, theme: &mut Theme, text: &str) -> Vec<Command> {
+        if self.values.line.plain {
+            return self.plain(theme, text);
+        }
         let [x, y] = self.origin;
         let [head_x, head_y] = self.values.figure.head();
         let tip = [x + head_x, y + head_y];
         let anchor = (self.area, y + self.values.figure.size()[1]);
-        let (picture, [bx, by], _) = speech(theme, &self.values.speech, text, (tip, anchor));
+        let style = (&self.values.speech, self.values.line.tail_left);
+        let (picture, [bx, by], _) = speech(theme, style, text, (tip, anchor));
         self.speech_node(theme, &picture, [bx - x, by - y])
     }
 
@@ -582,9 +651,19 @@ mod tests {
             tail: 18,
             ..Style::default()
         };
-        let (origin, _, below) = place(&style, [120, 40], [100, 300], ([0, 0, 1000, 800], 330));
+        let (origin, _, below) = place(
+            (&style, false),
+            [120, 40],
+            [100, 300],
+            ([0, 0, 1000, 800], 330),
+        );
         assert_eq!((origin[1], below), (300 - 18 - 40, false));
-        let (origin, _, below) = place(&style, [120, 40], [100, 10], ([0, 0, 1000, 800], 40));
+        let (origin, _, below) = place(
+            (&style, false),
+            [120, 40],
+            [100, 10],
+            ([0, 0, 1000, 800], 40),
+        );
         assert_eq!((origin[1], below), (40, true));
     }
 
@@ -688,9 +767,9 @@ mod tests {
     fn a_balloon_keeps_below_a_bar_at_the_top() {
         let style = Style::default();
         let area = [0, 40, 1000, 760];
-        let (origin, _, below) = place(&style, [120, 40], [100, 70], (area, 90));
+        let (origin, _, below) = place((&style, false), [120, 40], [100, 70], (area, 90));
         assert_eq!((origin[1], below), (90, true), "no room above the bar");
-        let (origin, _, _) = place(&style, [120, 40], [995, 300], (area, 330));
+        let (origin, _, _) = place((&style, false), [120, 40], [995, 300], (area, 330));
         assert!(origin[0] + 120 <= 998, "{origin:?}");
     }
 
@@ -789,8 +868,48 @@ mod tests {
 
     #[test]
     fn the_body_grows_from_its_foot() {
-        let pivot = Figure::Paperclip.pivot();
+        let tall = Figure::Sheet {
+            sheet: chora_draw::theme::Sheet("paperclip.svg"),
+            template: "{state}".into(),
+            size: [80, 116],
+        };
+        let pivot = tall.pivot();
+        assert!((pivot[1] - 116.0).abs() < 1e-9, "the foot of a tall figure");
         let (x, y) = body(pivot, [1.1, 1.2], [0.0, 0.0]).apply(pivot[0], pivot[1]);
         assert!((x - pivot[0]).abs() < 1e-9 && (y - pivot[1]).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_sheet_blinks_with_its_shut_elements() {
+        let has = |id: &str| ["idle", "idle-shut", "speaking"].contains(&id);
+        assert_eq!(element_of(has, "{state}", "idle", false), "idle");
+        assert_eq!(element_of(has, "{state}", "idle", true), "idle-shut");
+        assert_eq!(element_of(has, "{state}", "speaking", true), "speaking");
+        assert_eq!(element_of(has, "{state}", "working", true), "idle-shut");
+        assert_eq!(element_of(|_| false, "{state}", "working", true), "idle");
+    }
+
+    #[test]
+    fn a_plain_sentence_stands_beside_the_figure() {
+        let area = [0, 0, 1280, 720];
+        let at_right = beside([300, 26], [1232, 16, 16, 16], area);
+        assert_eq!(at_right, [1232 - BESIDE - 300, 16]);
+        let at_left = beside([300, 26], [32, 16, 16, 16], area);
+        assert_eq!(at_left, [32 + 16 + BESIDE, 16]);
+        let low = beside([300, 26], [1232, 710, 16, 16], area);
+        assert_eq!(low[1], 720 - 26, "inside the area");
+    }
+
+    #[test]
+    fn a_tail_at_the_left_lets_the_bubble_grow_to_the_right() {
+        let style = Style {
+            tail: 18,
+            ..Style::default()
+        };
+        let area = ([0, 0, 1000, 800], 330);
+        let (right, ..) = place((&style, false), [120, 40], [500, 300], area);
+        let (left, ..) = place((&style, true), [120, 40], [500, 300], area);
+        assert_eq!(right[0], 500 + style.tail_inset - 120);
+        assert_eq!(left[0], 500 - style.tail_inset);
     }
 }

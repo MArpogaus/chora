@@ -124,10 +124,36 @@ pub struct Panel {
     pub rows: Option<String>,
     /// The most rows of a list, from 1 to [`MAX_ROWS`].
     pub max_rows: Option<u32>,
-    /// The colours of the rows of the helpers.
+    /// The colours of the text: of the rows of the helpers, and `text`
+    /// of a sentence.
     #[serde(default)]
     pub colours: Colours,
+    /// The colour inside the box of a sentence or of a row, `[r, g, b]`.
+    pub fill: Option<[u8; 3]>,
+    /// The colour of the hairline of the box.
+    pub border: Option<[u8; 3]>,
+    /// The tail of the bubble of a sentence, which points at the figure.
+    pub tail: Option<Tail>,
 }
+
+/// The end of a bubble that carries its tail; the bubble grows to the
+/// other side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Tail {
+    /// The tail is near the left end.
+    Left,
+    /// The tail is near the right end.
+    Right,
+}
+
+/// The fill, the text and the hairline of a bubble that names none.
+pub const BUBBLE: ([u8; 3], [u8; 3], [u8; 3]) = ([250, 250, 250], [32, 32, 32], [140, 140, 140]);
+/// The lowest contrast of the hairline of a box against its fill: a
+/// hairline that shows.
+pub const MIN_EDGE_CONTRAST: f64 = 1.5;
+/// The opacity of the fill of a glass chat.
+pub const GLASS_ALPHA: f64 = 0.94;
 
 /// The colours of the text of a panel, `[r, g, b]` each; a colour left out
 /// takes the text colour of the chat.
@@ -241,6 +267,8 @@ pub struct Chat {
     /// the box with its event `chat.slot`. Without a box the view stands at
     /// `anchor`.
     pub slot: Option<String>,
+    /// The colour of the glow around a glass chat.
+    pub glow: Option<[u8; 3]>,
 }
 
 impl Default for Chat {
@@ -257,6 +285,7 @@ impl Default for Chat {
             width: None,
             margin: 0,
             slot: None,
+            glow: None,
         }
     }
 }
@@ -310,6 +339,29 @@ impl Chat {
     }
 }
 
+impl Chat {
+    /// The fill as it shows: itself, or for a glass chat the fill over a
+    /// black and over a white pane.
+    fn seen_fills(&self, fill: [u8; 3]) -> Vec<[u8; 3]> {
+        if self.style != ChatStyle::Glass {
+            return vec![fill];
+        }
+        [0.0, 255.0]
+            .into_iter()
+            .map(|pane| fill.map(|side| over(side, pane)))
+            .collect()
+    }
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a mix of two colour values is from 0 to 255"
+)]
+fn over(side: u8, pane: f64) -> u8 {
+    (f64::from(side) * GLASS_ALPHA + pane * (1.0 - GLASS_ALPHA)).round() as u8
+}
+
 /// The lowest contrast of text against its fill, as a ratio.
 pub const MIN_TEXT_CONTRAST: f64 = 4.5;
 /// The lowest contrast of the key line and the buttons of the question
@@ -353,7 +405,11 @@ impl Chat {
             let Some(colour) = own.or(hosts) else {
                 continue;
             };
-            let ratio = contrast(colour, fill);
+            let ratio = self
+                .seen_fills(fill)
+                .into_iter()
+                .map(|seen| contrast(colour, seen))
+                .fold(f64::INFINITY, f64::min);
             if ratio < MIN_TEXT_CONTRAST {
                 errors.push(format!(
                     "hud.yaml: chat.{key}: contrast {ratio:.1}:1 against chat.fill is below {MIN_TEXT_CONTRAST}:1"
@@ -371,25 +427,35 @@ impl Hud {
     #[must_use]
     pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
         let mut errors = self.chat.contrast_errors(host);
-        let Some(fill) = self.chat.fill.or(host.fill) else {
-            return errors;
-        };
+        let page = self.chat.fill.or(host.fill);
+        let ink = self.chat.text.or(host.text);
         for (index, panel) in self.panels.iter().enumerate() {
+            let boxed = panel.source != Source::Agents && panel.style != Some(Style::Plain);
+            let (fill, text) = if boxed {
+                (Some(BUBBLE.0), Some(BUBBLE.1))
+            } else {
+                (page, ink)
+            };
+            let Some(fill) = panel.fill.or(fill) else {
+                continue;
+            };
             let colours = panel.colours;
-            for (key, colour) in [
-                ("text", colours.text),
-                ("muted", colours.muted),
-                ("accent", colours.accent),
-            ] {
+            let shown = panel.fill.and(text);
+            let mut check = |key: &str, colour: Option<[u8; 3]>, least: f64| {
                 let Some(ratio) = colour.map(|colour| contrast(colour, fill)) else {
-                    continue;
+                    return;
                 };
-                if ratio < MIN_TEXT_CONTRAST {
+                if ratio < least {
                     errors.push(format!(
-                        "hud.yaml: panels[{index}].colours.{key}: contrast {ratio:.1}:1 against chat.fill is below {MIN_TEXT_CONTRAST}:1"
+                        "hud.yaml: panels[{index}].{key}: contrast {ratio:.1}:1 against its fill is below {least}:1"
                     ));
                 }
-            }
+            };
+            check("colours.text", colours.text.or(shown), MIN_TEXT_CONTRAST);
+            check("colours.muted", colours.muted, MIN_TEXT_CONTRAST);
+            check("colours.accent", colours.accent, MIN_TEXT_CONTRAST);
+            let edge = panel.border.or(panel.fill.and(boxed.then_some(BUBBLE.2)));
+            check("border", edge, MIN_EDGE_CONTRAST);
         }
         errors
     }
@@ -1241,6 +1307,52 @@ mod tests {
             );
         }
         assert!(errors(with("{shade: [1, 2, 3]}")).contains("shade"));
+    }
+
+    #[test]
+    fn a_bubble_takes_a_fill_a_border_and_a_tail() {
+        let with = |keys: &str| {
+            parse(&format!(
+                "hud: 1\npanels:\n  - {{id: a, source: say, anchor: top, style: bubble, text: \
+                 '{{text}}', {keys}}}\n"
+            ))
+        };
+        let host = Chat::default();
+        for good in [
+            "fill: [255, 255, 225], border: [0, 0, 0], tail: right",
+            "tail: left",
+            "fill: [20, 20, 20], colours: {text: [240, 240, 240]}",
+        ] {
+            let hud = with(good).unwrap_or_else(|e| panic!("{good}: {e:?}"));
+            assert_eq!(hud.contrast_errors(&host), Vec::<String>::new(), "{good}");
+        }
+        assert!(errors(with("tail: up")).contains("tail"));
+        let dark = with("fill: [20, 20, 20]").unwrap();
+        let found = dark.contrast_errors(&host).join("\n");
+        assert!(found.contains("panels[0].colours.text"), "{found}");
+        let pale = with("fill: [255, 255, 225], border: [250, 250, 215]").unwrap();
+        let found = pale.contrast_errors(&host).join("\n");
+        assert!(found.contains("panels[0].border"), "{found}");
+    }
+
+    #[test]
+    fn glass_is_checked_over_a_black_and_a_white_pane() {
+        let with = |text: &str| {
+            parse(&format!(
+                "hud: 1\nchat: {{style: glass, fill: [255, 252, 249], text: {text}, glow: [38, \
+                 128, 181]}}\n"
+            ))
+            .unwrap()
+        };
+        let host = Chat::default();
+        assert_eq!(
+            with("[20, 23, 31]").contrast_errors(&host),
+            Vec::<String>::new()
+        );
+        let grey = with("[112, 112, 112]");
+        assert!(contrast([112, 112, 112], [255, 252, 249]) >= MIN_TEXT_CONTRAST);
+        let found = grey.contrast_errors(&host).join("\n");
+        assert!(found.contains("chat.text"), "over a black pane: {found}");
     }
 
     #[test]

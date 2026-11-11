@@ -1128,13 +1128,12 @@ without one is an asset folder, which holds:
 
 | File | Content |
 |------|---------|
-| `values.yaml` | `font`, as for `chora-notify`; `figure`, `dot` or `paperclip`; `margin`, the distance of the figure from its corner; `speech`, the look of the bubble with the keys of `card` of `chora-notify`; `buttons`, read and ignored, since the card is the host's; a key that the file leaves out takes the neutral value |
-| `dot.svg` | the dot, with a group for each state, named as above; only the figure `dot` reads it |
+| `values.yaml` | `font`, as for `chora-notify`; `margin`, the distance of the figure from its corner; `speech`, the look of the bubble with the keys of `card` of `chora-notify`; `buttons`, read and ignored, since the card is the host's; a key that the file leaves out takes the neutral value |
+| `dot.svg` | the dot, with a group for each state, named as above |
 | `fonts/` | font files, optional |
 
 `plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
-changes its color with the state. The figure `paperclip` of an asset
-folder is the same character drawn in code.
+changes its color with the state.
 
 ## Flavors
 

@@ -475,6 +475,7 @@ impl Agent {
             });
         }
         commands.extend(self.sync_assistant(Instant::now())?);
+        commands.extend(self.say_again(Instant::now()));
         commands.extend(self.sync_badge()?);
         commands.extend(self.sync_row()?);
         self.chat_restyle()?;

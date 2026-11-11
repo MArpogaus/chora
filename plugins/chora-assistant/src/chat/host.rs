@@ -179,6 +179,13 @@ impl Agent {
             size: output.size,
             area: assistant::work_area(&output),
             slot: self.slot_for(&output.name),
+            clear: self
+                .assistant
+                .as_ref()
+                .map(crate::assistant::Assistant::reach)
+                .into_iter()
+                .chain(self.chat_row)
+                .collect(),
             look: chat_look(&self.values),
         };
         self.chat_seen = Some(frame.clone());
@@ -409,14 +416,11 @@ impl Agent {
         for (index, (id, text, words)) in (0_i32..).zip(lines) {
             let (path, size) = self.row_picture(&words);
             let [x, y] = origin(anchor, area, size, margin);
-            let at = [
-                x,
-                if up {
-                    y - index * step
-                } else {
-                    y + index * step
-                },
-            ];
+            let away = if up { -index * step } else { index * step };
+            let at = [x, y + away];
+            if index == 0 {
+                self.chat_row = Some([at[0], at[1], size[0], size[1]]);
+            }
             commands.push(create(
                 &id,
                 ROW_GROUP,
@@ -458,9 +462,13 @@ impl Agent {
     /// colour of the chat, with a dot between them; with its size.
     fn row_picture(&mut self, words: &[Tinted]) -> (String, [i32; 2]) {
         let colours = colours(&chat_look(&self.values));
+        let (fill, border) = self.values.row_box;
+        let plain = style_of(&Look::default(), colours);
         let style = Style {
             radius: 8,
-            ..style_of(&Look::default(), colours)
+            fill: fill.unwrap_or(plain.fill),
+            border: border.unwrap_or(plain.border),
+            ..plain
         };
         let mut parts = Vec::new();
         for (index, (word, tint)) in words.iter().enumerate() {

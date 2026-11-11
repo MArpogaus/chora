@@ -482,7 +482,7 @@ mod tests {
         assert_eq!(chat.style, ChatStyle::Glass);
         assert_eq!(chat.place(), (Anchor::Right, 480));
         let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
-        let fill = rgb(chat.fill);
+        let fill: [f64; 3] = rgb(chat.fill).map(|side| side * hud::GLASS_ALPHA);
         assert!(contrast(rgb(chat.text), fill) >= 7.0);
         assert!(contrast(rgb(chat.name), fill) >= 4.5);
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
@@ -490,8 +490,24 @@ mod tests {
         let near = |a: [f64; 3], b: [f64; 3]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
         assert!(near(rgb(chat.text), light.text));
         assert!(near(rgb(chat.name), light.muted));
-        let over_black: [f64; 3] = std::array::from_fn(|i| light.glass[i] * light.glass[3]);
-        assert!(near(fill, over_black), "{fill:?} {over_black:?}");
+    }
+
+    /// The glass of the chat of the folder `hud` is the glass of the
+    /// light theme: its fill and opacity, its edge and the accent as the
+    /// glow (rule 6).
+    #[test]
+    fn the_chat_of_the_folder_is_the_glass_of_the_light_theme() {
+        use chora_kit::hud;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("hud");
+        let chat = hud::load(&dir).unwrap().chat;
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let light = &config.style.themes.light;
+        let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
+        let near = |a: [f64; 3], b: &[f64]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
+        assert!(near(rgb(chat.fill), &light.glass));
+        assert!((hud::GLASS_ALPHA - light.glass[3]).abs() < 1e-9);
+        assert!(near(rgb(chat.border), &light.edge));
+        assert!(near(rgb(chat.glow), &config.style.accent));
     }
 
     /// The help lists the bindings of the settings, also changed ones.

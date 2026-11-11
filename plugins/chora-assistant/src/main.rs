@@ -26,7 +26,6 @@ mod config;
 mod context;
 mod field;
 mod folders;
-mod paperclip;
 mod rows;
 mod voice;
 
@@ -59,7 +58,7 @@ use crate::{
     assistant::Assistant,
     card::Shown,
     chat::{Session, ShowParams},
-    config::{Config, DOT, Kind, NEUTRAL, Raw, Values},
+    config::{Config, DOT, NEUTRAL, Raw, Values},
     context::Switcher,
 };
 
@@ -201,6 +200,10 @@ struct Agent {
     chat_retried: Instant,
     /// The output that shows the "Chat ..." row.
     row: Option<String>,
+    /// The rectangle of the "Chat ..." row on that output.
+    chat_row: Option<[i32; 4]>,
+    /// The sentence that the agent speaks, and when it ends.
+    said: Option<(String, Instant)>,
 }
 
 impl Plugin for Agent {
@@ -356,6 +359,8 @@ impl Agent {
             chat_seen: None,
             chat_retried: Instant::now(),
             row: None,
+            chat_row: None,
+            said: None,
         };
         agent.look_context = agent.switcher.applied().clone();
         agent.evaluate(Instant::now()).map_err(|e| e.to_string())?;
@@ -510,11 +515,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 /// start with an error that names it.
 fn load_assets(dir: &Path, cache: &Path) -> Result<(Theme, Values), String> {
     let raw: Raw = assets::values(dir)?;
-    let sheets: &[Sheet] = match raw.figure {
-        Kind::Dot => &[DOT],
-        Kind::Paperclip => &[],
-    };
-    let theme = Theme::load(dir, cache, sheets, &raw.font)?;
+    let theme = Theme::load(dir, cache, &[DOT], &raw.font)?;
     let values = Values::from_assets(raw, |sheet| theme.sheet_size(sheet));
     Ok((theme, values))
 }
@@ -644,7 +645,7 @@ mod tests {
         let Figure::Sheet { sheet, size, .. } = values.figure else {
             panic!("the figure is {:?}", values.figure);
         };
-        assert_eq!((sheet.0, size), ("paperclip.svg", paperclip::SIZE));
+        assert_eq!((sheet.0, size), ("paperclip.svg", [80, 116]));
         assert!(values.hud.is_some(), "the chat look of the folder");
         let _ = std::fs::remove_dir_all(source.cache);
     }

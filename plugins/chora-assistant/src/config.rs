@@ -100,9 +100,6 @@ impl Settings for Config {
 /// What the figure shows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Figure {
-    /// The paperclip of the XP flavor, drawn in code until the paperclip
-    /// is a set of SVG files.
-    Paperclip,
     /// An element of an SVG file of the folder: the id is the template
     /// expanded with the state of the voice agent; a missing id shows
     /// `idle`.
@@ -139,6 +136,8 @@ pub struct Values {
     pub rows: (Anchor, [i32; 2]),
     /// The most rows of helpers, and the colours of their words.
     pub helpers: (usize, chora_kit::hud::Colours),
+    /// The fill and the hairline of the rows, if the folder names them.
+    pub row_box: (Option<[u8; 3]>, Option<[u8; 3]>),
     /// The fields of the context that the folder reads in a `when`, so
     /// that the look is built again when one of them changes.
     pub watches: BTreeSet<String>,
@@ -155,6 +154,11 @@ pub struct Line {
     pub text: String,
     /// The most characters, if the folder sets it.
     pub max_chars: Option<usize>,
+    /// The sentence has no box and stands beside the figure.
+    pub plain: bool,
+    /// The tail of the bubble is near its left end, and the bubble grows
+    /// to the right.
+    pub tail_left: bool,
 }
 
 impl Default for Line {
@@ -162,6 +166,8 @@ impl Default for Line {
         Self {
             text: "{text}".into(),
             max_chars: None,
+            plain: false,
+            tail_left: false,
         }
     }
 }
@@ -171,6 +177,35 @@ impl Default for Line {
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
+/// The height of the tail of a bubble with a tail.
+const TAIL: i32 = 18;
+
+/// The look of the sentence of a panel: its fill, hairline and text
+/// colour over those of the neutral bubble, and a tail if it names one.
+/// A plain sentence takes the text colour of the chat.
+fn speech_of(panel: &chora_kit::hud::Panel, hud: &Hud) -> Style {
+    let neutral = Style::default();
+    let plain = panel.style == Some(chora_kit::hud::Style::Plain);
+    let ink = if plain { hud.chat.text } else { None };
+    Style {
+        fill: panel.fill.unwrap_or(neutral.fill),
+        border: panel.border.unwrap_or(neutral.border),
+        text: panel.colours.text.or(ink).unwrap_or(neutral.text),
+        tail: if panel.tail.is_some() { TAIL } else { 0 },
+        ..neutral
+    }
+}
+
+/// The text of the sentence of a panel, and where its box stands.
+fn line_of(panel: &chora_kit::hud::Panel) -> Line {
+    Line {
+        text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
+        max_chars: panel.max_chars.map(|n| n as usize),
+        plain: panel.style == Some(chora_kit::hud::Style::Plain),
+        tail_left: panel.tail == Some(chora_kit::hud::Tail::Left),
+    }
+}
+
 /// The most rows of helpers of a folder that names no number.
 pub const MAX_ROWS: usize = 4;
 
@@ -194,14 +229,18 @@ fn hidden_rows(hud: &Hud) -> usize {
 }
 
 /// Where the "Chat ..." row stands: where the panel of the helpers puts
-/// it, else beside the figure, which a click on the row never covers.
+/// it, also while its `when` hides the helpers, else beside the figure,
+/// which a click on the row never covers.
 fn rows_of(
     hud: &Hud,
     context: &Context,
     (anchor, margin): (Anchor, [i32; 2]),
     figure_height: i32,
 ) -> (Anchor, [i32; 2]) {
-    helpers_panel(hud, context).map_or(
+    let hidden = hud.panels.iter().find(|panel| {
+        panel.source == Source::Agents && panel.action == Some(chora_kit::hud::Action::Chat)
+    });
+    helpers_panel(hud, context).or(hidden).map_or(
         (anchor, [margin[0], margin[1] + figure_height + ROW_GAP]),
         |panel| {
             (
@@ -267,11 +306,8 @@ impl Values {
             figure: figure.unwrap_or(Figure::Dot),
             anchor,
             margin,
-            speech: Style::default(),
-            line: sentence.map_or_else(Line::default, |panel| Line {
-                text: panel.text.clone().unwrap_or_else(|| "{text}".into()),
-                max_chars: panel.max_chars.map(|n| n as usize),
-            }),
+            speech: sentence.map_or_else(Style::default, |panel| speech_of(panel, hud)),
+            line: sentence.map_or_else(Line::default, line_of),
             rows: rows_of(hud, context, (anchor, margin), height),
             helpers: helpers_panel(hud, context).map_or_else(
                 || (hidden_rows(hud), chora_kit::hud::Colours::default()),
@@ -280,6 +316,8 @@ impl Values {
                     (most, panel.colours)
                 },
             ),
+            row_box: helpers_panel(hud, context)
+                .map_or((None, None), |panel| (panel.fill, panel.border)),
             watches: hud
                 .panels
                 .iter()
@@ -316,6 +354,7 @@ impl Values {
             line: Line::default(),
             rows: NEUTRAL_ROWS,
             helpers: (MAX_ROWS, chora_kit::hud::Colours::default()),
+            row_box: (None, None),
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -324,14 +363,11 @@ impl Values {
     /// The values of an asset folder of a flavor.
     #[must_use]
     pub fn from_assets(raw: Raw, size: impl Fn(Sheet) -> Option<[i32; 2]>) -> Self {
-        let figure = match raw.figure {
-            Kind::Paperclip => Figure::Paperclip,
-            Kind::Dot => size(DOT).map_or(Figure::Dot, |size| Figure::Sheet {
-                sheet: DOT,
-                template: "{state}".into(),
-                size,
-            }),
-        };
+        let figure = size(DOT).map_or(Figure::Dot, |size| Figure::Sheet {
+            sheet: DOT,
+            template: "{state}".into(),
+            size,
+        });
         let above = raw.margin[1] + figure.size()[1] + ROW_GAP;
         Self {
             font: raw.font,
@@ -343,6 +379,7 @@ impl Values {
             line: Line::default(),
             rows: (Anchor::BottomRight, [raw.margin[0], above]),
             helpers: (MAX_ROWS, chora_kit::hud::Colours::default()),
+            row_box: (None, None),
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -358,25 +395,12 @@ fn leak(name: &str) -> &'static str {
     Box::leak(name.to_owned().into_boxed_str())
 }
 
-/// The figure of `values.yaml` of an asset folder.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Kind {
-    /// A dot with the elements of `dot.svg`, one per state.
-    #[default]
-    Dot,
-    /// The paperclip of the XP flavor.
-    Paperclip,
-}
-
 /// The values of `values.yaml` of an asset folder.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Raw {
     /// The base font family of the text; `sans-serif` is the system's.
     pub font: String,
-    /// The figure.
-    pub figure: Kind,
     /// The distance of the figure from the corner of the output.
     pub margin: [i32; 2],
     /// The look of the bubble of a sentence.
@@ -389,7 +413,6 @@ impl Default for Raw {
     fn default() -> Self {
         Self {
             font: chora_draw::text::SANS_SERIF.into(),
-            figure: Kind::default(),
             margin: NEUTRAL_MARGIN,
             speech: Style::default(),
             buttons: Style::default(),
@@ -525,12 +548,44 @@ mod tests {
         };
         assert_eq!(rows_in("none"), 3);
         assert_eq!(rows_in("open"), 0, "the panel does not show");
+        let hidden = Context {
+            chat: "open".into(),
+            ..Context::default()
+        };
+        let place = Values::from_hud(&hud, &hidden, |_| None).rows;
+        assert_eq!(
+            place,
+            (Anchor::BottomRight, NEUTRAL_ROWS.1),
+            "the Chat row keeps the place of its panel"
+        );
         let plain = hud::parse("hud: 1\n").unwrap();
         let values = Values::from_hud(&plain, &Context::default(), |_| None);
         assert_eq!(
             values.helpers.0, MAX_ROWS,
             "no panel of helpers: the rows of the host"
         );
+    }
+
+    #[test]
+    fn the_sentence_takes_the_fill_and_the_tail_of_its_panel() {
+        let hud = hud::parse(
+            "hud: 1\npanels:\n  - {id: line, source: say, anchor: bottom_right, style: bubble, \
+             text: '{text}', fill: [255, 255, 225], border: [0, 0, 0], tail: right}\n",
+        )
+        .unwrap();
+        let values = Values::from_hud(&hud, &Context::default(), |_| None);
+        assert_eq!(values.speech.fill, [255, 255, 225]);
+        assert_eq!(values.speech.border, [0, 0, 0]);
+        assert!(values.speech.tail > 0, "a tail");
+        assert!(!values.line.plain && !values.line.tail_left);
+        let plain = hud::parse(
+            "hud: 1\npanels:\n  - {id: line, source: say, anchor: top_right, style: plain, \
+             text: '{text}'}\nchat: {fill: [28, 28, 28], text: [217, 212, 201]}\n",
+        )
+        .unwrap();
+        let values = Values::from_hud(&plain, &Context::default(), |_| None);
+        assert!(values.line.plain);
+        assert_eq!(values.speech.text, [217, 212, 201], "the text of the chat");
     }
 
     #[test]

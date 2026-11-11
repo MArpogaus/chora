@@ -140,6 +140,7 @@ impl Agent {
                 let text = data.get("text").and_then(Value::as_str).unwrap_or("");
                 let time = Duration::from_millis(data["duration_ms"].as_u64().unwrap_or(0));
                 if !text.is_empty() && self.card.is_none() {
+                    self.said = Some((text.to_owned(), now + time));
                     commands.extend(self.say(text, time, now));
                 }
                 Ok(commands)
@@ -187,6 +188,17 @@ impl Agent {
             shown = shown.chars().take(most).collect();
         }
         a.say(&mut self.theme, &shown, time, now)
+    }
+
+    /// Shows the sentence again that the agent still speaks, on a figure
+    /// that was built again.
+    pub fn say_again(&mut self, now: Instant) -> Vec<Command> {
+        match self.said.clone() {
+            Some((text, until)) if until > now && self.card.is_none() => {
+                self.say(&text, until - now, now)
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// The figure of the output, or where the neutral dot would stand.

@@ -273,17 +273,59 @@ impl Session {
     }
 }
 
+/// The node of the glow around a glass chat.
+pub const GLOW: &str = "hud-chat-glow";
+/// How far the glow of a glass chat reaches (rule 6 of the construct
+/// style), and its corner radius.
+const GLOW_REACH: i32 = 16;
+const GLASS_RADIUS: i32 = 12;
+/// The opacity of the glow of a glass chat before it is blurred.
+const GLOW_ALPHA: f64 = 0.2;
+
+/// The shape of a glass panel: the fill at the opacity of glass, so that
+/// what is behind shows a little, and a hairline.
+fn glass([w, h]: [i32; 2], colours: Colours) -> String {
+    let [fr, fg, fb] = colours.fill;
+    let [er, eg, eb] = colours.border;
+    let alpha = chora_kit::hud::GLASS_ALPHA;
+    format!(
+        r#"<rect x="0.5" y="0.5" width="{}" height="{}" rx="{GLASS_RADIUS}" fill="rgb({fr},{fg},{fb})" fill-opacity="{alpha}" stroke="rgb({er},{eg},{eb})" stroke-width="1"/>"#,
+        w - 1,
+        h - 1
+    )
+}
+
+/// The glow of a glass panel as a picture that is `GLOW_REACH` larger on
+/// each side: the colour falls to nothing within that reach.
+fn glow(theme: &mut Theme, [width, height]: [i32; 2], colour: [u8; 3]) -> String {
+    let reach = GLOW_REACH;
+    let [red, green, blue] = colour;
+    let body = format!(
+        r#"<defs><filter id="chat-glow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="{}"/></filter></defs><rect x="{reach}" y="{reach}" width="{width}" height="{height}" rx="{GLASS_RADIUS}" fill="rgb({red},{green},{blue})" fill-opacity="{GLOW_ALPHA}" filter="url(#chat-glow)"/>"#,
+        reach / 3
+    );
+    theme.render(&Picture::new(width + 2 * reach, height + 2 * reach).svg(body))
+}
+
 fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> Vec<Command> {
     let [x, y, w, h] = parts.rect;
-    let style = style_of(&frame.look, colours);
-    let mut picture = Picture::new(w, h)
-        .svg(style.shape([w, h], 0))
-        .text(Text::new(
-            &parts.header,
-            Font::BodyBold,
-            rgba(colours.text),
-            [PAD, PAD, w - 2 * PAD, LINE],
-        ));
+    let is_glass = frame.look.style == ChatStyle::Glass;
+    let shape = if is_glass {
+        glass([w, h], colours)
+    } else {
+        style_of(&frame.look, colours).shape([w, h], 0)
+    };
+    let halo = frame
+        .look
+        .glow
+        .filter(|_| is_glass)
+        .map(|colour| glow(theme, [w, h], colour));
+    let mut picture = Picture::new(w, h).svg(shape).text(Text::new(
+        &parts.header,
+        Font::BodyBold,
+        rgba(colours.text),
+        [PAD, PAD, w - 2 * PAD, LINE],
+    ));
     for (n, row) in (0..).zip(&parts.rows) {
         let at = [
             PAD + row.indent,
@@ -305,19 +347,22 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
         ..PropsUpdate::default()
     };
-    vec![
-        Command::Create {
-            id: VIEW.into(),
-            kind: NodeKind::Group,
-            parent: format!("screen:{}", frame.output),
-            props: group,
-        },
-        create(
-            CHAT,
-            VIEW,
-            image(rendered, [0, 0], &shown.join("\n"), InputMode::Pass),
-        ),
-    ]
+    let view = Command::Create {
+        id: VIEW.into(),
+        kind: NodeKind::Group,
+        parent: format!("screen:{}", frame.output),
+        props: group,
+    };
+    let halo = halo.map(|path| {
+        let at = [-GLOW_REACH, -GLOW_REACH];
+        create(GLOW, VIEW, image(path, at, "", InputMode::Pass))
+    });
+    let chat = create(
+        CHAT,
+        VIEW,
+        image(rendered, [0, 0], &shown.join("\n"), InputMode::Pass),
+    );
+    std::iter::once(view).chain(halo).chain([chat]).collect()
 }
 
 fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language) -> Vec<Command> {

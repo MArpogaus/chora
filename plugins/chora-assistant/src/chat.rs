@@ -54,6 +54,9 @@ pub struct Frame {
     pub look: Look,
     /// The box that the client of `chat.slot` announced on this output.
     pub slot: Option<[i32; 4]>,
+    /// What the view never covers: the figure with its balloon and the
+    /// "Chat ..." row, each as x, y, width, height.
+    pub clear: Vec<[i32; 4]>,
 }
 
 impl Frame {
@@ -73,9 +76,38 @@ impl Frame {
             (w - 2 * margin).max(1),
             (h - 2 * margin).max(1),
         ];
-        view_rect(anchor, width, inside)
+        let view = view_rect(anchor, width, inside);
+        if matches!(anchor, Anchor::Left | Anchor::Right) {
+            return view;
+        }
+        self.aside(view)
+    }
+
+    /// The view moved sideways, beside what it would cover, where it fits
+    /// in the work area; the shorter way wins. A panel at the left or the
+    /// right edge keeps its edge.
+    fn aside(&self, [x, y, w, h]: [i32; 4]) -> [i32; 4] {
+        let covered =
+            |[cx, cy, cw, ch]: &&[i32; 4]| *cx < x + w && x < cx + cw && *cy < y + h && y < cy + ch;
+        let spans = self.clear.iter().filter(covered);
+        let Some((from, to)) = spans
+            .map(|[cx, _, cw, _]| (*cx, cx + cw))
+            .reduce(|a, b| (a.0.min(b.0), a.1.max(b.1)))
+        else {
+            return [x, y, w, h];
+        };
+        let [ax, _, aw, _] = self.area;
+        let fits = |left: &i32| *left >= ax && left + w <= ax + aw;
+        let moved = [from - ASIDE - w, to + ASIDE]
+            .into_iter()
+            .filter(fits)
+            .min_by_key(|left| (left - x).abs());
+        [moved.unwrap_or(x), y, w, h]
     }
 }
+
+/// The gap between the view and what it stands beside.
+const ASIDE: i32 = 8;
 
 /// The box of a slot on an output; none when its client took it away.
 pub type SlotBox = (String, Option<[i32; 4]>);
@@ -247,12 +279,35 @@ fn colours(look: &Look) -> Colours {
     let host = host_chat();
     let pick =
         |own: Option<[u8; 3]>, hosts: Option<[u8; 3]>, last: [u8; 3]| own.or(hosts).unwrap_or(last);
+    let fill = pick(look.fill, host.fill, [250, 250, 250]);
+    let border = pick(look.border, host.border, [60, 60, 60]);
     Colours {
-        fill: pick(look.fill, host.fill, [250, 250, 250]),
+        fill,
         text: pick(look.text, host.text, [32, 32, 32]),
         name: pick(look.name, host.name, [0, 80, 160]),
-        border: pick(look.border, host.border, [60, 60, 60]),
+        border: if look.style == chora_kit::hud::ChatStyle::Glass {
+            hairline(border, fill)
+        } else {
+            border
+        },
     }
+}
+
+/// The opacity of the edge of glass: a hairline, not a line.
+const GLASS_EDGE: f64 = 0.24;
+
+/// The hairline of a glass chat: its border at the opacity of an edge,
+/// over the fill.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a mix of two colour values is from 0 to 255"
+)]
+fn hairline(border: [u8; 3], fill: [u8; 3]) -> [u8; 3] {
+    std::array::from_fn(|i| {
+        let mixed = f64::from(border[i]) * GLASS_EDGE + f64::from(fill[i]) * (1.0 - GLASS_EDGE);
+        mixed.round() as u8
+    })
 }
 
 fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
@@ -892,7 +947,43 @@ mod tests {
             area: [0, 0, 1280, 720],
             look,
             slot: None,
+            clear: Vec::new(),
         }
+    }
+
+    #[test]
+    fn the_view_stands_beside_the_figure_and_its_balloon() {
+        let look = Look {
+            anchor: Some(Anchor::BottomRight),
+            width: Some(340),
+            ..Look::default()
+        };
+        let mut frame = frame(look);
+        frame.area = [0, 0, 1280, 690];
+        assert_eq!(frame.rect(), [940, 276, 340, 414]);
+        frame.clear = vec![[1024, 430, 240, 404], [1106, 642, 70, 32]];
+        assert_eq!(frame.rect(), [1024 - ASIDE - 340, 276, 340, 414]);
+        frame.clear = vec![[1024, 0, 240, 100]];
+        assert_eq!(frame.rect()[0], 940, "nothing in the way");
+        let side = Look {
+            anchor: Some(Anchor::Right),
+            ..Look::default()
+        };
+        let mut panel = self::frame(side);
+        panel.clear = vec![[1240, 680, 24, 24]];
+        assert_eq!(
+            panel.rect(),
+            [880, 0, 400, 720],
+            "a side panel keeps its edge"
+        );
+        let mut slot = self::frame(Look::default());
+        slot.slot = Some([40, 400, 1200, 280]);
+        slot.clear = vec![[1000, 500, 100, 100]];
+        assert_eq!(
+            slot.rect(),
+            [40, 400, 1200, 280],
+            "a slot is the box of its client"
+        );
     }
 
     #[test]

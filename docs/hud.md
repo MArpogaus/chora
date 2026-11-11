@@ -168,7 +168,7 @@ chat:
 |---|---|
 | `hud` | The version. Must be `1`; any other number is refused. |
 | `font` | The default font family. Default `sans-serif`. |
-| `figure` | The picture of the figure: an SVG file of the folder with one element for each state, named `idle`, `asleep`, `listening`, `thinking`, `working`, `speaking` and `question`; a missing one shows `idle`. It shows at the bottom right of the work area, 16 pixels from the edges, and a click on it mutes the mic. A panel with `source: voice` and a `picture` that shows in the context takes its place. Optional. |
+| `figure` | The picture of the figure, for a folder that needs no place for it: an SVG file of the folder with one element for each state, named `idle`, `asleep`, `listening`, `thinking`, `working`, `speaking` and `question`; a missing one shows `idle`. It shows at the bottom right of the work area, 16 pixels from the edges, and a click on it mutes the mic. A panel with `source: voice` and a `picture` that shows in the context takes its place. Optional. |
 | `panels` | A list of panels. |
 | `chat` | The look of the chat. Optional. |
 
@@ -190,9 +190,21 @@ chat:
 | `max_chars` | The most characters of the text, 1 to 2000. |
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
-| `colours` | The colours of the rows of the helpers, `[r, g, b]` each: `text` for the name, `accent` for the state word and `muted` for the task. A colour left out is the text colour of the chat. Each needs a contrast of 4.5:1 against the fill of the chat, on which the rows stand. |
+| `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |
+| `fill`, `border` | The colour inside the box of a sentence or of a row, and of its hairline. Left out, a sentence has the light card of the host and a row the fill of the chat. The text needs 4.5:1 against the fill, the hairline 1.5:1. |
+| `tail` | `left` or `right`: the bubble of a sentence gets a tail that points at the figure, near that end; the bubble grows to the other side. Left out: no tail. |
 
 A panel needs at least one of `picture`, `text` or `rows`.
+
+A sentence (`source: say`) shows in a bubble above the figure, or below
+a figure at the top. With `style: plain` it has no box: the text stands
+beside the figure, on the side of the middle of the output, in the text
+colour of the chat. A sentence that the agent still speaks shows again
+when the look is built again.
+
+A picture of a figure may hold an element `ID-shut` beside an element
+`ID`, for example `idle-shut`: the figure then blinks with it, a
+moment every few seconds.
 
 The host draws the rows of the helpers itself: a panel with
 `source: agents` and `action: chat` gives their place, `max_rows` (4 if
@@ -200,7 +212,7 @@ left out) and `colours`. Below the "Chat ..." row stands one row for each
 helper, `Atlas · working · Write file (2/2)`: the name, the state word of
 the word table and the task with its step. The rows stack away from the
 edge of the anchor; while the `when` of the panel does not match, only
-the "Chat ..." row shows. A click on a row opens the chat with that helper. The
+the "Chat ..." row shows, in the same place. A click on a row opens the chat with that helper. The
 words and their order are the same in every folder; `rows` does not
 change them. The node of a row is `hud-row-NAME`. A helper whose name
 has other characters than letters, digits, `_` and `-`, or that is named
@@ -262,7 +274,18 @@ values only. A folder without the block gets the neutral chat.
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
+| `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
+
+A `glass` chat has corners of 12 pixels, its `fill` at an opacity of
+0.94 and its `border` as a hairline at 0.24, after the construct style
+guide. Its text is checked against the fill over a black and over a
+white pane.
+
+The view never covers the figure, its bubble or the "Chat ..." row: a
+view that would, moves sideways beside them. A view at `left` or
+`right` is a side panel and keeps its edge, and a view in a slot keeps
+its box.
 
 A font family that the system does not have, such as TeX Gyre Pagella
 of the mc folder on a system without the TeX Gyre fonts, falls back to
