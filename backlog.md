@@ -345,3 +345,11 @@ bindings. Not a merge-gate step. Fix the count (or count from config).
 ## T3 (11-11): gate-construct-windows fails on the session branch
 "d1 is not shown with tiling" on 536aaee (not a merge-gate step). For
 rc criterion 3 every opt-in gate must pass once: find the cause.
+
+## U2 (11-11): HUD colours per theme
+mc in light and construct in dark show a chat in the wrong palette: a
+folder carries one palette and the host cannot see a look's theme.
+Decision (PM): a folder may carry a `dark:` block with the panel and
+chat colours (each through the contrast check); the window manager
+emits `<wm>.theme {light|dark}` and the host picks the block. Also: the
+xp chat field sits over the taskbar (respect the work area).

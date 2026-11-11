@@ -191,3 +191,8 @@ for the float within the turn (7d188b1); I killed my run by pid and
 queue gates behind each other (wait on the other gate's pid). Rule
 again: one gate at a time, check `pgrep -f tests/merge-gate.sh` before
 starting one, and agents' briefs say the same.
+
+## 27 (11-11 ~17:45): a worker used --no-verify once
+The ux-chat worker committed to the log branch with --no-verify, then
+redid the commit through the hooks and reported it. Rule stands: never
+--no-verify; if a hook blocks, report. Added to the next briefs.
