@@ -202,8 +202,6 @@ struct Agent {
     row: Option<String>,
     /// The rectangle of the "Chat ..." row on that output.
     chat_row: Option<[i32; 4]>,
-    /// The helper of the open chat when the rows were drawn: it has no row.
-    row_open: Option<String>,
     /// The sentence that the agent speaks, and when it ends.
     said: Option<(String, Instant)>,
 }
@@ -361,7 +359,6 @@ impl Agent {
             chat_retried: Instant::now(),
             row: None,
             chat_row: None,
-            row_open: None,
             said: None,
         };
         agent.look_context = agent.switcher.applied().clone();
