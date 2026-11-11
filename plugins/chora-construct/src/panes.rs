@@ -4,10 +4,10 @@
 use chora_scene::ShaderEffect;
 
 use super::{
-    BTreeMap, ClientError, Command, Construct, Content, FOCUS, FOG, FOG_SCALE, FRONT, InputMode,
-    Kind, LOOK, Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, PANE_MAX, PANE_MIN, PANES, POSE, Pane,
-    PaneFile, PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS,
-    overlay_id, space, unique,
+    BTreeMap, ClientError, Command, Construct, Content, FOCUS, FOG, FRONT, InputMode, Kind, LOOK,
+    Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, PANE_MAX, PANE_MIN, PANES, POSE, Pane, PaneFile,
+    PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS, overlay_id,
+    space, unique,
 };
 
 /// What the effects of the panes and their mirror images show: the
@@ -302,8 +302,8 @@ impl Construct {
             update(
                 FOG,
                 PropsUpdate {
-                    size: Some([w / FOG_SCALE, h / FOG_SCALE]),
-                    transform: Some(Transform::scale(FOG_SCALE, FOG_SCALE, 1.0)),
+                    size: Some([w / self.fog_scale, h / self.fog_scale]),
+                    transform: Some(Transform::scale(self.fog_scale, self.fog_scale, 1.0)),
                     ..PropsUpdate::default()
                 },
             ),

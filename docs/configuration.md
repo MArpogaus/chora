@@ -708,7 +708,8 @@ and micro bumps bend what the floor mirrors a little. Each pane has a
 soft shadow on the floor under it, and a mirror image that is sharp where
 the pane meets the floor and blurs by the roughness of the polish
 farther down, fading downwards and with the distance. A still view
-renders nothing again. A new
+renders nothing again. On a software renderer the floor renders at a
+quarter of the output, so its scratches hardly show; on a GPU at half. A new
 window becomes a pane in the view direction, at the size of the output.
 A pane faces the camera where it comes and shows the window through its
 node texture. It keeps that turn while you walk, so you see it at an

@@ -343,3 +343,11 @@ fn the_floor_is_marble_and_its_mirror_images_are_rough() {
     let [near, far, stretch, _] = panes::ROUGH;
     assert!(near < far && stretch >= 1.0);
 }
+
+/// The floor renders at half the output on a GPU and at a quarter on a
+/// software renderer.
+#[test]
+fn the_floor_renders_finer_on_a_gpu() {
+    assert!((fog_scale(false) - 2.0).abs() < f64::EPSILON);
+    assert!((fog_scale(true) - 4.0).abs() < f64::EPSILON);
+}

@@ -1176,10 +1176,16 @@ impl State {
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
+        let software = self
+            .backend
+            .as_mut()
+            .and_then(|b| b.with_gles(crate::gl::is_software).ok())
+            .unwrap_or(false);
         Ok(serde_json::json!({
             "version": chora_scene::ipc::VERSION,
             "protocol": chora_scene::ipc::PROTOCOL,
             "features": chora_scene::ipc::FEATURES,
+            "software": software,
         }))
     }
 
@@ -2232,6 +2238,7 @@ mod tests {
                 "version": chora_scene::ipc::VERSION,
                 "protocol": chora_scene::ipc::PROTOCOL,
                 "features": [],
+                "software": false,
             })
         );
     }

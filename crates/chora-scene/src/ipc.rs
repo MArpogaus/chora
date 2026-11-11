@@ -1004,6 +1004,8 @@ pub struct Client {
     partial: Vec<u8>,
     /// The version of the core from its answer to `hello`.
     core_version: Option<String>,
+    /// Whether the core renders in software, from its answer to `hello`.
+    software: bool,
 }
 
 impl Client {
@@ -1041,9 +1043,11 @@ impl Client {
             events: VecDeque::new(),
             partial: Vec::new(),
             core_version: None,
+            software: false,
         };
         let answer: Value = client.call("hello", hello_request(hello))?;
         client.core_version = answer["version"].as_str().map(str::to_owned);
+        client.software = answer["software"].as_bool().unwrap_or(false);
         if let Some(warning) = answer["protocol"].as_u64().and_then(protocol_warning) {
             static WARNED_PROTOCOL: std::sync::Once = std::sync::Once::new();
             WARNED_PROTOCOL.call_once(|| eprintln!("{warning}"));
@@ -1062,6 +1066,13 @@ impl Client {
             });
         }
         Ok(client)
+    }
+
+    /// Whether the core renders in software, as on llvmpipe, from its
+    /// answer to `hello`; `false` for a core that does not tell it.
+    #[must_use]
+    pub fn software(&self) -> bool {
+        self.software
     }
 
     /// The version of the core, from its answer to `hello`; `None` for a

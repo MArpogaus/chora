@@ -94,9 +94,12 @@ const FOG: &str = "construct-fog";
 /// A plain rect of the colour of the space under the fog: it shows when
 /// the watchdog takes the shaders away.
 const SKY: &str = "construct-sky";
-/// The fog renders at this fraction of the output and scales up: it is
-/// soft, and a full-size shader is too slow for software rendering.
-const FOG_SCALE: f64 = 4.0;
+/// The fog renders at a fraction of the output and scales up: a half on
+/// a GPU, so that the fine scratches of the marble show, and a quarter
+/// on a software renderer, for which a larger shader is too slow.
+fn fog_scale(software: bool) -> f64 {
+    if software { 4.0 } else { 2.0 }
+}
 /// The mirror images of the panes in the ground, under the panes.
 const MIRRORS: &str = "construct-mirrors";
 /// A mirror image renders at this fraction of its pane: a little soft.
@@ -475,6 +478,8 @@ struct Construct {
     keys_walked: Option<Instant>,
     output: Option<OutputInfo>,
     lens: Lens,
+    /// The fraction of the output at which the fog renders.
+    fog_scale: f64,
     pose: Pose,
     glide: Option<Glide>,
     panes: Vec<Pane>,
@@ -557,18 +562,21 @@ fn shader_file(
     Ok(path)
 }
 
+/// Writes a shader of the plugin into the runtime directory and returns
+/// its path.
+fn shader(name: &str, text: &str) -> std::io::Result<String> {
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR");
+    shader_file(runtime, "chora-construct", name, text).map(|p| p.to_string_lossy().into_owned())
+}
+
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-construct")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
     config::log_warnings(&settings.value);
     let rt = Runtime::connect(NAME, Vec::new())?;
     let start = Pose::default();
-    let shader = |name: &str, text: &str| {
-        let runtime = std::env::var_os("XDG_RUNTIME_DIR");
-        shader_file(runtime, "chora-construct", name, text)
-            .map(|p| p.to_string_lossy().into_owned())
-    };
     let mut construct = Construct {
+        fog_scale: fog_scale(rt.conn.software()),
         rt,
         settings,
         overlay: args.overlay,

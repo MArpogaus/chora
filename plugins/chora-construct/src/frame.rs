@@ -5,8 +5,8 @@
 //! new effect uniforms only when the focus or the style changes.
 
 use super::{
-    BTreeMap, ClientError, Command, Construct, FOCUS, FOCUS_SCALE, FOG, FOG_SCALE, POSE, Pane,
-    PropsUpdate, SHADOWS, SKY, Transform, Uniform, shadow_w, space, update, vec3,
+    BTreeMap, ClientError, Command, Construct, FOCUS, FOCUS_SCALE, FOG, POSE, Pane, PropsUpdate,
+    SHADOWS, SKY, Transform, Uniform, shadow_w, space, update, vec3,
 };
 use crate::panes::PaneLook;
 
@@ -32,7 +32,12 @@ impl Construct {
             ),
             (
                 "lens".into(),
-                Uniform::Vector(vec![self.lens.focal, self.lens.ground, FOG_SCALE, edge]),
+                Uniform::Vector(vec![
+                    self.lens.focal,
+                    self.lens.ground,
+                    self.fog_scale,
+                    edge,
+                ]),
             ),
             ("sky".into(), vec3(palette.sky)),
             ("fog".into(), vec3(palette.horizon)),
