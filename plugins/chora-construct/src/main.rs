@@ -56,6 +56,7 @@ mod pull;
 mod scene;
 mod space;
 mod start;
+mod stride;
 mod voice;
 mod wm;
 mod wobble;
