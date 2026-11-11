@@ -13,7 +13,7 @@ steps: Looked at the screen, then clicked the AGENDA heading, the small "1 AGEND
 expected: Something on the screen looks like a button, link, menu or tab that opens a program or another screen.
 actual: Nothing changed after any of these actions. No buttons, menus, icons or context menu appeared. The screen stayed identical.
 evidence: shots/001.png
-status: new
+status: duplicate of mc first screen shows no hint and no key reacts (shot 001 read: AGENDA page only)
 
 ## Screen purpose is not explained
 kind: ux
@@ -24,7 +24,7 @@ steps: Looked at the first screen and every later screen after clicking.
 expected: Some label or hint saying what this screen is for and what can be done here.
 actual: The only content is a small "1 AGENDA" label, a large "1 | AGENDA" heading, and a date and time at top right. The rest of the screen is empty dark background.
 evidence: shots/001.png
-status: new
+status: duplicate of mc first screen shows no hint and no key reacts
 
 ## Clock appeared frozen at 17:33
 kind: issue
@@ -35,7 +35,7 @@ steps: Compared the top-right date and time across the screenshots taken over th
 expected: The time advances between screenshots taken minutes apart.
 actual: It read "WEDNESDAY 11 NOVEMBER 17:33" in every screenshot. I cannot tell from here whether the session was that short.
 evidence: shots/006.png
-status: new
+status: rejected: env, not a bug. The whole m4 session lasted 25 s (actions.jsonl 8401 to 8426) and the clock has minute resolution, so 17:33 cannot change; chora-mc ticks the clock via CLOCK timer, plugins/chora-mc/src/main.rs:55 and :1278-1283 (shot 006 read)
 
 ## Nothing signals that the screen is usable by mouse
 kind: ux
@@ -46,4 +46,4 @@ steps: Tried left click, double click, right click and scroll on the page, with 
 expected: At least a hover change, a cursor change or a response to a click, so a mouse user knows the screen responds.
 actual: No hover or click feedback was visible in any screenshot, so I could not tell if the screen responds to the mouse at all.
 evidence: shots/006.png
-status: new
+status: duplicate of mc first screen shows no hint and no key reacts (mc is keyboard driven; no pointer feedback in shot 006)

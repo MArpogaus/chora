@@ -13,7 +13,7 @@ steps: Started the session and looked at the screen. Right-clicked the middle of
 expected: Some icon, dock, taskbar or menu that opens a program, or a context menu after a right-click.
 actual: The screen is an empty grey-white marble background. No icons, no taskbar, no dock, no menu. Nothing changed after any of the six tries. The only visible thing is a small yellow dot for the pointer.
 evidence: shots/001.png
-status: new
+status: duplicate of No visible way to open a terminal from the empty desktop (swarm3-c-handover; shot 001 is the empty marble floor, read)
 
 ## Right-click on the desktop gives no menu
 kind: issue
@@ -24,7 +24,7 @@ steps: Right-clicked at the middle of the desktop, then took a screenshot.
 expected: A context menu with a way to open something.
 actual: Nothing appeared. The screen looked the same as before.
 evidence: shots/002.png
-status: new
+status: duplicate of No visible way to open a terminal from the empty desktop (swarm3 already records "Right-click did nothing"; shot 002 identical to 001, read)
 
 ## Double-click and scroll on the desktop do nothing
 kind: issue
@@ -35,7 +35,7 @@ steps: Moved the pointer to the bottom edge, then double-clicked the middle of t
 expected: Some visible response, such as a launcher, a panel sliding in, or the view moving.
 actual: No visible change in any screenshot. The pointer moved but nothing else did.
 evidence: shots/003.png
-status: new
+status: duplicate of Construct empty floor gives no landmark to tell that walking works (shot 003 identical to 001, read; construct is key driven)
 
 ## Pointer is a small yellow dot that is easy to lose
 kind: ux
@@ -46,7 +46,7 @@ steps: Moved and clicked the pointer around the screen, checking where it was in
 expected: A pointer that is easy to see and follow.
 actual: The pointer is a tiny yellow square. It was hard to find, and when it sat at the bottom edge it was not visible at all.
 evidence: shots/003.png
-status: new
+status: rejected: env, the yellow square is the harness pointer marker (no yellow pointer in the product source; seen in x4 shot 011 too), not drawn by construct
 
 ## Nothing to test for window goals
 kind: ux
@@ -57,4 +57,4 @@ steps: Could not open any program, so no window or 3D view appeared to move, dra
 expected: A way to reach a window from the desktop, so that drag and close could be tried.
 actual: Goals 2 to 4 could not be tried at all, because no window or 3D view was ever on screen.
 evidence: shots/004.png
-status: new
+status: duplicate of No visible way to open a terminal from the empty desktop (consequence: no window could be opened)

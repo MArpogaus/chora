@@ -71,3 +71,20 @@ Only duplicates: mc no key list (finding 2), second construct pane missing after
 
 Rejected: sound (3 reports; no audio device, label honest), xp left column with one program, xp terminal behind Start menu (harness timing), mc colour errors (foot 1.16.2, mc.yaml needs 1.26), mc notifications empty, mc Super+Return (drawer by design), tiling paste (no selection in shot).
 Env fix: install foot 1.26 or later for mc, and keep the harness Super gap in mind (Super alone cannot be pressed).
+
+## Swarm 4 (build 06044cf, mouse-only testers)
+4 reports (c4 construct, x4 xp settings, t4 tiling, m4 mc), 20 findings: 0 new verified, 13 duplicates, 7 rejected (3 env or harness, 2 tester error, 1 by design, 1 no defect). Detail: feedback/2026-11-11-swarm4-*.md; shots under media/2026-11-12/swarm-4/ (key shots read).
+
+New verified: none. The mouse-only angle only re-found known gaps:
+- construct, tiling, mc give a mouse user nothing to click: empty floor, no root menu, bar without launcher (duplicates of the empty-desktop and mc first-screen findings, ranks 1 and 3 above).
+- tiling bar "icon" at top-left is the workspace tag label (flavors/tiling/waybar/config.jsonc:11), inert by design of waybar; dup of the inert bar finding.
+
+Product bug or not, from source (build 06044cf):
+- Turn Off Computer "no dialog": tester clicked outside the menu (x 270 vs buttons at x 90 and 127). Dialog exists: plugins/chora-xp/src/startmenu.rs:972, wm.rs:2679. Env/tester, no bug.
+- xp Terminal and Control Panel "do not open": second Start click toggled the menu shut, last click hit the desktop (actions.jsonl). Terminal entry: startmenu.rs:834. Tester error plus known arrow-only cascade.
+- mc clock frozen at 17:33: session lasted 25 s, minute resolution (plugins/chora-mc/src/main.rs:55, 1278). Env, no bug.
+- top-left tiling icon: tag label with no on-click (config.jsonc:11), by design.
+- Harness: yellow square is the pointer marker, not product. Thunar, sound: env as before.
+Harness note: mouse-only runs of 25 s give no evidence on window drag, resize or close; brief mouse testers with Super+T first.
+
+new data: no
