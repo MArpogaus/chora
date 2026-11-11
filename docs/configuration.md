@@ -509,6 +509,9 @@ with `settings.reload`:
   window of mc that is pressed and let go on the area of another window
   manager goes to that one. mc moves no window itself, so a release
   elsewhere changes nothing.
+- `test_accept_injected_keys`: `false`; for tests only, the bindings
+  take the keys of `input.inject` as keys of the user (see
+  [Injected keys](#injected-keys)).
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -751,6 +754,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
@@ -1717,6 +1721,7 @@ that the file leaves out takes its default:
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
 
 Migration: a `chora-xp.yaml` from before the split has the key `assistant`,
