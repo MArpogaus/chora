@@ -29,6 +29,20 @@ pub(crate) fn launchers_own_by(
             && process(window).is_some_and(|(parent, _)| parent == launcher))
 }
 
+/// The size that a pane takes from a window whose buffer is now `buffer`:
+/// the size of the buffer, so that the frame of the pane is never larger
+/// or smaller than what the window shows. None while the window has no
+/// buffer, and for a change of less than half a pixel.
+#[must_use]
+#[allow(
+    dead_code,
+    clippy::unnecessary_wraps,
+    reason = "a stub until the next commit"
+)]
+pub(crate) fn follows_buffer(_pane: [f64; 2], buffer: [f64; 2]) -> Option<[f64; 2]> {
+    Some(buffer)
+}
+
 /// The names of the shells that wrap a launcher.
 pub(crate) const SHELLS: [&str; 3] = ["sh", "dash", "bash"];
 

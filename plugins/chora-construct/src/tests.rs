@@ -351,3 +351,20 @@ fn the_floor_renders_finer_on_a_gpu() {
     assert!((fog_scale(false) - 2.0).abs() < f64::EPSILON);
     assert!((fog_scale(true) - 4.0).abs() < f64::EPSILON);
 }
+
+/// The frame of a pane is the buffer of its window: it takes the size of
+/// every new buffer, and no size of a window that has none yet or that
+/// changed by less than half a pixel.
+#[test]
+fn the_frame_of_a_pane_takes_the_size_of_the_buffer() {
+    let pane = [1280.0, 720.0];
+    assert_eq!(follows_buffer(pane, [700.0, 500.0]), Some([700.0, 500.0]));
+    assert_eq!(follows_buffer(pane, [1276.0, 704.0]), Some([1276.0, 704.0]));
+    assert_eq!(follows_buffer(pane, [0.0, 0.0]), None, "no buffer yet");
+    assert_eq!(follows_buffer(pane, [1280.0, 0.0]), None);
+    assert_eq!(
+        follows_buffer(pane, [1280.2, 719.8]),
+        None,
+        "under half a pixel"
+    );
+}
