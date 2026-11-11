@@ -203,6 +203,20 @@ until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "typed text after the 
 ok "Alt+Escape steps back, Return steps in, and typed text reaches the window of before"
 
 key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back before a step in by a method"
+call view.step_in >/dev/null || fail "view.step_in after a step back of the person"
+until_ok "$stepped_in" 20 || fail "view.step_in did not step in after a step back of the person"
+before=$(keys_got 30)
+plain a
+sleep 0.5
+[ "$(keys_got 30)" = "$before" ] || fail "view.step_in, a method, gave the keyboard to the window"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back after a step in by a method"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return did not step in after a step in by a method"
+ok "a step in by a method moves no keyboard"
+
+key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a second time"
 key Ctrl+Alt+Right
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "Ctrl+Alt+Right did not turn the cube in navigate mode"
@@ -248,7 +262,7 @@ sleep 1
 eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
 call view.step_in >/dev/null || fail "view.step_in after the drags"
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
-ok "a drag on a face turns the cube by one face, and a short drag does nothing"
+ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
 
 call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
 sleep 0.5
