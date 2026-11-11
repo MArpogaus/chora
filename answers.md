@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~22:30: model use at 68 %; use the rest wisely. Haiku test swarm for user tests; record an extensive slow screencast of every look, every transition through the construct, several window drags; analyse the user's path for consistency and least surprise. Plan in design/rc.md "Screencast and swarm".
 - 11-11 ~21:45: post screenshots when the HUD rework lands; floor reflections with marble texture (small scratches and bumps), realistic. Added to the marble lane spec.
 - 11-11 ~21:30: HUD mockup defaults approved; UX/UI refinement loop; construct reflections with marble-like blur; push to visual perfection. Backlog N1: a modern macOS-inspired look on the xp stacking code, taskbar as a shared widget.
 - 11-11 ~20:00: PM answer to reflection 2: all five changes adopted (charter "Rules of reflection 2", rc.md 1b, ux-hud-sprint superseded).

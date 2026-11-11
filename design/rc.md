@@ -82,3 +82,21 @@ dev-rules and brief templates updated, and the plan of the next days.
 The rc date of 11-18 holds only with one helper surface per look
 (collapsed and expanded); otherwise 11-20. Paste upload (L1 item 4) and
 further status page work wait until after the rc.
+
+## Screencast and swarm (user, 11-11 ~22:30)
+
+After the construct HUD rework merges:
+1. One sonnet worker records a long, slow screencast (choractl record,
+   30 fps, arrow pointer, deliberate pacing): every look (xp, tiling, mc,
+   construct), every transition through the construct (panes, manager
+   panes, the cube, pull-out and back), several window drags between
+   looks and screens, chat and the key overlay; plus a timeline file
+   (time, act, expected result) and stills at each step.
+2. A Haiku swarm (6-8 agents, cheap) each reviews one segment of the
+   timeline and stills against design/looks/*, the review checklist and
+   principles 1, 3, 6, 11: same act same result, least surprise,
+   visible way in, calm. Each reports findings with time stamps.
+3. One opus pass merges the findings into a consistency report
+   (reports/journey-1.md) with a ranked fix list.
+Budget: sonnet for recording, haiku for the swarm, opus only for the
+merge; no Fable.
