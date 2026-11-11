@@ -513,9 +513,11 @@ the core refuses, as for an injected drag, the window stays with
 
 A gate has no real pointer. The flag `--test-injected-press-is-real` of
 the core, valid only right after `--headless SPECS`, makes an injected
-button press count as a button press of the user for `give_grab` and
-for the choice of the window manager of a new window (see
-[Window managers](#window-managers)), and for nothing else. It also turns off the rule that no input was injected
+key or button press count as a press of the user: for `give_grab`, for
+the choice of the window manager of a new window (see
+[Window managers](#window-managers)), and as the act of the person that
+an activation token carries, so that a token minted after an injected
+`Super+a` gives the chat field the keyboard. It also turns off the rule that no input was injected
 since the press, as every input of a gate is injected. The core logs a
 warning at its start, and no child inherits the mode, as it is no
 variable of the environment. It is for tests.
