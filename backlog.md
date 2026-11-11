@@ -281,3 +281,10 @@ person's key or chip does), so the LLM cannot take focus. But principle
 the keyboard stays with the construct and a new window opens as a pane.
 Needs a way for the voice service to mark a call as spoken by the
 person (By::Voice), distinct from an LLM choice; design with security.
+
+## P1 (11-11): the construct focus glow redraws every frame
+Found by the K7 gate: while any pane has the focus, the construct's
+focus glow is a timed shader, so the whole screen redraws every frame
+(about 43 frames a second on llvmpipe). Calm and power: a still desktop
+must draw nothing (render.stats 0). Fix: a static glow, or animate only
+on a focus change and then stop. Priority: high (battery on laptops).
