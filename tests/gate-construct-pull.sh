@@ -23,7 +23,9 @@
 #    Its task button is on the taskbar of that face only.
 # 2a. Stood back (K12): a drag on the floating plane of a window pulls
 #    the window out of the cube; dropped beside the cube it is a pane in
-#    view, dropped over the front face it is a window of xp again. A
+#    view, dropped over the front face it is a window of xp again;
+#    an injected drag on a plane pulls nothing where the construct takes
+#    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
 #    window half over the right edge of the face shows in full on its
 #    plane, past the edge.
 # 3. Without the flag the core refuses the give of an injected drag:
@@ -173,6 +175,8 @@ still || fail "a still desktop with a focused pane draws: $(drawn), 2 s later $(
 ok "a still desktop with a focused pane draws nothing, by render.stats"
 call pane.fly "{\"name\": \"$(pane_name "$surface")\"}" >/dev/null || fail "pane.fly"
 inject '[{"key": {"key": "x", "state": "pressed"}}, {"key": {"key": "x", "state": "released"}}]'
+[ "$(node "$surface" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0])')" = "construct-pane-$surface" ] ||
+    fail "the fly-in ended before the key: the check proves nothing: $(node "$surface")"
 until_ok 'grep -q "^key 45$" "$work/given-probe.log"' 20 ||
     fail "a key typed during the fly-in did not reach the window: $(tail -n 3 "$work/given-probe.log")"
 ok "a key typed during the fly-in reaches the window"
@@ -235,6 +239,14 @@ inject '[{"pointer_move": {"position": [600, 350]}}, {"button": {"state": "relea
 until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 || fail "a pane dropped over the stood-back front face did not go back to xp: $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "the pane stays after its window went back: $(pane_of "$surface")"
 ok "stood back, a pulled window dropped over the front face is a window of xp again: $(probe)"
+end_session
+
+CHORA_TEST_ACCEPT_INJECTED_KEYS=0 stood plane_injected
+sleep 2
+[ "$(owner)" = xp ] || fail "an injected drag on a floating plane pulled the window: $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "an injected plane drag made a pane: $(pane_of "$surface")"
+inject '[{"button": {"state": "released"}}]'
+ok "where the construct takes no injected input, an injected drag on a floating plane pulls nothing: $(probe)"
 end_session
 
 right_of() {
