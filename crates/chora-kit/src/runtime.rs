@@ -77,6 +77,8 @@ pub struct Runtime<A> {
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, A)>,
+    /// The bindings whose refusal was logged, so that each logs once.
+    refused: std::collections::HashSet<String>,
     /// Makes the action of a give key; none when the plugin has no give
     /// keys.
     give_keys: Option<fn(&'static str) -> A>,
@@ -126,6 +128,7 @@ impl<A> Runtime<A> {
             name: name.into(),
             outputs,
             grabs: Vec::new(),
+            refused: std::collections::HashSet::new(),
             give_keys: None,
             give_tried: None,
             inject_ok: test_session(),
@@ -155,6 +158,14 @@ impl<A> Runtime<A> {
         self.give_keys = make;
     }
 
+    /// Whether the plugin holds a binding, such as `Super+Alt+1`.
+    #[must_use]
+    pub fn holds(&self, binding: &str) -> bool {
+        binding
+            .parse::<Binding>()
+            .is_ok_and(|b| self.grabs.iter().any(|(held, _)| *held == b.to_string()))
+    }
+
     /// Grabs the give keys that the plugin does not hold; a key that
     /// another client holds stays free for the next try.
     ///
@@ -173,7 +184,7 @@ impl<A> Runtime<A> {
             if self.grabs.iter().any(|(b, _)| *b == text) {
                 continue;
             }
-            self.grab_with(binding, make(to), false)?;
+            self.grab(binding, make(to))?;
         }
         Ok(())
     }
@@ -239,18 +250,15 @@ impl<A> Runtime<A> {
         Ok(outputs)
     }
 
-    /// Grabs a binding for an action. False, with a log line, when another
-    /// client holds it.
+    /// Grabs a binding for an action. False when the core refuses it, for
+    /// example while another client holds it; the first refusal of a
+    /// binding logs a line.
     ///
     /// # Errors
     ///
     /// The socket fails, or the core knows no such key, so that a
     /// `settings.set` with it fails.
     pub fn grab(&mut self, binding: Binding, action: A) -> Result<bool, ClientError> {
-        self.grab_with(binding, action, true)
-    }
-
-    fn grab_with(&mut self, binding: Binding, action: A, log: bool) -> Result<bool, ClientError> {
         let text = binding.to_string();
         if let Some(held) = self.grabs.iter_mut().find(|(b, _)| *b == text) {
             held.1 = action;
@@ -265,7 +273,7 @@ impl<A> Runtime<A> {
                 Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into())
             }
             Err(ClientError::Rpc(err)) => {
-                if log {
+                if self.refused.insert(text.clone()) {
                     eprintln!("chora-{}: {text}: {err}", self.name);
                 }
                 Ok(false)
