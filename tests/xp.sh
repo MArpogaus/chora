@@ -302,8 +302,17 @@ turning() {
         query "id:xp-face-$2" | jq -e '.[0].visible' >/dev/null
 }
 background='r > 45 && r < 70 && g > 98 && g < 122 && b > 152 && b < 178'
-tray=146
-pager() { click $((1280 - tray - 100 + 24 * ($1 - 1) + 11)) 785 || fail "the click failed"; }
+pager_at() {
+    query kind:image | jq -r --arg id "xp-pager-$(($1 - 1))-" '.[] | select(.id | startswith($id))
+        | .rects | to_entries[0].value | "\((.[0] + .[2] / 2) | floor) \((.[1] + .[3] / 2) | floor)"' | head -n 1
+}
+pager() {
+    local x y
+    read -r x y <<<"$(pager_at "$1")"
+    [ -n "$y" ] || fail "no desktop button $1"
+
+    click "$x" "$y" || fail "the click failed"
+}
 pager 2 &
 job=$!
 wait_for turning 0 1
