@@ -35,3 +35,22 @@ autonomously until sat"). Each is reversible; the user may override any.
   the chat key in every look (shared invariant).
 - Watch: mc is read from the sofa; nothing in the column below 14 px at
   1280, and the card keys stay as large as on the mock.
+
+## construct v2 (design/looks/construct-v2.md, mocks media/2026-11-12/design/construct/)
+
+- D1 to D8 accepted as written: glass start card on the empty floor;
+  programs open flown in with the "Alt Esc Step back" hint; cube rests
+  14 degrees off square; default faces XP, Tiling, Media center, XP 2,
+  each labelled; live turn while dragging, settles in 320 ms; failing
+  face says "Starting", then "did not start" with the reason and Return
+  to retry; no red, word plus hollow dot; walking pane by pane.
+- Open point "fly in always or a setting": **always**, no setting. One
+  behaviour is the least surprise and the simplest; the hint names the
+  way back. Rejected: a setting nobody finds.
+- Three managers on one cube: try; if the idle or turn frame cost breaks
+  the gate budgets, fall back to four XP faces with distinct wallpapers.
+- Cross-look decision: **Super+Space opens the program launcher in every
+  look** (construct, mc already; tiling moves its layout cycle to
+  Super+Shift+Space). The product promise is four desktops in one
+  session; one launcher key across them beats tiling custom. Rejected:
+  per-look launcher keys (swarm finding "keys differ per look").
