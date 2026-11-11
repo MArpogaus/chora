@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~19:20: rework the status page (too cluttered; folding or tabs); post detailed screenshots and screencasts of all features for verification; UI reviews hunt for perfection (charter rule added).
 - 11-11 ~19:00: "Later have this frictionless with automatic paste bin upload + GH issue text after confirmation and some additional questions in the script." Added as L1 item 4.
 - 11-11 ~18:50: "Ensure good and detailed logging in all components ... users submit anonymised reports using a small shell script." Noted as backlog L1 and rc criterion 9a.
 - 11-11 ~18:40: PM answer to reflections/2026-11-11-opus-judge.md: all five top changes adopted (charter section "Rules of the 11-11 reflection", dev-rules, rc.md); the 11-10 judge is answered by the same rules (lanes, red first, review cap).

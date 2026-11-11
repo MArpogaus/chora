@@ -1115,3 +1115,12 @@ These rules take precedence over older text in this charter.
 8. Dead weight dropped (kept in history, not followed): the calendar and
    pitch tournament, track shares, the ledger and tokens.py, the planned
    fresh-session switch.
+
+UI reviews (user, 11-11 ~19:20): every UI review hunts for perfection.
+Any visual surprise, inaccuracy or unaesthetic detail is a finding:
+misalignment by a pixel, uneven spacing, clipping, blur or aliasing,
+mixed fonts or sizes, colours off the style guide, jitter in motion,
+a frame that flashes, text that touches an edge. Reviews work from
+captures at 1x and 2x and from clips, compare against the style guides,
+and rank such findings like any other (they block a release when they
+are on a main path).
