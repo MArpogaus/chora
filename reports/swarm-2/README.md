@@ -8,3 +8,7 @@ User call at 71% model use: use the remaining budget to test massively with haik
 - Waves of 4. Wave 1: c-novice, c-cube (construct), x-office (xp), t-power (tiling).
 - Planned: c-chat, c-drags, x-balloon, x-keys, t-chat, m-tv, m-chat, transitions through the cube, drag across faces, chaos input, habit keys from other desktops.
 - At the end one triage pass dedupes, separates environment noise from product bugs, and ranks the findings into findings.md.
+
+## Triage notes while running
+- c-cube run 1 is environment noise in its main finding: the cube's xp manager looked for its theme in /usr/share/chora/flavors, which this container lacked; it restarted in a loop ("I come back") and never connected, so the cube stayed black. Fixed by linking /usr/share/chora/flavors to the source checkout; the cube then shows the xp face. Kept as c-cube-run1-env.md. The product finding that remains: a manager that cannot start gives 10 s of black with no message (needs an error state).
+- m-tv (mc shows only "1 AGENDA", no key reacts) and x-office (LibreOffice and thunar missing) may be partly environment too; the triage pass checks each against the container.
