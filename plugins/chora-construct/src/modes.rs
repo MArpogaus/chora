@@ -114,6 +114,12 @@ fn cube_bindings(mode: Mode, switching: bool, step_back: Option<&String>) -> Vec
     wanted
 }
 
+/// The chips that show: those of the mode, and none while the camera is
+/// in a pane, where the keys of the cube do not hold.
+fn chips_of(view: View, flown: bool) -> &'static [Word] {
+    if flown { &[] } else { view.controls() }
+}
+
 fn no_cube() -> ClientError {
     ClientError::Rpc(RpcError::new(
         RpcError::REJECTED,
@@ -168,9 +174,11 @@ impl Construct {
 
     /// Places the chips of the mode at the bottom right, above the
     /// taskbar of the face, where they cover no title band and no button
-    /// of a window, and hides the others. Also after the output changed.
+    /// of a window, and hides the others; none while the camera is in a
+    /// pane. Also after the output changed.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
-        let Some(shown) = self.cube.as_ref().map(|c| c.view().controls()) else {
+        let flown = self.flown.is_some();
+        let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
             return Ok(());
         };
         let texts = self.chip_texts();
@@ -211,8 +219,10 @@ impl Construct {
                 Err(err) => eprintln!("chora-construct: the cube key {binding}: {err}"),
             }
         }
-        let renamed = (self.cube.as_mut()).is_some_and(|host| host.set_step_back_key(step_back));
-        if renamed && let Err(err) = self.draw_modes() {
+        if let Some(host) = self.cube.as_mut() {
+            host.set_step_back_key(step_back);
+        }
+        if let Err(err) = self.draw_modes() {
             eprintln!("chora-construct: the chips of the cube: {err}");
         }
     }
@@ -559,6 +569,16 @@ mod tests {
         let right = Pressed::Act(Act::Turn(1));
         assert_eq!(press_of(Some(Word::TurnRight), Some(0), false), Some(right));
         assert_eq!(press_of(None, Some(2), false), Some(Pressed::Face(2)));
+    }
+
+    #[test]
+    fn no_chip_shows_while_the_camera_is_in_a_pane() {
+        let mut view = View::default();
+        assert_eq!(chips_of(view, false), &[Word::StepBack]);
+        assert_eq!(chips_of(view, true), []);
+        view.act(Act::StepBack);
+        assert_eq!(chips_of(view, false).len(), 3);
+        assert_eq!(chips_of(view, true), [], "navigate mode too");
     }
 
     #[test]

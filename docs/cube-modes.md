@@ -77,7 +77,9 @@ clicked, and a click on a face moves it into the face. The methods
 where it is. A step in of the person, by `Return`, a click or a chip,
 gives the keyboard back to the window of before only when its face is
 at the front again; after a turn to another face, the person chooses a
-window there.
+window there. While the camera is in a pane no chip shows: the keys
+of the cube do not hold there. A `cube.open` from inside a pane first
+leaves the pane, so the cube opens ahead of where the person stood.
 
 ## Words
 
