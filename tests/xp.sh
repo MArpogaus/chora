@@ -194,6 +194,17 @@ bent() {
 }
 flat() { query "id:xp-win-$1" | jq -e '.[0].mesh == null' >/dev/null; }
 
+step "3b. the caption buttons are 24 by 24 with 2 pixels between and 4 from the frame edge"
+button_rect() { query "id:xp-$1-${ids[1]}" | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
+read -r cx cy cw ch < <(button_rect close | jq -r 'join(" ")')
+read -r mx _ mw _ < <(button_rect max | jq -r 'join(" ")')
+read -r nx _ nw _ < <(button_rect min | jq -r 'join(" ")')
+test "$cw $ch $mw $nw" = "24 24 24 24" || fail "button sizes: $cw $ch $mw $nw"
+test $((mx + mw + 2)) = "$cx" && test $((nx + nw + 2)) = "$mx" || fail "button gaps: $nx $mx $cx"
+read -r fx fy <<<"$(frame "${ids[1]}")"
+test $((fx + $(frame_width "${ids[1]}") - 4)) = $((cx + cw)) || fail "the close button is not 4 pixels from the edge"
+test $((cy - fy)) = 3 || fail "the buttons are not 3 pixels below the frame top"
+
 step "4. the close button and the start button light up under the pointer"
 image_of() { query "id:$1" | jq -r '.[0].image'; }
 lit() { test "$(image_of "$1")" != "$2"; }
@@ -201,7 +212,7 @@ read -r x y <<<"$(frame "${ids[1]}")"
 w=$(frame_width "${ids[1]}")
 close=$(image_of "xp-close-${ids[1]}")
 start=$(image_of xp-start-winit)
-timeout 20 "$bin/chora-probe" point $((x + w - 17)) $((y + 16)) 1500 >>"$out/probe.log" 2>&1 &
+timeout 20 "$bin/chora-probe" point $((x + w - 16)) $((y + 15)) 1500 >>"$out/probe.log" 2>&1 &
 job=$!
 wait_for lit "xp-close-${ids[1]}" "$close"
 grim "$out/hover.png"
@@ -236,10 +247,7 @@ grim "$out/dragged.png"
 
 step "6. the minimize button hides the window, its task button shows it"
 click() { timeout 20 "$bin/chora-probe" drag "$1" "$2" "$1" "$2" >>"$out/probe.log" 2>&1; }
-# Clicks button N of the title bar of a frame at X Y with the width W:
-# 0 close, 1 maximize, 2 minimize. The 22 pixel buttons sit 6 pixels from
-# the right edge, 2 pixels apart, 5 pixels from the top.
-title_button() { click $(($2 + $4 - 17 - 24 * $1)) $(($3 + 16)) || fail "the click failed"; }
+title_button() { click $(($2 + $4 - 16 - 26 * $1)) $(($3 + 15)) || fail "the click failed"; }
 visible() { test "$(query "id:xp-win-$top" | jq '.[0].visible')" = "$1"; }
 title_button 2 "$x" "$y" "$w" &
 job=$!

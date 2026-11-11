@@ -24,17 +24,21 @@ pub const TITLE: i32 = 30;
 /// The shadow around the frame in the frame elements.
 pub const SHADOW: i32 = 10;
 /// The size of a button.
-const BUTTON: i32 = 22;
+const BUTTON: i32 = 24;
 /// The space above the buttons.
-const BUTTON_TOP: i32 = 5;
+const BUTTON_TOP: i32 = 3;
+/// The space between the buttons and the right edge of the frame.
+const BUTTON_EDGE: i32 = 4;
 /// The space between two buttons.
 const BUTTON_GAP: i32 = 2;
-/// The space between the buttons and the right edge of the frame, and
-/// between the left edge and the title.
+/// The space between the left edge of the frame and the title.
 const EDGE: i32 = 6;
 /// The icon of the application in the title bar, from the corner of the
 /// frame; a click on it opens the system menu.
 pub const ICON: Rect = [EDGE, 7, 16, 16];
+
+/// The shadow of the title text, one pixel to the bottom right.
+pub const TITLE_SHADOW: [u8; 4] = [10, 30, 80, 255];
 
 /// A button of the title bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,7 +79,7 @@ impl Button {
             Self::Maximize => 2,
             Self::Minimize => 3,
         };
-        width - EDGE - index * BUTTON - (index - 1) * BUTTON_GAP
+        width - BUTTON_EDGE - index * BUTTON - (index - 1) * BUTTON_GAP
     }
 }
 
@@ -367,12 +371,12 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
     }
     let mut text = Text::new(
         look.title,
-        Font::Title,
+        Font::BodyBold,
         color,
-        [left, 1, width - left, TITLE],
+        [left, 0, width - left, TITLE],
     );
     if look.active {
-        text = text.shadow([10, 24, 131, 255]);
+        text = text.shadow(TITLE_SHADOW);
     }
     let picture = picture.text(text);
     Command::Update {
@@ -430,9 +434,9 @@ pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     } else {
         [216, 228, 248, 255]
     };
-    let mut text = Text::new(title, Font::Title, color, [EDGE + 2, 1, w, TITLE]);
+    let mut text = Text::new(title, Font::BodyBold, color, [EDGE + 2, 0, w, TITLE]);
     if active {
-        text = text.shadow([10, 24, 131, 255]);
+        text = text.shadow(TITLE_SHADOW);
     }
     picture = picture.text(text);
     let state = if active { "active" } else { "inactive" };
@@ -482,9 +486,20 @@ mod tests {
     }
 
     #[test]
-    fn buttons_line_up_from_the_right() {
-        assert_eq!(Button::Close.x(200), 172);
-        assert_eq!(Button::Maximize.x(200), 148);
-        assert_eq!(Button::Minimize.x(200), 124);
+    fn the_caption_buttons_are_24_by_24_two_apart_and_4_from_the_edge() {
+        let rects = Button::ALL.map(|b| button_rect(200, b));
+        for [_, _, w, h] in rects {
+            assert_eq!([w, h], [24, 24]);
+        }
+        assert_eq!(rects[0][0] + rects[0][2], 200 - 4);
+        assert_eq!(rects[1][0] + rects[1][2] + 2, rects[0][0]);
+        assert_eq!(rects[2][0] + rects[2][2] + 2, rects[1][0]);
+        assert_eq!(rects[0][1] * 2 + rects[0][3], TITLE);
+    }
+
+    #[test]
+    fn the_title_is_14_pixel_bold_with_the_dark_blue_shadow() {
+        assert_eq!(TITLE_SHADOW, [0x0A, 0x1E, 0x50, 255]);
+        assert_eq!(chora_draw::text::BODY_SIZE, 14);
     }
 }

@@ -62,3 +62,11 @@ something off? If yes, it is a finding. The second rule is chora's own:
    says so when none is installed), Super+Space opens the launcher.
    The name of the key is "Super"; the help says that it sits between
    Ctrl and Alt.
+
+## Title bars
+
+9. **Caption buttons are 24 by 24 with 2 px between**, 4 px from the right
+   edge of the frame and 3 px below its top, so that a finger or a pointer
+   hits them (principle P7). The title is Tahoma Bold 14 px in white with a
+   1 px shadow `#0A1E50` one pixel to the bottom right; an inactive window
+   has the title `#D8E4F8`.
