@@ -5,6 +5,7 @@
 
 mod desktops;
 mod effects;
+mod float;
 mod items;
 mod resize;
 mod restart;
@@ -235,6 +236,8 @@ pub struct Wm {
     pointer_output: Option<String>,
     /// Whether the bindings of the cube are grabbed.
     cube_keys: bool,
+    /// The windows that float off their virtual output.
+    floats: float::Floats,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
@@ -338,6 +341,7 @@ impl Wm {
         let mut methods = METHODS.map(ExportMethod::from).to_vec();
         methods.push(give::method());
         methods.push(move_method());
+        methods.push(chora_kit::float::method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
@@ -365,6 +369,7 @@ impl Wm {
             hover: None,
             pointer_output: None,
             cube_keys: false,
+            floats: float::Floats::default(),
             dialog: None,
             fade: None,
             fade_shader: None,
@@ -529,8 +534,11 @@ impl Wm {
 
     /// Applies a transaction, with the logical sizes of the pictures.
     fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
+        let floated = self.sync_floats(&mut commands);
         self.theme.size_images(&mut commands);
-        self.rt.conn.apply(commands)
+        self.rt.conn.apply(commands)?;
+        self.tell_floats(floated);
+        Ok(())
     }
 
     /// Applies a transaction, as [`Self::apply`], and returns the error of
@@ -681,6 +689,7 @@ impl Wm {
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
             Call::Move { surface, output } => self.move_to_output(&surface, &output)?,
+            Call::Float(float) => return self.float(float),
             Call::Give(give::Give { surface, to, grab }) => {
                 known(self.index(&surface).is_some(), &surface)?;
                 let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
@@ -969,6 +978,7 @@ impl Wm {
             return Vec::new();
         };
         let mut commands = self.drop_from_switcher(surface);
+        self.floats.forget(surface);
         self.windows.remove(i);
         self.opened.retain(|s| s != surface);
         if self.drag.as_ref().is_some_and(|d| d.surface == surface) {
@@ -1046,7 +1056,7 @@ impl Wm {
     /// looks the same, and meta on the asked node without the key of
     /// chora-xp. The plugin sends no opacity or effects to the groups
     /// otherwise, so the look stays; a restart keeps it too.
-    fn requested_look(&self, node: &str, args: &Value) -> Vec<Command> {
+    fn requested_look(&mut self, node: &str, args: &Value) -> Vec<Command> {
         let surface = decoration::surface_of(node).unwrap_or(node);
         let Ok(asked) = serde_json::from_value::<PropsUpdate>(args.clone()) else {
             return Vec::new();
@@ -1055,11 +1065,12 @@ impl Wm {
             return Vec::new();
         }
         let mut commands = Vec::new();
-        if asked.opacity.is_some() || asked.effects.is_some() {
+        let opacity = asked.opacity.filter(|o| self.floats.ask(surface, *o));
+        if opacity.is_some() || asked.effects.is_some() {
             commands.push(Command::Update {
                 id: decoration::group_id(surface),
                 props: PropsUpdate {
-                    opacity: asked.opacity,
+                    opacity,
                     effects: asked.effects,
                     ..PropsUpdate::default()
                 },
@@ -3234,6 +3245,8 @@ enum Call {
         /// The desktop, from 0 to 3.
         desktop: usize,
     },
+    /// Lets the windows of a virtual output float, or land.
+    Float(chora_kit::float::Float),
     /// Moves a window to another output of the plugin, like a drag of
     /// its title bar onto it.
     Move {
@@ -3297,6 +3310,7 @@ fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
             Call::Move { surface, output }
         }
         give::METHOD => Call::Give(parse(params)?),
+        chora_kit::float::METHOD => Call::Float(parse(params)?),
         "turn_to" => {
             let TurnTo { desktop } = parse(params)?;
             if desktop >= DESKTOPS {

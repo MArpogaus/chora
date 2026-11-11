@@ -234,7 +234,7 @@ pids+=("$second_probe")
 others() { probe | awk -v s="$surface" '$1 != s && $2 == "xp" {print $1}' | head -n 1; }
 until_ok 'test -n "$(others)"' 40 || fail "the second probe window came to no xp face: $(probe)"
 upper=$(others)
-opacity() { ctl query "id:xp-win-$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0].get("opacity", 1), 3) if n else "gone")'; }
+opacity() { ctl query "id:xp-win-$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print("%g" % n[0].get("opacity", 1) if n else "gone")'; }
 lifted() {
     ctl query "id:construct-cube-float-0-$1" | python3 -I -c '
 import json, sys
@@ -265,9 +265,10 @@ floats() {
     sleep 0.5
     ctl capture "$work/landed.png" >/dev/null || return 1
     cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back"; return 1; }
+    echo "$lower_lift and $upper_lift"
 }
 why=$(floats) || why=$(floats) || fail "floating windows: $why"
-ok "stood back, the windows float off the face, the upper one farther ($lower_lift and $upper_lift per mille), and land pixel for pixel"
+ok "stood back, the windows float off the face, the upper one farther ($why per mille of the flat width), and land pixel for pixel"
 run_pid "$second_probe"
 kill "$second_probe"
 until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"

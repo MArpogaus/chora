@@ -1289,7 +1289,7 @@ $ choractl call tiling settings.reload
 ```
 
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
-`turn_to`, `window.move` and `restart`, and its settings: the wallpaper, the taskbar, the
+`turn_to`, `window.move`, `windows.float` and `restart`, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and
 Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
 Its dialogs change the settings in the same way as `settings.set`. The

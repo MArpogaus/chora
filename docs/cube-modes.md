@@ -103,6 +103,10 @@ The voice agent says what happened in the same words: "I stepped back",
 
 ## What the construct does today
 
+While the cube stands back or turns, the windows on its faces float in
+front of them, the higher ones of the stack farther, as on the desktop
+cube of xp; in use mode at rest they lie in the face.
+
 The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also
 brings the camera back to where the front face shows at 1:1. A click on

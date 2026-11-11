@@ -36,6 +36,7 @@ mod camera;
 mod config;
 mod cube;
 mod file;
+mod float;
 mod frame;
 mod hud;
 mod input;
@@ -564,9 +565,10 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 20] = [
     "voice.*",
     modes::SWITCHER,
+    modes::FLOATING,
     "client.connected",
     "client.disconnected",
     "effects.dropped",

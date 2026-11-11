@@ -28,6 +28,9 @@ const TURN_KEYS: [(&str, i32); 2] = [("Ctrl+Alt+Left", -1), ("Ctrl+Alt+Right", 1
 /// The event of the window manager of the cube while its window
 /// switcher shows; the switcher needs the binding of the step back.
 pub(crate) const SWITCHER: &str = "xp.switcher";
+/// The event of the window manager of the cube when the floating
+/// windows of an output change (`chora_kit::float`).
+pub(crate) const FLOATING: &str = "xp.floating";
 /// The room that the chips leave for a taskbar that the construct
 /// cannot see yet.
 const BAR: f64 = 40.0;
@@ -334,6 +337,14 @@ impl Construct {
             } if client == cube::MANAGER && event == SWITCHER => {
                 let shown = data["shown"].as_bool().unwrap_or(false);
                 return self.switcher(shown).map(|()| true);
+            }
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if client == cube::MANAGER && event == FLOATING => {
+                let floated = serde_json::from_value(data.clone());
+                return floated.map_or(Ok(true), |f| self.floated(f).map(|()| true));
             }
             Event::InputKey {
                 binding,

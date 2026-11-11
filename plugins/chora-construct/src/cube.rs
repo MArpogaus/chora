@@ -14,6 +14,7 @@ use std::{
 };
 
 use chora_kit::{
+    float::{self, Floating},
     geometry::{Cube, Matrix, Turn},
     modes::{Act, View},
 };
@@ -26,7 +27,8 @@ use super::{
 };
 
 /// The group of the cube in the camera group, and the prefix of a face.
-const CUBE: &str = "construct-cube";
+pub(crate) const CUBE: &str = "construct-cube";
+pub(crate) const CUBE_PREFIX: &str = "construct-cube-";
 const FACE: &str = "construct-cube-face-";
 /// The client name of the window manager of the cube.
 pub(crate) const MANAGER: &str = "xp";
@@ -75,6 +77,10 @@ pub(crate) struct Host {
     /// The window switcher of the faces shows, and has the binding of
     /// the step back.
     pub(crate) switching: bool,
+    /// The floating windows of each face, the lowest first, while they
+    /// float (`float.rs`); and when their planes go after they landed.
+    floats: Option<Vec<Vec<Floating>>>,
+    landing: Option<Instant>,
 }
 
 fn face_id(i: usize) -> String {
@@ -105,12 +111,18 @@ pub(crate) fn next_front(front: usize, by: i32, n: usize) -> usize {
     next
 }
 
+/// How far the cube is in a turn at `angle`: 0 at rest on a face, 1 at
+/// 45 degrees past it.
+fn turned(angle: f64) -> f64 {
+    let off = (angle / FRAC_PI_2 - (angle / FRAC_PI_2).round()).abs() * FRAC_PI_2;
+    (2.0 * off).sin()
+}
+
 /// How far the cube steps back at `angle`: nothing at rest, and at 45
 /// degrees past a face enough that the edge, sqrt(2) times as near as a
 /// face, stays as far as a face at rest, with a margin.
 fn step_back(angle: f64, depth: f64) -> f64 {
-    let off = (angle / FRAC_PI_2 - (angle / FRAC_PI_2).round()).abs() * FRAC_PI_2;
-    (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * (2.0 * off).sin()
+    (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * turned(angle)
 }
 
 impl Host {
@@ -156,8 +168,84 @@ impl Host {
                     ..PropsUpdate::default()
                 },
             ));
+            commands.extend(self.planes(i, shows));
         }
         commands
+    }
+
+    /// The updates of the planes of the floating windows of face `i`:
+    /// each at the place of its window, off the face by its lift, which
+    /// grows with the stand back and with the turn.
+    fn planes(&self, i: usize, shows: bool) -> Vec<Command> {
+        let windows = self.floats.as_ref().and_then(|f| f.get(i));
+        let windows = windows.map(Vec::as_slice).unwrap_or_default();
+        let phase = self.stand.max(turned(self.angle));
+        let plane = |(k, window): (usize, &Floating)| {
+            let lift = float::lift(phase, k, windows.len());
+            let at = [window.rect[0], window.rect[1]];
+            update(
+                &super::float::plane_id(i, &window.surface),
+                PropsUpdate {
+                    transform: Some(Transform::from_matrix(
+                        self.cube.lifted(i, self.angle, at, lift),
+                    )),
+                    visible: Some(shows),
+                    ..PropsUpdate::default()
+                },
+            )
+        };
+        windows.iter().enumerate().map(plane).collect()
+    }
+
+    /// The outputs in face order.
+    pub(crate) fn outputs(&self) -> &[String] {
+        &self.outputs
+    }
+
+    /// Whether the windows float now: the cube stands back, steps or
+    /// turns. Not before the window manager connected.
+    pub(crate) fn wants_float(&self) -> bool {
+        let moves = self.turn.is_some() || self.step.is_some() || self.stand > 0.0;
+        self.connect_by.is_none() && (moves || !self.view.forwards())
+    }
+
+    /// Whether the windows float, also while they land.
+    pub(crate) fn floating(&self) -> bool {
+        self.floats.is_some()
+    }
+
+    /// When the planes of the landed windows go.
+    pub(crate) fn landing(&self) -> Option<Instant> {
+        self.landing
+    }
+
+    /// The windows land at a time, or float on.
+    pub(crate) fn land(&mut self, at: Option<Instant>) {
+        self.landing = at;
+    }
+
+    /// The windows landed: answers the planes that go.
+    pub(crate) fn landed(&mut self) -> Vec<String> {
+        self.landing = None;
+        let floats = self.floats.take().unwrap_or_default();
+        let ids = |(i, windows): (usize, Vec<Floating>)| {
+            let id = move |w: Floating| super::float::plane_id(i, &w.surface);
+            windows.into_iter().map(id)
+        };
+        floats.into_iter().enumerate().flat_map(ids).collect()
+    }
+
+    /// Sets the floating windows of a face; answers the planes of
+    /// before.
+    pub(crate) fn set_floats(&mut self, face: usize, windows: Vec<Floating>) -> Vec<String> {
+        let faces = self.outputs.len();
+        let floats = self.floats.get_or_insert_with(|| vec![Vec::new(); faces]);
+        let Some(slot) = floats.get_mut(face) else {
+            return Vec::new();
+        };
+        let old = std::mem::replace(slot, windows);
+        let id = |w: Floating| super::float::plane_id(face, &w.surface);
+        old.into_iter().map(id).collect()
     }
 
     /// The mode of the view.
@@ -307,6 +395,8 @@ impl Construct {
             focus: None,
             queued: false,
             switching: false,
+            floats: None,
+            landing: None,
         }
     }
 
@@ -387,6 +477,7 @@ impl Construct {
                 host.step = None;
             }
         }
+        self.sync_float()?;
         self.frame()
     }
 
@@ -398,7 +489,8 @@ impl Construct {
 
     /// Whether the cube turns or steps and needs frames.
     pub(crate) fn cube_turns(&self) -> bool {
-        (self.cube.as_ref()).is_some_and(|c| c.turn.is_some() || c.step.is_some())
+        (self.cube.as_ref())
+            .is_some_and(|c| c.turn.is_some() || c.step.is_some() || c.landing.is_some())
     }
 
     /// Closes the cube: its window manager ends, and its outputs and the
