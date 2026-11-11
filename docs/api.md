@@ -511,7 +511,7 @@ to the owner of that output, the client that shows it as a pane. When
 the core refuses, as for an injected drag, the window stays with
 `chora-xp` for the rest of the drag.
 
-A gate has no real pointer. The flag `--test-injected-drag-gives` of
+A gate has no real pointer. The flag `--test-injected-press-is-real` of
 the core, valid only right after `--headless SPECS`, makes an injected
 button press count as a button press of the user for `give_grab` and
 for the choice of the window manager of a new window (see

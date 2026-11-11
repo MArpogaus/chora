@@ -7,7 +7,7 @@
 # The front face of a resting cube fills its screen, so the drag leaves
 # the face over the edge of the screen, onto a second output.
 #
-# 1. With the flag --test-injected-drag-gives of the core (headless
+# 1. With the flag --test-injected-press-is-real of the core (headless
 #    only), where an injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
 #    mesh of the pane has a depth; after a drop beside the cube it is
@@ -106,7 +106,7 @@ end_session() {
     pids=()
 }
 
-CHORA_TEST_FLAGS=--test-injected-drag-gives pull given
+CHORA_TEST_FLAGS=--test-injected-press-is-real pull given
 ok "inside its face the window moves with the drag and stays with xp"
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 until_ok 'test "$(pane_of "$surface")" != none && test "$(pane_of "$surface")" != lost' 20 ||
@@ -137,7 +137,7 @@ sleep 1
 ok "after the release the pane rests and the camera is in no window"
 end_session
 
-CHORA_TEST_FLAGS=--test-injected-drag-gives pull returned
+CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 inject '[{"pointer_move": {"position": [700, 400]}}, {"button": {"state": "released"}}]'
 until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 || fail "a pane dropped over the front face did not go back to xp: $(probe)"

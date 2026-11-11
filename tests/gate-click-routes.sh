@@ -3,7 +3,7 @@
 # the left output and has the keyboard focus, chora-tiling manages the
 # right output, which is empty.
 #
-# 1. With the flag --test-injected-drag-gives of the core (headless
+# 1. With the flag --test-injected-press-is-real of the core (headless
 #    only), where an injected press counts as one of the user: after a
 #    click on the right output the next new window is a window of tiling
 #    on that output.
@@ -62,7 +62,7 @@ end_session() {
     pids=()
 }
 
-CHORA_TEST_FLAGS=--test-injected-drag-gives click_right chosen
+CHORA_TEST_FLAGS=--test-injected-press-is-real click_right chosen
 [ "$(windows)" = "s1:mc:HEADLESS-1 s2:tiling:HEADLESS-2" ] ||
     fail "after a click on the empty output of tiling the new window is not there: $(windows)"
 ok "after a click on the empty output of tiling the new window is a window of tiling: $(windows)"

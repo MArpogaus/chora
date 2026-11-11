@@ -45,11 +45,11 @@ use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 use crate::state::State;
 
 const USAGE: &str = "usage: chora [--version] \
-     [--headless WxH[@SCALE][+X+Y][,...] [--test-injected-drag-gives]] [-- COMMAND [ARGS...]]";
+     [--headless WxH[@SCALE][+X+Y][,...] [--test-injected-press-is-real]] [-- COMMAND [ARGS...]]";
 
 /// The flag of the headless backend, for tests: an injected button press
 /// counts as a press of the user for `give_grab`.
-const TEST_INJECTED_DRAG_GIVES: &str = "--test-injected-drag-gives";
+const TEST_INJECTED_PRESS_IS_REAL: &str = "--test-injected-press-is-real";
 
 /// The virtual outputs of `--headless` with its test flag, and the
 /// arguments after them. The test flag is no flag without `--headless`.
@@ -61,7 +61,7 @@ fn headless_outputs(
         [flag, specs, rest @ ..] if flag == "--headless" => {
             let specs = backend::headless::parse_specs(specs)?;
             match rest {
-                [test, rest @ ..] if test == TEST_INJECTED_DRAG_GIVES => {
+                [test, rest @ ..] if test == TEST_INJECTED_PRESS_IS_REAL => {
                     Ok((Some((specs, true)), rest))
                 }
                 _ => Ok((Some((specs, false)), rest)),
@@ -72,15 +72,15 @@ fn headless_outputs(
     }
 }
 
-/// Turns on the test mode of `--test-injected-drag-gives` when the
+/// Turns on the test mode of `--test-injected-press-is-real` when the
 /// command line asks for it, with a warning in the log, and gives the
 /// outputs back.
 fn test_mode<T>(state: &mut State, specs: T, test: bool) -> T {
     if test {
         tracing::warn!(
-            "{TEST_INJECTED_DRAG_GIVES}: an injected press gives its drag; for tests only"
+            "{TEST_INJECTED_PRESS_IS_REAL}: an injected button press counts as one of the user; for tests only"
         );
-        state.injected_drag_gives = true;
+        state.injected_press_is_real = true;
     }
     specs
 }
@@ -160,7 +160,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{TEST_INJECTED_DRAG_GIVES, headless_outputs};
+    use super::{TEST_INJECTED_PRESS_IS_REAL, headless_outputs};
 
     fn args(words: &[&str]) -> Vec<String> {
         words.iter().map(|word| (*word).to_owned()).collect()
@@ -178,14 +178,14 @@ mod tests {
         let test = args(&[
             "--headless",
             "640x480",
-            TEST_INJECTED_DRAG_GIVES,
+            TEST_INJECTED_PRESS_IS_REAL,
             "--",
             "true",
         ]);
         let (headless, rest) = headless_outputs(&test).unwrap();
         assert!(headless.is_some_and(|(_, test)| test));
         assert_eq!(rest, &test[3..]);
-        let alone = args(&[TEST_INJECTED_DRAG_GIVES]);
+        let alone = args(&[TEST_INJECTED_PRESS_IS_REAL]);
         let (headless, rest) = headless_outputs(&alone).unwrap();
         assert!(headless.is_none());
         assert_eq!(rest, &alone[..], "left for the usage error");
