@@ -175,7 +175,9 @@ and out. No backend has adaptive sync.
 ### Virtual outputs
 
 A client of the main socket adds a **virtual output** with
-`output.add(spec, virtual: true)` on every backend (D69). To a window
+`output.add(spec, virtual: true)` on every backend (D69). The gates run it on
+the headless backend, and `tests/gate-virtual-winit.sh` on winit in a
+nested session; the tty backend has no gate. To a window
 manager it is an output: it is in `output.list` with `virtual: true` and
 its `owner`, and it has a `wl_output`, a mode, a scale, a camera, a work
 area, an overlay root and layer surfaces, so a window manager runs on it

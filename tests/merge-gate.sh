@@ -4,10 +4,12 @@
 # its whole output in its own log, and stops at the first step that failed.
 #
 # Steps: build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# last-words, cube, pull. `virtual` hands a window over between window
+# last-words, cube, pull, winit. `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
 # construct; `pull` drags a window out of a face of that cube and back.
+# `winit` runs a virtual output with xp in a chora nested on the winit
+# backend.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
@@ -69,6 +71,7 @@ hud|BIN=$repo/target/debug tests/gate-hud.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
+winit|BIN=$repo/target/debug tests/gate-virtual-winit.sh
 STEPS
 }
 
