@@ -11,14 +11,16 @@ session branch HEAD: 06044cf (construct HUD rework merged after 39539ed marble)
 
 Swarms (11-11): swarm 3 found 6 new verified findings; swarm 4 (mouse only) found 0 new (13 duplicates), so the swarms stop per the user's rule (test only while new issues come). Triage in reports/swarm-2/findings.md.
 
+Goal until Saturday (user 11-11): UI/UX polish toward perfection, each look with its own consistent aesthetic; the PM works alone and decides taste.
+
 Running:
-- transcript screen and hook proposal (opus agent).
+- 4 opus design passes: tiling-v2 (Hyprland-like, hackable), mc-v2 (helper into the right margin), xp-v2, construct-v2; each writes design/looks/LOOK-v2.md and mocks under media/2026-11-12/design/.
 - screencast worker session_016iS3kNcWCmF1YP1YaxYmP6: tour of every look, then reshoot of construct from 06044cf into media/2026-11-12/tour-v2; interim friction list received.
 
 Done 11-11 (late): swarm 2 (9 runs) triaged: 20 verified, 9 rejected (env), `reports/swarm-2/findings.md`; PM card and compact hook (friction 33, 34).
 
-Next, this week (haiku test swarms may run up to 85 % weekly use while they find new issues; user 11-11):
-1. Triage swarm 3; fold the screencast worker's product surprises into feedback.
+Next:
+1. PM decides the taste questions of each design pass (logged in design/decisions-taste.md), then build lanes per look (one worker per area), builder never reviews its own pixels.
 2. Cheap lanes: flakes F10/F11, T3 gate-construct-windows, CI draft and release dry run (local only), logging inventory.
 3. Status page refresh after each event.
 
