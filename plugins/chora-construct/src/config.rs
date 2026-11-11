@@ -740,11 +740,36 @@ mod tests {
             keys(&config, "Walk forward, back, sideways").unwrap(),
             ["W", "A", "S", "D"]
         );
-        assert_eq!(keys(&config, "Show these keys").unwrap(), ["F1"]);
+        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "/"]);
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.keys.remove("h");
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Alt"]);
         assert_eq!(keys(&config, "Back to the start"), None);
+    }
+
+    /// Polish 15: `Super /` is in the shared group Everywhere and `F1`
+    /// in Walk, and no row stands twice.
+    #[test]
+    fn super_slash_shows_the_help_in_everywhere_and_f1_in_walk() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.keys.get("Super+slash"), Some(&Action::Help));
+        assert_eq!(config.keys.get("F1"), Some(&Action::Help));
+        let groups = config.help_groups(false);
+        let keys_of = |head: &str| -> Vec<Vec<String>> {
+            (groups.iter().filter(|g| g.head == head))
+                .flat_map(|g| g.rows.iter().map(|r| r.keys.clone()))
+                .collect()
+        };
+        assert!(keys_of("Everywhere").contains(&vec!["Super".to_owned(), "/".to_owned()]));
+        assert!(!keys_of("Everywhere").contains(&vec!["F1".to_owned()]));
+        assert!(keys_of("Walk").contains(&vec!["F1".to_owned()]));
+        let mut whats: Vec<&str> = (groups.iter())
+            .flat_map(|g| g.rows.iter().map(|r| r.what.as_str()))
+            .collect();
+        let rows = whats.len();
+        whats.sort_unstable();
+        whats.dedup();
+        assert_eq!(whats.len(), rows, "a row stands twice");
     }
 }
