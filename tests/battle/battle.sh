@@ -64,8 +64,9 @@ PY
 done
 say "driver ending (pass $pass, clean passes $clean_passes)"
 # THE END: stop the heartbeat, write done.md, set PHASE=done
-pkill -f chora-review-heartbeat 2>/dev/null
-pkill -f 'sleep 1200' 2>/dev/null
+group=$(ps -o pgid= -p $$ | tr -d ' ')
+pkill -g "$group" -f chora-review-heartbeat 2>/dev/null
+pkill -g "$group" -f 'sleep 1200' 2>/dev/null
 {
   echo "# Review loop and battle test: summary"
   echo

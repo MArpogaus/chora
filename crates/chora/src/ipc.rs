@@ -858,11 +858,15 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
+                let drag = match self.check_grab_gives(conn, &apply.commands) {
+                    Ok(drag) => drag,
+                    Err(e) => return Some(Err(e)),
+                };
                 let checked = self.check_paths(conn, &apply.commands);
                 if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
-                self.submit_transaction(conn, id, owner, apply.commands);
+                self.submit_transaction(conn, id, owner, (apply.commands, drag));
                 return None;
             }
             "events.subscribe" => {
@@ -883,6 +887,7 @@ impl State {
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
+            "render.stats" => self.ipc_render_stats(conn),
             "camera.release" => self.ipc_admin(conn, &request.method, params),
             "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
                 self.ipc_admin(conn, &request.method, params)
@@ -1168,7 +1173,7 @@ impl State {
         self.ipc.graces.remove(name);
         self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
-        self.execute_gone(effects);
+        self.execute_gone(effects, name);
         self.ipc.uploads.drop_client(name);
     }
 
@@ -1450,6 +1455,9 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        if self.button_grab.take_if(|g| g.conn == conn).is_some() {
+            self.refresh_pointer();
+        }
         if !closed.reserves.is_empty() {
             self.output_changed();
         }
@@ -1481,7 +1489,7 @@ impl State {
             // Kept nodes stay, but a surface reserved for the name is free.
             self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
-            self.execute_gone(effects);
+            self.execute_gone(effects, &name);
         }
         self.emit(&Event::ClientDisconnected { name });
     }
@@ -1582,7 +1590,7 @@ fn layer_box(node: &Node, transform: &Transform, near: f64) -> Option<Rectangle<
     let Some(mesh) = &node.props.mesh else {
         return Some(bounding_box_from(transform, size, near));
     };
-    Some(projected_box(transform, mesh.points.iter().copied()))
+    Some(projected_box(transform, mesh.points.iter().copied(), near))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.

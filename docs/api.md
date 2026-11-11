@@ -64,7 +64,7 @@ This table is the one list of node properties.
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change; it draws from halvings of the file, down to 1/16 a side, when smaller than the file; a cell uses the most halvings that keep one file pixel for each output pixel on its most reduced axis, so it is softer on the other axis; each edge of a node rounds to the nearest physical pixel on its own, so at x = 0.4 and a width of 10.4 the image covers the pixels 0 to 10 |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch; a cell is halved only while its edges in the file are multiples of the halving, so that no color crosses a slice border, and an inset that is not a multiple of 2 draws from the file pixels |
-| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, and a uniform `{"output": name}` is a `sampler2D` with the last frame of a virtual output that the client added, transparent while the output is gone or the session is locked, at most 4 of both together; only the owner of a virtual output reads it, and a client socket or a confined connection reads none; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
+| `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, and a uniform `{"output": name}` is a `sampler2D` with the last frame of a virtual output that the client added, transparent while the output is gone or the session is locked, at most 4 of both together; only the owner of a virtual output reads it, and a client socket or a confined connection reads none; with `forward: true` such a node passes the pointer into the virtual output that it reads: the pointer is at the point of the output that the node shows under it, by the sizes of both, so hover, presses, button grabs and the manager of a new toplevel see the virtual output; such a node has exactly one output uniform; while a button of a real device is down the pointer stays where the first such press began, which alone chooses the pane, and injected buttons neither hold nor end that press, behind that pane also outside of it, at most one size of the output beyond its edges, or on the screen, and the release of the last button carries the point under the pointer again; one level only, not while the session is locked, and injected pointer positions and the cursor stay on the screen; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
 | `text`, `family`, `font_size`, `max_width` | text | `text`: UTF-8, needed at `create`, at most 4 KiB; `family`: a font family, at most 4 KiB, a system font without it; `font_size`: logical pixels, from 1 to 1024; `max_width`: the width at which lines wrap, and nothing else; a text node has no `size`, it sizes itself by its layout, so it is never a layer; under a transform that is not a 2D translation with a positive scale it is a plane (see below); the core draws it in `color`, white at 16 logical pixels by default; the raster limit is 16 MiB per output scale, and 256 MiB for all text nodes together; a raster beyond the second limit draws nothing until its node changes; a text beyond it at scale 1 gets no rect and no draw; a text beyond it only at another scale draws nothing at that scale |
 | `line_height`, `weight`, `style`, `letter_spacing`, `features` | text | `line_height`: the distance of the lines as a multiple of the font size, from 0.5 to 10, 1.2 by default; `weight`: from 1 to 1000, 400 normal, 700 bold, the nearest face of the family; `style`: `normal` or `italic`, slanted when the family has no italic; `letter_spacing`: extra space after each character in em, from -1 to 1, also after the last one; `features`: at most 32 OpenType features by their tag of four ASCII characters and their value, for example `{"smcp": 1, "onum": 1}` for small caps and old-style figures; a feature that the font lacks changes nothing; an update of `features` replaces all |
 
@@ -234,6 +234,7 @@ path.
 | `animate` | change properties over a duration with an easing curve |
 | `move` | change the parent or the position among the siblings |
 | `remove` | Remove a node. A removed surface becomes detached. With `to`, only the client `to` can attach the surface and gets `surface.detached`. `to` must have a connection and hold a claim (D55). |
+| `give_grab` | Give the drag of a window with the window: `surface`, `to`, `point` (the point of the window that the pointer holds), and optionally `velocity` and `wobble`. It follows a `remove` of `surface` with the same `to` in the same transaction. See [A give during a drag](#a-give-during-a-drag). |
 | `configure` | send size, toplevel states (activated, tiled, maximized, fullscreen) and decoration mode to a client |
 | `focus` | set the keyboard focus to an own surface, or clear it without a surface. A surface of another client answers with `node.requested` to its owner (D31). A client that cleared the focus may give it back once to the surface that had it, also of another client. A focus on another surface since then ends this return. |
 | `focus_node` | give the keyboard to an own node that is no surface, or without a node give it back (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
@@ -422,6 +423,95 @@ forwards, and the gate fails when a manager other than the holder serves
 a key. A last run has the setting off and expects that an injected give
 key gives nothing.
 
+### A give during a drag
+
+A window manager can hand a window over while the user still drags it,
+so that the window leaves its area with the button down. Its transaction
+holds a `remove` with `to` and a `give_grab` with the same `surface` and
+`to`. When the transaction applies, the core moves the pointer grab to
+`to`: the receiver gets `surface.detached`, then `input.button` with the
+binding `move`, the state `pressed`, the `surface` and `grab`, then
+`input.moved` and the release as for any move. The giver hears no more
+of that button. A drag that started through a pane of a virtual output
+leaves that pane with the give: the receiver gets the point under the
+pointer on the screen. The receiver attaches the window and goes on with the
+drag from `grab`: `point`, `velocity` and the state of an effect in
+`wobble`.
+
+The core refuses the whole transaction unless all of this holds:
+
+- the giver and `to` hold a claim, and neither is confined; the giver
+  also answers no method call of a confined caller at that time;
+- no other client holds a button of the pointer;
+- the giver holds the button press: the grab of a button binding or of
+  `move`, or a press on one of its own nodes;
+- that press drags `surface`: the window asked for the move, was under
+  the pointer at the press of the binding, or sits in the group of the
+  pressed node, as under a title bar;
+- the user made that button press and still holds the button; any
+  injected input after it, also a move of the pointer or a key, ends
+  this;
+- the pointer is on an output, and `to` grabbed `move`;
+- `point` and `velocity` are finite, and `wobble` has at most 16 kB as
+  JSON.
+
+The core checks this twice: when the transaction arrives, before any
+command runs, and again when it applies, since a transaction can wait
+for its clients. At the second check the button press must be the one of
+the first; when the user let go and pressed again in between, or any
+rule fails by then, the whole transaction fails with an error, and the
+window and the drag stay with the giver.
+
+The core passes `velocity` and `wobble` on unread. `chora-xp` sends the
+speed of the pointer, smoothed over its last moves, as `velocity`; no
+window manager of the repository reads it yet.
+
+`window.give` of every window manager takes `grab` and sends the
+`give_grab`. `chora-tiling` and `chora-xp` add the springs of their
+wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
+unless the caller sent some, and stop their own drag. `chora-tiling`
+goes on with a drag that it receives: the window sits with `point`,
+kept inside the window, under the pointer and wobbles on from the
+springs. `chora-construct` grabs `move` too, while the camera
+is in no window; inside a window a press of `move` goes to that window,
+so a window that draws its own title bar keeps its click. A window that
+comes with its drag becomes a pane, moved so that `point` is under the
+pointer, and the moves and the release of `move` drag and drop the pane
+as a drag with the modifier does. The pane of an own window wobbles on
+with a depth, and the camera stays where it is: it leaves a window
+that it is in, and a pane with a corner behind the eye goes ahead of it
+first. A pane of an own window that a drag drops over a resting face of
+the cube goes back: the construct gives the window to the window
+manager whose claim holds the drop point on the output of that face, as
+a drop on a screen does, and asks it, with `window.move` and `at`, to
+put it there. So a move from face to face looks like a move inside that window
+manager. `chora-xp` and `chora-mc` grab no `move` and so receive no
+drag.
+
+`chora-xp` gives by itself on a virtual output: when the drag of a title
+bar is more than 8 pixels outside the output where it started, the
+window goes with the drag
+to the owner of that output, the client that shows it as a pane. When
+the core refuses, as for an injected drag, the window stays with
+`chora-xp` for the rest of the drag.
+
+A gate has no real pointer. The flag `--test-injected-drag-gives` of
+the core, valid only right after `--headless SPECS`, makes an injected
+button press count as a button press of the user for `give_grab`, and
+for nothing else. It also turns off the rule that no input was injected
+since the press, as every input of a gate is injected. The core logs a
+warning at its start, and no child inherits the mode, as it is no
+variable of the environment. It is for tests.
+`tests/gate-construct-pull.sh` pulls a window out of a face of the cube
+with it, and checks without it that the core refuses the give of an
+injected drag.
+
+The grab ends when its receiver disconnects, and when the receiver does
+not own the window and no reservation keeps the window for it, for
+example 5 seconds after the give. In the second case the receiver gets
+`input.button` with `move` and `released`; the release of the button
+itself then reaches no client.
+
 ## Selectors
 
 A selector finds nodes: `id:work`, `kind:surface`, `owner:tiling`,
@@ -458,7 +548,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `surface.requested` | surface id and `request`: `activate`, `close`, `fullscreen`, `unfullscreen`, `maximize`, `unmaximize` or `minimize`; a client or a taskbar asks, and plugins decide |
 | `node.requested` | a client asks to change a node of another client: `node`, the asking `client`, `action` and `args`. The actions are `focus`, `move`, `resize`, `close` and `update`, with the arguments of the command; the arguments of `update` are its props. The core checks the props before it sends the request. Only the owner of the node gets it, and decides by doing the change or not (D31). An `update` of an owner that does not subscribe to `node.requested` fails with the error `belongs to`. Other changes of a foreign node stay refused. |
 | `input.key` | the grabbed `binding` and its `state`: `pressed` each time its key goes down with its modifiers, `released` once when Ctrl, Alt or Super of the binding goes up; `injected: true` when the key came from `input.inject`, which a client that takes a key for the user, such as a confirmation, must ignore (see [IPC methods](#ipc-methods)) |
-| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move; only to the connection of the grab |
+| `input.button`, `input.moved` | the button of a grabbed button binding went down or up, or the pointer moved while it is down: `binding`, `state` (not for `input.moved`), `position` in scene coordinates, `output` and `local`, the position in the output; at the press of `move`, `surface`, the window that asked for the move, and after a `give_grab` also `grab` with `point`, `velocity` and `wobble` as the giver sent them; only to the connection of the grab |
 | `node.key` | a key while a node of the client has the keyboard focus: node, keysym name, Linux code, state, modifiers and text (see [Keyboard focus of nodes](#keyboard-focus-of-nodes)) |
 | `pointer.entered`, `pointer.left` | the pointer came over or left the top node under it that takes input: node, and for `pointer.entered` `moved`: false when the scene moved under a pointer that stood still; not during a drag of a node or while locked |
 | `pointer.pressed` | a button went down over a node that takes input: node, Linux button code, position in scene coordinates, or in output coordinates for a node under `screen:NAME`, `local`, the point in the coordinates of the node (the geometry origin for a window), and the `modifiers` that are down; `injected: true` when the press came from `input.inject` (absent otherwise), which a client that takes a press for the user must ignore |
@@ -467,7 +557,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again; `keyboard` names the surface node with the keyboard focus when one of these nodes holds it, so that the person types into a window that shows nothing; the core leaves the focus there, and the window manager of that window may move it |
-| `effects.dropped` | the watchdog removed the effects, the meshes, the shaders of shader nodes and the perspectives of the nodes of `client`, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
+| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of `client`; a perspective stays, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |
@@ -615,9 +705,10 @@ answers every request.
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit`, `methods.privileged` and `activation.token` count only on connections with `confined: true` in their `hello`, such as `choractl mcp`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
+| `render.stats` | what rendering did for each output since it came, virtual outputs too: `outputs` maps each name to `frames`, `damaged_frames` and `passes`, the offscreen renders of its frames (node contents and shader passes; a capture does not count); the counters only grow, so a caller compares two answers, for example to check that a still scene draws nothing; a client socket or a confined connection gets code 9, since the counters tell when other clients draw; `choractl render-stats` calls it |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
-| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them. With `virtual: true`, `output.add(spec, virtual)` works on every backend and adds a virtual output `WxH[@SCALE]` that no screen shows: the core names it `VIRTUAL-n` and places it left of and above the screens, `output.list` shows it with `virtual: true` and its `owner`, and it has a `wl_output`, a camera, a work area, an overlay root and layer surfaces, but no pointer, no lock surface that shows and no screen copy; a side has 1 to 4096 pixels, all virtual outputs together at most 2^26 pixels, and at most 16 are live, else code 6; only a free client of the main socket adds one, a client socket or a confined connection gets code 9; only its owner or the admin socket removes it, and it goes when its owner ends, after the grace time of a `resume` |
+| `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them. With `virtual: true`, `output.add(spec, virtual)` works on every backend and adds a virtual output `WxH[@SCALE]` that no screen shows: the core names it `VIRTUAL-n` and places it left of and above the screens, `output.list` shows it with `virtual: true` and its `owner`, and it has a `wl_output`, a camera, a work area, an overlay root and layer surfaces, but no pointer, no lock surface that shows and no screen copy; a side has 1 to 4096 pixels, all virtual outputs together at most 2^26 pixels, and at most 16 are live, else code 6; only a free client of the main socket adds one, a client socket or a confined connection gets code 9; only its owner or the admin socket removes it, and it goes when its owner ends, after the grace time of a `resume`; a window whose centre lies in the scene area of the removed output, as its default camera showed it, stays with its window manager for 5 s; if its centre still lies there then, and neither a new virtual output nor a screen shows the window, the core sends its window manager `surface.detached`, removes the window in its name and hands it to the client that gave it to that window manager, else to another window manager, else shows it on the first screen; where the camera of the output looked does not count, and a hidden window in that area stays with its window manager |
 | `clients.list` | list the connected client names and the methods that each exported |
 | `methods.export(names)` | offer methods of this client to other clients |
 | `methods.list` | list the methods that clients exported, each with its description, input schema and privileged flag |
@@ -1194,7 +1285,7 @@ lists all of its methods:
 | `set_layout` | `layout` of the current tag: `tile`, `tile_left`, `tile_bottom`, `tile_top`, `fair`, `fair_horizontal`, `spiral`, `dwindle`, `max`, `fullscreen`, `magnifier` or `floating`; `gap` in logical pixels; a missing field keeps its value | the layout, the gap, `master_width`, `masters` and `columns` of the current tag, and the windows that show on the current output |
 | `get_layout` | none | the same |
 | `get_tags` | none | `outputs`: for each output its `name`, `focused` when it has the focus, and `tags`: for each tag its number `tag`, `shown`, `focused` (shown on the focused output), `occupied` (a window of the output is on it) and `urgent` (such a window asked for attention) |
-| `window.give` | `surface`, and `to`: a client name | hands the window to `to` with a `remove` with `to`, and answers with its surface id |
+| `window.give` | `surface`, `to`: a client name, and optionally `grab` with `point`, `velocity` and `wobble` | hands the window to `to` with a `remove` with `to`, and answers with its surface id; with `grab` the drag goes too (see [A give during a drag](#a-give-during-a-drag)) |
 
 Window effects need no API of their own. A window manager that sets
 `effects` in its settings sends `mesh` updates for its own nodes through
@@ -1232,7 +1323,7 @@ $ choractl call tiling settings.reload
 ```
 
 `chora-xp` exports `start_menu`, `minimize`, `restore`, `activate`,
-`turn_to` and `restart`, and its settings: the wallpaper, the taskbar, the
+`turn_to`, `window.move` and `restart`, and its settings: the wallpaper, the taskbar, the
 effects, the programs of the start menu and the commands of Log Off and
 Turn Off. [The XP flavor](configuration.md#the-xp-flavor) lists them.
 Its dialogs change the settings in the same way as `settings.set`. The

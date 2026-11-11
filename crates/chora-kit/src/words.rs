@@ -112,10 +112,18 @@ pub enum Word {
     HudNoticeOne,
     /// A look with several problems.
     HudNotice,
+    /// The control that steps back from a face of a cube.
+    StepBack,
+    /// The control that steps into a face of a cube.
+    StepIn,
+    /// The control that turns a cube to the left.
+    TurnLeft,
+    /// The control that turns a cube to the right.
+    TurnRight,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 42] = [
+pub const ALL: [Word; 46] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -158,6 +166,10 @@ pub const ALL: [Word; 42] = [
     Word::SendLines,
     Word::HudNoticeOne,
     Word::HudNotice,
+    Word::StepBack,
+    Word::StepIn,
+    Word::TurnLeft,
+    Word::TurnRight,
 ];
 
 impl Word {
@@ -218,6 +230,10 @@ impl Word {
             Self::HudNotice => {
                 "The look \"{name}\" has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
             }
+            Self::StepBack => "Step back",
+            Self::StepIn => "Step in",
+            Self::TurnLeft => "Turn left",
+            Self::TurnRight => "Turn right",
         }
     }
 
@@ -273,6 +289,10 @@ impl Word {
             Self::HudNotice => {
                 "Das Aussehen „{name}“ hat {n} Fehler, das alte bleibt. Wählen Sie in den Einstellungen ein anderes oder fragen Sie, wer es gemacht hat."
             }
+            Self::StepBack => "Zurücktreten",
+            Self::StepIn => "Hineingehen",
+            Self::TurnLeft => "Nach links drehen",
+            Self::TurnRight => "Nach rechts drehen",
         }
     }
 }

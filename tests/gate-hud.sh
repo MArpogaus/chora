@@ -367,14 +367,19 @@ cell_context_picks_folder() {
     waiting "$settle_s" figure_left "$figure"
 }
 card_rect_is() { [ "$(node_rect hud-card)" = "$1" ]; }
+new_window() {
+    ctl query "app_id:$1 kind:surface" | jq -re --argjson known "$2" '[.[].id] - $known | .[0] // empty'
+}
 cell_card_stays_on_focus_move() {
-    local before second
+    local before known second
     ask_notes
     waiting "$settle_s" node_exists hud-card || return 1
     before=$(node_rect hud-card)
+    known=$(ctl query "app_id:probe2 kind:surface" | jq -c '[.[].id]') || return 1
     foot -f "DejaVu Sans Mono:size=10" -a probe2 sh -c 'sleep 900' >"$shots/foot2.log" 2>&1 &
     run_pid $!
-    second=$(ctl wait "app_id:probe2 kind:surface" --timeout 20 | jq -r '.[0].id') || return 1
+    waiting 20 new_window probe2 "$known" || return 1
+    second=$(new_window probe2 "$known") || return 1
     has_focus "$second" || return 1
     watch_for 1.5 card_rect_is "$before"
 }

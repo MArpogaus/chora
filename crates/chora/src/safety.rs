@@ -401,11 +401,14 @@ impl State {
             self.ipc_close(conn);
         }
         self.end_graces();
+        self.drop_all_virtuals();
         self.remove_client_sockets();
         self.grants.revoke_all();
         self.forget_unused_tokens(std::time::Duration::ZERO);
         self.inject_mark = None;
         self.node_grab = None;
+        self.press_via = None;
+        self.given_by.clear();
         self.button_grab = None;
         self.last_real_button = None;
         let pointer = self.pointer();

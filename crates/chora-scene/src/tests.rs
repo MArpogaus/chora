@@ -1205,7 +1205,7 @@ fn create_in(id: &str, kind: &str, parent: &str, props: &serde_json::Value) -> C
 }
 
 #[test]
-fn the_watchdog_counts_planes_and_drops_the_perspective() {
+fn the_watchdog_counts_planes_and_keeps_the_perspective() {
     let mut scene = Scene::default();
     let space = serde_json::json!({"size": [100, 100], "perspective": 500});
     let turned = serde_json::json!({"size": [10, 10], "color": [1, 1, 1, 1],
@@ -1230,12 +1230,12 @@ fn the_watchdog_counts_planes_and_drops_the_perspective() {
         .unwrap();
     let load = scene.load_by_owner();
     assert_eq!(load.get("wm"), Some(&(1 + 26 + 1 + 26 + 26)));
-    assert!(scene.drop_effects("wm"));
-    assert_eq!(scene.node("space").unwrap().props.perspective, None);
-    assert_eq!(
-        scene.load_by_owner().get("wm"),
-        Some(&(1 + 1 + 1 + 26 + 26))
+    assert!(
+        !scene.drop_effects("wm"),
+        "a perspective alone is nothing to drop"
     );
+    assert_eq!(scene.node("space").unwrap().props.perspective, Some(500.0));
+    assert_eq!(scene.load_by_owner().get("wm"), load.get("wm"));
 }
 
 #[test]
@@ -1685,4 +1685,42 @@ fn without_planes_the_hit_list_is_the_draw_list() {
     assert!(scene.node("clipped").unwrap().is_layer());
     assert_eq!(scene.hit_list(ROOT), scene.draw_list());
     assert_ne!(scene.layer_list(ROOT), scene.draw_list());
+}
+
+/// The drag goes only with the window: a `give_grab` needs a `remove` of
+/// the same surface to the same client before it in its transaction.
+#[test]
+fn a_drag_goes_only_with_a_window_given_in_the_same_transaction() {
+    let mut scene = Scene::default();
+    scene.add_surface("s1", SurfaceInfo::default());
+    let claim = |id: &str| Command::Create {
+        id: id.into(),
+        kind: NodeKind::Group,
+        parent: ROOT.into(),
+        props: PropsUpdate {
+            claim: Some(Some([0.0, 0.0, 10.0, 10.0])),
+            ..PropsUpdate::default()
+        },
+    };
+    scene.apply("a", &[claim("a"), attach("s1", "a")]).unwrap();
+    scene.apply("b", &[claim("b")]).unwrap();
+    let grab = |to: &str| Command::GiveGrab {
+        surface: "s1".into(),
+        to: to.into(),
+        point: [1.0, 2.0],
+        velocity: [0.0; 2],
+        wobble: None,
+    };
+    let remove = Command::Remove {
+        id: "s1".into(),
+        to: Some("b".into()),
+    };
+    assert!(scene.check("a", &[grab("b")]).is_err(), "no remove");
+    assert!(scene.check("b", &[grab("b")]).is_err(), "not the giver");
+    let other = [remove.clone(), grab("a")];
+    assert!(scene.check("a", &other).is_err(), "another receiver");
+    let effects = scene.apply("a", &[remove, grab("b")]).unwrap();
+    let given = matches!(effects.last(),
+        Some(Effect::GrabGiven { to, from, .. }) if to == "b" && from == "a");
+    assert!(given, "{effects:?}");
 }

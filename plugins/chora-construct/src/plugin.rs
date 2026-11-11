@@ -2,8 +2,9 @@
 //! construct.
 
 use super::{
-    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, MovePane, Named, Plugin,
-    ResizePane, RpcError, Runtime, Store, Value, file, give, json, moved, runtime,
+    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, MovePane, Named, OpenCube,
+    Plugin, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give, json, moved,
+    runtime,
 };
 
 impl Plugin for Construct {
@@ -14,6 +15,9 @@ impl Plugin for Construct {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        let Some(event) = self.pulled(event)? else {
+            return Ok(());
+        };
         match event {
             Event::SurfaceCreated {
                 surface,
@@ -46,7 +50,8 @@ impl Plugin for Construct {
                 ..
             } => self.resize(&surface, [f64::from(w), f64::from(h)]),
             Event::OutputChanged { output }
-                if self.output.as_ref().is_none_or(|o| o.name == output.name) =>
+                if output.is_virtual != Some(true)
+                    && self.output.as_ref().is_none_or(|o| o.name == output.name) =>
             {
                 let same = self
                     .output
@@ -58,7 +63,8 @@ impl Plugin for Construct {
             Event::OutputRemoved { name }
                 if self.output.as_ref().is_some_and(|o| o.name == name) =>
             {
-                self.output = self.rt.outputs()?.into_iter().find(|o| o.name != name);
+                self.output = (self.rt.outputs()?.into_iter())
+                    .find(|o| o.name != name && o.is_virtual != Some(true));
                 if self.output.is_some() {
                     self.build()?;
                 }
@@ -90,6 +96,21 @@ impl Plugin for Construct {
                 Ok(Value::Null)
             }
             "construct.list" => Ok(self.list()),
+            "cube.open" => {
+                let OpenCube { faces } = runtime::params(params)?;
+                self.open_cube(faces).map_err(rejected)
+            }
+            "cube.turn" => {
+                let TurnCube { by, ms } = runtime::params(params)?;
+                self.turn_cube(by, ms, false).map_err(rejected)?;
+                Ok(Value::Null)
+            }
+            "view.step_back" => self.mode_method(chora_kit::modes::Act::StepBack),
+            "view.step_in" => self.mode_method(chora_kit::modes::Act::StepIn),
+            "cube.close" => {
+                self.close_cube().map_err(rejected)?;
+                Ok(Value::Null)
+            }
             "construct.leave" => {
                 if !self.overlay {
                     return Err(RpcError::new(
@@ -144,8 +165,8 @@ impl Plugin for Construct {
                 Ok(json!({"pane": pane}))
             }
             give::METHOD => {
-                let Give { surface, to } = runtime::params(params)?;
-                self.give(&surface, &to).map_err(rejected)
+                let Give { surface, to, grab } = runtime::params(params)?;
+                self.give_dragged(&surface, &to, grab).map_err(rejected)
             }
             "help.toggle" => {
                 if !self.active {
@@ -177,6 +198,7 @@ impl Plugin for Construct {
     fn settings_changed(&mut self) -> Result<(), RpcError> {
         let rejected = |e: ClientError| RpcError::new(RpcError::REJECTED, e.to_string());
         self.glass.plain = false;
+        self.effects.set(&self.settings.value.effects);
         self.regrab().map_err(rejected)?;
         self.restyle().map_err(rejected)?;
         self.frame().map_err(rejected)

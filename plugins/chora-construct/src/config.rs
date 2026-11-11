@@ -76,6 +76,15 @@ pub struct Palette {
 }
 
 impl Theme {
+    /// The strength of the mirror images in the glossy floor.
+    #[must_use]
+    pub fn gloss(self) -> f64 {
+        match self {
+            Self::Light => 0.4,
+            Self::Dark => 0.55,
+        }
+    }
+
     #[must_use]
     pub fn palette(self) -> Palette {
         match self {
@@ -227,6 +236,14 @@ pub struct Config {
     /// Who draws the voice HUD (F28) and the questions: the construct,
     /// or the HUD host with the folder `hud`.
     pub voice_hud: VoiceHud,
+    /// The effects of the panes of own windows: `wobbly` bends a pane in
+    /// 3D while the modifier drags it.
+    #[serde(default)]
+    pub effects: Vec<chora_kit::effects::Kind>,
+    /// The command of the window manager of the cube; `cube.open` adds
+    /// `--output NAME` for each face. It runs as the client `xp`.
+    #[serde(default = "cube_manager")]
+    pub cube_manager: String,
     pub style: Style,
 }
 
@@ -250,6 +267,10 @@ impl Config {
     }
 }
 
+fn cube_manager() -> String {
+    "chora-xp".into()
+}
+
 impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         if !(self.radius.is_finite() && self.radius >= 100.0) {
@@ -266,6 +287,9 @@ impl Settings for Config {
                 "modifier: {} is not Ctrl, Alt, Shift or Super",
                 self.modifier
             ));
+        }
+        if self.effects.contains(&chora_kit::effects::Kind::Lamp) {
+            return Err("effects: the construct has no task button, so only wobbly".into());
         }
         self.check_style()?;
         if !self.start.is_empty() {
@@ -300,6 +324,18 @@ impl Config {
                 "move a pane, or give it away".to_owned(),
             ),
             (format!("{m}+wheel"), "resize a pane".to_owned()),
+            (
+                self.fly_out.clone(),
+                "with a cube: step back from the face".to_owned(),
+            ),
+            (
+                "Return / Escape".to_owned(),
+                "with a cube, stood back: step into the face".to_owned(),
+            ),
+            (
+                "Ctrl+Alt+Left / Ctrl+Alt+Right".to_owned(),
+                "with a cube: turn it by one face".to_owned(),
+            ),
         ]);
         rows
     }

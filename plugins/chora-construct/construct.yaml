@@ -65,6 +65,12 @@ fly_out: Alt+Escape
 # Alt, Shift or Super. A drop on a plugin pane gives the window to that
 # plugin, and a drop on another output to its window manager.
 modifier: Super
+# The effects of the panes of own windows: [wobbly] bends a pane in 3D
+# while the modifier drags it, and it shakes until it settles.
+effects: []
+# The window manager of the cube of `cube.open`, which adds
+# `--output NAME` for each of its virtual outputs.
+cube_manager: chora-xp
 # Who draws the voice HUD at the bottom of the output (F28): the state of
 # the voice agent, its spoken sentence and its questions. own: the
 # construct, which hides the dot of the voice agent while it runs; host:

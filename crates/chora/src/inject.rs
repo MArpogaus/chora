@@ -117,6 +117,7 @@ impl State {
         if inject.dry_run {
             return Ok(Value::Null);
         }
+        self.forget_real_button();
         self.run_steps(&steps);
         self.mark_injection();
         Ok(Value::Null)
@@ -129,7 +130,7 @@ impl State {
         let until = self.time.now() + MARK_FOR;
         self.inject_mark = Some(until);
         let _ = self.expire_at(until);
-        if let Some(spot) = self.spot(self.pointer_layout) {
+        if let Some(spot) = self.screen_spot(self.pointer_layout) {
             let at = [spot.local.x + MARK_GAP, spot.local.y + MARK_GAP];
             self.scene.show_injection(&spot.output.name(), at);
         }
@@ -293,7 +294,7 @@ impl State {
     /// layout. A node under a plane may be covered where its projection
     /// lands.
     fn takes_pointer_at(&self, node: &str, at: Point<f64, Logical>) -> bool {
-        self.spot(at)
+        self.screen_spot(at)
             .and_then(|spot| node_under(self, &spot))
             .is_some_and(|under| under == node)
     }

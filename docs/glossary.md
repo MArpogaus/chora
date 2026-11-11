@@ -18,6 +18,7 @@ terms and no synonyms.
 | **Effect** | A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects. |
 | **Camera** | The part of the scene that one output shows: a transform from scene coordinates to the logical coordinates of the output. |
 | **Claim** | A scene area of one window manager (D55). |
+| **Virtual output** | An output that a client adds and that no screen shows. Its frames go into a texture that a shader node of its owner reads; a window manager runs on it as on a screen. |
 | **Work area** | The part of the scene that an output shows, without the zones that panels and IPC clients reserve. Plugins place windows in it. |
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
 | **Owner** | The client name that created or attached a node. Only the owner changes the node. |

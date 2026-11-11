@@ -606,3 +606,29 @@ fn coplanar_planes_keep_the_order_of_the_scene() {
         Some("glow")
     );
 }
+
+#[test]
+fn a_context_keeps_its_perspective_when_the_watchdog_drops_the_effects() {
+    let mut core = Core::new();
+    core.add_output("test-1", (640, 480));
+    let mut wm = space(&mut core, [640.0, 480.0]);
+    let commands = json!({"commands": [
+        rect("behind", [200.0, 200.0], [1.0, 0.0, 0.0, 1.0],
+             &translate(220.0, 140.0, -3.0 * EYE)),
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    core.state.scene.drop_effects("wm");
+    assert!(
+        core.state
+            .scene
+            .node("space")
+            .is_some_and(|n| n.props.perspective.is_some()),
+        "the space stays 3D"
+    );
+    let spot = core.state.spot((320.0, 240.0).into()).expect("a spot");
+    assert_eq!(
+        crate::render::node_under(&core.state, &spot),
+        None,
+        "a pane behind the eye takes no click"
+    );
+}

@@ -26,8 +26,8 @@ use chora_kit::{
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest, ToplevelState,
-    Transform,
+    Command, Event, GivenGrab, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
+    ToplevelState, Transform,
     ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
 };
 use clap::Parser;
@@ -125,6 +125,9 @@ struct Tiling {
     /// The window that the binding of `drag` or a move of its client
     /// holds, and the pointer relative to the window.
     dragged: Option<(String, [f64; 2])>,
+    /// The springs of a window that came with its drag from another
+    /// window manager, until its first move bends it.
+    springs: Option<(String, Value)>,
     /// The window effects of the setting `effects`.
     effects: Driver,
     /// Where the effects last bent each wobbling window, for a frame after
@@ -171,6 +174,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         saved: HashMap::new(),
         claimed: None,
         dragged: None,
+        springs: None,
         effects: Driver::new(&settings_effects),
         bent: HashMap::new(),
         meshes: Vec::new(),
@@ -436,8 +440,12 @@ impl Tiling {
                 state,
                 position,
                 surface,
+                grab,
                 ..
-            } => self.drag(&binding, state, position, surface),
+            } => {
+                self.drag(&binding, state, position, surface);
+                self.take_given_drag(grab);
+            }
             // A window that follows the pointer.
             Event::InputMoved {
                 binding, position, ..
@@ -625,23 +633,57 @@ impl Tiling {
     /// `window.give`: hands a window to another window manager, and
     /// answers with its id.
     fn give(&mut self, params: Value) -> Result<Value, RpcError> {
-        let Give { surface, to } = runtime::params(params)?;
-        self.hand(&surface, &to)
+        let Give { surface, to, grab } = runtime::params(params)?;
+        self.hand_dragged(&surface, &to, grab)
+    }
+
+    /// A press of `move` that came with a window and its drag from
+    /// another window manager: the pointer holds the point of the window
+    /// that the giver names, kept inside the window, and the window
+    /// wobbles on from its springs.
+    fn take_given_drag(&mut self, grab: Option<GivenGrab>) {
+        let (Some(grab), Some((id, _))) = (grab, self.dragged.clone()) else {
+            return;
+        };
+        let size = self.target(&id, [0.0; 2]).map_or([0.0; 2], |t| t.size);
+        let point = [0, 1].map(|axis| grab.point[axis].clamp(0.0, size[axis].max(0.0)));
+        self.dragged = Some((id.clone(), point));
+        self.springs = grab.wobble.map(|springs| (id, springs));
     }
 
     /// Hands a window to the window manager `to` with a remove with `to`
     /// (D55); the receiver gives it the focus. The answer of
     /// `window.give`.
     fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        self.hand_dragged(surface, to, None)
+    }
+
+    /// As [`Self::hand`]; with `grab` the drag of the window goes too,
+    /// with the springs of its wobble unless the caller sent some, and
+    /// the drag of tiling ends.
+    fn hand_dragged(
+        &mut self,
+        surface: &str,
+        to: &str,
+        mut grab: Option<GivenGrab>,
+    ) -> Result<Value, RpcError> {
         only(self.wm.has(surface), || {
             format!("tiling has no window {surface}")
         })?;
-        self.bent.remove(surface);
+        let bent = self.bent.remove(surface);
+        if let (Some(grab), Some(target)) = (&mut grab, &bent) {
+            let springs = self.effects.springs(surface, target);
+            grab.wobble = grab.wobble.take().or(springs);
+        }
         if let Some(flat) = self.effects.unbend(surface, surface) {
             self.apply(vec![flat])
                 .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
-        let answer = self.rt.conn.give(surface, to)?;
+        let dragged = grab.is_some();
+        let answer = self.rt.conn.give_dragged(surface, to, grab)?;
+        if dragged {
+            self.dragged.take_if(|(id, _)| id == surface);
+        }
         self.focus.gave(surface);
         self.forget_window(surface);
         self.relayout()
@@ -737,7 +779,8 @@ impl Tiling {
             return;
         };
         if !self.effects.wobbles(id) {
-            self.effects.grab(id, &target, pointer);
+            let springs = self.springs.take_if(|(of, _)| of == id).map(|(_, s)| s);
+            (self.effects).grab_given(id, &target, pointer, springs.as_ref());
         }
         let mesh = self.effects.motion(id, &target);
         self.meshes.extend(mesh);
@@ -1446,6 +1489,7 @@ mod tests {
             saved: HashMap::new(),
             claimed: None,
             dragged: None,
+            springs: None,
             effects: Driver::new(effects),
             bent: HashMap::new(),
             meshes: Vec::new(),
@@ -1463,6 +1507,7 @@ mod tests {
             output: "X".into(),
             local: position,
             surface: Some(surface.into()),
+            grab: None,
         };
         let moved = |position: [f64; 2]| Event::InputMoved {
             binding: give::MOVE.into(),
@@ -1649,6 +1694,7 @@ mod tests {
             output: "X".into(),
             local: position,
             surface: Some(surface.into()),
+            grab: None,
         };
         let moved = Event::InputMoved {
             binding: give::MOVE.into(),
@@ -1662,6 +1708,87 @@ mod tests {
         settle(&mut tiling);
         assert!(bends(&methods, "s1") > 0);
         assert!(!tiling.effects.animating(), "s1 shakes to its end");
+    }
+
+    /// tiling with the floating window s1 of 40 by 20 on the output X.
+    fn with_a_floating_window(tag: &str) -> (Tiling, Arc<Mutex<Vec<String>>>) {
+        let (mut tiling, methods) = on_fake_core_with(tag, &WOBBLY);
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        tiling.wm.add_window("s1");
+        tiling.wm.act(&Action::ToggleFloating);
+        assert!(tiling.wm.set_size("s1", [40, 20]));
+        tiling.relayout().unwrap();
+        (tiling, methods)
+    }
+
+    /// The press of `move` on s1, with the drag of another window manager
+    /// when `grab` has one, and a move of the pointer.
+    fn press_and_move(tiling: &mut Tiling, grab: Option<chora_scene::GivenGrab>) {
+        let press = Event::InputButton {
+            binding: give::MOVE.into(),
+            state: PressState::Pressed,
+            position: [190.0, 150.0],
+            output: "X".into(),
+            local: [190.0, 150.0],
+            surface: Some("s1".into()),
+            grab,
+        };
+        let moved = Event::InputMoved {
+            binding: give::MOVE.into(),
+            position: [230.0, 170.0],
+            output: "X".into(),
+            local: [230.0, 170.0],
+        };
+        tiling.event(press).unwrap();
+        tiling.event(moved).unwrap();
+    }
+
+    /// E3: `window.give` with `grab` sends the remove and the `give_grab` in
+    /// one transaction, with the springs of the wobble, and tiling drags
+    /// no more.
+    #[test]
+    fn a_give_with_the_drag_sends_the_springs_and_ends_the_drag() {
+        let (mut tiling, methods) = with_a_floating_window("give-drag");
+        press_and_move(&mut tiling, None);
+        let give = json!({"surface": "s1", "to": "xp", "grab": {"point": [5.0, 5.0]}});
+        tiling.method(give::METHOD, give).unwrap();
+        let sent = sent_commands(&methods);
+        let at = (sent.iter().position(|c| c.get("give_grab").is_some())).expect("a give_grab");
+        assert_eq!(sent[at - 1]["remove"], json!({"id": "s1", "to": "xp"}));
+        let grab = &sent[at]["give_grab"];
+        assert_eq!(grab["to"], "xp");
+        assert_eq!(grab["point"], json!([5.0, 5.0]));
+        let offsets = grab["wobble"]["offsets"].as_array();
+        assert_eq!(offsets.map(Vec::len), Some(16), "{grab}");
+        assert!(tiling.dragged.is_none());
+    }
+
+    /// E3: the press of `move` that comes with a window and its drag puts
+    /// the named point of the window under the pointer, and the window
+    /// wobbles on from the springs of the giver.
+    #[test]
+    fn a_given_drag_goes_on_at_its_point_with_its_springs() {
+        let (mut tiling, methods) = with_a_floating_window("given-drag");
+        let pulled = json!({"offsets": vec![[4.0, 0.0, 0.0]; 16], "velocity": vec![[0.0; 3]; 16]});
+        let grab = chora_scene::GivenGrab {
+            point: [7.0, 9.0],
+            velocity: [0.0; 2],
+            wobble: Some(pulled),
+        };
+        press_and_move(&mut tiling, Some(grab));
+        assert_eq!(tiling.dragged, Some(("s1".into(), [7.0, 9.0])));
+        let far = chora_scene::GivenGrab {
+            point: [900.0, -5.0],
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        press_and_move(&mut tiling, Some(far));
+        let held = tiling.dragged.clone().map(|(_, point)| point);
+        assert_eq!(held, Some([40.0, 0.0]), "inside the window of 40 by 20");
+        assert!(tiling.springs.is_none(), "the first move took the springs");
+        assert!(bends(&methods, "s1") > 0);
     }
 
     #[test]

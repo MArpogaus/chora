@@ -15,7 +15,8 @@ impl Construct {
                 to: None,
             }])?;
         }
-        self.output = self.rt.outputs()?.into_iter().next();
+        self.output = (self.rt.outputs()?.into_iter()).find(|o| o.is_virtual != Some(true));
+        self.remove_left_outputs()?;
         let mut methods = exported_methods();
         methods.extend(settings::File::<Config>::methods());
         self.rt.announce(&EVENTS, methods)?;
@@ -48,24 +49,33 @@ impl Construct {
     pub(crate) fn serve(&mut self) -> Result<(), ClientError> {
         loop {
             let plugins = self.waiting.iter().any(|w| w.pane.kind == Kind::Plugin);
-            let wait = if self.glide.is_some() {
+            let wait = if self.glide.is_some() || self.effects.animating() || self.cube_turns() {
                 FRAME
             } else if plugins {
                 RETRY
             } else {
                 Duration::from_secs(3600)
             };
-            let wait = (self.voice.deadline()).map_or(wait, |t| {
-                wait.min(t.saturating_duration_since(Instant::now()))
-            });
+            let wait = (self.voice.deadline().into_iter())
+                .chain(self.cube_deadline())
+                .fold(wait, |wait, t| {
+                    wait.min(t.saturating_duration_since(Instant::now()))
+                });
             match self.rt.conn.next_event_timeout(wait)? {
                 Some(event) => runtime::dispatch(self, event)?,
                 None if plugins => self.retry_plugins()?,
                 None => {}
             }
             self.tick()?;
+            self.check_cube()?;
             if self.glide.is_some() {
                 self.step_glide()?;
+            }
+            if self.effects.animating() {
+                self.wobble_frame()?;
+            }
+            if self.cube_turns() {
+                self.step_cube()?;
             }
         }
     }
@@ -91,7 +101,6 @@ impl Construct {
         let commands: Vec<Command> = gone.iter().flat_map(Pane::remove).collect();
         self.rt.conn.apply(commands)?;
         self.active = true;
-        self.order.clear();
         self.waiting.clear();
         self.build()?;
         self.radius = file.radius;
@@ -122,6 +131,7 @@ impl Construct {
         if !self.active {
             return Ok(());
         }
+        self.close_cube()?;
         self.rt.conn.apply(vec![
             Command::FocusNode { node: None },
             Command::Remove {
@@ -142,7 +152,9 @@ impl Construct {
         self.radius = None;
         self.panes.clear();
         self.waiting.clear();
-        self.order.clear();
+        self.sent = None;
+        self.glow = None;
+        self.backs.clear();
         self.flown = None;
         self.glide = None;
         self.moving = None;
@@ -174,7 +186,7 @@ impl Construct {
             taken: false,
             attached: false,
         };
-        self.rt.conn.apply(self.pane_nodes(&pane).into())?;
+        self.rt.conn.apply(self.pane_nodes(&pane))?;
         self.panes.push(pane);
         Ok(None)
     }

@@ -125,6 +125,8 @@ pub struct RenderStats {
     pub textures_rendered: u64,
     /// The shader passes over such textures: shapes, shaders and effects.
     pub passes: u64,
+    /// The counters by output, for `render.stats`.
+    pub by_output: HashMap<String, OutputStats>,
     /// The frames that a backend rendered.
     pub frames: u64,
     /// The frames of those that had damage.
@@ -142,11 +144,31 @@ pub struct RenderStats {
     pub orders: std::cell::Cell<u64>,
 }
 
+/// What rendering did for one output since it came.
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct OutputStats {
+    /// The frames that rendered.
+    pub frames: u64,
+    /// The frames of those that had damage.
+    pub damaged_frames: u64,
+    /// The offscreen renders of its frames: node contents and shader
+    /// passes. A capture does not count.
+    pub passes: u64,
+}
+
 impl RenderStats {
-    /// Counts the render of a frame by a backend.
-    pub fn frame(&mut self, damaged: bool) {
+    /// Counts the render of a frame of an output.
+    pub fn frame(&mut self, output: &str, damaged: bool) {
         self.frames += 1;
         self.damaged_frames += u64::from(damaged);
+        let of = self.by_output.entry(output.to_owned()).or_default();
+        of.frames += 1;
+        of.damaged_frames += u64::from(damaged);
+    }
+
+    /// The offscreen renders: node contents and shader passes.
+    pub fn offscreen(&self) -> u64 {
+        self.textures_rendered + self.passes
     }
 
     fn count<R: MeshRenderer>(&mut self, elements: &[SceneElement<R>]) {
@@ -161,11 +183,6 @@ impl RenderStats {
     /// How many elements of a variant [`output_elements`] returned.
     pub fn elements_of(&mut self, variant: Variant) -> u64 {
         *self.elements.slot(variant)
-    }
-
-    /// The offscreen renders: node contents and shader passes.
-    pub fn offscreen(&self) -> u64 {
-        self.textures_rendered + self.passes
     }
 }
 
@@ -304,6 +321,7 @@ where
         return elements;
     }
     crate::offscreen::render_virtuals(parts, renderer.gles(), output);
+    let passes_before = parts.assets.stats.offscreen();
     prune_assets(parts);
     let shown = if view.stepped { "" } else { " capture" };
     let name = format!("{}{shown}", output.name());
@@ -334,6 +352,15 @@ where
         .frame_dark
         .insert(output.name(), assets.layers.dark.clone());
     assets.stats.count(&out);
+    if view.stepped {
+        let passes = assets.stats.offscreen() - passes_before;
+        assets
+            .stats
+            .by_output
+            .entry(output.name())
+            .or_default()
+            .passes += passes;
+    }
     out
 }
 
@@ -1122,7 +1149,7 @@ fn scene_under(
             surface,
             location: pos - on_surface,
             node: Some(node.id.clone()),
-            plane: planar.then(|| local - on_surface),
+            plane: (planar || spot.via.is_some()).then(|| local - on_surface),
         }),
         Some(_) => Target::Blocked,
         None => Target::Nothing,
@@ -1141,8 +1168,8 @@ pub struct Under {
     /// The surface node; `None` for a layer surface.
     pub node: Option<String>,
     /// The origin of the surface in the coordinates of its node, when a
-    /// plane carries the node; a press then maps every motion through that
-    /// plane.
+    /// plane carries the node or a pane forwards the pointer to it; a
+    /// press then maps every motion through that plane or pane.
     pub plane: Option<Point<f64, Logical>>,
 }
 
@@ -1569,7 +1596,7 @@ pub fn send_frames(state: &mut State, output: &Output) {
 
 /// The surface nodes that an output shows: those whose scene rectangle
 /// overlaps the scene area of the output.
-fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
+pub(crate) fn shown_surfaces(state: &State, output: &Output) -> HashSet<String> {
     let screen = Rectangle::from_size(output_area(output).size);
     let shown = scene_rect(&state.camera(output), screen);
     let overlay = state.scene.overlay_draw_list(&output.name());
@@ -1673,29 +1700,26 @@ fn polygon_box(
 /// transform. The points go through the projection of the renderer, so
 /// that a matrix which divides by w moves them as the frame does; the
 /// depth of mesh points stays out, as in `Transform::apply`. A point at
-/// or behind the eye is left out, and a box of no point in front overlaps
-/// nothing.
+/// or behind `w = near`, the near plane of a context or the eye, is left
+/// out, and a box of no point in front overlaps nothing.
 pub(crate) fn projected_box(
     transform: &Transform,
     points: impl Iterator<Item = [f64; 2]>,
+    near: f64,
 ) -> Rectangle<f64, Logical> {
     let m = transform.matrix();
-    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    let mut bounds = mesh::Bounds::default();
     for [px, py] in points {
-        let hw = m[3] * px + m[7] * py + m[15];
-        if hw <= mesh::NEAR {
-            continue;
-        }
-        let (x, y) = (
-            (m[0] * px + m[4] * py + m[12]) / hw,
-            (m[1] * px + m[5] * py + m[13]) / hw,
+        bounds.add_point_at(
+            [
+                m[0] * px + m[4] * py + m[12],
+                m[1] * px + m[5] * py + m[13],
+                m[3] * px + m[7] * py + m[15],
+            ],
+            near,
         );
-        x0 = x0.min(x);
-        y0 = y0.min(y);
-        x1 = x1.max(x);
-        y1 = y1.max(y);
     }
-    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
+    bounds.rect()
 }
 
 #[cfg(test)]
@@ -1721,6 +1745,36 @@ mod tests {
 
     use super::{location_and_scale, premultiplied, send_frames, surface_under};
     use crate::testing::{Core, wayland::Wayland};
+
+    /// The mesh points of a layer wholly behind the eye, or of a context
+    /// between the eye and its near plane, give an empty box.
+    #[test]
+    fn mesh_points_behind_the_eye_give_an_empty_box() {
+        let mut behind = [0.0; 16];
+        behind[0] = 1.0;
+        behind[5] = 1.0;
+        behind[10] = 1.0;
+        behind[15] = -1.0;
+        let points = [[0.0, 0.0], [100.0, 0.0], [0.0, 80.0]];
+        let rect = super::projected_box(
+            &Transform::from_matrix(behind),
+            points.into_iter(),
+            crate::mesh::NEAR,
+        );
+        assert_eq!(rect, smithay::utils::Rectangle::default());
+        let mut near = behind;
+        near[15] = 0.01;
+        let rect = super::projected_box(
+            &Transform::from_matrix(near),
+            points.into_iter(),
+            1.0 / 64.0,
+        );
+        assert_eq!(
+            rect,
+            smithay::utils::Rectangle::default(),
+            "inside the near plane of a context"
+        );
+    }
 
     /// A window that no output shows gets a frame callback at most once a
     /// second, so that a hidden client stops drawing (#60).

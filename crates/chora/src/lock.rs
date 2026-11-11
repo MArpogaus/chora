@@ -227,6 +227,7 @@ impl State {
     /// session locked or unlocked.
     fn lock_changed(&mut self) {
         self.node_grab = None;
+        self.press_via = None;
         self.button_grab = None;
         self.last_real_button = None;
         let pointer = self.pointer();

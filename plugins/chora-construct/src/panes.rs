@@ -1,12 +1,28 @@
 //! Panes and their scene nodes: building the space, the pane nodes,
 //! uniforms, and moving, resizing and removing a pane.
 
+use chora_scene::ShaderEffect;
+
 use super::{
-    BTreeMap, ClientError, Command, Construct, FOCUS, FOG, FOG_SCALE, InputMode, Kind, LOOK, Lens,
-    MIRROR_SCALE, MIRRORS, NAME, NodeKind, NodeTexture, PANE_MAX, PANE_MIN, PANES, Pane, PaneFile,
-    PropsUpdate, RpcError, SKY, ToplevelState, Transform, Uniform, WINDOWS, overlay_id, space,
-    unique,
+    BTreeMap, ClientError, Command, Construct, FOCUS, FOG, FOG_SCALE, FRONT, InputMode, Kind, LOOK,
+    Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, NodeTexture, PANE_MAX, PANE_MIN, PANES, POSE,
+    Pane, PaneFile, PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS,
+    overlay_id, space, unique,
 };
+
+/// What the effects of the panes and their mirror images show: the
+/// focused pane, the fog, the accent, the gloss of the floor, the focal
+/// length over the leash radius for the haze, and the height of the eye
+/// over the focal length for the fresnel of the floor.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PaneLook {
+    pub focus: Option<String>,
+    pub fog: [f64; 3],
+    pub accent: [f64; 3],
+    pub gloss: f64,
+    pub reach: f64,
+    pub ground: f64,
+}
 
 pub(crate) fn create(id: &str, kind: NodeKind, parent: &str, props: PropsUpdate) -> Command {
     Command::Create {
@@ -29,8 +45,10 @@ pub(crate) fn vec3(c: [f64; 3]) -> Uniform {
 }
 
 /// The nodes of the space on the screen root of an output, bottom
-/// first: the sky, the fog, the mirror images, the panes, the windows and
-/// the look rect, which takes the keys of the walk.
+/// first: the hidden windows, the sky, the fog, the look rect, which
+/// takes the presses on the empty space and the keys of the walk, the 3D
+/// context with the camera group, the mirror images and the panes, and
+/// the group of the window that the camera is in.
 pub(crate) fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
     let group = |input| PropsUpdate {
         input,
@@ -38,6 +56,7 @@ pub(crate) fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
     };
     vec![
         create(NAME, NodeKind::Group, root, group(None)),
+        create(WINDOWS, NodeKind::Group, NAME, group(None)),
         create(SKY, NodeKind::Rect, NAME, PropsUpdate::default()),
         create(
             FOG,
@@ -48,9 +67,6 @@ pub(crate) fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
                 ..PropsUpdate::default()
             },
         ),
-        create(MIRRORS, NodeKind::Group, NAME, group(Some(InputMode::Pass))),
-        create(PANES, NodeKind::Group, NAME, group(Some(InputMode::Pass))),
-        create(WINDOWS, NodeKind::Group, NAME, group(None)),
         create(
             LOOK,
             NodeKind::Rect,
@@ -60,6 +76,11 @@ pub(crate) fn space_nodes(fog_shader: &str, root: &str) -> Vec<Command> {
                 ..PropsUpdate::default()
             },
         ),
+        create(SPACE, NodeKind::Group, NAME, group(None)),
+        create(POSE, NodeKind::Group, SPACE, group(None)),
+        create(MIRRORS, NodeKind::Group, POSE, group(Some(InputMode::Pass))),
+        create(PANES, NodeKind::Group, POSE, group(None)),
+        create(FRONT, NodeKind::Group, NAME, group(None)),
         Command::FocusNode {
             node: Some(LOOK.into()),
         },
@@ -75,40 +96,21 @@ pub(crate) fn shadow_w(lift: f64, yaw: f64) -> f64 {
     lift.floor() + turn * 0.99
 }
 
-/// The uniforms of a pane; an update replaces all of them, so each
-/// carries the node that the pane shows.
-pub(crate) fn pane_uniforms(
-    source: &str,
-    haze: f64,
-    fog: [f64; 3],
-    edge: [f64; 4],
-) -> BTreeMap<String, Uniform> {
-    let win = Uniform::Texture(NodeTexture {
-        node: source.into(),
-    });
-    BTreeMap::from([
-        ("win".into(), win),
-        ("haze".into(), Uniform::Float(haze)),
-        ("fog".into(), vec3(fog)),
-        ("edge".into(), Uniform::Vector(edge.to_vec())),
-    ])
-}
-
-/// The new size of a pane and of its mirror image.
-pub(crate) fn resized(pane: &Pane) -> Vec<Command> {
-    let size = |id: &str, size| {
-        update(
-            id,
-            PropsUpdate {
-                size: Some(size),
-                ..PropsUpdate::default()
-            },
-        )
-    };
-    vec![
-        size(&pane.node(), pane.size),
-        size(&pane.mirror(), mirror_size(pane.size)),
-    ]
+/// The effect of a pane: pane.frag over its layer, with the fog, the
+/// accent and whether the pane has the focus, and the haze distance.
+pub(crate) fn pane_effect(shader: &str, look: &PaneLook, focused: bool) -> ShaderEffect {
+    let [r, g, b] = look.accent;
+    ShaderEffect {
+        shader: shader.into(),
+        uniforms: BTreeMap::from([
+            ("fog".into(), vec3(look.fog)),
+            (
+                "edge".into(),
+                Uniform::Vector(vec![r, g, b, if focused { 1.0 } else { 0.0 }]),
+            ),
+            ("reach".into(), Uniform::Float(look.reach)),
+        ]),
+    }
 }
 
 /// The pane of a window that another window manager hands over (D55):
@@ -129,12 +131,21 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
     }
 }
 
-/// The uniforms of a mirror image: the pane's node and the strength.
-pub(crate) fn mirror_uniforms(source: &str, gloss: f64) -> BTreeMap<String, Uniform> {
-    let win = Uniform::Texture(NodeTexture {
+/// The uniforms of a mirror image: the pane's node, the gloss of the
+/// floor and the distances of the haze and the fresnel.
+pub(crate) fn mirror_uniforms(source: &str, look: &PaneLook) -> BTreeMap<String, Uniform> {
+    BTreeMap::from([
+        ("win".into(), node_texture(source)),
+        ("gloss".into(), Uniform::Float(look.gloss)),
+        ("reach".into(), Uniform::Float(look.reach)),
+        ("ground".into(), Uniform::Float(look.ground)),
+    ])
+}
+
+fn node_texture(source: &str) -> Uniform {
+    Uniform::Texture(NodeTexture {
         node: source.into(),
-    });
-    BTreeMap::from([("win".into(), win), ("gloss".into(), Uniform::Float(gloss))])
+    })
 }
 
 pub(crate) fn mirror_size(size: [f64; 2]) -> [f64; 2] {
@@ -172,6 +183,7 @@ impl Construct {
             to
         };
         self.panes[i].put(to, [self.pose.x, self.pose.z]);
+        self.rt.conn.apply(self.placed(&self.panes[i]))?;
         self.frame()
     }
 
@@ -183,7 +195,8 @@ impl Construct {
             .size
             .map(|s| (s * scale).round().clamp(PANE_MIN, PANE_MAX));
         pane.size = size;
-        let mut commands = resized(pane);
+        let pane = &self.panes[i];
+        let mut commands = self.placed(pane);
         if let Some(surface) = pane.window().filter(|_| pane.attached) {
             commands.push(configure(surface, size));
         }
@@ -202,7 +215,6 @@ impl Construct {
         }
         let Some(surface) = self.panes[i].window().map(String::from) else {
             let pane = self.panes.remove(i);
-            self.order.retain(|n| *n != pane.node());
             self.rt.conn.apply(pane.remove().into())?;
             if self
                 .flown
@@ -247,11 +259,14 @@ impl Construct {
                         PropsUpdate {
                             shader: Some(self.glass_shader.clone()),
                             visible: Some(false),
+                            input: Some(InputMode::Pass),
                             ..PropsUpdate::default()
                         },
                     ));
                 }
-                self.order.clear();
+                self.sent = None;
+                self.glow = None;
+                self.backs.clear();
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
             }
@@ -295,10 +310,20 @@ impl Construct {
                     ..PropsUpdate::default()
                 },
             ),
+            update(
+                SPACE,
+                PropsUpdate {
+                    size: Some([w, h]),
+                    perspective: Some(Some(self.lens.focal)),
+                    ..PropsUpdate::default()
+                },
+            ),
         ]);
+        commands.extend(self.panes.iter().flat_map(|p| self.placed(p)));
         self.rt.conn.apply(commands)?;
         self.draw_hud()?;
         self.draw_ask()?;
+        self.draw_modes()?;
         self.frame()
     }
 
@@ -330,39 +355,125 @@ impl Construct {
         (file.and_then(|f| f.yaw)).unwrap_or_else(|| space::facing([self.pose.x, self.pose.z], at))
     }
 
-    /// The shader nodes of a new pane: the pane and its mirror image,
-    /// both hidden until the frame.
-    pub(crate) fn pane_nodes(&self, pane: &Pane) -> [Command; 2] {
-        let fog = self.settings.value.theme.palette().horizon;
-        let node = |id: &str, parent, size, shader: &String, uniforms| {
-            create(
-                id,
-                NodeKind::Shader,
-                parent,
+    /// The look that the panes have now, or the look of no focus before
+    /// the first frame.
+    pub(crate) fn current_look(&self) -> PaneLook {
+        self.sent.clone().unwrap_or_else(|| self.pane_look(None))
+    }
+
+    /// The effect of a pane and the uniforms of its mirror image for
+    /// `look`.
+    pub(crate) fn pane_effects(&self, pane: &Pane, look: &PaneLook) -> [Command; 2] {
+        let focused = look.focus.as_deref() == Some(pane.name.as_str());
+        [
+            update(
+                &pane.node(),
                 PropsUpdate {
-                    size: Some(size),
-                    shader: Some(shader.clone()),
-                    uniforms: Some(uniforms),
-                    visible: Some(false),
+                    effects: Some(vec![pane_effect(&self.pane_shader, look, focused)]),
                     ..PropsUpdate::default()
                 },
-            )
-        };
-        [
-            node(
-                &pane.mirror(),
-                MIRRORS,
-                mirror_size(pane.size),
-                &self.mirror_shader,
-                mirror_uniforms(&pane.source, 0.0),
             ),
-            node(
-                &pane.node(),
-                PANES,
-                pane.size,
-                &self.pane_shader,
-                pane_uniforms(&pane.source, 0.0, fog, [0.0; 4]),
+            update(
+                &pane.mirror(),
+                PropsUpdate {
+                    uniforms: Some(mirror_uniforms(&pane.source, look)),
+                    ..PropsUpdate::default()
+                },
             ),
         ]
+    }
+
+    /// The size and the transform of a pane, of its mirror image and of
+    /// the shader node of its source, after a move or a resize.
+    pub(crate) fn placed(&self, pane: &Pane) -> Vec<Command> {
+        let mirror = mirror_size(pane.size);
+        let k = pane.size[0] / mirror[0];
+        let at = |model| Some(Transform::from_matrix(model));
+        let mut commands = vec![
+            update(
+                &pane.node(),
+                PropsUpdate {
+                    size: Some(pane.size),
+                    transform: at(space::pane_model(pane.at, pane.size, pane.yaw)),
+                    ..PropsUpdate::default()
+                },
+            ),
+            update(
+                &pane.mirror(),
+                PropsUpdate {
+                    size: Some(mirror),
+                    transform: at(space::mirror_model(
+                        &self.lens, pane.at, pane.size, pane.yaw, k,
+                    )),
+                    ..PropsUpdate::default()
+                },
+            ),
+        ];
+        if let Some(node) = pane.texture() {
+            commands.push(update(
+                &node,
+                PropsUpdate {
+                    size: Some(pane.size),
+                    ..PropsUpdate::default()
+                },
+            ));
+        }
+        commands
+    }
+
+    /// The nodes of a new pane: its mirror image, a shader node that reads
+    /// its source; and the pane, a group with the effect pane.frag in the
+    /// camera group of the 3D context. The group holds the window of the
+    /// construct itself, which takes the input through the ray of the
+    /// core, or else a shader node that shows the source through a node
+    /// texture.
+    pub(crate) fn pane_nodes(&self, pane: &Pane) -> Vec<Command> {
+        let look = self.current_look();
+        let focused = look.focus.as_deref() == Some(pane.name.as_str());
+        let mirror = mirror_size(pane.size);
+        let k = pane.size[0] / mirror[0];
+        let mut commands = vec![
+            create(
+                &pane.mirror(),
+                NodeKind::Shader,
+                MIRRORS,
+                PropsUpdate {
+                    size: Some(mirror),
+                    shader: Some(self.mirror_shader.clone()),
+                    uniforms: Some(mirror_uniforms(&pane.source, &look)),
+                    transform: Some(Transform::from_matrix(space::mirror_model(
+                        &self.lens, pane.at, pane.size, pane.yaw, k,
+                    ))),
+                    ..PropsUpdate::default()
+                },
+            ),
+            create(
+                &pane.node(),
+                NodeKind::Group,
+                PANES,
+                PropsUpdate {
+                    size: Some(pane.size),
+                    effects: Some(vec![pane_effect(&self.pane_shader, &look, focused)]),
+                    transform: Some(Transform::from_matrix(space::pane_model(
+                        pane.at, pane.size, pane.yaw,
+                    ))),
+                    ..PropsUpdate::default()
+                },
+            ),
+        ];
+        if let Some(node) = pane.texture() {
+            commands.push(create(
+                &node,
+                NodeKind::Shader,
+                &pane.node(),
+                PropsUpdate {
+                    size: Some(pane.size),
+                    shader: Some(self.source_shader.clone()),
+                    uniforms: Some(BTreeMap::from([("win".into(), node_texture(&pane.source))])),
+                    ..PropsUpdate::default()
+                },
+            ));
+        }
+        commands
     }
 }

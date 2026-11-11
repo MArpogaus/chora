@@ -86,6 +86,9 @@ pub struct NodeGrab {
     pub position: [f64; 2],
     /// The last point of the press in the coordinates of the node.
     pub local: [f64; 2],
+    /// The serial of the press when the user made it; an injected press
+    /// has none.
+    pub real: Option<Serial>,
 }
 
 /// A grab of a button that is down: the connection of the grab, the
@@ -94,6 +97,18 @@ pub struct ButtonGrab {
     pub conn: u64,
     pub binding: String,
     pub button: u32,
+    /// The serial of the press when the user made it: an injected press
+    /// has none, and such a grab never moves to another client.
+    pub real: Option<Serial>,
+    /// Whether the pointer got the press, so that it gets the release.
+    pub to_pointer: bool,
+    /// The window that came with the grab from another window manager
+    /// (`give_grab`): the grab ends when its holder does not get it.
+    pub given: Option<String>,
+    /// The window of the press: the one that asked for the move, or the
+    /// one under the pointer at the press of a binding. Only the drag of
+    /// this window can go to another window manager.
+    pub window: Option<String>,
 }
 
 /// A key grab whose key went down and has not sent its `released` yet: the
@@ -229,6 +244,8 @@ pub struct State {
     /// The rect or image node of a press and its button, until the button
     /// goes up.
     pub node_grab: Option<NodeGrab>,
+    /// The press that holds the pointer behind a pane or on the screen.
+    pub press_via: Option<crate::output::Press>,
     /// Whether a drag and drop of a client holds the pointer: its target is
     /// the surface under the pointer, so no press pins a surface.
     pub client_drag: bool,
@@ -248,6 +265,12 @@ pub struct State {
     /// The serial and the button of the last real button press, while the
     /// button is down. An injected button press ends it.
     pub last_real_button: Option<(Serial, u32)>,
+    /// For tests on the headless backend only, set by the flag
+    /// `--test-injected-drag-gives`: an injected button press counts as a
+    /// press of the user for `give_grab`, and injected input does not end
+    /// that press. Nothing else changes: no act, no token. A gate without
+    /// a real pointer pulls a window out of a face with it.
+    pub injected_drag_gives: bool,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -268,6 +291,13 @@ pub struct State {
     /// The free surfaces that wait for a window manager (D55); see
     /// [`RESERVATION`].
     waiting: HashMap<String, Waiting>,
+    /// By window, the client that gave it and the window manager that got
+    /// it. The giver comes first when that window manager goes or loses
+    /// the window, and only then: the entry ends with a plain detach, a
+    /// handover by the core and an attach by another client.
+    pub(crate) given_by: HashMap<String, (String, String)>,
+    /// The windows that lay in the slot of a removed virtual output.
+    pub(crate) stranded: Vec<crate::offscreen::Stranded>,
 
     pub scene: Scene,
     /// The toplevels by the id of their surface node.
@@ -390,6 +420,7 @@ impl State {
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,
             node_grab: None,
+            press_via: None,
             client_drag: false,
             button_grab: None,
             hovered: None,
@@ -398,6 +429,7 @@ impl State {
             last_act: None,
             last_real_press: None,
             last_real_button: None,
+            injected_drag_gives: false,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
@@ -409,6 +441,8 @@ impl State {
             early_requests: HashMap::new(),
             unannounced: Vec::new(),
             waiting: HashMap::new(),
+            given_by: HashMap::new(),
+            stranded: Vec::new(),
             scene: Scene::default(),
             windows: HashMap::new(),
             pending_activations: Vec::new(),
@@ -623,6 +657,7 @@ impl State {
         if !self.free(surface) {
             return;
         }
+        self.given_by.remove(surface);
         let client = (self.scene.node(surface)).and_then(|n| n.surface.as_ref()?.client.clone());
         let pointer = self
             .spot(self.pointer_layout)
@@ -677,15 +712,23 @@ impl State {
     /// goes to a definite window manager that is still connected, not to
     /// the first client that takes it (D55). When that one goes too
     /// before it attaches the surface, this runs again for it.
-    pub fn execute_gone(&mut self, effects: Vec<Effect>) {
+    pub fn execute_gone(&mut self, effects: Vec<Effect>, gone: &str) {
         for effect in effects {
             if let Effect::Detached(surface) = effect {
-                let giver = self.waiting.get(&surface).and_then(|w| w.giver.clone());
+                let waiting = self.waiting.get(&surface).and_then(|w| w.giver.clone());
+                let giver = waiting.or_else(|| self.giver_to(&surface, gone));
                 self.hand_over(&surface, giver.as_deref(), None);
             } else {
                 self.execute(vec![effect]);
             }
         }
+    }
+
+    /// Takes the client that gave a window to a window manager, if that
+    /// one got the window from it.
+    pub(crate) fn giver_to(&mut self, surface: &str, receiver: &str) -> Option<String> {
+        let (giver, to) = self.given_by.remove(surface)?;
+        (to == receiver).then_some(giver)
     }
 
     /// A surface that became free: one that a client gave away or that
@@ -700,6 +743,7 @@ impl State {
         if self.focused_surface() == Some(surface) {
             self.focus(None);
         }
+        self.given_by.remove(surface);
         self.reserved(surface, None, false);
         self.emit(&Event::SurfaceDetached {
             surface: surface.into(),
@@ -717,6 +761,11 @@ impl State {
         // A surface that a window manager attached waits no more.
         let scene = &self.scene;
         (self.waiting).retain(|s, _| scene.node(s).is_some_and(|n| n.owner.is_none()));
+        let with = |s: &str, to: &str| {
+            let owner = scene.node(s).map(|n| n.owner.as_deref());
+            owner.is_some_and(|o| o.is_none_or(|o| o == to))
+        };
+        self.given_by.retain(|s, (_, to)| with(s, to));
         for effect in effects {
             match effect {
                 // The transaction sent its configure events when it started.
@@ -733,10 +782,17 @@ impl State {
                         self.focus(None);
                     }
                     self.reserved(&surface, Some(&from), false);
+                    self.given_by.insert(surface.clone(), (from, to.clone()));
                     let scene = &self.scene;
                     let event = Event::SurfaceDetached { surface };
                     (self.ipc).send_subscribed(Some(&to), &event, |s| window_client(scene, s));
                 }
+                Effect::GrabGiven {
+                    surface,
+                    to,
+                    from,
+                    grab,
+                } => self.move_grab(&surface, &to, &from, grab),
                 Effect::Camera(name) => {
                     for output in self.output_info().into_iter().filter(|o| o.name == name) {
                         self.emit(&Event::OutputChanged { output });
@@ -800,6 +856,15 @@ impl State {
         self.last_real_press = (!injected).then_some(serial);
         if injected {
             self.last_act = None;
+            self.forget_real_button();
+        }
+    }
+
+    /// An injected input ends the button press of the user, except in
+    /// the test mode of `injected_drag_gives`.
+    pub fn forget_real_button(&mut self) {
+        if !self.injected_drag_gives {
+            self.last_real_button = None;
         }
     }
 

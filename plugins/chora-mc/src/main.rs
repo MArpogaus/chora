@@ -718,6 +718,7 @@ impl chora_kit::give::Windows for Mc {
         self.give(chora_kit::give::Give {
             surface: surface.into(),
             to: to.into(),
+            grab: None,
         })
     }
 }
@@ -3217,6 +3218,7 @@ mod tests {
         mc.give(Give {
             surface: "s1".into(),
             to: "xp".into(),
+            grab: None,
         })
         .unwrap();
         let focuses = model.lock().unwrap().focuses.split_off(before);

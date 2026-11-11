@@ -128,14 +128,14 @@ impl Mc {
     /// manager (D55). The scene of an app goes with it; another scene
     /// stays without its window.
     pub fn give(&mut self, give: Give) -> Result<Value, RpcError> {
-        let Give { surface, to } = give;
+        let Give { surface, to, grab } = give;
         let name = (self.windows.iter())
             .find(|(_, s)| **s == surface)
             .map(|(n, _)| n.clone())
             .ok_or_else(|| {
                 RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
             })?;
-        let answer = self.rt.conn.give(&surface, &to)?;
+        let answer = self.rt.conn.give_dragged(&surface, &to, grab)?;
         self.windows.remove(&name);
         if self.focused.as_deref() == Some(surface.as_str()) {
             self.focused = None;

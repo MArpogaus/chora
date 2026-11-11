@@ -69,6 +69,53 @@ fn context_rig() -> Rig {
     }
 }
 
+/// The corner of the first virtual output in the scene.
+const FACE: f64 = -262_144.0;
+
+/// A pane of a size in the context, turned 40 degrees, that forwards
+/// into a virtual output of that size, and the matrix of the pane.
+fn pane_in_a_context(core: &mut Core, wm: &mut Client, size: [f64; 2]) -> [f64; 16] {
+    let spec = format!("{}x{}", size[0], size[1]);
+    let added = wm.ok(core, "output.add", json!({"spec": spec, "virtual": true}));
+    let m = chain(&[
+        translate(400.0, 300.0, 200.0),
+        turn_y(40.0),
+        translate(-size[0] / 2.0, -size[1] / 2.0, 0.0),
+    ]);
+    let props = json!({"size": size, "shader": "/pane.frag", "forward": true,
+        "uniforms": {"face": {"output": added["name"]}}, "transform": {"matrix": m}});
+    let create = json!({"id": "pane", "kind": "shader", "parent": "eye", "props": props});
+    wm.ok(
+        core,
+        "scene.apply",
+        json!({"commands": [{"create": create}]}),
+    );
+    m
+}
+
+/// The window on a virtual output that a pane of the context shows.
+fn pane_rig() -> Rig {
+    let mut core = Core::new();
+    core.add_output("test-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (100, 80));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let m = pane_in_a_context(&mut core, &mut wm, [100.0, 80.0]);
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "root"}},
+        {"update": {"id": "s1", "props": {"transform": {"translate": [FACE, FACE]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    Rig {
+        core,
+        wayland,
+        window,
+        shown: Box::new(move |u, v| shown(&m, [400.0, 300.0], u, v).into()),
+        _wm: wm,
+    }
+}
+
 impl Rig {
     fn move_to(&mut self, u: f64, v: f64) {
         let at = (self.shown)(u, v);
@@ -163,6 +210,11 @@ fn a_popup_in_a_window_of_a_context_takes_motion_a_click_and_closes_on_a_click_o
     a_popup_takes_motion_a_click_and_a_click_outside_closes_it(context_rig());
 }
 
+#[test]
+fn a_popup_behind_a_pane_takes_motion_a_click_and_closes_on_a_click_outside() {
+    a_popup_takes_motion_a_click_and_a_click_outside_closes_it(pane_rig());
+}
+
 fn a_menu_takes_the_press_drag_release_that_opened_it(mut rig: Rig) {
     rig.move_to(50.0, 60.0);
     click(&mut rig.core, true);
@@ -192,6 +244,11 @@ fn a_menu_in_a_turned_window_takes_the_press_drag_release_that_opened_it() {
 #[test]
 fn a_menu_in_a_window_of_a_context_takes_the_press_drag_release_that_opened_it() {
     a_menu_takes_the_press_drag_release_that_opened_it(context_rig());
+}
+
+#[test]
+fn a_menu_behind_a_pane_takes_the_press_drag_release_that_opened_it() {
+    a_menu_takes_the_press_drag_release_that_opened_it(pane_rig());
 }
 
 fn a_drag_that_starts_in_a_popup_keeps_sending_points_outside_the_plane(mut rig: Rig) {
@@ -226,7 +283,97 @@ fn a_drag_in_a_popup_of_a_window_of_a_context_keeps_sending_points_outside_the_p
     a_drag_that_starts_in_a_popup_keeps_sending_points_outside_the_plane(context_rig());
 }
 
-fn two_windows_in_a_context() -> (Core, Wayland, Toplevel, Toplevel, Shown, Shown, Client) {
+#[test]
+fn a_drag_in_a_popup_behind_a_pane_keeps_sending_points_outside_the_pane() {
+    a_drag_that_starts_in_a_popup_keeps_sending_points_outside_the_plane(pane_rig());
+}
+
+/// A press on the window behind the pane, dragged off the pane: the
+/// window gets the points that the plane of the pane maps, also outside.
+#[test]
+fn a_drag_that_leaves_the_pane_keeps_sending_points() {
+    let mut rig = pane_rig();
+    rig.move_to(30.0, 40.0);
+    let entered = rig.events();
+    let at = enters(&entered, &rig.window.surface.id());
+    assert!(
+        at.last().is_some_and(|at| close(*at, (30.0, 40.0))),
+        "{entered:?}"
+    );
+    click(&mut rig.core, true);
+    for (u, v) in [(60.0, 50.0), (150.0, 95.0), (-30.0, 95.0)] {
+        rig.move_to(u, v);
+        let moved = rig.events();
+        assert!(
+            last_motion(&moved).is_some_and(|at| close(at, (u, v))),
+            "the window gets {:?}: {moved:?}",
+            (u, v)
+        );
+    }
+    click(&mut rig.core, false);
+    let released = rig.events();
+    assert_eq!(buttons(&released), [false], "the release");
+    assert_eq!(released.last(), Some(&PointerEvent::Leave), "off the pane");
+}
+
+/// While a press holds the pointer behind a pane that stands almost edge
+/// on, a point of the screen maps to the virtual output or, behind the
+/// eye, to nothing: never to the screen.
+#[test]
+fn a_held_press_behind_a_pane_never_falls_back_to_the_screen() {
+    let mut core = Core::new();
+    core.add_output("test-1", (800, 600));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let m = pane_in_a_context(&mut core, &mut wm, [100.0, 80.0]);
+    move_to(&mut core, shown(&m, [400.0, 300.0], 50.0, 40.0).into());
+    click(&mut core, true);
+    let edge_on = chain(&[
+        translate(400.0, 300.0, 200.0),
+        turn_y(89.0),
+        translate(-50.0, -40.0, 0.0),
+    ]);
+    let turned = json!({"commands": [{"update": {"id": "pane",
+        "props": {"transform": {"matrix": edge_on}}}}]});
+    wm.ok(&mut core, "scene.apply", turned);
+    let spots: Vec<_> = (0..80)
+        .map(|step| core.state.spot((f64::from(step) * 10.0, 300.0).into()))
+        .collect();
+    let outputs = spots.iter().flatten().map(|spot| spot.output.name());
+    assert!(outputs.clone().all(|name| name == "VIRTUAL-1"));
+    assert!(spots.iter().any(Option::is_none), "a point behind the eye");
+}
+
+type TwoWindows = (Core, Wayland, Toplevel, Toplevel, Shown, Shown, Client);
+
+/// Two windows with a gap between them on a virtual output behind a pane.
+fn two_windows_behind_a_pane() -> TwoWindows {
+    let mut core = Core::new();
+    core.add_output("test-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let source = wayland.toplevel(&mut core, "source");
+    wayland.attach(&mut core, &source, (100, 80));
+    let target = wayland.toplevel(&mut core, "target");
+    wayland.attach(&mut core, &target, (100, 80));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let m = pane_in_a_context(&mut core, &mut wm, [250.0, 80.0]);
+    let commands = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "root"}},
+        {"update": {"id": "s1", "props": {"transform": {"translate": [FACE, FACE]}}}},
+        {"attach": {"surface": "s2", "parent": "root"}},
+        {"update": {"id": "s2", "props": {"transform": {"translate": [FACE + 150.0, FACE]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    let on_left: Shown = Box::new(move |u, v| shown(&m, [400.0, 300.0], u, v).into());
+    let on_right: Shown = Box::new(move |u, v| shown(&m, [400.0, 300.0], u + 150.0, v).into());
+    (core, wayland, source, target, on_left, on_right, wm)
+}
+
+#[test]
+fn a_drop_goes_to_the_second_window_behind_a_pane() {
+    a_drop_goes_to_the_second_window_and_not_to_the_source(two_windows_behind_a_pane());
+}
+
+fn two_windows_in_a_context() -> TwoWindows {
     let mut core = Core::new();
     core.add_output("test-1", (800, 600));
     let mut wayland = Wayland::connect(&mut core);
@@ -257,8 +404,11 @@ fn two_windows_in_a_context() -> (Core, Wayland, Toplevel, Toplevel, Shown, Show
 
 #[test]
 fn a_drop_goes_to_the_second_window_of_the_context_and_not_to_the_source() {
-    let (mut core, mut wayland, source, target, on_left, on_right, _wm) =
-        two_windows_in_a_context();
+    a_drop_goes_to_the_second_window_and_not_to_the_source(two_windows_in_a_context());
+}
+
+fn a_drop_goes_to_the_second_window_and_not_to_the_source(windows: TwoWindows) {
+    let (mut core, mut wayland, source, target, on_left, on_right, _wm) = windows;
     move_to(&mut core, on_left(50.0, 40.0));
     click(&mut core, true);
     wayland.roundtrip(&mut core);
@@ -729,4 +879,90 @@ fn two_agent_windows_keep_their_own_directory() {
     assert_ne!(first, second, "the tests share a directory");
     let _ = std::fs::remove_dir_all(first);
     let _ = std::fs::remove_dir_all(second);
+}
+
+/// xp on the virtual output of a face that the client `wm` shows through
+/// a pane. xp has the window s1 with a title bar and holds a press on the
+/// title, through the pane. The client `other` holds a claim on the
+/// screen too, and both `wm` and `other` grabbed `move`.
+fn pressed_title_behind_a_pane() -> (Core, Wayland, Client, Client, Client) {
+    let mut core = Core::new();
+    core.add_output("test-1", (800, 600));
+    let mut wayland = Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.attach(&mut core, &window, (100, 80));
+    let mut wm = space(&mut core, [800.0, 600.0]);
+    let m = pane_in_a_context(&mut core, &mut wm, [100.0, 80.0]);
+    let desk = json!({"create": {"id": "desk", "kind": "group", "parent": "root",
+        "props": {"claim": [0.0, 0.0, 400.0, 600.0]}}});
+    wm.ok(&mut core, "scene.apply", json!({"commands": [desk]}));
+    let mut other = core.named("other");
+    let side = json!({"create": {"id": "side", "kind": "group", "parent": "root",
+        "props": {"claim": [400.0, 0.0, 400.0, 600.0]}}});
+    other.ok(&mut core, "scene.apply", json!({"commands": [side]}));
+    for client in [&mut wm, &mut other] {
+        client.ok(&mut core, "input.grab", json!({"binding": "move"}));
+        client.ok(&mut core, "events.subscribe", json!({"events": []}));
+    }
+    let mut xp = core.named("xp");
+    let face = json!({"create": {"id": "xp", "kind": "group", "parent": "root",
+        "props": {"claim": [FACE, FACE, 100.0, 80.0]}}});
+    let title = json!({"create": {"id": "title", "kind": "rect", "parent": "xp",
+        "props": {"size": [100, 20], "transform": {"translate": [FACE, FACE]}}}});
+    let commands = json!({"commands": [
+        face,
+        {"attach": {"surface": "s1", "parent": "xp"}},
+        {"update": {"id": "s1", "props": {"transform": {"translate": [FACE, FACE]}}}},
+        title,
+    ]});
+    xp.ok(&mut core, "scene.apply", commands);
+    move_to(&mut core, shown(&m, [400.0, 300.0], 30.0, 10.0).into());
+    click(&mut core, true);
+    assert!(core.state.node_grab.is_some(), "the press is on the title");
+    (core, wayland, wm, other, xp)
+}
+
+/// The last `input.moved` of a client after the pointer went to (700,
+/// 500) of the screen: its output and its position.
+fn moved_to_the_screen_corner(core: &mut Core, client: &mut Client) -> serde_json::Value {
+    move_to(core, (700.0, 500.0).into());
+    let got = client.events_now(core);
+    let mut moved = got.iter().map(|e| &e["params"]);
+    let last = moved.rfind(|p| p["event"] == "input.moved");
+    let last = last.unwrap_or_else(|| panic!("no move for the receiver: {got:?}"));
+    json!([last["output"], last["position"]])
+}
+
+/// The transaction of xp that gives s1 with its drag to a client.
+fn give_to(to: &str) -> serde_json::Value {
+    json!({"commands": [
+        {"remove": {"id": "s1", "to": to}},
+        {"give_grab": {"surface": "s1", "to": to, "point": [30.0, 10.0]}},
+    ]})
+}
+
+/// The pull-out of E3: xp gives the window with the drag to the window
+/// manager that shows its face. The drag then leaves its pane: the
+/// receiver gets the pointer of the screen, not the point that the pane
+/// maps.
+#[test]
+fn a_drag_given_out_of_a_pane_goes_on_at_the_screen_point() {
+    let (mut core, _wayland, mut wm, _other, mut xp) = pressed_title_behind_a_pane();
+    xp.ok(&mut core, "scene.apply", give_to("wm"));
+    let at = moved_to_the_screen_corner(&mut core, &mut wm);
+    assert_eq!(at, json!(["test-1", [700.0, 500.0]]));
+    click(&mut core, false);
+    assert!(core.pointer_free());
+}
+
+/// Review of the pull-out: only the owner of the pane may take a drag out
+/// of it. A drag given to another window manager stays behind the pane,
+/// so that no client moves the pointer of a face to the screen for a
+/// third one.
+#[test]
+fn a_drag_given_to_another_client_stays_behind_its_pane() {
+    let (mut core, _wayland, _wm, mut other, mut xp) = pressed_title_behind_a_pane();
+    xp.ok(&mut core, "scene.apply", give_to("other"));
+    let at = moved_to_the_screen_corner(&mut core, &mut other);
+    assert_eq!(at[0], "VIRTUAL-1", "{at}");
 }

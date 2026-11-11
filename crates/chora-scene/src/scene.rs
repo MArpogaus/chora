@@ -296,6 +296,17 @@ impl Scene {
         Ok(())
     }
 
+    /// Fails unless the client owns every output that the uniforms read
+    /// and the node, after the update, forwards into exactly one.
+    fn check_reader(&self, client: &str, id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
+        self.check_output_reads(client, props)?;
+        let now = self.nodes.get(id).map(|n| &n.props);
+        let forward = props.forward.unwrap_or(now.is_some_and(|p| p.forward));
+        let none = BTreeMap::new();
+        let kept = now.map_or(&none, |p| &p.uniforms);
+        check_forward(id, forward, props.uniforms.as_ref().unwrap_or(kept))
+    }
+
     /// A node by id.
     #[must_use]
     pub fn node(&self, id: &str) -> Option<&Node> {
@@ -469,7 +480,7 @@ impl Scene {
                 props,
             } => {
                 check_props(id, *kind, props)?;
-                self.check_output_reads(owner, props)?;
+                self.check_reader(owner, id, props)?;
                 check_meta(id, &BTreeMap::new(), props)?;
                 if *kind == NodeKind::Shader && props.shader.is_none() {
                     return Err(SceneError::Invalid(format!(
@@ -514,8 +525,48 @@ impl Scene {
             Command::Focus { surface } => self.focus_command(owner, surface.as_deref(), effects),
             Command::FocusNode { node } => self.focus_node_command(owner, node.as_deref()),
             Command::Close { .. } => self.close_command(owner, command, effects),
+            Command::GiveGrab { .. } => Self::give_grab_command(owner, command, effects),
             camera @ Command::Camera { .. } => self.camera_command(owner, camera, effects),
         }
+    }
+
+    /// `give_grab`: the drag goes with a surface that the owner reserved
+    /// for `to` earlier in this transaction, and with no other.
+    fn give_grab_command(
+        owner: &str,
+        command: &Command,
+        effects: &mut Vec<Effect>,
+    ) -> Result<(), SceneError> {
+        let Command::GiveGrab {
+            surface,
+            to,
+            point,
+            velocity,
+            wobble,
+        } = command
+        else {
+            unreachable!("only give_grab");
+        };
+        let reserved = effects.iter().any(|e| {
+            matches!(e, Effect::Reserved { surface: s, to: t, from }
+                if s == surface && t == to && from == owner)
+        });
+        if !reserved {
+            return Err(SceneError::Invalid(format!(
+                "the drag of {surface:?} goes only with a remove to {to:?} in the same transaction"
+            )));
+        }
+        effects.push(Effect::GrabGiven {
+            surface: surface.clone(),
+            to: to.clone(),
+            from: owner.into(),
+            grab: crate::GivenGrab {
+                point: *point,
+                velocity: *velocity,
+                wobble: wobble.clone(),
+            },
+        });
+        Ok(())
     }
 
     /// `move`: a node of another client answers with a request (D31).
@@ -1115,14 +1166,14 @@ impl Scene {
             }
             let node = &self.nodes[id];
             check_props(id, node.kind, props)?;
-            self.check_output_reads(owner, props)?;
+            self.check_reader(owner, id, props)?;
             check_meta(id, &node.props.meta, props)?;
             #[allow(clippy::expect_used, reason = "props have string keys only")]
             let args = serde_json::to_value(props).expect("props serialize");
             effects.push(request(owner, id, other, "update", args));
             return Ok(());
         }
-        self.check_output_reads(owner, props)?;
+        self.check_reader(owner, id, props)?;
         let node = self.owned_mut(owner, id)?;
         check_props(id, node.kind, props)?;
         check_meta(id, &node.props.meta, props)?;
@@ -1617,7 +1668,8 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
         return wrong("image");
     }
-    if kind != NodeKind::Shader && (props.shader.is_some() || props.uniforms.is_some()) {
+    let shader_only = props.shader.is_some() || props.uniforms.is_some() || props.forward.is_some();
+    if kind != NodeKind::Shader && shader_only {
         return wrong("shader");
     }
     if kind != NodeKind::Group && props.perspective.is_some() {
@@ -1679,6 +1731,24 @@ fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
                 "{id:?} cannot read itself as a texture"
             )));
         }
+    }
+    Ok(())
+}
+
+/// A node with `forward` reads exactly one virtual output, which the
+/// pointer then enters.
+fn check_forward(
+    id: &str,
+    forward: bool,
+    uniforms: &BTreeMap<String, Uniform>,
+) -> Result<(), SceneError> {
+    let outputs = uniforms
+        .values()
+        .filter(|u| matches!(u, Uniform::Output(_)));
+    if forward && outputs.count() != 1 {
+        return Err(SceneError::Invalid(format!(
+            "{id:?}: forward needs exactly one uniform {{\"output\": NAME}}"
+        )));
     }
     Ok(())
 }
@@ -1776,17 +1846,14 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     Ok(())
 }
 
-/// Removes the mesh, the effects, the shader and the perspective of
-/// properties. Returns whether there were some.
+/// Removes the mesh, the effects and the shader of properties. Returns
+/// whether there were some. A perspective stays: it costs no pass, and
+/// without it a context would show and hit its planes flat.
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some()
-        || !props.effects.is_empty()
-        || props.shader.is_some()
-        || props.perspective.is_some();
+    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
     props.mesh = None;
     props.effects.clear();
     props.shader = None;
-    props.perspective = None;
     found
 }
 

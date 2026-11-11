@@ -126,6 +126,10 @@ pub enum Event {
         /// binding `move`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         surface: Option<String>,
+        /// The state of a drag that another window manager gave with the
+        /// window (`give_grab`): only at such a press of `move`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grab: Option<crate::GivenGrab>,
     },
     /// The pointer moved while the button of a grabbed binding is down.
     #[serde(rename = "input.moved")]

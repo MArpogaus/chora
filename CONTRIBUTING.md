@@ -40,6 +40,10 @@ The hooks run:
 - session files: logs, reports and media paths of the autonomous sessions
   fail
 - commit message length: the subject at 68 characters, body lines at 72
+- no process by its name alone: a test script that uses `pkill` or
+  `killall`, or `pgrep -x chora` without a parent (`-P`), a session
+  (`-s`) or a process group (`-g`), fails, because other sessions run
+  cores on the same machine
 - the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:
@@ -202,7 +206,8 @@ mako, swaybg, swayidle and kanshi.
 
 `tests/merge-gate.sh` decides whether a merge into the session branch may
 be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
-handover matrix, the HUD gate and `tests/last-words.sh`, one log per step
+handover matrix, the HUD gate, `tests/last-words.sh` and the cube gate
+of the construct, one log per step
 in a run directory. `tests/gate-watchdog-starved.sh` is not a step: it
 loads every CPU for half a minute, so run it alone. A
 step fails on a non-zero exit code, on a line that starts with `FAIL:` or
