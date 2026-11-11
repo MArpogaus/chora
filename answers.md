@@ -267,3 +267,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-11 ~18:50 UTC (user, verbatim in decisions-now.md): xp and construct design passes in parallel; the PM decides taste and everything else autonomously until Saturday; no user intervention; self-adapt to frictions, keep logging.
 - 11-11 ~19:00 UTC (user, verbatim in decisions-now.md): product brief per plugin (deliverables, requirements, USPs, target groups); clear worker instructions.
 - 11-11 ~19:20 UTC (user, verbatim in decisions-now.md): stay focused on the main targets, aim for perfection.
+- 11-11 ~20:00 UTC estimate (usage.py): 38.3 M units since the 71 % reading = about 14 %, so about 85 % plus the tour worker; pace about 4.5 %/h with three heavy lanes. PM pacing: finish tiling and mc (round 3, review, merge train) and the construct worker; xp waits; when the weekly limit stops the session, resume at the Saturday reset (send_later).
