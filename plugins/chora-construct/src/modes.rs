@@ -445,7 +445,7 @@ impl Construct {
             return Ok(None);
         }
         let ignored = injected && !self.rt.accepts_injected();
-        let third = self.lens.w / 3.0;
+        let width = self.lens.w;
         let Some(host) = &mut self.cube else {
             return Ok(None);
         };
@@ -453,7 +453,7 @@ impl Construct {
             host.forget_press();
             return Ok(Some(Pressed::Nothing));
         }
-        match host.drag(at, third) {
+        match host.drag(at, width, chora_kit::clock::now()) {
             cube::Dragged::Turn(by) => {
                 if self.turn_cube(by, None, true)?
                     && let Some(host) = &mut self.cube
@@ -475,7 +475,11 @@ impl Construct {
     fn release_act(&mut self, view: View, node: &str, injected: bool) -> Option<Pressed> {
         let hit = cube::face_of(node)?;
         let ignored = injected && !self.rt.accepts_injected();
-        let face = self.cube.as_mut()?.release().filter(|_| !ignored);
+        let face = self
+            .cube
+            .as_mut()?
+            .release(chora_kit::clock::now())
+            .filter(|_| !ignored);
         if view.mode() == Mode::Use && !ignored && self.failed_face(hit) {
             return Some(Pressed::Retry);
         }

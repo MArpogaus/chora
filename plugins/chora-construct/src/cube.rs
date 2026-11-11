@@ -47,7 +47,13 @@ const CLICK: f64 = 8.0;
 /// The client name of the window manager of the cube.
 pub(crate) const MANAGER: &str = "xp";
 /// How long a quarter turn takes, by default.
-const TURN: Duration = Duration::from_millis(500);
+pub(crate) const TURN: Duration = Duration::from_millis(500);
+/// How long the cube takes to settle on a face after a drag.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) const SETTLE: Duration = Duration::from_millis(500);
+/// How fast a flick is, in widths of the view per second.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) const FLICK: f64 = 1.5;
 /// The plain fill of a face whose window manager is not up, and how far
 /// it lies in front of the face.
 const FILL: &str = "construct-cube-fill-";
@@ -203,6 +209,36 @@ fn turned_at(press: &mut Option<Press>, x: f64) {
     if let Some(press) = press {
         press.from = x;
     }
+}
+
+/// The yaw of the cube for a drag of `dx` over a view `width` wide: the
+/// whole width is a quarter turn.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) fn yaw_of(_dx: f64, _width: f64) -> f64 {
+    0.0
+}
+
+/// By how many faces the cube turns when the hand lets go with the cube
+/// at `yaw` off its face, moving at `velocity` widths per second (to the
+/// right is positive): to the nearest face, and on to the next one when
+/// the hand flicks.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) fn settle_by(_yaw: f64, _velocity: f64) -> i32 {
+    0
+}
+
+/// The face that the label names for the cube at `angle`: the nearest
+/// one.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) fn nearest_face(_angle: f64, _faces: usize) -> usize {
+    0
+}
+
+/// How much of the front dot each of `faces` dots has at `angle`: the
+/// face before the angle has the rest of what the next one has not yet.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) fn dot_weights(_angle: f64, faces: usize) -> Vec<f64> {
+    vec![0.0; faces]
 }
 
 pub(crate) fn face_id(i: usize) -> String {
@@ -477,8 +513,8 @@ impl Host {
 
     /// The pointer moved to `at` during a press: after each `third` of
     /// the width of the view the cube turns by one face, with the drag.
-    pub(crate) fn drag(&mut self, at: [f64; 2], third: f64) -> Dragged {
-        drag_of(&mut self.press, at, third)
+    pub(crate) fn drag(&mut self, at: [f64; 2], width: f64, _now: Instant) -> Dragged {
+        drag_of(&mut self.press, at, width / 3.0)
     }
 
     /// The cube took the turn of the drag at `x`.
@@ -494,7 +530,7 @@ impl Host {
 
     /// The release of a press: answers the face of a click, a press that
     /// did not move.
-    pub(crate) fn release(&mut self) -> Option<usize> {
+    pub(crate) fn release(&mut self, _now: Instant) -> Option<usize> {
         let press = self.press.take()?;
         (!press.dragged).then_some(press.face)
     }
@@ -1215,27 +1251,31 @@ mod tests {
     }
 
     fn host_at_rest() -> Host {
+        host_of(1)
+    }
+
+    fn host_of(faces: usize) -> Host {
         let child = std::process::Command::new("true").spawn().expect("true");
         let cube = Cube {
             size: [1280.0, 800.0],
             caps: false,
         };
         Host {
-            outputs: vec!["VIRTUAL-1".into()],
+            outputs: (1..=faces).map(|i| format!("VIRTUAL-{i}")).collect(),
             child,
             command: String::new(),
             program: String::new(),
             name: String::new(),
             since: Instant::now(),
             tail: Tail::default(),
-            health: vec![Health::Up],
+            health: vec![Health::Up; faces],
             cube,
             at: [0.0, 832.0 + 640.0],
             yaw: 0.0,
             front: 0,
             angle: 0.0,
             turn: None,
-            shown: vec![true],
+            shown: vec![true; faces],
             seen_from: [0.0; 3],
             view: View::default(),
             far: 500.0,
@@ -1245,7 +1285,7 @@ mod tests {
             focus: None,
             queued: false,
             switching: false,
-            floats: vec![None],
+            floats: vec![None; faces],
             landing: None,
             hover: None,
             press: None,
@@ -1266,5 +1306,134 @@ mod tests {
         host.stand = 1.0;
         assert!(!host.covers(&pose, [0.0, 2000.0]), "stood back");
         let _ = host.child.wait();
+    }
+
+    const QUARTER: f64 = FRAC_PI_2;
+
+    fn degrees(d: f64) -> f64 {
+        d.to_radians()
+    }
+
+    #[test]
+    fn the_cube_follows_the_hand_by_the_width_of_the_view() {
+        assert!(
+            (yaw_of(1280.0, 1280.0) - QUARTER).abs() < 1e-9,
+            "a width is 90 degrees"
+        );
+        assert!((yaw_of(-640.0, 1280.0) + QUARTER / 2.0).abs() < 1e-9);
+        assert!(
+            yaw_of(1.0, 1280.0) > 0.0,
+            "no threshold: one pixel turns it"
+        );
+        assert!(yaw_of(-1.0, 1280.0) < 0.0);
+    }
+
+    #[test]
+    fn a_release_settles_on_the_nearest_face_and_a_flick_goes_on() {
+        assert_eq!(settle_by(degrees(-30.0), 0.0), 0, "30 degrees returns");
+        assert_eq!(settle_by(degrees(-44.0), 0.0), 0);
+        assert_eq!(settle_by(degrees(-50.0), 0.0), 1, "50 degrees goes on");
+        assert_eq!(
+            settle_by(degrees(50.0), 0.0),
+            -1,
+            "to the right, the face before"
+        );
+        assert_eq!(settle_by(degrees(-10.0), -1.6), 1, "a flick to the left");
+        assert_eq!(settle_by(degrees(-10.0), -1.4), 0, "too slow for a flick");
+        assert_eq!(settle_by(degrees(10.0), 1.6), -1, "a flick to the right");
+        assert_eq!(
+            settle_by(degrees(-50.0), -2.0),
+            1,
+            "a flick past 45 degrees goes one face"
+        );
+    }
+
+    #[test]
+    fn the_label_names_the_nearest_face_and_the_next_dot_fills_with_the_turn() {
+        assert_eq!(nearest_face(degrees(-44.0), 4), 0);
+        assert_eq!(nearest_face(degrees(-46.0), 4), 1);
+        assert_eq!(nearest_face(degrees(30.0), 4), 0);
+        assert_eq!(
+            nearest_face(degrees(50.0), 4),
+            3,
+            "to the right of face 0 is face 3"
+        );
+        let close = |a: Vec<f64>, b: [f64; 4]| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-9);
+        assert!(close(dot_weights(0.0, 4), [1.0, 0.0, 0.0, 0.0]));
+        assert!(close(dot_weights(-QUARTER, 4), [0.0, 1.0, 0.0, 0.0]));
+        assert!(close(dot_weights(-QUARTER / 2.0, 4), [0.5, 0.5, 0.0, 0.0]));
+        assert!(close(dot_weights(QUARTER / 2.0, 4), [0.5, 0.0, 0.0, 0.5]));
+    }
+
+    #[test]
+    fn a_turn_by_key_takes_360_ms_and_the_settle_of_a_drag_320_ms() {
+        assert_eq!(TURN, Duration::from_millis(360));
+        assert_eq!(SETTLE, Duration::from_millis(320));
+        assert!((FLICK - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_drag_on_a_face_turns_the_cube_with_the_hand_and_settles_on_release() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([560.0, 300.0], 1280.0, at);
+        assert!(
+            (host.angle - yaw_of(-40.0, 1280.0)).abs() < 1e-9,
+            "the cube follows at once: {}",
+            host.angle
+        );
+        host.drag([100.0, 300.0], 1280.0, at + ms(400));
+        assert!(
+            (host.angle - yaw_of(-500.0, 1280.0)).abs() < 1e-9,
+            "from the press, no lag"
+        );
+        let released = at + ms(900);
+        assert_eq!(host.release(released), None, "a drag is no click");
+        assert_eq!(host.front, 0, "35 degrees returns to the face of before");
+        let turn = host.turn.expect("the cube settles");
+        assert!(!turn.done(released + ms(300)));
+        assert!(turn.done(released + ms(320)), "within 320 ms");
+        assert!(turn.at(released + ms(320)).abs() < 1e-9, "back on face 0");
+    }
+
+    #[test]
+    fn a_drag_past_45_degrees_settles_on_the_next_face() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([-111.0, 300.0], 1280.0, at);
+        let released = at + ms(900);
+        host.release(released);
+        assert_eq!(host.front, 1, "50 degrees goes on to the next face");
+        let turn = host.turn.expect("the cube settles");
+        assert!(turn.done(released + ms(320)));
+        assert!((turn.at(released + ms(320)) - Cube::turn_of(1)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_flick_goes_on_to_the_next_face_and_a_click_does_not_turn() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([540.0, 300.0], 1280.0, at + ms(10));
+        host.drag([440.0, 300.0], 1280.0, at + ms(60));
+        host.release(at + ms(70));
+        assert_eq!(
+            host.front, 1,
+            "160 px in 50 ms is faster than 1.5 widths a second"
+        );
+        let mut host = host_of(4);
+        host.press(0, None, [600.0, 300.0]);
+        host.drag([604.0, 300.0], 1280.0, at);
+        assert_eq!(
+            host.release(at + ms(50)),
+            Some(0),
+            "a press that stays is a click"
+        );
+        assert!(host.turn.is_none() && host.angle == 0.0);
     }
 }

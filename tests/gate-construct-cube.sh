@@ -70,6 +70,14 @@ until_ok() {
     done
     return 1
 }
+quick() {
+    for _ in $(seq 100); do
+        eval "$1" && return 0
+        sleep 0.02
+    done
+    return 1
+}
+now_ms() { echo $(($(date +%s%N) / 1000000)); }
 call() { ctl call construct "$@"; }
 inject() { echo "$1" | ctl inject >/dev/null || fail "inject $1"; }
 virtuals() { ctl outputs | python3 -I -c 'import json, sys; print(" ".join(sorted(o["name"] for o in json.load(sys.stdin) if o.get("virtual"))))'; }
@@ -273,11 +281,11 @@ until_ok 'test "$(prop construct-cube-edge visible)" = False' 20 || fail "the ed
 ok "in navigate mode the edge of the face under the pointer is lit"
 
 drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}, {\"pointer_move\": {\"position\": [$(( ($1 + $2) / 2 )), 400]}}, {\"pointer_move\": {\"position\": [$2, 400]}}, {\"button\": {\"state\": \"released\"}}]"; }
-drag 800 300
+drag 900 200
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "a drag to the left did not turn the cube to the next face"
 sleep 1
 [ "$(prop construct-cube-face-1 forward)" = False ] || fail "a drag on the cube stepped in"
-drag 500 1000
+drag 300 1000
 until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a drag to the right did not turn the cube back"
 sleep 1
 drag 640 700
@@ -287,6 +295,77 @@ plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
 ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
 
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live drag"
+windows_before=$(ctl query kind:surface | jq length)
+rest_width=$(width construct-cube-face-0)
+navigating='test "$(prop construct-mode-step-in visible)" = True'
+press_at() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"; }
+move_to() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}]"; }
+let_go() { inject '[{"button": {"state": "released"}}]'; }
+alpha_of() { prop "$1" color | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())[3])'; }
+press_at 900
+previous=$rest_width
+for x in 800 700 600 500 400 300 200; do
+    move_to "$x"
+    sleep 0.25
+    seen=$(width construct-cube-face-0)
+    [ "$seen" -lt "$previous" ] || fail "the cube did not follow the hand at x $x: face 0 is $seen px wide, was $previous"
+    previous=$seen
+    case $x in
+    500) prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 28 degrees the label names $(prop construct-face-label-words text)" ;;
+    300)
+        prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 42 degrees the label names $(prop construct-face-label-words text)"
+        fill=$(alpha_of construct-face-label-dot-1)
+        python3 -I -c 'import sys; sys.exit(not 0.45 < float(sys.argv[1]) < 0.9)' "$fill" || fail "the next dot is not partly filled at 42 degrees: alpha $fill"
+        [ "$(prop construct-mode-step-in-text opacity)" = 0.45 ] || fail "Step in is not dimmed while the cube turns: $(prop construct-mode-step-in-text opacity)"
+        ;;
+    esac
+done
+until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 8 || fail "at 49 degrees the label does not name the next face: $(prop construct-face-label-words text)"
+ok "a slow drag turns the cube with the hand at every step, the label changes at 45 degrees and Step in dims"
+let_go
+released=$(now_ms)
+quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
+settled_in=$(($(now_ms) - released))
+[ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees"
+front_is_next=$(prop construct-cube-face-1 visible)
+[ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
+until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.45' 8 || fail "Step in stays dim after the settle"
+ok "a release at 49 degrees goes on to the next face ($settled_in ms with the calls)"
+press_at 900
+move_to 700
+sleep 0.2
+move_to 473
+sleep 0.4
+let_go
+quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
+[ "$(prop construct-cube-face-2 visible)" != True ] || fail "a release at 30 degrees went on to face 2"
+ok "a release at 30 degrees returns to the face of before"
+press_at 700
+inject '[{"pointer_move": {"position": [640, 400]}}, {"pointer_move": {"position": [560, 400]}}, {"button": {"state": "released"}}]'
+until_ok 'test "$(prop construct-cube-face-2 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a flick did not go on to the next face"
+ok "a flick of 10 degrees goes on to the next face"
+plain Return
+until_ok 'front_is 2' 20 || fail "Return did not step into the face that the drag turned to"
+key Alt+Escape
+until_ok "$navigating" 20 || fail "Alt+Escape did not step back after the drags"
+turn_start=$(now_ms)
+key Ctrl+Alt+Right
+quick 'test "$(prop construct-cube-face-3 visible)" = True && test "$(prop construct-cube-face-2 visible)" = False'
+turn_took=$(($(now_ms) - turn_start))
+[ "$turn_took" -le 700 ] || fail "a turn key took $turn_took ms"
+plain Return
+until_ok 'front_is 3' 20 || fail "Return did not step into the face after the turn key"
+ok "after the drags and a turn key, Return steps into the face that is at the front"
+key Alt+Escape
+until_ok "$navigating" 20 || fail "Alt+Escape did not step back at the end of the drags"
+[ "$(ctl query kind:surface | jq length)" = "$windows_before" ] || fail "a window is lost or left by the drags: $windows_before before, $(ctl query kind:surface | jq length) after"
+ok "window audit: no window lost or left by the drags"
+key Ctrl+Alt+Right
+until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-3 visible)" = False' 20 || fail "the turn key did not bring face 0 back to the front"
+plain Return
+until_ok "$stepped_in" 20 || fail "no step in at the end of the drags"
 call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
 sleep 0.5
 if prop construct-mode-step-back-text text | grep -q "Esc"; then fail "the chip names Escape although the construct cannot grab it: $(prop construct-mode-step-back-text text)"; fi
@@ -448,14 +527,6 @@ call cube.open '{}' >/dev/null || fail "cube.open again"
 call cube.close >/dev/null || fail "cube.close"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
 ok "cube.close removed the cube and its outputs"
-quick() {
-    for _ in $(seq 100); do
-        eval "$1" && return 0
-        sleep 0.02
-    done
-    return 1
-}
-now_ms() { echo $(($(date +%s%N) / 1000000)); }
 lit_frame() {
     ctl capture "$1" >/dev/null || return 1
     python3 -I - "$1" <<'PYEND'

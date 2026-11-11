@@ -110,6 +110,25 @@ pub fn middle_word(language: chora_kit::words::Language, failed: bool) -> String
     chora_kit::words::Word::StepIn.text(language).to_owned()
 }
 
+/// The updates that fill the dots of the face label with the turn:
+/// `weights` says how much each dot has of the accent.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn dot_updates(_m: &Material, _weights: &[f64]) -> Vec<Command> {
+    Vec::new()
+}
+
+/// The updates that dim a hint to `DIM` while the cube turns.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn dim(_item: &Item) -> Vec<Command> {
+    Vec::new()
+}
+
+/// How dim the hint `Step in` is while the cube turns.
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub const DIM: f64 = 1.0;
+
 /// One hint: the caps of its key, its word, the keys after the word, the
 /// node that takes its click, and that node is a chip that exists.
 pub struct Item {
@@ -520,6 +539,63 @@ mod tests {
         assert!(
             dot(0).unwrap().border.is_none(),
             "a face that works is filled"
+        );
+    }
+
+    #[test]
+    fn the_dots_fill_with_the_turn_and_step_in_dims() {
+        let m = Material::of(false);
+        let updates = dot_updates(&m, &[0.5, 0.5, 0.0, 0.0]);
+        let colour = |k: usize| {
+            updates.iter().find_map(|c| match c {
+                Command::Update { id, props } if *id == format!("{FACE_LABEL}-dot-{k}") => {
+                    props.color
+                }
+                _ => None,
+            })
+        };
+        let [ar, ag, ab, _] = m.accent;
+        let [mr, mg, mb, _] = m.muted;
+        let half = colour(0).expect("dot 0");
+        assert_eq!(colour(0), colour(1), "half and half");
+        let want = [
+            mr.midpoint(ar),
+            mg.midpoint(ag),
+            mb.midpoint(ab),
+            0.35_f64.midpoint(1.0),
+        ];
+        assert!(
+            half.iter().zip(want).all(|(x, y)| (x - y).abs() < 1e-9),
+            "{half:?}"
+        );
+        let muted = colour(2).expect("dot 2");
+        assert!(
+            (muted[3] - 0.35).abs() < 1e-9,
+            "a dot without a share stays muted"
+        );
+        let item = Item {
+            keys: vec!["Return".into()],
+            word: "Step in".into(),
+            keys_last: false,
+            hit: "construct-mode-step-in".into(),
+            chip: true,
+        };
+        assert!((DIM - 0.45).abs() < 1e-9);
+        let dimmed = dim(&item);
+        let opacity = |id: &str| {
+            dimmed.iter().find_map(|c| match c {
+                Command::Update { id: i, props } if i == id => props.opacity,
+                _ => None,
+            })
+        };
+        assert_eq!(opacity("construct-mode-step-in-text"), Some(DIM));
+        assert_eq!(
+            opacity("construct-hints-construct-mode-step-in-keys-0"),
+            Some(DIM)
+        );
+        assert_eq!(
+            opacity("construct-hints-construct-mode-step-in-keys-0-text"),
+            Some(DIM)
         );
     }
 }
