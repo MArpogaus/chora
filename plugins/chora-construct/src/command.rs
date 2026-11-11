@@ -773,4 +773,58 @@ mod tests {
         );
         assert_eq!(find("Close the pane ahead", "PANE"), Some((10, 4)));
     }
+
+    fn alpha_of(commands: &[Command], id: &str) -> f64 {
+        commands
+            .iter()
+            .find_map(|c| match c {
+                Command::Create {
+                    id: made, props, ..
+                } if made == id => props.color,
+                _ => None,
+            })
+            .map_or_else(|| panic!("no node {id}"), |c| c[3])
+    }
+
+    fn help_in(dark: bool) -> Vec<Command> {
+        let config: crate::config::Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = crate::Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(dark),
+            metrics: &metrics,
+        };
+        let model = HelpModel {
+            groups: &[],
+            query: "",
+            sel: 0,
+            scope: String::new(),
+            placeholder: String::new(),
+            every_look: String::new(),
+            or: String::new(),
+            note: String::new(),
+            footer: Vec::new(),
+        };
+        help(&look, &model, ("help", "root"), [1280.0, 720.0])
+    }
+
+    /// Polish 4: nothing of the space reads through a command surface.
+    #[test]
+    fn the_help_tints_092_over_a_scrim_of_048_light_and_056_dark() {
+        for (dark, scrim) in [(false, 0.48), (true, 0.56)] {
+            let commands = help_in(dark);
+            assert!(
+                (alpha_of(&commands, "help-scrim") - scrim).abs() < 1e-9,
+                "{dark}"
+            );
+            assert!(
+                (alpha_of(&commands, "help-body-glass") - 0.92).abs() < 1e-9,
+                "{dark}"
+            );
+        }
+    }
 }
