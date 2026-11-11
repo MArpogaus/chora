@@ -36,6 +36,26 @@ pub fn max_texture_size(gles: &mut GlesRenderer) -> Option<i32> {
     side.ok().filter(|side| *side > 0)
 }
 
+/// Whether the GL of a renderer runs in software, as llvmpipe, softpipe,
+/// swrast or `SwiftShader` do, by its renderer string.
+pub fn is_software(gles: &mut GlesRenderer) -> bool {
+    let name = gles.with_context(|gl| {
+        // SAFETY: RENDERER gives a static string of the context or null.
+        let text = unsafe { gl.GetString(ffi::RENDERER) };
+        if text.is_null() {
+            return String::new();
+        }
+        // SAFETY: a non-null RENDERER string ends with a nul.
+        let name = unsafe { std::ffi::CStr::from_ptr(text.cast()) };
+        name.to_string_lossy().to_lowercase()
+    });
+    name.is_ok_and(|n| {
+        ["llvmpipe", "softpipe", "swrast", "swiftshader"]
+            .iter()
+            .any(|soft| n.contains(soft))
+    })
+}
+
 /// The largest shader file.
 const MAX_SOURCE: u64 = 64 << 10;
 

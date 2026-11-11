@@ -4,10 +4,10 @@
 use chora_scene::ShaderEffect;
 
 use super::{
-    BTreeMap, ClientError, Command, Construct, Content, FOCUS, FOG, FOG_SCALE, FRONT, InputMode,
-    Kind, LOOK, Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, PANE_MAX, PANE_MIN, PANES, POSE, Pane,
-    PaneFile, PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS,
-    overlay_id, space, unique,
+    BTreeMap, ClientError, Command, Construct, Content, FOCUS, FOG, FRONT, InputMode, Kind, LOOK,
+    Lens, MIRROR_SCALE, MIRRORS, NAME, NodeKind, PANE_MAX, PANE_MIN, PANES, POSE, Pane, PaneFile,
+    PropsUpdate, RpcError, SKY, SPACE, ToplevelState, Transform, Uniform, WINDOWS, overlay_id,
+    space, unique,
 };
 
 /// What the effects of the panes and their mirror images show: the
@@ -132,11 +132,17 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
     }
 }
 
+/// The roughness of the polished floor in a mirror image (mirror.frag):
+/// the blur in pixels of its texture at the contact line and at the top,
+/// the stretch of the blur along the view, and the waver of the bumps.
+pub(crate) const ROUGH: [f64; 4] = [0.6, 10.0, 1.6, 1.2];
+
 /// The uniforms of a mirror image: the pane's node, the gloss of the
-/// floor and the distances of the haze and the fresnel.
+/// floor, the distances of the haze and the fresnel, and the roughness.
 pub(crate) fn mirror_uniforms(win: Uniform, look: &PaneLook) -> BTreeMap<String, Uniform> {
     BTreeMap::from([
         ("win".into(), win),
+        ("rough".into(), Uniform::Vector(ROUGH.to_vec())),
         ("gloss".into(), Uniform::Float(look.gloss)),
         ("reach".into(), Uniform::Float(look.reach)),
         ("ground".into(), Uniform::Float(look.ground)),
@@ -296,8 +302,8 @@ impl Construct {
             update(
                 FOG,
                 PropsUpdate {
-                    size: Some([w / FOG_SCALE, h / FOG_SCALE]),
-                    transform: Some(Transform::scale(FOG_SCALE, FOG_SCALE, 1.0)),
+                    size: Some([w / self.fog_scale, h / self.fog_scale]),
+                    transform: Some(Transform::scale(self.fog_scale, self.fog_scale, 1.0)),
                     ..PropsUpdate::default()
                 },
             ),
