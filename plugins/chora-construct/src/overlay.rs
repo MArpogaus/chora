@@ -413,6 +413,9 @@ fn rows_count(windows: usize, language: chora_kit::words::Language, giving: bool
     if giving {
         return "Give to".into();
     }
+    if windows == 1 {
+        return Word::WindowOne.text(language).to_owned();
+    }
     let count = windows.to_string();
     say(language, Word::WindowCount, &[("count", &count)])
 }
@@ -663,6 +666,14 @@ impl Construct {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_count_of_one_window_is_singular() {
+        use chora_kit::words::Language;
+        assert_eq!(super::rows_count(1, Language::En, false), "1 window");
+        assert_eq!(super::rows_count(5, Language::En, false), "5 windows");
+        assert_eq!(super::rows_count(1, Language::De, false), "1 Fenster");
+    }
+
     #[test]
     fn a_pane_at_the_left_of_the_view_is_left() {
         let forward = crate::space::Pose {

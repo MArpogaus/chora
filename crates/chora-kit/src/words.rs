@@ -183,6 +183,8 @@ pub enum Word {
     SearchKeys,
     /// The count of the window list: `{count}` windows.
     WindowCount,
+    /// The count of the window list for one window.
+    WindowOne,
     /// The count of the found keys of the help.
     KeysMatch,
     /// The footer of the help.
@@ -194,7 +196,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 76] = [
+pub const ALL: [Word; 77] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -267,6 +269,7 @@ pub const ALL: [Word; 76] = [
     Word::FindWindow,
     Word::SearchKeys,
     Word::WindowCount,
+    Word::WindowOne,
     Word::KeysMatch,
     Word::OnlyNow,
     Word::EveryLook,
@@ -362,6 +365,7 @@ impl Word {
             Self::FindWindow => "Type to find a window",
             Self::SearchKeys => "Type to search the keys",
             Self::WindowCount => "{count} windows",
+            Self::WindowOne => "1 window",
             Self::KeysMatch => "{count} keys match",
             Self::OnlyNow => "Only the keys that work now are listed.",
             Self::EveryLook => "every look",
@@ -454,6 +458,7 @@ impl Word {
             Self::FindWindow => "Tippen Sie, um ein Fenster zu finden",
             Self::SearchKeys => "Tippen Sie, um die Tasten zu durchsuchen",
             Self::WindowCount => "{count} Fenster",
+            Self::WindowOne => "1 Fenster",
             Self::KeysMatch => "{count} Tasten passen",
             Self::OnlyNow => "Nur die Tasten, die jetzt gehen, stehen hier.",
             Self::EveryLook => "in jeder Ansicht",
