@@ -34,13 +34,10 @@ pub(crate) fn launchers_own_by(
 /// or smaller than what the window shows. None while the window has no
 /// buffer, and for a change of less than half a pixel.
 #[must_use]
-#[allow(
-    dead_code,
-    clippy::unnecessary_wraps,
-    reason = "a stub until the next commit"
-)]
-pub(crate) fn follows_buffer(_pane: [f64; 2], buffer: [f64; 2]) -> Option<[f64; 2]> {
-    Some(buffer)
+pub(crate) fn follows_buffer(pane: [f64; 2], buffer: [f64; 2]) -> Option<[f64; 2]> {
+    let has_buffer = buffer[0] > 0.0 && buffer[1] > 0.0;
+    let same = pane.iter().zip(buffer).all(|(a, b)| (a - b).abs() < 0.5);
+    (has_buffer && !same).then_some(buffer)
 }
 
 /// The names of the shells that wrap a launcher.
@@ -321,9 +318,9 @@ impl Construct {
             return Ok(());
         };
         let pane = &mut self.panes[i];
-        if pane.size.iter().zip(size).all(|(a, b)| (a - b).abs() < 0.5) {
+        let Some(size) = follows_buffer(pane.size, size) else {
             return Ok(());
-        }
+        };
         pane.size = size;
         let pane = &self.panes[i];
         let mut commands = self.placed(pane);

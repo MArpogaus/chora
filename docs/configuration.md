@@ -754,7 +754,9 @@ over a window of the construct, the wheel scrolls the window.
 A walk slows down in the outer quarter of the leash radius and stops at
 it. `Return` flies into the pane nearest the middle of the view, and a
 click on a pane that shows the window of another client or a plugin
-flies into that pane. At the end of the fly-in, the window itself shows
+flies into that pane. The frame of a pane is the buffer of its window: the
+pane takes the size of every new buffer, so no strip of the frame shows
+beside the window. At the end of the fly-in, the window itself shows
 at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
 flies back to the pose before. `tests/gate-construct-3d.sh` checks the
 direct input.

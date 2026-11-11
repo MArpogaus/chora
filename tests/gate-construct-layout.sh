@@ -39,7 +39,9 @@
 # stands, each sample finds the placeholder with the ring or the first
 # buffer of the window. The label of its pane reads Terminal, not the app
 # id, no label shows in use mode, and none is left 400 ms after the pane
-# closes. A give to a window manager that does not run says so in a notice
+# closes. Flown into, the frame of the pane is the buffer of its window at
+# 1:1: the rect of the pane is the rect of the window, and as wide as its
+# buffer. A give to a window manager that does not run says so in a notice
 # with the reason, and loses no window.
 #
 # The walk hints show only what applies, at most five, centred and 32 from
@@ -113,6 +115,13 @@ label_is() { [ "$(ctl query id:construct-label-body-text | jq -r '.[0].text // e
 label_gone() { ctl query id:construct-label-body | jq -e 'length == 0 or .[0].visible == false or (.[0].opacity // 1) < 0.05' >/dev/null 2>&1; }
 notice_is() { [ "$(ctl query id:construct-notice-text | jq -r '.[0].text // empty')" = "$1" ]; }
 has_node() { ctl query "id:$1" | jq -e 'length > 0' >/dev/null 2>&1; }
+frame_is_buffer() {
+    local s=$1
+    jq -en --argjson w "$(ctl query "id:$s")" --argjson p "$(ctl query "id:construct-pane-$s")" '
+        ($w[0].rects | to_entries[0].value) as $a | ($p[0].rects | to_entries[0].value) as $b | $w[0].surface.size as $z |
+        ([range(0; 4)] | all(. as $i | (($a[$i] - $b[$i]) | fabs) < 0.5)) and
+        (($a[2] - $z[0]) | fabs) < 0.5 and (($a[3] - $z[1]) | fabs) < 0.5' >/dev/null 2>&1
+}
 has_buffer() { ctl query "id:$1" | jq -e '.[0].surface.size | (. != null) and .[0] > 0 and .[1] > 0' >/dev/null 2>&1; }
 frames_have_content() {
     local surface=$1 seen=0 n
@@ -226,7 +235,7 @@ first_floor() {
 }
 
 use_mode() {
-    local tag=$1 x y w h first second seen
+    local tag=$1 x y w h first second seen flown
     : >"$work/typed"
     key Super+t
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: Super+T started no terminal"; failed=1; return; }
@@ -251,6 +260,9 @@ use_mode() {
     until_ok 'front_is 1' || { echo "FAIL: $tag: Return did not fly into the pane"; failed=1; return; }
     hint_up || { echo "FAIL: $tag: no hint Alt Esc Step back in use mode"; failed=1; return; }
     until_ok label_gone || { echo "FAIL: $tag: a pane label shows in use mode"; failed=1; }
+    flown=$(ctl call construct construct.list | jq -r '.panes[0].surface')
+    until_ok "frame_is_buffer $flown" || { echo "FAIL: $tag: the flown-in frame is not the buffer of its window at 1:1: window $(ctl query "id:$flown" | jq -c '.[0].rects, .[0].surface.size') pane $(ctl query "id:construct-pane-$flown" | jq -c '.[0].rects')"; failed=1; }
+    ok "$tag: the flown-in frame is the buffer of its window, at 1:1"
     typed d
     until_ok 'typed_is d' || { echo "FAIL: $tag: a key typed in use mode did not reach the terminal: $(cat "$work/typed")"; failed=1; }
     key Alt+Escape
