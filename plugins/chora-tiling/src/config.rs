@@ -471,9 +471,16 @@ impl Config {
     }
 
     /// The `MOD` chords that a program must not get: every key of
-    /// [`SWALLOWED`] with `MOD`, `MOD+Shift` and `MOD+Ctrl`.
+    /// [`SWALLOWED`] with `MOD`, `MOD+Shift` and `MOD+Ctrl`, when `MOD` is
+    /// `Super`. With another modifier none: the programs keep keys such as
+    /// `Alt+b` of readline and `Alt+Left` of a browser.
     pub fn swallowed(&self) -> impl Iterator<Item = Binding> + '_ {
-        SWALLOW_WITH.iter().flat_map(move |with| {
+        let with: &[&str] = if self.modifier == "Super" {
+            &SWALLOW_WITH
+        } else {
+            &[]
+        };
+        with.iter().flat_map(move |with| {
             SWALLOWED.iter().filter_map(move |key| {
                 let mut parts = vec!["MOD"];
                 parts.extend(with.strip_suffix('+'));
@@ -533,6 +540,13 @@ mod tests {
             assert!(chords.contains(&chord.to_owned()), "{chord}");
         }
         assert!(!chords.iter().any(|c| c.starts_with("Alt+")));
+    }
+
+    #[test]
+    fn an_alt_user_keeps_the_keys_of_the_programs() {
+        let alt = DEFAULT.replace("modifier: Super", "modifier: Alt");
+        let config = parse::<Config>(&alt).unwrap();
+        assert_eq!(config.swallowed().count(), 0);
     }
 
     #[test]

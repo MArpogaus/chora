@@ -41,7 +41,7 @@ use crate::{
     config::{Action, Config},
     dress::Dress,
     layout::Layout,
-    wm::{Effect, Mark, Placement, States, WINDOW_KEY, Wm},
+    wm::{Effect, Mark, OutputTags, Placement, States, WINDOW_KEY, Wm},
 };
 
 /// The client name, and the group that holds the windows.
@@ -110,7 +110,12 @@ struct ForSurface {
 #[derive(Serialize)]
 struct LayoutInfo {
     layout: Layout,
+    /// The gap of the old look, as `set_layout` sets it.
     gap: u16,
+    /// The gap to the edge of the work area that the tiles have.
+    gap_outer: i32,
+    /// The gap between two tiles that they have.
+    gap_inner: i32,
     master_width: f64,
     masters: usize,
     columns: usize,
@@ -162,7 +167,8 @@ struct Tiling {
     /// The first tag of the current output when the windows were last
     /// placed, to know the direction of a tag switch.
     last_tag: usize,
-    bar: String,
+    /// What the panel was last told: the layout and the tags.
+    bar: Option<(Option<Layout>, Vec<OutputTags>)>,
     /// Whether the next placement is a rebuild, not a change a person made:
     /// nothing moves.
     still: bool,
@@ -175,6 +181,12 @@ struct Tiling {
     scheme: theme::Scheme,
     /// When the system is asked for its colour scheme again.
     theme_check: Option<std::time::Instant>,
+    /// What the system asked for at the last answer.
+    system: Option<theme::Scheme>,
+    /// The question to the system that a thread is asking, and answers.
+    theme_query: Option<std::sync::mpsc::Receiver<Option<theme::Scheme>>>,
+    /// How the system is asked, in a thread of its own.
+    ask_system: fn() -> Option<theme::Scheme>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -293,14 +305,18 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         border: runtime_shader("border.frag", include_str!("../border.frag")),
         shadow: runtime_shader("shadow.frag", dress::SHADOW_SHADER),
         last_tag: 0,
-        bar: String::new(),
+        bar: None,
         still: true,
         keys_open: false,
         chip_until: None,
         colors: theme::Colors::of(theme::Scheme::Ink),
         scheme: theme::Scheme::Ink,
         theme_check: None,
+        system: None,
+        theme_query: None,
+        ask_system: theme::system_scheme,
     };
+    tiling.system = system_for(tiling.settings.value.look.theme);
     tiling.apply_theme(false);
     tiling.start()?;
     tiling.still = false;
@@ -309,6 +325,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 
 /// How often the system is asked for its colour scheme.
 const THEME_CHECK: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// How often the loop looks for the answer of a question to the system.
+const ANSWER_CHECK: std::time::Duration = std::time::Duration::from_millis(100);
 
 /// The units of the panel and of the wallpaper of the flavor.
 const PANEL_UNIT: &str = "chora-tiling-waybar.service";
@@ -540,6 +559,9 @@ impl Tiling {
         self.check_shaders()?;
         self.rt.ungrab_all()?;
         self.apply_theme(true);
+        if self.theme_check.is_some() {
+            self.theme_check = Some(std::time::Instant::now());
+        }
         self.wm.reconfigure(self.settings.value.clone());
         self.effects.set(&self.settings.value.effects);
         self.sent.clear();
@@ -721,9 +743,12 @@ impl Tiling {
             .wm
             .current()
             .ok_or_else(|| RpcError::new(RpcError::REJECTED, "no output"))?;
+        let (gap_outer, gap_inner) = self.wm.config.gaps();
         let info = LayoutInfo {
             layout,
             gap: self.wm.config.gap,
+            gap_outer,
+            gap_inner,
             master_width: params.master_width,
             masters: params.masters,
             columns: params.columns,
@@ -834,7 +859,11 @@ impl Tiling {
     /// to do.
     fn apply_theme(&mut self, reload: bool) {
         let look = &self.settings.value.look;
-        let scheme = look.theme.scheme(system_for(look.theme));
+        let scheme = look.theme.scheme(
+            (look.theme == theme::Theme::System)
+                .then_some(self.system)
+                .flatten(),
+        );
         let colors = look.palette.over(scheme);
         let changed = colors != self.colors;
         let new_scheme = scheme != self.scheme;
@@ -871,12 +900,33 @@ impl Tiling {
         }
     }
 
-    /// Asks the system for its colour scheme when it is time, and takes the
-    /// new colours of the theme when it changed.
+    /// Asks the system for its colour scheme when it is time, in a thread
+    /// so that the loop never waits for the answer, and takes the new
+    /// colours of the theme when the answer changed them.
     fn follow_system(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
-        if self.theme_check.is_none_or(|at| now < at) {
+        use std::sync::mpsc::TryRecvError;
+        let Some(query) = &self.theme_query else {
+            if self.theme_check.is_none_or(|at| now < at) {
+                return Ok(());
+            }
+            let (send, receive) = std::sync::mpsc::channel();
+            let ask = self.ask_system;
+            std::thread::spawn(move || {
+                let _ = send.send(ask());
+            });
+            self.theme_query = Some(receive);
+            self.theme_check = Some(now + ANSWER_CHECK);
             return Ok(());
+        };
+        match query.try_recv() {
+            Ok(answer) => self.system = answer,
+            Err(TryRecvError::Empty) => {
+                self.theme_check = Some(now + ANSWER_CHECK);
+                return Ok(());
+            }
+            Err(TryRecvError::Disconnected) => {}
         }
+        self.theme_query = None;
         let before = self.colors.clone();
         self.apply_theme(true);
         if self.colors != before {
@@ -897,16 +947,24 @@ impl Tiling {
     /// `SIGRTMIN+1` to waybar, which the modules of the tags and of the
     /// layout answer by asking again; without a panel nothing happens.
     fn push_bar(&mut self) {
-        let layout = self.wm.current().map(|(layout, _)| format!("{layout:?}"));
-        let tags = serde_json::to_string(&self.wm.tags()).unwrap_or_default();
-        let state = format!("{layout:?}{tags}");
-        if state == self.bar {
+        if !self.bar_changed() {
             return;
         }
-        self.bar = state;
         if let Some(pid) = theme::companion("waybar", "waybar") {
             theme::signal(pid, "RTMIN+1");
         }
+    }
+
+    /// Whether the layout or the tags differ from what the panel was last
+    /// told; takes the new state.
+    fn bar_changed(&mut self) -> bool {
+        let layout = self.wm.current().map(|(layout, _)| layout);
+        let state = (layout, self.wm.tags());
+        if self.bar.as_ref() == Some(&state) {
+            return false;
+        }
+        self.bar = Some(state);
+        true
     }
 
     /// Shows the chip that names the layout of the current tag for 700 ms.
@@ -1056,9 +1114,7 @@ impl Tiling {
             self.wm.set_layout(layout);
         }
         if let Some(gap) = change.gap {
-            self.wm.config.gap = gap;
-            self.wm.config.look.gap_outer = None;
-            self.wm.config.look.gap_inner = None;
+            self.wm.set_gap(gap);
         }
         Ok(())
     }
@@ -2135,6 +2191,7 @@ mod tests {
         on_fake_core_with(tag, &[])
     }
 
+    #[allow(clippy::too_many_lines, reason = "a fake core and a whole plugin")]
     fn on_fake_core_with(
         tag: &str,
         effects: &[chora_kit::effects::Kind],
@@ -2189,13 +2246,16 @@ mod tests {
             border: None,
             shadow: None,
             last_tag: 0,
-            bar: String::new(),
+            bar: None,
             still: true,
             keys_open: false,
             chip_until: None,
             colors: theme::Colors::of(theme::Scheme::Ink),
             scheme: theme::Scheme::Ink,
             theme_check: None,
+            system: None,
+            theme_query: None,
+            ask_system: || None,
         };
         (tiling, methods)
     }
@@ -2294,6 +2354,63 @@ mod tests {
     }
 
     const WOBBLY: [chora_kit::effects::Kind; 1] = [chora_kit::effects::Kind::Wobbly];
+
+    #[test]
+    fn get_layout_answers_the_gaps_in_use() {
+        let (mut tiling, _) = on_fake_core("gaps");
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        let info = tiling.run("get_layout", json!({})).unwrap();
+        assert_eq!(
+            (info["gap_outer"].as_i64(), info["gap_inner"].as_i64()),
+            (Some(12), Some(10))
+        );
+        let info = tiling.run("set_layout", json!({"gap": 3})).unwrap();
+        assert_eq!(
+            (info["gap_outer"].as_i64(), info["gap_inner"].as_i64()),
+            (Some(3), Some(6))
+        );
+        assert_eq!(info["gap"], 3);
+    }
+
+    #[test]
+    fn the_panel_hears_of_tags_and_layouts_only_when_they_change() {
+        let (mut tiling, _) = on_fake_core("bar-changes");
+        tiling
+            .wm
+            .set_output("X", [0, 0, 400, 300], [0, 0, 400, 300]);
+        assert!(tiling.bar_changed(), "the first state");
+        assert!(!tiling.bar_changed(), "nothing changed");
+        tiling.wm.add_window("w");
+        assert!(tiling.bar_changed(), "the tag is occupied");
+        assert!(!tiling.bar_changed());
+        tiling.run("next_layout", json!({})).unwrap();
+        assert!(tiling.bar_changed(), "a new layout");
+        tiling.run("set_layout", json!({"gap": 5})).unwrap();
+        assert!(!tiling.bar_changed(), "a gap is no concern of the panel");
+    }
+
+    #[test]
+    fn the_loop_does_not_wait_for_the_system() {
+        let (mut tiling, _) = on_fake_core("slow-system");
+        tiling.ask_system = || {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            Some(theme::Scheme::Paper)
+        };
+        let now = std::time::Instant::now();
+        tiling.theme_check = Some(now);
+        tiling.follow_system(now).unwrap();
+        assert!(now.elapsed() < std::time::Duration::from_millis(300));
+        assert!(tiling.theme_query.is_some(), "the question is out");
+        assert_eq!(tiling.system, None);
+        assert!(
+            tiling.theme_check.is_some_and(|at| at > now),
+            "the loop looks again soon"
+        );
+        tiling.follow_system(std::time::Instant::now()).unwrap();
+        assert!(tiling.theme_query.is_some(), "still no answer");
+    }
 
     #[test]
     fn the_method_next_layout_goes_to_the_next_layout() {
@@ -2745,7 +2862,9 @@ mod panel {
     };
 
     /// The tools of the scripts, linked into the PATH of a test.
-    const TOOLS: [&str; 7] = ["sh", "awk", "timeout", "sleep", "cat", "kill", "dirname"];
+    const TOOLS: [&str; 10] = [
+        "sh", "awk", "timeout", "sleep", "cat", "kill", "dirname", "mkdir", "cp", "date",
+    ];
 
     fn waybar_dir() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/waybar")
@@ -2964,6 +3083,92 @@ exec sleep 30"#;
         let _ = script.wait();
         assert!(followed, "{}", seen(&bin));
         assert_eq!(seen(&bin).matches("\"!B\"").count(), 2, "{}", seen(&bin));
+    }
+
+    #[test]
+    fn the_signal_traps_stand_before_the_pids_are_written() {
+        let flavor = waybar_dir().join("..");
+        for (script, pid) in [
+            ("waybar/waybar.sh", "panel.pid"),
+            ("wallpaper.sh", "wallpaper.pid"),
+        ] {
+            let text = std::fs::read_to_string(flavor.join(script)).expect("the script");
+            let trap = text
+                .find("' USR2")
+                .unwrap_or_else(|| panic!("{script} has no USR2 trap"));
+            let written = text
+                .find(&format!(">\"$pids/{pid}\""))
+                .expect("the pid file");
+            assert!(trap < written, "{script} writes {pid} before it traps USR2");
+        }
+    }
+
+    #[test]
+    fn the_log_out_names_a_session_only_when_there_is_one() {
+        let marks = "echo \"$@\" >>\"$(dirname \"$0\")/marks\"";
+        let bin = bin("logout", false, &[("loginctl", marks)]);
+        let power = |session: Option<&str>| {
+            let mut run = command(&bin, "../power.sh", &["logout"], "C");
+            run.env("USER", "zed");
+            if let Some(id) = session {
+                run.env("XDG_SESSION_ID", id);
+            }
+            run.output().expect("sh runs");
+            std::fs::read_to_string(bin.join("marks")).unwrap_or_default()
+        };
+        assert_eq!(power(Some("7")), "terminate-session 7\n");
+        std::fs::remove_file(bin.join("marks")).expect("marks");
+        assert_eq!(power(None), "terminate-user zed\n");
+        std::fs::remove_file(bin.join("marks")).expect("marks");
+        assert_eq!(power(Some("")), "terminate-user zed\n");
+    }
+
+    #[test]
+    fn the_screenshot_goes_where_xdg_user_dir_says() {
+        let grim = "for last; do :; done; : >\"$last\"";
+        let pictures = "echo \"$(dirname \"$0\")/Bilder\"";
+        let bin = bin(
+            "pictures",
+            false,
+            &[("grim", grim), ("xdg-user-dir", pictures)],
+        );
+        let mut run = command(&bin, "../screenshot.sh", &[], "C");
+        run.env("HOME", &bin)
+            .env("XDG_PICTURES_DIR", bin.join("env"));
+        assert!(run.status().expect("sh runs").success());
+        assert!(bin.join("Bilder/Screenshots").is_dir());
+        assert!(!bin.join("env").exists());
+    }
+
+    #[test]
+    fn the_colours_of_the_panel_are_the_generated_ones_unless_the_user_file_is_newer() {
+        if !has_jq() {
+            return;
+        }
+        let bin = bin(
+            "colours",
+            true,
+            &[("choractl", CHORACTL), ("waybar", "exit 0")],
+        );
+        outputs(&bin, &["A"], &["A"]);
+        let (made, own) = (bin.join("chora-tiling/theme"), bin.join("cfg/chora/tiling"));
+        std::fs::create_dir_all(&made).expect("theme");
+        std::fs::create_dir_all(&own).expect("own");
+        std::fs::write(own.join("colors.css"), "own").expect("own file");
+        std::thread::sleep(Duration::from_millis(1100));
+        std::fs::write(made.join("colors.css"), "made").expect("generated file");
+        let dir = waybar_dir();
+        let start = |bin: &Path| {
+            let mut run = command(bin, "waybar.sh", &[dir.to_str().expect("a path")], "C");
+            run.env("XDG_CONFIG_HOME", bin.join("cfg"))
+                .output()
+                .expect("sh runs");
+            std::fs::read_to_string(bin.join("chora-tiling-waybar/colors.css")).expect("colors")
+        };
+        assert_eq!(start(&bin), "made", "the older file of the user won");
+        std::thread::sleep(Duration::from_millis(1100));
+        std::fs::write(own.join("colors.css"), "own").expect("own file");
+        assert_eq!(start(&bin), "own", "the newer file of the user lost");
     }
 
     #[test]

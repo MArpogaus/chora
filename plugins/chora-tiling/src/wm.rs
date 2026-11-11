@@ -128,12 +128,15 @@ pub enum Mark {
     Urgent,
 }
 
-/// How the tiles of a layout look: the grow of the work area to reach the
-/// outer gap, half the inner gap plus the border, the radius and the border.
+/// How the tiles of a layout look: how far the work area shrinks at its
+/// start (left, top) and its end (right, bottom) to reach the outer gap,
+/// the same for the inset of a cell, which is half the inner gap plus the
+/// border (the odd pixel of an odd gap goes to the end), the radius and
+/// the border.
 #[derive(Default)]
 struct TileLook {
-    edge: i32,
-    half: i32,
+    edge: [i32; 2],
+    half: [i32; 2],
     radius: u16,
     border: u16,
 }
@@ -184,11 +187,15 @@ pub struct Wm {
     /// the window that it focuses; the focus that follows the pointer does
     /// not.
     raised: Vec<String>,
+    /// The gap that `set_layout` set; a new configuration keeps it, as it
+    /// keeps the layouts of the tags.
+    gap: Option<u16>,
 }
 
 impl Wm {
     pub fn new(config: Config) -> Self {
         Self {
+            gap: None,
             config,
             windows: Vec::new(),
             outputs: Vec::new(),
@@ -571,6 +578,9 @@ impl Wm {
         let count = config.tags;
         let mask = u16::MAX >> (16 - count);
         self.config = config;
+        if let Some(gap) = self.gap {
+            self.set_gap(gap);
+        }
         let tag = self.new_tag();
         for output in &mut self.outputs {
             output.tags.resize(count, tag);
@@ -580,6 +590,15 @@ impl Wm {
         for window in &mut self.windows {
             window.tags = nonzero(window.tags & mask);
         }
+    }
+
+    /// Sets the gap of the old look; the outer and the inner gap of the
+    /// look follow it, and a new configuration keeps it.
+    pub fn set_gap(&mut self, gap: u16) {
+        self.gap = Some(gap);
+        self.config.gap = gap;
+        self.config.look.gap_outer = None;
+        self.config.look.gap_inner = None;
     }
 
     /// Where each window shows, from the bottom to the top.
@@ -637,13 +656,13 @@ impl Wm {
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
-            (layout::grow(output.area, -edge), output.full),
+            (layout::shrink(output.area, edge), output.full),
             Some(top_at),
             tag.params,
         );
         let mut placed = Vec::new();
         for (i, (window, cell)) in tiled.iter().zip(cells).enumerate() {
-            let [x, y, w, h] = layout::inset(cell, half);
+            let [x, y, w, h] = layout::inset_by(cell, half);
             let states = States {
                 tiled: true,
                 activated: Some(&*window.id) == focused,
@@ -676,9 +695,10 @@ impl Wm {
         }
         let (outer, inner) = self.config.gaps();
         let border = i32::from(self.config.look.border);
+        let (first, last) = (inner / 2, inner - inner / 2);
         TileLook {
-            edge: outer - inner / 2,
-            half: inner / 2 + border,
+            edge: [outer - first, outer - last],
+            half: [first + border, last + border],
             radius: self.config.look.radius,
             border: self.config.look.border,
         }
@@ -1235,6 +1255,41 @@ mod tests {
         );
         assert_eq!(right[2], 1268, "right edge");
         assert_eq!(right[0] - left[2], 10, "between the tiles");
+    }
+
+    #[test]
+    fn a_gap_that_set_layout_set_outlives_a_new_configuration() {
+        let mut wm = wm(&["a"]);
+        wm.set_gap(7);
+        assert_eq!(wm.config.gaps(), (7, 14));
+        wm.reconfigure(chora_kit::settings::parse::<Config>(DEFAULT).unwrap());
+        assert_eq!(wm.config.gaps(), (7, 14));
+    }
+
+    #[test]
+    fn an_odd_inner_gap_is_exact_too() {
+        for inner in [0u16, 1, 5, 11] {
+            let mut wm = wm(&["a", "b"]);
+            wm.config.look = crate::config::Look {
+                gap_outer: Some(12),
+                gap_inner: Some(inner),
+                radius: 0,
+                border: 2,
+                ..crate::config::Look::default()
+            };
+            wm.set_output("A", [0, 0, 1280, 800], [0, 0, 1280, 800]);
+            let placed = wm.arrange();
+            let frame = |id: &str| {
+                let found = placed.iter().find(|p| p.id == id).unwrap();
+                let [left, top] = found.at.unwrap();
+                let [width, height] = found.size.unwrap();
+                [left - 2, top - 2, left + width + 2, top + height + 2]
+            };
+            let (left, right) = (frame("b"), frame("a"));
+            assert_eq!([left[0], left[1], left[3]], [12, 12, 788], "{inner}");
+            assert_eq!(right[2], 1268, "{inner}");
+            assert_eq!(right[0] - left[2], i32::from(inner), "{inner}");
+        }
     }
 
     #[test]

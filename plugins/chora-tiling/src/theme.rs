@@ -240,22 +240,47 @@ pub fn scheme_of_gsettings(answer: &str) -> Option<Scheme> {
     }
 }
 
-/// What the system asks for: the settings portal, else gsettings; `None`
-/// when neither answers or the person has no preference.
+/// How long a question to the system may take.
+const ASK_LIMIT: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// What a program prints, when it succeeds within `limit`; a program that
+/// takes longer is killed.
+#[must_use]
+pub fn run_within(program: &str, args: &[&str], limit: std::time::Duration) -> Option<String> {
+    use std::io::Read;
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let end = std::time::Instant::now() + limit;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if std::time::Instant::now() < end => {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    };
+    let mut text = String::new();
+    child.stdout.take()?.read_to_string(&mut text).ok()?;
+    status.success().then_some(text)
+}
+
+/// What the system asks for: the settings portal, else gsettings, each
+/// within two seconds; `None` when neither answers or the person has no
+/// preference. It blocks, so the loop of the window manager runs it in a
+/// thread of its own.
 #[must_use]
 pub fn system_scheme() -> Option<Scheme> {
-    let ask = |program: &str, args: &[&str]| {
-        let out = std::process::Command::new(program)
-            .args(args)
-            .stdin(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .output()
-            .ok()?;
-        out.status
-            .success()
-            .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
-    };
-    let portal = ask(
+    let portal = run_within(
         "busctl",
         &[
             "--user",
@@ -269,12 +294,14 @@ pub fn system_scheme() -> Option<Scheme> {
             "org.freedesktop.appearance",
             "color-scheme",
         ],
+        ASK_LIMIT,
     )
     .and_then(|a| scheme_of_portal(&a));
     portal.or_else(|| {
-        ask(
+        run_within(
             "gsettings",
             &["get", "org.gnome.desktop.interface", "color-scheme"],
+            ASK_LIMIT,
         )
         .and_then(|a| scheme_of_gsettings(&a))
     })
@@ -436,22 +463,38 @@ fn swaylock(c: &Colors) -> String {
     )
 }
 
+/// Writes a file with `text`, unless it has that already: the text goes to
+/// a temporary file beside it, which replaces it in one step, so a reader
+/// never sees half a file.
+fn write_changed(path: &Path, text: &str) -> std::io::Result<()> {
+    if std::fs::read_to_string(path).is_ok_and(|old| old == text) {
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(format!(".tmp{}", std::process::id()));
+    let temp = path.with_file_name(name);
+    let written = std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    written
+}
+
 /// Writes the files of [`files`] and the name of the scheme into a
-/// directory, which it creates.
+/// directory, which it creates; a file that has the text already stays
+/// as it is.
 ///
 /// # Errors
 ///
 /// A file cannot be written.
 pub fn apply(dir: &Path, colors: &Colors, scheme: Scheme) -> std::io::Result<()> {
     for (name, text) in files(colors) {
-        let path = dir.join(name);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(path, text)?;
+        write_changed(&dir.join(name), &text)?;
     }
-    std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join("scheme"), format!("{}\n", scheme.name()))
+    write_changed(&dir.join("scheme"), &format!("{}\n", scheme.name()))
 }
 
 /// `chora-tiling` in the runtime directory of the user: the theme that
@@ -469,15 +512,33 @@ pub fn default_dir() -> Option<std::path::PathBuf> {
     runtime_dir().map(|d| d.join("theme"))
 }
 
+/// Whether a command line (`/proc/PID/cmdline`) is the program `word`, by
+/// the exact name of its first word, or the script `word` that a shell
+/// runs, by the exact name of its second.
+fn runs(cmdline: &[u8], word: &str) -> bool {
+    let mut words = cmdline
+        .split(|&b| b == 0)
+        .map(|w| String::from_utf8_lossy(w).into_owned());
+    let name = |w: &str| w.rsplit('/').next().unwrap_or_default().to_owned();
+    let Some(first) = words.next().map(|w| name(&w)) else {
+        return false;
+    };
+    if first == word {
+        return true;
+    }
+    matches!(first.as_str(), "sh" | "bash" | "dash")
+        && words.next().is_some_and(|w| name(&w) == word)
+}
+
 /// The pid that a companion of the flavor left in `NAME.pid` of the
-/// runtime directory, when that process still runs and its command line
-/// has `word`, so that the pid of another program is never taken.
+/// runtime directory, when that process still runs and is the program
+/// or script `word`, so that the pid of another program is never taken.
 #[must_use]
 pub fn companion(name: &str, word: &str) -> Option<u32> {
     let file = runtime_dir()?.join(format!("{name}.pid"));
     let pid: u32 = std::fs::read_to_string(file).ok()?.trim().parse().ok()?;
     let line = std::fs::read(format!("/proc/{pid}/cmdline")).ok()?;
-    String::from_utf8_lossy(&line).contains(word).then_some(pid)
+    runs(&line, word).then_some(pid)
 }
 
 /// Sends a signal, by the name that `kill -s` takes, to a process.
@@ -814,6 +875,53 @@ mod tests {
                 assert!(ratio >= 4.5, "{scheme:?}: {text} is {ratio:.2}:1");
             }
         }
+    }
+
+    #[test]
+    fn a_question_to_the_system_ends_within_its_limit() {
+        let limit = std::time::Duration::from_millis(200);
+        let start = std::time::Instant::now();
+        assert_eq!(run_within("sleep", &["5"], limit), None);
+        assert!(start.elapsed() < std::time::Duration::from_secs(2));
+        assert_eq!(run_within("echo", &["a"], limit).as_deref(), Some("a\n"));
+        assert_eq!(run_within("false", &[], limit), None);
+    }
+
+    #[test]
+    fn the_files_of_the_theme_are_written_only_when_they_change() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = std::env::temp_dir().join(format!("tiling-apply-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let ink = Colors::of(Scheme::Ink);
+        apply(&dir, &ink, Scheme::Ink).unwrap();
+        let inode = |name: &str| std::fs::metadata(dir.join(name)).unwrap().ino();
+        let names = ["colors.css", "scheme"];
+        let before = names.map(inode);
+        apply(&dir, &ink, Scheme::Ink).unwrap();
+        assert_eq!(names.map(inode), before, "the same theme rewrote a file");
+        apply(&dir, &Colors::of(Scheme::Paper), Scheme::Paper).unwrap();
+        assert_ne!(inode("colors.css"), before[0]);
+        assert_eq!(
+            std::fs::read_to_string(dir.join("scheme")).unwrap(),
+            "paper\n"
+        );
+        let stray = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|e| e.file_name().to_string_lossy().contains(".tmp"));
+        assert!(!stray, "a temporary file stayed");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_companion_is_the_program_or_the_script_by_its_exact_name() {
+        let line = |s: &str| s.replace('|', "\0").into_bytes();
+        assert!(runs(&line("/usr/bin/waybar|-c|x"), "waybar"));
+        assert!(runs(&line("sh|/home/u/waybar.sh|/home/u"), "waybar.sh"));
+        assert!(!runs(&line("sh|/home/u/waybar.sh|/home/u"), "waybar"));
+        assert!(!runs(&line("/usr/bin/waybar-extra"), "waybar"));
+        assert!(!runs(&line("vim|waybar.sh"), "waybar.sh"));
+        assert!(!runs(&line("/home/waybar/bin/tool"), "waybar"));
     }
 
     #[test]
