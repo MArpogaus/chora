@@ -34,3 +34,12 @@ release; feature sprints only after that.
 UX loop fixes -> UX pass 2 -> code review per area (parallel, read
 only) -> fix lanes -> persona round 4 -> CI and packaging -> rc tag
 (the user tags or approves the tag).
+
+## User decision of 11-11 ~17:20
+
+"You may release when all clean. Review code for simplicity and
+readability." So: when every criterion holds, the PM opens the pull
+request that CI needs, tags the rc and publishes the release without
+asking again. The code review per area judges simplicity and
+readability first (KISS: dead code, needless layers, long functions,
+unclear names, duplication), then correctness and security.
