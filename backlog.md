@@ -293,3 +293,12 @@ on a focus change and then stop. Priority: high (battery on laptops).
 hang::tests::a_main_loop_that_blocks_for_5_s_triggers_the_watchdog failed
 once in a local run of the HUD worker (passed 3 later and in the gate).
 Treat as a timing bug until shown otherwise.
+
+## D3 (11-11): demo glitches to fix (seen in cube.gif, pull.gif)
+(a) During a cube turn the floating planes of a face show for a few
+frames as slivers beside the cube, before the face shows and after it
+hid. (b) A pane dragged back over an angled face vanishes behind it for
+some frames (one context sorts a mesh as one unit; see wobbly-3d.md
+risks). (c) pull: the pane is smaller than its window and has no title
+bar; the wobble in the space is subtle. (d) Light theme only; plain
+white floor. Sixel pictures on faces: see the stale-frame fix.
