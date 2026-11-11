@@ -23,9 +23,17 @@
 # window audit: the window of the pane is still there.
 #
 # The empty floor of each round is also driven: a real press on the row
-# Terminal of the start card starts a terminal and the card fades; the
-# close of its pane brings the card back; Super+T after that starts the
-# terminal again (the keyboard after the act), and its close ends it.
+# Terminal of the start card starts a terminal that opens flown in and
+# takes typed keys, and the card fades; the close of its pane brings the
+# card back; Super+T after that starts the terminal again (the keyboard
+# after the act), and its close ends it.
+#
+# Then the use mode is driven: Alt+Escape during the fly-in steps back;
+# Return flies in and the hint Alt Esc Step back is up; a real press on
+# that hint steps back; Super+T from use mode steps back, places a second
+# pane right of the first at the same distance and flies into it; the
+# typed keys reach the right terminal; Alt+Escape steps back; the window
+# audit finds every terminal as a pane.
 #
 # Usage: tests/gate-construct-layout.sh   BIN: directory with the binaries
 #   SIZES   the outputs (default "1280x720 2560x1440@2")
@@ -63,6 +71,13 @@ until_ok() {
 }
 pane_named() { ctl call construct construct.list | jq -e --arg n "$1" '.panes | any(.name | test($n; "i"))' >/dev/null 2>&1; }
 shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
+front_is() { [ "$(front_count)" = "$1" ]; }
+panes_are() { [ "$(panes_n)" = "$1" ]; }
+parent_is() { [ "$(ctl query "id:$1" | jq -r '.[0].parent')" = "$2" ]; }
+front_count() { ctl query 'app_id:startcell kind:surface' | jq '[.[] | select(.parent == "construct-front")] | length'; }
+panes_n() { ctl call construct construct.list | jq '.panes | length'; }
+hint_up() { ctl query id:construct-hint-step-back | jq -e 'length > 0 and (.[0].rects | length > 0)' >/dev/null 2>&1; }
+typed_is() { [ "$(cat "$work/typed" 2>/dev/null)" = "$1" ]; }
 until_shows() {
     for _ in $(seq 40); do
         shows "$1" && return 0
@@ -128,6 +143,10 @@ first_floor() {
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: a click on the row Terminal started no terminal"; failed=1; return; }
     until_ok card_gone || { echo "FAIL: $tag: the card stays with a pane"; failed=1; }
     ok "$tag: a click on the row Terminal started a terminal and the card went"
+    until_ok 'front_is 1' || { echo "FAIL: $tag: the terminal of the click did not open flown in"; failed=1; }
+    : >"$work/typed"
+    typed c
+    until_ok 'typed_is c' || { echo "FAIL: $tag: a key typed after the click did not reach the terminal"; failed=1; }
     sleep 1
     key Alt+Escape
     sleep 1
@@ -147,9 +166,72 @@ first_floor() {
         { echo "FAIL: $tag: the window of the start cell is left"; failed=1; }
 }
 
+use_mode() {
+    local tag=$1 x y w h first second
+    : >"$work/typed"
+    key Super+t
+    until_ok 'pane_named startcell' || { echo "FAIL: $tag: Super+T started no terminal"; failed=1; return; }
+    key Alt+Escape
+    sleep 2
+    if front_is 0; then
+        ok "$tag: Alt+Escape during the fly-in stepped back"
+    else
+        echo "FAIL: $tag: Alt+Escape during the fly-in did not step back"
+        failed=1
+        key Alt+Escape
+        sleep 1
+    fi
+    key Return
+    until_ok 'front_is 1' || { echo "FAIL: $tag: Return did not fly into the pane"; failed=1; return; }
+    hint_up || { echo "FAIL: $tag: no hint Alt Esc Step back in use mode"; failed=1; return; }
+    typed d
+    until_ok 'typed_is d' || { echo "FAIL: $tag: a key typed in use mode did not reach the terminal: $(cat "$work/typed")"; failed=1; }
+    key Alt+Escape
+    until_ok 'front_is 0' || { echo "FAIL: $tag: Alt+Escape did not step back"; failed=1; return; }
+    key Return
+    until_ok 'front_is 1' || { echo "FAIL: $tag: Return did not fly in again"; failed=1; return; }
+    until_ok hint_up || { echo "FAIL: $tag: no hint after the second fly-in"; failed=1; return; }
+    read -r x y w h < <(rect_of construct-hint-step-back)
+    [ -n "${x:-}" ] || { echo "FAIL: $tag: the hint Step back is not on the screen"; failed=1; return; }
+    echo "[{\"pointer_move\": {\"position\": [$((${x%.*} + ${w%.*} / 2)), $((${y%.*} + ${h%.*} / 2))]}}, {\"click\": {}}]" | ctl inject >/dev/null
+    until_ok 'front_is 0' || { echo "FAIL: $tag: a click on the hint Step back did not step back"; failed=1; return; }
+    ok "$tag: a click on the hint Step back stepped back"
+    echo '[{"pointer_move": {"position": [8, 8]}}]' | ctl inject >/dev/null
+    key Return
+    until_ok 'front_is 1' || { echo "FAIL: $tag: Return after the click did not fly in"; failed=1; return; }
+    key Super+t
+    until_ok 'panes_are 2' || { echo "FAIL: $tag: Super+T in use mode started no second terminal"; failed=1; return; }
+    first=$(ctl call construct construct.list | jq -r '.panes[0].surface')
+    second=$(ctl call construct construct.list | jq -r '.panes[1].surface')
+    until_ok "parent_is $second construct-front" ||
+        { echo "FAIL: $tag: the second terminal did not open flown in"; failed=1; return; }
+    ! parent_is "$first" construct-front ||
+        { echo "FAIL: $tag: the first terminal stays in front"; failed=1; }
+    ctl call construct construct.list | jq -e '.panes | (.[1].at[0] > .[0].at[0]) and ((.[1].at[1] - .[0].at[1]) | fabs) < 1' >/dev/null ||
+        { echo "FAIL: $tag: the second pane is not right of the first at the same distance: $(ctl call construct construct.list | jq -c '[.panes[].at]')"; failed=1; }
+    ok "$tag: Super+T in use mode stepped back and flew into a second pane right of the first"
+    : >"$work/typed"
+    typed e
+    until_ok 'typed_is e' || { echo "FAIL: $tag: a key typed after the second terminal did not reach it: $(cat "$work/typed")"; failed=1; }
+    key Alt+Escape
+    until_ok 'front_is 0' || { echo "FAIL: $tag: Alt+Escape after the second terminal did not step back"; failed=1; return; }
+    for _ in 1 2 3; do
+        panes_are 0 && break
+        key Super+x
+        sleep 1
+    done
+    until_ok 'ctl query app_id:startcell | jq -e "length == 0" >/dev/null' ||
+        { echo "FAIL: $tag: a terminal window is left after the close"; failed=1; }
+}
+
 round() {
     local theme=$1 size=$2 tag=$1-$2 voice_pid
-    printf 'theme: %s\nvoice_hud: host\nterminal: foot -a startcell sleep 600\n' "$theme" >"$work/chora/chora-construct.yaml"
+    cat >"$work/startcell.sh" <<SCRIPT
+#!/bin/bash
+while IFS= read -rn1 k; do printf %s "\$k" >>$work/typed; done
+SCRIPT
+    chmod +x "$work/startcell.sh"
+    printf 'theme: %s\nvoice_hud: host\nterminal: foot -a startcell %s/startcell.sh\n' "$theme" "$work" >"$work/chora/chora-construct.yaml"
     printf 'enabled: true\nposition: null\nhud: construct\nhuds:\n  - {when: {space: construct}, folder: construct}\n' \
         >"$work/chora/chora-assistant.yaml"
     entries >"$work/entries.json"
@@ -158,6 +240,7 @@ round() {
     grant screen.capture input.inject methods.call
     ctl wait id:construct-look --timeout 20 >/dev/null || fail "$tag: no space: $(tail -n 5 "$GATE_ENV")"
     first_floor "$tag" "$size"
+    use_mode "$tag"
     rm -f "$work/voice.in"
     mkfifo "$work/voice.in"
     FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$work/claims" \
