@@ -73,8 +73,10 @@ pub(crate) struct Host {
     front: usize,
     angle: f64,
     turn: Option<Turn>,
-    /// Whether each face shows, as last sent.
+    /// Whether each face shows, as last sent, and the eye in the space of
+    /// the cube then.
     shown: Vec<bool>,
+    seen_from: [f64; 3],
     /// The mode of the view (K4), how far the cube stands back in
     /// navigate mode, the part of that way it stands at now, 0 to 1, and
     /// the running step.
@@ -267,6 +269,7 @@ impl Host {
     /// forwards, which it does only while the cube rests.
     pub(crate) fn faces(&mut self, eye: [f64; 2]) -> Vec<Command> {
         let eye = self.eye(eye);
+        self.seen_from = eye;
         let mut commands = vec![update(
             CUBE,
             PropsUpdate {
@@ -382,6 +385,16 @@ impl Host {
         changed
     }
 
+    /// The share of their full lift at which the windows of face `i`
+    /// float now for an eye at `eye` in the space of the cube: from the
+    /// stand back and the turn, times how squarely the face looks at the
+    /// eye, so that a face at a grazing angle floats them flat and no
+    /// plane shows as a sliver beside the cube.
+    fn float_share(&self, i: usize, eye: [f64; 3]) -> f64 {
+        let facing = self.cube.facing(i, self.angle, eye).clamp(0.0, 1.0);
+        self.stand.max(turned(self.angle)) * facing
+    }
+
     /// The lifts at full float of the windows of face `i`: each starts at
     /// the lift of its place in the stack and grows until it clears the
     /// planes across the shared edges (`cleared`).
@@ -406,7 +419,7 @@ impl Host {
     /// grows with the stand back and with the turn.
     fn planes(&self, i: usize, shows: bool) -> Vec<Command> {
         let windows = self.floats_of(i).unwrap_or_default();
-        let phase = self.stand.max(turned(self.angle));
+        let phase = self.float_share(i, self.seen_from);
         let lifts = self.lifts(i);
         let plane = |(k, window): (usize, &Floating)| {
             let lift = lifts.get(k).copied().unwrap_or_default() * phase;
@@ -666,6 +679,7 @@ impl Construct {
         let reach = self.lens.focal + cube.size[0] / 2.0;
         Host {
             shown: vec![false; outputs.len()],
+            seen_from: [0.0; 3],
             floats: vec![None; outputs.len()],
             outputs,
             child,
@@ -994,6 +1008,24 @@ mod tests {
     }
 
     #[test]
+    fn a_face_at_a_grazing_angle_floats_its_windows_flat() {
+        let mut host = host_at_rest();
+        let eye = host.eye([0.0, 0.0]);
+        let first = (1..90)
+            .map(|k| -f64::from(k) * FRAC_PI_2 / 90.0)
+            .find(|angle| host.cube.faces_eye(1, *angle, eye))
+            .expect("face 1 comes into view");
+        host.angle = first;
+        let share = host.float_share(1, host.eye([0.0, 0.0]));
+        assert!(share < 0.2, "a sliver beside the cube: {share} at {first}");
+        host.angle = 0.0;
+        host.stand = 1.0;
+        let front = host.float_share(0, host.eye([0.0, 0.0]));
+        assert!(front > 0.9, "the front face stood back: {front}");
+        let _ = host.child.wait();
+    }
+
+    #[test]
     fn a_click_stays_within_eight_pixels_on_both_axes() {
         let dragged = |at: [f64; 2]| {
             let mut held = Some(PRESS.clone());
@@ -1023,6 +1055,7 @@ mod tests {
             angle: 0.0,
             turn: None,
             shown: vec![true],
+            seen_from: [0.0; 3],
             view: View::default(),
             far: 500.0,
             stand: 0.0,

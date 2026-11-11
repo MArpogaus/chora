@@ -138,7 +138,9 @@ into the space in the plane of the face, never clipped and never
 wrapped onto the next face. Where the windows of two faces would meet
 at their shared edge, a window floats farther until its plane clears
 the planes of the other face, at most twice the lift of the top window;
-beyond that the planes cross.
+beyond that the planes cross. A face floats its windows by how
+squarely it looks at the eye: at a grazing angle during a turn they lie
+in the face, so no plane shows as a sliver beside the cube.
 
 The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also

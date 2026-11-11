@@ -77,6 +77,14 @@ impl Cube {
     /// Whether face `i` at `turn` shows its front to an eye at `eye`.
     #[must_use]
     pub fn faces_eye(&self, i: usize, turn: f64, eye: [f64; 3]) -> bool {
+        self.facing(i, turn, eye) > 0.0
+    }
+
+    /// How squarely face `i` at `turn` looks at an eye at `eye`: the
+    /// cosine of the angle between its front and the way from its centre
+    /// to the eye, 1 face on, 0 edge on, below 0 when it looks away.
+    #[must_use]
+    pub fn facing(&self, i: usize, turn: f64, eye: [f64; 3]) -> f64 {
         let m = self.face(i, turn);
         let [w, h] = self.size_of(i);
         let centre = [0, 1, 2].map(|r| m[r] * w / 2.0 + m[4 + r] * h / 2.0 + m[12 + r]);
@@ -84,10 +92,10 @@ impl Cube {
         let y = yaw(turn);
         let normal =
             [0, 1, 2].map(|r| y[r] * normal[0] + y[4 + r] * normal[1] + y[8 + r] * normal[2]);
-        (0..3)
-            .map(|k| normal[k] * (eye[k] - centre[k]))
-            .sum::<f64>()
-            > 0.0
+        let way = [0, 1, 2].map(|k| eye[k] - centre[k]);
+        let far = way.iter().map(|v| v * v).sum::<f64>().sqrt();
+        let dot = (0..3).map(|k| normal[k] * way[k]).sum::<f64>();
+        if far > 0.0 { dot / far } else { 0.0 }
     }
 
     /// The turn that brings side face `i` to the front.
