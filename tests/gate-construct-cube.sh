@@ -281,6 +281,9 @@ until_ok 'test "$(prop construct-cube-edge visible)" = False' 20 || fail "the ed
 ok "in navigate mode the edge of the face under the pointer is lit"
 
 drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}, {\"pointer_move\": {\"position\": [$(( ($1 + $2) / 2 )), 400]}}, {\"pointer_move\": {\"position\": [$2, 400]}}, {\"button\": {\"state\": \"released\"}}]"; }
+press_at() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"; }
+move_to() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}]"; }
+let_go() { inject '[{"button": {"state": "released"}}]'; }
 drag 900 200
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "a drag to the left did not turn the cube to the next face"
 sleep 1
@@ -288,21 +291,21 @@ sleep 1
 drag 300 1000
 until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a drag to the right did not turn the cube back"
 sleep 1
-drag 640 700
+press_at 640
+move_to 700
+sleep 0.4
+let_go
 sleep 1
 eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
 plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
-ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
+ok "a drag of more than 45 degrees turns the cube by one face; a slow short drag returns and does not step in"
 
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live drag"
 windows_before=$(ctl query kind:surface | jq length)
 rest_width=$(width construct-cube-face-0)
 navigating='test "$(prop construct-mode-step-in visible)" = True'
-press_at() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"; }
-move_to() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}]"; }
-let_go() { inject '[{"button": {"state": "released"}}]'; }
 alpha_of() { prop "$1" color | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())[3])'; }
 press_at 900
 previous=$rest_width

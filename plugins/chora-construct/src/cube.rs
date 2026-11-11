@@ -47,12 +47,10 @@ const CLICK: f64 = 8.0;
 /// The client name of the window manager of the cube.
 pub(crate) const MANAGER: &str = "xp";
 /// How long a quarter turn takes, by default.
-pub(crate) const TURN: Duration = Duration::from_millis(500);
+pub(crate) const TURN: Duration = Duration::from_millis(360);
 /// How long the cube takes to settle on a face after a drag.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub(crate) const SETTLE: Duration = Duration::from_millis(500);
+pub(crate) const SETTLE: Duration = Duration::from_millis(320);
 /// How fast a flick is, in widths of the view per second.
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub(crate) const FLICK: f64 = 1.5;
 /// The plain fill of a face whose window manager is not up, and how far
 /// it lies in front of the face.
@@ -122,6 +120,7 @@ pub(crate) struct Host {
     /// construct holds it.
     hover: Option<usize>,
     press: Option<Press>,
+    live: Option<Live>,
     step_back_key: Option<String>,
     /// The faces whose window manager owes an answer, when the construct
     /// asks again, and the faces that stay flat until the cube rests.
@@ -161,84 +160,115 @@ fn fill_id(i: usize) -> String {
 }
 
 /// A press on a face in navigate mode: the face, the window whose
-/// floating plane took the press, where the pointer was at the press,
-/// its x at the last turn of the drag, and whether the pointer went
-/// farther than a click does.
+/// floating plane took the press, where the pointer was at the press, and
+/// whether the pointer went farther than a click does.
 #[derive(Clone)]
 struct Press {
     face: usize,
     window: Option<String>,
     start: [f64; 2],
-    from: f64,
     dragged: bool,
 }
 
 /// What a move of the pointer during a press on a face does.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Dragged {
     Nothing,
-    Turn(i32),
+    /// The cube follows the hand: the drag so far in x.
+    Yaw(f64),
     /// The drag on the floating plane of a window pulls the window out.
     Pull(String),
 }
 
-/// A move of the pointer to `at` during a press: after each `third` of
-/// the width of the view from the last turn, the cube turns by one face;
-/// a drag to the left brings the next face. A press on the floating plane
-/// of a window pulls the window out once it moved farther than a click. The drag goes on from `at`
-/// only after [`turned_at`], when the cube took the turn.
-fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
+/// A move of the pointer to `at` during a press: once it went farther
+/// than a click, the cube follows the hand from the press; a press on the
+/// floating plane of a window pulls the window out instead.
+fn drag_of(press: &mut Option<Press>, at: [f64; 2]) -> Dragged {
     let Some(press) = press else {
         return Dragged::Nothing;
     };
     let far = (at[0] - press.start[0]).hypot(at[1] - press.start[1]);
     press.dragged |= far > CLICK;
-    if let Some(window) = press.window.clone().filter(|_| press.dragged) {
-        return Dragged::Pull(window);
-    }
-    let moved = at[0] - press.from;
-    if moved.abs() < third {
+    if !press.dragged {
         return Dragged::Nothing;
     }
-    Dragged::Turn(if moved < 0.0 { 1 } else { -1 })
+    match press.window.clone() {
+        Some(window) => Dragged::Pull(window),
+        None => Dragged::Yaw(at[0] - press.start[0]),
+    }
 }
 
-/// The cube took the turn of a drag at `x`: the next third counts from
-/// there.
-fn turned_at(press: &mut Option<Press>, x: f64) {
-    if let Some(press) = press {
-        press.from = x;
+/// The cube while the hand holds it: the angle at the press, the width
+/// of the view, and the last positions of the hand for its speed.
+struct Live {
+    base: f64,
+    width: f64,
+    samples: Vec<(Instant, f64)>,
+}
+
+/// How far back the speed of the hand looks, and the least time that it
+/// divides by.
+const SAMPLED: Duration = Duration::from_millis(120);
+const LEAST: f64 = 0.005;
+
+impl Live {
+    /// The speed of the hand at `now` in widths per second, to the right
+    /// positive; none when it rested.
+    fn velocity(&self, now: Instant) -> f64 {
+        let recent: Vec<&(Instant, f64)> = (self.samples.iter())
+            .filter(|(at, _)| now.saturating_duration_since(*at) <= SAMPLED)
+            .collect();
+        let (Some(first), Some(last)) = (recent.first(), recent.last()) else {
+            return 0.0;
+        };
+        let seconds = last.0.saturating_duration_since(first.0).as_secs_f64();
+        (last.1 - first.1) / self.width / seconds.max(LEAST)
     }
 }
 
 /// The yaw of the cube for a drag of `dx` over a view `width` wide: the
 /// whole width is a quarter turn.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub(crate) fn yaw_of(_dx: f64, _width: f64) -> f64 {
-    0.0
+pub(crate) fn yaw_of(dx: f64, width: f64) -> f64 {
+    dx / width * FRAC_PI_2
 }
 
 /// By how many faces the cube turns when the hand lets go with the cube
 /// at `yaw` off its face, moving at `velocity` widths per second (to the
 /// right is positive): to the nearest face, and on to the next one when
 /// the hand flicks.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub(crate) fn settle_by(_yaw: f64, _velocity: f64) -> i32 {
-    0
+pub(crate) fn settle_by(yaw: f64, velocity: f64) -> i32 {
+    let nearest = (-yaw / FRAC_PI_2).round();
+    let towards = if velocity < 0.0 { 1.0 } else { -1.0 };
+    let by = if velocity.abs() >= FLICK && nearest * towards < 1.0 {
+        towards
+    } else {
+        nearest
+    };
+    #[allow(clippy::cast_possible_truncation, reason = "a few faces")]
+    let by = by as i32;
+    by
 }
 
 /// The face that the label names for the cube at `angle`: the nearest
 /// one.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub(crate) fn nearest_face(_angle: f64, _faces: usize) -> usize {
-    0
+pub(crate) fn nearest_face(angle: f64, faces: usize) -> usize {
+    #[allow(clippy::cast_possible_truncation, reason = "a few faces")]
+    let nearest = (-angle / FRAC_PI_2).round() as i32;
+    next_front(0, nearest, faces)
 }
 
 /// How much of the front dot each of `faces` dots has at `angle`: the
 /// face before the angle has the rest of what the next one has not yet.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub(crate) fn dot_weights(_angle: f64, faces: usize) -> Vec<f64> {
-    vec![0.0; faces]
+pub(crate) fn dot_weights(angle: f64, faces: usize) -> Vec<f64> {
+    let place = -angle / FRAC_PI_2;
+    let before = place.floor();
+    #[allow(clippy::cast_possible_truncation, reason = "a few faces")]
+    let before_face = next_front(0, before as i32, faces);
+    let after_face = next_front(before_face, 1, faces);
+    let mut weights = vec![0.0; faces];
+    weights[before_face] += 1.0 - (place - before);
+    weights[after_face] += place - before;
+    weights
 }
 
 pub(crate) fn face_id(i: usize) -> String {
@@ -394,7 +424,7 @@ impl Host {
     /// The update of the lit edge: over the face under the pointer while
     /// the cube rests in navigate mode.
     fn edge(&self) -> Command {
-        let rests = self.turn.is_none() && !self.view.forwards() && self.step.is_none();
+        let rests = self.rests() && !self.view.forwards();
         let face = self
             .hover
             .filter(|i| rests && self.shown.get(*i) == Some(&true));
@@ -422,6 +452,11 @@ impl Host {
     pub(crate) fn others_up(&self, face: usize) -> bool {
         let up = |(i, h): (usize, &Health)| i != face && *h == Health::Up;
         self.health.iter().enumerate().any(up)
+    }
+
+    /// Whether every face works.
+    pub(crate) fn works(&self) -> bool {
+        self.health.iter().all(|h| *h == Health::Up)
     }
 
     /// Whether the face at the front failed to start.
@@ -484,7 +519,7 @@ impl Host {
 
     /// Whether the cube rests: no turn and no step runs.
     pub(crate) fn rests(&self) -> bool {
-        self.turn.is_none() && self.step.is_none()
+        self.turn.is_none() && self.step.is_none() && self.live.is_none()
     }
 
     /// The pointer is over a face, or over none.
@@ -500,38 +535,62 @@ impl Host {
     }
 
     /// A press on a face, or on the floating plane of `window` on it, in
-    /// navigate mode at a point of the screen.
+    /// navigate mode at a point of the screen. A press while the cube
+    /// turns does nothing.
     pub(crate) fn press(&mut self, face: usize, window: Option<String>, at: [f64; 2]) {
-        self.press = Some(Press {
+        self.press = self.rests().then_some(Press {
             face,
             window,
             start: at,
-            from: at[0],
             dragged: false,
         });
     }
 
-    /// The pointer moved to `at` during a press: after each `third` of
-    /// the width of the view the cube turns by one face, with the drag.
-    pub(crate) fn drag(&mut self, at: [f64; 2], width: f64, _now: Instant) -> Dragged {
-        drag_of(&mut self.press, at, width / 3.0)
+    /// The pointer moved to `at` during a press: once it went farther
+    /// than a click, the cube follows the hand, a view `width` wide being
+    /// a quarter turn, without a threshold and without lag.
+    pub(crate) fn drag(&mut self, at: [f64; 2], width: f64, now: Instant) -> Dragged {
+        let dragged = drag_of(&mut self.press, at);
+        if let Dragged::Yaw(dx) = dragged {
+            let live = self.live.get_or_insert_with(|| Live {
+                base: self.angle,
+                width,
+                samples: Vec::new(),
+            });
+            live.samples
+                .retain(|(t, _)| now.saturating_duration_since(*t) <= SAMPLED);
+            live.samples.push((now, at[0]));
+            let reach = 2.0 * width;
+            self.angle = live.base + yaw_of(dx.clamp(-reach, reach), width);
+            self.view.act(Act::Turn(1));
+        }
+        dragged
     }
 
-    /// The cube took the turn of the drag at `x`.
-    pub(crate) fn drag_turned(&mut self, x: f64) {
-        turned_at(&mut self.press, x);
+    /// The hand lets go: the cube settles on the nearest face over 320 ms,
+    /// or goes on to the next one when the hand flicked.
+    fn settle(&mut self, now: Instant) {
+        let Some(live) = self.live.take() else {
+            return;
+        };
+        let by = settle_by(self.angle - live.base, live.velocity(now));
+        self.front = next_front(self.front, by, self.outputs.len());
+        let to = Cube::turn_of(self.front);
+        self.turn = Some(Turn::new(self.angle, to, now, SETTLE));
     }
 
     /// Forgets the press: after injected input during it, which is not
-    /// the person.
-    pub(crate) fn forget_press(&mut self) {
+    /// the person. A cube that the hand held settles.
+    pub(crate) fn forget_press(&mut self, now: Instant) {
         self.press = None;
+        self.settle(now);
     }
 
-    /// The release of a press: answers the face of a click, a press that
-    /// did not move.
-    pub(crate) fn release(&mut self, _now: Instant) -> Option<usize> {
+    /// The release of a press: the cube settles if the hand held it, and
+    /// the face of a click, a press that did not move, comes back.
+    pub(crate) fn release(&mut self, now: Instant) -> Option<usize> {
         let press = self.press.take()?;
+        self.settle(now);
         (!press.dragged).then_some(press.face)
     }
 
@@ -721,6 +780,7 @@ impl Host {
         let changed = self.view.act(act);
         if changed {
             self.press = None;
+            self.settle(now);
             let to = if act == Act::StepBack { 1.0 } else { 0.0 };
             #[allow(
                 clippy::cast_possible_truncation,
@@ -749,6 +809,29 @@ impl Host {
     /// The face at the front and the number of faces.
     pub(crate) fn front_face(&self) -> (usize, usize) {
         (self.front, self.outputs.len())
+    }
+
+    /// The face that the label names: the nearest one while the cube
+    /// turns, else the one at the front.
+    pub(crate) fn label_face(&self) -> usize {
+        nearest_face(self.angle, self.outputs.len())
+    }
+
+    /// Whether the cube turns, by a key or by the hand.
+    pub(crate) fn turning(&self) -> bool {
+        self.turn.is_some() || self.live.is_some()
+    }
+
+    /// How much of the accent each dot of the label has now.
+    pub(crate) fn dot_weights(&self) -> Vec<f64> {
+        dot_weights(self.angle, self.outputs.len())
+    }
+
+    /// Whether the hints stay hidden: while the cube steps, while a
+    /// turn of use mode runs, and while the planes of windows land.
+    pub(crate) fn hides_hints(&self) -> bool {
+        let turns_in_use = self.turn.is_some() && self.view.mode() == chora_kit::modes::Mode::Use;
+        self.step.is_some() || self.waits() || turns_in_use
     }
 
     /// The output of the face at the front.
@@ -878,6 +961,7 @@ impl Construct {
             landing: None,
             hover: None,
             press: None,
+            live: None,
             step_back_key: None,
             owing: BTreeSet::new(),
             again: None,
@@ -1148,28 +1232,21 @@ mod tests {
         face: 0,
         window: None,
         start: [600.0, 300.0],
-        from: 600.0,
         dragged: false,
     };
 
     #[test]
-    fn a_drag_turns_once_per_third_that_the_cube_took() {
+    fn a_drag_beyond_a_click_is_the_yaw_from_the_press() {
         let mut held = Some(PRESS.clone());
-        assert_eq!(drag_of(&mut held, [500.0, 300.0], 400.0), Dragged::Nothing);
-        assert_eq!(drag_of(&mut held, [190.0, 300.0], 400.0), Dragged::Turn(1));
+        assert_eq!(drag_of(&mut held, [605.0, 300.0]), Dragged::Nothing);
+        assert_eq!(drag_of(&mut held, [560.0, 300.0]), Dragged::Yaw(-40.0));
         assert_eq!(
-            drag_of(&mut held, [180.0, 300.0], 400.0),
-            Dragged::Turn(1),
-            "the cube did not take it: the drag asks again"
+            drag_of(&mut held, [602.0, 300.0]),
+            Dragged::Yaw(2.0),
+            "once it is a drag it stays one, from the press and not from the last move"
         );
-        turned_at(&mut held, 180.0);
-        assert_eq!(drag_of(&mut held, [100.0, 300.0], 400.0), Dragged::Nothing);
-        assert_eq!(drag_of(&mut held, [-230.0, 300.0], 400.0), Dragged::Turn(1));
-        let mut back = Some(PRESS.clone());
-        assert_eq!(
-            drag_of(&mut back, [1010.0, 300.0], 400.0),
-            Dragged::Turn(-1)
-        );
+        let mut none = None;
+        assert_eq!(drag_of(&mut none, [0.0, 0.0]), Dragged::Nothing);
     }
 
     #[test]
@@ -1178,9 +1255,9 @@ mod tests {
             window: Some("s1".into()),
             ..PRESS.clone()
         });
-        assert_eq!(drag_of(&mut held, [605.0, 300.0], 400.0), Dragged::Nothing);
+        assert_eq!(drag_of(&mut held, [605.0, 300.0]), Dragged::Nothing);
         assert_eq!(
-            drag_of(&mut held, [100.0, 300.0], 400.0),
+            drag_of(&mut held, [100.0, 300.0]),
             Dragged::Pull("s1".into())
         );
     }
@@ -1241,7 +1318,7 @@ mod tests {
     fn a_click_stays_within_eight_pixels_on_both_axes() {
         let dragged = |at: [f64; 2]| {
             let mut held = Some(PRESS.clone());
-            drag_of(&mut held, at, 400.0);
+            drag_of(&mut held, at);
             held.is_some_and(|p| p.dragged)
         };
         assert!(!dragged([603.0, 297.0]));
@@ -1289,6 +1366,7 @@ mod tests {
             landing: None,
             hover: None,
             press: None,
+            live: None,
             step_back_key: None,
             owing: BTreeSet::new(),
             again: None,

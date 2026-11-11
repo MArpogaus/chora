@@ -505,7 +505,10 @@ impl Construct {
             || self.asked
             || self.moving.is_some()
             || (self.glide.is_some() && !self.flying_into())
-            || self.cube_turns()
+            || self
+                .cube
+                .as_ref()
+                .is_some_and(crate::cube::Host::hides_hints)
             || self.effects.animating();
         if busy || !self.active {
             return None;
@@ -624,12 +627,11 @@ impl Construct {
             Some(crate::hints::Set::Walk) => {
                 self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
             }
-            _ => (self.cube.as_ref())
-                .map_or(0, |c| c.front_face().0 * 2 + usize::from(c.front_failed())),
+            _ => self.cube_stamp(),
         };
         let wanted = set.map(|s| (s, self.hint_hover.clone(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
-            return Ok(());
+            return self.turn_dots();
         }
         let had = self.hints.shown.take();
         let mut commands = if had.is_some() {
@@ -653,6 +655,9 @@ impl Construct {
             if set == crate::hints::Set::Cube {
                 let corner = crate::hints::origin(&self.styled(), &items, out);
                 commands.extend(self.face_label(corner)?);
+                if self.cube.as_ref().is_some_and(crate::cube::Host::turning) {
+                    commands.extend(crate::hints::dim(&items[1]));
+                }
                 commands.push(Command::Move {
                     id: crate::modes::MODES.into(),
                     parent: None,
@@ -661,6 +666,38 @@ impl Construct {
             }
         }
         self.hints.shown = wanted;
+        self.hints.weights.clear();
+        self.rt.conn.apply(commands)?;
+        self.turn_dots()
+    }
+
+    /// What the hints of the cube show of its face: the face that the
+    /// label names, whether it failed, and whether the cube turns.
+    fn cube_stamp(&self) -> usize {
+        let Some(host) = self.cube.as_ref() else {
+            return 0;
+        };
+        let face = host.label_face();
+        let failed = matches!(host.health_of(face), crate::faces::Health::Failed(_));
+        (face * 2 + usize::from(failed)) * 2 + usize::from(host.turning())
+    }
+
+    /// While the cube turns, the dots of the label fill with the turn:
+    /// the dot of the face before the angle loses what the next one gains.
+    fn turn_dots(&mut self) -> Result<(), ClientError> {
+        let shown = matches!(self.hints.shown, Some((crate::hints::Set::Cube, ..)));
+        let weights = (self.cube.as_ref())
+            .filter(|c| shown && c.turning() && c.works())
+            .map(crate::cube::Host::dot_weights);
+        let Some(weights) = weights else {
+            self.hints.weights.clear();
+            return Ok(());
+        };
+        if weights == self.hints.weights {
+            return Ok(());
+        }
+        let commands = crate::hints::dot_updates(&self.styled().glass, &weights);
+        self.hints.weights = weights;
         self.rt.conn.apply(commands)
     }
 
@@ -749,25 +786,36 @@ impl Construct {
         Ok(<[f64; 4]>::try_from(sides).ok())
     }
 
-    /// The face label under the front face of the cube stood back.
+    /// The face label under the front face of the cube stood back. It
+    /// names the face nearest to the front while the cube turns, and it
+    /// hangs where it hung at rest.
     fn face_label(&mut self, [hx, hy]: [f64; 2]) -> Result<Vec<Command>, ClientError> {
         use chora_kit::words::{Language, Word, say};
         let Some((front, faces)) = self.cube.as_ref().map(crate::cube::Host::front_face) else {
             return Ok(Vec::new());
         };
-        let Some(r) = self.face_rect(front)? else {
-            return Ok(Vec::new());
+        let turning = self.cube.as_ref().is_some_and(crate::cube::Host::turning);
+        let held = self.hints.anchor.filter(|_| turning);
+        let anchor = if let Some(anchor) = held {
+            anchor
+        } else {
+            let Some(r) = self.face_rect(front)? else {
+                return Ok(Vec::new());
+            };
+            let anchor = [r[0] + r[2] / 2.0, r[1] + r[3]];
+            self.hints.anchor = Some(anchor);
+            anchor
         };
-        let at = [r[0] + r[2] / 2.0 - hx, r[1] + r[3] - hy];
+        let at = [anchor[0] - hx, anchor[1] - hy];
         let Some(host) = self.cube.as_ref() else {
             return Ok(Vec::new());
         };
-        let language = Language::of_session();
+        let (named, language) = (host.label_face(), Language::of_session());
         let manager = host.manager_name().to_owned();
         let failed = |i: usize| matches!(host.health_of(i), crate::faces::Health::Failed(_));
         let hollow: Vec<bool> = (0..faces).map(failed).collect();
-        let (face, count) = ((front + 1).to_string(), faces.to_string());
-        let words = if hollow.get(front) == Some(&true) {
+        let (face, count) = ((named + 1).to_string(), faces.to_string());
+        let words = if hollow.get(named) == Some(&true) {
             crate::faces::label_words(language).to_owned()
         } else {
             say(language, Word::Face, &[("face", &face), ("faces", &count)])
@@ -775,8 +823,8 @@ impl Construct {
         self.fitted(|s| {
             crate::hints::face_label(
                 &s.styled(),
-                (&manager, &format!("· {words}")),
-                (front, faces),
+                (&manager, &format!("\u{b7} {words}")),
+                (named, faces),
                 at,
                 &hollow,
             )

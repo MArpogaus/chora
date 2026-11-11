@@ -432,10 +432,10 @@ impl Construct {
         Some(pressed)
     }
 
-    /// The pointer moved during a press on a face: a drag turns the
-    /// cube, and goes on from there when the cube took the turn; a drag
-    /// on the floating plane of a window pulls the window out. An
-    /// injected move ends the press: it is not the hand of the person.
+    /// The pointer moved during a press on a face: the cube follows the
+    /// hand; a drag on the floating plane of a window pulls the window
+    /// out. An injected move ends the press: it is not the hand of the
+    /// person.
     fn drag_act(
         &mut self,
         node: &str,
@@ -446,23 +446,21 @@ impl Construct {
         }
         let ignored = injected && !self.rt.accepts_injected();
         let width = self.lens.w;
+        let now = chora_kit::clock::now();
         let Some(host) = &mut self.cube else {
             return Ok(None);
         };
         if ignored {
-            host.forget_press();
+            host.forget_press(now);
             return Ok(Some(Pressed::Nothing));
         }
-        match host.drag(at, width, chora_kit::clock::now()) {
-            cube::Dragged::Turn(by) => {
-                if self.turn_cube(by, None, true)?
-                    && let Some(host) = &mut self.cube
-                {
-                    host.drag_turned(at[0]);
-                }
+        match host.drag(at, width, now) {
+            cube::Dragged::Yaw(_) => {
+                self.frame()?;
+                self.sync_float()?;
             }
             cube::Dragged::Pull(window) => {
-                host.forget_press();
+                host.forget_press(now);
                 self.pull_plane(&window, at)?;
             }
             cube::Dragged::Nothing => {}

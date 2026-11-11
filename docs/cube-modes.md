@@ -115,6 +115,7 @@ The voice agent says what happened in the same words: "I stepped back",
 | type in a terminal on a face, press `Escape` in an editor | the editor gets `Escape`; the view stays |
 | a still cube in navigate mode | the method `render.stats` counts no pass for any output between two looks |
 | a turn | no face takes a click while it runs |
+| a slow drag across a face in navigate mode | the yaw changes in every frame; a release at 30 degrees returns and at 50 degrees goes on, both within 320 ms |
 
 ## Hover, drag, voice and plain Escape
 
@@ -124,9 +125,23 @@ The four acts that complete the flows above. Each has a second path
 | Act | The person does | The person sees | Rules |
 |-----|-----------------|-----------------|-------|
 | find the face to step into | in navigate mode, moves the pointer over a face or over a window that floats in front of it | the edge of that face lit in the accent colour, 2 px; it goes out when the pointer leaves | not during a turn and not in use mode; the keyboard needs no edge, as `Return` always steps into the front face |
-| turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube turns by one face in the direction of the drag when the pointer moved a third of the width of the view, and again for each further third from where the cube took the turn; during a turn one more turn is queued, as with the keys | a press that moves less than 8 px in any direction is a click and steps in on the release, and a shorter drag does nothing; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected press, move or release does nothing outside a test session, and an injected move during a press of the person ends that press |
+| turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube follows the hand: a drag over the width of the view is a quarter turn, from the press, without a threshold and without lag; at the release it settles on the nearest face over 320 ms, eased out, or on the next face when the drag went past 45 degrees or the hand flicked faster than 1.5 widths of the view a second | a press that moves less than 8 px in any direction is a click and steps in on the release; a press while the cube turns does nothing; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected press, move or release does nothing outside a test session, and an injected move during a press of the person ends that press, which settles the cube |
 | speak | says "step back", "step in", "turn left" or "turn right", or the German words of the table of words | the same states as with the chips; the agent answers "I stepped back", "I stepped in", "I turned the cube to the left" | the agent calls `view.step_back`, `view.step_in` and `cube.turn` as its other plugin tools; the keyboard stays where it is |
 | step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and steps in again in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
+
+## Turning
+
+A turn by `Ctrl+Alt+Left`, `Ctrl+Alt+Right` or a chip takes 360 ms,
+eased out; a second press during a turn queues one more turn, and a
+third does nothing. A turn by hand shows every pixel of the drag: no
+turn waits for the release. A drag that starts on a floating window
+moves that window and does not turn the cube.
+
+While the cube turns in navigate mode the hints stay. The face label
+names the face nearest to the front, so it changes at 45 degrees; the
+dot of the face before the angle loses the accent that the dot of the
+next face gains; and the hint `Step in` dims to an opacity of 0.45. In
+use mode the hints stay hidden while the cube turns.
 
 ## Starting and failed faces
 

@@ -66,6 +66,10 @@ pub struct State {
     /// The hints are drawn anew at the next look, also when their set
     /// stays: the chips of the cube moved under them.
     pub stale: bool,
+    /// Where the face label hangs, the middle of the bottom edge of the
+    /// face ahead at rest, and the shares of its dots last sent.
+    pub anchor: Option<[f64; 2]>,
+    pub weights: Vec<f64>,
 }
 
 /// The hints of the walk, in the order they show.
@@ -113,21 +117,52 @@ pub fn middle_word(language: chora_kit::words::Language, failed: bool) -> String
 /// The updates that fill the dots of the face label with the turn:
 /// `weights` says how much each dot has of the accent.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn dot_updates(_m: &Material, _weights: &[f64]) -> Vec<Command> {
-    Vec::new()
-}
-
-/// The updates that dim a hint to `DIM` while the cube turns.
-#[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub fn dim(_item: &Item) -> Vec<Command> {
-    Vec::new()
+pub fn dot_updates(m: &Material, weights: &[f64]) -> Vec<Command> {
+    let [r, g, b, _] = m.muted;
+    let base = [r, g, b, 0.35];
+    (weights.iter().enumerate())
+        .map(|(k, w)| {
+            let color = [0, 1, 2, 3].map(|i| base[i] + (m.accent[i] - base[i]) * w);
+            Command::Update {
+                id: format!("{FACE_LABEL}-dot-{k}"),
+                props: PropsUpdate {
+                    color: Some(color),
+                    ..PropsUpdate::default()
+                },
+            }
+        })
+        .collect()
 }
 
 /// How dim the hint `Step in` is while the cube turns.
-#[allow(dead_code, reason = "a stub until the next commit")]
-pub const DIM: f64 = 1.0;
+pub const DIM: f64 = 0.45;
+
+/// The updates that dim a hint to `DIM` while the cube turns: its keycaps
+/// and its word.
+#[must_use]
+pub fn dim(item: &Item) -> Vec<Command> {
+    let id = format!("{HINTS}-{}", item.hit.trim_start_matches(HINT));
+    let word = if item.chip {
+        format!("{}-text", item.hit)
+    } else {
+        format!("{id}-word")
+    };
+    let mut nodes = vec![word];
+    for k in 0..item.keys.len() {
+        let cap = format!("{id}-keys-{k}");
+        nodes.extend([format!("{cap}-low"), format!("{cap}-text"), cap]);
+    }
+    nodes
+        .into_iter()
+        .map(|id| Command::Update {
+            id,
+            props: PropsUpdate {
+                opacity: Some(DIM),
+                ..PropsUpdate::default()
+            },
+        })
+        .collect()
+}
 
 /// One hint: the caps of its key, its word, the keys after the word, the
 /// node that takes its click, and that node is a chip that exists.
@@ -281,6 +316,7 @@ pub fn chip_word(look: &Look, item: &Item, [x, y]: [f64; 2]) -> Command {
         props: PropsUpdate {
             transform: Some(Transform::translate(left, y + (ITEM - 20.0) / 2.0, 0.0)),
             visible: Some(true),
+            opacity: Some(1.0),
             input: Some(InputMode::Pass),
             ..look.text_props(face(Type::Small, 400), &item.word, rgb(look.glass.text))
         },
