@@ -96,8 +96,8 @@ bindings:
   MOD+Shift+l: {inc_masters: -1}
   MOD+Ctrl+h: {inc_columns: 1}
   MOD+Ctrl+l: {inc_columns: -1}
-  MOD+space: next_layout
-  MOD+Shift+space: previous_layout
+  MOD+Shift+space: next_layout
+  MOD+Ctrl+Shift+space: previous_layout
   # Outputs
   MOD+Ctrl+j: focus_next_output
   MOD+Ctrl+k: focus_previous_output
@@ -145,6 +145,7 @@ bindings:
   MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
   # Programs
   MOD+Return: {run: foot}
+  MOD+space: {run: fuzzel}
   MOD+r: {run: fuzzel}
   MOD+a: {run: chora-chat}
   # swayidle of the tiling flavor runs swaylock on this request
@@ -155,3 +156,14 @@ bindings:
   XF86AudioMute: {volume: mute}
   # The plugin
   MOD+Ctrl+r: reload
+  MOD+slash: show_keys
+
+# The words of a binding in the key list (MOD+slash): the binding as it is
+# spelled above, and its words. Without an entry a binding gets the words
+# of its action, and run its command.
+labels:
+  MOD+Return: Terminal
+  MOD+space: Run a program
+  MOD+a: Chat with a helper
+  MOD+r: Run a program
+  MOD+Shift+Escape: Lock the screen

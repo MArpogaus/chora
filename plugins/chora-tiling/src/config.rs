@@ -106,6 +106,8 @@ pub enum Action {
     /// Changes the volume of the default sound output and shows it for
     /// a moment: `up`, `down`, `mute` or `{set: PERCENT}`.
     Volume(chora_kit::volume::Change),
+    /// Shows the list of all keys, or hides it.
+    ShowKeys,
     /// Does nothing and keeps the key from the program: the action of
     /// every `MOD` chord that no binding uses. It is not a setting.
     #[serde(skip)]
@@ -350,6 +352,11 @@ pub struct Config {
     pub effects: Vec<chora_kit::effects::Kind>,
     /// Binding with `MOD`, and its action.
     pub bindings: BTreeMap<String, Action>,
+    /// The words of a binding in the key list, by the binding as the file
+    /// spells it; a binding without one gets the words of its action, and
+    /// `run` its command.
+    #[serde(default)]
+    pub labels: BTreeMap<String, String>,
 }
 
 impl Settings for Config {
@@ -461,7 +468,10 @@ mod tests {
 
     #[test]
     fn a_key_twice_and_a_step_without_a_number_fail() {
-        let twice = format!("{DEFAULT}\n  Super+j: close\n");
+        let twice = DEFAULT.replace(
+            "  MOD+Ctrl+r: reload\n",
+            "  MOD+Ctrl+r: reload\n  Super+j: close\n",
+        );
         assert!(
             parse::<Config>(&twice)
                 .unwrap_err()

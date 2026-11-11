@@ -10,6 +10,7 @@
 )]
 
 mod config;
+mod keys;
 mod layout;
 mod wm;
 
@@ -144,6 +145,10 @@ struct Tiling {
     /// The path of the shader of the borders; none without a runtime
     /// directory, and the windows then have no border.
     border: Option<String>,
+    /// Whether the key list shows, and holds the keyboard.
+    keys_open: bool,
+    /// When the layout chip leaves.
+    chip_until: Option<std::time::Instant>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -191,10 +196,15 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         groups: HashSet::new(),
         stale: Vec::new(),
         border: border_shader(),
+        keys_open: false,
+        chip_until: None,
     };
     tiling.start()?;
     Ok(serve(&mut tiling)?)
 }
+
+/// How long the layout chip shows.
+const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
 
 /// The time between two frames of the effects, 60 Hz.
 const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
@@ -203,9 +213,13 @@ const FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
 fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
     let mut next = std::time::Instant::now();
     loop {
-        let event = if tiling.effects.animating() {
-            let wait = next.saturating_duration_since(std::time::Instant::now());
-            tiling.rt.conn.next_event_timeout(wait)?
+        let now = std::time::Instant::now();
+        let wake = tiling.wake(next);
+        let event = if let Some(at) = wake {
+            tiling
+                .rt
+                .conn
+                .next_event_timeout(at.saturating_duration_since(now))?
         } else {
             Some(tiling.rt.conn.next_event()?)
         };
@@ -217,11 +231,12 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
             tiling.frame(now)?;
             next = now + FRAME;
         }
+        tiling.end_chip(now)?;
     }
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 12] = [
+const EVENTS: [&str; 13] = [
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -234,6 +249,7 @@ const EVENTS: [&str; 12] = [
     "pointer.pressed",
     "focus.changed",
     "input.button",
+    "node.key",
 ];
 
 impl Plugin for Tiling {
@@ -414,6 +430,10 @@ impl Tiling {
         self.effects.set(&self.settings.value.effects);
         self.sent.clear();
         self.grab_all()?;
+        if self.keys_open {
+            self.hide_keys()?;
+            self.toggle_keys()?;
+        }
         self.relayout()
     }
 
@@ -421,8 +441,15 @@ impl Tiling {
         self.rt.conn.call("scene.query", Query::new(selector))
     }
 
-    #[allow(clippy::too_many_lines, reason = "one arm per event")]
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+        match self.overlay_event(&event) {
+            Some(done) => done,
+            None => self.handle_scene(event),
+        }
+    }
+
+    #[allow(clippy::too_many_lines, reason = "one arm per event")]
+    fn handle_scene(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
             // The start adopts surfaces that the events then announce.
             Event::SurfaceCreated { surface, .. } if self.wm.has(&surface) => return Ok(()),
@@ -564,8 +591,14 @@ impl Tiling {
             if focuses || self.wm.focused() != before.as_deref() {
                 self.focus.take();
             }
-            self.relayout()
-                .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+            let shown = self.relayout().and_then(|()| {
+                if method == "next_layout" {
+                    self.show_chip()
+                } else {
+                    Ok(())
+                }
+            });
+            shown.map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         }
         let (layout, params) = self
             .wm
@@ -588,6 +621,11 @@ impl Tiling {
     /// True when the method focuses a window on its own.
     fn tune(&mut self, method: &str, params: Value) -> Result<bool, RpcError> {
         Ok(match method {
+            "show_keys" => {
+                self.toggle_keys()
+                    .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+                false
+            }
             "set_layout" | "next_layout" => {
                 self.change_layout(method, params)?;
                 false
@@ -637,6 +675,111 @@ impl Tiling {
                 ));
             }
         })
+    }
+
+    /// The events of the key list: `Esc` and a click outside hide it, and
+    /// the keys that it takes go nowhere else. `None` for any other event.
+    fn overlay_event(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
+        match event {
+            Event::NodeKey { key, state, .. } => {
+                let escape = self.keys_open && key == "Escape" && *state == PressState::Pressed;
+                Some(if escape { self.hide_keys() } else { Ok(()) })
+            }
+            Event::PointerPressed { node, .. }
+                if self.keys_open && node.starts_with(keys::KEYS) =>
+            {
+                Some(if node.ends_with("scrim") {
+                    self.hide_keys()
+                } else {
+                    Ok(())
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// When the loop must wake without an event: the next frame of an
+    /// effect, or the end of the layout chip.
+    fn wake(&self, frame: std::time::Instant) -> Option<std::time::Instant> {
+        let frame = self.effects.animating().then_some(frame);
+        match (frame, self.chip_until) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
+    }
+
+    /// Shows the chip that names the layout of the current tag for 700 ms.
+    fn show_chip(&mut self) -> Result<(), ClientError> {
+        let (Some((output, size)), Some((layout, _))) =
+            (self.wm.current_output(), self.wm.current())
+        else {
+            return Ok(());
+        };
+        let lang = chora_kit::words::Language::of_session();
+        let mut commands = Vec::new();
+        if self.chip_until.is_some() {
+            commands.push(Command::Remove {
+                id: keys::CHIP.into(),
+                to: None,
+            });
+        }
+        commands.extend(keys::chip(
+            &format!("screen:{output}"),
+            size,
+            keys::layout_word(layout, lang),
+            &self.wm.config.look.palette,
+        ));
+        self.chip_until = Some(std::time::Instant::now() + CHIP_TIME);
+        self.apply_report(commands).map(|_| ())
+    }
+
+    /// Takes the chip away when its time is up.
+    fn end_chip(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
+        if self.chip_until.is_some_and(|at| now >= at) {
+            self.chip_until = None;
+            self.apply(vec![Command::Remove {
+                id: keys::CHIP.into(),
+                to: None,
+            }])?;
+        }
+        Ok(())
+    }
+
+    /// Shows the key list when it is hidden, and hides it when it shows.
+    fn toggle_keys(&mut self) -> Result<(), ClientError> {
+        if self.keys_open {
+            return self.hide_keys();
+        }
+        let Some((output, size)) = self.wm.current_output() else {
+            return Ok(());
+        };
+        let lang = chora_kit::words::Language::of_session();
+        let rows = keys::rows(&self.wm.config, lang);
+        let mut commands = keys::key_list(
+            &format!("screen:{output}"),
+            size,
+            &rows,
+            &self.wm.config.look.palette,
+            lang,
+        );
+        commands.push(Command::FocusNode {
+            node: Some(keys::KEYS.into()),
+        });
+        self.apply(commands)?;
+        self.keys_open = true;
+        Ok(())
+    }
+
+    /// Hides the key list and gives the keyboard back.
+    fn hide_keys(&mut self) -> Result<(), ClientError> {
+        self.keys_open = false;
+        self.apply(vec![
+            Command::FocusNode { node: None },
+            Command::Remove {
+                id: keys::KEYS.into(),
+                to: None,
+            },
+        ])
     }
 
     /// `set_layout` and `next_layout`.
@@ -905,13 +1048,21 @@ impl Tiling {
             self.give_focused(to);
             return Ok(());
         }
+        if action == Action::ShowKeys {
+            return self.toggle_keys();
+        }
         let before = self.wm.focused().map(String::from);
         let effect = self.wm.act(&action);
         // A binding that moves the focus of tiling takes it back.
         if self.wm.focused() != before.as_deref() {
             self.focus.take();
         }
+        let layout_key = matches!(action, Action::NextLayout | Action::PreviousLayout);
         match effect {
+            Some(Effect::Relayout) if layout_key => {
+                self.relayout()?;
+                self.show_chip()
+            }
             Some(Effect::Relayout) => self.relayout(),
             Some(Effect::Run(command)) => {
                 chora_kit::run(&command, self.rt.conn.activation_token().as_deref());
@@ -1506,10 +1657,14 @@ fn layout_schema() -> Value {
 /// The methods that other clients call, with description and schema of
 /// their parameters, as `methods.list` answers them.
 fn exported_methods() -> Vec<ExportMethod> {
+    let mut methods = layout_methods();
+    methods.extend(window_methods());
+    methods
+}
+
+/// The methods about layouts, tags and the key list.
+fn layout_methods() -> Vec<ExportMethod> {
     let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
-    let window = || field("string", "The surface id of the window.");
-    let tag = || field("integer", "The tag number, from 1.");
-    let on_surface = json!({"surface": window()});
     vec![
         runtime::method(
             "set_layout",
@@ -1518,6 +1673,12 @@ fn exported_methods() -> Vec<ExportMethod> {
                 "layout": layout_schema(),
                 "gap": field("integer", "The gap in logical pixels."),
             }),
+            &[],
+        ),
+        runtime::method(
+            "show_keys",
+            "Shows the list of all keys, or hides it, as the binding does.",
+            json!({}),
             &[],
         ),
         runtime::method(
@@ -1539,6 +1700,16 @@ fn exported_methods() -> Vec<ExportMethod> {
             &[],
         ),
         give::method(),
+    ]
+}
+
+/// The methods about tags and windows.
+fn window_methods() -> Vec<ExportMethod> {
+    let field = |ty: &str, description: &str| json!({"type": ty, "description": description});
+    let window = || field("string", "The surface id of the window.");
+    let tag = || field("integer", "The tag number, from 1.");
+    let on_surface = json!({"surface": window()});
+    vec![
         runtime::method(
             "view_tag",
             "Shows a tag on the current output.",
@@ -1720,6 +1891,8 @@ mod tests {
             groups: HashSet::new(),
             stale: Vec::new(),
             border: None,
+            keys_open: false,
+            chip_until: None,
         };
         (tiling, methods)
     }

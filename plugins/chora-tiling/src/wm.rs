@@ -418,7 +418,7 @@ impl Wm {
             Action::Reload => return Some(Effect::Reload),
             Action::Volume(change) => return Some(Effect::Volume(*change)),
             // The plugin handles the button events of a drag itself.
-            Action::Drag | Action::Give(_) | Action::Swallow => return None,
+            Action::Drag | Action::Give(_) | Action::Swallow | Action::ShowKeys => return None,
             Action::FocusNext => self.focus_next(),
             Action::FocusPrevious => self.focus_prev(),
             Action::FocusBack => self.focus_back(),
@@ -515,6 +515,15 @@ impl Wm {
     /// The layout and the parameters of the current tag.
     pub fn current(&self) -> Option<(Layout, Params)> {
         self.current_tag().map(|t| (t.layout, t.params))
+    }
+
+    /// The name and the size of the current output.
+    pub fn current_output(&self) -> Option<(String, [f64; 2])> {
+        let output = self.outputs.get(self.current)?;
+        Some((
+            output.name.clone(),
+            [f64::from(output.full[2]), f64::from(output.full[3])],
+        ))
     }
 
     /// The windows that show on the current output, in their order.

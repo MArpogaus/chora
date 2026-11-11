@@ -94,6 +94,7 @@
     "exec": "echo Keys",
     "interval": "once",
     "format": "⌨ {}",
+    "on-click": "choractl call tiling show_keys",
     "tooltip-format": "Every key (Super+/)"
   },
   "custom/power": {

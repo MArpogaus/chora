@@ -255,6 +255,25 @@ hand-over fails, the window stays and goes back to the middle of its
 output.
 Mouse resizes of floating windows do not exist.
 
+The key list shows on `MOD+slash` and on the button **Keys** of the
+panel: a glass panel of 880 px, at least 560 px high, centred on the
+current output, with the heading "Keys", the line "Super+/ shows this list
+again. Esc closes it." and the rows of every binding of the file in the
+groups Windows, Layouts, Tags, Programs and System: the keys on a keycap,
+then the words of the action ("Next window"; `run` shows its command).
+The option `labels` names a binding in its own words, by the binding as the
+file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
+one row, a binding with the words of another joins its row, and media keys
+are left out. The list is built each time it opens and again when the
+settings reload, so a binding that the file gains shows at once. It takes
+the keyboard with `focus_node` while it shows: `Esc`, `MOD+slash` or a
+click outside closes it, and the window that had the keys gets them back.
+
+`MOD+Shift+space` goes to the next layout, `MOD+Ctrl+Shift+space` to the
+previous one, and each shows the layout chip, a glass chip low on the
+output that names the new layout ("Fair") for 700 ms. `MOD+space` is the
+launcher.
+
 Each window sits in a group of its own, `tw-ID` in the scene. The group
 carries the position and holds the border, `tb-ID`, a shader node that
 `chora-tiling` writes to `$XDG_RUNTIME_DIR/chora-tiling/border.frag`, and
@@ -283,7 +302,8 @@ the gap of the file again.
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
-| `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag |
+| `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag, and shows the layout chip |
+| `show_keys` | none | `MOD+slash`: shows the key list, or hides it |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
@@ -1362,7 +1382,7 @@ its own package and needs no configuration.
   tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
   the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
   the word, in German with a German locale. Right island: **Keys** and the
-  power icon, which locks the session (`loginctl lock-session`). Change
+  power icon, which locks the session (`loginctl lock-session`). **Keys** shows the key list (`show_keys`). Change
   the commands in `on-click` of `config.jsonc`.
   The volume module runs `waybar/volume.sh` each second, which asks
   `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
@@ -1375,8 +1395,8 @@ its own package and needs no configuration.
   beside tiling. It reads the outputs again every 2 seconds and starts
   waybar again when the left-out ones changed. Without jq it ends with
   an error.
-- **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
-  `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
+- **The launcher**: `MOD+space` starts fuzzel in every look, and `MOD+r`
+  does too, as the default bindings of `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
