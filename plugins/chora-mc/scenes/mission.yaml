@@ -3,8 +3,8 @@
 # collectors/system.py fills the panels every few seconds.
 chapter: {title: Mission Control}
 panels:
-- {id: load, cell: [0, 0, 1, 2], title: Load, style: {base: data}}
-- {id: top, cell: [1, 0, 1, 2], title: Busy, rule: faint, style: {base: data}}
+- {id: load, cell: [0, 0, 1, 2], title: Load, style: {base: data}, empty: No data yet.}
+- {id: top, cell: [1, 0, 1, 2], title: Busy, rule: faint, style: {base: data}, empty: No data yet.}
 - id: errors
   cell: [2, 0, 2, 2]
   title: Journal, errors today

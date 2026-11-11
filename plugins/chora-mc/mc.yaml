@@ -59,12 +59,14 @@ scale:
 # /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre to
 # CHORA_FONT_DIRS of chora. On Arch Linux, tex-gyre-fonts needs neither.
 # Inter is in the package rsms-inter-fonts, on Arch Linux inter-font.
-# Without a family, a system font shows.
+# A family can be a list, "TeX Gyre Pagella, DejaVu Serif": the first name
+# that the machine has is used, so that a page without Pagella is still set
+# in a serif. Without a family, a system font shows.
 # docs/mc-style.md has the rules that these styles follow.
 styles:
   # Text to read: Pagella with old-style figures.
   body:
-    family: TeX Gyre Pagella
+    family: TeX Gyre Pagella, DejaVu Serif
     line_height: 1.5
     features: {onum: 1}
   # The title of a panel: spaced small caps, one step up, muted.
@@ -94,21 +96,20 @@ styles:
   data:
     family: Inter
     line_height: 1.5
-  # Labels of the regions: spaced capitals of Inter, as tall as the
-  # lowercase of margin.
+  # Labels of the regions and the head and the clock of the page: spaced
+  # capitals of Inter at the size of margin, so that nothing is under 14
+  # pixels.
   running_head:
     family: Inter
     weight: 500
-    em: 0.6112
+    em: 0.75
     color: muted
     letter_spacing: 0.2
     uppercase: true
     features: {tnum: 1}
-  # The labels of the margin column: the running head at the size of
-  # margin, so that nothing in the column is under 14 pixels.
+  # The labels of the margin column: the running head.
   label:
     base: running_head
-    em: 0.75
   # The lead of a scene: one step over the heading, at most one a page.
   lead:
     base: body

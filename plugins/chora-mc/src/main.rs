@@ -14,6 +14,7 @@
 
 mod agent;
 mod config;
+mod fonts;
 mod keys;
 mod manage;
 mod region;
@@ -2037,16 +2038,39 @@ impl Mc {
             }
         } else if !panel.lines.is_empty() {
             if name == manage::OVERVIEW {
-                for i in 0..panel.lines.len() {
-                    #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
-                    let y = top + i as f64 * body.line;
-                    commands.extend(self.row_hit(name, &id, i, [indent, y, w, body.line]));
-                }
+                commands.extend(self.overview_hits(name, &id, panel, [indent, top, w, body.line]));
             }
             let props = text(&body, &panel.text(), indent, top, true);
             commands.push(add("lines", props));
+        } else if !panel.empty.is_empty() {
+            let props = text(&self.quiet(&body), &panel.empty, indent, top, true);
+            commands.push(add("empty", props));
         }
         commands
+    }
+
+    /// The hit of each line of the overview.
+    fn overview_hits(
+        &self,
+        name: &str,
+        id: &str,
+        panel: &Panel,
+        [x, top, w, line]: [f64; 4],
+    ) -> Vec<Command> {
+        let rows = (0..panel.lines.len()).map(|i| {
+            #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
+            let y = top + i as f64 * line;
+            self.row_hit(name, id, i, [x, y, w, line])
+        });
+        rows.flatten().collect()
+    }
+
+    /// A type in `muted`: the words of an empty panel stay quiet.
+    fn quiet(&self, ty: &Type) -> Type {
+        let muted = self.settings.value.colors().get("muted").copied();
+        let mut quiet = ty.clone();
+        quiet.color = muted.unwrap_or(ty.color);
+        quiet
     }
 
     /// Whether the rows of a scene take the pointer: not those of a scene
@@ -2961,6 +2985,128 @@ mod tests {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    /// A page without data says what it is and why it is empty, in
+    /// `muted`; with a line the words go.
+    #[test]
+    fn an_empty_panel_says_why_in_muted() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("empty-panel", [1280, 800]);
+        mc.settings.value.write.enabled = false;
+        mc.show("agenda", false).unwrap();
+        let id = "mc-s-agenda-panels-today-empty";
+        assert_eq!(
+            crate::testing::text(&model, id).as_deref(),
+            Some("Nothing planned today.")
+        );
+        let muted = mc.settings.value.colors()["muted"];
+        let color = model.lock().unwrap().scene.node(id).unwrap().props.color;
+        assert_eq!(color, Some(muted));
+        let lines = json!({"scene": "agenda", "panel": "today", "lines": ["09:00\tStand-up"]});
+        mc.method("panel.set", lines).unwrap();
+        assert!(!crate::testing::has(&model, id), "a line takes its place");
+    }
+
+    /// With no entry left today the footer points to the next page, and a
+    /// click on it turns the page; an entry takes its place.
+    #[test]
+    fn the_footer_points_to_the_next_page_when_no_entry_is_next() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("next-page", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let next = |mc: &super::Mc| {
+            let plan = mc.items("agenda");
+            let (items, _) = &plan[&crate::region::Region::Footer];
+            items
+                .iter()
+                .find(|i| i.id.ends_with("-next"))
+                .map(|i| (i.props.text.clone().unwrap(), i.hit.clone()))
+        };
+        let (text, hit) = next(&mc).expect("a line in the footer");
+        assert_eq!(text, "→ 2  The Morning");
+        assert_eq!(hit.as_deref(), Some("key:Super+Right"));
+        mc.method(
+            "content.set",
+            json!({"content": "next", "lines": ["11:30  Coffee"]}),
+        )
+        .unwrap();
+        assert_eq!(next(&mc).unwrap().0, "11:30  Coffee");
+    }
+
+    fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {
+        let name = mc.current.clone().unwrap();
+        let mut plan = mc.items(&name);
+        plan.remove(&crate::region::Region::Right)
+            .map(|(items, _)| items)
+            .unwrap_or_default()
+    }
+
+    /// A note is one line: its time in the margin style, its words in the
+    /// reading face at a hanging indent. No blank line between two notes.
+    #[test]
+    fn a_notification_is_one_line_with_its_time_in_the_margin_style() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("notes", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        for title in ["One", "Two", "Three", "Four"] {
+            mc.method("notify.push", json!({"title": title})).unwrap();
+        }
+        let items = right_items(&mc);
+        let words: Vec<_> = (items.iter())
+            .filter(|i| i.id.contains("-notify-") && !i.id.ends_with("-title"))
+            .collect();
+        assert_eq!(words.len(), 6, "three notes of a time and words each");
+        assert_eq!(words[0].props.family.as_deref(), Some("Inter"));
+        assert_eq!(words[0].props.text.as_deref().map(str::len), Some(5));
+        assert_eq!(words[1].props.text.as_deref(), Some("Four"));
+        assert_eq!(words[1].put, crate::region::Put::Row);
+        assert!(words[1].x > 40.0, "a hanging indent: {}", words[1].x);
+        assert!(words[2].put == crate::region::Put::Stack, "the next note");
+        let tall = |i: &&crate::region::Item| i.props.font_size.unwrap_or(0.0) < 15.0;
+        assert!(words.iter().step_by(2).all(tall), "times at 14.25");
+    }
+
+    /// The empty words stay quiet and the folded head counts nothing.
+    #[test]
+    fn nothing_new_is_muted_and_the_folded_head_counts_zero() {
+        let (mut mc, _) = crate::testing::mc("quiet", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let muted = mc.settings.value.colors()["muted"];
+        let items = right_items(&mc);
+        let empty = items.iter().find(|i| i.id.ends_with("-notify")).unwrap();
+        assert_eq!(empty.props.text.as_deref(), Some("Nothing new."));
+        assert_eq!(empty.props.color, Some(muted));
+        mc.chat = crate::Chat::Open;
+        let items = right_items(&mc);
+        let head = items
+            .iter()
+            .find(|i| i.id.ends_with("-notify-title"))
+            .unwrap();
+        assert_eq!(head.props.text.as_deref(), Some("NOTIFICATIONS  0"));
+    }
+
+    /// With the voice HUD to the host the first line of the column stays
+    /// free for its state word, and the helpers are mc's own rows.
+    #[test]
+    fn the_column_keeps_the_state_line_free_and_draws_the_helpers() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("state-line", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let items = right_items(&mc);
+        assert!(items[0].id.ends_with("-state"), "{}", items[0].id);
+        mc.follow(
+            "voice.state",
+            "voice",
+            json!({"name": "Atlas", "state": "working", "task": "Tidy notes"}),
+        )
+        .unwrap();
+        let items = right_items(&mc);
+        let name = items.iter().find(|i| i.id.ends_with("-0-name")).unwrap();
+        assert_eq!(name.props.text.as_deref(), Some("Atlas"));
     }
 
     /// A new state of an agent changes the text of its column in place:

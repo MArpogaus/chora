@@ -85,6 +85,10 @@ pub struct Panel {
     pub title: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lines: Vec<String>,
+    /// The words that show in `muted` while the panel has no lines: what
+    /// the panel is for, and why it is empty.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub empty: String,
     /// The style of the lines, `body` without a base.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<Style>,
@@ -198,7 +202,10 @@ impl Panel {
 
     /// A text node of the core takes at most 4 KiB.
     pub fn check_text(&self) -> Result<(), String> {
-        if self.title.len() > MAX_TEXT || self.text().len() > MAX_TEXT {
+        if self.title.len() > MAX_TEXT
+            || self.text().len() > MAX_TEXT
+            || self.empty.len() > MAX_TEXT
+        {
             return Err(format!("panel {}: more than 4 KiB of text", self.id));
         }
         Ok(())

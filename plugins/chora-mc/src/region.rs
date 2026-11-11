@@ -338,6 +338,9 @@ fn next_minute_after(now: u128) -> f64 {
     (ms + 50.0).min(chora_scene::MAX_DURATION)
 }
 
+/// The content that names the next entry of the day in the footer.
+const NEXT: &str = "next";
+
 /// One text node of a region.
 pub struct Item {
     pub id: String,
@@ -349,6 +352,9 @@ pub struct Item {
     /// The place across a side, from its left edge.
     pub x: f64,
     pub put: Put,
+    /// How far it stands below the place of its line, so that the
+    /// baseline of a note meets the baseline of the text beside it.
+    pub dy: f64,
     /// What a click on it does: a binding as `key:Super+n`, a helper as
     /// `agent:NAME`; it also shows the focus mark under the pointer.
     pub hit: Option<String>,
@@ -395,6 +401,7 @@ impl Item {
             first,
             x: 0.0,
             put: Put::Stack,
+            dy: 0.0,
             hit: None,
         }
     }
@@ -585,6 +592,13 @@ impl Mc {
             })
     }
 
+    /// The binding of an action, as the key list names it.
+    fn key_of(&self, action: &crate::config::Action) -> Option<String> {
+        (self.settings.value.bindings.iter())
+            .find(|(_, a)| *a == action)
+            .map(|(key, _)| format!("key:{key}"))
+    }
+
     /// The items of the regions of a scene, and the docked app of each.
     pub fn items(&self, name: &str) -> Plan {
         let contents = &self.settings.value.contents;
@@ -614,38 +628,63 @@ impl Mc {
     /// title and its lines.
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
-        if content.kind == Kind::App {
-            return Vec::new();
+        let side = !region.is_line();
+        match content.kind {
+            Kind::Agents => self.agent_items(region, slot, name, content),
+            Kind::Chat if side => self.chat_items(slot, name, content, region),
+            Kind::Keys if side => self.key_items(slot, name, content, region),
+            Kind::App | Kind::Chat | Kind::Keys => Vec::new(),
+            _ => self.text_items(region, slot, (name, scene)),
         }
-        if content.kind == Kind::Agents {
-            return self.agent_items(region, slot, name, content);
+    }
+
+    /// The text of a content that has none of its own: a free line for the
+    /// state word of the host, the line to the next page in the footer.
+    fn filled(
+        &self,
+        region: Region,
+        (name, scene): (&str, &str),
+        text: &str,
+    ) -> (String, Option<String>) {
+        let content = &self.settings.value.contents[name];
+        let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
+        if !text.is_empty() {
+            return (text.to_owned(), None);
         }
-        if content.kind == Kind::Chat {
-            return if region.is_line() {
-                Vec::new()
-            } else {
-                self.chat_items(slot, name, content, region)
-            };
+        if content.kind == Kind::State && !region.is_line() && host {
+            return (" ".to_owned(), None);
         }
-        if content.kind == Kind::Keys {
-            return if region.is_line() {
-                Vec::new()
-            } else {
-                self.key_items(slot, name, content, region)
-            };
+        if name == NEXT && region.is_line() {
+            let line = self.next_page_line(scene).unwrap_or_default();
+            return (line, self.key_of(&crate::config::Action::NextScene));
         }
-        let (title, mut text) = self.content_text(name, content, scene);
+        (String::new(), None)
+    }
+
+    fn text_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
+        let content = &self.settings.value.contents[name];
+        let (title, text) = self.content_text(name, content, scene);
+        let (mut text, hit) = self.filled(region, (name, scene), &text);
+        let id = format!("{}-{name}", self.region_id(region));
         if content.folds && self.chat == crate::Chat::Open && !region.is_line() {
-            let id = format!("{}-{name}", self.region_id(region));
             return self.folded_items(slot, &id, content, (&title, &text));
         }
-        if content.empty && text.is_empty() && !region.is_line() {
+        let quiet = content.empty && text.is_empty() && !region.is_line();
+        if quiet {
             text = crate::keys::nothing_new(chora_kit::words::Language::of_session()).into();
         }
-        let id = format!("{}-{name}", self.region_id(region));
+        if content.folds && !region.is_line() && !quiet && !text.is_empty() {
+            return self.note_items(slot, &id, content, (&title, &text));
+        }
         let item = |id: String, is_title: bool, text: &str, first: bool| {
-            let props = self.content_type(content, is_title).props(text);
-            Item::text(id, slot, props, first)
+            let mut props = self.content_type(content, is_title).props(text);
+            if quiet && !is_title {
+                props.color = self.settings.value.colors().get("muted").copied();
+            }
+            Item {
+                hit: hit.clone(),
+                ..Item::text(id, slot, props, first)
+            }
         };
         if region.is_line() {
             let text = text.replace('\n', "  ·  ");
@@ -654,8 +693,6 @@ impl Mc {
                 .into_iter()
                 .collect();
         }
-        // A text with a title shows it in a side that the user opened, so
-        // that the toggle shows where notes go.
         let opened = self.toggled.get(&region) == Some(&true);
         let mut items = Vec::new();
         if !title.is_empty() && (opened || !text.is_empty()) {
@@ -1178,7 +1215,7 @@ impl Mc {
         {
             let idx = item;
             let item = &items[idx];
-            commands.push(move_to(item.id.clone(), lefts[idx], y));
+            commands.push(move_to(item.id.clone(), lefts[idx], y + item.dy));
             if item.hit.is_some() {
                 commands.extend(hit_place(&item.id, [0.0, y, width, heights[idx]], item.x));
             }
@@ -1206,8 +1243,10 @@ impl Mc {
         let mut items = vec![Item::text(format!("{id}-title"), slot, head, true)];
         let margin = self.ty("margin", None);
         let open = self.chat == crate::Chat::Open;
+        let shift = crate::baseline_shift(&self.content_type(content, false), &margin);
         let end = |part: &str, text: &str, hit: Option<&str>| Item {
             put: Put::End,
+            dy: if open { 0.0 } else { shift },
             hit: hit.map(str::to_owned),
             ..Item::text(format!("{id}-{part}"), slot, margin.props(text), false)
         };
@@ -1237,6 +1276,45 @@ impl Mc {
         items
     }
 
+    /// The notes of a list that folds: each on one line, the time in the
+    /// margin style and the words in the reading face beside it, a longer
+    /// note wrapping under its first word.
+    fn note_items(
+        &self,
+        slot: i32,
+        id: &str,
+        content: &Content,
+        (title, text): (&str, &str),
+    ) -> Vec<Item> {
+        let mut items = Vec::new();
+        if !title.is_empty() {
+            let props = self.content_type(content, true).props(title);
+            items.push(Item::text(format!("{id}-title"), slot, props, true));
+        }
+        let note = self.ty("margin", None);
+        let body = self.content_type(content, false);
+        let x = (note.size * NOTE_EM).round();
+        let shift = crate::baseline_shift(&body, &note);
+        let lines = text.lines().filter(|line| !line.trim().is_empty());
+        for (i, line) in lines.enumerate() {
+            let Some((time, words)) = split_time(line) else {
+                let props = body.props(line);
+                items.push(Item::text(format!("{id}-{i}"), slot, props, false));
+                continue;
+            };
+            items.push(Item {
+                dy: shift,
+                ..Item::text(format!("{id}-{i}-time"), slot, note.props(time), false)
+            });
+            items.push(Item {
+                put: Put::Row,
+                x,
+                ..Item::text(format!("{id}-{i}"), slot, body.props(words), false)
+            });
+        }
+        items
+    }
+
     /// A text that folds while the chat is open: its head with the count
     /// of its lines, and `Show` flush right.
     fn folded_items(
@@ -1247,11 +1325,7 @@ impl Mc {
         (title, text): (&str, &str),
     ) -> Vec<Item> {
         let count = text.lines().filter(|l| !l.trim().is_empty()).count();
-        let head = if count > 0 {
-            format!("{title}  {count}")
-        } else {
-            title.to_owned()
-        };
+        let head = format!("{title}  {count}");
         let props = self.content_type(content, true).props(&head);
         let mut items = vec![Item::text(format!("{id}-title"), slot, props, true)];
         if count > 0 {
@@ -1653,6 +1727,18 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3
 
 /// The space between an item and the one after it in a line, in pixels.
 const AFTER_GAP: f64 = 8.0;
+
+/// The width that a time takes in a list of notes, in em of the margin
+/// style: the words of a note start after it.
+const NOTE_EM: f64 = 4.7;
+
+/// The time and the words of a note, `18:51  Update ready`.
+fn split_time(line: &str) -> Option<(&str, &str)> {
+    let (time, words) = line.split_once("  ")?;
+    let digits = |part: &str| part.len() == 2 && part.bytes().all(|b| b.is_ascii_digit());
+    let (hour, minute) = time.split_once(':')?;
+    (digits(hour) && digits(minute)).then_some((time, words.trim_start()))
+}
 
 /// The size of the focus mark, and its distance from what it marks.
 const MARK: [f64; 2] = [2.0, 20.0];

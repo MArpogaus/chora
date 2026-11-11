@@ -212,7 +212,7 @@ impl Type {
         PropsUpdate {
             // A text node needs a text.
             text: Some(if text.is_empty() { " ".into() } else { text }),
-            family: style.family.clone(),
+            family: style.family.as_deref().map(crate::fonts::pick),
             font_size: Some(self.size),
             line_height: Some(self.line / self.size),
             color: Some(self.color),
@@ -557,6 +557,17 @@ mod tests {
         }
     }
 
+    /// Nothing that a person reads is under 14 pixels: the review of the
+    /// look found the running head and the clock at 11.6.
+    #[test]
+    fn no_style_of_the_default_is_under_14_pixels() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for name in config.styles.keys() {
+            let size = config.resolve(name, None).unwrap().size;
+            assert!(size >= 14.0, "{name} is {size} px");
+        }
+    }
+
     /// The default drags a window of mc with Super and the left button.
     #[test]
     fn the_default_binds_the_drag_to_a_pointer_button() {
@@ -668,9 +679,9 @@ mod tests {
         // An em follows the base: the running head of the default.
         let mut config = parse::<Config>(DEFAULT).unwrap();
         let head = |c: &Config| c.resolve("running_head", None).unwrap().size;
-        assert!((head(&config) - 11.6128).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 14.25).abs() < 0.01, "{}", head(&config));
         config.scale.base = 27.0;
-        assert!((head(&config) - 16.5).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 20.25).abs() < 0.01, "{}", head(&config));
         let caps = Style {
             uppercase: Some(true),
             ..Style::default()

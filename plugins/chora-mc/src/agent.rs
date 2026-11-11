@@ -25,7 +25,7 @@ const MAX_ROWS: usize = 4;
 /// The width of the sign of a helper and the space after it, in pixels.
 const SIGN_WIDTH: f64 = 18.0;
 /// The lines of the notifications: three, with a blank line between them.
-const NOTIFY_LINES: usize = 5;
+const NOTIFY_LINES: usize = 3;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
@@ -290,12 +290,7 @@ impl Mc {
         content: &Content,
     ) -> Vec<Item> {
         if !region.is_line() {
-            let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
-            return if host {
-                Vec::new()
-            } else {
-                self.agent_rows(region, slot, name, content)
-            };
+            return self.agent_rows(region, slot, name, content);
         }
         let config = &self.settings.value;
         let id = format!("{}-{name}", self.region_id(region));
@@ -585,17 +580,10 @@ impl Mc {
         if urgency == Urgency::Critical {
             self.set_text(URGENT, None, |_| vec![format!("✕  {text}")])?;
         }
-        // Newest on top, an empty line between two.
         self.set_text(NOTIFY, None, |old| {
             let mut lines = vec![line];
-            if !old.is_empty() {
-                lines.push(String::new());
-            }
             lines.extend(old);
             lines.truncate(NOTIFY_LINES);
-            while lines.last().is_some_and(String::is_empty) {
-                lines.pop();
-            }
             lines
         })
     }
