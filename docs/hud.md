@@ -56,7 +56,9 @@ folder, an SVG that is too large) and of the colours of `chat:` against the
 neutral chat (`Chat::contrast_errors`). It prints one problem on each
 line, with its file and key, and exits 1 when there is one. A folder that
 is fine prints `OK. Turn it on: chora-assistant --use-hud NAME` and exits
-0.
+0; when `--use-hud` would not find it, because it lies outside the
+folders that `--list-huds` reads, it prints `OK, but` with those folders
+and the `cp -r` that puts it in the first one.
 
 ### Using a folder
 

@@ -319,7 +319,9 @@ to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. A question about a
-security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
+security key also has `physical: true` and `keys: {yes, no}`. A question
+of a helper has its `name`, for the title "Question from NAME" of the
+card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
@@ -616,7 +618,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_keys`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_keys`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`, `need_key`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -629,7 +631,7 @@ confirm:
   - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
   - {tool: inject_input, prompt: "Shall I type or click: {input}?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
-  - {tool: agent_start, prompt: "Shall I start an agent for {project}?"}
+  - {tool: agent_start, prompt: "Shall I start a helper for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
   - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
@@ -1297,8 +1299,11 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `confirm_keys` or a button of a HUD answers it, and the event
   `voice.confirm` has `physical: true`. A spoken yes, an always word
   and a yes of `voice.confirm` count as nothing, and a yes sounds the
-  error earcon; a no answers. The spoken question ends with `agent_keys`
-  ("Press Alt+y for yes or Alt+n for no."). The screen shows the whole
+  error earcon and `need_key` ("For this I need a key press or a
+  click."); a no answers. The spoken question ends with `agent_keys`
+  ("Press Alt+Y for yes or Alt+N for no."), with the keys spelled as the
+  card shows them; the card shows the prompt without that sentence and
+  names the keys in its own line. The screen shows the whole
   title of the request and its raw input, secrets hidden; a request
   whose detail passes 400 lines or 64 KiB is rejected and the agent
   says so, as the confirmation of the reply refuses a command too long
@@ -1401,9 +1406,11 @@ and stdout, without `CHORA_SOCKET` and without `XDG_ACTIVATION_TOKEN`,
 and the field ignores both. Each line is one JSON object.
 
 - Host to field: `{"place": {...}}`, `{"question": true}`,
-  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`, `"hide"` and `"quit"`.
-  The host builds `question` from `voice.state` of the helper of the
-  field, and `keys` from `voice.confirm`, which names no helper today.
+  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`,
+  `{"pick_first": "text"}`, `"clear"`, which empties the draft when the
+  chat goes to another helper, `"hide"` and `"quit"`. The host builds
+  `question` from `voice.state` of the helper of the field, and `keys`
+  from `voice.confirm`.
 - Field to host: `{"say": "text"}`, which the host sends with `voice
   agent {tool: agent_say}` (`say_call`), and `{"event": "shown" |
   "keyboard" | "closed", "data": {...}}`. No event carries text.
@@ -1456,9 +1463,12 @@ the edge that `anchor` and `width` name, and puts the field at its
 bottom.
 
 - A click on the "Chat ..." row, which every look has, shows the numbered
-  list of helpers and projects (`agent_list`). A click on an entry, or its
-  number and Enter in the field, opens the chat; a project starts its
-  helper first. `chat.show` with a name opens that chat at once.
+  list: a helper by its name, a project without one as "New helper for
+  PROJECT" (`agent_list`). A click on an entry, or its number or name and
+  Enter in the field, opens the chat; a project starts its helper first.
+  Any other text in the list comes back to the field with `pick_first`,
+  which says "Pick a helper first: type its number and press Enter, or
+  click it." Close shows in the list and in a chat, Stop only in a chat. `chat.show` with a name opens that chat at once.
 - Opening a chat calls `chat.open`, reads the transcript with
   `agent.read` and starts the field. The host reads again when
   `voice.state` of the helper carries a larger `seq`, and every two
@@ -1476,8 +1486,12 @@ bottom.
   the others. A field that dies is started again at once. A `chat.show`
   for another helper without a token, as the voice agent sends it, leaves
   an open chat alone; with the token of an act it replaces it.
-- Both methods refuse a caller on a confined connection, because the host
-  acts in its own name. If voice does not answer, the host asks again
+- Rule *voice opens the chat*: both methods refuse a caller on a
+  confined connection, because the host acts in its own name, except
+  the tool connection of the voice agent that the host follows
+  (`NAME-mcp`, `voice-mcp` by default), so that "show the chat with
+  Atlas" works by voice. The host drops the token of a confined caller,
+  so such a `chat.show` never moves the keyboard. If voice does not answer, the host asks again
   every 5 s and opens the chat again; a helper that voice does not know
   or that ended has its own line.
 - A switch of look places the same field again in the new look, keeps the

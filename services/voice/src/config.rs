@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use chora_kit::settings::Settings;
+use chora_kit::{ask::show_key, settings::Settings};
 use chora_scene::{Binding, ipc::valid_name};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -146,6 +146,9 @@ pub struct Phrases {
     /// The question before a method that its export marks privileged:
     /// `{method}`, `{client}` and `{params}`.
     pub privileged: String,
+    /// Said after a spoken yes to a question that only a key or a click
+    /// answers.
+    pub need_key: String,
 }
 
 impl Default for Phrases {
@@ -170,6 +173,7 @@ impl Default for Phrases {
             allowed: "Allowed for this session.".into(),
             lost: "I lost the thread, please say it again.".into(),
             privileged: PRIVILEGED_PROMPT.into(),
+            need_key: "For this I need a key press or a click.".into(),
         }
     }
 }
@@ -382,7 +386,7 @@ fn default_confirm() -> Vec<Confirm> {
         rule("unload_view", "Shall I remove the view {name}?"),
         rule("inject_input", "Shall I type or click: {input}?"),
         rule("code_task", "Shall I start the coding task?"),
-        rule("agent_start", "Shall I start an agent for {project}?"),
+        rule("agent_start", "Shall I start a helper for {project}?"),
         // A program can do all that the user can (D42).
         rule("run_program", "Shall I start the program {program}?"),
         rule("configure_output", "Shall I change the screen to {args}?"),
@@ -507,6 +511,7 @@ impl Config {
             &mut p.allowed,
             &mut p.lost,
             &mut p.privileged,
+            &mut p.need_key,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -553,8 +558,8 @@ impl Config {
         template
             .replace("{key}", &keys.join(", "))
             .replace("{value}", &values.join(", "))
-            .replace("{yes}", &self.confirm_keys.yes)
-            .replace("{no}", &self.confirm_keys.no)
+            .replace("{yes}", &show_key(&self.confirm_keys.yes))
+            .replace("{no}", &show_key(&self.confirm_keys.no))
     }
 }
 
@@ -708,13 +713,13 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 26] = [
+const GERMAN: [(&str, &str); 27] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
     (
         "Press {yes} for yes or {no} for no.",
-        "Drücke {yes} für Ja oder {no} für Nein.",
+        "Drücken Sie {yes} für Ja oder {no} für Nein.",
     ),
     ("Heard: {text}", "Gehört: {text}"),
     (
@@ -731,12 +736,12 @@ const GERMAN: [(&str, &str); 26] = [
     ),
     (
         "I did not understand you.",
-        "Ich habe dich nicht verstanden.",
+        "Ich habe Sie nicht verstanden.",
     ),
     ("Details on the screen.", "Details auf dem Bildschirm."),
     (
         "I lost the thread, please say it again.",
-        "Ich habe den Faden verloren, sag es bitte noch einmal.",
+        "Ich habe den Faden verloren, sagen Sie es bitte noch einmal.",
     ),
     (
         "{name} wants to {what}. Allow?",
@@ -751,7 +756,7 @@ const GERMAN: [(&str, &str); 26] = [
         "Security setting! Shall I set {key}? The full value is on the screen. \
          Press {yes} for yes or {no} for no.",
         "Sicherheitseinstellung! Soll ich {key} setzen? Der volle Wert steht auf dem \
-         Bildschirm. Drück {yes} für ja oder {no} für nein.",
+         Bildschirm. Drücken Sie {yes} für Ja oder {no} für Nein.",
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
     (
@@ -771,8 +776,8 @@ const GERMAN: [(&str, &str); 26] = [
         "Soll ich die Programmieraufgabe starten?",
     ),
     (
-        "Shall I start an agent for {project}?",
-        "Soll ich einen Agenten für {project} starten?",
+        "Shall I start a helper for {project}?",
+        "Soll ich einen Helfer für {project} starten?",
     ),
     (
         "Shall I start the program {program}?",
@@ -789,6 +794,10 @@ const GERMAN: [(&str, &str); 26] = [
     (
         "Shall I restart the plugin {client}?",
         "Soll ich das Plugin {client} neu starten?",
+    ),
+    (
+        "For this I need a key press or a click.",
+        "Dafür brauche ich einen Tastendruck oder einen Klick.",
     ),
     (
         PRIVILEGED_PROMPT,
@@ -1398,6 +1407,28 @@ mod tests {
                 .tts()
                 .unwrap_err()
                 .contains("CHORA_VOICE_NO_SUCH_KEY")
+        );
+    }
+
+    #[test]
+    fn german_words_say_helper_and_sie() {
+        let du = ["drücke", "drück", "dich", "dir", "du", "sag", "dein"];
+        for (en, de) in GERMAN {
+            assert!(!en.contains("agent"), "{en}");
+            assert!(!de.contains("Agent"), "{de}");
+            let words: Vec<String> = de
+                .split(|c: char| !c.is_alphabetic())
+                .map(str::to_lowercase)
+                .collect();
+            assert!(du.iter().all(|w| !words.iter().any(|x| x == w)), "{de}");
+        }
+        let config = Config {
+            reply_language: "de".into(),
+            ..Config::default()
+        };
+        assert_eq!(
+            config.localized().phrases.need_key,
+            "Dafür brauche ich einen Tastendruck oder einen Klick."
         );
     }
 

@@ -813,6 +813,7 @@ mod tests {
     fn a_confirmation_shows_until_its_answer() {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("confirm", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let detail = format!("rm -r build\n{}", "x".repeat(400));
         let ask = json!({"id": "c1", "prompt": "Run it?", "detail": detail});
         mc.follow("voice.confirm", "voice", ask).unwrap();
@@ -861,6 +862,7 @@ mod tests {
             "an injected press answers nothing"
         );
         let (mut mc, _) = crate::testing::mc("answers", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ask = json!({"id": "5", "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         mc.follow("voice.confirm", "voice", ask).unwrap();
@@ -875,6 +877,7 @@ mod tests {
     fn a_confirmation_with_a_numeric_id_shows() {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("confirm-number", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ask = json!({"id": 7, "prompt": "Start foot?", "detail": "foot"});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         assert_eq!(mc.texts["confirm"].0, "Start foot?");

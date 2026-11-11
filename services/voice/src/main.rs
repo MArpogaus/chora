@@ -536,6 +536,7 @@ impl Agent {
                 prompt,
                 detail,
                 physical,
+                name,
             } => {
                 if physical {
                     self.physical.store(true, Ordering::Relaxed);
@@ -546,6 +547,7 @@ impl Agent {
                     detail,
                     hud: !self.claimed,
                     keys: physical.then(|| self.core.config().confirm_keys.clone()),
+                    name,
                 }
             }
             Effect::ConfirmDone(id) => {

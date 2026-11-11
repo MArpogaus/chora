@@ -2951,6 +2951,7 @@ mod tests {
     #[test]
     fn mc_claims_the_indicator_of_voice_once_per_connection() {
         let (mut mc, model) = crate::testing::mc("claim", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let claims = || model.lock().unwrap().calls.len();
         mc.claim_indicator(false);
         assert_eq!(claims(), 1);
