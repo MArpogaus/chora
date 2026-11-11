@@ -1084,3 +1084,8 @@ feature set (cube, float, pull, modes, manager panes, HUD looks, chat,
 handover): a designer review against docs/design-principles.md and the
 style guides, findings ranked, then fixes, to finalize the current
 state before new features.
+UX/UI loop focus (user, 11-11): emphasis on KISS / minimalist design
+with least surprise (POLS). The loop removes before it adds: every
+control, word and effect must earn its place; anything surprising is a
+finding. Only when the loop's findings are fixed and the state is clean
+do feature sprints start again.
