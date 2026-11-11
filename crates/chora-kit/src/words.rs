@@ -149,10 +149,14 @@ pub enum Word {
     PickFirst,
     /// The entry of the list that starts a helper for a project.
     NewHelper,
+    /// A give key with no window to give.
+    NoWindowToGive,
+    /// A window manager `{manager}` did not take a window.
+    GiveRefused,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 55] = [
+pub const ALL: [Word; 57] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -208,6 +212,8 @@ pub const ALL: [Word; 55] = [
     Word::KeysWalk,
     Word::PickFirst,
     Word::NewHelper,
+    Word::NoWindowToGive,
+    Word::GiveRefused,
 ];
 
 impl Word {
@@ -282,6 +288,8 @@ impl Word {
             Self::KeysWalk => "The keys walk here. {key} shows them all.",
             Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
             Self::NewHelper => "New helper for {project}",
+            Self::NoWindowToGive => "No window to give.",
+            Self::GiveRefused => "{manager} did not take the window.",
         }
     }
 
@@ -353,6 +361,8 @@ impl Word {
                 "Wählen Sie zuerst einen Helfer: Nummer eingeben und Enter drücken, oder anklicken."
             }
             Self::NewHelper => "Neuer Helfer für {project}",
+            Self::NoWindowToGive => "Kein Fenster zum Weitergeben.",
+            Self::GiveRefused => "{manager} hat das Fenster nicht genommen.",
         }
     }
 }

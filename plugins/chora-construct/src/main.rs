@@ -368,8 +368,7 @@ struct Waiting {
     token: Option<String>,
     pane: PaneFile,
     since: Instant,
-    /// A program of a key, not of a file: its pane comes only when the
-    /// view has room (C7).
+    /// A program of a key, not of a file: the camera flies into its pane.
     key: bool,
 }
 

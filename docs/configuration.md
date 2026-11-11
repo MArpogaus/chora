@@ -711,11 +711,13 @@ Else it goes a little to the side, nearer or farther, but only to a spot
 where its whole face shows in the view and covers no other pane. When no
 spot in the view is free, the window becomes no pane: it waits in the
 window list, and the HUD shows "No room in view: in the window list
-(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys
-`Super+t` and `Super+space` and a window that another window manager gives to the
-construct follow the same rule. A pane of a construct file and a choice
-in the window list come also when the view is full, beside the panes in
-the way. The space lies on
+(Tab)". Turn, then choose it with `Tab` or `window.show`. A window that another
+window manager gives to the construct follows the same rule. A window
+that the person opens with `Super+t`, `Super+space` or the launcher, a
+pane of a construct file and a choice in the window list come also when
+the view is full, beside the panes in the way. The camera flies into the
+pane of a window that the person opened, so that it shows at 1:1 and
+has the keyboard; the fly-out key leaves it. The space lies on
 the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.
@@ -962,7 +964,9 @@ first becomes a pane at its own size. `Escape` or `Tab` closes the list.
 claim (D55); `Return` gives the window to the one selected.
 
 `Super+Alt+1` to `Super+Alt+4` give the focused window to tiling, xp, mc
-or construct, also the window of the pane that the camera flew into. The
+or construct, also the window of the pane that the camera flew into;
+with no focused window, the window of the pane ahead. A give that
+does not happen shows a notice in the HUD. The
 construct grabs the keys while a flavor shows, if no other window manager
 holds them, and gives a window of another window manager through its
 owner. When the flavor ends, the next window manager takes the keys.

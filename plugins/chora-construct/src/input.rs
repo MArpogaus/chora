@@ -32,6 +32,32 @@ impl Construct {
         self.draw_hud()
     }
 
+    /// A give key: gives the focused window, else the window of the pane
+    /// ahead, to the window manager `to`. A refusal is a notice.
+    fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
+        let focused = self.rt.conn.focused_surface().map_err(ClientError::Rpc)?;
+        let ahead = (self.pane_ahead()).and_then(|i| self.panes[i].window().map(String::from));
+        let node = match (focused, ahead) {
+            (Some(node), _) => Some(node),
+            (None, Some(surface)) => self.rt.conn.query(&format!("id:{surface}"))?.pop(),
+            (None, None) => None,
+        };
+        let language = Language::of_session();
+        let words = match node {
+            None => say(language, Word::NoWindowToGive, &[]),
+            Some(node) if node.owner.as_deref() == Some(to) => return Ok(()),
+            Some(node) => match give::window(self, Some(&node), to) {
+                Ok(_) => return Ok(()),
+                Err(err) => {
+                    eprintln!("chora-construct: give to {to}: {}", err.message);
+                    say(language, Word::GiveRefused, &[("manager", to)])
+                }
+            },
+        };
+        self.voice.notice(&words, Instant::now());
+        self.draw_hud()
+    }
+
     /// The events of the voice agent and of the watchdog, then the input.
     pub(crate) fn other(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
@@ -123,10 +149,7 @@ impl Construct {
                 ..
             } => {
                 if let Some(&Grab::Give(to)) = self.rt.action(&binding) {
-                    if let Err(err) = give::focused(self, to) {
-                        eprintln!("chora-construct: give to {to}: {}", err.message);
-                    }
-                    return Ok(());
+                    return self.give_key(to);
                 }
                 return self.fly_out();
             }
