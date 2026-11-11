@@ -347,6 +347,11 @@ none that was chosen, the list shows.
 The field of a plain chat draws at the scale of the output, so that its text
 is as sharp as the view, and its empty-field hint is in the colour `name`.
 
+A transcript that does not fit scrolls by whole messages: the oldest
+lines go with the line of their speaker, and the end of a message that fills
+the view alone stands under its speaker's line, so that no reply shows
+without who said it.
+
 A `glass` chat is the glass column of the construct style (rules 18 to
 25, the tokens of `chora_kit::glass`, light or dark after the theme): 28
 hundredths of the work area wide, from 400 to its `width`, corners of

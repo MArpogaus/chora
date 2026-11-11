@@ -135,6 +135,35 @@ pub struct Row {
     colour: [u8; 3],
     indent: i32,
     read: bool,
+    starts: bool,
+}
+
+/// Keeps the newest `keep` rows, so that the transcript scrolls by whole
+/// messages: the first row that stays is a speaker's line. A cut through a
+/// message goes on to the next message, and the end of a message that
+/// fills the view alone is shown under its speaker's line.
+fn keep_newest(rows: &mut Vec<Row>, keep: usize) {
+    let cut = rows.len().saturating_sub(keep);
+    if cut == 0 || rows[cut].starts {
+        rows.drain(..cut);
+        return;
+    }
+    if let Some(next) = rows[cut..].iter().position(|row| row.starts) {
+        rows.drain(..cut + next);
+        return;
+    }
+    let Some(speaker) = rows[..cut].iter().rposition(|row| row.starts) else {
+        rows.drain(..cut);
+        return;
+    };
+    if keep < 2 {
+        rows.drain(..cut);
+        return;
+    }
+    rows.drain(speaker + 1..=cut);
+    rows.drain(..speaker);
+    let extra = rows.len().saturating_sub(keep);
+    rows.drain(1..=extra);
 }
 
 fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
@@ -147,6 +176,7 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
                 colour: colours.name,
                 indent: 0,
                 read: false,
+                starts: true,
             });
         }
         let (font, indent) = match line.role {
@@ -160,6 +190,7 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
             colour: colours.text,
             indent,
             read: matches!(line.role, Role::User | Role::Agent),
+            starts: false,
         });
     }
     rows
@@ -443,7 +474,7 @@ impl Session {
         let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
-        rows.drain(..rows.len().saturating_sub(room));
+        keep_newest(&mut rows, room);
         let content =
             body_top + listed + row_h * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
         let rect = fitted(frame, rect, content);
@@ -452,7 +483,7 @@ impl Session {
             rect[1] + body_top + listed,
             (rows.len(), row_h),
         );
-        rows.drain(..rows.len() - above);
+        keep_newest(&mut rows, above);
         Parts {
             rect,
             face: face.clone(),
@@ -826,6 +857,51 @@ mod tests {
             "a panel keeps its size"
         );
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    fn row(text: &str, starts: bool) -> Row {
+        Row {
+            text: text.into(),
+            font: Font::Body,
+            colour: [0; 3],
+            indent: 0,
+            read: !starts,
+            starts,
+        }
+    }
+
+    fn texts(rows: &[Row]) -> Vec<&str> {
+        rows.iter().map(|row| row.text.as_str()).collect()
+    }
+
+    #[test]
+    fn the_transcript_scrolls_by_whole_messages() {
+        let all = || {
+            vec![
+                row("You", true),
+                row("Tidy my notes.", false),
+                row("Atlas", true),
+                row("I read 14 notes", false),
+                row("and made 5 days.", false),
+                row("Moving them", false),
+            ]
+        };
+        let mut rows = all();
+        keep_newest(&mut rows, 6);
+        assert_eq!(rows.len(), 6, "nothing cut");
+        let mut rows = all();
+        keep_newest(&mut rows, 5);
+        assert_eq!(texts(&rows)[0], "Atlas", "the cut leaves no orphan line");
+        let mut rows = all();
+        keep_newest(&mut rows, 2);
+        assert_eq!(
+            texts(&rows),
+            ["Atlas", "Moving them"],
+            "the end of a long message stands under its speaker"
+        );
+        let mut rows = all();
+        keep_newest(&mut rows, 3);
+        assert_eq!(texts(&rows), ["Atlas", "and made 5 days.", "Moving them"]);
     }
 
     #[test]
