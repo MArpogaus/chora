@@ -394,3 +394,19 @@ and mc repeats the sentence top right while the drawer is open. Rule
 (as the user set for xp): while the chat is open, the sentence and the
 question live inside the chat surface; no second balloon. Also OPEN CUBE
 touches the screen edge (fix pending in claude/ux-construct).
+
+## F8 closed (11-11): the pull put-back flake was a real bug
+Root cause: a pane dropped beside the cube could sit deeper than the
+front face; a press there missed it under load. Fixed in cdf5985, gate
+forces the case every run (d145e0e).
+
+## F9-F11 (11-11): flakes on unchanged code, rc blockers
+- F9 wm-pane "a typed key did not reach the window in the pane of xp":
+  once in a full gate; 10/10 alone under load.
+- F10 words::a_stack_overflow_leaves_its_words got signal 14 (SIGALRM),
+  not 11: under load the backtrace after the fixed line takes longer
+  than the alarm(2) of the fault handler, so the alarm ends the process
+  first. Decide: longer alarm under test, or accept SIGALRM as an end of
+  the same crash path in the test.
+- F11 last-words gate "no last words after SIGSEGV": likely the same
+  timing.
