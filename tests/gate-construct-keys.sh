@@ -1,7 +1,8 @@
 #!/bin/bash
 # Gate of the keys that create and close panes in chora-construct:
 # text typed into the space starts and closes nothing, and the HUD says
-# that the keys walk; Super+t starts the terminal, and its window becomes
+# that the keys walk (voice_hud: own, where the construct draws the HUD);
+# Super+t starts the terminal, and its window becomes
 # a pane; Super+space starts the launcher, whose own window shows without
 # a pane, and the program that it starts becomes a pane; after the
 # launcher the walk has the keyboard again; Super+x asks the window of
@@ -25,6 +26,7 @@ mkdir -p "$work/chora"
 export PATH=$bin:$PATH
 font='DejaVu Sans Mono:size=10'
 cat >"$work/chora/chora-construct.yaml" <<EOF
+voice_hud: own
 terminal: foot -a term -f '$font' sh -c 'sleep 600'
 launcher: foot -a launcher -f '$font' sh -c 'sleep 1; setsid foot -a launched -f "$font" sh -c "sleep 600" & sleep 2'
 EOF
