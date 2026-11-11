@@ -1269,8 +1269,9 @@ impl Scene {
     }
 
     /// The load that the visible nodes of each owner put on a frame, for
-    /// the watchdog: a node counts 1, a layer or a plane 25 more, and each
-    /// effect 25 more. A plane is a node that draws something under a
+    /// the watchdog: a node counts 1, a layer or a plane 25 more, each
+    /// effect 25 more, and a backdrop 25 for each started 256x256 logical
+    /// pixels of its size. A plane is a node that draws something under a
     /// transform that is not a 2D translation with a positive scale, also
     /// the projection of a 3D context.
     #[must_use]
@@ -1287,8 +1288,7 @@ impl Scene {
                 let Some(owner) = &node.owner else {
                     continue;
                 };
-                let effects =
-                    node.props.effects.len() as u64 + u64::from(node.props.backdrop.is_some());
+                let effects = node.props.effects.len() as u64 + backdrop_units(node);
                 let draws = node.kind != NodeKind::Group || node.props.size.is_some();
                 let plane = draws && !placed.transform.is_plain();
                 let cost = 1 + LAYER * (u64::from(node.is_layer() || plane) + effects);
@@ -1882,6 +1882,18 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
 /// Removes the mesh, the effects and the shader of properties. Returns
 /// whether there were some. A perspective stays: it costs no pass, and
 /// without it a context would show and hit its planes flat.
+/// The cost of the backdrop of a node in effects: one for each started
+/// 256x256 logical pixels of its size, so that a large glass weighs more.
+fn backdrop_units(node: &Node) -> u64 {
+    const UNIT: f64 = 256.0 * 256.0;
+    let Some([w, h]) = node.props.size.filter(|_| node.props.backdrop.is_some()) else {
+        return 0;
+    };
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let units = (w * h / UNIT).ceil().max(1.0) as u64;
+    units
+}
+
 fn strip(props: &mut Props) -> bool {
     let found = props.mesh.is_some()
         || !props.effects.is_empty()
