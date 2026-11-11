@@ -143,6 +143,18 @@ dot of the face before the angle loses the accent that the dot of the
 next face gains; and the hint `Step in` dims to an opacity of 0.45. In
 use mode the hints stay hidden while the cube turns.
 
+## The cube at rest
+
+Stood back, the cube rests 14 degrees off square, turned toward the next
+face, so that its depth and a sliver of the next face show. The camera
+stays at the mid height of the cube, and the cube stands back far enough
+that the next face shows at that angle. The turn by key or by hand
+starts from this pose and keeps it. A step in glides the 14 degrees away
+with the step, over 480 ms, so that in use mode the face is square and
+at 1:1: a 1 px line of the face is 1 px on the screen. The cube has the
+floor shadow and the mirror image in the floor that every pane has; a
+face that looks away has no mirror image, and none shows in use mode.
+
 ## Starting and failed faces
 
 A face whose window manager is starting shows its plain fill, never a

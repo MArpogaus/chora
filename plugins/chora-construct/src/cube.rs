@@ -60,10 +60,8 @@ const FILL_LIFT: f64 = 0.5;
 const POLL: Duration = Duration::from_millis(100);
 /// How far the cube turns off square toward the next face when it
 /// stands back, in radians: 14 degrees.
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub(crate) const REST: f64 = 14.0 * std::f64::consts::PI / 180.0;
 /// The mirror image of a face in the floor.
-#[allow(dead_code, reason = "a stub until the next commit")]
 const MIRROR: &str = "construct-cube-mirror-";
 /// The most faces: the side faces of a cube.
 pub(crate) const FACES: usize = 4;
@@ -72,8 +70,10 @@ pub(crate) const FACES: usize = 4;
 const CLEAR_CAP: f64 = 2.0 * float::LIFT;
 const CLEAR_GAP: f64 = 8.0;
 /// How far the cube stands back in navigate mode, in focal lengths: the
-/// front face shows at 1 / (1 + STAND) of its size.
-const STAND: f64 = 0.6;
+/// front face shows at 1 / (1 + STAND) of its size. Far enough that the
+/// next face shows at the rest pose: the eye is farther than the half
+/// width over the sine of `REST` from the centre.
+const STAND: f64 = 2.0;
 
 /// The cube that the construct hosts: its outputs in face order, the
 /// process of the window manager, where it stands and how it is turned.
@@ -283,7 +283,6 @@ pub(crate) fn face_id(i: usize) -> String {
 }
 
 /// The id of the mirror image of face `i`.
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub(crate) fn mirror_id(i: usize) -> String {
     format!("{MIRROR}{i}")
 }
@@ -331,8 +330,11 @@ fn step_back(angle: f64, depth: f64) -> f64 {
     (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * turned(angle)
 }
 
+const IDENTITY: Matrix = [
+    1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+];
+
 /// The product of two column-major matrices: `b` first, then `a`.
-#[allow(dead_code, reason = "a stub until the next commit")]
 fn mul4(a: &Matrix, b: &Matrix) -> Matrix {
     let mut m = [0.0; 16];
     for c in 0..4 {
@@ -393,25 +395,24 @@ impl Host {
 
     /// The angle at which the faces show: the angle of the turn, and the
     /// rest pose of a cube that stands back.
-    #[allow(dead_code, reason = "a stub until the next commit")]
     pub(crate) fn drawn_angle(&self) -> f64 {
-        self.angle
+        self.angle - REST * self.stand
     }
 
     /// The shadows of the cube on the floor, in the form of the shadows of
     /// panes: centre x and z, half width, and the lift with the yaw.
-    #[allow(
-        dead_code,
-        clippy::unused_self,
-        reason = "a stub until the next commit"
-    )]
-    pub(crate) fn shadows(&self, _ground: f64) -> Vec<[f64; 4]> {
-        Vec::new()
+    pub(crate) fn shadows(&self, ground: f64) -> Vec<[f64; 4]> {
+        let [x, z] = self.centre();
+        let lift = (ground - self.cube.size[1] / 2.0).max(0.0);
+        let face = self.world(0);
+        let yaw = face[8].atan2(face[10]);
+        [yaw, yaw + FRAC_PI_2]
+            .map(|yaw| [x, z, self.cube.size[0] / 2.0, super::shadow_w(lift, yaw)])
+            .to_vec()
     }
 
     /// The place of face `i` in the camera group: the cube group over the
     /// face.
-    #[allow(dead_code, reason = "a stub until the next commit")]
     pub(crate) fn world(&self, i: usize) -> Matrix {
         mul4(
             &placement(self.centre(), self.yaw),
@@ -421,9 +422,16 @@ impl Host {
 
     /// The place of the mirror image of face `i` in the floor, `ground`
     /// below the eye, for a node of the face's size divided by its scale.
-    #[allow(dead_code, reason = "a stub until the next commit")]
-    pub(crate) fn mirror_world(&self, i: usize, _ground: f64) -> Matrix {
-        self.world(i)
+    pub(crate) fn mirror_world(&self, i: usize, ground: f64) -> Matrix {
+        let mut flip = IDENTITY;
+        flip[5] = -1.0;
+        flip[13] = -2.0 * ground;
+        let size = self.cube.size_of(i);
+        let k = size[0] / super::panes::mirror_size(size)[0];
+        let mut scale = IDENTITY;
+        scale[0] = k;
+        scale[5] = k;
+        mul4(&flip, &mul4(&self.world(i), &scale))
     }
 
     /// The centre now: the place, stepped back along the view of the open.
@@ -436,7 +444,7 @@ impl Host {
     /// The updates of the cube at the angle now: its place, the transform
     /// of each face, whether it shows, sent on a change, and whether it
     /// forwards, which it does only while the cube rests.
-    pub(crate) fn faces(&mut self, eye: [f64; 2], _ground: f64) -> Vec<Command> {
+    pub(crate) fn faces(&mut self, eye: [f64; 2], ground: f64) -> Vec<Command> {
         let eye = self.eye(eye);
         self.seen_from = eye;
         let mut commands = vec![update(
@@ -447,7 +455,7 @@ impl Host {
             },
         )];
         for i in 0..self.outputs.len() {
-            let shows = self.cube.faces_eye(i, self.angle, eye);
+            let shows = self.cube.faces_eye(i, self.drawn_angle(), eye);
             let changed = self.shown.get(i) != Some(&shows);
             if let Some(slot) = self.shown.get_mut(i) {
                 *slot = shows;
@@ -456,7 +464,9 @@ impl Host {
             commands.push(update(
                 &face_id(i),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(self.cube.face(i, self.angle))),
+                    transform: Some(Transform::from_matrix(
+                        self.cube.face(i, self.drawn_angle()),
+                    )),
                     visible: changed.then_some(shows),
                     forward: Some(up && self.view.forwards() && self.stand <= 0.0),
                     ..PropsUpdate::default()
@@ -467,7 +477,7 @@ impl Host {
                 PropsUpdate {
                     transform: Some(Transform::from_matrix(self.cube.lifted(
                         i,
-                        self.angle,
+                        self.drawn_angle(),
                         [0.0, 0.0],
                         FILL_LIFT,
                     ))),
@@ -475,10 +485,25 @@ impl Host {
                     ..PropsUpdate::default()
                 },
             ));
+            commands.push(self.mirror(i, shows && self.stand > 0.0, ground));
             commands.extend(self.planes(i, shows));
         }
         commands.push(self.edge());
         commands
+    }
+
+    /// The update of the mirror image of face `i`: in place while it
+    /// shows, which it does for a face that shows while the cube stands
+    /// back.
+    fn mirror(&self, i: usize, shows: bool, ground: f64) -> Command {
+        update(
+            &mirror_id(i),
+            PropsUpdate {
+                transform: shows.then(|| Transform::from_matrix(self.mirror_world(i, ground))),
+                visible: Some(shows),
+                ..PropsUpdate::default()
+            },
+        )
     }
 
     /// The update of the lit edge: over the face under the pointer while
@@ -489,7 +514,9 @@ impl Host {
             .hover
             .filter(|i| rests && self.shown.get(*i) == Some(&true));
         let placed = face.map(|i| {
-            let plane = self.cube.lifted(i, self.angle, [0.0, 0.0], EDGE_LIFT);
+            let plane = self
+                .cube
+                .lifted(i, self.drawn_angle(), [0.0, 0.0], EDGE_LIFT);
             (Transform::from_matrix(plane), self.cube.size_of(i))
         });
         update(
@@ -672,7 +699,7 @@ impl Host {
     /// eye, so that a face at a grazing angle floats them flat and no
     /// plane shows as a sliver beside the cube.
     fn float_share(&self, i: usize, eye: [f64; 3]) -> f64 {
-        let facing = self.cube.facing(i, self.angle, eye).clamp(0.0, 1.0);
+        let facing = self.cube.facing(i, self.drawn_angle(), eye).clamp(0.0, 1.0);
         self.stand.max(turned(self.angle)) * facing
     }
 
@@ -708,9 +735,12 @@ impl Host {
             update(
                 &super::float::plane_id(i, &window.surface),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(
-                        self.cube.lifted(i, self.angle, at, lift),
-                    )),
+                    transform: Some(Transform::from_matrix(self.cube.lifted(
+                        i,
+                        self.drawn_angle(),
+                        at,
+                        lift,
+                    ))),
                     visible: Some(shows),
                     ..PropsUpdate::default()
                 },
@@ -1145,6 +1175,27 @@ impl Construct {
             .unwrap_or_default()
     }
 
+    /// The effects of the mirror images of the faces for `look`.
+    pub(crate) fn cube_mirror_looks(&self, look: &super::panes::PaneLook) -> Vec<Command> {
+        let Some(host) = &self.cube else {
+            return Vec::new();
+        };
+        (host.outputs.iter().enumerate())
+            .map(|(i, output)| {
+                let win = Uniform::Output(OutputTexture {
+                    output: output.clone(),
+                });
+                update(
+                    &mirror_id(i),
+                    PropsUpdate {
+                        uniforms: Some(super::panes::mirror_uniforms(win, look)),
+                        ..PropsUpdate::default()
+                    },
+                )
+            })
+            .collect()
+    }
+
     /// Whether the cube turns or steps and needs frames.
     pub(crate) fn cube_turns(&self) -> bool {
         (self.cube.as_ref()).is_some_and(|c| c.turn.is_some() || c.step.is_some() || c.waits())
@@ -1158,10 +1209,12 @@ impl Construct {
         };
         end(&mut host.child);
         self.remove_outputs(&host.outputs);
-        self.rt.conn.try_apply(vec![Command::Remove {
-            id: CUBE.into(),
-            to: None,
-        }])?;
+        let removed = (0..host.outputs.len())
+            .map(mirror_id)
+            .chain([CUBE.to_owned()])
+            .map(|id| Command::Remove { id, to: None })
+            .collect();
+        self.rt.conn.try_apply(removed)?;
         self.close_modes()
     }
 
@@ -1169,12 +1222,25 @@ impl Construct {
     /// reads its output.
     fn face_nodes(&self, outputs: &[String], cube: &Cube) -> Vec<Command> {
         let [r, g, b, _] = self.styled().glass.strong;
+        let look = self.current_look();
         (outputs.iter().enumerate())
             .flat_map(|(i, output)| {
                 let win = Uniform::Output(OutputTexture {
                     output: output.clone(),
                 });
                 [
+                    create(
+                        &mirror_id(i),
+                        NodeKind::Shader,
+                        super::MIRRORS,
+                        PropsUpdate {
+                            size: Some(super::panes::mirror_size(cube.size_of(i))),
+                            shader: Some(self.mirror_shader.clone()),
+                            uniforms: Some(super::panes::mirror_uniforms(win.clone(), &look)),
+                            visible: Some(false),
+                            ..PropsUpdate::default()
+                        },
+                    ),
                     create(
                         &face_id(i),
                         NodeKind::Shader,
@@ -1418,7 +1484,7 @@ mod tests {
             shown: vec![true; faces],
             seen_from: [0.0; 3],
             view: View::default(),
-            far: 500.0,
+            far: STAND * 832.0,
             stand: 0.0,
             step: None,
             home: Pose::default(),

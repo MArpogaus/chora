@@ -226,6 +226,7 @@ stood() {
     read -r surface _ <<<"$(probe)"
     call view.step_back '{}' >/dev/null || fail "view.step_back"
     until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window"
+    sleep 1
     read -r px py <<<"$(plane_middle)"
     inject "[{\"pointer_move\": {\"position\": [$px, $py]}},
         {\"button\": {\"state\": \"pressed\", \"hold\": true}},

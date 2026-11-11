@@ -45,12 +45,15 @@ impl Construct {
             ("sheen".into(), vec3(palette.sheen)),
             ("marble".into(), Uniform::Vector(palette.marble.to_vec())),
         ]);
+        let of_cube = (self.cube.as_ref()).map_or(Vec::new(), |c| c.shadows(self.lens.ground));
+        let of_panes = near.iter().map(|p| {
+            let lift = (self.lens.ground - p.size[1] / 2.0).max(0.0);
+            let at = self.shadow_at(p);
+            [at[0], at[1], p.size[0] / 2.0, shadow_w(lift, p.yaw)]
+        });
+        let mut shadows = of_cube.into_iter().chain(of_panes);
         for k in 0..SHADOWS {
-            let shadow = near.get(k).map_or(vec![0.0; 4], |p| {
-                let lift = (self.lens.ground - p.size[1] / 2.0).max(0.0);
-                let at = self.shadow_at(p);
-                vec![at[0], at[1], p.size[0] / 2.0, shadow_w(lift, p.yaw)]
-            });
+            let shadow = shadows.next().map_or(vec![0.0; 4], |s| s.to_vec());
             uniforms.insert(format!("s{k}"), Uniform::Vector(shadow));
         }
         let color = Some([palette.sky[0], palette.sky[1], palette.sky[2], 1.0]);
@@ -107,6 +110,9 @@ impl Construct {
             commands.push(crate::wobble::flat_glow());
         }
         commands.extend(self.restyle_panes(&look));
+        if self.sent.as_ref() != Some(&look) {
+            commands.extend(self.cube_mirror_looks(&look));
+        }
         self.sent = Some(look);
         if !self.glass.plain {
             let glow = focus.filter(|_| self.flown.is_none()).map_or(
