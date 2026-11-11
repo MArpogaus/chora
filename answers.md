@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~13:15 Bangkok: "Fable used up. I've reset. Finalize, then no more fable for this week." Plan: the four running Fable lanes finish their current task (stale-frame bug, K7 manager panes, HUD look fixes, cube/float/pull demos) with their reviews; no new Fable lane until Monday. After that the week runs on opus/sonnet for light work (persona tests, docs, website), within the remaining weekly budget.
 - 11-11 ~12:40 Bangkok: Fable 86 %, all 83 %. Four Fable lanes run on; at the Fable limit the user resets it. Non-Fable use stays minimal (PM only).
 - 11-11 ~12:30 Bangkok: "Yes do the demos. Lets make it impressive demos as features land. Polished so we can reuse them later for advertising. Decide such things on your own from now." Standing rule in the charter.
 - 11-11 ~11:10 Bangkok: Fable 70 %, all 75 %. Pace: Fable lanes go on (user resets Fable when spent); non-Fable use kept low: no new opus lanes, reviews on Fable, PM replies short.
