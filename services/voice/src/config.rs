@@ -146,6 +146,9 @@ pub struct Phrases {
     /// The question before a method that its export marks privileged:
     /// `{method}`, `{client}` and `{params}`.
     pub privileged: String,
+    /// Said after a spoken yes to a question that only a key or a click
+    /// answers.
+    pub need_key: String,
 }
 
 impl Default for Phrases {
@@ -170,6 +173,7 @@ impl Default for Phrases {
             allowed: "Allowed for this session.".into(),
             lost: "I lost the thread, please say it again.".into(),
             privileged: PRIVILEGED_PROMPT.into(),
+            need_key: "For this I need a key press or a click.".into(),
         }
     }
 }
@@ -507,6 +511,7 @@ impl Config {
             &mut p.allowed,
             &mut p.lost,
             &mut p.privileged,
+            &mut p.need_key,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -708,7 +713,7 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 26] = [
+const GERMAN: [(&str, &str); 27] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
@@ -789,6 +794,10 @@ const GERMAN: [(&str, &str); 26] = [
     (
         "Shall I restart the plugin {client}?",
         "Soll ich das Plugin {client} neu starten?",
+    ),
+    (
+        "For this I need a key press or a click.",
+        "Dafür brauche ich einen Tastendruck oder einen Klick.",
     ),
     (
         PRIVILEGED_PROMPT,
@@ -1413,6 +1422,14 @@ mod tests {
                 .collect();
             assert!(du.iter().all(|w| !words.iter().any(|x| x == w)), "{de}");
         }
+        let config = Config {
+            reply_language: "de".into(),
+            ..Config::default()
+        };
+        assert_eq!(
+            config.localized().phrases.need_key,
+            "Dafür brauche ich einen Tastendruck oder einen Klick."
+        );
     }
 
     #[test]

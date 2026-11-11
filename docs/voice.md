@@ -618,7 +618,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_keys`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_keys`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`, `need_key`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -1299,7 +1299,8 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `confirm_keys` or a button of a HUD answers it, and the event
   `voice.confirm` has `physical: true`. A spoken yes, an always word
   and a yes of `voice.confirm` count as nothing, and a yes sounds the
-  error earcon; a no answers. The spoken question ends with `agent_keys`
+  error earcon and `need_key` ("For this I need a key press or a
+  click."); a no answers. The spoken question ends with `agent_keys`
   ("Press Alt+Y for yes or Alt+N for no."), with the keys spelled as the
   card shows them; the card shows the prompt without that sentence and
   names the keys in its own line. The screen shows the whole

@@ -1088,11 +1088,15 @@ impl Core {
 
     /// A spoken yes or no, or one of `voice.confirm`: the cut prompt
     /// does not play again. A yes does not answer a question that waits
-    /// for a key.
+    /// for a key; for a question of a helper it hears `phrases.need_key`.
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
         if yes && self.confirming() && self.physical {
             crate::log::info("confirm: a yes without the key counts as nothing");
-            return self.earcon(Earcon::Error).into_iter().collect();
+            let mut effects: Vec<Effect> = self.earcon(Earcon::Error).into_iter().collect();
+            if self.confirm.is_none() {
+                effects.extend(self.ask(self.config.phrases.need_key.clone(), true));
+            }
+            return effects;
         }
         self.answered(yes)
     }
@@ -1534,6 +1538,24 @@ mod tests {
         rx
     }
 
+    /// A spoken yes to a question that takes a key is told why it counts
+    /// as nothing, and the question still waits for the key.
+    #[test]
+    fn a_spoken_yes_to_a_key_question_hears_that_it_needs_a_key() {
+        let mut core = with_coder();
+        let mut rx = sub_question(&mut core, true);
+        let effects = say(&mut core, "Ja.");
+        let need = Config::default().phrases.need_key;
+        assert_eq!(need, "For this I need a key press or a click.");
+        let said = effects
+            .iter()
+            .any(|e| matches!(e, Effect::Ask { text, say: true, .. } if *text == need));
+        assert!(said, "{effects:?}");
+        assert!(rx.try_recv().is_err(), "no answer without the key");
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(true));
+    }
+
     /// A question that takes a key names its keys as the card does.
     #[test]
     fn the_spoken_keys_are_spelled_as_on_the_card() {
@@ -1583,6 +1605,7 @@ mod tests {
         assert!(core.sub_confirm.is_some());
         core.handle(Input::ConfirmKey(true));
         assert_eq!(rx.try_recv(), Ok(true));
+        core.handle(Input::Reply(core.replies, Reply::Done(String::new())));
 
         let mut rx = sub_question(&mut core, true);
         let shown = core.shown.expect("on the screen");
