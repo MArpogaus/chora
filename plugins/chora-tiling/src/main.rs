@@ -808,7 +808,7 @@ impl Tiling {
     /// which it must when the colours changed under it. Without a user
     /// manager there is nothing to reload.
     fn apply_theme(&mut self, reload: bool) {
-        let look = &self.wm.config.look;
+        let look = &self.settings.value.look;
         let scheme = look.theme.scheme(system_for(look.theme));
         let colors = look.palette.over(scheme);
         let changed = colors != self.colors;

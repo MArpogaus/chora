@@ -65,3 +65,32 @@ keys Escape
 sleep 1
 [ "$(od -An -c "$log" | tr -d ' ')" = '033' ] || fail "Esc after the list did not reach the window: $(od -An -c "$log")"
 ok "Esc closes the list, and then the keys are the window's again"
+
+for _ in 1 2; do
+    pid=$(ctl run "$bin/chora-probe" window 255 255 255 | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    [ -n "$pid" ] || fail "the run of a window"
+    run_pid "$pid"
+done
+for _ in $(seq 60); do
+    [ "$(ctl query 'app_id:chora-probe kind:surface' | grep -c '"owner": *"tiling"')" = 2 ] && break
+    sleep 0.5
+done
+sleep 2
+keys Super+slash
+sleep 2
+grant screen.capture
+shot=$XDG_CONFIG_HOME/blur.png
+ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+python3 -I - "$repo/tests/png-pixel.py" "$shot" <<'PY' || fail "no blur behind the key list"
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
+line = [rows[735][x * 4] for x in range(600, 680)]
+steps = [abs(a - b) for a, b in zip(line, line[1:])]
+assert max(steps) <= 2, f"the gap between two white windows is sharp under the panel: {line}"
+assert max(line) - min(line) >= 3, "the panel does not show the windows behind it at all"
+PY
+ok "the key list blurs the white windows and the gap behind it"
+keys Escape

@@ -1434,6 +1434,23 @@ its own package and needs no configuration.
   beside tiling. It reads the outputs again every 2 seconds and starts
   waybar again when the left-out ones changed. Without jq it ends with
   an error.
+- **The theme**: `look.theme` picks the palette. `system`, the default,
+  asks the system for its colour scheme (`org.freedesktop.appearance`
+  `color-scheme` through the settings portal, else `gsettings`
+  `org.gnome.desktop.interface color-scheme`) at the start, on reload and
+  every 5 seconds, and takes Paper, the light palette, when it asks for
+  light and Ink, the dark one, when it asks for dark or says nothing. `ink`
+  and `paper` are fixed. A change recolours the focus border, the key
+  list and the chip at once, and `chora-tiling` writes `colors.css`,
+  `fuzzel.ini`, `foot.ini`, `swaylock.conf` and the icons into
+  `chora-tiling/theme/` of the runtime directory, reloads the panel unit
+  and restarts the wallpaper unit when the scheme changed. The colours in
+  `look.palette` replace single tokens of either palette.
+  `chora-tiling --apply-theme [--theme-dir DIR]` writes the same files by
+  hand. Paper is `base` `#e9ebf1`, `surface` `#ffffff`, `text` `#1b1e27`,
+  `accent` `#6d4aff`. Running programs keep the palette that they started
+  with. The assistant's chat panel is drawn by `chora-assistant` and takes
+  no part in the theme yet.
 - **The launcher**: `MOD+space` starts fuzzel in every look, and `MOD+r`
   does too, as the default bindings of `chora-tiling` say. The bindings
   start the programs of the flavor with `chora-tiling --launch PROGRAM`, which
