@@ -314,8 +314,14 @@ construct, which goes on with the drag and the wobble (E3 path). Drop
 over a face gives it back. Gate: stood back, drag a floating plane off
 the cube, it becomes a pane; drop on a face, it is back in xp.
 
-Edges (user asked: windows over the edge of a face): a window that hangs
-over the edge of its face is clipped at the face edge; it does not wrap
-onto the next face (the faces are separate outputs, far apart). A title
-drag past the edge (8 px margin) pulls it out. No wrap planned (KISS);
-revisit only if people ask.
+Edges (user, 11-11: clipping is not least surprise; a window should
+reach out into space): a window that hangs over the edge of its face is
+drawn in full, the overhang continuing the plane of the face out into
+the space, never clipped and never wrapped onto the next face. At rest
+in use mode the face fills the screen, so the overhang lies off screen
+as on a monitor; stood back and during a turn the floating plane shows
+the whole window. Where overhangs of two faces meet at a shared edge,
+the planes intersect and the 3D base splits them (no special collision
+rule). Check first whether float planes already show the full window
+(node texture of the group) and only the resting face clips; gate:
+stood back, a window half over the right edge shows in full.
