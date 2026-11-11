@@ -6,6 +6,7 @@ release; feature sprints only after that.
 
 ## Criteria (all must hold)
 
+1b. The user approves each look from the showcase captures.
 1. UX loop: no block or major finding open; a second designer pass
    confirms.
 2. Persona round 4 on the rc candidate: every basic task reached by
@@ -75,3 +76,9 @@ dev-rules and brief templates updated, and the plan of the next days.
 - Scope: fix every HIGH and every security MEDIUM; other MEDIUM findings
   go to the known-issues list with a reason.
 - Estimate: rc on Wed 11-18 (range 11-17 to 11-20).
+
+## After reflection 2
+
+The rc date of 11-18 holds only with one helper surface per look
+(collapsed and expanded); otherwise 11-20. Paste upload (L1 item 4) and
+further status page work wait until after the rc.

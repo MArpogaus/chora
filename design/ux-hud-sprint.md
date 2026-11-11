@@ -1,3 +1,5 @@
+> SUPERSEDED (11-11): sections 2-4 are replaced by design/looks/.
+
 # UX pass: feature sprint 1 (ACP chat and HUDs)
 
 UX/UI review of `design/hud-sprint.md`, made before programming; revised for the user's request

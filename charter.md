@@ -1137,3 +1137,27 @@ and its keys, Escape, give keys, honest states, words). A combination
 document covers the seams where looks meet (windows moving between them,
 panes, the cube, two screens). UI reviews check against the look's own
 document first.
+
+## Rules of reflection 2 (reflections/2026-11-11-opus-judge-2.md)
+
+1. UI review inputs: `tests/showcase.sh` captures every look x theme x
+   scale 1 and 2 x key states, with 2x crops of every surface, and a
+   reference sheet per look (xp: the real XP balloon and Office
+   Assistant). Reviewers describe each crop and compare it with the
+   reference before reading any note or diff.
+2. A layout audit gate cell fails on overlapping helper surfaces, a
+   surface outside the work area, a stretched or fractionally scaled
+   image, or text past its box; red first on today's paperclip.
+3. The builder never reviews its own pixels. Main paths get a checklist
+   reviewer and a first-look reviewer who reads no spec. A visible flaw
+   on a main path is MAJOR and blocks the merge. UI reviews have no
+   findings cap and up to 3 polish rounds (this overrides rule 5 of the
+   11-11 reflection for UI).
+4. The user decides taste: open look questions go to the user with
+   captures before builders start; rc criterion 1b needs the user's
+   approval per look. design/ux-hud-sprint.md sections 2-4 are
+   superseded by design/looks/.
+5. PM load: workers resolve their own merge conflicts; at most 3 merge
+   trains a day; merge-gate runs pre-commit over the merged range, so a
+   skipped hook is caught. The dead charter text is removed for real,
+   and from now on one rule in means one rule out.
