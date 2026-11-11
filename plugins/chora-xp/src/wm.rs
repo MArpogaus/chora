@@ -3409,13 +3409,20 @@ fn speed(before: [f64; 2], from: [f64; 2], to: [f64; 2], took: Duration) -> [f64
     })
 }
 
+/// How far past the edge of its face the pointer goes before a drag
+/// gives its window away, in pixels: a drag along the edge stays.
+const EXIT_MARGIN: i32 = 8;
+
 /// The client that gets a window whose drag started on a face: the owner
-/// of the virtual output, once the pointer is outside it. A screen has no
-/// owner, and a drag there gives at the release.
+/// of the virtual output, once the pointer is more than [`EXIT_MARGIN`]
+/// outside it. A screen has no owner, and a drag there gives at the
+/// release.
 fn pulled_out(face: Rect, owner: Option<&str>, [px, py]: [i32; 2]) -> Option<&str> {
-    let [x, y, w, h] = face;
-    let inside = (x..x + w).contains(&px) && (y..y + h).contains(&py);
-    owner.filter(|_| !inside)
+    let [left, top, w, h] = face;
+    let across = left - EXIT_MARGIN..left + w + EXIT_MARGIN;
+    let down = top - EXIT_MARGIN..top + h + EXIT_MARGIN;
+    let near = across.contains(&px) && down.contains(&py);
+    owner.filter(|_| !near)
 }
 
 fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
@@ -3465,8 +3472,13 @@ mod tests {
         let face = [-262_144, -262_144, 800, 600];
         let construct = Some("construct");
         assert_eq!(pulled_out(face, construct, [-262_000, -262_000]), None);
-        assert_eq!(pulled_out(face, construct, [-261_344, -262_000]), construct);
-        assert_eq!(pulled_out(face, construct, [-262_000, -262_145]), construct);
+        assert_eq!(pulled_out(face, construct, [-261_344, -262_000]), None);
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_145]), None);
+        let past = EXIT_MARGIN + 1;
+        let right = [-261_344 + past, -262_000];
+        assert_eq!(pulled_out(face, construct, right), construct, "the margin");
+        let above = [-262_000, -262_144 - past];
+        assert_eq!(pulled_out(face, construct, above), construct, "the margin");
         assert_eq!(pulled_out([0, 0, 800, 600], None, [900, 100]), None);
     }
 
