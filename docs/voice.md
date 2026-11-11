@@ -1425,8 +1425,14 @@ host methods that start and place it are the host's.
 
 **Place.** `place` has `anchor` (`top`, `bottom`, `left`, `right`, or two
 of them joined by `_`, such as `bottom_right`), `margin` (top, right,
-bottom, left), `width` (1 to 1600, 400 by default), `output`, `look` (the
+bottom, left), `width` (1 to 1600, 400 by default), `output`, `scale`
+(1 to 4, the pixels of the buffer for each logical pixel), `look` (the
 colors `background`, `text`, `border` and `hint` as RGBA) and `token`.
+`look.glass` with the RGBA `accent` and `halo` makes the field of a glass
+chat: a well with corners of 16 in `background`, 48 high for a line, the
+text in Inter 16 on lines of 24, the caret in the accent, and, while the
+field has the keyboard, the focus ring of 2 in the accent and the halo of
+4 in the 6 pixels around the well.
 A new place on the same output only moves the surface; another output
 makes a new surface. The draft stays in both cases, because the process
 stays.
@@ -1438,8 +1444,10 @@ lines"; only the second Enter sends, and any edit between them cancels
 it. Esc closes the field and keeps the draft for the next `place`. Ctrl+V
 and Shift+Insert paste the text of the selection (64 KiB at most; a
 thread reads it, so a slow source does not stop the field). Left, Right,
-Home, End, Backspace and Delete edit. A key with Ctrl or Alt is never
-text. Pasted and composed text pass `chora_kit::chat::sanitize`.
+Home, End, Backspace and Delete edit. Ctrl+. writes the line
+`{"event": "stop"}`, and the host stops the helper of the chat with
+`agent.cancel`, as the Stop button does; the chat stays open. A key with
+Ctrl or Alt is never text. Pasted and composed text pass `chora_kit::chat::sanitize`.
 
 **Keyboard.** The surface is on layer `top` with the keyboard on demand.
 It takes the keyboard in two ways: a click on it, and the activation

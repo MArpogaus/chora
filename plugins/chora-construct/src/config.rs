@@ -35,26 +35,9 @@ pub enum Action {
     Windows,
     /// Shows or hides the help panel with the bindings.
     Help,
+    /// Opens the cube of the setting `cube_manager`.
+    Cube,
 }
-
-/// The actions in the order of the help panel, with what each does.
-const HELP: [(Action, &str); 15] = [
-    (Action::Forward, "walk forward"),
-    (Action::Back, "walk back"),
-    (Action::Left, "step left"),
-    (Action::Right, "step right"),
-    (Action::TurnLeft, "turn left"),
-    (Action::TurnRight, "turn right"),
-    (Action::LookUp, "look up"),
-    (Action::LookDown, "look down"),
-    (Action::Home, "back to the start"),
-    (Action::FlyIn, "fly into the pane ahead"),
-    (Action::Terminal, "start the terminal"),
-    (Action::Launcher, "start the launcher"),
-    (Action::Close, "close the pane ahead"),
-    (Action::Windows, "open the window list"),
-    (Action::Help, "show or hide this help"),
-];
 
 /// Light or dark.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -377,47 +360,137 @@ impl Config {
             .collect()
     }
 
-    /// The rows of the help panel: the keys of each action, the fly-out
-    /// binding, and the drag and the wheel with the modifier; the keys of
-    /// the cube only while a `cube` is open.
+    /// The groups of keys of the help: the keys of the construct that work
+    /// now from its settings, then the keys that every look shares.
     #[must_use]
-    pub fn help(&self, cube: bool) -> Vec<(String, String)> {
-        let mut rows: Vec<(String, String)> = (HELP.iter())
-            .filter_map(|(action, what)| {
-                let keys: Vec<&str> = (self.keys.iter())
-                    .filter(|(_, a)| *a == action)
-                    .map(|(k, _)| k.as_str())
-                    .collect();
-                (!keys.is_empty()).then(|| (keys.join(" / "), (*what).to_owned()))
-            })
-            .collect();
-        let m = &self.modifier;
-        let fly_out = if cube {
-            "fly out of a pane, or step back from the cube"
-        } else {
-            "fly out of a pane"
+    #[allow(clippy::too_many_lines, reason = "one row per key")]
+    pub fn help_groups(&self, cube: bool) -> Vec<crate::command::KeyGroup> {
+        use crate::command::{KeyGroup, KeyRow, chord};
+        let settings = self;
+        let bound = |action: Action| -> Vec<Vec<String>> {
+            let mut keys: Vec<&String> = (settings.keys.iter())
+                .filter(|(_, a)| **a == action)
+                .map(|(k, _)| k)
+                .collect();
+            keys.sort_by_key(|k| (k.chars().count() != 1, (*k).clone()));
+            keys.into_iter().map(|k| chord(k)).collect()
         };
-        rows.extend([
-            (self.fly_out.clone(), fly_out.to_owned()),
-            (
-                format!("{m}+drag"),
-                "move a pane, or give it away".to_owned(),
-            ),
-            (format!("{m}+wheel"), "resize a pane".to_owned()),
-        ]);
-        if cube {
-            rows.extend([
-                (
-                    "Return / Escape".to_owned(),
-                    "stood back: step into the cube".to_owned(),
+        let row = |what: &str, keys: Vec<String>, alt: Vec<String>| KeyRow {
+            what: what.into(),
+            keys,
+            alt,
+            gesture: None,
+        };
+        let one = |action: Action| bound(action).into_iter().next().unwrap_or_default();
+        let letters =
+            |actions: &[Action]| -> Vec<String> { actions.iter().flat_map(|a| one(*a)).collect() };
+        let second = |action: Action| bound(action).into_iter().nth(1).unwrap_or_default();
+        let walk = KeyGroup {
+            head: "Walk".into(),
+            shared: false,
+            rows: vec![
+                row(
+                    "Walk forward, back, sideways",
+                    letters(&[Action::Forward, Action::Left, Action::Back, Action::Right]),
+                    Vec::new(),
                 ),
-                (
-                    "Ctrl+Alt+\u{2190} / \u{2192}".to_owned(),
-                    "turn the cube".to_owned(),
+                row(
+                    "Turn left or right",
+                    letters(&[Action::TurnLeft, Action::TurnRight]),
+                    [second(Action::TurnLeft), second(Action::TurnRight)].concat(),
                 ),
-            ]);
+                row(
+                    "Look up or down",
+                    letters(&[Action::LookUp, Action::LookDown]),
+                    Vec::new(),
+                ),
+                row("Back to the start", one(Action::Home), Vec::new()),
+                row("Fly into the pane ahead", one(Action::FlyIn), Vec::new()),
+                row("Show the windows", one(Action::Windows), Vec::new()),
+                row(
+                    "Open the cube",
+                    if cube { Vec::new() } else { one(Action::Cube) },
+                    Vec::new(),
+                ),
+            ],
+        };
+        let panes = KeyGroup {
+            head: "Panes".into(),
+            shared: false,
+            rows: vec![
+                row("Open a terminal", one(Action::Terminal), Vec::new()),
+                row("Start a program", one(Action::Launcher), Vec::new()),
+                row("Close the pane ahead", one(Action::Close), Vec::new()),
+                KeyRow {
+                    what: "Move or resize a pane".into(),
+                    keys: chord(&settings.modifier),
+                    alt: Vec::new(),
+                    gesture: Some("drag".into()),
+                },
+                row(
+                    "Step back out of a pane",
+                    chord(&settings.fly_out),
+                    Vec::new(),
+                ),
+            ],
+        };
+        let mut groups = vec![walk, panes];
+        for group in &mut groups {
+            group.rows.retain(|r| !r.keys.is_empty());
         }
-        rows
+        if cube {
+            groups.push(KeyGroup {
+                head: "Cube".into(),
+                shared: false,
+                rows: vec![
+                    row(
+                        "Turn the cube",
+                        chord("Ctrl+Alt+Left"),
+                        chord("Ctrl+Alt+Right"),
+                    ),
+                    row("Step into the face", chord("Return"), Vec::new()),
+                ],
+            });
+        }
+        groups.extend([
+            KeyGroup {
+                head: "Helper and chat".into(),
+                shared: true,
+                rows: vec![
+                    row("Answer yes to a question", chord("Alt+y"), Vec::new()),
+                    row("Answer no to a question", chord("Alt+n"), Vec::new()),
+                    row("Stop the helper", chord("Ctrl+period"), Vec::new()),
+                ],
+            },
+            KeyGroup {
+                head: "Give a window".into(),
+                shared: true,
+                rows: [
+                    ("tiling", "1"),
+                    ("xp", "2"),
+                    ("mc", "3"),
+                    ("the construct", "4"),
+                ]
+                .into_iter()
+                .map(|(to, n)| {
+                    row(
+                        &format!("Give it to {to}"),
+                        chord(&format!("Super+Alt+{n}")),
+                        Vec::new(),
+                    )
+                })
+                .collect(),
+            },
+            KeyGroup {
+                head: "Everywhere".into(),
+                shared: true,
+                rows: vec![
+                    row("Back out one step", chord("Escape"), Vec::new()),
+                    row("Show these keys", one(Action::Help), Vec::new()),
+                ],
+            },
+        ]);
+        groups
     }
 
     /// Each window manager has a command.
@@ -595,9 +668,8 @@ mod tests {
         let fill: [f64; 3] = rgb(chat.fill).map(|side| side * hud::GLASS_ALPHA);
         assert!(contrast(rgb(chat.text), fill) >= 7.0);
         assert!(contrast(rgb(chat.name), fill) >= 4.5);
-        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let light = &config.style.themes.light;
-        let near = |a: [f64; 3], b: [f64; 3]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
+        let light = chora_kit::glass::Material::of(false);
+        let near = |a: [f64; 3], b: [f64; 4]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
         assert!(near(rgb(chat.text), light.text));
         assert!(near(rgb(chat.name), light.muted));
     }
@@ -607,16 +679,16 @@ mod tests {
     /// glow (rule 6).
     #[test]
     fn the_chat_of_the_folder_is_the_glass_of_the_light_theme() {
-        use chora_kit::hud;
+        use chora_kit::{glass::Material, hud};
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("hud");
         let chat = hud::load(&dir).unwrap().chat;
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let light = &config.style.themes.light;
+        let light = Material::of(false);
         let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
         let near = |a: [f64; 3], b: &[f64]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
-        assert!(near(rgb(chat.fill), &light.glass));
-        assert!((hud::GLASS_ALPHA - light.glass[3]).abs() < 1e-9);
-        assert!(near(rgb(chat.border), &light.edge));
+        assert!(near(rgb(chat.fill), &light.tint));
+        assert!(near(rgb(chat.text), &light.text));
+        assert!(near(rgb(chat.name), &light.muted));
         assert!(near(rgb(chat.glow), &config.style.accent));
     }
 
@@ -632,40 +704,47 @@ mod tests {
         assert!(cube.check().unwrap_err().contains("cube_manager"));
     }
 
-    /// The help lists the keys of the cube only while a cube is open, and
-    /// each key once.
+    /// Super+C opens the cube: a key, not a button.
     #[test]
-    fn the_help_shows_the_cube_keys_only_with_a_cube() {
+    fn super_c_opens_the_cube() {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let cube = |rows: &[(String, String)]| rows.iter().any(|(_, w)| w.contains("cube"));
-        for open in [false, true] {
-            let rows = config.help(open);
-            assert_eq!(cube(&rows), open, "{rows:?}");
-            let mut keys: Vec<&str> = rows.iter().map(|(k, _)| k.as_str()).collect();
-            keys.sort_unstable();
-            let all = keys.len();
-            keys.dedup();
-            assert_eq!(keys.len(), all, "a key twice: {rows:?}");
-        }
+        assert_eq!(config.keys.get("Super+c"), Some(&Action::Cube));
+        let opens = (config.help_groups(false).into_iter())
+            .flat_map(|g| g.rows)
+            .find(|r| r.what == "Open the cube")
+            .map(|r| r.keys);
+        assert_eq!(opens.unwrap(), ["Super", "C"]);
     }
 
-    /// The help lists the bindings of the settings, also changed ones.
+    /// The help lists the keys of the cube only while a cube is open, and
+    /// the bindings of the settings, also changed ones.
     #[test]
-    fn the_help_follows_the_settings() {
+    fn the_help_follows_the_settings_and_the_cube() {
         let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let rows = config.help(false);
-        let row = |rows: &[(String, String)], what: &str| {
-            (rows.iter())
-                .find(|(_, w)| w == what)
-                .map(|(k, _)| k.clone())
+        let heads = |cube| -> Vec<String> {
+            config
+                .help_groups(cube)
+                .into_iter()
+                .map(|g| g.head)
+                .collect()
         };
-        assert_eq!(row(&rows, "walk forward").as_deref(), Some("Up / w"));
-        assert_eq!(row(&rows, "show or hide this help").as_deref(), Some("F1"));
-        assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Super+wheel"));
+        assert!(!heads(false).contains(&"Cube".to_owned()));
+        assert!(heads(true).contains(&"Cube".to_owned()));
+        let keys = |config: &Config, what: &str| {
+            (config.help_groups(false).into_iter())
+                .flat_map(|g| g.rows)
+                .find(|r| r.what == what)
+                .map(|r| r.keys)
+        };
+        assert_eq!(
+            keys(&config, "Walk forward, back, sideways").unwrap(),
+            ["W", "A", "S", "D"]
+        );
+        assert_eq!(keys(&config, "Show these keys").unwrap(), ["F1"]);
+        assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.keys.remove("h");
-        let rows = config.help(false);
-        assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Alt+wheel"));
-        assert_eq!(row(&rows, "back to the start"), None);
+        assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Alt"]);
+        assert_eq!(keys(&config, "Back to the start"), None);
     }
 }

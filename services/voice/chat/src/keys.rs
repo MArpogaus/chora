@@ -3,7 +3,7 @@
 use xkbcommon::xkb::keysyms::{
     KEY_BackSpace as BACKSPACE, KEY_Delete as DELETE, KEY_End as END, KEY_Escape as ESCAPE,
     KEY_Home as HOME, KEY_Insert as INSERT, KEY_KP_Enter as KP_ENTER, KEY_Left as LEFT,
-    KEY_Return as RETURN, KEY_Right as RIGHT,
+    KEY_Return as RETURN, KEY_Right as RIGHT, KEY_period as PERIOD,
 };
 
 use crate::session::Key;
@@ -26,6 +26,8 @@ pub enum Decoded {
     Key(Key),
     /// Ctrl+V or Shift+Insert: the clipboard.
     Paste,
+    /// Ctrl+.: stop the helper.
+    Stop,
     /// Nothing for the field.
     Ignore,
 }
@@ -47,6 +49,7 @@ pub fn decode(sym: u32, mods: Mods, utf8: &str) -> Decoded {
         END => Decoded::Key(Key::End),
         INSERT if mods.shift => Decoded::Paste,
         0x76 | 0x56 if mods.ctrl => Decoded::Paste,
+        PERIOD if mods.ctrl => Decoded::Stop,
         _ if mods.ctrl || mods.alt => Decoded::Ignore,
         _ if utf8.is_empty() || utf8.chars().any(char::is_control) => Decoded::Ignore,
         _ => Decoded::Key(Key::Text(utf8.to_owned())),
@@ -86,6 +89,16 @@ mod tests {
         assert_eq!(decode(0x79, ctrl, "\u{19}"), Decoded::Ignore);
         let alt = Mods { alt: true, ..NONE };
         assert_eq!(decode(0x79, alt, "y"), Decoded::Ignore);
+    }
+
+    #[test]
+    fn ctrl_period_stops_the_helper() {
+        let ctrl = Mods { ctrl: true, ..NONE };
+        assert_eq!(decode(PERIOD, ctrl, "."), Decoded::Stop);
+        assert_eq!(
+            decode(PERIOD, NONE, "."),
+            Decoded::Key(Key::Text(".".into()))
+        );
     }
 
     #[test]

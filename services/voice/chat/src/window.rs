@@ -86,6 +86,14 @@ pub struct Place {
     /// The colors.
     #[serde(default)]
     pub look: Look,
+    /// The scale of the output: the buffer has this many pixels for each
+    /// logical pixel, 1 to 4.
+    #[serde(default = "default_scale")]
+    pub scale: u32,
+}
+
+fn default_scale() -> u32 {
+    1
 }
 
 fn default_width() -> u32 {
@@ -97,6 +105,7 @@ impl Place {
     #[must_use]
     pub fn clamped(mut self) -> Self {
         self.width = self.width.clamp(MIN_WIDTH, MAX_WIDTH);
+        self.scale = self.scale.clamp(1, 4);
         self
     }
 }
@@ -326,7 +335,7 @@ impl Window {
         layer.set_margin(top, right, bottom, left);
         layer.set_keyboard_interactivity(KeyboardInteractivity::OnDemand);
         layer.set_exclusive_zone(0);
-        let layout = self.painter.layout(&self.session, place.width);
+        let layout = self.painter.layout(&self.session, place.width, &place.look);
         let size = [place.width, layout.height()];
         layer.set_size(size[0], size[1]);
         surface.commit();
@@ -408,14 +417,15 @@ impl Window {
         let Some(place) = &self.place else {
             return;
         };
-        let layout = self.painter.layout(&self.session, place.width);
+        let layout = self.painter.layout(&self.session, place.width, &place.look);
         let size = [place.width, layout.height()];
+        let scale = place.scale;
         if let Some(news) = height_news(&mut self.told, size[1]) {
             self.emit("height", news);
         }
         let pixels = self
             .painter
-            .paint(&layout, &place.look, size[0], self.focused);
+            .paint(&layout, &place.look, (size[0], scale), self.focused);
         let token = self.token.take();
         let Some(shown) = self.shown.as_mut().filter(|s| s.configured) else {
             self.token = token;
@@ -425,8 +435,11 @@ impl Window {
             shown.layer.set_size(size[0], size[1]);
             shown.size = size;
         }
-        if let Some(buffer) = buffer(&self.globals, &self.qh, &pixels, size) {
-            let [w, h] = size.map(|v| i32::try_from(v).unwrap_or(i32::MAX));
+        shown
+            .surface
+            .set_buffer_scale(i32::try_from(scale).unwrap_or(1));
+        if let Some(buffer) = buffer(&self.globals, &self.qh, &pixels, size.map(|v| v * scale)) {
+            let [w, h] = size.map(|v| i32::try_from(v * scale).unwrap_or(i32::MAX));
             shown.surface.attach(Some(&buffer), 0, 0);
             shown.surface.damage_buffer(0, 0, w, h);
         }
@@ -509,6 +522,10 @@ impl Window {
             Decoded::Key(key) => Some(key),
             Decoded::Paste => {
                 self.paste();
+                None
+            }
+            Decoded::Stop => {
+                self.emit("stop", json!({}));
                 None
             }
             Decoded::Ignore => None,

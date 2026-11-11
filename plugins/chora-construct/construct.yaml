@@ -49,6 +49,7 @@ keys:
   Super+x: close
   Tab: windows
   F1: help
+  Super+c: cube
 # The shell command of the key terminal; its window becomes a pane in
 # the view direction.
 # For tests only: take the keys of input.inject as keys of the user. Off,
@@ -96,7 +97,7 @@ style:
   mono: DejaVu Sans Mono
   # The one accent of both themes: the state ring, the waveform, the
   # selection mark and the glow. It never colours text.
-  accent: [0.15, 0.50, 0.71]
+  accent: [0.149, 0.502, 0.706]
   # Per theme: the fill of a panel, its hairline, the text, the muted
   # labels and notes, and the alpha of the accent in the glow.
   themes:

@@ -189,7 +189,7 @@ chat:
 | `near` | The `id` of another panel to stand beside. Use `anchor` or `near`, one of them. The chain of `near` must end at a panel with an `anchor`; a cycle is an error. |
 | `picture` | `FILE#ID`: an SVG file of the folder and an element id in it. Only the id is a template; the file name must not contain `{`. A missing id shows `idle`. |
 | `action` | What a click does: `mute`, `cancel`, `sleep`, `wake` or `chat`. Nothing else exists. `mute` only on a panel with `source: voice`, and it only mutes. `chat` on a panel with `source: voice` opens the chat on a click on the figure, which then stands in for the "Chat ..." row. |
-| `style` | `bubble` or `plain`. |
+| `style` | `bubble` or `plain`; `island` on a panel with `source: voice`. |
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
 | `rows` | A template for one row of a list. |
@@ -213,6 +213,23 @@ tail: the text stands beside the figure, on the side of the middle of
 the output, in the text colour of the chat on a backing in the fill of
 the chat, so that it reads on any window behind it. A sentence that the agent still speaks shows again
 when the look is built again.
+
+With `style: island` the voice panel is one glass capsule after the
+glass of the construct (`docs/construct-style.md`, rules 18 to 25), 40
+pixels high: the picture of the state at the left, 24 by 24, the state
+word in capitals, and while the agent thinks or works the task of the
+busy helper with its step, `Tidy notes · 1 of 2`, after a separator. A
+sentence of `voice.say` takes the place of the word and the task, at
+most two lines of 480 pixels with its end kept, and goes 2 seconds after
+its sound. The capsule hugs its content from the edge of its anchor; the
+figure does not move or blink, and the folder shows no rows of helpers.
+In a busy state the ring moves, drawn by the shader `ring.frag` of the
+host in its cache: it pulses while the agent listens or a question
+waits, and an arc turns while it thinks (1.2 s a turn) or works (2.4 s
+a turn). In every other state the picture of the folder stands still,
+so a still screen draws nothing.
+While the camera of the construct is in a pane, which it tells with its
+event `construct.view {pane: true}`, the island dims to 0.6 over 160 ms.
 
 A picture of a figure may hold an element `ID-shut` beside an element
 `ID`, for example `idle-shut`: the figure then blinks with it, a
@@ -315,10 +332,21 @@ values only. A folder without the block gets the neutral chat.
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
 
-A `glass` chat has corners of 12 pixels, its `fill` at an opacity of
-0.94 and its `border` as a hairline at 0.24, after the construct style
-guide. Its text is checked against the fill over a black and over a
-white pane.
+A `glass` chat is the glass column of the construct style (rules 18 to
+25, the tokens of `chora_kit::glass`, light or dark after the theme): 28
+hundredths of the work area wide, from 400 to its `width`, corners of
+24, the strong tint and a long shadow. Its header names the state of the
+helper beside the ring of the folder's figure and, at the right, the
+helper, its task and its step. The person's messages stand at the right
+in accent bubbles, the helper's in Inter 16 under its name, its tool
+steps in the mono family with a check, the running one with an arc. The
+field is a well of 48 with the focus ring while it has the keyboard; the
+key line under it names Return (send), Ctrl+. (stop) and Esc (close),
+and a click on the words of Stop or Close does the same, without a
+button. The island of the folder hides while the chat is open: the
+header takes its place. A question card in the chat keeps its place,
+and the transcript flows under it. The text of a glass chat is checked
+against its `fill` over a black and over a white pane.
 
 The view never covers the figure, its bubble or the "Chat ..." row: a
 view that would, moves sideways beside them, also a view in a slot. A
@@ -397,6 +425,14 @@ detail, does not fit in 80 percent of the height of the output, the card
 shows no buttons and says "Too long to show. Refused.", and the host
 answers `confirm.answer {yes: false}` at once. The host removes control,
 bidi and zero-width characters from the prompt and the detail.
+
+A folder with a `glass` chat gets the glass card of the construct style:
+400 px wide, the title as a label, the prompt at 16 px, the detail in a
+well at 14 px in the mono family, the note, and Yes and No as key
+segments that hold the key line, `Alt Y  Yes` and `Alt N  No`; its
+hairline and glow are in the accent while it waits. It stands under the
+figure, and in an open chat 48 px below the top of the view. A question
+that names its helper (`name`) has the title "Question from NAME".
 
 ### The mic
 

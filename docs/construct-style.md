@@ -47,7 +47,7 @@ rule 5. `plans/construct-hud.md` adds the section.
     | `muted` | `[0.29, 0.32, 0.38]` (#4A5260) | `[0.64, 0.67, 0.71]` (#A3AAB5) |
     | glow | `accent` at 0.10 | `accent` at 0.22 |
 
-4. **One accent for both themes.** `accent` is `[0.15, 0.50, 0.71]`
+4. **One accent for both themes.** `accent` is `[0.149, 0.502, 0.706]`
    (#2680B4). It colours the state ring, the waveform, the selection
    mark, the glow and the edge of the focused pane. It never colours
    text. Do not use other hues.
@@ -151,3 +151,64 @@ rule 5. `plans/construct-hud.md` adds the section.
     shadow follow the bend, so that no gap opens between the content
     and its frame. The pane rests again within about a second. The
     pane label hides while a pane moves.
+
+## Blurred glass (the HUD rework)
+
+This section replaces rules 2, 3, 6, 7, 12 and 13 where they differ;
+the voice HUD of `voice_hud: own` keeps the rules above. The tokens are
+`chora_kit::glass`, which the construct and the host share. A surface
+is a rect with the `backdrop` of the core, a blur of 40 and the
+saturation of its theme, whose colour is the tint; the host lays its
+pictures over such a rect. After the watchdog, and where the core draws
+no blur (more than 8 on an output), a surface takes the fallback of rule
+19, the strong tint plus 0.08. `chora_kit::glass::BACKDROP` is the one
+switch of the blur. The full spec with every value, the states and the
+keyboard maps is `design/construct-hud-spec.md` on the log branch, with
+mockups rendered over real captures.
+
+18. **One material.** Every surface is glass that blurs what lies
+    behind it: a blur of 40, a saturation of 1.8 in the light theme and
+    1.6 in the dark, and a faint tint, a cool white at 0.64 in the light
+    theme and a graphite at 0.56 in the dark. A white highlight of 1 px
+    runs along the top edge inside, an outer hairline of 1 px sets the
+    surface off the space, and a soft long shadow lifts it. Panels and
+    cards have a radius of 24, rows and fields 16, keycaps 6, and
+    capsules are fully round.
+19. **The tint adapts.** Where the space behind a surface is too dark
+    for the light theme, or too bright for the dark, the tint rises to
+    0.82 or 0.84 over 240 ms, so the contrast of rule 5 holds over any
+    pane. The question card, the chat, the window list and the help are
+    always at that strong tint. Without the blur, the strong tint stands
+    alone, and the HUD stays readable.
+20. **No buttons.** Actions come from keys, pointer focus and hover.
+    A hint shows a key as a keycap and a word, appears only where it
+    applies and fades when it is not needed. A hint, a row and a cube
+    face answer the pointer, with a hover fill, but carry no button
+    chrome. Yes and No of a question stay click targets, as every look
+    keeps them, drawn as key segments.
+21. **Focus you can see.** The surface or row that has the keyboard
+    shows a ring of 2 in the accent with a soft halo. The pointer never
+    draws this ring; it shows the hover fill. A chosen row in a list
+    has an accent fill at 0.16 in the light theme and 0.30 in the dark.
+22. **Three families of places.** Ambient capsules sit at the edges
+    and on the pane: the voice island at the top right, the pane label,
+    the hints at the bottom centre and the notices under the island.
+    The conversation lives in the right column: the island expands
+    into the chat in place, and the question card sits under the
+    island and keeps its place when the chat opens. Commands sit in the
+    centre over a light scrim: the window list and the help, each with
+    a search line that filters as the person types.
+23. **Four sizes.** `label` 11, `small` 14 for keys and the pane label,
+    `data` 14 in DejaVu Sans Mono, `text` 16, and `display` 24 only for
+    the search line of the window list and the help.
+24. **Materialise, do not move.** A surface appears over 160 ms while
+    its blur rises over 200 ms, and disappears over 120 ms. The island
+    grows into the chat over 240 ms. Nothing bounces, slides or scales.
+25. **One help for every look.** `Super+/`, and `F1` where the window
+    manager has the keyboard, opens the bindings overlay. It lists the
+    keys that the focused look holds now and the keys shared by every
+    look, grouped and searchable. Each window manager declares its keys
+    with words through `chora-kit`, so the overlay never lists a key
+    that does not work. Each look draws it in its own style: glass here,
+    a classic help window in xp, a page in large type in mc, and a dense
+    list in tiling.

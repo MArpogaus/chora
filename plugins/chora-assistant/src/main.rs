@@ -20,12 +20,15 @@
 
 mod assistant;
 mod card;
+mod card_glass;
 mod chat;
 mod check;
 mod config;
 mod context;
 mod field;
 mod folders;
+mod glass;
+mod island;
 mod rows;
 mod voice;
 
@@ -82,6 +85,7 @@ const EVENTS: &[&str] = &[
     "output.changed",
     "output.removed",
     "construct.theme",
+    "construct.view",
     "mc.theme",
     "tiling.theme",
     "xp.theme",
@@ -144,6 +148,10 @@ impl Source {
 }
 
 /// The plugin.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent states of the host: badge, mic, pane and the others"
+)]
 struct Agent {
     rt: Runtime<()>,
     settings: settings::File<Config>,
@@ -175,6 +183,8 @@ struct Agent {
     card_theme: Theme,
     language: Language,
     assistant: Option<Assistant>,
+    /// The camera of the construct is in a pane: the island dims.
+    in_pane: bool,
     /// The client name of the voice agent and its state, while it is
     /// connected.
     voice: Option<(String, &'static str)>,
@@ -250,6 +260,14 @@ impl Plugin for Agent {
                 if event == format!("{client}.theme") {
                     let theme = data["theme"].as_str().unwrap_or_default();
                     self.switcher.set_theme(&client, theme, Instant::now());
+                }
+                if client == "construct" && event == "construct.view" {
+                    self.in_pane = data["pane"] == true;
+                    let dim = self
+                        .assistant
+                        .as_ref()
+                        .and_then(|a| a.island_dimmed(self.in_pane));
+                    self.apply(dim.into_iter().collect())?;
                 }
                 self.slot_event(&event, &client, &data)?;
                 self.voice_event(&event, &client, &data)?
@@ -353,6 +371,7 @@ impl Agent {
             card_theme,
             language: language(),
             assistant: None,
+            in_pane: false,
             voice: None,
             muted: false,
             card: None,
@@ -786,6 +805,7 @@ mod tests {
             notice: false,
             too_long: false,
             max_width: None,
+            glass: None,
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);

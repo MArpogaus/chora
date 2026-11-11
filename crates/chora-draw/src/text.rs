@@ -348,6 +348,15 @@ impl Fonts {
         (bbox.width() > 0.0).then(|| f64::from(bbox.right()))
     }
 
+    /// The advance of the SVG elements `body` from x 0: the right edge of
+    /// their ink, with the fonts of the theme.
+    #[must_use]
+    pub fn svg_width(&self, body: &str) -> Option<f64> {
+        let tree = self.parse(body, 4096, 256).ok()?;
+        let bbox = tree.root().abs_bounding_box();
+        (bbox.width() > 0.0).then(|| f64::from(bbox.right()))
+    }
+
     /// The `<text>` element of a line, at `x` and moved down by `dy`. A
     /// window title draws without smoothing and with a thin stroke for its
     /// weight, as XP does; a family without a bold face takes a thicker
@@ -491,7 +500,9 @@ fn has_italic(db: &Database, name: &str) -> bool {
 }
 
 /// Escapes text for XML.
-fn escape(text: &str) -> String {
+/// The text with the characters that XML reserves escaped.
+#[must_use]
+pub fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
         match c {

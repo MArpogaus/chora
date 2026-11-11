@@ -157,10 +157,48 @@ pub enum Word {
     NoWindowToGive,
     /// A window manager `{manager}` did not take a window.
     GiveRefused,
+    /// The step of a task: `{step}` of `{steps}`.
+    Step,
+    /// The key line of the chat: Return sends.
+    Send,
+    /// A hint: the keys that walk.
+    Walk,
+    /// A hint: Return flies into the pane ahead.
+    FlyIn,
+    /// A hint: Tab shows the windows.
+    WindowsHint,
+    /// A hint: the key of the help.
+    AllKeys,
+    /// The footer of the window list: the arrows choose.
+    Choose,
+    /// The footer of the window list: Return flies to the window.
+    FlyTo,
+    /// The footer of the help: the arrows move.
+    MoveSelection,
+    /// The footer of a search: Esc clears it.
+    Clear,
+    /// The empty search line of the window list.
+    FindWindow,
+    /// The empty search line of the help.
+    SearchKeys,
+    /// The count of the window list: `{count}` windows.
+    WindowCount,
+    /// A hint: the key of the cube.
+    Cube,
+    /// The count of the window list for one window.
+    WindowOne,
+    /// The count of the found keys of the help.
+    KeysMatch,
+    /// The footer of the help.
+    OnlyNow,
+    /// The tag of a group of keys that every look shares.
+    EveryLook,
+    /// The cube face label: face `{face}` of `{faces}`.
+    Face,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 59] = [
+pub const ALL: [Word; 78] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -220,6 +258,25 @@ pub const ALL: [Word; 59] = [
     Word::NewHelper,
     Word::NoWindowToGive,
     Word::GiveRefused,
+    Word::Step,
+    Word::Send,
+    Word::Walk,
+    Word::FlyIn,
+    Word::WindowsHint,
+    Word::AllKeys,
+    Word::Choose,
+    Word::FlyTo,
+    Word::MoveSelection,
+    Word::Clear,
+    Word::FindWindow,
+    Word::SearchKeys,
+    Word::WindowCount,
+    Word::WindowOne,
+    Word::Cube,
+    Word::KeysMatch,
+    Word::OnlyNow,
+    Word::EveryLook,
+    Word::Face,
 ];
 
 impl Word {
@@ -235,7 +292,7 @@ impl Word {
     #[allow(clippy::too_many_lines, reason = "one line per word")]
     fn en(self) -> &'static str {
         match self {
-            Self::Asleep => "Asleep. Say \"Hey Chora\".",
+            Self::Asleep => "Asleep. Say “Hey Chora”.",
             Self::Listening => "Listening",
             Self::Thinking => "Thinking",
             Self::Working => "Working",
@@ -257,7 +314,7 @@ impl Word {
             Self::You => "You",
             Self::CardTitle => "Question from {name}",
             Self::KeyLine => "Press {yes} to allow or {no} to refuse.",
-            Self::NoVoiceYes => "A spoken \"yes\" does not count.",
+            Self::NoVoiceYes => "A spoken “yes” does not count.",
             Self::Yes => "Yes",
             Self::No => "No",
             Self::Allowed => "Allowed.",
@@ -277,10 +334,10 @@ impl Word {
             Self::Lines => "{n} lines",
             Self::SendLines => "Press Enter again to send {n} lines",
             Self::HudNoticeOne => {
-                "The look \"{name}\" has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
+                "The look “{name}” has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
             }
             Self::HudNotice => {
-                "The look \"{name}\" has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
+                "The look “{name}” has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
             }
             Self::StepBack => "Step back",
             Self::StepIn => "Step in",
@@ -298,6 +355,25 @@ impl Word {
             Self::NewHelper => "New helper for {project}",
             Self::NoWindowToGive => "No window to give.",
             Self::GiveRefused => "{manager} did not take the window.",
+            Self::Step => "{step} of {steps}",
+            Self::Send => "Send",
+            Self::Walk => "Walk",
+            Self::FlyIn => "Fly in",
+            Self::WindowsHint => "Windows",
+            Self::AllKeys => "All keys",
+            Self::Choose => "Choose",
+            Self::FlyTo => "Fly to it",
+            Self::MoveSelection => "Move",
+            Self::Clear => "Clear",
+            Self::FindWindow => "Type to find a window",
+            Self::SearchKeys => "Type to search the keys",
+            Self::WindowCount => "{count} windows",
+            Self::WindowOne => "1 window",
+            Self::Cube => "Cube",
+            Self::KeysMatch => "{count} keys match",
+            Self::OnlyNow => "Only the keys that work now are listed.",
+            Self::EveryLook => "every look",
+            Self::Face => "face {face} of {faces}",
         }
     }
 
@@ -373,6 +449,25 @@ impl Word {
             Self::NewHelper => "Neuer Helfer für {project}",
             Self::NoWindowToGive => "Kein Fenster zum Weitergeben.",
             Self::GiveRefused => "{manager} hat das Fenster nicht genommen.",
+            Self::Step => "{step} von {steps}",
+            Self::Send => "Senden",
+            Self::Walk => "Gehen",
+            Self::FlyIn => "Hineinfliegen",
+            Self::WindowsHint => "Fenster",
+            Self::AllKeys => "Alle Tasten",
+            Self::Choose => "Wählen",
+            Self::FlyTo => "Hinfliegen",
+            Self::MoveSelection => "Bewegen",
+            Self::Clear => "Leeren",
+            Self::FindWindow => "Tippen Sie, um ein Fenster zu finden",
+            Self::SearchKeys => "Tippen Sie, um die Tasten zu durchsuchen",
+            Self::WindowCount => "{count} Fenster",
+            Self::WindowOne => "1 Fenster",
+            Self::Cube => "Würfel",
+            Self::KeysMatch => "{count} Tasten passen",
+            Self::OnlyNow => "Nur die Tasten, die jetzt gehen, stehen hier.",
+            Self::EveryLook => "in jeder Ansicht",
+            Self::Face => "Seite {face} von {faces}",
         }
     }
 }
@@ -443,6 +538,23 @@ mod tests {
 
     fn has_command(text: &str) -> bool {
         text.contains("--") || text.contains("chora") && text.contains(':')
+    }
+
+    #[test]
+    fn a_quoted_word_takes_the_quotes_of_its_language() {
+        assert!(
+            Word::NoVoiceYes
+                .text(Language::En)
+                .contains("\u{201c}yes\u{201d}")
+        );
+        assert!(
+            Word::NoVoiceYes
+                .text(Language::De)
+                .contains("\u{201e}Ja\u{201c}")
+        );
+        for word in ALL {
+            assert!(!word.text(Language::En).contains('"'), "{word:?}");
+        }
     }
 
     #[test]

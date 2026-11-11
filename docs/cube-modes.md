@@ -83,21 +83,24 @@ window there. While the camera is in a pane no chip shows: the keys
 of the cube do not hold there. A `cube.open` from inside a pane first
 leaves the pane, so the cube opens ahead of where the person stood.
 
-While no cube is open, the chip `OPEN CUBE` shows at the bottom right of
-the construct, where the chips of a cube show. A click on it
-opens a cube of four faces, as `cube.open` without params does, and the
-chip hides while the cube is open and while the camera is in a pane. A refusal, for example while another
-client `xp` runs, shows in the HUD.
+While no cube is open, `Super+C`, the key `cube`, opens a cube of four
+faces, as `cube.open` without params does; the walk hints name it,
+`Super C  Cube`, and a click on that hint does the same. Stood back, the
+hints at the bottom centre are the chips of the cube: `Ctrl Alt ← Turn
+left`, `Return Step in` and `Turn right Ctrl Alt →`, and the face label
+under the cube names the window manager and the face, with a dot per
+face. A refusal, for example while another client `xp` runs, shows in
+the HUD.
 
 ## Words
 
 | Key | English | German |
 |-----|---------|--------|
-| step back | STEP BACK | ZURÜCKTRETEN |
-| step in | STEP IN | HINEINGEHEN |
-| turn left | TURN LEFT | NACH LINKS DREHEN |
-| turn right | TURN RIGHT | NACH RECHTS DREHEN |
-| open a cube | OPEN CUBE | WÜRFEL ÖFFNEN |
+| step back | Step back | Zurücktreten |
+| step in | Step in | Hineingehen |
+| turn left | Turn left | Nach links drehen |
+| turn right | Turn right | Nach rechts drehen |
+| open a cube (hint) | Cube | Würfel |
 
 The voice agent says what happened in the same words: "I stepped back",
 "I turned the cube to the left".

@@ -10,6 +10,10 @@ impl Construct {
     /// An event `voice.KIND` of the voice agent, while the construct
     /// draws the voice HUD. Wrong data only log.
     pub(crate) fn follow(&mut self, event: &str, data: Value) -> Result<(), ClientError> {
+        if event == "voice.confirm" {
+            self.asked = data["done"] != true && data.get("prompt").is_some();
+            self.draw_hints()?;
+        }
         if !self.settings.value.draws_voice() {
             return Ok(());
         }
@@ -66,7 +70,7 @@ impl Construct {
             self.voice.say = None;
             self.draw_hud()?;
         }
-        Ok(())
+        self.draw_hints()
     }
 
     /// Whether the HUD line shows: the voice HUD with `voice_hud: own`,
@@ -80,6 +84,9 @@ impl Construct {
     pub(crate) fn draw_hud(&mut self) -> Result<(), ClientError> {
         if !self.shows_hud() {
             return Ok(());
+        }
+        if !self.settings.value.draws_voice() {
+            return self.draw_notice();
         }
         let out = [self.lens.w, self.lens.h];
         let level = self.voice.level(Instant::now());
@@ -104,6 +111,10 @@ impl Construct {
                 colors: s.settings.value.style.colors(s.settings.value.theme),
                 plain: s.glass.plain,
                 shader: &s.glass_shader,
+                shadow: &s.shadow_shader,
+                glass: chora_kit::glass::Material::of(
+                    s.settings.value.theme == crate::config::Theme::Dark,
+                ),
                 metrics: &s.metrics,
             };
             s.voice.ask(&look, out, glow)
@@ -123,6 +134,7 @@ impl Construct {
             || self.moving.is_some()
             || self.effects.animating()
             || self.list.is_some()
+            || self.help
             || self.glide.as_ref().is_some_and(|g| g.into.is_some());
         let pick = if hidden { None } else { self.focus() };
         let Some(k) = pick else {
@@ -132,11 +144,12 @@ impl Construct {
             };
         };
         let fresh = self.labelled.is_none();
-        let name = self.panes[k].name.clone();
-        let fitted = self.fitted(|s| s.styled().label(&name, fresh));
+        let drawn = self.label_drawn;
+        let name = self.pane_title(k);
+        let fitted = self.fitted(|s| s.styled().label(&name, fresh, drawn));
         let (label, pill) = fitted.unwrap_or_else(|err| {
             eprintln!("chora-construct: measure the label: {err}");
-            self.styled().label(&name, fresh)
+            self.styled().label(&name, fresh, drawn)
         });
         let pane = &self.panes[k];
         let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
@@ -152,8 +165,22 @@ impl Construct {
         )];
         if self.labelled.as_deref() != Some(pane.name.as_str()) {
             self.labelled = Some(pane.name.clone());
+            self.label_drawn = true;
             commands.extend(label);
         }
         commands
+    }
+
+    /// The title of the window of a pane, else its name.
+    fn pane_title(&mut self, k: usize) -> String {
+        let pane = &self.panes[k];
+        let fallback = pane.name.clone();
+        let Some(surface) = pane.window().map(str::to_owned) else {
+            return fallback;
+        };
+        (self.rt.conn.query(&format!("id:{surface}")).ok())
+            .and_then(|nodes| nodes.into_iter().next()?.surface?.title)
+            .filter(|title| !title.trim().is_empty())
+            .unwrap_or(fallback)
     }
 }

@@ -43,6 +43,10 @@ const BUTTON: [i32; 2] = [88, 28];
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
+/// How far below the top of a glass chat a card stands: where it stands
+/// under the island, which the chat replaces.
+const GLASS_CARD_TOP: i32 = 48;
+
 /// The number of the entry that a press on `node` picks, if it is one.
 #[must_use]
 pub fn pick_of(node: &str) -> Option<usize> {
@@ -61,6 +65,9 @@ pub fn refuses_injected(node: &str) -> bool {
 #[must_use]
 pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
     let [x, y, w, h] = frame.rect();
+    if frame.look.style == ChatStyle::Glass {
+        return [x + w - size[0], y + GLASS_CARD_TOP];
+    }
     let [ax, ay, aw, ah] = frame.area;
     let left = x + w - card_inset(frame) - size[0];
     let top = y + h - field_room(frame) - LINE - 2 * GAP - size[1];
@@ -302,6 +309,18 @@ impl Session {
         if !self.is_open() {
             return commands;
         }
+        if frame.look.style == ChatStyle::Glass {
+            commands.extend(self.glass_commands(theme, frame, language));
+            if top {
+                commands.push(Command::Move {
+                    id: crate::card::TOP.into(),
+                    parent: None,
+                    index: None,
+                });
+            }
+            self.drawn = Some(frame.output.clone());
+            return commands;
+        }
         let parts = self.parts(theme, frame, language);
         let colours = colours(&frame.look);
         commands.extend(panel(theme, frame, &parts, colours));
@@ -507,6 +526,10 @@ mod tests {
             clear: Vec::new(),
             tip: Some([1144, 560]),
             field: 36,
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
         };
         let most = frame.rect();
         let mut session = Session::new();

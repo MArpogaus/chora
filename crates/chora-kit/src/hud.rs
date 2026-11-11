@@ -139,6 +139,13 @@ pub fn theme_event(client: &str, dark: bool) -> serde_json::Value {
     serde_json::json!({"event": format!("{client}.theme"), "data": {"theme": theme}})
 }
 
+/// The event `NAME.view {pane}` of a window manager of a space: whether its
+/// camera is in a pane, where the voice island of the host dims.
+#[must_use]
+pub fn view_event(client: &str, in_pane: bool) -> serde_json::Value {
+    serde_json::json!({"event": format!("{client}.view"), "data": {"pane": in_pane}})
+}
+
 impl Hud {
     /// The folder in a theme: in the dark one, the colours of `dark` over
     /// those of the chat and the panels.
@@ -322,6 +329,10 @@ pub enum Style {
     Bubble,
     /// Text without a box.
     Plain,
+    /// On a panel with `source: voice`: the ring, the state word and the
+    /// task of the helper on one glass capsule, which also holds the
+    /// sentence while the agent speaks.
+    Island,
 }
 
 /// The block `chat:`: values only.

@@ -33,11 +33,14 @@
 
 mod adopt;
 mod camera;
+mod command;
 mod config;
 mod cube;
 mod file;
 mod float;
 mod frame;
+mod glass;
+mod hints;
 mod hud;
 mod input;
 mod list;
@@ -80,7 +83,7 @@ use crate::{
     camera::{moved, takes_the_camera, window_flown_into},
     config::{Action, Config},
     file::{Kind, PaneFile},
-    hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Metrics, Voice},
+    hud::{Claim, LIST, LIST_ROWS, Look, Metrics, Voice},
     methods::{
         GlideTo, ManagerPane, MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods,
     },
@@ -132,6 +135,10 @@ const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 const GLASS_SHADER: &str = include_str!("../glass.frag");
 /// The focus glow: the glow of `glass.frag` alone, without time.
 const GLOW_SHADER: &str = include_str!("../glow.frag");
+/// The shadow of a glass surface of the HUD.
+const SHADOW_SHADER: &str = include_str!("../shadow.frag");
+/// The thumbnail of a window in the window list.
+const THUMB_SHADER: &str = include_str!("../thumb.frag");
 /// The notice of a window that finds no room in the view.
 const NO_ROOM: &str = "No room in view: in the window list (Tab)";
 /// How long the notice of a typed key that does nothing waits before it
@@ -259,6 +266,10 @@ struct Row {
 struct ListState {
     sel: usize,
     give: Option<String>,
+    /// The typed search; the rows are those whose name holds it.
+    query: String,
+    /// The row under the pointer.
+    hovered: Option<usize>,
 }
 
 /// A unique label from `base`, at most 32 characters, with `-2`, `-3`
@@ -446,6 +457,10 @@ struct Flown {
     plugin: Option<(String, String)>,
 }
 
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent states of the space and its HUD"
+)]
 struct Construct {
     rt: Runtime<Grab>,
     settings: settings::File<Config>,
@@ -468,6 +483,8 @@ struct Construct {
     mirror_shader: String,
     glass_shader: String,
     glow_shader: String,
+    shadow_shader: String,
+    thumb_shader: String,
     /// The launcher: the token and the process of its own window, which
     /// is no pane,
     /// that window, and when it started.
@@ -500,6 +517,19 @@ struct Construct {
     metrics: Metrics,
     /// Whether the help panel shows.
     help: bool,
+    /// The search of the help and its chosen row.
+    help_query: String,
+    help_sel: usize,
+    /// The context hints at the bottom centre.
+    hints: hints::State,
+    /// A question of the voice agent waits: the hints hide.
+    asked: bool,
+    /// The hint under the pointer.
+    hint_hover: Option<String>,
+    /// The capsule of the pane label exists.
+    label_drawn: bool,
+    /// The notice under the island exists.
+    notice_drawn: bool,
     claim: Claim,
     glass: Glass,
     /// The last point of the pointer over the space that the core told:
@@ -569,6 +599,10 @@ fn shader(name: &str, text: &str) -> std::io::Result<String> {
     shader_file(runtime, "chora-construct", name, text).map(|p| p.to_string_lossy().into_owned())
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the state of the construct, field by field"
+)]
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-construct")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
@@ -592,6 +626,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         mirror_shader: shader("mirror.frag", MIRROR_SHADER)?,
         glass_shader: shader("glass.frag", GLASS_SHADER)?,
         glow_shader: shader("glow.frag", GLOW_SHADER)?,
+        shadow_shader: shader("shadow.frag", SHADOW_SHADER)?,
+        thumb_shader: shader("thumb.frag", THUMB_SHADER)?,
         launcher: None,
         launcher_window: None,
         launched: None,
@@ -609,6 +645,13 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         voice: Voice::default(),
         metrics: Metrics::default(),
         help: false,
+        help_query: String::new(),
+        help_sel: 0,
+        hints: hints::State::default(),
+        asked: false,
+        hint_hover: None,
+        label_drawn: false,
+        notice_drawn: false,
         claim: Claim { due: true },
         glass: Glass::default(),
         pointer: None,

@@ -44,8 +44,9 @@
 #                           the card, construct draws no HUD, no question
 #                           glass and makes no claim (H10)
 #   construct-chat-panel    the chat of the construct folder is a panel at
-#                           the right, 480 wide, 32 from the edges of the
-#                           work area (H10, F9)
+#                           the right, 400 wide on 1280 (28 hundredths of
+#                           the output, from 400 to 480), 32 from the
+#                           edges of the work area (H10, F9)
 #   voice-state-rate, layers-dropped-empty, host-idle-cpu   100 voice.state
 #                           in 5 s, then no dropped layers and under 1 % CPU
 #
@@ -542,7 +543,7 @@ cell_construct_host_hud() {
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
     emit voice.say '{"text": "Your updates are ready to install.", "duration_ms": 1000}'
     waiting "$settle_s" node_exists hud-figure || return 1
-    waiting "$settle_s" node_exists hud-line || return 1
+    waiting "$settle_s" node_has hud-figure 'ready to install' || return 1
     sleep 1
     ! node_shows construct-hud || return 1
     ask_notes
@@ -556,7 +557,7 @@ chat_at_right() {
     area=$(ctl outputs | jq -c '.[0].work_area')
     jq -ne --argjson a "$area" --argjson c "$(node_rect hud-chat)" \
         '($c | to_entries[0].value) as $r |
-         $r[2] == 480 and $r[0] + $r[2] == $a[0] + $a[2] - 32 and $r[1] == $a[1] + 32' >/dev/null 2>&1
+         $r[2] == 400 and $r[0] + $r[2] == $a[0] + $a[2] - 32 and $r[1] == $a[1] + 32' >/dev/null 2>&1
 }
 cell_construct_chat_panel() {
     local shown

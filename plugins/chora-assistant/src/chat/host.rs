@@ -15,6 +15,7 @@ use chora_draw::{
 };
 use chora_kit::{
     conn::Conn,
+    hud::ChatStyle,
     hud::{Anchor, Chat as Look},
     runtime,
     words::{Language, Word},
@@ -227,6 +228,22 @@ impl Agent {
                 .chain(self.chat_row)
                 .collect(),
             look: chat_look(&self.values),
+            ring: match &self.values.figure {
+                crate::config::Figure::Sheet { sheet, .. } => Some(*sheet),
+                crate::config::Figure::Dot => None,
+            },
+            dark: self.values.dark,
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "a scale of 1 to 4"
+            )]
+            scale: scale.ceil().clamp(1.0, 4.0) as u32,
+            card: (self.card.as_ref())
+                .filter(|shown| shown.output == output.name)
+                .map(|shown| {
+                    crate::card::rect(&self.card_theme, shown, self.language, output.size)
+                }),
             tip: self
                 .assistant
                 .as_ref()
@@ -253,6 +270,11 @@ impl Agent {
         let mut commands = self
             .chat
             .commands(&mut self.theme, &frame, (self.language, top));
+        let open = self.chat.is_open();
+        commands.extend(
+            (self.assistant.as_ref())
+                .and_then(|a| a.island_shown(!(open && frame.look.style == ChatStyle::Glass))),
+        );
         commands.extend(self.card_follows()?);
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());

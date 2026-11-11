@@ -156,7 +156,8 @@ impl Construct {
             | Action::Launcher
             | Action::Close
             | Action::Windows
-            | Action::Help => return,
+            | Action::Help
+            | Action::Cube => return,
             Action::FlyIn => {
                 if let Some(i) = self.pane_ahead()
                     && let Err(err) = self.fly_in(i)

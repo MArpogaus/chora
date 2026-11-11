@@ -29,6 +29,7 @@ use crate::{
     field::{FieldEvent, say_params},
 };
 
+mod glass;
 mod host;
 mod view;
 
@@ -59,6 +60,16 @@ pub struct Frame {
     /// What the view never covers: the figure with its balloon and the
     /// "Chat ..." row, each as x, y, width, height.
     pub clear: Vec<[i32; 4]>,
+    /// The sheet of the figure, whose element of a state a glass view
+    /// shows as its ring.
+    pub ring: Option<chora_draw::theme::Sheet>,
+    /// The look is in the dark theme.
+    pub dark: bool,
+    /// The scale of the output, for the field.
+    pub scale: u32,
+    /// The question card on the output, x, y, width and height: the
+    /// transcript of a glass view flows under it.
+    pub card: Option<[i32; 4]>,
     /// The head of the figure, where the tail of a `bubble` chat points.
     pub tip: Option<[i32; 2]>,
     /// The height of the field at the bottom of the view.
@@ -77,7 +88,10 @@ impl Frame {
         if let Some(tip) = self.balloon_tip() {
             return self.balloon(tip);
         }
-        let (anchor, width) = self.look.place();
+        let (anchor, mut width) = self.look.place();
+        if self.look.style == chora_kit::hud::ChatStyle::Glass {
+            width = glass_width(width, self.area[2]);
+        }
         let margin = i32::try_from(self.look.margin).unwrap_or(0);
         let [x, y, w, h] = self.area;
         let inside = [
@@ -160,6 +174,16 @@ impl Frame {
         [moved.unwrap_or(x), y, w, h]
     }
 }
+
+/// The width of a glass chat: 28 hundredths of the work area, at least
+/// 400 and at most the width of the folder (construct HUD spec, 5).
+fn glass_width(most: u32, area: i32) -> u32 {
+    let share = u32::try_from(area.max(0) * 28 / 100).unwrap_or(0);
+    share.clamp(GLASS_LEAST.min(most), most)
+}
+
+/// The narrowest glass chat.
+const GLASS_LEAST: u32 = 400;
 
 /// The gap between the view and what it stands beside.
 const ASIDE: i32 = 8;
@@ -415,6 +439,9 @@ fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
 /// one: at the bottom of the view, as wide as the view.
 #[must_use]
 pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
+    if frame.look.style == chora_kit::hud::ChatStyle::Glass {
+        return glass_field_place(frame, token);
+    }
     let [x, y, w, h] = frame.rect();
     let inset = if frame.tail().is_some() { view::PAD } else { 0 };
     let [x, w, h] = [x + inset, w - 2 * inset, h - inset];
@@ -429,6 +456,44 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
             "text": rgba(colours.text),
             "border": rgba(colours.border),
             "hint": rgba(colours.text),
+        },
+    });
+    if let Some(token) = token {
+        place["token"] = token.into();
+    }
+    place
+}
+
+/// The `place` of the field of a glass chat: the well of 48 above the key
+/// line, inset 8 in the view, with room of 6 around it for the focus ring,
+/// in the colours of the glass at the scale of the output.
+#[allow(
+    clippy::many_single_char_names,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a rect and a colour as bytes, clamped from 0 to 255"
+)]
+fn glass_field_place(frame: &Frame, token: Option<&str>) -> Value {
+    const RING_ROOM: i32 = 6;
+    let [x, y, w, h] = frame.rect();
+    let tokens = chora_kit::glass::Material::of(frame.dark);
+    let byte = |c: [f64; 4]| c.map(|v| (v * 255.0).round().clamp(0.0, 255.0) as u8);
+    let halo = {
+        let [r, g, b, _] = tokens.accent;
+        [r, g, b, chora_kit::glass::HALO_ALPHA]
+    };
+    let mut place = json!({
+        "anchor": "bottom_left",
+        "margin": [0, 0, frame.size[1] - (y + h) + 40 + 8 - RING_ROOM, x + 8 - RING_ROOM],
+        "width": w - 16 + 2 * RING_ROOM,
+        "output": frame.output,
+        "scale": frame.scale,
+        "look": {
+            "background": byte(tokens.well),
+            "text": byte(tokens.text),
+            "border": [0, 0, 0, 0],
+            "hint": byte(tokens.muted),
+            "glass": {"accent": byte(tokens.accent), "halo": byte(halo)},
         },
     });
     if let Some(token) = token {
@@ -727,6 +792,11 @@ impl Session {
                 FieldEvent::Closed => {
                     self.close_view(out);
                     changed = true;
+                }
+                FieldEvent::Stop => {
+                    if let Mode::Chat(name) = &self.mode {
+                        let _ = out.voice("agent.cancel", json!({"name": name}));
+                    }
                 }
             }
         }
@@ -1151,9 +1221,30 @@ mod tests {
             look,
             slot: None,
             clear: Vec::new(),
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
             tip: None,
             field: ONE_LINE_FIELD,
         }
+    }
+
+    #[test]
+    fn a_glass_chat_is_28_hundredths_of_the_output_wide_from_400_to_its_width() {
+        let look = Look {
+            style: chora_kit::hud::ChatStyle::Glass,
+            anchor: Some(Anchor::Right),
+            width: Some(480),
+            margin: 32,
+            ..Look::default()
+        };
+        let mut glass = frame(look);
+        assert_eq!(glass.rect(), [1280 - 32 - 400, 32, 400, 656]);
+        glass.area = [0, 0, 1920, 1080];
+        assert_eq!(glass.rect()[2], 480, "28 hundredths of 1920 is more");
+        glass.area = [0, 0, 1600, 900];
+        assert_eq!(glass.rect()[2], 448);
     }
 
     #[test]
@@ -1426,6 +1517,19 @@ mod tests {
         switcher.hold_field(session.keyboard(), start);
         assert!(switcher.due().is_some());
         assert_eq!(calls(&log, "chat.close"), [json!({"name": "atlas"})]);
+    }
+
+    #[test]
+    fn ctrl_period_in_the_field_stops_the_helper() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), None, &frame)
+            .expect("open");
+        log.borrow_mut().events.push(FieldEvent::Stop);
+        session.field_events(&mut out, &frame);
+        assert_eq!(calls(&log, "agent.cancel"), [json!({"name": "atlas"})]);
+        assert!(session.is_open(), "the chat stays open");
     }
 
     #[test]

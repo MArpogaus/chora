@@ -774,7 +774,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help`. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -951,25 +951,53 @@ terminal inside them.
 
 ### The help panel
 
-`F1`, the key `help`, shows a glass panel in the middle of the output
-with the bindings of the settings: the keys of each action, the fly-out
-binding, and the drag and the wheel with the `modifier`. A change of the
-settings, for example `modifier: Alt`, shows at once. `F1` again hides
-it. The voice agent shows it with the method `help.toggle`.
+`F1`, the key `help`, shows the help over a scrim: a glass panel at the
+top centre, 880 wide in two columns, with the keys that work now in
+groups, the construct's own at the left (Walk, Panes, Cube while a cube
+is open) and those that every look shares at the right (Helper and chat,
+Give a window, Everywhere). Each key is a keycap. The keys come from the
+settings, so a change, for example `modifier: Alt`, shows at once, and a
+key that is not bound has no row. Typing searches the words and the key
+names: the panel is then 560 wide in one column, the found words are
+marked, `Up` and `Down` move the chosen row, and the footer counts the
+keys that match. `Escape` clears the search, then hides the help; `F1`
+hides it at once. While it shows, the keys search and do not walk. The
+voice agent shows it with the method `help.toggle`.
+
+### Context hints
+
+At the bottom centre a glass capsule shows two to four hints, each the
+keycaps of a key and a word: walking, `W A S D Walk`, `Return Fly in`,
+`Tab Windows`, `F1 All keys` and, without a cube, `Super C Cube`, for 6
+seconds after the start and after a fly-out; in a
+pane, `Alt Esc Step back` for 3 seconds after the fly-in; stood back
+from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and `Turn right
+Ctrl Alt →`, whose hints are the chips of the cube. A click on a hint
+does its act. The hints hide while the window list or the help shows, a
+question waits or a pane moves.
+
+### Notices
+
+A notice of the construct, such as a refused give or the hint that the
+keys walk, shows for 4 seconds as one line of text on a glass capsule
+under the island at the top right, 32 from the edge and at most 360
+wide, while the host draws the HUD (`voice_hud: host`).
 
 ### The window list
 
 In the construct, every window is a pane. `Tab`, the key `windows`,
-opens the window list over the space. It shows every window, of any
-owner, by its name. A window that does not show has the note "not in
-view": a pane behind the camera, beyond the leash radius, out of the
-view, or covered by the front face of a cube in use mode, and a window
-without a pane. With no window, the list says "no windows". `Up` and
-`Down` move the selection, and `Return` or a click chooses. A choice
-flies to the pane. A window of another client, such as tiling, xp or mc,
-first becomes a pane at its own size. `Escape` or `Tab` closes the list.
-`g` on an own window shows the other window managers, the clients with a
-claim (D55); `Return` gives the window to the one selected.
+opens the window list over a scrim: a glass panel at the top centre, 560
+wide, with a search line and the count of the windows. A row shows a
+window by its title, with a thumbnail while its pane shows, else its
+first letter, and where it is: ahead, left, right, behind you or not in
+view (a pane beyond the leash radius, out of the view, covered by the
+front face of a cube in use mode, or a window without a pane). Typing
+filters the rows by title and name. `Up` and `Down` move the selection,
+and `Return` or a click chooses. A choice flies to the pane. A window of
+another client, such as tiling, xp or mc, first becomes a pane at its
+own size. `Escape` clears the search, then closes the list; `Tab` closes
+it. `Super+Alt+1` to `Super+Alt+4` give the chosen window to tiling, xp,
+mc or construct.
 
 `Super+Alt+1` to `Super+Alt+4` give the focused window to tiling, xp, mc
 or construct, also the window of the pane that the camera flew into;

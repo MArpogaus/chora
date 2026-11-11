@@ -110,9 +110,8 @@ impl Agent {
         }
         self.claim_indicator(true);
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
-        let name = data.get("name").and_then(Value::as_str);
         let now = Instant::now();
-        if let Some(helper) = name.filter(|n| *n != client) {
+        if let Some(helper) = helper_of(kind, data, client) {
             if kind == Some("state") {
                 self.helper_state(helper, data, now);
                 self.chat_voice(event, data);
@@ -121,7 +120,9 @@ impl Agent {
                 self.helper_gone(helper, now);
                 self.chat_voice(event, data);
             }
-            return self.sync_row();
+            let mut commands = self.sync_row()?;
+            commands.extend(self.sync_task());
+            return Ok(commands);
         }
         match kind {
             Some("state") => {
@@ -167,6 +168,15 @@ impl Agent {
         }
         let agents = context::agents_of(self.helpers.values().map(|helper| helper.state));
         self.switcher.set_agents(agents, now);
+    }
+
+    /// The task of the busy helper in the island of the folder.
+    fn sync_task(&mut self) -> Vec<Command> {
+        let task = crate::rows::island_task(self.language, &self.helpers);
+        match self.assistant.as_mut() {
+            Some(a) => a.set_task(&mut self.theme, &task),
+            None => Vec::new(),
+        }
     }
 
     /// A helper ended: it no longer counts for the context.
@@ -296,11 +306,13 @@ impl Agent {
             notice: false,
             too_long: false,
             max_width: None,
+            glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
+                .then_some(self.values.dark),
         };
         self.place_card(&mut shown, figure, &output)?;
         let language = self.language;
-        if self.card.take().is_some() {
-            commands.extend(card::hide());
+        if let Some(old) = self.card.take() {
+            commands.extend(card::hide(&old));
         }
         commands.extend(card::show(
             &mut self.card_theme,
@@ -335,9 +347,9 @@ impl Agent {
             return Vec::new();
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
-            self.card = None;
+            let old = self.card.take();
             self.chat.question_ended();
-            return card::hide();
+            return old.as_ref().map(card::hide).unwrap_or_default();
         }
         Vec::new()
     }
@@ -537,7 +549,12 @@ impl Agent {
                     (&output, anchor),
                     (state, &label, now),
                 );
+                let mut commands = commands;
+                if self.in_pane {
+                    commands.extend(a.island_dimmed(true));
+                }
                 self.assistant = Some(a);
+                commands.extend(self.sync_task());
                 Ok(commands)
             }
         }
@@ -612,10 +629,7 @@ impl Agent {
         shown.origin = origin;
         shown.card.moved(Instant::now());
         self.chat.card_shown(origin[1], size[1]);
-        let mut commands = card::hide();
-        if !shown.buttons {
-            commands.truncate(1);
-        }
+        let mut commands = card::hide(&shown);
         let (theme, language) = (&mut self.card_theme, self.language);
         commands.extend(card::show(theme, &shown, language, output.size, true));
         self.card = Some(shown);
@@ -737,6 +751,18 @@ impl Agent {
 }
 
 /// The anchor of a corner of the setting `position`.
+/// The helper that an event of the agent is about: the `name` of a state
+/// or a removal of a helper. A question names the helper that asks, for
+/// the title of its card, and is the agent's own event.
+fn helper_of<'a>(kind: Option<&str>, data: &'a Value, client: &str) -> Option<&'a str> {
+    if kind == Some("confirm") {
+        return None;
+    }
+    data.get("name")
+        .and_then(Value::as_str)
+        .filter(|name| *name != client)
+}
+
 fn anchor_of(corner: chora_draw::bubble::Corner) -> chora_kit::hud::Anchor {
     use chora_draw::bubble::Corner;
     use chora_kit::hud::Anchor;
@@ -754,6 +780,17 @@ mod tests {
     use chora_kit::hud::Anchor;
 
     use super::*;
+
+    #[test]
+    fn a_question_that_names_its_helper_is_a_question_of_the_agent() {
+        let asked = serde_json::json!({"id": "51", "prompt": "Write notes.txt?", "name": "Atlas"});
+        assert_eq!(helper_of(Some("confirm"), &asked, VOICE), None);
+        let working = serde_json::json!({"name": "Atlas", "state": "working"});
+        assert_eq!(helper_of(Some("state"), &working, VOICE), Some("Atlas"));
+        assert_eq!(helper_of(Some("remove"), &working, VOICE), Some("Atlas"));
+        let own = serde_json::json!({"name": VOICE, "state": "working"});
+        assert_eq!(helper_of(Some("state"), &own, VOICE), None);
+    }
 
     #[test]
     fn the_setting_position_names_a_corner_anchor() {

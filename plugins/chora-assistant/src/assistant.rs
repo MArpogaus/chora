@@ -12,9 +12,14 @@ use chora_draw::{
     theme::{Picture, Theme},
 };
 use chora_kit::hud::{Anchor, render};
-use chora_scene::{Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
+use chora_scene::{
+    Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform, Uniform,
+};
 
-use crate::config::{Figure, Values};
+use crate::{
+    config::{Figure, Values},
+    island::{self, Content},
+};
 
 /// The group of the HUD folder under `screen:OUTPUT`.
 const GROUP: &str = "hud";
@@ -28,6 +33,17 @@ const SPEECH: &str = "hud-line";
 const STATE: &str = "hud-state";
 /// The state word beside the figure, if the folder shows one.
 const WORD: &str = "hud-word";
+/// The shadow and the hairline of the island.
+const SHADOW: &str = "hud-island-shadow";
+/// The opacity of the island while the camera of the construct is in a
+/// pane.
+const IN_PANE: f64 = 0.6;
+/// The turning or pulsing ring of the island in a busy state.
+const RING: &str = "hud-island-ring";
+/// The shader of that ring.
+const RING_SHADER: &str = include_str!("../ring.frag");
+/// The rect of the tint of the island over the blur.
+const ISLAND_GLASS: &str = "hud-island-glass";
 const PAD: i32 = 10;
 const LINE: i32 = 13;
 const MIN_WIDTH: i32 = 120;
@@ -43,6 +59,8 @@ const DOT: &str = include_str!("../huds/neutral/dot.svg");
 const BLINK: Duration = Duration::from_millis(140);
 /// How long the balloon stays after its sentence ends.
 const LINGER: Duration = Duration::from_secs(3);
+/// How long the island keeps a sentence after it ends.
+const ISLAND_LINGER: Duration = Duration::from_secs(2);
 /// How long the balloon takes to fade out, in milliseconds.
 const FADE: f64 = 600.0;
 
@@ -279,6 +297,13 @@ pub struct Assistant {
     fades_at: Option<Instant>,
     /// The size of the state word, none without one.
     word: [i32; 2],
+    /// What the island shows, for a folder with `style: island`.
+    island: Option<Content>,
+    /// The size of the island.
+    island_size: [i32; 2],
+    /// The file of `ring.frag`, none where it cannot be written: the ring
+    /// then stays a still picture.
+    ring_shader: Option<String>,
 }
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
@@ -351,11 +376,28 @@ impl Assistant {
     ) -> (Self, Vec<Command>) {
         let mut values = values.clone();
         let area = work_area(output);
-        let mut origin = origin(anchor, area, values.figure.size(), values.margin);
-        if !inside(origin, values.figure.size(), output.size) {
+        let island = values.island.then(|| Content {
+            word: label.to_owned(),
+            ..Content::default()
+        });
+        let island_size = island.as_ref().map_or([0, 0], |content| {
+            island::picture(theme, content, values.dark).size
+        });
+        let size = if values.island {
+            island_size
+        } else {
+            values.figure.size()
+        };
+        let mut origin = origin(anchor, area, size, values.margin);
+        if !inside(origin, size, output.size) {
             values = Values::neutral(&values.font);
             origin = origin_of(&values, area);
         }
+        let island = island.filter(|_| values.island);
+        let ring_shader = (values.island)
+            .then(|| theme.cache_file("ring.frag", RING_SHADER).ok())
+            .flatten()
+            .map(|path| path.to_string_lossy().into_owned());
         let assistant = Self {
             values,
             origin,
@@ -365,11 +407,23 @@ impl Assistant {
             shut: false,
             step: 0,
             blinks: 0,
-            moves_at: Some(now),
-            blinks_at: now + blink_gap(0),
             speech: false,
             fades_at: None,
             word: [0, 0],
+            island_size,
+            ring_shader,
+            moves_at: None,
+            blinks_at: now + Duration::from_secs(86_400),
+            island,
+        };
+        let assistant = if assistant.island.is_some() {
+            assistant
+        } else {
+            Self {
+                moves_at: Some(now),
+                blinks_at: now + blink_gap(0),
+                ..assistant
+            }
         };
         let mut assistant = assistant;
         let commands = assistant.created(theme, &output.name, label);
@@ -387,6 +441,11 @@ impl Assistant {
             parent: GROUP.into(),
             props,
         });
+        let under: Vec<Command> = self
+            .shadow(theme, true)
+            .into_iter()
+            .chain(self.island_backdrop(true))
+            .collect();
         vec![
             group(
                 GROUP,
@@ -402,6 +461,10 @@ impl Assistant {
                     ..PropsUpdate::default()
                 },
             },
+        ]
+        .into_iter()
+        .chain(under)
+        .chain([
             group(
                 BODY,
                 GROUP.into(),
@@ -412,22 +475,240 @@ impl Assistant {
                 kind: NodeKind::Image,
                 parent: BODY.into(),
                 props: PropsUpdate {
-                    image: Some(theme.render(&draw(theme, figure, self.state, false))),
-                    opacity: Some(self.pose.opacity()),
+                    image: Some(theme.render(&self.picture(theme, figure))),
+                    opacity: Some(self.opacity()),
+                    meta: self.island_words(),
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
                 },
             },
-        ]
-        .into_iter()
+        ])
+        .chain(self.ring(true))
         .chain(word)
         .collect()
+    }
+
+    /// The rect that holds the tint of the island over the blur of the
+    /// core; none for a figure or without the blur.
+    fn island_backdrop(&self, fresh: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        let [w, h] = self.island_size.map(f64::from);
+        let m = chora_kit::glass::Material::of(self.values.dark);
+        let radius = h.min(chora_kit::glass::CAPSULE) / 2.0;
+        crate::glass::backdrop(
+            (ISLAND_GLASS, GROUP),
+            [0.0, 0.0, w, h],
+            (radius, false),
+            (&m, fresh),
+        )
+    }
+
+    /// The picture of the figure: the island with its ring, or the figure
+    /// in its state.
+    fn picture(&self, theme: &Theme, figure: &Figure) -> Picture {
+        let Some(content) = self.shown_island() else {
+            return draw(theme, figure, self.state, self.shut);
+        };
+        let picture = island::picture(theme, &content, self.values.dark);
+        if self.ring_moves() {
+            return picture;
+        }
+        let ring = island::ring_rect(picture.size[1]);
+        match figure {
+            Figure::Sheet {
+                sheet, template, ..
+            } => {
+                let has = |id: &str| theme.size(*sheet, id).is_some();
+                let id = element_of(has, template, self.state, false);
+                picture.element(*sheet, &id, ring)
+            }
+            Figure::Dot => picture.svg(format!(
+                r#"<g transform="translate({} {})">{}</g>"#,
+                ring[0],
+                ring[1],
+                dot_group(self.state)
+            )),
+        }
+    }
+
+    /// Whether the ring of the island moves: a busy state, with its shader.
+    fn ring_moves(&self) -> bool {
+        self.island.is_some()
+            && self.ring_shader.is_some()
+            && island::ring_mode(self.state).is_some()
+    }
+
+    /// The shader node of the ring of the island, made or changed; none for
+    /// a figure or without the shader.
+    fn ring(&self, fresh: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        let shader = self.ring_shader.clone()?;
+        let [x, y, w, h] = island::ring_rect(self.island_size[1]).map(f64::from);
+        let accent = chora_kit::glass::Material::of(self.values.dark).accent;
+        let mode = island::ring_mode(self.state);
+        let uniforms = [
+            ("accent".to_owned(), Uniform::Vector(accent[..3].to_vec())),
+            ("mode".to_owned(), Uniform::Float(mode.unwrap_or(0.0))),
+        ];
+        let props = PropsUpdate {
+            shader: fresh.then_some(shader),
+            transform: Some(Transform::translate(x, y, 0.0)),
+            size: Some([w, h]),
+            uniforms: Some(uniforms.into_iter().collect()),
+            visible: Some(mode.is_some()),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        };
+        Some(if fresh {
+            Command::Create {
+                id: RING.into(),
+                kind: NodeKind::Shader,
+                parent: GROUP.into(),
+                props,
+            }
+        } else {
+            Command::Update {
+                id: RING.into(),
+                props,
+            }
+        })
+    }
+
+    /// What the island shows now: the task only while the agent thinks or
+    /// works.
+    fn shown_island(&self) -> Option<Content> {
+        let mut content = self.island.clone()?;
+        if !matches!(self.state, "thinking" | "working") {
+            content.task.clear();
+        }
+        Some(content)
+    }
+
+    /// The words that the island shows, for readers of the scene.
+    fn island_words(&self) -> Option<std::collections::BTreeMap<String, String>> {
+        let content = self.shown_island()?;
+        let words = [Some(content.word), Some(content.task), content.sentence]
+            .into_iter()
+            .flatten()
+            .filter(|words| !words.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Some([("text".to_owned(), words)].into())
+    }
+
+    /// The opacity of the figure: the island stays clear while it sleeps.
+    fn opacity(&self) -> f64 {
+        if self.island.is_some() {
+            1.0
+        } else {
+            self.pose.opacity()
+        }
+    }
+
+    /// The shadow and the hairline of the island, made or moved; none for
+    /// a figure.
+    fn shadow(&self, theme: &mut Theme, fresh: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        let [w, h] = self.island_size.map(f64::from);
+        let m = chora_kit::glass::Material::of(self.values.dark);
+        let path = crate::glass::shadow(
+            theme,
+            [w, h],
+            h.min(chora_kit::glass::CAPSULE) / 2.0,
+            &m,
+            false,
+        );
+        let reach = f64::from(crate::glass::REACH);
+        let props = PropsUpdate {
+            image: Some(path),
+            transform: Some(Transform::translate(-reach, -reach, 0.0)),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        };
+        Some(if fresh {
+            Command::Create {
+                id: SHADOW.into(),
+                kind: NodeKind::Image,
+                parent: GROUP.into(),
+                props,
+            }
+        } else {
+            Command::Update {
+                id: SHADOW.into(),
+                props,
+            }
+        })
+    }
+
+    /// The island anew after its content changed: its size, its place at
+    /// the anchor of the folder, its picture and its shadow.
+    fn relayout(&mut self, theme: &mut Theme) -> Vec<Command> {
+        let Some(content) = self.shown_island() else {
+            return Vec::new();
+        };
+        let size = island::picture(theme, &content, self.values.dark).size;
+        self.island_size = size;
+        self.origin = origin(self.values.anchor, self.area, size, self.values.margin);
+        let [x, y] = self.origin.map(f64::from);
+        let mut commands = vec![
+            Command::Update {
+                id: GROUP.into(),
+                props: PropsUpdate {
+                    transform: Some(Transform::translate(x, y, 0.0)),
+                    ..PropsUpdate::default()
+                },
+            },
+            self.face(theme),
+        ];
+        commands.extend(self.shadow(theme, false));
+        commands.extend(self.island_backdrop(false));
+        commands.extend(self.ring(false));
+        commands
+    }
+
+    /// Shows or hides the island: an open glass chat is its expanded form
+    /// and takes its place (one surface, U3). None for a figure.
+    pub fn island_shown(&self, shown: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        Some(Command::Update {
+            id: GROUP.into(),
+            props: PropsUpdate {
+                visible: Some(shown),
+                ..PropsUpdate::default()
+            },
+        })
+    }
+
+    /// The island dimmed inside a pane of the construct.
+    pub fn island_dimmed(&self, in_pane: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        Some(Command::Animate {
+            id: GROUP.into(),
+            props: PropsUpdate {
+                opacity: Some(if in_pane { IN_PANE } else { 1.0 }),
+                ..PropsUpdate::default()
+            },
+            duration: chora_kit::glass::APPEAR_MS,
+            easing: Easing::EaseOut,
+        })
+    }
+
+    /// The task of the helper that the island shows after the state word.
+    pub fn set_task(&mut self, theme: &mut Theme, task: &str) -> Vec<Command> {
+        match &mut self.island {
+            Some(content) if content.task != task => task.clone_into(&mut content.task),
+            _ => return Vec::new(),
+        }
+        self.relayout(theme)
     }
 
     /// The picture of the state word on the backing of a plain sentence,
     /// beside the figure, toward the middle of the area; none for a folder
     /// without a word.
     fn word(&mut self, theme: &mut Theme, label: &str) -> Option<PropsUpdate> {
+        if self.island.is_some() {
+            return None;
+        }
         let template = self.values.word.as_deref()?;
         let text = chora_kit::hud::render(template, &serde_json::json!({ "state": label }));
         #[allow(
@@ -510,7 +791,11 @@ impl Assistant {
 
     /// The rectangle of the figure on the output: x, y, width, height.
     pub fn rect(&self) -> [i32; 4] {
-        let [w, h] = self.values.figure.size();
+        let [w, h] = if self.island.is_some() {
+            self.island_size
+        } else {
+            self.values.figure.size()
+        };
         [self.origin[0], self.origin[1], w, h]
     }
 
@@ -541,6 +826,18 @@ impl Assistant {
         self.state = state;
         self.pose = pose(state);
         self.step = 0;
+        if let Some(content) = &mut self.island {
+            label.clone_into(&mut content.word);
+            let mut commands = self.relayout(theme);
+            commands.push(Command::Update {
+                id: STATE.into(),
+                props: PropsUpdate {
+                    meta: Some([("text".to_owned(), label.to_owned())].into()),
+                    ..PropsUpdate::default()
+                },
+            });
+            return commands;
+        }
         self.moves_at = Some(now);
         let word = self.word(theme, label).map(|props| Command::Update {
             id: WORD.into(),
@@ -562,12 +859,13 @@ impl Assistant {
     }
 
     fn face(&self, theme: &mut Theme) -> Command {
-        let picture = draw(theme, &self.values.figure, self.state, self.shut);
+        let picture = self.picture(theme, &self.values.figure);
         Command::Update {
             id: CLIP.into(),
             props: PropsUpdate {
                 image: Some(theme.render(&picture)),
-                opacity: Some(self.pose.opacity()),
+                opacity: Some(self.opacity()),
+                meta: self.island_words(),
                 ..PropsUpdate::default()
             },
         }
@@ -582,6 +880,11 @@ impl Assistant {
         now: Instant,
     ) -> Vec<Command> {
         self.fades_at = Some(now + time + LINGER);
+        if let Some(content) = &mut self.island {
+            content.sentence = Some(text.to_owned());
+            self.fades_at = Some(now + time + ISLAND_LINGER);
+            return self.relayout(theme);
+        }
         self.balloon(theme, text)
     }
 
@@ -610,6 +913,13 @@ impl Assistant {
     /// x, y, width, height. A balloon is at most `MAX_SPEECH` wide and
     /// stands above or below the figure.
     pub fn reach(&self) -> [i32; 4] {
+        if self.island.is_some() {
+            let [x, y, _, _] = self.rect();
+            #[allow(clippy::cast_possible_truncation, reason = "a few hundred pixels")]
+            let widest = island::SENTENCE_WIDTH as i32 + 2 * 48;
+            let right = x + self.island_size[0];
+            return [right - widest, y, widest, 64];
+        }
         let [x, y, w, h] = self.with_word();
         if self.values.line.plain {
             #[allow(clippy::cast_possible_truncation)]
@@ -736,6 +1046,13 @@ impl Assistant {
             };
             commands.push(self.face(theme));
         }
+        if self.fades_at.is_some_and(|at| at <= now) && self.island.is_some() {
+            self.fades_at = None;
+            if let Some(content) = &mut self.island {
+                content.sentence = None;
+            }
+            commands.extend(self.relayout(theme));
+        }
         if self.fades_at.is_some_and(|at| at <= now) {
             self.fades_at = None;
             commands.push(Command::Animate {
@@ -837,7 +1154,28 @@ mod tests {
             speech: false,
             fades_at: None,
             word: [0, 0],
+            island: None,
+            island_size: [0, 0],
+            ring_shader: None,
         }
+    }
+
+    /// Inside a pane of the construct the island dims to 0.6 (HUD spec,
+    /// section 6), and back to 1 outside it; a figure stays as it is.
+    #[test]
+    fn the_island_dims_inside_a_pane() {
+        let values = Values::neutral("sans-serif");
+        let now = Instant::now();
+        let mut island = assistant(&values, "listening", now);
+        island.island = Some(Content::default());
+        let opacity = |command: Option<Command>| match command {
+            Some(Command::Animate { id, props, .. }) if id == GROUP => props.opacity,
+            _ => None,
+        };
+        assert_eq!(opacity(island.island_dimmed(true)), Some(0.6));
+        assert_eq!(opacity(island.island_dimmed(false)), Some(1.0));
+        let figure = assistant(&values, "listening", now);
+        assert!(figure.island_dimmed(true).is_none());
     }
 
     /// While the agent sleeps, the figure stays, dimmed, so that the mic
