@@ -123,6 +123,24 @@ expect_rect "right-keys-title-rule" "[888.0,562.0,336.0,1.0]"
 expect_rect "right-edge" "[860.0,28.0,1.0,744.0]"
 ok "at 1280x800 the column stands at 888 to 1224 with its hairline at 860"
 
+overlaps() {
+    ctl query "owner:mc kind:text" | jq -r '
+        [.[] | select(.visible and (.rects | length) > 0) | {t: .text, r: (.rects | to_entries[0].value)}] as $a |
+        [range(0; $a | length) as $i | range($i + 1; $a | length) as $j |
+         ($a[$i].r) as $p | ($a[$j].r) as $q |
+         select($p[0] + 1 < $q[0] + $q[2] and $q[0] + 1 < $p[0] + $p[2] and
+                $p[1] + 1 < $q[1] + $q[3] and $q[1] + 1 < $p[1] + $p[3]) |
+         "\($a[$i].t) / \($a[$j].t)"] | join("; ")'
+}
+for scene in morning agenda; do
+    ctl call mc scene.show "{\"name\": \"$scene\"}" >/dev/null || fail "scene.show $scene"
+    until_ok '[ "$(current)" = '"$scene"' ]' 20 || fail "no $scene scene"
+    sleep 2
+    clash=$(overlaps)
+    [ -z "$clash" ] || fail "texts of the $scene scene overlap: $clash"
+done
+ok "no two texts of the morning scene or of the agenda overlap"
+
 fits() {
     local w=$1 h=$2 over
     over=$(ctl query "owner:mc kind:text" | jq -r --argjson w "$w" --argjson h "$h" \

@@ -1927,7 +1927,9 @@ impl Mc {
 
     /// The box of a panel on the screen, without its margin.
     /// As many columns as fit at the least width of a panel; the panels
-    /// wrap into new rows, which keep at least the least height.
+    /// wrap into new rows, which keep at least the least height. An empty
+    /// panel takes no room, unless it says why it is empty: then it takes
+    /// one row for its words.
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
@@ -1945,19 +1947,24 @@ impl Mc {
         let (cell, grid) = if fit >= cols {
             (panel.cell, [cols, rows])
         } else {
-            // An empty panel takes no room.
             let cells: Vec<_> = (scene.panels.iter())
                 .map(|p| {
                     let [x, y, w, h] = p.cell;
-                    [x, y, w, if p.is_empty() { 0 } else { h }]
+                    let rows = match (p.is_empty(), p.empty.is_empty()) {
+                        (false, _) => h,
+                        (true, true) => 0,
+                        (true, false) => 1,
+                    };
+                    [x, y, w, rows]
                 })
                 .collect();
             let (flowed, flowed_rows) = scene::flow(&cells, fit);
             let at = scene.panels.iter().position(|p| p.id == panel.id)?;
             // It still gets its own height: a node of no size stalls the
             // shader of the write.
-            let [x, y, w, _] = flowed[at];
-            ([x, y, w, panel.cell[3]], [fit, flowed_rows.max(1)])
+            let [x, y, w, h] = flowed[at];
+            let rows = if h == 0 { panel.cell[3] } else { h };
+            ([x, y, w, rows], [fit, flowed_rows.max(1)])
         };
         let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
         let shown = f64::from(grid[1]);
