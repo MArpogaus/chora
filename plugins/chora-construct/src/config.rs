@@ -372,9 +372,10 @@ impl Config {
     }
 
     /// The rows of the help panel: the keys of each action, the fly-out
-    /// binding, and the drag and the wheel with the modifier.
+    /// binding, and the drag and the wheel with the modifier; the keys of
+    /// the cube only while a `cube` is open.
     #[must_use]
-    pub fn help(&self) -> Vec<(String, String)> {
+    pub fn help(&self, cube: bool) -> Vec<(String, String)> {
         let mut rows: Vec<(String, String)> = (HELP.iter())
             .filter_map(|(action, what)| {
                 let keys: Vec<&str> = (self.keys.iter())
@@ -385,26 +386,31 @@ impl Config {
             })
             .collect();
         let m = &self.modifier;
+        let fly_out = if cube {
+            "fly out of a pane, or step back from the cube"
+        } else {
+            "fly out of a pane"
+        };
         rows.extend([
-            (self.fly_out.clone(), "fly out of a pane".to_owned()),
+            (self.fly_out.clone(), fly_out.to_owned()),
             (
                 format!("{m}+drag"),
                 "move a pane, or give it away".to_owned(),
             ),
             (format!("{m}+wheel"), "resize a pane".to_owned()),
-            (
-                self.fly_out.clone(),
-                "with a cube: step back from the face".to_owned(),
-            ),
-            (
-                "Return / Escape".to_owned(),
-                "with a cube, stood back: step into the face".to_owned(),
-            ),
-            (
-                "Ctrl+Alt+Left / Ctrl+Alt+Right".to_owned(),
-                "with a cube: turn it by one face".to_owned(),
-            ),
         ]);
+        if cube {
+            rows.extend([
+                (
+                    "Return / Escape".to_owned(),
+                    "stood back: step into the cube".to_owned(),
+                ),
+                (
+                    "Ctrl+Alt+\u{2190} / \u{2192}".to_owned(),
+                    "turn the cube".to_owned(),
+                ),
+            ]);
+        }
         rows
     }
 
@@ -620,11 +626,28 @@ mod tests {
         assert!(cube.check().unwrap_err().contains("cube_manager"));
     }
 
+    /// The help lists the keys of the cube only while a cube is open, and
+    /// each key once.
+    #[test]
+    fn the_help_shows_the_cube_keys_only_with_a_cube() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let cube = |rows: &[(String, String)]| rows.iter().any(|(_, w)| w.contains("cube"));
+        for open in [false, true] {
+            let rows = config.help(open);
+            assert_eq!(cube(&rows), open, "{rows:?}");
+            let mut keys: Vec<&str> = rows.iter().map(|(k, _)| k.as_str()).collect();
+            keys.sort_unstable();
+            let all = keys.len();
+            keys.dedup();
+            assert_eq!(keys.len(), all, "a key twice: {rows:?}");
+        }
+    }
+
     /// The help lists the bindings of the settings, also changed ones.
     #[test]
     fn the_help_follows_the_settings() {
         let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let rows = config.help();
+        let rows = config.help(false);
         let row = |rows: &[(String, String)], what: &str| {
             (rows.iter())
                 .find(|(_, w)| w == what)
@@ -635,7 +658,7 @@ mod tests {
         assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Super+wheel"));
         config.modifier = "Alt".into();
         config.keys.remove("h");
-        let rows = config.help();
+        let rows = config.help(false);
         assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Alt+wheel"));
         assert_eq!(row(&rows, "back to the start"), None);
     }

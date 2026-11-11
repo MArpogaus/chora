@@ -157,7 +157,7 @@ The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also
 brings the camera back to where the front face shows at 1:1. A click on
 a face in navigate mode turns the cube to that face and steps in. The
-help panel lists the keys of the cube. While the window switcher of xp
+help panel lists the keys of the cube while a cube is open. While the window switcher of xp
 shows, `Alt+Escape` belongs to the switcher.
 
 In navigate mode the edge of the face under the pointer is lit, and a

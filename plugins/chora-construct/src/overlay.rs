@@ -196,7 +196,7 @@ impl Construct {
         if !self.help || !self.active {
             return Ok(());
         }
-        let rows = self.settings.value.help();
+        let rows = self.settings.value.help(self.cube.is_some());
         let out = [self.lens.w, self.lens.h];
         let mut commands = vec![Command::Remove {
             id: hud::HELP.into(),

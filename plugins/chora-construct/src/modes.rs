@@ -160,6 +160,7 @@ impl Construct {
         }
         self.rt.conn.try_apply(commands)?;
         self.regrab()?;
+        self.draw_help(false)?;
         self.draw_modes()
     }
 
