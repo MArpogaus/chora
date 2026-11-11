@@ -29,6 +29,8 @@ pub(crate) const SWITCHER: &str = "xp.switcher";
 /// The event of the window manager of the cube when the floating
 /// windows of an output change (`chora_kit::float`).
 pub(crate) const FLOATING: &str = "xp.floating";
+/// The prefix of the desktop icons of the window manager of the cube.
+const ICON: &str = "xp-icon-";
 /// The room that the chips leave for a taskbar that the construct
 /// cannot see yet.
 const BAR: f64 = 40.0;
@@ -120,6 +122,16 @@ fn chips_of(view: View, flown: bool) -> &'static [Word] {
     if flown { &[] } else { view.controls() }
 }
 
+/// The right edge of the chips in the row `[top, bottom]` of a view
+/// `width` wide: left of the desktop icons in the right half that reach
+/// into the row.
+fn clear_right(width: f64, [top, bottom]: [f64; 2], icons: &[[f64; 4]]) -> f64 {
+    (icons.iter())
+        .filter(|[x, y, w, h]| x + w > width / 2.0 && *y < bottom && y + h > top)
+        .map(|[x, ..]| *x)
+        .fold(width, f64::min)
+}
+
 fn no_cube() -> ClientError {
     ClientError::Rpc(RpcError::new(
         RpcError::REJECTED,
@@ -172,10 +184,32 @@ impl Construct {
         Ok(top.unwrap_or(self.lens.h - BAR))
     }
 
+    /// The boxes of the desktop icons of the window manager on the front
+    /// face, in use mode, where the face shows at 1:1 on the screen.
+    fn face_icons(&mut self) -> Result<Vec<[f64; 4]>, ClientError> {
+        let Some(output) = (self.cube.as_ref())
+            .filter(|c| c.view().forwards())
+            .map(cube::Host::front_output)
+        else {
+            return Ok(Vec::new());
+        };
+        let selector = format!("owner:{} kind:image", cube::MANAGER);
+        let images: Vec<Value> = (self.rt.conn).call("scene.query", Query::new(&selector))?;
+        let icon = |node: &Value| {
+            let id = node["id"].as_str()?;
+            let r = node["rects"]
+                .get(&output)
+                .filter(|_| id.starts_with(ICON))?;
+            Some([0, 1, 2, 3].map(|i| r.get(i).and_then(Value::as_f64).unwrap_or(0.0)))
+        };
+        Ok(images.iter().filter_map(icon).collect())
+    }
+
     /// Places the chips of the mode at the bottom right, above the
     /// taskbar of the face, where they cover no title band and no button
     /// of a window, and hides the others; none while the camera is in a
     /// pane. Also after the output changed.
+    /// They stay left of the desktop icons in their row.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
         let flown = self.flown.is_some();
         let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
@@ -183,9 +217,10 @@ impl Construct {
         };
         let texts = self.chip_texts();
         let (width, bottom) = (self.lens.w, self.bar_top()?);
+        let icons = self.face_icons()?;
         let commands = self.fitted(|s| {
             let look = s.styled();
-            let mut right = width;
+            let mut right = clear_right(width, look.chip_row(bottom), &icons);
             let mut commands = Vec::new();
             for (word, text) in texts.iter().rev() {
                 let show = shown.contains(word);
@@ -569,6 +604,19 @@ mod tests {
         let right = Pressed::Act(Act::Turn(1));
         assert_eq!(press_of(Some(Word::TurnRight), Some(0), false), Some(right));
         assert_eq!(press_of(None, Some(2), false), Some(Pressed::Face(2)));
+    }
+
+    #[test]
+    fn the_chips_stay_left_of_the_desktop_icons_in_their_row() {
+        let bin = [1202.0, 684.0, 78.0, 70.0];
+        assert!((clear_right(1280.0, [722.0, 762.0], &[bin]) - 1202.0).abs() < 1e-9);
+        let above = [1202.0, 500.0, 78.0, 70.0];
+        let left = [0.0, 700.0, 78.0, 70.0];
+        let free = clear_right(1280.0, [722.0, 762.0], &[above, left]);
+        assert!(
+            (free - 1280.0).abs() < 1e-9,
+            "no icon in the row at the right"
+        );
     }
 
     #[test]

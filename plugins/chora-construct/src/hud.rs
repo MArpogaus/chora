@@ -608,6 +608,15 @@ impl Look<'_> {
         vec![glass, label]
     }
 
+    /// The top and the bottom of a chip that [`Self::place_chip`] places
+    /// above `bottom`.
+    #[must_use]
+    pub fn chip_row(&self, bottom: f64) -> [f64; 2] {
+        let unit = self.style.unit;
+        let line = Role::Text.size().1;
+        [(bottom - unit - line - unit).round(), bottom - unit]
+    }
+
     /// Places a chip with its right edge a pad left of `right` and its
     /// bottom a unit above `bottom`, and shows or hides it. A chip is one
     /// line of the role `text` and a unit high around it, so at least
