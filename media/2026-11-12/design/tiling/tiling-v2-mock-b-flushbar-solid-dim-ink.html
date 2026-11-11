@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8"><title>tiling-v2-mock-b-flushbar-solid-dim-ink (mock)</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:800px;overflow:hidden}
+body{font-family:Inter,sans-serif;font-size:14px;color:#e6e8ef;
+ background:radial-gradient(900px 600px at 0% 0%, #2a2150, transparent 70%),
+            radial-gradient(900px 600px at 100% 100%, #0f2a2a, transparent 70%), #11131a;position:relative}
+.bar{position:absolute;display:flex;align-items:center;font-weight:500}
+.isl{height:32px;display:flex;align-items:center;gap:4px;padding:0 4px;border-radius:10px;
+ background:#1a1d27eb;border:1px solid #2e3344}
+.btn{height:24px;min-width:24px;padding:0 8px;border-radius:6px;display:flex;align-items:center;gap:6px;color:#e6e8ef}
+.btn.ic{padding:0;justify-content:center}
+.tag{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.tag.cur{background:#a78bfa;color:#11131a;font-weight:600}
+.tag.occ{color:#e6e8ef}
+.tag.empty{color:#9aa1b4;opacity:.5}
+.tag.urg{color:#f87171}
+.sep{width:1px;height:16px;background:#2e3344;margin:0 4px}
+.mut{color:#9aa1b4;font-weight:400}
+.dot{width:8px;height:8px;border-radius:4px;background:#a78bfa}
+.win{position:absolute;border-radius:12px;padding:2px;overflow:hidden}
+.win .in{width:100%;height:100%;border-radius:10px;background:#161922;overflow:hidden;color:#cdd3e0;
+ font-family:'JetBrains Mono',monospace;font-size:13px;line-height:19px;padding:14px 18px;white-space:pre}
+.win.foc{background:#a78bfa;
+ box-shadow:0 8px 28px rgba(0,0,0,0.45)}
+.win.unf{background:#2e3344;box-shadow:0 4px 12px rgba(0,0,0,0.25);filter:brightness(.88)}
+.mock{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:50;
+ font:600 13px Inter,sans-serif;letter-spacing:.04em;color:#fff;background:#d01f4fe6;padding:6px 12px;border-radius:6px}
+.k{color:#a78bfa} .c{color:#9aa1b4} .s{color:#a6e3a1} .y{color:#f9e2af}
+</style></head>
+<body>
+<div class="bar" style="left:0;top:0;right:0;height:28px;background:#1a1d27;border-bottom:1px solid #2e3344;padding:0 8px;justify-content:space-between">
+ <div style="display:flex;align-items:center;gap:2px">
+  <div class="btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg><span>Apps</span></div><div class="sep"></div>
+  <div class="tag cur" style="height:22px">1</div><div class="tag occ">2</div><div class="tag occ">3</div><div class="tag empty">4</div><div class="tag urg">5</div>
+  <div class="tag empty">6</div><div class="tag empty">7</div><div class="tag empty">8</div><div class="tag empty">9</div>
+  <div class="sep"></div><div class="btn mut">Tile</div>
+ </div>
+ <div style="position:absolute;left:50%;transform:translateX(-50%)">Wed 11 Nov&nbsp;&nbsp;15:57</div>
+ <div style="display:flex;align-items:center;gap:2px">
+  <div class="btn"><span class="dot"></span>Listening</div><div class="sep"></div>
+  <div class="btn" style="font-weight:400">Volume 40%</div><div class="btn" style="font-weight:400">Connected</div>
+  <div class="btn" style="font-weight:400">Battery 80%</div><div class="sep"></div>
+  <div class="btn"><svg width="18" height="14" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="16" height="12" rx="2.5"/><path d="M4 5h1M7 5h1M10 5h1M13 5h1M5 9h8" stroke-linecap="round"/></svg><span>Keys</span></div><div class="btn ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 1.5v6"/><path d="M4.2 3.8a5.5 5.5 0 1 0 7.6 0"/></svg></div>
+ </div></div><div class="win foc" style="left:12px;top:40px;width:623px;height:748px"><div class="in"><span class="s">jonas@desk</span> <span class="k">~/src/chora</span> $ cargo test -p chora-tiling
+<span class="c">   Compiling chora-tiling v0.9.0</span>
+<span class="c">    Finished test [unoptimized] target(s) in 4.21s</span>
+     Running unittests src/main.rs
+
+running 64 tests
+test layout::tests::fair_splits_evenly ... <span class="s">ok</span>
+test layout::tests::spiral_turns ... <span class="s">ok</span>
+test wm::tests::a_drag_places_only_floating ... <span class="s">ok</span>
+test wm::tests::focus_follows_mouse ... <span class="s">ok</span>
+test config::tests::unknown_key_is_refused ... <span class="s">ok</span>
+test main::tests::wobbly_ends ... <span class="s">ok</span>
+
+test result: <span class="s">ok</span>. 64 passed; 0 failed
+
+<span class="s">jonas@desk</span> <span class="k">~/src/chora</span> $ <span style="background:currentColor">&nbsp;</span></div></div><div class="win unf" style="left:645px;top:40px;width:623px;height:242px"><div class="in"><span class="c"> 41</span>  <span class="c">/// The gaps of the look, in logical pixels.</span>
+<span class="c"> 42</span>  <span class="k">pub struct</span> <span class="y">Gaps</span> {
+<span class="c"> 43</span>      <span class="k">pub</span> outer: <span class="y">u16</span>,
+<span class="c"> 44</span>      <span class="k">pub</span> inner: <span class="y">u16</span>,
+<span class="c"> 45</span>  }
+<span class="c"> 46</span>
+<span class="c"> 47</span>  <span class="k">fn</span> <span class="y">tile</span>(area: <span class="y">Rect</span>, gaps: <span class="y">Gaps</span>) -> <span class="y">Rect</span> {</div></div><div class="win unf" style="left:645px;top:292px;width:623px;height:242px"><div class="in"><div style="font-family:Inter;font-size:14px;white-space:normal"><b>frames</b> <span class="c">ms, last minute</span>
+  <div style="display:flex;align-items:flex-end;gap:10px;height:120px;margin-top:16px"><div style="width:26px;height:62%;border-radius:5px;background:#a78bfa;opacity:.85"></div><div style="width:26px;height:88%;border-radius:5px;background:#5eead4;opacity:.85"></div><div style="width:26px;height:74%;border-radius:5px;background:#a78bfa;opacity:.85"></div><div style="width:26px;height:40%;border-radius:5px;background:#5eead4;opacity:.85"></div><div style="width:26px;height:95%;border-radius:5px;background:#a78bfa;opacity:.85"></div><div style="width:26px;height:58%;border-radius:5px;background:#5eead4;opacity:.85"></div><div style="width:26px;height:80%;border-radius:5px;background:#a78bfa;opacity:.85"></div><div style="width:26px;height:66%;border-radius:5px;background:#5eead4;opacity:.85"></div><div style="width:26px;height:30%;border-radius:5px;background:#a78bfa;opacity:.85"></div><div style="width:26px;height:72%;border-radius:5px;background:#5eead4;opacity:.85"></div><div style="width:26px;height:90%;border-radius:5px;background:#a78bfa;opacity:.85"></div><div style="width:26px;height:52%;border-radius:5px;background:#5eead4;opacity:.85"></div></div></div></div></div><div class="win unf" style="left:645px;top:544px;width:623px;height:244px"><div class="in"><span class="k">tiling-v2.md</span>  <span class="c">— notes</span>
+
+<span class="y">## Look</span>
+- gaps 12 outer, 10 inner
+- radius 10, border 2
+- one glow: the focused window</div></div><div class="mock">MOCK · not a capture · Q1 B flush bar · Q2 B solid border, unfocused dimmed · Q3 A Ink</div></body></html>
