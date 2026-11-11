@@ -302,7 +302,7 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
         ("icons/apps.svg", icon(&colors.text, APPS)),
-        ("icons/keys.svg", icon(&colors.muted, KEYS_ICON)),
+        ("icons/keys.svg", icon(&colors.text, KEYS_ICON)),
         ("icons/power.svg", icon(&colors.muted, POWER)),
     ]
 }

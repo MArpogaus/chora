@@ -34,7 +34,7 @@ sleep 1
 [ "$(cat "$theme/scheme")" = paper ] || fail "the system asks for light and the theme is $(cat "$theme/scheme")"
 grep -q "@define-color surface #ffffff" "$theme/colors.css" || fail "colors.css is not Paper"
 grep -q "background=ffffffff" "$theme/fuzzel.ini" || fail "fuzzel.ini is not Paper"
-grep -q 'stroke="#5b6274"' "$theme/icons/keys.svg" || fail "the icons are not Paper"
+grep -q 'stroke="#1b1e27"' "$theme/icons/keys.svg" || fail "the icons are not Paper"
 ok "the system asks for light: Paper, in the panel, launcher and icons"
 
 sed -i 's/^  theme: system/  theme: ink/' "$XDG_CONFIG_HOME/chora/chora-tiling.yaml"

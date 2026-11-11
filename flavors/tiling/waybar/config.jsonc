@@ -87,6 +87,7 @@
   "custom/sep2": {"exec": "echo ' '", "interval": "once", "tooltip": false},
   "custom/sep3": {"exec": "echo ' '", "interval": "once", "tooltip": false},
   "custom/layout": {
+    "align": 0,
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/layout.sh\"",
     "return-type": "json",
     "interval": 1,

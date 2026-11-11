@@ -25,7 +25,7 @@ window#waybar {
   background: alpha(@surface, 0.92);
   border: 1px solid @line;
   border-radius: 10px;
-  padding: 0 4px;
+  padding: 0 6px;
 }
 
 tooltip {
@@ -53,7 +53,7 @@ tooltip label {
 #battery,
 #clock,
 #tray {
-  padding: 0 8px;
+  padding: 0 6px;
   color: @text;
 }
 
@@ -67,25 +67,25 @@ tooltip label {
 #custom-power {
   background-repeat: no-repeat;
   background-size: 16px 16px;
-  background-position: 8px center;
-  padding-left: 32px;
+  background-position: 6px center;
+  padding-left: 30px;
+  font-weight: 500;
 }
 
 #custom-apps {
   background-image: url("icons/apps.svg");
-  font-weight: 500;
 }
 
 #custom-keys {
   background-image: url("icons/keys.svg");
-  color: @muted;
 }
 
 #custom-power {
   background-image: url("icons/power.svg");
   background-position: center;
-  min-width: 0;
-  padding: 0 16px;
+  min-width: 16px;
+  padding: 0 6px;
+  font-weight: 400;
   color: @muted;
 }
 
@@ -94,7 +94,7 @@ tooltip label {
 #custom-sep3 {
   min-width: 1px;
   min-height: 16px;
-  margin: 7px 4px;
+  margin: 7px 6px;
   padding: 0;
   font-size: 1px;
   background: @line;
@@ -131,6 +131,14 @@ tooltip label {
   font-weight: 500;
   font-feature-settings: "tnum";
   color: @text;
+}
+
+#custom-tag1 {
+  margin-left: 6px;
+}
+
+#custom-tag9 {
+  margin-right: 6px;
 }
 
 #custom-tag1.empty,

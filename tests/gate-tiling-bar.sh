@@ -78,7 +78,7 @@ isbar 20 39 || fail "the island does not reach 39"
 isbar 20 40 && fail "the island is higher than 32"
 isbar 12 8 && fail "no rounded corner at 12,8"
 isbar 640 24 || fail "no centre island"
-isbar 400 24 && isbar 450 24 && fail "the gap between the left and the centre island is filled"
+isbar 480 24 && isbar 520 24 && fail "the gap between the left and the centre island is filled"
 ok "three islands, 32 high, 8 from the top, 12 from the sides, corner radius"
 
 sep=$(for x in $(seq 60 140); do [ "$(pixel "$shot" "$x" 24)" = "58 64 84 255" ] && { echo "$x"; break; }; done)
