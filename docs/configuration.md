@@ -765,9 +765,15 @@ turn queues one more turn. In navigate mode `Return` and `Escape` step
 in again ([cube modes](cube-modes.md)). In use mode the keys of the walk
 do nothing, so that the face stays at 1:1; `terminal`, `launcher`,
 `windows` and `help` still work. A binding that another client holds is
-logged, and the chips still work. While the window switcher of xp shows
-on a face, the construct gives `fly_out` up, so that `Alt+Escape`
-cancels the switcher; xp tells it with the event `xp.switcher`.
+logged, and the chips still work. In navigate mode the edge of the face
+under the pointer is lit, a click on a face steps into it, and a drag on
+a face turns the cube by one face for each third of the width of the
+view; an injected move or release during a press does nothing outside a
+test session. With `fly_out: Escape` and the grant `input.grab-any`,
+`Escape` alone steps back; the chip `STEP BACK` names its key only while
+the construct holds it. While the window switcher of xp shows on a face,
+the construct gives `fly_out` up, so that `Alt+Escape` cancels the
+switcher; xp tells it with the event `xp.switcher`.
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
@@ -858,9 +864,9 @@ windows of the other flavor.
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
 | `cube.open` | privileged. `faces`, 1 to 4, 4 by default: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
-| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view |
+| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat |
 | `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
-| `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. The window that had the keyboard before a person stepped back gets it again, when its face is at the front again. Answers the `mode`. Refused without a cube |
+| `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
 | `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
 | `camera.glide` | `x`, `z`, `yaw`, and optionally `pitch` and `ms`: flies the camera to that pose in `ms` milliseconds, slow at its start and at its end; the place stays inside the leash; refused while the camera is in a pane |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
@@ -1695,6 +1701,7 @@ caller on a client socket needs `methods.privileged` besides
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button; nothing while all outputs are virtual ones |
 | `window.move` | `surface`, `output`: the name of an output that `chora-xp` manages, and optionally `at`: a point of that output | privileged. A drag of the title bar onto that output: with `at` the middle of the title bar goes to that point, as after a drop there; else the window goes to the same place there, as far as it fits. The window is raised and focused; an unknown surface or output fails with code 1 |
+| `windows.float` | `output`, a virtual output that `chora-xp` manages, and `on` | privileged. While `on`, the groups `xp-win-SURFACE` of the windows that show on the output have opacity 0, so the output shows the wallpaper, the icons and the taskbar without them; a node with opacity 0 still shows in a node texture, so the caller, such as the construct with its cube, shows each group on a plane of its own. Answers `output` and `windows`, the lowest of the stack first, each with `node`, `surface` and `rect`, its place on the output; the top 12 float. `chora-xp` emits the event `xp.floating` with the same data when the windows of a floating output change. A window that leaves the output, and every window when the output goes or `on` is false, gets its opacity back: the one that another client asked for it, else 1. The windows of all outputs land before a restart of `chora-xp`, and those of the outputs of a client when that client disconnects, so that no window stays hidden. Refused for a screen. The shape and the helpers are in `chora_kit::float`, for other window managers |
 | `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
@@ -1721,6 +1728,7 @@ that the file leaves out takes its default:
 | `programs` | none | the programs at the top left of the start menu below Terminal, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
+| `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |

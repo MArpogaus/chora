@@ -564,11 +564,13 @@ fn drag_node(state: &mut State, spot: &Spot) {
         grab.local = local;
         let node = grab.node.clone();
         let modifiers = modifiers(state);
+        let injected = state.injecting;
         state.emit(&SceneEvent::PointerMoved {
             node,
             position,
             local,
             modifiers,
+            injected,
         });
     }
 }
@@ -1483,12 +1485,14 @@ fn release_node(state: &mut State, button: u32, left_a_pane: bool) {
         .and_then(|s| local_for(&state.scene, &state.all_outputs(), &node, &s))
         .unwrap_or(local);
     let modifiers = modifiers(state);
+    let injected = state.injecting;
     state.emit(&SceneEvent::PointerReleased {
         node,
         button,
         position,
         local,
         modifiers,
+        injected,
     });
 }
 

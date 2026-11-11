@@ -72,11 +72,12 @@ navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
 into it. A chip never takes the keyboard (principle 11): a click on
 `STEP BACK` moves the keyboard to the construct because the person
-clicked, and a click on a face moves it into the face. The method
-`view.step_back` and the voice leave the keyboard where it is. A step
-in gives the keyboard back to the window of before only when its face
-is at the front again; after a turn to another face, the person
-chooses a window there.
+clicked, and a click on a face moves it into the face. The methods
+`view.step_back` and `view.step_in` and the voice leave the keyboard
+where it is. A step in of the person, by `Return`, a click or a chip,
+gives the keyboard back to the window of before only when its face is
+at the front again; after a turn to another face, the person chooses a
+window there.
 
 ## Words
 
@@ -101,7 +102,23 @@ The voice agent says what happened in the same words: "I stepped back",
 | a still cube in navigate mode | the method `render.stats` counts no pass for any output between two looks |
 | a turn | no face takes a click while it runs |
 
+## Hover, drag, voice and plain Escape
+
+The four acts that complete the flows above. Each has a second path
+(principle 2), and none takes the keyboard (principle 11).
+
+| Act | The person does | The person sees | Rules |
+|-----|-----------------|-----------------|-------|
+| find the face to step into | in navigate mode, moves the pointer over a face or over a window that floats in front of it | the edge of that face lit in the accent colour, 2 px; it goes out when the pointer leaves | not during a turn and not in use mode; the keyboard needs no edge, as `Return` always steps into the front face |
+| turn the cube by hand | in navigate mode, presses on a face and drags sideways | the cube turns by one face in the direction of the drag when the pointer moved a third of the width of the view, and again for each further third from where the cube took the turn; during a turn one more turn is queued, as with the keys | a press that moves less than 8 px in any direction is a click and steps in on the release, and a shorter drag does nothing; the same turn as `TURN LEFT`, `TURN RIGHT` and the turn keys; an injected press, move or release does nothing outside a test session, and an injected move during a press of the person ends that press |
+| speak | says "step back", "step in", "turn left" or "turn right", or the German words of the table of words | the same states as with the chips; the agent answers "I stepped back", "I stepped in", "I turned the cube to the left" | the agent calls `view.step_back`, `view.step_in` and `cube.turn` as its other plugin tools; the keyboard stays where it is |
+| step back with `Escape` alone | sets `fly_out: Escape` and grants `input.grab-any` to the construct | `Escape` steps back in use mode and steps in again in navigate mode; the chip reads `STEP BACK  Esc` | the program on the face then never gets `Escape`, as in a pane; without the grant the chip names no key, and the click and the voice still work |
+
 ## What the construct does today
+
+While the cube stands back or turns, the windows on its faces float in
+front of them, the higher ones of the stack farther, as on the desktop
+cube of xp; in use mode at rest they lie in the face.
 
 The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also
@@ -110,7 +127,10 @@ a face in navigate mode turns the cube to that face and steps in. The
 help panel lists the keys of the cube. While the window switcher of xp
 shows, `Alt+Escape` belongs to the switcher.
 
-Open: a drag on the cube that turns it, the lit edge of the face under
-the pointer, `Escape` alone in use mode with the grant
-`input.grab-any`, and the phrases of the voice agent ("step back",
-"turn left", "turn right", "step in"), which will call the methods.
+In navigate mode the edge of the face under the pointer is lit, and a
+drag on a face turns the cube. With `fly_out: Escape` and the grant
+`input.grab-any`, `Escape` alone steps back. The voice agent knows the
+words of the cube and calls the methods.
+
+Open: the agent answers in its own words, which a live session with a
+model must check against the words of this note.

@@ -279,6 +279,9 @@ pub struct State {
     /// surface and of a node, at that click: the choice holds while the
     /// focus stays (D55).
     chosen_manager: Option<(String, [Option<String>; 2])>,
+    /// The core runs the events of an `input.inject` request: the moves
+    /// and the releases of a node drag carry `injected`.
+    pub injecting: bool,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -440,6 +443,7 @@ impl State {
             last_real_button: None,
             chosen_manager: None,
             injected_press_is_real: false,
+            injecting: false,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
