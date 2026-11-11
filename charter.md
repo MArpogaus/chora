@@ -1070,3 +1070,10 @@ core, security reviews and the cube/demo; the tail of the week on opus
 and sonnet goes to lighter work (persona tests, docs, packaging,
 website, flakes). The 5-hour limit stays the real pace: at most four
 heavy lanes, resume after a 429.
+
+Demos (user, 11-11 ~12:30): "Let's make impressive demos as features
+land. Polished, so we can reuse them later for advertising. Decide such
+things on your own from now." Standing rule: every visible feature that
+merges gets a polished capture (still and/or clip, arrow pointer, real
+content, captioned with the machine) by a demo worker whose start prompt
+carries this mandate; the PM decides scope and look without asking.
