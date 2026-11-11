@@ -320,8 +320,10 @@ drawn in full, the overhang continuing the plane of the face out into
 the space, never clipped and never wrapped onto the next face. At rest
 in use mode the face fills the screen, so the overhang lies off screen
 as on a monitor; stood back and during a turn the floating plane shows
-the whole window. Where overhangs of two faces meet at a shared edge,
-the planes intersect and the 3D base splits them (no special collision
-rule). Check first whether float planes already show the full window
+the whole window. Where windows of two faces would meet at a shared
+edge (user, 11-11: adjust the distance), the floating lift resolves it:
+the lift of a window grows until its plane clears every plane of the
+neighbour face, within a cap; only beyond the cap do the planes cross
+and the 3D base split them. Check first whether float planes already show the full window
 (node texture of the group) and only the resting face clips; gate:
 stood back, a window half over the right edge shows in full.

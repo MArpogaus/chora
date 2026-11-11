@@ -1077,3 +1077,10 @@ things on your own from now." Standing rule: every visible feature that
 merges gets a polished capture (still and/or clip, arrow pointer, real
 content, captioned with the machine) by a demo worker whose start prompt
 carries this mandate; the PM decides scope and look without asking.
+
+UX/UI loop (user, 11-11): when the running lanes are merged and the
+persona round 3 report is in, run one UX/UI loop over the whole current
+feature set (cube, float, pull, modes, manager panes, HUD looks, chat,
+handover): a designer review against docs/design-principles.md and the
+style guides, findings ranked, then fixes, to finalize the current
+state before new features.
