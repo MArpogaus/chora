@@ -18,7 +18,7 @@
 #    overlay; kill -9 of chora-construct.
 # 3. Flavor: a pane far behind the camera shows in the list, and
 #    window.show flies to it; the window list flies to it as well; lose
-#    cases as in 2; window.give and the give rows of the list hand panes
+#    cases as in 2; window.give and Super+Alt+1 in the list hand panes
 #    to tiling; kill -9 of the flavor leaves its windows to tiling.
 # 4. One adoption and leave round over chora-xp and over chora-mc.
 # 5. Drops with Super: the flavor on one output, tiling on a second and
@@ -391,11 +391,10 @@ probe_id=$(surface chora-probe)
 call pane.move '{"name": "chora-probe", "ahead": -6000}' >/dev/null || fail "pane.move probe"
 sleep 0.5
 open_at chora-probe
-key g
 sleep 0.5
 shot "$shots/construct-windows-give.png"
-key Return
-until_ok 'test "$(owner "$probe_id")" = tiling' || fail "the give row did not give the probe to tiling: $(owner "$probe_id")"
+key Super+Alt+1
+until_ok 'test "$(owner "$probe_id")" = tiling' || fail "Super+Alt+1 in the list did not give the probe to tiling: $(owner "$probe_id")"
 no_lost "flavor give probe"
 f1=$(surface f1)
 given=$(call window.give "{\"surface\": \"$f1\", \"to\": \"tiling\"}") || fail "window.give f1"
@@ -403,7 +402,7 @@ given=$(call window.give "{\"surface\": \"$f1\", \"to\": \"tiling\"}") || fail "
 until_ok 'test "$(owner "$f1")" = tiling' || fail "f1 is not with tiling: $(owner "$f1")"
 panes | grep -qw f1 && fail "f1 stays a pane"
 no_lost "flavor give f1"
-ok "the give rows of the list and window.give handed chora-probe and f1 to tiling"
+ok "Super+Alt+1 in the list and window.give handed chora-probe and f1 to tiling"
 
 f6=$(surface f6)
 kill -9 "$cpid"

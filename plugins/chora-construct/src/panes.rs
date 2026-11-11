@@ -267,6 +267,7 @@ impl Construct {
                 self.backs.clear();
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
+                self.label_drawn = false;
             }
             Some(node) if node.parent.as_deref() != Some(root.as_str()) => {
                 commands.push(Command::Move {

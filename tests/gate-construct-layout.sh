@@ -112,9 +112,10 @@ round() {
     exec 3>"$work/voice.in"
     XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant-$tag.log" 2>&1 &
     pids+=($!)
-    emit voice.state '{"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 1, "steps": 2}'
     emit voice.state '{"state": "working", "task": "Tidy notes", "said": ""}'
     ctl wait id:hud-figure --timeout 20 >/dev/null || fail "$tag: the host shows no figure"
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 1, "steps": 2}'
+
     foot -a sunset -T 'Sunset over the Donaudampfschifffahrtsgesellschaft harbour' \
         -f 'DejaVu Sans Mono:size=10' sh -c 'sleep 600' >/dev/null 2>&1 &
     run_pid $!
@@ -123,6 +124,7 @@ round() {
         sleep 0.25
     done
     key Alt+Escape
+    echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null
     sleep 1.5
     audit walk "$tag"
 

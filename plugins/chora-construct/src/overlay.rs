@@ -2,77 +2,174 @@
 //! restyle.
 
 use super::{
-    BTreeMap, ClientError, Command, Construct, LIST, LIST_LINE, LIST_ROW, LIST_ROWS, Look, NAME,
+    BTreeMap, ClientError, Command, Construct, Duration, Instant, LIST, LIST_ROWS, Look, NAME,
     NodeKind, PropsUpdate, Query, VOICE, Value, create, hud, json,
 };
 
 impl Construct {
-    /// The window list as a glass panel in the middle of the output
-    /// (docs/construct-style.md): the label `WINDOWS` or `GIVE TO`, then
-    /// one row per window with its name and, as a note in data, its owner
-    /// and the place of its pane. An accent mark shows the selected row.
-    /// `open` fades the panel in; a new selection only makes the rows anew.
+    /// The window list over the scrim (construct HUD spec, section 5):
+    /// the search line with the count, a row per window that its search
+    /// leaves, with its thumbnail, its name and where it is, and the keys
+    /// at the bottom. `open` fades it in; any change makes the body anew.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the parts of the list, one after the other"
+    )]
     pub(crate) fn draw_list(&mut self, open: bool) -> Result<(), ClientError> {
-        let Some(sel) = self.list.as_ref().map(|l| l.sel) else {
+        use chora_kit::words::{Language, Word};
+        let Some((sel, query, hovered, giving)) = self
+            .list
+            .as_ref()
+            .map(|l| (l.sel, l.query.clone(), l.hovered, l.give.is_some()))
+        else {
             return Ok(());
         };
-        let rows = self.rows()?;
+        let rows = self.window_rows()?;
         let sel = sel.min(rows.len().saturating_sub(1));
-        let giving = self.list.as_mut().is_some_and(|l| {
-            l.sel = sel;
-            l.give.is_some()
-        });
-        let unit = self.settings.value.style.unit;
+        if let Some(list) = self.list.as_mut() {
+            list.sel = sel;
+        }
         let first = (sel + 1).saturating_sub(LIST_ROWS);
-        let shown = rows.len().saturating_sub(first).clamp(1, LIST_ROWS);
-        let size = hud::list_size(unit, shown);
-        let place = [
-            ((self.lens.w - size[0]) / 2.0).round(),
-            ((self.lens.h - size[1]) / 2.0).round(),
-        ];
-        let label = if giving { "GIVE TO" } else { "WINDOWS" };
-        let mut commands = vec![
-            Command::Remove {
-                id: hud::LIST_ROWS_GROUP.into(),
-                to: None,
-            },
-            create(
-                hud::LIST_ROWS_GROUP,
-                NodeKind::Group,
-                LIST,
-                PropsUpdate::default(),
-            ),
-        ];
-        let top = hud::list_top(unit);
-        commands.extend(self.fitted(|s| {
-            let look = s.styled();
-            let mut commands = look.list(size, place, label, open);
-            if rows.is_empty() {
-                let none = if giving {
-                    "no other window manager runs"
-                } else {
-                    "no windows"
-                };
-                commands.extend(look.row(&format!("{LIST_ROW}none"), top, none, "", false));
-            }
-            for (k, row) in rows.iter().enumerate().skip(first).take(LIST_ROWS) {
-                #[allow(clippy::cast_precision_loss, reason = "a dozen rows")]
-                let y = top + LIST_LINE * (k - first) as f64;
-                let id = format!("{LIST_ROW}{k}");
-                commands.extend(look.row(&id, y, &row.label, &row.note, k == sel));
-            }
-            commands
-        })?);
-        commands.extend(self.label_commands());
-        if self
+        let shown: Vec<crate::command::WindowRow> =
+            rows.into_iter().skip(first).take(LIST_ROWS).collect();
+        let language = Language::of_session();
+        let count = rows_count(self.windows()?.len(), language, giving);
+        let out = [self.lens.w, self.lens.h];
+        let thumb = self.thumb_shader.clone();
+        let mut commands = Vec::new();
+        if !self
             .rt
             .conn
-            .query(&format!("id:{}", hud::LIST_ROWS_GROUP))?
+            .query(&format!("id:{}", crate::command::LIST_BODY))?
             .is_empty()
         {
-            commands.remove(0);
+            commands.push(Command::Remove {
+                id: crate::command::LIST_BODY.into(),
+                to: None,
+            });
+            commands.push(Command::Remove {
+                id: crate::command::SCRIM.into(),
+                to: None,
+            });
         }
-        self.rt.conn.apply(commands)
+        commands.push(crate::panes::update(
+            LIST,
+            PropsUpdate {
+                transform: Some(chora_scene::Transform::translate(0.0, 0.0, 0.0)),
+                visible: Some(true),
+                meta: Some(hud::list_meta("open")),
+                ..PropsUpdate::default()
+            },
+        ));
+        let footer = [
+            (
+                vec!["↑".to_owned(), "↓".to_owned()],
+                Word::Choose.text(language).to_owned(),
+            ),
+            (
+                vec!["Return".to_owned()],
+                Word::FlyTo.text(language).to_owned(),
+            ),
+            (vec!["Esc".to_owned()], close_word(&query, language)),
+        ];
+        let placeholder = Word::FindWindow.text(language).to_owned();
+        commands.extend(self.fitted(|s| {
+            let model = crate::command::ListModel {
+                rows: &shown,
+                sel: sel - first,
+                hovered: hovered.and_then(|h| h.checked_sub(first)),
+                query: &query,
+                count: count.clone(),
+                placeholder: placeholder.clone(),
+                footer: footer.clone(),
+                thumb_shader: Some(&thumb),
+            };
+            crate::command::list(&s.styled(), &model, LIST, out)
+        })?);
+        if open {
+            commands.push(hud::fade(LIST, 1.0, hud::FADE_IN));
+        }
+        commands.extend(self.label_commands());
+        self.rt.conn.apply(commands)?;
+        self.draw_modes()
+    }
+
+    /// The windows of the list that its search leaves, with their notes
+    /// and thumbnails; the window managers while it gives a window.
+    fn window_rows(&mut self) -> Result<Vec<crate::command::WindowRow>, ClientError> {
+        let rows = self.rows()?;
+        let entries = self.windows()?;
+        let titles = self.titles()?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let entry = entries.iter().find(|e| e.surface == row.target);
+                let title = titles
+                    .iter()
+                    .find(|(id, _)| *id == row.target)
+                    .map(|(_, t)| t.clone());
+                let shown = entry.is_some_and(|e| e.pane == "shown");
+                let thumb = (shown && !self.glass.plain)
+                    .then(|| {
+                        self.pane_size(&row.target)
+                            .map(|size| (row.target.clone(), size))
+                    })
+                    .flatten();
+                crate::command::WindowRow {
+                    name: title.filter(|t| !t.trim().is_empty()).unwrap_or(row.label),
+                    note: entry.map_or_else(|| row.note.clone(), |e| self.bearing(e)),
+                    thumb,
+                }
+            })
+            .collect())
+    }
+
+    /// The titles of the windows by surface.
+    fn titles(&mut self) -> Result<Vec<(String, String)>, ClientError> {
+        let nodes = self.rt.conn.query("kind:surface")?;
+        Ok(nodes
+            .into_iter()
+            .filter_map(|n| Some((n.id, n.surface?.title?)))
+            .collect())
+    }
+
+    /// The size of the pane of a window.
+    fn pane_size(&self, surface: &str) -> Option<[f64; 2]> {
+        (self.panes.iter())
+            .find(|p| p.window() == Some(surface))
+            .map(|p| p.size)
+    }
+
+    /// Where a window is from the camera: ahead, left, right, behind,
+    /// or not in view.
+    fn bearing(&self, entry: &crate::Entry) -> String {
+        if entry.pane != "shown" {
+            return if entry.pane == "none" || entry.pane == "covered" {
+                "not in view".into()
+            } else {
+                "behind you".into()
+            };
+        }
+        let Some(pane) = self
+            .panes
+            .iter()
+            .find(|p| p.window() == Some(entry.surface.as_str()))
+        else {
+            return String::new();
+        };
+        let [fx, fz] = self.pose.forward();
+        let (dx, dz) = (pane.at[0] - self.pose.x, pane.at[1] - self.pose.z);
+        let ahead = dx * fx + dz * fz;
+        let side = dx * fz - dz * fx;
+        if ahead <= 0.0 {
+            "behind you".into()
+        } else if side.abs() < ahead * 0.35 {
+            "ahead".into()
+        } else if side < 0.0 {
+            "right".into()
+        } else {
+            "left".into()
+        }
     }
 
     /// What the elements over the space draw with.
@@ -83,6 +180,10 @@ impl Construct {
             colors: style.colors(self.settings.value.theme),
             plain: self.glass.plain,
             shader: &self.glass_shader,
+            shadow: &self.shadow_shader,
+            glass: chora_kit::glass::Material::of(
+                self.settings.value.theme == crate::config::Theme::Dark,
+            ),
             metrics: &self.metrics,
         }
     }
@@ -170,6 +271,7 @@ impl Construct {
         commands.extend(self.styled().groups(NAME));
         self.rt.conn.try_apply(commands)?;
         self.labelled = None;
+        self.label_drawn = false;
         self.draw_hud()?;
         self.draw_ask()?;
         if self.list.is_some() {
@@ -178,34 +280,102 @@ impl Construct {
         self.draw_help(false)
     }
 
-    /// Shows or hides the help panel.
+    /// Shows or hides the help; a new help starts without a search.
     pub(crate) fn toggle_help(&mut self) -> Result<(), ClientError> {
         self.help = !self.help;
+        self.help_query.clear();
+        self.help_sel = 0;
         if self.help {
-            return self.draw_help(true);
+            self.draw_help(true)?;
+        } else {
+            self.rt
+                .conn
+                .try_apply(vec![hud::fade(hud::HELP, 0.0, hud::FADE_OUT)])?;
         }
-        self.rt
-            .conn
-            .try_apply(vec![hud::fade(hud::HELP, 0.0, hud::FADE_OUT)])?;
-        Ok(())
+        let label = self.label_commands();
+        self.rt.conn.apply(label)?;
+        self.draw_modes()
     }
 
-    /// The help panel anew, with the bindings of the settings, while it
-    /// shows.
+    /// The help anew, with the keys that work now, while it shows.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the parts of the help, one after the other"
+    )]
     pub(crate) fn draw_help(&mut self, fresh: bool) -> Result<(), ClientError> {
+        use chora_kit::words::{Language, Word, say};
         if !self.help || !self.active {
             return Ok(());
         }
-        let rows = self.settings.value.help(self.cube.is_some());
+        let language = Language::of_session();
+        let groups = self.settings.value.help_groups(self.cube.is_some());
+        let query = self.help_query.clone();
+        let found: usize = crate::command::found(&groups, &query)
+            .iter()
+            .map(|(_, r)| r.len())
+            .sum();
+        self.help_sel = self.help_sel.min(found.saturating_sub(1));
+        let footer = if query.is_empty() {
+            vec![(
+                vec!["Esc".to_owned()],
+                Word::Close.text(language).to_owned(),
+            )]
+        } else {
+            let count = found.to_string();
+            vec![
+                (
+                    vec!["↑".to_owned(), "↓".to_owned()],
+                    Word::MoveSelection.text(language).to_owned(),
+                ),
+                (
+                    Vec::new(),
+                    say(language, Word::KeysMatch, &[("count", &count)]),
+                ),
+                (
+                    vec!["Esc".to_owned()],
+                    Word::Clear.text(language).to_owned(),
+                ),
+            ]
+        };
+        let scope = if self.flown.is_some() {
+            "Construct · in a pane"
+        } else if self.cube.is_some() {
+            "Construct · cube"
+        } else {
+            "Construct · walking"
+        };
+        let model = crate::command::HelpModel {
+            groups: &groups,
+            query: &query,
+            sel: self.help_sel,
+            scope: scope.into(),
+            placeholder: Word::SearchKeys.text(language).to_owned(),
+            every_look: Word::EveryLook.text(language).to_owned(),
+            or: "or".into(),
+            note: Word::OnlyNow.text(language).to_owned(),
+            footer,
+        };
         let out = [self.lens.w, self.lens.h];
-        let mut commands = vec![Command::Remove {
-            id: hud::HELP.into(),
-            to: None,
-        }];
-        if self.rt.conn.query(&format!("id:{}", hud::HELP))?.is_empty() {
-            commands.clear();
+        let mut commands = Vec::new();
+        if !self.rt.conn.query(&format!("id:{}", hud::HELP))?.is_empty() {
+            commands.push(Command::Remove {
+                id: hud::HELP.into(),
+                to: None,
+            });
         }
-        commands.extend(self.fitted(|s| s.styled().help(&rows, out, fresh))?);
+        commands.extend(
+            self.fitted(|s| crate::command::help(&s.styled(), &model, (hud::HELP, NAME), out))?,
+        );
+        if fresh {
+            commands.push(crate::panes::update(
+                hud::HELP,
+                PropsUpdate {
+                    opacity: Some(0.0),
+                    ..PropsUpdate::default()
+                },
+            ));
+            commands.push(hud::fade(hud::HELP, 1.0, hud::FADE_IN));
+        }
         self.rt.conn.apply(commands)
     }
 
@@ -220,5 +390,211 @@ impl Construct {
             let call = json!({"client": VOICE, "method": "indicator.claim", "params": {}});
             conn.call::<_, Value>("methods.call", call).is_ok()
         });
+    }
+}
+
+/// The count of the list: `5 windows`, or the words of the give menu.
+fn rows_count(windows: usize, language: chora_kit::words::Language, giving: bool) -> String {
+    use chora_kit::words::{Word, say};
+    if giving {
+        return "Give to".into();
+    }
+    let count = windows.to_string();
+    say(language, Word::WindowCount, &[("count", &count)])
+}
+
+/// The word of Esc in a list: it clears a search, else it closes.
+fn close_word(query: &str, language: chora_kit::words::Language) -> String {
+    use chora_kit::words::Word;
+    if query.is_empty() {
+        Word::Close.text(language).to_owned()
+    } else {
+        Word::Clear.text(language).to_owned()
+    }
+}
+
+impl Construct {
+    /// The set of hints that applies now, and the hint of the pointer,
+    /// none while a command surface, a question or a moving pane hides
+    /// them. A change of the camera into or out of a pane starts the time
+    /// of its hints.
+    fn hint_set(&mut self) -> Option<crate::hints::Set> {
+        use crate::hints::{FLOWN, Set, WALK};
+        let now = Instant::now();
+        let flown = self.flown.is_some();
+        if !self.hints.started || flown != self.hints.flown {
+            self.hints.started = true;
+            self.hints.flown = flown;
+            self.hints.until = Some(now + if flown { FLOWN } else { WALK });
+        }
+        if self.hints.until.is_some_and(|t| t <= now) {
+            self.hints.until = None;
+        }
+        let stood_back = self.cube.as_ref().is_some_and(|c| !c.view().forwards());
+        let busy = self.list.is_some()
+            || self.help
+            || self.asked
+            || self.moving.is_some()
+            || self.effects.animating();
+        if busy || !self.active {
+            return None;
+        }
+        if stood_back {
+            return Some(Set::Cube);
+        }
+        let timed = self.hints.until.is_some();
+        match (flown, self.cube.is_some()) {
+            (true, _) if timed => Some(Set::Flown),
+            (false, false) if timed || self.hints.low => Some(Set::Walk),
+            _ => None,
+        }
+    }
+
+    /// The hints of a set, with the keys of the settings.
+    fn hint_items(&self, set: crate::hints::Set) -> Vec<crate::hints::Item> {
+        use crate::{
+            config::Action,
+            glass::chord,
+            hints::{HINT, Item, Set},
+        };
+        use chora_kit::words::{Language, Word};
+        let language = Language::of_session();
+        let keys = &self.settings.value.keys;
+        let key = |action: Action| {
+            let bound = || keys.iter().filter(|(_, a)| **a == action);
+            (bound().find(|(k, _)| k.chars().count() == 1))
+                .or_else(|| bound().next())
+                .map_or_else(Vec::new, |(k, _)| chord(k))
+        };
+        let item = |keys: Vec<String>, word: Word, hit: &str| Item {
+            keys,
+            word: word.text(language).to_owned(),
+            keys_last: false,
+            hit: format!("{HINT}{hit}"),
+            chip: false,
+        };
+        match set {
+            Set::Walk => {
+                let walk = [Action::Forward, Action::Left, Action::Back, Action::Right]
+                    .into_iter()
+                    .flat_map(key)
+                    .collect();
+                vec![
+                    item(walk, Word::Walk, "walk"),
+                    item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
+                    item(key(Action::Windows), Word::WindowsHint, "windows"),
+                    item(key(Action::Help), Word::AllKeys, "keys"),
+                ]
+            }
+            Set::Flown => vec![item(
+                chord(&self.settings.value.fly_out),
+                Word::StepBack,
+                "step-back",
+            )],
+            Set::Cube => {
+                let chip = |keys: Vec<String>, word: Word, last: bool| Item {
+                    keys,
+                    word: word.text(language).to_owned(),
+                    keys_last: last,
+                    hit: crate::modes::chip_node(word),
+                    chip: true,
+                };
+                vec![
+                    chip(chord("Ctrl+Alt+Left"), Word::TurnLeft, false),
+                    chip(chord("Return"), Word::StepIn, false),
+                    chip(chord("Ctrl+Alt+Right"), Word::TurnRight, true),
+                ]
+            }
+        }
+    }
+
+    /// The hints anew when their set or the hint of the pointer changed.
+    pub(crate) fn draw_hints(&mut self) -> Result<(), ClientError> {
+        if self.output.is_none() {
+            return Ok(());
+        }
+        let set = self.hint_set();
+        let wanted = set.map(|s| (s, self.hint_hover.clone()));
+        if wanted == self.hints.shown {
+            return Ok(());
+        }
+        let had = self.hints.shown.take();
+        let mut commands = if had.is_some() {
+            crate::hints::remove()
+        } else {
+            Vec::new()
+        };
+        if let Some(set) = set {
+            let items = self.hint_items(set);
+            let out = [self.lens.w, self.lens.h];
+            let hover = self.hint_hover.clone();
+            commands.extend(self.fitted(|s| {
+                let look = s.styled();
+                let mut commands = crate::hints::draw(&look, &items, out, hover.as_deref());
+                let places = crate::hints::places(&look, &items, out);
+                for (item, at) in items.iter().zip(places).filter(|(i, _)| i.chip) {
+                    commands.push(crate::hints::chip_word(&look, item, at));
+                }
+                commands
+            })?);
+            if set == crate::hints::Set::Cube {
+                commands.push(Command::Move {
+                    id: crate::modes::MODES.into(),
+                    parent: None,
+                    index: None,
+                });
+            }
+        }
+        self.hints.shown = wanted;
+        self.rt.conn.apply(commands)
+    }
+
+    /// The pointer rests low or not: the hints of the walk follow it.
+    pub(crate) fn hint_pointer(&mut self, y: f64) -> Result<(), ClientError> {
+        let low = y >= self.lens.h - crate::hints::BOTTOM;
+        if low == self.hints.low {
+            return Ok(());
+        }
+        self.hints.low = low;
+        if !low && self.hints.until.is_none() {
+            self.hints.until = Some(Instant::now() + Duration::from_millis(300));
+        }
+        self.draw_hints()
+    }
+
+    /// A click on a hint does its act.
+    pub(crate) fn hint_press(&mut self, node: &str) -> Result<bool, ClientError> {
+        let Some(name) = node.strip_prefix(crate::hints::HINT) else {
+            return Ok(false);
+        };
+        match name {
+            "fly-in" => self.act(crate::config::Action::FlyIn),
+            "windows" => self.open_list()?,
+            "keys" => self.toggle_help()?,
+            "step-back" => self.fly_out()?,
+            _ => {}
+        }
+        Ok(true)
+    }
+
+    /// The pointer came over a hint or left it.
+    pub(crate) fn hint_hovered(&mut self, node: &str, over: bool) -> Result<bool, ClientError> {
+        let hint = node.starts_with(crate::hints::HINT)
+            || (self
+                .hints
+                .shown
+                .as_ref()
+                .is_some_and(|(s, _)| *s == crate::hints::Set::Cube)
+                && crate::modes::is_chip(node));
+        if !hint {
+            return Ok(false);
+        }
+        let now = over.then(|| node.to_owned());
+        if now == self.hint_hover || (!over && self.hint_hover.as_deref() != Some(node)) {
+            return Ok(true);
+        }
+        self.hint_hover = now;
+        self.draw_hints()?;
+        Ok(true)
     }
 }

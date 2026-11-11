@@ -9,6 +9,19 @@ use super::{
     cube, give, hud, modes, space, window_flown_into,
 };
 
+/// The text of a typed key that a search takes: printable text without
+/// Ctrl, Alt or Super.
+fn typed(text: Option<&str>, modifiers: &[String]) -> Option<String> {
+    let chord = modifiers.iter().any(|m| {
+        matches!(
+            m.to_lowercase().as_str(),
+            "ctrl" | "control" | "alt" | "super" | "logo" | "mod4"
+        )
+    });
+    text.filter(|t| !chord && !t.is_empty() && !t.chars().any(char::is_control))
+        .map(str::to_owned)
+}
+
 /// Whether the notice of the walk keys may show again, at most once in
 /// [`KEYS_WALK_AGAIN`].
 pub(crate) fn keys_walk_due(last: Option<Instant>, now: Instant) -> bool {
@@ -35,6 +48,25 @@ impl Construct {
     /// A give key: gives the focused window, else the window of the pane
     /// ahead, to the window manager `to`. A refusal is a notice.
     fn give_key(&mut self, to: &str) -> Result<(), ClientError> {
+        if let Some(sel) = self
+            .list
+            .as_ref()
+            .filter(|l| l.give.is_none())
+            .map(|l| l.sel)
+        {
+            let chosen = self.rows()?.into_iter().nth(sel).map(|row| row.target);
+            self.close_list()?;
+            if let Some(surface) = chosen
+                && let Err(err) = self.give(&surface, to)
+            {
+                eprintln!("chora-construct: give to {to}: {err}");
+                let language = Language::of_session();
+                let words = say(language, Word::GiveRefused, &[("manager", to)]);
+                self.voice.notice(&words, Instant::now());
+                return self.draw_hud();
+            }
+            return Ok(());
+        }
         let focused = self.rt.conn.focused_surface().map_err(ClientError::Rpc)?;
         let ahead = (self.pane_ahead()).and_then(|i| self.panes[i].window().map(String::from));
         let node = match (focused, ahead) {
@@ -122,7 +154,11 @@ impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     pub(crate) fn input(&mut self, event: Event) -> Result<(), ClientError> {
-        if self.list_input(&event)? || self.modes_input(&event)? {
+        if self.hint_input(&event)?
+            || self.help_input(&event)?
+            || self.list_input(&event)?
+            || self.modes_input(&event)?
+        {
             return Ok(());
         }
         match event {
@@ -431,10 +467,40 @@ impl Construct {
         self.frame()
     }
 
+    /// A click on a hint, the pointer over a hint, and the pointer at the
+    /// bottom of the output; whether a hint took the event.
+    fn hint_input(&mut self, event: &Event) -> Result<bool, ClientError> {
+        match event {
+            Event::PointerPressed {
+                node,
+                button,
+                injected,
+                ..
+            } if *button == BTN_LEFT
+                && node.starts_with(crate::hints::HINT)
+                && (!injected || self.rt.accepts_injected()) =>
+            {
+                self.hint_press(node)
+            }
+            Event::PointerEntered { node, .. } => self.hint_hovered(node, true),
+            Event::PointerLeft { node } => self.hint_hovered(node, false),
+            Event::InputMoved { position, .. } => {
+                let [_, y] = self.local(*position);
+                self.hint_pointer(y)?;
+                Ok(false)
+            }
+            _ => Ok(false),
+        }
+    }
+
     /// The keys and the clicks of the open window list; whether it took
-    /// the event. A press on the space closes the list and goes on.
+    /// the event. Typed letters filter it, Backspace takes one back, Esc
+    /// clears the search and then closes it. A press on the space closes
+    /// the list and goes on.
+    #[allow(clippy::cognitive_complexity, reason = "one arm per key and event")]
     pub(crate) fn list_input(&mut self, event: &Event) -> Result<bool, ClientError> {
-        let Some(sel) = self.list.as_ref().map(|l| l.sel) else {
+        let Some((sel, searching)) = self.list.as_ref().map(|l| (l.sel, !l.query.is_empty()))
+        else {
             return Ok(false);
         };
         match event {
@@ -442,17 +508,25 @@ impl Construct {
                 node,
                 key,
                 state: PressState::Pressed,
+                modifiers,
+                text,
                 ..
             } if node == LOOK => {
                 let toggle = self.settings.value.keys.get(key) == Some(&Action::Windows);
                 match key.as_str() {
+                    "Escape" if searching => self.search_list(String::clear),
                     "Escape" => self.close_list(),
                     _ if toggle => self.close_list(),
                     "Up" => self.select(sel.saturating_sub(1)),
                     "Down" => self.select(sel + 1),
                     "Return" | "KP_Enter" => self.choose(sel),
-                    "g" => self.give_menu(sel),
-                    _ => Ok(()),
+                    "BackSpace" => self.search_list(|q| {
+                        q.pop();
+                    }),
+                    _ => match typed(text.as_deref(), modifiers) {
+                        Some(typed) => self.search_list(|q| q.push_str(&typed)),
+                        None => Ok(()),
+                    },
                 }?;
             }
             Event::PointerPressed { node, .. } if node.starts_with(LIST) => {
@@ -462,12 +536,81 @@ impl Construct {
                     self.choose(k)?;
                 }
             }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+                if node.starts_with(LIST_ROW) =>
+            {
+                let over = matches!(event, Event::PointerEntered { .. });
+                let row = (node.strip_prefix(LIST_ROW)).and_then(|r| r.parse::<usize>().ok());
+                let hovered = if over { row } else { None };
+                if let Some(list) = self.list.as_mut().filter(|l| l.hovered != hovered) {
+                    list.hovered = hovered;
+                    self.draw_list(false)?;
+                }
+            }
             Event::PointerPressed { node, .. } if node == LOOK => {
                 self.close_list()?;
                 return Ok(false);
             }
             _ => return Ok(false),
         }
+        Ok(true)
+    }
+
+    /// Changes the search of the list, chooses its first row and draws it.
+    fn search_list(&mut self, change: impl FnOnce(&mut String)) -> Result<(), ClientError> {
+        if let Some(list) = self.list.as_mut() {
+            change(&mut list.query);
+            list.sel = 0;
+        }
+        self.draw_list(false)
+    }
+
+    /// The keys of the open help; whether it took the event. It takes
+    /// every key: typed letters search, Backspace takes one back, the
+    /// arrows move, Esc clears the search and then closes the help, and
+    /// its own key closes it.
+    #[allow(clippy::cognitive_complexity, reason = "one arm per key")]
+    pub(crate) fn help_input(&mut self, event: &Event) -> Result<bool, ClientError> {
+        if !self.help {
+            return Ok(false);
+        }
+        let Event::NodeKey {
+            node,
+            key,
+            state: PressState::Pressed,
+            modifiers,
+            text,
+            ..
+        } = event
+        else {
+            return Ok(false);
+        };
+        if node != LOOK {
+            return Ok(false);
+        }
+        let own = self.settings.value.keys.get(key) == Some(&Action::Help);
+        match key.as_str() {
+            "Escape" if !self.help_query.is_empty() => {
+                self.help_query.clear();
+                self.help_sel = 0;
+            }
+            "Escape" => return self.toggle_help().map(|()| true),
+            _ if own => return self.toggle_help().map(|()| true),
+            "Up" => self.help_sel = self.help_sel.saturating_sub(1),
+            "Down" => self.help_sel += 1,
+            "BackSpace" => {
+                self.help_query.pop();
+                self.help_sel = 0;
+            }
+            _ => match typed(text.as_deref(), modifiers) {
+                Some(typed) => {
+                    self.help_query.push_str(&typed);
+                    self.help_sel = 0;
+                }
+                None => return Ok(true),
+            },
+        }
+        self.draw_help(false)?;
         Ok(true)
     }
 

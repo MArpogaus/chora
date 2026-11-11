@@ -67,6 +67,7 @@ impl Construct {
             };
             let wait = (self.voice.deadline().into_iter())
                 .chain(self.cube_deadline())
+                .chain(self.hints.until)
                 .fold(wait, |wait, t| {
                     wait.min(t.saturating_duration_since(Instant::now()))
                 });
@@ -169,6 +170,7 @@ impl Construct {
         }
         self.list = None;
         self.labelled = None;
+        self.label_drawn = false;
         self.rt.ungrab_all()?;
         self.active = false;
         self.current = None;

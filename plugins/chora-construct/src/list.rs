@@ -118,7 +118,12 @@ impl Construct {
         if self.list.is_some() {
             return self.close_list();
         }
-        self.list = Some(ListState { sel: 0, give: None });
+        self.list = Some(ListState {
+            sel: 0,
+            give: None,
+            query: String::new(),
+            hovered: None,
+        });
         self.draw_list(true)
     }
 
@@ -127,23 +132,6 @@ impl Construct {
             list.sel = sel;
         }
         self.draw_list(false)
-    }
-
-    /// The rows of the window managers to give the window of row `sel`
-    /// to; only a window that the construct owns can go.
-    pub(crate) fn give_menu(&mut self, sel: usize) -> Result<(), ClientError> {
-        let Some(row) = self.rows()?.into_iter().nth(sel) else {
-            return Ok(());
-        };
-        let own = (self.panes.iter()).any(|p| p.window() == Some(&row.target) && p.attached);
-        if let Some(list) = self.list.as_mut().filter(|l| own && l.give.is_none()) {
-            *list = ListState {
-                sel: 0,
-                give: Some(row.target),
-            };
-            return self.draw_list(false);
-        }
-        Ok(())
     }
 
     /// The rows of the open list: every window, or the window managers to
@@ -158,7 +146,25 @@ impl Construct {
                 })
                 .collect());
         }
-        Ok(self.windows()?.into_iter().map(row_of).collect())
+        let query = (self.list.as_ref()).map_or_else(String::new, |l| l.query.to_lowercase());
+        let titles: Vec<(String, String)> = (self.rt.conn.query("kind:surface")?.into_iter())
+            .filter_map(|n| Some((n.id, n.surface?.title?.to_lowercase())))
+            .collect();
+        let found = |e: &Entry| {
+            let title = titles
+                .iter()
+                .find(|(id, _)| *id == e.surface)
+                .map(|(_, t)| t.as_str());
+            query.is_empty()
+                || e.name.to_lowercase().contains(&query)
+                || title.is_some_and(|t| t.contains(&query))
+        };
+        Ok(self
+            .windows()?
+            .into_iter()
+            .filter(found)
+            .map(row_of)
+            .collect())
     }
 
     pub(crate) fn close_list(&mut self) -> Result<(), ClientError> {

@@ -19,7 +19,7 @@ use super::{
 };
 
 /// The group of the chips, and the prefix of a chip.
-const MODES: &str = "construct-modes";
+pub(crate) const MODES: &str = "construct-modes";
 const CHIP: &str = "construct-mode-";
 /// The turn keys of a cube, as on the cube of xp on a screen.
 const TURN_KEYS: [(&str, i32); 2] = [("Ctrl+Alt+Left", -1), ("Ctrl+Alt+Right", 1)];
@@ -66,6 +66,16 @@ fn chip_id(word: Word) -> String {
     format!("{CHIP}{}", chip_name(word))
 }
 
+/// The node of the chip of a word, which a hint of the cube takes.
+pub(crate) fn chip_node(word: Word) -> String {
+    chip_id(word)
+}
+
+/// Whether a node is a chip of the modes.
+pub(crate) fn is_chip(node: &str) -> bool {
+    node.starts_with(CHIP) && !node.ends_with("-text")
+}
+
 /// The act of a chip.
 fn chip_act(word: Word) -> Act {
     match word {
@@ -80,7 +90,7 @@ fn chip_act(word: Word) -> Act {
 /// the key of the step back while the construct holds it; the step
 /// back is the one chip of use mode.
 fn chip_text(word: Word, language: Language, step_back: Option<&str>) -> String {
-    let text = word.text(language).to_uppercase();
+    let text = word.text(language).to_owned();
     match (word, step_back) {
         (Word::StepBack, Some(key)) => format!("{text}  {}", key.replace("Escape", "Esc")),
         (Word::TurnLeft, _) => format!("\u{2190} {text}"),
@@ -255,6 +265,7 @@ impl Construct {
             return Ok(());
         };
         let texts = self.chip_texts();
+        let stood_back = shown.contains(&Word::StepIn);
         let (width, bottom) = (self.lens.w, self.bar_top()?);
         let icons = self.face_icons()?;
         let commands = self.fitted(|s| {
@@ -262,6 +273,9 @@ impl Construct {
             let mut right = clear_right(width, look.chip_row(bottom), &icons);
             let mut commands = Vec::new();
             for (word, text) in texts.iter().rev() {
+                if stood_back && *word != Word::StepBack {
+                    continue;
+                }
                 let show = shown.contains(word);
                 let (chip, used) = look.place_chip(&chip_id(*word), text, [right, bottom], show);
                 commands.extend(chip);
@@ -269,20 +283,25 @@ impl Construct {
             }
             commands
         })?;
-        self.rt.conn.try_apply(commands).map(drop)
+        self.rt.conn.try_apply(commands)?;
+        self.hints.shown = None;
+        self.draw_hints()
     }
 
     /// The chip OPEN CUBE at the bottom right, where the chips of a cube
     /// show, while no cube is open and the camera is in no pane.
     fn draw_open_cube(&mut self) -> Result<(), ClientError> {
-        let text = Word::OpenCube.text(language()).to_uppercase();
+        let text = Word::OpenCube.text(language()).to_owned();
         let mut commands = Vec::new();
         if (self.rt.conn).query(&format!("id:{OPEN_CUBE}"))?.is_empty() {
             commands.extend(self.styled().chip(OPEN_CUBE, NAME, &text));
         }
-        let show = open_cube_shows(self.cube.is_some(), self.flown.is_some());
-        let corner = [self.lens.w, self.lens.h];
-        commands.extend(self.fitted(|s| s.styled().place_chip(OPEN_CUBE, &text, corner, show).0)?);
+        let show = open_cube_shows(self.cube.is_some(), self.flown.is_some())
+            && !self.help
+            && self.list.is_none();
+        let edge = chora_kit::glass::margin(self.lens.w);
+        let at = [edge, self.lens.h - edge - 32.0];
+        commands.extend(self.fitted(|s| s.styled().chip_at(OPEN_CUBE, &text, at, show))?);
         self.rt.conn.try_apply(commands).map(drop)
     }
 
@@ -737,10 +756,10 @@ mod tests {
     #[test]
     fn a_chip_names_its_key_or_its_way() {
         let text = |word| chip_text(word, Language::En, Some("Alt+Escape"));
-        assert_eq!(chip_text(Word::StepBack, Language::En, None), "STEP BACK");
-        assert_eq!(text(Word::StepBack), "STEP BACK  Alt+Esc");
-        assert_eq!(text(Word::TurnLeft), "\u{2190} TURN LEFT");
-        assert_eq!(text(Word::TurnRight), "TURN RIGHT \u{2192}");
-        assert_eq!(text(Word::StepIn), "STEP IN");
+        assert_eq!(chip_text(Word::StepBack, Language::En, None), "Step back");
+        assert_eq!(text(Word::StepBack), "Step back  Alt+Esc");
+        assert_eq!(text(Word::TurnLeft), "\u{2190} Turn left");
+        assert_eq!(text(Word::TurnRight), "Turn right \u{2192}");
+        assert_eq!(text(Word::StepIn), "Step in");
     }
 }

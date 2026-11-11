@@ -304,7 +304,7 @@ title_drag() {
 }
 
 construct_key() {
-    local row names
+    local row
     ctl call construct window.show '{"name": "probe"}' >/dev/null 2>&1
     sleep 1.5
     key Alt+Escape
@@ -316,11 +316,11 @@ construct_key() {
     key Tab
     ctl wait --timeout 3 "id:construct-list meta:state=open" >/dev/null 2>&1 || return 0
     for _ in $(seq "$row"); do key Down; done
-    key g
-    sleep 0.3
-    names=$(printf '%s\n' xp tiling mc | sort)
-    for _ in $(seq "$(echo "$names" | grep -nx "$1" | cut -d: -f1 | awk '{print $1 - 1}')"); do key Down; done
-    key Return
+    case $1 in
+    tiling) key Super+Alt+1 ;;
+    xp) key Super+Alt+2 ;;
+    mc) key Super+Alt+3 ;;
+    esac
 }
 
 vlog=$shots/voice.log
