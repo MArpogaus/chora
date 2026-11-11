@@ -129,7 +129,7 @@ pub enum Mark {
 }
 
 /// How the tiles of a layout look: the grow of the work area to reach the
-/// outer gap, half the inner gap, the radius and the border.
+/// outer gap, half the inner gap plus the border, the radius and the border.
 #[derive(Default)]
 struct TileLook {
     edge: i32,
@@ -668,9 +668,10 @@ impl Wm {
             return TileLook::default();
         }
         let (outer, inner) = self.config.gaps();
+        let border = i32::from(self.config.look.border);
         TileLook {
             edge: outer - inner / 2,
-            half: inner / 2,
+            half: inner / 2 + border,
             radius: self.config.look.radius,
             border: self.config.look.border,
         }
@@ -1197,6 +1198,36 @@ mod tests {
 
     fn shown(wm: &Wm) -> Vec<(String, Option<[i32; 2]>)> {
         wm.arrange().into_iter().map(|p| (p.id, p.at)).collect()
+    }
+
+    /// The gaps of the design are measured between the outer edges of the
+    /// borders: 12 px to the edge of the work area, 10 px between two tiles.
+    #[test]
+    fn the_gaps_count_from_the_outside_of_the_border() {
+        let mut wm = wm(&["a", "b"]);
+        wm.config.look = crate::config::Look::default();
+        wm.set_output("A", [0, 40, 1280, 760], [0, 0, 1280, 800]);
+        let placed = wm.arrange();
+        let frame = |id: &str| {
+            let found = placed.iter().find(|p| p.id == id).unwrap();
+            let [left, top] = found.at.unwrap();
+            let [width, height] = found.size.unwrap();
+            let ring = i32::from(found.border);
+            [
+                left - ring,
+                top - ring,
+                left + width + ring,
+                top + height + ring,
+            ]
+        };
+        let (left, right) = (frame("b"), frame("a"));
+        assert_eq!(
+            (left[0], left[1], left[3]),
+            (12, 52, 788),
+            "left, top, bottom"
+        );
+        assert_eq!(right[2], 1268, "right edge");
+        assert_eq!(right[0] - left[2], 10, "between the tiles");
     }
 
     #[test]

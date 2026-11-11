@@ -41,15 +41,15 @@ for _ in $(seq 60); do
     sleep 0.5
 done
 snap
-accented 11 400 || fail "the focused window has no accent border at 11,400: $(px 11 400)"
-accented 300 11 || fail "no accent border above the focused window: $(px 300 11)"
-lined 644 400 || fail "the other window has no line border at 644,400: $(px 644 400)"
+accented 12 400 || fail "the focused window has no accent border at 12,400: $(px 12 400)"
+accented 300 12 || fail "no accent border above the focused window: $(px 300 12)"
+lined 646 400 || fail "the other window has no line border at 646,400: $(px 646 400)"
 ok "only the focused window carries the accent"
 
 echo '[{"shortcut": {"keys": "Super+j"}}]' | ctl inject - >/dev/null || fail "Super+j"
 snap
-lined 11 400 || fail "after Super+j the old window keeps the accent at 11,400: $(px 11 400)"
-accented 644 400 || fail "after Super+j the new window has no accent at 644,400: $(px 644 400)"
+lined 12 400 || fail "after Super+j the old window keeps the accent at 12,400: $(px 12 400)"
+accented 646 400 || fail "after Super+j the new window has no accent at 646,400: $(px 646 400)"
 ok "after Super+j only the new window carries the accent"
 
 python3 -I - "$repo/tests" "$shot" "$scale" <<'PY' || fail "the border is broken"
@@ -63,8 +63,8 @@ k = int(sys.argv[3])
 rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
 def lit(x, y):
     return rows[y * k][x * k * 4:x * k * 4 + 3] != b"\0\0\0"
-broken = [(x, y) for y in range(30, 770, 4) for x in (11, 636, 644, 1268) if not lit(x, y)]
-broken += [(x, y) for x in list(range(30, 620, 4)) + list(range(660, 1250, 4)) for y in (11, 788) if not lit(x, y)]
+broken = [(x, y) for y in range(30, 770, 4) for x in (12, 634, 645, 1267) if not lit(x, y)]
+broken += [(x, y) for x in list(range(30, 620, 4)) + list(range(660, 1250, 4)) for y in (12, 787) if not lit(x, y)]
 assert not broken, f"broken at {broken[:5]}"
 PY
 ok "the border is unbroken at the scale $scale"
