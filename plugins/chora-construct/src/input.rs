@@ -642,7 +642,7 @@ impl Construct {
         if node != LOOK {
             return Ok(false);
         }
-        let own = self.settings.value.keys.get(key) == Some(&Action::Help);
+        let own = self.settings.value.action(key, modifiers) == Some(Action::Help);
         match key.as_str() {
             "Escape" if !self.help_query.is_empty() => {
                 self.help_query.clear();

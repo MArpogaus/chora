@@ -483,10 +483,18 @@ SCRIPT
     key Escape
     key Escape
     key Super+slash
-    until_ok 'help_shown' || { echo "FAIL: $tag: Super+slash shows no help"; failed=1; }
-    key Super+slash
-    until_ok '! help_shown' || { echo "FAIL: $tag: Super+slash does not hide the help"; failed=1; }
-    ok "$tag: Super+slash shows and hides the help"
+    if until_ok 'help_shown'; then
+        key Super+slash
+        if until_ok '! help_shown'; then
+            ok "$tag: Super+slash shows and hides the help"
+        else
+            echo "FAIL: $tag: Super+slash does not hide the help"
+            failed=1
+        fi
+    else
+        echo "FAIL: $tag: Super+slash shows no help"
+        failed=1
+    fi
     ctl query 'app_id:sunset kind:surface' | jq -e 'length == 1' >/dev/null ||
         echo "FAIL: $tag: the window of the pane is lost"
     more_panes "$tag" "$size"
