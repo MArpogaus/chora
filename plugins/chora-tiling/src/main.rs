@@ -2173,9 +2173,26 @@ mod panel {
     #[test]
     fn the_panel_shows_no_internal_text() {
         let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
-        for internal in ["\"cpu\"", "\"memory\"", "\"custom/layout\"", "{ipaddr}\","] {
+        for internal in ["\"cpu\"", "\"memory\"", "{ipaddr}\","] {
             assert!(!config.contains(internal), "{internal} in {config}");
         }
+    }
+
+    #[test]
+    fn the_layout_word_is_a_word_of_a_person() {
+        if !has_jq() {
+            return;
+        }
+        let said = |layout: &str, lang: &str| {
+            let fake = format!("echo '{{\"layout\": \"{layout}\"}}'");
+            let bin = bin("layout", true, &[("choractl", &fake)]);
+            said(&printed(&run(&bin, "layout.sh", &[], lang)))
+        };
+        let [word, tip] = said("fair_horizontal", "C");
+        assert_eq!(word, "Fair rows");
+        assert!(tip.contains("Super+Shift+Space"), "{tip}");
+        assert_eq!(said("tile", "de_DE.UTF-8")[0], "Kacheln");
+        assert_eq!(said("nonsense", "C")[0], "");
     }
 
     /// The stand-in of choractl: tiling has the outputs in the file
