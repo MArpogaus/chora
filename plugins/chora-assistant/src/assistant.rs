@@ -33,6 +33,9 @@ const STATE: &str = "hud-state";
 const WORD: &str = "hud-word";
 /// The shadow and the hairline of the island.
 const SHADOW: &str = "hud-island-shadow";
+/// The opacity of the island while the camera of the construct is in a
+/// pane.
+const IN_PANE: f64 = 0.6;
 /// The rect of the tint of the island over the blur.
 const ISLAND_GLASS: &str = "hud-island-glass";
 const PAD: i32 = 10;
@@ -614,6 +617,20 @@ impl Assistant {
         })
     }
 
+    /// The island dimmed inside a pane of the construct.
+    pub fn island_dimmed(&self, in_pane: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        Some(Command::Animate {
+            id: GROUP.into(),
+            props: PropsUpdate {
+                opacity: Some(if in_pane { IN_PANE } else { 1.0 }),
+                ..PropsUpdate::default()
+            },
+            duration: chora_kit::glass::APPEAR_MS,
+            easing: Easing::EaseOut,
+        })
+    }
+
     /// The task of the helper that the island shows after the state word.
     pub fn set_task(&mut self, theme: &mut Theme, task: &str) -> Vec<Command> {
         match &mut self.island {
@@ -1078,6 +1095,24 @@ mod tests {
             island: None,
             island_size: [0, 0],
         }
+    }
+
+    /// Inside a pane of the construct the island dims to 0.6 (HUD spec,
+    /// section 6), and back to 1 outside it; a figure stays as it is.
+    #[test]
+    fn the_island_dims_inside_a_pane() {
+        let values = Values::neutral("sans-serif");
+        let now = Instant::now();
+        let mut island = assistant(&values, "listening", now);
+        island.island = Some(Content::default());
+        let opacity = |command: Option<Command>| match command {
+            Some(Command::Animate { id, props, .. }) if id == GROUP => props.opacity,
+            _ => None,
+        };
+        assert_eq!(opacity(island.island_dimmed(true)), Some(0.6));
+        assert_eq!(opacity(island.island_dimmed(false)), Some(1.0));
+        let figure = assistant(&values, "listening", now);
+        assert!(figure.island_dimmed(true).is_none());
     }
 
     /// While the agent sleeps, the figure stays, dimmed, so that the mic

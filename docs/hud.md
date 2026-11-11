@@ -223,6 +223,8 @@ sentence of `voice.say` takes the place of the word and the task, at
 most two lines of 480 pixels with its end kept, and goes 2 seconds after
 its sound. The capsule hugs its content from the edge of its anchor; the
 figure does not move or blink, and the folder shows no rows of helpers.
+While the camera of the construct is in a pane, which it tells with its
+event `construct.view {pane: true}`, the island dims to 0.6 over 160 ms.
 
 A picture of a figure may hold an element `ID-shut` beside an element
 `ID`, for example `idle-shut`: the figure then blinks with it, a

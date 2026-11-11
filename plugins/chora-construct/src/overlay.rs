@@ -488,6 +488,7 @@ impl Construct {
         let now = Instant::now();
         let flown = self.flown.is_some();
         if !self.hints.started || flown != self.hints.flown {
+            self.hints.announce = true;
             self.hints.started = true;
             self.hints.flown = flown;
             self.hints.until = Some(now + if flown { FLOWN } else { WALK });
@@ -582,6 +583,12 @@ impl Construct {
             return Ok(());
         }
         let set = self.hint_set();
+        if std::mem::take(&mut self.hints.announce) {
+            let view = chora_kit::hud::view_event(NAME, self.hints.flown);
+            if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", view) {
+                eprintln!("chora-construct: emit the view: {err}");
+            }
+        }
         let front = self.cube.as_ref().map_or(0, |c| c.front_face().0);
         let wanted = set.map(|s| (s, self.hint_hover.clone(), front));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {

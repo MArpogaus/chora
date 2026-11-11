@@ -549,8 +549,11 @@ impl Agent {
                     (&output, anchor),
                     (state, &label, now),
                 );
-                self.assistant = Some(a);
                 let mut commands = commands;
+                if self.in_pane {
+                    commands.extend(a.island_dimmed(true));
+                }
+                self.assistant = Some(a);
                 commands.extend(self.sync_task());
                 Ok(commands)
             }

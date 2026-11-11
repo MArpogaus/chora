@@ -55,6 +55,8 @@ pub struct State {
     pub flown: bool,
     /// The construct drew its first frame.
     pub started: bool,
+    /// The camera went into a pane or out of one: the host hears it.
+    pub announce: bool,
     /// The hints are drawn anew at the next look, also when their set
     /// stays: the chips of the cube moved under them.
     pub stale: bool,
