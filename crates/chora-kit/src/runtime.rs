@@ -482,14 +482,23 @@ pub fn privileged(method: ExportMethod) -> ExportMethod {
     }
 }
 
-/// Parses the parameters of an exported method.
+/// Parses the parameters of an exported method. No parameters (`null`)
+/// read as an empty object, so the defaults of `T` apply.
 ///
 /// # Errors
 ///
 /// The parameters do not fit `T`.
 pub fn params<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
-    serde_json::from_value(params)
-        .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+    let read = |params| {
+        serde_json::from_value(params)
+            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+    };
+    if params.is_null()
+        && let Ok(none) = serde_json::from_value(Value::Null)
+    {
+        return Ok(none);
+    }
+    read(if params.is_null() { json!({}) } else { params })
 }
 
 /// Runs sessions of the plugin `name` until one ends without an error.
@@ -541,6 +550,20 @@ mod tests {
         File,
         tests::{DEFAULT, Demo, dir},
     };
+
+    #[derive(Debug, serde::Deserialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
+    struct Faces {
+        #[serde(default)]
+        faces: usize,
+    }
+
+    #[test]
+    fn no_params_read_as_the_defaults() {
+        assert_eq!(params::<Faces>(Value::Null).unwrap(), Faces { faces: 0 });
+        assert_eq!(params::<Option<u8>>(Value::Null).unwrap(), None);
+        assert!(params::<Faces>(json!({"sides": 3})).is_err());
+    }
 
     /// A plugin whose apply of settings fails on demand.
     struct Fake {
