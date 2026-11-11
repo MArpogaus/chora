@@ -24,6 +24,7 @@ terms and no synonyms.
 | **Client** | A process on the IPC socket: a plugin, `choractl` or a service. A client names itself when it connects. |
 | **Owner** | The client name that created or attached a node. Only the owner changes the node. |
 | **Toplevel** | A surface with the role of an application window (`xdg_toplevel`). Other roles are layer surfaces and popups. |
+| **Damage-less attach** | A commit that attaches an shm buffer of the same size and format as the buffer before, with no damage inside the buffer. The core keeps the texture of the surface as it is, a leniency that foot relies on. |
 | **Detached** | The state of a surface node without a parent. A detached surface is not visible. |
 | **View** | A declarative arrangement: nodes, the plugins that drive them, and their configuration. A view is a YAML file in git. The user or an agent changes it live. |
 | **Plugin** | A client that reacts to events, changes the scene and can export methods. A window manager, a layout, an animation set and a keybinding set are plugins. |
