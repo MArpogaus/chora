@@ -17,6 +17,7 @@ terms and no synonyms.
 | **Rect** | A colored rectangle with optional rounded corners and border. |
 | **Shader** | A node that a fragment shader draws completely. A shader can read other nodes as textures. A shader can also be an **effect**. |
 | **Effect** | A shader that changes how a node and its children look, for example blur or a color change. Every node can have effects. |
+| **Backdrop** | The frame behind a rect, blurred, which the rect draws under its own color, the tint: the glass of a panel. The watchdog removes it like an effect. |
 | **Camera** | The part of the scene that one output shows: a transform from scene coordinates to the logical coordinates of the output. |
 | **Claim** | A scene area of one window manager (D55). |
 | **Virtual output** | An output that a client adds and that no screen shows. Its frames go into a texture that a shader node of its owner reads; a window manager runs on it as on a screen. |

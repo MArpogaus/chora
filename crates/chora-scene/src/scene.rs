@@ -133,6 +133,11 @@ const WEIGHTS: std::ops::RangeInclusive<u16> = 1..=1000;
 const LETTER_SPACINGS: std::ops::RangeInclusive<f64> = -1.0..=1.0;
 /// The range of `perspective`, in logical pixels.
 const PERSPECTIVES: std::ops::RangeInclusive<f64> = 1.0..=1e6;
+/// The radius of a backdrop blur in logical pixels: at least 2, so that
+/// the pixels behind a glass rect show only blurred.
+const BLURS: std::ops::RangeInclusive<f64> = 2.0..=128.0;
+/// The saturation of a backdrop.
+const SATURATIONS: std::ops::RangeInclusive<f64> = 0.0..=4.0;
 /// The most OpenType features of a text node.
 const MAX_FEATURES: usize = 32;
 
@@ -1235,7 +1240,7 @@ impl Scene {
     }
 
     /// Removes the effects of the nodes of an owner, for the watchdog: the
-    /// meshes, the shaders and the perspectives, also at the start and the
+    /// meshes, the shaders and the backdrops, also at the start and the
     /// end of animations. Returns whether there were some.
     pub fn drop_effects(&mut self, owner: &str) -> bool {
         let of_owner =
@@ -1256,15 +1261,17 @@ impl Scene {
                 found |= strip(&mut animation.from);
                 found |= animation.to.mesh.take().is_some()
                     | animation.to.effects.take().is_some()
-                    | animation.to.perspective.take().is_some();
+                    | animation.to.perspective.take().is_some()
+                    | animation.to.backdrop.take().is_some();
             }
         }
         found
     }
 
     /// The load that the visible nodes of each owner put on a frame, for
-    /// the watchdog: a node counts 1, a layer or a plane 25 more, and each
-    /// effect 25 more. A plane is a node that draws something under a
+    /// the watchdog: a node counts 1, a layer or a plane 25 more, each
+    /// effect 25 more, and a backdrop 25 for each started 256x256 logical
+    /// pixels of its size. A plane is a node that draws something under a
     /// transform that is not a 2D translation with a positive scale, also
     /// the projection of a 3D context.
     #[must_use]
@@ -1281,7 +1288,7 @@ impl Scene {
                 let Some(owner) = &node.owner else {
                     continue;
                 };
-                let effects = node.props.effects.len() as u64;
+                let effects = node.props.effects.len() as u64 + backdrop_units(node);
                 let draws = node.kind != NodeKind::Group || node.props.size.is_some();
                 let plane = draws && !placed.transform.is_plain();
                 let cost = 1 + LAYER * (u64::from(node.is_layer() || plane) + effects);
@@ -1679,7 +1686,9 @@ fn check_kinds(id: &str, kind: NodeKind, props: &PropsUpdate) -> Result<(), Scen
     if kind != NodeKind::Rect && kind != NodeKind::Text && props.color.is_some() {
         return wrong("rect or text");
     }
-    if kind != NodeKind::Rect && (props.radius.is_some() || props.border.is_some()) {
+    if kind != NodeKind::Rect
+        && (props.radius.is_some() || props.border.is_some() || props.backdrop.is_some())
+    {
         return wrong("rect");
     }
     if kind != NodeKind::Image && (props.image.is_some() || props.slice.is_some()) {
@@ -1732,6 +1741,13 @@ fn check_shapes(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
     if lengths.copied().any(|n| !(0.0..=MAX_LENGTH).contains(&n)) {
         return Err(SceneError::Invalid(format!(
             "a radius or a border width of {id:?} is not from 0 to {MAX_LENGTH}"
+        )));
+    }
+    if let Some(backdrop) = props.backdrop.flatten()
+        && (!BLURS.contains(&backdrop.blur) || !SATURATIONS.contains(&backdrop.saturation))
+    {
+        return Err(SceneError::Invalid(format!(
+            "the backdrop of {id:?} needs a blur from 2 to 128 and a saturation from 0 to 4"
         )));
     }
     if let Some(uniforms) = &props.uniforms {
@@ -1866,9 +1882,25 @@ fn check_type(id: &str, props: &PropsUpdate) -> Result<(), SceneError> {
 /// Removes the mesh, the effects and the shader of properties. Returns
 /// whether there were some. A perspective stays: it costs no pass, and
 /// without it a context would show and hit its planes flat.
+/// The cost of the backdrop of a node in effects: one for each started
+/// 256x256 logical pixels of its size, so that a large glass weighs more.
+fn backdrop_units(node: &Node) -> u64 {
+    const UNIT: f64 = 256.0 * 256.0;
+    let Some([w, h]) = node.props.size.filter(|_| node.props.backdrop.is_some()) else {
+        return 0;
+    };
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let units = (w * h / UNIT).ceil().max(1.0) as u64;
+    units
+}
+
 fn strip(props: &mut Props) -> bool {
-    let found = props.mesh.is_some() || !props.effects.is_empty() || props.shader.is_some();
+    let found = props.mesh.is_some()
+        || !props.effects.is_empty()
+        || props.shader.is_some()
+        || props.backdrop.is_some();
     props.mesh = None;
+    props.backdrop = None;
     props.effects.clear();
     props.shader = None;
     found

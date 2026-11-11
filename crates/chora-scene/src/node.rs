@@ -191,6 +191,24 @@ pub struct Border {
     pub color: [f64; 4],
 }
 
+/// The frame behind a rect, blurred, under its own fill: the glass of
+/// a panel. The color of the rect is its tint.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct Backdrop {
+    /// The radius of the blur in logical pixels, from 2 to 128.
+    pub blur: f64,
+    /// The saturation of the blurred frame: 0 is grey, 1 keeps the
+    /// colors, up to 4.
+    #[serde(default = "one")]
+    pub saturation: f64,
+}
+
+fn one() -> f64 {
+    1.0
+}
+
 /// The area outside of which a node and its descendants do not show.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -332,6 +350,9 @@ pub struct Props {
     /// Shows the node and its descendants only inside its size.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clip: Option<Clip>,
+    /// The blurred frame behind a rect, under its fill.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backdrop: Option<Backdrop>,
     /// The absolute path of the fragment shader of a shader node.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
@@ -424,6 +445,7 @@ impl Default for Props {
             radius: 0.0,
             border: None,
             clip: None,
+            backdrop: None,
             shader: None,
             perspective: None,
             uniforms: BTreeMap::new(),
@@ -507,6 +529,15 @@ pub struct PropsUpdate {
         skip_serializing_if = "Option::is_none"
     )]
     pub clip: Option<Option<Clip>>,
+    /// The blurred frame behind a rect, under its fill. `null` removes
+    /// it, so the field has three states: keep, remove and set.
+    #[allow(clippy::option_option)]
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub backdrop: Option<Option<Backdrop>>,
     /// The absolute path of the fragment shader of a shader node.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shader: Option<String>,
@@ -657,7 +688,8 @@ impl Props {
         self.apply_shapes(update);
     }
 
-    /// Applies the corners, the border, the clip and the shader.
+    /// Applies the corners, the border, the clip, the backdrop and the
+    /// shader.
     fn apply_shapes(&mut self, update: &PropsUpdate) {
         if let Some(radius) = update.radius {
             self.radius = radius;
@@ -667,6 +699,9 @@ impl Props {
         }
         if let Some(clip) = update.clip {
             self.clip = clip;
+        }
+        if let Some(backdrop) = update.backdrop {
+            self.backdrop = backdrop;
         }
         if update.shader.is_some() {
             self.shader.clone_from(&update.shader);

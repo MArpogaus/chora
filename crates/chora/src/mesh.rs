@@ -254,6 +254,11 @@ impl Layers {
             .get_or_insert_with(|| side_limit(gl::max_texture_size(gles)))
     }
 
+    /// The view that renders now.
+    pub fn view(&self) -> &str {
+        &self.view
+    }
+
     /// Names the view that renders next: an output, or the capture of one.
     pub fn set_view(&mut self, view: String) {
         self.view = view;
@@ -279,6 +284,19 @@ impl Layers {
                 self.leave_out(id);
                 self.dark.push(id.to_owned());
             }
+            return false;
+        }
+        self.pixels += pixels;
+        true
+    }
+
+    /// Takes pixels of the budget of the frame for textures that are not a
+    /// layer, as the blur of a backdrop, which draws its plain tint without
+    /// them. Returns `false` when they do not fit.
+    pub fn afford(&mut self, size: Size<i32, BufferCoords>, textures: u64) -> bool {
+        let area = u64::try_from(size.w * size.h).unwrap_or(u64::MAX);
+        let pixels = area.saturating_mul(textures);
+        if self.pixels.saturating_add(pixels) > FRAME_PIXELS {
             return false;
         }
         self.pixels += pixels;
@@ -585,8 +603,8 @@ pub struct MeshElement {
 
 /// Where the mesh of a layer lands on an output.
 pub struct Shape {
-    vertices: Vec<Vertex>,
-    indices: Vec<u16>,
+    pub(crate) vertices: Vec<Vertex>,
+    pub(crate) indices: Vec<u16>,
     /// The bounding box in physical output coordinates.
     pub bounds: Rectangle<i32, Physical>,
 }
@@ -1004,7 +1022,7 @@ impl<R: MeshRenderer> RenderElement<R> for MeshElement {
 /// The clip positions and the texture coordinates of vertices for the
 /// projection of a frame. The 3x3 projection maps physical (x, y, 1) to
 /// clip space; for (x, y, w) it gives the clip position before the divide.
-fn clip_space(vertices: &[Vertex], p: &[f32; 9]) -> (Vec<f32>, Vec<f32>) {
+pub(crate) fn clip_space(vertices: &[Vertex], p: &[f32; 9]) -> (Vec<f32>, Vec<f32>) {
     let clip = vertices
         .iter()
         .flat_map(|([x, y, w], _)| {
@@ -1285,6 +1303,23 @@ struct PassInputs<'a> {
     uniforms: &'a BTreeMap<String, Uniform>,
     textures: &'a [(String, u32)],
     seconds: Option<f32>,
+}
+
+/// Draws a texture through a built-in program with its uniforms into
+/// another one.
+pub(crate) fn run_pass(
+    gles: &mut GlesRenderer,
+    program: &gl::Program,
+    source: &GlesTexture,
+    target: &mut GlesTexture,
+    uniforms: &BTreeMap<String, Uniform>,
+) -> Result<(), String> {
+    let with = PassInputs {
+        uniforms,
+        textures: &[],
+        seconds: None,
+    };
+    draw_pass(gles, program, source, target, &with)
 }
 
 /// Draws a texture through the shader of a pass into another one.

@@ -1724,3 +1724,135 @@ fn a_drag_goes_only_with_a_window_given_in_the_same_transaction() {
         Some(Effect::GrabGiven { to, from, .. }) if to == "b" && from == "a");
     assert!(given, "{effects:?}");
 }
+
+/// The backdrop of a node as JSON; `null` without one.
+fn backdrop_of(scene: &Scene, id: &str) -> serde_json::Value {
+    serde_json::to_value(scene.node(id).unwrap()).unwrap()["backdrop"].clone()
+}
+
+#[test]
+fn a_backdrop_belongs_to_rects_and_blurs_at_least_two_pixels() {
+    let mut scene = Scene::default();
+    let glass = serde_json::json!({"size": [100, 40], "color": [1, 1, 1, 0.3],
+        "backdrop": {"blur": 24, "saturation": 1.6}});
+    scene
+        .apply("wm", &[create("glass", "rect", &glass)])
+        .unwrap();
+    assert_eq!(
+        backdrop_of(&scene, "glass"),
+        serde_json::json!({"blur": 24.0, "saturation": 1.6})
+    );
+    assert!(
+        !scene.node("glass").unwrap().is_layer(),
+        "a plain rect stays flat"
+    );
+    let plain = serde_json::json!({"size": [10, 10], "backdrop": {"blur": 8}});
+    scene
+        .apply("wm", &[create("plain", "rect", &plain)])
+        .unwrap();
+    assert_eq!(
+        backdrop_of(&scene, "plain")["saturation"],
+        1.0,
+        "1 by default"
+    );
+    for (kind, props) in [
+        (
+            "group",
+            serde_json::json!({"size": [10, 10], "backdrop": {"blur": 8}}),
+        ),
+        ("rect", serde_json::json!({"backdrop": {"blur": 1}})),
+        ("rect", serde_json::json!({"backdrop": {"blur": 200}})),
+        (
+            "rect",
+            serde_json::json!({"backdrop": {"blur": 8, "saturation": -1}}),
+        ),
+        (
+            "rect",
+            serde_json::json!({"backdrop": {"blur": 8, "saturation": 9}}),
+        ),
+    ] {
+        let command: Command = serde_json::from_value(serde_json::json!({
+            "create": {"id": "n", "kind": kind, "parent": ROOT, "props": props}
+        }))
+        .unwrap();
+        assert!(scene.apply("wm", &[command]).is_err(), "{kind} {props}");
+    }
+    let remove: Command = serde_json::from_value(serde_json::json!({
+        "update": {"id": "glass", "props": {"backdrop": null}}
+    }))
+    .unwrap();
+    scene.apply("wm", &[remove]).unwrap();
+    assert!(backdrop_of(&scene, "glass").is_null());
+}
+
+#[test]
+fn the_watchdog_turns_a_backdrop_into_its_plain_tint() {
+    let mut scene = Scene::default();
+    let glass = serde_json::json!({"size": [100, 40], "color": [1, 1, 1, 0.6],
+        "backdrop": {"blur": 24}});
+    scene
+        .apply("wm", &[create("glass", "rect", &glass)])
+        .unwrap();
+    let load = scene.load_by_owner()["wm"];
+    assert_eq!(load, 26, "a backdrop costs as much as an effect");
+    assert!(scene.drop_effects("wm"));
+    let node = scene.node("glass").unwrap();
+    assert!(backdrop_of(&scene, "glass").is_null());
+    assert_eq!(
+        node.props.color,
+        Some([1.0, 1.0, 1.0, 0.6]),
+        "the tint stays"
+    );
+    assert!(!scene.drop_effects("wm"));
+}
+
+#[test]
+fn a_backdrop_takes_its_bounds_and_nothing_beyond() {
+    let mut scene = Scene::default();
+    for (blur, saturation, valid) in [
+        (2.0, 0.0, true),
+        (128.0, 4.0, true),
+        (1.99, 1.0, false),
+        (128.01, 1.0, false),
+        (8.0, -0.01, false),
+        (8.0, 4.01, false),
+    ] {
+        let props = serde_json::json!({"size": [10, 10],
+            "backdrop": {"blur": blur, "saturation": saturation}});
+        let created = scene.apply("wm", &[create("edge", "rect", &props)]);
+        assert_eq!(
+            created.is_ok(),
+            valid,
+            "blur {blur}, saturation {saturation}"
+        );
+        if valid {
+            assert_eq!(
+                backdrop_of(&scene, "edge"),
+                serde_json::json!({"blur": blur, "saturation": saturation})
+            );
+            let remove: Command =
+                serde_json::from_value(serde_json::json!({"remove": {"id": "edge"}})).unwrap();
+            scene.apply("wm", &[remove]).unwrap();
+        }
+    }
+}
+
+#[test]
+fn the_watchdog_charges_a_backdrop_by_its_area() {
+    let mut scene = Scene::default();
+    let small = serde_json::json!({"size": [100, 40], "backdrop": {"blur": 24}});
+    let large = serde_json::json!({"size": [1280, 800], "backdrop": {"blur": 24}});
+    scene
+        .apply("wm", &[create("small", "rect", &small)])
+        .unwrap();
+    scene
+        .apply("panel", &[create("large", "rect", &large)])
+        .unwrap();
+    let load = scene.load_by_owner();
+    assert_eq!(
+        load["wm"],
+        1 + 25,
+        "up to 256x256 costs as much as an effect"
+    );
+    assert_eq!(load["panel"], 1 + 25 * 16, "each started 256x256 costs 25");
+}
