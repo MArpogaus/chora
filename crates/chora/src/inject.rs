@@ -695,6 +695,36 @@ mod tests {
         assert!(physical[0].get("injected").is_none(), "{physical:?}");
     }
 
+    /// In the test mode of `--test-injected-press-is-real` an injected
+    /// press counts as one of the user, so its event carries no mark: a
+    /// gate clicks the answer button of a question with it.
+    #[test]
+    fn the_test_mode_presses_without_the_mark() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        core.state.injected_press_is_real = true;
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut watcher = core.named("watcher");
+        let menu = json!({"commands": [{"create": {"id": "menu", "kind": "rect",
+            "parent": "root", "props": {"size": [100, 100], "color": [1, 1, 1, 1]}}}]});
+        watcher.ok(&mut core, "scene.apply", menu);
+        watcher.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let click = json!({"events": [
+            {"pointer_move": {"position": [50.0, 50.0]}},
+            {"click": {"button": 272}}
+        ]});
+        agent.ok(&mut core, "input.inject", click);
+        let events = watcher.events_now(&mut core).into_iter();
+        let pressed: Vec<Value> = events
+            .map(|e| e["params"].clone())
+            .filter(|p| p["event"] == "pointer.pressed")
+            .collect();
+        assert_eq!(pressed.len(), 1, "{pressed:?}");
+        assert!(pressed[0].get("injected").is_none(), "{pressed:?}");
+    }
+
     /// A client that takes a drag for the user must know which moves and
     /// which release came from `input.inject`: during a press of a real
     /// button, an injected move and an injected release carry `injected`,

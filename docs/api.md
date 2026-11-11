@@ -529,7 +529,9 @@ key or button press count as a press of the user: for `give_grab`, for
 the choice of the window manager of a new window (see
 [Window managers](#window-managers)), and as the act of the person that
 an activation token carries, so that a token minted after an injected
-`Super+a` gives the chat field the keyboard. It also turns off the rule that no input was injected
+`Super+a` gives the chat field the keyboard. The `pointer.pressed` of
+such a press on a node has no `injected`, so a gate can click the
+answer button of a question. It also turns off the rule that no input was injected
 since the press, as every input of a gate is injected. The core logs a
 warning at its start, and no child inherits the mode, as it is no
 variable of the environment. It is for tests.

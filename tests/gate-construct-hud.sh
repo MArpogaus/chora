@@ -3,7 +3,9 @@
 # label and the restyled window list (docs/construct-style.md). A fake
 # voice agent (tests/fake-voice.py) emits the events of the real one.
 #
-# For each theme and for 1920x1080 and 1280x720:
+# For each theme and for 1920x1080 and 1280x720, with the flag
+# --test-injected-press-is-real of the core, so that the injected click
+# on Ja counts as a click of the person:
 # 1. The construct claims the indicator of voice once.
 # 2. Each state shows its label in construct-hud-state.
 # 3. voice.say of 800 ms shows its sentence; 3.1 s later it is gone.
@@ -110,7 +112,8 @@ round() {
     w=${size%x*}
     local tag=$theme-$size
     printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
-    CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
+    CHORA_TEST_FLAGS=--test-injected-press-is-real \
+        CHORA_FRAME_BUDGET_US=${CHORA_FRAME_BUDGET_US:-500000} session_start "$size" -- "$bin/chora-construct"
     local session=${pids[-1]}
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
