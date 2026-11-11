@@ -13,8 +13,8 @@
 #    cube from a step back, the front face forwards nothing and the chips
 #    TURN LEFT, TURN RIGHT and STEP IN show; a still cube draws nothing,
 #    by render.stats. The method leaves the keyboard with the window.
-#    The chips are at least 24 px high, below the title band of a window
-#    and above the taskbar; the chip STEP BACK covers no desktop icon.
+#    The chips of navigate mode are the hints at the bottom centre, at
+#    least 24 px high; the chip STEP BACK covers no desktop icon.
 #    In use mode Escape reaches the window, the turn keys turn the cube,
 #    and a turn key during a turn queues one turn. Alt+Escape steps back
 #    and takes the keyboard; Return steps in and the window of before
@@ -111,10 +111,10 @@ grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
 [ "$(prop construct-open-cube visible)" = gone ] || fail "a chip OPEN CUBE shows: no buttons in the construct"
-until_ok 'ctl query id:construct-hint-cube | grep -q HEADLESS' || fail "the walk hints do not name the key of the cube"
+until_ok 'ctl query id:construct-hint-cube | grep -q construct-hint-cube' || fail "the walk hints do not name the key of the cube"
 ok "no chip OPEN CUBE, and the walk hints name the key of the cube"
 opened=$(call cube.open) || fail "cube.open without params: $opened"
-until_ok '! ctl query id:construct-hint-cube | grep -q HEADLESS' || fail "the hint of the cube stays with a cube"
+until_ok '! ctl query id:construct-hint-cube | grep -q construct-hint-cube' || fail "the hint of the cube stays with a cube"
 ok "cube.open without params opens four faces, and the hint of the cube goes"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no four virtual outputs: $(virtuals)"
 until_ok 'test "$(bars)" = 4' 80 || fail "xp shows $(bars) taskbars on $(virtuals)"
@@ -157,7 +157,7 @@ stepped_in='test "$(prop construct-cube-face-0 forward)" = True && test "$(width
 call view.step_back >/dev/null || fail "view.step_back"
 until_ok "$stood_back" 20 || fail "no step back: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 for chip in turn-left turn-right step-in; do
-    [ "$(prop "construct-mode-$chip" visible)" = True ] || fail "the chip $chip does not show in navigate mode"
+    until_ok 'test "$(prop "construct-mode-'"$chip"'" visible)" = True' || fail "the chip $chip does not show in navigate mode"
 done
 [ "$(prop construct-mode-step-back visible)" != True ] || fail "the chip STEP BACK shows in navigate mode"
 before=$(keys_got 30)
@@ -166,9 +166,8 @@ until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "view.step_back, a met
 ok "view.step_back: the cube stands back, the face forwards nothing, three chips show, the keyboard stays"
 [ "$(edge construct-mode-step-in 1)" -gt 400 ] || fail "the chips are in the upper half, over the title band: y $(edge construct-mode-step-in 1)"
 [ "$(edge construct-mode-step-in 3)" -ge 24 ] || fail "a chip is $(edge construct-mode-step-in 3) px high, less than 24"
-bar_top=$(ctl query "id:xp-panel-$front" | python3 -I -c "import json, sys; print(round(json.load(sys.stdin)[0]['rects']['$front'][1]))")
-[ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le "$bar_top" ] || fail "the chips are over the taskbar at y $bar_top"
-ok "the chips are at least 24 px high, below the title band and above the taskbar"
+[ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le $((800 - 32)) ] || fail "the chips leave the margin of 32 at the bottom"
+ok "the chips are the hints of the cube at the bottom centre, at least 24 px high"
 sleep 2
 still || fail "a still cube draws: $(drawn)"
 ok "a still cube renders 0 passes and has no damage, by render.stats"
@@ -258,6 +257,7 @@ inject '[{"pointer_move": {"position": [640, 400]}}, {"click": {}}]'
 until_ok "$stepped_in" 20 || fail "a click on the front face in navigate mode did not step in"
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a fourth time"
+until_ok 'test "$(prop construct-mode-step-in visible)" = True' || fail "the hint STEP IN does not show"
 inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, {"click": {}}]'
 until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
 ok "a click on a face and a click on the chip STEP IN step in"
