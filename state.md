@@ -14,7 +14,9 @@ Swarms (11-11): swarm 3 found 6 new verified findings; swarm 4 (mouse only) foun
 Goal until Saturday (user 11-11): UI/UX polish toward perfection, each look with its own consistent aesthetic; the PM works alone and decides taste.
 
 Running:
-- 4 opus design passes: tiling-v2 (Hyprland-like, hackable), mc-v2 (helper into the right margin), xp-v2, construct-v2; each writes design/looks/LOOK-v2.md and mocks under media/2026-11-12/design/.
+- Design passes done for tiling, mc, construct (design/looks/*-v2.md; PM taste decisions in design/decisions-taste.md); xp pass running.
+- Build lanes: tiling-v2 (local sonnet, wt/tiling-v2, steps 1-7), mc-v2 (local sonnet, wt/mc-v2, 11 steps), construct-v2 (cloud worker session_016iS3kM4gkLKYDoMDA31g9X, opus because 3D is the hardest area, 15 steps). Each merges only after an independent pixel review at 1x and 2x.
+- Parked until the looks meet their RC requirements (user 11-11 "stay focused"): flakes, CI dry run, logging inventory.
 - screencast worker session_016iS3kNcWCmF1YP1YaxYmP6: tour of every look, then reshoot of construct from 06044cf into media/2026-11-12/tour-v2; interim friction list received.
 
 Done 11-11 (late): swarm 2 (9 runs) triaged: 20 verified, 9 rejected (env), `reports/swarm-2/findings.md`; PM card and compact hook (friction 33, 34).
