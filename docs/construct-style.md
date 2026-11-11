@@ -45,7 +45,7 @@ rule 5. `plans/construct-hud.md` adds the section.
     | `muted` | `[0.29, 0.32, 0.38]` (#4A5260) | `[0.64, 0.67, 0.71]` (#A3AAB5) |
     | glow | `accent` at 0.10 | `accent` at 0.22 |
 
-4. **One accent for both themes.** `accent` is `[0.15, 0.50, 0.71]`
+4. **One accent for both themes.** `accent` is `[0.149, 0.502, 0.706]`
    (#2680B4). It colours the state ring, the waveform, the selection
    mark, the glow and the edge of the focused pane. It never colours
    text. Do not use other hues.

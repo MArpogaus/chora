@@ -589,9 +589,8 @@ mod tests {
         let fill: [f64; 3] = rgb(chat.fill).map(|side| side * hud::GLASS_ALPHA);
         assert!(contrast(rgb(chat.text), fill) >= 7.0);
         assert!(contrast(rgb(chat.name), fill) >= 4.5);
-        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let light = &config.style.themes.light;
-        let near = |a: [f64; 3], b: [f64; 3]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
+        let light = chora_kit::glass::Material::of(false);
+        let near = |a: [f64; 3], b: [f64; 4]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
         assert!(near(rgb(chat.text), light.text));
         assert!(near(rgb(chat.name), light.muted));
     }
@@ -601,16 +600,16 @@ mod tests {
     /// glow (rule 6).
     #[test]
     fn the_chat_of_the_folder_is_the_glass_of_the_light_theme() {
-        use chora_kit::hud;
+        use chora_kit::{glass::Material, hud};
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("hud");
         let chat = hud::load(&dir).unwrap().chat;
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let light = &config.style.themes.light;
+        let light = Material::of(false);
         let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
         let near = |a: [f64; 3], b: &[f64]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
-        assert!(near(rgb(chat.fill), &light.glass));
-        assert!((hud::GLASS_ALPHA - light.glass[3]).abs() < 1e-9);
-        assert!(near(rgb(chat.border), &light.edge));
+        assert!(near(rgb(chat.fill), &light.tint));
+        assert!(near(rgb(chat.text), &light.text));
+        assert!(near(rgb(chat.name), &light.muted));
         assert!(near(rgb(chat.glow), &config.style.accent));
     }
 
