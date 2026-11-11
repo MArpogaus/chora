@@ -15,7 +15,7 @@ Goal until Saturday (user 11-11): UI/UX polish toward perfection, each look with
 
 Running:
 - Design passes done for all four looks (design/looks/*-v2.md; PM taste decisions in design/decisions-taste.md).
-- mc-v2 + HUD host: round 2 (12a241d) fixed all 9 first-review MAJOR; review 2 FIX with 1 MAJOR (scene 2 empty texts overlap) and 18 small (reports/review-mc-v2-r2.md); round 3 running.
+- mc-v2 + HUD host: round 3 (d9a8a72) UI review MERGE (reports/review-mc-v2-r3.md); code review FIX (3 MEDIUM: silent lost click inside the card guard after a re-layout, gate sleeps instead of signals, a check that passes when ctl fails; docs); one fix round running, then the PM merges with merge-gate.sh.
 - Build lanes: tiling-v2 (local sonnet, wt/tiling-v2, steps 1-7), mc-v2 (local sonnet, wt/mc-v2, 11 steps), construct-v2 on the tour worker session_016iS3kNcWCmF1YP1YaxYmP6 (already set up; tour-v2 done d5d5126); xp-v2 waits for disk: one more target would drop free space under 8 GB (11-11 18:45: 12 GB free after removing the wobble3d target and target-base); it starts when mc-v2 merges and its target goes. tiling-v2 MERGED as fe3483f (3 UI rounds, code review fixed in dd5d064..b4c6ab8, gate 17/17). Merge train 1 of 3 for 11-12. A chat lane (chora-assistant chat tab per look, sent bubble, Stop state) is needed next: the white "Chat ..." tab breaks the tiling bar. Each merges only after an independent pixel review at 1x and 2x.
 - Parked until the looks meet their RC requirements (user 11-11 "stay focused"): flakes, CI dry run, logging inventory.
 - screencast worker session_016iS3kNcWCmF1YP1YaxYmP6: tour of every look, then reshoot of construct from 06044cf into media/2026-11-12/tour-v2; interim friction list received.
