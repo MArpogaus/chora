@@ -14,7 +14,7 @@ work area.
 
 construct uses this folder with `voice_hud: host` in
 `chora-construct.yaml`: construct then draws no voice HUD and no question
-glass of its own and claims no indicator.
+glass of its own, only its own notices, and claims no indicator.
 
 | File | Content | Source | License |
 |------|---------|--------|---------|
