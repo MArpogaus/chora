@@ -494,7 +494,7 @@ impl Mc {
     /// The type of a content: its own style on the base of its kind.
     pub fn content_type(&self, content: &Content, title: bool) -> Type {
         let base = match content.kind {
-            _ if title => "running_head",
+            _ if title => "label",
             Kind::Head | Kind::Clock | Kind::State => "running_head",
             Kind::Hud | Kind::Agents => "hud",
             Kind::Text | Kind::App | Kind::Keys => "margin",

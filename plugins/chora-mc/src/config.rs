@@ -612,7 +612,7 @@ mod tests {
         // An em follows the base: the running head of the default.
         let mut config = parse::<Config>(DEFAULT).unwrap();
         let head = |c: &Config| c.resolve("running_head", None).unwrap().size;
-        assert!((head(&config) - 11.0).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 11.6128).abs() < 0.01, "{}", head(&config));
         config.scale.base = 27.0;
         assert!((head(&config) - 16.5).abs() < 0.01, "{}", head(&config));
         let caps = Style {

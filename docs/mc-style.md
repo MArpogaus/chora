@@ -27,7 +27,9 @@ change it there, not here.
 
     Do not set Pagella below step 0. The labels of the regions are the
     one exception: capitals of Inter at 0.61 em, as tall as the lowercase
-    of `margin`.
+    of `margin`. In the margin column nothing is under 14 pixels: its
+    labels use the style `label`, the capitals of Inter at the size of
+    `margin`. The scale base is 19 pixels on a baseline grid of 28.
 3. **One weight.** Pagella is always regular. Inter is regular, the
    labels of the regions are medium (500). Do not use bold or italic for
    emphasis; use place, size and space.

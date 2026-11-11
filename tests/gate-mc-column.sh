@@ -96,3 +96,7 @@ until_ok '[ "$(bars)" = 1 ]' 8 || fail "no focus bar over a line of the overview
 click_at "$x" "$y"
 until_ok '[ "$(current)" = terminal ]' 20 || fail "a click on a line of the overview does not show that scene: $(current)"
 ok "a mouse alone reaches All keys, the overview and the terminal scene"
+
+small=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.rects | length) > 0 and (.rects | to_entries[0].value[0]) >= 860 and .font_size < 14) | "\(.text):\(.font_size)"] | join(" ")')
+[ -z "$small" ] || fail "text under 14 px in the column: $small"
+ok "nothing in the column is under 14 px"

@@ -43,9 +43,9 @@ themes:
 # The font sizes are steps of a modular scale: base times ratio to the
 # power of the step. Each line of text is whole lines of the baseline grid.
 scale:
-  base: 18
+  base: 19
   ratio: 1.333
-  baseline: 27
+  baseline: 28
 # The styles of text. Each has a family, a weight (300 light, 400 normal,
 # 700 bold), a style (normal or italic), a size in pixels, in em of
 # scale.base or as a step of the scale, a color, a line_height, a
@@ -103,6 +103,11 @@ styles:
     letter_spacing: 0.2
     uppercase: true
     features: {tnum: 1}
+  # The labels of the margin column: the running head at the size of
+  # margin, so that nothing in the column is under 14 pixels.
+  label:
+    base: running_head
+    em: 0.75
   # The lead of a scene: one step over the heading, at most one a page.
   lead:
     base: body
