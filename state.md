@@ -199,14 +199,17 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent)
 
-Workers (own containers; check with get_session, merge here):
-- session_016iS3kL1yG8R47DGySmB65H (Fable): core-death review fixes done
-  at ea4b02d (gate green, merge that commit); now mc on 300 panels and
-  the 58 MB heap, stacked on claude/core-death (it may push only there).
-- session_016iS3kNteKAJNer4zC9m3qk (Fable): virtual-2 review fixes at
-  366817d3 (merge gate running); now D69 step 4 on claude/virtual-2.
-- session_016iS3kNS7t5CrXkYfk8LgjU (opus): HUD looks H8 to H10 on
-  claude/hud-looks, with captures hud-{xp,mc,construct}.png.
+Workers (own containers; check with get_session, merge here), 11-11 11:45:
+- session_016iS3kL1yG8R47DGySmB65H (Fable): CI sandbox, privileged
+  window.move check, pull clip; on claude/core-death.
+- session_016iS3kNteKAJNer4zC9m3qk (Fable): floating windows review
+  fixes on claude/virtual-2 (a6f7c761 pushed).
+- session_016iS3kMz3yvq4o7Xxb8ASmu (Fable): demo clips on claude/demo
+  (swing, walk; cube, float and pull next).
+- session_016iS3kNBZGoJk1MQrWZ4pBV (Fable): HUD looks finish on
+  claude/hud-looks (replaces the archived opus worker, which would not
+  take PM messages as instructions).
+Archived 11-11: dry-run, push probe, HUD looks (opus).
 
 Local: K5 construct on 3D (agent afab03f7e183f96f0, /home/user/wt/k5),
 plus construct wobble in 3D and construct-3d.png / construct-wobble.png.
