@@ -19,7 +19,11 @@ use chora_kit::{
 };
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
-use super::{Colours, Frame, Mode, Session, colours, rgba};
+use super::{
+    Colours, Frame, Mode, Session, colours,
+    face::{self, Face},
+    rgba,
+};
 
 /// The group of the view under `screen:OUTPUT`.
 pub const VIEW: &str = "hud-chat-view";
@@ -118,12 +122,14 @@ pub fn style_of(look: &Look, colours: Colours) -> Style {
     }
 }
 
-/// A row of the view: its text, font, colour and indent.
+/// A row of the view: its text, font, colour and indent; `read` is text
+/// that a person reads, which a look with a face sets in it.
 pub struct Row {
     text: String,
     font: Font,
     colour: [u8; 3],
     indent: i32,
+    read: bool,
 }
 
 fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
@@ -132,9 +138,10 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
         if let Some(label) = &line.label {
             rows.push(Row {
                 text: label.clone(),
-                font: Font::BodyBold,
+                font: Font::Body,
                 colour: colours.name,
                 indent: 0,
+                read: false,
             });
         }
         let (font, indent) = match line.role {
@@ -147,6 +154,7 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
             font,
             colour: colours.text,
             indent,
+            read: matches!(line.role, Role::User | Role::Agent),
         });
     }
     rows
@@ -200,17 +208,31 @@ pub fn create(id: &str, parent: &str, props: PropsUpdate) -> Command {
 }
 
 /// The buttons of the view, left to right: Close in every view, so that a
-/// person who uses only the mouse can always leave; Stop only in a chat.
-fn buttons(mode: &Mode) -> &'static [(&'static str, Word)] {
-    match mode {
-        Mode::Chat(_) => &[(STOP, Word::Stop), (CLOSE, Word::Close)],
-        _ => &[(CLOSE, Word::Close)],
+/// person who uses only the mouse can always leave; Stop only in a chat. A
+/// view in the margin of a client has no Close: the client has it in its
+/// head of the chat.
+fn buttons(mode: &Mode, column: bool) -> &'static [(&'static str, Word)] {
+    match (mode, column) {
+        (Mode::Chat(_), false) => &[(STOP, Word::Stop), (CLOSE, Word::Close)],
+        (Mode::Chat(_), true) => &[(STOP, Word::Stop)],
+        (_, false) => &[(CLOSE, Word::Close)],
+        (_, true) => &[],
     }
+}
+
+/// Whether the view stands in the margin of a client: a plain view in a
+/// slot, which has no header of its own, since the client names the helper.
+fn in_margin(frame: &Frame) -> bool {
+    frame.slot.is_some() && frame.look.style == ChatStyle::Plain
 }
 
 /// What a view shows, laid out.
 struct Parts {
     rect: [i32; 4],
+    face: Option<Face>,
+    row_h: i32,
+    margin: bool,
+    inset: i32,
     header: String,
     hint: Option<String>,
     rows: Vec<Row>,
@@ -221,22 +243,32 @@ struct Parts {
     field_room: i32,
 }
 
-#[allow(
-    clippy::cast_possible_truncation,
-    reason = "the width of a character is a few pixels"
-)]
-fn measured(theme: &Theme) -> impl Fn(char) -> f32 + '_ {
-    |c| theme.text_width(&c.to_string(), Font::Body) as f32
+/// The width of a character in the text of the view, a little over what
+/// it is, so that a wrapped line is never wider than its room.
+fn measured<'a>(theme: &'a Theme, face: Option<&'a Face>) -> impl Fn(char) -> f32 + 'a {
+    let cache = std::cell::RefCell::new(std::collections::HashMap::new());
+    move |c| {
+        *cache.borrow_mut().entry(c).or_insert_with(|| {
+            let width = face.map_or_else(|| face::sans_advance(theme, c), |f| f.advance(theme, c));
+            width * 1.02
+        })
+    }
 }
 
 /// How many of `rows` rows from `start` on the output end above the card
 /// at `card_top`, with a gap: the newest stay.
-fn rows_above(card_top: Option<i32>, start: i32, rows: usize) -> usize {
+fn rows_above(card_top: Option<i32>, start: i32, (rows, row_h): (usize, i32)) -> usize {
     let Some(top) = card_top else {
         return rows;
     };
-    let fit = (top - GAP - start).max(0) / LINE;
+    let fit = (top - GAP - start).max(0) / row_h;
     rows.min(usize::try_from(fit).unwrap_or(0))
+}
+
+/// The top of the hint line above the field in a view `h` high: a gap above
+/// the room that the field takes.
+fn hint_top(h: i32, field_room: i32) -> i32 {
+    h - field_room - LINE - GAP
 }
 
 /// The rectangle of the view: a balloon of the figure as high as its
@@ -254,32 +286,52 @@ impl Session {
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
         let rect = frame.rect();
-        let width_of = measured(theme);
+        let face = Face::of(&frame.look);
+        let row_h = face.as_ref().map_or(LINE, Face::line);
+        let width_of = measured(theme, face.as_ref());
+        let margin = in_margin(frame);
+        let inset = if margin { 0 } else { PAD };
         let measure = Measure {
-            max: f32::from(u16::try_from(rect[2] - 2 * PAD).unwrap_or(0)),
+            max: f32::from(u16::try_from(rect[2] - 2 * inset).unwrap_or(0)),
             font: look_id(&frame.look),
             width: &width_of,
         };
         let lines = self.lines(language, &measure);
         let hint = self.hint(language);
         let list = self.entries(language);
-        let buttons = buttons(&self.mode);
-        let top_row = PAD + LINE + GAP;
-        let body_top = top_row + BUTTON[1] + GAP;
+        let buttons = buttons(&self.mode, margin);
+        let top_row = if margin { PAD } else { PAD + LINE + GAP };
+        let body_top = match (margin, buttons.is_empty()) {
+            (true, true) => PAD,
+            (true, false) => PAD + LINE + GAP,
+            (false, _) => top_row + BUTTON[1] + GAP,
+        };
         let below =
             field_room(frame) + if hint.is_some() { LINE + GAP } else { 0 } + self.card_room();
         let listed = LINE * i32::try_from(list.len()).unwrap_or(0);
-        let room = usize::try_from((rect[3] - body_top - listed - below) / LINE).unwrap_or(0);
+        let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
         rows.drain(..rows.len().saturating_sub(room));
         let content =
-            body_top + listed + LINE * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
+            body_top + listed + row_h * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
         let rect = fitted(frame, rect, content);
-        let above = rows_above(self.card_top(), rect[1] + body_top + listed, rows.len());
+        let above = rows_above(
+            self.card_top(),
+            rect[1] + body_top + listed,
+            (rows.len(), row_h),
+        );
         rows.drain(..rows.len() - above);
         Parts {
             rect,
-            header: self.header(language),
+            face: face.clone(),
+            row_h,
+            margin,
+            inset,
+            header: if margin {
+                String::new()
+            } else {
+                self.header(language)
+            },
             hint,
             rows,
             list,
@@ -371,6 +423,26 @@ fn glow(theme: &mut Theme, [width, height]: [i32; 2], colour: [u8; 3]) -> String
     theme.render(&Picture::new(width + 2 * reach, height + 2 * reach).svg(body))
 }
 
+/// The page of a view in the margin of a client: its fill, no box.
+fn page_shape([w, h]: [i32; 2], colours: Colours) -> String {
+    let [red, green, blue] = colours.fill;
+    format!(r#"<rect width="{w}" height="{h}" fill="rgb({red},{green},{blue})"/>"#)
+}
+
+/// A word as a link in the margin: text in the colour of the names, with no
+/// box, that takes the click.
+fn link(theme: &mut Theme, label: &str, colours: Colours) -> (String, [i32; 2]) {
+    #[allow(clippy::cast_possible_truncation, reason = "a width of a few pixels")]
+    let w = theme.text_width(label, Font::Body).ceil() as i32;
+    let picture = Picture::new(w, LINE).text(Text::new(
+        label,
+        Font::Body,
+        rgba(colours.text),
+        [0, 0, w, LINE],
+    ));
+    (theme.render(&picture), [w, LINE])
+}
+
 /// The outline of the view: glass, or a box, with a tail at the figure
 /// when the view is its balloon.
 fn shape_of(frame: &Frame, size: [i32; 2], colours: Colours) -> String {
@@ -385,35 +457,60 @@ fn shape_of(frame: &Frame, size: [i32; 2], colours: Colours) -> String {
     style.shape(size, tail.unwrap_or(0))
 }
 
+/// The rows of the transcript on the picture of the view: the messages in
+/// the face of the look where it has one, the rest in the sans.
+fn rows_picture(mut picture: Picture, parts: &Parts, w: i32) -> Picture {
+    let below_list = parts.body_top + LINE * i32::try_from(parts.list.len()).unwrap_or(0);
+    for (n, row) in (0..).zip(&parts.rows) {
+        let y = below_list + n * parts.row_h;
+        let face = parts.face.as_ref().filter(|_| row.read);
+        picture = if let Some(face) = face {
+            picture.svg(face.element(&row.text, [parts.inset + row.indent, y], row.colour))
+        } else {
+            let at = [
+                parts.inset + row.indent,
+                y,
+                w - parts.inset - row.indent,
+                parts.row_h,
+            ];
+            picture.text(Text::new(&row.text, row.font, rgba(row.colour), at))
+        };
+    }
+    picture
+}
+
 fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> Vec<Command> {
     let [x, y, w, h] = parts.rect;
     let is_glass = frame.look.style == ChatStyle::Glass;
     let tail = frame.tail();
-    let shape = shape_of(frame, [w, h], colours);
+    let shape = if parts.margin {
+        page_shape([w, h], colours)
+    } else {
+        shape_of(frame, [w, h], colours)
+    };
     let halo = frame
         .look
         .glow
         .filter(|_| is_glass)
         .map(|colour| glow(theme, [w, h], colour));
     let below = tail.map_or(0, |_| crate::config::TAIL);
-    let mut picture = Picture::new(w, h + below).svg(shape).text(Text::new(
-        &parts.header,
-        Font::BodyBold,
-        rgba(colours.text),
-        [PAD, PAD, w - 2 * PAD, LINE],
-    ));
-    let below_list = parts.body_top + LINE * i32::try_from(parts.list.len()).unwrap_or(0);
-    for (n, row) in (0..).zip(&parts.rows) {
+    let mut picture = Picture::new(w, h + below).svg(shape);
+    if !parts.header.is_empty() {
+        picture = picture.text(Text::new(
+            &parts.header,
+            Font::BodyBold,
+            rgba(colours.text),
+            [PAD, PAD, w - 2 * PAD, LINE],
+        ));
+    }
+    picture = rows_picture(picture, parts, w);
+    for (n, entry) in (0..).zip(&parts.list) {
         let at = [
-            PAD + row.indent,
-            below_list + n * LINE,
-            w - 2 * PAD - row.indent,
+            parts.inset,
+            parts.body_top + n * LINE,
+            w - 2 * parts.inset,
             LINE,
         ];
-        picture = picture.text(Text::new(&row.text, row.font, rgba(row.colour), at));
-    }
-    for (n, entry) in (0..).zip(&parts.list) {
-        let at = [PAD, parts.body_top + n * LINE, w - 2 * PAD, LINE];
         picture = picture.text(Text::new(entry, Font::Body, rgba(colours.text), at));
     }
     let shown = std::iter::once(parts.header.as_str())
@@ -437,7 +534,7 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
     let chat = create(
         CHAT,
         VIEW,
-        image(rendered, [0, 0], &shown.join("\n"), InputMode::Pass),
+        image(rendered, [0, 0], &shown.join("\n"), InputMode::Accept),
     );
     std::iter::once(view).chain(halo).chain([chat]).collect()
 }
@@ -446,7 +543,12 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
     let [_, _, w, h] = parts.rect;
     let mut commands = Vec::new();
     if let Some(hint) = &parts.hint {
-        let at = [PAD, h - parts.field_room - LINE - GAP, w - 2 * PAD, LINE];
+        let at = [
+            parts.inset,
+            hint_top(h, parts.field_room),
+            w - 2 * parts.inset,
+            LINE,
+        ];
         let picture = Picture::new(w, h).text(Text::new(hint, Font::Body, rgba(colours.text), at));
         let path = theme.render(&picture);
         commands.push(create(
@@ -457,13 +559,18 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
     }
     for (n, (id, word)) in (0..).zip(parts.buttons) {
         let label = word.text(language);
-        let path = button(theme, label, colours);
-        let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
+        let (path, at) = if parts.margin {
+            let (path, [width, _]) = link(theme, label, colours);
+            (path, [w - width, parts.top_row])
+        } else {
+            let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
+            (button(theme, label, colours), at)
+        };
         commands.push(create(id, VIEW, image(path, at, label, InputMode::Accept)));
     }
     for (n, entry) in (0..).zip(&parts.list) {
-        let blank = theme.render(&Picture::new(w - 2 * PAD, LINE));
-        let at = [PAD, parts.body_top + n * LINE];
+        let blank = theme.render(&Picture::new(w - 2 * parts.inset, LINE));
+        let at = [parts.inset, parts.body_top + n * LINE];
         let id = format!("{PICK}{}", n + 1);
         commands.push(create(
             &id,
@@ -505,9 +612,18 @@ mod tests {
     #[test]
     fn close_shows_in_the_list_and_in_the_chat_and_stop_only_in_the_chat() {
         let list = Mode::List(Vec::new());
-        assert_eq!(buttons(&list), [(CLOSE, Word::Close)]);
+        assert_eq!(buttons(&list, false), [(CLOSE, Word::Close)]);
         let chat = Mode::Chat("atlas".into());
-        assert_eq!(buttons(&chat), [(STOP, Word::Stop), (CLOSE, Word::Close)]);
+        assert_eq!(
+            buttons(&chat, false),
+            [(STOP, Word::Stop), (CLOSE, Word::Close)]
+        );
+        assert_eq!(
+            buttons(&chat, true),
+            [(STOP, Word::Stop)],
+            "the margin has the Close"
+        );
+        assert_eq!(buttons(&list, true), []);
     }
 
     #[test]
@@ -563,14 +679,41 @@ mod tests {
 
     #[test]
     fn the_rows_end_above_the_card_where_it_stands() {
-        assert_eq!(rows_above(None, 100, 10), 10, "no card");
-        assert_eq!(rows_above(Some(100 + 3 * LINE + GAP), 100, 10), 3);
+        assert_eq!(rows_above(None, 100, (10, LINE)), 10, "no card");
+        assert_eq!(rows_above(Some(100 + 3 * LINE + GAP), 100, (10, LINE)), 3);
         assert_eq!(
-            rows_above(Some(100 + 3 * LINE + GAP - 1), 100, 10),
+            rows_above(Some(100 + 3 * LINE + GAP - 1), 100, (10, LINE)),
             2,
             "no half row"
         );
-        assert_eq!(rows_above(Some(50), 100, 10), 0);
+        assert_eq!(rows_above(Some(50), 100, (10, LINE)), 0);
+    }
+
+    #[test]
+    fn the_hint_stands_above_the_field_whatever_its_height() {
+        let look = Look::default();
+        for field in [36, 56, 92, 200] {
+            let frame = Frame {
+                output: "HEADLESS-1".into(),
+                size: [1280, 800],
+                area: [0, 0, 1280, 800],
+                look: look.clone(),
+                slot: Some([888, 98, 336, 674]),
+                clear: Vec::new(),
+                tip: None,
+                field,
+                ring: None,
+                dark: false,
+                scale: 1,
+                card: None,
+            };
+            let h = frame.rect()[3];
+            let end = hint_top(h, field_room(&frame)) + LINE;
+            assert!(
+                end + GAP <= h - field,
+                "{end} meets the field of {field} in {h}"
+            );
+        }
     }
 
     #[test]

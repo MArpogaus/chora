@@ -711,12 +711,13 @@ impl Assistant {
         }
         let template = self.values.word.as_deref()?;
         let text = chora_kit::hud::render(template, &serde_json::json!({ "state": label }));
+        let font = self.word_font();
         #[allow(
             clippy::cast_possible_truncation,
             reason = "a word is narrower than a screen"
         )]
         let size = [
-            theme.text_width(&text, Font::Ui).ceil() as i32 + 2 * BACKING,
+            theme.text_width(&text, font).ceil() as i32 + 2 * BACKING,
             LINE + 2 * BACKING,
         ];
         self.word = size;
@@ -727,11 +728,13 @@ impl Assistant {
             r#"<rect width="{w}" height="{h}" rx="{BACKING}" fill="rgb({red},{green},{blue})"/>"#
         );
         let place = [BACKING, BACKING, w - 2 * BACKING, LINE];
-        let colour = self.values.speech.text_rgba();
-        let picture =
-            Picture::new(w, h)
-                .svg(backing)
-                .text(Text::new(&text, Font::Ui, colour, place));
+        let colour = self.values.word_ink.map_or_else(
+            || self.values.speech.text_rgba(),
+            |[red, green, blue]| [red, green, blue, 255],
+        );
+        let picture = Picture::new(w, h)
+            .svg(backing)
+            .text(Text::new(&text, font, colour, place));
         Some(PropsUpdate {
             image: Some(theme.render(&picture)),
             transform: Some(Transform::translate(
@@ -743,6 +746,17 @@ impl Assistant {
             meta: Some([("text".to_owned(), text)].into()),
             ..PropsUpdate::default()
         })
+    }
+
+    /// The font of the state word: text that a person reads, 14 pixels,
+    /// where the folder names a slot; the small one of the status line
+    /// beside a figure otherwise.
+    fn word_font(&self) -> Font {
+        if self.values.slot {
+            Font::Body
+        } else {
+            Font::Ui
+        }
     }
 
     /// The rectangle of a word of `size` beside the figure, in the middle

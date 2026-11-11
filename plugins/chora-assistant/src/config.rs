@@ -160,6 +160,14 @@ pub struct Values {
     /// The figure, its state word, the task and the sentence stand on one
     /// glass capsule: the voice panel has `style: island`.
     pub island: bool,
+    /// The folder names the client whose margin holds the chat, `chat.slot`:
+    /// that client draws the doors and the helpers there, so the host draws
+    /// no "Chat ..." row and no row of a helper, sets its state word at the
+    /// size of text that a person reads, and gives its question card the
+    /// look of the chat.
+    pub slot: bool,
+    /// The colour of the state word, `colours.accent` of the voice panel.
+    pub word_ink: Option<[u8; 3]>,
 }
 
 /// The panel of the sentence.
@@ -191,7 +199,7 @@ impl Default for Line {
 /// neutral folder.
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
-const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
+const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 48]);
 /// The height of the tail of a bubble with a tail.
 pub const TAIL: i32 = 18;
 
@@ -387,6 +395,8 @@ impl Values {
             hud: Some(folder.clone()),
             dark: context.dark(),
             island,
+            slot: hud.chat.slot.is_some(),
+            word_ink: voice.and_then(|panel| panel.colours.accent),
         }
     }
 
@@ -434,6 +444,8 @@ impl Values {
             hud: None,
             dark: false,
             island: false,
+            slot: false,
+            word_ink: None,
         }
     }
 
@@ -463,6 +475,8 @@ impl Values {
             hud: None,
             dark: false,
             island: false,
+            slot: false,
+            word_ink: None,
         }
     }
 }

@@ -294,6 +294,7 @@ impl Agent {
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
         };
+        self.card_fonts();
         self.card_theme.set_scale(scale);
         let figure = self.figure_rect(&output);
         let mut commands = self.ensure_top(&output.name);
@@ -308,6 +309,7 @@ impl Agent {
             max_width: None,
             glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
                 .then_some(self.values.dark),
+            ink: self.card_ink(),
         };
         self.place_card(&mut shown, figure, &output)?;
         let language = self.language;
@@ -341,17 +343,55 @@ impl Agent {
         Ok(commands)
     }
 
+    /// The family of the card: the sans of the look where the folder names
+    /// a slot, else the one of the host. The fonts stay those of the host:
+    /// a family by name, never a font file of a folder.
+    fn card_fonts(&mut self) {
+        let want = if self.values.slot {
+            self.values.font.clone()
+        } else {
+            crate::HOST_FAMILY.to_owned()
+        };
+        if want == self.card_family {
+            return;
+        }
+        match card::theme(&self.source.cache, &want) {
+            Ok(theme) => {
+                self.card_theme = theme;
+                self.card_family = want;
+            }
+            Err(err) => eprintln!("chora-assistant: card fonts: {err}"),
+        }
+    }
+
+    /// What the card is drawn in: the page of the look where the folder
+    /// names a slot, else the card of the host.
+    fn card_ink(&self) -> card::Ink {
+        if !self.values.slot {
+            return card::Ink::HOST;
+        }
+        let (fill, text) = chat::page_ink(&self.values.chat());
+        card::Ink::page(fill, text)
+    }
+
     /// The end of a question, by `done` with its id.
     fn end_card(&mut self, data: &Value) -> Vec<Command> {
         let Some(id) = chora_kit::ask::event_id(data) else {
             return Vec::new();
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
-            let old = self.card.take();
-            self.chat.question_ended();
-            return old.as_ref().map(card::hide).unwrap_or_default();
+            return self.close_card();
         }
         Vec::new()
+    }
+
+    /// Takes the card away: its answer reached voice, which ends the
+    /// question with `done` too, but an agent that does not say so leaves
+    /// no card on the screen after the answer.
+    fn close_card(&mut self) -> Vec<Command> {
+        let old = self.card.take();
+        self.chat.question_ended();
+        old.as_ref().map(card::hide).unwrap_or_default()
     }
 
     /// The width, the size and the corner of a new card; a card that
@@ -718,10 +758,12 @@ impl Agent {
         };
         match outcome {
             Outcome::Answer(params) => {
-                if let Err(err) = self.voice_call("confirm.answer", &params) {
+                let answered = self.voice_call("confirm.answer", &params);
+                if let Err(err) = &answered {
                     eprintln!("chora-assistant: voice: confirm.answer: {err}");
+                    return Ok((true, Vec::new()));
                 }
-                Ok((true, Vec::new()))
+                Ok((true, self.close_card()))
             }
             Outcome::Ignored => Ok((true, Vec::new())),
             Outcome::Notice => {

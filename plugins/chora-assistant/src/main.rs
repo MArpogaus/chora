@@ -181,6 +181,8 @@ struct Agent {
     look_cache: PathBuf,
     /// The theme of the card and the badge, with the fonts of the host.
     card_theme: Theme,
+    /// The base family of `card_theme`.
+    card_family: String,
     language: Language,
     assistant: Option<Assistant>,
     /// The camera of the construct is in a pane: the island dims.
@@ -369,6 +371,7 @@ impl Agent {
             slot_client: None,
             look_cache,
             card_theme,
+            card_family: HOST_FAMILY.to_owned(),
             language: language(),
             assistant: None,
             in_pane: false,
@@ -429,6 +432,7 @@ impl Agent {
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
+            self.chat_refocus();
             return Ok(commands);
         }
         if node == card::BADGE {
@@ -622,6 +626,15 @@ mod tests {
     }
 
     #[test]
+    fn the_rows_of_the_neutral_folder_stand_below_the_bar_of_tiling() {
+        let (_, values, cache) = loaded("neutral-rows");
+        let (anchor, [_, top]) = values.rows;
+        assert_eq!(anchor, chora_kit::hud::Anchor::TopRight);
+        assert!(top >= 48, "the islands of the bar reach y 40: {top}");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn the_neutral_folder_loads() {
         let (theme, values, cache) = loaded("neutral");
         assert!(matches!(
@@ -806,6 +819,7 @@ mod tests {
             too_long: false,
             max_width: None,
             glass: None,
+            ink: card::Ink::HOST,
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);

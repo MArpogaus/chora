@@ -52,15 +52,64 @@ const BORDER: [u8; 3] = [60, 60, 60];
 const TEXT: [u8; 3] = [20, 20, 20];
 const BUTTON_FILL: [u8; 3] = [232, 232, 232];
 
-fn style() -> Style {
-    Style {
+/// The room under the buttons: as much as the ink of the first line stands
+/// below the top edge.
+const PAD_BOTTOM: i32 = PAD + (LINE - 12) / 2;
+
+/// What the card is drawn in: its fill, its rule, its text, the fill of
+/// its buttons and the radius of its corners.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Ink {
+    pub fill: [u8; 3],
+    pub border: [u8; 3],
+    pub text: [u8; 3],
+    pub button: [u8; 3],
+    pub radius: i32,
+}
+
+impl Ink {
+    /// The card of the host: a light card with rounded corners.
+    pub const HOST: Self = Self {
         fill: FILL,
         border: BORDER,
         text: TEXT,
+        button: BUTTON_FILL,
         radius: 8,
-        tail: 0,
-        ..Style::default()
+    };
+
+    /// A card in the page of a look: the fill of its page, one rule in the
+    /// colour of its text, square corners, buttons in the fill of the
+    /// page.
+    #[must_use]
+    pub const fn page(fill: [u8; 3], text: [u8; 3]) -> Self {
+        Self {
+            fill,
+            border: text,
+            text,
+            button: fill,
+            radius: 0,
+        }
     }
+
+    fn style(self) -> Style {
+        Style {
+            fill: self.fill,
+            border: self.border,
+            text: self.text,
+            radius: self.radius,
+            tail: 0,
+            ..Style::default()
+        }
+    }
+
+    fn ink(self) -> [u8; 4] {
+        let [r, g, b] = self.text;
+        [r, g, b, 255]
+    }
+}
+
+fn style() -> Style {
+    Ink::HOST.style()
 }
 
 /// The theme of the card and the badge: the fonts of the host only.
@@ -95,6 +144,8 @@ pub struct Shown {
     /// The card is glass, in the dark theme or not: the folder has a glass
     /// chat.
     pub glass: Option<bool>,
+    /// What the card is drawn in.
+    pub ink: Ink,
 }
 
 /// The lines and the buttons of a card, with the size of the card.
@@ -113,6 +164,21 @@ fn width(screen: [i32; 2], most: Option<i32>) -> i32 {
         .max(2 * PAD + 40)
 }
 
+/// The room under the lines of a card: the buttons, the note that an
+/// injected press does not count when it shows, and the padding.
+fn below(shown: &Shown, notice_lines: i32) -> i32 {
+    let notice = if shown.notice {
+        GAP + notice_lines * LINE
+    } else {
+        0
+    };
+    if shown.buttons && !shown.too_long {
+        GAP + BUTTON[1] + notice + PAD_BOTTOM - PAD
+    } else {
+        0
+    }
+}
+
 fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> Layout {
     if let Some(dark) = shown.glass {
         return crate::card_glass::layout(theme, shown, language, (screen, dark));
@@ -123,12 +189,7 @@ fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) ->
     let notice = wrap(injected, inner, |line| {
         theme.text_width(line, Font::BodyBold)
     });
-    let notice_lines = i32::try_from(notice.len()).unwrap_or(0);
-    let below = if shown.buttons && !shown.too_long {
-        2 * GAP + BUTTON[1] + notice_lines * LINE
-    } else {
-        0
-    };
+    let below = below(shown, i32::try_from(notice.len()).unwrap_or(0));
     let most = usize::try_from((screen[1] * 8 / 10 - 2 * PAD - below) / LINE)
         .unwrap_or(1)
         .max(2);
@@ -140,8 +201,8 @@ fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) ->
     let buttons_shown = shown.buttons && !too_long;
     let lines = i32::try_from(rows.len()).unwrap_or(0);
     let height = 2 * PAD + lines * LINE + below;
-    let ink = [TEXT[0], TEXT[1], TEXT[2], 255];
-    let mut picture = Picture::new(width, height).svg(style().shape([width, height], 0));
+    let ink = shown.ink.ink();
+    let mut picture = Picture::new(width, height).svg(shown.ink.style().shape([width, height], 0));
     let line_at = |n: i32| [PAD, PAD + n * LINE, width - 2 * PAD, LINE];
     for (n, (font, line)) in (0..).zip(&rows) {
         picture = picture.text(Text::new(line, *font, ink, line_at(n)));
@@ -270,22 +331,16 @@ fn image(path: String, at: [i32; 2], text: &str, input: InputMode) -> PropsUpdat
     }
 }
 
-fn button(theme: &mut Theme, label: &str) -> String {
+fn button(theme: &mut Theme, label: &str, ink: Ink) -> String {
     let flat = Style {
-        fill: BUTTON_FILL,
-        radius: 4,
-        ..style()
+        fill: ink.button,
+        radius: ink.radius.min(4),
+        ..ink.style()
     };
     let [w, h] = BUTTON;
-    let picture = Picture::new(w, h).svg(flat.shape([w, h], 0)).text(
-        Text::new(
-            label,
-            Font::BodyBold,
-            [TEXT[0], TEXT[1], TEXT[2], 255],
-            [0, 0, w, h],
-        )
-        .centered(),
-    );
+    let picture = Picture::new(w, h)
+        .svg(flat.shape([w, h], 0))
+        .text(Text::new(label, Font::BodyBold, ink.ink(), [0, 0, w, h]).centered());
     theme.render(&picture)
 }
 
@@ -357,7 +412,7 @@ pub fn show(
         {
             let picture = match shown.glass {
                 Some(dark) => crate::card_glass::segment(theme, key, label, (size[0], dark)),
-                None => button(theme, label),
+                None => button(theme, label, shown.ink),
             };
             let props = image(picture, [x + bx, y + by], label, InputMode::Accept);
             commands.push(Command::Create {
@@ -573,6 +628,7 @@ mod tests {
             too_long: false,
             max_width: None,
             glass: None,
+            ink: Ink::HOST,
         }
     }
 
@@ -597,6 +653,64 @@ mod tests {
         assert_eq!(laid.picture.size[1], yes[1] + 40 + 16);
         assert!(laid.text.contains("Question from Atlas"), "{}", laid.text);
         assert!(laid.text.contains("Alt+Y"), "{}", laid.text);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_padding_of_the_card_is_even_with_and_without_the_notice() {
+        let cache = cache("padding");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        let [yes, _] = laid.buttons.expect("buttons");
+        let below = laid.picture.size[1] - (yes[1] + BUTTON[1]);
+        let above = (LINE - 12) / 2 + PAD;
+        assert!(
+            (below - above).abs() <= 1,
+            "{below} under the buttons, {above} over the text"
+        );
+        card.notice = true;
+        let noticed = layout(&theme, &card, Language::En, [1280, 800]);
+        let [yes, _] = noticed.buttons.expect("buttons");
+        let rows = i32::try_from(
+            wrap(
+                Word::Injected.text(Language::En),
+                f64::from(noticed.picture.size[0] - 2 * PAD),
+                |line| theme.text_width(line, Font::BodyBold),
+            )
+            .len(),
+        )
+        .unwrap();
+        let below = noticed.picture.size[1] - (yes[1] + BUTTON[1] + GAP + rows * LINE);
+        assert!((below - above).abs() <= 1, "{below} under the notice");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_card_in_a_page_takes_its_fill_its_rule_and_square_corners() {
+        let cache = cache("page");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::page([247, 245, 237], [41, 38, 36]);
+        card.max_width = Some(336);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        assert_eq!(laid.picture.size[0], 336);
+        let shape = laid
+            .picture
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                Layer::Svg(body) => Some(body.as_str()),
+                _ => None,
+            })
+            .expect("the shape of the card");
+        assert!(shape.contains("fill=\"rgb(247,245,237)\""), "{shape}");
+        assert!(shape.contains("stroke=\"rgb(41,38,36)\""), "{shape}");
+        assert!(shape.contains("A0,0"), "square corners: {shape}");
+        assert!(!shape.contains("A8,8"), "no round corner: {shape}");
+        let [yes, no] = laid.buttons.expect("buttons");
+        assert_eq!(no[0] - yes[0], BUTTON[0] + BUTTON_GAP);
+        assert!(hud::contrast([41, 38, 36], [247, 245, 237]) >= hud::MIN_KEY_CONTRAST);
         let _ = std::fs::remove_dir_all(cache);
     }
 

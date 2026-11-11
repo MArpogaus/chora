@@ -28,7 +28,9 @@ use serde_json::{Value, json};
 
 use super::{
     Frame, Link, Outside, colours, held_box, rgba, slot_box,
-    view::{CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of},
+    view::{
+        CHAT, CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of,
+    },
 };
 use crate::{
     Agent,
@@ -181,15 +183,16 @@ fn chat_look(values: &Values) -> Look {
 
 /// The rows by id, each with its text and its words in their colours:
 /// the "Chat ..." row, then the helpers; none while the chat is `open`,
-/// whose header names its helper and which the rows would cover, and none
-/// when the figure opens the chat, the one way in.
+/// whose header names its helper and which the rows would cover, none
+/// when the figure opens the chat, the one way in, and none when the
+/// folder names a slot, whose client draws the door and the helpers.
 fn row_lines(
     language: Language,
     helpers: &BTreeMap<String, rows::Helper>,
     values: &Values,
     open: bool,
 ) -> Vec<(String, String, Vec<Tinted>)> {
-    if open || values.chats {
+    if open || values.chats || values.slot {
         return Vec::new();
     }
     let (most, tints) = values.helpers;
@@ -367,9 +370,18 @@ impl Agent {
         }
         match node {
             STOP => {
-                if let Some(name) = self.chat.helper().map(str::to_owned) {
-                    let _ = self.voice_call("agent.cancel", &json!({"name": name}));
+                let mut bridge = Bridge {
+                    conn: &mut self.rt.conn,
+                    client: voice_client(self.voice.as_ref()),
+                };
+                if self.chat.cancel(&mut bridge) {
+                    self.chat_draw()?;
                 }
+                self.chat_refocus();
+                Ok(true)
+            }
+            CHAT => {
+                self.chat_refocus();
                 Ok(true)
             }
             CLOSE => {
@@ -378,6 +390,23 @@ impl Agent {
             }
             _ => Ok(false),
         }
+    }
+
+    /// A press on a node of the host while the chat is open: the field has
+    /// the keyboard again, with the token of the press.
+    pub fn chat_refocus(&mut self) {
+        if !self.chat.is_open() {
+            return;
+        }
+        let Some(frame) = self.chat_seen.clone() else {
+            return;
+        };
+        let mut bridge = Bridge {
+            conn: &mut self.rt.conn,
+            client: voice_client(self.voice.as_ref()),
+        };
+        let token = bridge.token();
+        self.chat.refocus(&mut bridge, &frame, token.as_deref());
     }
 
     /// A click on the "Chat ..." row, or on a figure that opens the chat:
@@ -590,6 +619,8 @@ impl Agent {
     /// on the screen names, beside the events of the host.
     pub fn watch_slot(&mut self) -> Result<(), ClientError> {
         let wanted = chat_look(&self.values).slot;
+        self.switcher
+            .set_look_client(wanted.clone(), Instant::now());
         if wanted.is_none() || wanted == self.slot_client {
             return Ok(());
         }
@@ -672,12 +703,21 @@ mod tests {
         assert_eq!(ids(&neutral, true), Vec::<String>::new());
         let clip = Values {
             chats: true,
-            ..neutral
+            ..neutral.clone()
         };
         assert_eq!(
             ids(&clip, false),
             Vec::<String>::new(),
             "the figure is the one way in"
+        );
+        let margin = Values {
+            slot: true,
+            ..neutral
+        };
+        assert_eq!(
+            ids(&margin, false),
+            Vec::<String>::new(),
+            "the client of the slot draws the door and the helpers"
         );
     }
 
