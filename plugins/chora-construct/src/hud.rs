@@ -589,6 +589,67 @@ impl Look<'_> {
         (commands, w)
     }
 
+    /// A chip of the modes of a cube (K4): its glass, which takes the
+    /// click, and its text in the role `text`, both hidden until the mode
+    /// shows it.
+    #[must_use]
+    pub fn chip(&self, id: &str, parent: &str, text: &str) -> Vec<Command> {
+        let mut glass = self.glass(id, parent, Some(InputMode::Accept));
+        let color = self.colors.text;
+        let mut label = self.text(&format!("{id}-text"), parent, Role::Text, text, color);
+        if let Command::Create { props, .. } = &mut label {
+            props.input = Some(InputMode::Pass);
+        }
+        for command in [&mut glass, &mut label] {
+            if let Command::Create { props, .. } = command {
+                props.visible = Some(false);
+            }
+        }
+        vec![glass, label]
+    }
+
+    /// Places a chip with its right edge a pad left of `right` and its
+    /// bottom a unit above `bottom`, and shows or hides it. A chip is one
+    /// line of the role `text` and a unit high around it, so at least
+    /// 24 px. Answers the width that it takes with its gap.
+    #[must_use]
+    pub fn place_chip(
+        &self,
+        id: &str,
+        text: &str,
+        [right, bottom]: [f64; 2],
+        show: bool,
+    ) -> (Vec<Command>, f64) {
+        let (pad, unit) = (self.pad(), self.style.unit);
+        let line = Role::Text.size().1;
+        let size = [
+            (self.size(Role::Text, text, None)[0] + pad * 2.0).ceil(),
+            line + unit,
+        ];
+        let x = (right - pad - size[0]).round();
+        let y = (bottom - unit - size[1]).round();
+        let commands = vec![
+            update(
+                id,
+                PropsUpdate {
+                    size: Some(size),
+                    transform: at(x, y),
+                    visible: Some(show),
+                    ..PropsUpdate::default()
+                },
+            ),
+            update(
+                &format!("{id}-text"),
+                PropsUpdate {
+                    transform: at(x + pad, y + unit / 2.0),
+                    visible: Some(show),
+                    ..PropsUpdate::default()
+                },
+            ),
+        ];
+        (commands, size[0] + unit)
+    }
+
     /// Fades the pane label out.
     #[must_use]
     pub fn label_hide() -> Vec<Command> {

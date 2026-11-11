@@ -304,6 +304,18 @@ impl Config {
                 "move a pane, or give it away".to_owned(),
             ),
             (format!("{m}+wheel"), "resize a pane".to_owned()),
+            (
+                self.fly_out.clone(),
+                "with a cube: step back from the face".to_owned(),
+            ),
+            (
+                "Return / Escape".to_owned(),
+                "with a cube, stood back: step into the face".to_owned(),
+            ),
+            (
+                "Ctrl+Alt+Left / Ctrl+Alt+Right".to_owned(),
+                "with a cube: turn it by one face".to_owned(),
+            ),
         ]);
         rows
     }

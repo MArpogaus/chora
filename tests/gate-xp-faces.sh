@@ -19,6 +19,11 @@
 #                        holds no turn key, so another client grabs it,
 #                        and `turn_to` answers and leaves the window
 #                        where it shows
+#   still-faces-draw-nothing  `render.stats` read twice, 2 s apart, with
+#                        nothing moving: no virtual output and no pane
+#                        on the screen drew a pass or had damage. The
+#                        clock of a taskbar can change in that time, so
+#                        the cell looks again once
 #   drag-keeps-rect      an injected drag of the title bar from the first
 #                        virtual output to the second, which jumps far in
 #                        one move: the window shows on an output at every
@@ -43,6 +48,7 @@ moves-to-face pass
 face-removed pass
 no-cube-on-faces pass
 drag-keeps-rect pass
+still-faces-draw-nothing pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -162,6 +168,20 @@ cell_drag_keeps_rect() {
     done
 }
 
+drawn() { ctl render-stats | jq -c '.outputs | map_values([.damaged_frames, .passes])'; }
+
+cell_still_faces_draw_nothing() {
+    local before
+    sleep 3
+    for _ in 1 2; do
+        before=$(drawn)
+        sleep 2
+        [ "$before" != "$(drawn)" ] || return 0
+    done
+    echo "render.stats moved: $before then $(drawn)" >>"$shots/stats.log"
+    return 1
+}
+
 declare -A got
 mismatches=()
 cell() {
@@ -179,7 +199,7 @@ cell() {
         fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
 }
 
-cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces drag-keeps-rect)
+cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces drag-keeps-rect still-faces-draw-nothing)
 for id in "${cells[@]}"; do cell "$id"; done
 ctl capture "$shots/faces.png" >/dev/null 2>&1
 

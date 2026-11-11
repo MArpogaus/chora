@@ -453,6 +453,23 @@ impl State {
         })
     }
 
+    /// `render.stats`: what rendering did for each output, as counters
+    /// that only grow, so that a caller compares two answers. A client
+    /// socket or a confined connection gets none: the counters tell when
+    /// other clients draw.
+    pub fn ipc_render_stats(&self, conn: u64) -> Result<Value, RpcError> {
+        if self.ipc.name(conn).is_none() {
+            return Err(rejected("send hello first"));
+        }
+        if self.ipc.confined(conn) {
+            return Err(RpcError::new(
+                RpcError::CLIENT_SOCKET_RULE,
+                "a client socket or a confined connection reads no render stats",
+            ));
+        }
+        Ok(serde_json::json!({"outputs": self.assets.stats.by_output}))
+    }
+
     /// Whether an output is a virtual one.
     pub fn is_virtual(&self, output: &Output) -> bool {
         self.assets.virtuals.iter().any(|v| v.output() == output)
@@ -555,7 +572,7 @@ impl OutputTexture {
         {
             self.damage = result.damage.cloned().unwrap_or_default();
         }
-        parts.assets.stats.frame(damaged);
+        parts.assets.stats.frame(&self.output.name(), damaged);
         Ok(damaged)
     }
 }
@@ -1352,6 +1369,70 @@ mod tests {
         faced.frames(2);
         let pixels = pane_pixels(&mut faced);
         assert!(pixels.as_chunks::<4>().0.iter().all(|p| *p == [0; 4]));
+    }
+
+    /// The counters of `render.stats` for an output.
+    fn counted(faced: &mut Faced, output: &str) -> [u64; 3] {
+        let stats = faced
+            .construct
+            .ok(&mut faced.core, "render.stats", json!({}));
+        let of = &stats["outputs"][output];
+        ["frames", "damaged_frames", "passes"].map(|k| of[k].as_u64().expect("a counter"))
+    }
+
+    /// A gate reads `render.stats` twice: a still pane and its still
+    /// output draw no pass and have no damage between the two, and a
+    /// commit of the window shows as damage of both.
+    #[test]
+    fn render_stats_count_frames_damage_and_passes_by_output() {
+        let mut faced = faced();
+        faced.show_pane();
+        faced.frames(2);
+        let face = counted(&mut faced, "VIRTUAL-1");
+        let screen = counted(&mut faced, "screen");
+        assert!(face[1] >= 1 && screen[2] >= 1, "{face:?} {screen:?}");
+        faced.frames(60);
+        let still = |before: [u64; 3]| [before[0] + 60, before[1], before[2]];
+        assert_eq!(counted(&mut faced, "VIRTUAL-1"), still(face), "the face");
+        assert_eq!(counted(&mut faced, "screen"), still(screen), "the screen");
+        let Faced {
+            core,
+            wayland,
+            window,
+            ..
+        } = &mut faced;
+        wayland.attach_filled(core, window, (SIDE, SIDE), (Format::Argb8888, BLUE));
+        faced.frames(1);
+        assert_eq!(counted(&mut faced, "VIRTUAL-1")[1], face[1] + 1);
+        let after = counted(&mut faced, "screen");
+        assert_eq!(after[1], screen[1] + 1, "damage of the pane");
+        assert!(after[2] > screen[2], "the pane runs its shader again");
+    }
+
+    #[test]
+    fn render_stats_are_not_for_a_confined_caller() {
+        let mut faced = faced();
+        let mut confined = faced.core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut faced.core, "hello", hello);
+        let (number, error) = confined.fails(&mut faced.core, "render.stats", json!({}));
+        assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        let mut nameless = faced.core.connect();
+        let (_, error) = nameless.fails(&mut faced.core, "render.stats", json!({}));
+        assert!(error.contains("hello"), "{error}");
+    }
+
+    #[test]
+    fn render_stats_are_not_for_a_client_socket() {
+        let mut faced = faced();
+        faced.core.state.ipc.path = Some(faced.dir.join("wayland-1.sock"));
+        let mut admin = faced.core.admin();
+        let created = admin.ok(&mut faced.core, "clients.create", json!({"name": "agent"}));
+        let path = std::path::PathBuf::from(created["path"].as_str().expect("a path"));
+        let mut agent = faced.core.connect_to(&path);
+        agent.ok(&mut faced.core, "hello", json!({"name": "agent"}));
+        let (number, error) = agent.fails(&mut faced.core, "render.stats", json!({}));
+        assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
     }
 
     #[test]

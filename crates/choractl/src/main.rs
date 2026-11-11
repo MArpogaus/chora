@@ -79,6 +79,11 @@ enum Cmd {
     },
     /// Print the outputs.
     Outputs,
+    /// Print what rendering did for each output since it came: frames,
+    /// frames with damage and offscreen passes. The counters only grow;
+    /// compare two prints, for example to see that a still scene draws
+    /// nothing.
+    RenderStats,
     /// Reserve space at the edges of an output, in logical pixels: the work
     /// area leaves it out until this command ends. Prints the output, then
     /// waits.
@@ -367,6 +372,7 @@ fn run(args: Args) -> Result<(), String> {
             .map(|answer| print_warnings(&answer)),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
+        Cmd::RenderStats => show(&mut client, "render.stats", Value::Null),
         Cmd::Quit => client
             .call::<_, Value>("session.quit", Value::Null)
             .map(drop),
