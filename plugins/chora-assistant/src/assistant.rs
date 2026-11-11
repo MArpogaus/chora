@@ -147,7 +147,7 @@ fn draw(theme: &Theme, look: &Figure, state: &str, shut: bool) -> Picture {
         } => {
             let has = |id: &str| theme.size(*sheet, id).is_some();
             let id = element_of(has, template, state, shut);
-            Picture::new(*w, *h).element(*sheet, &id, [0, 0, *w, *h])
+            Picture::new(*w, *h).in_place(*sheet, &id, [0, 0, *w, *h])
         }
     }
 }
