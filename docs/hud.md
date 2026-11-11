@@ -199,7 +199,8 @@ The host draws the rows of the helpers itself: a panel with
 left out) and `colours`. Below the "Chat ..." row stands one row for each
 helper, `Atlas · working · Write file (2/2)`: the name, the state word of
 the word table and the task with its step. The rows stack away from the
-edge of the anchor. A click on a row opens the chat with that helper. The
+edge of the anchor; while the `when` of the panel does not match, only
+the "Chat ..." row shows. A click on a row opens the chat with that helper. The
 words and their order are the same in every folder; `rows` does not
 change them. The node of a row is `hud-row-NAME`. A helper whose name
 has other characters than letters, digits, `_` and `-`, or that is named

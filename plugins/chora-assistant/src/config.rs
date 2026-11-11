@@ -183,6 +183,16 @@ fn helpers_panel<'a>(hud: &'a Hud, context: &Context) -> Option<&'a chora_kit::h
     })
 }
 
+/// The rows of helpers of a folder in a context where no panel of the
+/// helpers shows: none when the folder has such a panel, since its `when`
+/// hides them, else those of the host.
+fn hidden_rows(hud: &Hud) -> usize {
+    let has_panel = hud.panels.iter().any(|panel| {
+        panel.source == Source::Agents && panel.action == Some(chora_kit::hud::Action::Chat)
+    });
+    if has_panel { 0 } else { MAX_ROWS }
+}
+
 /// Where the "Chat ..." row stands: where the panel of the helpers puts
 /// it, else beside the figure, which a click on the row never covers.
 fn rows_of(
@@ -264,7 +274,7 @@ impl Values {
             }),
             rows: rows_of(hud, context, (anchor, margin), height),
             helpers: helpers_panel(hud, context).map_or_else(
-                || (MAX_ROWS, chora_kit::hud::Colours::default()),
+                || (hidden_rows(hud), chora_kit::hud::Colours::default()),
                 |panel| {
                     let most = panel.max_rows.map_or(MAX_ROWS, |n| n as usize);
                     (most, panel.colours)
@@ -496,6 +506,30 @@ mod tests {
         assert_eq!(
             (values.anchor, values.margin),
             (NEUTRAL_ANCHOR, NEUTRAL_MARGIN)
+        );
+    }
+
+    #[test]
+    fn helper_rows_follow_the_when_of_their_panel() {
+        let hud = hud::parse(
+            "hud: 1\npanels:\n  - {id: tray, source: agents, when: {chat: none}, anchor: \
+             bottom_right, rows: x, max_rows: 3, action: chat}\n",
+        )
+        .unwrap();
+        let rows_in = |chat: &str| {
+            let context = Context {
+                chat: chat.into(),
+                ..Context::default()
+            };
+            Values::from_hud(&hud, &context, |_| None).helpers.0
+        };
+        assert_eq!(rows_in("none"), 3);
+        assert_eq!(rows_in("open"), 0, "the panel does not show");
+        let plain = hud::parse("hud: 1\n").unwrap();
+        let values = Values::from_hud(&plain, &Context::default(), |_| None);
+        assert_eq!(
+            values.helpers.0, MAX_ROWS,
+            "no panel of helpers: the rows of the host"
         );
     }
 
