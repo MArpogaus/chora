@@ -286,6 +286,7 @@ impl Settings for Config {
             return Err("effects: the construct has no task button, so only wobbly".into());
         }
         self.check_style()?;
+        self.check_managers()?;
         if !self.start.is_empty() {
             crate::file::check_name(&self.start).map_err(|e| format!("start: {e}"))?;
         }
@@ -332,6 +333,17 @@ impl Config {
             ),
         ]);
         rows
+    }
+
+    /// Each window manager has a command.
+    fn check_managers(&self) -> Result<(), String> {
+        if self.cube_manager.trim().is_empty() {
+            return Err("cube_manager: the command is empty".into());
+        }
+        match self.managers.iter().find(|(_, c)| c.trim().is_empty()) {
+            Some((name, _)) => Err(format!("managers.{name}: the command is empty")),
+            None => Ok(()),
+        }
     }
 
     fn check_style(&self) -> Result<(), String> {
