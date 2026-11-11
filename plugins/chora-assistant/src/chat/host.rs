@@ -250,9 +250,10 @@ impl Agent {
             return Ok(());
         };
         let top = self.top.is_some();
-        let commands = self
+        let mut commands = self
             .chat
             .commands(&mut self.theme, &frame, (self.language, top));
+        commands.extend(self.card_follows()?);
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());
         let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);

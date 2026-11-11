@@ -222,6 +222,16 @@ fn measured(theme: &Theme) -> impl Fn(char) -> f32 + '_ {
     |c| theme.text_width(&c.to_string(), Font::Body) as f32
 }
 
+/// How many of `rows` rows from `start` on the output end above the card
+/// at `card_top`, with a gap: the newest stay.
+fn rows_above(card_top: Option<i32>, start: i32, rows: usize) -> usize {
+    let Some(top) = card_top else {
+        return rows;
+    };
+    let fit = (top - GAP - start).max(0) / LINE;
+    rows.min(usize::try_from(fit).unwrap_or(0))
+}
+
 /// The rectangle of the view: a balloon of the figure as high as its
 /// content, up to its most, its bottom at the tail; any other view as it
 /// is.
@@ -257,8 +267,11 @@ impl Session {
         rows.drain(..rows.len().saturating_sub(room));
         let content =
             body_top + listed + LINE * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
+        let rect = fitted(frame, rect, content);
+        let above = rows_above(self.card_top(), rect[1] + body_top + listed, rows.len());
+        rows.drain(..rows.len() - above);
         Parts {
-            rect: fitted(frame, rect, content),
+            rect,
             header: self.header(language),
             hint,
             rows,
@@ -523,6 +536,18 @@ mod tests {
             "a panel keeps its size"
         );
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_rows_end_above_the_card_where_it_stands() {
+        assert_eq!(rows_above(None, 100, 10), 10, "no card");
+        assert_eq!(rows_above(Some(100 + 3 * LINE + GAP), 100, 10), 3);
+        assert_eq!(
+            rows_above(Some(100 + 3 * LINE + GAP - 1), 100, 10),
+            2,
+            "no half row"
+        );
+        assert_eq!(rows_above(Some(50), 100, 10), 0);
     }
 
     #[test]

@@ -345,6 +345,8 @@ pub struct Session {
     card_height: Option<i32>,
     /// The height of the field, as it last told it.
     field_height: Option<i32>,
+    /// The top of the card of the question in the view, on the output.
+    card_top: Option<i32>,
 }
 
 /// The rectangle of the view in the work area: x, y, width, height. The
@@ -845,6 +847,7 @@ impl Session {
     pub fn question_ended(&mut self) {
         self.card = None;
         self.card_height = None;
+        self.card_top = None;
         self.dirty = true;
     }
 
@@ -959,10 +962,18 @@ impl Session {
         self.field_height.unwrap_or(ONE_LINE_FIELD)
     }
 
-    /// The card of the question stands in the view, this high.
-    pub fn card_shown(&mut self, height: i32) {
+    /// The card of the question stands in the view, this high, its top at
+    /// `top` on the output.
+    pub fn card_shown(&mut self, top: i32, height: i32) {
         self.card_height = Some(height);
+        self.card_top = Some(top);
         self.dirty = true;
+    }
+
+    /// The top of the card in the view, on the output.
+    #[must_use]
+    pub fn card_top(&self) -> Option<i32> {
+        self.card_top.filter(|_| self.card == Some(Where::Chat))
     }
 
     /// The room that the card takes in the view, with its gap.
@@ -1729,7 +1740,7 @@ mod tests {
         let frame = frame(Look::default());
         session.show(&mut out, Some("atlas"), None, &frame).unwrap();
         assert_eq!(session.question_asked(), Where::Chat);
-        session.card_shown(150);
+        session.card_shown(300, 150);
         assert_eq!(session.card_room(), 150 + view::GAP);
         session.question_ended();
         assert_eq!(session.card_room(), 0);

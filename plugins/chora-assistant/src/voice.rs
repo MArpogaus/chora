@@ -363,8 +363,9 @@ impl Agent {
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
             (None, Some((frame, _))) => {
-                self.chat.card_shown(size[1]);
-                chat::card_origin(&frame, size)
+                let origin = chat::card_origin(&frame, size);
+                self.chat.card_shown(origin[1], size[1]);
+                origin
             }
             (None, None) => card::place(figure, size, assistant::work_area(output)),
         };
@@ -586,6 +587,38 @@ impl Agent {
             self.card = Some(shown);
         }
         commands.extend(self.sync_badge()?);
+        Ok(commands)
+    }
+
+    /// The card in the balloon of the figure follows the balloon when the
+    /// field changes its height, so that it stands above the hint; its
+    /// buttons take no click for a moment, as after any move.
+    pub fn card_follows(&mut self) -> Result<Vec<Command>, ClientError> {
+        if !self.balloon_chat() || self.chat.card_top().is_none() {
+            return Ok(Vec::new());
+        }
+        let (Some(frame), Some((output, _))) = (self.chat_frame()?, self.output()?) else {
+            return Ok(Vec::new());
+        };
+        let Some(mut shown) = self.card.take() else {
+            return Ok(Vec::new());
+        };
+        let size = card::size(&self.card_theme, &shown, self.language, output.size);
+        let origin = chat::card_origin(&frame, size);
+        if origin == shown.origin {
+            self.card = Some(shown);
+            return Ok(Vec::new());
+        }
+        shown.origin = origin;
+        shown.card.moved(Instant::now());
+        self.chat.card_shown(origin[1], size[1]);
+        let mut commands = card::hide();
+        if !shown.buttons {
+            commands.truncate(1);
+        }
+        let (theme, language) = (&mut self.card_theme, self.language);
+        commands.extend(card::show(theme, &shown, language, output.size, true));
+        self.card = Some(shown);
         Ok(commands)
     }
 
