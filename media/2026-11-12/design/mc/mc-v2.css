@@ -1,0 +1,38 @@
+/* mock styles for design/looks/mc-v2.md; grid 28 px, base 19 px, output 1280x800 */
+@font-face { font-family: "Pagella"; src: local("TeX Gyre Pagella"), url("pagella.otf"); }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1280px; height: 800px; overflow: hidden; }
+body { position: relative; background: var(--bg); color: var(--text); font-family: "Pagella", serif; }
+.light { --bg:#f7f5ed; --text:#292624; --muted:#6e6961; --faint:#d4cfc4; --accent:#8c241f;
+  --green:#407554; --amber:#966214; --blue:#386194; --red:#b3211f; --tint:#efece3; }
+.dark { --bg:#1c1c1c; --text:#d9d4c9; --muted:#8c8a82; --faint:#424240; --accent:#cc7866;
+  --green:#85b88f; --amber:#e0b361; --blue:#8cb0db; --red:#eb6b61; --tint:#232322; }
+.a { position: absolute; white-space: nowrap; }
+/* baseline helpers: top = baseline - ascent; we place lines by their 28 px box */
+.line { height: 28px; line-height: 28px; }
+.body { font-family: "Pagella", serif; font-size: 19px; font-feature-settings: "onum"; }
+.lead { font-family: "Pagella", serif; font-size: 33.8px; line-height: 42px; }
+.margin { font-family: Inter, sans-serif; font-size: 14.25px; color: var(--muted); font-feature-settings: "tnum"; }
+.run { font-family: Inter, sans-serif; font-weight: 500; font-size: 11.6px; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--muted); font-feature-settings: "tnum"; }
+.chapter { font-family: "Pagella", serif; font-size: 45px; line-height: 56px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent); font-feature-settings: "lnum"; }
+.num { color: var(--muted); letter-spacing: 0; }
+.bar { display: inline-block; width: 1px; height: 30px; background: var(--muted); margin: 0 18px; vertical-align: -1px; }
+.muted { color: var(--muted); } .text { color: var(--text); } .accent { color: var(--accent); }
+.key { font-family: Inter, sans-serif; font-weight: 500; font-size: 14.25px; color: var(--text); }
+.hair-v { position: absolute; width: 1px; background: var(--faint); }
+.hair-h { position: absolute; height: 1px; background: var(--faint); }
+.focus { position: absolute; width: 2px; height: 20px; background: var(--text); }
+.sign { display: inline-block; width: 18px; }
+.mock { position: absolute; left: 8px; bottom: 6px; font: 500 11px/16px Inter, sans-serif; letter-spacing: .04em;
+  color: #fff; background: #b0127a; padding: 1px 6px; border-radius: 2px; }
+.card { position: absolute; border: 1px solid var(--text); background: var(--bg); }
+.btn { position: absolute; width: 88px; height: 32px; border: 1px solid var(--text); font: 500 14.25px/30px Inter, sans-serif;
+  text-align: center; color: var(--text); }
+.s { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 9px 0 0; vertical-align: 0; }
+.s.fill { background: currentColor; }
+.s.ring { border: 1.5px solid currentColor; }
+.s.dash { border: 1.5px dotted currentColor; }
+.s.listen { border: 1.5px solid currentColor; box-shadow: inset 0 0 0 1.5px var(--bg); background: currentColor; }
+.q { display: inline-block; width: 9px; margin-right: 9px; font-weight: 600; text-align: center; }
