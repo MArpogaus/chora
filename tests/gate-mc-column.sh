@@ -4,6 +4,9 @@
 # the list adds its checks here; a check reads the texts and the rects of
 # the nodes of mc with `choractl query`.
 #
+# The mission scene holds data in every panel and scrolls with the wheel
+# (rule 13 of docs/mc-style.md), so its panels are not all in view.
+#
 # Usage: tests/gate-mc-column.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016 # until_ok evaluates its first argument
 . "$(dirname "$0")/gate-lib.sh"
@@ -140,6 +143,23 @@ for scene in morning agenda; do
     [ -z "$clash" ] || fail "texts of the $scene scene overlap: $clash"
 done
 ok "no two texts of the morning scene or of the agenda overlap"
+
+placed_panels() {
+    local out
+    out=$(ctl query "owner:mc kind:group") || fail "ctl query of the panels failed"
+    jq -r --arg p "mc-s-$1-panels-" '
+        [.[] | select((.id | startswith($p)) and (.rects | length) > 0 and
+            (.rects | to_entries[0].value) as $r | $r[2] > 0 and $r[3] > 0 and
+            $r[0] >= 0 and $r[1] >= 0 and $r[0] + $r[2] <= 1280 and $r[1] + $r[3] <= 800)] | length' <<<"$out"
+}
+for scene in agenda agents morning overview; do
+    ctl call mc scene.show "{\"name\": \"$scene\"}" >/dev/null || fail "scene.show $scene"
+    until_ok '[ "$(current)" = '"$scene"' ]' 20 || fail "no $scene scene"
+    want=$(grep -cE '^- (\{id:|id:)' "$repo/plugins/chora-mc/scenes/$scene.yaml")
+    until_ok '[ "$(placed_panels '"$scene"')" = '"$want"' ]' 20 ||
+        fail "the $scene scene places $(placed_panels "$scene") of its $want panels at 1280x800"
+done
+ok "every panel of the agenda, agents, morning and overview scenes is placed at 1280x800"
 
 fits() {
     local w=$1 h=$2 over

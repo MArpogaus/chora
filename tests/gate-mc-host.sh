@@ -43,15 +43,45 @@ type_text() {
         key "${1:i:1}"
     done
 }
-node_rect() { ctl query "id:$1" | jq -c '.[0].rects | to_entries[0].value'; }
-node_exists() { ctl query "id:$1" | jq -e 'length > 0' >/dev/null; }
+q() { QOUT=$(ctl query "$@") || fail "ctl query $* failed"; }
+node_rect() {
+    q "id:$1"
+    jq -c '.[0].rects | to_entries[0].value' <<<"$QOUT"
+}
+node_exists() {
+    q "id:$1"
+    jq -e 'length > 0' <<<"$QOUT" >/dev/null
+}
+now_ms() { date +%s%3N; }
+settle() {
+    local last rect at
+    until_ok "node_exists $1" 40 || fail "$theme: no $1 to settle"
+    last=$(node_rect "$1")
+    at=$(now_ms)
+    for _ in $(seq 200); do
+        sleep 0.05
+        rect=$(node_rect "$1")
+        if [ "$rect" != "$last" ]; then
+            last=$rect
+            at=$(now_ms)
+        elif [ $(($(now_ms) - at)) -ge 450 ]; then
+            return 0
+        fi
+    done
+    fail "$theme: $1 does not settle"
+}
+kb_on() { jq -s '[.[] | select(.data.on == true)] | length' "$work/keyboard.jsonl"; }
+wait_keyboard() {
+    until_ok "[ \"\$(kb_on)\" -gt $1 ]" 40 || fail "$theme: the field gets no keyboard after the click"
+}
 emit() { echo "$1 $2" >&3; }
 click_node() {
-    local rect=$1 x y
+    local rect x y
+    rect=$(node_rect "$1")
     x=$(jq -n --argjson r "$rect" '$r[0] + $r[2] / 2 | floor')
     y=$(jq -n --argjson r "$rect" '$r[1] + $r[3] / 2 | floor')
     echo "[{\"pointer_move\": {\"position\": [$x, $y]}}]" | ctl inject >/dev/null || fail "inject move"
-    sleep 0.6
+    until_ok "host_mark $1" 20 || fail "$theme: the pointer does not reach $1"
     echo '[{"button": {"state": "pressed"}}, {"button": {"state": "released"}}]' | ctl inject >/dev/null ||
         fail "inject click"
 }
@@ -62,7 +92,8 @@ click_at_move() {
     echo "[{\"pointer_move\": {\"position\": [$x, $y]}}]" | ctl inject >/dev/null || fail "inject move"
 }
 host_mark() {
-    ctl query "owner:assistant kind:rect" | jq -e --arg id "$1-mark" '[.[] | select(.id == $id and .opacity == 1)] | length == 1' >/dev/null
+    q "owner:assistant kind:rect"
+    jq -e --arg id "$1-mark" '[.[] | select(.id == $id and .opacity == 1)] | length == 1' <<<"$QOUT" >/dev/null
 }
 hover_marks() {
     until_ok "node_exists $1" 20 || fail "$theme: no $1"
@@ -70,7 +101,8 @@ hover_marks() {
     until_ok "host_mark $1" 20 || fail "$theme: no hover mark on $1"
 }
 mark_of() {
-    ctl query "owner:mc kind:rect" | jq -ec --arg s "$1-mark" '[.[] | select((.id | endswith($s)) and .opacity == 1 and (.rects | length) > 0)][0].rects | to_entries[0].value'
+    q "owner:mc kind:rect"
+    jq -ec --arg s "$1-mark" '[.[] | select((.id | endswith($s)) and .opacity == 1 and (.rects | length) > 0)][0].rects | to_entries[0].value' <<<"$QOUT"
 }
 ask() {
     emit voice.state '{"name": "Atlas", "state": "question", "task": "Write file", "seq": 5}'
@@ -108,26 +140,33 @@ run_theme() {
     "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
     pids+=($!)
     ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$work/assistant.log")"
-    ctl events mc.chat.slot >"$work/slots.jsonl" 2>/dev/null &
+    "$bin/choractl" --name agent events mc.chat.slot >"$work/slots.jsonl" 2>/dev/null &
+    pids+=($!)
+    : >"$work/keyboard.jsonl"
+    "$bin/choractl" --name agent events assistant.chat.keyboard >"$work/keyboard.jsonl" 2>/dev/null &
     pids+=($!)
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
     emit voice.state '{"name": "Atlas", "state": "working", "task": "Tidy notes", "seq": 2}'
     until_ok 'ctl query "owner:mc kind:text" | jq -e "[.[] | select(.text == \"Atlas\")] | length > 0" >/dev/null' 40 ||
         fail "$theme: mc shows no row for the helper"
     until_ok 'node_exists hud-word' 40 || fail "$theme: the host shows no state word"
-    sleep 1
+    settle hud-figure
 
     figure=$(node_rect hud-figure)
-    ctl capture "$work/state-$theme.png" >/dev/null || fail "capture of the state"
-    dot=$(pixel "$work/state-$theme.png" "$(jq -n --argjson f "$figure" '$f[0] + $f[2] / 2 | floor')" "$(jq -n --argjson f "$figure" '$f[1] + $f[3] / 2 | floor')")
     case $theme in
     light) want="140 36 31" ;;
     *) want="204 120 102" ;;
     esac
-    [ "${dot% *}" = "$want" ] || fail "$theme: the state dot is ${dot% *}, not the accent of the theme $want"
+    dot_pixel() {
+        ctl capture "$work/state-$theme.png" >/dev/null || fail "capture of the state"
+        dot=$(pixel "$work/state-$theme.png" "$(jq -n --argjson f "$figure" '$f[0] + $f[2] / 2 | floor')" "$(jq -n --argjson f "$figure" '$f[1] + $f[3] / 2 | floor')")
+        [ "${dot% *}" = "$want" ]
+    }
+    until_ok dot_pixel 20 || fail "$theme: the state dot is ${dot% *}, not the accent of the theme $want"
     ok "$theme: the state dot has the accent of the theme"
 
-    ctl query 'owner:assistant' | jq -e '[.[] | select(.id | startswith("hud-row-"))] | length == 0' >/dev/null ||
+    q owner:assistant
+    jq -e '[.[] | select(.id | startswith("hud-row-"))] | length == 0' <<<"$QOUT" >/dev/null ||
         fail "$theme: the host draws a row of its own in the column of mc"
     ok "$theme: the host draws no Chat row and no row of a helper"
 
@@ -143,7 +182,8 @@ run_theme() {
 
     key Super+a
     until_ok 'node_exists hud-chat' 40 || fail "$theme: Super+a does not show the chat"
-    sleep 2
+    until_ok 'node_exists hud-chat-pick-1' 40 || fail "$theme: the chat shows no list of helpers"
+    settle hud-chat-pick-1
     hover_marks hud-chat-pick-1
     click_at_move "[400, 400, 1, 1]"
     until_ok '! host_mark hud-chat-pick-1' 20 || fail "$theme: the mark of the list row stays after the pointer left"
@@ -152,7 +192,7 @@ run_theme() {
     ok "$theme: a row of the list is a line of the grid, shows a hover mark and loses it"
     type_text 1
     key Return
-    sleep 1
+    settle hud-chat-stop
     hover_marks hud-chat-stop
     ok "$theme: Stop shows a hover mark"
     slot=$(jq -c 'select(.data.rect != null) | .data.rect' "$work/slots.jsonl" | tail -n 1)
@@ -169,7 +209,7 @@ run_theme() {
 
     ask 71
     until_ok 'node_exists hud-card' 40 || fail "$theme: no card for the question"
-    sleep 1
+    settle hud-card
     card=$(node_rect hud-card)
     [ "$(node_rect hud-chat)" = "$chat" ] || fail "$theme: the chat moved when the question came: $(node_rect hud-chat)"
     jq -ne --argjson s "$slot" --argjson c "$card" '$c[0] == $s[0] and $c[2] == $s[2] and $c[1] >= $s[1] and $c[1] + $c[3] <= $s[1] + $s[3]' >/dev/null ||
@@ -197,20 +237,19 @@ run_theme() {
     for _ in $(seq 55); do key a; done
     until_ok 'hint_clear' 20 || fail "$theme: with a field of two lines the card $(node_rect hud-card) covers the hint $(node_rect hud-chat-hint)"
     ok "$theme: the card stands above the hint, also when the field grows to two lines"
-    sleep 1
-    yes=$(node_rect hud-card-yes)
-
-    click_node "$yes"
+    settle hud-card
+    kb=$(kb_on)
+    click_node hud-card-yes
     until_ok '! node_exists hud-card' 20 || fail "$theme: the card stays after a click on Yes"
     grep -q '"yes": true' "$work/claims.answers" || fail "$theme: voice got no answer"
     until_ok '! node_exists hud-chat-hint' 20 || fail "$theme: the hint about a question stays after the card went: $(ctl query id:hud-chat-hint | jq -r '.[0].meta.text')"
     close=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select((.id | endswith("chat-close")) and (.rects | length) > 0)][0].rects | to_entries[0].value')
     click_at_move "$close"
-    until_ok 'mark_of chat-close' 20 || fail "$theme: no hover mark on Esc Close"
+    until_ok 'mark_of chat-close >/dev/null' 20 || fail "$theme: no hover mark on Esc Close"
     jq -ne --argjson m "$(mark_of chat-close)" --argjson c "$close" '$m[0] < $c[0] and $m[0] > $c[0] - 30 and $m[2] == 2 and $m[3] == 20' >/dev/null ||
         fail "$theme: the mark $(mark_of chat-close) does not stand beside Esc Close $close"
     ok "$theme: Esc Close shows the hover mark beside it"
-    sleep 1
+    wait_keyboard "$kb"
     key Escape
     until_ok '! node_exists hud-chat' 20 || fail "$theme: Esc does not close the chat after a click on Yes"
     ok "$theme: a click on Yes answers, the card goes, and Esc closes the chat"
@@ -222,7 +261,7 @@ run_theme() {
     ok "$theme: Super+a after Esc reopens the chat of the one helper"
     ask 72
     until_ok 'node_exists hud-card' 40 || fail "$theme: no card for the second question"
-    sleep 1
+    settle hud-card
     key Alt+y
     until_ok '! node_exists hud-card' 20 || fail "$theme: the card stays after Alt+y"
     grep -c '"yes": true' "$work/claims.answers" | grep -qx 2 || fail "$theme: Alt+y did not answer"
