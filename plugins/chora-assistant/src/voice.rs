@@ -179,7 +179,7 @@ impl Agent {
     /// Shows a sentence in the balloon, through the template and the length
     /// of the folder.
     fn say(&mut self, text: &str, time: Duration, now: Instant) -> Vec<Command> {
-        if self.chat.is_open() && self.balloon_chat() {
+        if self.chat.is_open() {
             self.chat.agent_said(text);
             return Vec::new();
         }
@@ -214,14 +214,16 @@ impl Agent {
         self.assistant.is_some() && self.values.chat().style == chora_kit::hud::ChatStyle::Bubble
     }
 
-    /// The balloon of the figure opened or closed: open, it takes the
-    /// sentence in and its own balloon goes; closed, it shows the last
-    /// sentence again.
-    pub fn balloon_toggled(&mut self, open: bool, now: Instant) -> Vec<Command> {
-        if !self.balloon_chat() {
-            return Vec::new();
-        }
-        let last = self.said.as_ref().map(|(text, _)| text.clone());
+    /// The chat opened or closed. Open, it is the one surface: it takes
+    /// in the sentence, the last one when it is the balloon of the figure,
+    /// else the one still spoken, and the balloon of the sentence goes.
+    /// Closed, the balloon of the figure shows the last sentence again, and
+    /// another look the sentence that the agent still speaks.
+    pub fn chat_toggled(&mut self, open: bool, now: Instant) -> Vec<Command> {
+        let balloon = self.balloon_chat();
+        let last = (self.said.as_ref())
+            .filter(|(_, until)| balloon || *until > now)
+            .map(|(text, _)| text.clone());
         if open {
             if let Some(text) = &last {
                 self.chat.agent_said(text);
@@ -231,6 +233,9 @@ impl Agent {
                 .as_mut()
                 .map(Assistant::hush)
                 .unwrap_or_default();
+        }
+        if !balloon {
+            return self.say_again(now);
         }
         last.map(|text| self.say(&text, Duration::ZERO, now))
             .unwrap_or_default()

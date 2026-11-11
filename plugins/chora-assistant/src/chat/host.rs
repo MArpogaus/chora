@@ -258,7 +258,7 @@ impl Agent {
         self.chat_announce(&frame)?;
         if self.chat.is_open() != was_open {
             let mut commands = self.sync_row()?;
-            commands.extend(self.balloon_toggled(self.chat.is_open(), Instant::now()));
+            commands.extend(self.chat_toggled(self.chat.is_open(), Instant::now()));
             self.apply(commands)?;
         }
         Ok(())

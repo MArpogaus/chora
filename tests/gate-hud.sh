@@ -28,6 +28,8 @@
 #                           A2, A11)
 #   chat-*, typed-yes-held  the "Chat ..." row, chat.show and chat.hide,
 #                           Super+a and Esc (A3, A9), a typed yes (A5)
+#   sentence-in-open-chat   while the chat is open, a sentence shows in it
+#                           and in no balloon of its own (U3)
 #   agents-row-text         the helper row (A7)
 #   xp-one-balloon          the xp folder draws no rows beside the
 #                           paperclip, and a click on it opens the chat as
@@ -87,6 +89,7 @@ card-stays-on-focus-move pass
 chat-row-always pass
 chat-row-click-opens pass
 chat-show-hide pass
+sentence-in-open-chat pass
 chat-super-a-esc missing
 typed-yes-held pass
 agents-row-text pass
@@ -397,6 +400,17 @@ cell_chat_show_hide() {
     ctl call assistant chat.hide '{}' >/dev/null 2>&1 || return 1
     ctl wait id:hud-chat --gone --timeout "$settle_s" >/dev/null
 }
+line_hidden() { ! node_shows hud-line; }
+cell_sentence_in_open_chat() {
+    local shown=1
+    ctl call assistant chat.show '{}' >/dev/null 2>&1 || return 1
+    if waiting "$settle_s" node_exists hud-chat; then
+        emit voice.say '{"text": "The notes are saved.", "duration_ms": 4000}'
+        waiting "$settle_s" node_has hud-chat "The notes are saved." && watch_for 1 line_hidden && shown=0
+    fi
+    ctl call assistant chat.hide '{}' >/dev/null 2>&1
+    return "$shown"
+}
 cell_chat_super_a_esc() {
     key Super+a
     waiting "$settle_s" node_exists hud-chat || return 1
@@ -652,6 +666,7 @@ run_cell card-stays-on-focus-move cell_card_stays_on_focus_move session
 run_cell chat-row-always cell_chat_row_always session
 run_cell chat-row-click-opens cell_chat_row_click_opens session
 run_cell chat-show-hide cell_chat_show_hide session
+run_cell sentence-in-open-chat cell_sentence_in_open_chat session
 run_cell chat-super-a-esc cell_chat_super_a_esc session
 run_cell typed-yes-held cell_typed_yes_held session
 run_cell agents-row-text cell_agents_row_text session

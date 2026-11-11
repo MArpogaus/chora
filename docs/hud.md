@@ -324,15 +324,18 @@ The view never covers the figure, its bubble or the "Chat ..." row: a
 view that would, moves sideways beside them, also a view in a slot. A
 view at `left` or `right` is a side panel and keeps its edge.
 
+The open chat is the one surface of the helpers in every look: a
+sentence of the agent shows inside it, under the transcript, not in a
+balloon of its own, and a question that it shows has its card inside.
+
 A `bubble` chat of a folder with a figure is the balloon of the figure
 itself, as in xp: it stands above the head of the figure, `width` wide
 and at most six tenths of the work area high, inside the work area, with
 a tail that ends at the head, and the field inside it. A click on the
 balloon of a sentence or on a figure with `action: chat` expands the
 balloon into the chat; a click on the figure or Close collapses it, and
-it shows the last sentence again. While it is open, a sentence of the
-agent shows inside it, not in a balloon of its own, and a question opens
-it, with the card inside. A figure that opens the chat draws no rows:
+it shows the last sentence again. A question opens it, with the card
+inside. A figure that opens the chat draws no rows:
 the balloon lists the helpers.
 
 A font family that the system does not have, such as TeX Gyre Pagella
