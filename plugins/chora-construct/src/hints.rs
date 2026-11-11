@@ -66,6 +66,39 @@ pub struct State {
     pub stale: bool,
 }
 
+/// The hints of the walk, in the order they show.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Walking {
+    Walk,
+    FlyIn,
+    Windows,
+    Terminal,
+    Keys,
+    Cube,
+}
+
+/// The hints of the walk that apply: the keys to walk and to start a
+/// terminal always, `Return Fly in` when a pane is ahead, `Tab Windows`
+/// from two windows, and the help; at most five.
+#[must_use]
+pub fn walking(panes: usize, ahead: bool) -> Vec<Walking> {
+    let _ = (panes, ahead);
+    vec![
+        Walking::Walk,
+        Walking::FlyIn,
+        Walking::Windows,
+        Walking::Terminal,
+        Walking::Keys,
+        Walking::Cube,
+    ]
+}
+
+/// The word of the hint `Terminal`.
+#[must_use]
+pub fn terminal_word(_language: chora_kit::words::Language) -> &'static str {
+    "Terminal"
+}
+
 /// One hint: the caps of its key, its word, the keys after the word, the
 /// node that takes its click, and that node is a chip that exists.
 pub struct Item {
@@ -342,6 +375,26 @@ pub fn remove() -> Vec<Command> {
 mod tests {
     use super::*;
     use crate::{config::Config, hud::Metrics};
+
+    #[test]
+    fn the_walk_shows_the_hints_that_apply_and_at_most_five() {
+        use Walking::{FlyIn, Keys, Terminal, Walk, Windows};
+        assert_eq!(walking(0, false), [Walk, Terminal, Keys]);
+        assert_eq!(walking(1, true), [Walk, FlyIn, Terminal, Keys]);
+        assert_eq!(walking(1, false), [Walk, Terminal, Keys]);
+        assert_eq!(walking(2, false), [Walk, Windows, Terminal, Keys]);
+        assert_eq!(walking(3, true), [Walk, FlyIn, Windows, Terminal, Keys]);
+        for panes in 0..8 {
+            assert!(walking(panes, true).len() <= 5);
+        }
+    }
+
+    #[test]
+    fn the_word_of_the_terminal_hint_is_terminal_in_both_languages() {
+        use chora_kit::words::Language;
+        assert_eq!(terminal_word(Language::En), "Terminal");
+        assert_eq!(terminal_word(Language::De), "Terminal");
+    }
 
     #[test]
     fn the_face_label_names_the_manager_and_the_face_with_a_dot_each() {

@@ -35,6 +35,15 @@
 # typed keys reach the right terminal; Alt+Escape steps back; the window
 # audit finds every terminal as a pane.
 #
+# The walk hints show only what applies, at most five, centred and 32 from
+# the bottom: with one pane `W A S D Walk`, `Fly in`, `Super T Terminal`
+# and `F1 All keys`, with three panes also `Tab Windows`. The last cells
+# of a round use three panes: the hint and the rows of the window list
+# take a hover and a real press (a click on a row flies into its window, a
+# click on the hint Terminal starts a terminal that opens flown in), each
+# followed by the key Alt+Escape (the keyboard after the act), and the
+# round ends with the window audit.
+#
 # Usage: tests/gate-construct-layout.sh   BIN: directory with the binaries
 #   SIZES   the outputs (default "1280x720 2560x1440@2")
 #   THEMES  the themes (default "light dark")
@@ -71,6 +80,22 @@ until_ok() {
 }
 pane_named() { ctl call construct construct.list | jq -e --arg n "$1" '.panes | any(.name | test($n; "i"))' >/dev/null 2>&1; }
 shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
+hint_ids() { ctl query '*' | jq -r '[.[] | select(.kind == "rect" and (.id | test("^construct-hint-[a-z-]+$")) and (.rects | length > 0)) | .id | sub("construct-hint-"; "")] | sort | join(" ")'; }
+hints_are() { [ "$(hint_ids)" = "$1" ]; }
+logical() {
+    local scale=1 w=${1%x*} h=${1#*x}
+    [[ $1 == *@* ]] && scale=${1#*@}
+    awk -v n="${w%@*}" -v m="${h%@*}" -v s="$scale" 'BEGIN { print n / s, m / s }'
+}
+any_front() { ctl query 'kind:surface' | jq -e 'any(.[]; .parent == "construct-front")' >/dev/null 2>&1; }
+list_gone() { ctl query id:construct-list-body | jq -e 'length == 0 or (.[0].rects | length == 0)' >/dev/null 2>&1; }
+low_pointer() { echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null; }
+press_at() {
+    local x y w h
+    read -r x y w h < <(rect_of "$1")
+    [ -n "${x:-}" ] || return 1
+    echo "[{\"pointer_move\": {\"position\": [$((${x%.*} + ${w%.*} / 2)), $((${y%.*} + ${h%.*} / 2))]}}, {\"click\": {}}]" | ctl inject >/dev/null
+}
 front_is() { [ "$(front_count)" = "$1" ]; }
 panes_are() { [ "$(panes_n)" = "$1" ]; }
 parent_is() { [ "$(ctl query "id:$1" | jq -r '.[0].parent')" = "$2" ]; }
@@ -224,6 +249,53 @@ use_mode() {
         { echo "FAIL: $tag: a terminal window is left after the close"; failed=1; }
 }
 
+hint_bar() {
+    local tag=$1 w h x y bw bh
+    read -r w h < <(logical "$2")
+    read -r x y bw bh < <(rect_of construct-hints-glass)
+    awk -v x="${x:-0}" -v y="${y:-0}" -v bw="${bw:-0}" -v bh="${bh:-0}" -v w="$w" -v h="$h" 'BEGIN {
+        d = x + bw / 2 - w / 2
+        exit !(bw > 0 && d > -0.5 && d < 0.5 && y + bh == h - 32)
+    }' || { echo "FAIL: $tag: the hint bar $x,$y ${bw}x$bh is not centred and 32 from the bottom of ${w}x$h"; failed=1; }
+}
+
+more_panes() {
+    local tag=$1 size=$2 n
+    for n in 1 2; do
+        foot -a "extra$n" -T "Extra $n" sh -c 'sleep 600' >/dev/null 2>&1 &
+        run_pid $!
+    done
+    until_ok 'panes_are 3' || { echo "FAIL: $tag: three panes did not stand: $(ctl call construct construct.list | jq -c '[.panes[].name]')"; failed=1; return; }
+    low_pointer
+    if until_ok 'hints_are "fly-in keys terminal walk windows"'; then
+        ok "$tag: three panes: $(hint_ids)"
+    else
+        echo "FAIL: $tag: the hints with three panes are: $(hint_ids)"
+        failed=1
+    fi
+    hint_bar "$tag" "$size"
+    key Tab
+    until_shows construct-list-row-1 || { echo "FAIL: $tag: the window list shows no second row"; failed=1; return; }
+    sleep 0.5
+    press_at construct-list-row-1 || { echo "FAIL: $tag: no second row on the screen"; failed=1; return; }
+    until_ok list_gone || { echo "FAIL: $tag: a click on a row of the window list left the list open"; failed=1; }
+    until_ok any_front || { echo "FAIL: $tag: a click on a row of the window list did not fly into its window"; failed=1; return; }
+    ok "$tag: a click on a row of the window list flew into its window"
+    key Alt+Escape
+    until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape after the row did not step back"; failed=1; return; }
+    low_pointer
+    until_ok 'hints_are "fly-in keys terminal walk windows"' ||
+        { echo "FAIL: $tag: the hints after the step back are: $(hint_ids)"; failed=1; return; }
+    press_at construct-hint-terminal || { echo "FAIL: $tag: no hint Terminal on the screen"; failed=1; return; }
+    until_ok 'pane_named startcell' || { echo "FAIL: $tag: a click on the hint Terminal started no terminal"; failed=1; return; }
+    until_ok any_front || { echo "FAIL: $tag: the terminal of the hint did not open flown in"; failed=1; return; }
+    ok "$tag: a click on the hint Terminal started a terminal flown in"
+    key Alt+Escape
+    until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape after the hint did not step back"; failed=1; return; }
+    ctl query 'kind:surface' | jq -e 'length == 4' >/dev/null ||
+        { echo "FAIL: $tag: a window is lost: $(ctl query 'kind:surface' | jq -c '[.[].surface.app_id]')"; failed=1; }
+}
+
 round() {
     local theme=$1 size=$2 tag=$1-$2 voice_pid
     cat >"$work/startcell.sh" <<SCRIPT
@@ -265,6 +337,8 @@ SCRIPT
     echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null
     sleep 1.5
     audit walk "$tag"
+    hints_are "fly-in keys terminal walk" || { echo "FAIL: $tag: the hints with one pane are: $(hint_ids)"; failed=1; }
+    hint_bar "$tag" "$size"
 
     ask
     until_shows hud-card || echo "FAIL: $tag: no question card"
@@ -297,6 +371,7 @@ SCRIPT
     key Escape
     ctl query 'app_id:sunset kind:surface' | jq -e 'length == 1' >/dev/null ||
         echo "FAIL: $tag: the window of the pane is lost"
+    more_panes "$tag" "$size"
 
     exec 3>&-
     kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null

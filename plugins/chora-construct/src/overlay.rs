@@ -533,7 +533,7 @@ impl Construct {
         use crate::{
             config::Action,
             glass::chord,
-            hints::{HINT, Item, Set},
+            hints::{HINT, Item, Set, Walking},
         };
         use chora_kit::words::{Language, Word};
         let language = Language::of_session();
@@ -547,17 +547,28 @@ impl Construct {
         };
         match set {
             Set::Walk => {
-                let walk = [Action::Forward, Action::Left, Action::Back, Action::Right]
+                let walk: Vec<String> =
+                    [Action::Forward, Action::Left, Action::Back, Action::Right]
+                        .into_iter()
+                        .flat_map(key)
+                        .collect();
+                let ahead = self.pane_ahead().is_some();
+                crate::hints::walking(self.panes.len(), ahead)
                     .into_iter()
-                    .flat_map(key)
-                    .collect();
-                vec![
-                    item(walk, Word::Walk, "walk"),
-                    item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
-                    item(key(Action::Windows), Word::WindowsHint, "windows"),
-                    item(key(Action::Help), Word::AllKeys, "keys"),
-                    item(key(Action::Cube), Word::Cube, "cube"),
-                ]
+                    .map(|hint| match hint {
+                        Walking::Walk => item(walk.clone(), Word::Walk, "walk"),
+                        Walking::FlyIn => item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
+                        Walking::Windows => {
+                            item(key(Action::Windows), Word::WindowsHint, "windows")
+                        }
+                        Walking::Terminal => Item {
+                            word: crate::hints::terminal_word(language).to_owned(),
+                            ..item(key(Action::Terminal), Word::Walk, "terminal")
+                        },
+                        Walking::Keys => item(key(Action::Help), Word::AllKeys, "keys"),
+                        Walking::Cube => item(key(Action::Cube), Word::Cube, "cube"),
+                    })
+                    .collect()
             }
             Set::Flown => vec![item(
                 chord(&self.settings.value.fly_out),
@@ -763,6 +774,7 @@ impl Construct {
         };
         match name {
             "fly-in" => self.act(crate::config::Action::FlyIn),
+            "terminal" => self.start_terminal(),
             "windows" => self.open_list()?,
             "keys" => self.toggle_help()?,
             "step-back" => self.fly_out()?,
