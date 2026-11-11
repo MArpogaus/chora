@@ -302,8 +302,8 @@ turning() {
         query "id:xp-face-$2" | jq -e '.[0].visible' >/dev/null
 }
 background='r > 45 && r < 70 && g > 98 && g < 122 && b > 152 && b < 178'
-# The four desktop buttons sit left of the 82 pixel tray, 24 pixels apart.
-pager() { click $((1280 - 82 - 100 + 24 * ($1 - 1) + 11)) 785 || fail "the click failed"; }
+tray=146
+pager() { click $((1280 - tray - 100 + 24 * ($1 - 1) + 11)) 785 || fail "the click failed"; }
 pager 2 &
 job=$!
 wait_for turning 0 1
