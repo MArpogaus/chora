@@ -204,8 +204,8 @@ pub fn menu(
 }
 
 /// The rows of Sound: Mute and the volumes, the current one checked
-/// when it is one of them; without a volume one row that says why, in
-/// the language of the session.
+/// when it is one of them; without a volume a row that says so and one
+/// that says why, in the language of the session.
 fn sound(reading: Reading) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
         title,
@@ -213,8 +213,12 @@ fn sound(reading: Reading) -> Vec<Node> {
         kind: Kind::Pick(setting, checked),
     };
     let Reading::Level(volume) = reading else {
-        let words = reading.words(Language::of_session());
-        return vec![pick(words, Setting::Note, false)];
+        let language = Language::of_session();
+        let why = reading
+            .why(language)
+            .map(|why| pick(why, Setting::Note, false));
+        let words = pick(reading.words(language), Setting::Note, false);
+        return std::iter::once(words).chain(why).collect();
     };
     let current = (!volume.muted).then_some(volume.percent);
     let mut rows = vec![pick(
@@ -385,12 +389,18 @@ mod tests {
             [("Mute", true), ("25%", false), ("50%", false)]
         );
         for (reading, words) in [
-            (Reading::NoWpctl, "wpctl not found"),
-            (Reading::NoOutput, "No output device"),
-            (Reading::Failed, "Change failed"),
+            (
+                Reading::NoWpctl,
+                &[("Sound unavailable", false), ("wpctl not found", false)][..],
+            ),
+            (
+                Reading::NoOutput,
+                &[("Sound unavailable", false), ("No output device", false)],
+            ),
+            (Reading::Failed, &[("Change failed", false)]),
         ] {
             let menu = menu(None, &[], toggles, reading, &ALL_HELD);
-            assert_eq!(picks(group(&menu, "Sound")), [(words, false)]);
+            assert_eq!(picks(group(&menu, "Sound")), words);
         }
     }
 

@@ -68,8 +68,8 @@ pub enum Change {
 }
 
 impl Reading {
-    /// The words of the reading: `40%`, `Muted`, `wpctl not found`, `No
-    /// output device` or `Change failed`, in a language.
+    /// The words of the reading: `40%`, `Muted`, `Sound unavailable` or
+    /// `Change failed`, in a language.
     #[must_use]
     pub fn words(self, language: Language) -> String {
         let word = match self {
@@ -78,11 +78,22 @@ impl Reading {
                 percent,
             }) => return format!("{percent}%"),
             Self::Level(_) => Word::SoundMuted,
-            Self::NoWpctl => Word::NoWpctl,
-            Self::NoOutput => Word::NoOutputDevice,
+            Self::NoWpctl | Self::NoOutput => Word::SoundUnavailable,
             Self::Failed => Word::ChangeFailed,
         };
         word.text(language).to_owned()
+    }
+
+    /// Why there is no sound, for the details: `wpctl not found` or `No
+    /// output device`; none for a reading with sound.
+    #[must_use]
+    pub fn why(self, language: Language) -> Option<String> {
+        let word = match self {
+            Self::NoWpctl => Word::NoWpctl,
+            Self::NoOutput => Word::NoOutputDevice,
+            _ => return None,
+        };
+        Some(word.text(language).to_owned())
     }
 }
 
@@ -295,13 +306,30 @@ mod tests {
         for (reading, en, de) in [
             (level(40, false), "40%", "40%"),
             (level(40, true), "Muted", "Stumm"),
-            (Reading::NoWpctl, "wpctl not found", "wpctl nicht gefunden"),
-            (Reading::NoOutput, "No output device", "Kein Ausgabegerät"),
+            (Reading::NoWpctl, "Sound unavailable", "Ton nicht verfügbar"),
+            (
+                Reading::NoOutput,
+                "Sound unavailable",
+                "Ton nicht verfügbar",
+            ),
             (Reading::Failed, "Change failed", "Änderung fehlgeschlagen"),
         ] {
             assert_eq!(reading.words(Language::En), en);
             assert_eq!(reading.words(Language::De), de);
         }
+    }
+
+    #[test]
+    fn the_reason_of_no_sound_is_a_detail() {
+        assert_eq!(
+            Reading::NoWpctl.why(Language::En).as_deref(),
+            Some("wpctl not found")
+        );
+        assert_eq!(
+            Reading::NoOutput.why(Language::De).as_deref(),
+            Some("Kein Ausgabegerät")
+        );
+        assert_eq!(Reading::Failed.why(Language::En), None);
     }
 
     #[test]

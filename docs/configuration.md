@@ -1569,8 +1569,9 @@ settings, as `settings.set` does:
   and its refusal logs one line. A click on an entry does what its key
   does;
 - **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
-  sound output, through `wpctl`; without a volume, one entry says why:
-  "wpctl not found", "No output device" or "Change failed";
+  sound output, through `wpctl`; without a volume, "Sound unavailable"
+  and an entry that says why, "wpctl not found" or "No output device",
+  or "Change failed";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -1596,8 +1597,8 @@ keyboard does not work it (D45):
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
   clock, the speaker shows the volume of the default sound output:
-  `40%` or `Muted`, or why there is none: `wpctl not found`, `No output
-  device` or `Change failed`, in the language of the session, and it
+  `40%`, `Muted`, `Sound unavailable` or `Change failed`, in the
+  language of the session, and it
   grows to fit the words. `wpctl` runs on a thread of its own, at most 2
   seconds a call, after each change and every 5 seconds; a click on the
   speaker mutes or unmutes. Group

@@ -136,6 +136,8 @@ pub enum Word {
     Volume,
     /// The sound output is muted.
     SoundMuted,
+    /// There is no sound: the words of a person, whatever the reason.
+    SoundUnavailable,
     /// The volume program `wpctl` is not installed.
     NoWpctl,
     /// No sound output device is there.
@@ -152,7 +154,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 55] = [
+pub const ALL: [Word; 56] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -202,6 +204,7 @@ pub const ALL: [Word; 55] = [
     Word::OpenCube,
     Word::Volume,
     Word::SoundMuted,
+    Word::SoundUnavailable,
     Word::NoWpctl,
     Word::NoOutputDevice,
     Word::ChangeFailed,
@@ -276,6 +279,7 @@ impl Word {
             Self::OpenCube => "Open cube",
             Self::Volume => "Volume",
             Self::SoundMuted => "Muted",
+            Self::SoundUnavailable => "Sound unavailable",
             Self::NoWpctl => "wpctl not found",
             Self::NoOutputDevice => "No output device",
             Self::ChangeFailed => "Change failed",
@@ -345,6 +349,7 @@ impl Word {
             Self::OpenCube => "Würfel öffnen",
             Self::Volume => "Lautstärke",
             Self::SoundMuted => "Stumm",
+            Self::SoundUnavailable => "Ton nicht verfügbar",
             Self::NoWpctl => "wpctl nicht gefunden",
             Self::NoOutputDevice => "Kein Ausgabegerät",
             Self::ChangeFailed => "Änderung fehlgeschlagen",
