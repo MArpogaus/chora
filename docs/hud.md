@@ -87,7 +87,8 @@ trusts.
 
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
-always matches.
+always matches. The shipped settings have these rules, so each look
+shows its own folder and tiling shows `hud`:
 
 ```yaml
 huds:

@@ -111,11 +111,10 @@ tiling)
 xp)
     companions=(
         "chora-notify --assets $repo/flavors/xp/assets/notify"
-        "chora-assistant --assets $repo/flavors/xp/assets/assistant"
+        "chora-assistant"
     )
     ;;
-construct) companions=("chora-assistant --assets $repo/plugins/chora-construct/hud") ;;
-*) companions=() ;;
+mc | construct) companions=("chora-assistant") ;;
 esac
 
 if ((${#companions[@]})); then

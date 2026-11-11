@@ -493,8 +493,17 @@ mod tests {
     }
 
     #[test]
-    fn the_default_has_no_rules() {
-        assert_eq!(parse::<Config>(DEFAULT).unwrap().huds.len(), 0);
+    fn the_default_shows_each_look_with_its_own_folder() {
+        let config: Config = parse(DEFAULT).unwrap();
+        assert_eq!(config.folder(&context("tiling", "foot")), "neutral");
+        assert_eq!(config.folder(&context("xp", "foot")), "xp");
+        assert_eq!(config.folder(&context("mc", "foot")), "mc");
+        assert_eq!(config.folder(&context("construct", "")), "construct");
+        let pane = Context {
+            space: "construct".into(),
+            ..context("xp", "foot")
+        };
+        assert_eq!(config.folder(&pane), "construct", "a pane of the construct");
     }
 
     #[test]

@@ -693,8 +693,8 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
 `flavors/construct/` holds its target and its services: `chora-construct`
-and `chora-assistant --assets /usr/share/chora/huds/construct`, the
-voice HUD and the chat. The first output shows
+and `chora-assistant`, the voice HUD and the chat in the construct
+folder. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
 lies over a smooth, white, glossy floor, as in a photo studio. In the
 dark theme, a black void lies over a black glossy floor. A crisp
@@ -1333,7 +1333,7 @@ connects with the client name `xp`.
 ├── chora-xp.target              # wants the units below
 ├── chora-xp.service             # chora-xp
 ├── chora-xp-notify.service      # chora-notify --assets .../assets/notify
-├── chora-xp-assistant.service   # chora-assistant --assets /usr/share/chora/huds/xp
+├── chora-xp-assistant.service   # chora-assistant, the xp folder by the rules of huds
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
 ├── assets/notify/               # the XP folder of chora-notify, with a link to the fonts
 └── theme/                       # SVG files, fonts, wallpaper and cursors
