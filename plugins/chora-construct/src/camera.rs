@@ -158,8 +158,10 @@ impl Construct {
             | Action::Windows
             | Action::Help => return,
             Action::FlyIn => {
-                if let Some(i) = self.pane_ahead() {
-                    self.fly_in(i);
+                if let Some(i) = self.pane_ahead()
+                    && let Err(err) = self.fly_in(i)
+                {
+                    eprintln!("chora-construct: the fly-in: {err}");
                 }
                 return;
             }
@@ -224,8 +226,10 @@ impl Construct {
     /// Flies in front of the face of a pane, which keeps its yaw. The
     /// window of a window pane then takes over; a plugin pane stays a
     /// pane, at 1:1. A fly-in from inside a pane, or during a fly-in,
-    /// keeps the pose of the first to go back to.
-    pub(crate) fn fly_in(&mut self, i: usize) {
+    /// keeps the pose of the first to go back to. The window of a window
+    /// pane takes the keyboard at the start, so that no key typed during
+    /// the flight is lost.
+    pub(crate) fn fly_in(&mut self, i: usize) -> Result<(), ClientError> {
         let pane = &self.panes[i];
         let to = space::fly_in(&self.lens, pane.at, pane.yaw);
         let gliding_in = self.glide.as_ref().and_then(|g| g.into.as_ref());
@@ -245,7 +249,14 @@ impl Construct {
             }),
             Content::Manager { .. } => None,
         };
+        let window = matches!(pane.content, Content::Window { .. }).then(|| pane.source.clone());
         self.glide_to(to, FLY_MS, into);
+        match window {
+            Some(surface) => self.rt.conn.apply(vec![Command::Focus {
+                surface: Some(surface),
+            }]),
+            None => Ok(()),
+        }
     }
 
     pub(crate) fn step_glide(&mut self) -> Result<(), ClientError> {

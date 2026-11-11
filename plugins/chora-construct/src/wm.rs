@@ -37,7 +37,7 @@ pub(crate) struct Managed {
 
 /// `sh -c command` as a child that gets `SIGTERM` when the construct
 /// ends, also when it ends without a word.
-fn child_command(command: &str) -> std::process::Command {
+pub(crate) fn child_command(command: &str) -> std::process::Command {
     let mut child = std::process::Command::new("sh");
     child.args(["-c", command]).stdin(Stdio::null());
     // SAFETY: the closure only calls prctl, which is async-signal-safe.

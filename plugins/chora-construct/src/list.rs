@@ -36,7 +36,8 @@ impl Construct {
     }
 
     /// All windows (F29): the panes first, then the windows of any
-    /// owner that have no pane, but not the launcher's own window.
+    /// owner that have no pane, but not the launcher's own window. A pane
+    /// behind the resting front face of the cube is `covered`.
     pub(crate) fn windows(&mut self) -> Result<Vec<Entry>, ClientError> {
         let nodes = self.rt.conn.query("kind:surface")?;
         let far = self.radius();
@@ -48,7 +49,15 @@ impl Construct {
                     name: p.name.clone(),
                     surface: surface.into(),
                     owner: node.and_then(|n| n.owner.clone()),
-                    pane: space::sight(&self.lens, &self.pose, p.spot(), far),
+                    pane: if self
+                        .cube
+                        .as_ref()
+                        .is_some_and(|c| c.covers(&self.pose, p.at))
+                    {
+                        "covered"
+                    } else {
+                        space::sight(&self.lens, &self.pose, p.spot(), far)
+                    },
                     size: None,
                 })
             })
@@ -108,7 +117,7 @@ impl Construct {
         if self.flown.is_some() {
             self.fly_out()?;
         }
-        self.fly_in(i);
+        self.fly_in(i)?;
         Ok(self.panes[i].name.clone())
     }
 
@@ -259,6 +268,12 @@ impl Construct {
     /// to it, so that it has the keyboard, unless the user is in a
     /// window already. It owns such a window, and its leave frees it again.
     pub(crate) fn detached(&mut self, surface: &str) -> Result<(), ClientError> {
+        self.take_detached(surface, true)
+    }
+
+    /// As [`Self::detached`]; without `fly` the camera stays, for a
+    /// window that comes with a drag.
+    pub(crate) fn take_detached(&mut self, surface: &str, fly: bool) -> Result<(), ClientError> {
         let node = self.rt.conn.query(&format!("id:{surface}"))?.pop();
         let Some(node) = node else {
             return Ok(());
@@ -276,7 +291,7 @@ impl Construct {
         let label = info.app_id.or(info.title).unwrap_or_default();
         self.forget(surface)?;
         self.adopt(surface, &label, file.as_ref(), Hold::Own, handed)?;
-        if handed && takes_the_camera(inside.as_deref()) {
+        if fly && handed && takes_the_camera(inside.as_deref()) {
             self.fly_to_window(surface)?;
         }
         Ok(())
@@ -291,7 +306,6 @@ impl Construct {
         if self.flown.is_some() {
             self.fly_out()?;
         }
-        self.fly_in(i);
-        Ok(())
+        self.fly_in(i)
     }
 }

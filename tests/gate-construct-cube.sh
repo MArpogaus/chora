@@ -12,11 +12,11 @@
 #    TURN LEFT, TURN RIGHT and STEP IN show; a still cube draws nothing,
 #    by render.stats. The method leaves the keyboard with the window.
 #    The chips are at least 24 px high, below the title band of a window
-#    and above the taskbar. In use mode Escape reaches the window, the
-#    turn keys turn the cube, and a turn key during a turn queues one
-#    turn. Alt+Escape steps back and takes the keyboard; Return steps in
-#    and the window of before takes typed text again, but not after a
-#    step into another face. A click on a face and a click on the chip
+#    and above the taskbar; the chip STEP BACK covers no desktop icon.
+#    In use mode Escape reaches the window, the turn keys turn the cube,
+#    and a turn key during a turn queues one turn. Alt+Escape steps back
+#    and takes the keyboard; Return steps in and the window of before
+#    takes typed text again, but not after a step into another face. A click on a face and a click on the chip
 #    STEP IN step in. In navigate mode the edge of the face under the
 #    pointer is lit, and a drag on a face turns the cube by one face.
 #    With the grant input.grab-any and fly_out Escape, Escape alone
@@ -45,7 +45,8 @@
 #    than the ended xp owns it.
 # 5. A window manager that never connects: the outputs go after the
 #    wait. cube.close removes a cube.
-# 6. A construct that starts again removes the virtual outputs that it
+# 6. The xp of the cube ends with a construct that is killed (C2). A
+#    construct that starts again removes the virtual outputs that it
 #    left.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
@@ -167,6 +168,18 @@ ok "a still cube renders 0 passes and has no damage, by render.stats"
 call view.step_in >/dev/null || fail "view.step_in"
 until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
 prop construct-mode-step-back-text text | grep -q "Alt+Esc" || fail "the chip STEP BACK does not name its key: $(prop construct-mode-step-back-text text)"
+covered_icons() {
+    { ctl query id:construct-mode-step-back; ctl query "owner:xp kind:image"; } | python3 -I -c '
+import json, sys
+chip, images = [json.loads(part) for part in sys.stdin.read().replace("]\n[", "]\0[").split("\0")]
+c = chip[0]["rects"]["HEADLESS-1"]
+for n in images:
+    r = n["rects"].get(sys.argv[1])
+    if n["id"].startswith("xp-icon-") and r and r[0] < c[0] + c[2] and c[0] < r[0] + r[2] and r[1] < c[1] + c[3] and c[1] < r[1] + r[3]:
+        print(n["id"])' "$front"
+}
+until_ok 'test -z "$(covered_icons)"' 20 || fail "the chip STEP BACK covers the desktop icons $(covered_icons)"
+ok "the chip STEP BACK covers no desktop icon of the face"
 
 before=$(keys_got 1)
 plain Escape
@@ -427,9 +440,9 @@ call cube.open '{}' >/dev/null || fail "cube.open before the restart"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the restart"
 construct=$(pid_of chora-construct)
 kill -9 "$construct"
+until_ok 'test -z "$(pid_of chora-xp)"' 40 || fail "the xp of the cube outlived the construct that died: $(pid_of chora-xp)"
+ok "the xp of the cube ends with a construct that dies without a word"
 "$bin/chora-construct" >"$work/construct2.log" 2>&1 &
 pids+=($!)
 until_ok 'test -z "$(virtuals)"' 16 || fail "the restarted construct left its outputs: $(virtuals)"
 ok "a restarted construct removed the outputs that it left"
-xp_pid=$(pid_of chora-xp)
-[ -z "$xp_pid" ] || kill "$xp_pid"

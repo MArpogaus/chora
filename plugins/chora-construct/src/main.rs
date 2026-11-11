@@ -127,6 +127,8 @@ const PANE_SHADER: &str = include_str!("../pane.frag");
 const SOURCE_SHADER: &str = include_str!("../source.frag");
 const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 const GLASS_SHADER: &str = include_str!("../glass.frag");
+/// The focus glow: the glow of `glass.frag` alone, without time.
+const GLOW_SHADER: &str = include_str!("../glow.frag");
 /// The notice of a window that finds no room in the view.
 const NO_ROOM: &str = "No room in view: in the window list (Tab)";
 /// The client name of the voice agent (docs/voice.md, section 10).
@@ -460,6 +462,7 @@ struct Construct {
     source_shader: String,
     mirror_shader: String,
     glass_shader: String,
+    glow_shader: String,
     /// The launcher: the token and the process of its own window, which
     /// is no pane,
     /// that window, and when it started.
@@ -575,6 +578,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         source_shader: shader("source.frag", SOURCE_SHADER)?,
         mirror_shader: shader("mirror.frag", MIRROR_SHADER)?,
         glass_shader: shader("glass.frag", GLASS_SHADER)?,
+        glow_shader: shader("glow.frag", GLOW_SHADER)?,
         launcher: None,
         launcher_window: None,
         launched: None,

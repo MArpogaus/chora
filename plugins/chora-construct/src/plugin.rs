@@ -204,7 +204,7 @@ impl Plugin for Construct {
                 if self.flown.is_some() {
                     self.fly_out().map_err(rejected)?;
                 }
-                self.fly_in(i);
+                self.fly_in(i).map_err(rejected)?;
                 Ok(Value::Null)
             }
             _ => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method)),

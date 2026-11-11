@@ -65,8 +65,10 @@ The controls are glass chips of the construct style, in the role
 so that no window covers them. They sit at the bottom right, above the
 taskbar of the face: there they cover no title band and no button of a
 window, so a click on the close button of a maximized window never
-steps back. In use mode one chip shows, `STEP BACK  Alt+Esc`, with its
-key. It is calm: it must not compete with the work on the face. The
+steps back. In use mode they stay left of the desktop icons of the face
+in their row, so that they cover no label. In use mode one chip shows,
+`STEP BACK  Alt+Esc`, with its key. It is calm: it must not compete
+with the work on the face. The
 turn chips carry an arrow, `← TURN LEFT` and `TURN RIGHT →`. In
 navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
@@ -77,7 +79,9 @@ clicked, and a click on a face moves it into the face. The methods
 where it is. A step in of the person, by `Return`, a click or a chip,
 gives the keyboard back to the window of before only when its face is
 at the front again; after a turn to another face, the person chooses a
-window there.
+window there. While the camera is in a pane no chip shows: the keys
+of the cube do not hold there. A `cube.open` from inside a pane first
+leaves the pane, so the cube opens ahead of where the person stood.
 
 ## Words
 
@@ -116,9 +120,31 @@ The four acts that complete the flows above. Each has a second path
 
 ## What the construct does today
 
+In navigate mode a drag on the floating plane of a window pulls the
+window out of the cube: its window manager gives it to the construct,
+which goes on with the drag; a drop over a face of the resting cube
+gives it back to that face, at the drop point. A press on a plane that
+moves less than 8 px is a click on its face. Outside a test session an
+injected drag pulls nothing, and an injected move or release during a
+pull ends it in the space, where the pane stays; the keyboard stays
+where it was.
+
+A window that a title drag pulls out of a face becomes a pane under
+the pointer, a little in front of the face, so that the face never
+covers it; a pane behind the resting front face in use mode is in the
+window list as `covered`.
+
 While the cube stands back or turns, the windows on its faces float in
 front of them, the higher ones of the stack farther, as on the desktop
-cube of xp; in use mode at rest they lie in the face.
+cube of xp; in use mode at rest they lie in the face. A window that
+hangs over an edge of its face shows in full: the overhang reaches out
+into the space in the plane of the face, never clipped and never
+wrapped onto the next face. Where the windows of two faces would meet
+at their shared edge, a window floats farther until its plane clears
+the planes of the other face, at most twice the lift of the top window;
+beyond that the planes cross. A face floats its windows by how
+squarely it looks at the eye: at a grazing angle during a turn they lie
+in the face, so no plane shows as a sliver beside the cube.
 
 The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also

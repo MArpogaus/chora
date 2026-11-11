@@ -10,7 +10,7 @@
 use std::{
     collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
-    process::{Child, Stdio},
+    process::Child,
     time::{Duration, Instant},
 };
 
@@ -49,6 +49,10 @@ const TURN: Duration = Duration::from_millis(500);
 const CONNECT: Duration = Duration::from_secs(10);
 /// The most faces: the side faces of a cube.
 const FACES: usize = 4;
+/// The most that a window lifts off its face to clear the planes of a
+/// neighbour face, and the room it keeps from them.
+const CLEAR_CAP: f64 = 2.0 * float::LIFT;
+const CLEAR_GAP: f64 = 8.0;
 /// How far the cube stands back in navigate mode, in focal lengths: the
 /// front face shows at 1 / (1 + STAND) of its size.
 const STAND: f64 = 0.6;
@@ -69,8 +73,10 @@ pub(crate) struct Host {
     front: usize,
     angle: f64,
     turn: Option<Turn>,
-    /// Whether each face shows, as last sent.
+    /// Whether each face shows, as last sent, and the eye in the space of
+    /// the cube then.
     shown: Vec<bool>,
+    seen_from: [f64; 3],
     /// The mode of the view (K4), how far the cube stands back in
     /// navigate mode, the part of that way it stands at now, 0 to 1, and
     /// the running step.
@@ -105,27 +111,32 @@ pub(crate) struct Host {
     denied: BTreeSet<usize>,
 }
 
-/// A press on a face in navigate mode: the face, where the pointer was
-/// at the press, its x at the last turn of the drag, and whether the
-/// pointer went farther than a click does.
-#[derive(Clone, Copy)]
+/// A press on a face in navigate mode: the face, the window whose
+/// floating plane took the press, where the pointer was at the press,
+/// its x at the last turn of the drag, and whether the pointer went
+/// farther than a click does.
+#[derive(Clone)]
 struct Press {
     face: usize,
+    window: Option<String>,
     start: [f64; 2],
     from: f64,
     dragged: bool,
 }
 
 /// What a move of the pointer during a press on a face does.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Dragged {
     Nothing,
     Turn(i32),
+    /// The drag on the floating plane of a window pulls the window out.
+    Pull(String),
 }
 
 /// A move of the pointer to `at` during a press: after each `third` of
 /// the width of the view from the last turn, the cube turns by one face;
-/// a drag to the left brings the next face. The drag goes on from `at`
+/// a drag to the left brings the next face. A press on the floating plane
+/// of a window pulls the window out once it moved farther than a click. The drag goes on from `at`
 /// only after [`turned_at`], when the cube took the turn.
 fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
     let Some(press) = press else {
@@ -133,6 +144,9 @@ fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
     };
     let far = (at[0] - press.start[0]).hypot(at[1] - press.start[1]);
     press.dragged |= far > CLICK;
+    if let Some(window) = press.window.clone().filter(|_| press.dragged) {
+        return Dragged::Pull(window);
+    }
     let moved = at[0] - press.from;
     if moved.abs() < third {
         return Dragged::Nothing;
@@ -155,6 +169,11 @@ fn face_id(i: usize) -> String {
 /// The face of a node id of a face.
 pub(crate) fn face_index(node: &str) -> Option<usize> {
     node.strip_prefix(FACE)?.parse().ok()
+}
+
+/// The face of a node id of a face or of a floating plane on it.
+pub(crate) fn face_of(node: &str) -> Option<usize> {
+    face_index(node).or_else(|| super::float::plane_face(node))
 }
 
 /// The transform of the cube group in the camera group: the space of the
@@ -190,6 +209,32 @@ fn step_back(angle: f64, depth: f64) -> f64 {
     (depth / 2.0 * (SQRT_2 - 1.0) * 1.1) * turned(angle)
 }
 
+/// A floating window and its lift at full float.
+type Lifted<'a> = (&'a Floating, f64);
+
+/// The lift of a window of `width` wide faces at full float, `base` by
+/// its place in the stack, grown until its plane clears the planes of
+/// the windows across its left and its right edge, each with its own
+/// base lift; at most `CLEAR_CAP`.
+fn cleared(window: &Floating, base: f64, width: f64, (left, right): (&[Lifted], &[Lifted])) -> f64 {
+    let [_, y, _, h] = window.rect;
+    let level = |q: &Floating| q.rect[1] < y + h && y < q.rect[1] + q.rect[3];
+    let past_left = |q: &Floating| -q.rect[0];
+    let past_right = |q: &Floating| q.rect[0] + q.rect[2] - width;
+    let reach = |reach: f64, others: &[Lifted], past: &dyn Fn(&Floating) -> f64| {
+        (others.iter())
+            .filter(|(q, lift)| level(q) && reach > *lift && past(q) > base)
+            .map(|(q, _)| past(q) + CLEAR_GAP)
+            .fold(base, f64::max)
+    };
+    let grown = reach(past_right(window), right, &past_left).max(reach(
+        past_left(window),
+        left,
+        &past_right,
+    ));
+    grown.min(CLEAR_CAP.max(base))
+}
+
 impl Host {
     /// Where the eye at `eye` on the ground is in the space of the cube.
     fn eye(&self, eye: [f64; 2]) -> [f64; 3] {
@@ -197,6 +242,19 @@ impl Host {
         let rel = [eye[0] - at[0], eye[1] - at[1]];
         let (s, c) = self.yaw.sin_cos();
         [rel[0] * c - rel[1] * s, 0.0, rel[0] * s + rel[1] * c]
+    }
+
+    /// How far the front face is from the eye of `pose`, along the view.
+    pub(crate) fn front_depth(&self, pose: &Pose) -> f64 {
+        super::space::depth(pose, self.centre()) - self.cube.size[0] / 2.0
+    }
+
+    /// Whether the front face covers a pane at `at` for the eye of
+    /// `pose`: the cube rests in use mode, where the face fills the view,
+    /// and the pane is behind the face.
+    pub(crate) fn covers(&self, pose: &Pose, at: [f64; 2]) -> bool {
+        let rests = self.turn.is_none() && self.step.is_none() && self.stand <= 0.0;
+        rests && self.view.forwards() && super::space::depth(pose, at) > self.front_depth(pose)
     }
 
     /// The centre now: the place, stepped back along the view of the open.
@@ -211,6 +269,7 @@ impl Host {
     /// forwards, which it does only while the cube rests.
     pub(crate) fn faces(&mut self, eye: [f64; 2]) -> Vec<Command> {
         let eye = self.eye(eye);
+        self.seen_from = eye;
         let mut commands = vec![update(
             CUBE,
             PropsUpdate {
@@ -261,6 +320,11 @@ impl Host {
         )
     }
 
+    /// Whether the cube rests: no turn and no step runs.
+    pub(crate) fn rests(&self) -> bool {
+        self.turn.is_none() && self.step.is_none()
+    }
+
     /// The pointer is over a face, or over none.
     pub(crate) fn set_hover(&mut self, face: Option<usize>) -> bool {
         let changed = self.hover != face;
@@ -273,10 +337,12 @@ impl Host {
         self.hover
     }
 
-    /// A press on a face in navigate mode at a point of the screen.
-    pub(crate) fn press(&mut self, face: usize, at: [f64; 2]) {
+    /// A press on a face, or on the floating plane of `window` on it, in
+    /// navigate mode at a point of the screen.
+    pub(crate) fn press(&mut self, face: usize, window: Option<String>, at: [f64; 2]) {
         self.press = Some(Press {
             face,
+            window,
             start: at,
             from: at[0],
             dragged: false,
@@ -319,14 +385,44 @@ impl Host {
         changed
     }
 
+    /// The share of their full lift at which the windows of face `i`
+    /// float now for an eye at `eye` in the space of the cube: from the
+    /// stand back and the turn, times how squarely the face looks at the
+    /// eye, so that a face at a grazing angle floats them flat and no
+    /// plane shows as a sliver beside the cube.
+    fn float_share(&self, i: usize, eye: [f64; 3]) -> f64 {
+        let facing = self.cube.facing(i, self.angle, eye).clamp(0.0, 1.0);
+        self.stand.max(turned(self.angle)) * facing
+    }
+
+    /// The lifts at full float of the windows of face `i`: each starts at
+    /// the lift of its place in the stack and grows until it clears the
+    /// planes across the shared edges (`cleared`).
+    fn lifts(&self, i: usize) -> Vec<f64> {
+        let based = |face: usize| -> Vec<Lifted> {
+            let windows = self.floats_of(face).unwrap_or_default();
+            let count = windows.len();
+            let lifted = |(k, w)| (w, float::lift(1.0, k, count));
+            windows.iter().enumerate().map(lifted).collect()
+        };
+        let own = based(i);
+        let sides = (i < FACES).then(|| (based((i + 1) % FACES), based((i + FACES - 1) % FACES)));
+        let (left, right) = sides.unwrap_or_default();
+        let width = self.cube.size_of(i)[0];
+        (own.iter())
+            .map(|(w, base)| cleared(w, *base, width, (&left, &right)))
+            .collect()
+    }
+
     /// The updates of the planes of the floating windows of face `i`:
     /// each at the place of its window, off the face by its lift, which
     /// grows with the stand back and with the turn.
     fn planes(&self, i: usize, shows: bool) -> Vec<Command> {
         let windows = self.floats_of(i).unwrap_or_default();
-        let phase = self.stand.max(turned(self.angle));
+        let phase = self.float_share(i, self.seen_from);
+        let lifts = self.lifts(i);
         let plane = |(k, window): (usize, &Floating)| {
-            let lift = float::lift(phase, k, windows.len());
+            let lift = lifts.get(k).copied().unwrap_or_default() * phase;
             let at = [window.rect[0], window.rect[1]];
             update(
                 &super::float::plane_id(i, &window.surface),
@@ -523,7 +619,9 @@ impl Construct {
     /// Opens the cube: `faces` virtual outputs of the size of the view at
     /// its scale, one window manager on all of them, and a face for each,
     /// ahead of the camera, which levels, so that the front face shows its
-    /// output at 1:1. Refused while another client `xp` runs.
+    /// output at 1:1. From inside a pane, or on the way into one, the
+    /// camera first leaves it, to where it stood before; a running glide
+    /// ends at its goal. Refused while another client `xp` runs.
     pub(crate) fn open_cube(&mut self, faces: usize) -> Result<Value, ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
         if self.cube.is_some() {
@@ -535,6 +633,12 @@ impl Construct {
         if self.has_manager(MANAGER) || self.manager_runs()? {
             return refuse(format!("a client {MANAGER} runs already"));
         }
+        if self.inside().is_some() {
+            self.leave_window()?;
+        }
+        if let Some(glide) = self.glide.take() {
+            self.pose = glide.to;
+        }
         let size = [self.lens.w, self.lens.h];
         let outputs = self.add_outputs(faces, size)?;
         let flags: Vec<String> = outputs.iter().map(|o| format!("--output {o}")).collect();
@@ -543,10 +647,7 @@ impl Construct {
             self.settings.value.cube_manager,
             flags.join(" ")
         );
-        let spawned = std::process::Command::new("sh")
-            .args(["-c", &command])
-            .stdin(Stdio::null())
-            .spawn();
+        let spawned = super::wm::child_command(&command).spawn();
         let child = match spawned {
             Ok(child) => child,
             Err(err) => {
@@ -577,8 +678,9 @@ impl Construct {
     fn host(&self, outputs: Vec<String>, child: Child, cube: Cube) -> Host {
         let [fx, fz] = self.pose.forward();
         let reach = self.lens.focal + cube.size[0] / 2.0;
-        Host {
+        let mut host = Host {
             shown: vec![false; outputs.len()],
+            seen_from: [0.0; 3],
             floats: vec![None; outputs.len()],
             outputs,
             child,
@@ -604,7 +706,9 @@ impl Construct {
             owing: BTreeSet::new(),
             again: None,
             denied: BTreeSet::new(),
-        }
+        };
+        host.seen_from = host.eye([self.pose.x, self.pose.z]);
+        host
     }
 
     /// Whether a client of the name of the window manager is connected.
@@ -833,6 +937,7 @@ mod tests {
 
     const PRESS: Press = Press {
         face: 0,
+        window: None,
         start: [600.0, 300.0],
         from: 600.0,
         dragged: false,
@@ -840,7 +945,7 @@ mod tests {
 
     #[test]
     fn a_drag_turns_once_per_third_that_the_cube_took() {
-        let mut held = Some(PRESS);
+        let mut held = Some(PRESS.clone());
         assert_eq!(drag_of(&mut held, [500.0, 300.0], 400.0), Dragged::Nothing);
         assert_eq!(drag_of(&mut held, [190.0, 300.0], 400.0), Dragged::Turn(1));
         assert_eq!(
@@ -851,7 +956,7 @@ mod tests {
         turned_at(&mut held, 180.0);
         assert_eq!(drag_of(&mut held, [100.0, 300.0], 400.0), Dragged::Nothing);
         assert_eq!(drag_of(&mut held, [-230.0, 300.0], 400.0), Dragged::Turn(1));
-        let mut back = Some(PRESS);
+        let mut back = Some(PRESS.clone());
         assert_eq!(
             drag_of(&mut back, [1010.0, 300.0], 400.0),
             Dragged::Turn(-1)
@@ -859,9 +964,74 @@ mod tests {
     }
 
     #[test]
+    fn a_drag_on_a_floating_plane_pulls_its_window_instead_of_turning() {
+        let mut held = Some(Press {
+            window: Some("s1".into()),
+            ..PRESS.clone()
+        });
+        assert_eq!(drag_of(&mut held, [605.0, 300.0], 400.0), Dragged::Nothing);
+        assert_eq!(
+            drag_of(&mut held, [100.0, 300.0], 400.0),
+            Dragged::Pull("s1".into())
+        );
+    }
+
+    fn floating(rect: [f64; 4]) -> Floating {
+        Floating {
+            node: "xp-win-s".into(),
+            surface: "s".into(),
+            rect,
+        }
+    }
+
+    #[test]
+    fn a_window_over_a_shared_edge_floats_until_it_clears_the_neighbour() {
+        let width = 1280.0;
+        let over_right = floating([1180.0, 100.0, 300.0, 200.0]);
+        let over_left = floating([-150.0, 150.0, 300.0, 200.0]);
+        let lift = cleared(&over_right, 100.0, width, (&[], &[(&over_left, 100.0)]));
+        assert!(lift > 150.0, "past the reach of the neighbour: {lift}");
+        let low = floating([-150.0, 500.0, 300.0, 200.0]);
+        let apart = cleared(&over_right, 100.0, width, (&[], &[(&low, 100.0)]));
+        assert!((apart - 100.0).abs() < 1e-9, "no overlap in height");
+        let short = floating([-50.0, 150.0, 300.0, 200.0]);
+        let clear = cleared(&over_right, 100.0, width, (&[], &[(&short, 100.0)]));
+        assert!(
+            (clear - 100.0).abs() < 1e-9,
+            "the neighbour does not reach the plane"
+        );
+        let far = floating([-900.0, 150.0, 1000.0, 200.0]);
+        let capped = cleared(&over_right, 100.0, width, (&[], &[(&far, 100.0)]));
+        assert!(
+            (capped - CLEAR_CAP).abs() < 1e-9,
+            "at most the cap: {capped}"
+        );
+        let mirrored = cleared(&over_left, 100.0, width, (&[(&over_right, 100.0)], &[]));
+        assert!(mirrored > 200.0, "across the left edge: {mirrored}");
+    }
+
+    #[test]
+    fn a_face_at_a_grazing_angle_floats_its_windows_flat() {
+        let mut host = host_at_rest();
+        let eye = host.eye([0.0, 0.0]);
+        let first = (1..90)
+            .map(|k| -f64::from(k) * FRAC_PI_2 / 90.0)
+            .find(|angle| host.cube.faces_eye(1, *angle, eye))
+            .expect("face 1 comes into view");
+        host.angle = first;
+        let share = host.float_share(1, host.eye([0.0, 0.0]));
+        assert!(share < 0.2, "a sliver beside the cube: {share} at {first}");
+        host.angle = 0.0;
+        host.stand = 1.0;
+        let front = host.float_share(0, host.eye([0.0, 0.0]));
+        assert!(front > 0.9, "the front face stood back: {front}");
+        let _ = host.child.wait();
+    }
+
+    #[test]
     fn a_click_stays_within_eight_pixels_on_both_axes() {
         let dragged = |at: [f64; 2]| {
-            let mut held = Some(PRESS);
+            let mut held = Some(PRESS.clone());
             drag_of(&mut held, at, 400.0);
             held.is_some_and(|p| p.dragged)
         };
@@ -869,5 +1039,54 @@ mod tests {
         assert!(dragged([600.0, 320.0]), "up and down counts too");
         assert!(dragged([609.0, 300.0]));
         assert!(dragged([606.0, 306.0]), "the distance, not one axis");
+    }
+
+    fn host_at_rest() -> Host {
+        let child = std::process::Command::new("true").spawn().expect("true");
+        let cube = Cube {
+            size: [1280.0, 800.0],
+            caps: false,
+        };
+        Host {
+            outputs: vec!["VIRTUAL-1".into()],
+            child,
+            connect_by: None,
+            cube,
+            at: [0.0, 832.0 + 640.0],
+            yaw: 0.0,
+            front: 0,
+            angle: 0.0,
+            turn: None,
+            shown: vec![true],
+            seen_from: [0.0; 3],
+            view: View::default(),
+            far: 500.0,
+            stand: 0.0,
+            step: None,
+            home: Pose::default(),
+            focus: None,
+            queued: false,
+            switching: false,
+            floats: vec![None],
+            landing: None,
+            hover: None,
+            press: None,
+            step_back_key: None,
+            owing: BTreeSet::new(),
+            again: None,
+            denied: BTreeSet::new(),
+        }
+    }
+
+    #[test]
+    fn the_resting_front_face_covers_the_panes_behind_it_in_use_mode() {
+        let mut host = host_at_rest();
+        let pose = Pose::default();
+        assert!((host.front_depth(&pose) - 832.0).abs() < 1e-9);
+        assert!(host.covers(&pose, [0.0, 2000.0]), "behind the face");
+        assert!(!host.covers(&pose, [0.0, 700.0]), "in front of the face");
+        host.stand = 1.0;
+        assert!(!host.covers(&pose, [0.0, 2000.0]), "stood back");
+        let _ = host.child.wait();
     }
 }
