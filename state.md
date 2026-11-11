@@ -199,13 +199,14 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent)
 
-Workers, 11-11 14:15 (Fable lanes stopped for the week; opus fix lanes
-from persona round 3, UX loop after them):
-- session_016iS3kMarD5B9MkUGpTGP15 (opus): claude/fix-chat, B1 B2 B4 M1 M2 M6 M8.
-- session_016iS3kPtHkcGRNN6QptStke (opus): claude/fix-basics, B3 M4 M5 M7 M9.
-- session_<cube>: claude/fix-cube, B5, K12, P1, C2, cube minors, D3a.
-Merged 11-11 pm: HUD looks (7d188b1), demo scene (4864640), stale-frame keep texture (d81ccbe), wm-pane K7 (3804e71), fix-chat persona-3 (cfcc239).
-Merged: HUD looks (7d188b1).
+Workers, 11-11 16:30: all fix lanes of persona round 3 merged.
+- session_016iS3kMuC2WXeztpuWDKsXe (opus): UX/UI loop 1, designer
+  review of the whole feature set (KISS/POLS), report ux-loop-1.md.
+Fable workers idle until Monday: core 016iS3kL1yG8R47DGySmB65H,
+virtual 016iS3kNteKAJNer4zC9m3qk, HUD 016iS3kNBZGoJk1MQrWZ4pBV, demos
+016iS3kN2vNDneETCgRK3tan.
+Merged 11-11 pm: HUD looks, demo scene, stale-frame, wm-pane, fix-chat
+(cfcc239, 5bd349b), fix-cube (157f991), fix-basics (536aaee).
 
 Local: K5 construct on 3D (agent afab03f7e183f96f0, /home/user/wt/k5),
 plus construct wobble in 3D and construct-3d.png / construct-wobble.png.
