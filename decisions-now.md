@@ -84,3 +84,5 @@ screened-through: 2026-11-11T17:32:53Z (bump to the newest user message recorded
   Reading: the PM works alone until Saturday; the user takes no decisions now, so taste questions of the design passes are decided by the PM (this overrides "the user decides taste" of reflection 2 rule 4 until the user returns; each decision is logged with its reason and stays reversible). Self-adapt to frictions; keep logging progress (state.md, status page, reports).
 - 11-11 ~19:00 UTC "Get you head around what each plugin shall deliver. Define clear requirements USPS and target groups for each. Be a wise leader and give clear instructions to your workforce."
   Reading: the PM writes a product brief per plugin (what it delivers, requirements, USPs, target groups) and briefs every worker from it.
+- 11-11 ~19:20 UTC "Stay focused on our main targets and try to deliver the best results. You as aiming to words perfection"
+  Reading: focus on the main targets (polish of the four looks, RC requirements in design/product-briefs.md); quality over quantity; aim for perfection.
