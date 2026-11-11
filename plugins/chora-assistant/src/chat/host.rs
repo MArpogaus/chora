@@ -44,6 +44,16 @@ use crate::{
 /// ends a chat that nobody reads for ten minutes.
 const KEEPALIVE: Duration = Duration::from_secs(120);
 
+/// The data of `assistant.chat.keyboard` when the keyboard of the field
+/// differs from what was told last.
+fn keyboard_change(told: &mut bool, now: bool) -> Option<Value> {
+    if *told == now {
+        return None;
+    }
+    *told = now;
+    Some(json!({"on": now}))
+}
+
 /// The time of the next pull that keeps the chat alive.
 fn due(last: Instant) -> Instant {
     last + KEEPALIVE
@@ -474,6 +484,7 @@ impl Agent {
 
     /// Takes what the field told and keeps the chat alive.
     pub fn chat_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        self.announce_keyboard()?;
         if !self.chat.is_open() && !self.chat.keyboard() {
             return Ok(());
         }
@@ -494,10 +505,21 @@ impl Agent {
             self.chat_retried = now;
             changed |= self.chat.retry(&mut bridge);
         }
+        self.announce_keyboard()?;
         if changed {
             self.chat_draw()?;
         }
         Ok(())
+    }
+
+    /// Tells with `assistant.chat.keyboard {on}` when the field got or lost
+    /// the keyboard, so that a test waits for it and not for a time.
+    fn announce_keyboard(&mut self) -> Result<(), ClientError> {
+        let Some(data) = keyboard_change(&mut self.keyboard_told, self.chat.keyboard()) else {
+            return Ok(());
+        };
+        let emit = json!({"event": "assistant.chat.keyboard", "data": data});
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
 
     /// The "Chat ..." row and one row for each helper, drawn again on the
@@ -671,6 +693,21 @@ impl Agent {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_keyboard_of_the_field_is_told_once_per_change() {
+        let mut told = false;
+        assert_eq!(super::keyboard_change(&mut told, false), None);
+        assert_eq!(
+            super::keyboard_change(&mut told, true),
+            Some(serde_json::json!({"on": true}))
+        );
+        assert_eq!(super::keyboard_change(&mut told, true), None);
+        assert_eq!(
+            super::keyboard_change(&mut told, false),
+            Some(serde_json::json!({"on": false}))
+        );
+    }
+
     use super::*;
 
     #[test]

@@ -73,6 +73,22 @@ impl Agent {
         Ok(true)
     }
 
+    /// When the button that took no click shows its normal state again.
+    pub fn flash_due(&self) -> Option<Instant> {
+        self.flash.as_ref().map(|(_, at)| *at)
+    }
+
+    /// Puts the button that took no click back.
+    pub fn flash_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        let Some((node, _)) = self.flash.take_if(|(_, at)| *at <= now) else {
+            return Ok(());
+        };
+        if self.card.is_none() {
+            return Ok(());
+        }
+        self.apply(vec![card::pressed(&node, false)])
+    }
+
     /// When the next try to ask the voice agent for its state is due.
     pub fn ask_due(&self) -> Option<Instant> {
         self.state_ask.map(|(at, _)| at)
@@ -663,8 +679,8 @@ impl Agent {
     }
 
     /// The card in the view of the chat follows the view when the field
-    /// changes its height, so that it stands above the hint; its buttons
-    /// take no click for a moment, as after any move.
+    /// changes its height, so that it stands above the hint. A re-layout is
+    /// no new question: the guard of its buttons does not start again.
     pub fn card_follows(&mut self) -> Result<Vec<Command>, ClientError> {
         if self.chat.card_top().is_none() {
             return Ok(Vec::new());
@@ -677,12 +693,10 @@ impl Agent {
         };
         let size = card::size(&self.card_theme, &shown, self.language, output.size);
         let origin = chat::card_origin(&frame, size);
-        if origin == shown.origin {
+        if !card::follow(&mut shown, origin) {
             self.card = Some(shown);
             return Ok(Vec::new());
         }
-        shown.origin = origin;
-        shown.card.moved(Instant::now());
         self.chat.card_shown(origin[1], size[1]);
         let mut commands = card::hide(&shown);
         let (theme, language) = (&mut self.card_theme, self.language);
@@ -780,7 +794,11 @@ impl Agent {
                 }
                 Ok((true, self.close_card()))
             }
-            Outcome::Ignored => Ok((true, Vec::new())),
+            Outcome::TooSoon => {
+                eprintln!("chora-assistant: a press on {node} came too soon after the card");
+                self.flash = Some((node.to_owned(), Instant::now() + card::FLASH));
+                Ok((true, vec![card::pressed(node, true)]))
+            }
             Outcome::Notice => {
                 shown.notice = true;
                 let shown = shown.clone();

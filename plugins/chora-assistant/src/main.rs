@@ -225,6 +225,12 @@ struct Agent {
     /// The item of the host under the pointer, whose mark shows: a view or
     /// a card that is drawn again keeps it.
     hovered: Option<String>,
+    /// Whether `assistant.chat.keyboard` last said that the field has the
+    /// keyboard.
+    keyboard_told: bool,
+    /// The button of the card that shows its pressed state, and when it
+    /// goes back.
+    flash: Option<(String, Instant)>,
 }
 
 impl Plugin for Agent {
@@ -398,6 +404,8 @@ impl Agent {
             chat_row: None,
             said: None,
             hovered: None,
+            flash: None,
+            keyboard_told: false,
         };
         let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
         (agent.rt.conn)
@@ -420,6 +428,7 @@ impl Agent {
         }
         self.theme.size_images(&mut commands);
         self.card_theme.size_images(&mut commands);
+        forget_hover(&mut self.hovered, &commands);
         if let Some(node) = &self.hovered {
             chat::keep_mark(&mut commands, node);
         }
@@ -479,6 +488,18 @@ impl Agent {
             return Ok(self.press_assistant(injected));
         }
         Ok(Vec::new())
+    }
+}
+
+/// Forgets the item under the pointer when `commands` remove its node: the
+/// pointer never left it, and a node of the same id that appears later is
+/// no longer under the pointer.
+fn forget_hover(hovered: &mut Option<String>, commands: &[Command]) {
+    let removed = commands
+        .iter()
+        .any(|c| matches!(c, Command::Remove { id, .. } if Some(id) == hovered.as_ref()));
+    if removed {
+        *hovered = None;
     }
 }
 
@@ -562,6 +583,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             agent.switch_due(now),
             agent.chat_due(now),
             agent.ask_due(),
+            agent.flash_due(),
         ]
         .into_iter()
         .flatten()
@@ -575,6 +597,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             runtime::dispatch(&mut agent, event)?;
         }
         agent.ask_step(Instant::now())?;
+        agent.flash_step(Instant::now())?;
         agent.chat_step(Instant::now())?;
         agent.assistant_step(Instant::now())?;
         agent.switch_step(Instant::now())?;
@@ -634,6 +657,19 @@ fn load_folder(dir: &Path, context: &Context, cache: &Path) -> Result<(Theme, Va
 mod tests {
     use super::*;
     use crate::config::Figure;
+
+    #[test]
+    fn the_item_under_the_pointer_is_forgotten_when_its_node_goes() {
+        let remove = |id: &str| Command::Remove {
+            id: id.into(),
+            to: None,
+        };
+        let mut hovered = Some(card::YES.to_owned());
+        forget_hover(&mut hovered, &[remove(card::NO)]);
+        assert_eq!(hovered.as_deref(), Some(card::YES));
+        forget_hover(&mut hovered, &[remove(card::CARD), remove(card::YES)]);
+        assert_eq!(hovered, None);
+    }
 
     fn cache(test: &str) -> PathBuf {
         std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()))

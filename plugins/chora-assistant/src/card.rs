@@ -4,7 +4,10 @@
 //! fonts of the host (`Theme::host`), never with those of a folder, and
 //! their text is at least 14 pixels.
 
-use std::{path::Path, time::Instant};
+use std::{
+    path::Path,
+    time::{Duration, Instant},
+};
 
 use chora_draw::{
     bubble::Style,
@@ -341,7 +344,7 @@ fn page_content(
 }
 
 /// The SVG of the lines of the card in a page, and of the note under the
-/// buttons: `y` is the top of the note.
+/// buttons: `note_at` is the top of the note.
 fn page_body(
     face: &Face,
     (rows, notice): (&[(Set, String)], &[String]),
@@ -648,8 +651,39 @@ pub enum Outcome {
     Answer(Value),
     /// The card says that an injected press does not count, and stays.
     Notice,
-    /// Nothing: a click too soon after the card appeared.
-    Ignored,
+    /// A click too soon after the card appeared or asked anew: nothing is
+    /// answered, the button shows its pressed state for a moment.
+    TooSoon,
+}
+
+/// How long a button that took no click shows its pressed state.
+pub const FLASH: Duration = Duration::from_millis(160);
+
+/// The opacity of a button in its pressed state.
+const PRESSED: f64 = 0.55;
+
+/// The command that puts a button of the card into its pressed state, or
+/// back.
+#[must_use]
+pub fn pressed(node: &str, down: bool) -> Command {
+    Command::Update {
+        id: node.into(),
+        props: PropsUpdate {
+            opacity: Some(if down { PRESSED } else { 1.0 }),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
+/// The card follows its view to `origin` when the field changes its
+/// height. A re-layout is no new question: the guard of the buttons stays.
+/// True when the card moved.
+pub fn follow(shown: &mut Shown, origin: [i32; 2]) -> bool {
+    if shown.origin == origin {
+        return false;
+    }
+    shown.origin = origin;
+    true
 }
 
 /// The outcome of a press on `node`; `None` when it is no button of the
@@ -664,7 +698,7 @@ pub fn press(shown: &Shown, node: &str, injected: bool, now: Instant) -> Option<
     Some(match shown.card.press(button, injected, now) {
         Press::Answer(yes) => Outcome::Answer(json!({"id": shown.id, "yes": yes})),
         Press::Injected => Outcome::Notice,
-        Press::TooSoon => Outcome::Ignored,
+        Press::TooSoon => Outcome::TooSoon,
     })
 }
 
@@ -799,7 +833,6 @@ pub fn settle(
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
 
     use chora_draw::theme::Layer;
     use chora_kit::{ask::Question, hud};
@@ -1012,7 +1045,7 @@ mod tests {
         let later = now + Duration::from_secs(1);
         assert_eq!(press(&s, YES, true, later), Some(Outcome::Notice));
         assert_eq!(press(&s, NO, true, later), Some(Outcome::Notice));
-        assert_eq!(press(&s, YES, false, now), Some(Outcome::Ignored));
+        assert_eq!(press(&s, YES, false, now), Some(Outcome::TooSoon));
         assert_eq!(
             press(&s, YES, false, later),
             Some(Outcome::Answer(json!({"id": "51", "yes": true})))
@@ -1022,6 +1055,32 @@ mod tests {
             Some(Outcome::Answer(json!({"id": "51", "yes": false})))
         );
         assert_eq!(press(&s, CARD, false, later), None);
+    }
+
+    #[test]
+    fn a_card_that_follows_its_view_keeps_the_guard_of_its_buttons() {
+        let now = Instant::now();
+        let mut s = shown(&notes(), now);
+        let later = now + Duration::from_secs(5);
+        assert!(follow(&mut s, [900, 460]));
+        assert_eq!(s.origin, [900, 460]);
+        assert!(!follow(&mut s, [900, 460]));
+        assert_eq!(
+            press(&s, YES, false, later),
+            Some(Outcome::Answer(json!({"id": "51", "yes": true})))
+        );
+    }
+
+    #[test]
+    fn a_button_that_took_no_click_shows_its_pressed_state_and_returns() {
+        let down = pressed(YES, true);
+        let up = pressed(YES, false);
+        let opacity = |c: &Command| match c {
+            Command::Update { id, props } if id == YES => props.opacity,
+            _ => None,
+        };
+        assert!(opacity(&down).is_some_and(|o| o < 1.0));
+        assert_eq!(opacity(&up), Some(1.0));
     }
 
     #[test]
@@ -1136,7 +1195,7 @@ mod tests {
             later
         ));
         assert!(inside(rect(&theme, &waiting, en, small), small));
-        assert_eq!(press(&waiting, YES, false, later), Some(Outcome::Ignored));
+        assert_eq!(press(&waiting, YES, false, later), Some(Outcome::TooSoon));
         let after = later + Duration::from_millis(500);
         assert_eq!(press(&waiting, YES, false, after), Some(yes));
         let _ = std::fs::remove_dir_all(cache);

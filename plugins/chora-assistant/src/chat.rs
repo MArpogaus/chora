@@ -980,6 +980,9 @@ impl Session {
     /// A question appeared: where its card goes, fixed until it ends.
     pub fn question_asked(&mut self) -> Where {
         self.answered = Answered::No;
+        if let Some(link) = self.link.as_mut() {
+            link.question(true);
+        }
         let place = if self.is_open() {
             Where::Chat
         } else {
@@ -2062,6 +2065,18 @@ mod tests {
                 .is_some_and(|h| h.contains("Alt+Y")),
             "a card elsewhere: the hint names the keys"
         );
+    }
+
+    #[test]
+    fn a_second_question_in_an_open_chat_tells_the_field_to_wait() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_asked();
+        session.question_ended();
+        assert_eq!(log.borrow().questions.last(), Some(&false));
+        assert_eq!(session.question_asked(), Where::Chat);
+        assert_eq!(log.borrow().questions.last(), Some(&true));
     }
 
     #[test]
