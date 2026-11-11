@@ -272,7 +272,8 @@ pub struct State {
     /// counts as a press of the user: for `give_grab`, for the choice of
     /// the window manager of a new window, and as the act of the person
     /// that an activation token carries, so a token minted after it gives
-    /// an on-demand layer surface the keyboard. Injected input does not
+    /// an on-demand layer surface the keyboard; the `pointer.pressed` of
+    /// such a press on a node carries no `injected`. Injected input does not
     /// end that press. Gates and persona runs without real devices test
     /// these flows with it. Only the headless backend takes the flag, its
     /// start logs a warning, and no program of the session inherits it.
