@@ -69,6 +69,17 @@ pub struct Layout {
 }
 
 impl Layout {
+    /// The left edge of the lines of the draft: after the caret for the
+    /// placeholder, which the caret stands before, else at the pad.
+    #[must_use]
+    pub fn text_left(&self) -> u32 {
+        if self.placeholder {
+            PAD + 2 * CARET
+        } else {
+            PAD
+        }
+    }
+
     /// The height of the field in pixels.
     #[must_use]
     pub fn height(&self) -> u32 {
@@ -173,14 +184,15 @@ impl Painter {
             look.text
         };
         for (row, line) in layout.lines.iter().enumerate() {
-            self.line(&mut pixmap, line, row_rect(row, width), text_color);
+            let rect = row_rect(row, width, layout.text_left());
+            self.line(&mut pixmap, line, rect, text_color);
         }
         let status_row = layout.lines.len();
         for (row, line) in layout.status.iter().enumerate() {
             self.line(
                 &mut pixmap,
                 line,
-                row_rect(status_row + row, width),
+                row_rect(status_row + row, width, PAD),
                 look.hint,
             );
         }
@@ -203,10 +215,10 @@ impl Painter {
     }
 }
 
-/// The rectangle of a row of text in a field of `width`.
-fn row_rect(row: usize, width: u32) -> [i32; 4] {
+/// The rectangle of a row of text in a field of `width`, from `left`.
+fn row_rect(row: usize, width: u32, left: u32) -> [i32; 4] {
     let top = PAD + u32::try_from(row).unwrap_or(0) * LINE;
-    [PAD, top, width.saturating_sub(2 * PAD), LINE].map(|v| i32::try_from(v).unwrap_or(0))
+    [left, top, width.saturating_sub(left + PAD), LINE].map(|v| i32::try_from(v).unwrap_or(0))
 }
 
 impl Default for Painter {
@@ -252,6 +264,25 @@ mod tests {
         assert_eq!(layout.lines.len(), MAX_LINES);
         assert!(layout.height() > one);
         assert!(layout.caret.is_some_and(|(row, _)| row == MAX_LINES - 1));
+    }
+
+    #[test]
+    fn the_caret_stands_before_the_placeholder() {
+        let painter = Painter::new();
+        let session = Session::new(Language::En);
+        let layout = painter.layout(&session, 300);
+        let caret_right = PAD + CARET;
+        assert!(
+            layout.text_left() > caret_right,
+            "the hint starts after the caret"
+        );
+        let mut typed = Session::new(Language::En);
+        typed.key(Key::Text("hi".into()));
+        assert_eq!(
+            painter.layout(&typed, 300).text_left(),
+            PAD,
+            "a draft starts at the pad"
+        );
     }
 
     #[test]
