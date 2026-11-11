@@ -15,7 +15,7 @@ Goal until Saturday (user 11-11): UI/UX polish toward perfection, each look with
 
 Running:
 - Design passes done for all four looks (design/looks/*-v2.md; PM taste decisions in design/decisions-taste.md).
-- Build lanes: tiling-v2 (local sonnet, wt/tiling-v2, steps 1-7), mc-v2 (local sonnet, wt/mc-v2, 11 steps), construct-v2 (cloud worker session_016iS3kM4gkLKYDoMDA31g9X, opus because 3D is the hardest area, 15 steps), xp-v2 (cloud worker session_016iS3kQWAGD66a7T2vtscMz, sonnet). Five heavy lanes with the tour worker, one over the charter limit of four until the tour reshoot ends. Each merges only after an independent pixel review at 1x and 2x.
+- Build lanes: tiling-v2 (local sonnet, wt/tiling-v2, steps 1-7), mc-v2 (local sonnet, wt/mc-v2, 11 steps), construct-v2 and xp-v2 queued for the next free local slot (cloud workers cannot set up, friction 37). Each merges only after an independent pixel review at 1x and 2x.
 - Parked until the looks meet their RC requirements (user 11-11 "stay focused"): flakes, CI dry run, logging inventory.
 - screencast worker session_016iS3kNcWCmF1YP1YaxYmP6: tour of every look, then reshoot of construct from 06044cf into media/2026-11-12/tour-v2; interim friction list received.
 

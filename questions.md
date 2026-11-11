@@ -95,3 +95,6 @@ Defaults taken unless the user objects:
 - Q15 The XP look in public: show it as "a classic desktop", without
   Microsoft names, logos or the Bliss-like wallpaper on the website and
   in captures, until the user decides; voice demos only in English.
+
+## 7 (11-11): cloud environment setup script
+Cloud workers can no longer run setup.sh themselves (friction 37). May the environment setup script run `bash setup.sh` from the session-log branch, so workers start with the build packages and hooks? Default until then: build lanes run locally, two at a time.
