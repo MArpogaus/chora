@@ -424,3 +424,11 @@ dark construct gets white pills; light mc gets a near-black drawer;
 tiling Chat pill overlaps the bar; tag "1" and OPEN CUBE at x=0; long
 headers ellipsized. Built at df8dadd (before 67f93a9); re-check those
 the construct merge may have fixed.
+S5 update (11-11 ~21:10, showcase re-recorded on 67f93a9, de69c66):
+fixed there: dark construct HUD/chat, light mc drawer, tiling pill
+below the bar, xp helper chat above the taskbar. Still open: mc Agents
+empty; OPEN CUBE black 16 frames and the SUNSET pill on the face; voice-
+opened chat without keyboard (V1); injected Alt+Y and No give no
+feedback; question card white in dark chat, covers transcript, hint cut;
+xp chat without a helper covers the taskbar; OPEN CUBE overlaps the chat
+and moves at 2x; pulled pane cut at the right edge.
