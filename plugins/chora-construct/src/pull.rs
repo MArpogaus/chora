@@ -16,7 +16,10 @@ use chora_scene::{
 };
 use serde_json::{Value, json};
 
-use super::{ClientError, Construct, Event, Moving, NAME, PressState, cube, float, give, space};
+use super::{
+    BTN_LEFT, ClientError, Construct, Event, FLY_MS, Moving, NAME, PressState, cube, float, give,
+    space,
+};
 
 /// How long the window manager of a face may take to place a window.
 const PLACE_WAIT: Duration = Duration::from_secs(2);
@@ -63,6 +66,55 @@ pub(crate) fn face_under(
 pub(crate) fn is_a_face(outputs: &[OutputInfo], output: &str) -> bool {
     let own = |o: &&OutputInfo| o.is_virtual == Some(true) && o.owner.as_deref() == Some(NAME);
     outputs.iter().filter(own).any(|o| o.name == output)
+}
+
+/// What an event does to the drag of a window pulled from a floating
+/// plane, whose press stays on the plane: the event names the plane or a
+/// face.
+#[derive(Debug, PartialEq)]
+enum PullStep {
+    Move([f64; 2]),
+    Drop([f64; 2]),
+    /// Injected input that is not the hand of the person ends the drag in
+    /// the space, and gives the window to no one.
+    End,
+}
+
+fn pull_step(event: &Event, accepts_injected: bool) -> Option<PullStep> {
+    let (node, position, injected, released) = match event {
+        Event::PointerMoved {
+            node,
+            position,
+            injected,
+            ..
+        } => (node, *position, *injected, false),
+        Event::PointerReleased {
+            node,
+            button,
+            position,
+            injected,
+            ..
+        } if *button == BTN_LEFT => (node, *position, *injected, true),
+        _ => return None,
+    };
+    cube::face_of(node)?;
+    Some(match (injected && !accepts_injected, released) {
+        (true, _) => PullStep::End,
+        (false, false) => PullStep::Move(position),
+        (false, true) => PullStep::Drop(position),
+    })
+}
+
+/// The depth of a pulled pane for the front face at `face`, by a lens of
+/// `focal`: a little in front of the face, else at 1:1; never nearer than
+/// a quarter of the focal length, and never a depth that is no number.
+fn pull_depth(face: Option<f64>, focal: f64) -> f64 {
+    let d = face.map_or(focal, |d| d * PULL);
+    if d.is_finite() {
+        d.max(focal * 0.25)
+    } else {
+        focal
+    }
 }
 
 impl Construct {
@@ -117,6 +169,8 @@ impl Construct {
     /// The drop of a moved pane of an own window over a resting face of
     /// the cube: the release names the output of the face and the point
     /// in it, or, under the dragged pane, the screen and the point there.
+    /// The front face counts first, as the box of a face on the screen
+    /// holds its whole quad only face on.
     /// The window goes to the window manager whose claim holds that point
     /// of the output of the face, as a drop on a screen does (D55), and
     /// that manager is asked to put it at the drop point. Returns whether
@@ -138,7 +192,10 @@ impl Construct {
                 selector: format!("owner:{NAME} kind:shader"),
                 filter: None,
             };
-            let nodes: Vec<Value> = self.rt.conn.call("scene.query", shaders)?;
+            let mut nodes: Vec<Value> = self.rt.conn.call("scene.query", shaders)?;
+            let front = self.cube.as_ref().map(cube::Host::front_output);
+            nodes
+                .sort_by_key(|node| node["uniforms"]["win"]["output"].as_str() != front.as_deref());
             let rests = self.cube.as_ref().is_some_and(cube::Host::rests);
             face_under(&nodes, output, point, rests)
         };
@@ -237,15 +294,20 @@ impl Construct {
     /// window back, or in the space. None for any other event.
     pub(crate) fn plane_drag(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
         self.moving.as_ref()?;
-        match event {
-            Event::PointerMoved { node, position, .. } if cube::face_of(node).is_some() => {
-                Some(self.moved(*position))
-            }
-            Event::PointerReleased { node, position, .. } if cube::face_of(node).is_some() => {
-                Some(self.drop_pulled(*position))
-            }
-            _ => None,
+        Some(match pull_step(event, self.rt.accepts_injected())? {
+            PullStep::Move(at) => self.moved(at),
+            PullStep::Drop(at) => self.drop_pulled(at),
+            PullStep::End => self.end_pull(),
+        })
+    }
+
+    /// Ends the drag of a pulled window where its pane is, in the space:
+    /// the window goes to no one.
+    fn end_pull(&mut self) -> Result<(), ClientError> {
+        if let Some(moving) = self.moving.take() {
+            self.effects.release(&moving.name);
         }
+        self.frame()
     }
 
     fn drop_pulled(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
@@ -261,10 +323,11 @@ impl Construct {
     }
 
     /// The depth of a pulled pane: a little in front of the front face of
-    /// the cube, so that the face never covers it, else at 1:1.
+    /// the cube, so that the face never covers it, else at 1:1
+    /// ([`pull_depth`]).
     fn pull_depth(&self) -> f64 {
         let face = self.cube.as_ref().map(|c| c.front_depth(&self.pose));
-        face.map_or(self.lens.focal, |d| d * PULL)
+        pull_depth(face, self.lens.focal)
     }
 
     /// The press of `move` that comes with a window and its drag, at a
@@ -272,7 +335,8 @@ impl Construct {
     /// or gets it now; a window that gets no pane is attached hidden, so
     /// it is not lost, and the drag ends for it. The camera flies to a
     /// window that is handed over: for a window that comes in the middle
-    /// of a drag it turns back and stays where the user stands. The pane
+    /// of a drag it turns back and stays where the user stands, and the
+    /// keyboard stays where the flight left it. The pane
     /// comes under the pointer, with the point of the window that the
     /// giver names there, in front of the front face of the cube, and the moves and the release of
     /// `move` drag and drop it as a drag with the modifier does. A pane
@@ -287,10 +351,14 @@ impl Construct {
         let of_window =
             |construct: &Self| (construct.panes.iter()).position(|p| p.window() == Some(surface));
         if of_window(self).is_none() {
-            self.detached(surface)?;
+            self.take_detached(surface, false)?;
         }
         if self.inside().as_deref() == Some(surface) {
-            self.leave_window()?;
+            if self.flown.is_some() {
+                self.fly_out()?;
+            } else if let Some(into) = self.glide.take().and_then(|g| g.into) {
+                self.glide_to(into.back, FLY_MS, None);
+            }
         }
         let Some(i) = of_window(self) else {
             return Ok(());
@@ -348,7 +416,7 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{face_under, is_a_face};
+    use super::{Event, PullStep, face_under, is_a_face, pull_depth, pull_step};
 
     /// Under a dragged pane the core names the screen: the face is the
     /// one whose box on the screen holds the point, and the point maps
@@ -388,6 +456,66 @@ mod tests {
         );
         let pane = [face("construct-pane-s1-source", true, true)];
         assert_eq!(face_under(&pane, "DP-1", [640.0, 400.0], false), None);
+    }
+
+    fn moved(injected: bool) -> Event {
+        Event::PointerMoved {
+            node: "construct-cube-float-0-s1".into(),
+            position: [10.0, 20.0],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+        }
+    }
+
+    fn released(button: u32, injected: bool) -> Event {
+        Event::PointerReleased {
+            node: "construct-cube-face-0".into(),
+            button,
+            position: [30.0, 40.0],
+            local: [0.0; 2],
+            modifiers: Vec::new(),
+            injected,
+        }
+    }
+
+    /// Only the hand of the person goes on with a pull and drops it: an
+    /// injected move or release ends it in the space outside a test
+    /// session, and another button does nothing.
+    #[test]
+    fn injected_input_ends_a_pull_in_the_space() {
+        let left = super::BTN_LEFT;
+        assert_eq!(
+            pull_step(&moved(false), false),
+            Some(PullStep::Move([10.0, 20.0]))
+        );
+        assert_eq!(pull_step(&moved(true), false), Some(PullStep::End));
+        assert_eq!(
+            pull_step(&moved(true), true),
+            Some(PullStep::Move([10.0, 20.0]))
+        );
+        assert_eq!(
+            pull_step(&released(left, false), false),
+            Some(PullStep::Drop([30.0, 40.0]))
+        );
+        assert_eq!(pull_step(&released(left, true), false), Some(PullStep::End));
+        assert_eq!(
+            pull_step(&released(left, true), true),
+            Some(PullStep::Drop([30.0, 40.0]))
+        );
+        assert_eq!(
+            pull_step(&released(273, false), false),
+            None,
+            "the right button"
+        );
+    }
+
+    #[test]
+    fn a_pulled_pane_is_never_behind_the_eye_or_at_no_depth() {
+        assert!((pull_depth(Some(1000.0), 800.0) - 900.0).abs() < 1e-9);
+        assert!((pull_depth(None, 800.0) - 800.0).abs() < 1e-9);
+        assert!((pull_depth(Some(-50.0), 800.0) - 200.0).abs() < 1e-9);
+        assert!((pull_depth(Some(f64::NAN), 800.0) - 800.0).abs() < 1e-9);
     }
 
     fn output(name: &str, owner: Option<&str>) -> OutputInfo {

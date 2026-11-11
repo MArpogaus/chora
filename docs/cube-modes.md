@@ -124,7 +124,10 @@ In navigate mode a drag on the floating plane of a window pulls the
 window out of the cube: its window manager gives it to the construct,
 which goes on with the drag; a drop over a face of the resting cube
 gives it back to that face, at the drop point. A press on a plane that
-moves less than 8 px is a click on its face.
+moves less than 8 px is a click on its face. Outside a test session an
+injected drag pulls nothing, and an injected move or release during a
+pull ends it in the space, where the pane stays; the keyboard stays
+where it was.
 
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never

@@ -619,8 +619,9 @@ impl Construct {
     /// Opens the cube: `faces` virtual outputs of the size of the view at
     /// its scale, one window manager on all of them, and a face for each,
     /// ahead of the camera, which levels, so that the front face shows its
-    /// output at 1:1. From inside a pane the camera first leaves it, to
-    /// where it stood before. Refused while another client `xp` runs.
+    /// output at 1:1. From inside a pane, or on the way into one, the
+    /// camera first leaves it, to where it stood before; a running glide
+    /// ends at its goal. Refused while another client `xp` runs.
     pub(crate) fn open_cube(&mut self, faces: usize) -> Result<Value, ClientError> {
         let refuse = |m: String| Err(ClientError::Rpc(RpcError::new(RpcError::REJECTED, m)));
         if self.cube.is_some() {
@@ -632,11 +633,11 @@ impl Construct {
         if self.has_manager(MANAGER) || self.manager_runs()? {
             return refuse(format!("a client {MANAGER} runs already"));
         }
-        if self.flown.is_some() {
-            self.fly_out()?;
-            if let Some(glide) = self.glide.take() {
-                self.pose = glide.to;
-            }
+        if self.inside().is_some() {
+            self.leave_window()?;
+        }
+        if let Some(glide) = self.glide.take() {
+            self.pose = glide.to;
         }
         let size = [self.lens.w, self.lens.h];
         let outputs = self.add_outputs(faces, size)?;
@@ -677,7 +678,7 @@ impl Construct {
     fn host(&self, outputs: Vec<String>, child: Child, cube: Cube) -> Host {
         let [fx, fz] = self.pose.forward();
         let reach = self.lens.focal + cube.size[0] / 2.0;
-        Host {
+        let mut host = Host {
             shown: vec![false; outputs.len()],
             seen_from: [0.0; 3],
             floats: vec![None; outputs.len()],
@@ -705,7 +706,9 @@ impl Construct {
             owing: BTreeSet::new(),
             again: None,
             denied: BTreeSet::new(),
-        }
+        };
+        host.seen_from = host.eye([self.pose.x, self.pose.z]);
+        host
     }
 
     /// Whether a client of the name of the window manager is connected.
