@@ -3,7 +3,7 @@
 The HUD folder of `chora-mc` for the HUD host `chora-assistant`, after
 `docs/mc-style.md`: no box, Inter for the frame, the accent of the dark
 theme on the mark of the state and on the state word of a helper. At the
-top right of the work area a
+top right of the work area, in the margin column of mc (20 pixels from the top and 56 from the right edge), a
 small mark shows the state of the voice agent with its state word, the
 sentence stands beside them as plain text without a box, and below it one row
 per helper, `Atlas · working · Write file (2/2)`, the name in `text`, the

@@ -13,13 +13,17 @@ use crate::{
     Mc,
     config::{Color, Style},
     invalid,
-    region::{self, Content, Item, Region},
+    region::{self, Content, Item, Put, Region},
     scene::{Panel, check_name},
 };
 
 /// The scene that shows the agents, one column each.
 const SCENE: &str = "agents";
 
+/// The most helpers that a side shows, one row each.
+const MAX_ROWS: usize = 4;
+/// The width of the sign of a helper and the space after it, in pixels.
+const SIGN_WIDTH: f64 = 18.0;
 /// The lines of the notifications: three, with a blank line between them.
 const NOTIFY_LINES: usize = 5;
 /// The last words of an agent that its column shows, at most.
@@ -285,6 +289,14 @@ impl Mc {
         name: &str,
         content: &Content,
     ) -> Vec<Item> {
+        if !region.is_line() {
+            let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
+            return if host {
+                Vec::new()
+            } else {
+                self.agent_rows(region, slot, name, content)
+            };
+        }
         let config = &self.settings.value;
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
@@ -302,6 +314,62 @@ impl Mc {
                 }
             })
             .collect()
+    }
+
+    /// The rows of the helpers in a side: the sign in the color of the
+    /// state, the name in `text`, and the state and the task in `muted`
+    /// after it; at most four rows, then how many more there are.
+    fn agent_rows(&self, region: Region, slot: i32, name: &str, content: &Content) -> Vec<Item> {
+        let config = &self.settings.value;
+        let id = format!("{}-{name}", self.region_id(region));
+        let colors = config.colors();
+        let muted = self.content_type(content, false);
+        let color = |name: &str| colors.get(name).copied().unwrap_or(muted.color);
+        let (mut sign, mut text) = (muted.clone(), muted.clone());
+        text.color = color("text");
+        let mut items = Vec::new();
+        for (i, agent) in self.agents.iter().take(MAX_ROWS).enumerate() {
+            let state = config.states.get(&agent.state);
+            sign.color = state.map_or(muted.color, |s| color(&s.color));
+            let mark = state.map_or("", |s| s.sign.as_str());
+            let words = state
+                .and_then(|s| s.label.as_deref())
+                .unwrap_or(&agent.state);
+            let detail = if agent.task.is_empty() {
+                words.to_owned()
+            } else {
+                format!("{words} · {}", agent.task)
+            };
+            let row = |part: &str, put, x, props| Item {
+                x,
+                put,
+                ..Item::text(format!("{id}-{i}-{part}"), slot, props, false)
+            };
+            items.push(Item {
+                hit: Some(format!("agent:{}", agent.name)),
+                ..row("sign", Put::Stack, 0.0, sign.props(mark))
+            });
+            items.push(row("name", Put::Row, SIGN_WIDTH, text.props(&agent.name)));
+            items.push(row(
+                "state",
+                Put::After,
+                SIGN_WIDTH + 60.0,
+                muted.props(&detail),
+            ));
+        }
+        let more = self.agents.len().saturating_sub(MAX_ROWS);
+        if more > 0 {
+            let props = muted.props(&format!("+{more} more"));
+            items.push(Item {
+                put: Put::Stack,
+                x: SIGN_WIDTH,
+                ..Item::text(format!("{id}-more"), slot, props, false)
+            });
+        }
+        if let Some(first) = items.first_mut() {
+            first.first = true;
+        }
+        items
     }
 
     /// A click on the column of a helper in the agents scene asks the HUD
@@ -822,6 +890,7 @@ mod tests {
     fn a_click_on_the_row_of_a_helper_shows_its_chat() {
         use serde_json::json;
         let (mut mc, model) = crate::testing::mc("row-chat", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let state = json!({"name": "Atlas", "state": "working"});
         mc.follow("voice.state", "voice", state).unwrap();
         mc.show("agenda", false).unwrap();

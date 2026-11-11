@@ -258,11 +258,13 @@ rules:
 - {content: head, region: header, slot: -1}
 - {content: hud, scenes: ['@app'], region: header, slot: 0}
 - {content: urgent, region: footer, slot: 0}
-- {content: agents, region: header, slot: 1}
-- {content: state, region: header, slot: 2}
+- {content: agents, scenes: ['@app'], region: header, slot: 1}
+- {content: state, scenes: ['@app'], region: header, slot: 2}
 - {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
 - {content: next, scenes: ['@page'], region: footer, slot: 1}
+- {content: state, region: right, slot: -3}
+- {content: agents, region: right, slot: -2}
 - {content: notes, region: right}
 - {content: notify, region: right, slot: 1}
 - {content: keys, region: right, slot: 9}

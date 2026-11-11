@@ -601,7 +601,7 @@ The `contents` are named. Their `kind` is one of:
 | `clock` | the time as `date` formats it with `format`, each minute anew |
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
-| `agents` | the sign and the name of each agent of `agent.set`, each in the color of its state, in the style `hud` |
+| `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; with `voice_hud: host` a side shows none, since the host draws the rows |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) under its title while it has no lines, as `notify` does |
 | `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all bindings and then the six again |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
@@ -625,12 +625,13 @@ header and the footer, and `Super+F1` for all keys. A binding of one key without
 needs the grant `input.grab-any`, so the key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
-the agents, the state of the agent and the clock right; the footer shows
+the clock right; the footer shows
 the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
 content `next`); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
-the key list at its foot. The drawer holds nothing in `desk`; the
+the key list at its foot. The state of the voice agent and the helpers
+stand at the top of that column, in the header only over an app. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.

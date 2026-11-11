@@ -72,7 +72,7 @@ impl Region {
     }
 
     /// A line across the page, its contents side by side.
-    fn is_line(self) -> bool {
+    pub fn is_line(self) -> bool {
         matches!(self, Self::Header | Self::Footer)
     }
 }
@@ -358,6 +358,10 @@ pub enum Put {
     FootRule,
     /// At the foot, in the line of the item before it.
     FootRow,
+    /// In the line of the item before it, at `x`.
+    Row,
+    /// In the line of the item before it, after its end.
+    After,
 }
 
 impl Put {
@@ -366,7 +370,7 @@ impl Put {
     }
 
     fn row(self) -> bool {
-        self == Self::FootRow
+        matches!(self, Self::FootRow | Self::Row | Self::After)
     }
 }
 
@@ -499,9 +503,9 @@ impl Mc {
     pub fn content_type(&self, content: &Content, title: bool) -> Type {
         let base = match content.kind {
             _ if title => "label",
-            Kind::Head | Kind::Clock | Kind::State => "running_head",
+            Kind::Head | Kind::Clock => "running_head",
             Kind::Hud | Kind::Agents => "hud",
-            Kind::Text | Kind::App | Kind::Keys => "margin",
+            Kind::State | Kind::Text | Kind::App | Kind::Keys => "margin",
         };
         let style = content.style.as_ref().filter(|_| !title);
         let mut ty = self.ty(base, style);
@@ -1089,10 +1093,16 @@ impl Mc {
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
-        let mut heights = Vec::new();
-        for item in items {
-            let [_, _, _, h] = self.measure(&item.id, probed)?;
+        let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
+        for (i, item) in items.iter().enumerate() {
+            let [_, _, w, h] = self.measure(&item.id, probed)?;
             heights.push(h.max(baseline));
+            widths.push(w);
+            let left = match (item.put, i.checked_sub(1)) {
+                (Put::After, Some(before)) => lefts[before] + widths[before] + AFTER_GAP,
+                _ => item.x,
+            };
+            lefts.push(left);
         }
         let (flow, end) = lines(items, &heights, false, baseline);
         let (foot, foot_end) = lines(items, &heights, true, baseline);
@@ -1104,7 +1114,7 @@ impl Mc {
         {
             let idx = item;
             let item = &items[idx];
-            commands.push(move_to(item.id.clone(), item.x, y));
+            commands.push(move_to(item.id.clone(), lefts[idx], y));
             if item.hit.is_some() {
                 commands.extend(hit_place(&item.id, [0.0, y, width, heights[idx]], item.x));
             }
@@ -1504,6 +1514,9 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3
     ]
 }
 
+/// The space between an item and the one after it in a line, in pixels.
+const AFTER_GAP: f64 = 8.0;
+
 /// The size of the focus mark, and its distance from what it marks.
 const MARK: [f64; 2] = [2.0, 20.0];
 const MARK_GAP: f64 = 12.0;
@@ -1637,12 +1650,12 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         let page = layout(&config.rules, &config.contents, "agenda", false);
         let app = layout(&config.rules, &config.contents, "foot", true);
-        assert_eq!(
-            names(&page, Region::Header),
-            ["head", "agents", "state", "clock"]
-        );
+        assert_eq!(names(&page, Region::Header), ["head", "clock"]);
         assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
-        assert_eq!(names(&page, Region::Right), ["notes", "notify", "keys"]);
+        assert_eq!(
+            names(&page, Region::Right),
+            ["state", "agents", "notes", "notify", "keys"]
+        );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
         // Over an app, the words of the agent go to the header.
         assert_eq!(
@@ -1666,9 +1679,12 @@ mod tests {
                 "chat", "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
             ]
         );
-        assert_eq!(names(&moved, Region::Right), ["keys"]);
+        assert_eq!(names(&moved, Region::Right), ["state", "agents", "keys"]);
         let other = layout(&rules, &config.contents, "mail", false);
-        assert_eq!(names(&other, Region::Right), ["notes", "notify", "keys"]);
+        assert_eq!(
+            names(&other, Region::Right),
+            ["state", "agents", "notes", "notify", "keys"]
+        );
     }
 
     #[test]

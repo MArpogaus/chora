@@ -173,3 +173,39 @@ until_ok 'has_text "Nothing new."' 20 || fail "Nothing new. does not come back"
 
 column_at 1280x720 888 336
 column_at 1920x1080 1416 448
+
+own_session() {
+    kill "${pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    pids=()
+    printf 'theme: %s\ntest_accept_injected_keys: true\nvoice_hud: own\n' "$1" >"$XDG_CONFIG_HOME/chora/chora-mc.yaml"
+    env_file=$(mktemp /tmp/gate-env.XXXXXX) session_start 1280x800
+    grant screen.capture input.inject
+    "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc-own.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
+    until_ok 'has_text "AGENDA"' || fail "no first screen"
+}
+text_y() { text_rect "$1" | jq -r '.[1]'; }
+text_x() { text_rect "$1" | jq -r '.[0]'; }
+own_session light
+ctl call mc hud.set '{"state": "Listening", "text": ""}' >/dev/null
+for a in 'Atlas working "Tidy notes"' 'Vega thinking ""' 'Orion idle ""' 'Mira done ""' 'Juno idle ""' 'Kai idle ""'; do
+    eval set -- "$a"
+    ctl call mc agent.set "{\"name\": \"$1\", \"state\": \"$2\", \"task\": \"$3\"}" >/dev/null || fail "agent.set $1"
+done
+until_ok 'has_text "Listening"' 20 || fail "no state word"
+until_ok 'has_text "Atlas"' 20 || fail "no helper row"
+until_ok '[ "$(texts | grep -cxF Listening)" = 1 ]' 20 || fail "not one state word"
+[ "$(text_x Listening)" = 888.0 ] || fail "the state word is not at the left edge of the column: $(text_rect Listening)"
+for name in Atlas Vega Orion Mira; do
+    has_text "$name" || fail "no row for $name"
+    [ "$(text_x "$name" | jq '. >= 888')" = true ] || fail "$name is not in the column: $(text_rect "$name")"
+done
+has_text "Juno" && fail "a fifth helper shows"
+has_text "+2 more" || fail "no +2 more under four helpers"
+[ "$(text_y Atlas | jq '. > 40')" = true ] || fail "Atlas stands in the header: $(text_rect Atlas)"
+header=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.rects | length) > 0 and (.rects | to_entries[0].value[1]) < 56 and (.rects | to_entries[0].value[0]) < 860) | .text] | length')
+[ "$header" = 2 ] || fail "the header holds $header texts, not the running head and the clock"
+shot helpers-light
+ok "state and helpers stand in the column, four rows and +2 more, the header holds the head and the clock"

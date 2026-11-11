@@ -4,7 +4,7 @@ panels:
 - id: state
   source: voice
   anchor: top_right
-  margin: [32, 16]
+  margin: [56, 20]
   picture: state.svg#{state}
   text: '{state}'
   action: mute
@@ -17,7 +17,7 @@ panels:
 - id: agents
   source: agents
   anchor: top_right
-  margin: [32, 56]
+  margin: [56, 64]
   style: plain
   rows: '{name} · {state} · {task}'
   max_rows: 4
