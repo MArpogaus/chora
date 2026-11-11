@@ -425,7 +425,7 @@ fn media(client: &mut Client, command: Cmd) -> Result<(), String> {
             capture_to(client, &capture, &file)
         }
         Cmd::Record(recording) => record::record(client, &recording),
-        _ => Ok(()),
+        _ => unreachable!("only a capture and a recording save pictures"),
     }
 }
 

@@ -97,6 +97,9 @@ impl Construct {
         commands.extend(self.cube_faces());
         let focus = self.focus();
         let look = self.pane_look(focus.map(|k| self.panes[k].name.clone()));
+        if self.glow_bend.focus(look.focus.as_deref()) {
+            commands.push(crate::wobble::flat_glow());
+        }
         commands.extend(self.restyle_panes(&look));
         self.sent = Some(look);
         if !self.glass.plain {

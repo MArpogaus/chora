@@ -25,12 +25,26 @@ pub const METHOD: &str = "clock.step";
 /// The longest recording: a day.
 const MAX_MS: f64 = 86_400_000.0;
 
+/// How long a stepped clock stands without a step. After that the
+/// recording counts as gone, for example a `choractl record` that was
+/// killed, and the clock runs again.
+const STALE: Duration = Duration::from_secs(2);
+
+/// A stopped clock: its time, when it was stopped on the monotonic
+/// clock, and where the recording started, as the time of the plugin
+/// then and the time of the recording.
+#[derive(Clone, Copy)]
+struct Stepped {
+    time: Instant,
+    since: Instant,
+    start: Instant,
+    first: f64,
+    last: f64,
+}
+
 thread_local! {
     /// The stepped time of the thread of the plugin's loop.
-    static STEPPED: Cell<Option<Instant>> = const { Cell::new(None) };
-    /// Where the recording started: the time of the plugin then, and the
-    /// time of the recording.
-    static BASE: Cell<Option<(Instant, f64)>> = const { Cell::new(None) };
+    static STEPPED: Cell<Option<Stepped>> = const { Cell::new(None) };
 }
 
 /// The time of the animations: of the last step of a recording on this
@@ -40,9 +54,17 @@ pub fn now() -> Instant {
     at(Instant::now())
 }
 
-/// The time of the animations at a time of the monotonic clock.
+/// The time of the animations at a time of the monotonic clock. A step
+/// older than `STALE` ends the stepped time.
 fn at(real: Instant) -> Instant {
-    STEPPED.get().unwrap_or(real)
+    match STEPPED.get() {
+        Some(stepped) if real.saturating_duration_since(stepped.since) < STALE => stepped.time,
+        Some(_) => {
+            STEPPED.set(None);
+            real
+        }
+        None => real,
+    }
 }
 
 /// The time that passed since `earlier` on the clock of the animations.
@@ -53,18 +75,23 @@ pub fn since(earlier: Instant) -> Duration {
 
 /// Stops the clock at `ms` of a recording, or lets it run again with
 /// `None`. The first step of a recording stops the clock where it is, and
-/// the later steps move it on from there, so the time never goes back.
+/// the later steps move it on from there, so the time never goes back. A
+/// `ms` below the one before starts a new recording.
 pub fn set(ms: Option<f64>) {
     let Some(ms) = ms else {
         STEPPED.set(None);
-        BASE.set(None);
         return;
     };
-    let ms = ms.clamp(0.0, MAX_MS);
-    let (start, first) = BASE.get().unwrap_or((Instant::now(), ms));
-    BASE.set(Some((start, first)));
-    let passed = Duration::from_secs_f64((ms - first).max(0.0) / 1000.0);
-    STEPPED.set(Some(start + passed));
+    let (ms, real) = (ms.clamp(0.0, MAX_MS), Instant::now());
+    let running = STEPPED.get().filter(|s| at(real) == s.time && ms >= s.last);
+    let (start, first) = running.map_or((real, ms), |s| (s.start, s.first));
+    STEPPED.set(Some(Stepped {
+        time: start + Duration::from_secs_f64((ms - first) / 1000.0),
+        since: real,
+        start,
+        first,
+        last: ms,
+    }));
 }
 
 /// The parameters of `clock.step`.

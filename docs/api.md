@@ -1201,7 +1201,11 @@ A plugin with animations of its own takes their time from
 `chora_kit::clock` and exports the method `clock.step(ms)`: it stops the
 clock of the plugin at `ms` of the recording and draws one frame;
 `null` lets the clock run again. The first step stops the clock where
-it is, and the later steps move it on by the difference of their `ms`. The method is privileged.
+it is, and the later steps move it on by the difference of their `ms`;
+an `ms` below the one before starts anew. A clock that gets no step
+for two seconds runs again, so a recording that ends without `null`,
+or a call on a session that nobody records, stops no animation for
+long. The method is privileged.
 `chora-construct` exports it for the glide of the camera and the wobble
 of the panes.
 

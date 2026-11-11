@@ -24,12 +24,11 @@ pub(crate) fn mirror_mesh(pane: &Mesh, k: [f64; 2]) -> Mesh {
 /// How many pixels of a pane of a size one pixel of its mirror image
 /// shows, along x and along y.
 pub(crate) fn mirror_scale(size: [f64; 2]) -> [f64; 2] {
-    let k = size[0] / mirror_size(size)[0];
-    [k, k]
+    let mirror = mirror_size(size);
+    [size[0] / mirror[0], size[1] / mirror[1]]
 }
 
 /// The pane whose mesh the glow node has.
-#[allow(dead_code, reason = "the frames of the wobble use it")]
 #[derive(Default)]
 pub(crate) struct GlowBend {
     pane: Option<String>,
@@ -48,15 +47,26 @@ impl GlowBend {
 
     /// A pane rests again: whether the glow must become flat.
     pub(crate) fn rests(&mut self, pane: &str) -> bool {
-        let _ = pane;
-        true
+        let own = self.pane.as_deref() == Some(pane);
+        if own {
+            self.pane = None;
+        }
+        own
+    }
+
+    /// The core removed every mesh: the glow is flat.
+    pub(crate) fn dropped(&mut self) {
+        self.pane = None;
     }
 
     /// The focus is on a pane or on none: whether the glow must become
     /// flat, because it has the mesh of another pane.
     pub(crate) fn focus(&mut self, pane: Option<&str>) -> bool {
-        let _ = pane;
-        false
+        let other = self.pane.is_some() && self.pane.as_deref() != pane;
+        if other {
+            self.pane = None;
+        }
+        other
     }
 }
 
@@ -110,7 +120,19 @@ fn flat() -> Mesh {
     }
 }
 
+/// The update that makes the glow node flat again.
+pub(crate) fn flat_glow() -> Command {
+    bend(FOCUS, flat())
+}
+
 impl Construct {
+    /// The watchdog of the core removed every mesh: no pane drifts, and
+    /// the glow is flat.
+    pub(crate) fn bends_dropped(&mut self) {
+        self.drifts.clear();
+        self.glow_bend.dropped();
+    }
+
     /// How far the glow of a pane reaches past its edges, in the pixels
     /// of the pane.
     pub(crate) fn glow_reach(&self, pane: &Pane) -> f64 {
@@ -146,8 +168,8 @@ impl Construct {
             if mesh.points.is_empty() {
                 self.drifts.remove(&name);
                 all.push(bend(&mirror, flat()));
-                if !self.glass.plain {
-                    all.push(bend(FOCUS, flat()));
+                if self.glow_bend.rests(&name) {
+                    all.push(flat_glow());
                 }
                 continue;
             }
@@ -156,6 +178,7 @@ impl Construct {
             let glows = !self.glass.plain && focus.as_deref() == Some(name.as_str());
             if let Some(around) = self.effects.mesh_around(&name, reach).filter(|_| glows) {
                 all.push(bend(FOCUS, glow_mesh(&around, reach, FOCUS_SCALE)));
+                self.glow_bend.bends(&name);
             }
             self.drifts.insert(name, drift(&mesh, pane.size));
         }

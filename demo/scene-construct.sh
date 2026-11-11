@@ -67,7 +67,8 @@ pane() {
     command: >-
       exec foot --app-id=$name -o pad=$pad -o colors.background=1a1b26 -o colors.foreground=c0caf5
       -o 'font=DejaVu Sans Mono:size=9' -o cursor.blink=no
-      -e sh -c 'sleep 1.5; python3 -I $repo/demo/content.py $*; exec sleep infinity'
+      -e sh -c 'sleep 1.5; python3 -I "\$0" "\$@"; exec sleep infinity'
+      $(printf '%q ' "$repo/demo/content.py" "$@")
     at: [$at]
     yaw: $yaw
     size: [$width, $height]

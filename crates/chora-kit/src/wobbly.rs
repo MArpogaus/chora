@@ -283,16 +283,18 @@ impl Wobble {
 
     /// The drawn mesh as `mesh` gives it, for a node that reaches
     /// `margin` past the window on each side, for example its glow: the
-    /// surface goes on past the edges of the window.
+    /// surface goes on past the edges of the window. A window without a
+    /// width or a height has only its own mesh.
     #[must_use]
     pub fn mesh_around(&self, origin: [f64; 2], margin: f64) -> Mesh {
         let cells = CELLS as usize;
+        let around = margin != 0.0 && self.size.iter().all(|side| *side > 0.0);
         let along = |cell: usize, side: f64| {
             let t = cell as f64 / cells as f64;
-            if margin == 0.0 {
-                t
-            } else {
+            if around {
                 (t * (side + 2.0 * margin) - margin) / side
+            } else {
+                t
             }
         };
         let mut points = Vec::with_capacity((cells + 1) * (cells + 1));

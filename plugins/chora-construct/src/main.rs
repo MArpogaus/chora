@@ -473,6 +473,8 @@ struct Construct {
     glow: Option<PropsUpdate>,
     /// How far each pane that wobbles is from its place, for its shadow.
     drifts: HashMap<String, [f64; 2]>,
+    /// The pane whose mesh the focus glow has.
+    glow_bend: wobble::GlowBend,
     /// The wobble of the panes of own windows that the modifier drags.
     effects: effects::Driver,
     /// The cube of virtual outputs and their window manager.
@@ -562,6 +564,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         backs: std::collections::BTreeSet::new(),
         glow: None,
         drifts: HashMap::new(),
+        glow_bend: wobble::GlowBend::default(),
         effects: effects::Driver::default(),
         cube: None,
     };

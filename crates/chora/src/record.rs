@@ -218,7 +218,9 @@ impl State {
         recording.frame += 1;
         let (frame, time_ms) = (recording.frame, recording.time_ms());
         #[allow(clippy::cast_possible_truncation, reason = "seconds of a recording")]
-        crate::gl::step_clock(Some((time_ms / 1000.0) as f32));
+        {
+            self.assets.layers.clock = Some((time_ms / 1000.0) as f32);
+        }
         self.animate_by(1000.0 / f64::from(step.fps));
         Ok(json!({"frame": frame, "time_ms": time_ms}))
     }
@@ -227,7 +229,7 @@ impl State {
     pub fn recording_closed(&mut self, conn: u64) {
         if self.recording.as_ref().is_some_and(|r| r.conn == conn) {
             self.recording = None;
-            crate::gl::step_clock(None);
+            self.assets.layers.clock = None;
         }
     }
 }
@@ -241,16 +243,6 @@ mod tests {
     use serde_json::{Value, json};
 
     use crate::testing::Core;
-
-    /// The `time` of the shaders is one per process: the tests that step
-    /// it run one after the other.
-    static STEPS: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    fn one_recording() -> std::sync::MutexGuard<'static, ()> {
-        STEPS
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
 
     fn opacity(core: &mut Core, wm: &mut crate::testing::Client) -> f64 {
         let nodes = wm.ok(core, "scene.query", json!({"selector": "id:r"}));
@@ -304,7 +296,6 @@ mod tests {
 
     #[test]
     fn a_step_takes_a_frame_rate_within_its_limits() {
-        let _one = one_recording();
         let mut core = Core::with_renderer();
         let mut admin = core.admin();
         for fps in [json!(0), json!(241), json!(-30), json!("fast")] {
@@ -316,7 +307,6 @@ mod tests {
 
     #[test]
     fn an_animation_moves_by_one_frame_time_per_step_and_not_between() {
-        let _one = one_recording();
         let mut core = Core::with_renderer();
         core.add_output("test-1", (64, 48));
         let mut admin = core.admin();
@@ -338,7 +328,6 @@ mod tests {
 
     #[test]
     fn a_frame_shows_the_shader_time_of_the_steps() {
-        let _one = one_recording();
         let dir = crate::testing::scratch_dir("chora-record");
         let shader = dir.join("clock.frag");
         std::fs::write(
@@ -388,7 +377,6 @@ mod tests {
 
     #[test]
     fn the_stepped_time_belongs_to_one_core() {
-        let _one = one_recording();
         let mut recording = Core::with_renderer();
         recording.add_output("test-1", (64, 48));
         let _shown = clock_shader(&mut recording, "chora-record-a");
@@ -453,7 +441,6 @@ mod tests {
 
     #[test]
     fn the_clock_runs_again_after_the_stop_and_after_the_connection() {
-        let _one = one_recording();
         let mut core = Core::with_renderer();
         core.add_output("test-1", (64, 48));
         let mut admin = core.admin();

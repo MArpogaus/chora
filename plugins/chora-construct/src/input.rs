@@ -43,6 +43,7 @@ impl Construct {
                 }
                 self.glass.plain = true;
                 self.effects.dropped();
+                self.bends_dropped();
                 self.draw_hud()
             }
             Event::LayersDropped { nodes, .. } => {
