@@ -15,6 +15,9 @@ impl Plugin for Construct {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        let Some(event) = self.pulled(event)? else {
+            return Ok(());
+        };
         match event {
             Event::SurfaceCreated {
                 surface,

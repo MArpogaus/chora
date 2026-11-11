@@ -306,7 +306,7 @@ pub fn in_front(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: f64
 
 /// The box of a pane on the output: left, top, right, bottom; `None`
 /// when a corner lies at or behind the eye.
-fn screen_box(
+pub fn screen_box(
     lens: &Lens,
     pose: &Pose,
     at: [f64; 2],

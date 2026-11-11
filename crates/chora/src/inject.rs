@@ -117,7 +117,7 @@ impl State {
         if inject.dry_run {
             return Ok(Value::Null);
         }
-        self.last_real_button = None;
+        self.forget_real_button();
         self.run_steps(&steps);
         self.mark_injection();
         Ok(Value::Null)

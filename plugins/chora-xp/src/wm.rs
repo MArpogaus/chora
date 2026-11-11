@@ -123,6 +123,10 @@ fn move_method() -> ExportMethod {
         serde_json::json!({
             "surface": {"type": "string", "description": "The surface id of the window."},
             "output": {"type": "string", "description": "The name of the output."},
+            "at": {
+                "type": "array",
+                "description": "A point of the output for the middle of the title bar.",
+            },
         }),
         &["surface", "output"],
     ))
@@ -180,6 +184,13 @@ struct Drag {
     /// The pointer of the last move. The core reports the pointer again
     /// after each transaction, also when it did not move.
     last: [f64; 2],
+    /// The core refused to give this drag away: the window stays for the
+    /// rest of it.
+    kept: bool,
+    /// The speed of the pointer in scene pixels per second, smoothed, and
+    /// the time of its last move.
+    speed: [f64; 2],
+    moved_at: Instant,
 }
 
 /// A border of a frame that the pointer drags.
@@ -676,7 +687,11 @@ impl Wm {
                 return Ok(Value::Null);
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
-            Call::Move { surface, output } => self.move_to_output(&surface, &output)?,
+            Call::Move {
+                surface,
+                output,
+                at,
+            } => self.move_to_output(&surface, &output, at)?,
             Call::Give(give::Give { surface, to, grab }) => {
                 known(self.index(&surface).is_some(), &surface)?;
                 let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
@@ -1115,8 +1130,15 @@ impl Wm {
     }
 
     /// Moves a window to another output of the plugin, to the same place
-    /// there, as far as it fits, and raises it.
-    fn move_to_output(&mut self, surface: &str, output: &str) -> Result<Vec<Command>, RpcError> {
+    /// there, as far as it fits, and raises it. With `at`, a point of
+    /// that output, the middle of its title bar goes there instead, as
+    /// after a drop.
+    fn move_to_output(
+        &mut self,
+        surface: &str,
+        output: &str,
+        at: Option<[i32; 2]>,
+    ) -> Result<Vec<Command>, RpcError> {
         let unknown = |what: &str| RpcError::new(RpcError::REJECTED, format!("xp has no {what}"));
         let i = self.index(surface).ok_or_else(|| unknown(surface))?;
         let target = self.bars.iter().find(|b| b.output == output);
@@ -1125,6 +1147,11 @@ impl Wm {
             .bar_at(self.windows[i].rect())
             .map_or(target, Bar::usable);
         let mut commands = self.move_window(i, from, target);
+        if let Some(at) = at.filter(|_| !self.windows[i].maximized()) {
+            let [.., w, _] = self.windows[i].rect();
+            self.windows[i].pos = dropped_at(target, w, at);
+            commands.push(self.windows[i].place());
+        }
         commands.extend(self.activate(surface));
         Ok(commands)
     }
@@ -2083,6 +2110,9 @@ impl Wm {
                 start: position,
                 origin: self.windows[i].pos,
                 last: position,
+                kept: false,
+                speed: [0.0; 2],
+                moved_at: Instant::now(),
             });
             self.start_wobble(surface, position);
         }
@@ -2148,8 +2178,14 @@ impl Wm {
         if drag.last == [px, py] {
             return Vec::new();
         }
+        let now = Instant::now();
+        drag.speed = speed(drag.speed, drag.last, [px, py], now - drag.moved_at);
+        drag.moved_at = now;
         drag.last = [px, py];
         let (surface, start, origin) = (drag.surface.clone(), drag.start, drag.origin);
+        if let Some(commands) = self.pull_out(&surface, start, origin, [px, py]) {
+            return commands;
+        }
         let Some(i) = self.index(&surface) else {
             return Vec::new();
         };
@@ -2260,6 +2296,46 @@ impl Wm {
         }
         self.desk
             .release(&mut self.theme, &mut self.icons, position)
+    }
+
+    /// A drag of a title bar that leaves the face where it started gives
+    /// the window with the drag to the client that shows the face, so
+    /// that the window follows the pointer out of the cube (E3). The
+    /// commands after the give; `None` on a screen, inside the face, and
+    /// after the core refused, as it does for an injected drag: then the
+    /// window stays with chora-xp.
+    #[allow(clippy::cast_possible_truncation, reason = "scene coordinates")]
+    fn pull_out(
+        &mut self,
+        surface: &str,
+        start: [f64; 2],
+        origin: [i32; 2],
+        pointer: [f64; 2],
+    ) -> Option<Vec<Command>> {
+        if self.drag.as_ref().is_none_or(|d| d.kept) {
+            return None;
+        }
+        let pixel = |p: [f64; 2]| p.map(|v| v.floor() as i32);
+        let face = self.bars.iter().find(|b| b.contains(pixel(start)))?;
+        let to = pulled_out(face.area(), face.owner(), pixel(pointer))?.to_owned();
+        let grab = chora_scene::GivenGrab {
+            point: [
+                start[0] - f64::from(origin[0]),
+                start[1] - f64::from(origin[1]),
+            ],
+            velocity: self.drag.as_ref().map_or([0.0; 2], |d| d.speed),
+            wobble: None,
+        };
+        match self.give_dragged(surface, &to, Some(grab)) {
+            Ok((_, commands)) => Some(commands),
+            Err(err) => {
+                eprintln!("chora-xp: {surface} stays on its face: {}", err.message);
+                if let Some(drag) = &mut self.drag {
+                    drag.kept = true;
+                }
+                None
+            }
+        }
     }
 
     /// A window dragged out of the work areas of `chora-xp` goes to the
@@ -3212,6 +3288,8 @@ enum Call {
         surface: String,
         /// The name of the output.
         output: String,
+        /// The point of the output where the title bar goes.
+        at: Option<[i32; 2]>,
     },
     /// Hands a window to another window manager, like a drag out of the
     /// work areas.
@@ -3224,6 +3302,10 @@ enum Call {
 struct MoveTo {
     surface: String,
     output: String,
+    /// The point of the output where the title bar goes, as a drop of a
+    /// drag there.
+    #[serde(default)]
+    at: Option<[i32; 2]>,
 }
 
 /// Parameters of `xp.start_menu`.
@@ -3264,8 +3346,16 @@ fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
         },
         "restart" => Call::Restart,
         "window.move" => {
-            let MoveTo { surface, output } = parse(params)?;
-            Call::Move { surface, output }
+            let MoveTo {
+                surface,
+                output,
+                at,
+            } = parse(params)?;
+            Call::Move {
+                surface,
+                output,
+                at,
+            }
         }
         give::METHOD => Call::Give(parse(params)?),
         "turn_to" => {
@@ -3332,6 +3422,52 @@ fn dropped_on(frame: Rect, area: Rect, point: [i32; 2], grab: [i32; 2]) -> Optio
     (apart(0) || apart(1)).then(|| [point[0] - grab[0], point[1] - grab[1]])
 }
 
+/// The place of a frame of a width whose title bar was dropped at a point
+/// of an output with the area `area`: the middle of the title bar under
+/// the point, and at least a part of the title bar inside the area.
+fn dropped_at([ax, ay, aw, ah]: Rect, width: i32, [px, py]: [i32; 2]) -> [i32; 2] {
+    let keep = 64;
+    let x = ax + px - width / 2;
+    let y = ay + py - decoration::TITLE / 2;
+    [
+        x.clamp(ax + keep - width, ax + (aw - keep).max(0)),
+        y.clamp(ay, ay + (ah - decoration::TITLE).max(0)),
+    ]
+}
+
+/// The most speed of a drag on an axis, in pixels per second.
+const MAX_SPEED: f64 = 20_000.0;
+
+/// The speed of a drag after a move of the pointer in a time: half the
+/// speed before and half that of the move, so that one late event does
+/// not decide it. A move within a millisecond keeps the speed before.
+fn speed(before: [f64; 2], from: [f64; 2], to: [f64; 2], took: Duration) -> [f64; 2] {
+    let seconds = took.as_secs_f64();
+    if seconds < 0.001 {
+        return before;
+    }
+    [0, 1].map(|axis| {
+        let now = ((to[axis] - from[axis]) / seconds).clamp(-MAX_SPEED, MAX_SPEED);
+        f64::midpoint(before[axis], now)
+    })
+}
+
+/// How far past the edge of its face the pointer goes before a drag
+/// gives its window away, in pixels: a drag along the edge stays.
+const EXIT_MARGIN: i32 = 8;
+
+/// The client that gets a window whose drag started on a face: the owner
+/// of the virtual output, once the pointer is more than [`EXIT_MARGIN`]
+/// outside it. A screen has no owner, and a drag there gives at the
+/// release.
+fn pulled_out(face: Rect, owner: Option<&str>, [px, py]: [i32; 2]) -> Option<&str> {
+    let [left, top, w, h] = face;
+    let across = left - EXIT_MARGIN..left + w + EXIT_MARGIN;
+    let down = top - EXIT_MARGIN..top + h + EXIT_MARGIN;
+    let near = across.contains(&px) && down.contains(&py);
+    owner.filter(|_| !near)
+}
+
 fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
     let keep = 64;
     [
@@ -3343,6 +3479,51 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A window that comes back from the space lands with the middle of
+    /// its title bar at the drop point, and never wholly off its output.
+    #[test]
+    fn a_dropped_window_has_its_title_bar_under_the_drop_point() {
+        let area = [-262_144, -262_144, 1280, 770];
+        let title = decoration::TITLE;
+        let at = dropped_at(area, 228, [700, 400]);
+        assert_eq!(at, [-262_144 + 586, -262_144 + 400 - title / 2]);
+        let corner = dropped_at(area, 228, [-500, -500]);
+        assert_eq!(corner, [-262_144 + 64 - 228, -262_144]);
+        let far = dropped_at(area, 228, [5000, 5000]);
+        assert_eq!(far, [-262_144 + 1280 - 64, -262_144 + 770 - title]);
+    }
+
+    /// The drag that goes with a window carries the speed of the pointer:
+    /// smoothed over the moves, kept through a burst, and capped.
+    #[test]
+    fn a_drag_knows_the_speed_of_its_pointer() {
+        let ms = Duration::from_millis;
+        let first = speed([0.0; 2], [100.0, 100.0], [110.0, 100.0], ms(10));
+        assert_eq!(first, [500.0, 0.0], "half of 1000 px/s after rest");
+        let second = speed(first, [110.0, 100.0], [120.0, 95.0], ms(10));
+        assert_eq!(second, [750.0, -250.0]);
+        assert_eq!(speed(second, [0.0; 2], [50.0, 0.0], ms(0)), second);
+        let jump = speed([0.0; 2], [0.0; 2], [1e9, 0.0], ms(10));
+        assert_eq!(jump, [MAX_SPEED / 2.0, 0.0]);
+    }
+
+    /// E3: a drag that leaves its face gives the window to the client
+    /// that shows the face; on a screen and inside the face nothing goes.
+    #[test]
+    fn a_drag_out_of_a_face_goes_to_the_owner_of_the_face() {
+        let face = [-262_144, -262_144, 800, 600];
+        let construct = Some("construct");
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_000]), None);
+        assert_eq!(pulled_out(face, construct, [-261_344, -262_000]), None);
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_145]), None);
+        let past = EXIT_MARGIN + 1;
+        let right = [-261_344 + past, -262_000];
+        assert_eq!(pulled_out(face, construct, right), construct, "the margin");
+        let above = [-262_000, -262_144 - past];
+        assert_eq!(pulled_out(face, construct, above), construct, "the margin");
+        assert_eq!(pulled_out([0, 0, 800, 600], None, [900, 100]), None);
+    }
 
     #[test]
     fn every_exported_method_parses_its_parameters() {

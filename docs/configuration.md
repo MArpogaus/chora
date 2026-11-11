@@ -1671,7 +1671,7 @@ caller on a client socket needs `methods.privileged` besides
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button; nothing while all outputs are virtual ones |
-| `window.move` | `surface`, and `output`: the name of an output that `chora-xp` manages | privileged. A drag of the title bar onto that output: the window goes to the same place there, as far as it fits, and is raised and focused; an unknown surface or output fails with code 1 |
+| `window.move` | `surface`, `output`: the name of an output that `chora-xp` manages, and optionally `at`: a point of that output | privileged. A drag of the title bar onto that output: with `at` the middle of the title bar goes to that point, as after a drop there; else the window goes to the same place there, as far as it fits. The window is raised and focused; an unknown surface or output fails with code 1 |
 | `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 

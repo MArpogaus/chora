@@ -355,6 +355,24 @@ impl State {
         self.press_via = Some(Press { pane, held });
     }
 
+    /// Lets the press go on at the screen for the client `to`, when the
+    /// pane that the press came through is a node of `to`: a drag that
+    /// the owner of a pane takes out of it (`give_grab`) goes on at the
+    /// point under the pointer. A drag that goes to any other client
+    /// stays behind the pane.
+    pub fn unpin_press(&mut self, to: &str) {
+        let owned = |pane: &String| {
+            let owner = self.scene.node(pane).and_then(|node| node.owner.as_deref());
+            owner == Some(to)
+        };
+        let Some(press) = &mut self.press_via else {
+            return;
+        };
+        if press.pane.as_ref().is_some_and(owned) {
+            press.pane = None;
+        }
+    }
+
     /// Notes a held button that went up. The last one ends the press,
     /// before its release is told, so that the release carries the point
     /// under the pointer. Returns whether a press through a pane ended.
