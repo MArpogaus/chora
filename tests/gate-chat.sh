@@ -74,8 +74,8 @@ run_folder() {
     "$bin/chora-assistant" >"$out/assistant.log" 2>&1 &
     pids+=($!)
     emit() { echo "$1 $2" >&3; }
-    ctl wait id:hud-row-chat --timeout 20 >/dev/null || fail "$folder: no Chat row"
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
+    ctl wait id:hud-figure --timeout 20 >/dev/null || fail "$folder: no figure"
     emit voice.state '{"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 5}'
     sleep 1
     ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "$folder: chat.show failed"

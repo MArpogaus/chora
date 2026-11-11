@@ -316,7 +316,9 @@ impl Agent {
         }
     }
 
-    fn chat_row(&mut self) -> Result<(), ClientError> {
+    /// A click on the "Chat ..." row, or on a figure that opens the chat:
+    /// the list.
+    pub fn chat_row(&mut self) -> Result<(), ClientError> {
         let Some(frame) = self.chat_frame()? else {
             return Ok(());
         };
@@ -407,7 +409,8 @@ impl Agent {
 
     /// The "Chat ..." row and one row for each helper, drawn again on the
     /// output of the focus. The rows stack away from the edge of their
-    /// anchor, the "Chat ..." row first.
+    /// anchor, the "Chat ..." row first; a figure that opens the chat
+    /// stands in for that row.
     pub fn sync_row(&mut self) -> Result<Vec<Command>, ClientError> {
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
@@ -427,6 +430,7 @@ impl Agent {
             props: PropsUpdate::default(),
         });
         let lines = self.row_lines();
+        self.chat_row = None;
         let (anchor, margin) = self.values.rows;
         let area = assistant::work_area(&output);
         let step = LINE + GAP * 3;
@@ -439,7 +443,7 @@ impl Agent {
             let [x, y] = origin(anchor, area, size, margin);
             let away = if up { -index * step } else { index * step };
             let at = [x, y + away];
-            if index == 0 {
+            if id == ROW {
                 self.chat_row = Some([at[0], at[1], size[0], size[1]]);
             }
             commands.push(create(
@@ -464,7 +468,8 @@ impl Agent {
     fn row_lines(&self) -> Vec<(String, String, Vec<Tinted>)> {
         let (most, tints) = self.values.helpers;
         let label = Word::ChatRow.text(self.language).to_owned();
-        let chat = (ROW.to_owned(), label.clone(), vec![(label, None)]);
+        let chat =
+            (!self.values.chats).then(|| (ROW.to_owned(), label.clone(), vec![(label, None)]));
         let helpers = rows::rows(self.language, &self.helpers, most);
         let helpers = helpers.into_iter().map(|row| {
             let text = row.text();
@@ -476,7 +481,7 @@ impl Agent {
             let shown = words.into_iter().filter(|(word, _)| !word.is_empty());
             (row.id, text, shown.collect())
         });
-        std::iter::once(chat).chain(helpers).collect()
+        chat.into_iter().chain(helpers).collect()
     }
 
     /// The picture of a row: its words, each in its colour or in the text
