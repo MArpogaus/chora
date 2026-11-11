@@ -341,9 +341,19 @@ Several window managers share the scene (D55). A window manager sets
 a toplevel, the core reserves it for one window manager:
 
 1. the owner of its parent toplevel, for a dialog;
-2. else the owner of the node or surface with the keyboard focus, if it
+2. else the window manager that a click of the user chose, if it holds
+   a claim;
+3. else the owner of the node or surface with the keyboard focus, if it
    holds a claim;
-3. else the owner of the smallest claim that contains the pointer.
+4. else the owner of the smallest claim that contains the pointer.
+
+A press of a real pointer button on a point of a claim with no window
+under it chooses the owner of the smallest such claim, unless that one
+has the keyboard focus anyway: who clicks the empty screen of another
+window manager gets the next new windows there. The choice ends with
+the next press of the user that chooses nobody, and when the keyboard
+focus changes, for example when the chosen manager focuses its new
+window. An injected press neither chooses nor ends a choice.
 
 Only clients with a connection or in their grace time count. Only the
 chosen client can attach the surface, and `surface.created` names it in
@@ -501,16 +511,18 @@ to the owner of that output, the client that shows it as a pane. When
 the core refuses, as for an injected drag, the window stays with
 `chora-xp` for the rest of the drag.
 
-A gate has no real pointer. The flag `--test-injected-drag-gives` of
+A gate has no real pointer. The flag `--test-injected-press-is-real` of
 the core, valid only right after `--headless SPECS`, makes an injected
-button press count as a button press of the user for `give_grab`, and
-for nothing else. It also turns off the rule that no input was injected
+button press count as a button press of the user for `give_grab` and
+for the choice of the window manager of a new window (see
+[Window managers](#window-managers)), and for nothing else. It also turns off the rule that no input was injected
 since the press, as every input of a gate is injected. The core logs a
 warning at its start, and no child inherits the mode, as it is no
 variable of the environment. It is for tests.
 `tests/gate-construct-pull.sh` pulls a window out of a face of the cube
 with it, and checks without it that the core refuses the give of an
-injected drag.
+injected drag. `tests/gate-click-routes.sh` checks both for the click
+that chooses a window manager.
 
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for

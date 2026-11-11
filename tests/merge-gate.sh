@@ -4,7 +4,8 @@
 # its whole output in its own log, and stops at the first step that failed.
 #
 # Steps: build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# last-words, cube, pull. `virtual` hands a window over between window
+# last-words, cube, pull. `matrix` ends with the click that chooses a
+# window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
 # construct; `pull` drags a window out of a face of that cube and back.
@@ -62,7 +63,7 @@ test|cargo test --workspace
 clippy|cargo clippy --workspace --all-targets -- -D warnings
 2d-guard|tests/2d-guard.sh 8742dee
 xp|tests/xp.sh "$repo/target/debug"
-matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh
+matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh
 virtual|BIN=$repo/target/debug tests/gate-handover-virtual.sh
 xp-faces|BIN=$repo/target/debug tests/gate-xp-faces.sh
 hud|BIN=$repo/target/debug tests/gate-hud.sh

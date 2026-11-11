@@ -21,7 +21,7 @@
 #   CHORA_TEST_ACCEPT_INJECTED_KEYS  1 by default here: the window managers
 #              of the session take the keys of `input.inject`
 #   CHORA_TEST_FLAGS  flags of chora after `--headless OUTPUTS`, for tests,
-#              for example --test-injected-drag-gives; the core and its
+#              for example --test-injected-press-is-real; the core and its
 #              programs do not get the variable
 set -euo pipefail
 
