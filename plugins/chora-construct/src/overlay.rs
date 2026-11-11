@@ -754,6 +754,7 @@ impl Construct {
                 (&manager, &format!("· {words}")),
                 (front, faces),
                 at,
+                &[],
             )
         })
     }

@@ -36,6 +36,7 @@ mod camera;
 mod command;
 mod config;
 mod cube;
+mod faces;
 mod file;
 mod float;
 mod frame;

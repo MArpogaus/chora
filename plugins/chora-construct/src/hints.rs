@@ -100,6 +100,14 @@ pub fn terminal_word(_language: chora_kit::words::Language) -> &'static str {
     "Terminal"
 }
 
+/// The word of the middle hint of the cube: `Step in`, or `Try again`
+/// while the face ahead failed to start.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn middle_word(language: chora_kit::words::Language, _failed: bool) -> String {
+    chora_kit::words::Word::StepIn.text(language).to_owned()
+}
+
 /// One hint: the caps of its key, its word, the keys after the word, the
 /// node that takes its click, and that node is a chip that exists.
 pub struct Item {
@@ -272,6 +280,7 @@ pub fn face_label(
     (manager, words): (&str, &str),
     (front, faces): (usize, usize),
     [centre, bottom]: [f64; 2],
+    _hollow: &[bool],
 ) -> Vec<Command> {
     let m = &look.glass;
     let (name_role, words_role) = (face(Type::Small, 500), face(Type::Small, 400));
@@ -410,7 +419,13 @@ mod tests {
             glass: Material::of(true),
             metrics: &metrics,
         };
-        let commands = face_label(&look, ("xp", "face 1 of 4"), (0, 4), [640.0, 592.0]);
+        let commands = face_label(
+            &look,
+            ("xp", "face 1 of 4"),
+            (0, 4),
+            [640.0, 592.0],
+            &[false; 4],
+        );
         let created = |id: &str| {
             commands.iter().find_map(|c| match c {
                 Command::Create { id: i, props, .. } if i == id => Some(props.clone()),
@@ -443,5 +458,47 @@ mod tests {
             .collect();
         assert_eq!(dots[0], look.glass.accent);
         assert_ne!(dots[1], look.glass.accent);
+    }
+
+    #[test]
+    fn a_failed_face_has_a_hollow_dot_and_its_own_words() {
+        use chora_kit::words::Language;
+        assert_eq!(middle_word(Language::En, false), "Step in");
+        assert_eq!(middle_word(Language::En, true), "Try again");
+        assert_eq!(middle_word(Language::De, true), "Erneut versuchen");
+        let config: Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: Material::of(false),
+            metrics: &metrics,
+        };
+        let hollow = [false, false, true, false];
+        let commands = face_label(
+            &look,
+            ("Media center", "\u{b7} did not start"),
+            (2, 4),
+            [640.0, 592.0],
+            &hollow,
+        );
+        let dot = |k: usize| {
+            commands.iter().find_map(|c| match c {
+                Command::Create { id, props, .. } if *id == format!("{FACE_LABEL}-dot-{k}") => {
+                    Some(props.clone())
+                }
+                _ => None,
+            })
+        };
+        let ring = dot(2).expect("the dot of the failed face");
+        assert_eq!(ring.color, Some([0.0; 4]), "no fill");
+        assert!(ring.border.flatten().is_some(), "a ring instead");
+        assert!(
+            dot(0).unwrap().border.is_none(),
+            "a face that works is filled"
+        );
     }
 }

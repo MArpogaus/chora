@@ -11,6 +11,13 @@ fn program(command: &str) -> &str {
     first.rsplit('/').next().unwrap_or_default()
 }
 
+/// The program of a command line, without its path.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn program_of(command: &str) -> &str {
+    program(command)
+}
+
 /// A name with its first letter in capitals.
 fn capitalised(name: &str) -> String {
     let mut chars = name.chars();
@@ -67,6 +74,14 @@ pub fn manager_name(manager: &str) -> String {
         "mc" => "Media center".to_owned(),
         other => capitalised(other),
     }
+}
+
+/// The display name of the window manager that a command line starts:
+/// its program without the path and without the prefix `chora-`.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn cube_manager_name(command: &str) -> String {
+    manager_name(command)
 }
 
 /// The error of the core without the index of its command before it and
@@ -159,6 +174,15 @@ mod tests {
         assert_eq!(manager_name("mc"), "Media center");
         assert_eq!(manager_name("construct"), "Construct");
         assert_eq!(manager_name("other"), "Other");
+    }
+
+    #[test]
+    fn the_manager_of_the_cube_is_named_by_its_program() {
+        assert_eq!(cube_manager_name("chora-mc"), "Media center");
+        assert_eq!(cube_manager_name("chora-xp --fast"), "XP");
+        assert_eq!(cube_manager_name("/usr/bin/chora-tiling"), "Tiling");
+        assert_eq!(cube_manager_name("sleep 60"), "Sleep");
+        assert_eq!(program_of(" /opt/chora-mc  --x"), "chora-mc");
     }
 
     #[test]

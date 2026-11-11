@@ -436,12 +436,95 @@ ok "the probe window is not lost: $(probe)"
 call settings.set '{"cube_manager": "sleep 60"}' >/dev/null || fail "settings.set cube_manager"
 call cube.open '{}' >/dev/null || fail "cube.open with a manager that never connects"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs for the waiting cube"
-until_ok 'test -z "$(virtuals)"' 80 || fail "the outputs of a manager that never connected stay: $(virtuals)"
-ok "the outputs of a window manager that never connected went after the wait"
+until_ok 'prop construct-face-card-head text | grep -q "^Sleep did not start"' 40 || fail "a manager that never connected says nothing on its face: $(prop construct-face-card-head text)"
+prop construct-face-card-reason text | grep -q "did not connect within 5 s" || fail "the card gives no reason: $(prop construct-face-card-reason text)"
+[ "$(virtuals | wc -w)" = 4 ] || fail "the outputs went with the manager that never connected: $(virtuals)"
+ok "a window manager that never connected: the face says it did not start, with the reason, and the outputs stay"
+call cube.close >/dev/null || fail "cube.close after a manager that never connected"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
 call cube.open '{}' >/dev/null || fail "cube.open again"
 call cube.close >/dev/null || fail "cube.close"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
 ok "cube.close removed the cube and its outputs"
+quick() {
+    for _ in $(seq 100); do
+        eval "$1" && return 0
+        sleep 0.02
+    done
+    return 1
+}
+now_ms() { echo $(($(date +%s%N) / 1000000)); }
+lit_frame() {
+    ctl capture "$1" >/dev/null || return 1
+    python3 -I - "$1" <<'PYEND'
+import sys
+from PIL import Image
+image = Image.open(sys.argv[1]).convert("RGB")
+w, h = image.size
+points = [(w // 16, h // 16), (w // 16, h - h // 16), (w - w // 16, h // 16), (w - w // 16, h - h // 16), (w // 8, h // 2)]
+dark = [p for p in points if sum(image.getpixel(p)) < 90]
+sys.exit(1 if len(dark) >= 3 else 0)
+PYEND
+}
+surfaces_before=$(ctl query kind:surface | jq length)
+starts=$work/mc-starts
+: >"$starts"
+cat >"$work/chora-mc" <<SH
+#!/bin/sh
+echo start >>"$starts"
+if [ "\$(wc -l <"$starts")" -ge 3 ]; then exec "$bin/chora-xp" "\$@"; fi
+echo "it needs foot 1.26 or later." >&2
+sleep 2
+exit 1
+SH
+chmod +x "$work/chora-mc"
+call settings.set "{\"cube_manager\": \"$work/chora-mc\", \"theme\": \"light\"}" >/dev/null || fail "settings.set cube_manager to a manager that fails"
+started=$(now_ms)
+call cube.open '{}' >/dev/null || fail "cube.open with a manager that fails"
+quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' || fail "no card Starting Media center on the face: $(prop construct-face-card-head text)"
+shown_in=$(($(now_ms) - started))
+[ "$shown_in" -le 300 ] || fail "the card Starting Media center took $shown_in ms, more than 300"
+ok "a face whose manager starts shows Starting Media center within 300 ms ($shown_in ms)"
+lit_frame "$work/starting.png" || fail "a black frame while the manager starts"
+[ -z "${STARTING_SHOT:-}" ] || cp "$work/starting.png" "$STARTING_SHOT"
+for _ in $(seq 12); do
+    lit_frame "$work/clip.png" || fail "a black frame while the manager starts or fails"
+    sleep 0.2
+done
+until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the face never says it did not start: $(prop construct-face-card-head text)"
+prop construct-face-card-reason text | grep -q "^chora-mc stopped after 2 s: it needs foot 1.26 or later\.$" || fail "the reason on the card: $(prop construct-face-card-reason text)"
+lit_frame "$work/failed.png" || fail "a black frame once the manager failed"
+ok "a manager that exits: the card says Media center did not start, with the reason, and no frame is black"
+call view.step_back >/dev/null || fail "view.step_back with a failed face"
+until_ok "$stood_back" 20 || fail "no step back with a failed face"
+until_ok 'prop construct-face-label-words text | grep -q "did not start"' 20 || fail "the face label does not say did not start: $(prop construct-face-label-words text)"
+[ "$(prop construct-face-label-name text)" = "Media center" ] || fail "the face label names $(prop construct-face-label-name text)"
+[ "$(prop construct-face-label-dot-0 color)" = "[0.0, 0.0, 0.0, 0.0]" ] || fail "the dot of the failed face is not hollow: $(prop construct-face-label-dot-0 color)"
+until_ok 'prop construct-mode-step-in-text text | grep -q "Try again"' 20 || fail "the middle hint does not say Try again: $(prop construct-mode-step-in-text text)"
+[ -z "${FAILED_SHOT:-}" ] || ctl capture "$FAILED_SHOT" >/dev/null
+ok "stood back, the label says did not start, its dot is hollow and the middle hint says Try again"
+plain Return
+until_ok 'test "$(wc -l <"$starts")" = 2' 20 || fail "Return did not start the manager again: $(wc -l <"$starts") starts"
+quick 'prop construct-face-card-head text | grep -q "^Starting Media center$"' || fail "no card Starting after Return: $(prop construct-face-card-head text)"
+until_ok 'prop construct-face-card-head text | grep -q "^Media center did not start\.$"' 40 || fail "the second start did not fail on the face: $(prop construct-face-card-head text)"
+ok "Return tries again, and the second failure shows on the face again"
+call view.step_in >/dev/null || fail "view.step_in with a failed face"
+until_ok "$stepped_in" 20 || fail "no step in with a failed face"
+sleep 0.5
+inject '[{"pointer_move": {"position": [300, 200]}}, {"click": {}}]'
+until_ok 'test "$(wc -l <"$starts")" = 3' 20 || fail "a click on the face did not start the manager again: $(wc -l <"$starts") starts"
+until_ok 'test "$(bars)" = 4' 80 || fail "no xp taskbars after the third start: $(bars)"
+until_ok 'test "$(prop construct-face-card opacity)" = 0.0 || test "$(prop construct-face-card visible)" = gone' 20 || fail "the card stays after the manager came up: $(prop construct-face-card opacity)"
+ok "a click on a failed face tries again, and the face works when the manager is up"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape does not step back after the retry"
+plain Return
+until_ok "$stepped_in" 20 || fail "Return does not step in after the retry"
+ok "after the retry the keys of the cube work again"
+call cube.close >/dev/null || fail "cube.close after the retry"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
+[ "$(ctl query kind:surface | jq length)" = "$surfaces_before" ] || fail "a window is lost or left: $surfaces_before surfaces before, $(ctl query kind:surface | jq length) after"
+ok "window audit: no window lost or left by the failed faces"
 call settings.set '{"cube_manager": "chora-xp"}' >/dev/null || fail "settings.set cube_manager back"
 key Super+c
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "Super+C opened no cube: $(virtuals)"
