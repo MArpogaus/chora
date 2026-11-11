@@ -1089,3 +1089,29 @@ with least surprise (POLS). The loop removes before it adds: every
 control, word and effect must earn its place; anything surprising is a
 finding. Only when the loop's findings are fixed and the state is clean
 do feature sprints start again.
+
+## Rules of the 11-11 reflection (reflections/2026-11-11-opus-judge.md)
+
+These rules take precedence over older text in this charter.
+1. Lanes are cut by area and file, not by symptom: one worker per area
+   (core; construct and cube; HUD, chat and voice; xp and tiling). A
+   finding goes to the worker of its area. docs/api.md and
+   docs/configuration.md get one section per area.
+2. Merge train: workers gate with `merge-gate.sh --fast` (build, test,
+   clippy, the area's own gates); the PM runs the full gate on a train
+   of up to 3 reviewed lanes; merge-gate.sh takes a lock so two gates
+   never overlap.
+3. Red first is checked at merge: a lane without a red commit for its
+   fix is sent back, unless the brief says why no test fits.
+4. Recurring findings get gate cells: a window audit at the end of every
+   gate script; a real-press cell and a keyboard-after-the-act cell for
+   every new act; an honest-state item in every done list.
+5. One review and one fix round per lane; HIGH findings are re-checked
+   on the fix diff only; MEDIUM and LOW findings that are not security go
+   to the backlog or the known-issues list with a reason.
+6. At a 5-hour stop the PM schedules a send_later at the reset time.
+7. Every reflection gets a written answer in answers.md within a day;
+   state.md is updated at each merge train.
+8. Dead weight dropped (kept in history, not followed): the calendar and
+   pitch tournament, track shares, the ledger and tokens.py, the planned
+   fresh-session switch.

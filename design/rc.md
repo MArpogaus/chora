@@ -64,3 +64,12 @@ conflicts, flakes, worker handoffs, the 5-hour pacing); I add my own
 critique; the user's readings and decisions are the yardstick. Output:
 reflections/2026-11-rc.md, a charter diff (rules added, rules removed),
 dev-rules and brief templates updated, and the plan of the next days.
+
+## After the 11-11 reflection
+
+- CI and packaging move up: a draft pull request (CI) and a release dry
+  run start on 11-12, beside the code review, not last.
+- Flakes F5-F8 first, or three greens in a row will not hold.
+- Scope: fix every HIGH and every security MEDIUM; other MEDIUM findings
+  go to the known-issues list with a reason.
+- Estimate: rc on Wed 11-18 (range 11-17 to 11-20).

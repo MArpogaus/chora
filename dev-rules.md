@@ -37,3 +37,11 @@
   work in progress to your branch at least every hour, through the hooks.
 - **Report.** At most 25 lines: the commits, the red and green evidence,
   what you left open, and any deviation from the spec with the reason.
+
+- **11-11 additions.** Gate your branch with `tests/merge-gate.sh --fast`
+  once it exists (until then the full gate), and never while another gate
+  runs (`pgrep -f tests/merge-gate.sh`). A fix without a red commit is
+  sent back. Every new act gets a real-press cell and a
+  keyboard-after-the-act cell; every gate script ends with a window
+  audit (no window lost). Every refusal or failure shows an honest state
+  to the person, never only a log line. Never `--no-verify`.

@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~18:40: PM answer to reflections/2026-11-11-opus-judge.md: all five top changes adopted (charter section "Rules of the 11-11 reflection", dev-rules, rc.md); the 11-10 judge is answered by the same rules (lanes, red first, review cap).
 - 11-11 ~17:20 Bangkok: "You may release when all clean. Review code for simplicity and readability." Recorded in design/rc.md: the PM opens the CI pull request and tags and publishes the rc once all criteria hold.
 - 11-11 ~17:10 Bangkok: Fable 7 %, all 54 %. "After ui ux clean. Finalize foundational work and review code until ready for rc release before feat sprints." Agreed; plan in design/rc.md.
 - 11-11 ~13:40 Bangkok: Fable 5 %, all 43 % (after the Fable reset). The running Fable lanes finish; no new Fable lanes this week. Remaining week on opus/sonnet: there is room (57 %) for steady opus work until Saturday, paced by the 5-hour limit.
