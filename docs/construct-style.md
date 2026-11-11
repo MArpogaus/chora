@@ -201,8 +201,10 @@ mockups rendered over real captures.
     The conversation lives in the right column: the island expands
     into the chat in place, and the question card sits under the
     island and keeps its place when the chat opens. Commands sit in the
-    centre over a light scrim: the window list and the help, each with
-    a search line that filters as the person types.
+    centre over a scrim of 0.48 (light) or 0.56 (dark) alpha, on a strong
+    tint of 0.92 so that nothing of the space reads through: the window
+    list and the help, each with a search line that filters as the
+    person types. Pane labels hide while one of them shows.
 23. **Four sizes.** `label` 11, `small` 14 for keys and the pane label,
     `data` 14 in DejaVu Sans Mono, `text` 16, and `display` 24 only for
     the search line of the window list and the help.

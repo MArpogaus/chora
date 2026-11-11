@@ -58,6 +58,22 @@ pub struct ListModel<'a> {
     pub thumb_shader: Option<&'a str>,
 }
 
+/// The tint of a command surface: nothing of the space reads through.
+const COMMAND_TINT: f64 = 0.92;
+/// The alpha of the scrim behind a command surface, light and dark.
+const SCRIM_LIGHT: f64 = 0.48;
+const SCRIM_DARK: f64 = 0.56;
+
+/// The glass of a command surface (polish 4): the strong tint at 0.92
+/// over a scrim of 0.48 light or 0.56 dark.
+fn command_glass(look: &Look) -> chora_kit::glass::Material {
+    let mut m = look.glass;
+    let dark = m.tint[0] < 0.5;
+    m.strong[3] = COMMAND_TINT;
+    m.scrim[3] = if dark { SCRIM_DARK } else { SCRIM_LIGHT };
+    m
+}
+
 /// The scrim over the whole output, which lets a click through to the
 /// space behind it, where it closes the surface.
 #[must_use]
@@ -67,7 +83,7 @@ pub fn scrim(look: &Look, (id, parent): (&str, &str), out: [f64; 2]) -> Command 
         parent,
         [0.0, 0.0, out[0], out[1]],
         0.0,
-        look.glass.scrim,
+        command_glass(look).scrim,
     );
     if let Command::Create { props, .. } = &mut scrim {
         props.meta = Some([("surface".into(), "backdrop".into())].into());
@@ -214,7 +230,7 @@ fn footer(
 /// the group `parent` of the list.
 #[must_use]
 pub fn list(look: &Look, model: &ListModel<'_>, parent: &str, out: [f64; 2]) -> Vec<Command> {
-    let m = &look.glass;
+    let m = &command_glass(look);
     let rows = model.rows.len().max(1);
     #[allow(clippy::cast_precision_loss, reason = "a dozen rows")]
     let rows_h = rows as f64 * ROW + (rows - 1) as f64 * 2.0;
@@ -470,7 +486,7 @@ pub fn help(
     (id, parent): (&str, &str),
     out: [f64; 2],
 ) -> Vec<Command> {
-    let m = &look.glass;
+    let m = &command_glass(look);
     let narrow = !model.query.is_empty();
     let w = if narrow { HELP_NARROW } else { HELP_WIDE }.min(out[0] - 2.0 * UNIT);
     let shown = found(model.groups, model.query);

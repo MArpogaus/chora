@@ -193,6 +193,23 @@ audit() {
     fi
 }
 
+help_contrast() {
+    local tag=$1 scale=1 x y cw ch ratio
+    [[ $2 == *@* ]] && scale=${2#*@}
+    read -r x y cw ch < <(rect_of construct-help-body-head-0)
+    ratio=$(python3 -I "$repo/tests/png-contrast.py" "$shots/layout-help-$tag.png" \
+        "$(awk -v v="$x" -v s="$scale" 'BEGIN { printf "%d", v * s }')" \
+        "$(awk -v v="$y" -v s="$scale" 'BEGIN { printf "%d", v * s }')" \
+        "$(awk -v v="$cw" -v s="$scale" 'BEGIN { printf "%d", v * s + 1 }')" \
+        "$(awk -v v="$ch" -v s="$scale" 'BEGIN { printf "%d", v * s + 1 }')" | cut -d' ' -f1)
+    if awk -v r="${ratio:-0}" 'BEGIN { exit !(r >= 4.5) }'; then
+        ok "$tag: the muted text of the help has contrast $ratio over the sunset"
+    else
+        echo "FAIL: $tag: the muted text of the help has contrast ${ratio:-none}, not 4.5"
+        failed=1
+    fi
+}
+
 first_floor() {
     local tag=$1 scale=1 w=${2%x*} h=${2#*x} x y cw ch
     [[ $2 == *@* ]] && scale=${2#*@}
@@ -458,6 +475,7 @@ SCRIPT
     key F1
     sleep 0.6
     audit help "$tag"
+    help_contrast "$tag" "$size"
     typed pane
     audit help-search "$tag"
     key Escape
