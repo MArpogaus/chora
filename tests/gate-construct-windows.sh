@@ -87,7 +87,7 @@ open_at() {
     local row
     row=$(call window.list | python3 -I -c "
 import json, sys
-rows = [w['name'] for w in json.load(sys.stdin)['windows'] if w['pane'] != 'shown']
+rows = [w['name'] for w in json.load(sys.stdin)['windows']]
 print(rows.index('$1'))") || fail "$1 is not in the window list"
     key Tab
     ctl wait --timeout 5 "id:construct-list meta:state=open" >/dev/null || fail "Tab opened no list"

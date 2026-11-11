@@ -51,7 +51,7 @@ impl Construct {
                 let none = if giving {
                     "no other window manager runs"
                 } else {
-                    "every window shows"
+                    "no windows"
                 };
                 commands.extend(look.row(&format!("{LIST_ROW}none"), top, none, "", false));
             }

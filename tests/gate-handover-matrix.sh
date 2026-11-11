@@ -312,7 +312,7 @@ construct_key() {
     ctl call construct pane.move "{\"name\": \"probe\", \"ahead\": -6000}" >/dev/null 2>&1
     sleep 0.5
     row=$(ctl call construct window.list 2>/dev/null |
-        jq -r '[.windows[] | select(.pane != "shown") | .name] | index("probe") // 0')
+        jq -r '[.windows[] | .name] | index("probe") // 0')
     key Tab
     ctl wait --timeout 3 "id:construct-list meta:state=open" >/dev/null 2>&1 || return 0
     for _ in $(seq "$row"); do key Down; done

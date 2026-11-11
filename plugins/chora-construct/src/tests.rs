@@ -1,7 +1,7 @@
 //! Unit tests of the construct plugin.
 
 use super::*;
-use crate::{adopt::*, camera::*, input::keys_walk_due};
+use crate::{adopt::*, camera::*, input::keys_walk_due, list::row_of};
 
 /// `x` and Return act on a pane that shows, not on one beyond the
 /// depth of the view (review 2.5).
@@ -309,4 +309,24 @@ fn a_manager_pane_without_its_manager_goes_with_a_reason() {
     assert_eq!(wm::unknown_manager(&managers, "xp"), None);
     let reason = wm::unknown_manager(&managers, "twm").expect("a reason");
     assert!(reason.contains("twm"), "{reason}");
+}
+
+/// The window list names each window, and marks only a window that is
+/// not in view; it never names an owner or an internal place.
+#[test]
+fn the_window_list_names_the_windows_in_plain_words() {
+    let entry = |pane| Entry {
+        name: "foot-2".into(),
+        surface: "s2".into(),
+        owner: Some("construct".into()),
+        pane,
+        size: None,
+    };
+    let shown = row_of(entry("shown"));
+    assert_eq!((shown.label.as_str(), shown.note.as_str()), ("foot-2", ""));
+    for pane in ["behind", "far", "aside", "covered", "none"] {
+        let row = row_of(entry(pane));
+        assert_eq!(row.label, "foot-2");
+        assert_eq!(row.note, "not in view", "{pane}");
+    }
 }
