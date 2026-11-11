@@ -60,7 +60,7 @@ pub fn problems(dir: &Path) -> Vec<String> {
         }
     }
     if let Some(hud) = &hud {
-        errors.extend(hud.chat.contrast_errors(&host_chat()));
+        errors.extend(hud.contrast_errors(&host_chat()));
     }
     errors
 }
@@ -88,6 +88,7 @@ fn picture_files(hud: &Hud) -> Vec<String> {
         .iter()
         .filter_map(|panel| panel.picture.as_deref())
         .filter_map(|picture| picture.split('#').next())
+        .chain(hud.figure.as_deref())
         .map(str::to_owned)
         .collect();
     files.sort();

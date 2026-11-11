@@ -19,7 +19,7 @@ use chora_kit::{
 };
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
-use super::{Colours, Frame, Mode, Session, colours, rgba, view_rect};
+use super::{Colours, Frame, Mode, Session, colours, rgba};
 
 /// The group of the view under `screen:OUTPUT`.
 pub const VIEW: &str = "hud-chat-view";
@@ -61,8 +61,7 @@ pub fn refuses_injected(node: &str) -> bool {
 /// field and against its right edge.
 #[must_use]
 pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
-    let (anchor, width) = frame.look.place();
-    let [x, y, w, h] = view_rect(anchor, width, frame.area);
+    let [x, y, w, h] = frame.rect();
     let [ax, ay, aw, ah] = frame.area;
     let left = x + w - size[0];
     let top = y + h - FIELD_ROOM - LINE - 2 * GAP - size[1];
@@ -199,8 +198,7 @@ fn measured(theme: &Theme) -> impl Fn(char) -> f32 + '_ {
 impl Session {
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
-        let (anchor, width) = frame.look.place();
-        let rect = view_rect(anchor, width, frame.area);
+        let rect = frame.rect();
         let width_of = measured(theme);
         let measure = Measure {
             max: f32::from(u16::try_from(rect[2] - 2 * PAD).unwrap_or(0)),

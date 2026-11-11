@@ -9,8 +9,8 @@ that helper. The chat is a glass panel at the right, 480 pixels wide, in
 Inter 16: the fill is the light glass over a black pane (#F0EDEA), the text
 is `text`, the names of the speakers are `muted`, and the edge is `edge`
 on that glass. The glow of construct is a shader and has no place in a
-folder. The block `chat:` has no margin, so the panel touches the edges
-of the work area instead of keeping 32 from them.
+folder. With `margin: 32` the panel keeps 32 pixels from the edges of the
+work area.
 
 construct uses this folder with `voice_hud: host` in
 `chora-construct.yaml`: construct then draws no voice HUD and no question

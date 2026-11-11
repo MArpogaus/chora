@@ -52,6 +52,69 @@ pub struct Frame {
     pub area: [i32; 4],
     /// The `chat:` values of the folder that draws.
     pub look: Look,
+    /// The box that the client of `chat.slot` announced on this output.
+    pub slot: Option<[i32; 4]>,
+}
+
+impl Frame {
+    /// The rectangle of the view: the box of the slot, else the place of
+    /// the `chat:` values, `margin` away from the edges of the work area.
+    #[must_use]
+    pub fn rect(&self) -> [i32; 4] {
+        if let Some(slot) = self.slot {
+            return slot;
+        }
+        let (anchor, width) = self.look.place();
+        let margin = i32::try_from(self.look.margin).unwrap_or(0);
+        let [x, y, w, h] = self.area;
+        let inside = [
+            x + margin,
+            y + margin,
+            (w - 2 * margin).max(1),
+            (h - 2 * margin).max(1),
+        ];
+        view_rect(anchor, width, inside)
+    }
+}
+
+/// The box of a slot on an output; none when its client took it away.
+pub type SlotBox = (String, Option<[i32; 4]>);
+
+/// The output and the box of the event `CLIENT.chat.slot {output, rect}`,
+/// if the client is the one that the folder names in `chat.slot`: no other
+/// client fills the slot. A box without a size is no box.
+#[must_use]
+pub fn slot_box(
+    slot: Option<&str>,
+    (event, client): (&str, &str),
+    data: &Value,
+) -> Option<SlotBox> {
+    let named = slot.filter(|slot| *slot == client)?;
+    if event.strip_prefix(named) != Some(".chat.slot") {
+        return None;
+    }
+    let output = data.get("output")?.as_str()?.to_owned();
+    let rect = &data["rect"];
+    if rect.is_null() {
+        return Some((output, None));
+    }
+    let sides: Vec<i32> = rect
+        .as_array()?
+        .iter()
+        .filter_map(Value::as_f64)
+        .filter(|side| side.is_finite() && side.abs() < 1e6)
+        .map(pixels)
+        .collect();
+    let rect: [i32; 4] = sides.try_into().ok()?;
+    (rect[2] > 0 && rect[3] > 0).then_some((output, Some(rect)))
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "a side of a box is below a million pixels"
+)]
+fn pixels(side: f64) -> i32 {
+    side.round() as i32
 }
 
 /// What the session needs from the rest of the host.
@@ -200,8 +263,7 @@ fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
 /// one: at the bottom of the view, as wide as the view.
 #[must_use]
 pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
-    let (anchor, width) = frame.look.place();
-    let [x, y, w, h] = view_rect(anchor, width, frame.area);
+    let [x, y, w, h] = frame.rect();
     let colours = colours(&frame.look);
     let mut place = json!({
         "anchor": "bottom_left",
@@ -829,7 +891,63 @@ mod tests {
             size: [1280, 720],
             area: [0, 0, 1280, 720],
             look,
+            slot: None,
         }
+    }
+
+    #[test]
+    fn the_view_fills_the_box_of_its_slot() {
+        let look = Look {
+            slot: Some("mc".into()),
+            ..Look::default()
+        };
+        let mut frame = frame(look);
+        assert_eq!(
+            frame.rect(),
+            [880, 0, 400, 720],
+            "no box: the default place"
+        );
+        frame.slot = Some([40, 400, 1200, 280]);
+        assert_eq!(frame.rect(), [40, 400, 1200, 280]);
+        let place = field_place(&frame, None);
+        assert_eq!(place["width"], 1200);
+        assert_eq!(place["margin"], json!([0, 0, 40, 40]));
+    }
+
+    #[test]
+    fn the_margin_keeps_the_view_from_the_edges() {
+        let look = Look {
+            anchor: Some(Anchor::Right),
+            width: Some(480),
+            margin: 32,
+            ..Look::default()
+        };
+        let mut frame = frame(look);
+        frame.area = [0, 24, 1280, 696];
+        assert_eq!(frame.rect(), [768, 56, 480, 632]);
+    }
+
+    #[test]
+    fn only_the_named_client_fills_the_slot() {
+        let data = json!({"output": "HEADLESS-1", "rect": [40.0, 400.4, 1200.0, 280.0]});
+        let event = ("mc.chat.slot", "mc");
+        let here = "HEADLESS-1".to_owned();
+        assert_eq!(
+            slot_box(Some("mc"), event, &data),
+            Some((here.clone(), Some([40, 400, 1200, 280])))
+        );
+        let gone = json!({"output": "HEADLESS-1", "rect": null});
+        assert_eq!(slot_box(Some("mc"), event, &gone), Some((here, None)));
+        assert_eq!(slot_box(None, event, &data), None);
+        assert_eq!(slot_box(Some("xp"), event, &data), None);
+        let forged = ("mc.chat.slot", "mc.evil");
+        assert_eq!(slot_box(Some("mc"), forged, &data), None);
+        let other = ("mc.chat.other", "mc");
+        assert_eq!(slot_box(Some("mc"), other, &data), None);
+        let flat = json!({"output": "HEADLESS-1", "rect": [0, 0, -5, 10]});
+        assert_eq!(slot_box(Some("mc"), event, &flat), None);
+        let short = json!({"output": "HEADLESS-1", "rect": [0, 0, 5]});
+        assert_eq!(slot_box(Some("mc"), event, &short), None);
     }
 
     fn setup() -> (Session, Fake, Rc<RefCell<Log>>) {

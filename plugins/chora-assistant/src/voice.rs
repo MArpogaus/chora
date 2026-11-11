@@ -19,6 +19,7 @@ use crate::{
     card::{self, Outcome, Shown},
     chat::{self, Where},
     context,
+    rows::Helper,
 };
 
 /// The client name of the voice agent before its first event.
@@ -120,7 +121,7 @@ impl Agent {
                 self.helper_gone(helper, now);
                 self.chat_voice(event, data);
             }
-            return Ok(Vec::new());
+            return self.sync_row();
         }
         match kind {
             Some("state") => {
@@ -155,18 +156,22 @@ impl Agent {
     /// Notes the state of a helper for the context; the helpers that the
     /// agent names are at most [`MAX_HELPERS`].
     fn helper_state(&mut self, name: &str, data: &Value, now: Instant) {
-        let state = assistant::context_state(data["state"].as_str().unwrap_or(""));
+        let helper = Helper {
+            state: assistant::context_state(data["state"].as_str().unwrap_or("")),
+            task: chora_kit::chat::sanitize(data["task"].as_str().unwrap_or("")),
+            steps: data["step"].as_u64().zip(data["steps"].as_u64()),
+        };
         if self.helpers.len() < MAX_HELPERS || self.helpers.contains_key(name) {
-            self.helpers.insert(name.to_owned(), state);
+            self.helpers.insert(name.to_owned(), helper);
         }
-        let agents = context::agents_of(self.helpers.values().copied());
+        let agents = context::agents_of(self.helpers.values().map(|helper| helper.state));
         self.switcher.set_agents(agents, now);
     }
 
     /// A helper ended: it no longer counts for the context.
     fn helper_gone(&mut self, name: &str, now: Instant) {
         self.helpers.remove(name);
-        let agents = context::agents_of(self.helpers.values().copied());
+        let agents = context::agents_of(self.helpers.values().map(|helper| helper.state));
         self.switcher.set_agents(agents, now);
     }
 
@@ -306,9 +311,8 @@ impl Agent {
             return Ok(None);
         }
         Ok(self.chat_frame()?.map(|frame| {
-            let (anchor, width) = frame.look.place();
-            let view = chat::view_rect(anchor, width, frame.area);
-            (frame, view[2])
+            let width = frame.rect()[2];
+            (frame, width)
         }))
     }
 
@@ -416,7 +420,11 @@ impl Agent {
             return Ok(Vec::new());
         }
         self.voice = None;
-        self.sync_assistant(Instant::now())
+        self.helpers.clear();
+        self.switcher.set_agents("none", Instant::now());
+        let mut commands = self.sync_assistant(Instant::now())?;
+        commands.extend(self.sync_row()?);
+        Ok(commands)
     }
 
     /// The words of a state, in the language of the screen.

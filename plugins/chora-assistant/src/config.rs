@@ -137,6 +137,8 @@ pub struct Values {
     pub line: Line,
     /// Where the "Chat ..." row stands and its distance from the edges.
     pub rows: (Anchor, [i32; 2]),
+    /// The most rows of helpers, and the colours of their words.
+    pub helpers: (usize, chora_kit::hud::Colours),
     /// The fields of the context that the folder reads in a `when`, so
     /// that the look is built again when one of them changes.
     pub watches: BTreeSet<String>,
@@ -169,6 +171,18 @@ impl Default for Line {
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
+/// The most rows of helpers of a folder that names no number.
+pub const MAX_ROWS: usize = 4;
+
+/// The panel of the helpers that shows in a context.
+fn helpers_panel<'a>(hud: &'a Hud, context: &Context) -> Option<&'a chora_kit::hud::Panel> {
+    hud.panels.iter().find(|panel| {
+        panel.source == Source::Agents
+            && panel.action == Some(chora_kit::hud::Action::Chat)
+            && panel.when.matches(context)
+    })
+}
+
 /// Where the "Chat ..." row stands: where the panel of the helpers puts
 /// it, else beside the figure, which a click on the row never covers.
 fn rows_of(
@@ -177,12 +191,7 @@ fn rows_of(
     (anchor, margin): (Anchor, [i32; 2]),
     figure_height: i32,
 ) -> (Anchor, [i32; 2]) {
-    let panel = hud.panels.iter().find(|panel| {
-        panel.source == Source::Agents
-            && panel.action == Some(chora_kit::hud::Action::Chat)
-            && panel.when.matches(context)
-    });
-    panel.map_or(
+    helpers_panel(hud, context).map_or(
         (anchor, [margin[0], margin[1] + figure_height + ROW_GAP]),
         |panel| {
             (
@@ -216,8 +225,10 @@ impl Values {
             .panels
             .iter()
             .find(|panel| panel.source == Source::Say && panel.when.matches(context));
-        let figure = voice.and_then(|panel| {
-            let (file, template) = panel.picture.as_deref()?.split_once('#')?;
+        let picture = voice
+            .and_then(|panel| panel.picture.as_deref()?.split_once('#'))
+            .or_else(|| hud.figure.as_deref().map(|file| (file, "{state}")));
+        let figure = picture.and_then(|(file, template)| {
             let sheet = Sheet(leak(file));
             let size = size(sheet).filter(|[w, h]| {
                 (MIN_FIGURE..=MAX_FIGURE).contains(w) && (MIN_FIGURE..=MAX_FIGURE).contains(h)
@@ -239,7 +250,7 @@ impl Values {
             .as_ref()
             .map_or(NEUTRAL_FIGURE, |figure| figure.size()[1]);
         let mutes = figure.is_none()
-            || voice.is_some_and(|panel| panel.action == Some(chora_kit::hud::Action::Mute));
+            || voice.is_none_or(|panel| panel.action == Some(chora_kit::hud::Action::Mute));
         Self {
             font: hud.font.clone(),
             mutes,
@@ -252,6 +263,13 @@ impl Values {
                 max_chars: panel.max_chars.map(|n| n as usize),
             }),
             rows: rows_of(hud, context, (anchor, margin), height),
+            helpers: helpers_panel(hud, context).map_or_else(
+                || (MAX_ROWS, chora_kit::hud::Colours::default()),
+                |panel| {
+                    let most = panel.max_rows.map_or(MAX_ROWS, |n| n as usize);
+                    (most, panel.colours)
+                },
+            ),
             watches: hud
                 .panels
                 .iter()
@@ -287,6 +305,7 @@ impl Values {
             speech: Style::default(),
             line: Line::default(),
             rows: NEUTRAL_ROWS,
+            helpers: (MAX_ROWS, chora_kit::hud::Colours::default()),
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -313,6 +332,7 @@ impl Values {
             speech: raw.speech,
             line: Line::default(),
             rows: (Anchor::BottomRight, [raw.margin[0], above]),
+            helpers: (MAX_ROWS, chora_kit::hud::Colours::default()),
             watches: BTreeSet::new(),
             hud: None,
         }
@@ -450,6 +470,33 @@ mod tests {
         Values::from_hud(&hud::parse(text).unwrap(), &Context::default(), |_| {
             Some([24, 24])
         })
+    }
+
+    #[test]
+    fn the_figure_of_the_folder_shows_without_a_voice_panel() {
+        let hud = hud::parse(
+            "hud: 1\nfigure: paperclip.svg\npanels:\n  - {id: line, source: say, anchor: \
+             bottom_right, text: '{text}'}\n",
+        )
+        .unwrap();
+        let values = Values::from_hud(&hud, &Context::default(), |_| Some([80, 116]));
+        let Figure::Sheet {
+            sheet,
+            template,
+            size,
+        } = &values.figure
+        else {
+            panic!("the figure is {:?}", values.figure);
+        };
+        assert_eq!(
+            (sheet.0, template.as_str(), *size),
+            ("paperclip.svg", "{state}", [80, 116])
+        );
+        assert!(values.mutes, "a click on the figure mutes");
+        assert_eq!(
+            (values.anchor, values.margin),
+            (NEUTRAL_ANCHOR, NEUTRAL_MARGIN)
+        );
     }
 
     #[test]

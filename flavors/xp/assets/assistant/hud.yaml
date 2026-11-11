@@ -1,5 +1,6 @@
 hud: 1
 font: Tahoma
+figure: paperclip.svg
 panels:
 - id: line
   source: say
@@ -13,7 +14,7 @@ panels:
   source: agents
   when: {agents: [working, question], chat: none}
   anchor: bottom_right
-  margin: [8, 40]
+  margin: [104, 16]
   style: bubble
   rows: '{name} · {state} · {task}'
   max_rows: 4

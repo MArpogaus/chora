@@ -10,7 +10,12 @@ use chora_draw::{
     text::{Font, Text},
     theme::Picture,
 };
-use chora_kit::{conn::Conn, hud::Chat as Look, runtime, words::Word};
+use chora_kit::{
+    conn::Conn,
+    hud::{Anchor, Chat as Look},
+    runtime,
+    words::Word,
+};
 use chora_scene::{
     Command, InputMode, NodeKind, PropsUpdate,
     ipc::{ClientError, RpcError},
@@ -18,7 +23,7 @@ use chora_scene::{
 use serde_json::{Value, json};
 
 use super::{
-    Frame, Link, Outside, colours, rgba,
+    Frame, Link, Outside, colours, rgba, slot_box,
     view::{CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of},
 };
 use crate::{
@@ -26,6 +31,7 @@ use crate::{
     assistant::{self, origin},
     config::Values,
     field::Field,
+    rows,
 };
 
 /// How long the chat goes without a pull before the host reads again: voice
@@ -36,6 +42,9 @@ const KEEPALIVE: Duration = Duration::from_secs(120);
 fn due(last: Instant) -> Instant {
     last + KEEPALIVE
 }
+
+/// A word of a row and its colour; none is the text colour of the chat.
+type Tinted = (String, Option<[u8; 3]>);
 
 /// The group of the "Chat ..." row under `screen:OUTPUT`.
 const ROW_GROUP: &str = "hud-rows";
@@ -169,10 +178,21 @@ impl Agent {
             output: output.name.clone(),
             size: output.size,
             area: assistant::work_area(&output),
+            slot: self.slot_for(&output.name),
             look: chat_look(&self.values),
         };
         self.chat_seen = Some(frame.clone());
         Ok(Some(frame))
+    }
+
+    /// The box of the slot on an output, while the folder on the screen
+    /// names a slot.
+    fn slot_for(&self, output: &str) -> Option<[i32; 4]> {
+        chat_look(&self.values).slot?;
+        self.slot
+            .as_ref()
+            .filter(|(held, _)| held == output)
+            .map(|(_, rect)| *rect)
     }
 
     /// Draws the view again, and tells the context and the drawer of mc.
@@ -243,6 +263,10 @@ impl Agent {
         }
         if node == ROW {
             self.chat_row()?;
+            return Ok(true);
+        }
+        if let Some(name) = rows::helper_of(node).map(str::to_owned) {
+            self.helper_row(&name)?;
             return Ok(true);
         }
         if let Some(index) = pick_of(node) {
@@ -353,7 +377,9 @@ impl Agent {
         Ok(())
     }
 
-    /// The "Chat ..." row, drawn again on the output of the focus.
+    /// The "Chat ..." row and one row for each helper, drawn again on the
+    /// output of the focus. The rows stack away from the edge of their
+    /// anchor, the "Chat ..." row first.
     pub fn sync_row(&mut self) -> Result<Vec<Command>, ClientError> {
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
@@ -366,36 +392,37 @@ impl Agent {
                 to: None,
             });
         }
-        let colours = colours(&chat_look(&self.values));
-        let label = Word::ChatRow.text(self.language);
-        let width = text_pixels(self.theme.text_width(label, Font::Body)) + 2 * PAD;
-        let size = [width, LINE + GAP * 2];
-        let style = Style {
-            radius: 8,
-            ..style_of(&Look::default(), colours)
-        };
-        let picture = Picture::new(size[0], size[1])
-            .svg(style.shape(size, 0))
-            .text(Text::new(
-                label,
-                Font::Body,
-                rgba(colours.text),
-                [PAD, GAP, size[0] - 2 * PAD, LINE],
-            ));
-        let (anchor, margin) = self.values.rows;
-        let at = origin(anchor, assistant::work_area(&output), size, margin);
-        let path = self.theme.render(&picture);
         commands.push(Command::Create {
             id: ROW_GROUP.into(),
             kind: NodeKind::Group,
             parent: format!("screen:{}", output.name),
             props: PropsUpdate::default(),
         });
-        commands.push(create(
-            ROW,
-            ROW_GROUP,
-            image(path, at, label, InputMode::Accept),
-        ));
+        let lines = self.row_lines();
+        let (anchor, margin) = self.values.rows;
+        let area = assistant::work_area(&output);
+        let step = LINE + GAP * 3;
+        let up = matches!(
+            anchor,
+            Anchor::BottomLeft | Anchor::Bottom | Anchor::BottomRight
+        );
+        for (index, (id, text, words)) in (0_i32..).zip(lines) {
+            let (path, size) = self.row_picture(&words);
+            let [x, y] = origin(anchor, area, size, margin);
+            let at = [
+                x,
+                if up {
+                    y - index * step
+                } else {
+                    y + index * step
+                },
+            ];
+            commands.push(create(
+                &id,
+                ROW_GROUP,
+                image(path, at, &text, InputMode::Accept),
+            ));
+        }
         if self.top.is_some() {
             commands.push(Command::Move {
                 id: crate::card::TOP.into(),
@@ -405,6 +432,126 @@ impl Agent {
         }
         self.row = Some(output.name);
         Ok(commands)
+    }
+
+    /// The rows by id, each with its text and its words in their colours:
+    /// the "Chat ..." row, then the helpers.
+    fn row_lines(&self) -> Vec<(String, String, Vec<Tinted>)> {
+        let (most, tints) = self.values.helpers;
+        let label = Word::ChatRow.text(self.language).to_owned();
+        let chat = (ROW.to_owned(), label.clone(), vec![(label, None)]);
+        let helpers = rows::rows(self.language, &self.helpers, most);
+        let helpers = helpers.into_iter().map(|row| {
+            let text = row.text();
+            let words = [
+                (row.name, tints.text),
+                (row.state, tints.accent),
+                (row.task, tints.muted),
+            ];
+            let shown = words.into_iter().filter(|(word, _)| !word.is_empty());
+            (row.id, text, shown.collect())
+        });
+        std::iter::once(chat).chain(helpers).collect()
+    }
+
+    /// The picture of a row: its words, each in its colour or in the text
+    /// colour of the chat, with a dot between them; with its size.
+    fn row_picture(&mut self, words: &[Tinted]) -> (String, [i32; 2]) {
+        let colours = colours(&chat_look(&self.values));
+        let style = Style {
+            radius: 8,
+            ..style_of(&Look::default(), colours)
+        };
+        let mut parts = Vec::new();
+        for (index, (word, tint)) in words.iter().enumerate() {
+            if index > 0 {
+                parts.push((rows::SEPARATOR, colours.text));
+            }
+            parts.push((word.as_str(), tint.unwrap_or(colours.text)));
+        }
+        let widths: Vec<i32> = parts
+            .iter()
+            .map(|(part, _)| text_pixels(self.theme.text_width(part, Font::Body)))
+            .collect();
+        let size = [widths.iter().sum::<i32>() + 2 * PAD, LINE + GAP * 2];
+        let mut picture = Picture::new(size[0], size[1]).svg(style.shape(size, 0));
+        let mut x = PAD;
+        for ((part, colour), width) in parts.iter().zip(&widths) {
+            let place = [x, GAP, *width, LINE];
+            picture = picture.text(Text::new(part, Font::Body, rgba(*colour), place));
+            x += width;
+        }
+        (self.theme.render(&picture), size)
+    }
+
+    /// A press on the row of a helper opens the chat with it.
+    fn helper_row(&mut self, name: &str) -> Result<(), ClientError> {
+        let Some(frame) = self.chat_frame()? else {
+            return Ok(());
+        };
+        let mut bridge = Bridge {
+            conn: &mut self.rt.conn,
+            client: voice_client(self.voice.as_ref()),
+        };
+        let token = bridge.token();
+        if let Err(err) = self
+            .chat
+            .show(&mut bridge, Some(name), token.as_deref(), &frame)
+        {
+            eprintln!("chora-assistant: chat: {err}");
+        }
+        self.chat_pulled = Instant::now();
+        self.chat_draw()
+    }
+
+    /// Subscribes to the event `chat.slot` of the client that the folder
+    /// on the screen names, beside the events of the host.
+    pub fn watch_slot(&mut self) -> Result<(), ClientError> {
+        let wanted = chat_look(&self.values).slot;
+        if wanted.is_none() || wanted == self.slot_client {
+            return Ok(());
+        }
+        let slot = wanted.iter().map(|client| format!("{client}.chat.slot"));
+        let events: Vec<String> = crate::EVENTS
+            .iter()
+            .map(|event| (*event).to_owned())
+            .chain(slot)
+            .collect();
+        self.rt
+            .conn
+            .call::<_, Value>("events.subscribe", json!({"events": events}))?;
+        self.slot_client = wanted;
+        Ok(())
+    }
+
+    /// The event `chat.slot` of the client of the slot: the view moves
+    /// into its box, or back when the client takes the box away.
+    pub fn slot_event(
+        &mut self,
+        event: &str,
+        client: &str,
+        data: &Value,
+    ) -> Result<(), ClientError> {
+        let slot = chat_look(&self.values).slot;
+        let Some((output, rect)) = slot_box(slot.as_deref(), (event, client), data) else {
+            return Ok(());
+        };
+
+        let next = rect.map(|rect| (output.clone(), rect));
+        let held = self.slot.as_ref().is_some_and(|(held, _)| *held == output);
+        if next == self.slot || (next.is_none() && !held) {
+            return Ok(());
+        }
+        self.slot = next;
+        self.chat_restyle()
+    }
+
+    /// The client of the slot left: its box no longer holds the view.
+    pub fn slot_gone(&mut self, client: &str) -> Result<(), ClientError> {
+        if self.slot_client.as_deref() != Some(client) || self.slot.take().is_none() {
+            return Ok(());
+        }
+        self.chat_restyle()
     }
 }
 

@@ -759,7 +759,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
-| `voice_hud` | `own` | `own`: draw the voice HUD and the questions, and hide the dot of the voice agent; `host`: the HUD host `chora-assistant` draws them with the folder `plugins/chora-construct/hud`, and the construct claims no indicator |
+| `voice_hud` | `own` | `own`: draw the voice HUD and the questions, and hide the dot of the voice agent; `host`: the HUD host `chora-assistant` draws them with the folder `plugins/chora-construct/hud`, and the construct claims no indicator. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
@@ -1121,7 +1121,10 @@ the figure, and a click of a person on it turns the mic on; an injected
 click on the badge or the figure does not. The figure goes when the agent disconnects, and
 `enabled: false` turns it off.
 
-The asset folder of a flavor holds:
+A flavor names its look with `--assets DIR`. A `DIR` with a `hud.yaml`
+is a [HUD folder](hud.md), as `flavors/xp/assets/assistant`, whose
+`figure: paperclip.svg` is the paperclip of the XP flavor. A `DIR`
+without one is an asset folder, which holds:
 
 | File | Content |
 |------|---------|
@@ -1130,9 +1133,8 @@ The asset folder of a flavor holds:
 | `fonts/` | font files, optional |
 
 `plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
-changes its color with the state. The figure `paperclip` is the character of
-the XP flavor, drawn in code until the XP step X7 turns it into SVG files;
-`flavors/xp/assets/assistant` selects it.
+changes its color with the state. The figure `paperclip` of an asset
+folder is the same character drawn in code.
 
 ## Flavors
 
@@ -1293,7 +1295,7 @@ connects with the client name `xp`.
 ├── chora-xp.target              # wants the units below
 ├── chora-xp.service             # chora-xp
 ├── chora-xp-notify.service      # chora-notify --assets .../assets/notify
-├── chora-xp-assistant.service   # chora-assistant --assets .../assets/assistant
+├── chora-xp-assistant.service   # chora-assistant --assets /usr/share/chora/huds/xp
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
 ├── assets/                      # the XP folder of each block, with a link to the fonts
 └── theme/                       # SVG files, fonts, wallpaper and cursors

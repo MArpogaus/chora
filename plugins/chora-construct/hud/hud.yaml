@@ -27,6 +27,7 @@ chat:
   size: 16
   anchor: right
   width: 480
+  margin: 32
   fill: [240, 237, 234]
   text: [20, 23, 31]
   name: [74, 82, 97]

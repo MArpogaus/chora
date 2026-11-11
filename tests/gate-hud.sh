@@ -416,7 +416,12 @@ cell_agents_row_text() {
     waiting "$settle_s" node_has hud-row-Atlas "Atlas · working · Write file (2/2)"
 }
 
-use_folder() { ctl call assistant settings.set "{\"hud\": \"$1\"}" >/dev/null 2>&1; }
+probe2_rule='{"when": {"app": "probe2"}, "folder": "mine"}'
+use_folder() {
+    local rules=
+    [ "$1" != neutral ] || rules=$probe2_rule
+    ctl call assistant settings.set "{\"hud\": \"$1\", \"huds\": [$rules]}" >/dev/null 2>&1
+}
 cell_xp_tray_rows() {
     local shown
     use_folder xp || return 1

@@ -1,14 +1,18 @@
 //! Where HUD folders live: the folders of the user in
-//! `$XDG_DATA_HOME/chora/huds`, the shipped ones in `/usr/share/chora/huds`
-//! and, for a binary run from `target/<profile>/`, those of the source
-//! tree. A folder of the user wins over a shipped one of the same name.
+//! `$XDG_DATA_HOME/chora/huds`, the shipped ones in `chora/huds` of each
+//! directory of `$XDG_DATA_DIRS` and, for a binary run from
+//! `target/<profile>/`, those of the host in the source tree. A folder of
+//! the user wins over a shipped one of the same name.
 
 use std::path::{Path, PathBuf};
 
 use chora_kit::xdg;
 
-/// The folder of the shipped HUDs of the installed package.
-pub const SHIPPED: &str = "/usr/share/chora/huds";
+/// The folders of HUDs below a data directory.
+const BELOW: &str = "chora/huds";
+
+/// The data directories of the system when `$XDG_DATA_DIRS` names none.
+const DATA_DIRS: &str = "/usr/local/share:/usr/share";
 
 /// The folders of the source tree that hold HUDs, below its root.
 const SOURCE: &[&str] = &["plugins/chora-assistant/huds"];
@@ -27,10 +31,26 @@ pub fn good_name(name: &str) -> bool {
 }
 
 /// The directories that hold HUD folders, the first one wins: the user's,
-/// the installed one, the source tree of the executable.
+/// those of `$XDG_DATA_DIRS`, the source tree of the executable.
 #[must_use]
 pub fn roots(exe: Option<&Path>) -> Vec<PathBuf> {
-    let user = xdg::data_home().map(|home| home.join("chora/huds"));
+    let dirs = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
+    roots_in(exe, xdg::data_home().as_deref(), &dirs)
+}
+
+/// [`roots`] for a folder of the user and the list `$XDG_DATA_DIRS`.
+#[must_use]
+pub fn roots_in(exe: Option<&Path>, data_home: Option<&Path>, data_dirs: &str) -> Vec<PathBuf> {
+    let user = data_home.map(|home| home.join(BELOW));
+    let listed = if data_dirs.is_empty() {
+        DATA_DIRS
+    } else {
+        data_dirs
+    };
+    let shipped = listed
+        .split(':')
+        .filter(|dir| dir.starts_with('/'))
+        .map(|dir| Path::new(dir).join(BELOW));
     let tree = exe
         .and_then(Path::parent)
         .and_then(Path::parent)
@@ -43,10 +63,7 @@ pub fn roots(exe: Option<&Path>) -> Vec<PathBuf> {
             .map(move |below| root.join(below))
             .collect::<Vec<_>>()
     });
-    user.into_iter()
-        .chain([PathBuf::from(SHIPPED)])
-        .chain(source)
-        .collect()
+    user.into_iter().chain(shipped).chain(source).collect()
 }
 
 /// The folder `name`: the first of the directories that has it.
@@ -134,6 +151,40 @@ mod tests {
             without + 1
         );
         assert_eq!(tree("/nonexistent/x/other/debug/chora-assistant"), without);
+    }
+
+    #[test]
+    fn the_data_dirs_of_the_system_hold_shipped_folders() {
+        let found = roots_in(
+            None,
+            Some(Path::new("/home/u/.local/share")),
+            "/usr/local/share:/usr/share",
+        );
+        assert_eq!(
+            found,
+            [
+                PathBuf::from("/home/u/.local/share/chora/huds"),
+                PathBuf::from("/usr/local/share/chora/huds"),
+                PathBuf::from("/usr/share/chora/huds"),
+            ]
+        );
+        let none = roots_in(None, None, "");
+        assert_eq!(
+            none,
+            [
+                PathBuf::from("/usr/local/share/chora/huds"),
+                PathBuf::from("/usr/share/chora/huds"),
+            ]
+        );
+        let relative = roots_in(None, None, "share:/opt/share");
+        assert_eq!(relative, [PathBuf::from("/opt/share/chora/huds")]);
+    }
+
+    #[test]
+    fn the_source_tree_has_the_folder_of_each_look() {
+        let own = Path::new(env!("CARGO_MANIFEST_DIR")).join("huds");
+        let names: Vec<String> = list(&[own]).into_iter().map(|(name, _)| name).collect();
+        assert_eq!(names, ["construct", "mc", "neutral", "xp"]);
     }
 
     #[test]

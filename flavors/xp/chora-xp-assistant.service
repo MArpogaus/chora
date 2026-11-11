@@ -1,9 +1,9 @@
 [Unit]
-Description=chora-assistant with the XP assets
+Description=chora-assistant with the XP HUD folder
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/chora-assistant --assets /usr/share/chora/flavors/xp/assets/assistant
+ExecStart=/usr/bin/chora-assistant --assets /usr/share/chora/huds/xp
 Restart=on-failure
 RestartSec=1
