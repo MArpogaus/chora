@@ -30,7 +30,9 @@
 #   drag-keeps-rect      an injected drag of the title bar from the first
 #                        virtual output to the second, which jumps far in
 #                        one move: the window shows on an output at every
-#                        look in the 2 s after the release
+#                        look in the 2 s after the release; then it shows on
+#                        the second output, and its task button is on
+#                        the taskbar there only
 #
 # A cell measures pass or gap; a line `missing` in the table EXPECTED is a
 # cell that xp cannot pass yet and that does not run. The gate fails on
@@ -179,6 +181,9 @@ cell_drag_keeps_rect() {
         ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null || return 1
         sleep 0.2
     done
+    on_face "${faces[1]}" 2 || return 1
+    [ "$(ctl query "id:xp-task-$w-${faces[1]}" | jq length)" = 1 ] || return 1
+    [ "$(ctl query "id:xp-task-$w-$face" | jq length)" = 0 ]
 }
 
 drawn() { ctl render-stats | jq -c '.outputs | map_values([.damaged_frames, .passes])'; }

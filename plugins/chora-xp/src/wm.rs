@@ -1156,30 +1156,46 @@ impl Wm {
             .or(self.bars.first())
     }
 
-    /// The task buttons of every taskbar.
+    /// The task buttons of every taskbar. The taskbar of a virtual output
+    /// lists the windows of that output, as each face of a cube is a
+    /// desktop of its own; the taskbar of a screen lists all windows, or
+    /// with the setting `tasks_per_output` those of its screen.
     fn sync_tasks(&mut self) -> Vec<Command> {
         let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
             Some(taskbar::Part::Task(surface)) => Some(surface),
             _ => None,
         };
-        let tasks: Vec<Task<'_>> = self
+        let tasks: Vec<(Task<'_>, usize)> = self
             .opened
             .iter()
             .filter_map(|surface| {
                 let w = &self.windows[self.windows.iter().position(|w| &w.surface == surface)?];
-                (w.shown && w.desktop == self.desktop).then(|| Task {
+                let task = Task {
                     surface,
                     title: &w.title,
                     icon: w.icon.clone(),
                     active: self.focused.as_deref() == Some(surface),
                     minimized: w.minimized,
                     hovered: hovered.as_deref() == Some(surface.as_str()),
-                })
+                };
+                let [x, y, width, height] = w.rect();
+                let centre = [x + width / 2, y + height / 2];
+                let bar = self.bars.iter().position(|b| b.contains(centre));
+                (w.shown && w.desktop == self.desktop).then_some((task, bar.unwrap_or(0)))
             })
             .collect();
+        let per_output = self.settings.value.tasks_per_output;
+        let lists: Vec<Vec<Task<'_>>> = (self.bars.iter().enumerate())
+            .map(|(i, bar)| {
+                let own = per_output || !bar.has_pager();
+                let listed = tasks.iter().filter(|(_, at)| !own || *at == i);
+                listed.map(|(task, _)| task.clone()).collect()
+            })
+            .collect();
+        drop(tasks);
         let mut commands = Vec::new();
-        for bar in &mut self.bars {
-            commands.extend(bar.tasks(&mut self.theme, &tasks));
+        for (bar, list) in self.bars.iter_mut().zip(&lists) {
+            commands.extend(bar.tasks(&mut self.theme, list));
         }
         commands
     }
@@ -2207,7 +2223,20 @@ impl Wm {
         commands
     }
 
+    /// The release of a button; after a drag of a window the task
+    /// buttons follow the window to the output where it lies now.
     fn released(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        let dragged = self.drag.is_some();
+        let mut commands = self.release(node, position);
+        if dragged {
+            commands.extend(self.sync_tasks());
+        }
+        commands
+    }
+
+    /// What [`Self::released`] does, before the task buttons follow a
+    /// window that a drag moved to another output.
+    fn release(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
         if let Some((menu, area)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
             let area = *area;
             let Some(act) = menu.release(position) else {

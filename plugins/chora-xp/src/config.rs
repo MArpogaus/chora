@@ -113,6 +113,11 @@ pub struct Config {
     /// The programs at the top left of the start menu, below the
     /// terminal.
     pub programs: Vec<Program>,
+    /// Each taskbar lists only the windows of its own output. Off, every
+    /// taskbar of a screen lists all windows. The taskbar of a virtual
+    /// output always lists its own windows only.
+    #[serde(default)]
+    pub tasks_per_output: bool,
     /// The format of the clock of the taskbar, as in strftime.
     pub clock_format: String,
     pub wallpaper: Wallpaper,

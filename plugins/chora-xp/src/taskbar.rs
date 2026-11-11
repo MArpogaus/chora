@@ -64,6 +64,7 @@ pub struct Settings {
 }
 
 /// A window as its task button shows it.
+#[derive(Clone)]
 pub struct Task<'a> {
     /// The surface node.
     pub surface: &'a str,
