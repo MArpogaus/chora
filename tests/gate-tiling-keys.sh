@@ -56,6 +56,13 @@ for n in mono:
         fail("the keycap %r is %s wide, a monospace face has %s" % (n["text"], got, want))
 ' || fail "the key list is drawn badly"
 ok "no two texts of the key list overlap and the keycaps are monospace"
+ctl query 'kind:rect' | python3 -I -c '
+import json, sys
+panel = next(next(iter(n["rects"].values())) for n in json.load(sys.stdin) if n["id"] == "tiling-keys-panel")
+if panel[1] < 52 or panel[1] + panel[3] > 748:
+    sys.exit("the panel at y %s, %s high touches the bar or the edge" % (panel[1], panel[3]))
+' || fail "the key list touches the bar"
+ok "the key list stays clear of the bar"
 
 keys Escape
 sleep 1
@@ -81,13 +88,17 @@ sleep 2
 grant screen.capture
 shot=$XDG_CONFIG_HOME/blur.png
 ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
-python3 -I - "$repo/tests/png-pixel.py" "$shot" <<'PY' || fail "no blur behind the key list"
+ctl query 'kind:rect' >"$XDG_CONFIG_HOME/rects.json"
+python3 -I - "$repo/tests/png-pixel.py" "$shot" "$XDG_CONFIG_HOME/rects.json" <<'PY' || fail "no blur behind the key list"
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
-line = [rows[735][x * 4] for x in range(600, 680)]
+import json
+panel = next(next(iter(n["rects"].values())) for n in json.load(open(sys.argv[3])) if n["id"] == "tiling-keys-panel")
+row = int(panel[1] + panel[3] - 10)
+line = [rows[row][x * 4] for x in range(600, 640)]
 steps = [abs(a - b) for a, b in zip(line, line[1:])]
 assert max(steps) <= 2, f"the gap between two white windows is sharp under the panel: {line}"
 assert max(line) - min(line) >= 3, "the panel does not show the windows behind it at all"

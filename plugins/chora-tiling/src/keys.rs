@@ -17,6 +17,9 @@ use crate::{
 pub const KEYS: &str = "tiling-keys";
 pub const CHIP: &str = "tiling-chip";
 
+/// The space that the panel leaves above and below: the bar (8 + 32) and
+/// the gap of 12 under it, on both sides, so that it stays clear of it.
+const BAR_CLEARANCE: f64 = 52.0;
 /// The width of the panel of the key list.
 const PANEL_WIDTH: f64 = 880.0;
 /// The height of the header, above the first row.
@@ -511,7 +514,7 @@ pub fn key_list(
     colors: &Colors,
     lang: Language,
 ) -> Vec<Command> {
-    let plan = plan(groups, output[1] - 24.0);
+    let plan = plan(groups, output[1] - 2.0 * BAR_CLEARANCE);
     let origin = [
         (output[0] - plan.size[0]) / 2.0,
         (output[1] - plan.size[1]) / 2.0,
@@ -709,7 +712,7 @@ mod tests {
 
     #[test]
     fn no_two_lines_of_a_column_share_a_height() {
-        for room in [776.0, 696.0] {
+        for room in [1000.0, 696.0] {
             let plan = laid_out(room);
             let mut seen = Vec::new();
             for item in &plan.items {
@@ -725,29 +728,31 @@ mod tests {
 
     #[test]
     fn rows_keep_a_pitch_of_the_grid_and_caps_leave_a_gap() {
-        let plan = laid_out(776.0);
-        let mut caps: Vec<(usize, f64, f64)> = plan
-            .items
-            .iter()
-            .filter_map(|i| match i {
-                Item::Cap { at, size, .. } => Some((column(at[0]), at[1], size[1])),
-                _ => None,
-            })
-            .collect();
-        caps.sort_by(|a, b| (a.0, a.1).partial_cmp(&(b.0, b.1)).unwrap());
-        for pair in caps.windows(2).filter(|p| p[0].0 == p[1].0) {
-            let gap = pair[1].1 - pair[0].1 - pair[0].2;
-            assert!(gap >= 4.0, "caps {pair:?} are {gap} px apart");
+        for (room, cap) in [(1000.0, 20.0), (696.0, 16.0)] {
+            let plan = laid_out(room);
+            let mut caps: Vec<(usize, f64, f64)> = plan
+                .items
+                .iter()
+                .filter_map(|i| match i {
+                    Item::Cap { at, size, .. } => Some((column(at[0]), at[1], size[1])),
+                    _ => None,
+                })
+                .collect();
+            caps.sort_by(|a, b| (a.0, a.1).partial_cmp(&(b.0, b.1)).unwrap());
+            for pair in caps.windows(2).filter(|p| p[0].0 == p[1].0) {
+                let gap = pair[1].1 - pair[0].1 - pair[0].2;
+                assert!(gap >= 4.0, "caps {pair:?} are {gap} px apart");
+            }
+            assert!(
+                caps.iter().all(|c| (c.2 - cap).abs() < 1e-9),
+                "caps are {cap} px high in a room of {room}"
+            );
         }
-        assert!(
-            caps.iter().all(|c| (c.2 - 20.0).abs() < 1e-9),
-            "caps are 20 px high"
-        );
     }
 
     #[test]
     fn a_keycap_has_the_same_padding_left_and_right() {
-        for item in laid_out(776.0).items {
+        for item in laid_out(1000.0).items {
             if let Item::Cap { size, keys, .. } = item {
                 let text = px(keys.chars().count()) * MONO_ADVANCE;
                 assert!((size[0] - text - 2.0 * CAP_PAD).abs() < 1e-9, "{keys}");
@@ -757,7 +762,7 @@ mod tests {
 
     #[test]
     fn the_labels_of_a_column_start_at_one_x() {
-        let plan = laid_out(776.0);
+        let plan = laid_out(1000.0);
         for c in 0..2 {
             let mut xs: Vec<f64> = plan
                 .items
@@ -774,7 +779,7 @@ mod tests {
 
     #[test]
     fn a_group_is_whole_in_one_column_and_has_one_title() {
-        let titles: Vec<String> = laid_out(776.0)
+        let titles: Vec<String> = laid_out(1000.0)
             .items
             .iter()
             .filter_map(|i| match i {
@@ -791,7 +796,7 @@ mod tests {
 
     #[test]
     fn the_panel_is_its_content_and_24_px() {
-        let plan = laid_out(776.0);
+        let plan = laid_out(1000.0);
         let low = plan
             .items
             .iter()
