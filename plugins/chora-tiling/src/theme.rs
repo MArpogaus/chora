@@ -301,7 +301,24 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("fuzzel.ini", fuzzel(colors)),
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
+        ("icons/apps.svg", icon(&colors.text, APPS)),
+        ("icons/keys.svg", icon(&colors.muted, KEYS_ICON)),
+        ("icons/power.svg", icon(&colors.muted, POWER)),
     ]
+}
+
+/// The shapes of the icons of the panel on a 16 px grid: a 2 x 2 grid of
+/// tiles, a keyboard and a power sign. The panel draws them as
+/// backgrounds, so they carry their colour, which changes with the theme.
+const APPS: &str = r#"<g fill="C"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.5"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.5"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.5"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.5"/></g>"#;
+const KEYS_ICON: &str = r#"<rect x="1" y="3.5" width="14" height="9" rx="2.5" fill="none" stroke="C" stroke-width="1.5"/><g fill="C"><rect x="3.5" y="6" width="1.5" height="1.5" rx=".4"/><rect x="7.25" y="6" width="1.5" height="1.5" rx=".4"/><rect x="11" y="6" width="1.5" height="1.5" rx=".4"/><rect x="4.5" y="9" width="7" height="1.5" rx=".5"/></g>"#;
+const POWER: &str = r#"<path d="M4.6 4.2a5.5 5.5 0 1 0 6.8 0M8 1.5v6" fill="none" stroke="C" stroke-width="1.5" stroke-linecap="round"/>"#;
+
+fn icon(color: &str, shapes: &str) -> String {
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 16 16\">{}</svg>\n",
+        shapes.replace("\"C\"", &format!("\"{color}\""))
+    )
 }
 
 fn fuzzel(c: &Colors) -> String {
@@ -426,10 +443,14 @@ fn swaylock(c: &Colors) -> String {
 ///
 /// A file cannot be written.
 pub fn apply(dir: &Path, colors: &Colors, scheme: Scheme) -> std::io::Result<()> {
-    std::fs::create_dir_all(dir)?;
     for (name, text) in files(colors) {
-        std::fs::write(dir.join(name), text)?;
+        let path = dir.join(name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(path, text)?;
     }
+    std::fs::create_dir_all(dir)?;
     std::fs::write(dir.join("scheme"), format!("{}\n", scheme.name()))
 }
 
@@ -462,24 +483,72 @@ pub fn config_dirs() -> Vec<std::path::PathBuf> {
 }
 
 /// The command line of a program of the flavor with its config file:
-/// `foot -c FILE`, `fuzzel --config FILE`, `swaylock -C FILE`, then the
-/// arguments of the caller; the program alone when no file exists.
+/// `foot -c FILE`, `fuzzel --config FILE`, `swaylock -C FILE` and `swaybg
+/// -i WALLPAPER -m fill`, then the arguments of the caller; the program
+/// alone when no file exists. The wallpaper of a scheme is
+/// `wallpaper.png` for Ink and `wallpaper-paper.png` for Paper; a
+/// `wallpaper.png` of the user, found first, serves both.
 #[must_use]
-pub fn launch_line(program: &str, rest: &[String], dirs: &[std::path::PathBuf]) -> Vec<String> {
-    let (name, flag) = match program {
-        "foot" => ("foot.ini", "-c"),
-        "fuzzel" => ("fuzzel.ini", "--config"),
-        "swaylock" => ("swaylock.conf", "-C"),
-        _ => ("", ""),
+pub fn launch_line(
+    program: &str,
+    rest: &[String],
+    dirs: &[std::path::PathBuf],
+    scheme: Scheme,
+) -> Vec<String> {
+    let find = |names: &[&str]| {
+        dirs.iter()
+            .flat_map(|d| names.iter().map(move |n| d.join(n)))
+            .find(|f| f.is_file())
+            .map(|f| f.to_string_lossy().into_owned())
     };
     let mut line = vec![program.to_owned()];
-    if let Some(file) = dirs.iter().map(|d| d.join(name)).find(|f| f.is_file())
-        && !name.is_empty()
-    {
-        line.extend([flag.to_owned(), file.to_string_lossy().into_owned()]);
+    match program {
+        "foot" => line.extend(
+            find(&["foot.ini"])
+                .into_iter()
+                .flat_map(|f| ["-c".into(), f]),
+        ),
+        "fuzzel" => line.extend(
+            find(&["fuzzel.ini"])
+                .into_iter()
+                .flat_map(|f| ["--config".into(), f]),
+        ),
+        "swaylock" => line.extend(
+            find(&["swaylock.conf"])
+                .into_iter()
+                .flat_map(|f| ["-C".into(), f]),
+        ),
+        "swaybg" => {
+            let names = [scheme_wallpaper(scheme), "wallpaper.png"];
+            match find(&names) {
+                Some(file) => line.extend(["-i".into(), file, "-m".into(), "fill".into()]),
+                None => line.extend(["-c".into(), Colors::of(scheme).base]),
+            }
+        }
+        _ => {}
     }
     line.extend(rest.iter().cloned());
     line
+}
+
+/// The file name of the wallpaper of a scheme.
+fn scheme_wallpaper(scheme: Scheme) -> &'static str {
+    match scheme {
+        Scheme::Ink => "wallpaper.png",
+        Scheme::Paper => "wallpaper-paper.png",
+    }
+}
+
+/// The scheme that the files of [`apply`] name, or Ink.
+#[must_use]
+pub fn written_scheme(dirs: &[std::path::PathBuf]) -> Scheme {
+    let name = dirs
+        .iter()
+        .find_map(|d| std::fs::read_to_string(d.join("scheme")).ok());
+    match name.as_deref().map(str::trim) {
+        Some("paper") => Scheme::Paper,
+        _ => Scheme::Ink,
+    }
 }
 
 #[cfg(test)]
@@ -541,19 +610,50 @@ mod tests {
     fn the_files_of_the_flavor_are_the_ink_palette() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling");
         let ink = Colors::of(Scheme::Ink);
-        let shipped = [
-            ("colors.css", dir.join("waybar/colors.css")),
-            ("fuzzel.ini", dir.join("fuzzel.ini")),
-            ("foot.ini", dir.join("foot.ini")),
-            ("swaylock.conf", dir.join("swaylock.conf")),
-        ];
-        for ((name, text), (_, path)) in files(&ink).into_iter().zip(shipped) {
+        for (name, text) in files(&ink) {
+            let path = match name {
+                "colors.css" => dir.join("waybar/colors.css"),
+                icons if icons.starts_with("icons/") => dir.join("waybar").join(icons),
+                other => dir.join(other),
+            };
             let have = std::fs::read_to_string(&path).unwrap_or_default();
             assert_eq!(
                 have, text,
                 "{name} is not what --apply-theme writes for Ink"
             );
         }
+    }
+
+    #[test]
+    fn a_program_starts_with_the_file_of_the_user_before_the_others() {
+        let temp = std::env::temp_dir().join(format!("tiling-launch-{}", std::process::id()));
+        let (user, generated, flavor) = (temp.join("u"), temp.join("g"), temp.join("f"));
+        for dir in [&user, &generated, &flavor] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        let dirs = [user.clone(), generated.clone(), flavor.clone()];
+        let rest = vec!["-f".to_owned()];
+        let line = |p: &str, s| launch_line(p, &rest, &dirs, s);
+        assert_eq!(line("foot", Scheme::Ink), ["foot", "-f"]);
+        assert_eq!(line("swaybg", Scheme::Ink)[..2], ["swaybg", "-c"]);
+        std::fs::write(flavor.join("foot.ini"), "").unwrap();
+        std::fs::write(generated.join("foot.ini"), "").unwrap();
+        let flavored = generated.join("foot.ini").to_string_lossy().into_owned();
+        assert_eq!(line("foot", Scheme::Ink), ["foot", "-c", &flavored, "-f"]);
+        std::fs::write(user.join("foot.ini"), "").unwrap();
+        let own = user.join("foot.ini").to_string_lossy().into_owned();
+        assert_eq!(line("foot", Scheme::Ink)[2], own);
+        std::fs::write(flavor.join("wallpaper.png"), "").unwrap();
+        std::fs::write(flavor.join("wallpaper-paper.png"), "").unwrap();
+        let name = |s| line("swaybg", s)[2].rsplit('/').next().unwrap().to_owned();
+        assert_eq!(name(Scheme::Ink), "wallpaper.png");
+        assert_eq!(name(Scheme::Paper), "wallpaper-paper.png");
+        std::fs::write(user.join("wallpaper.png"), "").unwrap();
+        assert_eq!(
+            line("swaybg", Scheme::Paper)[2],
+            user.join("wallpaper.png").to_string_lossy()
+        );
+        std::fs::remove_dir_all(temp).unwrap();
     }
 
     #[test]

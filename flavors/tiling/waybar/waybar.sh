@@ -8,6 +8,11 @@
 # ends, and passes SIGUSR2, the reload of the unit, on to waybar.
 # Without an answer of tiling within 10 seconds, the panel shows on every
 # output, with a line on stderr. jq is needed.
+# The style is copied into the runtime directory with the colours and the
+# icons of the theme that chora-tiling wrote there, or of the folder
+# chora/tiling/waybar of the config directory when it has colors.css, or
+# else of the flavor; a SIGUSR2 copies them again, so a new theme shows
+# after the reload of the unit.
 # Usage: sh waybar.sh DIR   DIR: the waybar folder of the flavor
 command -v jq >/dev/null 2>&1 || {
     echo "waybar.sh: jq is not installed; the panel of the tiling flavor needs it" >&2
@@ -15,6 +20,21 @@ command -v jq >/dev/null 2>&1 || {
 }
 dir=$1
 config=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar.json
+style=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar
+
+prepare() {
+    mkdir -p "$style/icons"
+    cp "$dir/style.css" "$style/style.css"
+    from=$dir
+    for candidate in "${XDG_CONFIG_HOME:-$HOME/.config}/chora/tiling" "${XDG_RUNTIME_DIR:-/tmp}/chora-tiling/theme"; do
+        [ -f "$candidate/colors.css" ] && {
+            from=$candidate
+            break
+        }
+    done
+    cp "$from/colors.css" "$style/colors.css"
+    cp "$from"/icons/*.svg "$style/icons/" 2>/dev/null || cp "$dir"/icons/*.svg "$style/icons/"
+}
 
 tiling_outputs() {
     choractl call tiling get_tags 2>/dev/null | jq -c '[.outputs[].name]' 2>/dev/null
@@ -36,7 +56,7 @@ fi
 
 pid=""
 trap '[ -z "$pid" ] || kill "$pid" 2>/dev/null; exit 0' TERM INT
-trap '[ -z "$pid" ] || kill -USR2 "$pid" 2>/dev/null' USR2
+trap 'prepare; [ -z "$pid" ] || kill -USR2 "$pid" 2>/dev/null' USR2
 while :; do
     if [ -n "$tiling" ]; then
         outputs=$(panel_outputs "$tiling")
@@ -45,7 +65,8 @@ while :; do
     fi
     jq -n --arg include "$dir/config.jsonc" --argjson outputs "${outputs:-[\"*\"]}" \
         '{include: [$include], output: $outputs}' >"$config"
-    waybar --config "$config" --style "$dir/style.css" &
+    prepare
+    waybar --config "$config" --style "$style/style.css" &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
         sleep 2

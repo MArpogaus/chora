@@ -1,9 +1,10 @@
 /* The look of the panel: three floating islands on the wallpaper, Ink.
- * Everything sits on a 4 px grid; the colours come from colors.css. */
+ * Everything sits on a 4 px grid; the colours come from colors.css, and the
+ * icons are the pictures in icons/, which carry the colours of the theme. */
 @import url("colors.css");
 
 * {
-  font-family: "Inter", "DejaVu Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 400;
   border: none;
@@ -28,9 +29,15 @@ window#waybar {
 }
 
 tooltip {
+  background: transparent;
+  border: none;
+}
+
+tooltip > box {
   background: @surface;
   border: 1px solid @line;
   border-radius: 8px;
+  padding: 4px 8px;
 }
 
 tooltip label {
@@ -52,18 +59,49 @@ tooltip label {
 
 #clock {
   font-weight: 500;
+  font-feature-settings: "tnum";
+}
+
+#custom-apps,
+#custom-keys,
+#custom-power {
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  background-position: 8px center;
+  padding-left: 32px;
 }
 
 #custom-apps {
+  background-image: url("icons/apps.svg");
   font-weight: 500;
-  margin-right: 4px;
-  border-right: 1px solid @line;
-  border-radius: 0;
 }
 
-#custom-layout,
-#custom-keys,
+#custom-keys {
+  background-image: url("icons/keys.svg");
+  color: @muted;
+}
+
 #custom-power {
+  background-image: url("icons/power.svg");
+  background-position: center;
+  min-width: 0;
+  padding: 0 16px;
+  color: @muted;
+}
+
+#custom-sep1,
+#custom-sep2,
+#custom-sep3 {
+  min-width: 1px;
+  min-height: 16px;
+  margin: 7px 4px;
+  padding: 0;
+  font-size: 1px;
+  background: @line;
+}
+
+#custom-layout {
+  min-width: 80px;
   color: @muted;
 }
 
@@ -72,7 +110,7 @@ tooltip label {
 #custom-keys:hover,
 #custom-power:hover,
 #custom-volume:hover {
-  background: @surface-2;
+  background-color: @surface-2;
   border-radius: 6px;
 }
 
@@ -91,6 +129,7 @@ tooltip label {
   padding: 0;
   border-radius: 6px;
   font-weight: 500;
+  font-feature-settings: "tnum";
   color: @text;
 }
 
@@ -103,7 +142,7 @@ tooltip label {
 #custom-tag7.empty,
 #custom-tag8.empty,
 #custom-tag9.empty {
-  color: alpha(@muted, 0.5);
+  color: @muted;
 }
 
 #custom-tag1.current,
@@ -153,12 +192,6 @@ tooltip label {
 #custom-tag8.current:hover,
 #custom-tag9.current:hover {
   background: @accent;
-}
-
-#custom-layout {
-  margin-left: 4px;
-  border-left: 1px solid @line;
-  border-radius: 0;
 }
 
 #battery.warning {

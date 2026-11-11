@@ -106,8 +106,8 @@ esac
 case $flavor in
 tiling)
     companions=(
-        "swaybg --color #2e3440"
-        "waybar --config $repo/flavors/tiling/waybar/config.jsonc"
+        "chora-tiling --launch swaybg"
+        "sh $repo/flavors/tiling/waybar/waybar.sh $repo/flavors/tiling/waybar"
         "chora-assistant"
     )
     ;;

@@ -1347,6 +1347,8 @@ The package installs the tiling flavor (D51):
 ├── chora-tiling-xwayland.service     # xwayland-satellite
 ├── chora-tiling-waybar.service       # the panel
 ├── chora-tiling-swaybg.service       # the wallpaper
+├── wallpaper.png                     # Ink with two glows
+├── wallpaper-paper.png               # the same in Paper
 ├── chora-tiling-swayidle.service     # the idle lock with swaylock
 ├── chora-tiling-kanshi.service       # the output profiles of the user
 ├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
@@ -1356,6 +1358,7 @@ The package installs the tiling flavor (D51):
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
     ├── colors.css                    # the palette, Ink; style.css reads it
+    ├── icons/                        # apps, keys and power, in the colours of the theme
     ├── tag.sh                        # one tag module, from one shared answer
     ├── layout.sh                     # the layout word
     └── tags.jq                       # the class of a tag module
@@ -1382,7 +1385,15 @@ its own package and needs no configuration.
   `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
   three floating islands, left, centre and right, each 32 px high and
   radius 10, 8 px from the top and 12 px from the sides, on a 4 px grid, in
-  Inter. The islands are `surface` at 92 % with a 1 px `line` hairline.
+  Inter. The islands are `surface` at 92 % with a 1 px `line` hairline,
+  and separators are 1 x 16 px bars that leave the hairline clear. The
+  layout word has a least width of 80 px, so the left island keeps its
+  width through the layouts. The icons of **Apps**, **Keys** and the power
+  sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
+  colours of the theme; the tooltips of **Apps** and **Keys** name their
+  keys. Digits are tabular, so a number sits in the middle of its pill.
+  `waybar.sh` copies the style, the colours and the icons into the runtime
+  directory, from `chora-tiling/theme/` when `chora-tiling` wrote it.
   Change a colour in `colors.css` and the whole panel follows. Every
   label keeps 4.5:1 on `surface`, an empty tag too: it is `muted`, not
   dimmed, because it is a door that a person clicks.
@@ -1395,7 +1406,7 @@ its own package and needs no configuration.
   the commands in `on-click` of `config.jsonc`.
   The volume module runs `waybar/volume.sh` each second, which asks
   `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
-  `Muted` or `Sound unavailable`; the tooltip of `Sound unavailable` says
+  `Muted` or `No sound`; the tooltip of `No sound` says
   why: `wpctl not found`, `No output device` or `No answer`, in German
   with a German locale. A click mutes or unmutes, and the wheel changes
   the volume.
@@ -1420,8 +1431,11 @@ its own package and needs no configuration.
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
   runs. swaylock locks through the session lock protocol of the core.
   The core has no protocol to turn outputs off yet, so the screens stay on.
-- **The wallpaper**: swaybg with a plain color. For a picture, override
-  the command:
+- **The wallpaper**: `chora-tiling --launch swaybg` shows `wallpaper.png`,
+  Ink with a violet glow at the top left and a teal one at the bottom
+  right, or `wallpaper-paper.png` when the theme is Paper. A
+  `wallpaper.png` in the `chora/tiling/` folder of the config directory
+  wins in both. To change the command:
 
   ```bash
   systemctl --user edit chora-tiling-swaybg.service

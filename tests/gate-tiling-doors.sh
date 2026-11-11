@@ -50,13 +50,13 @@ click() {
 }
 marked() { grep -q "^$1" "$marks"; }
 
-tag2=$((pill + 12 + 26 + 12))
+tag2=$((pill + 26 + 12))
 click $tag2
 ctl call tiling get_tags | jq -e '.outputs[0].tags[1].shown' >/dev/null || fail "a click on tag 2 did not view it"
 ok "a click on the number 2 views tag 2"
 
 before=$(ctl call tiling get_layout | jq -r .layout)
-layout=$((pill + 12 + 26 * 8 + 13 + 40))
+layout=$((pill + 26 * 8 + 25 + 9 + 48))
 click $layout
 after=$(ctl call tiling get_layout | jq -r .layout)
 [ "$before" != "$after" ] || fail "a click on the layout word kept $before"

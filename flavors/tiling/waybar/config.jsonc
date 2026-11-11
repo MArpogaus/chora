@@ -11,9 +11,9 @@
   "margin-top": 8,
   "margin-left": 12,
   "margin-right": 12,
-  "modules-left": ["custom/apps", "custom/tag1", "custom/tag2", "custom/tag3", "custom/tag4", "custom/tag5", "custom/tag6", "custom/tag7", "custom/tag8", "custom/tag9", "custom/layout"],
+  "modules-left": ["custom/apps", "custom/sep1", "custom/tag1", "custom/tag2", "custom/tag3", "custom/tag4", "custom/tag5", "custom/tag6", "custom/tag7", "custom/tag8", "custom/tag9", "custom/sep2", "custom/layout"],
   "modules-center": ["clock"],
-  "modules-right": ["custom/volume", "network", "battery", "tray", "custom/keys", "custom/power"],
+  "modules-right": ["custom/volume", "network", "battery", "tray", "custom/sep3", "custom/keys", "custom/power"],
   "custom/tag1": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 1",
     "return-type": "json",
@@ -78,12 +78,14 @@
     "tooltip": false
   },
   "custom/apps": {
-    "exec": "echo Apps",
+    "exec": "echo '{\"text\": \"Apps\", \"tooltip\": \"Run a program (Super+Space)\"}'",
+    "return-type": "json",
     "interval": "once",
-    "format": "▦ {}",
-    "on-click": "choractl run -- chora-tiling --launch fuzzel",
-    "tooltip-format": "Run a program (Super+Space)"
+    "on-click": "choractl run -- chora-tiling --launch fuzzel"
   },
+  "custom/sep1": {"exec": "echo ' '", "interval": "once", "tooltip": false},
+  "custom/sep2": {"exec": "echo ' '", "interval": "once", "tooltip": false},
+  "custom/sep3": {"exec": "echo ' '", "interval": "once", "tooltip": false},
   "custom/layout": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/layout.sh\"",
     "return-type": "json",
@@ -91,17 +93,16 @@
     "on-click": "choractl call tiling next_layout"
   },
   "custom/keys": {
-    "exec": "echo Keys",
+    "exec": "echo '{\"text\": \"Keys\", \"tooltip\": \"Every key (Super+/)\"}'",
+    "return-type": "json",
     "interval": "once",
-    "format": "⌨ {}",
-    "on-click": "choractl call tiling show_keys",
-    "tooltip-format": "Every key (Super+/)"
+    "on-click": "choractl call tiling show_keys"
   },
   "custom/power": {
-    "exec": "echo ⏻",
+    "exec": "echo '{\"text\": \" \", \"tooltip\": \"Lock (Super+Shift+Escape)\"}'",
+    "return-type": "json",
     "interval": "once",
-    "on-click": "loginctl lock-session",
-    "tooltip-format": "Lock (Super+Shift+Escape)"
+    "on-click": "loginctl lock-session"
   },
   "clock": {
     "format": "{:%a %d %b %H:%M}",

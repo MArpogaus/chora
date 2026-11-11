@@ -198,7 +198,8 @@ fn launch(argv: &[String]) -> ExitCode {
         eprintln!("usage: chora-tiling --launch PROGRAM [ARGS]");
         return ExitCode::from(2);
     };
-    let line = theme::launch_line(program, rest, &theme::config_dirs());
+    let dirs = theme::config_dirs();
+    let line = theme::launch_line(program, rest, &dirs, theme::written_scheme(&dirs));
     let err = std::process::Command::new(&line[0]).args(&line[1..]).exec();
     eprintln!("chora-tiling: cannot start {program}: {err}");
     ExitCode::FAILURE
@@ -273,8 +274,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 /// How often the system is asked for its colour scheme.
 const THEME_CHECK: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// The unit of the panel of the flavor.
+/// The units of the panel and of the wallpaper of the flavor.
 const PANEL_UNIT: &str = "chora-tiling-waybar.service";
+const WALLPAPER_UNIT: &str = "chora-tiling-swaybg.service";
 
 /// How long the layout chip shows.
 const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
@@ -792,6 +794,7 @@ impl Tiling {
         let scheme = look.theme.scheme(system_for(look.theme));
         let colors = look.palette.over(scheme);
         let changed = colors != self.colors;
+        let new_scheme = scheme != self.scheme;
         self.theme_check =
             (look.theme == theme::Theme::System).then(|| std::time::Instant::now() + THEME_CHECK);
         self.scheme = scheme;
@@ -803,13 +806,19 @@ impl Tiling {
             eprintln!("chora-tiling: the files of the theme: {err}");
             return;
         }
-        if reload && changed {
+        let user_unit = |verb: &str, unit: &str| {
             let _ = std::process::Command::new("systemctl")
-                .args(["--user", "--no-block", "reload", PANEL_UNIT])
+                .args(["--user", "--no-block", verb, unit])
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .status();
+        };
+        if reload && changed {
+            user_unit("reload", PANEL_UNIT);
+        }
+        if reload && new_scheme {
+            user_unit("restart", WALLPAPER_UNIT);
         }
     }
 
@@ -2651,8 +2660,8 @@ mod panel {
         let (en, de) = ("C.UTF-8", "de_DE.UTF-8");
         let muted = Some("echo 'Volume: 0.40 [MUTED]'");
         let none = Some("exit 1");
-        let unavailable = "Sound unavailable";
-        let (lautlos, keiner) = ("Ton nicht verfügbar", "Kein Ausgabegerät");
+        let unavailable = "No sound";
+        let (lautlos, keiner) = ("Kein Ton", "Kein Ausgabegerät");
         for (name, wpctl, lang, words) in [
             ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%"; 2]),
             ("muted", muted, en, ["Muted"; 2]),
@@ -2677,7 +2686,7 @@ mod panel {
         let start = Instant::now();
         assert_eq!(
             said(&volume("hung", Some("sleep 10"), "C")),
-            ["Sound unavailable", "No answer"].map(str::to_owned)
+            ["No sound", "No answer"].map(str::to_owned)
         );
         let took = start.elapsed();
         assert!(took < Duration::from_secs(5), "{took:?}");

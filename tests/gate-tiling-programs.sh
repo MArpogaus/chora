@@ -28,6 +28,23 @@ start() {
     run_pid "$pid"
 }
 
+start chora-tiling --launch swaybg
+sleep 3
+snap
+python3 -I - "$repo/tests/png-pixel.py" "$shot" <<'PY' || fail "the wallpaper is not Ink"
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
+px = lambda x, y: tuple(rows[y][x * 4:x * 4 + 3])
+edge, glow, far = px(0, 400), px(4, 4), px(1275, 795)
+assert all(abs(a - b) <= 4 for a, b in zip(edge, (0x10, 0x11, 0x19))), f"the wallpaper at 0,400 is {edge}, not Ink base"
+assert glow[2] > 0x40 and glow[0] > 0x25, f"no violet glow at the top left: {glow}"
+assert far[1] > 0x22 and far[0] < 0x18, f"no teal glow at the bottom right: {far}"
+PY
+ok "the wallpaper is Ink with two corner glows"
+
 start chora-tiling --launch foot sh -c 'printf "\033[31mwarning: red text\033[0m\n"; sleep 600'
 for _ in $(seq 60); do
     ctl query 'app_id:foot kind:surface' | grep -q '"owner": *"tiling"' && break
