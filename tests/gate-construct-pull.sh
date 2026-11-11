@@ -13,8 +13,9 @@
 #    mesh of the pane has a depth; after a drop beside the cube it is
 #    still its pane, with a name, in front of the face at least at
 #    1:1. Then the pane rests when the pointer
-#    moves, and the camera is in no window. The window exists at every
-#    step.
+#    moves, and the camera is in no window; with the focus glow on the
+#    pane, a still desktop draws nothing (P1). The window exists at
+#    every step.
 #    The task button of the window leaves the taskbar of its face.
 # 2. A pane dropped over a face goes back to xp on the output of that
 #    face, at the drop point: a move from face to face stays in xp.
@@ -155,6 +156,20 @@ sleep 1
 [ "$(node "$surface" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0])')" = "construct-pane-$surface" ] ||
     fail "the camera flew into the window: $(node "$surface")"
 ok "after the release the pane rests and the camera is in no window"
+drawn() { ctl render-stats | python3 -I -c 'import json, sys; print(sorted((k, v["damaged_frames"], v["passes"]) for k, v in json.load(sys.stdin)["outputs"].items()))'; }
+focused_pane() { ctl query id:construct-focus | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(bool(n and n[0].get("visible")))'; }
+[ "$(focused_pane)" = True ] || fail "no pane shows the focus glow: $(focused_pane)"
+still() {
+    local before
+    for _ in 1 2 3; do
+        before=$(drawn)
+        sleep 2
+        [ "$before" != "$(drawn)" ] || return 0
+    done
+    return 1
+}
+still || fail "a still desktop with a focused pane draws: $(drawn), 2 s later $(sleep 2; drawn)"
+ok "a still desktop with a focused pane draws nothing, by render.stats"
 end_session
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real pull returned
