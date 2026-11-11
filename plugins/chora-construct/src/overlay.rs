@@ -157,19 +157,11 @@ impl Construct {
         else {
             return String::new();
         };
-        let [fx, fz] = self.pose.forward();
-        let (dx, dz) = (pane.at[0] - self.pose.x, pane.at[1] - self.pose.z);
-        let ahead = dx * fx + dz * fz;
-        let side = dx * fz - dz * fx;
-        if ahead <= 0.0 {
-            "behind you".into()
-        } else if side.abs() < ahead * 0.35 {
-            "ahead".into()
-        } else if side < 0.0 {
-            "right".into()
-        } else {
-            "left".into()
-        }
+        side(
+            self.pose.forward(),
+            [pane.at[0] - self.pose.x, pane.at[1] - self.pose.z],
+        )
+        .into()
     }
 
     /// What the elements over the space draw with.
@@ -398,6 +390,22 @@ const NOTICE: &str = "construct-notice";
 /// The widest notice, and its top: under the island, 8 below it.
 const NOTICE_WIDTH: f64 = 360.0;
 const NOTICE_TOP: f64 = 80.0;
+
+/// Where a point `delta` from the camera is for the person who looks along
+/// `forward` on the ground: ahead, left, right or behind.
+fn side([fx, fz]: [f64; 2], [dx, dz]: [f64; 2]) -> &'static str {
+    let ahead = dx * fx + dz * fz;
+    let right = dx * fz - dz * fx;
+    if ahead <= 0.0 {
+        "behind you"
+    } else if right.abs() < ahead * 0.35 {
+        "ahead"
+    } else if right < 0.0 {
+        "left"
+    } else {
+        "right"
+    }
+}
 
 /// The count of the list: `5 windows`, or the words of the give menu.
 fn rows_count(windows: usize, language: chora_kit::words::Language, giving: bool) -> String {
@@ -650,5 +658,23 @@ impl Construct {
         self.hint_hover = now;
         self.draw_hints()?;
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_pane_at_the_left_of_the_view_is_left() {
+        let forward = crate::space::Pose {
+            x: 0.0,
+            z: 0.0,
+            yaw: 0.0,
+            pitch: 0.0,
+        }
+        .forward();
+        assert_eq!(super::side(forward, [0.0, 1500.0]), "ahead");
+        assert_eq!(super::side(forward, [-770.0, 1440.0]), "left");
+        assert_eq!(super::side(forward, [770.0, 1440.0]), "right");
+        assert_eq!(super::side(forward, [0.0, -500.0]), "behind you");
     }
 }
