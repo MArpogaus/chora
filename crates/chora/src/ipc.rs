@@ -134,10 +134,23 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     Ok(Trigger::Key(sym))
 }
 
-/// Whether a key is one of the XF86 media and hardware keys, such as
-/// the volume keys, which type no text.
+/// The media keys that a window manager grabs without a modifier: they
+/// type no text, and a person expects the session to answer them.
+const MEDIA_KEYS: [Keysym; 9] = [
+    Keysym::XF86_AudioRaiseVolume,
+    Keysym::XF86_AudioLowerVolume,
+    Keysym::XF86_AudioMute,
+    Keysym::XF86_AudioMicMute,
+    Keysym::XF86_AudioPlay,
+    Keysym::XF86_AudioNext,
+    Keysym::XF86_AudioPrev,
+    Keysym::XF86_MonBrightnessUp,
+    Keysym::XF86_MonBrightnessDown,
+];
+
+/// Whether a key is one of [`MEDIA_KEYS`].
 fn media_key(trigger: Trigger) -> bool {
-    matches!(trigger, Trigger::Key(sym) if (0x1008_ff00..=0x1008_ffff).contains(&sym.raw()))
+    matches!(trigger, Trigger::Key(sym) if MEDIA_KEYS.contains(&sym))
 }
 
 // Each bool is one fact of the connection; no state machine joins them.
@@ -1375,8 +1388,8 @@ impl State {
 
     /// Grabs a binding of a key or a pointer button for a named connection.
     /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
-    /// work; `input.grab-any` lifts this (D45), and a media key such as
-    /// `XF86AudioRaiseVolume` needs none, as it types nothing. Ctrl+Alt with the keys of
+    /// work; `input.grab-any` lifts this (D45), and a media key of
+    /// [`MEDIA_KEYS`] needs none for an unconfined client with a claim. Ctrl+Alt with the keys of
     /// the safety layer belongs to the safety layer either way. The result
     /// is the binding in the normal form of `input.key`.
     fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
@@ -1385,8 +1398,9 @@ impl State {
         };
         let m = binding.mods;
         let trigger = trigger(&binding)?;
+        let window_manager = !self.ipc.confined(conn) && self.scene.holds_claim(&name);
         let free = trigger == Trigger::Move
-            || media_key(trigger)
+            || (media_key(trigger) && window_manager)
             || self.grants.allows(&name, Capability::GrabAny);
         if !(m.ctrl || m.alt || m.logo || free) {
             return Err(RpcError::new(
@@ -3962,18 +3976,46 @@ mod tests {
         }
     }
 
+    /// Only an unconfined window manager with a claim grabs the listed
+    /// media keys without a modifier; any other key, a client without a
+    /// claim and a confined client still need one.
     #[test]
-    fn a_media_key_needs_no_modifier() {
+    fn only_a_window_manager_grabs_the_listed_media_keys_without_a_modifier() {
         let mut core = Core::new();
-        let mut wm = core.named("wm");
+        let mut wm = claimer(&mut core, "wm", [0.0, 0.0, 800.0, 600.0]);
         for key in [
             "XF86AudioRaiseVolume",
             "XF86AudioLowerVolume",
             "XF86AudioMute",
+            "XF86AudioMicMute",
+            "XF86AudioPlay",
+            "XF86AudioNext",
+            "XF86AudioPrev",
+            "XF86MonBrightnessUp",
+            "XF86MonBrightnessDown",
         ] {
             let grabbed = wm.ok(&mut core, "input.grab", json!({"binding": key}));
             assert_eq!(grabbed, key);
         }
+        let grab = json!({"binding": "XF86Calculator"});
+        let (error, _) = wm.fails(&mut core, "input.grab", grab);
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "a key off the list");
+        let mut plain = core.named("plain");
+        let grab = json!({"binding": "XF86AudioPlay"});
+        let (error, _) = plain.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "no claim");
+        let mut confined = core.connect();
+        confined.ok(
+            &mut core,
+            "hello",
+            json!({"name": "boxed", "confined": true}),
+        );
+        let claim = json!({"commands": [{"create": {"id": "boxed", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
+        confined.send("scene.apply", claim);
+        core.dispatch();
+        let (error, _) = confined.fails(&mut core, "input.grab", grab);
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "a confined client");
     }
 
     #[test]
