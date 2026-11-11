@@ -444,3 +444,5 @@ dock), so a look is a theme plus a widget layout. Needs its own design
 document (design/looks/) and the user's approval of mockups first.
 
 ## F9 closed (11-11): the wm-pane cell typed before xp gave the keyboard; it now waits for focus (d00a626).
+
+- 11-11 (tiling v2): dist/arch/PKGBUILD installs only *.service, *.target and waybar/* of the tiling flavor; new files (foot.ini, fuzzel.ini, swaylock.conf, wallpapers, power.sh, screenshot.sh, waybar/icons) and deps (inter-font, ttf-jetbrains-mono, grim, slurp, wl-clipboard, libnotify) must be added before the RC; same check for the Fedora spec. Packaging lane after the looks merge.
