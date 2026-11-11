@@ -92,27 +92,27 @@ pub(crate) struct Host {
     /// float (`float.rs`), and when their planes go after they landed.
     floats: Vec<Option<Vec<Floating>>>,
     landing: Option<Instant>,
-    /// The faces whose window manager owes an answer, when the construct
-    /// asks again, and the faces that stay flat until the cube rests.
     /// The face under the pointer, the press of the pointer on a face
     /// in navigate mode, and the binding that steps back while the
     /// construct holds it.
     hover: Option<usize>,
     press: Option<Press>,
     step_back_key: Option<String>,
+    /// The faces whose window manager owes an answer, when the construct
+    /// asks again, and the faces that stay flat until the cube rests.
     owing: BTreeSet<usize>,
     again: Option<Instant>,
     denied: BTreeSet<usize>,
 }
 
 /// A press on a face in navigate mode: the face, where the pointer was
-/// at the press or at the last turn of the drag, and whether the pointer
-/// went farther than a click does.
+/// at the press, its x at the last turn of the drag, and whether the
+/// pointer went farther than a click does.
 #[derive(Clone, Copy)]
 struct Press {
     face: usize,
+    start: [f64; 2],
     from: f64,
-    start: f64,
     dragged: bool,
 }
 
@@ -123,19 +123,29 @@ pub(crate) enum Dragged {
     Turn(i32),
 }
 
-/// A move of the pointer to `x` during a press: after each `third` the
-/// cube turns by one face; a drag to the left brings the next face.
-fn drag_of(press: &mut Option<Press>, x: f64, third: f64) -> Dragged {
+/// A move of the pointer to `at` during a press: after each `third` of
+/// the width of the view from the last turn, the cube turns by one face;
+/// a drag to the left brings the next face. The drag goes on from `at`
+/// only after [`turned_at`], when the cube took the turn.
+fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
     let Some(press) = press else {
         return Dragged::Nothing;
     };
-    press.dragged |= (x - press.start).abs() > CLICK;
-    let moved = x - press.from;
+    let far = (at[0] - press.start[0]).hypot(at[1] - press.start[1]);
+    press.dragged |= far > CLICK;
+    let moved = at[0] - press.from;
     if moved.abs() < third {
         return Dragged::Nothing;
     }
-    press.from = x;
     Dragged::Turn(if moved < 0.0 { 1 } else { -1 })
+}
+
+/// The cube took the turn of a drag at `x`: the next third counts from
+/// there.
+fn turned_at(press: &mut Option<Press>, x: f64) {
+    if let Some(press) = press {
+        press.from = x;
+    }
 }
 
 fn face_id(i: usize) -> String {
@@ -263,20 +273,31 @@ impl Host {
         self.hover
     }
 
-    /// A press on a face in navigate mode at `x` on the screen.
-    pub(crate) fn press(&mut self, face: usize, x: f64) {
+    /// A press on a face in navigate mode at a point of the screen.
+    pub(crate) fn press(&mut self, face: usize, at: [f64; 2]) {
         self.press = Some(Press {
             face,
-            from: x,
-            start: x,
+            start: at,
+            from: at[0],
             dragged: false,
         });
     }
 
-    /// The pointer moved to `x` during a press: after each `third` of the
-    /// width of the view the cube turns by one face, with the drag.
-    pub(crate) fn drag(&mut self, x: f64, third: f64) -> Dragged {
-        drag_of(&mut self.press, x, third)
+    /// The pointer moved to `at` during a press: after each `third` of
+    /// the width of the view the cube turns by one face, with the drag.
+    pub(crate) fn drag(&mut self, at: [f64; 2], third: f64) -> Dragged {
+        drag_of(&mut self.press, at, third)
+    }
+
+    /// The cube took the turn of the drag at `x`.
+    pub(crate) fn drag_turned(&mut self, x: f64) {
+        turned_at(&mut self.press, x);
+    }
+
+    /// Forgets the press: after injected input during it, which is not
+    /// the person.
+    pub(crate) fn forget_press(&mut self) {
+        self.press = None;
     }
 
     /// The release of a press: answers the face of a click, a press that
@@ -441,6 +462,7 @@ impl Host {
     pub(crate) fn act(&mut self, act: Act, now: Instant) -> bool {
         let changed = self.view.act(act);
         if changed {
+            self.press = None;
             let to = if act == Act::StepBack { 1.0 } else { 0.0 };
             #[allow(
                 clippy::cast_possible_truncation,
@@ -620,14 +642,15 @@ impl Construct {
 
     /// Turns the cube by `by` quarter turns in `ms`, a quarter turn in
     /// 500 ms by default. A turn while one runs is ignored; with `queue`,
-    /// for the keys and the chips of a person, one such turn goes on from
-    /// the running one.
+    /// for the keys, the chips and the drag of a person, one such turn
+    /// goes on from the running one. Answers whether the cube took the
+    /// turn.
     pub(crate) fn turn_cube(
         &mut self,
         by: i32,
         ms: Option<u64>,
         queue: bool,
-    ) -> Result<(), ClientError> {
+    ) -> Result<bool, ClientError> {
         let Some(host) = &mut self.cube else {
             return Err(ClientError::Rpc(RpcError::new(
                 RpcError::REJECTED,
@@ -635,10 +658,11 @@ impl Construct {
             )));
         };
         let duration = ms.map_or(TURN, Duration::from_millis);
-        if host.start_turn(by, duration, queue, Instant::now()) {
+        let taken = host.start_turn(by, duration, queue, Instant::now());
+        if taken {
             self.draw_modes()?;
         }
-        Ok(())
+        Ok(taken)
     }
 
     /// One step of the turn of the cube, then the frame.
@@ -799,35 +823,43 @@ fn end(child: &mut Child) {
 mod tests {
     use super::*;
 
-    fn drags(moves: &[f64]) -> (Vec<Dragged>, bool) {
-        let mut press = Some(Press {
-            face: 0,
-            from: 600.0,
-            start: 600.0,
-            dragged: false,
-        });
-        let mut out = Vec::new();
-        for x in moves {
-            out.push(drag_of(&mut press, *x, 400.0));
-        }
-        (out, press.is_some_and(|p| p.dragged))
+    const PRESS: Press = Press {
+        face: 0,
+        start: [600.0, 300.0],
+        from: 600.0,
+        dragged: false,
+    };
+
+    #[test]
+    fn a_drag_turns_once_per_third_that_the_cube_took() {
+        let mut held = Some(PRESS);
+        assert_eq!(drag_of(&mut held, [500.0, 300.0], 400.0), Dragged::Nothing);
+        assert_eq!(drag_of(&mut held, [190.0, 300.0], 400.0), Dragged::Turn(1));
+        assert_eq!(
+            drag_of(&mut held, [180.0, 300.0], 400.0),
+            Dragged::Turn(1),
+            "the cube did not take it: the drag asks again"
+        );
+        turned_at(&mut held, 180.0);
+        assert_eq!(drag_of(&mut held, [100.0, 300.0], 400.0), Dragged::Nothing);
+        assert_eq!(drag_of(&mut held, [-230.0, 300.0], 400.0), Dragged::Turn(1));
+        let mut back = Some(PRESS);
+        assert_eq!(
+            drag_of(&mut back, [1010.0, 300.0], 400.0),
+            Dragged::Turn(-1)
+        );
     }
 
     #[test]
-    fn a_drag_turns_once_per_third_and_a_still_press_is_a_click() {
-        let (turns, dragged) = drags(&[603.0, 598.0]);
-        assert_eq!(turns, [Dragged::Nothing; 2]);
-        assert!(!dragged, "a click");
-        let (turns, dragged) = drags(&[500.0, 190.0, 100.0, -250.0]);
-        let expected = [
-            Dragged::Nothing,
-            Dragged::Turn(1),
-            Dragged::Nothing,
-            Dragged::Turn(1),
-        ];
-        assert_eq!(turns, expected);
-        assert!(dragged);
-        let (turns, _) = drags(&[1010.0]);
-        assert_eq!(turns, [Dragged::Turn(-1)], "to the right turns back");
+    fn a_click_stays_within_eight_pixels_on_both_axes() {
+        let dragged = |at: [f64; 2]| {
+            let mut held = Some(PRESS);
+            drag_of(&mut held, at, 400.0);
+            held.is_some_and(|p| p.dragged)
+        };
+        assert!(!dragged([603.0, 297.0]));
+        assert!(dragged([600.0, 320.0]), "up and down counts too");
+        assert!(dragged([609.0, 300.0]));
+        assert!(dragged([606.0, 306.0]), "the distance, not one axis");
     }
 }

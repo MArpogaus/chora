@@ -260,7 +260,7 @@ sleep 1
 drag 640 700
 sleep 1
 eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
-call view.step_in >/dev/null || fail "view.step_in after the drags"
+plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
 ok "a drag of a third of the view turns the cube by one face; a shorter drag neither turns it nor steps in"
 
@@ -284,7 +284,7 @@ sleep 0.5
 eval "$stepped_in" || fail "Alt+Tab moved the view"
 key Alt+Escape
 until_ok "$stood_back" 20 || fail "Alt+Escape does not step back after the switcher closed"
-call view.step_in >/dev/null || fail "view.step_in after the switcher"
+plain Return
 until_ok "$stepped_in" 20 || fail "no step in after the switcher: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 ok "after the switcher of xp closed, Alt+Escape steps back again"
 

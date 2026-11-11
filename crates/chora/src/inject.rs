@@ -348,6 +348,7 @@ impl State {
     fn run_steps(&mut self, steps: &[Step]) {
         let seat = self.seat.clone();
         self.idle_notifier_state.notify_activity(&seat);
+        self.injecting = true;
         let mut keys_down = Vec::new();
         let mut buttons_down = Vec::new();
         for step in steps {
@@ -381,6 +382,7 @@ impl State {
         for button in buttons_down {
             input::press_button(self, button, ButtonState::Released, InputTime::now(), true);
         }
+        self.injecting = false;
     }
 }
 
