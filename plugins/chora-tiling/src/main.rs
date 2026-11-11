@@ -945,23 +945,64 @@ impl Tiling {
         };
         let lang = chora_kit::words::Language::of_session();
         let rows = keys::rows(&self.wm.config, lang);
-        let mut commands =
-            keys::key_list(&format!("screen:{output}"), size, &rows, &self.colors, lang);
+        let commands = keys::key_list(&format!("screen:{output}"), size, &rows, &self.colors, lang);
+        if self.apply_report(commands)? {
+            let fit = self.key_list_fit(size);
+            if !fit.is_empty() {
+                self.apply(fit)?;
+            }
+        }
         let fade = self.wm.config.look.animations.then_some(dress::FADE);
-        commands.push(dress::change(
+        let mut commands = vec![dress::change(
             keys::KEYS.into(),
             PropsUpdate {
                 opacity: Some(1.0),
                 ..PropsUpdate::default()
             },
             fade,
-        ));
+        )];
         commands.push(Command::FocusNode {
             node: Some(keys::KEYS.into()),
         });
         self.apply(commands)?;
         self.keys_open = true;
         Ok(())
+    }
+
+    /// The updates that make the panel of the key list as wide as the
+    /// longest word that the renderer drew; none when it reports nothing.
+    fn key_list_fit(&mut self, output: [f64; 2]) -> Vec<Command> {
+        let rect = |node: &Value| {
+            let r = node["rects"].as_object()?.values().next()?.as_array()?;
+            Some([
+                r.first()?.as_f64()?,
+                r.get(1)?.as_f64()?,
+                r.get(2)?.as_f64()?,
+                r.get(3)?.as_f64()?,
+            ])
+        };
+        let Some(panel) = self
+            .query(&format!("id:{}-panel", keys::KEYS))
+            .ok()
+            .and_then(|nodes| nodes.first().and_then(rect))
+        else {
+            return Vec::new();
+        };
+        let words = self.query("kind:text").unwrap_or_default();
+        let right = words
+            .iter()
+            .filter(|n| {
+                n["id"]
+                    .as_str()
+                    .is_some_and(|id| id.starts_with(keys::KEYS) && id.ends_with("-l"))
+            })
+            .filter_map(rect)
+            .map(|r| r[0] + r[2] - panel[0])
+            .fold(0.0, f64::max);
+        if right <= 0.0 {
+            return Vec::new();
+        }
+        keys::fit_list(output, panel[3], right)
     }
 
     /// Hides the key list and gives the keyboard back.

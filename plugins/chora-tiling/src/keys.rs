@@ -29,9 +29,15 @@ const BOTTOM: f64 = 24.0;
 /// The space left of the first column, and the distance of the columns.
 const LEFT: f64 = 24.0;
 const COLUMN: f64 = 416.0;
-/// The pitches of the rows that the panel tries, in order; all on the 4 px
-/// grid. The caps are 4 px less high.
-const PITCHES: [f64; 2] = [24.0, 20.0];
+/// The pitches of the rows that the panel tries, in order. The caps are 4
+/// px less high, and never less than [`CAP_MIN`].
+const PITCHES: [f64; 3] = [24.0, 22.0, 20.0];
+/// The least height of a keycap: the keys in 13 px with their descenders
+/// and 2 px to spare above and below.
+const CAP_MIN: f64 = 18.0;
+/// How far the top of the 13 px keys sits below the top of the 14 px label
+/// beside them, so that both stand on one baseline.
+const CAP_TEXT_DY: f64 = 1.0;
 /// The air above a group title that follows a group in its column.
 const GROUP_GAP: f64 = 8.0;
 /// The padding of a keycap left and right, and the space to its label.
@@ -399,6 +405,7 @@ pub enum Item {
         at: [f64; 2],
         size: [f64; 2],
         keys: String,
+        text_y: f64,
     },
     /// The words of a row.
     Label { at: [f64; 2], text: String },
@@ -409,6 +416,11 @@ pub enum Item {
 pub struct Plan {
     pub size: [f64; 2],
     pub items: Vec<Item>,
+}
+
+/// The height of a keycap on a pitch.
+fn cap_height(pitch: f64) -> f64 {
+    (pitch - 4.0).max(CAP_MIN)
 }
 
 /// The width of a keycap: the keys in the monospace face with the same
@@ -455,11 +467,13 @@ pub fn plan(groups: &[(&str, Vec<(String, String)>)], room: f64) -> Plan {
                 text: (*title).to_owned(),
             });
             y += pitch;
+            let cap_height = cap_height(pitch);
             for (keys, label) in rows {
                 items.push(Item::Cap {
-                    at: [x, y + 2.0],
-                    size: [cap_width(keys), pitch - 4.0],
+                    at: [x, y + ((pitch - cap_height) / 2.0).floor()],
+                    size: [cap_width(keys), cap_height],
                     keys: keys.clone(),
+                    text_y: y + line_gap + CAP_TEXT_DY,
                 });
                 items.push(Item::Label {
                     at: [x + widest + CAP_GAP, y + line_gap],
@@ -552,6 +566,38 @@ pub fn key_list(
     commands
 }
 
+/// The updates that make the panel as wide as its content: `right` is where
+/// the longest word ends, in the coordinates of the panel, which the
+/// renderer reports once it drew them. The panel keeps its height, takes
+/// [`LEFT`] of room right of the word, as it has left of the keycaps, and
+/// stays centred on an output of the given size.
+#[must_use]
+pub fn fit_list(output: [f64; 2], height: f64, right: f64) -> Vec<Command> {
+    let width = (right + LEFT).ceil();
+    let origin = [
+        ((output[0] - width) / 2.0).floor(),
+        ((output[1] - height) / 2.0).floor(),
+    ];
+    let place = || Some(Transform::translate(origin[0], origin[1], 0.0));
+    vec![
+        Command::Update {
+            id: format!("{KEYS}-panel"),
+            props: PropsUpdate {
+                size: Some([width, height]),
+                transform: place(),
+                ..PropsUpdate::default()
+            },
+        },
+        Command::Update {
+            id: format!("{KEYS}-body"),
+            props: PropsUpdate {
+                transform: place(),
+                ..PropsUpdate::default()
+            },
+        },
+    ]
+}
+
 /// The commands of the items of a plan, under the group `body`.
 fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
     let mut commands = Vec::new();
@@ -563,7 +609,12 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
                 let face = Face::new(*at, 14.0, 600, muted_rgb);
                 commands.push(text(&id, body, words, &face));
             }
-            Item::Cap { at, size, keys } => {
+            Item::Cap {
+                at,
+                size,
+                keys,
+                text_y,
+            } => {
                 let keycap = PropsUpdate {
                     size: Some(*size),
                     color: Some(color(channels(&colors.surface_2), 1.0)),
@@ -572,7 +623,7 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
                     ..PropsUpdate::default()
                 };
                 commands.push(create(&format!("{id}-cap"), NodeKind::Rect, body, keycap));
-                let mut mono = Face::new([at[0] + CAP_PAD, at[1] + 2.0], 13.0, 400, text_rgb);
+                let mut mono = Face::new([at[0] + CAP_PAD, *text_y], 13.0, 400, text_rgb);
                 mono.mono = true;
                 commands.push(text(&format!("{id}-k"), body, keys, &mono));
             }
@@ -728,7 +779,7 @@ mod tests {
 
     #[test]
     fn rows_keep_a_pitch_of_the_grid_and_caps_leave_a_gap() {
-        for (room, cap) in [(1000.0, 20.0), (696.0, 16.0)] {
+        for (room, cap) in [(1000.0, 20.0), (696.0, 18.0)] {
             let plan = laid_out(room);
             let mut caps: Vec<(usize, f64, f64)> = plan
                 .items
@@ -809,6 +860,20 @@ mod tests {
         assert_eq!(plan.size[0], 880.0);
         let tight = laid_out(696.0);
         assert!(tight.size[1] <= 696.0, "the panel is {}", tight.size[1]);
+    }
+
+    #[test]
+    fn the_panel_fits_its_longest_word_with_the_margin_of_the_left() {
+        let commands = fit_list([1280.0, 800.0], 640.0, 764.0);
+        let Command::Update { props, .. } = &commands[0] else {
+            panic!("no update of the panel");
+        };
+        assert_eq!(props.size, Some([788.0, 640.0]));
+        assert_eq!(
+            props.transform,
+            Some(Transform::translate(246.0, 80.0, 0.0))
+        );
+        assert_eq!(commands.len(), 2);
     }
 
     #[test]
