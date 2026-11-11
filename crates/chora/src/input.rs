@@ -223,7 +223,9 @@ fn released_key(
 }
 
 /// Where the press of a key goes: the safety layer, a grab, a node with the
-/// keyboard focus, or the surface. The core notes where its release goes.
+/// keyboard focus, or the surface. Super belongs to the window managers: a
+/// key with Super that nobody grabbed reaches no surface, so that it types
+/// nothing into a program. The core notes where its release goes.
 fn pressed_key(
     state: &mut State,
     code: Keycode,
@@ -253,6 +255,8 @@ fn pressed_key(
             KeyAction::Node(owner.clone(), Box::new(event)),
             Suppressed::Node(owner, node),
         )
+    } else if mods.logo && !handle.modified_sym().is_modifier_key() {
+        (KeyAction::Swallow, Suppressed::Swallow)
     } else {
         return FilterResult::Forward;
     };
@@ -1791,6 +1795,21 @@ mod tests {
         tap(&mut core, A);
         wayland.roundtrip(&mut core);
         assert_eq!(wayland.key_serials().len(), 2);
+    }
+
+    #[test]
+    fn an_unbound_super_key_never_reaches_the_window() {
+        let (mut core, mut wayland, _window, _wm, _xp) = window_and_menu();
+        press(&mut core, SUPER, true);
+        tap(&mut core, A);
+        press(&mut core, SUPER, false);
+        tap(&mut core, A);
+        wayland.roundtrip(&mut core);
+        assert_eq!(
+            wayland.key_serials().len(),
+            4,
+            "Super itself and the plain a, not Super+a"
+        );
     }
 
     #[test]

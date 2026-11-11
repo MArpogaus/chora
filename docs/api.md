@@ -821,7 +821,10 @@ stays. `choractl reserve --top 30` holds a reserve until it ends.
 
 A key binding needs Ctrl, Alt or Super, so that typing still works, unless
 the client holds `input.grab-any` (D45) or the key is one of the XF86
-media keys, such as `XF86AudioRaiseVolume`, which type nothing. The
+media keys, such as `XF86AudioRaiseVolume`, which type nothing. A key
+with Super that no client grabbed reaches no surface: Super belongs to
+the window managers, and an unbound combination types nothing into a
+program. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
 F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
 owner too, unless each client that grabs it holds a claim and is on the
