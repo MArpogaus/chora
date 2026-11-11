@@ -365,8 +365,7 @@ sequenceDiagram
 2. The safety layer checks its fixed bindings first.
 3. The plugins that grabbed the key or the pointer get the event. A plugin
    consumes the event or lets it pass.
-4. The focused surface gets each event that no plugin consumed, except
-   a key with Super, which belongs to the window managers. Pointer
+4. The focused surface gets each event that no plugin consumed. Pointer
    events go to the topmost node under the cursor that accepts input. The
    inverse of the camera maps the cursor to scene coordinates.
 
