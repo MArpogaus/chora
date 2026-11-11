@@ -2236,6 +2236,20 @@ mod tests {
         );
     }
 
+    /// The answer tells whether the core renders in software, as on
+    /// llvmpipe, so that a client can choose a cheaper look.
+    #[test]
+    fn hello_tells_a_software_renderer() {
+        let mut core = Core::with_renderer();
+        let mut client = core.connect();
+        let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
+        assert_eq!(
+            answer["software"],
+            json!(true),
+            "the tests render on llvmpipe"
+        );
+    }
+
     #[test]
     fn hello_with_an_equal_protocol_answers_with_the_core_own_values() {
         let mut core = Core::new();
