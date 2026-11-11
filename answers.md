@@ -258,3 +258,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - The reset is Saturday 10:59; the rest of this week's heavy work then runs on Fable until it is used up, and the user resets again.
 - After the RC (user, earlier 11-11): an extensive user testing round. Release authorized when all is clean.
 - Context management leaks after compaction: note as a major issue; the PM session must stay robust (friction 33).
+- 71% at 17:02 UTC (user); usage.py estimate since 16:42: 1.88 M units, i.e. under 1%, consistent.
