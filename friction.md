@@ -206,3 +206,16 @@ note, not what a person expects of the paperclip. Fix: the perfection
 rule of the charter (UI reviews), and every UI review now gets the
 captures at 1x and 2x and a checklist: aspect ratio of pictures, edges
 and clipping, one surface per thing, alignment, spacing.
+
+## 29 (11-11 ~19:40): one generalized HUD for four looks
+The HUD sprint designed one host and one surface model (panel, rows,
+sentence) and themed it per look. The looks serve different people and
+usage patterns (a nostalgic or beginner desktop, keyboard power use,
+the living room at a distance, a 3D space), so the shared model
+produced two surfaces where people expect one (the xp balloon, the
+construct sentence, the mc repeat) and HUDs that read as foreign in
+their look. The UX loop and the HUD review did not catch it because
+they checked against the shared design note, not against each look's
+people. Fix: design documents per look (design/looks/), shared
+invariants only where they matter, a combination document for the
+seams, and UI reviews against the look's own document first.
