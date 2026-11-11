@@ -1,6 +1,8 @@
 // The panel of the tiling flavor. Only modules that need no IPC of sway
-// and only words of a person: the nine custom/tagN ask chora-tiling each
-// second for the tags of the output (tag.sh), and custom/volume asks wpctl for the
+// and only words of a person: the nine custom/tagN and custom/layout ask
+// chora-tiling for the tags and the layout (tag.sh, layout.sh) when
+// chora-tiling sends SIGRTMIN+1 to waybar after a change, at once, and every
+// 5 seconds in case a signal is lost; custom/volume asks wpctl for the
 // volume: a click mutes, the wheel changes it, and the tooltip says why
 // there is no sound. waybar.sh starts waybar with this file on the
 // outputs of chora-tiling only.
@@ -17,63 +19,72 @@
   "custom/tag1": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 1",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 1}'",
     "tooltip": false
   },
   "custom/tag2": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 2",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 2}'",
     "tooltip": false
   },
   "custom/tag3": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 3",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 3}'",
     "tooltip": false
   },
   "custom/tag4": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 4",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 4}'",
     "tooltip": false
   },
   "custom/tag5": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 5",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 5}'",
     "tooltip": false
   },
   "custom/tag6": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 6",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 6}'",
     "tooltip": false
   },
   "custom/tag7": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 7",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 7}'",
     "tooltip": false
   },
   "custom/tag8": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 8",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 8}'",
     "tooltip": false
   },
   "custom/tag9": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/tag.sh\" 9",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling view_tag '{\"tag\": 9}'",
     "tooltip": false
   },
@@ -90,7 +101,8 @@
     "align": 0,
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/layout.sh\"",
     "return-type": "json",
-    "interval": 1,
+    "interval": 5,
+    "signal": 1,
     "on-click": "choractl call tiling next_layout"
   },
   "custom/keys": {

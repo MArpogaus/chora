@@ -454,14 +454,40 @@ pub fn apply(dir: &Path, colors: &Colors, scheme: Scheme) -> std::io::Result<()>
     std::fs::write(dir.join("scheme"), format!("{}\n", scheme.name()))
 }
 
+/// `chora-tiling` in the runtime directory of the user: the theme that
+/// [`apply`] writes and the pids of the panel.
+#[must_use]
+pub fn runtime_dir() -> Option<std::path::PathBuf> {
+    let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
+    runtime.is_absolute().then(|| runtime.join("chora-tiling"))
+}
+
 /// The directory that [`apply`] writes by default: `chora-tiling/theme`
 /// in the runtime directory of the user, written again at each start.
 #[must_use]
 pub fn default_dir() -> Option<std::path::PathBuf> {
-    let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
-    runtime
-        .is_absolute()
-        .then(|| runtime.join("chora-tiling").join("theme"))
+    runtime_dir().map(|d| d.join("theme"))
+}
+
+/// The pid that a companion of the flavor left in `NAME.pid` of the
+/// runtime directory, when that process still runs and its command line
+/// has `word`, so that the pid of another program is never taken.
+#[must_use]
+pub fn companion(name: &str, word: &str) -> Option<u32> {
+    let file = runtime_dir()?.join(format!("{name}.pid"));
+    let pid: u32 = std::fs::read_to_string(file).ok()?.trim().parse().ok()?;
+    let line = std::fs::read(format!("/proc/{pid}/cmdline")).ok()?;
+    String::from_utf8_lossy(&line).contains(word).then_some(pid)
+}
+
+/// Sends a signal, by the name that `kill -s` takes, to a process.
+pub fn signal(pid: u32, name: &str) {
+    let _ = std::process::Command::new("kill")
+        .args(["-s", name, &pid.to_string()])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 }
 
 /// The directories that hold the config of a program, first the one

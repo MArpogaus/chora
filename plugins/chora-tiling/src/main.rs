@@ -162,6 +162,7 @@ struct Tiling {
     /// The first tag of the current output when the windows were last
     /// placed, to know the direction of a tag switch.
     last_tag: usize,
+    bar: String,
     /// Whether the next placement is a rebuild, not a change a person made:
     /// nothing moves.
     still: bool,
@@ -292,6 +293,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         border: runtime_shader("border.frag", include_str!("../border.frag")),
         shadow: runtime_shader("shadow.frag", dress::SHADOW_SHADER),
         last_tag: 0,
+        bar: String::new(),
         still: true,
         keys_open: false,
         chip_until: None,
@@ -334,6 +336,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
         };
         if let Some(event) = event {
             runtime::dispatch(tiling, event)?;
+            tiling.push_bar();
         }
         let now = std::time::Instant::now();
         if tiling.effects.animating() && now >= next {
@@ -879,6 +882,22 @@ impl Tiling {
             }
         }
         Ok(())
+    }
+
+    /// Tells the panel at once when the tags or the layout changed, with
+    /// `SIGRTMIN+1` to waybar, which the modules of the tags and of the
+    /// layout answer by asking again; without a panel nothing happens.
+    fn push_bar(&mut self) {
+        let layout = self.wm.current().map(|(layout, _)| format!("{layout:?}"));
+        let tags = serde_json::to_string(&self.wm.tags()).unwrap_or_default();
+        let state = format!("{layout:?}{tags}");
+        if state == self.bar {
+            return;
+        }
+        self.bar = state;
+        if let Some(pid) = theme::companion("waybar", "waybar") {
+            theme::signal(pid, "RTMIN+1");
+        }
     }
 
     /// Shows the chip that names the layout of the current tag for 700 ms.
@@ -2161,6 +2180,7 @@ mod tests {
             border: None,
             shadow: None,
             last_tag: 0,
+            bar: String::new(),
             still: true,
             keys_open: false,
             chip_until: None,

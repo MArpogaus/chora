@@ -8,6 +8,9 @@
 # ends, and passes SIGUSR2, the reload of the unit, on to waybar.
 # Without an answer of tiling within 10 seconds, the panel shows on every
 # output, with a line on stderr. jq is needed.
+# The pids of this script and of waybar are written to panel.pid and
+# waybar.pid in chora-tiling of the runtime directory, so that chora-tiling
+# can push a change (SIGRTMIN+1) and a new theme (SIGUSR2) without a unit.
 # The style is copied into the runtime directory with the colours and the
 # icons of the theme that chora-tiling wrote there, or of the folder
 # chora/tiling/waybar of the config directory when it has colors.css, or
@@ -21,6 +24,10 @@ command -v jq >/dev/null 2>&1 || {
 dir=$1
 config=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar.json
 style=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar
+
+pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
+mkdir -p "$pids"
+echo $$ >"$pids/panel.pid"
 
 prepare() {
     mkdir -p "$style/icons"
@@ -68,6 +75,7 @@ while :; do
     prepare
     waybar --config "$config" --style "$style/style.css" &
     pid=$!
+    echo "$pid" >"$pids/waybar.pid"
     while kill -0 "$pid" 2>/dev/null; do
         sleep 2
         now=$(tiling_outputs) || now=""
