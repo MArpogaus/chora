@@ -410,3 +410,17 @@ forces the case every run (d145e0e).
   the same crash path in the test.
 - F11 last-words gate "no last words after SIGSEGV": likely the same
   timing.
+
+## S5 (11-11): showcase findings (media/2026-11-11/showcase/findings.md, 86)
+Bugs to triage into the area lanes: mc Agents scene empty (agent.list
+[] while voice names Atlas/Coder); OPEN CUBE black flash 0.5 s and a
+pane pill over the face; a chat opened by voice does not take the
+keyboard (by design until V1: spoken act); injected Alt+Y silent and
+"No" gives no "Refused." feedback; pane.manager places panes outside
+the view; window.give refuses a window with no pane; navigate-mode drag
+on a floating window moves it off the face instead of turning.
+Visual: the question card covers the transcript and its hint is cut;
+dark construct gets white pills; light mc gets a near-black drawer;
+tiling Chat pill overlaps the bar; tag "1" and OPEN CUBE at x=0; long
+headers ellipsized. Built at df8dadd (before 67f93a9); re-check those
+the construct merge may have fixed.
