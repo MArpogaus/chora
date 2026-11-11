@@ -229,27 +229,23 @@ impl Tty {
         Ok(f(renderer.as_mut()))
     }
 
-    /// Imports the buffers that a surface tree just committed, as
-    /// [`super::Backend::import_commit`] says: with the renderer of the
-    /// frames and with its GLES renderer, which draws the layers and the
-    /// captures. Both put shm pixels into the same texture, so both
-    /// follow every commit.
-    pub fn import_commit(
-        &mut self,
-        surface: &smithay::reexports::wayland_server::protocol::wl_surface::WlSurface,
-    ) {
-        use smithay::backend::renderer::utils::import_surface_tree;
+    /// Runs a function with the renderer of the frames and with its GLES
+    /// renderer, which draws the layers and the captures, while the
+    /// session is active. The textures of both stay through a pause. The
+    /// commits of a paused session go into the textures with the first
+    /// frame after the resume: smithay then holds only the newest buffer
+    /// of a surface and the damage of all commits of the pause, so an
+    /// import at the resume would read the same, and a damage-less attach
+    /// of the pause shows the attached buffer in full.
+    pub fn importers(&mut self, f: &mut dyn FnMut(&mut dyn super::import::Importer)) {
         if !self.session.is_active() {
             return;
         }
         let Ok(mut renderer) = self.gpus.single_renderer(&self.primary_gpu) else {
             return;
         };
-        let frames = import_surface_tree(&mut renderer, surface).is_ok();
-        let layers = import_surface_tree(renderer.as_mut(), surface).is_ok();
-        if !(frames && layers) {
-            tracing::debug!(frames, layers, "a committed buffer is not imported");
-        }
+        f(&mut renderer);
+        f(renderer.as_mut());
     }
 
     /// Whether the primary GPU can use a buffer of a client.
