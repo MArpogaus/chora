@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>construct v2: first time</title>
+<link rel="stylesheet" href="../glass.css"><link rel="stylesheet" href="v2.css">
+<style>
+  #start { left: 416px; top: 264px; width: 448px; padding: 8px; }
+  #start .head { padding: 12px 12px 12px; }
+  #start .head .small { color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .row { height: 48px; border-radius: var(--r-inner); display: flex; align-items: center; justify-content: space-between; padding: 0 12px; }
+  .row + .row { margin-top: 4px; }
+  .row.hover { background: var(--hover); }
+  #start .foot { height: 40px; display: flex; align-items: center; padding: 0 12px; color: var(--muted); }
+  #start .foot .small { font-weight: 400; }
+  #start .foot { justify-content: space-between; }
+  .kf { display: flex; align-items: center; gap: 8px; }
+</style></head>
+<body class="light">
+<div class="shadow" style="left:456px;top:600px;width:368px;height:28px"></div>
+<div id="start" class="glass strong">
+  <div class="head"><div class="text">Nothing is open yet</div>
+    <div class="small">Start a program. It opens here, in front of you.</div></div>
+  <div class="row hover"><span class="text">Terminal</span><span id="k1"></span></div>
+  <div class="row"><span class="text">All programs</span><span id="k2"></span></div>
+  <div class="row"><span class="text">A cube of desktops</span><span id="k3"></span></div>
+  <div class="foot"><span class="small">Click a row or press its keys.</span><span class="kf"><span id="k4"></span><span class="small">All keys</span></span></div>
+</div>
+<script src="parts.js"></script>
+<script>
+  space(); island('listening', 'Listening');
+  document.getElementById('k1').innerHTML = caps('Super', 'T');
+  document.getElementById('k2').innerHTML = caps('Super', 'Space');
+  document.getElementById('k3').innerHTML = caps('Super', 'C');
+  document.getElementById('k4').innerHTML = caps('F1');
+  document.body.insertAdjacentHTML('beforeend', POINTER(700, 352, 'light'));
+  tag('construct v2 · first time, empty floor');
+</script>
+</body></html>

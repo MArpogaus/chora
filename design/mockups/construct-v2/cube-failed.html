@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>construct v2: cube, a face that failed</title>
+<link rel="stylesheet" href="../glass.css"><link rel="stylesheet" href="v2.css"><link rel="stylesheet" href="cube.css">
+<style>
+  #failed { left: 404px; top: 306px; width: 352px; padding: 16px; }
+  #failed .well { margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: var(--well); }
+  #failed .note { margin-top: 8px; color: var(--muted); font-weight: 400; }
+  .hint.hover { background: var(--hover); }
+</style>
+</head>
+<body class="light">
+<div class="shadow" style="left:400px;top:604px;width:480px;height:30px"></div>
+<script src="parts.js"></script><script src="cube.js"></script>
+<script>
+  // At rest the cube stands 14 degrees off square, so it reads as a cube; the face ahead failed.
+  cube(-14, ['linear-gradient(#DADEE4, #CDD2D9)', 'xp.png', '#111', 'tiling.png'], 0);
+  space(); island('listening', 'Listening');
+  document.body.insertAdjacentHTML('beforeend', `
+  <div id="failed" class="glass strong">
+    <div class="text">Media center did not start.</div>
+    <div class="well data">chora-mc stopped after 2 s:<br>it needs foot 1.26 or later.</div>
+    <div class="small note">The other faces still work.</div>
+  </div>`);
+  facelabel(600, 576, 'Media center', 'did not start · face 3 of 4', ['', '', 'failed', '']);
+  hints([{k:['Ctrl','Alt','←'], w:'Turn left', after:true}, '|', {k:['Return'], w:'Try again', cls:'hover'}, '|', {k:['Ctrl','Alt','→'], w:'Turn right'}]);
+  document.body.insertAdjacentHTML('beforeend', POINTER(760, 470, 'light'));
+  tag('construct v2 · a face that failed, pointer over it');
+</script>
+</body></html>

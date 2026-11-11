@@ -1,0 +1,20 @@
+/* A cube of four 16:9 faces (a square prism), 512 x 288, in CSS 3D. */
+.stage { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; perspective: 1500px; perspective-origin: 640px 380px; }
+.cube { position: absolute; left: 384px; top: 236px; width: 512px; height: 288px; transform-style: preserve-3d; }
+.face { position: absolute; inset: 0; background-size: 100% 100%; backface-visibility: hidden; }
+.light .face { box-shadow: 0 0 0 1px rgba(16,20,28,0.18); }
+.dark .face { box-shadow: 0 0 0 1px rgba(255,255,255,0.14); }
+.face.f0 { transform: translateZ(256px); }
+.face.f1 { transform: rotateY(90deg) translateZ(256px); }
+.face.f2 { transform: rotateY(180deg) translateZ(256px); }
+.face.f3 { transform: rotateY(-90deg) translateZ(256px); }
+.face.lit { box-shadow: 0 0 0 2px #2680B4, 0 0 16px 2px rgba(38,128,180,0.35); }
+.mirror { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; transform: scaleY(-1); transform-origin: 0 584px; opacity: 0.16;
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0) 400px, rgba(0,0,0,1) 800px); filter: blur(1.5px); }
+.facelabel { position: absolute; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 16px; transform: translateX(-50%); white-space: nowrap; }
+.facelabel .name { font: 500 14px/20px var(--f-sans); }
+.facelabel .words { font: 400 14px/20px var(--f-sans); color: var(--muted); }
+.dots { display: flex; gap: 4px; margin-left: 4px; }
+.dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--muted); opacity: 0.35; }
+.dots i.on { background: #2680B4; opacity: 1; }
+.dots i.failed { background: none; box-shadow: inset 0 0 0 1.5px var(--muted); opacity: 0.9; }

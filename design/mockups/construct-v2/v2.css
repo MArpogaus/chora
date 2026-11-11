@@ -1,0 +1,28 @@
+/* construct v2 mocks: the space (sky, horizon, marble floor) and the v2 parts.
+   Glass tokens come from ../glass.css (construct-hud-spec.md). 1280x800, 1x. */
+html, body { width: 1280px; height: 800px; }
+body { background-size: 1280px 800px; }
+.space { position: absolute; inset: 0; overflow: hidden; }
+.light .space { background: linear-gradient(#E4E8ED 0, #ECEEF1 380px, #F6F7F8 400px, #EEEFF0 410px, #E9EAEB 800px); }
+.dark  .space { background: linear-gradient(#000 0, #050506 380px, #1A1B1D 400px, #0A0A0B 412px, #070707 800px); }
+.horizon { position: absolute; left: 0; right: 0; top: 392px; height: 16px; filter: blur(6px); }
+.light .horizon { background: rgba(255,255,255,0.95); }
+.dark .horizon { background: rgba(255,255,255,0.10); }
+.veins { position: absolute; left: 0; top: 400px; width: 1280px; height: 400px; filter: blur(1.2px); }
+.light .veins path { stroke: rgba(70,74,82,0.08); }
+.dark .veins path { stroke: rgba(255,255,255,0.06); }
+.veins path { fill: none; stroke-width: 1.1; }
+.shadow { position: absolute; border-radius: 50%; filter: blur(14px); }
+.light .shadow { background: rgba(30,34,40,0.22); }
+.dark .shadow { background: rgba(0,0,0,0.9); }
+.ring { width: 24px; height: 24px; }
+#island { top: 32px; right: 32px; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 8px; }
+.hints { bottom: 32px; left: 50%; transform: translateX(-50%); height: 40px; display: flex; align-items: center; padding: 0 8px; white-space: nowrap; }
+.hint { display: flex; align-items: center; gap: 8px; padding: 0 8px; height: 32px; border-radius: var(--r-pill); }
+.hint .small { font-weight: 400; }
+.hint.dim { opacity: 0.45; }
+.sep { width: 1px; height: 16px; background: var(--sep); margin: 0 4px; }
+.pointer { position: absolute; width: 18px; height: 26px; z-index: 50; }
+.mocktag { position: absolute; left: 32px; top: 32px; height: 24px; padding: 0 10px; border-radius: 6px;
+  font: 500 11px/24px var(--f-sans); letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px dashed currentColor; opacity: 0.55; color: var(--muted); }
