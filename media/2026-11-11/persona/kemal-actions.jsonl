@@ -1,0 +1,53 @@
+{"time": 1794379798.216, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.047, "result": {"path": "/tmp/p3-kemal/shots/001.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379802.354393744, "action": "look-right", "ok": true}
+{"time": 1794379808.611, "action": "key", "args": {"combo": "Super+Return"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379808.7, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.061, "result": {"path": "/tmp/p3-kemal/shots/003.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379813.329, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.047, "result": {"path": "/tmp/p3-kemal/shots/004.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379818.959406357, "action": "look-right", "ok": true}
+{"time": 1794379827.094, "action": "type", "args": {"text": "echo kemal-one"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379827.185, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1794379827.366832922, "action": "look-right", "ok": true}
+{"time": 1794379834.192, "action": "key", "args": {"combo": "Super+2"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379834.360107169, "action": "look-right", "ok": true}
+{"time": 1794379839.433, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.042, "result": {"path": "/tmp/p3-kemal/shots/008.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379847.095, "action": "key", "args": {"combo": "Super+Return"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1794379847.183, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.054, "result": {"path": "/tmp/p3-kemal/shots/009.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379847.413514974, "action": "look-right", "ok": true}
+{"time": 1794379854.74, "action": "key", "args": {"combo": "Alt+Tab"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379854.896080490, "action": "look-right", "ok": true}
+{"time": 1794379862.133, "action": "key", "args": {"combo": "Super+c"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379862.308334193, "action": "look-right", "ok": true}
+{"time": 1794379867.978, "action": "key", "args": {"combo": "BackSpace"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1794379871.92, "action": "key", "args": {"combo": "Super+space"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379872.085065405, "action": "look-right", "ok": true}
+{"time": 1794379877.601, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.04, "result": {"path": "/tmp/p3-kemal/shots/014.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379885.589, "action": "key", "args": {"combo": "Super+slash"}, "ok": true, "seconds": 0.018, "result": "ok"}
+{"time": 1794379885.768961330, "action": "look-right", "ok": true}
+{"time": 1794379891.549, "action": "key", "args": {"combo": "BackSpace"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379895.915, "action": "key", "args": {"combo": "Super+a"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379896.108136003, "action": "look-right", "ok": true}
+{"time": 1794379902.764, "action": "type", "args": {"text": "Hello, what can you do?"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379902.926672557, "action": "look-right", "ok": true}
+{"time": 1794379912.897, "action": "key", "args": {"combo": "Ctrl+u"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379917.656, "action": "key", "args": {"combo": "Super+a"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379917.791084820, "action": "look-right", "ok": true}
+{"time": 1794379924.998, "action": "key", "args": {"combo": "XF86AudioRaiseVolume"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379925.140473346, "action": "look-right", "ok": true}
+{"time": 1794379930.898, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.04, "result": {"path": "/tmp/p3-kemal/shots/020.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379937.994, "action": "key", "args": {"combo": "XF86AudioMute"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379938.141836610, "action": "look-right", "ok": true}
+{"time": 1794379945.828, "action": "key", "args": {"combo": "XF86AudioMute"}, "ok": true, "seconds": 0.013, "result": "ok"}
+{"time": 1794379945.914, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.041, "result": {"path": "/tmp/p3-kemal/shots/022.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379954.424, "action": "key", "args": {"combo": "Super+Shift+Left"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379954.526, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.039, "result": {"path": "/tmp/p3-kemal/shots/023.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379959.635818602, "action": "look-right", "ok": true}
+{"time": 1794379965.534, "action": "key", "args": {"combo": "Ctrl+u"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794379969.693, "action": "key", "args": {"combo": "Super+Shift+comma"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1794379969.779, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.041, "result": {"path": "/tmp/p3-kemal/shots/025.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379975.265120031, "action": "look-right", "ok": true}
+{"time": 1794379980.725, "action": "key", "args": {"combo": "Ctrl+u"}, "ok": true, "seconds": 0.016, "result": "ok"}
+{"time": 1794379986.392, "action": "key", "args": {"combo": "Super+Shift+period"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379986.484, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.071, "result": {"path": "/tmp/p3-kemal/shots/027.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794379986.687163166, "action": "look-right", "ok": true}
+{"time": 1794379994.949, "action": "key", "args": {"combo": "Ctrl+u"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794379995.122917396, "action": "look-right", "ok": true}

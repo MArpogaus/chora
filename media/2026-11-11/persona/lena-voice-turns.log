@@ -1,0 +1,20 @@
+  INFO chora_voice::log: turn=1 asr=14ms text="test"
+  INFO chora_voice::log: turn=2 asr=13ms text="Öffne den Chat mit einem Helfer"
+  INFO chora_voice::log: tool call_method {"client":"assistant","method":"chat.show","params":{"name":"demo"}} 30ms -> error: chat.show: not for a confined connection (code 1)
+  INFO chora_voice::log: turn=3 asr=10ms text="Chat öffnen"
+  INFO chora_voice::log: tool call_method {"client":"assistant","method":"chat.show","params":{"name":"demo"}} 20ms -> error: chat.show: not for a confined connection (code 1)
+  INFO chora_voice::log: turn=4 asr=41ms text="Hallo Helfer, ich möchte mit dir chatten"
+  INFO chora_voice::log: tool call_method {"client":"assistant","method":"chat.show","params":{"name":"demo"}} 36ms -> error: chat.show: not for a confined connection (code 1)
+  INFO chora_voice::log: turn=5 asr=12ms text="Helfer, bitte schreib eine Notiz-Datei mit dem Text: Zimmer 12 Verband wechseln"
+  INFO chora_voice::log: tool agent_say {"name":"demo","text":"Helfer, bitte schreib eine Notiz-Datei mit dem Text: Zimmer 12 Verband wechseln"} 0ms -> error: no agent demo; agent_list names them
+  INFO chora_voice::log: turn=6 asr=18ms text="Neue Notiz erstellen"
+  INFO chora_voice::log: turn=7 asr=43ms text="Hilfe. Was kann ich sagen, damit ein Helfer eine Notiz schreibt?"
+  INFO chora_voice::log: tool agent_say {"name":"demo","text":"Hilfe. Was kann ich sagen, damit ein Helfer eine Notiz schreibt?"} 0ms -> error: no agent demo; agent_list names them
+  INFO chora_voice::log: turn=8 asr=15ms text="Ja, erlauben"
+  INFO chora_voice::log: turn=9 asr=45ms text="Helfer stoppen"
+  INFO chora_voice::log: tool agent_stop {"name":"demo"} 0ms -> error: no agent demo
+  INFO chora_voice::log: turn=10 asr=42ms text="Stopp"
+  INFO chora_voice::log: turn=11 asr=46ms text="Bitte halte den Helfer an"
+  INFO chora_voice::log: turn=12 asr=14ms text="Starte einen Helfer für das Projekt demo"
+  INFO chora_voice::log: tool agent_stop {"name":"demo"} 0ms -> error: no agent demo
+  INFO chora_voice::log: turn=13 asr=9ms text="Ja"

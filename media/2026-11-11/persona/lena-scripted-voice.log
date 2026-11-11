@@ -1,0 +1,22 @@
+  INFO chora_voice::log: say: Bereit.
+  INFO chora_voice::log: turn=1 asr=42ms text="Starte einen Helfer für das Projekt demo"
+  INFO chora_voice::log: say: Moment.
+  INFO chora_voice::log: say: Soll ich einen Agenten für demo starten?
+  INFO chora_voice::log: turn=2 asr=12ms text="Ja"
+  INFO chora_voice::log: confirm: yes
+  INFO chora_voice::log: confirm agent_start: yes
+  INFO chora_voice::log: tool agent_start {"name":"Atlas","project":"demo"} 0ms -> atlas starts in /tmp/p3-lena2/project with the voice ryan; its log: /tmp/p3-lena2/data/chora/agents/atlas.log
+  INFO chora_voice::log: say: Fertig.
+  INFO chora_voice::log: turn=3 asr=12ms text="Atlas, schreib bitte eine Datei notes.txt mit Zimmer 12 Verband wechseln"
+  INFO chora_voice::log: say: Atlas möchte notes.txt ändern.
+  INFO chora_voice::log: say: Erlauben?
+  INFO chora_voice::log: say: Drücke Alt+y für Ja oder Alt+n für Nein.
+  INFO chora_voice::log: turn=4 asr=43ms text="Ja"
+  INFO chora_voice::log: confirm: a yes without the key counts as nothing
+  INFO chora_voice::log: turn=5 asr=10ms text="Atlas, stopp"
+  INFO chora_voice::log: say: Abgelehnt: die Datei ist fertig.
+  INFO chora_voice::log: say: Details auf dem Bildschirm.
+  INFO chora_voice::log: turn=6 asr=15ms text="Halte den Helfer Atlas an"
+  INFO chora_voice::log: tool agent_stop {"name":"Atlas"} 0ms -> atlas stops
+  INFO chora_voice::log: say: Moment.
+  INFO chora_voice::log: say: Fertig.

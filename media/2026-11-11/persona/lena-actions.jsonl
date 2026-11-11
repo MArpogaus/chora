@@ -1,0 +1,22 @@
+{"time": 1794380123.686, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.173, "result": {"path": "/tmp/p3-lena/shots/001.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380128.9788609, "action": "say", "args": {"text": "\u00d6ffne den Chat mit einem Helfer"}, "ok": true, "llm_tool": "call_method", "heard": ["Moment.", "Erledigt."]}
+{"time": 1794380140.388, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.161, "result": {"path": "/tmp/p3-lena/shots/002.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380145.7863274, "action": "say", "args": {"text": "Chat \u00f6ffnen"}, "ok": true, "llm_tool": "call_method", "heard": ["Moment.", "Erledigt."]}
+{"time": 1794380157.493, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.15, "result": {"path": "/tmp/p3-lena/shots/003.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380162.9524271, "action": "say", "args": {"text": "Hallo Helfer, ich m\u00f6chte mit dir chatten"}, "ok": true, "llm_tool": "call_method", "heard": ["Moment.", "Erledigt."]}
+{"time": 1794380175.124, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.154, "result": {"path": "/tmp/p3-lena/shots/004.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380181.156945, "action": "say", "args": {"text": "Helfer, bitte schreib eine Notiz-Datei mit dem Text: Zimmer 12 Verband wechseln"}, "ok": true, "llm_tool": "agent_say", "heard": ["Moment.", "Erledigt."]}
+{"time": 1794380192.899, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.154, "result": {"path": "/tmp/p3-lena/shots/005.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380197.8746152, "action": "say", "args": {"text": "Neue Notiz erstellen"}, "ok": true, "llm_tool": null, "heard": ["Das kann ich leider nicht.", ""]}
+{"time": 1794380212.914, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.141, "result": {"path": "/tmp/p3-lena/shots/006.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380218.67605, "action": "say", "args": {"text": "Hilfe. Was kann ich sagen, damit ein Helfer eine Notiz schreibt?"}, "ok": true, "llm_tool": "agent_say", "heard": ["Moment.", "Erledigt."]}
+{"time": 1794380230.691, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.197, "result": {"path": "/tmp/p3-lena/shots/007.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380236.5727534, "action": "say", "args": {"text": "Ja, erlauben"}, "ok": true, "llm_tool": null, "heard": ["Das kann ich leider nicht."]}
+{"time": 1794380247.928, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.188, "result": {"path": "/tmp/p3-lena/shots/008.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380254.355652, "action": "say", "args": {"text": "Helfer stoppen"}, "ok": true, "llm_tool": "agent_stop", "heard": ["Moment.", "Erledigt."]}
+{"time": 1794380266.477, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.142, "result": {"path": "/tmp/p3-lena/shots/009.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380271.9878178, "action": "say", "args": {"text": "Stopp"}, "ok": true, "llm_tool": null, "heard": [""]}
+{"time": 1794380299.457, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.152, "result": {"path": "/tmp/p3-lena/shots/010.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380307.0417411, "action": "say", "args": {"text": "Bitte halte den Helfer an"}, "ok": true, "llm_tool": "agent_stop", "heard": ["Das kann ich leider nicht."]}
+{"time": 1794380318.502, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.149, "result": {"path": "/tmp/p3-lena/shots/011.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380358.4748325, "action": "say", "args": {"text": "Ja"}, "ok": true, "llm_tool": null, "heard": ["Moment.", "Soll ich einen Agenten f\u00fcr demo starten?"]}

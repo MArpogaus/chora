@@ -1,0 +1,110 @@
+{"time": 1794380555.143, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.05, "result": {"path": "/tmp/p3-max/shots/002.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380561.192, "action": "click", "args": {"x": 640.0, "y": 300.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794380561.268, "action": "key", "args": {"combo": "t"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380561.356, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.201, "result": {"path": "/tmp/p3-max/shots/003.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380569.882, "action": "key", "args": {"combo": "q"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1794380569.978, "action": "key", "args": {"combo": "d"}, "ok": true, "seconds": 0.032, "result": "ok"}
+{"time": 1794380570.1, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.078, "result": {"path": "/tmp/p3-max/shots/004.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380580.127, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.014, "result": "ok"}
+{"time": 1794380580.229, "action": "type", "args": {"text": "choractl call construct construct.list"}, "ok": true, "seconds": 0.034, "result": "ok"}
+{"time": 1794380580.347, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.012, "result": "ok"}
+{"time": 1794380580.442, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.075, "result": {"path": "/tmp/p3-max/shots/005.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380588.313, "action": "click", "args": {"x": 700.0, "y": 450.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794380588.393, "action": "type", "args": {"text": "choractl call construct construct.list"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1794380588.491, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380588.586, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.044, "result": {"path": "/tmp/p3-max/shots/006.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380594.609, "action": "type", "args": {"text": "choractl call construct construct.list"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380594.693, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1794380594.772, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.046, "result": {"path": "/tmp/p3-max/shots/007.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380601.575, "action": "type", "args": {"text": "choractl call construct pane.move {\"name\":\"foot\",\"right\":900,\"ahead\":0}"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380601.66, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.018, "result": "ok"}
+{"time": 1794380601.749, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380601.826, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.083, "result": {"path": "/tmp/p3-max/shots/008.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380611.395, "action": "click", "args": {"x": 660.0, "y": 650.0, "button": "left", "double": false}, "ok": true, "seconds": 0.015, "result": "ok"}
+{"time": 1794380611.494, "action": "type", "args": {"text": "echo it's \"q\" {x}"}, "ok": true, "seconds": 0.019, "result": "ok"}
+{"time": 1794380611.59, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.013, "result": "ok"}
+{"time": 1794380611.687, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.069, "result": {"path": "/tmp/p3-max/shots/009.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380621.31, "action": "click", "args": {"x": 700.0, "y": 550.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794380621.381, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.063, "result": {"path": "/tmp/p3-max/shots/010.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380630.107, "action": "type", "args": {"text": "choractl call construct pane.move {\"name\":\"foot\",\"right\":-600,\"ahead\":-800}"}, "ok": true, "seconds": 0.017, "result": "ok"}
+{"time": 1794380630.204, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.019, "result": "ok"}
+{"time": 1794380630.302, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.07, "result": {"path": "/tmp/p3-max/shots/011.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380639.817, "action": "key", "args": {"combo": "Ctrl+c"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1794380639.898, "action": "click", "args": {"x": 640.0, "y": 200.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794380639.986, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380640.073, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.073, "result": {"path": "/tmp/p3-max/shots/012.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380649.301, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.081, "result": {"path": "/tmp/p3-max/shots/013.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380655.847, "action": "type", "args": {"text": "clear; choractl call construct pane.move '{\"name\":\"foot\",\"right\":-600,\"ahead\":-800}'"}, "ok": true, "seconds": 0.013, "result": "ok"}
+{"time": 1794380655.933, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380656.021, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380656.109, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.087, "result": {"path": "/tmp/p3-max/shots/014.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380665.584, "action": "click", "args": {"x": 200.0, "y": 300.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794380665.664, "action": "type", "args": {"text": "choractl call construct cube.open"}, "ok": true, "seconds": 0.017, "result": "ok"}
+{"time": 1794380665.77, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.022, "result": "ok"}
+{"time": 1794380665.875, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.098, "result": {"path": "/tmp/p3-max/shots/015.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380673.269, "action": "key", "args": {"combo": "Escape"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380673.352, "action": "key", "args": {"combo": "h"}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794380673.415, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.05, "result": {"path": "/tmp/p3-max/shots/016.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380680.119, "action": "key", "args": {"combo": "BackSpace"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380680.208, "action": "type", "args": {"text": "choractl call construct cube.open; choractl call construct window.list"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380680.291, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1794380680.379, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.06, "result": {"path": "/tmp/p3-max/shots/017.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380687.681, "action": "type", "args": {"text": "clear; choractl call construct cube.open"}, "ok": true, "seconds": 0.011, "result": "ok"}
+{"time": 1794380687.779, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380687.861, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.042, "result": {"path": "/tmp/p3-max/shots/018.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380693.461, "action": "type", "args": {"text": "clear; choractl call construct cube.open '{}'"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380693.556, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1794380693.658, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.096, "result": {"path": "/tmp/p3-max/shots/019.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380696.833, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.059, "result": {"path": "/tmp/p3-max/shots/020.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380702.946, "action": "click", "args": {"x": 1203.0, "y": 735.0, "button": "left", "double": false}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380703.02, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.158, "result": {"path": "/tmp/p3-max/shots/021.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380710.519, "action": "click", "args": {"x": 48.0, "y": 785.0, "button": "left", "double": false}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380710.617, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.169, "result": {"path": "/tmp/p3-max/shots/022.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380719.603, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380719.698, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.063, "result": {"path": "/tmp/p3-max/shots/023.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380723.837, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.072, "result": {"path": "/tmp/p3-max/shots/024.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380731.052, "action": "key", "args": {"combo": "s"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380731.132, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.101, "result": {"path": "/tmp/p3-max/shots/025.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380737.037, "action": "key", "args": {"combo": "x"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380737.134, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.101, "result": {"path": "/tmp/p3-max/shots/026.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380742.863, "action": "key", "args": {"combo": "Ctrl+Alt+Right"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380742.945, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.102, "result": {"path": "/tmp/p3-max/shots/027.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380746.745, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.074, "result": {"path": "/tmp/p3-max/shots/028.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380751.219, "action": "click", "args": {"x": 1216.0, "y": 745.0, "button": "left", "double": false}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380751.312, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.168, "result": {"path": "/tmp/p3-max/shots/029.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380754.883, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.191, "result": {"path": "/tmp/p3-max/shots/030.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380758.865, "action": "click", "args": {"x": 48.0, "y": 785.0, "button": "left", "double": false}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380758.947, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.188, "result": {"path": "/tmp/p3-max/shots/031.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380763.089, "action": "click", "args": {"x": 62.0, "y": 421.0, "button": "left", "double": false}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380763.168, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.147, "result": {"path": "/tmp/p3-max/shots/032.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380766.405, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.141, "result": {"path": "/tmp/p3-max/shots/033.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380772.021, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.021, "result": "ok"}
+{"time": 1794380772.114, "action": "key", "args": {"combo": "Ctrl+Alt+Left"}, "ok": true, "seconds": 0.036, "result": "ok"}
+{"time": 1794380772.235, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.115, "result": {"path": "/tmp/p3-max/shots/034.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380776.673, "action": "key", "args": {"combo": "Ctrl+Alt+Right"}, "ok": true, "seconds": 0.026, "result": "ok"}
+{"time": 1794380776.78, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.153, "result": {"path": "/tmp/p3-max/shots/035.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380781.412, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380781.513, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.119, "result": {"path": "/tmp/p3-max/shots/036.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380790.381, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.147, "result": {"path": "/tmp/p3-max/shots/037.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380794.466, "action": "drag", "args": {"x1": 300.0, "y1": 39.0, "x2": 0.0, "y2": 39.0}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380794.562, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.205, "result": {"path": "/tmp/p3-max/shots/038.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380800.356, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.015, "result": "ok"}
+{"time": 1794380800.468, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.091, "result": {"path": "/tmp/p3-max/shots/039.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380805.614, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.209, "result": {"path": "/tmp/p3-max/shots/040.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380813.188, "action": "key", "args": {"combo": "Alt+Escape"}, "ok": true, "seconds": 0.018, "result": "ok"}
+{"time": 1794380813.296, "action": "key", "args": {"combo": "s"}, "ok": true, "seconds": 0.024, "result": "ok"}
+{"time": 1794380813.404, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.131, "result": {"path": "/tmp/p3-max/shots/041.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380819.44, "action": "key", "args": {"combo": "a"}, "ok": true, "seconds": 0.019, "result": "ok"}
+{"time": 1794380819.53, "action": "key", "args": {"combo": "a"}, "ok": true, "seconds": 0.017, "result": "ok"}
+{"time": 1794380819.625, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.095, "result": {"path": "/tmp/p3-max/shots/042.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380824.121, "action": "key", "args": {"combo": "Tab"}, "ok": true, "seconds": 0.015, "result": "ok"}
+{"time": 1794380824.207, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.198, "result": {"path": "/tmp/p3-max/shots/043.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380843.956, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.019, "result": "ok"}
+{"time": 1794380844.049, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.113, "result": {"path": "/tmp/p3-max/shots/044.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380854.484, "action": "click", "args": {"x": 640.0, "y": 400.0, "button": "left", "double": false}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794380854.575, "action": "type", "args": {"text": "clear; D=~/.local/share/chora/huds/max; mkdir -p $D && printf 'hud: 1\\npanels:\\n  - id: figure\\n    source: voice\\n    anchor: bottom_right\\n    text: \"{state}\"\\n    action: mute\\n  - id: agents\\n    source: agents\\n    anchor: top_right\\n    rows: \"{name}  {state}\"\\nchat:\\n  style: plain\\n  fill: [20, 20, 20]\\n  text: [230, 230, 230]\\n  name: [255, 140, 0]\\n  size: 16\\n' > $D/hud.yaml && chora-assistant --check-hud $D && chora-assistant --use-hud max && choractl call assistant settings.reload; sed 's/size: 16/size: 2/' $D/hud.yaml > /tmp/s.yaml; mkdir -p ~/.local/share/chora/huds/bad; cp /tmp/s.yaml ~/.local/share/chora/huds/bad/hud.yaml; ln -sf /etc/passwd ~/.local/share/chora/huds/bad/x.svg; chora-assistant --check-hud ~/.local/share/chora/huds/bad; echo EXIT=$?"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380854.65, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794380854.736, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.054, "result": {"path": "/tmp/p3-max/shots/045.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
+{"time": 1794380864.186, "action": "type", "args": {"text": "clear; echo XDG=$XDG_DATA_HOME HOME=$HOME; chora-assistant --list-huds"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380864.294, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.007, "result": "ok"}
+{"time": 1794380864.367, "action": "look", "args": {"max_side": 1280}, "ok": true, "seconds": 0.059, "result": {"path": "/tmp/p3-max/shots/046.png", "info": {"height": 800, "origin": [0.0, 0.0], "scale": 1.0, "width": 1280}}}
