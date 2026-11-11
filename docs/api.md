@@ -234,14 +234,19 @@ node:
 - **Cost.** Only the box under the rect. The core blurs again only when
   something behind that box changed: a commit with damage there, or a
   node behind it that moved, changed or went. A still screen, and a
-  change in front of the rect or beside it, run no pass, and
-  `render.stats` counts none. One blur takes 2n - 1 passes for n
-  halvings, 3 passes up to a blur of 24 logical pixels at scale 1. On
-  llvmpipe with 4 threads, the frame with a blur takes about 2 ms more
-  for a rect of 400x300, and about 5 ms more for 800x500 with a blur of
-  32.
-- **Watchdog.** A backdrop costs as much as an effect. `effects.dropped`
-  removes it, and the rect shows its plain tint.
+  change in front of the rect or beside it, run no blur. One blur takes
+  2n - 1 passes for n halvings, at least 2, so 3 passes up to a blur of
+  24 logical pixels at scale 1. On llvmpipe with 4 threads, the frame
+  with a blur takes about 2 ms more for a rect of 400x300, and about 5
+  ms more for 800x500 with a blur of 32. `render.stats` leaves the blurs
+  out of `passes`.
+- **Limits.** An output, and each capture of it, shows at most 8
+  backdrops in a frame; each takes twice the pixels of its box from the
+  budget of layer textures of the frame. A backdrop beyond either draws
+  its plain tint and keeps its input.
+- **Watchdog.** A backdrop costs as much as an effect for each started
+  256x256 logical pixels of its size. `effects.dropped` removes it, and
+  the rect shows its plain tint.
 - **Node textures and captures.** A node texture shows no backdrop: a
   shader that reads the rect, or a node above it, gets the rect without
   the blur. A capture of an output shows the backdrop as the output
@@ -255,9 +260,8 @@ recordings, which need the grant (see [Screen capture](#screen-capture)).
 A shader node already shows the nodes of other clients sharp on the
 screen through node textures, without a grant; a backdrop shows them
 only blurred, by at least 2 logical pixels. When the blur runs again
-tells when the frame behind a rect changed; `render.stats`, the one
-answer with those counters, refuses client sockets and confined
-connections.
+tells when the frame behind a rect changed, so `render.stats` does not
+count the blurs.
 
 The core loads the file of an image when a transaction names it, on a
 worker thread: the transaction answers when the file is decoded, while
@@ -800,7 +804,7 @@ answers every request.
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit`, `methods.privileged` and `activation.token` count only on connections with `confined: true` in their `hello`, such as `choractl mcp`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
 | `output.list` | list the outputs and their cameras |
-| `render.stats` | what rendering did for each output since it came, virtual outputs too: `outputs` maps each name to `frames`, `damaged_frames` and `passes`, the offscreen renders of its frames (node contents and shader passes; a capture does not count); the counters only grow, so a caller compares two answers, for example to check that a still scene draws nothing; a client socket or a confined connection gets code 9, since the counters tell when other clients draw; `choractl render-stats` calls it |
+| `render.stats` | what rendering did for each output since it came, virtual outputs too: `outputs` maps each name to `frames`, `damaged_frames` and `passes`, the offscreen renders of its frames (node contents and shader passes; a capture and the blurs of backdrops do not count); the counters only grow, so a caller compares two answers, for example to check that a still scene draws nothing; a client socket or a confined connection gets code 9, since the counters tell when other clients draw; `choractl render-stats` calls it |
 | `output.reserve(output, edges)` | leave space at the edges of an output out of its work area while the connection lives, as the exclusive zone of a panel does; `edges` has `top`, `right`, `bottom` and `left` in logical pixels, and no space removes the reserve; returns the output |
 | `output.configure(output, scale, transform)` | set the scale or the transform of an output, the first one without `output`; `transform` is `normal`, `90`, `180`, `270`, `flipped`, `flipped-90`, `flipped-180` or `flipped-270`; scale and mode must keep the logical size within 16384 pixels a side; returns the output |
 | `output.add(spec)`, `output.remove(output)` | for tests on the headless backend only: add a virtual output `WxH[@SCALE][+X+Y]`, which returns the output, or remove one, as a monitor plugs in or out; the mode side has 1 to 16384 pixels and `WxH` divided by `SCALE` must stay within 16384 a side and at most 16 outputs are live; other backends refuse, and the last output stays; `choractl add-output` and `choractl remove-output` call them. With `virtual: true`, `output.add(spec, virtual)` works on every backend and adds a virtual output `WxH[@SCALE]` that no screen shows: the core names it `VIRTUAL-n` and places it left of and above the screens, `output.list` shows it with `virtual: true` and its `owner`, and it has a `wl_output`, a camera, a work area, an overlay root and layer surfaces, but no pointer, no lock surface that shows and no screen copy; a side has 1 to 4096 pixels, all virtual outputs together at most 2^26 pixels, and at most 16 are live, else code 6; only a free client of the main socket adds one, a client socket or a confined connection gets code 9; only its owner or the admin socket removes it, and it goes when its owner ends, after the grace time of a `resume`; a window whose centre lies in the scene area of the removed output, as its default camera showed it, stays with its window manager for 5 s; if its centre still lies there then, and neither a new virtual output nor a screen shows the window, the core sends its window manager `surface.detached`, removes the window in its name and hands it to the client that gave it to that window manager, else to another window manager, else shows it on the first screen; where the camera of the output looked does not count, and a hidden window in that area stays with its window manager |
