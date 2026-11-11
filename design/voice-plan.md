@@ -21,6 +21,10 @@ R7  Security: tools run as the confined `voice-mcp`; helpers (ACP) in the
     sandbox; an LLM can never take the keyboard (P11) or answer a question.
 R8  Latency per stage logged; replay tests with labelled recordings.
 R9  No telemetry; recordings only when `record_dir` is set.
+R10 Interchangeable backends (user, 11-11): the reference setup runs local
+    models, but ASR, TTS and LLM are each a configurable API endpoint
+    (OpenAI-compatible where a standard exists), so any local or remote
+    model can replace any other without code changes.
 
 ## Status
 
@@ -57,6 +61,16 @@ F13 Helpers: start with voice from a list, survive a voice restart; offer
 F14 Core event `permission.requested` with an answer method, a timeout and
     a default deny.
 F15 Voice HUD in nested sessions.
+
+Research (user, 11-11):
+F16 Research the best local models for our use case: LLM (tool calling,
+    short turns, German and English, low first-token latency), ASR and TTS;
+    a benchmark harness on our replay corpus and a tool-call task set, so
+    candidates are compared by numbers on our tasks.
+F17 Fine-tuning study: whether a small model (1-8 B) tuned on our tool
+    schema and phrases (LoRA, synthetic and recorded dialogues) beats a
+    larger general model on latency and accuracy; a plan with data,
+    hardware and cost, before any training.
 
 ## Open questions for the user
 
