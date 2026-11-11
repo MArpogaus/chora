@@ -233,6 +233,7 @@ impl Switcher {
             state: "asleep".into(),
             agents: "none".into(),
             chat: "none".into(),
+            theme: "light".into(),
             ..Context::default()
         };
         Self {

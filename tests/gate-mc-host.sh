@@ -100,6 +100,16 @@ run_theme() {
     until_ok 'node_exists hud-word' 40 || fail "$theme: the host shows no state word"
     sleep 1
 
+    figure=$(node_rect hud-figure)
+    ctl capture "$work/state-$theme.png" >/dev/null || fail "capture of the state"
+    dot=$(pixel "$work/state-$theme.png" "$(jq -n --argjson f "$figure" '$f[0] + $f[2] / 2 | floor')" "$(jq -n --argjson f "$figure" '$f[1] + $f[3] / 2 | floor')")
+    case $theme in
+    light) want="140 36 31" ;;
+    *) want="204 120 102" ;;
+    esac
+    [ "${dot% *}" = "$want" ] || fail "$theme: the state dot is ${dot% *}, not the accent of the theme $want"
+    ok "$theme: the state dot has the accent of the theme"
+
     ctl query 'owner:assistant' | jq -e '[.[] | select(.id | startswith("hud-row-"))] | length == 0' >/dev/null ||
         fail "$theme: the host draws a row of its own in the column of mc"
     ok "$theme: the host draws no Chat row and no row of a helper"

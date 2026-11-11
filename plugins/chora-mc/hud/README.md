@@ -27,8 +27,9 @@ wide.
 
 | File | Content | Source | License |
 |------|---------|--------|---------|
-| `hud.yaml` | the mark, the sentence and the block `chat:` | drawn for chora | GPL-3.0-or-later, as chora |
-| `state.svg` | the mark of the state, one group for each state with the ids `idle`, `asleep`, `listening`, `thinking`, `working`, `speaking` and `question`, 16 by 16 pixels | drawn for chora | GPL-3.0-or-later, as chora |
+| `hud.yaml` | the mark of each theme, the sentence and the block `chat:` | drawn for chora | GPL-3.0-or-later, as chora |
+| `state.svg` | the mark of the state in the light theme, one group for each state with the ids `idle`, `asleep`, `listening`, `thinking`, `working`, `speaking` and `question`, 16 by 16 pixels, in the accent and the `muted` of the light page | drawn for chora | GPL-3.0-or-later, as chora |
+| `state-dark.svg` | the same marks in the colours of the dark page; the panels `state` and `state-dark` of `hud.yaml` take each its theme by `when: {theme: ...}` | drawn for chora | GPL-3.0-or-later, as chora |
 
 The fonts are those of the system, as for mc itself. The question card and
 the badge of a muted mic are the host's; the card takes the page of this
