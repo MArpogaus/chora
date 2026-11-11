@@ -3,7 +3,8 @@
 # prompt Power and four words, Lock, Log out, Restart and Shut down
 # (German with a German locale), and the action of the one that you
 # choose. A word as the argument skips the menu: lock, logout, restart or
-# shutdown.
+# shutdown. Log out ends the session in XDG_SESSION_ID, else all sessions
+# of the user.
 # Usage: sh power.sh [lock|logout|restart|shutdown]
 case ${LC_ALL:-${LC_MESSAGES:-${LANG:-}}} in
 de*) lock="Sperren" logout="Abmelden" restart="Neustart" shutdown="Herunterfahren" prompt="Ausschalten  " ;;
@@ -21,7 +22,12 @@ if [ -z "$choice" ]; then
 fi
 case $choice in
 "$lock" | lock) exec loginctl lock-session ;;
-"$logout" | logout) exec loginctl terminate-session "${XDG_SESSION_ID:-}" ;;
+"$logout" | logout)
+    if [ -n "${XDG_SESSION_ID:-}" ]; then
+        exec loginctl terminate-session "$XDG_SESSION_ID"
+    fi
+    exec loginctl terminate-user "${USER:-$(id -un)}"
+    ;;
 "$restart" | restart) exec systemctl reboot ;;
 "$shutdown" | shutdown) exec systemctl poweroff ;;
 esac

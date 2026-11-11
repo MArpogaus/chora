@@ -12,10 +12,10 @@
 # waybar.pid in chora-tiling of the runtime directory, so that chora-tiling
 # can push a change (SIGRTMIN+1) and a new theme (SIGUSR2) without a unit.
 # The style is copied into the runtime directory with the colours and the
-# icons of the theme that chora-tiling wrote there, or of the folder
-# chora/tiling/waybar of the config directory when it has colors.css, or
-# else of the flavor; a SIGUSR2 copies them again, so a new theme shows
-# after the reload of the unit.
+# icons of the theme that chora-tiling wrote there, or else of the flavor;
+# the colors.css of the folder chora/tiling of the config directory wins
+# when it is newer than the one that chora-tiling wrote. A SIGUSR2 copies
+# them again, so a new theme shows after the reload of the unit.
 # Usage: sh waybar.sh DIR   DIR: the waybar folder of the flavor
 command -v jq >/dev/null 2>&1 || {
     echo "waybar.sh: jq is not installed; the panel of the tiling flavor needs it" >&2
@@ -27,21 +27,25 @@ style=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling-waybar
 
 pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
 mkdir -p "$pids"
-echo $$ >"$pids/panel.pid"
 
 prepare() {
     mkdir -p "$style/icons"
     cp "$dir/style.css" "$style/style.css"
     from=$dir
-    for candidate in "${XDG_CONFIG_HOME:-$HOME/.config}/chora/tiling" "${XDG_RUNTIME_DIR:-/tmp}/chora-tiling/theme"; do
-        [ -f "$candidate/colors.css" ] && {
-            from=$candidate
-            break
-        }
-    done
+    own=${XDG_CONFIG_HOME:-$HOME/.config}/chora/tiling
+    made=$pids/theme
+    [ -f "$made/colors.css" ] && from=$made
+    if [ -f "$own/colors.css" ] && { [ "$from" = "$dir" ] || [ "$own/colors.css" -nt "$made/colors.css" ]; }; then
+        from=$own
+    fi
     cp "$from/colors.css" "$style/colors.css"
     cp "$from"/icons/*.svg "$style/icons/" 2>/dev/null || cp "$dir"/icons/*.svg "$style/icons/"
 }
+
+pid=""
+trap '[ -z "$pid" ] || kill "$pid" 2>/dev/null; exit 0' TERM INT
+trap 'prepare; [ -z "$pid" ] || kill -USR2 "$pid" 2>/dev/null' USR2
+echo $$ >"$pids/panel.pid"
 
 tiling_outputs() {
     choractl call tiling get_tags 2>/dev/null | jq -c '[.outputs[].name]' 2>/dev/null
@@ -61,9 +65,6 @@ if [ -z "$tiling" ]; then
     echo "waybar.sh: chora-tiling did not name its outputs; the panel shows on every output" >&2
 fi
 
-pid=""
-trap '[ -z "$pid" ] || kill "$pid" 2>/dev/null; exit 0' TERM INT
-trap 'prepare; [ -z "$pid" ] || kill -USR2 "$pid" 2>/dev/null' USR2
 while :; do
     if [ -n "$tiling" ]; then
         outputs=$(panel_outputs "$tiling")

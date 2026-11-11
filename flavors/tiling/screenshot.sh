@@ -1,7 +1,8 @@
 #!/bin/sh
 # A screenshot of the tiling flavor: the whole output, or with `area` the
 # part that slurp lets you select. The file goes to Screenshots in the
-# pictures folder, a copy goes to the clipboard when wl-copy is there, and
+# pictures folder (`xdg-user-dir PICTURES` when that is installed, else
+# XDG_PICTURES_DIR, else ~/Pictures), a copy goes to the clipboard when wl-copy is there, and
 # a notice names the file. German with a German locale. grim is needed,
 # and slurp for an area.
 # Usage: sh screenshot.sh [full|area]
@@ -13,7 +14,12 @@ say() {
     command -v notify-send >/dev/null 2>&1 && notify-send -a Screenshot "$1" "$2"
     return 0
 }
-dir=${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots
+pictures=""
+if command -v xdg-user-dir >/dev/null 2>&1; then
+    pictures=$(xdg-user-dir PICTURES 2>/dev/null)
+    [ "$pictures" = "$HOME" ] && pictures=""
+fi
+dir=${pictures:-${XDG_PICTURES_DIR:-$HOME/Pictures}}/Screenshots
 mkdir -p "$dir" || exit 1
 file=$dir/$(date +%Y-%m-%d_%H-%M-%S).png
 if [ "${1:-full}" = area ]; then

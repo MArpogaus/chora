@@ -8,11 +8,11 @@
 # Usage: sh wallpaper.sh
 pids=${XDG_RUNTIME_DIR:-/tmp}/chora-tiling
 mkdir -p "$pids"
-echo $$ >"$pids/wallpaper.pid"
 pid=""
 restart=""
 trap '[ -z "$pid" ] || kill "$pid" 2>/dev/null; rm -f "$pids/wallpaper.pid"; exit 0' TERM INT
 trap 'restart=1; [ -z "$pid" ] || kill "$pid" 2>/dev/null' USR2
+echo $$ >"$pids/wallpaper.pid"
 while :; do
     restart=""
     chora-tiling --launch swaybg &
