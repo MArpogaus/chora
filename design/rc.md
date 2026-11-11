@@ -43,3 +43,13 @@ request that CI needs, tags the rc and publishes the release without
 asking again. The code review per area judges simplicity and
 readability first (KISS: dead code, needless layers, long functions,
 unclear names, duplication), then correctness and security.
+
+## User, 11-11 ~18:00
+
+"After the release candidate, we need an extensive user testing round
+to really ensure that everything is going smoothly." Plan: after the rc
+tag, persona round 5 at full breadth: all four looks, all personas
+(low-tech, keyboard-only, voice-only in English and German, ricer),
+two screens, every basic task, the cube and the panes, a long session
+(hours) for leaks and stalls, plus the opt-in battle script. Findings
+are fixed before 1.0; the rc stays the base of the 30-day gate.

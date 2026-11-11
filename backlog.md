@@ -353,3 +353,9 @@ Decision (PM): a folder may carry a `dark:` block with the panel and
 chat colours (each through the contrast check); the window manager
 emits `<wm>.theme {light|dark}` and the host picks the block. Also: the
 xp chat field sits over the taskbar (respect the work area).
+
+## F8 (11-11): pull gate cell "plain drag over the front face" flaked
+Failed once in the merge gate of ux-construct (2e2cd6b): "did not give
+it back: s1 construct - 0 0"; passed 3 of 3 alone right after, load 1.
+Find the race (likely the drop lands before the face rests again or the
+pane rect is read mid-glide). Must be closed for rc criterion 3.
