@@ -328,3 +328,60 @@ fn a_backdrop_inside_a_clip_layer_blurs_what_the_layer_drew_behind_it() {
     frames(&mut core, 10);
     assert_eq!(passes(&core), first, "a still layer blurs nothing");
 }
+
+#[test]
+fn a_fading_glass_draws_again_without_blurring_again() {
+    let (mut core, mut wm) = world();
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        glass("glass", &json!({"backdrop": {"blur": 16}})),
+    );
+    frames(&mut core, 2);
+    let first = passes(&core);
+    let damaged = core.state.assets.stats.damaged_frames;
+    for step in 1..=5 {
+        let fade = json!({"commands": [{"update": {"id": "glass",
+            "props": {"opacity": 1.0 - f64::from(step) * 0.1}}}]});
+        wm.ok(&mut core, "scene.apply", fade);
+        frames(&mut core, 1);
+    }
+    assert_eq!(passes(&core), first, "a fade reuses the blur");
+    assert_eq!(
+        core.state.assets.stats.damaged_frames,
+        damaged + 5,
+        "and draws"
+    );
+    let row = screen(&mut core);
+    assert!(row[98] > 30 && row[98] < 128, "half blurred: {}", row[98]);
+}
+
+#[test]
+fn a_window_that_commits_outside_the_glass_never_blurs_it_again() {
+    let (mut core, mut wm) = world();
+    let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    let (blue, red) = (
+        wayland.buffer((640, 480), 0xFF00_00FF),
+        wayland.buffer((640, 480), 0xFFFF_0000),
+    );
+    wayland.attach_buffer(&mut core, &window, &blue, Some((0, 0, 640, 480)));
+    let attach = json!({"commands": [{"attach": {"surface": "s1", "parent": "root"}}]});
+    wm.ok(&mut core, "scene.apply", attach);
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        glass("glass", &json!({"backdrop": {"blur": 16}})),
+    );
+    frames(&mut core, 2);
+    let first = passes(&core);
+    for step in 0..40 {
+        let buffer = if step % 2 == 0 { &red } else { &blue };
+        wayland.attach_buffer(&mut core, &window, buffer, Some((0, 0, 20, 20)));
+        frames(&mut core, 1);
+    }
+    assert_eq!(passes(&core), first, "the damage stays beside the glass");
+    wayland.attach_buffer(&mut core, &window, &red, Some((300, 200, 20, 20)));
+    frames(&mut core, 1);
+    assert!(passes(&core) > first, "damage under the glass blurs again");
+}
