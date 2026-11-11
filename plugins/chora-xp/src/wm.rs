@@ -435,6 +435,7 @@ impl Wm {
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
         let old_root = wm.take_kept()?;
+        wm.mixer.refresh();
         wm.create_scene(old_root)?;
         wm.grab()?;
         // After the scene: the removal of the kept root detaches the
@@ -834,6 +835,7 @@ impl Wm {
         let mut commands = self.trays();
         if moved {
             commands.extend(self.sync_tasks());
+            commands.extend(self.pagers());
         }
         commands
     }
