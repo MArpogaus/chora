@@ -38,6 +38,15 @@ fn refused(message: String) -> ClientError {
     ClientError::Rpc(RpcError::new(RpcError::REJECTED, message))
 }
 
+/// Why a manager pane cannot run `manager`: it is no key of the setting
+/// `managers`.
+pub(crate) fn unknown_manager(
+    _managers: &std::collections::BTreeMap<String, String>,
+    _manager: &str,
+) -> Option<String> {
+    None
+}
+
 impl Construct {
     /// The method `pane.manager`, and a manager pane of a construct
     /// file: adds a virtual output of `size`, starts the manager on it
@@ -48,10 +57,12 @@ impl Construct {
         size: Option<[f64; 2]>,
         file: Option<&PaneFile>,
     ) -> Result<Value, ClientError> {
-        let Some(command) = self.settings.value.managers.get(manager).cloned() else {
-            return Err(refused(format!(
-                "{manager} is no window manager of the setting managers"
-            )));
+        let managers = &self.settings.value.managers;
+        let Some(command) = managers.get(manager).cloned() else {
+            let reason = unknown_manager(managers, manager);
+            return Err(refused(reason.unwrap_or_else(|| {
+                format!("{manager} is no window manager of the setting managers")
+            })));
         };
         if self.manager_taken(manager)? {
             return Err(refused(format!("a client {manager} runs already")));

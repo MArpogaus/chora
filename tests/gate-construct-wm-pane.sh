@@ -20,7 +20,7 @@
 # 5. When the child of the xp pane ends, the pane and its output go, and
 #    the window that xp had is not lost.
 # 6. pane.remove of the tiling pane ends its child and removes its
-#    output.
+#    output, and the window that tiling had is not lost.
 #
 # Usage: tests/gate-construct-wm-pane.sh   BIN: directory with the binaries
 #   SHOT  a PNG path that keeps a capture of the two panes
@@ -153,5 +153,7 @@ call pane.remove '{"name": "tiling"}' >/dev/null || fail "pane.remove tiling"
 until_ok 'test -z "$(virtuals)"' 40 || fail "the output of tiling stays after pane.remove: $(virtuals)"
 until_ok '! kill -0 "$tiling_pid" 2>/dev/null' 40 || fail "the child of the tiling pane still runs"
 [ -z "$(panes)" ] || fail "a manager pane stays: $(panes)"
-ok "pane.remove ended tiling and removed its output"
+until_ok 'o=$(owner_of "$tiling_window"); test "$o" != tiling && test "$o" != None && test "$o" != gone && test "$(shows "$tiling_window")" = yes' 60 ||
+    fail "the window of tiling is lost after pane.remove: owner $(owner_of "$tiling_window"), shows $(shows "$tiling_window")"
+ok "pane.remove ended tiling and removed its output, and its window is with $(owner_of "$tiling_window")"
 ok "gate-construct-wm-pane: window managers run in panes of the construct"

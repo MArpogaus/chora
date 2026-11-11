@@ -399,6 +399,18 @@ mod tests {
         assert!(out.check().is_err());
     }
 
+    /// A window manager needs a command: an empty one fails the check.
+    #[test]
+    fn a_manager_without_a_command_fails() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let mut empty = config.clone();
+        empty.managers.insert("tiling".into(), "  ".into());
+        assert!(empty.check().unwrap_err().contains("managers.tiling"));
+        let mut cube = config;
+        cube.cube_manager = String::new();
+        assert!(cube.check().unwrap_err().contains("cube_manager"));
+    }
+
     /// The help lists the bindings of the settings, also changed ones.
     #[test]
     fn the_help_follows_the_settings() {
