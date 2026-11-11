@@ -56,3 +56,18 @@ Product findings kept at the foot: Super+Left/Right and Super+l on tiling are th
 - Give a hold time for Alt+Tab, or accept that the xp switcher cannot be seen.
 - Use 1280 px looks at least for text findings; 800 px made text look tiny.
 - Brief the mc tester with the Super keys (or the key list), else m-tv repeats.
+
+## Swarm 3 (build 06044cf)
+4 reports (t, x, m everyday; c handover), 12 findings plus 5 dropped extras = 17 sections: 6 verified, 3 duplicates, 8 rejected (6 env or harness, 2 by design or unproven). Detail: feedback/2026-11-11-swarm3-*.md; shots under media/2026-11-12/swarm-3/ (all read).
+
+New verified, ranked (lock/power and Print are two sections):
+1. Tiling has no lock or power item and no screenshot key: bar offers only an inert Connected pill; Super+Shift+Escape locks but nothing says so; Print is unbound (t-everyday/013, 005).
+2. Construct hint bar omits Super+T: an empty floor shows Walk, Fly in, Windows, F1, Cube but no way to start a terminal (c-handover/001; the F1 sheet has it).
+3. Construct: D after Super+T types into the fullscreen terminal (c-handover/011); same family as finding 5 above.
+4. mc: Super+slash types "/" into the terminal (m-everyday/007); same family as finding 6 above.
+5. xp: Control Panel submenu opens only from its arrow, not the label (x-everyday/007, 008).
+
+Only duplicates: mc no key list (finding 2), second construct pane missing after Super+T (finding 5), cube face with a floating foot pill (finding 13).
+
+Rejected: sound (3 reports; no audio device, label honest), xp left column with one program, xp terminal behind Start menu (harness timing), mc colour errors (foot 1.16.2, mc.yaml needs 1.26), mc notifications empty, mc Super+Return (drawer by design), tiling paste (no selection in shot).
+Env fix: install foot 1.26 or later for mc, and keep the harness Super gap in mind (Super alone cannot be pressed).
