@@ -18,12 +18,15 @@ unset CHORA_GATE_LOCK_HELD
 timeout -k 1 10 bash -c '
 . "$1/tests/gate-lib.sh"
 trap gate_cleanup EXIT
+runs() { until [ "$(ps -o comm= -p "$1")" = sleep ]; do sleep 0.05; done; }
 sleep 60 &
 pids+=($!)
 echo $! >"$2/running"
 sleep 60 &
 pids+=($!)
 echo $! >"$2/stopped"
+runs "$!"
+runs "$(cat "$2/running")"
 kill -STOP "$!"
 fail "the gate fails while a program stands still"
 ' gate "$repo" "$work" >/dev/null 2>&1
