@@ -197,9 +197,10 @@ chat:
 A panel needs at least one of `picture`, `text` or `rows`.
 
 A sentence (`source: say`) shows in a bubble above the figure, or below
-a figure at the top. With `style: plain` it has no box: the text stands
-beside the figure, on the side of the middle of the output, in the text
-colour of the chat. A sentence that the agent still speaks shows again
+a figure at the top. With `style: plain` it has no hairline and no
+tail: the text stands beside the figure, on the side of the middle of
+the output, in the text colour of the chat on a backing in the fill of
+the chat, so that it reads on any window behind it. A sentence that the agent still speaks shows again
 when the look is built again.
 
 A picture of a figure may hold an element `ID-shut` beside an element
@@ -275,7 +276,7 @@ values only. A folder without the block gets the neutral chat.
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
-| `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
+| `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
 
 A `glass` chat has corners of 12 pixels, its `fill` at an opacity of
 0.94 and its `border` as a hairline at 0.24, after the construct style
@@ -283,9 +284,8 @@ guide. Its text is checked against the fill over a black and over a
 white pane.
 
 The view never covers the figure, its bubble or the "Chat ..." row: a
-view that would, moves sideways beside them. A view at `left` or
-`right` is a side panel and keeps its edge, and a view in a slot keeps
-its box.
+view that would, moves sideways beside them, also a view in a slot. A
+view at `left` or `right` is a side panel and keeps its edge.
 
 A font family that the system does not have, such as TeX Gyre Pagella
 of the mc folder on a system without the TeX Gyre fonts, falls back to
@@ -311,6 +311,8 @@ The host loads a folder with `chora_draw::theme::Theme::load_hud`.
   the text of the folder uses. The first 256 entries are listed, at most
   16 files load, and a `fonts` that is a link loads nothing. The question
   card uses the host fonts (`Fonts::host`) and never a font of a folder.
+- The host loads no folder with a colour below these contrasts, however
+  the folder is named: by `hud`, by a rule of `huds` or by `--assets`.
 - Text colours need a contrast of 4.5:1 against their fill
   (`chora_kit::hud::contrast`, `Hud::contrast_errors`): the `text` and
   `name` of the chat and the `colours` of a panel. The key line and

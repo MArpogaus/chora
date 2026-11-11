@@ -60,12 +60,13 @@ pub struct Frame {
 }
 
 impl Frame {
-    /// The rectangle of the view: the box of the slot, else the place of
-    /// the `chat:` values, `margin` away from the edges of the work area.
+    /// The rectangle of the view: the box of the slot inside the work
+    /// area, else the place of the `chat:` values, `margin` away from the
+    /// edges of the work area; beside what the view must not cover.
     #[must_use]
     pub fn rect(&self) -> [i32; 4] {
-        if let Some(slot) = self.slot {
-            return slot;
+        if let Some(slot) = self.slot.and_then(|slot| self.clipped(slot)) {
+            return self.aside(slot);
         }
         let (anchor, width) = self.look.place();
         let margin = i32::try_from(self.look.margin).unwrap_or(0);
@@ -81,6 +82,18 @@ impl Frame {
             return view;
         }
         self.aside(view)
+    }
+
+    /// The part of a slot box inside the work area, no wider than a chat
+    /// may be; none for a box that lies outside the area.
+    fn clipped(&self, [x, y, w, h]: [i32; 4]) -> Option<[i32; 4]> {
+        let [ax, ay, aw, ah] = self.area;
+        let widest = i32::try_from(chora_kit::hud::MAX_CHAT_WIDTH).unwrap_or(i32::MAX);
+        let (left, top) = (x.max(ax), y.max(ay));
+        let right = x.saturating_add(w).min(ax + aw);
+        let bottom = y.saturating_add(h).min(ay + ah);
+        (right > left && bottom > top)
+            .then(|| [left, top, (right - left).min(widest), bottom - top])
     }
 
     /// The view moved sideways, beside what it would cover, where it fits
@@ -109,12 +122,26 @@ impl Frame {
 /// The gap between the view and what it stands beside.
 const ASIDE: i32 = 8;
 
+/// A box that a client announced for its slot: the client, the output and
+/// the box.
+pub type Held = (String, String, [i32; 4]);
+
+/// The box that holds the view on an output: the one that the client of
+/// `chat.slot` of the folder on the screen announced there. A box of
+/// another client, kept from another folder, holds nothing.
+#[must_use]
+pub fn held_box(held: Option<&Held>, slot: Option<&str>, output: &str) -> Option<[i32; 4]> {
+    let (client, on, rect) = held?;
+    (Some(client.as_str()) == slot && on == output).then_some(*rect)
+}
+
 /// The box of a slot on an output; none when its client took it away.
 pub type SlotBox = (String, Option<[i32; 4]>);
 
 /// The output and the box of the event `CLIENT.chat.slot {output, rect}`,
 /// if the client is the one that the folder names in `chat.slot`: no other
-/// client fills the slot. A box without a size is no box.
+/// client fills the slot. A box has four sides that are numbers and a
+/// size; the host clips it to the work area when it draws.
 #[must_use]
 pub fn slot_box(
     slot: Option<&str>,
@@ -130,11 +157,12 @@ pub fn slot_box(
     if rect.is_null() {
         return Some((output, None));
     }
-    let sides: Vec<i32> = rect
-        .as_array()?
+    let sides = rect.as_array().filter(|sides| sides.len() == 4)?;
+    let sides: Vec<i32> = sides
         .iter()
-        .filter_map(Value::as_f64)
-        .filter(|side| side.is_finite() && side.abs() < 1e6)
+        .map(|side| side.as_f64().filter(|n| n.is_finite() && n.abs() < 1e6))
+        .collect::<Option<Vec<f64>>>()?
+        .into_iter()
         .map(pixels)
         .collect();
     let rect: [i32; 4] = sides.try_into().ok()?;
@@ -976,14 +1004,61 @@ mod tests {
             [880, 0, 400, 720],
             "a side panel keeps its edge"
         );
-        let mut slot = self::frame(Look::default());
-        slot.slot = Some([40, 400, 1200, 280]);
-        slot.clear = vec![[1000, 500, 100, 100]];
+    }
+
+    #[test]
+    fn a_slot_box_stays_in_the_work_area_and_in_the_limits_of_the_chat() {
+        let mut frame = frame(Look::default());
+        frame.area = [0, 24, 1280, 696];
+        frame.slot = Some([-500, -500, 100_000, 100_000]);
+        assert_eq!(frame.rect(), [0, 24, 1280, 696], "clipped to the work area");
+        frame.area = [0, 0, 3840, 2160];
+        frame.slot = Some([0, 0, 3840, 400]);
+        let width = i32::try_from(chora_kit::hud::MAX_CHAT_WIDTH).unwrap();
+        assert_eq!(frame.rect(), [0, 0, width, 400], "no wider than a chat");
+        frame.area = [0, 0, 1280, 720];
+        frame.slot = Some([5000, 5000, 300, 300]);
         assert_eq!(
-            slot.rect(),
-            [40, 400, 1200, 280],
-            "a slot is the box of its client"
+            frame.rect(),
+            [880, 0, 400, 720],
+            "a box off the area is no box"
         );
+        frame.slot = Some([40, 400, 600, 280]);
+        frame.clear = vec![[500, 500, 100, 100]];
+        assert_eq!(
+            frame.rect(),
+            [608, 400, 600, 280],
+            "beside what it would cover"
+        );
+    }
+
+    #[test]
+    fn a_box_holds_only_the_view_of_its_client_and_output() {
+        let held = ("mc".to_owned(), "DP-1".to_owned(), [1, 2, 3, 4]);
+        assert_eq!(
+            held_box(Some(&held), Some("mc"), "DP-1"),
+            Some([1, 2, 3, 4])
+        );
+        assert_eq!(held_box(Some(&held), Some("xp"), "DP-1"), None);
+        assert_eq!(held_box(Some(&held), None, "DP-1"), None);
+        assert_eq!(held_box(Some(&held), Some("mc"), "DP-2"), None);
+        assert_eq!(held_box(None, Some("mc"), "DP-1"), None);
+    }
+
+    #[test]
+    fn a_box_with_a_side_that_is_no_number_is_refused() {
+        let event = ("mc.chat.slot", "mc");
+        for bad in [
+            json!([0, 0, "wide", 10]),
+            json!([0, 0, 10, 10, "x"]),
+            json!([0, 0, 10, 10, 5]),
+            json!([0, null, 10, 10]),
+            json!([0, 0, 1e300, 10]),
+            json!({"x": 0}),
+        ] {
+            let data = json!({"output": "HEADLESS-1", "rect": bad});
+            assert_eq!(slot_box(Some("mc"), event, &data), None, "{bad}");
+        }
     }
 
     #[test]

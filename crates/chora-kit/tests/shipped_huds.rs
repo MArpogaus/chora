@@ -32,6 +32,30 @@ fn the_xp_folder_loads_with_the_balloon_chat() {
 }
 
 #[test]
+fn the_colours_of_every_shipped_folder_read_well() {
+    for below in [
+        "plugins/chora-assistant/huds/neutral",
+        "flavors/xp/assets/assistant",
+        "plugins/chora-mc/hud",
+        "plugins/chora-construct/hud",
+    ] {
+        let folder = shipped(below);
+        assert_eq!(
+            folder.contrast_errors(&hud::Chat::host()),
+            Vec::<String>::new(),
+            "{below}"
+        );
+    }
+    let mc = shipped("plugins/chora-mc/hud");
+    let rows = mc
+        .panels
+        .iter()
+        .find(|panel| panel.source == Source::Agents)
+        .expect("the rows of mc");
+    assert!(rows.colours.accent.is_some() && rows.colours.muted.is_some());
+}
+
+#[test]
 fn the_xp_tray_shows_rows_only_while_a_helper_works_and_no_chat_is_open() {
     let xp = shipped("flavors/xp/assets/assistant");
     let tray = xp

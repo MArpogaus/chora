@@ -182,13 +182,19 @@ const TAIL: i32 = 18;
 
 /// The look of the sentence of a panel: its fill, hairline and text
 /// colour over those of the neutral bubble, and a tail if it names one.
-/// A plain sentence takes the text colour of the chat.
+/// A plain sentence takes the text colour and the fill of the chat, of
+/// the folder or of the host: the fill backs the text without a hairline.
 fn speech_of(panel: &chora_kit::hud::Panel, hud: &Hud) -> Style {
     let neutral = Style::default();
     let plain = panel.style == Some(chora_kit::hud::Style::Plain);
-    let ink = if plain { hud.chat.text } else { None };
+    let host = chora_kit::hud::Chat::host();
+    let page = |own: Option<[u8; 3]>, hosts: Option<[u8; 3]>| own.or(hosts).filter(|_| plain);
+    let (paper, ink) = (
+        page(hud.chat.fill, host.fill),
+        page(hud.chat.text, host.text),
+    );
     Style {
-        fill: panel.fill.unwrap_or(neutral.fill),
+        fill: panel.fill.or(paper).unwrap_or(neutral.fill),
         border: panel.border.unwrap_or(neutral.border),
         text: panel.colours.text.or(ink).unwrap_or(neutral.text),
         tail: if panel.tail.is_some() { TAIL } else { 0 },
@@ -586,6 +592,11 @@ mod tests {
         let values = Values::from_hud(&plain, &Context::default(), |_| None);
         assert!(values.line.plain);
         assert_eq!(values.speech.text, [217, 212, 201], "the text of the chat");
+        assert_eq!(
+            values.speech.fill,
+            [28, 28, 28],
+            "the fill of the chat backs it"
+        );
     }
 
     #[test]

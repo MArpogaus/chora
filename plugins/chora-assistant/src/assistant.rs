@@ -48,6 +48,8 @@ const FADE: f64 = 600.0;
 const MAX_PLAIN: f64 = 420.0;
 /// The gap between the figure and a sentence without a box.
 const BESIDE: i32 = 8;
+/// The padding of the backing of a sentence without a box.
+const BACKING: i32 = 4;
 /// How far above and below the figure a balloon may reach.
 const BALLOON_REACH: i32 = 144;
 
@@ -492,7 +494,12 @@ impl Assistant {
     pub fn reach(&self) -> [i32; 4] {
         let [x, y, w, h] = self.rect();
         if self.values.line.plain {
-            return [x, y, w, h];
+            #[allow(clippy::cast_possible_truncation)]
+            let most = [MAX_PLAIN as i32 + 2 * BACKING, BALLOON_REACH];
+            let [left, top] = beside(most, [x, y, w, h], self.area);
+            let from = left.min(x);
+            let to = (left + most[0]).max(x + w);
+            return [from, top, to - from, most[1].max(h)];
         }
         #[allow(clippy::cast_possible_truncation)]
         let widest = PAD + MAX_SPEECH as i32 + PAD;
@@ -504,18 +511,24 @@ impl Assistant {
         [from, y - BALLOON_REACH, to - from, h + 2 * BALLOON_REACH]
     }
 
-    /// A sentence without a box, beside the figure.
+    /// A sentence without a box, beside the figure, on a backing in the
+    /// fill of the chat, so that it reads on any window behind it.
     fn plain(&mut self, theme: &mut Theme, text: &str) -> Vec<Command> {
         let width = |s: &str| theme.text_width(s, Font::Ui);
         let lines = wrap(text, MAX_PLAIN, width);
         let widest = lines.iter().map(|l| width(l)).fold(0.0, f64::max);
         #[allow(clippy::cast_possible_truncation)]
-        let w = (widest.ceil() as i32).max(1);
-        let h = i32::try_from(lines.len()).unwrap_or(0).max(1) * LINE;
-        let mut picture = Picture::new(w, h);
+        let w = (widest.ceil() as i32).max(1) + 2 * BACKING;
+        let h = i32::try_from(lines.len()).unwrap_or(0).max(1) * LINE + 2 * BACKING;
+        let [red, green, blue] = self.values.speech.fill;
+        let backing = format!(
+            r#"<rect width="{w}" height="{h}" rx="{BACKING}" fill="rgb({red},{green},{blue})"/>"#
+        );
+        let mut picture = Picture::new(w, h).svg(backing);
         let colour = self.values.speech.text_rgba();
-        for (line, y) in lines.iter().zip((0..).step_by(LINE as usize)) {
-            picture = picture.text(Text::new(line, Font::Ui, colour, [0, y, w, LINE]));
+        for (line, y) in lines.iter().zip((BACKING..).step_by(LINE as usize)) {
+            let place = [BACKING, y, w - 2 * BACKING, LINE];
+            picture = picture.text(Text::new(line, Font::Ui, colour, place));
         }
         let [bx, by] = beside([w, h], self.rect(), self.area);
         self.speech_node(theme, &picture, [bx - self.origin[0], by - self.origin[1]])

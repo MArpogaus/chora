@@ -23,7 +23,7 @@ use chora_scene::{
 use serde_json::{Value, json};
 
 use super::{
-    Frame, Link, Outside, colours, rgba, slot_box,
+    Frame, Link, Outside, colours, held_box, rgba, slot_box,
     view::{CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of},
 };
 use crate::{
@@ -195,11 +195,8 @@ impl Agent {
     /// The box of the slot on an output, while the folder on the screen
     /// names a slot.
     fn slot_for(&self, output: &str) -> Option<[i32; 4]> {
-        chat_look(&self.values).slot?;
-        self.slot
-            .as_ref()
-            .filter(|(held, _)| held == output)
-            .map(|(_, rect)| *rect)
+        let slot = chat_look(&self.values).slot;
+        held_box(self.slot.as_ref(), slot.as_deref(), output)
     }
 
     /// Draws the view again, and tells the context and the drawer of mc.
@@ -519,6 +516,7 @@ impl Agent {
         if wanted.is_none() || wanted == self.slot_client {
             return Ok(());
         }
+        self.slot = None;
         let slot = wanted.iter().map(|client| format!("{client}.chat.slot"));
         let events: Vec<String> = crate::EVENTS
             .iter()
@@ -545,8 +543,8 @@ impl Agent {
             return Ok(());
         };
 
-        let next = rect.map(|rect| (output.clone(), rect));
-        let held = self.slot.as_ref().is_some_and(|(held, _)| *held == output);
+        let next = rect.map(|rect| (client.to_owned(), output.clone(), rect));
+        let held = self.slot.as_ref().is_some_and(|(_, on, _)| *on == output);
         if next == self.slot || (next.is_none() && !held) {
             return Ok(());
         }

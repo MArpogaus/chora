@@ -22,12 +22,7 @@ use crate::{
 /// where it leaves a colour out.
 #[must_use]
 pub fn host_chat() -> Chat {
-    Chat {
-        fill: Some([250, 250, 250]),
-        text: Some([32, 32, 32]),
-        name: Some([0, 80, 160]),
-        ..Chat::default()
-    }
+    Chat::host()
 }
 
 /// Every problem of the folder `dir`, in plain words, each with its file and

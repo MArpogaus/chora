@@ -1123,7 +1123,7 @@ click on the badge or the figure does not. The figure goes when the agent discon
 
 A flavor names its look with `--assets DIR`. A `DIR` with a `hud.yaml`
 is a [HUD folder](hud.md), as `flavors/xp/assets/assistant`, whose
-`figure: paperclip.svg` is the paperclip of the XP flavor. A `DIR`
+voice panel shows `paperclip.svg`, the paperclip of the XP flavor. A `DIR`
 without one is an asset folder, which holds:
 
 | File | Content |
@@ -1296,7 +1296,7 @@ connects with the client name `xp`.
 ├── chora-xp-notify.service      # chora-notify --assets .../assets/notify
 ├── chora-xp-assistant.service   # chora-assistant --assets /usr/share/chora/huds/xp
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
-├── assets/                      # the XP folder of each block, with a link to the fonts
+├── assets/notify/               # the XP folder of chora-notify, with a link to the fonts
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```
 

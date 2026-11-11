@@ -160,9 +160,9 @@ struct Agent {
     stale: Vec<PathBuf>,
     /// What the agent last said of each helper that it named.
     helpers: BTreeMap<String, rows::Helper>,
-    /// The box of the slot of the chat: the output and the box that the
-    /// client of `chat.slot` announced.
-    slot: Option<(String, [i32; 4])>,
+    /// The box of the slot of the chat: the client that announced it, the
+    /// output and the box.
+    slot: Option<chat::Held>,
     /// The client whose event `chat.slot` the host subscribed to.
     slot_client: Option<String>,
     /// The cache directory of the look on the screen.
@@ -537,6 +537,10 @@ fn load_hud(
 /// data.
 fn load_folder(dir: &Path, context: &Context, cache: &Path) -> Result<(Theme, Values), String> {
     let hud = hud::load(dir).map_err(|errors| errors.join("; "))?;
+    let unread = hud.contrast_errors(&check::host_chat());
+    if !unread.is_empty() {
+        return Err(unread.join("; "));
+    }
     let mut files: Vec<&str> = hud
         .panels
         .iter()
@@ -659,6 +663,33 @@ mod tests {
         let err = load_assets(&dir, &cache("empty")).err().expect("an error");
         assert!(err.contains("dot.svg"), "{err}");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_folder_that_is_hard_to_read_never_loads() {
+        let root = cache("pale");
+        let dir = root.join("huds/pale");
+        std::fs::create_dir_all(&dir).unwrap();
+        let yaml = "hud: 1\nchat: {fill: [255, 255, 255], text: [200, 200, 200]}\n";
+        std::fs::write(dir.join("hud.yaml"), yaml).unwrap();
+        let context = Context::default();
+        let by_name = load_hud(&[root.join("huds")], "pale", &context, &root.join("c1"));
+        let err = by_name.err().expect("refused by name");
+        assert!(
+            err.contains("chat.text") && err.contains("contrast"),
+            "{err}"
+        );
+        let mut source = Source {
+            assets: Some(dir),
+            roots: Vec::new(),
+            cache: root.join("c2"),
+            loads: 0,
+        };
+        assert!(
+            source.load(NEUTRAL, &context).is_err(),
+            "refused as --assets"
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

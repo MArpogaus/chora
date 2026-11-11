@@ -303,6 +303,18 @@ pub enum ChatStyle {
 }
 
 impl Chat {
+    /// The colours of the chat of the host, which the block `chat:` of a
+    /// folder takes where it leaves a colour out.
+    #[must_use]
+    pub fn host() -> Self {
+        Self {
+            fill: Some([250, 250, 250]),
+            text: Some([32, 32, 32]),
+            name: Some([0, 80, 160]),
+            ..Self::default()
+        }
+    }
+
     /// The anchor and the width of the view: the right edge, 400 wide, if
     /// left out.
     #[must_use]
