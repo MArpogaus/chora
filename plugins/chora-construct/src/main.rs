@@ -49,9 +49,10 @@ mod pull;
 mod scene;
 mod space;
 mod voice;
+mod wobble;
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     path::PathBuf,
     process::ExitCode,
     time::{Duration, Instant},
@@ -78,8 +79,8 @@ use crate::{
     config::{Action, Config},
     file::{Kind, PaneFile},
     hud::{Claim, LIST, LIST_LINE, LIST_ROWS, Look, Metrics, Voice},
-    methods::{MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
-    panes::{PaneLook, configure, create, handed_over, shadow_w, update, vec3},
+    methods::{GlideTo, MovePane, Named, OpenCube, ResizePane, TurnCube, exported_methods},
+    panes::{PaneLook, configure, create, handed_over, mirror_size, shadow_w, update, vec3},
     space::{Lens, Pose},
 };
 
@@ -387,6 +388,9 @@ struct Glide {
     start: Instant,
     ms: f64,
     into: Option<Flown>,
+    /// Whether the move also starts slowly, as a flight of
+    /// `camera.glide` does.
+    smooth: bool,
 }
 
 /// The pose with the snap: the window of the pane that the camera flew
@@ -467,6 +471,10 @@ struct Construct {
     backs: std::collections::BTreeSet<String>,
     /// The focus glow as last sent.
     glow: Option<PropsUpdate>,
+    /// How far each pane that wobbles is from its place, for its shadow.
+    drifts: HashMap<String, [f64; 2]>,
+    /// The pane whose mesh the focus glow has.
+    glow_bend: wobble::GlowBend,
     /// The wobble of the panes of own windows that the modifier drags.
     effects: effects::Driver,
     /// The cube of virtual outputs and their window manager.
@@ -555,6 +563,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         hovered: None,
         backs: std::collections::BTreeSet::new(),
         glow: None,
+        drifts: HashMap::new(),
+        glow_bend: wobble::GlowBend::default(),
         effects: effects::Driver::default(),
         cube: None,
     };

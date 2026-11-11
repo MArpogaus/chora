@@ -10,6 +10,7 @@
 )]
 pub mod ask;
 pub mod chat;
+pub mod clock;
 pub mod conn;
 pub mod desktop_entry;
 pub mod effects;

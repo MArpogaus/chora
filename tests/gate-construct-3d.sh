@@ -16,7 +16,12 @@
 #    test_accept_injected_keys an injected click gives no window the
 #    keyboard.
 # 6. With `effects: [wobbly]`, a pane dragged with the modifier wobbles
-#    with a depth, and settles after the release.
+#    with a depth, its mirror image bends with it, and it settles
+#    after the release.
+# 7. `choractl record` writes one picture per frame, and the walk of the
+#    camera moves with the steps of its clock, not with the time: the
+#    left edge of pane c, in the region that `edge_of_c` hashes, lies at
+#    another place in the first frame, in the second and at the end.
 #
 # Each check reports on its own; the gate fails when one of them fails.
 # panes_spec gives the name, centre, yaw, size and colour of each pane;
@@ -231,14 +236,41 @@ if call settings.set '{"effects": ["wobbly"]}' >/dev/null; then
   {\"pointer_move\": {\"position\": [$((${from%%,*} + 120)), 330]}}]"
     sleep 0.1
     bent=$(mesh_of "$b_node")
+    mirror_bent=$(mesh_of "$b_node-mirror")
     [ -n "${SHOT_WOBBLE:-}" ] && ctl capture "$SHOT_WOBBLE" >/dev/null
     inject '[{"button": {"state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]'
 else
     bent="refused"
+    mirror_bent="refused"
 fi
 check "a dragged pane wobbles with depth: $bent" 'test "${bent#* }" = True'
+check "the mirror image bends with its pane: $mirror_bent" 'test "${mirror_bent#* }" = True'
 check "the wobble settles after the release" 'until_ok "test \"\$(mesh_of $b_node)\" = \"0 False\"" 20'
 
+frames=$(mktemp -d /tmp/gate-frames.XXXXXX)
+tmp_dirs+=("$frames")
+click_at "640, 60"
+sleep 0.5
+echo '{"frame": 1, "method": "input.inject", "params": {"events": [{"shortcut": {"keys": "w"}}]}}' >"$frames/script"
+"$bin/choractl" grant choractl input.inject methods.call methods.privileged >/dev/null || fail "the grant"
+check "choractl record writes one picture per frame" \
+    'timeout 60 "$bin/choractl" record --frames 3 --out "$frames" --script "$frames/script" >/dev/null &&
+     test "$(ls "$frames" | grep -c "^frame-0000[123].png$")" = 3'
+sleep 1
+ctl capture "$frames/end.png" --output HEADLESS-1 >/dev/null
+edge_of_c() {
+    python3 -I - "$repo/tests/png-pixel.py" "$1" <<'PY'
+import hashlib, importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
+png = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(png)
+rows = list(png.rows(pathlib.Path(sys.argv[2]).read_bytes()))
+print(hashlib.sha256(b"".join(bytes(row[470 * 4:560 * 4]) for row in rows[380:420])).hexdigest())
+PY
+}
+check "the frames of a recording show the walk part of its way" \
+    'test "$(edge_of_c "$frames/frame-00001.png")" != "$(edge_of_c "$frames/frame-00002.png")" &&
+     test "$(edge_of_c "$frames/frame-00002.png")" != "$(edge_of_c "$frames/end.png")"'
 call settings.set '{"test_accept_injected_keys": false}' >/dev/null || fail "settings.set"
 b_surface=$(surface_of "$(pane_at "$b_name" | tr -d '[]')")
 click_at "$(pane_centre "$b_name")"

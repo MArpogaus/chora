@@ -901,10 +901,7 @@ impl State {
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
-            other => Err(RpcError::new(
-                RpcError::METHOD_NOT_FOUND,
-                format!("no method {other:?}"),
-            )),
+            other => self.ipc_record(conn, other, params),
         })
     }
 
@@ -1462,6 +1459,7 @@ impl State {
             self.output_changed();
         }
         self.methods_closed(conn);
+        self.recording_closed(conn);
         let held = self.transactions.drop_conn(conn);
         self.release(&held);
         // A dropped head lets the next transaction start.

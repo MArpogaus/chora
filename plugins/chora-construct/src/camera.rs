@@ -2,9 +2,9 @@
 //! window, fly out, and the pane under a point.
 
 use super::{
-    Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, Instant,
-    LOOK, LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value,
-    json, space, update,
+    Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
+    LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value, json,
+    space, update,
 };
 
 /// The surface that the camera is in or on its way into.
@@ -51,6 +51,12 @@ pub(crate) fn ease(k: f64) -> f64 {
     1.0 - (1.0 - k).powi(3)
 }
 
+/// The share of a glide of `camera.glide` after `k` of its time: slow at
+/// both ends.
+pub(crate) fn ease_in_out(k: f64) -> f64 {
+    k * k * k * (k * (k * 6.0 - 15.0) + 10.0)
+}
+
 /// The pane nearest the middle of the view, in front of the camera and
 /// on the output: a pane out of sight is no pane ahead, so a key never
 /// acts on a pane that is not there to see.
@@ -82,10 +88,47 @@ impl Construct {
         self.glide = Some(Glide {
             from: self.pose,
             to,
-            start: Instant::now(),
+            start: chora_kit::clock::now(),
             ms,
             into,
+            smooth: false,
         });
+    }
+
+    /// `camera.glide`: flies the camera to a pose in `ms` milliseconds,
+    /// slow at its start and at its end; the place stays on the leash.
+    pub(crate) fn glide_smoothly(&mut self, to: Pose, ms: f64) -> Result<(), RpcError> {
+        if self.flown.is_some() {
+            return Err(RpcError::new(
+                RpcError::REJECTED,
+                "the camera is in a pane; fly out first",
+            ));
+        }
+        let finite = [to.x, to.z, to.yaw, to.pitch, ms]
+            .iter()
+            .all(|v| v.is_finite());
+        if !finite || !(0.0..=60_000.0).contains(&ms) {
+            return Err(RpcError::new(
+                RpcError::INVALID_PARAMS,
+                "x, z, yaw and pitch are numbers, and ms is 0 to 60000",
+            ));
+        }
+        let [x, z] = space::leash([0.0; 2], [to.x, to.z], self.radius());
+        let to = Pose {
+            x,
+            z,
+            pitch: to.pitch.clamp(-1.2, 1.2),
+            ..to
+        };
+        self.glide = Some(Glide {
+            from: self.pose,
+            to,
+            start: chora_kit::clock::now(),
+            ms: ms.max(1.0),
+            into: None,
+            smooth: true,
+        });
+        Ok(())
     }
 
     pub(crate) fn act(&mut self, action: Action) {
@@ -208,8 +251,13 @@ impl Construct {
         let Some(glide) = &self.glide else {
             return Ok(());
         };
-        let k = (glide.start.elapsed().as_secs_f64() * 1000.0 / glide.ms).min(1.0);
-        self.pose = glide.from.lerp(&glide.to, ease(k));
+        let k = (chora_kit::clock::since(glide.start).as_secs_f64() * 1000.0 / glide.ms).min(1.0);
+        let share = if glide.smooth {
+            ease_in_out(k)
+        } else {
+            ease(k)
+        };
+        self.pose = glide.from.lerp(&glide.to, share);
         if k < 1.0 {
             return self.frame();
         }
