@@ -223,6 +223,11 @@ sentence of `voice.say` takes the place of the word and the task, at
 most two lines of 480 pixels with its end kept, and goes 2 seconds after
 its sound. The capsule hugs its content from the edge of its anchor; the
 figure does not move or blink, and the folder shows no rows of helpers.
+In a busy state the ring moves, drawn by the shader `ring.frag` of the
+host in its cache: it pulses while the agent listens or a question
+waits, and an arc turns while it thinks (1.2 s a turn) or works (2.4 s
+a turn). In every other state the picture of the folder stands still,
+so a still screen draws nothing.
 While the camera of the construct is in a pane, which it tells with its
 event `construct.view {pane: true}`, the island dims to 0.6 over 160 ms.
 

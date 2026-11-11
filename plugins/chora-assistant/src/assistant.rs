@@ -12,7 +12,9 @@ use chora_draw::{
     theme::{Picture, Theme},
 };
 use chora_kit::hud::{Anchor, render};
-use chora_scene::{Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
+use chora_scene::{
+    Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform, Uniform,
+};
 
 use crate::{
     config::{Figure, Values},
@@ -36,6 +38,10 @@ const SHADOW: &str = "hud-island-shadow";
 /// The opacity of the island while the camera of the construct is in a
 /// pane.
 const IN_PANE: f64 = 0.6;
+/// The turning or pulsing ring of the island in a busy state.
+const RING: &str = "hud-island-ring";
+/// The shader of that ring.
+const RING_SHADER: &str = include_str!("../ring.frag");
 /// The rect of the tint of the island over the blur.
 const ISLAND_GLASS: &str = "hud-island-glass";
 const PAD: i32 = 10;
@@ -295,6 +301,9 @@ pub struct Assistant {
     island: Option<Content>,
     /// The size of the island.
     island_size: [i32; 2],
+    /// The file of `ring.frag`, none where it cannot be written: the ring
+    /// then stays a still picture.
+    ring_shader: Option<String>,
 }
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
@@ -385,6 +394,10 @@ impl Assistant {
             origin = origin_of(&values, area);
         }
         let island = island.filter(|_| values.island);
+        let ring_shader = (values.island)
+            .then(|| theme.cache_file("ring.frag", RING_SHADER).ok())
+            .flatten()
+            .map(|path| path.to_string_lossy().into_owned());
         let assistant = Self {
             values,
             origin,
@@ -398,6 +411,7 @@ impl Assistant {
             fades_at: None,
             word: [0, 0],
             island_size,
+            ring_shader,
             moves_at: None,
             blinks_at: now + Duration::from_secs(86_400),
             island,
@@ -469,6 +483,7 @@ impl Assistant {
                 },
             },
         ])
+        .chain(self.ring(true))
         .chain(word)
         .collect()
     }
@@ -495,6 +510,9 @@ impl Assistant {
             return draw(theme, figure, self.state, self.shut);
         };
         let picture = island::picture(theme, &content, self.values.dark);
+        if self.ring_moves() {
+            return picture;
+        }
         let ring = island::ring_rect(picture.size[1]);
         match figure {
             Figure::Sheet {
@@ -511,6 +529,49 @@ impl Assistant {
                 dot_group(self.state)
             )),
         }
+    }
+
+    /// Whether the ring of the island moves: a busy state, with its shader.
+    fn ring_moves(&self) -> bool {
+        self.island.is_some()
+            && self.ring_shader.is_some()
+            && island::ring_mode(self.state).is_some()
+    }
+
+    /// The shader node of the ring of the island, made or changed; none for
+    /// a figure or without the shader.
+    fn ring(&self, fresh: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        let shader = self.ring_shader.clone()?;
+        let [x, y, w, h] = island::ring_rect(self.island_size[1]).map(f64::from);
+        let accent = chora_kit::glass::Material::of(self.values.dark).accent;
+        let mode = island::ring_mode(self.state);
+        let uniforms = [
+            ("accent".to_owned(), Uniform::Vector(accent[..3].to_vec())),
+            ("mode".to_owned(), Uniform::Float(mode.unwrap_or(0.0))),
+        ];
+        let props = PropsUpdate {
+            shader: fresh.then_some(shader),
+            transform: Some(Transform::translate(x, y, 0.0)),
+            size: Some([w, h]),
+            uniforms: Some(uniforms.into_iter().collect()),
+            visible: Some(mode.is_some()),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        };
+        Some(if fresh {
+            Command::Create {
+                id: RING.into(),
+                kind: NodeKind::Shader,
+                parent: GROUP.into(),
+                props,
+            }
+        } else {
+            Command::Update {
+                id: RING.into(),
+                props,
+            }
+        })
     }
 
     /// What the island shows now: the task only while the agent thinks or
@@ -601,6 +662,7 @@ impl Assistant {
         ];
         commands.extend(self.shadow(theme, false));
         commands.extend(self.island_backdrop(false));
+        commands.extend(self.ring(false));
         commands
     }
 
@@ -1094,6 +1156,7 @@ mod tests {
             word: [0, 0],
             island: None,
             island_size: [0, 0],
+            ring_shader: None,
         }
     }
 

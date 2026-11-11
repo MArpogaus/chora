@@ -91,6 +91,20 @@ pub fn picture(theme: &Theme, content: &Content, dark: bool) -> Picture {
     Picture::new(w as i32, h as i32).svg(glass + &body)
 }
 
+/// The motion of the ring of a state, the mode of `ring.frag`: a pulse
+/// while it listens (1) or a question waits (4), a spinner while it
+/// thinks (2) or works (3); none, a still picture, in every other state.
+#[must_use]
+pub fn ring_mode(state: &str) -> Option<f64> {
+    match state {
+        "listening" => Some(1.0),
+        "thinking" => Some(2.0),
+        "working" => Some(3.0),
+        "question" => Some(4.0),
+        _ => None,
+    }
+}
+
 /// Where the ring stands on an island of `height`.
 #[must_use]
 pub fn ring_rect(height: i32) -> [i32; 4] {
@@ -126,6 +140,17 @@ mod tests {
         assert!((100..160).contains(&w), "LISTENING is about 120 wide: {w}");
         assert!(wide > w + 100, "the task widens the island: {wide}");
         assert_eq!(ring_rect(40), [8, 8, 24, 24]);
+    }
+
+    #[test]
+    fn only_a_busy_ring_moves() {
+        assert_eq!(ring_mode("listening"), Some(1.0));
+        assert_eq!(ring_mode("thinking"), Some(2.0));
+        assert_eq!(ring_mode("working"), Some(3.0));
+        assert_eq!(ring_mode("question"), Some(4.0));
+        for still in ["idle", "asleep", "speaking"] {
+            assert_eq!(ring_mode(still), None, "{still}");
+        }
     }
 
     #[test]
