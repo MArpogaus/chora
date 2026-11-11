@@ -1,12 +1,12 @@
 #!/bin/bash
-# The spacing of the tiling bar (tiling-v2 review r2, 3, 4 and 5): in the
+# The spacing of the tiling bar: in the
 # left island the layout word starts 12 px after the separator, left
 # aligned; "Keys" is drawn like "Apps" (the colour of the text, the same
 # weight); and every gap between two items of the islands, from the edge
 # of an island to the first item, from item to separator, from separator
 # to item, is the same 12 px, within 2 px for the side bearing of a glyph.
-# The tooltips of Apps and Keys stay inside the islands (r2, 12), and the
-# month of the clock marks today (r2, 14).
+# The tooltips of Apps and Keys stay inside the islands, and the
+# month of the clock marks today.
 #
 # Usage: tests/gate-tiling-spacing.sh   BIN: directory with the binaries
 set -u

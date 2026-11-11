@@ -1,6 +1,5 @@
 #!/bin/bash
-# The key list of tiling, measured on a capture (tiling-v2 review r2, 6
-# and 7): the margin left of the first keycap and the margin right of the
+# The key list of tiling, measured on a capture: the margin left of the first keycap and the margin right of the
 # longest word are the same, within 2 px; the text of every keycap,
 # descenders included, sits inside the cap with at least 1 px to spare,
 # and the first letter of a keycap stands on the same baseline as the

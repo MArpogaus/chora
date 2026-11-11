@@ -15,7 +15,8 @@ session_start 1280x800 -- "$bin/chora-tiling"
 grant screen.capture
 shot=$XDG_CONFIG_HOME/motion.png
 start() {
-    pid=$(ctl run "$@" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    started=$(ctl run "$@") || fail "the run of $1"
+    pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
     [ -n "$pid" ] || fail "the run of $1"
     run_pid "$pid"
 }
@@ -23,7 +24,8 @@ start swaybg -c '#808080' -m solid_color
 start "$bin/chora-probe" window 40 44 60
 start "$bin/chora-probe" window 70 70 90
 for _ in $(seq 60); do
-    [ "$(ctl query 'app_id:chora-probe kind:surface' | grep -c '"owner": *"tiling"')" = 2 ] && break
+    seen=$(ctl query 'app_id:chora-probe kind:surface') || { sleep 0.5; continue; }
+    [ "$(grep -c '"owner": *"tiling"' <<<"$seen")" = 2 ] && break
     sleep 0.5
 done
 sleep 3
@@ -37,22 +39,25 @@ done
 ok "the focused window has a deep shadow, the other a light one"
 
 groups() {
-    ctl query 'kind:group' | python3 -I -c '
+    local all
+    all=$(ctl query 'kind:group') || return 1
+    python3 -I -c '
 import json, sys
 for n in json.load(sys.stdin):
     if n["id"].startswith("tw-"):
         print(n["id"], round(n["transform"]["matrix"][12]), round(n["opacity"], 3))
-' | sort
+' <<<"$all" | sort
 }
-[ "$(groups | awk '$3 != 1' | wc -l)" = 0 ] || fail "a window stays transparent: $(groups)"
+shown=$(groups) || fail "the query of the groups"
+[ "$(awk '$3 != 1' <<<"$shown" | wc -l)" = 0 ] || fail "a window stays transparent: $shown"
 ok "every window is opaque once it stands"
 
-settled=$(groups)
+settled=$(groups) || fail "the query of the groups"
 ctl call tiling set_layout '{"layout": "tile_left"}' >/dev/null || fail "set_layout"
-moving=$(groups)
-[ "$moving" != "$(groups | head -c 0)" ] && [ "$moving" != "$settled" ] || fail "the windows did not start to slide"
+moving=$(groups) || fail "the query of the groups"
+[ "$moving" != "$settled" ] || fail "the windows did not start to slide"
 sleep 1
-end=$(groups)
+end=$(groups) || fail "the query of the groups"
 [ "$end" != "$settled" ] || fail "the windows did not move"
 [ "$(awk '$3 != 1' <<<"$end" | wc -l)" = 0 ] || fail "a window is transparent after its move: $end"
 python3 -I - "$moving" "$settled" "$end" <<'PY' || fail "the slide is not between the places"
@@ -66,9 +71,9 @@ ok "a layout change slides the windows and they end at their places"
 ctl call tiling view_tag '{"tag": 2}' >/dev/null || fail "view_tag 2"
 sleep 1
 ctl call tiling view_tag '{"tag": 1}' >/dev/null || fail "view_tag 1"
-coming=$(groups)
+coming=$(groups) || fail "the query of the groups"
 sleep 1
-there=$(groups)
+there=$(groups) || fail "the query of the groups"
 python3 -I - "$coming" "$there" <<'PY' || fail "a tag switch does not bring the windows in from the side"
 import sys
 a, b = ({l.split()[0]: float(l.split()[1]) for l in s.splitlines()} for s in sys.argv[1:])
@@ -80,16 +85,22 @@ mkdir -p "$XDG_CONFIG_HOME/chora"
 "$bin/chora-tiling" --print-config | sed 's/^  animations: true/  animations: false/' >"$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
 ctl call tiling settings.reload >/dev/null || fail "settings.reload"
 sleep 1
-settled=$(groups)
+settled=$(groups) || fail "the query of the groups"
 ctl call tiling set_layout '{"layout": "tile"}' >/dev/null || fail "set_layout"
-now=$(groups)
+now=$(groups) || fail "the query of the groups"
 sleep 1
-[ "$now" = "$(groups)" ] || fail "with animations false the windows still moved over time"
+again=$(groups) || fail "the query of the groups"
+[ "$now" = "$again" ] || fail "with animations false the windows still moved over time"
 [ "$now" != "$settled" ] || fail "the layout did not change"
 ok "animations false makes the change at once"
 
-before=$(ctl render-stats | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])')
+frames() {
+    local stats
+    stats=$(ctl render-stats) || return 1
+    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])' <<<"$stats"
+}
+before=$(frames) || fail "render-stats"
 sleep 5
-after=$(ctl render-stats | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"]["HEADLESS-1"]["damaged_frames"])')
+after=$(frames) || fail "render-stats"
 [ "$before" = "$after" ] || fail "an idle scene drew $((after - before)) frames in 5 s"
 ok "an idle scene draws no frame"

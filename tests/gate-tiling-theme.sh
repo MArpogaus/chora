@@ -44,7 +44,8 @@ sleep 1
 ok "a fixed theme beats the system"
 
 sed -i "s/^  palette: {}/  palette:\n    accent: '#f59e0b'\n    accent_2: '#f59e0b'/" "$XDG_CONFIG_HOME/chora/chora-tiling.yaml"
-pid=$(ctl run "$bin/chora-probe" window 0 0 0 | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+started=$(ctl run "$bin/chora-probe" window 0 0 0) || fail "the run of a window"
+pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
 run_pid "$pid"
 ctl call tiling settings.reload >/dev/null || fail "settings.reload"
 sleep 3

@@ -1,5 +1,5 @@
 #!/bin/bash
-# The bar follows the tiling (tiling-v2 review r2, 9): after a change of
+# The bar follows the tiling: after a change of
 # the tag or of the layout, the pill and the layout word change within
 # 250 ms, because the plugin pushes the change to waybar with a signal
 # and the bar does not wait for its next poll. The time runs from the call

@@ -41,11 +41,23 @@ sleep 2
 grep -q -- "--dmenu" "$marks" || fail "Super+Shift+e did not open the menu: $(cat "$marks")"
 ok "Super+Shift+e opens the power menu"
 
-for pair in "Lock|loginctl lock-session" "Log out|loginctl terminate-session" "Restart|systemctl reboot" "Shut down|systemctl poweroff"; do
+for pair in "Lock|loginctl lock-session" "Log out|loginctl terminate-session 7" "Restart|systemctl reboot" "Shut down|systemctl poweroff"; do
     word=${pair%%|*}
     want=${pair#*|}
     : >"$marks"
-    CHOICE=$word sh "$repo/flavors/tiling/power.sh" || fail "power.sh $word"
+    CHOICE=$word XDG_SESSION_ID=7 sh "$repo/flavors/tiling/power.sh" || fail "power.sh $word"
     grep -q "^$want" "$marks" || fail "$word did not run $want: $(cat "$marks")"
 done
 ok "Lock, Log out, Restart and Shut down each do their thing"
+
+: >"$marks"
+env -u XDG_SESSION_ID USER=zed CHOICE=Log\ out sh "$repo/flavors/tiling/power.sh" || fail "power.sh without a session"
+grep -q "^loginctl terminate-user zed" "$marks" || fail "Log out without a session did not end the user: $(cat "$marks")"
+grep -q "terminate-session" "$marks" && fail "Log out without a session named an empty session"
+ok "Log out without XDG_SESSION_ID ends the sessions of the user"
+
+printf '#!/bin/sh\necho "%s/Bilder"\n' "$home" >"$home/xdg-user-dir"
+chmod +x "$home/xdg-user-dir"
+sh "$repo/flavors/tiling/screenshot.sh" || fail "screenshot.sh with xdg-user-dir"
+ls "$home/Bilder/Screenshots/"*.png >/dev/null 2>&1 || fail "screenshot.sh ignored xdg-user-dir PICTURES"
+ok "the screenshot goes to the folder that xdg-user-dir names"

@@ -23,7 +23,8 @@ snap() {
     ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
 }
 start() {
-    pid=$(ctl run "$@" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    started=$(ctl run "$@") || fail "the run of $1"
+    pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
     [ -n "$pid" ] || fail "the run of $1"
     run_pid "$pid"
 }
@@ -47,7 +48,8 @@ ok "the wallpaper is Ink with two corner glows"
 
 start chora-tiling --launch foot sh -c 'printf "\033[31mwarning: red text\033[0m\n"; sleep 600'
 for _ in $(seq 60); do
-    ctl query 'app_id:foot kind:surface' | grep -q '"owner": *"tiling"' && break
+    seen=$(ctl query 'app_id:foot kind:surface') || { sleep 0.5; continue; }
+    grep -q '"owner": *"tiling"' <<<"$seen" && break
     sleep 0.5
 done
 snap

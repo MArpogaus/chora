@@ -15,7 +15,8 @@ grant input.inject
 log=$XDG_CONFIG_HOME/typed
 ctl run foot sh -c "stty raw -echo; cat >$log" >/dev/null || fail "the run of foot"
 for _ in $(seq 60); do
-    ctl query 'app_id:foot kind:surface' | grep -q '"owner": *"tiling"' && break
+    seen=$(ctl query 'app_id:foot kind:surface') || { sleep 0.5; continue; }
+    grep -q '"owner": *"tiling"' <<<"$seen" && break
     sleep 0.5
 done
 sleep 2
@@ -31,5 +32,6 @@ typed=$(cat "$log" 2>/dev/null)
 ok "Super+q, Super+z, Super+F5 and Super+Shift+x type nothing; x types x"
 keys Super+2
 sleep 1
-ctl call tiling get_tags | jq -e '.outputs[0].tags[1].shown' >/dev/null || fail "Super+2 did not view tag 2"
+tagged=$(ctl call tiling get_tags) || fail "ctl call failed"
+jq -e '.outputs[0].tags[1].shown' <<<"$tagged" >/dev/null || fail "Super+2 did not view tag 2"
 ok "a bound key still works"

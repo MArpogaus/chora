@@ -1,5 +1,5 @@
 #!/bin/bash
-# The power and screenshot doors of tiling (tiling-v2 review r2, 1 and 2),
+# The power and screenshot doors of tiling,
 # in a session where chora-tiling has no CHORA_FLAVOR_DIR, as in a test
 # session: Super+Shift+e opens the power menu within 2 s, three clicks on
 # the power icon open it three times, Super+Print writes a file and says so
@@ -29,7 +29,6 @@ export XDG_PICTURES_DIR=$fake/pictures
 mkdir -p "$HOME"
 unset CHORA_FLAVOR_DIR
 temp_config
-tmp_dirs+=("$fake")
 session_start 1280x800 -- "$bin/chora-tiling"
 CHORA_FLAVOR_DIR=$flavor setsid dbus-run-session -- sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
 run_pid $!

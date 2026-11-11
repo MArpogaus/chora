@@ -15,7 +15,8 @@ grant input.inject
 log=$XDG_CONFIG_HOME/typed
 ctl run foot sh -c "stty raw -echo; cat >$log" >/dev/null || fail "the run of foot"
 for _ in $(seq 60); do
-    ctl query 'app_id:foot kind:surface' | grep -q '"owner": *"tiling"' && break
+    seen=$(ctl query 'app_id:foot kind:surface') || { sleep 0.5; continue; }
+    grep -q '"owner": *"tiling"' <<<"$seen" && break
     sleep 0.5
 done
 sleep 2
@@ -56,12 +57,13 @@ for n in mono:
         fail("the keycap %r is %s wide, a monospace face has %s" % (n["text"], got, want))
 ' || fail "the key list is drawn badly"
 ok "no two texts of the key list overlap and the keycaps are monospace"
-ctl query 'kind:rect' | python3 -I -c '
+rects=$(ctl query 'kind:rect') || fail "ctl query failed"
+python3 -I -c '
 import json, sys
 panel = next(next(iter(n["rects"].values())) for n in json.load(sys.stdin) if n["id"] == "tiling-keys-panel")
 if panel[1] < 52 or panel[1] + panel[3] > 748:
     sys.exit("the panel at y %s, %s high touches the bar or the edge" % (panel[1], panel[3]))
-' || fail "the key list touches the bar"
+' <<<"$rects" || fail "the key list touches the bar"
 ok "the key list stays clear of the bar"
 
 keys Escape
@@ -74,7 +76,8 @@ sleep 1
 ok "Esc closes the list, and then the keys are the window's again"
 
 for _ in 1 2; do
-    pid=$(ctl run "$bin/chora-probe" window 255 255 255 | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    started=$(ctl run "$bin/chora-probe" window 255 255 255) || fail "the run of a window"
+    pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
     [ -n "$pid" ] || fail "the run of a window"
     run_pid "$pid"
 done

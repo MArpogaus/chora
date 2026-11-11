@@ -16,8 +16,8 @@ grant screen.capture input.inject
 shot=$XDG_CONFIG_HOME/focus.png
 
 window() {
-    pid=$(ctl run "$bin/chora-probe" window "$@" |
-        sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    started=$(ctl run "$bin/chora-probe" window "$@") || fail "the run of the window"
+    pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
     [ -n "$pid" ] || fail "the run of the window"
     run_pid "$pid"
 }
@@ -37,7 +37,8 @@ lined() {
 window 255 255 255
 window 0 0 0
 for _ in $(seq 60); do
-    [ "$(ctl query 'app_id:chora-probe kind:surface' | grep -c '"owner": *"tiling"')" = 2 ] && break
+    seen=$(ctl query 'app_id:chora-probe kind:surface') || { sleep 0.5; continue; }
+    [ "$(grep -c '"owner": *"tiling"' <<<"$seen")" = 2 ] && break
     sleep 0.5
 done
 snap

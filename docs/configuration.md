@@ -220,8 +220,8 @@ default map:
 | Option | Meaning |
 |--------|---------|
 | `modifier` | what `MOD` means in the bindings: Super or Alt |
-| `gap` | the gap of the old look, in logical pixels: the edge gets it, two tiles get twice; it applies where `look` has `null` for a gap, and `set_layout` sets it |
-| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window, `animations` (true) whether changes move over time, `shadows` (true), `theme` (`system`, `ink` or `paper`: the palette; `system` takes Paper when the system asks for the light colour scheme and Ink when it asks for dark or says nothing) and `palette`, colours that replace those of the theme (`base`, `surface`, `surface_2`, `line`, `text`, `muted`, `accent`, `on_accent`, `accent_2`, `urgent`, each `#rrggbb`); `gap_outer` and `gap_inner` take `gap` when `null`; the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
+| `gap` | the gap of the old look, in logical pixels: the edge gets it, two tiles get twice; it applies where `look` has `null` for a gap, and `set_layout` sets it, which also sets both gaps of `look` to `null` |
+| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window, `animations` (true) whether changes move over time, `shadows` (true), `theme` (`system`, `ink` or `paper`: the palette; `system` takes Paper when the system asks for the light colour scheme and Ink when it asks for dark or says nothing) and `palette`, colours that replace those of the theme (`base`, `surface`, `surface_2`, `line`, `text`, `muted`, `accent`, `on_accent`, `accent_2`, `urgent`, each `#rrggbb`); `gap_outer` takes `gap` when `null` and `gap_inner` takes twice `gap`, so the effective gaps are 12 and 10 with the default file and `2 * gap` between tiles when both are `null` (an odd inner gap is exact: the extra pixel goes to one side of each tile); the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
 | `tags` | the number of tags of each output, at most 16 |
 | `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
@@ -312,18 +312,21 @@ no frame. `animations: false` makes every change at once; `shadows: false`
 hides the shadows. A reload or a change of the theme rebuilds the windows
 without motion.
 
-No `MOD` chord that no binding uses reaches a program: `chora-tiling`
-grabs `MOD+KEY`, `MOD+Shift+KEY` and `MOD+Ctrl+KEY` for the letters, the
-digits, the punctuation, `F1` to `F12`, the navigation keys and `Print`,
-and swallows the ones that the file does not bind, so `Super+q` types no
-`q` in a terminal. A key that the file binds keeps its action.
+With `modifier: Super`, no `Super` chord that no binding uses reaches a
+program: `chora-tiling` grabs `Super+KEY`, `Super+Shift+KEY` and
+`Super+Ctrl+KEY` for the letters, the digits, the punctuation, `F1` to
+`F12`, the navigation keys and `Print`, and swallows the ones that the
+file does not bind, so `Super+q` types no `q` in a terminal. A key that
+the file binds keeps its action. With `modifier: Alt` nothing is
+swallowed: programs keep `Alt+b` of readline and `Alt+Left` of a browser.
 
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
 and `get_tags` changes something and answers with the layout info of the current tag,
-like `set_layout`. The `gap` of `set_layout` is a live value: the file
-keeps the old gap, and the next `settings.set` or `settings.reload` sets
-the gap of the file again.
+like `set_layout`, which includes the gaps in use as `gap_outer` and
+`gap_inner` besides `gap`. The `gap` of `set_layout` lasts as the layouts
+of the tags do: it is a runtime value that the file does not keep, and a
+later `settings.set` or `settings.reload` leaves it as it is.
 
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
@@ -1420,7 +1423,9 @@ its own package and needs no configuration.
   islands. The month of the clock marks today in bold and underlined.
   Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
-  directory, from `chora-tiling/theme/` when `chora-tiling` wrote it.
+  directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a
+  `colors.css` in `chora/tiling/` of the config directory wins only when it
+  is newer than the one that `chora-tiling` wrote.
   Change a colour in `colors.css` and the whole panel follows. Every
   label keeps 4.5:1 on `surface`, an empty tag too: it is `muted`, not
   dimmed, because it is a door that a person clicks.
@@ -1452,7 +1457,9 @@ its own package and needs no configuration.
   asks the system for its colour scheme (`org.freedesktop.appearance`
   `color-scheme` through the settings portal, else `gsettings`
   `org.gnome.desktop.interface color-scheme`) at the start, on reload and
-  every 5 seconds, and takes Paper, the light palette, when it asks for
+  every 5 seconds, each time in a thread of its own that gives the portal
+  and `gsettings` 2 seconds, so the window manager never waits for the
+  answer, and takes Paper, the light palette, when it asks for
   light and Ink, the dark one, when it asks for dark or says nothing. `ink`
   and `paper` are fixed. A change recolours the focus border, the key
   list and the chip at once, and `chora-tiling` writes `colors.css`,
@@ -1462,7 +1469,9 @@ its own package and needs no configuration.
   `waybar.sh` and `wallpaper.sh` when they run (their pids are in
   `panel.pid` and `wallpaper.pid` beside the theme), else through the
   units. The colours in
-  `look.palette` replace single tokens of either palette.
+  `look.palette` replace single tokens of either palette. A file is
+  written only when its text changed, through a temporary file that
+  replaces it, so a reader never sees half a file.
   `chora-tiling --apply-theme [--theme-dir DIR]` writes the same files by
   hand. Paper is `base` `#e9ebf1`, `surface` `#ffffff`, `text` `#1b1e27`,
   `accent` `#6d4aff`. Running programs keep the palette that they started
@@ -1482,16 +1491,18 @@ its own package and needs no configuration.
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor too: **Screenshot** and **Screenshot of an
-  area** are the way for the mouse. The terminal is JetBrains Mono at 14 px with 16 px of
+  area** are the way for the mouse. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
   the panel open the menu of `power.sh`, the launcher in menu mode with the
   prompt "Power" and four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
-  `loginctl terminate-session`, `systemctl reboot`, `systemctl poweroff`).
+  `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
+  that is not set, `systemctl reboot`, `systemctl poweroff`).
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
   area that slurp lets you select: `screenshot.sh` writes it to
-  `~/Pictures/Screenshots`, copies it with `wl-copy` when that is there and
+  `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else
+  `$XDG_PICTURES_DIR`, else `~/Pictures`), copies it with `wl-copy` when that is there and
   names the file in a notice (`notify-send`, shown by mako). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config

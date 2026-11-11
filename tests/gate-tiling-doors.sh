@@ -54,13 +54,16 @@ marked() { grep -q "^$1" "$marks"; }
 
 tag2=$((pill + 26 + 12))
 click $tag2
-ctl call tiling get_tags | jq -e '.outputs[0].tags[1].shown' >/dev/null || fail "a click on tag 2 did not view it"
+tagged=$(ctl call tiling get_tags) || fail "ctl call failed"
+jq -e '.outputs[0].tags[1].shown' <<<"$tagged" >/dev/null || fail "a click on tag 2 did not view it"
 ok "a click on the number 2 views tag 2"
 
-before=$(ctl call tiling get_layout | jq -r .layout)
+info=$(ctl call tiling get_layout) || fail "ctl call failed"
+before=$(jq -r .layout <<<"$info")
 layout=$((pill + 26 * 8 + 25 + 9 + 48))
 click $layout
-after=$(ctl call tiling get_layout | jq -r .layout)
+info=$(ctl call tiling get_layout) || fail "ctl call failed"
+after=$(jq -r .layout <<<"$info")
 [ "$before" != "$after" ] || fail "a click on the layout word kept $before"
 ok "a click on the layout word goes from $before to $after"
 

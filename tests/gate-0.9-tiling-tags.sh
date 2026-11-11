@@ -12,12 +12,14 @@ need_bins chora choractl chora-tiling chora-probe
 temp_config
 session_start 640x480,640x480+640+0 -- "$bin/chora-tiling"
 tags() {
-    ctl call tiling get_tags | WAYBAR_OUTPUT_NAME=$1 \
-        jq -c --argjson n "${2:-1}" -f "$repo/flavors/tiling/waybar/tags.jq"
+    local answer
+    answer=$(ctl call tiling get_tags) || return 1
+    WAYBAR_OUTPUT_NAME=$1 \
+        jq -c --argjson n "${2:-1}" -f "$repo/flavors/tiling/waybar/tags.jq" <<<"$answer"
 }
 
-pid=$(ctl run "$bin/chora-probe" window 255 0 0 |
-    sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+started=$(ctl run "$bin/chora-probe" window 255 0 0) || fail "the run of the window"
+pid=$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")
 [ -n "$pid" ] || fail "the run of the window"
 run_pid "$pid"
 for _ in $(seq 50); do

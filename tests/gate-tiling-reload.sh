@@ -1,6 +1,5 @@
 #!/bin/bash
-# A new theme reaches the bar and the wallpaper (tiling-v2 review r2, 11),
-# also when no unit runs them: after `theme: paper` and settings.reload the
+# A new theme reaches the bar and the wallpaper also when no unit runs them: after `theme: paper` and settings.reload the
 # bar and the wallpaper of a session without units turn to Paper within 5 s.
 # The bar runs through waybar.sh and the wallpaper through wallpaper.sh,
 # as tests/persona/session.sh starts them.
