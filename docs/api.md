@@ -62,6 +62,7 @@ This table is the one list of node properties.
 | `color` | rect, text | RGBA, each from 0 to 1, with straight alpha: `[1, 1, 1, 0.5]` is white at half opacity |
 | `radius` | rect | the radius of the corners in logical pixels; the rect becomes a layer |
 | `border` | rect | `{"width": w, "color": [r, g, b, a]}`: a line of `w` logical pixels along the inner edge; the rect becomes a layer; `null` removes it |
+| `backdrop` | rect | `{"blur": b, "saturation": s}`: the rect draws the frame behind its shape blurred by `b` logical pixels, from 2 to 128, with its colors saturated by `s`, from 0 to 4, 1 by default, and its `color`, border and children on top, so the color is the tint (see [Backdrops](#backdrops)); `null` removes it |
 | `image` | image | absolute path of a PNG file; the core loads it again after a change; it draws from halvings of the file, down to 1/16 a side, when smaller than the file; a cell uses the most halvings that keep one file pixel for each output pixel on its most reduced axis, so it is softer on the other axis; each edge of a node rounds to the nearest physical pixel on its own, so at x = 0.4 and a width of 10.4 the image covers the pixels 0 to 10 |
 | `slice` | image | insets left, top, right, bottom in pixels of the file: the corners keep their size, the edges and the center stretch; a cell is halved only while its edges in the file are multiples of the halving, so that no color crosses a slice border, and an inset that is not a multiple of 2 draws from the file pixels |
 | `shader`, `uniforms` | shader | the absolute path of a GLSL ES fragment shader, and its uniforms as for an effect; a uniform `{"node": id}` is a `sampler2D` with that node as it shows on its own, and a uniform `{"output": name}` is a `sampler2D` with the last frame of a virtual output that the client added, transparent while the output is gone or the session is locked, at most 4 of both together; only the owner of a virtual output reads it, and a client socket or a confined connection reads none; with `forward: true` such a node passes the pointer into the virtual output that it reads: the pointer is at the point of the output that the node shows under it, by the sizes of both, so hover, presses, button grabs and the manager of a new toplevel see the virtual output; such a node has exactly one output uniform; while a button of a real device is down the pointer stays where the first such press began, which alone chooses the pane, and injected buttons neither hold nor end that press, behind that pane also outside of it, at most one size of the output beyond its edges, or on the screen, and the release of the last button carries the point under the pointer again; one level only, not while the session is locked, and injected pointer positions and the cursor stay on the screen; an update of `uniforms` replaces all uniforms of the node, so it names each one again |
@@ -204,6 +205,59 @@ Two hints for shaders. With `precision mediump float`, the common hash
 noise and hashes need `precision highp float`. `fwidth`, `dFdx` and `dFdy`
 need `GL_OES_standard_derivatives`, which the core enables for a shader
 that uses them.
+
+### Backdrops
+
+A rect with a `backdrop` is glass: it draws what lies behind its shape
+blurred, and then its own color, border and children on top. The color
+is the tint, so a window manager draws the vibrancy of a panel with one
+node:
+
+<!-- parses: commands -->
+```yaml
+# a glass panel: the frame behind it blurred by 30, more saturated, with a white tint
+- create: {id: panel, kind: rect, parent: root, props: {size: [480, 320], color: [1, 1, 1, 0.35], radius: 12, backdrop: {blur: 30, saturation: 1.6}}}
+```
+
+- **What it blurs.** The frame as it stands where the rect draws:
+  windows, layer surfaces below, other nodes, shader nodes with their
+  node textures, all as they show, and nothing in front of the rect.
+  The blur reads only the box of the rect on the output, and repeats the
+  pixels at its edges. Inside a layer, for example a group with a clip,
+  the frame is the texture of the layer, so the backdrop blurs only what
+  the layer drew behind it. A rect in a 3D context blurs what shows
+  behind its plane on the output.
+- **The blur.** A dual Kawase blur. A sharp edge behind the rect turns
+  into a ramp whose rise from 10 % to 90 % is about `blur` pixels wide.
+  It runs at the output scale on the box of the rect and ends at half
+  that size, which the glass samples smoothly.
+- **Cost.** Only the box under the rect. The core blurs again only when
+  something behind that box changed: a commit with damage there, or a
+  node behind it that moved, changed or went. A still screen, and a
+  change in front of the rect or beside it, run no pass, and
+  `render.stats` counts none. One blur takes 2n - 1 passes for n
+  halvings, 3 passes up to a blur of 24 logical pixels at scale 1. On
+  llvmpipe with 4 threads, the frame with a blur takes about 2 ms more
+  for a rect of 400x300, and about 5 ms more for 800x500 with a blur of
+  32.
+- **Watchdog.** A backdrop costs as much as an effect. `effects.dropped`
+  removes it, and the rect shows its plain tint.
+- **Node textures and captures.** A node texture shows no backdrop: a
+  shader that reads the rect, or a node above it, gets the rect without
+  the blur. A capture of an output shows the backdrop as the output
+  does.
+
+A backdrop needs no grant. A client sets it only on its own rects, and
+the pixels of other clients that it blurs reach only the screen, which
+the person already sees: no event, node texture or answer gives them
+back to a client. Reading pixels back stays with `screen.capture` and
+recordings, which need the grant (see [Screen capture](#screen-capture)).
+A shader node already shows the nodes of other clients sharp on the
+screen through node textures, without a grant; a backdrop shows them
+only blurred, by at least 2 logical pixels. When the blur runs again
+tells when the frame behind a rect changed; `render.stats`, the one
+answer with those counters, refuses client sockets and confined
+connections.
 
 The core loads the file of an image when a transaction names it, on a
 worker thread: the transaction answers when the file is decoded, while
@@ -597,7 +651,7 @@ by default; a timeout exits 1 with the reason on stderr.
 | `animation.done` | the `node` whose animation reached its targets, or the `output` whose camera did |
 | `effect.failed` | the shader of an effect failed after a change of its file; the single field `error` holds the path and the log, and the effect keeps its last working version |
 | `layers.dropped` | the layers of these `nodes` did not fit into the pixel budget of a frame of the `output` and stay out of it; sent when the list changes, and an empty list means that all show again; `keyboard` names the surface node with the keyboard focus when one of these nodes holds it, so that the person types into a window that shows nothing; the core leaves the focus there, and the window manager of that window may move it |
-| `effects.dropped` | the watchdog removed the effects, the meshes and the shaders of shader nodes of `client`; a perspective stays, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
+| `effects.dropped` | the watchdog removed the effects, the meshes, the backdrops and the shaders of shader nodes of `client`, so a glass rect shows its plain tint; a perspective stays, because frames were slow for two seconds and its visible nodes cost the most; if frames stay slow and that client's own load reaches the owner budget (D57), the core disconnects it and removes its nodes, also with `keep_nodes` or `resume`; below the budget the slowdown is shared, the effects of all clients go and none is disconnected |
 | `output.changed` | output name, layout position and size, scale, camera, and the work area: the scene area that the output shows without panels and reserves; `default_work_area` is the same area as the default camera shows it, the place for windows that a camera move should not move |
 | `output.removed` | output name |
 | `client.connected`, `client.disconnected` | client name |

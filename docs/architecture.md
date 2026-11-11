@@ -260,6 +260,22 @@ keeps its own tracker, is keyed by its source and draws only when the
 source changes, for all the shader nodes that read it, so a pane and its
 mirror share the texture of their window.
 
+A rect with a `backdrop` adds an element right behind its own element
+(`backdrop.rs`). When the renderer draws it, the target already holds
+everything behind it: the element copies the part of the target under
+its box into a texture, halves that with the downsample of a dual Kawase
+blur, doubles it back to half the size of the box, and draws the result
+through the shape of the rect, saturated, before the rect draws its tint.
+The same element works on an output, in a layer texture and for the
+planes and pieces of a 3D context, since each draws back to front into
+one target. A node texture leaves it out. Before a frame,
+`Backdrops::settle` compares the elements behind the box of each
+backdrop with those of its last frame, by id, commit, box and alpha, and
+by the damage of a changed commit inside the box. Only a change gives
+the backdrop a new commit: the damage tracker then redraws its whole box
+behind it, and the draw blurs again. Otherwise the draw reuses the blur,
+so a still screen renders nothing.
+
 The frames import the buffer of a window lazily, with the damage of all
 commits since the last import. A commit imports at once in two cases
 (`backend/import.rs`). When a new buffer replaces one whose damage no
@@ -479,9 +495,9 @@ The safety layer is the only built-in behavior (see
   session stays locked, and only then can a new lock client take over.
 - **Watchdog.** When frames take longer to render than a refresh of their
   output for two seconds, the core blames the client whose visible nodes
-  cost the most: a node counts 1, a layer and each effect 25 more. It
-  removes the effects, the meshes and the shaders of shader nodes of that
-  client and sends `effects.dropped` with its name. When frames stay slow
+  cost the most: a node counts 1, a layer, each effect and a backdrop 25
+  more. It removes the effects, the meshes, the backdrops and the shaders
+  of shader nodes of that client and sends `effects.dropped` with its name. When frames stay slow
   for two more seconds, the core disconnects that client, at most once a
   minute. It does so only when that client's own load reaches the owner
   budget (D57). `CHORA_OWNER_LOAD_BUDGET` sets that budget, 4000 by
