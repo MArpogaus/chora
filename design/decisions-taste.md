@@ -19,3 +19,19 @@ autonomously until sat"). Each is reversible; the user may override any.
   fixed defaults.
 - Seen on mock A: tag 5 in red needs a meaning in the doc (urgent) or
   goes; the Keys and power entries are right.
+
+## mc v2 (design/looks/mc-v2.md, mocks media/2026-11-12/design/mc/)
+
+- Q1 column separation: **A, a hairline only.** The printed-page idea
+  wants one rule, not a second paper; KISS. Rejected B (tint reads as a
+  panel, the thing the user asked to remove).
+- Q2 key list: **A, a block at the column foot.** Every swarm tester
+  failed to find keys in mc; it must be visible without a key. Rejected B
+  (one footer line is easy to miss) and C (hidden after first start).
+- Q3 chat type: **A, the book serif with the speaker on its own line.**
+  It keeps one voice across page and margin; labels and the card stay in
+  the sans. Rejected B (denser but breaks the page aesthetic).
+- Accepted: agenda moves from Super+a to Super+Home, because Super+a is
+  the chat key in every look (shared invariant).
+- Watch: mc is read from the sofa; nothing in the column below 14 px at
+  1280, and the card keys stay as large as on the mock.
