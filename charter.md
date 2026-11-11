@@ -1124,3 +1124,16 @@ a frame that flashes, text that touches an edge. Reviews work from
 captures at 1x and 2x and from clips, compare against the style guides,
 and rank such findings like any other (they block a release when they
 are on a main path).
+
+Design per look (user, 11-11 ~19:30): the looks have different people,
+tasks and usage patterns, so one generalized HUD does not fit. Each look
+(xp, tiling, mc, construct; voice and the chat as cross-cutting parts)
+gets its own design document: its people and their goals, its usage
+patterns, its interaction model, how the helper and the chat live in it,
+its voice behaviour, and its do and don't list, beside its style guide.
+docs/design-principles.md stays the shared base; a shared invariants
+section names what must stay identical across looks (the question card
+and its keys, Escape, give keys, honest states, words). A combination
+document covers the seams where looks meet (windows moving between them,
+panes, the cube, two screens). UI reviews check against the look's own
+document first.

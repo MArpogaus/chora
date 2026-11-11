@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~19:30: "We need different guidelines and philosophy or design documents for all our components and window managers ... we can not generalize the HUD ... polish the rough edges when combined." Confirmed; charter rule "Design per look"; designer drafts started.
 - 11-11 ~19:20: rework the status page (too cluttered; folding or tabs); post detailed screenshots and screencasts of all features for verification; UI reviews hunt for perfection (charter rule added).
 - 11-11 ~19:00: "Later have this frictionless with automatic paste bin upload + GH issue text after confirmation and some additional questions in the script." Added as L1 item 4.
 - 11-11 ~18:50: "Ensure good and detailed logging in all components ... users submit anonymised reports using a small shell script." Noted as backlog L1 and rc criterion 9a.
