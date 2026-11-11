@@ -87,6 +87,8 @@ pub struct Runtime<A> {
     /// Whether the connection of the caller of the method that runs now is
     /// confined, for a method that acts in the name of the plugin.
     pub confined_call: bool,
+    /// The client name of the caller of the method that runs now.
+    pub caller: String,
 }
 
 impl<A> Runtime<A> {
@@ -130,6 +132,7 @@ impl<A> Runtime<A> {
             give_tried: None,
             inject_ok: test_session(),
             confined_call: false,
+            caller: String::new(),
         }
     }
 
@@ -340,12 +343,14 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
     match event {
         Event::MethodCalled {
             call,
+            caller,
             method,
             params,
             confined,
             ..
         } => {
             rt.confined_call = confined;
+            rt.caller = caller;
             rt.conn.serving_confined = confined;
             let result = match method.as_str() {
                 "settings.get" => {

@@ -1476,8 +1476,12 @@ bottom.
   the others. A field that dies is started again at once. A `chat.show`
   for another helper without a token, as the voice agent sends it, leaves
   an open chat alone; with the token of an act it replaces it.
-- Both methods refuse a caller on a confined connection, because the host
-  acts in its own name. If voice does not answer, the host asks again
+- Rule *voice opens the chat*: both methods refuse a caller on a
+  confined connection, because the host acts in its own name, except
+  the tool connection of the voice agent that the host follows
+  (`NAME-mcp`, `voice-mcp` by default), so that "show the chat with
+  Atlas" works by voice. The host drops the token of a confined caller,
+  so such a `chat.show` never moves the keyboard. If voice does not answer, the host asks again
   every 5 s and opens the chat again; a helper that voice does not know
   or that ended has its own line.
 - A switch of look places the same field again in the new look, keeps the

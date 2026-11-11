@@ -30,7 +30,7 @@ use crate::{
 mod host;
 mod view;
 
-pub use host::{Announced, ShowParams, exported, guard};
+pub use host::{Announced, ShowParams, exported, token_of};
 pub use view::card_origin;
 
 const PULLS: usize = 8;
