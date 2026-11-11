@@ -7,8 +7,8 @@
 # The front face of a resting cube fills its screen, so the drag leaves
 # the face over the edge of the screen, onto a second output.
 #
-# 1. With CHORA_TEST_INJECTED_DRAG_GIVES (headless only), where an
-#    injected press gives its drag: inside the face the window moves and
+# 1. With the flag --test-injected-drag-gives of the core (headless
+#    only), where an injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
 #    mesh of the pane has a depth; after a drop beside the cube it is
 #    still its pane, with a name. Then the pane rests when the pointer
@@ -16,8 +16,10 @@
 #    step.
 # 2. A pane dropped over a face goes back to xp on the output of that
 #    face, at the drop point: a move from face to face stays in xp.
-# 3. Without the variable an injected drag gives nothing: past the edge
-#    the window is still with xp, and no pane shows it.
+# 3. Without the flag the core refuses the give of an injected drag:
+#    past the edge the window is still with xp, and no pane shows it;
+#    back in the face it goes on with the drag, and stays after the
+#    release.
 #
 # Usage: tests/gate-construct-pull.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016
@@ -101,7 +103,7 @@ end_session() {
     pids=()
 }
 
-CHORA_TEST_INJECTED_DRAG_GIVES=1 pull given
+CHORA_TEST_FLAGS=--test-injected-drag-gives pull given
 ok "inside its face the window moves with the drag and stays with xp"
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 until_ok 'test "$(pane_of "$surface")" != none && test "$(pane_of "$surface")" != lost' 20 ||
@@ -132,7 +134,7 @@ sleep 1
 ok "after the release the pane rests and the camera is in no window"
 end_session
 
-CHORA_TEST_INJECTED_DRAG_GIVES=1 pull returned
+CHORA_TEST_FLAGS=--test-injected-drag-gives pull returned
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 inject '[{"pointer_move": {"position": [700, 400]}}, {"button": {"state": "released"}}]'
 until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 || fail "a pane dropped over the front face did not go back to xp: $(probe)"
@@ -150,4 +152,13 @@ sleep 2
 [ "$(owner)" = xp ] || fail "an injected drag gave the window past the edge: $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "an injected drag made a pane: $(pane_of "$surface")"
 ok "an injected drag gives nothing: past the edge the window is still with xp"
+read -r _ _ _ x _ <<<"$(probe)"
+inject '[{"pointer_move": {"position": [500, 300]}}]'
+until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" != "$x"' 20 ||
+    fail "after the refused give the window left its drag: $(probe)"
+inject '[{"button": {"state": "released"}}]'
+sleep 1
+[ "$(owner)" = xp ] || fail "the window left xp after the refused give: $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "a refused give made a pane: $(pane_of "$surface")"
+ok "after the refused give the window goes on with the drag and stays with xp: $(probe)"
 end_session

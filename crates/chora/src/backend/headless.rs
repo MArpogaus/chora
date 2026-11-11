@@ -159,12 +159,6 @@ impl Headless {
 /// Starts the headless backend with its outputs and its frame clock.
 pub fn init(state: &mut State, specs: &[Spec]) -> Result<(), Box<dyn std::error::Error>> {
     state.backend = Some(Backend::Headless(Box::new(Headless::new()?)));
-    if std::env::var_os("CHORA_TEST_INJECTED_DRAG_GIVES").is_some() {
-        tracing::warn!(
-            "CHORA_TEST_INJECTED_DRAG_GIVES is set: an injected press gives its drag; for tests only"
-        );
-        state.injected_drag_gives = true;
-    }
     for spec in specs {
         add(state, spec)?;
     }

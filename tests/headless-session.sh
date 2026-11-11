@@ -20,6 +20,9 @@
 #   CHORA_LOG  the log of the core (default: chora.log in the temp dir)
 #   CHORA_TEST_ACCEPT_INJECTED_KEYS  1 by default here: the window managers
 #              of the session take the keys of `input.inject`
+#   CHORA_TEST_FLAGS  flags of chora after `--headless OUTPUTS`, for tests,
+#              for example --test-injected-drag-gives; the core and its
+#              programs do not get the variable
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -65,8 +68,10 @@ trap 'exit 143' TERM HUP
 # CPU cost of 32.
 export LP_NUM_THREADS=${LP_NUM_THREADS:-4}
 export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
-env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$runtime" \
-    setsid "$bin/chora" --headless "$outputs" -- "$@" >"$log" 2>&1 &
+read -ra test_flags <<<"${CHORA_TEST_FLAGS:-}"
+env -u WAYLAND_DISPLAY -u DISPLAY -u WAYLAND_SOCKET -u DBUS_SESSION_BUS_ADDRESS -u CHORA_TEST_FLAGS \
+    XDG_RUNTIME_DIR="$runtime" \
+    setsid "$bin/chora" --headless "$outputs" "${test_flags[@]}" -- "$@" >"$log" 2>&1 &
 pid=$!
 
 for _ in $(seq 100); do

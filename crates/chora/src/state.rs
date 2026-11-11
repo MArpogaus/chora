@@ -265,11 +265,11 @@ pub struct State {
     /// The serial and the button of the last real button press, while the
     /// button is down. An injected button press ends it.
     pub last_real_button: Option<(Serial, u32)>,
-    /// For tests on the headless backend only
-    /// (`CHORA_TEST_INJECTED_DRAG_GIVES`): an injected button press counts
-    /// as a press of the user for `give_grab`, and for nothing else, so
-    /// that a gate without a real pointer can pull a window out of a
-    /// face.
+    /// For tests on the headless backend only, set by the flag
+    /// `--test-injected-drag-gives`: an injected button press counts as a
+    /// press of the user for `give_grab`, and injected input does not end
+    /// that press. Nothing else changes: no act, no token. A gate without
+    /// a real pointer pulls a window out of a face with it.
     pub injected_drag_gives: bool,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
