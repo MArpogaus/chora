@@ -10,6 +10,7 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 - Waybar of the tiling flavor ran with a private D-Bus session bus; TeX Gyre Pagella was installed from the Debian package `fonts-texgyre` (without it mc falls back to a sans font).
 - Real-time parts (waybar polling, the wpctl thread, fake voice events) run on the wall clock while the record runs at about a third of real time, so their delays look about three times longer in the clips than on a screen.
 - xp and tiling have one theme each, so they show in their only theme; mc and construct show light and dark.
+- Builds: clips 01-09 and 11, 13-23 were first recorded on df8dadd; the files that index.md lists without a mark were recorded again on 67f93a9 (construct UX fixes, chat and HUD themes). A finding marked (new build) was seen on 67f93a9; unmarked findings of a re-recorded file were checked again there.
 
 ## 01 xp: Start menu, open a program, taskbar
 
@@ -97,11 +98,11 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 
 | Where | Finding |
 |---|---|
-| 10-construct-walk-fly-list-light.mp4 all / all construct stills | the chip "OPEN CUBE" sits at x=0, flush against the left edge, while the pill "Chat ..." keeps a 32 px margin from the top left corner |
-| 10-construct-walk-fly-list-light.mp4 0:09.9-0:10.1 (frames 298-302) | during the fly-in the pill "SUNSET" fades out on top of the pane face: the label is drawn over the picture for a few frames |
-| 10-construct-walk-fly-list-light.mp4 0:09.8-0:10.0 (frames 294-300) | the fly-in starts with a jump: the pane grows by about a third between two frames, then eases |
-| 10-construct-walk-fly-list-light.mp4 0:15-0:20 / 10-construct-walk-fly-list-light-list-choice.png, 10-construct-walk-fly-list-light-in-pane.png | a pane chosen in the window list (wobble.rs, 600x420) shows at 1:1 in the middle of an empty white space; the rest of the construct is gone, so it reads as a small floating window rather than a place |
-| 10-construct-walk-fly-list-light.mp4 (not in the clip) | NOT SHOWN: the notice "The keys walk here. F1 shows them all." I typed z (as a key and as text, injected); the node construct-hud-say stayed " " and construct-hud has opacity 0 with voice_hud: host, so a construct notice may never be visible under the host HUD (needs a check with real keys) |
+| 10-construct-walk-fly-list-light.mp4 (not in the clip) | NOT SHOWN: (old and new build) the notice "The keys walk here. F1 shows them all." I typed z (as a key and as text, injected); the node construct-hud-say stayed " " and construct-hud has opacity 0 with voice_hud: host, so a construct notice may never be visible under the host HUD (needs a check with real keys) |
+| 10-construct-walk-fly-list-light.mp4 all / all construct stills | (new build) the chip OPEN CUBE moved to the bottom right (x 1139-1263 at 1x), but at scale 2 it sits at the bottom middle (10-construct-walk-fly-list-light-panes-2x.png, x about 1140-1260 of 2560): its place changes with the scale |
+| 10-construct-walk-fly-list-light.mp4 all / 10-construct-walk-fly-list-light-window-list.png | (new build) the new label "Listening" left of the ring is a white box whose right edge stops 6 px before the ring; label and ring read as two separate things, and the box is 2 px lower than the ring centre |
+| 10-construct-walk-fly-list-light.mp4 0:09.9-0:10.1 (frames 298-302) | the fly-in still starts with a jump: the pane grows by about half between frames 298 and 302, then eases; the SUNSET label now just vanishes at frame 300 (no longer drawn over the face) |
+| 10-construct-walk-fly-list-light.mp4 0:14 / 10-construct-walk-fly-list-light-window-list.png | (new build) the window list lists all five windows; the shown ones have an empty place column, the hidden ones say "not in view": the column is right aligned at x=787 while the names start at x=376, leaving a wide empty gap |
 
 ## 11 construct: manager panes, xp and tiling in panes
 
@@ -119,11 +120,10 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 
 | Where | Finding |
 |---|---|
-| 12-construct-glass-chat-question-dark.mp4 all / all dark construct stills | in the dark theme the HUD pills "Chat ..." and "Atlas · working · Tidy notes (1/2)" are white, while the construct's own pills (SUNSET, OPEN CUBE) are dark glass: the assistant's construct folder does not follow the theme of the construct |
-| 12-construct-glass-chat-question-dark.mp4 0:05-0:13 / 12-construct-glass-chat-question-dark-glass-chat.png | the glass chat is a pale, almost opaque panel in the dark theme; it reads as a light theme panel over the black space |
-| 12-construct-glass-chat-question-dark.mp4 0:05-0:13 / 12-construct-glass-chat-question-dark-glass-chat.png | the chat has rounded top corners but square bottom corners where the white input field meets the bottom edge |
-| 12-construct-glass-chat-question-dark.mp4 0:09-0:13 / 12-construct-glass-chat-question-dark-question.png | as in xp, the question card covers the lower part of the transcript; here it leaves 40 px of empty glass under Yes and No, and an empty band of 60 px between the hint and the input |
-| 12-construct-glass-chat-light-2x.png | when the helper has not reported a state, the chat header reads "atlas ·": lower case name and a dangling middle dot with nothing after it |
+| 12-construct-glass-chat-question-dark.mp4 all / 12-construct-glass-chat-question-dark-walk.png | (new build) the HUD pills and the chat now follow the dark theme |
+| 12-construct-glass-chat-question-dark.mp4 0:09-0:13 / 12-construct-glass-chat-question-dark-question.png | (new build) the question card stays white (#f5f5f5) inside the dark glass chat: a bright block in the dark theme |
+| 12-construct-glass-chat-question-dark.mp4 0:09-0:13 / 12-construct-glass-chat-question-dark-question.png | the card still covers the lower transcript, with 40 px empty under Yes and No and an empty band of 60 px above the input |
+| 12-construct-glass-chat-question-dark.mp4 0:05-0:13 / 12-construct-glass-chat-question-dark-glass-chat.png | (new build) the chat reaches y=687 and the chip OPEN CUBE (y 680-711, x 1139-1263) peeks out under its bottom right corner: chip and chat overlap |
 
 ## 13 cube: OPEN CUBE
 
