@@ -1,0 +1,174 @@
+#!/bin/bash
+# Gate of the layout of the construct HUD (design/construct-hud-spec.md
+# of the log): the layout audit of tests/hud-audit.py in each state of
+# the spec. The construct runs with `voice_hud: host`, the host
+# chora-assistant with the folder plugins/chora-construct/hud, a fake
+# voice agent with a transcript of the helper Atlas and a foot pane with a
+# long title.
+#
+# The cells, each an audit of the whole screen, in each theme and output:
+#   walk         the pane label and the walk hints
+#   question     a physical question with Yes and No
+#   chat         the chat open with its transcript
+#   chat-ask     the chat open while a question waits
+#   list         the window list (Tab)
+#   list-search  the window list filtered by typed letters
+#   help         the help (F1)
+#   help-search  the help filtered by "pane"
+# The audit fails on helper surfaces that overlap, a surface or a text
+# outside the work area, an image that is not drawn pixel for pixel, and a
+# text past its surface. Each cell prints `ok:` or `FAIL:` with the
+# findings; the gate fails when a cell fails. Each round ends with the
+# window audit: the window of the pane is still there.
+#
+# Usage: tests/gate-construct-layout.sh   BIN: directory with the binaries
+#   SIZES   the outputs (default "1280x720 2560x1440@2")
+#   THEMES  the themes (default "light dark")
+#   CELLS   a regular expression of the cells that run (default all)
+#   SHOTS   a directory that keeps a capture and the nodes of each cell
+#           as layout-CELL-THEME-SIZE.png and .json
+set -u
+. "$(dirname "$0")/gate-lib.sh"
+need_bins chora choractl chora-construct chora-assistant
+need foot
+need jq
+need mkfifo
+temp_config
+work=$XDG_CONFIG_HOME
+shots=${SHOTS:-$work/shots}
+mkdir -p "$work/chora" "$work/data/chora/huds" "$shots"
+cp -rL "$repo/plugins/chora-construct/hud" "$work/data/chora/huds/construct"
+export PATH=$bin:$PATH
+export CHORA_BIN=$bin
+failed=0
+
+key() { echo "[{\"shortcut\": {\"keys\": \"$1\"}}]" | ctl inject >/dev/null; }
+typed() { echo "[{\"text\": {\"text\": \"$1\"}}]" | ctl inject >/dev/null; }
+emit() { echo "$1 $2" >&3; }
+shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
+until_shows() {
+    for _ in $(seq 40); do
+        shows "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+
+entries() {
+    cat <<'JSON'
+[
+ {"seq": 1, "role": "user", "text": "Please tidy the notes for Friday."},
+ {"seq": 2, "role": "agent", "text": "I read notes.txt. I will sort the items by day and keep your wording."},
+ {"seq": 3, "role": "tool", "text": "Read notes.txt"},
+ {"seq": 4, "role": "tool", "text": "Sort 14 items by day"},
+ {"seq": 5, "role": "user", "text": "Put the dentist first on Friday."},
+ {"seq": 6, "role": "agent", "text": "Done. Friday has three items now, the dentist first."}
+]
+JSON
+}
+
+ask() {
+    emit voice.state '{"state": "question", "task": "Write file", "said": ""}'
+    emit voice.confirm '{"id": "51", "name": "Atlas", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/notes/notes.txt\n412 bytes · replaces 9 lines", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true, "timeout_s": 42}'
+}
+answered() {
+    emit voice.confirm '{"id": "51", "done": true}'
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
+}
+
+audit() {
+    local cell=$1 tag=$2 out
+    [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
+    sleep 0.8
+    ctl outputs >"$shots/layout-$cell-$tag.outputs.json"
+    ctl query '*' >"$shots/layout-$cell-$tag.json"
+    ctl capture "$shots/layout-$cell-$tag.png" >/dev/null 2>&1
+    if out=$(python3 -I "$repo/tests/hud-audit.py" "$shots/layout-$cell-$tag.outputs.json" \
+        "$shots/layout-$cell-$tag.json" construct assistant); then
+        ok "$cell $tag: $out"
+    else
+        echo "FAIL: $cell $tag:"
+        printf '  %s\n' "$out"
+        failed=1
+    fi
+}
+
+round() {
+    local theme=$1 size=$2 tag=$1-$2 voice_pid
+    printf 'theme: %s\nvoice_hud: host\n' "$theme" >"$work/chora/chora-construct.yaml"
+    printf 'enabled: true\nposition: null\nhud: construct\nhuds:\n  - {when: {space: construct}, folder: construct}\n' \
+        >"$work/chora/chora-assistant.yaml"
+    entries >"$work/entries.json"
+    session_start "$size" -- "$bin/chora-construct"
+    local session=${pids[-1]}
+    grant screen.capture input.inject methods.call
+    ctl wait id:construct-look --timeout 20 >/dev/null || fail "$tag: no space: $(tail -n 5 "$GATE_ENV")"
+    rm -f "$work/voice.in"
+    mkfifo "$work/voice.in"
+    FAKE_VOICE_ENTRIES=$work/entries.json python3 -I "$repo/tests/fake-voice.py" "$work/claims" \
+        <"$work/voice.in" >"$shots/voice-$tag.log" 2>&1 &
+    voice_pid=$!
+    pids+=("$voice_pid")
+    exec 3>"$work/voice.in"
+    XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant-$tag.log" 2>&1 &
+    pids+=($!)
+    emit voice.state '{"name": "Atlas", "state": "working", "task": "Tidy notes", "step": 1, "steps": 2}'
+    emit voice.state '{"state": "working", "task": "Tidy notes", "said": ""}'
+    ctl wait id:hud-figure --timeout 20 >/dev/null || fail "$tag: the host shows no figure"
+    foot -a sunset -T 'Sunset over the Donaudampfschifffahrtsgesellschaft harbour' \
+        -f 'DejaVu Sans Mono:size=10' sh -c 'sleep 600' >/dev/null 2>&1 &
+    run_pid $!
+    for _ in $(seq 40); do
+        ctl call construct construct.list | grep -q '"name": "sunset' && break
+        sleep 0.25
+    done
+    key Alt+Escape
+    sleep 1.5
+    audit walk "$tag"
+
+    ask
+    until_shows hud-card || echo "FAIL: $tag: no question card"
+    audit question "$tag"
+
+    ctl call assistant chat.show '{"name": "atlas"}' >/dev/null 2>&1
+    until_shows hud-chat || echo "FAIL: $tag: no chat"
+    audit chat-ask "$tag"
+    answered
+    sleep 0.5
+    audit chat "$tag"
+    ctl call assistant chat.hide '{}' >/dev/null 2>&1
+    sleep 0.5
+
+    key Tab
+    sleep 0.6
+    audit list "$tag"
+    typed sun
+    audit list-search "$tag"
+    key Escape
+    key Escape
+    sleep 0.4
+
+    key F1
+    sleep 0.6
+    audit help "$tag"
+    typed pane
+    audit help-search "$tag"
+    key Escape
+    key Escape
+    ctl query 'app_id:sunset kind:surface' | jq -e 'length == 1' >/dev/null ||
+        echo "FAIL: $tag: the window of the pane is lost"
+
+    exec 3>&-
+    kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    wait "$session" "$voice_pid" 2>/dev/null
+    pids=()
+    run_pids=()
+}
+
+for size in ${SIZES:-1280x720 2560x1440@2}; do
+    for theme in ${THEMES:-light dark}; do
+        round "$theme" "$size"
+    done
+done
+[ "$failed" = 0 ] || fail "the layout audit of the construct HUD has findings"
+ok "the construct HUD keeps its layout in every state"
