@@ -76,8 +76,14 @@ impl CompositorHandler for State {
     }
 
     fn commit(&mut self, surface: &WlSurface) {
+        if !is_sync_subsurface(surface) {
+            mark_silent_buffers(surface);
+        }
         on_commit_buffer_handler::<Self>(surface);
         if !is_sync_subsurface(surface) {
+            if let Some(backend) = &mut self.backend {
+                backend.import_commit(surface);
+            }
             let root = root_surface(surface);
             if let Some(id) = self.surface_id(&root) {
                 self.windows[&id].on_commit();
@@ -96,6 +102,52 @@ impl CompositorHandler for State {
                 .expect("initial configure is always allowed");
         }
     }
+}
+
+/// A commit of a surface tree that attaches another shm buffer of the
+/// same size without damage says that the picture did not change: foot
+/// does so with its second buffer, which still holds the frame before.
+/// The renderer puts a buffer without damage into the texture in full,
+/// and the window would show that old frame. One pixel of damage keeps
+/// the texture as the commits before made it.
+fn mark_silent_buffers(surface: &WlSurface) {
+    use smithay::backend::renderer::{
+        BufferType, buffer_dimensions, buffer_type, utils::RendererSurfaceStateUserData,
+    };
+    use smithay::wayland::compositor::{
+        BufferAssignment, Damage, SurfaceAttributes, TraversalAction, with_surface_tree_downward,
+    };
+    let mark = |states: &smithay::wayland::compositor::SurfaceData| {
+        let mut guard = states.cached_state.get::<SurfaceAttributes>();
+        let attrs = guard.current();
+        let Some(BufferAssignment::NewBuffer(new)) = &attrs.buffer else {
+            return;
+        };
+        if !attrs.damage.is_empty() || !matches!(buffer_type(new), Some(BufferType::Shm)) {
+            return;
+        }
+        let size = buffer_dimensions(new);
+        let data = states.data_map.get::<RendererSurfaceStateUserData>();
+        let same = data.is_some_and(|data| {
+            let data = data
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            data.buffer()
+                .is_some_and(|old| size.is_some() && buffer_dimensions(old) == size)
+        });
+        if same {
+            attrs
+                .damage
+                .push(Damage::Buffer(Rectangle::from_size((1, 1).into())));
+        }
+    };
+    with_surface_tree_downward(
+        surface,
+        (),
+        |_, _, ()| TraversalAction::DoChildren(()),
+        |_, states, ()| mark(states),
+        |_, _, ()| true,
+    );
 }
 
 /// The surface at the root of the subsurface tree of a surface.

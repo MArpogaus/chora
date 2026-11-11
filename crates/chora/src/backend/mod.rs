@@ -57,6 +57,28 @@ impl Backend {
         }
     }
 
+    /// Puts the buffers that a surface and its subsurfaces just committed
+    /// into their textures, with the damage of that commit alone. The
+    /// frames import lazily: after two commits without a frame between
+    /// them they would take the damage of both from the newer buffer,
+    /// and a client such as foot, which alternates two buffers and
+    /// damages only what is new, would show an old frame there. Without
+    /// a renderer, as on an inactive session, the next frame imports.
+    pub fn import_commit(
+        &mut self,
+        surface: &smithay::reexports::wayland_server::protocol::wl_surface::WlSurface,
+    ) {
+        use smithay::backend::renderer::utils::import_surface_tree;
+        let imported = match self {
+            Self::Winit(winit) => import_surface_tree(winit.gles(), surface),
+            Self::Headless(headless) => import_surface_tree(headless.gles(), surface),
+            Self::Tty(tty) => return tty.import_commit(surface),
+        };
+        if let Err(err) = imported {
+            tracing::debug!(?err, "a committed buffer is not imported");
+        }
+    }
+
     /// Switches to another virtual terminal. Only the tty backend can.
     pub fn change_vt(&mut self, vt: i32) {
         if let Self::Tty(tty) = self {
