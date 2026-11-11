@@ -893,7 +893,6 @@ impl State {
                 self.ipc_admin(conn, &request.method, params)
             }
             "screen.capture" => self.ipc_capture(conn, params),
-            m if m.starts_with("record.") => self.ipc_record(conn, m, params),
             "input.inject" => self.ipc_inject(conn, params),
             "input.configure" => self.ipc_input_configure(conn, params),
             "assets.put" | "assets.remove" => self.ipc_assets(conn, &request.method, params),
@@ -902,10 +901,7 @@ impl State {
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
-            other => Err(RpcError::new(
-                RpcError::METHOD_NOT_FOUND,
-                format!("no method {other:?}"),
-            )),
+            other => self.ipc_record(conn, other, params),
         })
     }
 

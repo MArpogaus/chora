@@ -403,6 +403,14 @@ fn run(args: Args) -> Result<(), String> {
             unreachable!("handled before the connection")
         }
         Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
+        command @ (Cmd::Capture { .. } | Cmd::Record(_)) => return media(&mut client, command),
+    };
+    result.map_err(|e| e.to_string())
+}
+
+/// The commands that save pictures: a capture and a recording.
+fn media(client: &mut Client, command: Cmd) -> Result<(), String> {
+    match command {
         Cmd::Capture {
             file,
             output,
@@ -414,11 +422,11 @@ fn run(args: Args) -> Result<(), String> {
                 node,
                 max_side,
             };
-            return capture_to(&mut client, &capture, &file);
+            capture_to(client, &capture, &file)
         }
-        Cmd::Record(recording) => return record::record(&mut client, &recording),
-    };
-    result.map_err(|e| e.to_string())
+        Cmd::Record(recording) => record::record(client, &recording),
+        _ => Ok(()),
+    }
 }
 
 /// The `hello` of every `choractl` call: the name of `--name`, with
