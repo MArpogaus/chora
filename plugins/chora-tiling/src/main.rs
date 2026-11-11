@@ -2014,7 +2014,7 @@ mod tests {
 }
 
 /// The scripts of the panel in `flavors/tiling/waybar`, run with stand-ins
-/// of `wpctl` on the PATH.
+/// of `wpctl`, `choractl` and `waybar` on the PATH.
 #[cfg(test)]
 mod panel {
     use std::{os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
@@ -2057,5 +2057,26 @@ mod panel {
             !config.contains("\"pulseaudio\""),
             "the unlabelled module is gone"
         );
+    }
+
+    #[test]
+    fn the_panel_shows_only_on_the_outputs_of_tiling() {
+        let choractl = r#"case "$1 $2 $3" in
+"call tiling get_tags") echo '{"outputs": [{"name": "HEADLESS-1"}]}' ;;
+"outputs  ") echo '[{"name": "HEADLESS-1"}, {"name": "HEADLESS-2"}]' ;;
+*) exit 1 ;;
+esac"#;
+        let waybar = r#"while [ $# -gt 0 ]; do [ "$1" = --config ] && cat "$2"; shift; done"#;
+        let dir = waybar_dir();
+        let config = run(
+            "outputs",
+            "waybar.sh",
+            &[dir.to_str().expect("a path")],
+            &[("choractl", choractl), ("waybar", waybar)],
+        );
+        let config: serde_json::Value = serde_json::from_str(&config).expect(&config);
+        assert_eq!(config["output"], serde_json::json!(["!HEADLESS-2", "*"]));
+        let include = dir.join("config.jsonc");
+        assert_eq!(config["include"], serde_json::json!([include.to_str()]));
     }
 }

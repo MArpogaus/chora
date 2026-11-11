@@ -1264,7 +1264,10 @@ its own package and needs no configuration.
   red. The volume module runs `waybar/volume.sh` each second, which asks
   `wpctl` of WirePlumber and prints `vol 40%`, `vol muted`, or `vol none`
   without `wpctl` or a sound output; a click mutes or unmutes, and the
-  wheel changes the volume.
+  wheel changes the volume. The unit starts waybar through
+  `waybar/waybar.sh`, which leaves out the outputs that are not
+  tiling's at the start, such as the output of `chora-xp` beside
+  tiling; an output that comes later gets a panel.
 - **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
   `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.

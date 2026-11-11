@@ -1,7 +1,8 @@
 // The panel of the tiling flavor. Only modules that need no IPC of sway;
 // custom/tags and custom/layout ask chora-tiling each second for the tags
 // of the output and the layout of the current tag, and custom/volume asks
-// wpctl for the volume: a click mutes, the wheel changes it.
+// wpctl for the volume: a click mutes, the wheel changes it. waybar.sh
+// starts waybar with this file on the outputs of chora-tiling only.
 {
   "layer": "top",
   "position": "top",
