@@ -850,8 +850,11 @@ impl Session {
         })
     }
 
-    /// The transcript as lines.
+    /// The transcript as lines; none outside of a chat with a helper.
     pub fn lines(&mut self, language: Language, measure: &Measure) -> Vec<Line> {
+        if !matches!(self.mode, Mode::Chat(_)) {
+            return Vec::new();
+        }
         let label = self.label();
         self.transcript.lines(language, &label, measure)
     }
@@ -1414,6 +1417,22 @@ mod tests {
             before + 1,
             "the draft stays out of the list"
         );
+    }
+
+    #[test]
+    fn the_list_shows_no_line_of_the_last_chat() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session
+            .show(&mut out, Some("atlas"), Some("act"), &frame)
+            .unwrap();
+        let answer = json!({"entries": [{"seq": 1, "role": "user", "text": "Hello"}],
+            "seq": 1, "epoch": 1});
+        log.borrow_mut().read.push(answer);
+        assert!(session.pull(&mut out));
+        session.hide(&mut out);
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(session.lines(Language::En, &measure()), Vec::new());
     }
 
     #[test]
