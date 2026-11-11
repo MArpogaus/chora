@@ -319,7 +319,9 @@ to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. A question about a
-security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
+security key also has `physical: true` and `keys: {yes, no}`. A question
+of a helper has its `name`, for the title "Question from NAME" of the
+card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
@@ -629,7 +631,7 @@ confirm:
   - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
   - {tool: inject_input, prompt: "Shall I type or click: {input}?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
-  - {tool: agent_start, prompt: "Shall I start an agent for {project}?"}
+  - {tool: agent_start, prompt: "Shall I start a helper for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
   - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
@@ -1298,7 +1300,9 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `voice.confirm` has `physical: true`. A spoken yes, an always word
   and a yes of `voice.confirm` count as nothing, and a yes sounds the
   error earcon; a no answers. The spoken question ends with `agent_keys`
-  ("Press Alt+y for yes or Alt+n for no."). The screen shows the whole
+  ("Press Alt+Y for yes or Alt+N for no."), with the keys spelled as the
+  card shows them; the card shows the prompt without that sentence and
+  names the keys in its own line. The screen shows the whole
   title of the request and its raw input, secrets hidden; a request
   whose detail passes 400 lines or 64 KiB is rejected and the agent
   says so, as the confirmation of the reply refuses a command too long

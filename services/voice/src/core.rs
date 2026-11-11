@@ -12,6 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::ask::show_key;
 use tokio::sync::oneshot;
 
 use serde::Serialize;
@@ -206,6 +207,8 @@ pub enum Effect {
         prompt: String,
         detail: String,
         physical: bool,
+        /// The helper that asks, for the title of the card.
+        name: Option<String>,
     },
     /// The question `id` got its answer or timed out.
     ConfirmDone(u64),
@@ -606,15 +609,15 @@ impl Core {
             && let Some(note) = self.next_note()
         {
             let keys = &self.config.confirm_keys;
-            let text = if note.physical {
+            let spoken = if note.physical {
                 let line = (self.config.phrases.agent_keys)
-                    .replace("{yes}", &keys.yes)
-                    .replace("{no}", &keys.no);
+                    .replace("{yes}", &show_key(&keys.yes))
+                    .replace("{no}", &show_key(&keys.no));
                 format!("{} {line}", note.text)
             } else {
-                note.text
+                note.text.clone()
             };
-            let mut ask = self.ask(text.clone(), true);
+            let mut ask = self.ask(spoken, true);
             if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
                 *voice = note.voice;
             }
@@ -622,7 +625,8 @@ impl Core {
             // The question waits from when it is spoken.
             if note.ask.is_some() {
                 self.confirm_from = Some(Instant::now());
-                effects.extend(self.show(text, note.detail, note.physical));
+                let name = note.ask.as_ref().map(|(name, _)| agents::title(name));
+                effects.extend(self.show((note.text, note.detail), note.physical, name));
             }
             self.physical = note.physical;
             self.sub_confirm = note.ask;
@@ -636,7 +640,12 @@ impl Core {
 
     /// Shows a new question on the screen, after the end of the one
     /// before.
-    fn show(&mut self, prompt: String, detail: String, physical: bool) -> Vec<Effect> {
+    fn show(
+        &mut self,
+        (prompt, detail): (String, String),
+        physical: bool,
+        name: Option<String>,
+    ) -> Vec<Effect> {
         let mut effects: Vec<Effect> = self
             .shown
             .take()
@@ -650,6 +659,7 @@ impl Core {
             prompt,
             detail,
             physical,
+            name,
         });
         effects
     }
@@ -888,7 +898,7 @@ impl Core {
         // text never does (review 0.9.0-rc.3). Without its sound, the
         // question shows now.
         self.confirm_from = self.muted.speaker.then(Instant::now);
-        self.show(prompt, detail, physical)
+        self.show((prompt, detail), physical, None)
     }
 
     /// Whether speech that started at `onset` answers the confirmation
@@ -1524,6 +1534,40 @@ mod tests {
         rx
     }
 
+    /// A question that takes a key names its keys as the card does.
+    #[test]
+    fn the_spoken_keys_are_spelled_as_on_the_card() {
+        let mut core = with_coder();
+        let (answer, _rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Coder fragt: ls. Erlauben?".into(),
+            detail: String::new(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(Input::Agent(ask));
+        let [(_, said)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        assert!(said.contains("Alt+Y") && said.contains("Alt+N"), "{said}");
+        let shown = effects.iter().find_map(|e| match e {
+            Effect::Confirm { prompt, .. } => Some(prompt.clone()),
+            _ => None,
+        });
+        assert_eq!(
+            shown.as_deref(),
+            Some("Coder fragt: ls. Erlauben?"),
+            "the card names the keys once"
+        );
+        let asker = effects.iter().find_map(|e| match e {
+            Effect::Confirm { name, .. } => name.clone(),
+            _ => None,
+        });
+        assert_eq!(asker.as_deref(), Some("Coder"), "the card says who asks");
+    }
+
     /// A permission request that runs or writes follows the rule of a
     /// security question: a spoken yes, an always word and a yes of
     /// `voice.confirm` count as nothing, a key and a button answer.
@@ -1569,7 +1613,7 @@ mod tests {
         let [(reply, said)] = asks(&effects)[..] else {
             panic!("{effects:?}");
         };
-        assert!(said.contains("Alt+y") && said.contains("Alt+n"), "{said}");
+        assert!(said.contains("Alt+Y") && said.contains("Alt+N"), "{said}");
         let detail = effects.iter().find_map(|e| match e {
             Effect::Confirm { detail, .. } => Some(detail.as_str()),
             _ => None,
@@ -2291,6 +2335,7 @@ mod tests {
             prompt: "Soll ich das Programm foot starten?".into(),
             detail: "foot -e sh".into(),
             physical: false,
+            name: None,
         };
         assert_eq!(effects, [shown]);
         let said = Reply::Said {
