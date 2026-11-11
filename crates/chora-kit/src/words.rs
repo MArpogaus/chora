@@ -286,7 +286,7 @@ impl Word {
     #[allow(clippy::too_many_lines, reason = "one line per word")]
     fn en(self) -> &'static str {
         match self {
-            Self::Asleep => "Asleep. Say \"Hey Chora\".",
+            Self::Asleep => "Asleep. Say “Hey Chora”.",
             Self::Listening => "Listening",
             Self::Thinking => "Thinking",
             Self::Working => "Working",
@@ -308,7 +308,7 @@ impl Word {
             Self::You => "You",
             Self::CardTitle => "Question from {name}",
             Self::KeyLine => "Press {yes} to allow or {no} to refuse.",
-            Self::NoVoiceYes => "A spoken \"yes\" does not count.",
+            Self::NoVoiceYes => "A spoken “yes” does not count.",
             Self::Yes => "Yes",
             Self::No => "No",
             Self::Allowed => "Allowed.",
@@ -328,10 +328,10 @@ impl Word {
             Self::Lines => "{n} lines",
             Self::SendLines => "Press Enter again to send {n} lines",
             Self::HudNoticeOne => {
-                "The look \"{name}\" has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
+                "The look “{name}” has 1 problem, so the old look stays. Choose another look in the settings, or ask who made it."
             }
             Self::HudNotice => {
-                "The look \"{name}\" has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
+                "The look “{name}” has {n} problems, so the old look stays. Choose another look in the settings, or ask who made it."
             }
             Self::StepBack => "Step back",
             Self::StepIn => "Step in",
@@ -456,7 +456,7 @@ impl Word {
             Self::WindowCount => "{count} Fenster",
             Self::KeysMatch => "{count} Tasten passen",
             Self::OnlyNow => "Nur die Tasten, die jetzt gehen, stehen hier.",
-            Self::EveryLook => "jeder Look",
+            Self::EveryLook => "in jeder Ansicht",
             Self::Face => "Seite {face} von {faces}",
         }
     }
@@ -528,6 +528,23 @@ mod tests {
 
     fn has_command(text: &str) -> bool {
         text.contains("--") || text.contains("chora") && text.contains(':')
+    }
+
+    #[test]
+    fn a_quoted_word_takes_the_quotes_of_its_language() {
+        assert!(
+            Word::NoVoiceYes
+                .text(Language::En)
+                .contains("\u{201c}yes\u{201d}")
+        );
+        assert!(
+            Word::NoVoiceYes
+                .text(Language::De)
+                .contains("\u{201e}Ja\u{201c}")
+        );
+        for word in ALL {
+            assert!(!word.text(Language::En).contains('"'), "{word:?}");
+        }
     }
 
     #[test]
