@@ -24,6 +24,8 @@ release; feature sprints only after that.
 7. cargo-deny and cargo-machete clean; dependency updates applied.
 8. Docs: README, install, configuration, glossary, nav, CHANGELOG with
    an rc entry; a known-issues list (honest, P5).
+9a. Logging audit per component and the `chora-report` script
+    (backlog L1), so the post-rc user round yields usable reports.
 9. Backlog: flakes F5-F7 closed or explained; no known window loss; the
    30-day stability gate restarts with the rc as the new base.
 10. Not needed for rc: real-hardware tty smoke beyond what CI and a

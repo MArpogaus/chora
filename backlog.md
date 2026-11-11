@@ -359,3 +359,22 @@ Failed once in the merge gate of ux-construct (2e2cd6b): "did not give
 it back: s1 construct - 0 0"; passed 3 of 3 alone right after, load 1.
 Find the race (likely the drop lands before the face rests again or the
 pane rect is read mid-glide). Must be closed for rc criterion 3.
+
+## L1 (11-11, user): logging and anonymised user reports (rc criterion)
+"Ensure good and detailed logging in all components for debugging and
+further decisions after real-world testing. We might ask users to submit
+anonymised reports using a small shell script."
+1. Logging audit per component (core, kit, xp, tiling, mc, construct,
+   assistant, voice, chat, notify): structured tracing with a target per
+   area; each act, refusal, handover, give, float, crash path and timing
+   at a level a person can turn up (`RUST_LOG`-style setting in the D62
+   settings); no secrets, no window contents or typed text; rotate files
+   under $XDG_STATE_HOME/chora/logs. Part of the code review per area.
+2. `chora-report` (small POSIX shell script, shipped in dist/): collects
+   versions, the session's logs, settings (keys only where values could
+   be private), GPU/driver, outputs, last words of crashes; anonymises
+   (home path, user and host names, IPs, MACs, window titles and app
+   ids unless the person keeps them); shows the person the whole bundle
+   before anything leaves; writes a .tar.gz the person sends by hand (no
+   upload, no telemetry). Its tests check the scrubbing on a fixture.
+3. Docs: how to report a problem, in README and the website.
