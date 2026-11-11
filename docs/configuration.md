@@ -355,7 +355,9 @@ grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
 the text, flush right, and the text wraps under it. A panel names the
 styles of its lines, its title and its notes with `style`, `title_style`
 and `note_style`; each takes a `base` (by default `body`, `heading` and
-`margin`) and changes single fields.
+`margin`) and changes single fields. A panel may set `empty`, words that
+show in `muted` while it has no lines, so that a page without data says
+what it is for: the agenda says `Nothing planned today.`
 
 All scenes share the `page` of the settings, so that the text block
 and the head stay in place from scene to scene. A scene may set its own
@@ -487,7 +489,12 @@ with `settings.reload`:
   (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
-  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
+  `uppercase`. A `family` may be a list, `TeX Gyre Pagella, DejaVu Serif`:
+  the plugin asks fontconfig and the directories of `CHORA_FONT_DIRS` and
+  uses the first name that the machine has, so that the page is set in a
+  serif and not in a second sans without Pagella. Nothing is under 14
+  pixels at the default scale: the running head and the clock are the
+  `label` size. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
   the built-in scenes also use `data`, `mono` and `lead`. The
   [style guide](mc-style.md) gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
@@ -606,10 +613,10 @@ The `contents` are named. Their `kind` is one of:
 | `clock` | the time as `date` formats it with `format`, each minute anew |
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
-| `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; with `voice_hud: host` a side shows none, since the host draws the rows |
-| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) under its title while it has no lines, as `notify` does |
+| `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
 | `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
-| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all bindings and then the six again |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest and `Esc`, in the words of the six rows. A thin space follows the plus before an arrow |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -634,10 +641,10 @@ The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows
 the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
-content `next`); the right side shows the notes, which an agent fills
+content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
 the key list at its foot. The state of the voice agent and the helpers
-stand at the top of that column, in the header only over an app. The drawer holds nothing in `desk`; the
+stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
 terminal is the scene `terminal`, `foot` in the colors of the theme, and
 the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.

@@ -14,7 +14,9 @@ change it there, not here.
    the scene title, the panel titles, the body and the lead. Inter sets
    the frame and machine data: the header, the footer, the sides, the
    margin notes, the HUD and the style `data`. The style `mono` is for
-   commands, paths and code only. Do not add a third family.
+   commands, paths and code only. Do not add a third family. The family
+   of `body` is a list, `TeX Gyre Pagella, DejaVu Serif`, so that a machine
+   without Pagella shows a serif and not a second sans.
 2. **Five sizes.** Use only these steps of the scale:
 
     | Step | Role | Styles |
@@ -25,11 +27,12 @@ change it there, not here.
     | 2 | the lead of a scene, at most one | `lead` |
     | 3 | the scene title and its number | `chapter`, `chapter_number` |
 
-    Do not set Pagella below step 0. The labels of the regions are the
-    one exception: capitals of Inter at 0.61 em, as tall as the lowercase
-    of `margin`. In the margin column nothing is under 14 pixels: its
-    labels use the style `label`, the capitals of Inter at the size of
-    `margin`. The scale base is 19 pixels on a baseline grid of 28.
+    Do not set Pagella below step 0. The labels of the regions, the
+    running head and the clock are the one exception: capitals of Inter
+    at 0.75 em, the size of `margin`. Nothing on the page is under 14
+    pixels, in the header as in the margin column; the gate
+    `tests/gate-mc-column.sh` checks every text. The scale base is 19
+    pixels on a baseline grid of 28.
 3. **One weight.** Pagella is always regular. Inter is regular, the
    labels of the regions are medium (500). Do not use bold or italic for
    emphasis; use place, size and space.
@@ -104,7 +107,10 @@ change it there, not here.
     words under a hairline and the head `Keys`: the key in `text` with
     weight 500, the words in `muted`, both in the style `margin`, on the
     baseline grid. It shows until the user hides the column with
-    `Super+n`; `Super+F1` shows all keys in its place.
+    `Super+n`; `Super+F1` shows all keys in its place. The list is on
+    `Super+F1`, not on `F1`, because a plain F1 belongs to a program in a
+    scene and needs the grant `input.grab-any`.
+    The full list goes by task, in the words of the six rows.
 17. **One focus mark.** What a click acts on shows a bar of 2 by 20
     pixels in `text`, 12 pixels left of it, while the pointer is over it:
     no underline, no fill and no change of color.
