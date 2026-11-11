@@ -1,6 +1,6 @@
 # Swarm 2 findings (build 06044cf)
 
-Raw: 107 tester rows (106 findings, 1 ok) in 9 reports, plus about 15 in swarm 1. Deduped: 29 titles, of which 20 verified, 9 rejected or duplicates (7 env, 1 by design, 1 untestable by harness; 2 duplicates). Detail: feedback/2026-11-11-swarm2.md. "Hit" counts swarm-2 testers, swarm-1 in brackets. Shots are under media/2026-11-12/swarm-2/. "read" = I opened the PNG and the tester read it right.
+Raw: 107 tester rows (106 findings, 1 ok) in 9 reports, plus about 15 in swarm 1. Deduped: 31 sections: 20 verified, 9 rejected (8 env or harness, 1 by design), 2 duplicates. Detail: feedback/2026-11-11-swarm2.md. "Hit" counts swarm-2 testers, swarm-1 in brackets. Shots are under media/2026-11-12/swarm-2/. "read" = I opened the PNG and the tester read it right.
 
 | # | Title | Look | Sev | Hit | Class | Evidence |
 |---|-------|------|-----|-----|-------|----------|
