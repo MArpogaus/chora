@@ -361,4 +361,57 @@ mod tests {
         assert_eq!(props.backdrop.unwrap().map(|b| b.blur), Some(40.0));
         assert_eq!(props.radius, Some(20.0));
     }
+
+    fn layers(commands: &[Command], id: &str) -> Vec<Vec<f64>> {
+        let shadow = commands.iter().find_map(|c| match c {
+            Command::Create { id: i, props, .. } if i == id => props.uniforms.as_ref(),
+            _ => None,
+        });
+        let layer = |name: &str| match shadow.and_then(|u| u.get(name)) {
+            Some(Uniform::Vector(v)) => v.clone(),
+            other => panic!("no layer {name}: {other:?}"),
+        };
+        vec![layer("near"), layer("mid"), layer("far")]
+    }
+
+    fn surface_of(height: f64) -> Vec<Command> {
+        let config: Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = Metrics::default();
+        let look = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: Material::of(false),
+            metrics: &metrics,
+        };
+        let s = Surface {
+            id: "capsule",
+            parent: crate::NAME,
+            rect: [0.0, 0.0, 200.0, height],
+            radius: height / 2.0,
+            strong: false,
+            name: "capsule",
+            input: InputMode::Pass,
+        };
+        surface(&look, &Material::of(false), &s)
+    }
+
+    #[test]
+    fn a_capsule_up_to_40_high_has_the_short_shadow_and_a_panel_keeps_its_own() {
+        for height in [24.0, 32.0, 40.0] {
+            let l = layers(&surface_of(height), "capsule-shadow");
+            assert_eq!(l[0], [1.0, 1.0, 0.06, 0.0], "0 1 2 at 0.06 for {height}");
+            assert_eq!(l[1], [4.0, 6.0, 0.08, 0.0], "0 4 12 at 0.08 for {height}");
+            assert!(l[2][2].abs() < 1e-12, "no third layer for {height}");
+        }
+        let panel = layers(&surface_of(48.0), "capsule-shadow");
+        let own = Material::of(false).shadows;
+        assert!(
+            (panel[0][2] - own[0].alpha).abs() < 1e-12,
+            "a panel keeps its shadow"
+        );
+        assert!((panel[2][2] - own[2].alpha).abs() < 1e-12);
+    }
 }

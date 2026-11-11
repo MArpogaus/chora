@@ -431,6 +431,22 @@ impl Host {
             .to_vec()
     }
 
+    /// Where the face label hangs: the middle of the projected bottom
+    /// edge of the face at the front, and while the cube turns of the two
+    /// faces that share the turn, by their share of it.
+    #[allow(
+        dead_code,
+        clippy::unused_self,
+        reason = "a stub until the next commit"
+    )]
+    pub(crate) fn label_anchor(
+        &self,
+        _lens: &super::space::Lens,
+        _pose: &Pose,
+    ) -> Option<[f64; 2]> {
+        None
+    }
+
     /// The place of face `i` in the camera group: the cube group over the
     /// face.
     pub(crate) fn world(&self, i: usize) -> Matrix {
@@ -1985,5 +2001,45 @@ mod tests {
         let mut in_use = host_of(4);
         in_use.set_hover(Some(0));
         assert_eq!(in_use.edge_plan(), Edge::Off);
+    }
+
+    fn bottom_of(host: &Host, face: usize) -> [f64; 2] {
+        let lens = lens_of(host);
+        let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(face));
+        super::super::space::bottom_middle(&m, host.cube.size_of(face))
+    }
+
+    #[test]
+    fn the_face_label_hangs_under_the_projected_bottom_edge_of_the_front_face() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let lens = lens_of(&host);
+        let at = host
+            .label_anchor(&lens, &Pose::default())
+            .expect("an anchor");
+        let want = bottom_of(&host, 0);
+        assert!((at[0] - want[0]).abs() < 1e-6 && (at[1] - want[1]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn the_face_label_follows_the_cube_while_it_turns() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        let lens = lens_of(&host);
+        let rest = host.label_anchor(&lens, &Pose::default()).expect("rest");
+        host.angle = -QUARTER / 2.0;
+        let (a, b) = (bottom_of(&host, 0), bottom_of(&host, 1));
+        let mid = host
+            .label_anchor(&lens, &Pose::default())
+            .expect("mid turn");
+        assert!(
+            (mid[0] - a[0].midpoint(b[0])).abs() < 1e-6,
+            "{mid:?} {a:?} {b:?}"
+        );
+        assert!((mid[1] - a[1].midpoint(b[1])).abs() < 1e-6);
+        assert!(
+            (mid[1] - rest[1]).abs() > 1e-6 || (mid[0] - rest[0]).abs() > 1e-6,
+            "the label does not stay at its anchor"
+        );
     }
 }

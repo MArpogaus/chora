@@ -243,6 +243,16 @@ pub fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
     [x / w, y / w]
 }
 
+/// The middle of the projected bottom edge of a node of `size` that the
+/// column-major matrix `m` of [`pane_matrix`] puts on the output: the
+/// middle of the two projected bottom corners, which for a turned node
+/// is not the projection of the middle of the edge.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn bottom_middle(m: &[f64; 16], [w, h]: [f64; 2]) -> [f64; 2] {
+    project(m, w / 2.0, h)
+}
+
 /// The depth of a point in front of the camera, in camera space.
 #[must_use]
 pub fn depth(pose: &Pose, at: [f64; 2]) -> f64 {
@@ -840,5 +850,22 @@ mod tests {
         let b = Pose { yaw: -3.0, ..a };
         let mid = a.lerp(&b, 0.5);
         assert!((mid.yaw - (3.0 + (std::f64::consts::TAU - 6.0) / 2.0)).abs() < 1e-9);
+    }
+
+    /// The label of a turned pane hangs at the middle of its projected
+    /// bottom edge, which is not the projection of the middle of the edge.
+    #[test]
+    fn the_label_of_a_turned_pane_hangs_at_the_middle_of_its_projected_bottom_edge() {
+        let size = [1280.0, 800.0];
+        let pose = Pose::default();
+        let yaw = facing([0.0, 0.0], [300.0, 1500.0]) + 0.8;
+        let m = pane_matrix(&LENS, &pose, [300.0, 1500.0], size, yaw);
+        let [ax, ay] = project(&m, 0.0, size[1]);
+        let [bx, by] = project(&m, size[0], size[1]);
+        let [x, y] = bottom_middle(&m, size);
+        assert!((x - ax.midpoint(bx)).abs() < 1e-9, "{x}");
+        assert!((y - ay.midpoint(by)).abs() < 1e-9, "{y}");
+        let [mx, _] = project(&m, size[0] / 2.0, size[1]);
+        assert!((mx - x).abs() > 0.5, "the two middles differ: {mx} and {x}");
     }
 }
