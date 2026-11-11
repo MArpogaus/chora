@@ -169,5 +169,12 @@ mod tests {
             "no window has the focus"
         );
         assert_eq!(reason("", EN), "it said no");
+        let core = "command 0: \"xp\" holds no claim; only a window manager receives a window";
+        assert_eq!(reason(core, EN), "it is not running");
+        assert_eq!(reason(core, Language::De), "es läuft nicht");
+        assert_eq!(
+            reason("command 2: no window has the focus (code 1)", EN),
+            "no window has the focus"
+        );
     }
 }
