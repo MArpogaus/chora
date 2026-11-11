@@ -450,9 +450,14 @@ bidi and zero-width characters from the prompt and the detail.
 A folder that names a `slot` gets the card in the page of its look: the
 fill of its chat, one rule of a pixel in its text colour, square corners,
 buttons in the fill of the page with the same rule, 7:1 on both themes,
-the sans of the folder, as wide as the view and pinned above the field. The
-words, the order and the keys stay those of every look. In a dark theme
-the card is dark.
+as wide as the view and pinned above the field, 14 px of padding and a half
+line above the buttons. The title and the key line are set in Inter at
+weight 500, 14 px, the prompt in the reading face of the chat, the detail
+and the path in a mono face at 14 px, the note in `name`. The title is
+"Question from NAME" with the name of the helper that asks, also when the
+event has no `name`. The words, the order and the keys stay those of every
+look. In a dark theme the card is dark. The card follows the view when the
+field grows, so that it never covers the hint.
 
 A folder with a `glass` chat gets the glass card of the construct style:
 400 px wide, the title as a label, the prompt at 16 px, the detail in a

@@ -33,6 +33,15 @@ impl Face {
         })
     }
 
+    /// A face of a serif of the host at a size.
+    #[must_use]
+    pub fn serif(size: u32) -> Self {
+        Self {
+            family: "serif".to_owned(),
+            size,
+        }
+    }
+
     /// The height of a line of the text.
     #[must_use]
     pub fn line(&self) -> i32 {

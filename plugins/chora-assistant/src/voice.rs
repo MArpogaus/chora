@@ -210,10 +210,7 @@ impl Agent {
         if self.card.is_some() || !self.balloon_chat() || self.chat.is_open() {
             return;
         }
-        let asking = (self.helpers.iter())
-            .find(|(_, helper)| helper.state == "question")
-            .map(|(name, _)| name.clone());
-        if let Err(err) = self.chat_show(asking.as_deref(), None) {
+        if let Err(err) = self.chat_show(self.asking().as_deref(), None) {
             eprintln!("chora-assistant: the balloon for the question: {err}");
         }
     }
@@ -279,13 +276,43 @@ impl Agent {
         )
     }
 
+    /// The helper that has a question: the title of a card names it when
+    /// the event does not.
+    fn asking(&self) -> Option<String> {
+        (self.helpers.iter())
+            .find(|(_, helper)| helper.state == "question")
+            .map(|(name, _)| name.clone())
+    }
+
+    /// A card for a question on an output, not placed yet.
+    fn new_card(&self, question: Question, (buttons, output): (bool, &str), now: Instant) -> Shown {
+        let (ink, face) = self.card_ink();
+        Shown {
+            id: question.answer_id.clone(),
+            card: chora_kit::ask::Card::new(question, now),
+            buttons,
+            output: output.to_owned(),
+            origin: [0, 0],
+            notice: false,
+            too_long: false,
+            max_width: None,
+            glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
+                .then_some(self.values.dark),
+            ink,
+            face,
+        }
+    }
+
     /// The question of `voice.confirm` as a card, once and in one place
     /// until it ends; its end takes the card away. A question whose whole
     /// text does not fit has no buttons and is refused at once.
     fn confirm(&mut self, data: &Value, now: Instant) -> Result<Vec<Command>, ClientError> {
-        let Some(question) = Question::from_event(data, None) else {
+        let Some(mut question) = Question::from_event(data, None) else {
             return Ok(self.end_card(data));
         };
+        if question.agent.is_none() {
+            question.agent = self.asking();
+        }
         let id = question.answer_id.clone();
         if !self.settings.value.enabled || self.card.as_ref().is_some_and(|c| c.id == id) {
             return Ok(Vec::new());
@@ -298,19 +325,7 @@ impl Agent {
         self.card_theme.set_scale(scale);
         let figure = self.figure_rect(&output);
         let mut commands = self.ensure_top(&output.name);
-        let mut shown = Shown {
-            card: chora_kit::ask::Card::new(question, now),
-            id,
-            buttons: data["buttons"] == true,
-            output: output.name.clone(),
-            origin: [0, 0],
-            notice: false,
-            too_long: false,
-            max_width: None,
-            glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
-                .then_some(self.values.dark),
-            ink: self.card_ink(),
-        };
+        let mut shown = self.new_card(question, (data["buttons"] == true, &output.name), now);
         self.place_card(&mut shown, figure, &output)?;
         let language = self.language;
         if let Some(old) = self.card.take() {
@@ -366,12 +381,12 @@ impl Agent {
 
     /// What the card is drawn in: the page of the look where the folder
     /// names a slot, else the card of the host.
-    fn card_ink(&self) -> card::Ink {
+    fn card_ink(&self) -> (card::Ink, Option<chat::Face>) {
         if !self.values.slot {
-            return card::Ink::HOST;
+            return (card::Ink::HOST, None);
         }
-        let (fill, text) = chat::page_ink(&self.values.chat());
-        card::Ink::page(fill, text)
+        let (fill, text, muted, face) = chat::page_ink(&self.values.chat());
+        (card::Ink::page(fill, text, muted), face)
     }
 
     /// The end of a question, by `done` with its id.

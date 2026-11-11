@@ -148,6 +148,8 @@ run_theme() {
     [ "$(node_rect hud-chat)" = "$chat" ] || fail "$theme: the chat moved when the question came: $(node_rect hud-chat)"
     jq -ne --argjson s "$slot" --argjson c "$card" '$c[0] == $s[0] and $c[2] == $s[2] and $c[1] >= $s[1] and $c[1] + $c[3] <= $s[1] + $s[3]' >/dev/null ||
         fail "$theme: the card $card is not as wide as the column $slot"
+    ctl query id:hud-card | jq -r '.[0].meta.text' | head -n 1 | grep -qx "Question from Atlas" ||
+        fail "$theme: the card does not name the helper: $(ctl query id:hud-card | jq -r '.[0].meta.text' | head -n 1)"
     yes=$(node_rect hud-card-yes)
     no=$(node_rect hud-card-no)
     jq -ne --argjson y "$yes" --argjson n "$no" '$y[2] == 88 and $y[3] == 32 and $n[2] == 88 and $n[0] - $y[0] - $y[2] == 8' >/dev/null ||

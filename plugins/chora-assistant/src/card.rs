@@ -8,7 +8,7 @@ use std::{path::Path, time::Instant};
 
 use chora_draw::{
     bubble::Style,
-    text::{Font, Text, wrap},
+    text::{Font, Text, escape, wrap},
     theme::{Picture, Theme},
 };
 use chora_kit::{
@@ -17,6 +17,8 @@ use chora_kit::{
 };
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 use serde_json::{Value, json};
+
+use crate::chat::Face;
 
 /// The group above the group of the HUD folder; it holds the card and the
 /// badge and is created after it.
@@ -65,6 +67,9 @@ pub struct Ink {
     pub text: [u8; 3],
     pub button: [u8; 3],
     pub radius: i32,
+    /// The card stands in the page of a look: its title, prompt, detail
+    /// and key line are set as the page sets them.
+    pub page: Option<[u8; 3]>,
 }
 
 impl Ink {
@@ -75,19 +80,21 @@ impl Ink {
         text: TEXT,
         button: BUTTON_FILL,
         radius: 8,
+        page: None,
     };
 
     /// A card in the page of a look: the fill of its page, one rule in the
     /// colour of its text, square corners, buttons in the fill of the
-    /// page.
+    /// page; `muted` is the colour of its notes.
     #[must_use]
-    pub const fn page(fill: [u8; 3], text: [u8; 3]) -> Self {
+    pub const fn page(fill: [u8; 3], text: [u8; 3], muted: [u8; 3]) -> Self {
         Self {
             fill,
             border: text,
             text,
             button: fill,
             radius: 0,
+            page: Some(muted),
         }
     }
 
@@ -146,6 +153,9 @@ pub struct Shown {
     pub glass: Option<bool>,
     /// What the card is drawn in.
     pub ink: Ink,
+    /// The reading face of the page of the look, for the prompt of a card
+    /// in a page.
+    pub face: Option<Face>,
 }
 
 /// The lines and the buttons of a card, with the size of the card.
@@ -182,6 +192,9 @@ fn below(shown: &Shown, notice_lines: i32) -> i32 {
 fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> Layout {
     if let Some(dark) = shown.glass {
         return crate::card_glass::layout(theme, shown, language, (screen, dark));
+    }
+    if let Some(muted) = shown.ink.page {
+        return page_layout(theme, shown, language, (screen, muted));
     }
     let width = width(screen, shown.max_width);
     let inner = f64::from(width - 2 * PAD);
@@ -228,6 +241,179 @@ fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) ->
     Layout {
         picture,
         buttons,
+        text,
+        too_long,
+    }
+}
+
+const SANS: &str = "Inter, DejaVu Sans, Liberation Sans, sans-serif";
+const MONO: &str = "DejaVu Sans Mono, Liberation Mono, monospace";
+const PAGE_SIZE: u32 = 14;
+const PAGE_WEIGHT: u32 = 500;
+const PAGE_PAD: i32 = 14;
+
+/// How a line of the card in a page is set.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Set {
+    Title,
+    Prompt,
+    Detail,
+    Keys,
+    Note,
+}
+
+/// The SVG element of a line of the card in a page: the row starts at `y`.
+fn element(set: Set, face: &Face, text: &str, [x, y]: [i32; 2], rgb: [u8; 3]) -> String {
+    let [red, green, blue] = rgb;
+    let (family, weight) = match set {
+        Set::Prompt => return face.element(text, [x, y], rgb),
+        Set::Detail => (MONO, 400),
+        Set::Title | Set::Keys => (SANS, PAGE_WEIGHT),
+        Set::Note => (SANS, 400),
+    };
+    let baseline = f64::from(y) + f64::from(LINE) / 2.0 + f64::from(PAGE_SIZE) * 0.34;
+    format!(
+        r#"<text x="{x}" y="{baseline:.2}" font-family="{family}" font-weight="{weight}" font-size="{PAGE_SIZE}" fill="rgb({red},{green},{blue})" xml:space="preserve">{}</text>"#,
+        escape(text)
+    )
+}
+
+/// The lines of the card in a page: the title, the prompt in the reading
+/// face, the detail in a mono face, the key line and the note, wrapped.
+fn page_rows(
+    theme: &Theme,
+    shown: &Shown,
+    language: Language,
+    (face, width, parts): (&Face, f64, usize),
+) -> Vec<(Set, String)> {
+    use chora_kit::ask::Part;
+    let mut rows = Vec::new();
+    for (part, text) in shown.card.parts(language).into_iter().take(parts) {
+        let set = match part {
+            Part::Title => Set::Title,
+            Part::Prompt => Set::Prompt,
+            Part::Detail => Set::Detail,
+            Part::KeyLine => Set::Keys,
+            Part::NoVoiceYes => Set::Note,
+        };
+        let measure = |line: &str| theme.svg_width(&element(set, face, line, [0, 0], [0; 3]));
+        rows.extend(
+            wrap(&text, width, measure)
+                .into_iter()
+                .map(|line| (set, line)),
+        );
+    }
+    rows
+}
+
+/// The height of the lines of a card in a page.
+fn page_height(face: &Face, rows: &[(Set, String)]) -> i32 {
+    rows.iter()
+        .map(|(set, _)| {
+            if *set == Set::Prompt {
+                face.line()
+            } else {
+                LINE
+            }
+        })
+        .sum()
+}
+
+/// The lines of the card in a page and whether the question is too long to
+/// show: then only the title and the prompt stay, and the words that it is
+/// refused.
+fn page_content(
+    theme: &Theme,
+    shown: &Shown,
+    language: Language,
+    (face, inner, most): (&Face, f64, i32),
+) -> (Vec<(Set, String)>, bool) {
+    let rows = page_rows(theme, shown, language, (face, inner, usize::MAX));
+    if !shown.too_long && page_height(face, &rows) <= most {
+        return (rows, false);
+    }
+    let mut rows = page_rows(theme, shown, language, (face, inner, 2));
+    let long = wrap(Word::TooLong.text(language), inner, |line| {
+        theme.svg_width(&element(Set::Keys, face, line, [0, 0], [0; 3]))
+    });
+    rows.extend(long.into_iter().map(|line| (Set::Keys, line)));
+    (rows, true)
+}
+
+/// The SVG of the lines of the card in a page, and of the note under the
+/// buttons: `y` is the top of the note.
+fn page_body(
+    face: &Face,
+    (rows, notice): (&[(Set, String)], &[String]),
+    (ink, muted): ([u8; 3], [u8; 3]),
+    note_at: i32,
+) -> String {
+    let mut body = String::new();
+    let mut y = PAGE_PAD;
+    for (set, line) in rows {
+        let rgb = if *set == Set::Note { muted } else { ink };
+        body += &element(*set, face, line, [PAGE_PAD, y], rgb);
+        y += if *set == Set::Prompt {
+            face.line()
+        } else {
+            LINE
+        };
+    }
+    for (n, line) in (0..).zip(notice) {
+        body += &element(Set::Note, face, line, [PAGE_PAD, note_at + n * LINE], muted);
+    }
+    body
+}
+
+/// The card in a page of a look: the page fill and one rule, the title in
+/// the sans, the prompt in the reading face of the page, the detail and the
+/// path in a mono face, the key line in the sans, a gap of a half line
+/// above the buttons.
+fn page_layout(
+    theme: &Theme,
+    shown: &Shown,
+    language: Language,
+    (screen, muted): ([i32; 2], [u8; 3]),
+) -> Layout {
+    let face = shown.face.clone().unwrap_or_else(|| Face::serif(18));
+    let width = width(screen, shown.max_width);
+    let inner = f64::from(width - 2 * PAGE_PAD);
+    let injected = Word::Injected.text(language);
+    let notice = wrap(injected, inner, |line| {
+        theme.svg_width(&element(Set::Note, &face, line, [0, 0], [0; 3]))
+    });
+    let notice_room = i32::try_from(notice.len()).unwrap_or(0) * LINE;
+    let below = PAGE_PAD + BUTTON[1] + if shown.notice { notice_room } else { 0 };
+    let most = screen[1] * 8 / 10 - 2 * PAGE_PAD - below;
+    let (rows, too_long) = page_content(theme, shown, language, (&face, inner, most));
+    let buttons_shown = shown.buttons && !too_long;
+    let content = page_height(&face, &rows);
+    let height = 2 * PAGE_PAD + content + if buttons_shown { below } else { 0 };
+    let top = PAGE_PAD + content + PAGE_PAD;
+    let noted = buttons_shown && shown.notice;
+    let shown_notice: &[String] = if noted { &notice } else { &[] };
+    let body = page_body(
+        &face,
+        (&rows, shown_notice),
+        (shown.ink.text, muted),
+        top + BUTTON[1],
+    );
+    let picture = Picture::new(width, height)
+        .svg(shown.ink.style().shape([width, height], 0))
+        .svg(body);
+    let mut text = rows
+        .iter()
+        .map(|(_, line)| line.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if noted {
+        text = format!("{text}\n{injected}");
+    }
+    text.truncate(floor_boundary(&text, MAX_TEXT_META));
+    Layout {
+        picture,
+        buttons: buttons_shown
+            .then_some([[PAGE_PAD, top], [PAGE_PAD + BUTTON[0] + BUTTON_GAP, top]]),
         text,
         too_long,
     }
@@ -629,6 +815,7 @@ mod tests {
             max_width: None,
             glass: None,
             ink: Ink::HOST,
+            face: None,
         }
     }
 
@@ -691,7 +878,7 @@ mod tests {
         let cache = cache("page");
         let theme = theme(&cache, "sans-serif").unwrap();
         let mut card = shown(&notes(), Instant::now());
-        card.ink = Ink::page([247, 245, 237], [41, 38, 36]);
+        card.ink = Ink::page([247, 245, 237], [41, 38, 36], [110, 105, 99]);
         card.max_width = Some(336);
         let laid = layout(&theme, &card, Language::En, [1280, 800]);
         assert_eq!(laid.picture.size[0], 336);
@@ -711,6 +898,42 @@ mod tests {
         let [yes, no] = laid.buttons.expect("buttons");
         assert_eq!(no[0] - yes[0], BUTTON[0] + BUTTON_GAP);
         assert!(hud::contrast([41, 38, 36], [247, 245, 237]) >= hud::MIN_KEY_CONTRAST);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_card_in_a_page_sets_its_lines_as_the_page_does() {
+        let cache = cache("page-set");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::page([247, 245, 237], [41, 38, 36], [110, 105, 99]);
+        card.face = Some(Face::serif(18));
+        card.max_width = Some(336);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        let bodies: String = laid
+            .picture
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                Layer::Svg(body) => Some(body.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(bodies.contains("font-family=\"Inter"), "{bodies}");
+        assert!(bodies.contains("font-weight=\"500\""), "{bodies}");
+        assert!(bodies.contains("DejaVu Sans Mono"), "{bodies}");
+        assert!(bodies.contains("serif"), "{bodies}");
+        assert!(
+            bodies.contains("rgb(110,105,99)"),
+            "the note is muted: {bodies}"
+        );
+        assert!(
+            laid.text.starts_with("Question from Atlas"),
+            "{}",
+            laid.text
+        );
+        let [yes, _] = laid.buttons.expect("buttons");
+        assert_eq!(laid.picture.size[1], yes[1] + BUTTON[1] + PAGE_PAD);
         let _ = std::fs::remove_dir_all(cache);
     }
 

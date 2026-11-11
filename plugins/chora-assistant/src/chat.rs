@@ -34,6 +34,7 @@ mod glass;
 mod host;
 mod view;
 
+pub use face::Face;
 pub use host::{Announced, ShowParams, exported, token_of};
 pub use view::{card_origin, card_width};
 
@@ -437,12 +438,12 @@ fn hairline(border: [u8; 3], fill: [u8; 3]) -> [u8; 3] {
     })
 }
 
-/// The fill and the text colour of the page of a look: what a card takes
-/// that stands in the page.
+/// The fill, the text colour and the muted colour of the page of a look,
+/// and its reading face: what a card takes that stands in the page.
 #[must_use]
-pub fn page_ink(look: &Look) -> ([u8; 3], [u8; 3]) {
+pub fn page_ink(look: &Look) -> ([u8; 3], [u8; 3], [u8; 3], Option<Face>) {
     let colours = colours(look);
-    (colours.fill, colours.text)
+    (colours.fill, colours.text, colours.name, Face::of(look))
 }
 
 fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {

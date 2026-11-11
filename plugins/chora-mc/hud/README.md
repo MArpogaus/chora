@@ -12,7 +12,8 @@ the host draws no row and no pill there. A click on the mark mutes the mic.
 The chat is a plain page in the colours of mc, set in TeX Gyre Pagella 18
 (a serif of the system where the host does not have it), the speakers in
 `muted` on lines of their own; the question card takes its fill and its
-rule.
+rule, its title and key line in Inter 500, its prompt in the serif of the
+chat and its path in a mono face.
 
 mc uses this folder with `voice_hud: host` in `chora-mc.yaml`: mc then
 draws no voice state, sentence or question of its own and claims no

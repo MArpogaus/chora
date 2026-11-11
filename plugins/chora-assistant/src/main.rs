@@ -820,6 +820,7 @@ mod tests {
             max_width: None,
             glass: None,
             ink: card::Ink::HOST,
+            face: None,
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);
