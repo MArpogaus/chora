@@ -57,6 +57,7 @@ fn the_window_flown_into_includes_the_glide_into_it() {
         start: Instant::now(),
         ms: 380.0,
         into,
+        smooth: false,
     };
     assert_eq!(window_flown_into(None, None), None);
     assert_eq!(window_flown_into(Some(&flown("s1")), None), Some("s1"));
@@ -184,6 +185,7 @@ fn a_walk_during_a_drag_keeps_its_place() {
         start: Instant::now(),
         ms: STEP_MS,
         into: None,
+        smooth: false,
     };
     turn(&mut pose, Some(&mut glide), 10.0, -5.0);
     pose = glide.from.lerp(&glide.to, 1.0);
@@ -276,4 +278,15 @@ fn a_waiting_program_expires_and_is_not_saved() {
     );
     assert!(Waiting::new(None, pane(Kind::Program)).file().is_none());
     assert!(old(Kind::Plugin).file().is_some());
+}
+
+/// A flight of `camera.glide` starts and ends slowly and passes its
+/// middle at half of its time.
+#[test]
+fn a_camera_glide_is_slow_at_both_ends() {
+    assert!(ease_in_out(0.0).abs() < 1e-12 && (ease_in_out(1.0) - 1.0).abs() < 1e-12);
+    assert!((ease_in_out(0.5) - 0.5).abs() < 1e-12);
+    assert!(ease_in_out(0.1) < 0.01 && ease_in_out(0.9) > 0.99);
+    let steps: Vec<f64> = (0..=20).map(|i| ease_in_out(f64::from(i) / 20.0)).collect();
+    assert!(steps.windows(2).all(|w| w[1] >= w[0]));
 }

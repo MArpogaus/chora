@@ -2,9 +2,9 @@
 //! construct.
 
 use super::{
-    ClientError, Command, Construct, Entry, Event, Give, Grab, LOOK, ManagerPane, MovePane, Named,
-    OpenCube, Plugin, ResizePane, RpcError, Runtime, Store, TurnCube, Value, file, give, json,
-    moved, runtime,
+    ClientError, Command, Construct, Entry, Event, Give, GlideTo, Grab, LOOK, ManagerPane,
+    MovePane, Named, OpenCube, Plugin, Pose, ResizePane, RpcError, Runtime, Store, TurnCube, Value,
+    file, give, json, moved, runtime,
 };
 
 impl Plugin for Construct {
@@ -96,6 +96,11 @@ impl Plugin for Construct {
                 Ok(Value::Null)
             }
             "construct.list" => Ok(self.list()),
+            chora_kit::clock::METHOD => {
+                chora_kit::clock::step(params)?;
+                self.animation_frame().map_err(rejected)?;
+                Ok(Value::Null)
+            }
             "cube.open" => {
                 let OpenCube { faces } = runtime::params(params)?;
                 self.open_cube(faces).map_err(rejected)
@@ -181,6 +186,17 @@ impl Plugin for Construct {
                 }
                 self.toggle_help().map_err(rejected)?;
                 Ok(json!({"shown": self.help}))
+            }
+            "camera.glide" => {
+                let GlideTo {
+                    x,
+                    z,
+                    yaw,
+                    pitch,
+                    ms,
+                } = runtime::params(params)?;
+                self.glide_smoothly(Pose { x, z, yaw, pitch }, ms)?;
+                Ok(Value::Null)
             }
             "pane.fly" => {
                 let Named { name } = runtime::params(params)?;

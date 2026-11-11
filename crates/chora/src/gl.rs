@@ -133,6 +133,9 @@ pub struct Draw<'a> {
     /// More textures by the names of their samplers, for the node
     /// textures of a shader node.
     pub textures: &'a [(String, ffi::types::GLuint)],
+    /// The `time` of the shader: of a recording that steps it, or the
+    /// time since the start for `None`.
+    pub seconds: Option<f32>,
 }
 
 /// Draws triangles with a program into the target of a frame.
@@ -144,7 +147,8 @@ pub fn draw(
     // Smithay's instanced draws leave divisors on attribute indices.
     let instancing = frame.capabilities().contains(&Capability::Instancing);
     let count = i32::try_from(call.indices.len()).unwrap_or(0);
-    let seconds = START.get_or_init(Instant::now).elapsed().as_secs_f32();
+    let seconds =
+        (call.seconds).unwrap_or_else(|| START.get_or_init(Instant::now).elapsed().as_secs_f32());
     frame.with_context(|gl| unsafe {
         // SAFETY: the arrays outlive the draw call; see the module notes.
         gl.UseProgram(program.id);

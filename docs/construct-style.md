@@ -144,3 +144,8 @@ rule 5. `plans/construct-hud.md` adds the section.
     hairline with a soft glow. It is the pane flown into, else the pane
     under the pointer or ahead, as the pane label picks it. The other
     panes fade into the fog with their distance.
+17. **A pane bends as one thing.** With the effect `wobbly`, a dragged
+    pane bends in 3D. Its hairline, its glow, its mirror image and its
+    shadow follow the bend, so that no gap opens between the content
+    and its frame. The pane rests again within about a second. The
+    pane label hides while a pane moves.

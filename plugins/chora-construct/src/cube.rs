@@ -662,7 +662,7 @@ impl Construct {
             )));
         };
         let duration = ms.map_or(TURN, Duration::from_millis);
-        let taken = host.start_turn(by, duration, queue, Instant::now());
+        let taken = host.start_turn(by, duration, queue, chora_kit::clock::now());
         if taken {
             self.draw_modes()?;
         }
@@ -674,7 +674,7 @@ impl Construct {
         let Some(host) = &mut self.cube else {
             return Ok(());
         };
-        let now = Instant::now();
+        let now = chora_kit::clock::now();
         if let Some(turn) = host.turn {
             host.angle = turn.at(now);
             if turn.done(now) {

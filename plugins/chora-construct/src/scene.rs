@@ -68,16 +68,23 @@ impl Construct {
             }
             self.tick()?;
             self.check_cube()?;
-            if self.glide.is_some() {
-                self.step_glide()?;
-            }
-            if self.effects.animating() {
-                self.wobble_frame()?;
-            }
-            if self.cube_turns() {
-                self.step_cube()?;
-            }
+            self.animation_frame()?;
         }
+    }
+
+    /// One frame of the glide of the camera, of the wobbles and of the
+    /// turn of the cube.
+    pub(crate) fn animation_frame(&mut self) -> Result<(), ClientError> {
+        if self.glide.is_some() {
+            self.step_glide()?;
+        }
+        if self.effects.animating() {
+            self.wobble_frame()?;
+        }
+        if self.cube_turns() {
+            self.step_cube()?;
+        }
+        Ok(())
     }
 
     /// Loads a construct (F18). An overlay takes the output now; a

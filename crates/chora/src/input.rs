@@ -668,8 +668,11 @@ pub fn press_button(
     let serial = SERIAL_COUNTER.next_serial();
     if button_state == ButtonState::Pressed {
         state.track_press(serial, injected);
-        let real = !injected || state.injected_drag_gives;
+        let real = !injected || state.injected_press_is_real;
         state.last_real_button = real.then_some((serial, code));
+        if real {
+            state.choose_manager();
+        }
     } else {
         state
             .last_real_button
@@ -1173,7 +1176,8 @@ fn press_node(state: &mut State, button: u32, injected: bool) {
         injected,
     });
     if area {
-        let real = real_press_of(state, button).filter(|_| !injected || state.injected_drag_gives);
+        let real =
+            real_press_of(state, button).filter(|_| !injected || state.injected_press_is_real);
         state.node_grab = Some(NodeGrab {
             node,
             button,
@@ -2599,7 +2603,7 @@ mod tests {
     fn the_test_mode_lets_an_injected_drag_give() {
         let (mut core, _wayland, mut tiling, mut xp) = mid_drag(false);
         click(&mut core, false);
-        core.state.injected_drag_gives = true;
+        core.state.injected_press_is_real = true;
         let down = ButtonState::Pressed;
         super::press_button(&mut core.state, 272, down, InputTime::now(), true);
         tiling.ok(&mut core, "scene.apply", give_with_the_drag());

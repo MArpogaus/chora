@@ -225,9 +225,13 @@ impl State {
             // A client socket manages only the windows of its own name.
             let own = |n: &str| !ipc.has_socket(n) || info.client.as_deref() == Some(n);
             let live = |n: &str| ipc.live(n) && own(n);
-            let to = (self.scene)
-                .manager_of_new(parent.as_deref(), focused.as_deref(), pointer, live)
-                .map(String::from);
+            let new = chora_scene::NewToplevel {
+                parent: parent.as_deref(),
+                focused: focused.as_deref(),
+                chosen: self.chosen_manager(),
+                point: pointer,
+            };
+            let to = (self.scene).manager_of_new(&new, live).map(String::from);
             let host = host.filter(|_| parent.is_none());
             let to = self.under_the_pane_of(to, host.as_deref(), pointer, live);
             self.scene.reserve(id, to.as_deref());

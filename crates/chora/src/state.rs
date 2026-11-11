@@ -200,6 +200,8 @@ pub struct State {
     pub start_time: Instant,
     /// The time to which the animations of the scene advanced.
     animated_at: Instant,
+    /// The recording with a stepped scene clock, while one runs.
+    pub recording: Option<crate::record::Recording>,
     /// The last refresh of the pointer after a step of the animations.
     pointer_refreshed: Instant,
     /// The clock of presentation times.
@@ -266,11 +268,17 @@ pub struct State {
     /// button is down. An injected button press ends it.
     pub last_real_button: Option<(Serial, u32)>,
     /// For tests on the headless backend only, set by the flag
-    /// `--test-injected-drag-gives`: an injected button press counts as a
-    /// press of the user for `give_grab`, and injected input does not end
-    /// that press. Nothing else changes: no act, no token. A gate without
-    /// a real pointer pulls a window out of a face with it.
-    pub injected_drag_gives: bool,
+    /// `--test-injected-press-is-real`: an injected button press counts as a
+    /// press of the user for `give_grab` and for the choice of the window
+    /// manager of a new window, and injected input does not end that
+    /// press. Nothing else changes: no act, no token. A gate without a
+    /// real pointer pulls a window out of a face with it.
+    pub injected_press_is_real: bool,
+    /// The window manager that the user chose for the next new windows
+    /// with a click on its empty claim, and the keyboard focus, of a
+    /// surface and of a node, at that click: the choice holds while the
+    /// focus stays (D55).
+    chosen_manager: Option<(String, [Option<String>; 2])>,
     /// The core runs the events of an `input.inject` request: the moves
     /// and the releases of a node drag carry `injected`.
     pub injecting: bool,
@@ -395,6 +403,7 @@ impl State {
         Self {
             start_time: Instant::now(),
             animated_at: Instant::now(),
+            recording: None,
             pointer_refreshed: Instant::now(),
             clock,
             time: Time::default(),
@@ -432,7 +441,8 @@ impl State {
             last_act: None,
             last_real_press: None,
             last_real_button: None,
-            injected_drag_gives: false,
+            chosen_manager: None,
+            injected_press_is_real: false,
             injecting: false,
             layer_focus: None,
             configured: HashMap::new(),
@@ -506,14 +516,25 @@ impl State {
     }
 
     /// Moves the animations of the scene forward to now, and tells the
-    /// plugins which ended.
+    /// plugins which ended. A recording moves them with its steps instead.
     pub fn advance_animations(&mut self) {
         let now = Instant::now();
         let last = std::mem::replace(&mut self.animated_at, now);
         if !self.scene.animating() {
             return;
         }
-        let ms = now.duration_since(last).as_secs_f64() * 1000.0;
+        if self.recording.is_none() {
+            self.animate_by(now.duration_since(last).as_secs_f64() * 1000.0);
+        }
+        self.refresh_pointer_at(now);
+    }
+
+    /// Moves the animations of the scene forward by a time in
+    /// milliseconds, and tells the plugins which ended.
+    pub fn animate_by(&mut self, ms: f64) {
+        if !self.scene.animating() {
+            return;
+        }
         for node in self.scene.advance(ms) {
             self.emit(&Event::AnimationDone {
                 node: Some(node),
@@ -527,7 +548,12 @@ impl State {
             });
             self.execute(vec![chora_scene::Effect::Camera(output)]);
         }
-        // The loop can run far more often than frames show.
+    }
+
+    /// Refreshes the pointer after a step of the animations, at most
+    /// every `POINTER_REFRESH`: the loop can run far more often than
+    /// frames show.
+    fn refresh_pointer_at(&mut self, now: Instant) {
         if now - self.pointer_refreshed >= POINTER_REFRESH {
             self.pointer_refreshed = now;
             self.refresh_pointer();
@@ -668,6 +694,12 @@ impl State {
             .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
         let focused = self.focused_surface().map(String::from);
         let (ipc, scene) = (&self.ipc, &self.scene);
+        let new = chora_scene::NewToplevel {
+            parent: None,
+            focused: focused.as_deref(),
+            chosen: self.chosen_manager(),
+            point: pointer,
+        };
         // A client socket manages only the windows of its own name.
         let manager = |n: &str| {
             Some(n) != except
@@ -676,7 +708,7 @@ impl State {
                 && scene.holds_claim(n)
         };
         let to = (giver.filter(|g| manager(g)))
-            .or_else(|| scene.manager_of_new(None, focused.as_deref(), pointer, manager))
+            .or_else(|| scene.manager_of_new(&new, manager))
             .or_else(|| {
                 (scene.nodes())
                     .filter(|n| n.props.claim.is_some())
@@ -853,6 +885,40 @@ impl State {
         self.focus_wanted.as_deref()
     }
 
+    /// The keyboard focus of a surface and of a node.
+    fn focus_now(&self) -> [Option<String>; 2] {
+        let node = self.scene.focused_node().map(String::from);
+        [self.focused_surface().map(String::from), node]
+    }
+
+    /// The window manager that a click of the user chose for a new
+    /// window, while the keyboard focus is the one at that click.
+    pub fn chosen_manager(&self) -> Option<&str> {
+        let (manager, focus) = self.chosen_manager.as_ref()?;
+        (*focus == self.focus_now()).then_some(manager.as_str())
+    }
+
+    /// A button press of the user chooses the window manager of the next
+    /// new windows (D55): on a point of a claim with no window under it,
+    /// the owner of the smallest such claim, unless it has the keyboard
+    /// focus anyway. Any other press of the user ends the choice.
+    pub fn choose_manager(&mut self) {
+        let spot = self.spot(self.pointer_layout);
+        let empty = spot
+            .as_ref()
+            .is_some_and(|spot| crate::render::surface_under(self, spot).is_none());
+        let point = spot.map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+        let scene = &self.scene;
+        let focused = scene.focused_node_owner().or_else(|| {
+            let surface = scene.node(self.focused_surface()?)?;
+            surface.owner.as_deref()
+        });
+        let claimant = chora_scene::claimant_at(scene.nodes(), point, |n| self.ipc.live(n))
+            .filter(|manager| empty && Some(*manager) != focused)
+            .map(String::from);
+        self.chosen_manager = claimant.map(|manager| (manager, self.focus_now()));
+    }
+
     /// Notes a key or button press. A real one is the newest real press;
     /// an injected one ends the real press and the act before it, so that
     /// no token carries an act that an injection hides.
@@ -865,9 +931,9 @@ impl State {
     }
 
     /// An injected input ends the button press of the user, except in
-    /// the test mode of `injected_drag_gives`.
+    /// the test mode of `injected_press_is_real`.
     pub fn forget_real_button(&mut self) {
-        if !self.injected_drag_gives {
+        if !self.injected_press_is_real {
             self.last_real_button = None;
         }
     }

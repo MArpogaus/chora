@@ -28,6 +28,7 @@ terms and no synonyms.
 | **View** | A declarative arrangement: nodes, the plugins that drive them, and their configuration. A view is a YAML file in git. The user or an agent changes it live. |
 | **Plugin** | A client that reacts to events, changes the scene and can export methods. A window manager, a layout, an animation set and a keybinding set are plugins. |
 | **Service** | A process in a container, outside the core. Examples are speech recognition, a local LLM and a development environment. |
+| **Recording** | Frames of a headless session with a stepped scene clock: each frame shows the scene exactly one frame time later, whatever the speed of the renderer. `choractl record` makes one through the admin socket. |
 | **Construct** | A YAML file of `chora-construct` with the start pose of the camera, the leash radius and the panes of one space (D66). |
 | **Pane** | A flat area that stands in the space of `chora-construct` with a fixed turn, set to face the camera where it is placed or moved. It holds a program, a plugin, a nested desktop session or a prompt. "Pane" is not "view": a view is a declarative arrangement of the configuration (D66). |
 | **Flavor** | A preconfigured bundle of views, plugins and services, for example "classic", "tiling" or "agentic". |

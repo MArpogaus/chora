@@ -223,6 +223,21 @@ impl Default for Scene {
     }
 }
 
+/// What decides the window manager of a new toplevel
+/// ([`Scene::manager_of_new`]).
+#[derive(Debug, Clone, Copy)]
+pub struct NewToplevel<'a> {
+    /// The surface node of its parent toplevel, for a dialog.
+    pub parent: Option<&'a str>,
+    /// The surface node with the keyboard focus.
+    pub focused: Option<&'a str>,
+    /// The window manager that a click of the user on its empty claim
+    /// chose.
+    pub chosen: Option<&'a str>,
+    /// The pointer in scene coordinates.
+    pub point: [f64; 2],
+}
+
 /// The owner of the smallest claim that contains `[px, py]`, among the
 /// owners that `accept` takes (D55): the window manager under a point.
 pub fn claimant_at<'a>(
@@ -408,27 +423,29 @@ impl Scene {
     }
 
     /// The window manager of a new toplevel (D55): the owner of its
-    /// parent toplevel; else the owner of the focused node, else of the
-    /// focused surface, if it holds a claim; else the owner of the smallest
-    /// claim that contains the pointer. Only owners that `live` accepts
-    /// count, so a claim of a client that is gone reserves nothing.
+    /// parent toplevel; else the manager that a click of the user chose,
+    /// if it holds a claim; else the owner of the focused node, else of
+    /// the focused surface, if it holds a claim; else the owner of the
+    /// smallest claim that contains the pointer. Only owners that `live`
+    /// accepts count, so a claim of a client that is gone reserves
+    /// nothing.
     #[must_use]
-    pub fn manager_of_new(
-        &self,
-        parent: Option<&str>,
-        focused: Option<&str>,
-        point: [f64; 2],
+    pub fn manager_of_new<'a>(
+        &'a self,
+        new: &NewToplevel<'a>,
         live: impl Fn(&str) -> bool,
-    ) -> Option<&str> {
+    ) -> Option<&'a str> {
         let owner = |id: Option<&str>| self.nodes.get(id?)?.owner.as_deref();
+        let claims = |o: &&str| live(o) && self.holds_claim(o);
         let focus = || {
             self.focused_node_owner()
-                .or_else(|| owner(focused))
-                .filter(|o| live(o) && self.holds_claim(o))
+                .or_else(|| owner(new.focused))
+                .filter(claims)
         };
-        let pointer = || claimant_at(self.nodes.values(), point, &live);
-        owner(parent)
+        let pointer = || claimant_at(self.nodes.values(), new.point, &live);
+        owner(new.parent)
             .filter(|o| live(o))
+            .or_else(|| new.chosen.filter(claims))
             .or_else(focus)
             .or_else(pointer)
     }

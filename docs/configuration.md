@@ -499,12 +499,19 @@ with `settings.reload`:
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`,
+  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
-  construct with no line in the file.
+  construct with no line in the file. `drag` is for a pointer button
+  (the default `Super+BTN_LEFT`) and works with `--manage-windows`: a
+  window of mc that is pressed and let go on the area of another window
+  manager goes to that one. mc moves no window itself, so a release
+  elsewhere changes nothing.
+- `test_accept_injected_keys`: `false`; for tests only, the bindings
+  take the keys of `input.inject` as keys of the user (see
+  [Injected keys](#injected-keys)).
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -747,7 +754,8 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 | `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME` |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
-| `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles |
+| `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
@@ -867,7 +875,9 @@ windows of the other flavor.
 | `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
 | `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
 | `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
+| `camera.glide` | `x`, `z`, `yaw`, and optionally `pitch` and `ms`: flies the camera to that pose in `ms` milliseconds, slow at its start and at its end; the place stays inside the leash; refused while the camera is in a pane |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
+| `clock.step` | `ms`: stops the clock of the glide and the wobble at that time of a recording, and draws one frame; `null` lets it run again; privileged; `choractl record` calls it (see [Recording](api.md#recording)) |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
 | `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |
@@ -1730,6 +1740,7 @@ that the file leaves out takes its default:
 | `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
 
 Migration: a `chora-xp.yaml` from before the split has the key `assistant`,

@@ -32,6 +32,7 @@ optdepends=(
   'python: the collectors of chora-mc'
   'pipewire: the microphone and the speaker of chora-voice (pw-record, pw-play)'
   'podman: the Gufo model servers of chora-voice'
+  'bubblewrap: the sandbox of the coding agents of chora-voice (agent-sandbox.sh)'
 )
 backup=(etc/xdg/uwsm/env-chora etc/xdg/xdg-desktop-portal-wlr/chora)
 options=(!lto !debug)
@@ -48,6 +49,7 @@ package() {
     install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
+  install -Dm755 dist/sandbox/agent-sandbox.sh -t "$pkgdir/usr/bin/"
   # The X11 units of the flavors start it from this path.
   install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
   install -Dm644 dist/session/*.desktop -t "$pkgdir/usr/share/wayland-sessions/"

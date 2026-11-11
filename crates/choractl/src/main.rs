@@ -12,6 +12,7 @@
 mod docs;
 mod events;
 mod mcp;
+mod record;
 mod schema;
 mod view;
 
@@ -230,6 +231,11 @@ enum Cmd {
         #[arg(long)]
         max_side: Option<u32>,
     },
+    /// Record frames of a headless session as PNG files with a stepped
+    /// clock: each frame shows the scene one frame time later, whatever
+    /// the speed of the renderer. For demo media and tests. Goes through
+    /// the admin socket; works only on the headless backend.
+    Record(record::Recording),
 }
 
 #[derive(Subcommand)]
@@ -397,6 +403,14 @@ fn run(args: Args) -> Result<(), String> {
             unreachable!("handled before the connection")
         }
         Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
+        command @ (Cmd::Capture { .. } | Cmd::Record(_)) => return media(&mut client, command),
+    };
+    result.map_err(|e| e.to_string())
+}
+
+/// The commands that save pictures: a capture and a recording.
+fn media(client: &mut Client, command: Cmd) -> Result<(), String> {
+    match command {
         Cmd::Capture {
             file,
             output,
@@ -408,10 +422,11 @@ fn run(args: Args) -> Result<(), String> {
                 node,
                 max_side,
             };
-            return capture_to(&mut client, &capture, &file);
+            capture_to(client, &capture, &file)
         }
-    };
-    result.map_err(|e| e.to_string())
+        Cmd::Record(recording) => record::record(client, &recording),
+        _ => unreachable!("only a capture and a recording save pictures"),
+    }
 }
 
 /// The `hello` of every `choractl` call: the name of `--name`, with
@@ -429,7 +444,11 @@ fn hello(name: Option<String>) -> Hello {
 fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
     let admin = matches!(
         command,
-        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. } | Cmd::Camera { .. }
+        Cmd::Grant { .. }
+            | Cmd::Revoke { .. }
+            | Cmd::Clients { .. }
+            | Cmd::Camera { .. }
+            | Cmd::Record(_)
     );
     if !admin {
         return Client::from_env(hello).map_err(|e| e.to_string());

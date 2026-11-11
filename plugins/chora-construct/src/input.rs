@@ -1,24 +1,11 @@
 //! Pointer, key and drag input: press, move, release, drop, the list
 //! keys.
 
-use chora_kit::effects::Target;
-
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
-    LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
+    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, LIST,
+    LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
     window_flown_into,
 };
-
-/// The node that the wobble of a pane bends: the group of the pane, in
-/// its own coordinates.
-fn wobble_target(pane: &Pane) -> Target {
-    Target {
-        node: pane.node(),
-        origin: [0.0; 2],
-        size: pane.size,
-        set_size: true,
-    }
-}
 
 impl Construct {
     /// The events of the voice agent and of the watchdog, then the input.
@@ -56,6 +43,7 @@ impl Construct {
                 }
                 self.glass.plain = true;
                 self.effects.dropped();
+                self.bends_dropped();
                 self.draw_hud()
             }
             Event::LayersDropped { nodes, .. } => {
@@ -237,8 +225,8 @@ impl Construct {
             });
             let grab = space::hit(&self.lens, &self.pose, at, pane.at, pane.size, pane.yaw);
             if let Some((_, [u, v])) = grab.filter(|_| pane.attached) {
-                let target = wobble_target(pane);
-                (self.effects).grab_3d(&pane.name, &target, [0.0; 3], [u, v, 0.0], [0.0; 2]);
+                let target = crate::wobble::wobble_target(pane);
+                self.effects.grab_sail(&pane.name, &target, [u, v, 0.0]);
             }
         } else {
             self.drag = Some(Drag {
@@ -433,22 +421,13 @@ impl Construct {
         let [dx, dz] = [pane.at[0] - from[0], pane.at[1] - from[1]];
         let (sin, cos) = yaw.sin_cos();
         let origin = [dx * cos - dz * sin, 0.0, dx * sin + dz * cos];
-        let target = wobble_target(pane);
+        let target = crate::wobble::wobble_target(pane);
         match self.effects.motion_3d(&pane.name, &target, origin) {
-            Some(command) => self.rt.conn.apply(vec![command]),
+            Some(command) => {
+                let commands = self.followed(vec![command]);
+                self.rt.conn.apply(commands)
+            }
             None => Ok(()),
         }
-    }
-
-    /// One frame of the wobbles of the panes.
-    pub(crate) fn wobble_frame(&mut self) -> Result<(), ClientError> {
-        let panes = &self.panes;
-        let frame = self.effects.tick(Instant::now(), |name| {
-            panes.iter().find(|p| p.name == name).map(wobble_target)
-        });
-        if frame.commands.is_empty() {
-            return Ok(());
-        }
-        self.rt.conn.try_apply(frame.commands).map(drop)
     }
 }

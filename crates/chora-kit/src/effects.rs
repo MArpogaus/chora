@@ -137,12 +137,35 @@ impl Driver {
         }
     }
 
+    /// A pane that stands in a space is grabbed, as in [`Self::grab_3d`]:
+    /// it wobbles as a sail, with looser springs and a bow in depth.
+    pub fn grab_sail(&mut self, key: &str, target: &Target, grab: [f64; 3]) {
+        if self.wobbly && self.calm() {
+            let wobble = Wobble::new_3d(target.size, [0.0; 3], grab, [0.0; 2]).sail();
+            self.wobbles.insert(key.into(), wobble);
+            self.origins.insert(key.into(), [0.0; 3]);
+        }
+    }
+
+    /// The mesh of a window of [`Self::grab_3d`] that wobbles, for a node
+    /// that reaches `margin` past the window on each side and bends with
+    /// it, for example its glow.
+    #[must_use]
+    pub fn mesh_around(&self, key: &str, margin: f64) -> Option<Mesh> {
+        let origin = self.origins.get(key)?;
+        Some(
+            self.wobbles
+                .get(key)?
+                .mesh_around([origin[0], origin[1]], margin),
+        )
+    }
+
     /// A window of [`Self::grab_3d`] moved to an origin in 3D: its mesh
     /// with a depth, with the grid advanced to now. `None` when it does
     /// not wobble.
     pub fn motion_3d(&mut self, key: &str, target: &Target, origin: [f64; 3]) -> Option<Command> {
         let wobble = self.wobbles.get_mut(key)?;
-        wobble.advance_3d(origin, Instant::now());
+        wobble.advance_3d(origin, crate::clock::now());
         self.origins.insert(key.into(), origin);
         Some(mesh(target, wobble.mesh([origin[0], origin[1]])))
     }
@@ -226,7 +249,7 @@ impl Driver {
     /// advanced to now. `None` when it does not wobble.
     pub fn motion(&mut self, key: &str, target: &Target) -> Option<Command> {
         let wobble = self.wobbles.get_mut(key)?;
-        wobble.advance(target.origin, Instant::now());
+        wobble.advance(target.origin, crate::clock::now());
         Some(mesh(target, wobble.mesh(target.origin)))
     }
 

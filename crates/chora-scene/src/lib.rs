@@ -23,7 +23,7 @@ pub use node::{
     ShaderEffect, SurfaceInfo, Uniform,
 };
 pub use scene::{
-    INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, OVERLAY, Placed, Scene, SceneError,
+    INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, NewToplevel, OVERLAY, Placed, Scene, SceneError,
     TransactionError, claimant_at, overlay_id,
 };
 pub use selector::{Selector, SelectorError};

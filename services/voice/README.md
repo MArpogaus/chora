@@ -45,11 +45,13 @@ The packages of chora install `chora-voice` in `/usr/bin`, its unit
 With the package, link the quadlets from there and skip the build below:
 `ln -s /usr/share/chora/voice/quadlets/* ~/.config/containers/systemd/`.
 At the end, start the agent with `systemctl --user enable --now
-chora-voice`. The packages leave out `gufo.sh` and `agent-sandbox.sh`.
-`agent-sandbox.sh`, the default `sandbox_cmd`, is in the repository as
-`dist/sandbox/agent-sandbox.sh`, a minimal sandbox with bubblewrap
-(`bwrap`). Put it, or your own sandbox of that name, on the `PATH` of
-the unit, or set `sandbox_cmd`.
+chora-voice`. The packages leave out `gufo.sh`.
+`agent-sandbox.sh`, the default `sandbox_cmd`, is
+`dist/sandbox/agent-sandbox.sh` of the repository, a minimal sandbox
+with bubblewrap (`bwrap`). The packages install it in `/usr/bin` and
+recommend bubblewrap. From a checkout, put it on the `PATH` of the
+unit. For your own sandbox, set `sandbox_cmd`, or put a script of that
+name earlier on the `PATH`.
 
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
 an LLM from the [model table of
