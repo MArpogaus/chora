@@ -19,6 +19,7 @@ pub mod give;
 pub mod hud;
 pub mod icons;
 pub mod lamp;
+pub mod modes;
 pub mod notify;
 pub mod runtime;
 pub mod settings;

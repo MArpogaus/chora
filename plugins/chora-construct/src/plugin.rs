@@ -15,6 +15,9 @@ impl Plugin for Construct {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
+        let Some(event) = self.pulled(event)? else {
+            return Ok(());
+        };
         match event {
             Event::SurfaceCreated {
                 surface,
@@ -104,9 +107,11 @@ impl Plugin for Construct {
             }
             "cube.turn" => {
                 let TurnCube { by, ms } = runtime::params(params)?;
-                self.turn_cube(by, ms).map_err(rejected)?;
+                self.turn_cube(by, ms, false).map_err(rejected)?;
                 Ok(Value::Null)
             }
+            "view.step_back" => self.mode_method(chora_kit::modes::Act::StepBack),
+            "view.step_in" => self.mode_method(chora_kit::modes::Act::StepIn),
             "cube.close" => {
                 self.close_cube().map_err(rejected)?;
                 Ok(Value::Null)

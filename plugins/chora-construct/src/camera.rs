@@ -359,11 +359,18 @@ impl Construct {
                 eprintln!("chora-construct: the drag: {err}");
             }
         }
+        if self.active && !self.overlay && self.flown.is_none() {
+            let moves = parse(chora_kit::give::MOVE.into())?;
+            if let Err(err) = self.rt.grab(moves, Grab::Drag) {
+                eprintln!("chora-construct: the drag of a given window: {err}");
+            }
+        }
         self.rt.grab_give_keys()?;
         if self.flown.is_some() {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
         }
+        self.grab_cube_keys();
         Ok(())
     }
 

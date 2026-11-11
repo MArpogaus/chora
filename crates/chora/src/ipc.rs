@@ -887,6 +887,7 @@ impl State {
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
+            "render.stats" => self.ipc_render_stats(conn),
             "camera.release" => self.ipc_admin(conn, &request.method, params),
             "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
                 self.ipc_admin(conn, &request.method, params)

@@ -267,6 +267,12 @@ pub struct State {
     /// The serial and the button of the last real button press, while the
     /// button is down. An injected button press ends it.
     pub last_real_button: Option<(Serial, u32)>,
+    /// For tests on the headless backend only, set by the flag
+    /// `--test-injected-drag-gives`: an injected button press counts as a
+    /// press of the user for `give_grab`, and injected input does not end
+    /// that press. Nothing else changes: no act, no token. A gate without
+    /// a real pointer pulls a window out of a face with it.
+    pub injected_drag_gives: bool,
     /// A layer surface that a click focused.
     layer_focus: Option<WlSurface>,
     /// The last configure of each surface node: size and states.
@@ -426,6 +432,7 @@ impl State {
             last_act: None,
             last_real_press: None,
             last_real_button: None,
+            injected_drag_gives: false,
             layer_focus: None,
             configured: HashMap::new(),
             idle_notifier_state,
@@ -868,6 +875,14 @@ impl State {
         self.last_real_press = (!injected).then_some(serial);
         if injected {
             self.last_act = None;
+            self.forget_real_button();
+        }
+    }
+
+    /// An injected input ends the button press of the user, except in
+    /// the test mode of `injected_drag_gives`.
+    pub fn forget_real_button(&mut self) {
+        if !self.injected_drag_gives {
             self.last_real_button = None;
         }
     }

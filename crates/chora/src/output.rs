@@ -142,6 +142,7 @@ impl State {
         self.assets.left_out.remove(&output.name());
         self.assets.frame_left_out.remove(&output.name());
         self.assets.frame_dark.remove(&output.name());
+        self.assets.stats.by_output.remove(&output.name());
         self.emit(&Event::OutputRemoved {
             name: output.name(),
         });
@@ -353,6 +354,24 @@ impl State {
         let pane = self.spot(self.pointer_layout).and_then(|spot| spot.via);
         let held = BTreeSet::from([button]);
         self.press_via = Some(Press { pane, held });
+    }
+
+    /// Lets the press go on at the screen for the client `to`, when the
+    /// pane that the press came through is a node of `to`: a drag that
+    /// the owner of a pane takes out of it (`give_grab`) goes on at the
+    /// point under the pointer. A drag that goes to any other client
+    /// stays behind the pane.
+    pub fn unpin_press(&mut self, to: &str) {
+        let owned = |pane: &String| {
+            let owner = self.scene.node(pane).and_then(|node| node.owner.as_deref());
+            owner == Some(to)
+        };
+        let Some(press) = &mut self.press_via else {
+            return;
+        };
+        if press.pane.as_ref().is_some_and(owned) {
+            press.pane = None;
+        }
     }
 
     /// Notes a held button that went up. The last one ends the press,

@@ -70,7 +70,7 @@ impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     pub(crate) fn input(&mut self, event: Event) -> Result<(), ClientError> {
-        if self.list_input(&event)? {
+        if self.list_input(&event)? || self.modes_input(&event)? {
             return Ok(());
         }
         match event {

@@ -41,9 +41,11 @@ mod hud;
 mod input;
 mod list;
 mod methods;
+mod modes;
 mod overlay;
 mod panes;
 mod plugin;
+mod pull;
 mod scene;
 mod space;
 mod voice;
@@ -365,6 +367,9 @@ enum Grab {
     Drag,
     FlyOut,
     Give(&'static str),
+    /// With a cube: the step back from its face, and a turn of it.
+    StepBack,
+    Turn(i32),
 }
 
 /// A drag with the modifier: the pane, the press, and its centre and
@@ -567,8 +572,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 19] = [
     "voice.*",
+    modes::SWITCHER,
     "client.connected",
     "client.disconnected",
     "effects.dropped",

@@ -125,6 +125,8 @@ pub struct RenderStats {
     pub textures_rendered: u64,
     /// The shader passes over such textures: shapes, shaders and effects.
     pub passes: u64,
+    /// The counters by output, for `render.stats`.
+    pub by_output: HashMap<String, OutputStats>,
     /// The frames that a backend rendered.
     pub frames: u64,
     /// The frames of those that had damage.
@@ -142,11 +144,31 @@ pub struct RenderStats {
     pub orders: std::cell::Cell<u64>,
 }
 
+/// What rendering did for one output since it came.
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct OutputStats {
+    /// The frames that rendered.
+    pub frames: u64,
+    /// The frames of those that had damage.
+    pub damaged_frames: u64,
+    /// The offscreen renders of its frames: node contents and shader
+    /// passes. A capture does not count.
+    pub passes: u64,
+}
+
 impl RenderStats {
-    /// Counts the render of a frame by a backend.
-    pub fn frame(&mut self, damaged: bool) {
+    /// Counts the render of a frame of an output.
+    pub fn frame(&mut self, output: &str, damaged: bool) {
         self.frames += 1;
         self.damaged_frames += u64::from(damaged);
+        let of = self.by_output.entry(output.to_owned()).or_default();
+        of.frames += 1;
+        of.damaged_frames += u64::from(damaged);
+    }
+
+    /// The offscreen renders: node contents and shader passes.
+    pub fn offscreen(&self) -> u64 {
+        self.textures_rendered + self.passes
     }
 
     fn count<R: MeshRenderer>(&mut self, elements: &[SceneElement<R>]) {
@@ -161,11 +183,6 @@ impl RenderStats {
     /// How many elements of a variant [`output_elements`] returned.
     pub fn elements_of(&mut self, variant: Variant) -> u64 {
         *self.elements.slot(variant)
-    }
-
-    /// The offscreen renders: node contents and shader passes.
-    pub fn offscreen(&self) -> u64 {
-        self.textures_rendered + self.passes
     }
 }
 
@@ -304,6 +321,7 @@ where
         return elements;
     }
     crate::offscreen::render_virtuals(parts, renderer.gles(), output);
+    let passes_before = parts.assets.stats.offscreen();
     prune_assets(parts);
     let shown = if view.stepped { "" } else { " capture" };
     let name = format!("{}{shown}", output.name());
@@ -334,6 +352,15 @@ where
         .frame_dark
         .insert(output.name(), assets.layers.dark.clone());
     assets.stats.count(&out);
+    if view.stepped {
+        let passes = assets.stats.offscreen() - passes_before;
+        assets
+            .stats
+            .by_output
+            .entry(output.name())
+            .or_default()
+            .passes += passes;
+    }
     out
 }
 

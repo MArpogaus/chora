@@ -103,6 +103,20 @@ pub(crate) fn exported_methods() -> Vec<ExportMethod> {
             &[],
         ),
         runtime::method(
+            "view.step_back",
+            "Stands back from the front face of the cube, into navigate mode: the cube \
+             shows whole, no face takes input, and the construct has the keyboard.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
+            "view.step_in",
+            "Steps into the front face of the cube, into use mode: the face shows at 1:1 \
+             and takes the input.",
+            json!({}),
+            &[],
+        ),
+        runtime::method(
             "construct.list",
             "Answers the constructs, the loaded one, and its panes with their names.",
             json!({}),
