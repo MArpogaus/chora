@@ -221,6 +221,12 @@ impl Agent {
             .commands(&mut self.theme, &frame, (self.language, top));
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());
+        let open = self.chat.is_open().then(|| self.chat.helper()).flatten();
+        if open != self.row_open.as_deref() {
+            self.row_open = open.map(str::to_owned);
+            let rows = self.sync_row()?;
+            self.apply(rows)?;
+        }
         self.chat_announce(&frame)
     }
 
@@ -470,7 +476,8 @@ impl Agent {
         let label = Word::ChatRow.text(self.language).to_owned();
         let chat =
             (!self.values.chats).then(|| (ROW.to_owned(), label.clone(), vec![(label, None)]));
-        let helpers = rows::rows(self.language, &self.helpers, most);
+        let open = self.chat.is_open().then(|| self.chat.helper()).flatten();
+        let helpers = rows::rows(self.language, &self.helpers, most, open);
         let helpers = helpers.into_iter().map(|row| {
             let text = row.text();
             let words = [

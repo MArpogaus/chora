@@ -217,7 +217,9 @@ helper, `Atlas · working · Write file (2/2)`: the name, the state word of
 the word table and the task with its step. The rows stack away from the
 edge of the anchor; while the `when` of the panel does not match, only
 the "Chat ..." row shows, in the same place. A folder whose figure
-opens the chat has no "Chat ..." row. A click on a row opens the chat with that helper. The
+opens the chat has no "Chat ..." row. A click on a row opens the chat with that helper.
+While the chat with a helper is open, that helper has no row: the header
+of the chat and its question card say the same. The
 words and their order are the same in every folder; `rows` does not
 change them. The node of a row is `hud-row-NAME`. A helper whose name
 has other characters than letters, digits, `_` and `-`, or that is named

@@ -57,12 +57,19 @@ impl Row {
 }
 
 /// The rows of the helpers by name, at most `most`. A name that is no
-/// plain name, or that is the name of the "Chat ..." row, has no row.
+/// plain name, or that is the name of the "Chat ..." row, has no row, nor
+/// has `open`, the helper of the open chat, whose header says the same.
 #[must_use]
-pub fn rows(language: Language, helpers: &BTreeMap<String, Helper>, most: usize) -> Vec<Row> {
+pub fn rows(
+    language: Language,
+    helpers: &BTreeMap<String, Helper>,
+    most: usize,
+    open: Option<&str>,
+) -> Vec<Row> {
     helpers
         .iter()
         .filter(|(name, _)| good_name(name) && name.as_str() != CHAT)
+        .filter(|(name, _)| open.is_none_or(|open| !open.eq_ignore_ascii_case(name)))
         .take(most)
         .map(|(name, helper)| Row {
             id: format!("{ROW}{name}"),
@@ -114,7 +121,7 @@ mod tests {
             ("Bert".to_owned(), helper("idle", "", None)),
         ]
         .into();
-        let shown = rows(Language::En, &helpers, 4);
+        let shown = rows(Language::En, &helpers, 4, None);
         let texts: Vec<(String, String)> = shown.iter().map(|r| (r.id.clone(), r.text())).collect();
         assert_eq!(
             texts,
@@ -127,9 +134,21 @@ mod tests {
             ]
         );
         assert_eq!(shown[0].state, "working");
-        let german = rows(Language::De, &helpers, 4);
+        let german = rows(Language::De, &helpers, 4, None);
         assert_eq!(german[0].text(), "Atlas · arbeitet · Write file (2/2)");
-        assert_eq!(rows(Language::En, &helpers, 1).len(), 1);
+        assert_eq!(rows(Language::En, &helpers, 1, None).len(), 1);
+    }
+
+    #[test]
+    fn the_helper_of_the_open_chat_has_no_row() {
+        let helpers: BTreeMap<String, Helper> = [
+            ("Atlas".to_owned(), helper("question", "Write file", None)),
+            ("Bert".to_owned(), helper("idle", "", None)),
+        ]
+        .into();
+        let shown = rows(Language::En, &helpers, 4, Some("atlas"));
+        let names: Vec<&str> = shown.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, ["Bert"], "the chat shows its question once");
     }
 
     #[test]
@@ -138,7 +157,7 @@ mod tests {
             .into_iter()
             .map(|name| (name.to_owned(), helper("working", "", None)))
             .collect();
-        assert_eq!(rows(Language::En, &helpers, 4), Vec::new());
+        assert_eq!(rows(Language::En, &helpers, 4, None), Vec::new());
     }
 
     #[test]
