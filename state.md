@@ -219,7 +219,7 @@ Merge queue: demo (claude/demo) after review; floating windows in work (claude/v
 Merged today: merge-gate script, H4c, 3D steps 2 to 6, focus race, HUD
 H1 to H7 and H4a/H4b, effects driver, give key, grab fix, flake fixes,
 render fixes, D69 step 1, grants2 (2a1e2d2), hud-start (c81144a),
-wobble3d E2 (3dc1eb6), virtual-2 steps 2-3 (7ad15de), core-death + mc-scale (e21a506), K5 (55383af), E3 give during a drag + flakes F5/F6 (108f1b2), D69 steps 4-8 (9e78360), xp cube in construct (67d51c0), pull-out (e2cff6b), K4 cube modes (a4e5459), CI agent sandbox (2f6c3e0). sccache on. Cap: four heavy lanes.
+wobble3d E2 (3dc1eb6), virtual-2 steps 2-3 (7ad15de), core-death + mc-scale (e21a506), K5 (55383af), E3 give during a drag + flakes F5/F6 (108f1b2), D69 steps 4-8 (9e78360), xp cube in construct (67d51c0), pull-out (e2cff6b), K4 cube modes (a4e5459), CI agent sandbox (2f6c3e0), W12 + sandbox packaging (12b176d), demo capture clock + scenes (dd7a5d3). sccache on. Cap: four heavy lanes.
 
 ## Blocked
 
