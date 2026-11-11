@@ -253,6 +253,6 @@ Evidence, all after the last compaction of 11-11:
 - Friction 32 blamed train.sh; in fact merge-gate.sh lacks the `--fast` mode that reflection rule 2 names, so that rule was never built.
 Cause: the compaction summary carried the task list but not the charter rules, and the PM continued from the summary without rereading the charter. Context management leaks rules, not tasks.
 Proposed change:
-1. `pm-card.md`, a short card of the hard rules plus the reread steps (charter in full, state, answers, friction), injected automatically after each compaction by a SessionStart hook with matcher `compact` in `~/.claude/settings.json`. The PM may not edit its own settings (the classifier refused it), so the user adds the hook.
+1. `pm-card.md`, a short card of the hard rules plus the reread steps (charter in full, state, answers, friction), injected automatically after each compaction by a SessionStart hook with matcher `compact` in `~/.claude/settings.json`. The classifier refused the PM editing its user settings; on the user's go (11-11) the hook went into the project-local `/home/user/.claude/settings.local.json`. It is container-local: run start step 2 recreates it after a container replacement.
 2. Guards for the rules that broke: a session-log pre-commit check that rejects a commit when `state.md` is older than the last merge on the session branch; the persona launcher enforces max_side 640 and 30 steps itself.
 3. Keep PM turns short so compactions come less often.
