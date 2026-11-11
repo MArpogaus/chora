@@ -127,16 +127,20 @@ first_floor() {
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: a click on the row Terminal started no terminal"; failed=1; return; }
     until_ok card_gone || { echo "FAIL: $tag: the card stays with a pane"; failed=1; }
     ok "$tag: a click on the row Terminal started a terminal and the card went"
+    sleep 1
     key Alt+Escape
+    sleep 1
     key Super+x
     until_ok 'ctl call construct construct.list | jq -e ".panes | length == 0" >/dev/null' ||
-        { echo "FAIL: $tag: the terminal pane did not close"; failed=1; return; }
+        { echo "FAIL: $tag: the terminal pane did not close: $(ctl call construct construct.list | jq -c .panes)"; failed=1; return; }
     until_ok card_shows || { echo "FAIL: $tag: the card did not come back on the empty floor"; failed=1; return; }
     key Super+t
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: Super+T after the click started no terminal"; failed=1; return; }
     until_ok card_gone || { echo "FAIL: $tag: the card stays after Super+T"; failed=1; }
     ok "$tag: Super+T started a terminal and the card went"
+    sleep 1
     key Alt+Escape
+    sleep 1
     key Super+x
     until_ok 'ctl query app_id:startcell | jq -e "length == 0" >/dev/null' ||
         { echo "FAIL: $tag: the window of the start cell is left"; failed=1; }

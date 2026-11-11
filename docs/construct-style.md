@@ -212,3 +212,15 @@ mockups rendered over real captures.
     that does not work. Each look draws it in its own style: glass here,
     a classic help window in xp, a page in large type in mc, and a dense
     list in tiling.
+26. **The start card.** While no pane exists, one glass card stands
+    where the first pane will appear: ahead and centred in the output,
+    drawn flat, strong tint, 448 wide, radius 24. It has the head
+    `Nothing is open yet` in `text`, the line `Start a program. It
+    opens here, in front of you.` in `small` and muted, three rows of
+    48 high with radius 16 (`Terminal`, `All programs`, `A cube of
+    desktops`, each with the keycaps of its key), and a footer with
+    `Click a row or press its keys.` and `F1 All keys`. The row under
+    the pointer has the hover fill at once; a click on a row does what
+    its key does. No hint bar shows while the card does. The card fades
+    out over 120 ms when the first pane appears, and also while the
+    window list, the help, a question, the launcher or a cube shows.

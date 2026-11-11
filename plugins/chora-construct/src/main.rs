@@ -523,6 +523,8 @@ struct Construct {
     help_sel: usize,
     /// The context hints at the bottom centre.
     hints: hints::State,
+    /// The start card of the empty floor.
+    start_card: start::State,
     /// A question of the voice agent waits: the hints hide.
     asked: bool,
     /// The hint under the pointer.
@@ -649,6 +651,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         help_query: String::new(),
         help_sel: 0,
         hints: hints::State::default(),
+        start_card: start::State::default(),
         asked: false,
         hint_hover: None,
         label_drawn: false,

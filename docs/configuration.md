@@ -740,6 +740,13 @@ panes overlap, the nearer one gets the click. Each pane draws through
 the effect `pane.frag`, which reads `depth` and `facing` for the haze
 and the edge of the focus, so a walk updates no pane.
 
+While the space holds no pane, the start card stands in the middle of
+the output (rule 26 of the style guide): a click on its row `Terminal`
+starts the terminal like `Super+t`, `All programs` starts the launcher
+like `Super+space`, and `A cube of desktops` opens the cube like
+`Super+c`. The card fades out when the first pane appears, and the hint
+bar stays away while it shows.
+
 A press on the empty space gives the keyboard back to the walk, so its
 keys need no modifier. A drag there looks around, and the wheel there or
 over a pane that shows the window of another client or a plugin walks;

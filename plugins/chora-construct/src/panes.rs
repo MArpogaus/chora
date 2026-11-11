@@ -274,6 +274,7 @@ impl Construct {
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
                 self.label_drawn = false;
+                self.start_card = crate::start::State::default();
             }
             Some(node) if node.parent.as_deref() != Some(root.as_str()) => {
                 commands.push(Command::Move {

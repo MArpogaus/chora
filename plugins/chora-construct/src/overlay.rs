@@ -264,6 +264,7 @@ impl Construct {
         self.rt.conn.try_apply(commands)?;
         self.labelled = None;
         self.label_drawn = false;
+        self.start_card.up = false;
         self.draw_hud()?;
         self.draw_ask()?;
         if self.list.is_some() {
@@ -497,7 +498,8 @@ impl Construct {
             self.hints.until = None;
         }
         let stood_back = self.cube.as_ref().is_some_and(|c| !c.view().forwards());
-        let busy = self.list.is_some()
+        let busy = self.shows_start()
+            || self.list.is_some()
             || self.help
             || self.asked
             || self.moving.is_some()
@@ -518,6 +520,14 @@ impl Construct {
         }
     }
 
+    /// The caps of the key of an action: a one-letter key if it has one.
+    pub(crate) fn keys_of(&self, action: crate::config::Action) -> Vec<String> {
+        let bound = || (self.settings.value.keys.iter()).filter(|(_, a)| **a == action);
+        (bound().find(|(k, _)| k.chars().count() == 1))
+            .or_else(|| bound().next())
+            .map_or_else(Vec::new, |(k, _)| crate::glass::chord(k))
+    }
+
     /// The hints of a set, with the keys of the settings.
     fn hint_items(&self, set: crate::hints::Set) -> Vec<crate::hints::Item> {
         use crate::{
@@ -527,13 +537,7 @@ impl Construct {
         };
         use chora_kit::words::{Language, Word};
         let language = Language::of_session();
-        let keys = &self.settings.value.keys;
-        let key = |action: Action| {
-            let bound = || keys.iter().filter(|(_, a)| **a == action);
-            (bound().find(|(k, _)| k.chars().count() == 1))
-                .or_else(|| bound().next())
-                .map_or_else(Vec::new, |(k, _)| chord(k))
-        };
+        let key = |action: Action| self.keys_of(action);
         let item = |keys: Vec<String>, word: Word, hit: &str| Item {
             keys,
             word: word.text(language).to_owned(),
@@ -582,6 +586,7 @@ impl Construct {
         if self.output.is_none() {
             return Ok(());
         }
+        self.draw_start()?;
         let set = self.hint_set();
         if std::mem::take(&mut self.hints.announce) {
             let view = chora_kit::hud::view_event(NAME, self.hints.flown);
@@ -625,6 +630,77 @@ impl Construct {
         }
         self.hints.shown = wanted;
         self.rt.conn.apply(commands)
+    }
+
+    /// Whether the start card shows: the floor is empty and nothing else
+    /// takes the screen.
+    pub(crate) fn shows_start(&self) -> bool {
+        self.active
+            && !self.overlay
+            && self.output.is_some()
+            && self.panes.is_empty()
+            && self.cube.is_none()
+            && self.list.is_none()
+            && !self.help
+            && !self.asked
+            && self.launcher_window.is_none()
+    }
+
+    /// The start card made anew when it appears or its output changes,
+    /// faded out when it stops showing.
+    pub(crate) fn draw_start(&mut self) -> Result<(), ClientError> {
+        use crate::{config::Action, start};
+        use chora_kit::words::Language;
+        let wanted = self.shows_start();
+        let out = [self.lens.w, self.lens.h];
+        if !wanted {
+            self.start_card.hover = None;
+            if std::mem::take(&mut self.start_card.up) {
+                self.rt.conn.try_apply(start::hide())?;
+            }
+            return Ok(());
+        }
+        let same = (self.start_card.out.iter().zip(out)).all(|(a, b)| (a - b).abs() < 0.5);
+        if self.start_card.up && same {
+            return Ok(());
+        }
+        let words = start::words(Language::of_session());
+        let keys = [Action::Terminal, Action::Launcher, Action::Cube].map(|a| self.keys_of(a));
+        let help = self.keys_of(Action::Help);
+        let hovered = self.start_card.hover;
+        let mut commands = Vec::new();
+        if !self
+            .rt
+            .conn
+            .query(&format!("id:{}", start::START))?
+            .is_empty()
+        {
+            commands.push(Command::Remove {
+                id: start::START.into(),
+                to: None,
+            });
+        }
+        commands.extend(self.fitted(|s| {
+            let model = start::Model {
+                words: &words,
+                keys: keys.clone(),
+                help: help.clone(),
+                hovered,
+            };
+            start::draw(&s.styled(), &model, out)
+        })?);
+        commands.push(crate::panes::update(
+            start::START,
+            PropsUpdate {
+                opacity: Some(0.0),
+                ..PropsUpdate::default()
+            },
+        ));
+        commands.push(hud::fade(start::START, 1.0, hud::FADE_IN));
+        self.rt.conn.apply(commands)?;
+        self.start_card.up = true;
+        self.start_card.out = out;
+        Ok(())
     }
 
     /// The face label under the front face of the cube stood back.

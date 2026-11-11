@@ -154,7 +154,8 @@ impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     pub(crate) fn input(&mut self, event: Event) -> Result<(), ClientError> {
-        if self.hint_input(&event)?
+        if self.start_input(&event)?
+            || self.hint_input(&event)?
             || self.help_input(&event)?
             || self.list_input(&event)?
             || self.modes_input(&event)?
@@ -451,6 +452,52 @@ impl Construct {
             }
         }
         self.frame()
+    }
+
+    /// The pointer over a row of the start card fills it, and a click on
+    /// it starts what its keys start; whether the card took the event.
+    fn start_input(&mut self, event: &Event) -> Result<bool, ClientError> {
+        use crate::start::{Act, act, row_of};
+        if !self.start_card.up {
+            return Ok(false);
+        }
+        match event {
+            Event::PointerPressed {
+                node,
+                button,
+                injected,
+                ..
+            } if *button == BTN_LEFT && row_of(node).is_some() => {
+                if *injected && !self.rt.accepts_injected() {
+                    return Ok(true);
+                }
+                match row_of(node).and_then(act) {
+                    Some(Act::Terminal) => self.start_terminal(),
+                    Some(Act::Programs) => self.start_launcher(),
+                    Some(Act::Cube) => self.cube_key()?,
+                    None => {}
+                }
+                Ok(true)
+            }
+            Event::PointerEntered { node, .. } | Event::PointerLeft { node }
+                if row_of(node).is_some() =>
+            {
+                let row = row_of(node);
+                let over = matches!(event, Event::PointerEntered { .. });
+                let hovered = if over {
+                    row
+                } else {
+                    self.start_card.hover.filter(|h| Some(*h) != row)
+                };
+                if hovered != self.start_card.hover {
+                    self.start_card.hover = hovered;
+                    let commands = crate::start::hover(&self.styled(), hovered);
+                    self.rt.conn.apply(commands)?;
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     /// A click on a hint, the pointer over a hint, and the pointer at the
