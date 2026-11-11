@@ -1462,7 +1462,7 @@ bottom.
   Enter in the field, opens the chat; a project starts its helper first.
   Any other text in the list comes back to the field with `pick_first`,
   which says "Pick a helper first: type its number and press Enter, or
-  click it." `chat.show` with a name opens that chat at once.
+  click it." Close shows in the list and in a chat, Stop only in a chat. `chat.show` with a name opens that chat at once.
 - Opening a chat calls `chat.open`, reads the transcript with
   `agent.read` and starts the field. The host reads again when
   `voice.state` of the helper carries a larger `seq`, and every two
