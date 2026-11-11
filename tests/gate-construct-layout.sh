@@ -288,7 +288,18 @@ use_mode() {
     until_ok 'typed_is e' || { echo "FAIL: $tag: a key typed after the second terminal did not reach it: $(cat "$work/typed")"; failed=1; }
     key Alt+Escape
     until_ok 'front_is 0' || { echo "FAIL: $tag: Alt+Escape after the second terminal did not step back"; failed=1; return; }
-    for _ in 1 2 3; do
+    key Super+t
+    until_ok 'panes_are 3' || { echo "FAIL: $tag: Super+T in the walk started no third terminal"; failed=1; return; }
+    until_ok 'front_is 1' || { echo "FAIL: $tag: the third terminal did not open flown in"; failed=1; return; }
+    if ctl call construct construct.list | jq -e '.panes | ((.[2].at[1] - .[0].at[1]) | fabs) < 1 and (.[2].at[0] != .[0].at[0]) and (.[2].at[0] != .[1].at[0])' >/dev/null; then
+        ok "$tag: Super+T in the walk opened a third pane beside the others at the same distance"
+    else
+        echo "FAIL: $tag: the third pane is not beside the others at the same distance: $(ctl call construct construct.list | jq -c '[.panes[].at]')"
+        failed=1
+    fi
+    key Alt+Escape
+    until_ok 'front_is 0' || { echo "FAIL: $tag: Alt+Escape after the third terminal did not step back"; failed=1; return; }
+    for _ in 1 2 3 4; do
         panes_are 0 && break
         key Super+x
         sleep 1
