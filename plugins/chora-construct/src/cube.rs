@@ -105,27 +105,32 @@ pub(crate) struct Host {
     denied: BTreeSet<usize>,
 }
 
-/// A press on a face in navigate mode: the face, where the pointer was
-/// at the press, its x at the last turn of the drag, and whether the
-/// pointer went farther than a click does.
-#[derive(Clone, Copy)]
+/// A press on a face in navigate mode: the face, the window whose
+/// floating plane took the press, where the pointer was at the press,
+/// its x at the last turn of the drag, and whether the pointer went
+/// farther than a click does.
+#[derive(Clone)]
 struct Press {
     face: usize,
+    window: Option<String>,
     start: [f64; 2],
     from: f64,
     dragged: bool,
 }
 
 /// What a move of the pointer during a press on a face does.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Dragged {
     Nothing,
     Turn(i32),
+    /// The drag on the floating plane of a window pulls the window out.
+    Pull(String),
 }
 
 /// A move of the pointer to `at` during a press: after each `third` of
 /// the width of the view from the last turn, the cube turns by one face;
-/// a drag to the left brings the next face. The drag goes on from `at`
+/// a drag to the left brings the next face. A press on the floating plane
+/// of a window pulls the window out once it moved farther than a click. The drag goes on from `at`
 /// only after [`turned_at`], when the cube took the turn.
 fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
     let Some(press) = press else {
@@ -133,6 +138,9 @@ fn drag_of(press: &mut Option<Press>, at: [f64; 2], third: f64) -> Dragged {
     };
     let far = (at[0] - press.start[0]).hypot(at[1] - press.start[1]);
     press.dragged |= far > CLICK;
+    if let Some(window) = press.window.clone().filter(|_| press.dragged) {
+        return Dragged::Pull(window);
+    }
     let moved = at[0] - press.from;
     if moved.abs() < third {
         return Dragged::Nothing;
@@ -155,6 +163,11 @@ fn face_id(i: usize) -> String {
 /// The face of a node id of a face.
 pub(crate) fn face_index(node: &str) -> Option<usize> {
     node.strip_prefix(FACE)?.parse().ok()
+}
+
+/// The face of a node id of a face or of a floating plane on it.
+pub(crate) fn face_of(node: &str) -> Option<usize> {
+    face_index(node).or_else(|| super::float::plane_face(node))
 }
 
 /// The transform of the cube group in the camera group: the space of the
@@ -274,6 +287,11 @@ impl Host {
         )
     }
 
+    /// Whether the cube rests: no turn and no step runs.
+    pub(crate) fn rests(&self) -> bool {
+        self.turn.is_none() && self.step.is_none()
+    }
+
     /// The pointer is over a face, or over none.
     pub(crate) fn set_hover(&mut self, face: Option<usize>) -> bool {
         let changed = self.hover != face;
@@ -286,10 +304,12 @@ impl Host {
         self.hover
     }
 
-    /// A press on a face in navigate mode at a point of the screen.
-    pub(crate) fn press(&mut self, face: usize, at: [f64; 2]) {
+    /// A press on a face, or on the floating plane of `window` on it, in
+    /// navigate mode at a point of the screen.
+    pub(crate) fn press(&mut self, face: usize, window: Option<String>, at: [f64; 2]) {
         self.press = Some(Press {
             face,
+            window,
             start: at,
             from: at[0],
             dragged: false,
@@ -838,6 +858,7 @@ mod tests {
 
     const PRESS: Press = Press {
         face: 0,
+        window: None,
         start: [600.0, 300.0],
         from: 600.0,
         dragged: false,
@@ -845,7 +866,7 @@ mod tests {
 
     #[test]
     fn a_drag_turns_once_per_third_that_the_cube_took() {
-        let mut held = Some(PRESS);
+        let mut held = Some(PRESS.clone());
         assert_eq!(drag_of(&mut held, [500.0, 300.0], 400.0), Dragged::Nothing);
         assert_eq!(drag_of(&mut held, [190.0, 300.0], 400.0), Dragged::Turn(1));
         assert_eq!(
@@ -856,7 +877,7 @@ mod tests {
         turned_at(&mut held, 180.0);
         assert_eq!(drag_of(&mut held, [100.0, 300.0], 400.0), Dragged::Nothing);
         assert_eq!(drag_of(&mut held, [-230.0, 300.0], 400.0), Dragged::Turn(1));
-        let mut back = Some(PRESS);
+        let mut back = Some(PRESS.clone());
         assert_eq!(
             drag_of(&mut back, [1010.0, 300.0], 400.0),
             Dragged::Turn(-1)
@@ -864,9 +885,22 @@ mod tests {
     }
 
     #[test]
+    fn a_drag_on_a_floating_plane_pulls_its_window_instead_of_turning() {
+        let mut held = Some(Press {
+            window: Some("s1".into()),
+            ..PRESS.clone()
+        });
+        assert_eq!(drag_of(&mut held, [605.0, 300.0], 400.0), Dragged::Nothing);
+        assert_eq!(
+            drag_of(&mut held, [100.0, 300.0], 400.0),
+            Dragged::Pull("s1".into())
+        );
+    }
+
+    #[test]
     fn a_click_stays_within_eight_pixels_on_both_axes() {
         let dragged = |at: [f64; 2]| {
-            let mut held = Some(PRESS);
+            let mut held = Some(PRESS.clone());
             drag_of(&mut held, at, 400.0);
             held.is_some_and(|p| p.dragged)
         };

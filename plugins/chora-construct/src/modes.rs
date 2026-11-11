@@ -326,24 +326,26 @@ impl Construct {
         (at, injected): ([f64; 2], bool),
     ) -> Option<Pressed> {
         let chip = CHIPS.into_iter().find(|w| chip_id(*w) == node);
-        let face = cube::face_index(node).filter(|_| view.mode() == Mode::Navigate);
+        let face = cube::face_of(node).filter(|_| view.mode() == Mode::Navigate);
         let pressed = press_of(chip, face, injected && !self.rt.accepts_injected())?;
         if let (Pressed::Face(face), Some(host)) = (&pressed, &mut self.cube) {
-            host.press(*face, at);
+            let window = super::float::plane_window(*face, node).map(String::from);
+            host.press(*face, window, at);
             return Some(Pressed::Nothing);
         }
         Some(pressed)
     }
 
     /// The pointer moved during a press on a face: a drag turns the
-    /// cube, and goes on from there when the cube took the turn. An
+    /// cube, and goes on from there when the cube took the turn; a drag
+    /// on the floating plane of a window pulls the window out. An
     /// injected move ends the press: it is not the hand of the person.
     fn drag_act(
         &mut self,
         node: &str,
         (at, injected): ([f64; 2], bool),
     ) -> Result<Option<Pressed>, ClientError> {
-        if cube::face_index(node).is_none() {
+        if cube::face_of(node).is_none() {
             return Ok(None);
         }
         let ignored = injected && !self.rt.accepts_injected();
@@ -355,11 +357,19 @@ impl Construct {
             host.forget_press();
             return Ok(Some(Pressed::Nothing));
         }
-        if let cube::Dragged::Turn(by) = host.drag(at, third)
-            && self.turn_cube(by, None, true)?
-            && let Some(host) = &mut self.cube
-        {
-            host.drag_turned(at[0]);
+        match host.drag(at, third) {
+            cube::Dragged::Turn(by) => {
+                if self.turn_cube(by, None, true)?
+                    && let Some(host) = &mut self.cube
+                {
+                    host.drag_turned(at[0]);
+                }
+            }
+            cube::Dragged::Pull(window) => {
+                host.forget_press();
+                self.pull_plane(&window, at)?;
+            }
+            cube::Dragged::Nothing => {}
         }
         Ok(Some(Pressed::Nothing))
     }
@@ -367,7 +377,7 @@ impl Construct {
     /// The release of a press on a face: a click steps into the face,
     /// when the cube rests in navigate mode. Not an injected release.
     fn release_act(&mut self, view: View, node: &str, injected: bool) -> Option<Pressed> {
-        cube::face_index(node)?;
+        cube::face_of(node)?;
         let ignored = injected && !self.rt.accepts_injected();
         let face = self.cube.as_mut()?.release().filter(|_| !ignored);
         let rests = view.mode() == Mode::Navigate && !view.turning();
@@ -380,7 +390,7 @@ impl Construct {
     /// The pointer came over a face or left it: the edge of the face
     /// under the pointer is lit in navigate mode.
     fn hover_act(&mut self, node: &str, over: bool) -> Result<bool, ClientError> {
-        let Some(face) = cube::face_index(node) else {
+        let Some(face) = cube::face_of(node) else {
             return Ok(false);
         };
         let Some(host) = &mut self.cube else {
@@ -405,6 +415,9 @@ impl Construct {
             return Ok(false);
         };
         if let Some(done) = self.manager_event(event) {
+            return done.map(|()| true);
+        }
+        if let Some(done) = self.plane_drag(event) {
             return done.map(|()| true);
         }
         let pressed = match event {

@@ -116,6 +116,12 @@ The four acts that complete the flows above. Each has a second path
 
 ## What the construct does today
 
+In navigate mode a drag on the floating plane of a window pulls the
+window out of the cube: its window manager gives it to the construct,
+which goes on with the drag; a drop over a face of the resting cube
+gives it back to that face, at the drop point. A press on a plane that
+moves less than 8 px is a click on its face.
+
 A window that a title drag pulls out of a face becomes a pane under
 the pointer, a little in front of the face, so that the face never
 covers it; a pane behind the resting front face in use mode is in the

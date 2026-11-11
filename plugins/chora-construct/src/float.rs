@@ -17,7 +17,7 @@
 use std::time::{Duration, Instant};
 
 use chora_kit::float::{self, Float, Floated, Floating};
-use chora_scene::{InputMode, NodeTexture};
+use chora_scene::NodeTexture;
 use serde_json::json;
 
 use super::{
@@ -37,8 +37,14 @@ pub(crate) fn plane_id(face: usize, surface: &str) -> String {
     format!("{}float-{face}-{surface}", cube::CUBE_PREFIX)
 }
 
+/// The window of the plane of a window on face `face`.
+pub(crate) fn plane_window(face: usize, node: &str) -> Option<&str> {
+    let prefix = format!("{}float-{face}-", cube::CUBE_PREFIX);
+    node.strip_prefix(&prefix)
+}
+
 /// The face of the plane of a window.
-fn plane_face(node: &str) -> Option<usize> {
+pub(crate) fn plane_face(node: &str) -> Option<usize> {
     let rest = node
         .strip_prefix(cube::CUBE_PREFIX)?
         .strip_prefix("float-")?;
@@ -261,7 +267,6 @@ impl Construct {
                     shader: Some(self.source_shader.clone()),
                     uniforms: Some(BTreeMap::from([("win".into(), win)])),
                     visible: Some(false),
-                    input: Some(InputMode::Pass),
                     ..PropsUpdate::default()
                 },
             )
@@ -326,6 +331,7 @@ mod tests {
     #[test]
     fn a_plane_names_its_face() {
         assert_eq!(plane_face(&plane_id(2, "s7")), Some(2));
+        assert_eq!(plane_window(2, &plane_id(2, "s7")), Some("s7"));
         assert_eq!(plane_face("construct-cube-face-1"), None);
     }
 }

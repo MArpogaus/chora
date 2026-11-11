@@ -16,7 +16,7 @@ use chora_scene::{
 };
 use serde_json::{Value, json};
 
-use super::{ClientError, Construct, Event, Moving, NAME, PressState, give, space};
+use super::{ClientError, Construct, Event, Moving, NAME, PressState, cube, float, give, space};
 
 /// How long the window manager of a face may take to place a window.
 const PLACE_WAIT: Duration = Duration::from_secs(2);
@@ -38,10 +38,11 @@ pub(crate) fn face_under(
     nodes: &[Value],
     screen: &str,
     at: [f64; 2],
+    rests: bool,
 ) -> Option<(String, [f64; 2])> {
     let number = |value: &Value, i: usize| value.get(i).and_then(Value::as_f64);
     nodes.iter().find_map(|node| {
-        let live = node["visible"] == true && node["forward"] == true;
+        let live = node["visible"] == true && (node["forward"] == true || rests);
         let face = node["id"].as_str()?.starts_with(FACE) && live;
         let area = node["rects"].get(screen).filter(|_| face)?;
         let [x, y, w, h] = [0, 1, 2, 3].map(|i| number(area, i));
@@ -138,7 +139,8 @@ impl Construct {
                 filter: None,
             };
             let nodes: Vec<Value> = self.rt.conn.call("scene.query", shaders)?;
-            face_under(&nodes, output, point)
+            let rests = self.cube.as_ref().is_some_and(cube::Host::rests);
+            face_under(&nodes, output, point, rests)
         };
         let Some((output, point)) = face else {
             return Ok(false);
@@ -172,6 +174,90 @@ impl Construct {
             );
         }
         Ok(true)
+    }
+
+    /// Pulls the window of a floating plane out of the stood-back cube
+    /// (K12): its window manager gives it to the construct, which goes
+    /// on with the drag of the person, held at the point of the window
+    /// under the pointer. A refused give leaves the window on its face.
+    pub(crate) fn pull_plane(&mut self, surface: &str, at: [f64; 2]) -> Result<(), ClientError> {
+        let Some(screen) = self.output.as_ref().map(|o| o.name.clone()) else {
+            return Ok(());
+        };
+        let face = (self.cube.as_ref()).and_then(|host| {
+            let faces = 0..host.outputs().len();
+            faces.into_iter().find_map(|i| {
+                host.floats_of(i)?
+                    .iter()
+                    .find(|w| w.surface == surface)
+                    .map(|w| (i, w.rect))
+            })
+        });
+        let Some((face, rect)) = face else {
+            return Ok(());
+        };
+        let plane: Vec<Value> = (self.rt.conn).call(
+            "scene.query",
+            Query::new(format!("id:{}", float::plane_id(face, surface))),
+        )?;
+        let shown = plane.first().and_then(|node| {
+            let r = node["rects"].get(&screen)?;
+            Some([0, 1, 2, 3].map(|i| r.get(i).and_then(Value::as_f64).unwrap_or(0.0)))
+        });
+        let point = shown.filter(|r| r[2] > 0.0 && r[3] > 0.0).map_or(
+            [rect[2] / 2.0, rect[3] / 2.0],
+            |r| {
+                [
+                    (at[0] - r[0]) / r[2] * rect[2],
+                    (at[1] - r[1]) / r[3] * rect[3],
+                ]
+            },
+        );
+        let call = MethodCall {
+            client: cube::MANAGER.into(),
+            method: give::METHOD.into(),
+            params: json!({"surface": surface, "to": NAME}),
+        };
+        let given: Result<Value, _> = (self.rt.conn).call_within("methods.call", call, PLACE_WAIT);
+        if let Err(err) = given {
+            eprintln!("chora-construct: {surface} stays on its face: {err}");
+            return Ok(());
+        }
+        let grab = GivenGrab {
+            point,
+            velocity: [0.0; 2],
+            wobble: None,
+        };
+        self.take_pulled(surface, at, &grab)
+    }
+
+    /// The moves and the release of the drag of a window pulled from a
+    /// floating plane: the press stays on the plane, so they name it, or
+    /// a face. The release drops the pane over a face, which gives the
+    /// window back, or in the space. None for any other event.
+    pub(crate) fn plane_drag(&mut self, event: &Event) -> Option<Result<(), ClientError>> {
+        self.moving.as_ref()?;
+        match event {
+            Event::PointerMoved { node, position, .. } if cube::face_of(node).is_some() => {
+                Some(self.moved(*position))
+            }
+            Event::PointerReleased { node, position, .. } if cube::face_of(node).is_some() => {
+                Some(self.drop_pulled(*position))
+            }
+            _ => None,
+        }
+    }
+
+    fn drop_pulled(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
+        let screen = self
+            .output
+            .as_ref()
+            .map(|o| o.name.clone())
+            .unwrap_or_default();
+        if self.drop_on_a_face(&screen, at)? {
+            return Ok(());
+        }
+        self.release(at, None)
     }
 
     /// The depth of a pulled pane: a little in front of the front face of
@@ -267,7 +353,8 @@ mod tests {
     /// Under a dragged pane the core names the screen: the face is the
     /// one whose box on the screen holds the point, and the point maps
     /// into its output. A hidden or turning face, another node and a
-    /// point beside the face are no face.
+    /// point beside the face are no face; a face of a cube that rests
+    /// stood back is one.
     #[test]
     fn a_drop_on_the_box_of_a_face_names_its_output_and_the_point_in_it() {
         let face = |id: &str, visible: bool, forward: bool| {
@@ -276,16 +363,31 @@ mod tests {
                 "rects": {"DP-1": [320.0, 200.0, 640.0, 400.0]}})
         };
         let front = [face("construct-cube-face-1", true, true)];
-        let hit = face_under(&front, "DP-1", [640.0, 400.0]);
+        let hit = face_under(&front, "DP-1", [640.0, 400.0], false);
         assert_eq!(hit, Some(("VIRTUAL-2".into(), [640.0, 400.0])));
-        assert_eq!(face_under(&front, "DP-1", [100.0, 400.0]), None, "beside");
-        assert_eq!(face_under(&front, "DP-2", [640.0, 400.0]), None, "a screen");
+        assert_eq!(
+            face_under(&front, "DP-1", [100.0, 400.0], false),
+            None,
+            "beside"
+        );
+        assert_eq!(
+            face_under(&front, "DP-2", [640.0, 400.0], false),
+            None,
+            "a screen"
+        );
         for hidden in [(false, true), (true, false)] {
             let face = [face("construct-cube-face-1", hidden.0, hidden.1)];
-            assert_eq!(face_under(&face, "DP-1", [640.0, 400.0]), None);
+            assert_eq!(face_under(&face, "DP-1", [640.0, 400.0], false), None);
         }
+        let stood = [face("construct-cube-face-1", true, false)];
+        let hit = face_under(&stood, "DP-1", [640.0, 400.0], true);
+        assert_eq!(
+            hit,
+            Some(("VIRTUAL-2".into(), [640.0, 400.0])),
+            "stood back"
+        );
         let pane = [face("construct-pane-s1-source", true, true)];
-        assert_eq!(face_under(&pane, "DP-1", [640.0, 400.0]), None);
+        assert_eq!(face_under(&pane, "DP-1", [640.0, 400.0], false), None);
     }
 
     fn output(name: &str, owner: Option<&str>) -> OutputInfo {
