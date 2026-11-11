@@ -41,6 +41,14 @@ const FACE: &str = "construct-cube-face-";
 const EDGE: &str = "construct-cube-edge";
 const EDGE_WIDTH: f64 = 2.0;
 const EDGE_LIFT: f64 = 1.0;
+/// The glow around the lit edge: its node, its strength, and how long the
+/// edge and the glow take to go out.
+#[allow(dead_code, reason = "a stub until the next commit")]
+const EDGE_GLOW: &str = "construct-cube-edge-glow";
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) const LIT_GLOW: f64 = 0.35;
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) const EDGE_OUT: f64 = 120.0;
 /// How far the pointer moves at most between the press and the release
 /// of a click on a face.
 const CLICK: f64 = 8.0;
@@ -334,6 +342,21 @@ const IDENTITY: Matrix = [
     1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
 ];
 
+/// What the lit edge does in a frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub(crate) enum Edge {
+    /// Nothing: the edge is out and stays out.
+    Off,
+    /// The edge and its glow light face `face`; one pixel of the screen is
+    /// `scale` units of the face.
+    Lit { face: usize, scale: f64 },
+    /// The pointer left: the edge goes out over `EDGE_OUT`.
+    Fade,
+    /// A turn or a step began: the edge goes out at once.
+    Hide,
+}
+
 /// The product of two column-major matrices: `b` first, then `a`.
 fn mul4(a: &Matrix, b: &Matrix) -> Matrix {
     let mut m = [0.0; 16];
@@ -504,6 +527,18 @@ impl Host {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    /// What the lit edge does now: it lights the face under the pointer
+    /// while the cube rests in navigate mode, fades out when the pointer
+    /// leaves, and is out at once when the cube turns or steps.
+    #[allow(
+        dead_code,
+        clippy::unused_self,
+        reason = "a stub until the next commit"
+    )]
+    pub(crate) fn edge_plan(&mut self) -> Edge {
+        Edge::Off
     }
 
     /// The update of the lit edge: over the face under the pointer while
@@ -1785,5 +1820,70 @@ mod tests {
             Some(true),
             "a face that looks away"
         );
+    }
+
+    fn navigating_host() -> Host {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        host.view.act(Act::StepBack);
+        host.faces([0.0, 0.0], 560.0);
+        host
+    }
+
+    #[test]
+    fn a_face_under_the_pointer_lights_its_edge_at_2_px_with_a_16_px_glow_on_the_screen() {
+        assert!((LIT_GLOW - 0.35).abs() < 1e-12, "the glow is 0.35");
+        assert!((EDGE_OUT - 120.0).abs() < 1e-12, "it goes out in 120 ms");
+        assert!((EDGE_WIDTH - 2.0).abs() < 1e-12, "the edge is 2 px");
+        let mut host = navigating_host();
+        host.set_hover(Some(0));
+        let Edge::Lit { face, scale } = host.edge_plan() else {
+            panic!("the pointer on face 0 lights its edge");
+        };
+        assert_eq!(face, 0);
+        let lens = lens_of(&host);
+        let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(0));
+        let [x0, y0] = super::super::space::project(&m, 640.0, 400.0);
+        let [x1, y1] = super::super::space::project(&m, 641.0, 400.0);
+        let px_of_unit = (x1 - x0).hypot(y1 - y0);
+        assert!(
+            (scale * px_of_unit - 1.0).abs() < 0.06,
+            "a unit of the face is {px_of_unit} px, and the plan counts {scale} units a px"
+        );
+    }
+
+    #[test]
+    fn the_lit_edge_goes_out_in_120_ms_when_the_pointer_leaves() {
+        let mut host = navigating_host();
+        assert_eq!(host.edge_plan(), Edge::Off, "no pointer on a face");
+        host.set_hover(Some(0));
+        assert!(matches!(host.edge_plan(), Edge::Lit { .. }));
+        host.set_hover(None);
+        assert_eq!(host.edge_plan(), Edge::Fade, "the pointer left");
+        assert_eq!(host.edge_plan(), Edge::Off, "and it is out");
+    }
+
+    #[test]
+    fn the_lit_edge_is_out_at_once_in_a_turn_and_does_not_come_back() {
+        let mut host = navigating_host();
+        host.set_hover(Some(0));
+        assert!(matches!(host.edge_plan(), Edge::Lit { .. }));
+        host.turn = Some(Turn::new(0.0, -QUARTER, Instant::now(), TURN));
+        assert_eq!(host.edge_plan(), Edge::Hide, "a turn puts it out at once");
+        assert_eq!(host.edge_plan(), Edge::Off, "and it does not come back");
+        host.turn = None;
+        host.live = Some(Live {
+            base: 0.0,
+            width: 1280.0,
+            samples: Vec::new(),
+        });
+        assert_eq!(host.edge_plan(), Edge::Off, "not while the hand turns it");
+    }
+
+    #[test]
+    fn the_edge_does_not_light_in_use_mode() {
+        let mut in_use = host_of(4);
+        in_use.set_hover(Some(0));
+        assert_eq!(in_use.edge_plan(), Edge::Off);
     }
 }

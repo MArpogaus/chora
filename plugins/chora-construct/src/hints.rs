@@ -137,6 +137,15 @@ pub fn dot_updates(m: &Material, weights: &[f64]) -> Vec<Command> {
 /// How dim the hint `Step in` is while the cube turns.
 pub const DIM: f64 = 0.45;
 
+/// The hint that has the hover fill: the one under the pointer, else,
+/// while the pointer lights the edge of a face, the hint `step_in` that
+/// steps into that face.
+#[must_use]
+#[allow(dead_code, reason = "a stub until the next commit")]
+pub fn hovered(pointer: Option<&str>, _face_lit: bool, _step_in: &str) -> Option<String> {
+    pointer.map(str::to_owned)
+}
+
 /// The updates that dim a hint to `DIM` while the cube turns: its keycaps
 /// and its word.
 #[must_use]
@@ -632,6 +641,18 @@ mod tests {
         assert_eq!(
             opacity("construct-hints-construct-mode-step-in-keys-0-text"),
             Some(DIM)
+        );
+    }
+
+    #[test]
+    fn a_face_under_the_pointer_gives_its_hint_the_hover_fill() {
+        let step_in = "construct-mode-step-in";
+        assert_eq!(hovered(None, true, step_in).as_deref(), Some(step_in));
+        assert_eq!(hovered(None, false, step_in), None);
+        assert_eq!(
+            hovered(Some("construct-mode-turn-left"), true, step_in).as_deref(),
+            Some("construct-mode-turn-left"),
+            "a hint under the pointer keeps its own fill"
         );
     }
 }
