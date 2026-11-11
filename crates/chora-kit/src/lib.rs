@@ -14,6 +14,7 @@ pub mod clock;
 pub mod conn;
 pub mod desktop_entry;
 pub mod effects;
+pub mod float;
 pub mod geometry;
 pub mod give;
 pub mod hud;

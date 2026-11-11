@@ -60,6 +60,20 @@ impl Cube {
         times(&yaw(turn), &local)
     }
 
+    /// The transform of a plane that lies over face `i` at `turn`, with
+    /// its corner at `at` of the face, lifted by `lift` off the face
+    /// toward its front.
+    #[must_use]
+    pub fn lifted(&self, i: usize, turn: f64, at: [f64; 2], lift: f64) -> Matrix {
+        let offset = columns(
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [at[0], at[1], -lift],
+        );
+        times(&self.face(i, turn), &offset)
+    }
+
     /// Whether face `i` at `turn` shows its front to an eye at `eye`.
     #[must_use]
     pub fn faces_eye(&self, i: usize, turn: f64, eye: [f64; 3]) -> bool {
@@ -198,6 +212,22 @@ impl Turn {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_lifted_plane_leaves_its_face_toward_the_front() {
+        let cube = Cube {
+            size: [400.0, 300.0],
+            caps: false,
+        };
+        assert_eq!(cube.lifted(0, 0.0, [0.0, 0.0], 0.0), cube.face(0, 0.0));
+        let plane = cube.lifted(0, 0.0, [10.0, 20.0], 50.0);
+        let origin = [plane[12], plane[13], plane[14]];
+        assert_eq!(origin, [-190.0, -130.0, -250.0], "nearer to the eye");
+        let side = cube.lifted(1, 0.0, [0.0, 0.0], 50.0);
+        let flat = cube.face(1, 0.0);
+        let moved = [side[12] - flat[12], side[14] - flat[14]];
+        assert!((moved[0].abs() - 50.0).abs() < 1e-9 && moved[1].abs() < 1e-9);
+    }
 
     const CUBE: Cube = Cube {
         size: [1280.0, 800.0],

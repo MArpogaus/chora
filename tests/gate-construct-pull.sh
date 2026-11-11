@@ -14,8 +14,10 @@
 #    still its pane, with a name. Then the pane rests when the pointer
 #    moves, and the camera is in no window. The window exists at every
 #    step.
+#    The task button of the window leaves the taskbar of its face.
 # 2. A pane dropped over a face goes back to xp on the output of that
 #    face, at the drop point: a move from face to face stays in xp.
+#    Its task button is on the taskbar of that face only.
 # 3. Without the flag the core refuses the give of an injected drag:
 #    past the edge the window is still with xp, and no pane shows it;
 #    back in the face it goes on with the drag, and stays after the
@@ -111,7 +113,9 @@ ok "inside its face the window moves with the drag and stays with xp"
 until_ok 'test "$(owner)" = construct' 40 || fail "the window did not go to the construct past the edge: $(probe)"
 until_ok 'test "$(pane_of "$surface")" != none && test "$(pane_of "$surface")" != lost' 20 ||
     fail "the window is no pane of the construct: $(pane_of "$surface")"
-ok "past the edge of its face the window is a pane of the construct"
+task_on() { ctl query "id:xp-task-$surface-$1" | python3 -I -c 'import json, sys; print(len(json.load(sys.stdin)))'; }
+until_ok 'test "$(task_on VIRTUAL-1)" = 0' 20 || fail "the task button of a pulled-out window stays on the taskbar of its face"
+ok "past the edge of its face the window is a pane of the construct, and its task button went"
 inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}}]"
 inject '[{"pointer_move": {"position": [900, 420]}}]'
 until_ok 'test "$(deepest "$surface")" != 0' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
@@ -147,6 +151,8 @@ near_the_drop() {
 }
 until_ok near_the_drop 20 || fail "the window is not at the drop point (700, 400): $(probe)"
 [ "$(pane_of "$surface")" = none ] || fail "the pane stays after its window went back: $(pane_of "$surface")"
+until_ok 'test "$(task_on VIRTUAL-1)" = 1 && test "$(task_on VIRTUAL-2)" = 0' 20 ||
+    fail "the task button of the window that came back is not on the taskbar of its face only: $(task_on VIRTUAL-1) $(task_on VIRTUAL-2)"
 ok "a pane dropped over a face is a window of xp on that face again, at the drop point: $(probe)"
 end_session
 

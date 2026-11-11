@@ -5,6 +5,7 @@
 
 mod desktops;
 mod effects;
+mod float;
 mod items;
 mod resize;
 mod restart;
@@ -85,7 +86,8 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 20] = [
+    "client.disconnected",
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -246,6 +248,8 @@ pub struct Wm {
     pointer_output: Option<String>,
     /// Whether the bindings of the cube are grabbed.
     cube_keys: bool,
+    /// The windows that float off their virtual output.
+    floats: float::Floats,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
@@ -349,6 +353,7 @@ impl Wm {
         let mut methods = METHODS.map(ExportMethod::from).to_vec();
         methods.push(give::method());
         methods.push(move_method());
+        methods.push(chora_kit::float::method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
@@ -376,6 +381,7 @@ impl Wm {
             hover: None,
             pointer_output: None,
             cube_keys: false,
+            floats: float::Floats::default(),
             dialog: None,
             fade: None,
             fade_shader: None,
@@ -540,8 +546,11 @@ impl Wm {
 
     /// Applies a transaction, with the logical sizes of the pictures.
     fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
+        let floated = self.sync_floats(&mut commands);
         self.theme.size_images(&mut commands);
-        self.rt.conn.apply(commands)
+        self.rt.conn.apply(commands)?;
+        self.tell_floats(floated);
+        Ok(())
     }
 
     /// Applies a transaction, as [`Self::apply`], and returns the error of
@@ -637,6 +646,10 @@ impl Wm {
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
+            Event::ClientDisconnected { name } => {
+                self.floats.owner_gone(&name);
+                Vec::new()
+            }
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -684,6 +697,7 @@ impl Wm {
                 self.activate(&surface)
             }
             Call::Restart => {
+                self.floats.land_all();
                 self.apply(self.keep_for_restart())
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 self.done = true;
@@ -696,6 +710,7 @@ impl Wm {
                 output,
                 at,
             } => self.move_to_output(&surface, &output, at)?,
+            Call::Float(float) => return self.float(float),
             Call::Give(give::Give { surface, to, grab }) => {
                 known(self.index(&surface).is_some(), &surface)?;
                 let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
@@ -790,6 +805,9 @@ impl Wm {
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk, false);
         if let Some(look) = self.kept.get(surface).map(|k| k.look.clone()) {
+            if let Some(opacity) = look.opacity {
+                self.floats.seed(surface, opacity);
+            }
             commands.push(Command::Update {
                 id: decoration::group_id(surface),
                 props: look,
@@ -984,6 +1002,7 @@ impl Wm {
             return Vec::new();
         };
         let mut commands = self.drop_from_switcher(surface);
+        self.floats.forget(surface);
         self.windows.remove(i);
         self.opened.retain(|s| s != surface);
         if self.drag.as_ref().is_some_and(|d| d.surface == surface) {
@@ -1061,7 +1080,7 @@ impl Wm {
     /// looks the same, and meta on the asked node without the key of
     /// chora-xp. The plugin sends no opacity or effects to the groups
     /// otherwise, so the look stays; a restart keeps it too.
-    fn requested_look(&self, node: &str, args: &Value) -> Vec<Command> {
+    fn requested_look(&mut self, node: &str, args: &Value) -> Vec<Command> {
         let surface = decoration::surface_of(node).unwrap_or(node);
         let Ok(asked) = serde_json::from_value::<PropsUpdate>(args.clone()) else {
             return Vec::new();
@@ -1070,11 +1089,12 @@ impl Wm {
             return Vec::new();
         }
         let mut commands = Vec::new();
-        if asked.opacity.is_some() || asked.effects.is_some() {
+        let opacity = asked.opacity.filter(|o| self.floats.ask(surface, *o));
+        if opacity.is_some() || asked.effects.is_some() {
             commands.push(Command::Update {
                 id: decoration::group_id(surface),
                 props: PropsUpdate {
-                    opacity: asked.opacity,
+                    opacity,
                     effects: asked.effects,
                     ..PropsUpdate::default()
                 },
@@ -1172,30 +1192,46 @@ impl Wm {
             .or(self.bars.first())
     }
 
-    /// The task buttons of every taskbar.
+    /// The task buttons of every taskbar. The taskbar of a virtual output
+    /// lists the windows of that output, as each face of a cube is a
+    /// desktop of its own; the taskbar of a screen lists all windows, or
+    /// with the setting `tasks_per_output` those of its screen.
     fn sync_tasks(&mut self) -> Vec<Command> {
         let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
             Some(taskbar::Part::Task(surface)) => Some(surface),
             _ => None,
         };
-        let tasks: Vec<Task<'_>> = self
+        let tasks: Vec<(Task<'_>, usize)> = self
             .opened
             .iter()
             .filter_map(|surface| {
                 let w = &self.windows[self.windows.iter().position(|w| &w.surface == surface)?];
-                (w.shown && w.desktop == self.desktop).then(|| Task {
+                let task = Task {
                     surface,
                     title: &w.title,
                     icon: w.icon.clone(),
                     active: self.focused.as_deref() == Some(surface),
                     minimized: w.minimized,
                     hovered: hovered.as_deref() == Some(surface.as_str()),
-                })
+                };
+                let [x, y, width, height] = w.rect();
+                let centre = [x + width / 2, y + height / 2];
+                let bar = self.bars.iter().position(|b| b.contains(centre));
+                (w.shown && w.desktop == self.desktop).then_some((task, bar.unwrap_or(0)))
             })
             .collect();
+        let per_output = self.settings.value.tasks_per_output;
+        let lists: Vec<Vec<Task<'_>>> = (self.bars.iter().enumerate())
+            .map(|(i, bar)| {
+                let own = per_output || bar.is_virtual();
+                let listed = tasks.iter().filter(|(_, at)| !own || *at == i);
+                listed.map(|(task, _)| task.clone()).collect()
+            })
+            .collect();
+        drop(tasks);
         let mut commands = Vec::new();
-        for bar in &mut self.bars {
-            commands.extend(bar.tasks(&mut self.theme, &tasks));
+        for (bar, list) in self.bars.iter_mut().zip(&lists) {
+            commands.extend(bar.tasks(&mut self.theme, list));
         }
         commands
     }
@@ -2232,7 +2268,20 @@ impl Wm {
         commands
     }
 
+    /// The release of a button; after a drag of a window the task
+    /// buttons follow the window to the output where it lies now.
     fn released(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        let dragged = self.drag.is_some();
+        let mut commands = self.release(node, position);
+        if dragged {
+            commands.extend(self.sync_tasks());
+        }
+        commands
+    }
+
+    /// What [`Self::released`] does, before the task buttons follow a
+    /// window that a drag moved to another output.
+    fn release(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
         if let Some((menu, area)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
             let area = *area;
             let Some(act) = menu.release(position) else {
@@ -3210,6 +3259,7 @@ impl Wm {
                 if let Some(command) = session.restart {
                     session::run(command);
                 } else {
+                    self.floats.land_all();
                     commands.extend(self.keep_for_restart());
                     self.done = true;
                     self.restart = true;
@@ -3310,6 +3360,8 @@ enum Call {
         /// The desktop, from 0 to 3.
         desktop: usize,
     },
+    /// Lets the windows of a virtual output float, or land.
+    Float(chora_kit::float::Float),
     /// Moves a window to another output of the plugin, like a drag of
     /// its title bar onto it.
     Move {
@@ -3387,6 +3439,7 @@ fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
             }
         }
         give::METHOD => Call::Give(parse(params)?),
+        chora_kit::float::METHOD => Call::Float(parse(params)?),
         "turn_to" => {
             let TurnTo { desktop } = parse(params)?;
             if desktop >= DESKTOPS {
