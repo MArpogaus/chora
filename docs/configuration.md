@@ -973,13 +973,15 @@ voice agent shows it with the method `help.toggle`.
 
 ### Context hints
 
-At the bottom centre a glass capsule shows two to four hints, each the
-keycaps of a key and a word: walking, `W A S D Walk`, `Return Fly in`,
-`Tab Windows`, `F1 All keys` and, without a cube, `Super C Cube`, for 6
-seconds after the start and after a fly-out; in a
-pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in; stood back
-from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and `Turn right
-Ctrl Alt →`, whose hints are the chips of the cube. A click on a hint
+At the bottom centre a glass capsule shows the hints that apply, at
+most five, each the keycaps of a key and a word: walking, for 6 seconds
+after the start and after a fly-out, `W A S D Walk`, `Return Fly in`
+while a pane is ahead, `Tab Windows` from two windows, `Super T
+Terminal` and `F1 All keys`; in a
+pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in;
+stood back from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and
+`Turn right Ctrl Alt →`, whose hints are the chips of the cube. The
+keys of the hints are those of the settings. A click on a hint
 does its act: the capsule lets a click through, and the node of each
 hint takes it. The hints hide while the window list or the help shows, a
 question waits or a pane moves.

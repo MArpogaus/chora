@@ -1,7 +1,7 @@
 //! The context hints of the construct HUD (spec, sections 5 and 6): one
-//! glass capsule at the bottom centre with two to four hints, each the
-//! keycaps of its key and a word, apart by thin separators. They show only
-//! where they apply and fade: walking for 6 s after entering and while
+//! glass capsule at the bottom centre with the hints that apply, at most
+//! five, each the keycaps of its key and a word, apart by thin
+//! separators. They show only where they apply and fade: walking for 6 s after entering and while
 //! the pointer rests at the bottom, flown into a pane `Alt Esc Step back`
 //! for 3 s, and stood back from the cube while it stands. A hint takes a
 //! click and does its act (P3); the pointer over it shows the hover fill.
@@ -49,7 +49,9 @@ pub enum Set {
     reason = "independent states of the hints"
 )]
 pub struct State {
-    /// The set on the screen, if any.
+    /// The set on the screen, if any, the hint under the pointer, and
+    /// what the set shows: the front face of a cube, or the panes and
+    /// the pane ahead of the walk.
     pub shown: Option<(Set, Option<String>, usize)>,
     /// The set of the walk or a pane shows until then.
     pub until: Option<Instant>,
@@ -74,7 +76,6 @@ pub enum Walking {
     Windows,
     Terminal,
     Keys,
-    Cube,
 }
 
 /// The hints of the walk that apply: the keys to walk and to start a
@@ -82,15 +83,15 @@ pub enum Walking {
 /// from two windows, and the help; at most five.
 #[must_use]
 pub fn walking(panes: usize, ahead: bool) -> Vec<Walking> {
-    let _ = (panes, ahead);
-    vec![
-        Walking::Walk,
-        Walking::FlyIn,
-        Walking::Windows,
-        Walking::Terminal,
-        Walking::Keys,
-        Walking::Cube,
-    ]
+    let mut hints = vec![Walking::Walk];
+    if ahead {
+        hints.push(Walking::FlyIn);
+    }
+    if panes >= 2 {
+        hints.push(Walking::Windows);
+    }
+    hints.extend([Walking::Terminal, Walking::Keys]);
+    hints
 }
 
 /// The word of the hint `Terminal`.

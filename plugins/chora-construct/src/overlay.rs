@@ -566,7 +566,6 @@ impl Construct {
                             ..item(key(Action::Terminal), Word::Walk, "terminal")
                         },
                         Walking::Keys => item(key(Action::Help), Word::AllKeys, "keys"),
-                        Walking::Cube => item(key(Action::Cube), Word::Cube, "cube"),
                     })
                     .collect()
             }
@@ -605,8 +604,13 @@ impl Construct {
                 eprintln!("chora-construct: emit the view: {err}");
             }
         }
-        let front = self.cube.as_ref().map_or(0, |c| c.front_face().0);
-        let wanted = set.map(|s| (s, self.hint_hover.clone(), front));
+        let stamp = match set {
+            Some(crate::hints::Set::Walk) => {
+                self.panes.len().min(2) * 2 + usize::from(self.pane_ahead().is_some())
+            }
+            _ => self.cube.as_ref().map_or(0, |c| c.front_face().0),
+        };
+        let wanted = set.map(|s| (s, self.hint_hover.clone(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
             return Ok(());
         }
