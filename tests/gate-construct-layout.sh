@@ -39,7 +39,8 @@
 # stands, each sample finds the placeholder with the ring or the first
 # buffer of the window. The label of its pane reads Terminal, not the app
 # id, no label shows in use mode, and none is left 400 ms after the pane
-# closes.
+# closes. A give to a window manager that does not run says so in a notice
+# with the reason, and loses no window.
 #
 # The walk hints show only what applies, at most five, centred and 32 from
 # the bottom: with one pane `W A S D Walk`, `Fly in`, `Super T Terminal`
@@ -110,6 +111,7 @@ press_at() {
 }
 label_is() { [ "$(ctl query id:construct-label-body-text | jq -r '.[0].text // empty')" = "$1" ]; }
 label_gone() { ctl query id:construct-label-body | jq -e 'length == 0 or .[0].visible == false or (.[0].opacity // 1) < 0.05' >/dev/null 2>&1; }
+notice_is() { [ "$(ctl query id:construct-notice-text | jq -r '.[0].text // empty')" = "$1" ]; }
 has_node() { ctl query "id:$1" | jq -e 'length > 0' >/dev/null 2>&1; }
 has_buffer() { ctl query "id:$1" | jq -e '.[0].surface.size | (. != null) and .[0] > 0 and .[1] > 0' >/dev/null 2>&1; }
 frames_have_content() {
@@ -348,6 +350,12 @@ more_panes() {
     until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape after the hint did not step back"; failed=1; return; }
     ctl query 'kind:surface' | jq -e 'length == 4' >/dev/null ||
         { echo "FAIL: $tag: a window is lost: $(ctl query 'kind:surface' | jq -c '[.[].surface.app_id]')"; failed=1; }
+    key Super+Alt+2
+    until_ok 'notice_is "XP did not take the window: it is not running."' ||
+        { echo "FAIL: $tag: the notice of a refused give reads '$(ctl query id:construct-notice-text | jq -r '.[0].text')'"; failed=1; }
+    key Alt+Escape
+    ctl query 'kind:surface' | jq -e 'length == 4' >/dev/null ||
+        { echo "FAIL: $tag: a refused give lost a window: $(ctl query 'kind:surface' | jq -c '[.[].surface.app_id]')"; failed=1; }
 }
 
 round() {
