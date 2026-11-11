@@ -752,7 +752,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
-| `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME` |
+| `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; a manager pane of a construct file whose name is missing here goes with one message |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |

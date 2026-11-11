@@ -207,9 +207,14 @@ impl Construct {
 
     /// Shows the manager pane of a file; answers the pane back while a
     /// client of that name still runs, as the manager of the construct
-    /// before, which ends.
+    /// before, which ends. A pane whose manager the setting `managers`
+    /// lacks goes, with one message.
     pub(crate) fn show_manager(&mut self, file: PaneFile) -> Result<Option<PaneFile>, ClientError> {
         let manager = file.manager.clone().unwrap_or_default();
+        if let Some(reason) = super::wm::unknown_manager(&self.settings.value.managers, &manager) {
+            eprintln!("chora-construct: the pane of {manager} goes: {reason}");
+            return Ok(None);
+        }
         match self.open_manager(&manager, None, Some(&file)) {
             Ok(_) => Ok(None),
             Err(ClientError::Rpc(err)) if err.code == super::RpcError::REJECTED => {
