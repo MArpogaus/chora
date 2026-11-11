@@ -385,7 +385,8 @@ impl Agent {
         Ok(agent)
     }
 
-    /// Applies a transaction, with the logical sizes of the pictures.
+    /// Applies a transaction, with the logical sizes of the pictures of
+    /// the look and of the card.
     fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
         if commands.is_empty() {
             return Ok(());
@@ -420,8 +421,12 @@ impl Agent {
         if self.chat_pressed(node, injected)? {
             return Ok(Vec::new());
         }
-        if Assistant::owns(node) && self.values.chats {
-            self.chat_row()?;
+        if (Assistant::owns(node) || Assistant::speaks(node)) && self.values.chats {
+            if self.chat.is_open() {
+                self.chat_hide()?;
+            } else {
+                self.chat_row()?;
+            }
             return Ok(Vec::new());
         }
         if Assistant::owns(node) {

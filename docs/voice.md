@@ -1413,7 +1413,9 @@ and the field ignores both. Each line is one JSON object.
   from `voice.confirm`.
 - Field to host: `{"say": "text"}`, which the host sends with `voice
   agent {tool: agent_say}` (`say_call`), and `{"event": "shown" |
-  "keyboard" | "closed", "data": {...}}`. No event carries text.
+  "keyboard" | "closed" | "height", "data": {...}}`; `height {height}`
+  gives the height of the field in logical pixels when it changes, and
+  the view keeps that room for it. No event carries text.
 - The end of stdin ends the field, and so does the end of its parent
   process (`PR_SET_PDEATHSIG`). The host also holds `chat.open` and
   `chat.close` for the chat; the field never calls them.

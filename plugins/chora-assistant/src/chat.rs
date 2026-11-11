@@ -13,10 +13,11 @@
 
 use std::collections::BTreeMap;
 
+use chora_draw::bubble::Style;
 use chora_kit::{
     ask::{Keys, Question, show_key},
-    chat::{Chat as Transcript, Line, Measure, sanitize},
-    hud::{Anchor, Chat as Look},
+    chat::{Chat as Transcript, Line, Measure, Role, sanitize, wrap},
+    hud::{Anchor, Chat as Look, ChatStyle},
     words::{self, Language, Word, say},
 };
 use serde_json::{Value, json};
@@ -24,6 +25,7 @@ use serde_json::{Value, json};
 use crate::{
     assistant::origin,
     check::host_chat,
+    config::TAIL,
     field::{FieldEvent, say_params},
 };
 
@@ -32,7 +34,7 @@ mod host;
 mod view;
 
 pub use host::{Announced, ShowParams, exported, token_of};
-pub use view::card_origin;
+pub use view::{card_origin, card_width};
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;
@@ -68,6 +70,10 @@ pub struct Frame {
     /// The question card on the output, x, y, width and height: the
     /// transcript of a glass view flows under it.
     pub card: Option<[i32; 4]>,
+    /// The head of the figure, where the tail of a `bubble` chat points.
+    pub tip: Option<[i32; 2]>,
+    /// The height of the field at the bottom of the view.
+    pub field: i32,
 }
 
 impl Frame {
@@ -78,6 +84,9 @@ impl Frame {
     pub fn rect(&self) -> [i32; 4] {
         if let Some(slot) = self.slot.and_then(|slot| self.clipped(slot)) {
             return self.aside(slot);
+        }
+        if let Some(tip) = self.balloon_tip() {
+            return self.balloon(tip);
         }
         let (anchor, mut width) = self.look.place();
         if self.look.style == chora_kit::hud::ChatStyle::Glass {
@@ -96,6 +105,39 @@ impl Frame {
             return view;
         }
         self.aside(view)
+    }
+
+    /// The head of the figure when the chat is its balloon: a `bubble`
+    /// chat of a folder with a figure, and no slot.
+    fn balloon_tip(&self) -> Option<[i32; 2]> {
+        self.tip
+            .filter(|_| self.look.style == ChatStyle::Bubble && self.slot.is_none())
+    }
+
+    /// The balloon of the figure: above its head, as wide as the chat, at
+    /// most 60 % of the work area high, its tail ending at the head, inside
+    /// the work area.
+    fn balloon(&self, [tip_x, tip_y]: [i32; 2]) -> [i32; 4] {
+        let [ax, ay, aw, ah] = self.area;
+        let (_, width) = self.look.place();
+        let w = i32::try_from(width).unwrap_or(i32::MAX).min(aw);
+        let inset = Style::default().tail_inset;
+        let right = (tip_x + inset).min(ax + aw);
+        let left = (right - w).max(ax);
+        let bottom = (tip_y - TAIL).max(ay + 1);
+        let top = (bottom - ah * 6 / 10).max(ay);
+        [left, top, w, bottom - top]
+    }
+
+    /// Where the tail of a balloon chat leaves its bottom edge, from its
+    /// left edge; none for a chat that is no balloon.
+    #[must_use]
+    pub fn tail(&self) -> Option<i32> {
+        let [tip_x, _] = self.balloon_tip()?;
+        let [x, _, w, _] = self.rect();
+        let style = Style::default();
+        let lowest = BALLOON_RADIUS + style.tail_base;
+        Some((tip_x - x).clamp(lowest, (w - BALLOON_RADIUS).max(lowest)))
     }
 
     /// The part of a slot box inside the work area, no wider than a chat
@@ -145,6 +187,10 @@ const GLASS_LEAST: u32 = 400;
 
 /// The gap between the view and what it stands beside.
 const ASIDE: i32 = 8;
+/// The height of a field of one line, before it tells its own.
+pub const ONE_LINE_FIELD: i32 = 36;
+/// The corner radius of a `bubble` chat.
+pub const BALLOON_RADIUS: i32 = 10;
 
 /// A box that a client announced for its slot: the client, the output and
 /// the box.
@@ -315,6 +361,16 @@ pub struct Session {
     states: BTreeMap<String, Value>,
     epoch: Option<u64>,
     last: Option<String>,
+    /// What the agent said while the view is the open balloon of the
+    /// figure.
+    spoken: Option<String>,
+    /// The height of the card of the question in the view, whose room the
+    /// transcript leaves free.
+    card_height: Option<i32>,
+    /// The height of the field, as it last told it.
+    field_height: Option<i32>,
+    /// The top of the card of the question in the view, on the output.
+    card_top: Option<i32>,
 }
 
 /// The rectangle of the view in the work area: x, y, width, height. The
@@ -387,6 +443,8 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
         return glass_field_place(frame, token);
     }
     let [x, y, w, h] = frame.rect();
+    let inset = if frame.tail().is_some() { view::PAD } else { 0 };
+    let [x, w, h] = [x + inset, w - 2 * inset, h - inset];
     let colours = colours(&frame.look);
     let mut place = json!({
         "anchor": "bottom_left",
@@ -686,6 +744,7 @@ impl Session {
         self.close_chat(out);
         self.mode = Mode::Closed;
         self.keyboard = false;
+        self.spoken = None;
         if let Some(link) = self.link.as_mut() {
             link.hide();
         }
@@ -695,6 +754,7 @@ impl Session {
         self.close_chat(out);
         self.mode = Mode::Closed;
         self.keyboard = false;
+        self.spoken = None;
     }
 
     /// The same chat in the look of another folder or on another output:
@@ -724,6 +784,10 @@ impl Session {
             match event {
                 FieldEvent::Say(text) => changed |= self.said(out, &text, frame),
                 FieldEvent::Shown => {}
+                FieldEvent::Height(height) => {
+                    changed |= self.field_height != Some(height);
+                    self.field_height = Some(height);
+                }
                 FieldEvent::Keyboard(on) => self.keyboard = on,
                 FieldEvent::Closed => {
                     self.close_view(out);
@@ -852,6 +916,8 @@ impl Session {
     /// The question ended.
     pub fn question_ended(&mut self) {
         self.card = None;
+        self.card_height = None;
+        self.card_top = None;
         self.dirty = true;
     }
 
@@ -899,14 +965,30 @@ impl Session {
         match &self.mode {
             Mode::List(picks) => (1..)
                 .zip(picks)
-                .map(|(n, pick)| format!("{n}  {}", pick.label(language)))
+                .map(|(n, pick)| format!("{n}  {}", self.entry(pick, language)))
                 .collect(),
             _ => Vec::new(),
         }
     }
 
+    /// The words of an entry of the list: a helper by its name as voice
+    /// writes it, with its state word when voice named one.
+    fn entry(&self, pick: &Pick, language: Language) -> String {
+        let Pick::Agent(name) = pick else {
+            return pick.label(language);
+        };
+        let Some(data) = self.states.get(&name.to_lowercase()) else {
+            return name.clone();
+        };
+        let written = data["name"].as_str().map_or_else(|| name.clone(), sanitize);
+        match data["state"].as_str().filter(|state| !state.is_empty()) {
+            Some(state) => words::row(language, &written, state, ""),
+            None => written,
+        }
+    }
+
     /// The hint above the field: while a question waits, that typing does
-    /// not answer, with its keys.
+    /// not answer, with its keys unless the card in the view names them.
     #[must_use]
     pub fn hint(&self, language: Language) -> Option<String> {
         let waits = match self.mode {
@@ -915,18 +997,68 @@ impl Session {
             Mode::Closed => false,
         };
         waits.then(|| {
+            if self.card == Some(Where::Chat) {
+                return say(language, Word::TypingNoAnswer, &[]);
+            }
             let (yes, no) = (show_key(&self.keys.yes), show_key(&self.keys.no));
             say(language, Word::TypedYes, &[("yes", &yes), ("no", &no)])
         })
     }
 
-    /// The transcript as lines; none outside of a chat with a helper.
+    /// The transcript as lines, none outside of a chat with a helper, and
+    /// then what the agent said into the open balloon.
     pub fn lines(&mut self, language: Language, measure: &Measure) -> Vec<Line> {
-        if !matches!(self.mode, Mode::Chat(_)) {
-            return Vec::new();
-        }
-        let label = self.label();
-        self.transcript.lines(language, &label, measure)
+        let mut lines = if matches!(self.mode, Mode::Chat(_)) {
+            let label = self.label();
+            self.transcript.lines(language, &label, measure)
+        } else {
+            Vec::new()
+        };
+        let spoken = self
+            .spoken
+            .as_deref()
+            .map(|text| wrap(text, measure.max, measure.width));
+        lines.extend(spoken.into_iter().flatten().map(|text| Line {
+            role: Role::Notice,
+            label: None,
+            text,
+        }));
+        lines
+    }
+
+    /// The height of the field: as it told it, else one line.
+    #[must_use]
+    pub fn field_height(&self) -> i32 {
+        self.field_height.unwrap_or(ONE_LINE_FIELD)
+    }
+
+    /// The card of the question stands in the view, this high, its top at
+    /// `top` on the output.
+    pub fn card_shown(&mut self, top: i32, height: i32) {
+        self.card_height = Some(height);
+        self.card_top = Some(top);
+        self.dirty = true;
+    }
+
+    /// The top of the card in the view, on the output.
+    #[must_use]
+    pub fn card_top(&self) -> Option<i32> {
+        self.card_top.filter(|_| self.card == Some(Where::Chat))
+    }
+
+    /// The room that the card takes in the view, with its gap.
+    #[must_use]
+    pub fn card_room(&self) -> i32 {
+        self.card_height
+            .filter(|_| self.card == Some(Where::Chat))
+            .map_or(0, |height| height + view::GAP)
+    }
+
+    /// A sentence of the agent, which shows in the view while it is the
+    /// open balloon of the figure, until the view closes.
+    pub fn agent_said(&mut self, text: &str) {
+        self.spoken = Some(sanitize(text));
+        self.dirty = true;
     }
 
     /// Asks voice again after it did not answer: the chat opens again and
@@ -1093,6 +1225,8 @@ mod tests {
             dark: false,
             scale: 1,
             card: None,
+            tip: None,
+            field: ONE_LINE_FIELD,
         }
     }
 
@@ -1111,6 +1245,35 @@ mod tests {
         assert_eq!(glass.rect()[2], 480, "28 hundredths of 1920 is more");
         glass.area = [0, 0, 1600, 900];
         assert_eq!(glass.rect()[2], 448);
+    }
+
+    #[test]
+    fn a_bubble_chat_is_the_balloon_of_the_figure_with_its_tail_at_it() {
+        let look = Look {
+            style: chora_kit::hud::ChatStyle::Bubble,
+            anchor: Some(Anchor::BottomRight),
+            width: Some(340),
+            ..Look::default()
+        };
+        let mut balloon = frame(look);
+        balloon.area = [0, 0, 1280, 690];
+        balloon.tip = Some([1144, 542]);
+        balloon.clear = vec![[1104, 542, 80, 116]];
+        let [x, y, w, h] = balloon.rect();
+        assert_eq!(w, 340);
+        assert_eq!(y + h + TAIL, 542, "the tail ends at the head of the figure");
+        assert!(x >= 0 && x + w <= 1280 && y >= 0, "inside the work area");
+        let tail = balloon.tail().expect("a tail");
+        assert_eq!(x + tail, 1144, "the tip of the tail over the head");
+        let low = Frame {
+            tip: Some([1144, 100]),
+            ..balloon.clone()
+        };
+        assert!(
+            low.rect()[1] >= 0 && low.rect()[3] > 0,
+            "a figure high up still fits"
+        );
+        assert_eq!(frame(Look::default()).tail(), None, "a panel has no tail");
     }
 
     #[test]
@@ -1524,6 +1687,35 @@ mod tests {
     }
 
     #[test]
+    fn a_sentence_of_the_agent_shows_in_the_open_balloon() {
+        let (mut session, mut out, _) = setup();
+        let frame = frame(Look::default());
+        session.clicked_row(&mut out, &frame).unwrap();
+        session.agent_said("Atlas is writing your notes.");
+        let lines = session.lines(Language::En, &measure());
+        assert_eq!(
+            lines.last().map(|l| l.text.as_str()),
+            Some("Atlas is writing your notes.")
+        );
+        assert_eq!(lines.last().map(|l| l.role), Some(Role::Notice));
+        session
+            .show(&mut out, Some("atlas"), Some("act"), &frame)
+            .unwrap();
+        let lines = session.lines(Language::En, &measure());
+        assert_eq!(
+            lines.last().map(|l| l.text.as_str()),
+            Some("Atlas is writing your notes.")
+        );
+        session.hide(&mut out);
+        session.clicked_row(&mut out, &frame).unwrap();
+        assert_eq!(
+            session.lines(Language::En, &measure()),
+            Vec::new(),
+            "a new open starts empty"
+        );
+    }
+
+    #[test]
     fn the_list_shows_no_line_of_the_last_chat() {
         let (mut session, mut out, log) = setup();
         let frame = frame(Look::default());
@@ -1543,10 +1735,13 @@ mod tests {
     fn the_list_names_helpers_by_name_and_offers_a_new_one_for_a_project() {
         let (mut session, mut out, _) = setup();
         let frame = frame(Look::default());
+        let state = json!({"name": "Atlas", "state": "working", "task": "Write file"});
+        session.voice_event(&mut out, "voice.state", &state);
         session.clicked_row(&mut out, &frame).unwrap();
         assert_eq!(
             session.entries(Language::En),
-            ["1  atlas", "2  New helper for notes"]
+            ["1  Atlas · working", "2  New helper for notes"],
+            "the name as voice writes it, with its state"
         );
         assert_eq!(
             session.entries(Language::De)[1],
@@ -1629,7 +1824,30 @@ mod tests {
         assert_eq!(session.hint(Language::En), None);
         let state = json!({"name": "atlas", "state": "question"});
         session.voice_event(&mut out, "voice.state", &state);
-        assert!(session.hint(Language::En).is_some());
+        assert_eq!(
+            session.hint(Language::En).as_deref(),
+            Some("Typing does not answer."),
+            "the card in the view names the keys"
+        );
+        session.question_ended();
+        session.voice_event(&mut out, "voice.state", &state);
+        assert!(
+            session
+                .hint(Language::En)
+                .is_some_and(|h| h.contains("Alt+Y"))
+        );
+    }
+
+    #[test]
+    fn the_transcript_leaves_room_for_the_card_in_the_view() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        assert_eq!(session.question_asked(), Where::Chat);
+        session.card_shown(300, 150);
+        assert_eq!(session.card_room(), 150 + view::GAP);
+        session.question_ended();
+        assert_eq!(session.card_room(), 0);
     }
 
     #[test]

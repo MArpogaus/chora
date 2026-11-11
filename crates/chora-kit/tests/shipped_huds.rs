@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use chora_kit::hud::{self, Anchor, ChatStyle, Hud, Source, When};
+use chora_kit::hud::{self, Anchor, ChatStyle, Hud, Source};
 
 fn repo(below: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -56,26 +56,24 @@ fn the_colours_of_every_shipped_folder_read_well() {
 }
 
 #[test]
-fn the_xp_tray_shows_rows_only_while_a_helper_works_and_no_chat_is_open() {
+fn the_xp_folder_is_one_balloon_of_the_paperclip() {
     let xp = shipped("flavors/xp/assets/assistant");
-    let tray = xp
-        .panels
-        .iter()
-        .find(|panel| panel.source == Source::Agents && panel.rows.is_some())
-        .expect("a panel of helper rows");
-    let shows = |agents: &str, chat: &str| {
-        let context = hud::Context {
-            wm: "xp".into(),
-            agents: agents.into(),
-            chat: chat.into(),
-            ..hud::Context::default()
-        };
-        When::matches(&tray.when, &context)
-    };
-    assert!(shows("working", "none"));
-    assert!(!shows("none", "none"));
-    assert!(!shows("working", "open"));
-    assert_eq!(tray.action, Some(hud::Action::Chat));
+    let by = |source: Source| xp.panels.iter().find(|panel| panel.source == source);
+    assert!(by(Source::Agents).is_none(), "no rows beside the paperclip");
+    let clip = by(Source::Voice).expect("the paperclip");
+    let line = by(Source::Say).expect("the sentence");
+    assert_eq!(clip.action, Some(hud::Action::Chat));
+    assert_eq!(line.action, Some(hud::Action::Chat));
+    assert_eq!(
+        xp.chat.style,
+        hud::ChatStyle::Bubble,
+        "the chat is the balloon"
+    );
+    assert_eq!(
+        (line.fill, line.border),
+        (None, None),
+        "the sentence wears the look of the chat"
+    );
 }
 
 /// The ring of the construct folder has its state word beside it

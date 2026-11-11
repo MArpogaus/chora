@@ -40,7 +40,6 @@ pub const PAD: i32 = 14;
 pub const LINE: i32 = 20;
 pub const GAP: i32 = 6;
 const BUTTON: [i32; 2] = [88, 28];
-pub const FIELD_ROOM: i32 = 100;
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
@@ -70,12 +69,30 @@ pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
         return [x + w - size[0], y + GLASS_CARD_TOP];
     }
     let [ax, ay, aw, ah] = frame.area;
-    let left = x + w - size[0];
-    let top = y + h - FIELD_ROOM - LINE - 2 * GAP - size[1];
+    let left = x + w - card_inset(frame) - size[0];
+    let top = y + h - field_room(frame) - LINE - 2 * GAP - size[1];
     [
         left.clamp(ax, (ax + aw - size[0]).max(ax)),
         top.clamp(ay, (ay + ah - size[1]).max(ay)),
     ]
+}
+
+/// The gap between a card and the edges of a view that is a balloon,
+/// whose outline the card leaves whole.
+fn card_inset(frame: &Frame) -> i32 {
+    if frame.tail().is_some() { PAD } else { 0 }
+}
+
+/// The room at the bottom of the view that the field takes, with its
+/// inset in a balloon and a gap above it.
+fn field_room(frame: &Frame) -> i32 {
+    frame.field + card_inset(frame) + GAP
+}
+
+/// The widest card inside the view.
+#[must_use]
+pub fn card_width(frame: &Frame) -> i32 {
+    frame.rect()[2] - 2 * card_inset(frame)
 }
 
 fn look_id(look: &Look) -> u64 {
@@ -88,7 +105,7 @@ fn look_id(look: &Look) -> u64 {
 pub fn style_of(look: &Look, colours: Colours) -> Style {
     let radius = match look.style {
         ChatStyle::Plain => 0,
-        ChatStyle::Bubble => 10,
+        ChatStyle::Bubble => super::BALLOON_RADIUS,
         ChatStyle::Glass => 14,
     };
     Style {
@@ -201,6 +218,7 @@ struct Parts {
     buttons: &'static [(&'static str, Word)],
     top_row: i32,
     body_top: i32,
+    field_room: i32,
 }
 
 #[allow(
@@ -209,6 +227,27 @@ struct Parts {
 )]
 fn measured(theme: &Theme) -> impl Fn(char) -> f32 + '_ {
     |c| theme.text_width(&c.to_string(), Font::Body) as f32
+}
+
+/// How many of `rows` rows from `start` on the output end above the card
+/// at `card_top`, with a gap: the newest stay.
+fn rows_above(card_top: Option<i32>, start: i32, rows: usize) -> usize {
+    let Some(top) = card_top else {
+        return rows;
+    };
+    let fit = (top - GAP - start).max(0) / LINE;
+    rows.min(usize::try_from(fit).unwrap_or(0))
+}
+
+/// The rectangle of the view: a balloon of the figure as high as its
+/// content, up to its most, its bottom at the tail; any other view as it
+/// is.
+fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
+    if frame.tail().is_none() {
+        return [x, y, w, h];
+    }
+    let high = content.min(h);
+    [x, y + h - high, w, high]
 }
 
 impl Session {
@@ -227,10 +266,17 @@ impl Session {
         let buttons = buttons(&self.mode);
         let top_row = PAD + LINE + GAP;
         let body_top = top_row + BUTTON[1] + GAP;
-        let below = FIELD_ROOM + if hint.is_some() { LINE + GAP } else { 0 };
-        let room = usize::try_from((rect[3] - body_top - below) / LINE).unwrap_or(0);
+        let below =
+            field_room(frame) + if hint.is_some() { LINE + GAP } else { 0 } + self.card_room();
+        let listed = LINE * i32::try_from(list.len()).unwrap_or(0);
+        let room = usize::try_from((rect[3] - body_top - listed - below) / LINE).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
         rows.drain(..rows.len().saturating_sub(room));
+        let content =
+            body_top + listed + LINE * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
+        let rect = fitted(frame, rect, content);
+        let above = rows_above(self.card_top(), rect[1] + body_top + listed, rows.len());
+        rows.drain(..rows.len() - above);
         Parts {
             rect,
             header: self.header(language),
@@ -240,6 +286,7 @@ impl Session {
             buttons,
             top_row,
             body_top,
+            field_room: field_room(frame),
         }
     }
 
@@ -324,29 +371,42 @@ fn glow(theme: &mut Theme, [width, height]: [i32; 2], colour: [u8; 3]) -> String
     theme.render(&Picture::new(width + 2 * reach, height + 2 * reach).svg(body))
 }
 
+/// The outline of the view: glass, or a box, with a tail at the figure
+/// when the view is its balloon.
+fn shape_of(frame: &Frame, size: [i32; 2], colours: Colours) -> String {
+    if frame.look.style == ChatStyle::Glass {
+        return glass(size, colours);
+    }
+    let tail = frame.tail();
+    let style = Style {
+        tail: tail.map_or(0, |_| crate::config::TAIL),
+        ..style_of(&frame.look, colours)
+    };
+    style.shape(size, tail.unwrap_or(0))
+}
+
 fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> Vec<Command> {
     let [x, y, w, h] = parts.rect;
     let is_glass = frame.look.style == ChatStyle::Glass;
-    let shape = if is_glass {
-        glass([w, h], colours)
-    } else {
-        style_of(&frame.look, colours).shape([w, h], 0)
-    };
+    let tail = frame.tail();
+    let shape = shape_of(frame, [w, h], colours);
     let halo = frame
         .look
         .glow
         .filter(|_| is_glass)
         .map(|colour| glow(theme, [w, h], colour));
-    let mut picture = Picture::new(w, h).svg(shape).text(Text::new(
+    let below = tail.map_or(0, |_| crate::config::TAIL);
+    let mut picture = Picture::new(w, h + below).svg(shape).text(Text::new(
         &parts.header,
         Font::BodyBold,
         rgba(colours.text),
         [PAD, PAD, w - 2 * PAD, LINE],
     ));
+    let below_list = parts.body_top + LINE * i32::try_from(parts.list.len()).unwrap_or(0);
     for (n, row) in (0..).zip(&parts.rows) {
         let at = [
             PAD + row.indent,
-            parts.body_top + n * LINE,
+            below_list + n * LINE,
             w - 2 * PAD - row.indent,
             LINE,
         ];
@@ -386,7 +446,7 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
     let [_, _, w, h] = parts.rect;
     let mut commands = Vec::new();
     if let Some(hint) = &parts.hint {
-        let at = [PAD, h - FIELD_ROOM - LINE - GAP, w - 2 * PAD, LINE];
+        let at = [PAD, h - parts.field_room - LINE - GAP, w - 2 * PAD, LINE];
         let picture = Picture::new(w, h).text(Text::new(hint, Font::Body, rgba(colours.text), at));
         let path = theme.render(&picture);
         commands.push(create(
@@ -448,6 +508,69 @@ mod tests {
         assert_eq!(buttons(&list), [(CLOSE, Word::Close)]);
         let chat = Mode::Chat("atlas".into());
         assert_eq!(buttons(&chat), [(STOP, Word::Stop), (CLOSE, Word::Close)]);
+    }
+
+    #[test]
+    fn a_balloon_is_as_high_as_its_content_up_to_its_most() {
+        let (theme, _, cache) = crate::tests::loaded("balloon-height");
+        let mut frame = Frame {
+            output: "HEADLESS-1".into(),
+            size: [1280, 720],
+            area: [0, 0, 1280, 690],
+            look: Look {
+                style: ChatStyle::Bubble,
+                width: Some(340),
+                ..Look::default()
+            },
+            slot: None,
+            clear: Vec::new(),
+            tip: Some([1144, 560]),
+            field: 36,
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
+        };
+        let most = frame.rect();
+        let mut session = Session::new();
+        session.agent_said("Atlas is writing your notes.");
+        let short = session.parts(&theme, &frame, Language::En).rect;
+        assert!(short[3] < most[3] / 2, "{short:?} in {most:?}");
+        assert_eq!(
+            short[1] + short[3],
+            most[1] + most[3],
+            "the tail stays at the head"
+        );
+        session.agent_said(&"many words ".repeat(400));
+        let full = session.parts(&theme, &frame, Language::En).rect;
+        assert_eq!(full, most, "it grows up to its most");
+        frame.field = 100;
+        session.agent_said("Atlas is writing your notes.");
+        let four = session.parts(&theme, &frame, Language::En).rect;
+        assert_eq!(
+            four[3] - short[3],
+            100 - 36,
+            "the balloon grows with its field"
+        );
+        frame.tip = None;
+        assert_eq!(
+            session.parts(&theme, &frame, Language::En).rect,
+            frame.rect(),
+            "a panel keeps its size"
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_rows_end_above_the_card_where_it_stands() {
+        assert_eq!(rows_above(None, 100, 10), 10, "no card");
+        assert_eq!(rows_above(Some(100 + 3 * LINE + GAP), 100, 10), 3);
+        assert_eq!(
+            rows_above(Some(100 + 3 * LINE + GAP - 1), 100, 10),
+            2,
+            "no half row"
+        );
+        assert_eq!(rows_above(Some(50), 100, 10), 0);
     }
 
     #[test]

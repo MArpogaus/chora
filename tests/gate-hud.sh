@@ -22,14 +22,18 @@
 #                           chat.size 10; exit 1, each error with its file
 #   list-huds, use-hud-writes-setting   --list-huds, --use-hud (A12)
 #   neutral-equals-today    the figure and the sentence of the neutral folder
-#                           against captures of 92e7539 (tests/hud/today)
+#                           against tests/hud/today: the sentence of 92e7539,
+#                           the dot drawn whole in its sheet
 #   card-*                  the question card of a physical question (A1,
 #                           A2, A11)
 #   chat-*, typed-yes-held  the "Chat ..." row, chat.show and chat.hide,
 #                           Super+a and Esc (A3, A9), a typed yes (A5)
+#   sentence-in-open-chat   while the chat is open, a sentence shows in it
+#                           and in no balloon of its own (U3)
 #   agents-row-text         the helper row (A7)
-#   xp-tray-rows            the xp folder shows the row of a working helper
-#                           in its tray balloon (H8, F7)
+#   xp-one-balloon          the xp folder draws no rows beside the
+#                           paperclip, and a click on it opens the chat as
+#                           its balloon, above it (F7)
 #   mc-host-hud             chora-mc with `voice_hud: host` and the mc
 #                           folder: the host draws the figure and the card,
 #                           mc shows no sentence, no question, no claim (H9)
@@ -86,10 +90,11 @@ card-stays-on-focus-move pass
 chat-row-always pass
 chat-row-click-opens pass
 chat-show-hide pass
+sentence-in-open-chat pass
 chat-super-a-esc missing
 typed-yes-held pass
 agents-row-text pass
-xp-tray-rows pass
+xp-one-balloon pass
 mc-host-hud pass
 mc-chat-drawer pass
 construct-host-hud pass
@@ -396,6 +401,17 @@ cell_chat_show_hide() {
     ctl call assistant chat.hide '{}' >/dev/null 2>&1 || return 1
     ctl wait id:hud-chat --gone --timeout "$settle_s" >/dev/null
 }
+line_hidden() { ! node_shows hud-line; }
+cell_sentence_in_open_chat() {
+    local shown=1
+    ctl call assistant chat.show '{}' >/dev/null 2>&1 || return 1
+    if waiting "$settle_s" node_exists hud-chat; then
+        emit voice.say '{"text": "The notes are saved.", "duration_ms": 4000}'
+        waiting "$settle_s" node_has hud-chat "The notes are saved." && watch_for 1 line_hidden && shown=0
+    fi
+    ctl call assistant chat.hide '{}' >/dev/null 2>&1
+    return "$shown"
+}
 cell_chat_super_a_esc() {
     key Super+a
     waiting "$settle_s" node_exists hud-chat || return 1
@@ -423,12 +439,21 @@ use_folder() {
     [ "$1" != neutral ] || rules=$probe2_rule
     ctl call assistant settings.set "{\"hud\": \"$1\", \"huds\": [$rules]}" >/dev/null 2>&1
 }
-cell_xp_tray_rows() {
-    local shown
+no_rows() { ! ctl query owner:assistant | jq -e 'any(.[]; .id | startswith("hud-row-"))' >/dev/null; }
+balloon_over_figure() {
+    jq -ne --argjson c "$(node_rect hud-chat)" --argjson f "$(node_rect hud-figure)" \
+        '($c | to_entries[0].value) as $b | ($f | to_entries[0].value) as $p |
+         $b[1] + $b[3] <= $p[1] and $b[0] <= $p[0] + $p[2] / 2 and $p[0] + $p[2] / 2 <= $b[0] + $b[2]' >/dev/null 2>&1
+}
+cell_xp_one_balloon() {
+    local shown=1
     use_folder xp || return 1
+    emit voice.state '{"state": "listening", "task": "", "said": ""}'
     emit voice.state '{"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2}'
-    waiting "$settle_s" node_has hud-row-Atlas "Atlas · working · Write file (2/2)"
-    shown=$?
+    if waiting "$settle_s" node_exists hud-figure && watch_for 1.5 no_rows; then
+        click hud-figure 40 60
+        waiting "$settle_s" node_exists hud-chat && waiting "$settle_s" balloon_over_figure && shown=0
+    fi
     use_folder neutral
     return "$shown"
 }
@@ -642,10 +667,11 @@ run_cell card-stays-on-focus-move cell_card_stays_on_focus_move session
 run_cell chat-row-always cell_chat_row_always session
 run_cell chat-row-click-opens cell_chat_row_click_opens session
 run_cell chat-show-hide cell_chat_show_hide session
+run_cell sentence-in-open-chat cell_sentence_in_open_chat session
 run_cell chat-super-a-esc cell_chat_super_a_esc session
 run_cell typed-yes-held cell_typed_yes_held session
 run_cell agents-row-text cell_agents_row_text session
-run_cell xp-tray-rows cell_xp_tray_rows session
+run_cell xp-one-balloon cell_xp_one_balloon session
 run_cell mc-host-hud cell_mc_host_hud session
 run_cell mc-chat-drawer cell_mc_chat_drawer session
 run_cell construct-host-hud cell_construct_host_hud session

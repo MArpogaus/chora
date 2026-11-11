@@ -15,6 +15,8 @@ use std::{
 };
 
 use chora_scene::Uniform;
+
+pub mod backdrop;
 use smithay::{
     backend::renderer::{
         Color32F, Frame,

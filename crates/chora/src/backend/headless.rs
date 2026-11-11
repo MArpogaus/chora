@@ -322,6 +322,30 @@ fn render_frame(state: &mut State, output: &Output, index: usize) -> Result<bool
         .render(&mut headless.renderer, &mut parts, &view)
 }
 
+/// The pixels of a row of the screen texture of the output at an index,
+/// as the last frame left them, from `x` on.
+#[cfg(test)]
+pub(crate) fn screen_row(
+    state: &mut State,
+    index: usize,
+    y: i32,
+    (x, width): (i32, i32),
+) -> Vec<[u8; 4]> {
+    use smithay::{backend::renderer::ExportMem, utils::Rectangle};
+    let Some(Backend::Headless(headless)) = &mut state.backend else {
+        panic!("a headless backend");
+    };
+    let output = &headless.outputs[index];
+    let texture = output.texture.texture().expect("a frame").clone();
+    let at = Rectangle::new((x, y).into(), (width, 1).into());
+    let gles = &mut headless.renderer;
+    let mapping = gles
+        .copy_texture(&texture, at, smithay::backend::allocator::Fourcc::Abgr8888)
+        .expect("a copy");
+    let rgba = gles.map_texture(&mapping).expect("a mapping");
+    rgba.as_chunks::<4>().0.to_vec()
+}
+
 #[cfg(test)]
 mod guard;
 

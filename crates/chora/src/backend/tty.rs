@@ -838,16 +838,26 @@ fn draw(
     Ok(damaged)
 }
 
-/// Renders the elements. Returns whether the frame has damage.
+/// Renders the elements. Returns whether the frame has damage. A frame
+/// with a backdrop scans out only the cursor, so that the frame behind
+/// the backdrop holds every element that it blurs.
 fn present<'a>(
     manager: &mut Manager,
     surface: &mut Surface,
     renderer: &mut TtyRenderer<'a>,
     elements: &[SceneElement<TtyRenderer<'a>>],
 ) -> Result<bool, String> {
+    let backdrop = elements
+        .iter()
+        .any(|e| e.variant() == render::Variant::Backdrop);
+    let flags = if backdrop {
+        FrameFlags::ALLOW_CURSOR_PLANE_SCANOUT
+    } else {
+        FrameFlags::DEFAULT
+    };
     let frame = surface
         .compositor
-        .render_frame(renderer, elements, BLACK, FrameFlags::DEFAULT);
+        .render_frame(renderer, elements, BLACK, flags);
     let frame = match frame {
         Ok(frame) => frame,
         Err(err) => {

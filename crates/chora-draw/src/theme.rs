@@ -52,6 +52,17 @@ pub enum Layer {
         /// The rectangle.
         rect: Rect,
     },
+    /// An element of a sheet where it stands in the sheet: the whole
+    /// sheet scaled evenly into a rectangle, in its middle, with only this
+    /// element drawn.
+    InPlace {
+        /// The sheet.
+        sheet: Sheet,
+        /// The id of the element.
+        id: String,
+        /// The rectangle.
+        rect: Rect,
+    },
     /// A frame of a sheet, by the prefix of its nine elements, stretched
     /// over a rectangle: the corners keep their size.
     Frame {
@@ -108,6 +119,19 @@ impl Picture {
         self
     }
 
+    /// Adds an element of a sheet where it stands in the sheet, the sheet
+    /// scaled evenly into a rectangle: a figure of a sheet with one
+    /// element per state keeps its aspect and its strokes.
+    #[must_use]
+    pub fn in_place(mut self, sheet: Sheet, id: &str, rect: Rect) -> Self {
+        self.layers.push(Layer::InPlace {
+            sheet,
+            id: id.into(),
+            rect,
+        });
+        self
+    }
+
     /// Adds a frame of a sheet.
     #[must_use]
     pub fn frame(mut self, sheet: Sheet, prefix: &str, rect: Rect) -> Self {
@@ -155,6 +179,11 @@ impl Picture {
         for layer in other.layers {
             self.layers.push(match layer {
                 Layer::Element { sheet, id, rect } => Layer::Element {
+                    sheet,
+                    id,
+                    rect: shift(rect),
+                },
+                Layer::InPlace { sheet, id, rect } => Layer::InPlace {
                     sheet,
                     id,
                     rect: shift(rect),
@@ -577,6 +606,9 @@ impl Theme {
             Layer::Element { sheet, id, rect } => {
                 self.draw_element(*sheet, id, *rect, (base, pixmap))
             }
+            Layer::InPlace { sheet, id, rect } => {
+                self.draw_in_place(*sheet, id, *rect, (base, pixmap))
+            }
             Layer::Frame {
                 sheet,
                 prefix,
@@ -625,6 +657,39 @@ impl Theme {
             .pre_translate(x as f32, y as f32)
             .pre_scale(w as f32 / bbox.width(), h as f32 / bbox.height())
             .pre_translate(-bbox.x(), -bbox.y())
+            .pre_concat(parent_transform(node))
+            .pre_translate(layer.x(), layer.y());
+        resvg::render_node(node, transform, pixmap);
+        Ok(())
+    }
+
+    /// Draws an element where it stands in its sheet, the sheet scaled
+    /// evenly into the middle of a rectangle.
+    fn draw_in_place(
+        &self,
+        sheet: Sheet,
+        id: &str,
+        rect: Rect,
+        (base, pixmap): (Transform, &mut PixmapMut<'_>),
+    ) -> Result<(), String> {
+        let missing = || format!("{} has no element {id:?}", sheet.0);
+        let tree = self.sheets.get(&sheet).ok_or_else(missing)?;
+        let node = tree.node_by_id(id).ok_or_else(missing)?;
+        let Some(layer) = node.abs_layer_bounding_box() else {
+            return Ok(());
+        };
+        let size = tree.size();
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "a picture is far smaller than 2^23 pixels"
+        )]
+        let [x, y, w, h] = rect.map(|v| v as f32);
+        let scale = (w / size.width()).min(h / size.height());
+        let left = x + (w - size.width() * scale) / 2.0;
+        let top = y + (h - size.height() * scale) / 2.0;
+        let transform = base
+            .pre_translate(left, top)
+            .pre_scale(scale, scale)
             .pre_concat(parent_transform(node))
             .pre_translate(layer.x(), layer.y());
         resvg::render_node(node, transform, pixmap);
@@ -959,6 +1024,57 @@ mod tests {
         assert_eq!([image.width(), image.height()], [8, 8]);
         let pixel = image.pixel(4, 4).expect("inside");
         assert!(pixel.red() > 150 && pixel.green() < 80 && pixel.alpha() == 255);
+    }
+
+    #[test]
+    fn an_element_in_place_keeps_its_place_and_its_aspect() {
+        let (mut theme, cache) = theme("in-place");
+        let picture = Picture::new(80, 120).in_place(SHEET, "box", [0, 0, 80, 120]);
+        let image = Pixmap::load_png(theme.render(&picture)).expect("a PNG file");
+        let alpha = |x, y| image.pixel(x, y).expect("inside").alpha();
+        assert_eq!(
+            alpha(20, 30),
+            255,
+            "the box, twice its size, the sheet in the middle"
+        );
+        assert_eq!(alpha(20, 10), 0, "above the sheet");
+        assert_eq!(alpha(60, 30), 0, "right of the box: not stretched");
+        assert_eq!(alpha(20, 50), 0, "below the box: not stretched");
+        let _ = fs::remove_dir_all(cache);
+    }
+
+    /// Every state of the paperclip of xp, at 1x and 2x: drawn whole, with
+    /// an empty edge all round, so that nothing is cut off.
+    #[test]
+    fn the_paperclip_stays_whole_at_both_scales() {
+        const CLIP: Sheet = Sheet("paperclip.svg");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
+        let cache = std::env::temp_dir().join(format!("chora-draw-clip-{}", std::process::id()));
+        let mut theme = Theme::load(&dir, &cache, &[CLIP], "sans-serif").expect("the sheet");
+        let [w, h] = theme.sheet_size(CLIP).expect("a size");
+        for scale in [1.0, 2.0] {
+            theme.set_scale(scale);
+            for state in [
+                "idle",
+                "listening",
+                "thinking",
+                "working",
+                "speaking",
+                "question",
+            ] {
+                let picture = Picture::new(w, h).in_place(CLIP, state, [0, 0, w, h]);
+                let image = Pixmap::load_png(theme.render(&picture)).expect("a PNG file");
+                let (iw, ih) = (image.width(), image.height());
+                let edge = (0..iw)
+                    .flat_map(|x| [(x, 0), (x, ih - 1)])
+                    .chain((0..ih).flat_map(|y| [(0, y), (iw - 1, y)]));
+                let cut = edge
+                    .filter(|&(x, y)| image.pixel(x, y).is_some_and(|p| p.alpha() > 0))
+                    .count();
+                assert_eq!(cut, 0, "{state} at {scale}x touches its edge");
+            }
+        }
+        let _ = fs::remove_dir_all(cache);
     }
 
     #[test]

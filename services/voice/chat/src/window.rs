@@ -181,6 +181,8 @@ pub struct Window {
     repeat: Option<Repeat>,
     requests: Sender<Request>,
     wake: Arc<Wake>,
+    /// The height that the host last heard.
+    told: Option<u32>,
 }
 
 impl Window {
@@ -210,6 +212,7 @@ impl Window {
             repeat: None,
             requests,
             wake,
+            told: None,
         }
     }
 
@@ -417,6 +420,9 @@ impl Window {
         let layout = self.painter.layout(&self.session, place.width, &place.look);
         let size = [place.width, layout.height()];
         let scale = place.scale;
+        if let Some(news) = height_news(&mut self.told, size[1]) {
+            self.emit("height", news);
+        }
         let pixels = self
             .painter
             .paint(&layout, &place.look, (size[0], scale), self.focused);
@@ -612,9 +618,27 @@ fn buffer(
     Some(buffer)
 }
 
+/// The height of the field for the host, when it differs from the one
+/// that the host last heard, so that the view keeps room for the field.
+fn height_news(told: &mut Option<u32>, height: u32) -> Option<serde_json::Value> {
+    (told.replace(height) != Some(height)).then(|| json!({"height": height}))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_field_tells_its_height_once_per_change() {
+        let mut told = None;
+        assert_eq!(height_news(&mut told, 36), Some(json!({"height": 36})));
+        assert_eq!(
+            height_news(&mut told, 36),
+            None,
+            "the same height is no news"
+        );
+        assert_eq!(height_news(&mut told, 96), Some(json!({"height": 96})));
+    }
 
     #[test]
     fn a_width_is_clamped_to_what_a_surface_can_be() {
