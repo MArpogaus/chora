@@ -882,9 +882,25 @@ impl Session {
         match &self.mode {
             Mode::List(picks) => (1..)
                 .zip(picks)
-                .map(|(n, pick)| format!("{n}  {}", pick.label(language)))
+                .map(|(n, pick)| format!("{n}  {}", self.entry(pick, language)))
                 .collect(),
             _ => Vec::new(),
+        }
+    }
+
+    /// The words of an entry of the list: a helper by its name as voice
+    /// writes it, with its state word when voice named one.
+    fn entry(&self, pick: &Pick, language: Language) -> String {
+        let Pick::Agent(name) = pick else {
+            return pick.label(language);
+        };
+        let Some(data) = self.states.get(&name.to_lowercase()) else {
+            return name.clone();
+        };
+        let written = data["name"].as_str().map_or_else(|| name.clone(), sanitize);
+        match data["state"].as_str().filter(|state| !state.is_empty()) {
+            Some(state) => words::row(language, &written, state, ""),
+            None => written,
         }
     }
 
@@ -1587,10 +1603,13 @@ mod tests {
     fn the_list_names_helpers_by_name_and_offers_a_new_one_for_a_project() {
         let (mut session, mut out, _) = setup();
         let frame = frame(Look::default());
+        let state = json!({"name": "Atlas", "state": "working", "task": "Write file"});
+        session.voice_event(&mut out, "voice.state", &state);
         session.clicked_row(&mut out, &frame).unwrap();
         assert_eq!(
             session.entries(Language::En),
-            ["1  atlas", "2  New helper for notes"]
+            ["1  Atlas · working", "2  New helper for notes"],
+            "the name as voice writes it, with its state"
         );
         assert_eq!(
             session.entries(Language::De)[1],
