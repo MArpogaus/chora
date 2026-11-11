@@ -221,7 +221,9 @@ tests/merge-gate.sh --push claude/session
 ```
 
 The other gate scripts `tests/gate-*.sh` take the binaries from
-`target/debug`, or from the directory in `BIN`. The list of the scripts
+`target/debug`, or from the directory in `BIN`. Their EXIT trap ends
+every program that they started, also one that a gate stopped with
+`SIGSTOP`; `tests/gate-lib-selftest.sh` proves it. The list of the scripts
 that CI runs is `.github/workflows/ci.yaml`, and its `dnf install` line
 names the packages that they need. A script without its tools answers
 `SKIP`. `tests/gate-0.9-daily.sh` and `tests/gate-0.9-hardware.sh` run by

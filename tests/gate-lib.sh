@@ -36,6 +36,7 @@ tmp_dirs=()
 gate_cleanup() {
     local status=${1:-$?}
     kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    kill -CONT "${pids[@]}" "${run_pids[@]}" 2>/dev/null
     wait 2>/dev/null
     [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
 }
