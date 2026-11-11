@@ -971,6 +971,13 @@ Ctrl Alt →`, whose hints are the chips of the cube. A click on a hint
 does its act. The hints hide while the window list or the help shows, a
 question waits or a pane moves.
 
+### Notices
+
+A notice of the construct, such as a refused give or the hint that the
+keys walk, shows for 4 seconds as one line of text on a glass capsule
+under the island at the top right, 32 from the edge and at most 360
+wide, while the host draws the HUD (`voice_hud: host`).
+
 ### The window list
 
 In the construct, every window is a pane. `Tab`, the key `windows`,

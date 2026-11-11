@@ -523,6 +523,8 @@ struct Construct {
     hint_hover: Option<String>,
     /// The capsule of the pane label exists.
     label_drawn: bool,
+    /// The notice under the island exists.
+    notice_drawn: bool,
     claim: Claim,
     glass: Glass,
     /// The last point of the pointer over the space that the core told:
@@ -641,6 +643,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         asked: false,
         hint_hover: None,
         label_drawn: false,
+        notice_drawn: false,
         claim: Claim { due: true },
         glass: Glass::default(),
         pointer: None,

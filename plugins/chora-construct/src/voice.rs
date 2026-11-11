@@ -85,6 +85,9 @@ impl Construct {
         if !self.shows_hud() {
             return Ok(());
         }
+        if !self.settings.value.draws_voice() {
+            return self.draw_notice();
+        }
         let out = [self.lens.w, self.lens.h];
         let level = self.voice.level(Instant::now());
         let (compact, glow) = (self.flown.is_some(), !self.glass.hidden);
