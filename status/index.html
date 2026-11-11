@@ -119,17 +119,16 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>UX fixes in the construct and cube (tracing a failure that shows only in full test runs)</li>
-          <li>Chat colours per theme (merging)</li>
-          <li>Showcase: screenshots and screencasts of every feature</li>
+          <li>Simulated user tests round 3: everyday tasks in every look (volume, screenshot, clock, power off) and moving a window across the cube</li>
+          <li>Showcase: a tour of every look, then the construct reshot with its new HUD</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Second UX pass, perfection-level visual check</li>
-          <li>Code review per area for simplicity and readability</li>
-          <li>Draft pull request for GitHub CI, release dry run</li>
+          <li>This week (light, up to 85 % of the weekly limit): sort the test findings, flaky tests, CI and release dry run</li>
+          <li>After the Saturday reset: fix the main findings (a visible way into the helper chat and a key list in every look, keys leaking into terminals, an error on the cube instead of black), code review per area</li>
+          <li>Release candidate about 19 or 20 Nov</li>
         </ul>
       </div>
       <div class="panel">
@@ -174,8 +173,17 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
+      <summary><span>Thu 12 Nov</span><span>3 entries</span></summary>
+      <ul class="timeline">
+        <li><time>00:45</time><p><span class="tag info">tests</span>Simulated user round 3 started with tighter limits (smaller screenshots, 30 steps).</p></li>
+        <li><time>00:30</time><p><span class="tag ok">tests</span>Simulated user round 2 sorted: 20 real findings, 9 caused by the test container. Worst: no visible way into the helper chat, and a key list only in construct.</p></li>
+        <li><time>00:10</time><p><span class="tag issue">fix</span>The session lost its rules after a memory compaction; a rule card is now reloaded automatically after each one.</p></li>
+      </ul>
+    </details>
+    <details class="day">
       <summary><span>Wed 11 Nov</span><span>9 entries</span></summary>
       <ul class="timeline">
+        <li><time>21:30</time><p><span class="tag ok">merged</span>The construct HUD rework: one help sheet (F1), clearer looks.</p></li>
         <li><time>18:20</time><p><span class="tag info">plan</span>Reflection loop done (opus): lanes cut by area, a merge train, failing tests first checked at merge, one review round per lane. Release candidate estimated for Wed 18 Nov.</p></li>
         <li><time>17:00</time><p><span class="tag info">ux loop</span>Designer loop over every feature, KISS and least surprise first: 3 blockers and a list of things to remove. Chat fixes merged; construct fixes being traced.</p></li>
         <li><time>16:30</time><p><span class="tag ok">merged</span>All fixes of user test round 3: voice opens the chat, the chat field takes the keyboard, volume, honest messages, pull out of the stood-back cube.</p></li>
