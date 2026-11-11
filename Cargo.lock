@@ -574,6 +574,7 @@ dependencies = [
  "chora-kit",
  "chora-scene",
  "clap",
+ "libc",
  "schemars",
  "serde",
  "serde-saphyr",

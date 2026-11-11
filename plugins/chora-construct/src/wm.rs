@@ -9,6 +9,7 @@
 //! core for an output that goes.
 
 use std::{
+    os::unix::process::CommandExt,
     process::{Child, Stdio},
     time::{Duration, Instant},
 };
@@ -32,6 +33,24 @@ pub(crate) struct Managed {
     output: String,
     child: Child,
     connect_by: Option<Instant>,
+}
+
+/// `sh -c command` as a child that gets `SIGTERM` when the construct
+/// ends, also when it ends without a word.
+fn child_command(command: &str) -> std::process::Command {
+    let mut child = std::process::Command::new("sh");
+    child.args(["-c", command]).stdin(Stdio::null());
+    // SAFETY: the closure only calls prctl, which is async-signal-safe.
+    #[allow(unsafe_code, reason = "prctl between fork and exec")]
+    unsafe {
+        child.pre_exec(|| {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    child
 }
 
 fn refused(message: String) -> ClientError {
@@ -74,10 +93,7 @@ impl Construct {
         let output = (self.add_outputs(1, size)?.pop())
             .ok_or_else(|| refused("the core added no output".into()))?;
         let command = format!("exec {command} --output {output}");
-        let spawned = std::process::Command::new("sh")
-            .args(["-c", &command])
-            .stdin(Stdio::null())
-            .spawn();
+        let spawned = child_command(&command).spawn();
         let mut child = match spawned {
             Ok(child) => child,
             Err(err) => {
