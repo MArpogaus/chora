@@ -57,3 +57,13 @@ refinement loop of up to 3 rounds with a separate reviewer.
    when disk allows).
 3. Marble floor reflections: after the core blur merges.
 4. UI refinement loop: separate reviewer, up to 3 rounds.
+
+## Floor (user, 11-11 ~21:45)
+"For the floor reflection we want some texture effect (small scratches
+and bumps on the surface like real marble). Make this look realistic."
+The marble lane: a procedural marble surface (faint veins, micro bumps
+as a normal map, fine scratches as an anisotropic roughness map), a
+roughness-driven blur of the reflection (sharper near the pane, softer
+with distance), Fresnel, subtle and calm (no busy pattern); light and
+dark variants; static (no per-frame cost when still); a reference sheet
+of real polished marble to compare against.

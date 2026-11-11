@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~21:45: post screenshots when the HUD rework lands; floor reflections with marble texture (small scratches and bumps), realistic. Added to the marble lane spec.
 - 11-11 ~21:30: HUD mockup defaults approved; UX/UI refinement loop; construct reflections with marble-like blur; push to visual perfection. Backlog N1: a modern macOS-inspired look on the xp stacking code, taskbar as a shared widget.
 - 11-11 ~20:00: PM answer to reflection 2: all five changes adopted (charter "Rules of reflection 2", rc.md 1b, ux-hud-sprint superseded).
 - 11-11 ~19:30: "We need different guidelines and philosophy or design documents for all our components and window managers ... we can not generalize the HUD ... polish the rough edges when combined." Confirmed; charter rule "Design per look"; designer drafts started.
