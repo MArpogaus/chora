@@ -4,8 +4,9 @@
 # try what their capabilities must refuse: settings.set, session.quit,
 # updates of window manager nodes, commands through plugin methods, and
 # huge transactions. mc has the keyboard focus, so it gets every new
-# window (D55, rule 2), also after a click on the empty output of
-# tiling; mc gives four of them to tiling, so that a change of the
+# window (D55), also after the injected click on the empty output of
+# tiling, which chooses no manager as a click of the user would; mc
+# gives four of them to tiling, so that a change of the
 # tiling layout changes the picture of the second output.
 WF=w12; STOP_ON_DEATH=1; . "$(dirname "$0")/lib.sh"
 config_home
@@ -33,7 +34,7 @@ print(" ".join(n["id"] for n in json.load(sys.stdin) if n.get("owner") == "mc" a
 done
 sleep 2
 tiled=$(ctl call tiling get_layout '{}' | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["windows"]))')
-step "the focused mc gets the new windows (D55, rule 2); windows of tiling after 4 gives: $tiled"
+step "the focused mc gets the new windows (D55); windows of tiling after 4 gives: $tiled"
 [ "$tiled" -ge 2 ] || finding "W12: tiling has $tiled windows after 4 gives from mc" wrong "choractl give tiling --surface ID, 4 times"
 case $owners in *None*) finding "W12: windows without owner with mc + tiling: $owners" wrong "10 windows, mc on HEADLESS-1, tiling --output HEADLESS-2";; esac
 health "two WMs"
