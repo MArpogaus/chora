@@ -45,11 +45,11 @@ EXPECTED='
 mc xp give pass
 mc xp cgive pass
 mc xp key pass
-mc xp drag gap
+mc xp drag pass
 mc tiling give pass
 mc tiling cgive pass
 mc tiling key pass
-mc tiling drag gap
+mc tiling drag pass
 xp mc give pass
 xp mc cgive pass
 xp mc key pass
