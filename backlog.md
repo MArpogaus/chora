@@ -378,3 +378,11 @@ anonymised reports using a small shell script."
    before anything leaves; writes a .tar.gz the person sends by hand (no
    upload, no telemetry). Its tests check the scrubbing on a fixture.
 3. Docs: how to report a problem, in README and the website.
+4. Later, less friction (user, 11-11): the script asks a few questions
+   (what you did, what you expected, what happened, how often, which
+   look), then, after an explicit yes on a screen that shows exactly
+   what leaves, uploads the anonymised bundle to a paste service (one
+   configurable endpoint, with an expiry; no account) and prints a ready
+   GitHub issue text (title, answers, versions, the paste link) and the
+   new-issue URL with the text filled in. No upload without that yes;
+   a `--no-upload` path keeps the file-only report.
