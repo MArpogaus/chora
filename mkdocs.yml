@@ -30,6 +30,7 @@ nav:
   - Configuration: configuration.md
   - chora-mc style guide: mc-style.md
   - chora-construct style guide: construct-style.md
+  - chora-xp style guide: xp-style.md
   - Standing back from a cube face: cube-modes.md
   - Split of chora-xp: xp-split.md
   - HUD folders: hud.md
