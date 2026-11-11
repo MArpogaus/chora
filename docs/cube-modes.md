@@ -79,6 +79,12 @@ gives the keyboard back to the window of before only when its face is
 at the front again; after a turn to another face, the person chooses a
 window there.
 
+While no cube is open, the chip `OPEN CUBE` shows at the bottom left of
+the construct, away from the voice HUD at the bottom right. A click on it
+opens a cube of four faces, as `cube.open` without params does, and the
+chip hides while the cube is open. A refusal, for example while another
+client `xp` runs, shows in the HUD.
+
 ## Words
 
 | Key | English | German |
@@ -87,6 +93,7 @@ window there.
 | step in | STEP IN | HINEINGEHEN |
 | turn left | TURN LEFT | NACH LINKS DREHEN |
 | turn right | TURN RIGHT | NACH RECHTS DREHEN |
+| open a cube | OPEN CUBE | WÜRFEL ÖFFNEN |
 
 The voice agent says what happened in the same words: "I stepped back",
 "I turned the cube to the left".

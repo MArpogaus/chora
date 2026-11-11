@@ -120,10 +120,12 @@ pub enum Word {
     TurnLeft,
     /// The control that turns a cube to the right.
     TurnRight,
+    /// The control that opens a cube.
+    OpenCube,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 46] = [
+pub const ALL: [Word; 47] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -170,6 +172,7 @@ pub const ALL: [Word; 46] = [
     Word::StepIn,
     Word::TurnLeft,
     Word::TurnRight,
+    Word::OpenCube,
 ];
 
 impl Word {
@@ -234,6 +237,7 @@ impl Word {
             Self::StepIn => "Step in",
             Self::TurnLeft => "Turn left",
             Self::TurnRight => "Turn right",
+            Self::OpenCube => "Open cube",
         }
     }
 
@@ -293,6 +297,7 @@ impl Word {
             Self::StepIn => "Hineingehen",
             Self::TurnLeft => "Nach links drehen",
             Self::TurnRight => "Nach rechts drehen",
+            Self::OpenCube => "Würfel öffnen",
         }
     }
 }

@@ -34,6 +34,8 @@ pub(crate) const FLOATING: &str = "xp.floating";
 /// The room that the chips leave for a taskbar that the construct
 /// cannot see yet.
 const BAR: f64 = 40.0;
+/// The chip that opens a cube while none is open: the visible way in.
+pub(crate) const OPEN_CUBE: &str = "construct-open-cube";
 /// The chips in the order of the screen, from the left.
 const CHIPS: [Word; 4] = [
     Word::StepBack,
@@ -145,13 +147,14 @@ impl Construct {
         self.draw_modes()
     }
 
-    /// Removes the chips of a cube that went.
+    /// Removes the chips of a cube that went, and shows OPEN CUBE again.
     pub(crate) fn close_modes(&mut self) -> Result<(), ClientError> {
         self.rt.conn.try_apply(vec![Command::Remove {
             id: MODES.into(),
             to: None,
         }])?;
-        self.regrab()
+        self.regrab()?;
+        self.draw_open_cube()
     }
 
     /// The top of the taskbar of the front face on the screen: the chips
@@ -172,6 +175,7 @@ impl Construct {
     /// taskbar of the face, where they cover no title band and no button
     /// of a window, and hides the others. Also after the output changed.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
+        self.draw_open_cube()?;
         let Some(shown) = self.cube.as_ref().map(|c| c.view().controls()) else {
             return Ok(());
         };
@@ -189,6 +193,23 @@ impl Construct {
             }
             commands
         })?;
+        self.rt.conn.try_apply(commands).map(drop)
+    }
+
+    /// The chip OPEN CUBE at the bottom left, while no cube is open.
+    fn draw_open_cube(&mut self) -> Result<(), ClientError> {
+        let text = Word::OpenCube.text(language()).to_uppercase();
+        let mut commands = Vec::new();
+        if (self.rt.conn).query(&format!("id:{OPEN_CUBE}"))?.is_empty() {
+            commands.extend(self.styled().chip(OPEN_CUBE, NAME, &text));
+        }
+        let show = self.cube.is_none();
+        let bottom = self.lens.h;
+        commands.extend(self.fitted(|s| {
+            let look = s.styled();
+            let width = look.place_chip(OPEN_CUBE, &text, [0.0, bottom], false).1;
+            look.place_chip(OPEN_CUBE, &text, [width, bottom], show).0
+        })?);
         self.rt.conn.try_apply(commands).map(drop)
     }
 

@@ -48,7 +48,7 @@ const TURN: Duration = Duration::from_millis(500);
 /// How long the window manager may take to connect.
 const CONNECT: Duration = Duration::from_secs(10);
 /// The most faces: the side faces of a cube.
-const FACES: usize = 4;
+pub(crate) const FACES: usize = 4;
 /// How far the cube stands back in navigate mode, in focal lengths: the
 /// front face shows at 1 / (1 + STAND) of its size.
 const STAND: f64 = 0.6;

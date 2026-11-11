@@ -3,8 +3,8 @@
 
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
-    KEYS_WALK, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give,
-    hud, space, window_flown_into,
+    KEYS_WALK, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, cube,
+    give, hud, modes, space, window_flown_into,
 };
 
 impl Construct {
@@ -128,6 +128,21 @@ impl Construct {
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
+            Event::PointerPressed {
+                node,
+                button,
+                injected,
+                ..
+            } if button == BTN_LEFT
+                && node == modes::OPEN_CUBE
+                && (!injected || self.rt.accepts_injected()) =>
+            {
+                if let Err(err) = self.open_cube(cube::FACES) {
+                    self.voice.notice(&err.to_string(), Instant::now());
+                    return self.draw_hud();
+                }
+                return Ok(());
+            }
             Event::PointerPressed {
                 node,
                 button,
