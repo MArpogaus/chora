@@ -1595,6 +1595,9 @@ keyboard does not work it (D45):
   the pointer left them, down to a strip of 2 pixels at the bottom
   edge; the pointer on the strip brings a taskbar back. The work area
   then reaches down to the strip, and maximized windows grow into it.
+  Each taskbar of a screen reserves its height, or its strip, at the
+  bottom of the work area of the core with `output.reserve`, so that the
+  chat, the notifications and other clients keep clear of it.
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the

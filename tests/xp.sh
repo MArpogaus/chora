@@ -146,6 +146,10 @@ wait_for pixel_is 640 790 "$blue"
 wait_for pixel_is 60 795 "$green"
 grim "$out/desktop.png"
 
+step "2b. the work area of the core ends above the taskbar, for the other clients"
+area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 30' >/dev/null; }
+wait_for area_above_bar
+
 step "3. two foot windows get title bars"
 for _ in 1 2; do
     WAYLAND_DISPLAY=$inner foot >>"$out/foot.log" 2>&1 &

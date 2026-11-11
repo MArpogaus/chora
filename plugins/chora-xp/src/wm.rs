@@ -285,6 +285,9 @@ pub struct Wm {
     last_icon: Option<(String, Instant)>,
     /// The settings of Taskbar and Start Menu Properties.
     taskbar: taskbar::Settings,
+    /// The height that each taskbar reserves at the bottom of its screen,
+    /// by output, so that other clients keep clear of it.
+    reserved: HashMap<String, i32>,
     /// The settings dialogs, bottom first.
     panels: Vec<Panel>,
     /// When a taskbar that hides itself slides away.
@@ -390,6 +393,7 @@ impl Wm {
             desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.effects),
             taskbar: config.taskbar,
+            reserved: HashMap::new(),
             theme,
             icons,
             settings,
@@ -492,7 +496,9 @@ impl Wm {
     /// same transaction, so that the plugin holds a claim throughout and
     /// the surfaces reserved for it stay so (D55).
     fn create_scene(&mut self, old_root: bool) -> Result<(), ClientError> {
-        let outputs = self.rt.outputs()?;
+        let outputs: Vec<OutputInfo> = (self.rt.outputs()?.into_iter())
+            .map(|o| without_reserve(&self.reserved, o))
+            .collect();
         self.theme.set_scale(max_scale(&outputs));
         let group = |id: &str, parent: &str| Command::Create {
             id: id.into(),
@@ -542,6 +548,7 @@ impl Wm {
         commands.extend(self.refresh_icons());
         match self.try_apply(commands)? {
             None => {
+                self.reserve_bars();
                 self.play(Sound::Logon);
                 Ok(())
             }
@@ -683,6 +690,7 @@ impl Wm {
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
             Event::OutputChanged { output } => {
+                let output = without_reserve(&self.reserved, output);
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
@@ -1431,6 +1439,7 @@ impl Wm {
             commands.extend(self.sync_tasks());
             commands.extend(self.claim());
             self.sync_cube_keys();
+            self.reserve_bars();
             return commands;
         };
         let mine: Vec<usize> = (0..self.windows.len())
@@ -3042,6 +3051,7 @@ impl Wm {
                 index: Some(index),
             });
         }
+        self.reserve_bars();
         commands.extend(self.pagers());
         commands.extend(self.sync_tasks());
         commands.extend(self.refresh_icons());
@@ -3179,12 +3189,33 @@ impl Wm {
 
     // The Control Panel of the start menu
 
-    /// The outputs of the plugin as the core has them.
+    /// The outputs of the plugin as the core has them, but with the work
+    /// areas that the taskbars reserve: xp lays them out itself.
     fn outputs(&mut self) -> Vec<OutputInfo> {
-        self.rt.outputs().unwrap_or_else(|err| {
+        let outputs = self.rt.outputs().unwrap_or_else(|err| {
             eprintln!("chora-xp: {err}");
             Vec::new()
-        })
+        });
+        (outputs.into_iter())
+            .map(|o| without_reserve(&self.reserved, o))
+            .collect()
+    }
+
+    /// Reserves the height of each taskbar of a screen at the bottom of
+    /// the work area of the core, so that the chat, the notifications and
+    /// other clients keep clear of it.
+    fn reserve_bars(&mut self) {
+        let wanted: Vec<(String, i32)> = (self.bars.iter())
+            .map(|bar| (bar.output.clone(), bar.reserve()))
+            .filter(|(output, height)| self.reserved.get(output).copied().unwrap_or(0) != *height)
+            .collect();
+        for (output, height) in wanted {
+            self.reserved.insert(output.clone(), height);
+            let edges = json!({"output": output, "edges": {"bottom": height}});
+            if let Err(err) = self.rt.conn.call::<_, Value>("output.reserve", edges) {
+                eprintln!("chora-xp: output.reserve: {err}");
+            }
+        }
     }
 
     /// The Control Panel for an output, with the current choices.
@@ -3453,6 +3484,18 @@ impl Panel {
 /// client, when it dropped the effects.
 fn is_own(client: &str) -> bool {
     client == NAME
+}
+
+/// An output as xp lays it out: the height that its taskbar reserves
+/// stays in the work area.
+fn without_reserve(reserved: &HashMap<String, i32>, mut output: OutputInfo) -> OutputInfo {
+    let height = reserved.get(&output.name).copied().unwrap_or(0);
+    for area in [&mut output.work_area, &mut output.default_work_area] {
+        if *area != [0; 4] {
+            area[3] += height;
+        }
+    }
+    output
 }
 
 /// Whether chora-xp takes a created surface: a free one, or one the core
@@ -3853,6 +3896,42 @@ mod tests {
             is_virtual: is_virtual.then_some(true),
             owner: None,
         })
+    }
+
+    #[test]
+    fn a_taskbar_of_a_screen_reserves_its_height_and_xp_lays_out_without_it() {
+        let mut screen = bar("DP-1", false);
+        assert_eq!(screen.reserve(), taskbar::HEIGHT);
+        assert_eq!(bar("VIRTUAL-1", true).reserve(), 0, "a face of the cube");
+        screen.configure(taskbar::Settings {
+            locked: true,
+            auto_hide: true,
+            on_top: true,
+            clock: true,
+        });
+        assert_eq!(screen.reserve(), taskbar::HIDDEN_STRIP);
+        let reserved: HashMap<String, i32> = [("DP-1".to_owned(), 30)].into();
+        let output = OutputInfo {
+            name: "DP-1".into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 770],
+            default_work_area: [0, 0, 1280, 770],
+            is_virtual: None,
+            owner: None,
+        };
+        let own = without_reserve(&reserved, output.clone());
+        assert_eq!(
+            (own.work_area, own.default_work_area),
+            ([0, 0, 1280, 800], [0, 0, 1280, 800])
+        );
+        let other = OutputInfo {
+            name: "DP-2".into(),
+            ..output
+        };
+        assert_eq!(without_reserve(&reserved, other).work_area[3], 770);
     }
 
     #[test]
