@@ -19,7 +19,7 @@ use chora_kit::{
     geometry::{Cube, Matrix, Turn},
     modes::{Act, View},
 };
-use chora_scene::{Event, NodeKind, OutputInfo, OutputTexture};
+use chora_scene::{Border, Event, InputMode, NodeKind, OutputInfo, OutputTexture};
 use serde_json::{Value, json};
 
 use super::{
@@ -33,6 +33,14 @@ pub(crate) const CUBE: &str = "construct-cube";
 /// its floating windows.
 pub(crate) const CUBE_PREFIX: &str = "construct-cube-";
 const FACE: &str = "construct-cube-face-";
+/// The lit edge of the face under the pointer in navigate mode, and how
+/// far it lies in front of the face.
+const EDGE: &str = "construct-cube-edge";
+const EDGE_WIDTH: f64 = 2.0;
+const EDGE_LIFT: f64 = 1.0;
+/// How far the pointer moves at most between the press and the release
+/// of a click on a face.
+const CLICK: f64 = 8.0;
 /// The client name of the window manager of the cube.
 pub(crate) const MANAGER: &str = "xp";
 /// How long a quarter turn takes, by default.
@@ -86,9 +94,48 @@ pub(crate) struct Host {
     landing: Option<Instant>,
     /// The faces whose window manager owes an answer, when the construct
     /// asks again, and the faces that stay flat until the cube rests.
+    /// The face under the pointer, the press of the pointer on a face
+    /// in navigate mode, and the binding that steps back while the
+    /// construct holds it.
+    hover: Option<usize>,
+    press: Option<Press>,
+    step_back_key: Option<String>,
     owing: BTreeSet<usize>,
     again: Option<Instant>,
     denied: BTreeSet<usize>,
+}
+
+/// A press on a face in navigate mode: the face, where the pointer was
+/// at the press or at the last turn of the drag, and whether the pointer
+/// went farther than a click does.
+#[derive(Clone, Copy)]
+struct Press {
+    face: usize,
+    from: f64,
+    start: f64,
+    dragged: bool,
+}
+
+/// What a move of the pointer during a press on a face does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Dragged {
+    Nothing,
+    Turn(i32),
+}
+
+/// A move of the pointer to `x` during a press: after each `third` the
+/// cube turns by one face; a drag to the left brings the next face.
+fn drag_of(press: &mut Option<Press>, x: f64, third: f64) -> Dragged {
+    let Some(press) = press else {
+        return Dragged::Nothing;
+    };
+    press.dragged |= (x - press.start).abs() > CLICK;
+    let moved = x - press.from;
+    if moved.abs() < third {
+        return Dragged::Nothing;
+    }
+    press.from = x;
+    Dragged::Turn(if moved < 0.0 { 1 } else { -1 })
 }
 
 fn face_id(i: usize) -> String {
@@ -178,7 +225,77 @@ impl Host {
             ));
             commands.extend(self.planes(i, shows));
         }
+        commands.push(self.edge());
         commands
+    }
+
+    /// The update of the lit edge: over the face under the pointer while
+    /// the cube rests in navigate mode.
+    fn edge(&self) -> Command {
+        let rests = self.turn.is_none() && !self.view.forwards() && self.step.is_none();
+        let face = self
+            .hover
+            .filter(|i| rests && self.shown.get(*i) == Some(&true));
+        let placed = face.map(|i| {
+            let plane = self.cube.lifted(i, self.angle, [0.0, 0.0], EDGE_LIFT);
+            (Transform::from_matrix(plane), self.cube.size_of(i))
+        });
+        update(
+            EDGE,
+            PropsUpdate {
+                transform: placed.map(|(transform, _)| transform),
+                size: placed.map(|(_, size)| size),
+                visible: Some(face.is_some()),
+                ..PropsUpdate::default()
+            },
+        )
+    }
+
+    /// The pointer is over a face, or over none.
+    pub(crate) fn set_hover(&mut self, face: Option<usize>) -> bool {
+        let changed = self.hover != face;
+        self.hover = face;
+        changed
+    }
+
+    /// The face under the pointer.
+    pub(crate) fn hover(&self) -> Option<usize> {
+        self.hover
+    }
+
+    /// A press on a face in navigate mode at `x` on the screen.
+    pub(crate) fn press(&mut self, face: usize, x: f64) {
+        self.press = Some(Press {
+            face,
+            from: x,
+            start: x,
+            dragged: false,
+        });
+    }
+
+    /// The pointer moved to `x` during a press: after each `third` of the
+    /// width of the view the cube turns by one face, with the drag.
+    pub(crate) fn drag(&mut self, x: f64, third: f64) -> Dragged {
+        drag_of(&mut self.press, x, third)
+    }
+
+    /// The release of a press: answers the face of a click, a press that
+    /// did not move.
+    pub(crate) fn release(&mut self) -> Option<usize> {
+        let press = self.press.take()?;
+        (!press.dragged).then_some(press.face)
+    }
+
+    /// The binding that steps back, while the construct holds it.
+    pub(crate) fn step_back_key(&self) -> Option<&str> {
+        self.step_back_key.as_deref()
+    }
+
+    /// Sets the binding that steps back; answers whether it changed.
+    pub(crate) fn set_step_back_key(&mut self, key: Option<String>) -> bool {
+        let changed = self.step_back_key != key;
+        self.step_back_key = key;
+        changed
     }
 
     /// The updates of the planes of the floating windows of face `i`:
@@ -421,6 +538,7 @@ impl Construct {
         let mut host = self.host(outputs.clone(), child, cube);
         let mut commands = vec![create(CUBE, NodeKind::Group, PANES, PropsUpdate::default())];
         commands.extend(self.face_nodes(&outputs, &cube));
+        commands.push(self.edge_node());
         commands.extend(host.faces([self.pose.x, self.pose.z]));
         if let Some(err) = self.rt.conn.try_apply(commands)? {
             end(&mut host.child);
@@ -458,6 +576,9 @@ impl Construct {
             queued: false,
             switching: false,
             landing: None,
+            hover: None,
+            press: None,
+            step_back_key: None,
             owing: BTreeSet::new(),
             again: None,
             denied: BTreeSet::new(),
@@ -595,6 +716,28 @@ impl Construct {
             .collect()
     }
 
+    /// The lit edge of a face, hidden: a border in the accent colour that
+    /// passes the pointer to the face behind it.
+    fn edge_node(&self) -> Command {
+        let [r, g, b] = self.settings.value.style.accent;
+        create(
+            EDGE,
+            NodeKind::Rect,
+            CUBE,
+            PropsUpdate {
+                size: Some([1.0, 1.0]),
+                color: Some([0.0; 4]),
+                border: Some(Some(Border {
+                    width: EDGE_WIDTH,
+                    color: [r, g, b, 1.0],
+                })),
+                visible: Some(false),
+                input: Some(InputMode::Pass),
+                ..PropsUpdate::default()
+            },
+        )
+    }
+
     /// Removes the virtual outputs that the construct added before it
     /// started again.
     pub(crate) fn remove_left_outputs(&mut self) -> Result<(), ClientError> {
@@ -649,5 +792,42 @@ fn end(child: &mut Child) {
     }
     if let Err(err) = child.wait() {
         eprintln!("chora-construct: wait for the window manager of the cube: {err}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn drags(moves: &[f64]) -> (Vec<Dragged>, bool) {
+        let mut press = Some(Press {
+            face: 0,
+            from: 600.0,
+            start: 600.0,
+            dragged: false,
+        });
+        let mut out = Vec::new();
+        for x in moves {
+            out.push(drag_of(&mut press, *x, 400.0));
+        }
+        (out, press.is_some_and(|p| p.dragged))
+    }
+
+    #[test]
+    fn a_drag_turns_once_per_third_and_a_still_press_is_a_click() {
+        let (turns, dragged) = drags(&[603.0, 598.0]);
+        assert_eq!(turns, [Dragged::Nothing; 2]);
+        assert!(!dragged, "a click");
+        let (turns, dragged) = drags(&[500.0, 190.0, 100.0, -250.0]);
+        let expected = [
+            Dragged::Nothing,
+            Dragged::Turn(1),
+            Dragged::Nothing,
+            Dragged::Turn(1),
+        ];
+        assert_eq!(turns, expected);
+        assert!(dragged);
+        let (turns, _) = drags(&[1010.0]);
+        assert_eq!(turns, [Dragged::Turn(-1)], "to the right turns back");
     }
 }

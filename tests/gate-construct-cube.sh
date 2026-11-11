@@ -248,7 +248,7 @@ sleep 1
 eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
 call view.step_in >/dev/null || fail "view.step_in after the drags"
 until_ok "$stepped_in" 20 || fail "no step in after the drags"
-ok "a drag on a face turns the cube by one face, and a short drag steps in"
+ok "a drag on a face turns the cube by one face, and a short drag does nothing"
 
 call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
 sleep 0.5

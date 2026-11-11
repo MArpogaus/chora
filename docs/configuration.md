@@ -757,7 +757,11 @@ turn queues one more turn. In navigate mode `Return` and `Escape` step
 in again ([cube modes](cube-modes.md)). In use mode the keys of the walk
 do nothing, so that the face stays at 1:1; `terminal`, `launcher`,
 `windows` and `help` still work. A binding that another client holds is
-logged, and the chips still work. While the window switcher of xp shows
+logged, and the chips still work. In navigate mode the edge of the face under the pointer is lit, a
+click on a face steps into it, and a drag on a face turns the cube by
+one face for each third of the width of the view. With `fly_out:
+Escape` and the grant `input.grab-any`, `Escape` alone steps back; the
+chip `STEP BACK` names its key only while the construct holds it. While the window switcher of xp shows
 on a face, the construct gives `fly_out` up, so that `Alt+Escape`
 cancels the switcher; xp tells it with the event `xp.switcher`.
 
