@@ -603,17 +603,25 @@ impl Wayland {
 
     /// A buffer of a size whose pixels all hold one ARGB value, attached
     /// to nothing yet.
-    pub fn buffer(&mut self, (w, h): (i32, i32), pixel: u32) -> WlBuffer {
-        let mut file = tempfile();
-        let pixels = usize::try_from(w * h).expect("a size");
-        std::io::Write::write_all(&mut file, &pixel.to_le_bytes().repeat(pixels))
-            .expect("the file takes the pixels");
+    pub fn buffer(&mut self, size: (i32, i32), pixel: u32) -> WlBuffer {
+        self.buffer_file(size, (wl_shm::Format::Argb8888, pixel)).0
+    }
+
+    /// A buffer of a size in a 32 bit format whose pixels all hold one
+    /// value, and the file of its memory, which [`fill`] writes anew.
+    pub fn buffer_file(
+        &mut self,
+        (w, h): (i32, i32),
+        (format, pixel): (wl_shm::Format, u32),
+    ) -> (WlBuffer, std::fs::File) {
+        let file = tempfile();
+        fill(&file, (w, h), pixel);
         let qh = self.queue.handle();
         let shm = self.app.shm.as_ref().expect("wl_shm");
         let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
-        let buffer = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, &qh, ());
+        let buffer = pool.create_buffer(0, w, h, w * 4, format, &qh, ());
         pool.destroy();
-        buffer
+        (buffer, file)
     }
 
     /// Acks the newest configure of a toplevel, if any, and commits a
@@ -1257,6 +1265,14 @@ delegate_noop!(App: WlShmPool);
 delegate_noop!(App: ignore WlBuffer);
 
 /// A new file that is gone from the file system, for a shm pool.
+/// Writes one 32 bit value into every pixel of the memory of a buffer of
+/// a size, behind the back of the compositor.
+pub fn fill(file: &std::fs::File, (w, h): (i32, i32), pixel: u32) {
+    let pixels = usize::try_from(w * h).expect("a size");
+    std::os::unix::fs::FileExt::write_all_at(file, &pixel.to_le_bytes().repeat(pixels), 0)
+        .expect("the file takes the pixels");
+}
+
 fn tempfile() -> std::fs::File {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
