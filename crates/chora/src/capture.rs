@@ -652,6 +652,43 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A client with two buffers, as foot, draws a frame in full into
+    /// one and then commits the other with the damage of a small part,
+    /// where only that part is new: outside of it the surface keeps what
+    /// the first commit showed, also when no frame was drawn between the
+    /// two commits. So each commit puts its own damage into the texture.
+    #[test]
+    fn the_damage_of_a_commit_comes_from_its_own_buffer() {
+        let mut core = Core::with_renderer();
+        core.add_output("test-1", (64, 48));
+        let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+        let window = wayland.toplevel(&mut core, "window");
+        let (blue, red) = (0xFF00_00FF, 0xFFFF_0000);
+        let first = wayland.buffer((32, 32), blue);
+        let second = wayland.buffer((32, 32), red);
+        let all = Some((0, 0, 32, 32));
+        wayland.attach_buffer(&mut core, &window, &first, all);
+        let mut wm = core.named("wm");
+        let grant = json!({"client": "wm", "capabilities": ["screen.capture"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let attach = json!({"commands": [{"attach": {"surface": "s1", "parent": "root"}}]});
+        wm.ok(&mut core, "scene.apply", attach);
+        let shown = |core: &mut Core, wm: &mut crate::testing::Client| {
+            let picture = wm.ok(core, "screen.capture", json!({"output": "test-1"}));
+            let (width, rgba) = decode(&picture);
+            let pixel = |x: usize, y: usize| rgba[(y * width + x) * 4..][..3].to_vec();
+            [pixel(2, 2), pixel(20, 20)]
+        };
+        let (blue, red) = (vec![0, 0, 255], vec![255, 0, 0]);
+        assert_eq!(shown(&mut core, &mut wm), [blue.clone(), blue.clone()]);
+        wayland.attach_buffer(&mut core, &window, &second, all);
+        wayland.attach_buffer(&mut core, &window, &first, Some((0, 0, 4, 4)));
+        assert_eq!(shown(&mut core, &mut wm), [blue.clone(), red.clone()]);
+        wayland.attach_buffer(&mut core, &window, &second, all);
+        wayland.attach_buffer(&mut core, &window, &first, None);
+        assert_eq!(shown(&mut core, &mut wm), [red.clone(), red], "no damage");
+    }
+
     #[test]
     fn a_text_node_without_color_draws_white() {
         if !crate::text::fonts_present() {
