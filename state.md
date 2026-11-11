@@ -29,6 +29,15 @@ Next:
 
 After the reset (Sat 10:59, Fable): fixes of the swarm findings by area (helper chat entry in every look, key help in xp, tiling, mc, Super chords leaking into terminals, cube error state, mc first screen), review per area, three clean gates, RC about 11-19/20.
 
+## Plan of 11-12 (run 05:58 Bangkok; PM, user away)
+
+Budget about 93 % of the week by usage.py; the reset is Sat 10:59. Light work only until then:
+1. mc-v2 merge (gate running, second try after the shipped_huds test fix).
+2. construct-v2 on the tour worker continues; review and merge when it reports.
+3. Disk: 7.9 GB free; remove the tiling-v2 target (merged) and the mc-v2 target after its merge; no new builds below 8 GB.
+4. review_due.py says DUE (range a03be22..HEAD, 64 critical files): every merge had its own review; the weekly round over the whole range runs as the per-area code review on Fable after the reset (decisions-now.md).
+5. After the reset (Fable): xp-v2 build, the core fontconfig fix, packaging of the new flavor files, the per-area review, the leftovers in backlog.md.
+
 ## Foundation gate
 
 Charter section 1 item 20, status at the end of 11-09. Not met.
