@@ -256,16 +256,19 @@ output.
 Mouse resizes of floating windows do not exist.
 
 The key list shows on `MOD+slash` and on the button **Keys** of the
-panel: a glass panel of 880 px, as high as its rows and 24 px more,
-centred on the current output, with the heading "Keys", the line
+panel: a glass panel as wide as its longest word and 24 px more, so the
+margin is 24 px left of the keycaps and right of the words, and as high as
+its rows and 24 px more, centred on the current output, with the heading "Keys", the line
 "Super+/ shows this list again. Esc closes it." and the rows of every
 binding of the file in the groups Windows, Layouts, Tags, Programs and
 System: the keys on a keycap in JetBrains Mono, then the words of the
 action in Inter ("Next window"; `run` shows its command). Each group is
 whole in one of two columns, and the columns are as even as they can be.
 The rows of a group go in the order of a person, not of the keys, rows
-are 24 px apart with caps of 20 px, every keycap has 6 px of padding on
-both sides, and the words of a column start at one x. The keys are
+are 24 px apart with caps of 20 px, or 22 px with caps of 18 px, or 20 px
+with caps of 18 px when the output is low, so the keys and their
+descenders sit in the cap on the baseline of the words; every keycap has
+6 px of padding on both sides, and the words of a column start at one x. The keys are
 spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
 The option `labels` names a binding in its own words, by the binding as the
 file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
@@ -1373,12 +1376,14 @@ The package installs the tiling flavor (D51):
 ├── swaylock.conf                     # the lock screen in the palette
 ├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
 ├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
+├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
+├── applications/                     # the entries Screenshot and Screenshot of an area
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
     ├── colors.css                    # the palette, Ink; style.css reads it
     ├── icons/                        # apps, keys and power, in the colours of the theme
-    ├── tag.sh                        # one tag module, from one shared answer
+    ├── tag.sh                        # one tag module, from the answer of tiling
     ├── layout.sh                     # the layout word
     └── tags.jq                       # the class of a tag module
 ```
@@ -1393,24 +1398,27 @@ its own package and needs no configuration.
   modules that need no IPC of sway, in the words of a person: the tags of
   the output, the clock, the volume, the network (`Connected`, the name of
   a wireless network or `Offline`, with the address in its tooltip), the
-  battery and the tray. Each of the nine tag modules runs `waybar/tag.sh N`
-  each second, which asks `choractl call tiling get_tags` once a second
-  for all nine and lets `jq` with `waybar/tags.jq` turn the answer into the
-  number and a class: `current` for a shown tag, also when empty,
+  battery and the tray. Each of the nine tag modules runs `waybar/tag.sh N`,
+  which asks `choractl call tiling get_tags` and lets `jq` with
+  `waybar/tags.jq` turn the answer into the number and a class: `current` for a shown tag, also when empty,
   `occupied`, `empty`, and `urgent` besides. The classes carry no markup;
   `style.css` draws them.
   The look is `waybar/style.css` with the palette `waybar/colors.css`
   (`@define-color` tokens: `base`, `surface`, `surface-2`, `line`, `text`,
   `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
   three floating islands, left, centre and right, each 32 px high and
-  radius 10, 8 px from the top and 12 px from the sides, on a 4 px grid, in
-  Inter. The islands are `surface` at 92 % with a 1 px `line` hairline,
+  radius 10, 8 px from the top and 12 px from the sides, in Inter. One
+  spacing of 6 px on each side of an item makes every gap between items,
+  separators and island edges 12 px. The islands are `surface` at 92 % with a 1 px `line` hairline,
   and separators are 1 x 16 px bars that leave the hairline clear. The
-  layout word has a least width of 80 px, so the left island keeps its
-  width through the layouts. The icons of **Apps**, **Keys** and the power
-  sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
-  colours of the theme; the tooltips of **Apps** and **Keys** name their
-  keys. Digits are tabular, so a number sits in the middle of its pill.
+  layout word is left aligned, 12 px after the separator, in a least width
+  of 80 px, so the left island keeps its width through the layouts.
+  The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
+  colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
+  of the text; the tooltips of **Apps** and **Keys** name their keys,
+  spelled as the key list spells them, and the tooltips sit inside their
+  islands. The month of the clock marks today in bold and underlined.
+  Digits are tabular, so a number sits in the middle of its pill.
   `waybar.sh` copies the style, the colours and the icons into the runtime
   directory, from `chora-tiling/theme/` when `chora-tiling` wrote it.
   Change a colour in `colors.css` and the whole panel follows. Every
@@ -1420,9 +1428,15 @@ its own package and needs no configuration.
   runs the launcher (`chora-tiling --launch fuzzel`), the numbers 1 to 9 view that
   tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
   the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
-  the word, in German with a German locale. Right island: **Keys** and the
-  power icon, which locks the session (`loginctl lock-session`). **Keys** shows the key list (`show_keys`). Change
-  the commands in `on-click` of `config.jsonc`.
+  the word, in German with a German locale. Right island: **Keys**, which
+  shows the key list (`show_keys`), and the power icon, which opens the power
+  menu. Change the commands in `on-click` of `config.jsonc`.
+  The bar follows the tags and the layout at once: after each event
+  `chora-tiling` compares the tags and the layout with what it last
+  showed and, when they differ, sends `SIGRTMIN+1` to the waybar that
+  `waybar.sh` recorded in `waybar.pid` in `chora-tiling/` of the runtime
+  directory. The tag and layout modules have `"signal": 1` and also ask
+  every 5 seconds, in case a signal is lost.
   The volume module runs `waybar/volume.sh` each second, which asks
   `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
   `Muted` or `No sound`; the tooltip of `No sound` says
@@ -1443,8 +1457,11 @@ its own package and needs no configuration.
   and `paper` are fixed. A change recolours the focus border, the key
   list and the chip at once, and `chora-tiling` writes `colors.css`,
   `fuzzel.ini`, `foot.ini`, `swaylock.conf` and the icons into
-  `chora-tiling/theme/` of the runtime directory, reloads the panel unit
-  and restarts the wallpaper unit when the scheme changed. The colours in
+  `chora-tiling/theme/` of the runtime directory and reloads the panel and
+  restarts the wallpaper when the scheme changed: with `SIGUSR2` to
+  `waybar.sh` and `wallpaper.sh` when they run (their pids are in
+  `panel.pid` and `wallpaper.pid` beside the theme), else through the
+  units. The colours in
   `look.palette` replace single tokens of either palette.
   `chora-tiling --apply-theme [--theme-dir DIR]` writes the same files by
   hand. Paper is `base` `#e9ebf1`, `surface` `#ffffff`, `text` `#1b1e27`,
@@ -1455,17 +1472,22 @@ its own package and needs no configuration.
   does too, as the default bindings of `chora-tiling` say. The bindings
   start the programs of the flavor with `chora-tiling --launch PROGRAM`, which
   adds the config file of the palette: `foot.ini` for foot, `fuzzel.ini` for
-  fuzzel (opaque, Inter 14, radius 12) and `swaylock.conf` for swaylock.
+  fuzzel (opaque, Inter 14 px, radius 12, prompt "Apps", the selected row
+  in the accent) and `swaylock.conf` for swaylock.
   It looks in `chora/tiling/` of the config directory first (a file of
   yours wins), then in `chora-tiling/theme/` of the runtime directory,
   which `chora-tiling` writes from `look.theme` and `look.palette` at each
   start and on reload (`chora-tiling --apply-theme` writes it too), then in
-  the flavor. The terminal is JetBrains Mono at 14 px with 16 px of
+  the flavor: `CHORA_FLAVOR_DIR`, `/usr/share/chora/flavors/tiling`, and the
+  `flavors/tiling` of the checkout that the running binary comes from, so a
+  session without the variable finds it. The launcher lists the entries of
+  `applications/` of the flavor too: **Screenshot** and **Screenshot of an
+  area** are the way for the mouse. The terminal is JetBrains Mono at 14 px with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
-  the panel open the menu of `power.sh`, the launcher in menu mode with
-  four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
+  the panel open the menu of `power.sh`, the launcher in menu mode with the
+  prompt "Power" and four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
   `loginctl terminate-session`, `systemctl reboot`, `systemctl poweroff`).
   `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
   area that slurp lets you select: `screenshot.sh` writes it to
@@ -1473,7 +1495,10 @@ its own package and needs no configuration.
   names the file in a notice (`notify-send`, shown by mako). grim is needed,
   and slurp for an area. `Print` alone needs a grant that the core does not
   give yet, so the keys have `MOD`. Both scripts are found like the config
-  files: `chora/tiling/` of the config directory first.
+  files, `chora/tiling/` of the config directory first and the flavor last.
+  A script that is in none of them is an error on stderr and a notice
+  ("Power menu not installed", "Screenshot not installed"), never a key
+  that does nothing.
 - **The lock**: swayidle runs `chora-tiling --launch swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
   runs. swaylock locks through the session lock protocol of the core.
