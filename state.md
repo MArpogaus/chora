@@ -199,17 +199,13 @@ stability and bug fixes, 3D, plugin separation; no feature sprints.
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR (persistent)
 
-Workers (own containers; check with get_session, merge here), 11-11 11:45:
-- session_016iS3kL1yG8R47DGySmB65H (Fable): CI sandbox, privileged
-  window.move check, pull clip; on claude/core-death.
-- session_016iS3kNteKAJNer4zC9m3qk (Fable): floating windows review
-  fixes on claude/virtual-2 (a6f7c761 pushed).
-- session_016iS3kMz3yvq4o7Xxb8ASmu (Fable): demo clips on claude/demo
-  (swing, walk; cube, float and pull next).
-- session_016iS3kNBZGoJk1MQrWZ4pBV (Fable): HUD looks finish on
-  claude/hud-looks (replaces the archived opus worker, which would not
-  take PM messages as instructions).
-Archived 11-11: dry-run, push probe, HUD looks (opus).
+Workers, 11-11 14:15 (Fable lanes stopped for the week; opus fix lanes
+from persona round 3, UX loop after them):
+- session_016iS3kMarD5B9MkUGpTGP15 (opus): claude/fix-chat, B1 B2 B4 M1 M2 M6 M8.
+- session_016iS3kPtHkcGRNN6QptStke (opus): claude/fix-basics, B3 M4 M5 M7 M9.
+- session_<cube>: claude/fix-cube, B5, K12, P1, C2, cube minors, D3a.
+Merge chain running here: demo 55bf65cf, stale-frame 12b61fb, wm-pane ba19022.
+Merged: HUD looks (7d188b1).
 
 Local: K5 construct on 3D (agent afab03f7e183f96f0, /home/user/wt/k5),
 plus construct wobble in 3D and construct-3d.png / construct-wobble.png.
