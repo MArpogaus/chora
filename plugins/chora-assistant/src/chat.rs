@@ -478,7 +478,6 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
         "margin": [0, 0, frame.size[1] - (y + h), x],
         "width": w,
         "output": frame.output,
-        "scale": frame.scale,
         "look": {
             "background": rgba(colours.fill),
             "text": rgba(colours.text),
@@ -1522,7 +1521,7 @@ mod tests {
     }
 
     #[test]
-    fn the_field_of_a_plain_chat_draws_at_the_scale_with_a_muted_hint() {
+    fn the_field_of_a_plain_chat_has_a_muted_hint_and_no_scale() {
         let mut frame = frame(Look {
             text: Some([41, 38, 36]),
             name: Some([110, 105, 99]),
@@ -1530,7 +1529,7 @@ mod tests {
         });
         frame.scale = 2;
         let place = field_place(&frame, None);
-        assert_eq!(place["scale"], 2);
+        assert!(place.get("scale").is_none(), "the plain field paints at 1");
         assert_eq!(place["look"]["hint"], json!([110, 105, 99, 255]));
         assert_eq!(place["look"]["text"], json!([41, 38, 36, 255]));
     }

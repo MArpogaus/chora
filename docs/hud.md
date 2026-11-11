@@ -344,8 +344,9 @@ that runs, the next open without a name (Super+a, a click on the door)
 shows its chat with its draft, not a list of one; with two helpers or
 none that was chosen, the list shows.
 
-The field of a plain chat draws at the scale of the output, so that its text
-is as sharp as the view, and its empty-field hint is in the colour `name`.
+The empty-field hint of a plain chat is in the colour `name`. Its field
+paints at one pixel to a pixel, so that it is soft on an output of scale 2
+until `chora-chat` paints a plain field at the scale, as it does a glass one.
 
 A transcript that does not fit scrolls by whole messages: the oldest
 lines go with the line of their speaker, and the end of a message that fills
