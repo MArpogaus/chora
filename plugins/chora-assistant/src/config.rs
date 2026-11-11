@@ -192,18 +192,23 @@ pub const TAIL: i32 = 18;
 /// colour over those of the neutral bubble, and a tail if it names one.
 /// A plain sentence takes the text colour and the fill of the chat, of
 /// the folder or of the host: the fill backs the text without a hairline.
+/// The sentence of a `bubble` chat, the balloon of the figure, takes the
+/// look of the chat, so that it is one balloon open and closed.
 fn speech_of(panel: &chora_kit::hud::Panel, hud: &Hud) -> Style {
     let neutral = Style::default();
     let plain = panel.style == Some(chora_kit::hud::Style::Plain);
+    let balloon = hud.chat.style == chora_kit::hud::ChatStyle::Bubble;
     let host = chora_kit::hud::Chat::host();
-    let page = |own: Option<[u8; 3]>, hosts: Option<[u8; 3]>| own.or(hosts).filter(|_| plain);
+    let page =
+        |own: Option<[u8; 3]>, hosts: Option<[u8; 3]>| own.or(hosts).filter(|_| plain || balloon);
     let (paper, ink) = (
         page(hud.chat.fill, host.fill),
         page(hud.chat.text, host.text),
     );
+    let edge = hud.chat.border.filter(|_| balloon);
     Style {
         fill: panel.fill.or(paper).unwrap_or(neutral.fill),
-        border: panel.border.unwrap_or(neutral.border),
+        border: panel.border.or(edge).unwrap_or(neutral.border),
         text: panel.colours.text.or(ink).unwrap_or(neutral.text),
         tail: if panel.tail.is_some() { TAIL } else { 0 },
         ..neutral
@@ -773,6 +778,18 @@ mod tests {
         let light = Values::from_hud(&hud, &Context::default(), |_| None);
         assert_eq!(light.chat().fill, Some([250, 250, 250]));
         assert_eq!(Values::neutral("sans-serif").chat(), hud::Chat::default());
+    }
+
+    #[test]
+    fn the_sentence_of_a_balloon_chat_wears_the_look_of_the_chat() {
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, anchor: bottom_right, \
+            picture: 'a.svg#{state}', action: chat}\n- {id: l, source: say, near: f, \
+            text: '{text}', tail: right}\nchat:\n  style: bubble\n  fill: [255, 255, 225]\n  \
+            text: [0, 0, 0]\n  border: [127, 157, 185]\n";
+        let values = values(text);
+        assert_eq!(values.speech.fill, [255, 255, 225], "one balloon, one fill");
+        assert_eq!(values.speech.border, [127, 157, 185]);
+        assert_eq!(values.speech.text, [0, 0, 0]);
     }
 
     #[test]

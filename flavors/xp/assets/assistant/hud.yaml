@@ -15,8 +15,6 @@ panels:
   text: '{text}'
   max_chars: 160
   action: chat
-  fill: [255, 255, 225]
-  border: [127, 157, 185]
   tail: right
 chat:
   style: bubble

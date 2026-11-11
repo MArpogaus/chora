@@ -195,7 +195,7 @@ chat:
 | `rows` | A template for one row of a list. |
 | `max_rows` | The most rows of a list, 1 to 200. |
 | `colours` | The colours of the text, `[r, g, b]` each. For the rows of the helpers: `text` for the name, `accent` for the state word and `muted` for the task; a colour left out is the text colour of the chat. For a sentence: `text`. Each needs a contrast of 4.5:1 against the fill behind it. |
-| `fill`, `border` | The colour inside the box of a sentence or of a row, and of its hairline. Left out, a sentence has the light card of the host and a row the fill of the chat. The text needs 4.5:1 against the fill, the hairline 1.5:1. |
+| `fill`, `border` | The colour inside the box of a sentence or of a row, and of its hairline. Left out, a sentence has the light card of the host, or with a `bubble` chat the fill, hairline and text of the chat, and a row the fill of the chat. The text needs 4.5:1 against the fill, the hairline 1.5:1. |
 | `tail` | `left` or `right`: the bubble of a sentence gets a tail that points at the figure, near that end; the bubble grows to the other side. Left out: no tail. |
 
 A panel needs at least one of `picture`, `text` or `rows`.

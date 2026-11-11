@@ -71,7 +71,7 @@ fn the_xp_folder_is_one_balloon_of_the_paperclip() {
     );
     assert_eq!(
         (line.fill, line.border),
-        (xp.chat.fill, xp.chat.border),
-        "one look"
+        (None, None),
+        "the sentence wears the look of the chat"
     );
 }
