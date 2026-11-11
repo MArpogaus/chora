@@ -21,6 +21,12 @@
 #    Alt+Escape steps back again; that the switcher has Alt+Escape while
 #    it shows is a unit test of the construct, as injected keys do not
 #    stay down between two requests.
+# 2b. Floating windows: stood back, each window of xp on a face floats
+#    in front of it as a plane of its own, the upper one farther, and
+#    the face keeps the wallpaper and the taskbar; a still cube with
+#    floating windows draws nothing; after the step in the windows are
+#    in the face again, pixel for pixel. A window floats during a turn.
+#    FLOAT_SHOT  a PNG path that keeps a capture of the floating windows
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
 #    is at the front, and the face before looks away and hides. xp moves
 #    the window to the output of the next face.
@@ -222,8 +228,53 @@ call view.step_in >/dev/null || fail "view.step_in after the switcher"
 until_ok "$stepped_in" 20 || fail "no step in after the switcher: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
 ok "after the switcher of xp closed, Alt+Escape steps back again"
 
+"$bin/chora-probe" window 200 40 40 >"$work/probe2.log" 2>&1 &
+second_probe=$!
+pids+=("$second_probe")
+others() { probe | awk -v s="$surface" '$1 != s && $2 == "xp" {print $1}' | head -n 1; }
+until_ok 'test -n "$(others)"' 40 || fail "the second probe window came to no xp face: $(probe)"
+upper=$(others)
+opacity() { ctl query "id:xp-win-$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(round(n[0].get("opacity", 1), 3) if n else "gone")'; }
+lifted() {
+    ctl query "id:construct-cube-float-0-$1" | python3 -I -c '
+import json, sys
+n = json.load(sys.stdin)
+face = float(sys.argv[1])
+if not n or "HEADLESS-1" not in n[0]["rects"]:
+    print(0)
+else:
+    print(round(1000 * n[0]["rects"]["HEADLESS-1"][2] / (n[0]["size"][0] * face / 1280)))' "$(width construct-cube-face-0)"
+}
+floats() {
+    sleep 1
+    ctl capture "$work/flat.png" >/dev/null || return 1
+    call view.step_back >/dev/null || return 1
+    until_ok "$stood_back" 20 || return 1
+    sleep 1
+    [ "$(opacity "$surface")" = 0 ] && [ "$(opacity "$upper")" = 0 ] || { echo "the windows stay in the face: opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
+    lower_lift=$(lifted "$surface")
+    upper_lift=$(lifted "$upper")
+    [ "$lower_lift" -gt 1030 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
+    [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
+    [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
+    still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }
+    call view.step_in >/dev/null || return 1
+    until_ok "$stepped_in" 20 || return 1
+    until_ok 'test "$(prop "construct-cube-float-0-$surface" visible)" = gone && test "$(opacity "$surface")" = 1 && test "$(opacity "$upper")" = 1' 20 ||
+        { echo "the windows did not land: plane $(prop "construct-cube-float-0-$surface" visible), opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
+    sleep 0.5
+    ctl capture "$work/landed.png" >/dev/null || return 1
+    cmp -s "$work/flat.png" "$work/landed.png" || { echo "the face after the step in differs from the face before the step back"; return 1; }
+}
+why=$(floats) || why=$(floats) || fail "floating windows: $why"
+ok "stood back, the windows float off the face, the upper one farther ($lower_lift and $upper_lift per mille), and land pixel for pixel"
+run_pid "$second_probe"
+kill "$second_probe"
+until_ok 'test -z "$(others)"' 40 || fail "the second probe window stays"
+
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn"
 sleep 1
+[ "$(prop "construct-cube-float-0-$surface" visible)" != gone ] || fail "the window does not float during a turn"
 [ -n "${SHOT:-}" ] && ctl capture "$SHOT" >/dev/null
 [ "$(prop construct-cube-face-0 forward)" = False ] && [ "$(prop construct-cube-face-1 forward)" = False ] ||
     fail "a face forwards during the turn: $(prop construct-cube-face-0 forward) $(prop construct-cube-face-1 forward)"
