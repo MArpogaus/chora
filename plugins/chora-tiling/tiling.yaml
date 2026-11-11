@@ -24,14 +24,21 @@ look:
   # The width of the border around each window, outside it; 0 for none. The
   # max and fullscreen layouts have none.
   border: 2
-  # The colours of the border, #rrggbb: the focused window has a gradient
-  # from accent to accent_2 (the same colour twice makes it solid), the
-  # others line, and a window that asked for attention urgent.
-  palette:
-    accent: '#a78bfa'
-    accent_2: '#5eead4'
-    line: '#2e3344'
-    urgent: '#f87171'
+  # Which palette the look takes: system follows the colour scheme of the
+  # system (Paper when it asks for light, Ink when it asks for dark or says
+  # nothing), ink is the dark one and paper the light one.
+  theme: system
+  # Colours that replace those of the theme, each #rrggbb: base, surface,
+  # surface_2, line, text, muted, accent, on_accent, accent_2 and urgent.
+  # The focused window has a border in a gradient from accent to accent_2
+  # (the same colour twice makes it solid), the others line, and a window
+  # that asked for attention urgent. The bar, the launcher, the terminal and
+  # the lock screen take the same colours: chora-tiling writes them at each
+  # start and on reload, and chora-tiling --apply-theme writes them again.
+  # Example:
+  #   palette:
+  #     accent: '#f59e0b'
+  palette: {}
 # The number of tags of each output, at most 16.
 tags: 9
 # The layouts in the order of next_layout. Each tag starts with the first.
@@ -144,9 +151,11 @@ bindings:
   MOD+Ctrl+Shift+8: {toggle_window_tag: 8}
   MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
   # Programs
-  MOD+Return: {run: foot}
-  MOD+space: {run: fuzzel}
-  MOD+r: {run: fuzzel}
+  # chora-tiling --launch starts a program of the flavor with its config
+  # file in the palette: foot, fuzzel or swaylock.
+  MOD+Return: {run: chora-tiling --launch foot}
+  MOD+space: {run: chora-tiling --launch fuzzel}
+  MOD+r: {run: chora-tiling --launch fuzzel}
   MOD+a: {run: chora-chat}
   # swayidle of the tiling flavor runs swaylock on this request
   MOD+Shift+Escape: {run: loginctl lock-session}

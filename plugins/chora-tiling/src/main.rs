@@ -12,6 +12,7 @@
 mod config;
 mod keys;
 mod layout;
+mod theme;
 mod wm;
 
 use std::{
@@ -63,6 +64,14 @@ struct Args {
     /// window managers; all outputs without it. Repeatable.
     #[arg(long = "output", value_name = "NAME")]
     outputs: Vec<String>,
+    /// Write the files of the palette (the colours of the panel, the
+    /// launcher, the terminal and the lock screen) and exit.
+    #[arg(long)]
+    apply_theme: bool,
+    /// The directory that --apply-theme writes; by default `chora-tiling/
+    /// theme` in the runtime directory.
+    #[arg(long, value_name = "DIR", requires = "apply_theme")]
+    theme_dir: Option<PathBuf>,
 }
 
 /// Parameters of `tiling.set_layout`; a missing field keeps its value.
@@ -149,10 +158,19 @@ struct Tiling {
     keys_open: bool,
     /// When the layout chip leaves.
     chip_until: Option<std::time::Instant>,
+    /// The colours of the look, and the scheme they come from.
+    colors: theme::Colors,
+    scheme: theme::Scheme,
+    /// When the system is asked for its colour scheme again.
+    theme_check: Option<std::time::Instant>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
 fn main() -> ExitCode {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.first().is_some_and(|a| a == "--launch") {
+        return launch(&words[1..]);
+    }
     let args = Args::try_parse().unwrap_or_else(|err| {
         if err.kind() == clap::error::ErrorKind::UnknownArgument {
             eprintln!(
@@ -166,7 +184,52 @@ fn main() -> ExitCode {
         print!("{}", config::DEFAULT);
         return ExitCode::SUCCESS;
     }
+    if args.apply_theme {
+        return apply_theme(&args);
+    }
     runtime::run(NAME, || play(&args))
+}
+
+/// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
+/// config file of the flavor, in the palette; another program as it is.
+fn launch(argv: &[String]) -> ExitCode {
+    use std::os::unix::process::CommandExt as _;
+    let Some((program, rest)) = argv.split_first() else {
+        eprintln!("usage: chora-tiling --launch PROGRAM [ARGS]");
+        return ExitCode::from(2);
+    };
+    let line = theme::launch_line(program, rest, &theme::config_dirs());
+    let err = std::process::Command::new(&line[0]).args(&line[1..]).exec();
+    eprintln!("chora-tiling: cannot start {program}: {err}");
+    ExitCode::FAILURE
+}
+
+/// `--apply-theme`: the files of the palette of the configuration.
+fn apply_theme(args: &Args) -> ExitCode {
+    let result = settings::File::<Config>::path(args.config.clone(), "chora-tiling")
+        .and_then(|path| settings::File::<Config>::load(path, config::DEFAULT))
+        .map_err(|e| e.clone())
+        .and_then(|settings| {
+            let look = &settings.value.look;
+            let scheme = look.theme.scheme(system_for(look.theme));
+            let dir = args.theme_dir.clone().or_else(theme::default_dir);
+            let dir = dir.ok_or("no directory: give --theme-dir")?;
+            theme::apply(&dir, &look.palette.over(scheme), scheme).map_err(|e| e.to_string())
+        });
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("chora-tiling: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// What the system asks for, when the theme follows it.
+fn system_for(theme: theme::Theme) -> Option<theme::Scheme> {
+    (theme == theme::Theme::System)
+        .then(theme::system_scheme)
+        .flatten()
 }
 
 /// One connection to the core: window management until it goes away.
@@ -198,10 +261,20 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         border: border_shader(),
         keys_open: false,
         chip_until: None,
+        colors: theme::Colors::of(theme::Scheme::Ink),
+        scheme: theme::Scheme::Ink,
+        theme_check: None,
     };
+    tiling.apply_theme(false);
     tiling.start()?;
     Ok(serve(&mut tiling)?)
 }
+
+/// How often the system is asked for its colour scheme.
+const THEME_CHECK: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// The unit of the panel of the flavor.
+const PANEL_UNIT: &str = "chora-tiling-waybar.service";
 
 /// How long the layout chip shows.
 const CHIP_TIME: std::time::Duration = std::time::Duration::from_millis(700);
@@ -232,6 +305,7 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
             next = now + FRAME;
         }
         tiling.end_chip(now)?;
+        tiling.follow_system(now)?;
     }
 }
 
@@ -426,6 +500,7 @@ impl Tiling {
     fn reconfigure(&mut self) -> Result<(), ClientError> {
         self.check_shaders()?;
         self.rt.ungrab_all()?;
+        self.apply_theme(true);
         self.wm.reconfigure(self.settings.value.clone());
         self.effects.set(&self.settings.value.effects);
         self.sent.clear();
@@ -702,10 +777,59 @@ impl Tiling {
     /// effect, or the end of the layout chip.
     fn wake(&self, frame: std::time::Instant) -> Option<std::time::Instant> {
         let frame = self.effects.animating().then_some(frame);
-        match (frame, self.chip_until) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
+        [frame, self.chip_until, self.theme_check]
+            .into_iter()
+            .flatten()
+            .min()
+    }
+
+    /// Takes the colours of the theme and writes the files of the flavor
+    /// that carry them; `reload` asks the panel to read its style again,
+    /// which it must when the colours changed under it. Without a user
+    /// manager there is nothing to reload.
+    fn apply_theme(&mut self, reload: bool) {
+        let look = &self.wm.config.look;
+        let scheme = look.theme.scheme(system_for(look.theme));
+        let colors = look.palette.over(scheme);
+        let changed = colors != self.colors;
+        self.theme_check =
+            (look.theme == theme::Theme::System).then(|| std::time::Instant::now() + THEME_CHECK);
+        self.scheme = scheme;
+        self.colors = colors;
+        let Some(dir) = theme::default_dir() else {
+            return;
+        };
+        if let Err(err) = theme::apply(&dir, &self.colors, scheme) {
+            eprintln!("chora-tiling: the files of the theme: {err}");
+            return;
         }
+        if reload && changed {
+            let _ = std::process::Command::new("systemctl")
+                .args(["--user", "--no-block", "reload", PANEL_UNIT])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+    }
+
+    /// Asks the system for its colour scheme when it is time, and takes the
+    /// new colours of the theme when it changed.
+    fn follow_system(&mut self, now: std::time::Instant) -> Result<(), ClientError> {
+        if self.theme_check.is_none_or(|at| now < at) {
+            return Ok(());
+        }
+        let before = self.colors.clone();
+        self.apply_theme(true);
+        if self.colors != before {
+            self.sent.clear();
+            self.relayout()?;
+            if self.keys_open {
+                self.hide_keys()?;
+                self.toggle_keys()?;
+            }
+        }
+        Ok(())
     }
 
     /// Shows the chip that names the layout of the current tag for 700 ms.
@@ -727,10 +851,26 @@ impl Tiling {
             &format!("screen:{output}"),
             size,
             keys::layout_word(layout, lang),
-            &self.wm.config.look.palette,
+            &self.colors,
         ));
         self.chip_until = Some(std::time::Instant::now() + CHIP_TIME);
-        self.apply_report(commands).map(|_| ())
+        if self.apply_report(commands)? {
+            let guess = keys::guess(keys::layout_word(layout, lang));
+            let measured = self.measured(&format!("{}-word", keys::CHIP));
+            self.apply(keys::chip_fit(size, measured.unwrap_or(guess)))?;
+        }
+        Ok(())
+    }
+
+    /// The size that the renderer gave a text node, in logical pixels.
+    fn measured(&mut self, id: &str) -> Option<[f64; 2]> {
+        let nodes = self.query(&format!("id:{id}")).ok()?;
+        let rect = nodes
+            .first()
+            .and_then(|n| n["rects"].as_object())
+            .and_then(|r| r.values().next())
+            .and_then(Value::as_array);
+        rect.and_then(|r| Some([r.get(2)?.as_f64()?, r.get(3)?.as_f64()?]))
     }
 
     /// Takes the chip away when its time is up.
@@ -755,13 +895,8 @@ impl Tiling {
         };
         let lang = chora_kit::words::Language::of_session();
         let rows = keys::rows(&self.wm.config, lang);
-        let mut commands = keys::key_list(
-            &format!("screen:{output}"),
-            size,
-            &rows,
-            &self.wm.config.look.palette,
-            lang,
-        );
+        let mut commands =
+            keys::key_list(&format!("screen:{output}"), size, &rows, &self.colors, lang);
         commands.push(Command::FocusNode {
             node: Some(keys::KEYS.into()),
         });
@@ -1217,7 +1352,8 @@ impl Tiling {
     /// The commands that bring the windows from what was sent to their
     /// placements.
     fn window_changes(&self, placements: &[Placement]) -> Vec<Command> {
-        let colors = self.wm.config.look.palette.rgb().unwrap_or_default();
+        let c = &self.colors;
+        let colors = [&c.accent, &c.accent_2, &c.line, &c.urgent].map(|h| theme::channels(h));
         let shown = self.border.is_some().then_some(&colors);
         placements
             .iter()
@@ -1893,6 +2029,9 @@ mod tests {
             border: None,
             keys_open: false,
             chip_until: None,
+            colors: theme::Colors::of(theme::Scheme::Ink),
+            scheme: theme::Scheme::Ink,
+            theme_check: None,
         };
         (tiling, methods)
     }

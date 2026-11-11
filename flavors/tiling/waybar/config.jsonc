@@ -81,7 +81,7 @@
     "exec": "echo Apps",
     "interval": "once",
     "format": "▦ {}",
-    "on-click": "choractl run fuzzel",
+    "on-click": "choractl run -- chora-tiling --launch fuzzel",
     "tooltip-format": "Run a program (Super+Space)"
   },
   "custom/layout": {

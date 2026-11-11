@@ -9,7 +9,10 @@ use chora_scene::{Binding, ShaderEffect};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::layout::Layout;
+use crate::{
+    layout::Layout,
+    theme::{self, Colors, Scheme, Theme},
+};
 
 /// The default configuration.
 pub const DEFAULT: &str = include_str!("../tiling.yaml");
@@ -220,56 +223,80 @@ pub struct Look {
     pub radius: u16,
     /// The width of the border around a window, outside it; 0 for none.
     pub border: u16,
-    /// The colours of the border.
+    /// Which palette the look takes: `system` follows the colour scheme
+    /// of the system and takes Ink when it says nothing; `ink` and `paper`
+    /// are fixed.
+    pub theme: Theme,
+    /// Colours that replace those of the theme.
     pub palette: Palette,
 }
 
-/// The colours of the look, each `#rrggbb`.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+/// The colours of the look that a ricer changes, each `#rrggbb`; a colour
+/// that is `null` or missing comes from the theme.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields, default)]
 pub struct Palette {
-    /// The border of the focused window, at the top left of its gradient.
-    pub accent: String,
+    /// The wallpaper colour and the lock screen.
+    pub base: Option<String>,
+    /// The bar islands and the overlays.
+    pub surface: Option<String>,
+    /// Hover, keycaps and wells.
+    pub surface_2: Option<String>,
+    /// The border of a window that has no focus, and hairlines.
+    pub line: Option<String>,
+    /// Text.
+    pub text: Option<String>,
+    /// Secondary text.
+    pub muted: Option<String>,
+    /// The focus: the border at the top left of its gradient, the current
+    /// tag and the match in the launcher.
+    pub accent: Option<String>,
+    /// Text on the accent.
+    pub on_accent: Option<String>,
     /// The bottom right end of the gradient of the focus border; the same
     /// as `accent` for a solid border.
-    pub accent_2: String,
-    /// The border of a window that has no focus.
-    pub line: String,
-    /// The border of a window that asked for attention.
-    pub urgent: String,
-}
-
-impl Default for Palette {
-    fn default() -> Self {
-        Self {
-            accent: "#a78bfa".into(),
-            accent_2: "#5eead4".into(),
-            line: "#2e3344".into(),
-            urgent: "#f87171".into(),
-        }
-    }
+    pub accent_2: Option<String>,
+    /// The border of a window that asked for attention, and urgent tags.
+    pub urgent: Option<String>,
 }
 
 impl Palette {
-    /// The colours as `(name, [r, g, b])`, each channel from 0 to 1, or the
-    /// name of the colour that is no `#rrggbb`.
-    ///
-    /// # Errors
-    ///
-    /// A colour is not `#rrggbb`.
-    pub fn rgb(&self) -> Result<[[f64; 3]; 4], String> {
-        let parse = |name: &str, text: &str| -> Result<[f64; 3], String> {
-            let digits = text.strip_prefix('#').filter(|d| d.len() == 6);
-            let value = digits.and_then(|d| u32::from_str_radix(d, 16).ok());
-            let value = value.ok_or_else(|| format!("look.palette.{name}: #rrggbb"))?;
-            Ok([16, 8, 0].map(|shift| f64::from((value >> shift) & 255) / 255.0))
-        };
-        Ok([
-            parse("accent", &self.accent)?,
-            parse("accent_2", &self.accent_2)?,
-            parse("line", &self.line)?,
-            parse("urgent", &self.urgent)?,
-        ])
+    fn entries(&self) -> [(&'static str, &Option<String>); 10] {
+        [
+            ("base", &self.base),
+            ("surface", &self.surface),
+            ("surface_2", &self.surface_2),
+            ("line", &self.line),
+            ("text", &self.text),
+            ("muted", &self.muted),
+            ("accent", &self.accent),
+            ("on_accent", &self.on_accent),
+            ("accent_2", &self.accent_2),
+            ("urgent", &self.urgent),
+        ]
+    }
+
+    /// The colours of a scheme with the colours of the file over them.
+    #[must_use]
+    pub fn over(&self, scheme: Scheme) -> Colors {
+        let mut colors = Colors::of(scheme);
+        for (name, value) in self.entries() {
+            if let Some(value) = value {
+                colors.set(name, value);
+            }
+        }
+        colors
+    }
+
+    fn check(&self) -> Result<(), String> {
+        for (name, value) in self.entries() {
+            if let Some(value) = value
+                && theme::rgb(value).is_none()
+            {
+                return Err(format!("look.palette.{name}: #rrggbb"));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -284,7 +311,7 @@ impl Look {
                 return Err(format!("{name}: at most {MAX_GAP}"));
             }
         }
-        self.palette.rgb()?;
+        self.palette.check()?;
         if self.border > MAX_BORDER {
             return Err(format!("look.border: at most {MAX_BORDER}"));
         }
@@ -302,6 +329,7 @@ impl Default for Look {
             gap_inner: Some(10),
             radius: 10,
             border: 2,
+            theme: Theme::System,
             palette: Palette::default(),
         }
     }
@@ -534,7 +562,10 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.tags, 9);
         assert_eq!(config.layouts[0], Layout::Tile);
-        assert_eq!(config.bindings["MOD+Return"], Action::Run("foot".into()));
+        assert_eq!(
+            config.bindings["MOD+Return"],
+            Action::Run("chora-tiling --launch foot".into())
+        );
         assert_eq!(
             config.binding("MOD+Shift+1").unwrap().to_string(),
             "Shift+Super+1"
@@ -557,7 +588,10 @@ mod tests {
     /// W9: settings.set took {"run": ""}.
     #[test]
     fn a_run_without_a_command_fails() {
-        let run = DEFAULT.replace("MOD+Return: {run: foot}", "MOD+Return: {run: ' '}");
+        let run = DEFAULT.replace(
+            "MOD+Return: {run: chora-tiling --launch foot}",
+            "MOD+Return: {run: ' '}",
+        );
         assert_ne!(run, DEFAULT);
         let err = parse::<Config>(&run).unwrap_err();
         assert!(err.contains("run takes a command"), "{err}");

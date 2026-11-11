@@ -24,6 +24,16 @@ keys Super+Shift+space
 sleep 0.3
 grep -q "Tile left" <<<"$(list)" || fail "no chip names the new layout: $(list | head -c 300)"
 ok "Super+Shift+space shows the chip 'Tile left'"
+ctl query 'owner:tiling' | python3 -I -c '
+import json, sys
+by = {n["id"]: next(iter(n["rects"].values())) for n in json.load(sys.stdin) if n.get("rects") and n["id"].startswith("tiling-chip")}
+glass, word = by["tiling-chip-glass"], by["tiling-chip-word"]
+for axis, name in ((0, "horizontally"), (1, "vertically")):
+    off = (word[axis] + word[axis + 2] / 2) - (glass[axis] + glass[axis + 2] / 2)
+    if abs(off) > 1.0:
+        sys.exit("the word is %.1f px off the centre of the chip, %s" % (off, name))
+' || fail "the word is not centred in the chip"
+ok "the word is centred in the chip, on both axes"
 sleep 1.5
 grep -q "Tile left" <<<"$(list)" && fail "the chip stays longer than 700 ms"
 ok "the chip leaves"

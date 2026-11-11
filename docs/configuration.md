@@ -221,7 +221,7 @@ default map:
 |--------|---------|
 | `modifier` | what `MOD` means in the bindings: Super or Alt |
 | `gap` | the gap of the old look, in logical pixels: the edge gets it, two tiles get twice; it applies where `look` has `null` for a gap, and `set_layout` sets it |
-| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window and `palette` its colours (`accent`, `accent_2`, `line`, `urgent`, each `#rrggbb`); `gap_outer` and `gap_inner` take `gap` when `null`; the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
+| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window, `theme` (`system`, `ink` or `paper`: the palette; `system` takes Paper when the system asks for the light colour scheme and Ink when it asks for dark or says nothing) and `palette`, colours that replace those of the theme (`base`, `surface`, `surface_2`, `line`, `text`, `muted`, `accent`, `on_accent`, `accent_2`, `urgent`, each `#rrggbb`); `gap_outer` and `gap_inner` take `gap` when `null`; the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
 | `tags` | the number of tags of each output, at most 16 |
 | `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
@@ -256,11 +256,17 @@ output.
 Mouse resizes of floating windows do not exist.
 
 The key list shows on `MOD+slash` and on the button **Keys** of the
-panel: a glass panel of 880 px, at least 560 px high, centred on the
-current output, with the heading "Keys", the line "Super+/ shows this list
-again. Esc closes it." and the rows of every binding of the file in the
-groups Windows, Layouts, Tags, Programs and System: the keys on a keycap,
-then the words of the action ("Next window"; `run` shows its command).
+panel: a glass panel of 880 px, as high as its rows and 24 px more,
+centred on the current output, with the heading "Keys", the line
+"Super+/ shows this list again. Esc closes it." and the rows of every
+binding of the file in the groups Windows, Layouts, Tags, Programs and
+System: the keys on a keycap in JetBrains Mono, then the words of the
+action in Inter ("Next window"; `run` shows its command). Each group is
+whole in one of two columns, and the columns are as even as they can be.
+The rows of a group go in the order of a person, not of the keys, rows
+are 24 px apart with caps of 20 px, every keycap has 6 px of padding on
+both sides, and the words of a column start at one x. The keys are
+spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
 The option `labels` names a binding in its own words, by the binding as the
 file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
 one row, a binding with the words of another joins its row, and media keys
@@ -271,7 +277,7 @@ click outside closes it, and the window that had the keys gets them back.
 
 `MOD+Shift+space` goes to the next layout, `MOD+Ctrl+Shift+space` to the
 previous one, and each shows the layout chip, a glass chip low on the
-output that names the new layout ("Fair") for 700 ms. `MOD+space` is the
+output that names the new layout ("Fair") for 700 ms; the chip is as big as the word that the renderer measured plus 24 px left and right and 16 px above and below, so the word sits in its middle. `MOD+space` is the
 launcher.
 
 Each window sits in a group of its own, `tw-ID` in the scene. The group
@@ -1340,9 +1346,12 @@ The package installs the tiling flavor (D51):
 ├── chora-tiling-assistant.service    # chora-assistant: the voice HUD and the chat
 ├── chora-tiling-xwayland.service     # xwayland-satellite
 ├── chora-tiling-waybar.service       # the panel
-├── chora-tiling-swaybg.service       # the wallpaper, a plain color
+├── chora-tiling-swaybg.service       # the wallpaper
 ├── chora-tiling-swayidle.service     # the idle lock with swaylock
 ├── chora-tiling-kanshi.service       # the output profiles of the user
+├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
+├── fuzzel.ini                        # the launcher: opaque, the palette
+├── swaylock.conf                     # the lock screen in the palette
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
@@ -1374,11 +1383,11 @@ its own package and needs no configuration.
   three floating islands, left, centre and right, each 32 px high and
   radius 10, 8 px from the top and 12 px from the sides, on a 4 px grid, in
   Inter. The islands are `surface` at 92 % with a 1 px `line` hairline.
-  Change a colour in `colors.css` and the whole panel follows. An empty
-  tag is `muted` at 50 %, an inactive control; every other label keeps
-  4.5:1 on `surface`.
+  Change a colour in `colors.css` and the whole panel follows. Every
+  label keeps 4.5:1 on `surface`, an empty tag too: it is `muted`, not
+  dimmed, because it is a door that a person clicks.
   Every part of the panel is a door for the mouse. Left island: **Apps**
-  runs the launcher (`choractl run fuzzel`), the numbers 1 to 9 view that
+  runs the launcher (`chora-tiling --launch fuzzel`), the numbers 1 to 9 view that
   tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
   the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
   the word, in German with a German locale. Right island: **Keys** and the
@@ -1396,9 +1405,18 @@ its own package and needs no configuration.
   waybar again when the left-out ones changed. Without jq it ends with
   an error.
 - **The launcher**: `MOD+space` starts fuzzel in every look, and `MOD+r`
-  does too, as the default bindings of `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
+  does too, as the default bindings of `chora-tiling` say. The bindings
+  start the programs of the flavor with `chora-tiling --launch PROGRAM`, which
+  adds the config file of the palette: `foot.ini` for foot, `fuzzel.ini` for
+  fuzzel (opaque, Inter 14, radius 12) and `swaylock.conf` for swaylock.
+  It looks in `chora/tiling/` of the config directory first (a file of
+  yours wins), then in `chora-tiling/theme/` of the runtime directory,
+  which `chora-tiling` writes from `look.theme` and `look.palette` at each
+  start and on reload (`chora-tiling --apply-theme` writes it too), then in
+  the flavor. The terminal is JetBrains Mono at 14 px with 16 px of
+  padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
-- **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,
+- **The lock**: swayidle runs `chora-tiling --launch swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
   runs. swaylock locks through the session lock protocol of the core.
   The core has no protocol to turn outputs off yet, so the screens stay on.
