@@ -214,7 +214,11 @@ step fails on a non-zero exit code, on a line that starts with `FAIL:` or
 `MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
 and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
 and only from a clean work tree. `tests/merge-gate-selftest.sh` proves
-this with fake steps and needs no build.
+this with fake steps and needs no build. One gate runs at a time on a
+machine: the merge gate and every script with `tests/gate-lib.sh` take the
+lock of `tests/gate-lock.sh`, `${XDG_RUNTIME_DIR:-/tmp}/chora-gate.lock`,
+and a second gate prints `waits for` and waits. The scripts that the
+gate runs share its lock.
 
 ```bash
 tests/merge-gate.sh --push claude/session
@@ -223,7 +227,8 @@ tests/merge-gate.sh --push claude/session
 The other gate scripts `tests/gate-*.sh` take the binaries from
 `target/debug`, or from the directory in `BIN`. Their EXIT trap ends
 every program that they started, also one that a gate stopped with
-`SIGSTOP`; `tests/gate-lib-selftest.sh` proves it. The list of the scripts
+`SIGSTOP`; `tests/gate-lib-selftest.sh`, the first step of the merge
+gate, proves it. The list of the scripts
 that CI runs is `.github/workflows/ci.yaml`, and its `dnf install` line
 names the packages that they need. A script without its tools answers
 `SKIP`. `tests/gate-0.9-daily.sh` and `tests/gate-0.9-hardware.sh` run by
