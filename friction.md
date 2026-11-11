@@ -229,3 +229,13 @@ container (setup done); the overlay and marble lanes follow locally
 when disk allows. For next week: ask the user whether the cloud
 environment's own setup script can run setup.sh, so new workers start
 ready.
+
+## 31 (11-11 ~23:00): the haiku persona swarm was set up loosely
+My brief named BIN instead of CHORA_BIN (two runs started on the wrong
+binaries), did not set PERSONA_KEEP (two runs lost their screenshots),
+and two personas read the scripts and docs before acting, which a real
+person cannot. Findings are still useful but need separating from the
+container (no LibreOffice, no PipeWire, no voice). Fix for the next
+swarm: a launcher script that starts the session for the persona with
+the right env and keeps the shots, so the persona only gets act.py and
+the screen; the brief forbids reading the repo.
