@@ -31,6 +31,8 @@ pub const NO: &str = "hud-card-no";
 pub const BADGE: &str = "hud-badge";
 /// The shadow, the hairline and the glow of a glass card.
 pub const SHADOW: &str = "hud-card-shadow";
+/// The rect of the tint of a glass card over the blur.
+pub const GLASS: &str = "hud-card-glass";
 
 /// The widest card, and the room that it leaves at the sides of the output.
 const WIDTH: i32 = 560;
@@ -333,6 +335,17 @@ pub fn show(
         })
         .into_iter()
         .collect();
+    if let Some(dark) = shown.glass {
+        let m = chora_kit::glass::Material::of(dark);
+        let rect = [x, y, size[0], size[1]].map(f64::from);
+        let radius = chora_kit::glass::PANEL_RADIUS;
+        commands.extend(crate::glass::backdrop(
+            (GLASS, TOP),
+            rect,
+            (radius, true),
+            (&m, fresh),
+        ));
+    }
     commands.push(put(CARD, card, fresh));
     if let (true, Some(at)) = (fresh, buttons) {
         let [yes, no] = Card::buttons(language);
@@ -362,7 +375,11 @@ pub fn show(
 /// buttons away.
 #[must_use]
 pub fn hide(shown: &Shown) -> Vec<Command> {
-    let shadow = shown.glass.map(|_| SHADOW);
+    let blurred = shown
+        .glass
+        .filter(|_| chora_kit::glass::BACKDROP)
+        .map(|_| GLASS);
+    let shadow = shown.glass.map(|_| SHADOW).into_iter().chain(blurred);
     let buttons = (shown.buttons && !shown.too_long).then_some([YES, NO]);
     shadow
         .into_iter()

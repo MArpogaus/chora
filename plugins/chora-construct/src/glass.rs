@@ -159,7 +159,12 @@ pub fn surface(look: &Look, m: &Material, s: &Surface<'_>) -> Vec<Command> {
         PropsUpdate {
             size: Some([w, h]),
             radius: Some(r),
-            color: Some(m.fill(s.strong)),
+            color: Some(if look.plain {
+                m.plain(s.strong)
+            } else {
+                m.fill(s.strong)
+            }),
+            backdrop: Some(backdrop(m).filter(|_| !look.plain)),
             border: Some(Some(Border {
                 width: 1.0,
                 color: m.edge_in,
@@ -178,6 +183,16 @@ pub fn surface(look: &Look, m: &Material, s: &Surface<'_>) -> Vec<Command> {
         m.highlight,
     ));
     commands
+}
+
+/// The blur of the core behind a surface, while `chora_kit::glass` asks
+/// for it.
+#[must_use]
+pub fn backdrop(m: &Material) -> Option<chora_scene::Backdrop> {
+    m.backdrop().map(|b| chora_scene::Backdrop {
+        blur: b.blur,
+        saturation: b.saturation,
+    })
 }
 
 /// The shadow node of a surface of `[w, h, r]`.
@@ -340,9 +355,10 @@ mod tests {
         };
         assert_eq!(props.meta.as_ref().unwrap()["surface"], "hints");
         assert!(
-            (props.color.unwrap()[3] - 0.90).abs() < 1e-9,
-            "the fallback tint"
+            (props.color.unwrap()[3] - 0.64).abs() < 1e-9,
+            "the tint over the blur"
         );
+        assert_eq!(props.backdrop.unwrap().map(|b| b.blur), Some(40.0));
         assert_eq!(props.radius, Some(20.0));
     }
 }

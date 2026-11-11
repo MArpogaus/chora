@@ -67,9 +67,14 @@ pub fn surface([w, h]: [f64; 2], radius: f64, m: &Material, strong: bool) -> Str
     let shape = rounded(0.0, 0.0, w, h, radius);
     let lower = rounded(0.0, 1.0, w, h, radius);
     let ring = rounded(0.5, 0.5, w - 1.0, h - 1.0, (radius - 0.5).max(0.0));
+    let tint = if chora_kit::glass::BACKDROP {
+        [0.0; 4]
+    } else {
+        m.fill(strong)
+    };
     format!(
         r#"<defs><clipPath id="g"><path d="{shape}"/></clipPath></defs><path d="{shape}" {}/><path d="{ring}" fill="none" stroke-width="1" {}/><path d="{shape}{lower}" fill-rule="evenodd" clip-path="url(#g)" {}/>"#,
-        paint("fill", m.fill(strong)),
+        paint("fill", tint),
         paint("stroke", m.edge_in),
         paint("fill", m.highlight),
     )
@@ -77,6 +82,44 @@ pub fn surface([w, h]: [f64; 2], radius: f64, m: &Material, strong: bool) -> Str
 
 /// The shadow and the outer hairline of a surface of `size`, drawn
 /// outside it only, in a picture [`REACH`] larger on each side. `ask`
+/// The rect under the picture of a surface that holds its tint and asks
+/// the core to blur what lies behind it; none without the blur, when the
+/// picture holds the tint itself. `fresh` creates it, else it moves.
+#[must_use]
+pub fn backdrop(
+    (id, parent): (&str, &str),
+    [x, y, w, h]: [f64; 4],
+    (radius, strong): (f64, bool),
+    (m, fresh): (&Material, bool),
+) -> Option<chora_scene::Command> {
+    let blur = m.backdrop()?;
+    let props = chora_scene::PropsUpdate {
+        transform: Some(chora_scene::Transform::translate(x, y, 0.0)),
+        size: Some([w, h]),
+        radius: Some(radius),
+        color: Some(m.fill(strong)),
+        backdrop: Some(Some(chora_scene::Backdrop {
+            blur: blur.blur,
+            saturation: blur.saturation,
+        })),
+        input: Some(chora_scene::InputMode::Pass),
+        ..chora_scene::PropsUpdate::default()
+    };
+    Some(if fresh {
+        chora_scene::Command::Create {
+            id: id.into(),
+            kind: chora_scene::NodeKind::Rect,
+            parent: parent.into(),
+            props,
+        }
+    } else {
+        chora_scene::Command::Update {
+            id: id.into(),
+            props,
+        }
+    })
+}
+
 /// adds the accent hairline and glow of a waiting question.
 #[must_use]
 pub fn shadow(theme: &mut Theme, [w, h]: [f64; 2], radius: f64, m: &Material, ask: bool) -> String {

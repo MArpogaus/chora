@@ -3,13 +3,13 @@
 //! construct and the host `chora-assistant` share, so that a surface of
 //! either looks the same. Colours are RGBA, each from 0 to 1.
 //!
-//! The core has no backdrop blur yet. [`BACKDROP`] is the one switch: while
-//! it is off, every surface takes the fallback of the spec, the strong tint
-//! raised by [`FALLBACK_LIFT`], and nothing asks the core for a blur.
+//! [`BACKDROP`] is the one switch of the backdrop blur of the core (the
+//! rect prop `backdrop`): with it, a surface takes its tint over the blur;
+//! without it, and where the core draws no blur, the fallback of the spec,
+//! the strong tint raised by [`FALLBACK_LIFT`] ([`Material::plain`]).
 
-/// Whether the core blurs what lies behind a surface. Turn it on, and fill
-/// [`Material::backdrop`], when the node prop `backdrop` lands in the core.
-pub const BACKDROP: bool = false;
+/// Whether the surfaces ask the core to blur what lies behind them.
+pub const BACKDROP: bool = true;
 
 /// What the tint gains without a blur behind it.
 pub const FALLBACK_LIFT: f64 = 0.08;
@@ -295,21 +295,24 @@ impl Material {
         if dark { DARK } else { LIGHT }
     }
 
-    /// The tint of a surface: `strong` for the text-heavy ones (the
-    /// question, the chat, the window list, the help). Without a blur
-    /// every surface takes the strong tint, raised by [`FALLBACK_LIFT`].
+    /// The tint of a surface over its blur: `strong` for the text-heavy
+    /// ones (the question, the chat, the window list, the help). Without a
+    /// blur, [`Material::plain`].
     #[must_use]
     pub fn fill(&self, strong: bool) -> [f64; 4] {
-        let [r, g, b, a] = if strong || !BACKDROP {
-            self.strong
-        } else {
-            self.tint
-        };
-        if BACKDROP {
-            [r, g, b, a]
-        } else {
-            [r, g, b, (a + FALLBACK_LIFT).min(1.0)]
+        if !BACKDROP {
+            return self.plain(strong);
         }
+        if strong { self.strong } else { self.tint }
+    }
+
+    /// The tint of a surface without a blur behind it, after the watchdog
+    /// or beyond the backdrops of an output: the strong tint plus
+    /// [`FALLBACK_LIFT`].
+    #[must_use]
+    pub fn plain(&self, _strong: bool) -> [f64; 4] {
+        let [r, g, b, a] = self.strong;
+        [r, g, b, (a + FALLBACK_LIFT).min(1.0)]
     }
 
     /// The blur that a surface asks of the core, none while the core has
@@ -372,15 +375,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn without_a_blur_every_surface_takes_the_strong_tint_and_more() {
-        const { assert!(!BACKDROP, "the core has no backdrop yet") };
+    fn with_the_blur_of_the_core_a_surface_takes_its_tint_and_asks_for_the_blur() {
+        const { assert!(BACKDROP, "the core blurs behind a rect") };
         let light = Material::of(false);
         let dark = Material::of(true);
-        for strong in [false, true] {
-            assert!((light.fill(strong)[3] - 0.90).abs() < 1e-9);
-            assert!((dark.fill(strong)[3] - 0.92).abs() < 1e-9);
-        }
-        assert_eq!(light.backdrop(), None);
+        assert!((light.fill(false)[3] - 0.64).abs() < 1e-9);
+        assert!((light.fill(true)[3] - 0.82).abs() < 1e-9);
+        assert!((dark.fill(false)[3] - 0.56).abs() < 1e-9);
+        assert!((dark.fill(true)[3] - 0.84).abs() < 1e-9);
+        assert_eq!(
+            light.backdrop(),
+            Some(Backdrop {
+                blur: 40.0,
+                saturation: 1.8
+            })
+        );
+        assert_eq!(dark.backdrop().map(|b| b.saturation), Some(1.6));
+        assert!((light.plain(true)[3] - 0.90).abs() < 1e-9, "the fallback");
     }
 
     #[test]

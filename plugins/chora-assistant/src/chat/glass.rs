@@ -29,6 +29,9 @@ use crate::glass::{Line, keycaps, paint, rect, shadow, surface};
 /// A node of the key line that takes a click: its id, rect and words.
 type Hit = (&'static str, [i32; 4], String);
 
+/// The rect of the tint of the column over the blur.
+const CHAT_GLASS: &str = "hud-chat-glass";
+
 /// The shadow and the hairline of the column.
 pub const SHADOW: &str = "hud-chat-shadow";
 /// The height of the header, of the field with its margin and of the key
@@ -333,6 +336,12 @@ impl Session {
                 ),
             ),
         ];
+        commands.extend(crate::glass::backdrop(
+            (CHAT_GLASS, VIEW),
+            [0.0, 0.0, size[0], size[1]],
+            (PANEL_RADIUS, true),
+            (&m, true),
+        ));
         let path = theme.render(&picture);
         commands.push(create(
             CHAT,

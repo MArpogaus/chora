@@ -154,10 +154,13 @@ rule 5. `plans/construct-hud.md` adds the section.
 
 This section replaces rules 2, 3, 6, 7, 12 and 13 where they differ;
 the voice HUD of `voice_hud: own` keeps the rules above. The tokens are
-`chora_kit::glass`, which the construct and the host share. Until the
-core has its backdrop blur, every surface takes the fallback of rule 19:
-the strong tint plus 0.08, with the same hairline and shadow;
-`chora_kit::glass::BACKDROP` turns the blur on in one place. The full spec with every value, the states and the
+`chora_kit::glass`, which the construct and the host share. A surface
+is a rect with the `backdrop` of the core, a blur of 40 and the
+saturation of its theme, whose colour is the tint; the host lays its
+pictures over such a rect. After the watchdog, and where the core draws
+no blur (more than 8 on an output), a surface takes the fallback of rule
+19, the strong tint plus 0.08. `chora_kit::glass::BACKDROP` is the one
+switch of the blur. The full spec with every value, the states and the
 keyboard maps is `design/construct-hud-spec.md` on the log branch, with
 mockups rendered over real captures.
 

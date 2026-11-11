@@ -33,6 +33,8 @@ const STATE: &str = "hud-state";
 const WORD: &str = "hud-word";
 /// The shadow and the hairline of the island.
 const SHADOW: &str = "hud-island-shadow";
+/// The rect of the tint of the island over the blur.
+const ISLAND_GLASS: &str = "hud-island-glass";
 const PAD: i32 = 10;
 const LINE: i32 = 13;
 const MIN_WIDTH: i32 = 120;
@@ -422,6 +424,11 @@ impl Assistant {
             parent: GROUP.into(),
             props,
         });
+        let under: Vec<Command> = self
+            .shadow(theme, true)
+            .into_iter()
+            .chain(self.island_backdrop(true))
+            .collect();
         vec![
             group(
                 GROUP,
@@ -437,6 +444,10 @@ impl Assistant {
                     ..PropsUpdate::default()
                 },
             },
+        ]
+        .into_iter()
+        .chain(under)
+        .chain([
             group(
                 BODY,
                 GROUP.into(),
@@ -454,11 +465,24 @@ impl Assistant {
                     ..PropsUpdate::default()
                 },
             },
-        ]
-        .into_iter()
-        .chain(self.shadow(theme, true))
+        ])
         .chain(word)
         .collect()
+    }
+
+    /// The rect that holds the tint of the island over the blur of the
+    /// core; none for a figure or without the blur.
+    fn island_backdrop(&self, fresh: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        let [w, h] = self.island_size.map(f64::from);
+        let m = chora_kit::glass::Material::of(self.values.dark);
+        let radius = h.min(chora_kit::glass::CAPSULE) / 2.0;
+        crate::glass::backdrop(
+            (ISLAND_GLASS, GROUP),
+            [0.0, 0.0, w, h],
+            (radius, false),
+            (&m, fresh),
+        )
     }
 
     /// The picture of the figure: the island with its ring, or the figure
@@ -573,6 +597,7 @@ impl Assistant {
             self.face(theme),
         ];
         commands.extend(self.shadow(theme, false));
+        commands.extend(self.island_backdrop(false));
         commands
     }
 
