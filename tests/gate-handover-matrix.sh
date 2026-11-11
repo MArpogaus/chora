@@ -305,6 +305,14 @@ title_drag() {
       {\"button\": {\"state\": \"released\"}}]"
 }
 
+walk_has_keys() {
+    for _ in $(seq 30); do
+        ctl query id:construct-look | jq -e '.[0].focused == true' >/dev/null && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
 construct_key() {
     local row names
     ctl call construct window.show '{"name": "probe"}' >/dev/null 2>&1
@@ -313,8 +321,7 @@ construct_key() {
     key Alt+Escape
     (sleep 1 && kill -CONT "$construct_pid") &
     pids+=($!)
-    ctl wait --timeout 3 "id:construct-look focused:true" >/dev/null ||
-        fail "the walk of the construct has no keyboard after Alt+Escape"
+    walk_has_keys || fail "the walk of the construct has no keyboard after Alt+Escape"
     ctl call construct pane.move "{\"name\": \"probe\", \"ahead\": -6000}" >/dev/null 2>&1
     sleep 0.5
     row=$(ctl call construct window.list 2>/dev/null |
