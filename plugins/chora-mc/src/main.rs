@@ -227,6 +227,15 @@ struct SoloParams {
     shown: Option<bool>,
 }
 
+/// Whether the HUD host shows the chat in the margin column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Chat {
+    /// The column shows the door.
+    Closed,
+    /// The column holds the box of the chat.
+    Open,
+}
+
 /// A content alone in a region, and whether the region showed by a
 /// toggle before it.
 pub struct Solo {
@@ -338,6 +347,12 @@ struct Mc {
     solo: Option<Solo>,
     /// How much of the key list shows.
     keys: keys::List,
+    /// Whether the HUD host shows the chat in the margin column.
+    chat: Chat,
+    /// Where the box of the chat of the last layout is.
+    slot: Option<[f64; 4]>,
+    /// The box that the host was told last.
+    slot_sent: Option<[f64; 4]>,
     /// The spoken confirmation that shows, until its answer.
     confirming: Option<agent::Confirming>,
     /// Whether mc claims the state indicator of the voice agent at its
@@ -498,6 +513,9 @@ impl Mc {
             agent_focus: None,
             solo: None,
             keys: keys::List::default(),
+            chat: Chat::Closed,
+            slot: None,
+            slot_sent: None,
             confirming: None,
             claim_due: true,
             scroll: BTreeMap::new(),
@@ -511,8 +529,6 @@ impl Mc {
 const VOICE: &str = "voice";
 /// The client name of the HUD host.
 const ASSISTANT: &str = "assistant";
-/// The content that holds the drawer for the chat of the HUD host.
-const CHAT: &str = "chat";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
@@ -1055,22 +1071,20 @@ impl Mc {
     }
 
     /// `assistant.chat` of the HUD host: while it shows the chat on the
-    /// output of mc, the drawer shows alone and mc emits its box as
-    /// `mc.chat.slot {output, rect}`; else the drawer shows as before.
+    /// output of mc, the margin column holds it: the notifications fold,
+    /// the key list goes, and mc emits the box under the head `Chat` as
+    /// `mc.chat.slot {output, rect}`; `rect` is `null` when it closes.
     fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
         let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
             return Ok(());
         };
         let here = data.get("output").and_then(Value::as_str) == Some(output.as_str());
         let open = here && data.get("open").and_then(Value::as_bool) == Some(true);
-        let shows = self.solo.as_ref().is_some_and(|s| s.content == CHAT);
-        if open == shows {
+        if open == (self.chat == Chat::Open) {
             return Ok(());
         }
-        self.solo(CHAT, Region::Drawer, Some(open), false)?;
-        let rect = if open { self.drawer_box() } else { None };
-        let emit = json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
-        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+        self.chat = if open { Chat::Open } else { Chat::Closed };
+        self.render()
     }
 
     /// Names the theme of mc to the HUD host, which colours its look by it.
@@ -3117,33 +3131,57 @@ mod tests {
         assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", true)));
     }
 
-    /// `assistant.chat` of the host opens the drawer on the output of mc
-    /// and mc emits its box as `mc.chat.slot`; a close hides the drawer
-    /// again. Another output or another client changes nothing.
-    #[test]
-    fn an_open_chat_opens_the_drawer_and_emits_its_box() {
-        use serde_json::json;
-        let (mut mc, model) = crate::testing::mc("chat-drawer", [1920, 1080]);
-        let first = mc.settings.value.default_scene.clone();
-        mc.show(&first, false).unwrap();
-        let chat = |client: &str, open: bool, output: &str| chora_scene::Event::Emitted {
+    use serde_json::{Value, json};
+
+    fn chat_event(client: &str, open: bool, output: &str) -> chora_scene::Event {
+        chora_scene::Event::Emitted {
             event: "assistant.chat".into(),
             client: client.into(),
             data: json!({"open": open, "name": "Atlas", "output": output}),
-        };
-        assert_eq!(mc.drawer_box(), None);
-        chora_kit::runtime::Plugin::event(&mut mc, chat("evil", true, "test")).unwrap();
-        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "other")).unwrap();
-        assert_eq!(mc.drawer_box(), None);
-        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "test")).unwrap();
-        let rect = mc.drawer_box().expect("the drawer shows");
-        let emits = model.lock().unwrap().emits.clone();
-        assert_eq!(
-            emits.last(),
-            Some(&json!({"event": "mc.chat.slot", "data": {"output": "test", "rect": rect}}))
-        );
-        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", false, "test")).unwrap();
-        assert_eq!(mc.drawer_box(), None);
+        }
+    }
+
+    fn key_items(mc: &super::Mc, scene: &str) -> usize {
+        let items = mc.items(scene).into_values().flat_map(|(items, _)| items);
+        items.filter(|i| i.id.contains("-keys-")).count()
+    }
+
+    /// Another output or another client than the host changes nothing.
+    #[test]
+    fn only_the_host_opens_the_chat_on_the_output_of_mc() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _) = crate::testing::mc("chat-other", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        mc.event(chat_event("evil", true, "test")).unwrap();
+        mc.event(chat_event("assistant", true, "other")).unwrap();
+        assert_eq!(mc.chat_slot(), None);
+        assert!(key_items(&mc, &first) > 0, "the key list stays");
+    }
+
+    /// `assistant.chat` of the host opens the chat in the margin column of
+    /// mc and mc emits its box as `mc.chat.slot`: the key list goes, and
+    /// the page keeps its place; a close brings the key list back.
+    #[test]
+    fn an_open_chat_takes_the_margin_column_and_emits_its_box() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-column", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        let text_block = mc.geometry(&first).unwrap().text;
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let rect = mc.chat_slot().expect("the chat has a box");
+        let column = mc.boxes_of(&first)[&crate::region::Region::Right];
+        assert_eq!((rect[0], rect[2]), (column[0], column[2]), "the column");
+        assert!(rect[1] > column[1] && rect[1] + rect[3] <= column[1] + column[3]);
+        assert_eq!(key_items(&mc, &first), 0, "no key list beside the chat");
+        assert_eq!(mc.geometry(&first).unwrap().text, text_block, "the page");
+        let emit = |rect: Value| json!({"event": "mc.chat.slot", "data": {"output": "test", "rect": rect}});
+        assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(json!(rect))));
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert_eq!(mc.chat_slot(), None);
+        assert!(key_items(&mc, &first) > 0, "the key list is back");
+        assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(Value::Null)));
     }
 
     /// Only the voice agent sets the agent `voice`, by its events or by

@@ -111,7 +111,7 @@ fn words(action: &Action) -> Option<String> {
 }
 
 /// A key as people read it: arrows for the arrow keys, a capital Space.
-fn human(key: &str) -> String {
+pub fn human(key: &str) -> String {
     key.split('+')
         .map(|part| match part {
             "Left" => "←".to_owned(),

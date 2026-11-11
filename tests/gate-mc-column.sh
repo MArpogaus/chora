@@ -209,3 +209,55 @@ header=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.re
 [ "$header" = 2 ] || fail "the header holds $header texts, not the running head and the clock"
 shot helpers-light
 ok "state and helpers stand in the column, four rows and +2 more, the header holds the head and the clock"
+
+host_session() {
+    kill "${pids[@]}" 2>/dev/null
+    wait 2>/dev/null
+    pids=()
+    printf 'theme: %s\ntest_accept_injected_keys: true\nvoice_hud: host\n' "$1" >"$XDG_CONFIG_HOME/chora/chora-mc.yaml"
+    printf 'enabled: true\nposition: null\nhud: mc\n' >"$XDG_CONFIG_HOME/chora/chora-assistant.yaml"
+    export XDG_DATA_HOME=$XDG_CONFIG_HOME/data
+    mkdir -p "$XDG_DATA_HOME/chora/huds"
+    rm -rf "$XDG_DATA_HOME/chora/huds/mc"
+    cp -rL "$repo/plugins/chora-mc/hud" "$XDG_DATA_HOME/chora/huds/mc"
+    env_file=$(mktemp /tmp/gate-env.XXXXXX) session_start 1280x800
+    grant screen.capture input.inject methods.call
+    "$bin/chora-mc" >"$XDG_CONFIG_HOME/mc-host.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start"
+    "$bin/chora-assistant" >"$XDG_CONFIG_HOME/assistant.log" 2>&1 &
+    pids+=($!)
+    ctl wait owner:assistant --timeout 20 >/dev/null || fail "the host does not start: $(tail -n 3 "$XDG_CONFIG_HOME/assistant.log")"
+    until_ok 'has_text "AGENDA"' || fail "no first screen"
+    sleep 2
+}
+page_shot() { ctl capture "$1" --node mc-s-agenda >/dev/null || fail "capture of the page"; }
+chat_session() {
+    local theme=$1 before=$XDG_CONFIG_HOME/page-before-$1.png after=$XDG_CONFIG_HOME/page-after-$1.png
+    host_session "$theme"
+    has_text "Chat with a helper ..." || fail "no door of the chat in the column"
+    has_text "Back one step" || fail "no key list before the chat"
+    ctl call mc notify.push '{"title": "Note 1"}' >/dev/null
+    ctl call mc notify.push '{"title": "Note 2"}' >/dev/null
+    sleep 1
+    page_shot "$before"
+    ctl call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show"
+    until_ok 'ctl query id:hud-chat | jq -e "length > 0" >/dev/null' 40 || fail "the host draws no chat"
+    sleep 1
+    page_shot "$after"
+    [ "$(python3 -I "$repo/tests/png-same.py" "$before" "$after")" = "0 0" ] || fail "the page changed when the chat opened"
+    chat=$(ctl query id:hud-chat | jq -c '.[0].rects | to_entries[0].value')
+    jq -ne --argjson c "$chat" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56' >/dev/null ||
+        fail "the chat is not in the column: $chat"
+    until_ok '! has_text "Back one step"' 20 || fail "the key list stays beside the open chat"
+    has_text "NOTIFICATIONS  2" || fail "the notifications do not fold into their count: $(texts | tr '\n' '|')"
+    texts | grep -q "Note 2" && fail "a notification stays open beside the chat"
+    shot "chat-$theme"
+    ok "the open chat fills the column ($chat), the page is the same, the keys go and the notifications fold ($theme)"
+    ctl call assistant chat.hide '{}' >/dev/null || fail "chat.hide"
+    until_ok 'has_text "Back one step"' 40 || fail "the column does not come back"
+    until_ok 'texts | grep -q "Note 2"' 20 || fail "the notifications do not unfold"
+    ok "closing the chat brings the key list and the notifications back"
+}
+chat_session light
+chat_session dark

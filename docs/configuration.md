@@ -396,10 +396,15 @@ of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
 indicator; it still shows the helpers that `voice.state` names. A click
 on the column of a helper in the scene `agents`, or on its row in a
 region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
-`assistant` says that the chat is open on the output of mc, the drawer
-shows alone with the content `chat`, and mc emits its box as
-`mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
-output, `null` when the drawer closes). mc names its theme to the host
+`assistant` says that the chat is open on the output of mc, the content
+`chat` of the margin column holds it: the texts with `folds: true`, such
+as the notifications, fold into their head and the count of their lines
+with `Show` flush right, the key list goes, and mc emits the box under the
+head `Chat` as `mc.chat.slot {output, rect}` (`rect` is
+`[x, y, width, height]` on the output, `null` when the chat closes). The
+page keeps its place. While the chat is closed the content `chat` is the
+door `Chat with a helper ...` with the key of the chat flush right; a
+click on it asks the host to open the chat. mc names its theme to the host
 with `mc.theme {theme}` at its start, when its settings change and on
 `assistant.ready` of the host, and the host draws the mc folder in that
 theme.
@@ -603,6 +608,7 @@ The `contents` are named. Their `kind` is one of:
 | `hud` | the `text` of `hud.set` and `hud.say` |
 | `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; with `voice_hud: host` a side shows none, since the host draws the rows |
 | `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) under its title while it has no lines, as `notify` does |
+| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
 | `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all bindings and then the six again |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 

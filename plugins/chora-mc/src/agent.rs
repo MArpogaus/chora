@@ -425,6 +425,14 @@ impl Mc {
         }
     }
 
+    /// Asks the HUD host to close the chat.
+    pub fn chat_close(&mut self) {
+        let call = json!({"client": "assistant", "method": "chat.hide", "params": {}});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-mc: chat.hide: {err}");
+        }
+    }
+
     /// Shows one agent alone in the agents scene, with its transcript in
     /// the other columns; an empty name shows all agents again.
     pub fn focus_agent(&mut self, focus: &Focus) -> Result<(), RpcError> {

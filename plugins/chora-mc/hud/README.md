@@ -14,10 +14,11 @@ plain page in the colours of the dark theme of mc, set in TeX Gyre Pagella
 
 mc uses this folder with `voice_hud: host` in `chora-mc.yaml`: mc then
 draws no voice state, sentence or question of its own and claims no
-indicator. While the host shows the chat on the output of mc, mc opens its
-drawer and emits its box as `mc.chat.slot {output, rect}`. The block
+indicator. While the host shows the chat on the output of mc, mc folds its
+notifications, hides its key list and emits the box of its margin column
+under the head `Chat` as `mc.chat.slot {output, rect}`. The block
 `chat:` names that box with `slot: mc`, so the host draws the chat inside
-the drawer; without a box the chat stands at the right edge, 400 pixels
+the column; without a box the chat stands at the right edge, 400 pixels
 wide.
 
 | File | Content | Source | License |

@@ -10,7 +10,8 @@ theme: dark
 test_accept_injected_keys: false
 # Who draws the voice HUD: host, the HUD host chora-assistant draws the
 # state, the sentence and the question of the voice agent with the folder
-# plugins/chora-mc/hud, and mc opens its drawer for the chat of the host;
+# plugins/chora-mc/hud, and mc holds the chat of the host in its margin
+# column;
 # own, mc shows them itself.
 voice_hud: host
 # Each color is RGBA from 0 to 1. A style names a color of the theme;
@@ -220,11 +221,11 @@ contents:
   state: {kind: state}
   hud: {kind: hud}
   agents: {kind: agents}
-  notify: {kind: text, title: Notifications, empty: true, style: {base: body}}
+  notify: {kind: text, title: Notifications, empty: true, folds: true, style: {base: body}}
   urgent: {kind: text, style: {base: running_head, color: red}}
-  # The box of the chat of the HUD host, alone in the drawer while the
-  # host shows the chat on the output of mc.
-  chat: {kind: text, title: Chat}
+  # The chat of the HUD host in the margin column: a door while it is
+  # closed, and the box that mc names to the host while it is open.
+  chat: {kind: chat}
   # A spoken confirmation of voice.confirm, alone in the drawer.
   confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
@@ -267,6 +268,7 @@ rules:
 - {content: agents, region: right, slot: -2}
 - {content: notes, region: right}
 - {content: notify, region: right, slot: 1}
+- {content: chat, region: right, slot: 5}
 - {content: keys, region: right, slot: 9}
 # The arrangement of the regions: a name of presets. A preset sets which
 # regions show and its own rules; without rules, those above apply.
@@ -312,4 +314,5 @@ presets:
     - {content: state, region: footer, slot: 1}
     - {content: notes, region: right}
     - {content: notify, region: right, slot: 1}
+    - {content: chat, region: right, slot: 5}
     - {content: keys, region: right, slot: 9}

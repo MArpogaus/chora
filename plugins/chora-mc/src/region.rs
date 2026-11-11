@@ -134,6 +134,9 @@ pub enum Kind {
     /// The keys of the bindings, each a key and its words, pinned to the
     /// foot of a side; the key Super+F1 shows all of them.
     Keys,
+    /// The chat of the HUD host in a side: a door that opens it while it
+    /// is closed, and its box while it is open.
+    Chat,
 }
 
 /// A content of the regions.
@@ -158,6 +161,10 @@ pub struct Content {
     /// of the session, under its title.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub empty: bool,
+    /// A text in a side folds into its title and the count of its lines,
+    /// with `Show` flush right, while the chat is open.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub folds: bool,
     /// The style of the text: `running_head` without a base for the head,
     /// the clock and the state, `hud` for the HUD, `margin` for a text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -362,6 +369,10 @@ pub enum Put {
     Row,
     /// In the line of the item before it, after its end.
     After,
+    /// In the line of the item before it, flush right.
+    End,
+    /// Where the box of the chat begins: it runs to the foot of the side.
+    Slot,
 }
 
 impl Put {
@@ -370,7 +381,7 @@ impl Put {
     }
 
     fn row(self) -> bool {
-        matches!(self, Self::FootRow | Self::Row | Self::After)
+        matches!(self, Self::FootRow | Self::Row | Self::After | Self::End)
     }
 }
 
@@ -505,6 +516,7 @@ impl Mc {
             _ if title => "label",
             Kind::Head | Kind::Clock => "running_head",
             Kind::Hud | Kind::Agents => "hud",
+            Kind::Chat => "body",
             Kind::State | Kind::Text | Kind::App | Kind::Keys => "margin",
         };
         let style = content.style.as_ref().filter(|_| !title);
@@ -537,7 +549,7 @@ impl Mc {
                 .get(name)
                 .map(|(title, lines)| (title.clone(), lines.join("\n")))
                 .unwrap_or_default(),
-            Kind::App | Kind::Keys => (String::new(), String::new()),
+            Kind::App | Kind::Keys | Kind::Chat => (String::new(), String::new()),
         }
     }
 
@@ -608,6 +620,13 @@ impl Mc {
         if content.kind == Kind::Agents {
             return self.agent_items(region, slot, name, content);
         }
+        if content.kind == Kind::Chat {
+            return if region.is_line() {
+                Vec::new()
+            } else {
+                self.chat_items(slot, name, content, region)
+            };
+        }
         if content.kind == Kind::Keys {
             return if region.is_line() {
                 Vec::new()
@@ -616,6 +635,10 @@ impl Mc {
             };
         }
         let (title, mut text) = self.content_text(name, content, scene);
+        if content.folds && self.chat == crate::Chat::Open && !region.is_line() {
+            let id = format!("{}-{name}", self.region_id(region));
+            return self.folded_items(slot, &id, content, (&title, &text));
+        }
         if content.empty && text.is_empty() && !region.is_line() {
             text = crate::keys::nothing_new(chora_kit::words::Language::of_session()).into();
         }
@@ -756,6 +779,39 @@ impl Mc {
         self.visible_in(&name, items)
     }
 
+    /// The boxes of the regions of a scene, as they show now.
+    #[cfg(test)]
+    pub fn boxes_of(&self, name: &str) -> BTreeMap<Region, [f64; 4]> {
+        let visible = self.visible_in(name, &self.items(name));
+        self.boxes(name, &visible)
+            .map(|b| b.regions)
+            .unwrap_or_default()
+    }
+
+    /// The box of the chat in the margin column, while it is open and the
+    /// column shows.
+    pub fn chat_slot(&self) -> Option<[f64; 4]> {
+        self.slot.filter(|_| self.chat == crate::Chat::Open)
+    }
+
+    /// Tells the HUD host where the chat goes, when the box moved.
+    pub fn send_slot(&mut self) -> Result<(), ClientError> {
+        let rect = self.chat_slot();
+        let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
+            return Ok(());
+        };
+        if rect == self.slot_sent {
+            return Ok(());
+        }
+        self.slot_sent = rect;
+        let emit =
+            serde_json::json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
+        self.rt
+            .conn
+            .call::<_, serde_json::Value>("events.emit", emit)
+            .map(drop)
+    }
+
     /// The box of the drawer of the current scene, while it shows.
     pub fn drawer_box(&self) -> Option<[f64; 4]> {
         let name = self.current.clone()?;
@@ -785,7 +841,8 @@ impl Mc {
     /// Draws the regions of the current scene anew.
     pub fn render(&mut self) -> Result<(), ClientError> {
         let commands = self.regions()?;
-        self.apply(commands)
+        self.apply(commands)?;
+        self.send_slot()
     }
 
     /// The regions of the current scene: what goes into the transaction
@@ -1073,13 +1130,14 @@ impl Mc {
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let mut commands = Vec::new();
+        self.slot = None;
         for (region, (items, _)) in items {
-            let [_, _, width, height] = boxes.regions[region];
+            let [left, top, width, height] = boxes.regions[region];
             if region.is_line() {
                 commands.extend(self.line(items, [width, height], probed)?);
                 continue;
             }
-            commands.extend(self.stack(items, [width, height], probed)?);
+            commands.extend(self.stack(items, [left, top, width, height], probed)?);
         }
         Ok(commands)
     }
@@ -1089,7 +1147,7 @@ impl Mc {
     fn stack(
         &mut self,
         items: &[Item],
-        [width, height]: [f64; 2],
+        [left, top, width, height]: [f64; 4],
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
@@ -1098,19 +1156,25 @@ impl Mc {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
             heights.push(h.max(baseline));
             widths.push(w);
-            let left = match (item.put, i.checked_sub(1)) {
+            let at = match (item.put, i.checked_sub(1)) {
                 (Put::After, Some(before)) => lefts[before] + widths[before] + AFTER_GAP,
+                (Put::End, _) => (width - w).max(0.0),
                 _ => item.x,
             };
-            lefts.push(left);
+            lefts.push(at);
         }
         let (flow, end) = lines(items, &heights, false, baseline);
         let (foot, foot_end) = lines(items, &heights, true, baseline);
-        let top = (height - foot_end).max(end);
+        let foot_top = (height - foot_end).max(end);
         let mut commands = Vec::new();
+        if let Some(at) = items.iter().position(|i| i.put == Put::Slot)
+            && let Some((_, y)) = flow.iter().find(|(i, _)| *i == at)
+        {
+            self.slot = Some([left, top + y, width, (height - y).max(baseline)]);
+        }
         for (item, y) in flow
             .into_iter()
-            .chain(foot.into_iter().map(|(i, y)| (i, y + top)))
+            .chain(foot.into_iter().map(|(i, y)| (i, y + foot_top)))
         {
             let idx = item;
             let item = &items[idx];
@@ -1133,9 +1197,80 @@ impl Mc {
         Ok(commands)
     }
 
+    /// The chat in a side: while it is closed a door, `Chat with a helper`
+    /// and the key of the chat flush right, under a head; while it is open
+    /// the head with `Esc  Close`, and the place of the box of the host.
+    fn chat_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        let id = format!("{}-{name}", self.region_id(region));
+        let head = self.content_type(content, true).props("Chat");
+        let mut items = vec![Item::text(format!("{id}-title"), slot, head, true)];
+        let margin = self.ty("margin", None);
+        let open = self.chat == crate::Chat::Open;
+        let end = |part: &str, text: &str, hit: Option<&str>| Item {
+            put: Put::End,
+            hit: hit.map(str::to_owned),
+            ..Item::text(format!("{id}-{part}"), slot, margin.props(text), false)
+        };
+        if open {
+            items.push(Item {
+                put: Put::End,
+                ..end("close", "Esc  Close", Some("chat:close"))
+            });
+            let blank = Item::text(format!("{id}-slot"), slot, margin.props(" "), false);
+            items.push(Item {
+                put: Put::Slot,
+                ..blank
+            });
+            return items;
+        }
+        let door = self
+            .content_type(content, false)
+            .props("Chat with a helper ...");
+        items.push(Item {
+            hit: Some("chat:open".into()),
+            ..Item::text(format!("{id}-door"), slot, door, false)
+        });
+        let key = (self.settings.value.bindings.iter())
+            .find(|(_, a)| **a == crate::config::Action::Chat)
+            .map(|(k, _)| crate::keys::human(k));
+        items.extend(key.map(|key| end("key", &key, None)));
+        items
+    }
+
+    /// A text that folds while the chat is open: its head with the count
+    /// of its lines, and `Show` flush right.
+    fn folded_items(
+        &self,
+        slot: i32,
+        id: &str,
+        content: &Content,
+        (title, text): (&str, &str),
+    ) -> Vec<Item> {
+        let count = text.lines().filter(|l| !l.trim().is_empty()).count();
+        let head = if count > 0 {
+            format!("{title}  {count}")
+        } else {
+            title.to_owned()
+        };
+        let props = self.content_type(content, true).props(&head);
+        let mut items = vec![Item::text(format!("{id}-title"), slot, props, true)];
+        if count > 0 {
+            let props = self.ty("margin", None).props("Show");
+            items.push(Item {
+                put: Put::End,
+                hit: Some("chat:close".into()),
+                ..Item::text(format!("{id}-show"), slot, props, false)
+            });
+        }
+        items
+    }
+
     /// The rows of the key list: the key in the text color, its words in
     /// the margin color beside it, and a head over them.
     fn key_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        if self.chat == crate::Chat::Open {
+            return Vec::new();
+        }
         let config = &self.settings.value;
         let full = self.keys == crate::keys::List::All;
         let rows = if full {
@@ -1323,6 +1458,8 @@ impl Mc {
         match token.as_deref().and_then(|t| t.split_once(':')) {
             Some(("key", binding)) => self.act(binding),
             Some(("agent", agent)) => self.chat_with(Some(agent)),
+            Some(("chat", "open")) => self.chat_with(None),
+            Some(("chat", "close")) => self.chat_close(),
             _ => return self.click_row(base),
         }
         true
@@ -1654,7 +1791,7 @@ mod tests {
         assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
         assert_eq!(
             names(&page, Region::Right),
-            ["state", "agents", "notes", "notify", "keys"]
+            ["state", "agents", "notes", "notify", "chat", "keys"]
         );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
         // Over an app, the words of the agent go to the header.
@@ -1676,14 +1813,17 @@ mod tests {
         assert_eq!(
             names(&moved, Region::Left),
             [
-                "chat", "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
             ]
         );
-        assert_eq!(names(&moved, Region::Right), ["state", "agents", "keys"]);
+        assert_eq!(
+            names(&moved, Region::Right),
+            ["state", "agents", "chat", "keys"]
+        );
         let other = layout(&rules, &config.contents, "mail", false);
         assert_eq!(
             names(&other, Region::Right),
-            ["state", "agents", "notes", "notify", "keys"]
+            ["state", "agents", "notes", "notify", "chat", "keys"]
         );
     }
 
