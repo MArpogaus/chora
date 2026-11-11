@@ -389,7 +389,7 @@ agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
-With the setting `voice_hud: host` (default `own`), the HUD host
+With the setting `voice_hud: host`, the default, the HUD host
 `chora-assistant` draws the voice HUD of mc with the folder
 `plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
 of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
@@ -769,7 +769,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
-| `voice_hud` | `own` | `own`: draw the voice HUD and the questions, and hide the dot of the voice agent; `host`: the HUD host `chora-assistant` draws them with the folder `plugins/chora-construct/hud`, and the construct claims no indicator. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
+| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, and the construct claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
@@ -977,7 +977,7 @@ a pane goes in any way.
 
 ### The voice HUD
 
-With `voice_hud: own`, the construct shows the voice agent
+With `voice_hud: own` (the default is `host`), the construct shows the voice agent
 ([voice](voice.md), section 10) at the bottom centre of the output, from its first
 `voice.state` on. A glass panel holds a ring in the accent and the state
 as a label: a thin, dim ring asleep, a full ring listening, a turning arc

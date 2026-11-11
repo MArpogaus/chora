@@ -396,7 +396,7 @@ mod tests {
         assert_eq!(config.keys["Return"], Action::FlyIn);
         assert_eq!(config.keys["space"], Action::Launcher);
         assert_eq!(config.keys["Tab"], Action::Windows);
-        assert_eq!(config.voice_hud, VoiceHud::Own);
+        assert_eq!(config.voice_hud, VoiceHud::Host, "one voice indicator");
         assert_eq!(config.style.font, "Inter");
     }
 
@@ -432,13 +432,13 @@ mod tests {
     #[test]
     fn voice_hud_host_draws_no_voice_status() {
         let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        assert_eq!(config.voice_hud, VoiceHud::Own);
-        assert!(config.draws_voice());
-        config.voice_hud = VoiceHud::Host;
+        assert_eq!(config.voice_hud, VoiceHud::Host);
         assert!(!config.draws_voice());
-        let text = DEFAULT.replace("voice_hud: own", "voice_hud: host");
-        let host: Config = serde_saphyr::from_str(&text).unwrap();
-        assert_eq!(host.voice_hud, VoiceHud::Host);
+        config.voice_hud = VoiceHud::Own;
+        assert!(config.draws_voice());
+        let text = DEFAULT.replace("voice_hud: host", "voice_hud: own");
+        let own: Config = serde_saphyr::from_str(&text).unwrap();
+        assert_eq!(own.voice_hud, VoiceHud::Own);
     }
 
     /// `true` and `false`, the values of the setting before `own` and
@@ -446,14 +446,14 @@ mod tests {
     #[test]
     fn true_and_false_are_aliases_of_own_and_host() {
         let with = |value: &str| {
-            let text = DEFAULT.replace("voice_hud: own", &format!("voice_hud: {value}"));
+            let text = DEFAULT.replace("voice_hud: host", &format!("voice_hud: {value}"));
             serde_saphyr::from_str::<Config>(&text)
                 .ok()
                 .map(|config| config.voice_hud)
         };
         assert_eq!(with("true"), Some(VoiceHud::Own));
         assert_eq!(with("false"), Some(VoiceHud::Host));
-        assert_eq!(with("host"), Some(VoiceHud::Host));
+        assert_eq!(with("own"), Some(VoiceHud::Own));
         assert_eq!(with("maybe"), None);
         let written = serde_json::to_value(VoiceHud::Own).unwrap();
         assert_eq!(written, serde_json::json!("own"));
