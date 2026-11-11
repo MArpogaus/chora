@@ -54,3 +54,11 @@ something off? If yes, it is a finding. The second rule is chora's own:
    Support above Run. The height of the menu follows its rows; no filler.
 7. **The header names the person**: the full name of the account, else
    its login name.
+
+## Keys XP users expect
+
+8. **Super alone opens Start**, Super+d shows the desktop and brings it
+   back, Ctrl+Escape stays, Super+e opens the file manager (a balloon
+   says so when none is installed), Super+Space opens the launcher.
+   The name of the key is "Super"; the help says that it sits between
+   Ctrl and Alt.

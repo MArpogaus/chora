@@ -1998,7 +1998,10 @@ of another client changes nothing.
 | Ctrl+Escape | open or close the start menu |
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
 | Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
-| Super+e | start the terminal |
+| Super, pressed and let go alone | open or close the start menu. A key or a button of the plugin pressed with it, such as Super+d, cancels it; a chord that no client grabs, such as Super+t, is not seen and still opens the menu on its release |
+| Super+d | show the desktop: puts the windows of the desktop away; pressed again, brings the same windows back |
+| Super+Space | open the launcher, the command of `launcher`, which is the Run box of the start menu |
+| Super+e | open the home folder in the file manager; when `file_manager` is not installed, a balloon says so and names the setting. It no longer starts the terminal |
 | F1, Super+F1 | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. Escape closes the window. A key without Ctrl, Alt or Super needs `choractl grant xp input.grab-any`; without the grant, Super+F1 works (the construct's F1 is the same) |
 | Super+a | open the chat (`chora-chat`), as on tiling |
 | XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
@@ -2048,7 +2051,7 @@ that the file leaves out takes its default:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `terminal` | `foot` | the terminal of Super+e and of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
+| `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
 | `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |

@@ -61,6 +61,9 @@ pub struct Row {
 }
 
 fn name(binding: &str) -> String {
+    if binding.ends_with("+Super_L") || binding.ends_with("+Super_R") {
+        return "Super".into();
+    }
     binding
         .split('+')
         .map(|part| {
@@ -80,10 +83,12 @@ fn name(binding: &str) -> String {
 
 fn about(key: Key) -> Option<(&'static str, &'static str)> {
     Some(match key {
-        Key::Start => (GROUPS[0], "Open or close the Start menu"),
+        Key::Start | Key::Tap => (GROUPS[0], "Open or close the Start menu"),
         Key::Switch(1) => (GROUPS[0], "Switch between windows"),
         Key::Help => (GROUPS[0], "Open this help"),
-        Key::Terminal => (GROUPS[0], "Open a terminal"),
+        Key::Desktop => (GROUPS[0], "Show the desktop; press again for the windows"),
+        Key::Launcher => (GROUPS[0], "Run a program: open the launcher"),
+        Key::Files => (GROUPS[0], "Open the file manager"),
         Key::Chat => (GROUPS[1], "Chat with a helper"),
         Key::Close => (GROUPS[2], "Close the window"),
         Key::Turn(-1) => (GROUPS[2], "Turn the desktop cube to the left"),
@@ -112,6 +117,7 @@ pub fn rows(held: impl Fn(&str) -> bool) -> Vec<Row> {
         };
         let chord = name(shown);
         match rows.iter_mut().find(|r| r.text == text) {
+            Some(row) if row.keys.contains(&chord) => {}
             Some(row) => row.keys.push(chord),
             None => rows.push(Row {
                 group,

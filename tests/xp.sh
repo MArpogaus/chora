@@ -352,6 +352,7 @@ wait_for has_node_count 0 id:xp-face-0
 desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
+wait_for has_node_count 0 id:xp-face-1
 
 step "12b. Super+F1 opens Help and Support on the keyboard shortcuts, and Escape closes it"
 keys 125+59 || fail "the keys failed: $out/probe.log"
@@ -359,6 +360,20 @@ wait_for has_node id:xp-dlg-help
 grim "$out/help.png"
 keys 1 || fail "the keys failed: $out/probe.log"
 wait_for has_node_count 0 id:xp-dlg-help
+
+step "12c. Super alone opens and closes the start menu; Super+d shows the desktop and brings it back"
+keys 125 || fail "the keys failed: $out/probe.log"
+wait_for menu_visible true
+keys 125 || fail "the keys failed: $out/probe.log"
+wait_for menu_visible false
+windows_shown() { test "$(query meta:xp=window | jq '[.[] | select(.visible)] | length')" = "$1"; }
+before=$(query meta:xp=window | jq '[.[] | select(.visible)] | length')
+test "$before" -ge 1 || fail "no window shows before Super+d"
+keys 125+32 || fail "the keys failed: $out/probe.log"
+wait_for windows_shown 0
+menu_visible false || fail "Super+d opened the start menu"
+keys 125+32 || fail "the keys failed: $out/probe.log"
+wait_for windows_shown "$before"
 
 step "13. My Documents of the start menu starts the file manager"
 # Only its window is checked here. tests/gate-0.8-xp-token.sh checks the

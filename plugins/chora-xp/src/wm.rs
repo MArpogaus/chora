@@ -148,7 +148,14 @@ fn move_method() -> ExportMethod {
 #[derive(Clone, Copy)]
 pub enum Key {
     Close,
-    Terminal,
+    /// Super+e opens the file manager.
+    Files,
+    /// Super+Space opens the launcher, the Run box of the start menu.
+    Launcher,
+    /// Super and a key of the show-the-desktop kind: Super+d.
+    Desktop,
+    /// Super pressed and released alone opens or closes the start menu.
+    Tap,
     /// Turns the cube by quarter turns.
     Turn(i32),
     /// Moves the focused window along with a turn.
@@ -172,15 +179,19 @@ pub enum Key {
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them. The media keys and the chat
 /// key are those of tiling.
-pub const KEYS: [(&str, &str, Key); 16] = [
+pub const KEYS: [(&str, &str, Key); 20] = [
+    ("Super+Super_L", "", Key::Tap),
+    ("Super+Super_R", "", Key::Tap),
     ("Ctrl+Escape", "", Key::Start),
+    ("Super+d", "", Key::Desktop),
+    ("Super+space", "", Key::Launcher),
     ("F1", "", Key::Help),
     ("Super+F1", "", Key::Help),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "", Key::Switch(-1)),
-    ("Super+e", "", Key::Terminal),
+    ("Super+e", "", Key::Files),
     (control::CHAT_KEY, "", Key::Chat),
     ("XF86AudioRaiseVolume", "", Key::Volume(volume::Change::Up)),
     (
@@ -313,6 +324,10 @@ pub struct Wm {
     switch_escape: Option<String>,
     /// Alt+Space, while a window of `chora-xp` has the focus.
     system_key: Option<String>,
+    /// Super is down alone: whether another key or button went down with it.
+    tap: Option<bool>,
+    /// The windows that Super+d put away, which it brings back.
+    hidden: Vec<String>,
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
@@ -433,6 +448,8 @@ impl Wm {
             switcher: None,
             switch_escape: None,
             system_key: None,
+            tap: None,
+            hidden: Vec::new(),
             cube_grab: None,
             kept: HashMap::new(),
             launches: Launches::new(),
@@ -1576,9 +1593,10 @@ impl Wm {
                 ..
             } => self.key(&binding),
             Event::InputKey {
+                binding,
                 state: PressState::Released,
                 ..
-            } => self.key_released(),
+            } => self.key_released(&binding),
             Event::InputButton {
                 state, position, ..
             } => match state {
@@ -1600,25 +1618,25 @@ impl Wm {
         if self.switch_escape.as_deref() == Some(binding) {
             return self.cancel_switch();
         }
-        match self.rt.action(binding).copied() {
+        let action = self.rt.action(binding).copied();
+        match (&mut self.tap, action) {
+            (tap, Some(Key::Tap)) => *tap = Some(false),
+            (Some(used), _) => *used = true,
+            _ => {}
+        }
+        match action {
             Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
-            Some(Key::Terminal) => {
-                let terminal = self.settings.value.terminal.clone();
-                self.start_program(&terminal);
+            Some(Key::Files) => self.open_files(),
+            Some(Key::Launcher) => {
+                let launcher = self.settings.value.launcher.clone();
+                self.start_program(&launcher);
                 Vec::new()
             }
+            Some(Key::Desktop) => self.toggle_desktop(),
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
-            // Not under the shade of Log Off or Turn Off.
-            Some(Key::Start) if self.dialog.is_some() => Vec::new(),
-            Some(Key::Start) => {
-                let mut commands = self.close_context();
-                if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
-                    commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
-                }
-                commands
-            }
+            Some(Key::Start) => self.toggle_start(),
             Some(Key::Give(to)) => {
                 if let Err(err) = give::focused(self, to) {
                     eprintln!("chora-xp: give to {to}: {}", err.message);
@@ -1631,8 +1649,21 @@ impl Wm {
                 Vec::new()
             }
             Some(Key::Help) => self.open_help(help::KEYBOARD),
-            Some(Key::Cube) | None => Vec::new(),
+            Some(Key::Cube | Key::Tap) | None => Vec::new(),
         }
+    }
+
+    /// Ctrl+Escape and Super alone: opens or closes the start menu, but
+    /// not under the shade of Log Off or Turn Off.
+    fn toggle_start(&mut self) -> Vec<Command> {
+        if self.dialog.is_some() {
+            return Vec::new();
+        }
+        let mut commands = self.close_context();
+        if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
+            commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
+        }
+        commands
     }
 
     /// Alt+Tab: opens XP's switcher, or moves its choice.
@@ -1807,7 +1838,13 @@ impl Wm {
 
     /// The release of the modifier of a key: Alt up after Alt+Tab
     /// activates the chosen window.
-    fn key_released(&mut self) -> Vec<Command> {
+    fn key_released(&mut self, binding: &str) -> Vec<Command> {
+        if matches!(self.rt.action(binding), Some(Key::Tap)) {
+            return match self.tap.take() {
+                Some(false) => self.toggle_start(),
+                _ => Vec::new(),
+            };
+        }
         let Some(switcher) = self.end_switch() else {
             return Vec::new();
         };
@@ -2112,21 +2149,63 @@ impl Wm {
         commands
     }
 
+    /// Show the desktop: puts the windows of the desktop away, or brings
+    /// back the same windows when it did that and they are still away.
+    fn toggle_desktop(&mut self) -> Vec<Command> {
+        let shown: Vec<String> = self
+            .windows
+            .iter()
+            .filter(|w| w.shown && !w.minimized && w.desktop == self.desktop)
+            .map(|w| w.surface.clone())
+            .collect();
+        let away: Vec<(&str, bool)> = self
+            .windows
+            .iter()
+            .map(|w| (w.surface.as_str(), w.minimized))
+            .collect();
+        match desktop_plan(&self.hidden, &shown, &away) {
+            Plan::Away(surfaces) => {
+                self.hidden.clone_from(&surfaces);
+                surfaces.iter().flat_map(|s| self.minimize(s)).collect()
+            }
+            Plan::Back(surfaces) => {
+                self.hidden.clear();
+                surfaces.iter().flat_map(|s| self.activate(s)).collect()
+            }
+        }
+    }
+
+    /// Super+e: opens the home folder in the file manager, or tells the
+    /// person that none is installed and which setting names one.
+    fn open_files(&mut self) -> Vec<Command> {
+        let manager = self.settings.value.file_manager.clone();
+        let installed = manager
+            .split_whitespace()
+            .next()
+            .is_some_and(session::on_path);
+        if installed {
+            let home =
+                std::env::var_os("HOME").map_or_else(|| "/".into(), std::path::PathBuf::from);
+            self.start_program(&desktop_icons::open_with(&manager, &home));
+        } else {
+            let message = Message {
+                icon: "",
+                summary: "No file manager",
+                body: "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.",
+                expire_ms: 10_000,
+            };
+            self.notifier.show("chora-xp", None, &message);
+        }
+        Vec::new()
+    }
+
     /// Does what a row of a context menu says, on the output of the menu.
     fn act(&mut self, act: Act, area: Rect) -> Vec<Command> {
         match act {
             Act::Cascade => self.arrange_windows(area, None),
             Act::TileRows => self.arrange_windows(area, Some(false)),
             Act::TileColumns => self.arrange_windows(area, Some(true)),
-            Act::ShowDesktop => {
-                let shown: Vec<String> = self
-                    .windows
-                    .iter()
-                    .filter(|w| w.shown && !w.minimized && w.desktop == self.desktop)
-                    .map(|w| w.surface.clone())
-                    .collect();
-                shown.iter().flat_map(|s| self.minimize(s)).collect()
-            }
+            Act::ShowDesktop => self.toggle_desktop(),
             Act::Lock => {
                 let taskbar = taskbar::Settings {
                     locked: !self.taskbar.locked,
@@ -3543,6 +3622,31 @@ impl Panel {
     }
 }
 
+/// What Super+d does.
+#[derive(Debug, PartialEq, Eq)]
+enum Plan {
+    /// Puts these windows away.
+    Away(Vec<String>),
+    /// Brings these windows back.
+    Back(Vec<String>),
+}
+
+/// Show the desktop: the windows that it put away come back while at
+/// least one of them is still away; else the windows that show go away.
+/// `away` lists each window and whether it is minimized.
+fn desktop_plan(hidden: &[String], shown: &[String], away: &[(&str, bool)]) -> Plan {
+    let still: Vec<String> = hidden
+        .iter()
+        .filter(|h| away.iter().any(|(s, minimized)| s == h && *minimized))
+        .cloned()
+        .collect();
+    if still.is_empty() {
+        Plan::Away(shown.to_vec())
+    } else {
+        Plan::Back(still)
+    }
+}
+
 /// Whether the watchdog of the core named chora-xp, and not another
 /// client, when it dropped the effects.
 fn is_own(client: &str) -> bool {
@@ -3797,6 +3901,47 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn show_desktop_puts_windows_away_and_brings_the_same_ones_back() {
+        let shown = vec!["s1".to_string(), "s2".to_string()];
+        let both_up = [("s1", false), ("s2", false), ("s3", true)];
+        assert_eq!(
+            desktop_plan(&[], &shown, &both_up),
+            Plan::Away(shown.clone())
+        );
+        let hidden = shown.clone();
+        let away = [("s1", true), ("s2", true), ("s3", true)];
+        assert_eq!(
+            desktop_plan(&hidden, &[], &away),
+            Plan::Back(hidden.clone())
+        );
+        let one_back = [("s1", false), ("s2", true), ("s3", true)];
+        assert_eq!(
+            desktop_plan(&hidden, &["s1".to_string()], &one_back),
+            Plan::Back(vec!["s2".to_string()])
+        );
+        let all_back = [("s1", false), ("s2", false)];
+        assert_eq!(desktop_plan(&hidden, &shown, &all_back), Plan::Away(shown));
+    }
+
+    #[test]
+    fn the_keys_of_the_other_looks_are_bound_here_too() {
+        let bound: Vec<&str> = KEYS.iter().map(|(b, ..)| *b).collect();
+        for key in [
+            "Super+Super_L",
+            "Super+d",
+            "Super+space",
+            "Super+e",
+            "Super+a",
+        ] {
+            assert!(bound.contains(&key), "{key}");
+        }
+        assert!(matches!(
+            KEYS.iter().find(|(b, ..)| *b == "Super+e").map(|k| k.2),
+            Some(Key::Files)
+        ));
+    }
+
     use chora_kit::volume::Change;
 
     use super::*;
