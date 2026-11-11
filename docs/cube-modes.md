@@ -83,10 +83,10 @@ window there. While the camera is in a pane no chip shows: the keys
 of the cube do not hold there. A `cube.open` from inside a pane first
 leaves the pane, so the cube opens ahead of where the person stood.
 
-While no cube is open, the chip `OPEN CUBE` shows at the bottom left of
-the construct, away from the voice HUD at the bottom right. A click on it
+While no cube is open, the chip `OPEN CUBE` shows at the bottom right of
+the construct, where the chips of a cube show. A click on it
 opens a cube of four faces, as `cube.open` without params does, and the
-chip hides while the cube is open. A refusal, for example while another
+chip hides while the cube is open and while the camera is in a pane. A refusal, for example while another
 client `xp` runs, shows in the HUD.
 
 ## Words
@@ -130,7 +130,10 @@ The four acts that complete the flows above. Each has a second path
 In navigate mode a drag on the floating plane of a window pulls the
 window out of the cube: its window manager gives it to the construct,
 which goes on with the drag; a drop over a face of the resting cube
-gives it back to that face, at the drop point. A press on a plane that
+gives it back to that face, at the drop point. The same plain drag on
+the pane of a pulled window moves it and, dropped over a face, gives it
+back: while the cube stands back, the windows of the panes take no
+pointer input. A press on a plane that
 moves less than 8 px is a click on its face. Outside a test session an
 injected drag pulls nothing, and an injected move or release during a
 pull ends it in the space, where the pane stays; the keyboard stays
@@ -157,7 +160,7 @@ The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also
 brings the camera back to where the front face shows at 1:1. A click on
 a face in navigate mode turns the cube to that face and steps in. The
-help panel lists the keys of the cube. While the window switcher of xp
+help panel lists the keys of the cube while a cube is open. While the window switcher of xp
 shows, `Alt+Escape` belongs to the switcher.
 
 In navigate mode the edge of the face under the pointer is lit, and a

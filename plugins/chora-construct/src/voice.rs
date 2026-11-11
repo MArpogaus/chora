@@ -7,8 +7,12 @@ use super::{
 };
 
 impl Construct {
-    /// An event `voice.KIND` of the voice agent. Wrong data only log.
+    /// An event `voice.KIND` of the voice agent, while the construct
+    /// draws the voice HUD. Wrong data only log.
     pub(crate) fn follow(&mut self, event: &str, data: Value) -> Result<(), ClientError> {
+        if !self.settings.value.draws_voice() {
+            return Ok(());
+        }
         self.claim_indicator(true);
         let kind = event.strip_prefix("voice.").unwrap_or_default();
         match self.voice.follow(kind, data, Instant::now()) {
@@ -65,12 +69,14 @@ impl Construct {
         Ok(())
     }
 
+    /// Whether the HUD line shows: the voice HUD with `voice_hud: own`,
+    /// and the notices of the construct always.
     pub(crate) fn shows_hud(&self) -> bool {
-        self.settings.value.draws_voice() && self.active && self.output.is_some()
+        self.active && self.output.is_some()
     }
 
-    /// The voice HUD: at the bottom centre, or compact at the bottom
-    /// right while flown into a pane.
+    /// The voice HUD and the notices: at the bottom centre, or compact at
+    /// the bottom right while flown into a pane.
     pub(crate) fn draw_hud(&mut self) -> Result<(), ClientError> {
         if !self.shows_hud() {
             return Ok(());
@@ -87,7 +93,7 @@ impl Construct {
 
     /// The question of the voice agent, on top, made anew.
     pub(crate) fn draw_ask(&mut self) -> Result<(), ClientError> {
-        if !self.shows_hud() {
+        if !(self.settings.value.draws_voice() && self.shows_hud()) {
             return Ok(());
         }
         let out = [self.lens.w, self.lens.h];

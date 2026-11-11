@@ -14,8 +14,8 @@ use chora_scene::{Event, ipc::PressState};
 use serde_json::{Value, json};
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, FLY_MS, Grab, LOOK, NAME, NodeKind,
-    PropsUpdate, Query, RpcError, create, cube,
+    Action, BTN_LEFT, ClientError, Command, Construct, FLY_MS, Grab, InputMode, LOOK, NAME,
+    NodeKind, PropsUpdate, Query, RpcError, create, cube,
 };
 
 /// The group of the chips, and the prefix of a chip.
@@ -124,6 +124,12 @@ fn chips_of(view: View, flown: bool) -> &'static [Word] {
     if flown { &[] } else { view.controls() }
 }
 
+/// Whether OPEN CUBE shows: while no cube is open, and not while the
+/// camera is in a pane, whose content it would cover.
+fn open_cube_shows(cube: bool, flown: bool) -> bool {
+    !cube && !flown
+}
+
 /// The right edge of the chips in the row `[top, bottom]` of a view
 /// `width` wide: left of the desktop icons in the right half that reach
 /// into the row.
@@ -160,6 +166,7 @@ impl Construct {
         }
         self.rt.conn.try_apply(commands)?;
         self.regrab()?;
+        self.draw_help(false)?;
         self.draw_modes()
     }
 
@@ -170,7 +177,34 @@ impl Construct {
             to: None,
         }])?;
         self.regrab()?;
+        self.draw_help(false)?;
+        self.pane_input()?;
         self.draw_open_cube()
+    }
+
+    /// Stood back, the windows of the panes take no pointer input: a
+    /// press on a pane moves it, as on a floating plane. Else they take
+    /// it.
+    pub(crate) fn pane_input(&mut self) -> Result<(), ClientError> {
+        let stood_back = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Navigate);
+        let input = if stood_back {
+            InputMode::Pass
+        } else {
+            InputMode::Accept
+        };
+        let commands = (self.panes.iter())
+            .filter(|p| p.attached)
+            .map(|p| {
+                super::update(
+                    &p.node(),
+                    PropsUpdate {
+                        input: Some(input),
+                        ..PropsUpdate::default()
+                    },
+                )
+            })
+            .collect();
+        self.rt.conn.try_apply(commands).map(drop)
     }
 
     /// The top of the taskbar of the front face on the screen: the chips
@@ -214,6 +248,7 @@ impl Construct {
     /// pane. Also after the output changed.
     /// They stay left of the desktop icons in their row.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
+        self.pane_input()?;
         self.draw_open_cube()?;
         let flown = self.flown.is_some();
         let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
@@ -237,20 +272,17 @@ impl Construct {
         self.rt.conn.try_apply(commands).map(drop)
     }
 
-    /// The chip OPEN CUBE at the bottom left, while no cube is open.
+    /// The chip OPEN CUBE at the bottom right, where the chips of a cube
+    /// show, while no cube is open and the camera is in no pane.
     fn draw_open_cube(&mut self) -> Result<(), ClientError> {
         let text = Word::OpenCube.text(language()).to_uppercase();
         let mut commands = Vec::new();
         if (self.rt.conn).query(&format!("id:{OPEN_CUBE}"))?.is_empty() {
             commands.extend(self.styled().chip(OPEN_CUBE, NAME, &text));
         }
-        let show = self.cube.is_none();
-        let bottom = self.lens.h;
-        commands.extend(self.fitted(|s| {
-            let look = s.styled();
-            let width = look.place_chip(OPEN_CUBE, &text, [0.0, bottom], false).1;
-            look.place_chip(OPEN_CUBE, &text, [width, bottom], show).0
-        })?);
+        let show = open_cube_shows(self.cube.is_some(), self.flown.is_some());
+        let corner = [self.lens.w, self.lens.h];
+        commands.extend(self.fitted(|s| s.styled().place_chip(OPEN_CUBE, &text, corner, show).0)?);
         self.rt.conn.try_apply(commands).map(drop)
     }
 
@@ -485,6 +517,9 @@ impl Construct {
         if let Some(done) = self.plane_drag(event) {
             return done.map(|()| true);
         }
+        if view.mode() == Mode::Navigate && self.press_on_a_pane(event)? {
+            return Ok(true);
+        }
         let pressed = match event {
             Event::InputKey {
                 binding,
@@ -532,6 +567,47 @@ impl Construct {
             None => return Ok(false),
         }
         Ok(true)
+    }
+
+    /// Stood back, a press on a pane starts to move it, as a plain drag
+    /// on a floating plane pulls a window out: a drop over a face gives
+    /// the window back. On the empty space any pane under the pointer
+    /// takes the press, on a face only a pane nearer than the face.
+    /// Whether it took the press.
+    fn press_on_a_pane(&mut self, event: &Event) -> Result<bool, ClientError> {
+        let Event::PointerPressed {
+            node,
+            button,
+            position,
+            injected,
+            ..
+        } = event
+        else {
+            return Ok(false);
+        };
+        let pane = if *node == LOOK {
+            self.pane_at(*position)
+        } else if cube::face_of(node).is_some() {
+            self.pane_before_cube(*position)
+        } else {
+            None
+        };
+        if *button != BTN_LEFT || pane.is_none() {
+            return Ok(false);
+        }
+        if *injected && !self.rt.accepts_injected() {
+            return Ok(true);
+        }
+        self.press(*position, true)?;
+        Ok(true)
+    }
+
+    /// The pane under a point of the output that is nearer than the front
+    /// face of the cube.
+    pub(crate) fn pane_before_cube(&self, at: [f64; 2]) -> Option<usize> {
+        let face = self.cube.as_ref()?.front_depth(&self.pose);
+        self.pane_at(at)
+            .filter(|&i| super::space::depth(&self.pose, self.panes[i].at) < face)
     }
 
     /// An event that the window manager of the cube emitted: its window
@@ -649,6 +725,13 @@ mod tests {
         view.act(Act::StepBack);
         assert_eq!(chips_of(view, false).len(), 3);
         assert_eq!(chips_of(view, true), [], "navigate mode too");
+    }
+
+    #[test]
+    fn open_cube_shows_only_without_a_cube_and_outside_a_pane() {
+        assert!(open_cube_shows(false, false));
+        assert!(!open_cube_shows(true, false));
+        assert!(!open_cube_shows(false, true), "in a pane");
     }
 
     #[test]

@@ -6,6 +6,7 @@ panels:
   anchor: top
   margin: [0, 32]
   picture: ring.svg#{state}
+  text: '{state}'
   action: mute
 - id: line
   source: say

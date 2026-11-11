@@ -1,12 +1,14 @@
 #!/bin/bash
 # Gate of the keys that create and close panes in chora-construct:
 # text typed into the space starts and closes nothing, and the HUD says
-# that the keys walk (voice_hud: own, where the construct draws the HUD);
-# Super+t starts the terminal, and its window becomes
-# a pane; Super+space starts the launcher, whose own window shows without
-# a pane, and the program that it starts becomes a pane; after the
-# launcher the walk has the keyboard again; Super+x asks the window of
-# the pane ahead to close, and its pane goes;
+# that the keys walk in one line, also under the default voice_hud: host;
+# a give key without a window says so; Super+t starts the terminal, and
+# the camera flies into its new pane, which has the keyboard; a give key
+# to a window manager that does not run says so, for the focused window
+# and, after Alt+Escape, for the pane ahead; Super+space starts the
+# launcher, whose own window shows without a pane, and the camera flies
+# into the pane of the program that it starts;
+# Super+x asks the window of the pane ahead to close, and its pane goes;
 # pane.remove asks as well, and a window that refuses stays a pane; a
 # radius of settings.set leashes the panes at once.
 # The launcher here is a foot window that starts a second foot; where
@@ -26,7 +28,6 @@ mkdir -p "$work/chora"
 export PATH=$bin:$PATH
 font='DejaVu Sans Mono:size=10'
 cat >"$work/chora/chora-construct.yaml" <<EOF
-voice_hud: own
 terminal: foot -a term -f '$font' sh -c 'sleep 600'
 launcher: foot -a launcher -f '$font' sh -c 'sleep 1; setsid foot -a launched -f "$font" sh -c "sleep 600" & sleep 2'
 EOF
@@ -55,6 +56,13 @@ panes() {
         python3 -I -c 'import json, sys; print(" ".join(sorted(p["name"] for p in json.load(sys.stdin)["panes"])))'
 }
 focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
+app_focused() {
+    ctl query kind:surface | python3 -I -c '
+import json, sys
+print(any(n.get("focused") and (n.get("surface") or {}).get("app_id") == sys.argv[1] for n in json.load(sys.stdin)))' "$1"
+}
+flown_in() { ctl query id:construct-look | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0]["visible"])' | grep -qx False; }
+say() { ctl query id:construct-hud-say | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("text", "") if n else "")'; }
 # until_ok CODE: waits up to 10 s for the shell code to succeed.
 until_ok() {
     for _ in $(seq 40); do
@@ -66,16 +74,35 @@ until_ok() {
 
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 echo '[{"text": {"text": "text x "}}]' | ctl inject || fail "inject text"
-until_ok 'ctl query id:construct-hud-say | grep -q "keys walk"' ||
+until_ok 'say | grep -q "keys walk"' ||
     fail "typed text got no notice: $(ctl query id:construct-hud-say)"
+ctl query id:construct-hud-state | grep -q NOTICE && fail "the notice has a label"
 sleep 1
 [ -z "$(panes)" ] || fail "typed text made panes: $(panes)"
 ctl query kind:surface | grep -q '"term"' && fail "typed text started the terminal"
 ok "typed text starts nothing, and the HUD says that the keys walk"
 
+key Super+Alt+2
+until_ok 'say | grep -q "No window to give"' || fail "a give key without a window said nothing: $(say)"
+ok "a give key without a window says so"
+
 key Super+t
 until_ok 'test "$(panes)" = term' || fail "Super+t: the panes are '$(panes)'"
 ok "Super+t made the terminal the pane term"
+until_ok 'test "$(app_focused term)" = True' || fail "the new pane term has no keyboard"
+ok "the camera flew into the new pane term, which has the keyboard"
+
+key Super+Alt+2
+until_ok 'say | grep -q "xp did not take the window"' ||
+    fail "a give of the focused window to xp, which does not run, said nothing: $(say)"
+until_ok flown_in || fail "the camera is in no pane"
+key Alt+Escape
+until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
+key Super+Alt+3
+until_ok 'say | grep -q "mc did not take the window"' ||
+    fail "a give of the pane ahead to mc, which does not run, said nothing: $(say)"
+[ "$(panes)" = term ] || fail "the refused gives lost the pane: $(panes)"
+ok "a give to a window manager that does not run says so, for the focused window and the pane ahead"
 
 key Super+space
 until_ok 'ctl query kind:surface | grep -q \"launcher\"' ||
@@ -83,8 +110,11 @@ until_ok 'ctl query kind:surface | grep -q \"launcher\"' ||
 [ "$(panes)" = term ] || fail "the launcher became a pane: $(panes)"
 until_ok 'test "$(panes)" = "launched term"' || fail "the program of the launcher is no pane: $(panes)"
 ok "the launcher showed without a pane, and its program became the pane launched"
-until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no keyboard after the launcher"
-ok "the walk has the keyboard again"
+until_ok 'test "$(app_focused launched)" = True' || fail "the pane launched has no keyboard"
+ok "the camera flew into the pane of the program of the launcher, which has the keyboard"
+until_ok flown_in || fail "the camera is in no pane"
+key Alt+Escape
+until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
 
 before=$(panes)
 key Super+x
@@ -128,6 +158,9 @@ for notify in true false; do
     sleep 0.5
     key Return
     until_ok "panes | grep -qw notify-$notify" || fail "the program notify-$notify of fuzzel is no pane: $(panes)"
-    until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no keyboard after fuzzel"
+    until_ok "test \"\$(app_focused notify-$notify)\" = True" || fail "notify-$notify has no keyboard after fuzzel"
+    until_ok flown_in || fail "notify-$notify: the camera is in no pane"
+    key Alt+Escape
+    until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
 done
 ok "the programs that fuzzel started became panes, with or without the token of fuzzel"

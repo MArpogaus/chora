@@ -23,7 +23,9 @@
 #    Its task button is on the taskbar of that face only.
 # 2a. Stood back (K12): a drag on the floating plane of a window pulls
 #    the window out of the cube; dropped beside the cube it is a pane in
-#    view, dropped over the front face it is a window of xp again;
+#    view, and a plain drag of that pane over the front face makes it a
+#    window of xp again, the same act both ways; a pulled window dropped
+#    over the front face is a window of xp again;
 #    an injected drag on a plane pulls nothing where the construct takes
 #    no injected input (CHORA_TEST_ACCEPT_INJECTED_KEYS=0). A
 #    window half over the right edge of the face shows in full on its
@@ -204,6 +206,13 @@ nodes = json.load(sys.stdin)
 r = nodes[0]["rects"].get("HEADLESS-1") if nodes and nodes[0].get("visible") else None
 print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
 }
+pane_middle() {
+    ctl query "id:construct-pane-$surface" | python3 -I -c '
+import json, sys
+nodes = json.load(sys.stdin)
+r = nodes[0]["rects"].get("HEADLESS-1") if nodes else None
+print("%d %d" % (r[0] + r[2] / 2, r[1] + r[3] / 2) if r else "")'
+}
 stood() {
     env_file=$work/$1.env session_start 1280x800 -- "$bin/chora-construct"
     grant input.inject screen.capture
@@ -231,6 +240,18 @@ sleep 1
 [ "$(owner)" = construct ] || fail "the window pulled from the stood-back cube is lost after the drop: $(probe)"
 [ "$(pane_of "$surface")" = shown ] || fail "the pulled window is no pane in view: $(pane_of "$surface")"
 ok "stood back, a drag on a floating plane pulls its window out; dropped beside the cube it is a pane: $(probe)"
+call pane.move '{"name": "chora-probe", "right": 200, "ahead": 150}' >/dev/null || fail "pane.move chora-probe"
+until_ok 'test -n "$(pane_middle)"' 40 || fail "the pulled pane shows nowhere on the screen"
+read -r qx qy <<<"$(pane_middle)"
+inject "[{\"pointer_move\": {\"position\": [$qx, $qy]}},
+    {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+    {\"pointer_move\": {\"position\": [$((qx - 30)), $qy]}},
+    {\"pointer_move\": {\"position\": [600, 350]}},
+    {\"button\": {\"state\": \"released\"}}]"
+until_ok 'probe | grep -q " xp VIRTUAL-1 "' 40 ||
+    fail "a plain drag of the pulled pane over the front face did not give it back: $(probe)"
+[ "$(pane_of "$surface")" = none ] || fail "the pane stays after a plain drag gave it back: $(pane_of "$surface")"
+ok "stood back, a plain drag of the pane over the front face gives it back, the act that pulled it out: $(probe)"
 end_session
 
 CHORA_TEST_FLAGS=--test-injected-press-is-real stood plane_back

@@ -155,8 +155,30 @@ pub fn focused_within(
     wait: Duration,
 ) -> Result<Value, RpcError> {
     let node = windows.conn().focused_surface()?;
+    given(windows, node.as_ref(), to, wait)
+}
+
+/// As [`focused`], for the window `node` instead of the focused one.
+///
+/// # Errors
+///
+/// As [`focused`].
+pub fn window(
+    windows: &mut impl Windows,
+    node: Option<&Node>,
+    to: &str,
+) -> Result<Value, RpcError> {
+    given(windows, node, to, FORWARD_WAIT)
+}
+
+fn given(
+    windows: &mut impl Windows,
+    node: Option<&Node>,
+    to: &str,
+    wait: Duration,
+) -> Result<Value, RpcError> {
     let me = windows.conn().name().to_owned();
-    let answer = match plan(node.as_ref(), &me, to, windows)? {
+    let answer = match plan(node, &me, to, windows)? {
         Step::Hand(surface) => windows.hand(&surface, to)?,
         Step::Forward { owner, surface } => {
             let call = MethodCall {

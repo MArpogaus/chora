@@ -153,7 +153,8 @@ impl Construct {
             self.launcher = None;
             if !launchers_own(pid, launcher_pid) {
                 self.launched = None;
-                return self.adopt(surface, label, None, self.started(), false);
+                self.adopt(surface, label, None, self.started(), true)?;
+                return self.fly_into_window(surface);
             }
             if free && !self.overlay {
                 return self.show_launcher(surface);
@@ -162,14 +163,27 @@ impl Construct {
         }
         let i = (self.waiting.iter()).position(|w| token.is_some() && w.token.as_deref() == token);
         let waited = i.map(|i| self.waiting.remove(i));
-        let force = waited.as_ref().is_some_and(|w| !w.key);
+        let by_key = waited.as_ref().is_some_and(|w| w.key);
         let pane = waited.map(|w| w.pane);
         let launched =
             pane.is_none() && (self.launched.take()).is_some_and(|t| t.elapsed() < LAUNCHED);
+        let force = pane.is_some() || launched;
         if pane.is_some() || launched || (free && !self.overlay) {
-            return self.adopt(surface, label, pane.as_ref(), self.started(), force);
+            self.adopt(surface, label, pane.as_ref(), self.started(), force)?;
+            if by_key || launched {
+                return self.fly_into_window(surface);
+            }
         }
         Ok(())
+    }
+
+    /// Flies into the pane of a window that the person just opened, so
+    /// that it shows at 1:1 and has the keyboard.
+    fn fly_into_window(&mut self, surface: &str) -> Result<(), ClientError> {
+        match (self.panes.iter()).position(|p| p.window() == Some(surface)) {
+            Some(i) => self.fly_in(i),
+            None => Ok(()),
+        }
     }
 
     /// The window of a launcher shows over the space, in the middle of

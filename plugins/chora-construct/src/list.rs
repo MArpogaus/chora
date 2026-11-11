@@ -80,13 +80,6 @@ impl Construct {
         Ok(out)
     }
 
-    /// The windows without a visible pane: the rows of the list.
-    pub(crate) fn hidden(&mut self) -> Result<Vec<Entry>, ClientError> {
-        Ok((self.windows()?.into_iter())
-            .filter(|e| e.pane != "shown")
-            .collect())
-    }
-
     /// Flies to the pane of a window, or takes the window of another
     /// client as a pane at its own size first (F30). Answers the pane.
     pub(crate) fn show(&mut self, entry: &Entry) -> Result<String, ClientError> {
@@ -153,29 +146,19 @@ impl Construct {
         Ok(())
     }
 
-    /// The rows of the open list: the windows without a visible pane, or
-    /// the window managers to give a window to.
+    /// The rows of the open list: every window, or the window managers to
+    /// give a window to.
     pub(crate) fn rows(&mut self) -> Result<Vec<Row>, ClientError> {
         if self.list.as_ref().is_some_and(|l| l.give.is_some()) {
             return Ok((self.managers()?.into_iter())
                 .map(|m| Row {
-                    label: format!("give to {m}"),
-                    note: "window manager".into(),
+                    label: m.clone(),
+                    note: String::new(),
                     target: m,
                 })
                 .collect());
         }
-        Ok((self.hidden()?.into_iter())
-            .map(|e| {
-                let owner = e.owner.as_deref().unwrap_or("no owner");
-                let place = if e.pane == "none" { "no pane" } else { e.pane };
-                Row {
-                    label: e.name,
-                    note: format!("{owner} \u{b7} {place}"),
-                    target: e.surface,
-                }
-            })
-            .collect())
+        Ok(self.windows()?.into_iter().map(row_of).collect())
     }
 
     pub(crate) fn close_list(&mut self) -> Result<(), ClientError> {
@@ -198,7 +181,11 @@ impl Construct {
         };
         let done = match give {
             Some(surface) => self.give(&surface, &row.target).map(drop),
-            None => match self.hidden()?.into_iter().find(|e| e.surface == row.target) {
+            None => match self
+                .windows()?
+                .into_iter()
+                .find(|e| e.surface == row.target)
+            {
                 Some(entry) => self.show(&entry).map(drop),
                 None => Ok(()),
             },
@@ -307,5 +294,15 @@ impl Construct {
             self.fly_out()?;
         }
         self.fly_in(i)
+    }
+}
+
+/// The row of a window in the list: its name, and the note
+/// `not in view` for a window that does not show.
+pub(crate) fn row_of(e: Entry) -> Row {
+    Row {
+        note: if e.pane == "shown" { "" } else { "not in view" }.into(),
+        label: e.name,
+        target: e.surface,
     }
 }
