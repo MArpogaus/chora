@@ -20,6 +20,9 @@
 #    past the edge the window is still with xp, and no pane shows it;
 #    back in the face it goes on with the drag, and stays after the
 #    release.
+# 4. A construct on a client socket opens no cube: the core refuses its
+#    virtual outputs, so it has no face to pull from or to drop on, and
+#    never calls the privileged window.move of xp.
 #
 # Usage: tests/gate-construct-pull.sh   BIN: directory with the binaries
 # shellcheck disable=SC2016
@@ -162,3 +165,19 @@ sleep 1
 [ "$(pane_of "$surface")" = none ] || fail "a refused give made a pane: $(pane_of "$surface")"
 ok "after the refused give the window goes on with the drag and stays with xp: $(probe)"
 end_session
+
+session_start 1280x800 -- sleep 600
+socket=$(timeout 10 "$bin/choractl" clients create construct |
+    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["path"])') || fail "no client socket"
+CHORA_SOCKET=$socket "$bin/chora-construct" >"$work/confined.log" 2>&1 &
+pids+=($!)
+until_ok 'timeout 10 "$bin/choractl" call construct window.list "{}" >/dev/null 2>&1' 40 ||
+    fail "the construct on a client socket exports no methods: $(tail -n 3 "$work/confined.log")"
+refusal=$(timeout 10 "$bin/choractl" call construct cube.open '{}' 2>&1) &&
+    fail "a construct on a client socket opened a cube: $refusal"
+[[ $refusal == *"adds no virtual output"* ]] || fail "the refusal does not name the reason: $refusal"
+timeout 10 "$bin/choractl" outputs | grep -q VIRTUAL && fail "a confined construct has a virtual output"
+ok "a construct on a client socket opens no cube: $refusal"
+kill "${pids[@]}" 2>/dev/null
+wait 2>/dev/null
+pids=()
