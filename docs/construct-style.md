@@ -3,8 +3,10 @@
 These rules apply to every element that `chora-construct` draws over its
 space: the voice HUD, the window list, the pane labels and the
 confirmation questions. The space is a calm 3D void. The light theme has
-a white glossy floor, a crisp horizon and a pale sky. The dark theme has
-a black void over a black glossy floor. Panes float with a fixed turn; walking past one shows it at an angle.
+a floor of white polished marble with soft grey veins, a crisp horizon
+and a pale sky. The dark theme has a black void over black polished
+marble with faint white veins. The mirror images in the floor blur with
+the distance from their pane. Panes float with a fixed turn; walking past one shows it at an angle.
 All elements share one visual language: floating glass, few sizes, one
 accent and calm motion.
 
