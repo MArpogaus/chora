@@ -852,9 +852,9 @@ mod tests {
     fn a_swung_sail_bows_in_depth_and_its_edges_trail_more_than_its_middle() {
         let (bent, _) = swing(pane().sail());
         assert!(bent.is_valid());
-        assert!(deepest(&bent) >= 60.0, "the bow: {}", deepest(&bent));
+        assert!(deepest(&bent) >= 260.0, "the bow: {}", deepest(&bent));
         let (middle, edge) = (bent.depth[10 * 21 + 10], bent.depth[10 * 21]);
-        assert!(edge > middle + 40.0, "edge {edge}, middle {middle}");
+        assert!(edge > middle + 90.0, "edge {edge}, middle {middle}");
         let (plain, _) = swing(pane());
         assert!(
             deepest(&plain) < 1e-9,
