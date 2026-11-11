@@ -14,8 +14,8 @@ use chora_scene::{Event, ipc::PressState};
 use serde_json::{Value, json};
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, FLY_MS, Grab, LOOK, NAME, NodeKind,
-    PropsUpdate, Query, RpcError, create, cube,
+    Action, BTN_LEFT, ClientError, Command, Construct, FLY_MS, Grab, InputMode, LOOK, NAME,
+    NodeKind, PropsUpdate, Query, RpcError, create, cube,
 };
 
 /// The group of the chips, and the prefix of a chip.
@@ -177,7 +177,34 @@ impl Construct {
             to: None,
         }])?;
         self.regrab()?;
+        self.draw_help(false)?;
+        self.pane_input()?;
         self.draw_open_cube()
+    }
+
+    /// Stood back, the windows of the panes take no pointer input: a
+    /// press on a pane moves it, as on a floating plane. Else they take
+    /// it.
+    pub(crate) fn pane_input(&mut self) -> Result<(), ClientError> {
+        let stood_back = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Navigate);
+        let input = if stood_back {
+            InputMode::Pass
+        } else {
+            InputMode::Accept
+        };
+        let commands = (self.panes.iter())
+            .filter(|p| p.attached)
+            .map(|p| {
+                super::update(
+                    &p.node(),
+                    PropsUpdate {
+                        input: Some(input),
+                        ..PropsUpdate::default()
+                    },
+                )
+            })
+            .collect();
+        self.rt.conn.try_apply(commands).map(drop)
     }
 
     /// The top of the taskbar of the front face on the screen: the chips
@@ -221,6 +248,7 @@ impl Construct {
     /// pane. Also after the output changed.
     /// They stay left of the desktop icons in their row.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
+        self.pane_input()?;
         self.draw_open_cube()?;
         let flown = self.flown.is_some();
         let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
@@ -489,6 +517,9 @@ impl Construct {
         if let Some(done) = self.plane_drag(event) {
             return done.map(|()| true);
         }
+        if view.mode() == Mode::Navigate && self.press_on_a_pane(event)? {
+            return Ok(true);
+        }
         let pressed = match event {
             Event::InputKey {
                 binding,
@@ -536,6 +567,39 @@ impl Construct {
             None => return Ok(false),
         }
         Ok(true)
+    }
+
+    /// Stood back, a press on a pane in front of the cube starts to move
+    /// it, as a plain drag on a floating plane pulls a window out: a drop
+    /// over a face gives the window back. Whether it took the press.
+    fn press_on_a_pane(&mut self, event: &Event) -> Result<bool, ClientError> {
+        let Event::PointerPressed {
+            node,
+            button,
+            position,
+            injected,
+            ..
+        } = event
+        else {
+            return Ok(false);
+        };
+        let over = *node == LOOK || cube::face_of(node).is_some();
+        if *button != BTN_LEFT || !over || self.pane_before_cube(*position).is_none() {
+            return Ok(false);
+        }
+        if *injected && !self.rt.accepts_injected() {
+            return Ok(true);
+        }
+        self.press(*position, true)?;
+        Ok(true)
+    }
+
+    /// The pane under a point of the output that is nearer than the front
+    /// face of the cube.
+    pub(crate) fn pane_before_cube(&self, at: [f64; 2]) -> Option<usize> {
+        let face = self.cube.as_ref()?.front_depth(&self.pose);
+        self.pane_at(at)
+            .filter(|&i| super::space::depth(&self.pose, self.panes[i].at) < face)
     }
 
     /// An event that the window manager of the cube emitted: its window

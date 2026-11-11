@@ -357,6 +357,14 @@ impl Construct {
     /// nothing.
     pub(crate) fn release(&mut self, at: [f64; 2], pane: Option<usize>) -> Result<(), ClientError> {
         self.pointer = Some(at);
+        if self.moving.is_some() && self.cube.is_some() {
+            let screen = (self.output.as_ref())
+                .map(|o| o.name.clone())
+                .unwrap_or_default();
+            if self.drop_on_a_face(&screen, at)? {
+                return Ok(());
+            }
+        }
         if let Some(moving) = self.moving.take() {
             self.effects.release(&moving.name);
             return self.drop_pane(&moving, at);

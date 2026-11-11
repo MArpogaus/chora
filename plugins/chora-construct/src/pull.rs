@@ -176,7 +176,11 @@ impl Construct {
     /// that manager is asked to put it at the drop point. Returns whether
     /// the window went; else the drop of the space takes the pane.
     #[allow(clippy::cast_possible_truncation, reason = "a point of an output")]
-    fn drop_on_a_face(&mut self, output: &str, point: [f64; 2]) -> Result<bool, ClientError> {
+    pub(crate) fn drop_on_a_face(
+        &mut self,
+        output: &str,
+        point: [f64; 2],
+    ) -> Result<bool, ClientError> {
         let dragged = self.moving.as_ref().and_then(|moving| {
             let pane = self.panes.iter().find(|p| p.name == moving.name)?;
             pane.window().filter(|_| pane.attached).map(String::from)
@@ -311,14 +315,6 @@ impl Construct {
     }
 
     fn drop_pulled(&mut self, at: [f64; 2]) -> Result<(), ClientError> {
-        let screen = self
-            .output
-            .as_ref()
-            .map(|o| o.name.clone())
-            .unwrap_or_default();
-        if self.drop_on_a_face(&screen, at)? {
-            return Ok(());
-        }
         self.release(at, None)
     }
 
@@ -363,6 +359,7 @@ impl Construct {
         let Some(i) = of_window(self) else {
             return Ok(());
         };
+        self.pane_input()?;
         let boxed = |construct: &Self| {
             let pane = &construct.panes[i];
             space::screen_box(
