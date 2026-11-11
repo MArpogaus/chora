@@ -722,10 +722,8 @@ share is used while the week still has room.
   reversible and sits in commits of its own. Security policy, licensing
   and anything outward wait for the user, unless section 1 or section
   15 decides them.
-- One PM at a time (`pm:` line in state.md, see routine.md). The old
-  persistent session (session_016iS3kQmq6Q6Ce3hxtenYSR) does no PM work
-  after 11-10 16:45. A user message to an older session is answered
-  there with a pointer to the newest session and copied to answers.md.
+- One PM at a time: the persistent session session_016iS3kQmq6Q6Ce3hxtenYSR
+  (`pm:` line in state.md). The fresh-session switch was reverted.
 - GitHub from a run: REST only, through `gh api` (GraphQL, so `gh issue`
   and `gh pr`, is blocked). Issues: list `gh api
   'repos/MArpogaus/chora/issues?state=open&per_page=100'`, create `gh api
