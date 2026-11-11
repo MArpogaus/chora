@@ -805,6 +805,14 @@ impl Wm {
         self.trays()
     }
 
+    /// The bindings of Keyboard Shortcuts that the plugin holds.
+    fn held_shortcuts(&self) -> Vec<&'static str> {
+        (give::KEYS.iter().map(|(key, _)| *key))
+            .chain([control::CHAT_KEY])
+            .filter(|key| self.rt.holds(key))
+            .collect()
+    }
+
     fn now(&self) -> String {
         chrono::Local::now()
             .format(&self.settings.value.clock_format)
@@ -3135,6 +3143,7 @@ impl Wm {
             &walls,
             self.effects.toggles,
             self.volume,
+            &self.held_shortcuts(),
         )
     }
 

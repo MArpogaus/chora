@@ -1542,10 +1542,12 @@ settings, as `settings.set` does:
 - **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off;
-- **Keyboard Shortcuts**: the keys that every window manager shares:
-  `Super+Alt+1` to `Super+Alt+4`, which give the focused window to
-  tiling, xp, mc or construct, and `Super+a`, which opens the chat. A
-  click on an entry does what its key does;
+- **Keyboard Shortcuts**: the keys that every window manager shares and
+  that `chora-xp` holds: `Super+Alt+1` to `Super+Alt+4`, which give the
+  focused window to tiling, xp, mc or construct, and `Super+a`, which
+  opens the chat. A key that another client holds is not on the menu,
+  and its refusal logs one line. A click on an entry does what its key
+  does;
 - **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
   sound output, through `wpctl`; without one, the entry "No sound";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.

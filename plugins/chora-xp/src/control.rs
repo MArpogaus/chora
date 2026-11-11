@@ -134,6 +134,7 @@ pub fn menu(
     walls: &[PathBuf],
     toggles: Toggles,
     volume: Option<Volume>,
+    held: &[&str],
 ) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
         title,
@@ -166,7 +167,8 @@ pub fn menu(
         icon: icon.into(),
         kind: Kind::Group(children),
     };
-    vec![
+    let keys = shortcuts(held);
+    let mut nodes = vec![
         Node {
             title: "Date and Time".into(),
             // XP draws a calendar; the WindowsXP theme has no
@@ -181,18 +183,21 @@ pub fn menu(
             kind: Kind::Pick(Setting::Display, false),
         },
         group("Effects", "preferences-desktop-effects", effects),
-        group(
-            "Keyboard Shortcuts",
-            "preferences-desktop-keyboard",
-            shortcuts(),
-        ),
         group("Sound", "audio-volume-medium", sound(volume)),
         Node {
             title: "Taskbar and Start Menu".into(),
             icon: "preferences-system-windows".into(),
             kind: Kind::Pick(Setting::Taskbar, false),
         },
-    ]
+    ];
+    if !keys.is_empty() {
+        let at = nodes.len() - 2;
+        nodes.insert(
+            at,
+            group("Keyboard Shortcuts", "preferences-desktop-keyboard", keys),
+        );
+    }
+    nodes
 }
 
 /// The rows of Sound: Mute and the volumes, the current one checked
@@ -225,20 +230,24 @@ fn sound(volume: Option<Volume>) -> Vec<Node> {
 
 /// The rows of Keyboard Shortcuts: the keys that give the focused window
 /// to another window manager, and the key of the chat, which also opens
-/// it from here.
-fn shortcuts() -> Vec<Node> {
+/// it from here; only the keys of `held`, which the plugin holds, so that
+/// no row promises a key that another client took.
+fn shortcuts(held: &[&str]) -> Vec<Node> {
     let mut rows: Vec<Node> = (chora_kit::give::KEYS.into_iter())
+        .filter(|(key, _)| held.contains(key))
         .map(|(key, to)| Node {
             title: format!("{key}: window to {to}"),
             icon: String::new(),
             kind: Kind::Pick(Setting::Give(to), false),
         })
         .collect();
-    rows.push(Node {
-        title: format!("{CHAT_KEY}: chat"),
-        icon: String::new(),
-        kind: Kind::Run(CHAT.into()),
-    });
+    if held.contains(&CHAT_KEY) {
+        rows.push(Node {
+            title: format!("{CHAT_KEY}: chat"),
+            icon: String::new(),
+            kind: Kind::Run(CHAT.into()),
+        });
+    }
     rows
 }
 
@@ -306,7 +315,7 @@ mod tests {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
         let mut toggles = crate::config::defaults().effects;
         toggles.flip(Effect::Lamp);
-        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles, None);
+        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles, None, &[]);
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
         assert_eq!(name_of("purplef"), "Purple flower");
@@ -326,11 +335,19 @@ mod tests {
         menu.iter().find(|n| n.title == title).expect(title)
     }
 
+    const ALL_HELD: [&str; 5] = [
+        "Super+Alt+1",
+        "Super+Alt+2",
+        "Super+Alt+3",
+        "Super+Alt+4",
+        "Super+a",
+    ];
+
     #[test]
     fn sound_shows_the_volume_and_mutes() {
         let toggles = crate::config::defaults().effects;
         let at = |percent, muted| Some(Volume { percent, muted });
-        let loud = menu(None, &[], toggles, at(50, false));
+        let loud = menu(None, &[], toggles, at(50, false), &ALL_HELD);
         assert_eq!(
             picks(group(&loud, "Sound")),
             [
@@ -352,18 +369,19 @@ mod tests {
             rows[4].kind,
             Kind::Pick(Setting::Volume(Change::Set(100)), false)
         );
-        let muted = menu(None, &[], toggles, at(50, true));
+        let muted = menu(None, &[], toggles, at(50, true), &ALL_HELD);
         assert_eq!(
             picks(group(&muted, "Sound"))[..3],
             [("Mute", true), ("25%", false), ("50%", false)]
         );
-        let silent = menu(None, &[], toggles, None);
+        let silent = menu(None, &[], toggles, None, &ALL_HELD);
         assert_eq!(picks(group(&silent, "Sound")), [("No sound", false)]);
     }
 
     #[test]
     fn the_keys_of_every_window_manager_are_on_the_menu() {
-        let menu = menu(None, &[], crate::config::defaults().effects, None);
+        let toggles = crate::config::defaults().effects;
+        let menu = menu(None, &[], toggles, None, &ALL_HELD);
         let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
             panic!("a group");
         };
@@ -380,6 +398,19 @@ mod tests {
         );
         assert_eq!(rows[0].kind, Kind::Pick(Setting::Give("tiling"), false));
         assert_eq!(rows[4].kind, Kind::Run("chora-chat".into()));
+    }
+
+    /// A key that another client holds is not on the menu: a row there
+    /// would promise a key that does nothing.
+    #[test]
+    fn only_the_held_keys_are_on_the_menu() {
+        let toggles = crate::config::defaults().effects;
+        let menu = menu(None, &[], toggles, None, &["Super+Alt+2"]);
+        let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
+            panic!("a group");
+        };
+        let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
+        assert_eq!(titles, ["Super+Alt+2: window to xp"]);
     }
 
     #[test]
