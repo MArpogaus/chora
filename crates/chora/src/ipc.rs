@@ -2927,6 +2927,56 @@ mod tests {
         assert_eq!(reserved_for(&core, "s3").as_deref(), Some("a"), "the focus");
     }
 
+    /// A click of a button at a point of the scene, real or injected.
+    fn click_at(core: &mut Core, at: (f64, f64), injected: bool) {
+        use smithay::backend::input::{ButtonState, InputTime};
+        core.state.pointer_layout = at.into();
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            crate::input::press_button(&mut core.state, 272, state, InputTime::now(), injected);
+        }
+    }
+
+    /// A click of the user on the empty claim of another window manager
+    /// chooses that one for the next new window, before the focused one
+    /// (D55): who clicks the empty screen on the right expects the window
+    /// there. An injected click chooses nobody, a click in the claim of
+    /// the focused manager gives the choice back, and so does a change of
+    /// the focus.
+    #[test]
+    fn a_click_on_the_empty_claim_of_a_manager_chooses_it_for_a_new_window() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
+        let _b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (100.0, 100.0).into();
+        wayland.toplevel(&mut core, "one");
+        let take = |surface: &str| {
+            json!({"commands": [{"attach": {"surface": surface, "parent": "a"}},
+                {"focus": {"surface": surface}}]})
+        };
+        a.ok(&mut core, "scene.apply", take("s1"));
+        click_at(&mut core, (600.0, 300.0), true);
+        wayland.toplevel(&mut core, "two");
+        assert_eq!(reserved_for(&core, "s2").as_deref(), Some("a"), "injected");
+        click_at(&mut core, (600.0, 300.0), false);
+        wayland.toplevel(&mut core, "three");
+        assert_eq!(reserved_for(&core, "s3").as_deref(), Some("b"), "the click");
+        wayland.toplevel(&mut core, "four");
+        assert_eq!(reserved_for(&core, "s4").as_deref(), Some("b"), "it lasts");
+        click_at(&mut core, (100.0, 500.0), false);
+        wayland.toplevel(&mut core, "five");
+        assert_eq!(reserved_for(&core, "s5").as_deref(), Some("a"), "back");
+        click_at(&mut core, (600.0, 300.0), false);
+        a.ok(&mut core, "scene.apply", take("s2"));
+        wayland.toplevel(&mut core, "six");
+        assert_eq!(
+            reserved_for(&core, "s6").as_deref(),
+            Some("a"),
+            "a new focus"
+        );
+    }
+
     /// Where a surface is: `(owner, parent, reserved for)`.
     fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
         let node = core.state.scene.node(surface).unwrap();
