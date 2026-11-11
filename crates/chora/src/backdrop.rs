@@ -477,3 +477,20 @@ impl BackdropElement {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::iterations;
+
+    /// Two halvings at the least, also for a small box, so that the
+    /// smallest blur still blurs.
+    #[test]
+    fn a_blur_halves_at_least_twice() {
+        for (radius, size) in [(2.0, [6, 6]), (2.0, [400, 300]), (24.0, [3, 3])] {
+            assert!(iterations(radius, size).0 >= 2, "{radius} on {size:?}");
+        }
+        assert_eq!(iterations(24.0, [400, 300]).0, 2);
+        assert_eq!(iterations(25.0, [400, 300]).0, 3);
+        assert_eq!(iterations(512.0, [4000, 3000]).0, 6);
+    }
+}

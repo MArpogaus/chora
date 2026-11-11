@@ -82,8 +82,30 @@ fn report(line: &str) {
     println!("{line}");
 }
 
+/// The passes of the blurs of backdrops.
 fn passes(core: &Core) -> u64 {
+    core.state.assets.stats.passes
+}
+
+/// The passes that `render.stats` tells for the output.
+fn told_passes(core: &Core) -> u64 {
     core.state.assets.stats.by_output[OUTPUT].passes
+}
+
+/// The color of a pixel of the screen without its alpha.
+fn color(core: &mut Core, (across, down): (i32, i32)) -> [u8; 3] {
+    let [red, green, blue, _] = screen_row(&mut core.state, 0, down, (across, 1))[0];
+    [red, green, blue]
+}
+
+/// Whether the pixels of a row from `x` on, `width` of them, are white.
+fn white(core: &mut Core, (x, y): (i32, i32), width: i32) -> Result<(), String> {
+    for p in screen_row(&mut core.state, 0, y, (x, width)) {
+        if p[..3].iter().any(|c| *c < 250) {
+            return Err(format!("{p:?} beside the label"));
+        }
+    }
+    Ok(())
 }
 
 #[test]
@@ -384,4 +406,132 @@ fn a_window_that_commits_outside_the_glass_never_blurs_it_again() {
     wayland.attach_buffer(&mut core, &window, &red, Some((300, 200, 20, 20)));
     frames(&mut core, 1);
     assert!(passes(&core) > first, "damage under the glass blurs again");
+}
+
+#[test]
+fn an_opaque_label_over_the_glass_leaves_no_halo() {
+    let (mut core, mut wm) = world();
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        glass("glass", &json!({"backdrop": {"blur": 16}})),
+    );
+    let label = json!({"commands": [{"create": {"id": "label", "kind": "rect", "parent": "root",
+        "props": {"size": [20, 20], "color": [0, 1, 0, 1], "transform": {"translate": [360, 230]}}}}]});
+    wm.ok(&mut core, "scene.apply", label);
+    frames(&mut core, 1);
+    assert_eq!(color(&mut core, (370, 240)), [0, 255, 0], "the label");
+    white(&mut core, (340, 240), 18).unwrap();
+    white(&mut core, (382, 240), 18).unwrap();
+    let behind = json!({"commands": [
+        {"update": {"id": "light", "props": {"color": [1, 1, 0.99, 1]}}}]});
+    wm.ok(&mut core, "scene.apply", behind);
+    frames(&mut core, 1);
+    white(&mut core, (340, 240), 18).unwrap();
+    white(&mut core, (382, 240), 18).unwrap();
+}
+
+#[test]
+fn an_opaque_window_over_the_glass_leaves_no_halo() {
+    let (mut core, mut wm) = world();
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        glass("glass", &json!({"backdrop": {"blur": 16}})),
+    );
+    let mut wayland = crate::testing::wayland::Wayland::connect(&mut core);
+    let window = wayland.toplevel(&mut core, "window");
+    wayland.opaque(&window, (30, 30));
+    let blue = wayland.buffer((30, 30), 0xFF00_00FF);
+    wayland.attach_buffer(&mut core, &window, &blue, Some((0, 0, 30, 30)));
+    let attach = json!({"commands": [
+        {"attach": {"surface": "s1", "parent": "root"}},
+        {"update": {"id": "s1", "props": {"transform": {"translate": [360, 225]}}}}]});
+    wm.ok(&mut core, "scene.apply", attach);
+    frames(&mut core, 1);
+    assert_eq!(color(&mut core, (375, 240)), [0, 0, 255], "the window");
+    white(&mut core, (340, 240), 18).unwrap();
+    white(&mut core, (392, 240), 18).unwrap();
+    let behind = json!({"commands": [
+        {"update": {"id": "light", "props": {"color": [1, 1, 0.99, 1]}}}]});
+    wm.ok(&mut core, "scene.apply", behind);
+    frames(&mut core, 1);
+    white(&mut core, (340, 240), 18).unwrap();
+    white(&mut core, (392, 240), 18).unwrap();
+}
+
+#[test]
+fn render_stats_leave_the_blurs_of_backdrops_out() {
+    let (mut core, mut wm) = world();
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        glass("glass", &json!({"backdrop": {"blur": 16}})),
+    );
+    frames(&mut core, 1);
+    assert!(passes(&core) > 0, "the glass blurs");
+    assert_eq!(told_passes(&core), 0, "render.stats does not tell it");
+    let behind = json!({"commands": [
+        {"update": {"id": "dark", "props": {"color": [0.5, 0, 0, 1]}}}]});
+    wm.ok(&mut core, "scene.apply", behind);
+    frames(&mut core, 1);
+    assert_eq!(told_passes(&core), 0, "nor when the frame behind changed");
+}
+
+#[test]
+fn at_most_eight_backdrops_blur_in_a_view() {
+    let (mut core, mut wm) = world();
+    let commands: Vec<Value> = (0..9)
+        .map(|k| {
+            json!({"create": {"id": format!("glass{k}"), "kind": "rect", "parent": "root",
+                "props": {"size": [40, 40], "color": [0, 0, 0, 0], "backdrop": {"blur": 8},
+                          "transform": {"translate": [300, 10 + k * 50]}}}})
+        })
+        .collect();
+    wm.ok(&mut core, "scene.apply", json!({"commands": commands}));
+    frames(&mut core, 1);
+    let blurred = (0..9)
+        .filter(|k| color(&mut core, (318, 30 + k * 50))[0] > 20)
+        .count();
+    assert_eq!(blurred, 8, "the ninth draws its plain tint");
+}
+
+#[test]
+fn a_second_output_at_scale_2_blurs_by_logical_pixels() {
+    let (mut core, mut wm) = world();
+    let info = wm.ok(&mut core, "output.add", json!({"spec": "640x480@2+640+0"}));
+    assert_eq!(info["size"], json!([320, 240]));
+    let commands = json!({"commands": [
+        {"create": {"id": "dark2", "kind": "rect", "parent": "root",
+            "props": {"size": [160, 240], "color": [0, 0, 0, 1], "transform": {"translate": [640, 0]}}}},
+        {"create": {"id": "light2", "kind": "rect", "parent": "root",
+            "props": {"size": [160, 240], "color": [1, 1, 1, 1], "transform": {"translate": [800, 0]}}}},
+        {"create": {"id": "glass2", "kind": "rect", "parent": "root",
+            "props": {"size": [200, 160], "color": [0, 0, 0, 0], "backdrop": {"blur": 16},
+                      "transform": {"translate": [700, 40]}}}},
+    ]});
+    wm.ok(&mut core, "scene.apply", commands);
+    wm.ok(
+        &mut core,
+        "scene.apply",
+        glass("glass", &json!({"backdrop": {"blur": 16}})),
+    );
+    frames(&mut core, 1);
+    let first: Vec<u8> = screen_row(&mut core.state, 0, ROW, (220, 200))
+        .iter()
+        .map(|p| p[0])
+        .collect();
+    let second: Vec<u8> = screen_row(&mut core.state, 1, 240, (120, 400))
+        .iter()
+        .map(|p| p[0])
+        .collect();
+    let (narrow, wide) = (ramp(&first), ramp(&second));
+    report(&format!(
+        "blur 16 at scale 1: {narrow} px, at scale 2: {wide} px"
+    ));
+    assert!((12..=24).contains(&narrow), "scale 1: {narrow} px");
+    assert!((24..=48).contains(&wide), "scale 2: {wide} px");
+    let before = passes(&core);
+    frames(&mut core, 10);
+    assert_eq!(passes(&core), before, "two still outputs blur nothing");
 }
