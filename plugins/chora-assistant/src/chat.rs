@@ -68,7 +68,10 @@ impl Frame {
         if let Some(slot) = self.slot.and_then(|slot| self.clipped(slot)) {
             return self.aside(slot);
         }
-        let (anchor, width) = self.look.place();
+        let (anchor, mut width) = self.look.place();
+        if self.look.style == chora_kit::hud::ChatStyle::Glass {
+            width = glass_width(width, self.area[2]);
+        }
         let margin = i32::try_from(self.look.margin).unwrap_or(0);
         let [x, y, w, h] = self.area;
         let inside = [
@@ -118,6 +121,16 @@ impl Frame {
         [moved.unwrap_or(x), y, w, h]
     }
 }
+
+/// The width of a glass chat: 28 hundredths of the work area, at least
+/// 400 and at most the width of the folder (construct HUD spec, 5).
+fn glass_width(most: u32, area: i32) -> u32 {
+    let share = u32::try_from(area.max(0) * 28 / 100).unwrap_or(0);
+    share.clamp(GLASS_LEAST.min(most), most)
+}
+
+/// The narrowest glass chat.
+const GLASS_LEAST: u32 = 400;
 
 /// The gap between the view and what it stands beside.
 const ASIDE: i32 = 8;
@@ -1020,6 +1033,23 @@ mod tests {
             slot: None,
             clear: Vec::new(),
         }
+    }
+
+    #[test]
+    fn a_glass_chat_is_28_hundredths_of_the_output_wide_from_400_to_its_width() {
+        let look = Look {
+            style: chora_kit::hud::ChatStyle::Glass,
+            anchor: Some(Anchor::Right),
+            width: Some(480),
+            margin: 32,
+            ..Look::default()
+        };
+        let mut glass = frame(look);
+        assert_eq!(glass.rect(), [1280 - 32 - 400, 32, 400, 656]);
+        glass.area = [0, 0, 1920, 1080];
+        assert_eq!(glass.rect()[2], 480, "28 hundredths of 1920 is more");
+        glass.area = [0, 0, 1600, 900];
+        assert_eq!(glass.rect()[2], 448);
     }
 
     #[test]
