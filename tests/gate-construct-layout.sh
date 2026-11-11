@@ -89,7 +89,13 @@ logical() {
 }
 any_front() { ctl query 'kind:surface' | jq -e 'any(.[]; .parent == "construct-front")' >/dev/null 2>&1; }
 list_gone() { ctl query id:construct-list-body | jq -e 'length == 0 or (.[0].rects | length == 0)' >/dev/null 2>&1; }
-low_pointer() { echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null; }
+hover_at() {
+    local x y w h
+    read -r x y w h < <(rect_of "$1")
+    [ -n "${x:-}" ] || return 1
+    echo "[{\"pointer_move\": {\"position\": [$((${x%.*} + ${w%.*} / 2)), $((${y%.*} + ${h%.*} / 2))]}}]" | ctl inject >/dev/null
+}
+filled() { ctl query "id:$1" | jq -e '.[0].color[3] > 0' >/dev/null 2>&1; }
 press_at() {
     local x y w h
     read -r x y w h < <(rect_of "$1")
@@ -266,7 +272,10 @@ more_panes() {
         run_pid $!
     done
     until_ok 'panes_are 3' || { echo "FAIL: $tag: three panes did not stand: $(ctl call construct construct.list | jq -c '[.panes[].name]')"; failed=1; return; }
-    low_pointer
+    key Return
+    until_ok any_front || { echo "FAIL: $tag: Return did not fly into a pane of three"; failed=1; return; }
+    key Alt+Escape
+    until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape did not step back from a pane of three"; failed=1; return; }
     if until_ok 'hints_are "fly-in keys terminal walk windows"'; then
         ok "$tag: three panes: $(hint_ids)"
     else
@@ -274,16 +283,19 @@ more_panes() {
         failed=1
     fi
     hint_bar "$tag" "$size"
+    hover_at construct-hint-fly-in || echo "FAIL: $tag: no hint Fly in on the screen"
+    until_ok 'filled construct-hint-fly-in' || { echo "FAIL: $tag: the hint Fly in has no hover fill under the pointer"; failed=1; }
     key Tab
     until_shows construct-list-row-1 || { echo "FAIL: $tag: the window list shows no second row"; failed=1; return; }
     sleep 0.5
+    hover_at construct-list-row-1 || { echo "FAIL: $tag: no second row on the screen"; failed=1; return; }
+    until_ok 'filled construct-list-row-1' || { echo "FAIL: $tag: the second row has no hover fill under the pointer"; failed=1; }
     press_at construct-list-row-1 || { echo "FAIL: $tag: no second row on the screen"; failed=1; return; }
     until_ok list_gone || { echo "FAIL: $tag: a click on a row of the window list left the list open"; failed=1; }
     until_ok any_front || { echo "FAIL: $tag: a click on a row of the window list did not fly into its window"; failed=1; return; }
     ok "$tag: a click on a row of the window list flew into its window"
     key Alt+Escape
     until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape after the row did not step back"; failed=1; return; }
-    low_pointer
     until_ok 'hints_are "fly-in keys terminal walk windows"' ||
         { echo "FAIL: $tag: the hints after the step back are: $(hint_ids)"; failed=1; return; }
     press_at construct-hint-terminal || { echo "FAIL: $tag: no hint Terminal on the screen"; failed=1; return; }
