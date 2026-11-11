@@ -5,7 +5,8 @@ The compaction summary is lossy. It is not the plan. Before the next action:
 1. Read `charter.md` in full (wt/log), then `state.md`, the tail of
    `answers.md` and of `friction.md`. Do not act on the summary alone.
 2. List live lanes: local agents, worker sessions, background commands.
-3. Write the user's chat decisions since the last entry into `answers.md`.
+3. Read `decisions-now.md` (injected below); every new user decision goes there
+   verbatim the same turn, and into `answers.md`.
 4. Resume at once: do the first open pending item before replying. Never end a
    turn with a "next" item that needs no user input (friction 34).
 

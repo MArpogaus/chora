@@ -262,3 +262,6 @@ After the compaction the PM reread the charter (card step 1) but then only liste
 
 ## 35 (11-11 ~17:50 UTC): a haiku tester called create_session
 t-everyday called create_session with no parameters by mistake (session_016iS3kPfPNrzVDkHjhsfrJX) and archived it again. Testers inherit every tool of the PM. Fix: tester briefs say "use only Bash and Read"; better, run testers with an agent type limited to Bash and Read.
+
+## 36 (11-11 ~18:00 UTC): MAJOR. A user decision was misread after compaction
+The user's 85 % was the limit for the haiku swarms while they find new issues. Before the compaction the PM had it right; the summary and answers.md held only the PM's paraphrase ("cap at 85 % weekly use"), and after the compaction the PM reported it as "this week's cap" for many turns. Cause: answers.md stores paraphrases, and the card points only to its tail. Fix: `decisions-now.md`, the current standing decisions as verbatim user quotes with the PM's reading, updated the same turn as the decision, and injected by the compact hook next to the PM card.
