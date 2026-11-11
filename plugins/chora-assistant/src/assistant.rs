@@ -14,7 +14,10 @@ use chora_draw::{
 use chora_kit::hud::{Anchor, render};
 use chora_scene::{Command, Easing, InputMode, NodeKind, OutputInfo, PropsUpdate, Transform};
 
-use crate::config::{Figure, Values};
+use crate::{
+    config::{Figure, Values},
+    island::{self, Content},
+};
 
 /// The group of the HUD folder under `screen:OUTPUT`.
 const GROUP: &str = "hud";
@@ -28,6 +31,8 @@ const SPEECH: &str = "hud-line";
 const STATE: &str = "hud-state";
 /// The state word beside the figure, if the folder shows one.
 const WORD: &str = "hud-word";
+/// The shadow and the hairline of the island.
+const SHADOW: &str = "hud-island-shadow";
 const PAD: i32 = 10;
 const LINE: i32 = 13;
 const MIN_WIDTH: i32 = 120;
@@ -43,6 +48,8 @@ const DOT: &str = include_str!("../huds/neutral/dot.svg");
 const BLINK: Duration = Duration::from_millis(140);
 /// How long the balloon stays after its sentence ends.
 const LINGER: Duration = Duration::from_secs(3);
+/// How long the island keeps a sentence after it ends.
+const ISLAND_LINGER: Duration = Duration::from_secs(2);
 /// How long the balloon takes to fade out, in milliseconds.
 const FADE: f64 = 600.0;
 
@@ -279,6 +286,10 @@ pub struct Assistant {
     fades_at: Option<Instant>,
     /// The size of the state word, none without one.
     word: [i32; 2],
+    /// What the island shows, for a folder with `style: island`.
+    island: Option<Content>,
+    /// The size of the island.
+    island_size: [i32; 2],
 }
 
 /// Where a balloon goes: its top-left corner, the x of its tail tip in it
@@ -351,11 +362,24 @@ impl Assistant {
     ) -> (Self, Vec<Command>) {
         let mut values = values.clone();
         let area = work_area(output);
-        let mut origin = origin(anchor, area, values.figure.size(), values.margin);
-        if !inside(origin, values.figure.size(), output.size) {
+        let island = values.island.then(|| Content {
+            word: label.to_owned(),
+            ..Content::default()
+        });
+        let island_size = island.as_ref().map_or([0, 0], |content| {
+            island::picture(theme, content, values.dark).size
+        });
+        let size = if values.island {
+            island_size
+        } else {
+            values.figure.size()
+        };
+        let mut origin = origin(anchor, area, size, values.margin);
+        if !inside(origin, size, output.size) {
             values = Values::neutral(&values.font);
             origin = origin_of(&values, area);
         }
+        let island = island.filter(|_| values.island);
         let assistant = Self {
             values,
             origin,
@@ -365,11 +389,22 @@ impl Assistant {
             shut: false,
             step: 0,
             blinks: 0,
-            moves_at: Some(now),
-            blinks_at: now + blink_gap(0),
             speech: false,
             fades_at: None,
             word: [0, 0],
+            island_size,
+            moves_at: None,
+            blinks_at: now + Duration::from_secs(86_400),
+            island,
+        };
+        let assistant = if assistant.island.is_some() {
+            assistant
+        } else {
+            Self {
+                moves_at: Some(now),
+                blinks_at: now + blink_gap(0),
+                ..assistant
+            }
         };
         let mut assistant = assistant;
         let commands = assistant.created(theme, &output.name, label);
@@ -412,22 +447,138 @@ impl Assistant {
                 kind: NodeKind::Image,
                 parent: BODY.into(),
                 props: PropsUpdate {
-                    image: Some(theme.render(&draw(theme, figure, self.state, false))),
-                    opacity: Some(self.pose.opacity()),
+                    image: Some(theme.render(&self.picture(theme, figure))),
+                    opacity: Some(self.opacity()),
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
                 },
             },
         ]
         .into_iter()
+        .chain(self.shadow(theme, true))
         .chain(word)
         .collect()
+    }
+
+    /// The picture of the figure: the island with its ring, or the figure
+    /// in its state.
+    fn picture(&self, theme: &Theme, figure: &Figure) -> Picture {
+        let Some(content) = self.shown_island() else {
+            return draw(theme, figure, self.state, self.shut);
+        };
+        let picture = island::picture(theme, &content, self.values.dark);
+        let ring = island::ring_rect(picture.size[1]);
+        match figure {
+            Figure::Sheet {
+                sheet, template, ..
+            } => {
+                let has = |id: &str| theme.size(*sheet, id).is_some();
+                let id = element_of(has, template, self.state, false);
+                picture.element(*sheet, &id, ring)
+            }
+            Figure::Dot => picture.svg(format!(
+                r#"<g transform="translate({} {})">{}</g>"#,
+                ring[0],
+                ring[1],
+                dot_group(self.state)
+            )),
+        }
+    }
+
+    /// What the island shows now: the task only while the agent thinks or
+    /// works.
+    fn shown_island(&self) -> Option<Content> {
+        let mut content = self.island.clone()?;
+        if !matches!(self.state, "thinking" | "working") {
+            content.task.clear();
+        }
+        Some(content)
+    }
+
+    /// The opacity of the figure: the island stays clear while it sleeps.
+    fn opacity(&self) -> f64 {
+        if self.island.is_some() {
+            1.0
+        } else {
+            self.pose.opacity()
+        }
+    }
+
+    /// The shadow and the hairline of the island, made or moved; none for
+    /// a figure.
+    fn shadow(&self, theme: &mut Theme, fresh: bool) -> Option<Command> {
+        self.island.as_ref()?;
+        let [w, h] = self.island_size.map(f64::from);
+        let m = chora_kit::glass::Material::of(self.values.dark);
+        let path = crate::glass::shadow(
+            theme,
+            [w, h],
+            h.min(chora_kit::glass::CAPSULE) / 2.0,
+            &m,
+            false,
+        );
+        let reach = f64::from(crate::glass::REACH);
+        let props = PropsUpdate {
+            image: Some(path),
+            transform: Some(Transform::translate(-reach, -reach, 0.0)),
+            input: Some(InputMode::Pass),
+            ..PropsUpdate::default()
+        };
+        Some(if fresh {
+            Command::Create {
+                id: SHADOW.into(),
+                kind: NodeKind::Image,
+                parent: GROUP.into(),
+                props,
+            }
+        } else {
+            Command::Update {
+                id: SHADOW.into(),
+                props,
+            }
+        })
+    }
+
+    /// The island anew after its content changed: its size, its place at
+    /// the anchor of the folder, its picture and its shadow.
+    fn relayout(&mut self, theme: &mut Theme) -> Vec<Command> {
+        let Some(content) = self.shown_island() else {
+            return Vec::new();
+        };
+        let size = island::picture(theme, &content, self.values.dark).size;
+        self.island_size = size;
+        self.origin = origin(self.values.anchor, self.area, size, self.values.margin);
+        let [x, y] = self.origin.map(f64::from);
+        let mut commands = vec![
+            Command::Update {
+                id: GROUP.into(),
+                props: PropsUpdate {
+                    transform: Some(Transform::translate(x, y, 0.0)),
+                    ..PropsUpdate::default()
+                },
+            },
+            self.face(theme),
+        ];
+        commands.extend(self.shadow(theme, false));
+        commands
+    }
+
+    /// The task of the helper that the island shows after the state word.
+    pub fn set_task(&mut self, theme: &mut Theme, task: &str) -> Vec<Command> {
+        match &mut self.island {
+            Some(content) if content.task != task => task.clone_into(&mut content.task),
+            _ => return Vec::new(),
+        }
+        self.relayout(theme)
     }
 
     /// The picture of the state word on the backing of a plain sentence,
     /// beside the figure, toward the middle of the area; none for a folder
     /// without a word.
     fn word(&mut self, theme: &mut Theme, label: &str) -> Option<PropsUpdate> {
+        if self.island.is_some() {
+            return None;
+        }
         let template = self.values.word.as_deref()?;
         let text = chora_kit::hud::render(template, &serde_json::json!({ "state": label }));
         #[allow(
@@ -504,7 +655,11 @@ impl Assistant {
 
     /// The rectangle of the figure on the output: x, y, width, height.
     pub fn rect(&self) -> [i32; 4] {
-        let [w, h] = self.values.figure.size();
+        let [w, h] = if self.island.is_some() {
+            self.island_size
+        } else {
+            self.values.figure.size()
+        };
         [self.origin[0], self.origin[1], w, h]
     }
 
@@ -535,6 +690,18 @@ impl Assistant {
         self.state = state;
         self.pose = pose(state);
         self.step = 0;
+        if let Some(content) = &mut self.island {
+            label.clone_into(&mut content.word);
+            let mut commands = self.relayout(theme);
+            commands.push(Command::Update {
+                id: STATE.into(),
+                props: PropsUpdate {
+                    meta: Some([("text".to_owned(), label.to_owned())].into()),
+                    ..PropsUpdate::default()
+                },
+            });
+            return commands;
+        }
         self.moves_at = Some(now);
         let word = self.word(theme, label).map(|props| Command::Update {
             id: WORD.into(),
@@ -556,12 +723,12 @@ impl Assistant {
     }
 
     fn face(&self, theme: &mut Theme) -> Command {
-        let picture = draw(theme, &self.values.figure, self.state, self.shut);
+        let picture = self.picture(theme, &self.values.figure);
         Command::Update {
             id: CLIP.into(),
             props: PropsUpdate {
                 image: Some(theme.render(&picture)),
-                opacity: Some(self.pose.opacity()),
+                opacity: Some(self.opacity()),
                 ..PropsUpdate::default()
             },
         }
@@ -576,6 +743,11 @@ impl Assistant {
         now: Instant,
     ) -> Vec<Command> {
         self.fades_at = Some(now + time + LINGER);
+        if let Some(content) = &mut self.island {
+            content.sentence = Some(text.to_owned());
+            self.fades_at = Some(now + time + ISLAND_LINGER);
+            return self.relayout(theme);
+        }
         self.balloon(theme, text)
     }
 
@@ -583,6 +755,13 @@ impl Assistant {
     /// x, y, width, height. A balloon is at most `MAX_SPEECH` wide and
     /// stands above or below the figure.
     pub fn reach(&self) -> [i32; 4] {
+        if self.island.is_some() {
+            let [x, y, _, _] = self.rect();
+            #[allow(clippy::cast_possible_truncation, reason = "a few hundred pixels")]
+            let widest = island::SENTENCE_WIDTH as i32 + 2 * 48;
+            let right = x + self.island_size[0];
+            return [right - widest, y, widest, 64];
+        }
         let [x, y, w, h] = self.with_word();
         if self.values.line.plain {
             #[allow(clippy::cast_possible_truncation)]
@@ -705,6 +884,13 @@ impl Assistant {
             };
             commands.push(self.face(theme));
         }
+        if self.fades_at.is_some_and(|at| at <= now) && self.island.is_some() {
+            self.fades_at = None;
+            if let Some(content) = &mut self.island {
+                content.sentence = None;
+            }
+            commands.extend(self.relayout(theme));
+        }
         if self.fades_at.is_some_and(|at| at <= now) {
             self.fades_at = None;
             commands.push(Command::Animate {
@@ -806,6 +992,8 @@ mod tests {
             speech: false,
             fades_at: None,
             word: [0, 0],
+            island: None,
+            island_size: [0, 0],
         }
     }
 

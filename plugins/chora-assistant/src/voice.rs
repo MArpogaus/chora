@@ -120,7 +120,9 @@ impl Agent {
                 self.helper_gone(helper, now);
                 self.chat_voice(event, data);
             }
-            return self.sync_row();
+            let mut commands = self.sync_row()?;
+            commands.extend(self.sync_task());
+            return Ok(commands);
         }
         match kind {
             Some("state") => {
@@ -166,6 +168,15 @@ impl Agent {
         }
         let agents = context::agents_of(self.helpers.values().map(|helper| helper.state));
         self.switcher.set_agents(agents, now);
+    }
+
+    /// The task of the busy helper in the island of the folder.
+    fn sync_task(&mut self) -> Vec<Command> {
+        let task = crate::rows::island_task(self.language, &self.helpers);
+        match self.assistant.as_mut() {
+            Some(a) => a.set_task(&mut self.theme, &task),
+            None => Vec::new(),
+        }
     }
 
     /// A helper ended: it no longer counts for the context.
@@ -243,11 +254,13 @@ impl Agent {
             notice: false,
             too_long: false,
             max_width: None,
+            glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
+                .then_some(self.values.dark),
         };
         self.place_card(&mut shown, figure, &output)?;
         let language = self.language;
-        if self.card.take().is_some() {
-            commands.extend(card::hide());
+        if let Some(old) = self.card.take() {
+            commands.extend(card::hide(&old));
         }
         commands.extend(card::show(
             &mut self.card_theme,
@@ -282,9 +295,9 @@ impl Agent {
             return Vec::new();
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
-            self.card = None;
+            let old = self.card.take();
             self.chat.question_ended();
-            return card::hide();
+            return old.as_ref().map(card::hide).unwrap_or_default();
         }
         Vec::new()
     }
@@ -481,6 +494,8 @@ impl Agent {
                     (state, &label, now),
                 );
                 self.assistant = Some(a);
+                let mut commands = commands;
+                commands.extend(self.sync_task());
                 Ok(commands)
             }
         }

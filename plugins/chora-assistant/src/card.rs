@@ -29,17 +29,19 @@ pub const YES: &str = "hud-card-yes";
 pub const NO: &str = "hud-card-no";
 /// The badge of a muted mic.
 pub const BADGE: &str = "hud-badge";
+/// The shadow, the hairline and the glow of a glass card.
+pub const SHADOW: &str = "hud-card-shadow";
 
 /// The widest card, and the room that it leaves at the sides of the output.
 const WIDTH: i32 = 560;
-const SIDES: i32 = 64;
+pub const SIDES: i32 = 64;
 const PAD: i32 = 14;
 const LINE: i32 = 20;
 const GAP: i32 = 6;
 const BUTTON: [i32; 2] = [88, 32];
 const BUTTON_GAP: i32 = 8;
 const EDGE: i32 = 8;
-const MAX_TEXT_META: usize = 4000;
+pub const MAX_TEXT_META: usize = 4000;
 
 /// The colours of the card and the badge. Dark text on a light fill, far
 /// above the 7:1 that the key line and the buttons need.
@@ -88,14 +90,17 @@ pub struct Shown {
     pub too_long: bool,
     /// The widest the card may be: the width of the chat view that shows it.
     pub max_width: Option<i32>,
+    /// The card is glass, in the dark theme or not: the folder has a glass
+    /// chat.
+    pub glass: Option<bool>,
 }
 
 /// The lines and the buttons of a card, with the size of the card.
-struct Layout {
-    picture: Picture,
-    buttons: Option<[[i32; 2]; 2]>,
-    text: String,
-    too_long: bool,
+pub struct Layout {
+    pub picture: Picture,
+    pub buttons: Option<[[i32; 2]; 2]>,
+    pub text: String,
+    pub too_long: bool,
 }
 
 /// The width of the card on an output.
@@ -107,6 +112,9 @@ fn width(screen: [i32; 2], most: Option<i32>) -> i32 {
 }
 
 fn layout(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) -> Layout {
+    if let Some(dark) = shown.glass {
+        return crate::card_glass::layout(theme, shown, language, (screen, dark));
+    }
     let width = width(screen, shown.max_width);
     let inner = f64::from(width - 2 * PAD);
     let injected = Word::Injected.text(language);
@@ -211,7 +219,7 @@ pub fn fits(theme: &Theme, shown: &Shown, language: Language, screen: [i32; 2]) 
     !layout(theme, &whole, language, screen).too_long
 }
 
-fn floor_boundary(text: &str, at: usize) -> usize {
+pub fn floor_boundary(text: &str, at: usize) -> usize {
     (0..=at.min(text.len()))
         .rev()
         .find(|n| text.is_char_boundary(*n))
@@ -279,6 +287,23 @@ fn button(theme: &mut Theme, label: &str) -> String {
     theme.render(&picture)
 }
 
+/// The command that creates a node of the card, or updates it.
+fn put(id: &str, props: PropsUpdate, fresh: bool) -> Command {
+    if fresh {
+        Command::Create {
+            id: id.into(),
+            kind: NodeKind::Image,
+            parent: TOP.into(),
+            props,
+        }
+    } else {
+        Command::Update {
+            id: id.into(),
+            props,
+        }
+    }
+}
+
 /// The commands that draw a card, or draw it again when `fresh` is false.
 /// The card is the last node of its group, so it covers what the folder
 /// drew; the group `TOP` is made by the caller before the first one.
@@ -296,29 +321,32 @@ pub fn show(
         ..
     } = layout(theme, shown, language, screen);
     let [x, y] = shown.origin;
+    let size = picture.size;
     let card = image(theme.render(&picture), shown.origin, &text, InputMode::Pass);
-    let mut commands = vec![if fresh {
-        Command::Create {
-            id: CARD.into(),
-            kind: NodeKind::Image,
-            parent: TOP.into(),
-            props: card,
-        }
-    } else {
-        Command::Update {
-            id: CARD.into(),
-            props: card,
-        }
-    }];
+    let mut commands: Vec<Command> = shown
+        .glass
+        .map(|dark| {
+            let reach = crate::glass::REACH;
+            let path = crate::card_glass::shadow(theme, size, dark);
+            let props = image(path, [x - reach, y - reach], "", InputMode::Pass);
+            put(SHADOW, props, fresh)
+        })
+        .into_iter()
+        .collect();
+    commands.push(put(CARD, card, fresh));
     if let (true, Some(at)) = (fresh, buttons) {
         let [yes, no] = Card::buttons(language);
-        for ((id, label), [bx, by]) in [(YES, yes), (NO, no)].into_iter().zip(at) {
-            let props = image(
-                button(theme, label),
-                [x + bx, y + by],
-                label,
-                InputMode::Accept,
-            );
+        let keys = &shown.card.question.keys;
+        for (((id, label), key), [bx, by]) in [(YES, yes), (NO, no)]
+            .into_iter()
+            .zip([&keys.yes, &keys.no])
+            .zip(at)
+        {
+            let picture = match shown.glass {
+                Some(dark) => crate::card_glass::segment(theme, key, label, (size[0], dark)),
+                None => button(theme, label),
+            };
+            let props = image(picture, [x + bx, y + by], label, InputMode::Accept);
             commands.push(Command::Create {
                 id: id.into(),
                 kind: NodeKind::Image,
@@ -330,15 +358,21 @@ pub fn show(
     commands
 }
 
-/// The commands that take the card and its buttons away.
+/// The commands that take the card of `shown`, its shadow and its
+/// buttons away.
 #[must_use]
-pub fn hide() -> Vec<Command> {
-    [CARD, YES, NO]
+pub fn hide(shown: &Shown) -> Vec<Command> {
+    let shadow = shown.glass.map(|_| SHADOW);
+    let buttons = (shown.buttons && !shown.too_long).then_some([YES, NO]);
+    shadow
+        .into_iter()
+        .chain([CARD])
+        .chain(buttons.into_iter().flatten())
         .map(|id| Command::Remove {
             id: id.into(),
             to: None,
         })
-        .into()
+        .collect()
 }
 
 /// What a press on a node of the card does.
@@ -521,6 +555,7 @@ mod tests {
             notice: false,
             too_long: false,
             max_width: None,
+            glass: None,
         }
     }
 
@@ -528,6 +563,24 @@ mod tests {
         json!({"id": "51", "prompt": "Atlas wants to write the file notes.txt.",
             "detail": "~/projects/notes/notes.txt (412 bytes)", "physical": true,
             "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true})
+    }
+
+    #[test]
+    fn a_glass_card_is_400_wide_with_the_keys_in_its_answers() {
+        let cache = cache("glass");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.glass = Some(false);
+        let laid = layout(&theme, &card, Language::En, [1280, 720]);
+        assert_eq!(laid.picture.size[0], 400);
+        let [yes, no] = laid.buttons.expect("a question with buttons");
+        assert_eq!(yes[0], 16);
+        assert_eq!(no[0], 16 + 180 + 8);
+        assert_eq!(yes[1], no[1]);
+        assert_eq!(laid.picture.size[1], yes[1] + 40 + 16);
+        assert!(laid.text.contains("Question from Atlas"), "{}", laid.text);
+        assert!(laid.text.contains("Alt+Y"), "{}", laid.text);
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

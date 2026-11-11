@@ -44,6 +44,10 @@ pub const FIELD_ROOM: i32 = 100;
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
+/// How far below the top of a glass chat a card stands: where it stands
+/// under the island, which the chat replaces.
+const GLASS_CARD_TOP: i32 = 48;
+
 /// The number of the entry that a press on `node` picks, if it is one.
 #[must_use]
 pub fn pick_of(node: &str) -> Option<usize> {
@@ -62,6 +66,9 @@ pub fn refuses_injected(node: &str) -> bool {
 #[must_use]
 pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
     let [x, y, w, h] = frame.rect();
+    if frame.look.style == ChatStyle::Glass {
+        return [x + w - size[0], y + GLASS_CARD_TOP];
+    }
     let [ax, ay, aw, ah] = frame.area;
     let left = x + w - size[0];
     let top = y + h - FIELD_ROOM - LINE - 2 * GAP - size[1];

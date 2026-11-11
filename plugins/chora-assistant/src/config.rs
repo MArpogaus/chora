@@ -117,6 +117,10 @@ pub enum Figure {
 
 /// What the assistant looks like, from a HUD folder or an asset folder.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent switches of a folder: mute, chat, theme, island"
+)]
 pub struct Values {
     /// The base font family of the text.
     pub font: String,
@@ -153,6 +157,9 @@ pub struct Values {
     pub hud: Option<Hud>,
     /// The look is in the dark theme.
     pub dark: bool,
+    /// The figure, its state word, the task and the sentence stand on one
+    /// glass capsule: the voice panel has `style: island`.
+    pub island: bool,
 }
 
 /// The panel of the sentence.
@@ -235,6 +242,26 @@ fn helpers_panel<'a>(hud: &'a Hud, context: &Context) -> Option<&'a chora_kit::h
 /// The rows of helpers of a folder in a context where no panel of the
 /// helpers shows: none when the folder has such a panel, since its `when`
 /// hides them, else those of the host.
+/// Whether the voice panel is an island.
+fn is_island(voice: Option<&chora_kit::hud::Panel>) -> bool {
+    voice.is_some_and(|panel| panel.style == Some(chora_kit::hud::Style::Island))
+}
+
+/// The most rows of helpers and their colours: none beside an island,
+/// which names the busy helper itself.
+fn helpers_of(hud: &Hud, context: &Context, island: bool) -> (usize, chora_kit::hud::Colours) {
+    helpers_panel(hud, context).map_or_else(
+        || {
+            let most = if island { 0 } else { hidden_rows(hud) };
+            (most, chora_kit::hud::Colours::default())
+        },
+        |panel| {
+            let most = panel.max_rows.map_or(MAX_ROWS, |n| n as usize);
+            (most, panel.colours)
+        },
+    )
+}
+
 fn hidden_rows(hud: &Hud) -> usize {
     let has_panel = hud.panels.iter().any(|panel| {
         panel.source == Source::Agents && panel.action == Some(chora_kit::hud::Action::Chat)
@@ -336,6 +363,7 @@ impl Values {
             .as_ref()
             .map_or(NEUTRAL_FIGURE, |figure| figure.size()[1]);
         let (mutes, chats) = clicks(figure.is_some(), voice);
+        let island = figure.is_some() && is_island(voice);
         Self {
             font: hud.font.clone(),
             mutes,
@@ -347,18 +375,13 @@ impl Values {
             speech: sentence.map_or_else(Style::default, |panel| speech_of(panel, hud)),
             line: sentence.map_or_else(Line::default, line_of),
             rows: rows_of(hud, context, (anchor, margin), height),
-            helpers: helpers_panel(hud, context).map_or_else(
-                || (hidden_rows(hud), chora_kit::hud::Colours::default()),
-                |panel| {
-                    let most = panel.max_rows.map_or(MAX_ROWS, |n| n as usize);
-                    (most, panel.colours)
-                },
-            ),
+            helpers: helpers_of(hud, context, island),
             row_box: helpers_panel(hud, context)
                 .map_or((None, None), |panel| (panel.fill, panel.border)),
             watches: watches(folder),
             hud: Some(folder.clone()),
             dark: context.dark(),
+            island,
         }
     }
 
@@ -405,6 +428,7 @@ impl Values {
             watches: BTreeSet::new(),
             hud: None,
             dark: false,
+            island: false,
         }
     }
 
@@ -433,6 +457,7 @@ impl Values {
             watches: BTreeSet::new(),
             hud: None,
             dark: false,
+            island: false,
         }
     }
 }

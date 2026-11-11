@@ -377,6 +377,22 @@ impl Theme {
         width
     }
 
+    /// The right edge of the ink of SVG text elements drawn from x 0, in
+    /// logical pixels, kept for the next ask.
+    pub fn svg_width(&self, body: &str) -> f64 {
+        let key = (body.to_owned(), Font::Body);
+        if let Some(width) = self.widths.borrow().get(&key) {
+            return *width;
+        }
+        let width = self.fonts.svg_width(body).unwrap_or(0.0);
+        let mut widths = self.widths.borrow_mut();
+        if widths.len() >= 4096 {
+            widths.clear();
+        }
+        widths.insert(key, width);
+        width
+    }
+
     /// The size of an SVG file of the folder, as its `width` and `height`
     /// or its `viewBox` say, rounded to pixels.
     pub fn sheet_size(&self, sheet: Sheet) -> Option<[i32; 2]> {

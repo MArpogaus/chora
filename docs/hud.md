@@ -189,7 +189,7 @@ chat:
 | `near` | The `id` of another panel to stand beside. Use `anchor` or `near`, one of them. The chain of `near` must end at a panel with an `anchor`; a cycle is an error. |
 | `picture` | `FILE#ID`: an SVG file of the folder and an element id in it. Only the id is a template; the file name must not contain `{`. A missing id shows `idle`. |
 | `action` | What a click does: `mute`, `cancel`, `sleep`, `wake` or `chat`. Nothing else exists. `mute` only on a panel with `source: voice`, and it only mutes. `chat` on a panel with `source: voice` opens the chat on a click on the figure, which then stands in for the "Chat ..." row. |
-| `style` | `bubble` or `plain`. |
+| `style` | `bubble` or `plain`; `island` on a panel with `source: voice`. |
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
 | `rows` | A template for one row of a list. |
@@ -213,6 +213,16 @@ tail: the text stands beside the figure, on the side of the middle of
 the output, in the text colour of the chat on a backing in the fill of
 the chat, so that it reads on any window behind it. A sentence that the agent still speaks shows again
 when the look is built again.
+
+With `style: island` the voice panel is one glass capsule after the
+glass of the construct (`docs/construct-style.md`, rules 18 to 25), 40
+pixels high: the picture of the state at the left, 24 by 24, the state
+word in capitals, and while the agent thinks or works the task of the
+busy helper with its step, `Tidy notes · 1 of 2`, after a separator. A
+sentence of `voice.say` takes the place of the word and the task, at
+most two lines of 480 pixels with its end kept, and goes 2 seconds after
+its sound. The capsule hugs its content from the edge of its anchor; the
+figure does not move or blink, and the folder shows no rows of helpers.
 
 A picture of a figure may hold an element `ID-shut` beside an element
 `ID`, for example `idle-shut`: the figure then blinks with it, a
@@ -382,6 +392,14 @@ detail, does not fit in 80 percent of the height of the output, the card
 shows no buttons and says "Too long to show. Refused.", and the host
 answers `confirm.answer {yes: false}` at once. The host removes control,
 bidi and zero-width characters from the prompt and the detail.
+
+A folder with a `glass` chat gets the glass card of the construct style:
+400 px wide, the title as a label, the prompt at 16 px, the detail in a
+well at 14 px in the mono family, the note, and Yes and No as key
+segments that hold the key line, `Alt Y  Yes` and `Alt N  No`; its
+hairline and glow are in the accent while it waits. It stands under the
+figure, and in an open chat 48 px below the top of the view. A question
+that names its helper (`name`) has the title "Question from NAME".
 
 ### The mic
 

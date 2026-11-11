@@ -322,6 +322,10 @@ pub enum Style {
     Bubble,
     /// Text without a box.
     Plain,
+    /// On a panel with `source: voice`: the ring, the state word and the
+    /// task of the helper on one glass capsule, which also holds the
+    /// sentence while the agent speaks.
+    Island,
 }
 
 /// The block `chat:`: values only.

@@ -82,6 +82,32 @@ pub fn rows(language: Language, helpers: &BTreeMap<String, Helper>, most: usize)
 }
 
 /// The task of a helper, cut to [`MAX_TASK`] characters.
+/// The task that the voice island shows after the state word: the task of
+/// the first busy helper with its step, `Tidy notes · 1 of 2`.
+#[must_use]
+pub fn island_task(language: Language, helpers: &BTreeMap<String, Helper>) -> String {
+    let busy = helpers.iter().find(|(name, helper)| {
+        good_name(name)
+            && matches!(helper.state, "working" | "thinking" | "question")
+            && !helper.task.trim().is_empty()
+    });
+    let Some((_, helper)) = busy else {
+        return String::new();
+    };
+    match helper.steps {
+        Some((step, steps)) => {
+            let (step, steps) = (step.to_string(), steps.to_string());
+            let of = words::say(
+                language,
+                words::Word::Step,
+                &[("step", &step), ("steps", &steps)],
+            );
+            format!("{}{SEPARATOR}{of}", task_of(helper))
+        }
+        None => task_of(helper),
+    }
+}
+
 fn task_of(helper: &Helper) -> String {
     helper.task.chars().take(MAX_TASK).collect()
 }
@@ -130,6 +156,21 @@ mod tests {
         let german = rows(Language::De, &helpers, 4);
         assert_eq!(german[0].text(), "Atlas · arbeitet · Write file (2/2)");
         assert_eq!(rows(Language::En, &helpers, 1).len(), 1);
+    }
+
+    #[test]
+    fn the_island_names_the_task_of_the_busy_helper_with_its_step() {
+        let helpers: BTreeMap<String, Helper> = [
+            ("Bert".to_owned(), helper("idle", "Sleep", None)),
+            (
+                "Atlas".to_owned(),
+                helper("working", "Tidy notes", Some((1, 2))),
+            ),
+        ]
+        .into();
+        assert_eq!(island_task(Language::En, &helpers), "Tidy notes · 1 of 2");
+        assert_eq!(island_task(Language::De, &helpers), "Tidy notes · 1 von 2");
+        assert_eq!(island_task(Language::En, &BTreeMap::new()), "");
     }
 
     #[test]

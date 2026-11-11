@@ -20,12 +20,15 @@
 
 mod assistant;
 mod card;
+mod card_glass;
 mod chat;
 mod check;
 mod config;
 mod context;
 mod field;
 mod folders;
+mod glass;
+mod island;
 mod rows;
 mod voice;
 
@@ -780,6 +783,7 @@ mod tests {
             notice: false,
             too_long: false,
             max_width: None,
+            glass: None,
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);
