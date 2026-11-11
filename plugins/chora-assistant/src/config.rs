@@ -128,6 +128,12 @@ pub struct Values {
     pub margin: [i32; 2],
     /// A click on the figure mutes the mic.
     pub mutes: bool,
+    /// A click on the figure opens the chat, which then has no "Chat ..."
+    /// row.
+    pub chats: bool,
+    /// The template of the state word beside the figure, `{state}` being
+    /// the word of the state; none shows no word.
+    pub word: Option<String>,
     /// The look of the bubble of a sentence.
     pub speech: Style,
     /// The template and the length of the text of a sentence.
@@ -257,6 +263,17 @@ fn rows_of(
     )
 }
 
+/// What a click on the figure does: it mutes the mic, the default of a
+/// figure without a voice panel, or it opens the chat.
+fn clicks(figure: bool, voice: Option<&chora_kit::hud::Panel>) -> (bool, bool) {
+    let action = voice.and_then(|panel| panel.action);
+    let mutes = !figure || voice.is_none() || action == Some(chora_kit::hud::Action::Mute);
+    (
+        mutes,
+        figure && action == Some(chora_kit::hud::Action::Chat),
+    )
+}
+
 /// The gap between the figure of an asset folder and its Chat row.
 const ROW_GAP: i32 = 8;
 /// The height of the dot of the host.
@@ -304,11 +321,12 @@ impl Values {
         let height = figure
             .as_ref()
             .map_or(NEUTRAL_FIGURE, |figure| figure.size()[1]);
-        let mutes = figure.is_none()
-            || voice.is_none_or(|panel| panel.action == Some(chora_kit::hud::Action::Mute));
+        let (mutes, chats) = clicks(figure.is_some(), voice);
         Self {
             font: hud.font.clone(),
             mutes,
+            chats,
+            word: voice.and_then(|panel| panel.text.clone()),
             figure: figure.unwrap_or(Figure::Dot),
             anchor,
             margin,
@@ -356,6 +374,8 @@ impl Values {
             anchor: NEUTRAL_ANCHOR,
             margin: NEUTRAL_MARGIN,
             mutes: true,
+            chats: false,
+            word: None,
             speech: Style::default(),
             line: Line::default(),
             rows: NEUTRAL_ROWS,
@@ -381,6 +401,8 @@ impl Values {
             anchor: NEUTRAL_ANCHOR,
             margin: raw.margin,
             mutes: true,
+            chats: false,
+            word: None,
             speech: raw.speech,
             line: Line::default(),
             rows: (Anchor::BottomRight, [raw.margin[0], above]),
@@ -428,6 +450,8 @@ impl Default for Raw {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use chora_kit::{hud, settings::parse};
 
     use super::*;
@@ -493,8 +517,17 @@ mod tests {
     }
 
     #[test]
-    fn the_default_has_no_rules() {
-        assert_eq!(parse::<Config>(DEFAULT).unwrap().huds.len(), 0);
+    fn the_default_shows_each_look_with_its_own_folder() {
+        let config: Config = parse(DEFAULT).unwrap();
+        assert_eq!(config.folder(&context("tiling", "foot")), "neutral");
+        assert_eq!(config.folder(&context("xp", "foot")), "xp");
+        assert_eq!(config.folder(&context("mc", "foot")), "mc");
+        assert_eq!(config.folder(&context("construct", "")), "construct");
+        let pane = Context {
+            space: "construct".into(),
+            ..context("xp", "foot")
+        };
+        assert_eq!(config.folder(&pane), "construct", "a pane of the construct");
     }
 
     #[test]
@@ -693,6 +726,25 @@ mod tests {
         assert!(values.mutes);
         let quiet = text.replace(", action: mute", "");
         assert!(!self::values(&quiet).mutes);
+    }
+
+    #[test]
+    fn a_figure_that_opens_the_chat_replaces_the_chat_row() {
+        let text = "hud: 1\npanels:\n- {id: f, source: voice, anchor: top_left, \
+            picture: 'a.svg#{state}', action: chat}\n";
+        let values = values(text);
+        assert!(values.chats, "a click on the figure opens the chat");
+        assert!(!values.mutes);
+        assert!(!self::values(&text.replace("action: chat", "action: mute")).chats);
+        assert!(!Values::neutral("sans-serif").chats);
+    }
+
+    #[test]
+    fn the_paperclip_of_xp_opens_the_chat() {
+        let xp = Path::new(env!("CARGO_MANIFEST_DIR")).join("huds/xp");
+        let hud = hud::load(&xp).unwrap();
+        let values = Values::from_hud(&hud, &Context::default(), |_| Some([80, 116]));
+        assert!(values.chats);
     }
 
     #[test]

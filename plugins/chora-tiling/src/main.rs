@@ -2100,23 +2100,34 @@ mod panel {
         let (en, de) = ("C.UTF-8", "de_DE.UTF-8");
         let muted = Some("echo 'Volume: 0.40 [MUTED]'");
         let none = Some("exit 1");
+        let unavailable = "Sound unavailable";
+        let (lautlos, keiner) = ("Ton nicht verfügbar", "Kein Ausgabegerät");
         for (name, wpctl, lang, words) in [
-            ("loud", Some("echo 'Volume: 0.40'"), en, "vol 40%"),
-            ("muted", muted, en, "vol muted"),
-            ("muted-de", muted, de, "vol stumm"),
-            ("missing", None, en, "vol: wpctl not found"),
-            ("missing-de", None, de, "vol: wpctl nicht gefunden"),
-            ("none", none, en, "vol: no output device"),
-            ("none-de", none, de, "vol: kein Ausgabegerät"),
+            ("loud", Some("echo 'Volume: 0.40'"), en, ["Volume 40%"; 2]),
+            ("muted", muted, en, ["Muted"; 2]),
+            ("muted-de", muted, de, ["Stumm"; 2]),
+            ("missing", None, en, [unavailable, "wpctl not found"]),
+            ("missing-de", None, de, [lautlos, "wpctl nicht gefunden"]),
+            ("none", none, en, [unavailable, "No output device"]),
+            ("none-de", none, de, [lautlos, keiner]),
         ] {
-            assert_eq!(volume(name, wpctl, lang), words);
+            assert_eq!(said(&volume(name, wpctl, lang)), words.map(str::to_owned));
         }
+    }
+
+    /// The text and the tooltip of the JSON of a custom module.
+    fn said(json: &str) -> [String; 2] {
+        let value: serde_json::Value = serde_json::from_str(json).expect(json);
+        ["text", "tooltip"].map(|key| value[key].as_str().unwrap_or_default().to_owned())
     }
 
     #[test]
     fn a_hung_wpctl_gets_no_answer_within_2_seconds() {
         let start = Instant::now();
-        assert_eq!(volume("hung", Some("sleep 10"), "C"), "vol: no answer");
+        assert_eq!(
+            said(&volume("hung", Some("sleep 10"), "C")),
+            ["Sound unavailable", "No answer"].map(str::to_owned)
+        );
         let took = start.elapsed();
         assert!(took < Duration::from_secs(5), "{took:?}");
     }
@@ -2129,6 +2140,14 @@ mod panel {
             !config.contains("\"pulseaudio\""),
             "the unlabelled module is gone"
         );
+    }
+
+    #[test]
+    fn the_panel_shows_no_internal_text() {
+        let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
+        for internal in ["\"cpu\"", "\"memory\"", "\"custom/layout\"", "{ipaddr}\","] {
+            assert!(!config.contains(internal), "{internal} in {config}");
+        }
     }
 
     /// The stand-in of choractl: tiling has the outputs in the file

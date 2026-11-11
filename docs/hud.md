@@ -87,7 +87,8 @@ trusts.
 
 The setting `huds` maps the context to folders. The first rule whose
 `when` matches wins; `hud` draws when none does. A rule without `when`
-always matches.
+always matches. The shipped settings have these rules, so each look
+shows its own folder and tiling shows `hud`:
 
 ```yaml
 huds:
@@ -186,7 +187,7 @@ chat:
 | `margin` | `[horizontal, vertical]` gap to the edges. |
 | `near` | The `id` of another panel to stand beside. Use `anchor` or `near`, one of them. The chain of `near` must end at a panel with an `anchor`; a cycle is an error. |
 | `picture` | `FILE#ID`: an SVG file of the folder and an element id in it. Only the id is a template; the file name must not contain `{`. A missing id shows `idle`. |
-| `action` | What a click does: `mute`, `cancel`, `sleep`, `wake` or `chat`. Nothing else exists. `mute` only on a panel with `source: voice`, and it only mutes. |
+| `action` | What a click does: `mute`, `cancel`, `sleep`, `wake` or `chat`. Nothing else exists. `mute` only on a panel with `source: voice`, and it only mutes. `chat` on a panel with `source: voice` opens the chat on a click on the figure, which then stands in for the "Chat ..." row. |
 | `style` | `bubble` or `plain`. |
 | `text` | A template for the text. |
 | `max_chars` | The most characters of the text, 1 to 2000. |
@@ -197,6 +198,13 @@ chat:
 | `tail` | `left` or `right`: the bubble of a sentence gets a tail that points at the figure, near that end; the bubble grows to the other side. Left out: no tail. |
 
 A panel needs at least one of `picture`, `text` or `rows`.
+
+The `text` of a panel with `source: voice` is the state word beside the
+figure, toward the middle of the output, on the backing of a plain
+sentence: `text: '{state}'` shows `Listening` in the language of the
+screen. There `{state}` is the word of the word table, not the name of
+the state. The neutral and the mc folders show it, so the state never
+depends on a colour alone.
 
 A sentence (`source: say`) shows in a bubble above the figure, or below
 a figure at the top. With `style: plain` it has no hairline and no
@@ -215,7 +223,10 @@ left out) and `colours`. Below the "Chat ..." row stands one row for each
 helper, `Atlas · working · Write file (2/2)`: the name, the state word of
 the word table and the task with its step. The rows stack away from the
 edge of the anchor; while the `when` of the panel does not match, only
-the "Chat ..." row shows, in the same place. A click on a row opens the chat with that helper. The
+the "Chat ..." row shows, in the same place. A folder whose figure
+opens the chat has no "Chat ..." row. A click on a row opens the chat with that helper.
+While the chat is open, no row shows: its header names the helper, and
+the rows would stand over it. The
 words and their order are the same in every folder; `rows` does not
 change them. The node of a row is `hud-row-NAME`. A helper whose name
 has other characters than letters, digits, `_` and `-`, or that is named

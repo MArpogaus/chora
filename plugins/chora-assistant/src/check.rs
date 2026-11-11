@@ -401,6 +401,13 @@ mod tests {
         let dir = temp("override");
         let roots = vec![fixture("")];
         let file = dir.join("chora-assistant.yaml");
+        let shipped = use_hud("mine", &roots, file.clone()).unwrap();
+        assert!(shipped.contains("Warning: huds has 3"), "{shipped}");
+        std::fs::write(
+            &file,
+            "enabled: true\nposition: null\nhud: neutral\nhuds: []\n",
+        )
+        .unwrap();
         let plain = use_hud("mine", &roots, file.clone()).unwrap();
         assert!(!plain.contains("Warning"), "{plain}");
         let rules = "enabled: true\nposition: null\nhud: neutral\nhuds:\n  - {when: {wm: xp}, folder: xp}\n";

@@ -20,9 +20,9 @@ hud: neutral
 # context with a value or a list of values: `wm` (the window manager of the
 # focused window), `space` (the window manager of the space around it),
 # `app` (its app_id), `state` (of the voice agent), `agents`, `chat` and
-# `output`. The context stays while a question waits. Example:
-#   huds:
-#     - {when: {space: construct}, folder: construct}
-#     - {when: {wm: mc}, folder: mc}
-#     - {when: {wm: xp}, folder: xp}
-huds: []
+# `output`. The context stays while a question waits. Each look shows
+# its own folder; tiling shows `hud`.
+huds:
+- {when: {space: construct}, folder: construct}
+- {when: {wm: mc}, folder: mc}
+- {when: {wm: xp}, folder: xp}

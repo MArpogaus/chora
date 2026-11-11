@@ -6,7 +6,7 @@ panels:
   anchor: bottom_right
   margin: [96, 32]
   picture: paperclip.svg#{state}
-  action: mute
+  action: chat
 - id: line
   source: say
   anchor: bottom_right

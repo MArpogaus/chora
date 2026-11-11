@@ -4,8 +4,8 @@ The HUD folder of `chora-mc` for the HUD host `chora-assistant`, after
 `docs/mc-style.md`: no box, Inter for the frame, the accent of the dark
 theme on the mark of the state and on the state word of a helper. At the
 top right of the work area a
-small mark shows the state of the voice agent, the sentence stands
-beside it as plain text without a box, and below it one row
+small mark shows the state of the voice agent with its state word, the
+sentence stands beside them as plain text without a box, and below it one row
 per helper, `Atlas · working · Write file (2/2)`, the name in `text`, the
 state word in `accent` and the task in `muted`. A click on the mark mutes
 the mic; a click on a row opens the chat with that helper. The chat is a

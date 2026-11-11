@@ -390,8 +390,9 @@ impl Agent {
         Ok(outputs.into_iter().nth(at).map(|o| (o, scale)))
     }
 
-    /// A press on the figure mutes the mic, one on the badge turns it on, and
-    /// one on a button of the question answers it.
+    /// A press on the figure mutes the mic or opens the chat, as the
+    /// folder says, one on the badge turns it on, and one on a button of
+    /// the question answers it.
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
@@ -401,6 +402,10 @@ impl Agent {
             return Ok(self.press_badge(injected));
         }
         if self.chat_pressed(node, injected)? {
+            return Ok(Vec::new());
+        }
+        if Assistant::owns(node) && self.values.chats {
+            self.chat_row()?;
             return Ok(Vec::new());
         }
         if Assistant::owns(node) {
