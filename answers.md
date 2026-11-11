@@ -13,6 +13,7 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 ## 2026-11-10
 
+- 11-11 ~12:40 Bangkok: Fable 86 %, all 83 %. Four Fable lanes run on; at the Fable limit the user resets it. Non-Fable use stays minimal (PM only).
 - 11-11 ~12:30 Bangkok: "Yes do the demos. Lets make it impressive demos as features land. Polished so we can reuse them later for advertising. Decide such things on your own from now." Standing rule in the charter.
 - 11-11 ~11:10 Bangkok: Fable 70 %, all 75 %. Pace: Fable lanes go on (user resets Fable when spent); non-Fable use kept low: no new opus lanes, reviews on Fable, PM replies short.
 - 11-11 ~08:00 Bangkok: "New cube has no floating Windows. Ensure same look as before." The old xp desktop cube lifted each window as its own plane in front of its face, staggered by stacking (status/img/xp-cube-3d.png). The construct cube must look the same: windows float while standing back or turning, flat at 1:1 in use mode. Sent to the D69 worker as the next lane, design note first.
