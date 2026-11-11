@@ -302,3 +302,20 @@ some frames (one context sorts a mesh as one unit; see wobbly-3d.md
 risks). (c) pull: the pane is smaller than its window and has no title
 bar; the wobble in the space is subtle. (d) Light theme only; plain
 white floor. Sixel pictures on faces: see the stale-frame fix.
+
+## K12 (11-11, user asked): pull a window out of the stood-back cube
+Today the pull-out works by a title drag past the face edge in use mode,
+but at rest in use mode the face fills the screen (no edge to drag
+past), and when stood back no face forwards. So a person cannot pull a
+window out of the cube; the demo used a camera glide. Decision (PM):
+in navigate mode, a modifier drag (or plain drag) on a floating window
+plane pulls that window out: xp gives it with the grab to the
+construct, which goes on with the drag and the wobble (E3 path). Drop
+over a face gives it back. Gate: stood back, drag a floating plane off
+the cube, it becomes a pane; drop on a face, it is back in xp.
+
+Edges (user asked: windows over the edge of a face): a window that hangs
+over the edge of its face is clipped at the face edge; it does not wrap
+onto the next face (the faces are separate outputs, far apart). A title
+drag past the edge (8 px margin) pulls it out. No wrap planned (KISS);
+revisit only if people ask.
