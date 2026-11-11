@@ -518,7 +518,7 @@ cell_construct_host_hud() {
     emit voice.state '{"state": "listening", "task": "", "said": ""}'
     emit voice.say '{"text": "Your updates are ready to install.", "duration_ms": 1000}'
     waiting "$settle_s" node_exists hud-figure || return 1
-    waiting "$settle_s" node_exists hud-line || return 1
+    waiting "$settle_s" node_has hud-figure 'ready to install' || return 1
     sleep 1
     ! node_shows construct-hud || return 1
     ask_notes

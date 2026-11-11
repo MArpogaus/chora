@@ -449,6 +449,7 @@ impl Assistant {
                 props: PropsUpdate {
                     image: Some(theme.render(&self.picture(theme, figure))),
                     opacity: Some(self.opacity()),
+                    meta: self.island_words(),
                     input: Some(InputMode::Accept),
                     ..PropsUpdate::default()
                 },
@@ -493,6 +494,18 @@ impl Assistant {
             content.task.clear();
         }
         Some(content)
+    }
+
+    /// The words that the island shows, for readers of the scene.
+    fn island_words(&self) -> Option<std::collections::BTreeMap<String, String>> {
+        let content = self.shown_island()?;
+        let words = [Some(content.word), Some(content.task), content.sentence]
+            .into_iter()
+            .flatten()
+            .filter(|words| !words.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Some([("text".to_owned(), words)].into())
     }
 
     /// The opacity of the figure: the island stays clear while it sleeps.
@@ -729,6 +742,7 @@ impl Assistant {
             props: PropsUpdate {
                 image: Some(theme.render(&picture)),
                 opacity: Some(self.opacity()),
+                meta: self.island_words(),
                 ..PropsUpdate::default()
             },
         }
