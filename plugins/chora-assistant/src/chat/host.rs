@@ -179,21 +179,21 @@ fn chat_look(values: &Values) -> Look {
 }
 
 /// The rows by id, each with its text and its words in their colours:
-/// the "Chat ..." row, unless the figure opens the chat, then the
-/// helpers; none while the chat is `open`, whose header names its helper
-/// and which the rows would cover.
+/// the "Chat ..." row, then the helpers; none while the chat is `open`,
+/// whose header names its helper and which the rows would cover, and none
+/// when the figure opens the chat, the one way in.
 fn row_lines(
     language: Language,
     helpers: &BTreeMap<String, rows::Helper>,
     values: &Values,
     open: bool,
 ) -> Vec<(String, String, Vec<Tinted>)> {
-    if open {
+    if open || values.chats {
         return Vec::new();
     }
     let (most, tints) = values.helpers;
     let label = Word::ChatRow.text(language).to_owned();
-    let chat = (!values.chats).then(|| (ROW.to_owned(), label.clone(), vec![(label, None)]));
+    let chat = (ROW.to_owned(), label.clone(), vec![(label, None)]);
     let helpers = rows::rows(language, helpers, most).into_iter().map(|row| {
         let text = row.text();
         let words = [
@@ -204,7 +204,7 @@ fn row_lines(
         let shown = words.into_iter().filter(|(word, _)| !word.is_empty());
         (row.id, text, shown.collect())
     });
-    chat.into_iter().chain(helpers).collect()
+    std::iter::once(chat).chain(helpers).collect()
 }
 
 impl Agent {
@@ -227,6 +227,10 @@ impl Agent {
                 .chain(self.chat_row)
                 .collect(),
             look: chat_look(&self.values),
+            tip: self
+                .assistant
+                .as_ref()
+                .map(crate::assistant::Assistant::tip),
         };
         self.chat_seen = Some(frame.clone());
         Ok(Some(frame))
@@ -253,8 +257,9 @@ impl Agent {
         let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);
         self.chat_announce(&frame)?;
         if self.chat.is_open() != was_open {
-            let rows = self.sync_row()?;
-            self.apply(rows)?;
+            let mut commands = self.sync_row()?;
+            commands.extend(self.balloon_toggled(self.chat.is_open(), Instant::now()));
+            self.apply(commands)?;
         }
         Ok(())
     }
@@ -645,7 +650,11 @@ mod tests {
             chats: true,
             ..neutral
         };
-        assert_eq!(ids(&clip, false), ["hud-row-Atlas"], "the figure opens it");
+        assert_eq!(
+            ids(&clip, false),
+            Vec::<String>::new(),
+            "the figure is the one way in"
+        );
     }
 
     #[test]

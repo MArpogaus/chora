@@ -63,12 +63,24 @@ pub fn refuses_injected(node: &str) -> bool {
 pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
     let [x, y, w, h] = frame.rect();
     let [ax, ay, aw, ah] = frame.area;
-    let left = x + w - size[0];
+    let left = x + w - card_inset(frame) - size[0];
     let top = y + h - FIELD_ROOM - LINE - 2 * GAP - size[1];
     [
         left.clamp(ax, (ax + aw - size[0]).max(ax)),
         top.clamp(ay, (ay + ah - size[1]).max(ay)),
     ]
+}
+
+/// The gap between a card and the edges of a view that is a balloon,
+/// whose outline the card leaves whole.
+fn card_inset(frame: &Frame) -> i32 {
+    if frame.tail().is_some() { PAD } else { 0 }
+}
+
+/// The widest card inside the view.
+#[must_use]
+pub fn card_width(frame: &Frame) -> i32 {
+    frame.rect()[2] - 2 * card_inset(frame)
 }
 
 fn look_id(look: &Look) -> u64 {
@@ -81,7 +93,7 @@ fn look_id(look: &Look) -> u64 {
 pub fn style_of(look: &Look, colours: Colours) -> Style {
     let radius = match look.style {
         ChatStyle::Plain => 0,
-        ChatStyle::Bubble => 10,
+        ChatStyle::Bubble => super::BALLOON_RADIUS,
         ChatStyle::Glass => 14,
     };
     Style {
@@ -220,8 +232,9 @@ impl Session {
         let buttons = buttons(&self.mode);
         let top_row = PAD + LINE + GAP;
         let body_top = top_row + BUTTON[1] + GAP;
-        let below = FIELD_ROOM + if hint.is_some() { LINE + GAP } else { 0 };
-        let room = usize::try_from((rect[3] - body_top - below) / LINE).unwrap_or(0);
+        let below = FIELD_ROOM + if hint.is_some() { LINE + GAP } else { 0 } + self.card_room();
+        let listed = LINE * i32::try_from(list.len()).unwrap_or(0);
+        let room = usize::try_from((rect[3] - body_top - listed - below) / LINE).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
         rows.drain(..rows.len().saturating_sub(room));
         Parts {
@@ -305,29 +318,42 @@ fn glow(theme: &mut Theme, [width, height]: [i32; 2], colour: [u8; 3]) -> String
     theme.render(&Picture::new(width + 2 * reach, height + 2 * reach).svg(body))
 }
 
+/// The outline of the view: glass, or a box, with a tail at the figure
+/// when the view is its balloon.
+fn shape_of(frame: &Frame, size: [i32; 2], colours: Colours) -> String {
+    if frame.look.style == ChatStyle::Glass {
+        return glass(size, colours);
+    }
+    let tail = frame.tail();
+    let style = Style {
+        tail: tail.map_or(0, |_| crate::config::TAIL),
+        ..style_of(&frame.look, colours)
+    };
+    style.shape(size, tail.unwrap_or(0))
+}
+
 fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> Vec<Command> {
     let [x, y, w, h] = parts.rect;
     let is_glass = frame.look.style == ChatStyle::Glass;
-    let shape = if is_glass {
-        glass([w, h], colours)
-    } else {
-        style_of(&frame.look, colours).shape([w, h], 0)
-    };
+    let tail = frame.tail();
+    let shape = shape_of(frame, [w, h], colours);
     let halo = frame
         .look
         .glow
         .filter(|_| is_glass)
         .map(|colour| glow(theme, [w, h], colour));
-    let mut picture = Picture::new(w, h).svg(shape).text(Text::new(
+    let below = tail.map_or(0, |_| crate::config::TAIL);
+    let mut picture = Picture::new(w, h + below).svg(shape).text(Text::new(
         &parts.header,
         Font::BodyBold,
         rgba(colours.text),
         [PAD, PAD, w - 2 * PAD, LINE],
     ));
+    let below_list = parts.body_top + LINE * i32::try_from(parts.list.len()).unwrap_or(0);
     for (n, row) in (0..).zip(&parts.rows) {
         let at = [
             PAD + row.indent,
-            parts.body_top + n * LINE,
+            below_list + n * LINE,
             w - 2 * PAD - row.indent,
             LINE,
         ];

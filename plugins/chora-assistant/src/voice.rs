@@ -179,6 +179,10 @@ impl Agent {
     /// Shows a sentence in the balloon, through the template and the length
     /// of the folder.
     fn say(&mut self, text: &str, time: Duration, now: Instant) -> Vec<Command> {
+        if self.chat.is_open() && self.balloon_chat() {
+            self.chat.agent_said(text);
+            return Vec::new();
+        }
         let Some(a) = self.assistant.as_mut() else {
             return Vec::new();
         };
@@ -188,6 +192,48 @@ impl Agent {
             shown = shown.chars().take(most).collect();
         }
         a.say(&mut self.theme, &shown, time, now)
+    }
+
+    /// A question opens the balloon of the figure, so that its card shows
+    /// inside: with the helper that asks, else with the list.
+    fn open_balloon_for_question(&mut self) {
+        if self.card.is_some() || !self.balloon_chat() || self.chat.is_open() {
+            return;
+        }
+        let asking = (self.helpers.iter())
+            .find(|(_, helper)| helper.state == "question")
+            .map(|(name, _)| name.clone());
+        if let Err(err) = self.chat_show(asking.as_deref(), None) {
+            eprintln!("chora-assistant: the balloon for the question: {err}");
+        }
+    }
+
+    /// Whether the chat is the balloon of the figure: a `bubble` chat of a
+    /// folder whose figure shows.
+    pub fn balloon_chat(&self) -> bool {
+        self.assistant.is_some() && self.values.chat().style == chora_kit::hud::ChatStyle::Bubble
+    }
+
+    /// The balloon of the figure opened or closed: open, it takes the
+    /// sentence in and its own balloon goes; closed, it shows the last
+    /// sentence again.
+    pub fn balloon_toggled(&mut self, open: bool, now: Instant) -> Vec<Command> {
+        if !self.balloon_chat() {
+            return Vec::new();
+        }
+        let last = self.said.as_ref().map(|(text, _)| text.clone());
+        if open {
+            if let Some(text) = &last {
+                self.chat.agent_said(text);
+            }
+            return self
+                .assistant
+                .as_mut()
+                .map(Assistant::hush)
+                .unwrap_or_default();
+        }
+        last.map(|text| self.say(&text, Duration::ZERO, now))
+            .unwrap_or_default()
     }
 
     /// Shows the sentence again that the agent still speaks, on a figure
@@ -229,6 +275,7 @@ impl Agent {
         if !self.settings.value.enabled || self.card.as_ref().is_some_and(|c| c.id == id) {
             return Ok(Vec::new());
         }
+        self.open_balloon_for_question();
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
         };
@@ -310,7 +357,10 @@ impl Agent {
         let size = card::size(theme, shown, language, output.size);
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
-            (None, Some((frame, _))) => chat::card_origin(&frame, size),
+            (None, Some((frame, _))) => {
+                self.chat.card_shown(size[1]);
+                chat::card_origin(&frame, size)
+            }
             (None, None) => card::place(figure, size, assistant::work_area(output)),
         };
         Ok(())
@@ -323,7 +373,7 @@ impl Agent {
             return Ok(None);
         }
         Ok(self.chat_frame()?.map(|frame| {
-            let width = frame.rect()[2];
+            let width = chat::card_width(&frame);
             (frame, width)
         }))
     }

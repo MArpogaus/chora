@@ -100,6 +100,8 @@ pub enum Word {
     TooLong,
     /// Typed text does not answer.
     TypedYes,
+    /// Typed text does not answer, beside a card that names the keys.
+    TypingNoAnswer,
     /// A question waits.
     Waiting,
     /// The hint of the input field.
@@ -154,7 +156,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 56] = [
+pub const ALL: [Word; 57] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -186,6 +188,7 @@ pub const ALL: [Word; 56] = [
     Word::Injected,
     Word::TooLong,
     Word::TypedYes,
+    Word::TypingNoAnswer,
     Word::Waiting,
     Word::FieldHint,
     Word::Offline,
@@ -257,6 +260,7 @@ impl Word {
             Self::Injected => "Please use your own mouse or keyboard.",
             Self::TooLong => "Too long to show. Refused.",
             Self::TypedYes => "Typing does not answer. Press {yes} or {no}, or click Yes or No.",
+            Self::TypingNoAnswer => "Typing does not answer.",
             Self::Waiting => "A question is waiting.",
             Self::FieldHint => "Type a message, then Enter.",
             Self::Offline => "Cannot reach voice control. Trying again every 5 s.",
@@ -325,6 +329,7 @@ impl Word {
             Self::TypedYes => {
                 "Tippen beantwortet die Frage nicht. {yes} oder {no} drücken oder Ja oder Nein klicken."
             }
+            Self::TypingNoAnswer => "Tippen beantwortet die Frage nicht.",
             Self::Waiting => "Eine Frage wartet.",
             Self::FieldHint => "Nachricht eingeben, dann Enter.",
             Self::Offline => "Sprachsteuerung nicht erreichbar. Neuer Versuch alle 5 s.",

@@ -416,8 +416,12 @@ impl Agent {
         if self.chat_pressed(node, injected)? {
             return Ok(Vec::new());
         }
-        if Assistant::owns(node) && self.values.chats {
-            self.chat_row()?;
+        if (Assistant::owns(node) || Assistant::speaks(node)) && self.values.chats {
+            if self.chat.is_open() {
+                self.chat_hide()?;
+            } else {
+                self.chat_row()?;
+            }
             return Ok(Vec::new());
         }
         if Assistant::owns(node) {

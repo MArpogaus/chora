@@ -186,7 +186,7 @@ const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
 const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 16]);
 /// The height of the tail of a bubble with a tail.
-const TAIL: i32 = 18;
+pub const TAIL: i32 = 18;
 
 /// The look of the sentence of a panel: its fill, hairline and text
 /// colour over those of the neutral bubble, and a tail if it names one.

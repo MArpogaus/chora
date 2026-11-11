@@ -305,7 +305,7 @@ values only. A folder without the block gets the neutral chat.
 
 | Key | Meaning |
 |---|---|
-| `style` | `plain`, `bubble` or `glass`. |
+| `style` | `plain`, `bubble` or `glass`; `bubble` is the balloon of the figure, see below. |
 | `fill`, `text`, `name`, `border` | Colours as `[r, g, b]`, 0 to 255. A colour left out takes the host's. |
 | `font` | Font family. Default: the font of the folder. |
 | `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. |
@@ -323,6 +323,17 @@ white pane.
 The view never covers the figure, its bubble or the "Chat ..." row: a
 view that would, moves sideways beside them, also a view in a slot. A
 view at `left` or `right` is a side panel and keeps its edge.
+
+A `bubble` chat of a folder with a figure is the balloon of the figure
+itself, as in xp: it stands above the head of the figure, `width` wide
+and at most six tenths of the work area high, inside the work area, with
+a tail that ends at the head, and the field inside it. A click on the
+balloon of a sentence or on a figure with `action: chat` expands the
+balloon into the chat; a click on the figure or Close collapses it, and
+it shows the last sentence again. While it is open, a sentence of the
+agent shows inside it, not in a balloon of its own, and a question opens
+it, with the card inside. A figure that opens the chat draws no rows:
+the balloon lists the helpers.
 
 A font family that the system does not have, such as TeX Gyre Pagella
 of the mc folder on a system without the TeX Gyre fonts, falls back to
