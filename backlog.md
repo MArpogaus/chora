@@ -327,3 +327,8 @@ neighbour face, within a cap; only beyond the cap do the planes cross
 and the 3D base split them. Check first whether float planes already show the full window
 (node texture of the group) and only the resting face clips; gate:
 stood back, a window half over the right edge shows in full.
+
+## C2 (11-11): the cube's xp child has no parent-death signal
+The K7 fix set PR_SET_PDEATHSIG for manager panes only. If the construct
+crashes, the cube's xp keeps running and the next cube.open waits on "a
+client xp runs already". Same one-line fix in the cube's pre_exec.
