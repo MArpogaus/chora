@@ -191,14 +191,15 @@ states:
   asleep: {sign: ☾, color: faint}
 # The regions around the page, as in the Emacs package auto-side-windows:
 # a header and a footer line, sizes in lines of the baseline grid; a left
-# and a right side, sizes in em; a drawer at the bottom, size in lines. A
-# region shows only with something in it, and a scene file can show or
-# hide one with `regions: {right: false}`.
+# and a right side, sizes in lines of the grid as well, and the right side
+# grows with the output, to a third more; a drawer at the bottom, size in
+# lines. A region shows only with something in it, and a scene file can
+# show or hide one with `regions: {right: false}`.
 regions:
   header: {shown: true, size: 2}
   footer: {shown: true, size: 2}
-  left: {shown: false, size: 12}
-  right: {shown: true, size: 13}
+  left: {shown: false, size: 8}
+  right: {shown: true, size: 12}
   drawer: {shown: false, size: 14}
 # What the regions show, by name. Kinds: head (the running head of the
 # scene), clock (a format of `date`), state and hud (the state and the

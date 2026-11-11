@@ -68,7 +68,9 @@ change it there, not here.
     the capitals, with the same space on both sides.
 11. **Hairlines, no boxes.** A rule is one pixel in `faint`, left of a
     panel. There is no rule at the left edge of the text block and no
-    rule beside an empty panel. Do not add boxes, fills or shadows.
+    rule beside an empty panel. The one other rule runs between the text
+    block and the margin column, in the middle of the gap. Do not add
+    boxes, fills or shadows.
 
 ## Layout
 

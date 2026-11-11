@@ -564,12 +564,17 @@ region. The page itself never moves when a region shows.
   side: a slot below 0 goes left, 0 in the middle, above 0 right. The
   right end keeps its place, the left end comes next, and a text that
   does not fit ends in an ellipsis.
-- `left` and `right` are columns beside the page, `size` em wide, their
-  contents one under the other with a title in the style `running_head`.
-  The page leaves room for a side that has contents, so that its text
-  never moves; where both sides would leave the text less than three
-  quarters of the measure of one column, the sides do not show. The
-  columns of the grid that do not fit wrap into new rows.
+- `left` and `right` are columns beside the page, `size` lines of the
+  baseline grid wide, their contents one under the other with a title in
+  the style `label`. The right side is the margin column: it is 26 per
+  cent of the output wide in whole lines, from `size` lines (336 pixels
+  at 1280) up to a third more (448 pixels at 1920), with a gutter of two
+  lines at the edge of the output and one of two lines between it and the
+  text block, and a hairline in the middle of that gap. The page leaves
+  room for a side that has contents, so that its text never moves; where
+  both sides would leave the text less than three quarters of the measure
+  of one column, the sides do not show. The columns of the grid that do
+  not fit wrap into new rows.
 - `drawer` is a sheet of `size` lines over the bottom of the page, with a
   hairline above it, for a docked app.
 

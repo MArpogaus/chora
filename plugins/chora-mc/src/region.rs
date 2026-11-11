@@ -647,11 +647,16 @@ impl Mc {
         let gap = page.gap * em;
         let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (page.margin * em + gap);
         let placed = self.placed(name);
+        let output_w = f64::from(output.size[0]);
         let sides = [Region::Left, Region::Right].map(|region| {
-            if placed.contains_key(&region) {
-                config.regions.get(region).size * em
+            if !placed.contains_key(&region) {
+                return 0.0;
+            }
+            let size = config.regions.get(region).size;
+            if region == Region::Right {
+                column_width(size, b, output_w)
             } else {
-                0.0
+                size * b
             }
         });
         let need: f64 = sides.iter().filter(|w| **w > 0.0).map(|w| w + gap).sum();
@@ -705,15 +710,22 @@ impl Mc {
         let [lw, rw] = self.side_widths(name);
         let side_top = if headless { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
+        let column_top = ((head - b) / 2.0).max(0.0).round();
+        let column = [
+            w - 2.0 * b - rw,
+            column_top,
+            rw,
+            (h - b - column_top).max(b),
+        ];
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
         if headless {
             // Each side has a box, also one that fades out.
             regions.insert(Region::Left, [b, side_top, lw, side_h]);
-            regions.insert(Region::Right, [w - b - rw, side_top, rw, side_h]);
+            regions.insert(Region::Right, column);
             if on(Region::Left) {
                 window[0] = lw + 2.0 * b;
             }
-            let right = if on(Region::Right) { rw + 2.0 * b } else { 0.0 };
+            let right = if on(Region::Right) { rw + 4.0 * b } else { 0.0 };
             window[2] = (w - window[0] - right).max(b);
         } else {
             // The window of an app scene fills its text block, above the
@@ -722,7 +734,7 @@ impl Mc {
             window = [x, top, width, height.min(drawer_top - b - top).max(b)];
             let left = x - note - 2.0 * gap - lw;
             regions.insert(Region::Left, [left, side_top, lw, side_h]);
-            regions.insert(Region::Right, [x + width + gap, side_top, rw, side_h]);
+            regions.insert(Region::Right, column);
         }
         Some(Boxes { regions, window })
     }
@@ -996,6 +1008,13 @@ impl Mc {
         )];
         let config = &self.settings.value;
         let colors = config.colors();
+        if region == Region::Right {
+            let baseline = config.scale.baseline;
+            let faint = colors.get("faint").copied().unwrap_or(config.background());
+            let tall = (f64::from(self.output_size()[1]) - 2.0 * baseline).max(1.0);
+            let edge = [-baseline, baseline - top, 1.0, tall];
+            commands.push(rect(&format!("{id}-edge"), &id, edge, faint));
+        }
         if region == Region::Drawer {
             // A sheet of the page over the text under it, and a hairline.
             let baseline = config.scale.baseline;
@@ -1416,6 +1435,14 @@ impl Mc {
     }
 }
 
+/// The width of the margin column on an output of `output` pixels: 26 per
+/// cent of it in whole lines of the grid, from `lines` lines up to a
+/// third more.
+pub fn column_width(lines: f64, baseline: f64, output: f64) -> f64 {
+    let most = (lines * 4.0 / 3.0).round() * baseline;
+    ((0.26 * output / baseline).round() * baseline).clamp(lines * baseline, most)
+}
+
 /// The id of the focus mark of a hit.
 pub fn mark_id(base: &str) -> String {
     format!("{base}-mark")
@@ -1635,6 +1662,14 @@ mod tests {
         assert_eq!(names(&moved, Region::Right), ["keys"]);
         let other = layout(&rules, &config.contents, "mail", false);
         assert_eq!(names(&other, Region::Right), ["notes", "notify", "keys"]);
+    }
+
+    #[test]
+    fn the_column_grows_with_the_output_in_whole_lines() {
+        assert_eq!(column_width(12.0, 28.0, 1280.0), 336.0);
+        assert_eq!(column_width(12.0, 28.0, 1920.0), 448.0);
+        assert_eq!(column_width(12.0, 28.0, 1440.0), 364.0);
+        assert_eq!(column_width(12.0, 28.0, 800.0), 336.0);
     }
 
     #[test]

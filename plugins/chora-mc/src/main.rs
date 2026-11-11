@@ -1818,28 +1818,35 @@ impl Mc {
     }
 
     /// Where the parts of a page go on the output, with the sides of the
-    /// scene `name` beside it.
+    /// scene `name` beside it. The text stays centered, with room for the
+    /// sides, so that it never moves when one shows: centered where it
+    /// fits, else beside the sides. The margin column of the right keeps
+    /// one gutter at the edge and one beside the text, whatever its width.
     fn geometry_of(&self, name: &str, scene: &Scene) -> Option<Geometry> {
         let output = self.output.as_ref()?;
         let [w, h] = output.size.map(f64::from);
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
         let page = &config.page;
-        let (note, gap) = (page.margin * em, page.gap * em);
+        let (note, gap) = (page.margin * em, (page.gap * em).floor());
         let cols = f64::from(scene.grid()[0]);
         let want = cols * page.measure * em + (cols - 1.0) * (note + 2.0 * gap);
-        // A margin column on both sides, so that the text stays centered,
-        // and room for the sides, so that the text never moves when one
-        // shows: centered where it fits, else beside the sides.
         let [left, right] = self.side_widths(name);
         let need = |side: f64| if side > 0.0 { side + gap } else { 0.0 };
-        let (lneed, rneed) = (note + gap + need(left), (note + gap).max(need(right)));
-        let width = want.min(w - lneed - rneed - 4.0 * b).max(b);
-        let centered = ((w - width) / 2.0).round();
-        let x = centered
-            .min(w - 2.0 * b - rneed - width)
-            .max(2.0 * b + lneed)
-            .round();
+        let lneed = note + gap + need(left);
+        let (x, width) = if right > 0.0 {
+            let x = (2.0 * b + lneed).round();
+            (x, want.min(w - x - right - 4.0 * b).max(b))
+        } else {
+            let rneed = note + gap;
+            let width = want.min(w - lneed - rneed - 4.0 * b).max(b);
+            let centered = ((w - width) / 2.0).round();
+            let x = centered
+                .min(w - 2.0 * b - rneed - width)
+                .max(2.0 * b + lneed)
+                .round();
+            (x, width)
+        };
         let top = if Self::has_chapter(scene) {
             HEAD * b + self.chapter_height(scene)
         } else {
