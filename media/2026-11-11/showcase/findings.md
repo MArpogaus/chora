@@ -10,7 +10,7 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 - Waybar of the tiling flavor ran with a private D-Bus session bus; TeX Gyre Pagella was installed from the Debian package `fonts-texgyre` (without it mc falls back to a sans font).
 - Real-time parts (waybar polling, the wpctl thread, fake voice events) run on the wall clock while the record runs at about a third of real time, so their delays look about three times longer in the clips than on a screen.
 - xp and tiling have one theme each, so they show in their only theme; mc and construct show light and dark.
-- Builds: clips 01-09 and 11, 13-23 were first recorded on df8dadd; the files that index.md lists without a mark were recorded again on 67f93a9 (construct UX fixes, chat and HUD themes). A finding marked (new build) was seen on 67f93a9; unmarked findings of a re-recorded file were checked again there.
+- Builds: clips 01-09 and 11, 13-23 were first recorded on df8dadd; the files that index.md lists without a mark were recorded again on 67f93a9 (construct UX fixes, chat and HUD themes). A finding marked (new build) was seen on 67f93a9; unmarked findings of a re-recorded file were checked again there; findings of a file that index.md marks as older build were seen on df8dadd only.
 
 ## 01 xp: Start menu, open a program, taskbar
 
@@ -46,12 +46,15 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 |---|---|
 | 05-xp-paperclip-balloon-chat.mp4 0:00-0:04 / 05-xp-paperclip-balloon-chat-balloon.png | the balloon text wraps with one word ("ready.") alone on the second line |
 | 05-xp-paperclip-balloon-chat.mp4 0:04-0:09 / 05-xp-paperclip-balloon-chat-helper.png | the middle dot of "Atlas · working · Tidy notes (1/2)" renders as a small raised mark, high above the x-height (also in the chat header) |
-| 05-xp-paperclip-balloon-chat.mp4 0:07-0:15 / 05-xp-paperclip-balloon-chat-chat.png | the chat panel covers the taskbar (it reaches y=720; the taskbar starts at y=690) and hides the task buttons between x=596 and x=935 |
-| 05-xp-paperclip-balloon-chat.mp4 0:07-0:15 / 05-xp-paperclip-balloon-chat-chat.png | the input line "Type a message, then Enter." starts at x=604 while the header and transcript start at x=610; its text sits 10 px from the bottom edge of the screen |
+| 05-xp-paperclip-balloon-chat.mp4 0:07-0:15 / 05-xp-paperclip-balloon-chat-chat.png | the input line "Type a message, then Enter." starts at x=604 while the header and transcript start at x=610; its second line "A question is waiting." sits 8 px above the taskbar |
 | 05-xp-paperclip-balloon-chat.mp4 0:10-0:15 / 05-xp-paperclip-balloon-chat-question.png | the question card is drawn over the transcript and cuts the line "Please tidy the notes for Friday" in half (y=392) |
 | 05-xp-paperclip-balloon-chat.mp4 0:10-0:15 / 05-xp-paperclip-balloon-chat-question.png | the hint "Typing does not answer. Press Alt+Y or Alt+N, o..." is cut with an ellipsis; the full sentence never shows in the panel |
 | 05-xp-paperclip-balloon-chat.mp4 0:10-0:15 / 05-xp-paperclip-balloon-chat-question.png | the card has about 40 px of empty space below Yes and No, but 10 px above "Question for you": uneven padding |
 | 05-xp-paperclip-balloon-chat.mp4 0:10-0:15 | the transcript of the fake helper already shows "Write notes.txt?" and "Done." before the question card asks; this is my test transcript, not a chora fault |
+| 05-xp-paperclip-balloon-chat.mp4 0:07-0:15 / 05-xp-paperclip-balloon-chat-chat.png | (new build) the chat now ends above the taskbar (y=690) and leaves the task buttons free |
+| 05-xp-paperclip-balloon-chat.mp4 0:01-0:04 / 05-xp-paperclip-balloon-chat-balloon.png | (new build) the balloon text is set in about 10 px type, smaller than every other text of the xp HUD and of the chat, and "ready." still stands alone on the second line |
+| 05-xp-paperclip-balloon-chat.mp4 0:04-0:09 / 05-xp-paperclip-balloon-chat-helper.png | (new build) the helper row now sits at the bottom left of the paperclip, 8 px from its edge and 4 px above the taskbar |
+| 05-xp-paperclip-balloon-chat.mp4 0:10-0:15 / 05-xp-paperclip-balloon-chat-question.png | capture artefact, not chora: the arrow pointer of my script rests on the card over "(412 bytes)" |
 
 ## 06 tiling: windows, layouts, bar
 
@@ -71,22 +74,23 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 | 07-tiling-chat-panel.mp4 0:01-0:10 / 07-tiling-chat-panel-open.png | the chat side panel lies over the right column of tiles without a relayout: the "load" chart and the notes are cut off under it |
 | 07-tiling-chat-panel.mp4 0:01-0:10 | the helper list says "1  atlas" in lower case, while the row, the header and the transcript say "Atlas" |
 | 07-tiling-chat-panel.mp4 0:05-0:10 / 07-tiling-chat-panel-sent.png | Enter with no helper chosen keeps the text and says "Pick a helper first: type its number and press Enter, or click it." (honest), but the chat opened by Super+a does not preselect the only helper |
-| 07-tiling-chat-panel.mp4 0:00-0:01 / 07-tiling-chat-panel-rows.png | the row "Atlas · working · Tidy notes (1/2)" lies over the "load" window and right under the "Chat ..." pill, with 4 px between them |
-| 07-tiling-chat-panel.mp4 0:09 | Escape at the end of the clip arrives in the last frame; the panel is still open when the clip ends (my timing) |
+| 07-tiling-chat-panel.mp4 0:00-0:01 / 07-tiling-chat-panel-rows.png | (new build) the pill "Chat ..." and the Atlas row now sit below the bar; they still lie over the "load" window, with 4 px between pill and row |
+| 07-tiling-chat-panel.mp4 all | (new build) the bar of the tiling flavor says "Muted" here: capture artefact, my restarted waybar read another state file of the stand-in wpctl |
+| 07-tiling-chat-panel.mp4 0:02-0:08 / 07-tiling-chat-panel-open.png | (new build) the neutral chat is an opaque white panel with a 1 px gray line; the transcript area stays empty white down to the field (about 450 px of blank paper) while no helper is picked |
+| 07-tiling-chat-panel.mp4 0:09-0:10 | (new build) after Escape the chat closes and the "Listening" pill shows at the bottom right over the corner of the notes tile |
 
 ## 08 mc: scenes, agenda, chat drawer (light)
 
 | Where | Finding |
 |---|---|
-| 08-mc-scenes-agenda-chat-light.mp4 all | capture artefact, not chora: a sliver of the arrow pointer at the right edge (x=1278, y=700-720), where I parked the pointer |
-| 08-mc-scenes-agenda-chat-light.mp4 0:05-0:07 / 08-mc-scenes-agenda-chat-light-agents.png | BUG: the scene Agents is empty although the fake voice agent named two helpers (Atlas working, Coder thinking) with voice.state; the HUD rows show both, but `choractl call mc agent.list` answers `{"agents": []}` |
+| 08-mc-scenes-agenda-chat-light.mp4 0:05-0:07 / 08-mc-scenes-agenda-chat-light-agents.png | BUG (old and new build): the scene Agents is empty although the fake voice agent named two helpers (Atlas working, Coder thinking) with voice.state; the HUD rows show both, but `choractl call mc agent.list` answers `{"agents": []}` |
 | 08-mc-scenes-agenda-chat-light.mp4 0:07-0:12 / 08-mc-scenes-agenda-chat-light-mission.png | Mission Control shows the headings LOAD, BUSY and "Journal, errors today" with nothing under them and no word that there is no data yet (silent empty state) |
 | 08-mc-scenes-agenda-chat-light.mp4 0:02-0:04 / 08-mc-scenes-agenda-chat-light-morning.png | at 1280x720 the morning page shows only the lead, Weather and The day; the panels Mail, Overnight and Reading of the scene file fall below the screen and never show |
 | 08-mc-scenes-agenda-chat-light.mp4 0:02-0:04 / 08-mc-scenes-agenda-chat-light-morning.png | "THE DAY" starts 110 px right of the rule that separates it from Weather, while Weather starts at the text block edge: the two columns sit unevenly around the rule |
 | 08-mc-scenes-agenda-chat-light.mp4 0:00-0:15 | the HUD rows (Atlas, Coder) and the pill "Chat ..." lie in the right margin at y=56-163, so a page whose text block is wider would run under them; nothing reserves that space |
-| 08-mc-scenes-agenda-chat-light.mp4 0:15-0:18 / 08-mc-scenes-agenda-chat-light-chat-drawer.png | the chat drawer is near-black in the light theme of mc; the page is cream (light), so the drawer reads as a hole in the page |
 | 08-mc-scenes-agenda-chat-light.mp4 0:15-0:18 / 08-mc-scenes-agenda-chat-light-chat-drawer.png | the drawer starts at x=54: neither on the margin column (times at x=87) nor on the text block (x=153); its own header is at x=68 and the input text at x=62 |
 | 08-mc-scenes-agenda-chat-light.mp4 0:15-0:18 / 08-mc-scenes-agenda-chat-light-chat-drawer.png | the transcript names "Atlas" above each agent line but gives the person's line no "You" label (xp and tiling show "You") |
+| 08-mc-scenes-agenda-chat-light.mp4 0:15-0:18 / 08-mc-scenes-agenda-chat-light-chat-drawer.png | (new build) the chat drawer now follows the light theme: cream with a 1 px rule; its sans text (Inter) sits under the Pagella page, so the drawer reads as another document |
 
 ## 09 mc: scenes, agenda, chat drawer (dark)
 
@@ -115,6 +119,8 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 | 11-construct-manager-panes-xp-tiling-light.mp4 0:12-0:14 (frames 400-430) | at yaw -0.85 the pane "load" stands so near the camera that it fills the left third of the view, dark and blurred |
 | 11-construct-manager-panes-xp-tiling-light.mp4 0:15-0:18 / 11-construct-manager-panes-xp-tiling-light-in-tiling.png | the tiling in the pane has no bar: the panel of the tiling flavor (waybar) does not start for a manager pane, so tags, volume and network are missing there |
 | 11-construct-manager-panes-xp-tiling-light.mp4 0:15-0:18 | the clip ends inside the tiling pane: the last Alt+Escape arrives after the last frame (my timing) |
+| 11-construct-manager-panes-xp-tiling-light.mp4 (setup before 0:00) | (new build) two programs started with choractl run after the camera had flown to a pane of an xp window (wobbly.rs-2) became xp windows, not construct panes; I gave them to tiling through xp |
+| 11-construct-manager-panes-xp-tiling-light.mp4 0:03-0:11 / 11-construct-manager-panes-xp-tiling-light-in-xp-start-menu.png | (new build) while flown into the xp pane, the chip OPEN CUBE stays at the bottom right, above the xp tray and clock of the pane, and the "Listening" label and ring sit over the top edge of the pane |
 
 ## 12 construct: glass chat, question, dark theme
 
@@ -129,8 +135,8 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 
 | Where | Finding |
 |---|---|
-| 13-cube-open-cube.mp4 0:01.8-0:02.4 (frames 55-70) | FLASH: after the click on OPEN CUBE the whole screen is black for 16 frames (0.53 s) before the front face shows; there is no transition from the space to the cube |
-| 13-cube-open-cube.mp4 0:02.4-0:11 / 13-cube-open-cube-front-face.png | the pill "SUNSET" of the construct pane stays on screen over the xp face of the cube (x 597-683, y 494-524) |
+| 13-cube-open-cube.mp4 0:01.8-0:02.4 (frames 56-71) / 13-cube-open-cube-black-flash.png | FLASH (old and new build): after the click on OPEN CUBE the whole screen is black for 16 frames (0.53 s) before the front face shows; there is no transition from the space to the cube |
+| 13-cube-open-cube.mp4 0:02.4-0:11 / 13-cube-open-cube-front-face.png | the pill "SUNSET" of the construct pane stays on screen over the xp face of the cube (x 597-683, y 494-524), also on the new build |
 | 13-cube-open-cube.mp4 0:02.4-0:11 / 13-cube-open-cube-front-face.png | the pill "Chat ..." covers the desktop icon label "My Documents" of the face |
 | 13-cube-open-cube.mp4 0:02.4-0:11 / 13-cube-open-cube-front-face.png | the chip "STEP BACK Alt+Esc" covers the label "Recycle Bin"; one letter of the label peeks out right of the chip (x=1262, y=652) |
 
@@ -150,8 +156,8 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 
 | Where | Finding |
 |---|---|
-| 16-cube-pull-window-out.mp4 0:06-0:09 / 16-cube-pull-window-out-pane.png | the pulled window lands as a pane half outside the view: its right half is cut by the right edge of the screen |
 | 16-cube-pull-window-out.mp4 0:00-0:01 | a cube.turn in use mode steps back and turns, but the chip STEP BACK Alt+Esc stays on screen through the turn, although stepping back is already happening |
+| 16-cube-pull-window-out.mp4 0:06-0:09 / 16-cube-pull-window-out-pane.png | (new build) the pulled pane still lands with its right part cut by the right edge of the screen |
 
 ## 17 cube: drop it back
 
@@ -188,6 +194,7 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 | 20-calm-refused-by-click.mp4 0:01-0:03 / 20-calm-refused-by-click-refused.png | a click on No reaches the agent at once (confirm.answer yes=false) but the card shows no feedback: no "Refused." line, no pressed state; it stays unchanged for about 2 s until the agent ends the question |
 | 20-calm-refused-by-click.mp4 0:03-0:06 / 20-calm-refused-by-click-blocked.png | the header "Atlas · blocked · Tidy notes: writing notes.txt wa..." is cut with an ellipsis; the reason never shows in full anywhere in the chat |
 | 20-calm-refused-by-click.mp4 0:03-0:06 | after the question ends, the chat shows no line that the write was refused: only the header state word changes to "blocked" |
+| 20-calm-refused-by-click.mp4 0:00-0:06 | (new build) re-checked: no feedback right after the click on No, and the header ellipsis stays |
 
 ## 21 calm states: Sound unavailable
 
@@ -197,6 +204,7 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 | 21-calm-sound-unavailable-no-helper.mp4 0:07-0:09 / 21-calm-sound-unavailable-no-helper-sound-menu.png | honest: Control Panel > Sound shows "Sound unavailable" and "wpctl not found" as gray rows |
 | 21-calm-sound-unavailable-no-helper.mp4 0:09 | three Escape keys close only the innermost menus; the start menu stays open until the chat opens over it |
 | 21-calm-sound-unavailable-no-helper.mp4 0:10-0:12 / 21-calm-sound-unavailable-no-helper-no-helper.png | NOT SHOWN: the empty state "No helper is set up..."; the fake voice agent with the transcript env var still lists atlas, so the list shows "1  atlas" (my setup) |
+| 21-calm-sound-unavailable-no-helper.mp4 0:10-0:12 / 21-calm-sound-unavailable-no-helper-no-helper.png | (new build) the chat list "1  atlas" also reaches y=720 over the taskbar, as in 22 |
 
 ## 22 calm states: voice unreachable
 
@@ -205,6 +213,7 @@ Every visual surprise, inaccuracy or unaesthetic detail that I saw in my own fra
 | 22-calm-chat-voice-unreachable.mp4 0:01-0:06 / 22-calm-chat-voice-unreachable-open.png | with a voice agent that exports no chat methods, the chat says "Cannot reach voice control. Trying again every 5..." in its header: the sentence is cut with an ellipsis, so "5 s." never shows |
 | 22-calm-chat-voice-unreachable.mp4 0:01-0:06 | the paperclip keeps its calm listening look while the chat says that voice control cannot be reached: the two disagree |
 | 22-calm-chat-voice-unreachable.mp4 0:04-0:06 / 22-calm-chat-voice-unreachable-typed.png | the typed "hello" and Enter leave no trace: the field shows the placeholder again and no "Not sent" line appears |
+| 22-calm-chat-voice-unreachable.mp4 0:01-0:06 / 22-calm-chat-voice-unreachable-open.png | (new build) without a reachable helper the xp chat still reaches down to y=720 and covers the task buttons, while the chat with a helper (clips 05, 19) now ends above the taskbar at y=690: the panel has two heights |
 
 ## 23 calm states: empty agenda
 
