@@ -1,13 +1,37 @@
 //! Pointer, key and drag input: press, move, release, drop, the list
 //! keys.
 
+use chora_kit::words::{Language, Word, say};
+
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, LIST,
-    LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
-    window_flown_into,
+    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
+    KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL,
+    cube, give, hud, modes, space, window_flown_into,
 };
 
+/// Whether the notice of the walk keys may show again, at most once in
+/// [`KEYS_WALK_AGAIN`].
+pub(crate) fn keys_walk_due(last: Option<Instant>, now: Instant) -> bool {
+    last.is_none_or(|at| now.duration_since(at) >= KEYS_WALK_AGAIN)
+}
+
 impl Construct {
+    /// A typed key did nothing: the HUD says that the keys walk and which
+    /// key shows them, at most once in [`KEYS_WALK_AGAIN`].
+    fn keys_walk(&mut self) -> Result<(), ClientError> {
+        let now = Instant::now();
+        if !keys_walk_due(self.keys_walked, now) {
+            return Ok(());
+        }
+        self.keys_walked = Some(now);
+        let help = (self.settings.value.keys.iter())
+            .find(|(_, action)| **action == Action::Help)
+            .map_or("F1", |(key, _)| key.as_str());
+        let words = say(Language::of_session(), Word::KeysWalk, &[("key", help)]);
+        self.voice.notice(&words, now);
+        self.draw_hud()
+    }
+
     /// The events of the voice agent and of the watchdog, then the input.
     pub(crate) fn other(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
@@ -80,14 +104,17 @@ impl Construct {
                 node,
                 key,
                 state: PressState::Pressed,
+                modifiers,
+                text,
                 ..
-            } if node == LOOK => match self.settings.value.keys.get(&key) {
+            } if node == LOOK => match self.settings.value.action(&key, &modifiers) {
                 Some(Action::Terminal) => self.start_terminal(),
                 Some(Action::Launcher) => self.start_launcher(),
                 Some(Action::Close) => return self.close_ahead(),
                 Some(Action::Windows) => return self.open_list(),
                 Some(Action::Help) => return self.toggle_help(),
-                Some(&action) => self.act(action),
+                Some(action) => self.act(action),
+                None if text.is_some() => return self.keys_walk(),
                 None => {}
             },
             Event::InputKey {
@@ -118,6 +145,21 @@ impl Construct {
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
+            Event::PointerPressed {
+                node,
+                button,
+                injected,
+                ..
+            } if button == BTN_LEFT
+                && node == modes::OPEN_CUBE
+                && (!injected || self.rt.accepts_injected()) =>
+            {
+                if let Err(err) = self.open_cube(cube::FACES) {
+                    self.voice.notice(&err.to_string(), Instant::now());
+                    return self.draw_hud();
+                }
+                return Ok(());
+            }
             Event::PointerPressed {
                 node,
                 button,

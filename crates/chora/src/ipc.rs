@@ -134,6 +134,25 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     Ok(Trigger::Key(sym))
 }
 
+/// The media keys that a window manager grabs without a modifier: they
+/// type no text, and a person expects the session to answer them.
+const MEDIA_KEYS: [Keysym; 9] = [
+    Keysym::XF86_AudioRaiseVolume,
+    Keysym::XF86_AudioLowerVolume,
+    Keysym::XF86_AudioMute,
+    Keysym::XF86_AudioMicMute,
+    Keysym::XF86_AudioPlay,
+    Keysym::XF86_AudioNext,
+    Keysym::XF86_AudioPrev,
+    Keysym::XF86_MonBrightnessUp,
+    Keysym::XF86_MonBrightnessDown,
+];
+
+/// Whether a key is one of [`MEDIA_KEYS`].
+fn media_key(trigger: Trigger) -> bool {
+    matches!(trigger, Trigger::Key(sym) if MEDIA_KEYS.contains(&sym))
+}
+
 // Each bool is one fact of the connection; no state machine joins them.
 #[allow(clippy::struct_excessive_bools)]
 struct Conn {
@@ -1369,7 +1388,8 @@ impl State {
 
     /// Grabs a binding of a key or a pointer button for a named connection.
     /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
-    /// work; `input.grab-any` lifts this (D45). Ctrl+Alt with the keys of
+    /// work; `input.grab-any` lifts this (D45), and a media key of
+    /// [`MEDIA_KEYS`] needs none for an unconfined client with a claim. Ctrl+Alt with the keys of
     /// the safety layer belongs to the safety layer either way. The result
     /// is the binding in the normal form of `input.key`.
     fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
@@ -1378,7 +1398,10 @@ impl State {
         };
         let m = binding.mods;
         let trigger = trigger(&binding)?;
-        let free = trigger == Trigger::Move || self.grants.allows(&name, Capability::GrabAny);
+        let window_manager = !self.ipc.confined(conn) && self.scene.holds_claim(&name);
+        let free = trigger == Trigger::Move
+            || (media_key(trigger) && window_manager)
+            || self.grants.allows(&name, Capability::GrabAny);
         if !(m.ctrl || m.alt || m.logo || free) {
             return Err(RpcError::new(
                 RpcError::MISSING_CAPABILITY,
@@ -2975,6 +2998,55 @@ mod tests {
         );
     }
 
+    /// A key that a window manager grabbed is an act of the person
+    /// toward it, as a click on its empty screen is: when the pointer or
+    /// the keyboard focus is in its claim, the window that the key starts
+    /// opens there, not where the last click chose (M4). Elsewhere, and
+    /// for an injected key, the key chooses nobody.
+    #[test]
+    fn a_grabbed_key_of_the_user_chooses_its_manager_where_the_person_is() {
+        use smithay::backend::input::{InputTime, KeyState};
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
+        let _b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
+        a.ok(&mut core, "input.grab", json!({"binding": "Super+Return"}));
+        let mut wayland = Wayland::connect(&mut core);
+        click_at(&mut core, (600.0, 300.0), false);
+        let key = |core: &mut Core, code: u32, state, injected| {
+            crate::input::key(
+                &mut core.state,
+                (code + 8).into(),
+                state,
+                InputTime::now(),
+                injected,
+            );
+        };
+        let super_return = |core: &mut Core, injected| {
+            for (code, state) in [
+                (125, KeyState::Pressed),
+                (28, KeyState::Pressed),
+                (28, KeyState::Released),
+                (125, KeyState::Released),
+            ] {
+                key(core, code, state, injected);
+            }
+        };
+        super_return(&mut core, false);
+        wayland.toplevel(&mut core, "one");
+        let one = reserved_for(&core, "s1");
+        assert_eq!(one.as_deref(), Some("b"), "the pointer is in b");
+        core.state.pointer_layout = (100.0, 300.0).into();
+        super_return(&mut core, true);
+        wayland.toplevel(&mut core, "two");
+        let two = reserved_for(&core, "s2");
+        assert_eq!(two.as_deref(), Some("b"), "injected");
+        super_return(&mut core, false);
+        wayland.toplevel(&mut core, "three");
+        let three = reserved_for(&core, "s3");
+        assert_eq!(three.as_deref(), Some("a"), "the pointer is in a");
+    }
+
     /// Where a surface is: `(owner, parent, reserved for)`.
     fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
         let node = core.state.scene.node(surface).unwrap();
@@ -3902,6 +3974,48 @@ mod tests {
             let (error_code, got) = wm.fails(&mut core, "input.grab", grab(binding));
             assert_eq!((error_code, got.as_str()), (code, message));
         }
+    }
+
+    /// Only an unconfined window manager with a claim grabs the listed
+    /// media keys without a modifier; any other key, a client without a
+    /// claim and a confined client still need one.
+    #[test]
+    fn only_a_window_manager_grabs_the_listed_media_keys_without_a_modifier() {
+        let mut core = Core::new();
+        let mut wm = claimer(&mut core, "wm", [0.0, 0.0, 800.0, 600.0]);
+        for key in [
+            "XF86AudioRaiseVolume",
+            "XF86AudioLowerVolume",
+            "XF86AudioMute",
+            "XF86AudioMicMute",
+            "XF86AudioPlay",
+            "XF86AudioNext",
+            "XF86AudioPrev",
+            "XF86MonBrightnessUp",
+            "XF86MonBrightnessDown",
+        ] {
+            let grabbed = wm.ok(&mut core, "input.grab", json!({"binding": key}));
+            assert_eq!(grabbed, key);
+        }
+        let grab = json!({"binding": "XF86Calculator"});
+        let (error, _) = wm.fails(&mut core, "input.grab", grab);
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "a key off the list");
+        let mut plain = core.named("plain");
+        let grab = json!({"binding": "XF86AudioPlay"});
+        let (error, _) = plain.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "no claim");
+        let mut confined = core.connect();
+        confined.ok(
+            &mut core,
+            "hello",
+            json!({"name": "boxed", "confined": true}),
+        );
+        let claim = json!({"commands": [{"create": {"id": "boxed", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
+        confined.send("scene.apply", claim);
+        core.dispatch();
+        let (error, _) = confined.fails(&mut core, "input.grab", grab);
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "a confined client");
     }
 
     #[test]

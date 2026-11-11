@@ -135,6 +135,8 @@ struct Tiling {
     bent: HashMap<String, Target>,
     /// The meshes of a drag that the next transaction carries.
     meshes: Vec<Command>,
+    /// The indicator of the volume keys.
+    volume: chora_kit::volume::Mixer,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -178,6 +180,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         effects: Driver::new(&settings_effects),
         bent: HashMap::new(),
         meshes: Vec::new(),
+        volume: chora_kit::volume::Mixer::new(NAME),
     };
     tiling.start()?;
     Ok(serve(&mut tiling)?)
@@ -880,6 +883,10 @@ impl Tiling {
                 Ok(())
             }
             Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
+            Some(Effect::Volume(change)) => {
+                self.volume.change(change, true);
+                Ok(())
+            }
             // The same path as the method `settings.reload`.
             Some(Effect::Reload) => {
                 if let Err(err) = runtime::reload_settings(self) {
@@ -1493,6 +1500,7 @@ mod tests {
             effects: Driver::new(effects),
             bent: HashMap::new(),
             meshes: Vec::new(),
+            volume: chora_kit::volume::Mixer::new(NAME),
         };
         (tiling, methods)
     }
@@ -2002,5 +2010,218 @@ mod tests {
             [Command::Update { props, .. }] if props.visible == Some(false)
         ));
         assert_eq!(changes(Some(&hidden), &hidden).len(), 0);
+    }
+}
+
+/// The scripts of the panel in `flavors/tiling/waybar`, run with stand-ins
+/// of `wpctl`, `choractl` and `waybar` on a PATH of their own: the tools
+/// that a script needs are links there, so that a missing one is missing.
+#[cfg(test)]
+mod panel {
+    use std::{
+        os::unix::fs::PermissionsExt,
+        path::{Path, PathBuf},
+        process::{Command, Output, Stdio},
+        time::{Duration, Instant},
+    };
+
+    /// The tools of the scripts, linked into the PATH of a test.
+    const TOOLS: [&str; 7] = ["sh", "awk", "timeout", "sleep", "cat", "kill", "dirname"];
+
+    fn waybar_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/waybar")
+    }
+
+    /// Whether jq is installed; the panel scripts need it.
+    fn has_jq() -> bool {
+        let found = Command::new("sh")
+            .args(["-c", "command -v jq"])
+            .output()
+            .is_ok_and(|o| o.status.success());
+        if !found {
+            eprintln!("skip: jq is not installed, and the panel scripts need it");
+        }
+        found
+    }
+
+    /// A directory with the tools, jq when `jq`, and the stand-ins
+    /// `(name, shell code)`.
+    fn bin(name: &str, jq: bool, fakes: &[(&str, &str)]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("chora-panel-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("a directory");
+        let tools = TOOLS.iter().copied().chain(jq.then_some("jq"));
+        for tool in tools {
+            let found = Command::new("sh")
+                .args(["-c", &format!("command -v {tool}")])
+                .output()
+                .expect("sh runs");
+            let path = String::from_utf8_lossy(&found.stdout).trim().to_owned();
+            if path.starts_with('/') {
+                std::os::unix::fs::symlink(path, dir.join(tool)).expect("a link");
+            }
+        }
+        for (fake, code) in fakes {
+            let path = dir.join(fake);
+            std::fs::write(&path, format!("#!/bin/sh\n{code}\n")).expect("a stand-in");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        }
+        dir
+    }
+
+    fn command(bin: &Path, script: &str, args: &[&str], lang: &str) -> Command {
+        let mut command = Command::new(bin.join("sh"));
+        command
+            .arg(waybar_dir().join(script))
+            .args(args)
+            .env_clear()
+            .env("PATH", bin)
+            .env("LANG", lang)
+            .env("XDG_RUNTIME_DIR", bin);
+        command
+    }
+
+    fn run(bin: &Path, script: &str, args: &[&str], lang: &str) -> Output {
+        command(bin, script, args, lang).output().expect("sh runs")
+    }
+
+    fn printed(out: &Output) -> String {
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    }
+
+    /// What volume.sh prints with a stand-in of wpctl, or without one.
+    fn volume(name: &str, wpctl: Option<&str>, lang: &str) -> String {
+        let fakes: Vec<(&str, &str)> = wpctl.map(|code| ("wpctl", code)).into_iter().collect();
+        printed(&run(&bin(name, false, &fakes), "volume.sh", &[], lang))
+    }
+
+    #[test]
+    fn the_volume_always_has_honest_words() {
+        let (en, de) = ("C.UTF-8", "de_DE.UTF-8");
+        let muted = Some("echo 'Volume: 0.40 [MUTED]'");
+        let none = Some("exit 1");
+        for (name, wpctl, lang, words) in [
+            ("loud", Some("echo 'Volume: 0.40'"), en, "vol 40%"),
+            ("muted", muted, en, "vol muted"),
+            ("muted-de", muted, de, "vol stumm"),
+            ("missing", None, en, "vol: wpctl not found"),
+            ("missing-de", None, de, "vol: wpctl nicht gefunden"),
+            ("none", none, en, "vol: no output device"),
+            ("none-de", none, de, "vol: kein Ausgabegerät"),
+        ] {
+            assert_eq!(volume(name, wpctl, lang), words);
+        }
+    }
+
+    #[test]
+    fn a_hung_wpctl_gets_no_answer_within_2_seconds() {
+        let start = Instant::now();
+        assert_eq!(volume("hung", Some("sleep 10"), "C"), "vol: no answer");
+        let took = start.elapsed();
+        assert!(took < Duration::from_secs(5), "{took:?}");
+    }
+
+    #[test]
+    fn the_panel_labels_the_volume() {
+        let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
+        assert!(config.contains("\"custom/volume\""), "{config}");
+        assert!(
+            !config.contains("\"pulseaudio\""),
+            "the unlabelled module is gone"
+        );
+    }
+
+    /// The stand-in of choractl: tiling has the outputs in the file
+    /// `tiling` of its directory, the core those in `outputs`.
+    const CHORACTL: &str = r#"dir=$(dirname "$0")
+case "$1 $2 $3" in
+"call tiling get_tags") cat "$dir/tiling" ;;
+"outputs  ") cat "$dir/outputs" ;;
+*) exit 1 ;;
+esac"#;
+
+    fn outputs(bin: &Path, tiling: &[&str], all: &[&str]) {
+        let list = |names: &[&str]| {
+            let names: Vec<String> = names
+                .iter()
+                .map(|n| format!("{{\"name\": \"{n}\"}}"))
+                .collect();
+            names.join(", ")
+        };
+        let tags = format!("{{\"outputs\": [{}]}}", list(tiling));
+        std::fs::write(bin.join("tiling"), tags).expect("tiling");
+        std::fs::write(bin.join("outputs"), format!("[{}]", list(all))).expect("outputs");
+    }
+
+    #[test]
+    fn the_panel_shows_only_on_the_outputs_of_tiling() {
+        if !has_jq() {
+            return;
+        }
+        let waybar = r#"while [ $# -gt 0 ]; do [ "$1" = --config ] && cat "$2"; shift; done"#;
+        let bin = bin(
+            "outputs",
+            true,
+            &[("choractl", CHORACTL), ("waybar", waybar)],
+        );
+        outputs(&bin, &["HEADLESS-1"], &["HEADLESS-1", "HEADLESS-2"]);
+        let dir = waybar_dir();
+        let out = run(&bin, "waybar.sh", &[dir.to_str().expect("a path")], "C");
+        let config = printed(&out);
+        let config: serde_json::Value = serde_json::from_str(&config).expect(&config);
+        assert_eq!(config["output"], serde_json::json!(["!HEADLESS-2", "*"]));
+        let include = dir.join("config.jsonc");
+        assert_eq!(config["include"], serde_json::json!([include.to_str()]));
+    }
+
+    /// When the outputs change, waybar starts again with the outputs of
+    /// tiling of then.
+    #[test]
+    fn the_panel_follows_a_change_of_the_outputs() {
+        if !has_jq() {
+            return;
+        }
+        let waybar = r#"while [ $# -gt 0 ]; do [ "$1" = --config ] && cat "$2" >>"$(dirname "$0")/seen" && echo >>"$(dirname "$0")/seen"; shift; done
+exec sleep 30"#;
+        let bin = bin(
+            "follow",
+            true,
+            &[("choractl", CHORACTL), ("waybar", waybar)],
+        );
+        outputs(&bin, &["A"], &["A", "B"]);
+        let dir = waybar_dir();
+        let mut script = command(&bin, "waybar.sh", &[dir.to_str().expect("a path")], "C")
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("the script starts");
+        let seen = |bin: &Path| std::fs::read_to_string(bin.join("seen")).unwrap_or_default();
+        let wait_for = |bin: &Path, text: &str| {
+            let start = Instant::now();
+            while start.elapsed() < Duration::from_secs(10) && !seen(bin).contains(text) {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            seen(bin).contains(text)
+        };
+        assert!(wait_for(&bin, "\"!B\""), "{}", seen(&bin));
+        outputs(&bin, &["A"], &["A", "B", "C"]);
+        let followed = wait_for(&bin, "\"!C\"");
+        let _ = Command::new("kill").arg(script.id().to_string()).status();
+        let _ = script.wait();
+        assert!(followed, "{}", seen(&bin));
+        assert_eq!(seen(&bin).matches("\"!B\"").count(), 2, "{}", seen(&bin));
+    }
+
+    #[test]
+    fn the_panel_needs_jq() {
+        let bin = bin(
+            "no-jq",
+            false,
+            &[("choractl", CHORACTL), ("waybar", "exit 0")],
+        );
+        let dir = waybar_dir();
+        let out = run(&bin, "waybar.sh", &[dir.to_str().expect("a path")], "C");
+        assert!(!out.status.success());
+        let said = String::from_utf8_lossy(&out.stderr);
+        assert!(said.contains("jq"), "{said}");
     }
 }

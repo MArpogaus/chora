@@ -3,8 +3,9 @@
 # four virtual outputs, starts one chora-xp on them and shows each as a
 # forwarding face of a cube in its 3D context.
 #
-# 1. cube.open: four virtual outputs come, each with an xp taskbar; a
-#    second cube.open is refused.
+# 1. Without a cube the chip OPEN CUBE shows. cube.open without params:
+#    four virtual outputs come, each with an xp taskbar, and the chip
+#    hides; a second cube.open is refused.
 # 2. A probe window opens on the front face, which shows its output at
 #    1:1: a click near its corner reaches it at that point.
 # 2a. Standing back (K4, docs/cube-modes.md): view.step_back shows the
@@ -44,7 +45,8 @@
 #    the probe window is not lost: a screen shows it, or a client other
 #    than the ended xp owns it.
 # 5. A window manager that never connects: the outputs go after the
-#    wait. cube.close removes a cube.
+#    wait. cube.close removes a cube, the chip OPEN CUBE shows again,
+#    and a click on it opens a cube.
 # 6. The xp of the cube ends with a construct that is killed (C2). A
 #    construct that starts again removes the virtual outputs that it
 #    left.
@@ -108,7 +110,11 @@ session_start 1280x800 -- "$bin/chora-construct"
 grant input.inject screen.capture
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
 
-opened=$(call cube.open '{}') || fail "cube.open: $opened"
+[ "$(prop construct-open-cube visible)" = True ] || fail "no chip OPEN CUBE without a cube: $(prop construct-open-cube visible)"
+ok "the chip OPEN CUBE shows without a cube"
+opened=$(call cube.open) || fail "cube.open without params: $opened"
+until_ok 'test "$(prop construct-open-cube visible)" = False' || fail "the chip OPEN CUBE stays with a cube"
+ok "cube.open without params opens four faces, and the chip OPEN CUBE hides"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no four virtual outputs: $(virtuals)"
 until_ok 'test "$(bars)" = 4' 80 || fail "xp shows $(bars) taskbars on $(virtuals)"
 ok "the cube shows four xp taskbars on $(virtuals)"
@@ -434,8 +440,15 @@ call cube.open '{}' >/dev/null || fail "cube.open again"
 call cube.close >/dev/null || fail "cube.close"
 until_ok 'test -z "$(virtuals)"' || fail "cube.close left $(virtuals)"
 ok "cube.close removed the cube and its outputs"
-
 call settings.set '{"cube_manager": "chora-xp"}' >/dev/null || fail "settings.set cube_manager back"
+until_ok 'test "$(prop construct-open-cube visible)" = True' || fail "no chip OPEN CUBE after cube.close"
+read -r cx cy <<<"$(ctl query id:construct-open-cube | python3 -I -c 'import json, sys; r = next(iter(json.load(sys.stdin)[0]["rects"].values())); print(round(r[0] + r[2] / 2), round(r[1] + r[3] / 2))')"
+inject "[{\"pointer_move\": {\"position\": [$cx, $cy]}}, {\"click\": {}}]"
+until_ok 'test "$(virtuals | wc -w)" = 4' || fail "a click on the chip OPEN CUBE opened no cube: $(virtuals)"
+ok "a click on the chip OPEN CUBE opens the cube"
+call cube.close >/dev/null || fail "cube.close after the chip"
+until_ok 'test -z "$(virtuals)"' || fail "cube.close after the chip left $(virtuals)"
+
 call cube.open '{}' >/dev/null || fail "cube.open before the restart"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the restart"
 construct=$(pid_of chora-construct)

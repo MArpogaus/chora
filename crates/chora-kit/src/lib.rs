@@ -24,6 +24,7 @@ pub mod modes;
 pub mod notify;
 pub mod runtime;
 pub mod settings;
+pub mod volume;
 pub mod wobbly;
 pub mod words;
 pub mod xdg;

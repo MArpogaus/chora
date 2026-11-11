@@ -22,6 +22,8 @@ use chora_kit::{
     notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
+    volume::{self, Mixer, Reading},
+    words::Language,
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -55,6 +57,9 @@ use crate::{
     window::{self, Window},
 };
 
+/// How often the speakers read the volume again; a change reads it at
+/// once.
+const VOLUME_AGAIN: Duration = Duration::from_secs(5);
 /// The client name, and the group of all nodes of the plugin.
 pub const NAME: &str = "xp";
 const WALLPAPERS: &str = "xp-wallpapers";
@@ -155,17 +160,30 @@ pub enum Key {
     Start,
     /// Gives the focused window to the window manager of this name (D55).
     Give(&'static str),
+    /// A media key changes the volume.
+    Volume(volume::Change),
+    /// Opens the chat, as on tiling.
+    Chat,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
-/// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 10] = [
+/// stands in when another client holds them. The media keys and the chat
+/// key are those of tiling.
+const KEYS: [(&str, &str, Key); 14] = [
     ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "", Key::Switch(-1)),
     ("Super+e", "", Key::Terminal),
+    (control::CHAT_KEY, "", Key::Chat),
+    ("XF86AudioRaiseVolume", "", Key::Volume(volume::Change::Up)),
+    (
+        "XF86AudioLowerVolume",
+        "",
+        Key::Volume(volume::Change::Down),
+    ),
+    ("XF86AudioMute", "", Key::Volume(volume::Change::Mute)),
     ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
     (
@@ -296,6 +314,13 @@ pub struct Wm {
     /// The programs that started and show no window yet.
     launches: Launches,
     notifier: Notifier,
+    /// The reading that the speaker of the taskbars shows; none before
+    /// the first.
+    volume: Option<Reading>,
+    /// Runs wpctl off the main loop.
+    mixer: Mixer,
+    /// When the volume was last read.
+    volume_read: Instant,
 }
 
 impl Plugin for Wm {
@@ -344,6 +369,7 @@ impl give::Windows for Wm {
 impl Wm {
     /// Connects, creates the scene of the plugin and adopts the windows
     /// that have no owner. `outputs` are the names of `--output`.
+    #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
     pub fn start(
         outputs: Vec<String>,
         theme: Theme,
@@ -402,10 +428,14 @@ impl Wm {
             kept: HashMap::new(),
             launches: Launches::new(),
             notifier: Notifier::new(),
+            volume: None,
+            mixer: Mixer::new(NAME),
+            volume_read: Instant::now(),
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
         let old_root = wm.take_kept()?;
+        wm.mixer.refresh();
         wm.create_scene(old_root)?;
         wm.grab()?;
         // After the scene: the removal of the kept root detaches the
@@ -528,7 +558,9 @@ impl Wm {
         );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
-        commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
+        let words = self.volume_words();
+        let tray = (self.clock.as_str(), words.as_str());
+        commands.extend(bar.create(&mut self.theme, BARS, tray, self.desktop));
         self.bars.push(bar);
         commands
     }
@@ -760,17 +792,76 @@ impl Wm {
         if !commands.is_empty() {
             self.apply(commands)?;
         }
+        if self.volume_read.elapsed() >= VOLUME_AGAIN {
+            self.volume_read = Instant::now();
+            self.mixer.refresh();
+        }
         let now = self.now();
+        let reading = self.mixer.take();
+        let changed = reading.is_some_and(|r| Some(r) != self.volume);
+        if changed {
+            self.volume = reading;
+            let commands = self.show_volume();
+            self.apply(commands)?;
+        }
         if now != self.clock {
             self.clock = now;
-            let commands = self
-                .bars
-                .iter()
-                .map(|bar| bar.tray(&mut self.theme, &self.clock))
-                .collect();
+            let commands = self.trays();
             self.apply(commands)?;
         }
         Ok(())
+    }
+
+    /// The words of the speaker, in the language of the session.
+    fn volume_words(&self) -> String {
+        self.volume
+            .map(|r| r.words(Language::of_session()))
+            .unwrap_or_default()
+    }
+
+    /// The notification areas of every taskbar, with the clock and the
+    /// volume.
+    fn trays(&mut self) -> Vec<Command> {
+        let words = self.volume_words();
+        self.bars
+            .iter()
+            .map(|bar| bar.tray(&mut self.theme, &self.clock, &words))
+            .collect()
+    }
+
+    /// Shows a new reading: the speakers grow or shrink to fit its words,
+    /// and the tasks and the desktop buttons move with them.
+    fn show_volume(&mut self) -> Vec<Command> {
+        let words = self.volume_words();
+        let text = self.theme.text_width(&words, crate::text::Font::Ui);
+        #[allow(clippy::cast_possible_truncation, reason = "a width in pixels")]
+        let width = text.ceil() as i32 + taskbar::SPEAKER_TEXT + 6;
+        let mut moved = false;
+        for bar in &mut self.bars {
+            moved |= bar.set_speaker(width);
+        }
+        let mut commands = self.trays();
+        if moved {
+            commands.extend(self.sync_tasks());
+            commands.extend(self.pagers());
+        }
+        commands
+    }
+
+    /// Changes the volume off the main loop; a key shows the indicator.
+    /// The speakers show the reading after it at the next tick.
+    fn change_volume(&mut self, change: volume::Change, by_key: bool) -> Vec<Command> {
+        self.mixer.change(change, by_key);
+        self.volume_read = Instant::now();
+        Vec::new()
+    }
+
+    /// The bindings of Keyboard Shortcuts that the plugin holds.
+    fn held_shortcuts(&self) -> Vec<&'static str> {
+        (give::KEYS.iter().map(|(key, _)| *key))
+            .chain([control::CHAT_KEY])
+            .filter(|key| self.rt.holds(key))
+            .collect()
     }
 
     fn now(&self) -> String {
@@ -1350,7 +1441,9 @@ impl Wm {
             &self.settings.value.wallpaper,
             output,
         )];
-        commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
+        let words = self.volume_words();
+        let tray = (self.clock.as_str(), words.as_str());
+        commands.extend(self.bars[i].resize(&mut self.theme, output, tray));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
         commands.extend(self.keep_inside(&mine, area));
@@ -1516,6 +1609,11 @@ impl Wm {
                 if let Err(err) = give::focused(self, to) {
                     eprintln!("chora-xp: give to {to}: {}", err.message);
                 }
+                Vec::new()
+            }
+            Some(Key::Volume(change)) => self.change_volume(change, true),
+            Some(Key::Chat) => {
+                self.start_program(control::CHAT);
                 Vec::new()
             }
             Some(Key::Cube) | None => Vec::new(),
@@ -2078,7 +2176,7 @@ impl Wm {
     /// Only the left button works the taskbar, the menu and the desktop.
     fn press_left(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
         if node.starts_with("xp-tray-") {
-            self.press_clock(position)
+            self.press_tray(position)
         } else if let Some(part) = taskbar::Part::of(node) {
             self.press_taskbar(part)
         } else if Menu::owns(node) {
@@ -2826,11 +2924,15 @@ impl Wm {
         commands
     }
 
-    /// A double click on the clock of a taskbar opens Date and Time.
-    fn press_clock(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
+    /// A click on the speaker of a taskbar mutes or unmutes, and a double
+    /// click on the clock opens Date and Time.
+    fn press_tray(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
         #[allow(clippy::cast_possible_truncation)]
         let [x, y] = [px.floor() as i32, py.floor() as i32];
         let on = |[cx, cy, cw, ch]: Rect| (cx..cx + cw).contains(&x) && (cy..cy + ch).contains(&y);
+        if self.bars.iter().any(|b| on(b.speaker_rect())) {
+            return self.change_volume(volume::Change::Mute, false);
+        }
         let Some(bar) = self.bars.iter().find(|b| b.clock_rect().is_some_and(on)) else {
             return Vec::new();
         };
@@ -2927,7 +3029,8 @@ impl Wm {
         for i in 0..self.bars.len() {
             let before = self.bars[i].usable();
             self.bars[i].configure(settings);
-            commands.push(self.bars[i].tray(&mut self.theme, &self.clock));
+            let words = self.volume_words();
+            commands.push(self.bars[i].tray(&mut self.theme, &self.clock, &words));
             commands.extend(self.refit(before, self.bars[i].usable()));
         }
         if old.on_top != settings.on_top {
@@ -3088,7 +3191,13 @@ impl Wm {
     fn control_panel(&mut self) -> Vec<apps::Node> {
         let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
         let current = self.settings.value.wallpaper.file(&self.theme);
-        control::menu(current.as_deref(), &walls, self.effects.toggles)
+        control::menu(
+            current.as_deref(),
+            &walls,
+            self.effects.toggles,
+            self.volume.unwrap_or(Reading::Failed),
+            &self.held_shortcuts(),
+        )
     }
 
     /// Changes a setting: the scale of the output of the menu through the
@@ -3120,6 +3229,20 @@ impl Wm {
                 toggles.flip(*effect);
                 self.change(json!({ "effects": toggles }))
             }
+            Setting::Volume(change) => self.change_volume(*change, false),
+            Setting::Give(to) => {
+                if let Err(err) = give::focused(self, to) {
+                    let message = Message {
+                        icon: "",
+                        summary: "Keyboard Shortcuts",
+                        body: &err.message,
+                        expire_ms: -1,
+                    };
+                    self.notifier.show("chora-xp", None, &message);
+                }
+                Vec::new()
+            }
+            Setting::Note => Vec::new(),
             Setting::Taskbar | Setting::DateTime | Setting::Display => {
                 let area = output
                     .and_then(|o| self.bars.iter().find(|b| b.output == o))
@@ -3568,7 +3691,28 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
 
 #[cfg(test)]
 mod tests {
+    use chora_kit::volume::Change;
+
     use super::*;
+
+    /// The volume keys and the chat key are bound as on tiling.
+    #[test]
+    fn the_media_keys_and_the_chat_key_are_bound() {
+        let bound = |name: &str| KEYS.iter().find(|(b, _, _)| *b == name).map(|k| k.2);
+        assert!(matches!(
+            bound("XF86AudioRaiseVolume"),
+            Some(Key::Volume(Change::Up))
+        ));
+        assert!(matches!(
+            bound("XF86AudioLowerVolume"),
+            Some(Key::Volume(Change::Down))
+        ));
+        assert!(matches!(
+            bound("XF86AudioMute"),
+            Some(Key::Volume(Change::Mute))
+        ));
+        assert!(matches!(bound("Super+a"), Some(Key::Chat)));
+    }
 
     /// A window that comes back from the space lands with the middle of
     /// its title bar at the drop point, and never wholly off its output.

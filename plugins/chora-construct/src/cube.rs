@@ -48,7 +48,7 @@ const TURN: Duration = Duration::from_millis(500);
 /// How long the window manager may take to connect.
 const CONNECT: Duration = Duration::from_secs(10);
 /// The most faces: the side faces of a cube.
-const FACES: usize = 4;
+pub(crate) const FACES: usize = 4;
 /// The most that a window lifts off its face to clear the planes of a
 /// neighbour face, and the room it keeps from them.
 const CLEAR_CAP: f64 = 2.0 * float::LIFT;

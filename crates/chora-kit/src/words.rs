@@ -23,6 +23,16 @@ impl Language {
             Self::En
         }
     }
+
+    /// The language of the session, from `LC_ALL`, `LC_MESSAGES` and
+    /// `LANG`, the first one set.
+    #[must_use]
+    pub fn of_session() -> Self {
+        let tag = ["LC_ALL", "LC_MESSAGES", "LANG"]
+            .into_iter()
+            .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()));
+        tag.map_or(Self::En, |tag| Self::from_tag(&tag))
+    }
 }
 
 /// A word of the screen.
@@ -120,6 +130,21 @@ pub enum Word {
     TurnLeft,
     /// The control that turns a cube to the right.
     TurnRight,
+    /// The control that opens a cube.
+    OpenCube,
+    /// The title of the volume indicator.
+    Volume,
+    /// The sound output is muted.
+    SoundMuted,
+    /// The volume program `wpctl` is not installed.
+    NoWpctl,
+    /// No sound output device is there.
+    NoOutputDevice,
+    /// A change of the volume failed.
+    ChangeFailed,
+    /// A typed key that does nothing in the construct; `{key}` shows the
+    /// keys.
+    KeysWalk,
     /// A line typed before a helper was picked from the list.
     PickFirst,
     /// The entry of the list that starts a helper for a project.
@@ -127,7 +152,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 48] = [
+pub const ALL: [Word; 55] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -174,6 +199,13 @@ pub const ALL: [Word; 48] = [
     Word::StepIn,
     Word::TurnLeft,
     Word::TurnRight,
+    Word::OpenCube,
+    Word::Volume,
+    Word::SoundMuted,
+    Word::NoWpctl,
+    Word::NoOutputDevice,
+    Word::ChangeFailed,
+    Word::KeysWalk,
     Word::PickFirst,
     Word::NewHelper,
 ];
@@ -188,6 +220,7 @@ impl Word {
         }
     }
 
+    #[allow(clippy::too_many_lines, reason = "one line per word")]
     fn en(self) -> &'static str {
         match self {
             Self::Asleep => "Asleep. Say \"Hey Chora\".",
@@ -240,11 +273,19 @@ impl Word {
             Self::StepIn => "Step in",
             Self::TurnLeft => "Turn left",
             Self::TurnRight => "Turn right",
+            Self::OpenCube => "Open cube",
+            Self::Volume => "Volume",
+            Self::SoundMuted => "Muted",
+            Self::NoWpctl => "wpctl not found",
+            Self::NoOutputDevice => "No output device",
+            Self::ChangeFailed => "Change failed",
+            Self::KeysWalk => "The keys walk here. {key} shows them all.",
             Self::PickFirst => "Pick a helper first: type its number and press Enter, or click it.",
             Self::NewHelper => "New helper for {project}",
         }
     }
 
+    #[allow(clippy::too_many_lines, reason = "one line per word")]
     fn de(self) -> &'static str {
         match self {
             Self::Asleep => "Schläft. Sagen Sie „Hallo Chora“.",
@@ -301,6 +342,13 @@ impl Word {
             Self::StepIn => "Hineingehen",
             Self::TurnLeft => "Nach links drehen",
             Self::TurnRight => "Nach rechts drehen",
+            Self::OpenCube => "Würfel öffnen",
+            Self::Volume => "Lautstärke",
+            Self::SoundMuted => "Stumm",
+            Self::NoWpctl => "wpctl nicht gefunden",
+            Self::NoOutputDevice => "Kein Ausgabegerät",
+            Self::ChangeFailed => "Änderung fehlgeschlagen",
+            Self::KeysWalk => "Hier bewegen die Tasten die Ansicht. {key} zeigt alle.",
             Self::PickFirst => {
                 "Wählen Sie zuerst einen Helfer: Nummer eingeben und Enter drücken, oder anklicken."
             }

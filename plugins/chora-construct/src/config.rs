@@ -222,7 +222,8 @@ pub struct Config {
     pub radius: f64,
     /// The distance of a new pane in logical pixels.
     pub pane_distance: f64,
-    /// Keysym name to action.
+    /// Keysym name to action; a key that starts or closes something
+    /// names its modifier, as in `Super+t`.
     pub keys: BTreeMap<String, Action>,
     /// The shell command of the action `terminal`.
     pub terminal: String,
@@ -340,6 +341,36 @@ impl Settings for Config {
 }
 
 impl Config {
+    /// The action of a key that the space got: the key with its Ctrl,
+    /// Alt and Super in that order, as in `Super+t`. Shift is part of
+    /// the key, as in `T`.
+    #[must_use]
+    pub fn action(&self, key: &str, modifiers: &[String]) -> Option<Action> {
+        let mut name: Vec<&str> = ["Ctrl", "Alt", "Super"]
+            .into_iter()
+            .filter(|m| modifiers.iter().any(|held| held == m))
+            .collect();
+        name.push(key);
+        self.keys.get(&name.join("+")).copied()
+    }
+
+    /// The warnings of a configuration that works but surprises: a key
+    /// that starts or closes something without a modifier, which typed
+    /// text presses.
+    #[must_use]
+    pub fn warnings(&self) -> Vec<String> {
+        let opens = [Action::Terminal, Action::Launcher, Action::Close];
+        (self.keys.iter())
+            .filter(|(key, action)| opens.contains(action) && !key.contains('+'))
+            .map(|(key, _)| {
+                format!(
+                    "the key {key} starts or closes something without a modifier: \
+                     text typed into the space presses it; name Super, as in Super+{key}"
+                )
+            })
+            .collect()
+    }
+
     /// The rows of the help panel: the keys of each action, the fly-out
     /// binding, and the drag and the wheel with the modifier.
     #[must_use]
@@ -411,6 +442,13 @@ impl Config {
     }
 }
 
+/// Logs the [`Config::warnings`] of a configuration, one line each.
+pub fn log_warnings(config: &Config) {
+    for warning in config.warnings() {
+        eprintln!("chora-construct: {warning}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,10 +458,44 @@ mod tests {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
         config.check().unwrap();
         assert_eq!(config.keys["Return"], Action::FlyIn);
-        assert_eq!(config.keys["space"], Action::Launcher);
+        assert_eq!(config.keys["Super+space"], Action::Launcher);
         assert_eq!(config.keys["Tab"], Action::Windows);
         assert_eq!(config.voice_hud, VoiceHud::Host, "one voice indicator");
         assert_eq!(config.style.font, "Inter");
+    }
+
+    /// A key that starts or closes something takes the modifier, so
+    /// that text typed into the space starts nothing; the walk keys
+    /// take none, and Shift is part of the key.
+    #[test]
+    fn keys_that_start_or_close_need_super() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let super_ = ["Super".to_owned()];
+        for key in ["t", "space", "x"] {
+            assert_eq!(config.action(key, &[]), None, "{key} alone");
+        }
+        assert_eq!(config.action("t", &super_), Some(Action::Terminal));
+        assert_eq!(config.action("space", &super_), Some(Action::Launcher));
+        assert_eq!(config.action("x", &super_), Some(Action::Close));
+        assert_eq!(config.action("w", &[]), Some(Action::Forward));
+        assert_eq!(config.action("w", &super_), None);
+        let shift = ["Shift".to_owned()];
+        assert_eq!(config.action("Return", &shift), Some(Action::FlyIn));
+    }
+
+    /// A start or close key without a modifier still works, but the load
+    /// warns: typed text would start or close something.
+    #[test]
+    fn a_start_or_close_key_without_a_modifier_warns() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.warnings(), Vec::<String>::new());
+        let plain = DEFAULT.replace("Super+t: terminal", "t: terminal");
+        let config: Config = serde_saphyr::from_str(&plain).unwrap();
+        assert_eq!(
+            config.warnings(),
+            ["the key t starts or closes something without a modifier: \
+              text typed into the space presses it; name Super, as in Super+t"]
+        );
     }
 
     /// The defaults reach the ratios of rule 5, and a muted that is too

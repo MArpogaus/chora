@@ -83,6 +83,12 @@ window there. While the camera is in a pane no chip shows: the keys
 of the cube do not hold there. A `cube.open` from inside a pane first
 leaves the pane, so the cube opens ahead of where the person stood.
 
+While no cube is open, the chip `OPEN CUBE` shows at the bottom left of
+the construct, away from the voice HUD at the bottom right. A click on it
+opens a cube of four faces, as `cube.open` without params does, and the
+chip hides while the cube is open. A refusal, for example while another
+client `xp` runs, shows in the HUD.
+
 ## Words
 
 | Key | English | German |
@@ -91,6 +97,7 @@ leaves the pane, so the cube opens ahead of where the person stood.
 | step in | STEP IN | HINEINGEHEN |
 | turn left | TURN LEFT | NACH LINKS DREHEN |
 | turn right | TURN RIGHT | NACH RECHTS DREHEN |
+| open a cube | OPEN CUBE | WÜRFEL ÖFFNEN |
 
 The voice agent says what happened in the same words: "I stepped back",
 "I turned the cube to the left".

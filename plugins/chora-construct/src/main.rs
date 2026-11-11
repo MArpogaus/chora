@@ -131,6 +131,9 @@ const GLASS_SHADER: &str = include_str!("../glass.frag");
 const GLOW_SHADER: &str = include_str!("../glow.frag");
 /// The notice of a window that finds no room in the view.
 const NO_ROOM: &str = "No room in view: in the window list (Tab)";
+/// How long the notice of a typed key that does nothing waits before it
+/// shows again.
+const KEYS_WALK_AGAIN: Duration = Duration::from_secs(10);
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
 /// The left button, as Linux names it.
@@ -469,6 +472,8 @@ struct Construct {
     launcher: Option<(String, Option<u32>)>,
     launcher_window: Option<String>,
     launched: Option<Instant>,
+    /// When the notice of the walk keys last showed.
+    keys_walked: Option<Instant>,
     output: Option<OutputInfo>,
     lens: Lens,
     pose: Pose,
@@ -556,6 +561,7 @@ fn shader_file(
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-construct")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
+    config::log_warnings(&settings.value);
     let rt = Runtime::connect(NAME, Vec::new())?;
     let start = Pose::default();
     let shader = |name: &str, text: &str| {
@@ -582,6 +588,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         launcher: None,
         launcher_window: None,
         launched: None,
+        keys_walked: None,
         output: None,
         lens: Lens::new(1280.0, 800.0),
         pose: start,

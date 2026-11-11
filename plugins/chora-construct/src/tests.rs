@@ -1,7 +1,7 @@
 //! Unit tests of the construct plugin.
 
 use super::*;
-use crate::{adopt::*, camera::*};
+use crate::{adopt::*, camera::*, input::keys_walk_due};
 
 /// `x` and Return act on a pane that shows, not on one beyond the
 /// depth of the view (review 2.5).
@@ -289,6 +289,16 @@ fn a_camera_glide_is_slow_at_both_ends() {
     assert!(ease_in_out(0.1) < 0.01 && ease_in_out(0.9) > 0.99);
     let steps: Vec<f64> = (0..=20).map(|i| ease_in_out(f64::from(i) / 20.0)).collect();
     assert!(steps.windows(2).all(|w| w[1] >= w[0]));
+}
+
+/// The notice of a typed key that does nothing shows at most once in 10
+/// seconds, so that typed text gives one notice, not one per key.
+#[test]
+fn the_notice_of_the_walk_keys_waits_ten_seconds() {
+    let now = Instant::now();
+    assert!(keys_walk_due(None, now));
+    assert!(!keys_walk_due(Some(now), now + Duration::from_secs(9)));
+    assert!(keys_walk_due(Some(now), now + Duration::from_secs(10)));
 }
 
 /// A manager pane of a file names a manager that the setting `managers`

@@ -341,8 +341,8 @@ Several window managers share the scene (D55). A window manager sets
 a toplevel, the core reserves it for one window manager:
 
 1. the owner of its parent toplevel, for a dialog;
-2. else the window manager that a click of the user chose, if it holds
-   a claim;
+2. else the window manager that a click or a key of the user chose, if
+   it holds a claim;
 3. else the owner of the node or surface with the keyboard focus, if it
    holds a claim;
 4. else the owner of the smallest claim that contains the pointer.
@@ -350,7 +350,12 @@ a toplevel, the core reserves it for one window manager:
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
-window manager gets the next new windows there. The choice ends with
+window manager gets the next new windows there. A key of the user that
+a window manager grabbed chooses that one in the same way when its
+claim holds the pointer or the keyboard focus, unless it has the
+keyboard focus anyway: the window that its key starts, such as the
+terminal of `Super+Return`, opens where the person is. Elsewhere the
+key changes nothing. The choice ends with
 the next press of the user that chooses nobody, and when the keyboard
 focus changes, for example when the chosen manager focuses its new
 window. An injected press neither chooses nor ends a choice.
@@ -731,7 +736,7 @@ answers every request.
 | `scene.apply(commands)` | apply a transaction |
 | `events.subscribe(events)` | stream the named events, or all core events for an empty list, as notifications; a name can be the event of a client, such as `voice.state`, or a pattern such as `voice.*` (D65); answers with a snapshot of the scene first (see [Events](#events)); each subscribed connection gets each event, also when several connections share a client name; an unknown core name is refused |
 | `events.emit(event, data)` | send an event of this client, named `NAME.something` after its client name, with `data` of at most 64 KiB to its subscribers; at most 32 per second per client name, the rest fails with code 6 (see [Events](#events), D65) |
-| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
+| `input.grab(binding)` | get the events of a key or a pointer button with modifiers, for example `Super+Return` or `Super+BTN_LEFT`, or `move` for the interactive moves of the own windows; a binding needs Ctrl, Alt or Super unless the client has the capability `input.grab-any`, or the key is a media key below and the client is an unconfined window manager with a claim; window managers with claims on the main socket can share a button binding (D55); `Ctrl+Alt` with a key of the safety layer stays refused either way; an unknown key fails with code -32602; returns the binding as `input.key` and `input.button` name it |
 | `input.ungrab(binding)` | end a grab of this connection; a grab also ends with its connection |
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
@@ -837,7 +842,12 @@ zones of layer surfaces leave free. At least one pixel of the work area
 stays. `choractl reserve --top 30` holds a reserve until it ends.
 
 A key binding needs Ctrl, Alt or Super, so that typing still works, unless
-the client holds `input.grab-any` (D45). The
+the client holds `input.grab-any` (D45). A window manager, an
+unconfined client that holds a claim, grabs these media keys without a
+modifier, as they type nothing: `XF86AudioRaiseVolume`,
+`XF86AudioLowerVolume`, `XF86AudioMute`, `XF86AudioMicMute`,
+`XF86AudioPlay`, `XF86AudioNext`, `XF86AudioPrev`,
+`XF86MonBrightnessUp` and `XF86MonBrightnessDown`. The
 bindings of the safety layer, Ctrl+Alt with BackSpace, Escape, i or F1 to
 F12, belong to no client. A key binding has one owner at a time. A pointer button binding has one
 owner too, unless each client that grabs it holds a claim and is on the

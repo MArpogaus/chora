@@ -228,7 +228,7 @@ default map:
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
 | `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -711,8 +711,8 @@ Else it goes a little to the side, nearer or farther, but only to a spot
 where its whole face shows in the view and covers no other pane. When no
 spot in the view is free, the window becomes no pane: it waits in the
 window list, and the HUD shows "No room in view: in the window list
-(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys `t`
-and `space` and a window that another window manager gives to the
+(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys
+`Super+t` and `Super+space` and a window that another window manager gives to the
 construct follow the same rule. A pane of a construct file and a choice
 in the window list come also when the view is full, beside the panes in
 the way. The space lies on
@@ -742,12 +742,12 @@ at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
 flies back to the pose before. `tests/gate-construct-3d.sh` checks the
 direct input.
 
-`t` starts the terminal, and its window becomes a pane in the view
-direction. `space` starts the launcher. The launcher itself is no pane:
+`Super+t` starts the terminal, and its window becomes a pane in the view
+direction. `Super+space` starts the launcher. The launcher itself is no pane:
 a layer-shell launcher such as fuzzel shows over the space, and a
 launcher window that maps with the activation token of its start shows
 in the middle of the output. The first other window after the launcher
-becomes a pane, also beside another flavor. `x` asks the window of the
+becomes a pane, also beside another flavor. `Super+x` asks the window of the
 pane nearest the middle of the view to close, as a close button does, so
 a program can ask about unsaved work first; the pane goes when the
 window closes. `tests/gate-construct-keys.sh` checks the three keys.
@@ -764,7 +764,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help` |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help`. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
@@ -887,7 +887,7 @@ windows of the other flavor.
 | `pane.manager` | privileged. `manager`, a key of the setting `managers`, and `size`, `[width, height]` in logical pixels, 1024 x 768 by default and at most the view: adds a virtual output of that size, starts the window manager on it as a child with `--output NAME`, and shows the output in a pane ahead. The pane passes the pointer into the output at any place and turn (D69), so the windows of the manager take clicks; the modifier with a drag moves the pane. One pane per manager: refused while a client of that name runs, in a pane, on the cube or by itself. While the construct has the keyboard, a new window under the pane goes to its manager; while a window in a pane has it, to the manager of that window (D55). A manager that ends, or does not connect within 10 s, takes its pane and its output with it; `pane.remove` ends it, and the child gets `SIGTERM` when the construct ends. The windows on the output then go back to the window manager that gave them, else to a screen (D69). Answers the `name` of the pane and its `output`. `tests/gate-construct-wm-pane.sh` checks it |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
-| `cube.open` | privileged. `faces`, 1 to 4, 4 by default: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
+| `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
 | `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat |
 | `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
 | `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
@@ -1275,7 +1275,16 @@ its own package and needs no configuration.
   `choractl call tiling get_tags` each second, and `jq` with
   `waybar/tags.jq` turns the answer into the text: the shown and the
   occupied tags, shown ones underlined, focused ones bold and urgent ones
-  red.
+  red. The volume module runs `waybar/volume.sh` each second, which asks
+  `wpctl` of WirePlumber for at most 2 seconds and prints `vol 40%` or
+  `vol muted`, or why there is no volume: `vol: wpctl not found`, `vol:
+  no output device` or `vol: no answer`, in German with a German
+  locale; a click mutes or unmutes, and the wheel changes the volume.
+  The unit starts waybar through `waybar/waybar.sh`, which leaves out
+  the outputs that are not tiling's, such as the output of `chora-xp`
+  beside tiling. It reads the outputs again every 2 seconds and starts
+  waybar again when the left-out ones changed. Without jq it ends with
+  an error.
 - **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
   `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
@@ -1552,6 +1561,15 @@ settings, as `settings.set` does:
 - **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off;
+- **Keyboard Shortcuts**: the keys that every window manager shares and
+  that `chora-xp` holds: `Super+Alt+1` to `Super+Alt+4`, which give the
+  focused window to tiling, xp, mc or construct, and `Super+a`, which
+  opens the chat. A key that another client holds is not on the menu,
+  and its refusal logs one line. A click on an entry does what its key
+  does;
+- **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
+  sound output, through `wpctl`; without a volume, one entry says why:
+  "wpctl not found", "No output device" or "Change failed";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -1575,7 +1593,13 @@ keyboard does not work it (D45):
   then reaches down to the strip, and maximized windows grow into it.
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
-  in the notification area, or shrinks the area without it. Group
+  in the notification area, or shrinks the area without it. Left of the
+  clock, the speaker shows the volume of the default sound output:
+  `40%` or `Muted`, or why there is none: `wpctl not found`, `No output
+  device` or `Change failed`, in the language of the session, and it
+  grows to fit the words. `wpctl` runs on a thread of its own, at most 2
+  seconds a call, after each change and every 5 seconds; a click on the
+  speaker mutes or unmutes. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
@@ -1705,6 +1729,8 @@ of another client changes nothing.
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
 | Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
 | Super+e | start the terminal |
+| Super+a | open the chat (`chora-chat`), as on tiling |
+| XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |

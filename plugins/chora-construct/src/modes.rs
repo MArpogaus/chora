@@ -34,6 +34,8 @@ const ICON: &str = "xp-icon-";
 /// The room that the chips leave for a taskbar that the construct
 /// cannot see yet.
 const BAR: f64 = 40.0;
+/// The chip that opens a cube while none is open: the visible way in.
+pub(crate) const OPEN_CUBE: &str = "construct-open-cube";
 /// The chips in the order of the screen, from the left.
 const CHIPS: [Word; 4] = [
     Word::StepBack,
@@ -161,13 +163,14 @@ impl Construct {
         self.draw_modes()
     }
 
-    /// Removes the chips of a cube that went.
+    /// Removes the chips of a cube that went, and shows OPEN CUBE again.
     pub(crate) fn close_modes(&mut self) -> Result<(), ClientError> {
         self.rt.conn.try_apply(vec![Command::Remove {
             id: MODES.into(),
             to: None,
         }])?;
-        self.regrab()
+        self.regrab()?;
+        self.draw_open_cube()
     }
 
     /// The top of the taskbar of the front face on the screen: the chips
@@ -211,6 +214,7 @@ impl Construct {
     /// pane. Also after the output changed.
     /// They stay left of the desktop icons in their row.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
+        self.draw_open_cube()?;
         let flown = self.flown.is_some();
         let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
             return Ok(());
@@ -230,6 +234,23 @@ impl Construct {
             }
             commands
         })?;
+        self.rt.conn.try_apply(commands).map(drop)
+    }
+
+    /// The chip OPEN CUBE at the bottom left, while no cube is open.
+    fn draw_open_cube(&mut self) -> Result<(), ClientError> {
+        let text = Word::OpenCube.text(language()).to_uppercase();
+        let mut commands = Vec::new();
+        if (self.rt.conn).query(&format!("id:{OPEN_CUBE}"))?.is_empty() {
+            commands.extend(self.styled().chip(OPEN_CUBE, NAME, &text));
+        }
+        let show = self.cube.is_none();
+        let bottom = self.lens.h;
+        commands.extend(self.fitted(|s| {
+            let look = s.styled();
+            let width = look.place_chip(OPEN_CUBE, &text, [0.0, bottom], false).1;
+            look.place_chip(OPEN_CUBE, &text, [width, bottom], show).0
+        })?);
         self.rt.conn.try_apply(commands).map(drop)
     }
 
@@ -349,12 +370,12 @@ impl Construct {
     /// keys of the view act and the others go on to the walk. In use
     /// mode the keys of the walk do nothing, so that the face stays at
     /// 1:1; the keys that open something go on.
-    fn key_act(&self, view: View, key: &str) -> Option<Pressed> {
+    fn key_act(&self, view: View, key: &str, modifiers: &[String]) -> Option<Pressed> {
         if let Some(act) = view.key(key) {
             return Some(Pressed::Act(act));
         }
         let opens = matches!(
-            self.settings.value.keys.get(key),
+            self.settings.value.action(key, modifiers),
             Some(Action::Terminal | Action::Launcher | Action::Windows | Action::Help)
         );
         (view.mode() == Mode::Use && !opens).then_some(Pressed::Nothing)
@@ -478,8 +499,9 @@ impl Construct {
                 node,
                 key,
                 state: PressState::Pressed,
+                modifiers,
                 ..
-            } if node == LOOK => self.key_act(view, key),
+            } if node == LOOK => self.key_act(view, key, modifiers),
             Event::PointerPressed {
                 node,
                 button,

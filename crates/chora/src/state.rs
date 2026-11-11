@@ -923,6 +923,46 @@ impl State {
         self.chosen_manager = claimant.map(|manager| (manager, self.focus_now()));
     }
 
+    /// A key of the user that the window manager of `conn` grabbed
+    /// chooses it for the next new windows, as a click on its empty claim
+    /// does (D55), when its claim holds the pointer or the keyboard focus:
+    /// the window that the key starts opens where the person is. A
+    /// manager that has the keyboard focus anyway is chosen by the focus,
+    /// so the key changes nothing then, nor anywhere else.
+    pub fn choose_manager_of(&mut self, conn: u64) {
+        let Some(name) = self.ipc.name(conn).map(String::from) else {
+            return;
+        };
+        let scene = &self.scene;
+        let focused = self.focused_surface();
+        let focus_owner = scene
+            .focused_node_owner()
+            .or_else(|| scene.node(focused?)?.owner.as_deref());
+        if focus_owner == Some(name.as_str()) {
+            return;
+        }
+        let pointer = self
+            .spot(self.pointer_layout)
+            .map(|s| [s.scene.x, s.scene.y]);
+        let focus = focused.and_then(|id| {
+            let list = scene.draw_list();
+            let placed = list.iter().find(|p| p.node.id == id)?;
+            let (x, y) = placed.transform.apply(0.0, 0.0);
+            Some([x, y])
+        });
+        let claims = |[px, py]: [f64; 2]| {
+            scene.nodes().any(|n| {
+                n.owner.as_deref() == Some(name.as_str())
+                    && n.props.claim.is_some_and(|[x, y, w, h]| {
+                        (x..x + w).contains(&px) && (y..y + h).contains(&py)
+                    })
+            })
+        };
+        if pointer.into_iter().chain(focus).any(claims) {
+            self.chosen_manager = Some((name, self.focus_now()));
+        }
+    }
+
     /// Notes a key or button press. A real one is the newest real press;
     /// an injected one ends the real press and the act before it, so that
     /// no token carries an act that an injection hides. In the test mode

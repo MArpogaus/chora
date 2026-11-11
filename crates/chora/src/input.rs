@@ -145,6 +145,9 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         }
         Some(KeyAction::Grab(conn, binding, injected)) => {
             state.note_act(vec![conn]);
+            if !injected && key_state == KeyState::Pressed {
+                state.choose_manager_of(conn);
+            }
             hold_grab(state, conn, binding, code, injected);
         }
         Some(KeyAction::Node(owner, event)) => {
@@ -1791,6 +1794,19 @@ mod tests {
         tap(&mut core, A);
         wayland.roundtrip(&mut core);
         assert_eq!(wayland.key_serials().len(), 2);
+    }
+
+    /// A key with Super that nobody grabbed reaches the window, as any
+    /// key does: a nested compositor, a virtual machine or a game may
+    /// want it. The window managers grab only the keys they document.
+    #[test]
+    fn an_unbound_super_key_reaches_the_window() {
+        let (mut core, mut wayland, _window, _wm, _xp) = window_and_menu();
+        press(&mut core, SUPER, true);
+        tap(&mut core, A);
+        press(&mut core, SUPER, false);
+        wayland.roundtrip(&mut core);
+        assert_eq!(wayland.key_serials().len(), 4, "Super and Super+a");
     }
 
     #[test]
