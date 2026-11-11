@@ -63,6 +63,25 @@ pub struct Settings {
     pub clock: bool,
 }
 
+/// What shows an output: a screen, or the client that added a virtual
+/// output.
+enum Kind {
+    Screen,
+    Virtual { owner: Option<String> },
+}
+
+impl Kind {
+    fn of(output: &OutputInfo) -> Self {
+        if output.is_virtual == Some(true) {
+            Self::Virtual {
+                owner: output.owner.clone(),
+            }
+        } else {
+            Self::Screen
+        }
+    }
+}
+
 /// A window as its task button shows it.
 #[derive(Clone)]
 pub struct Task<'a> {
@@ -124,6 +143,8 @@ pub struct Bar {
     /// The buttons of the desktops show: not on a virtual output, where
     /// the plugin has no cube of its own.
     pager: bool,
+    /// What shows the output.
+    kind: Kind,
     /// How far the taskbar slid down, and how far it goes.
     offset: f64,
     target: f64,
@@ -140,6 +161,7 @@ impl Bar {
             auto_hide: false,
             clock: true,
             pager: output.is_virtual != Some(true),
+            kind: Kind::of(output),
             offset: 0.0,
             target: 0.0,
         }
@@ -220,6 +242,19 @@ impl Bar {
     /// Whether the taskbar shows the buttons of the desktops.
     pub fn has_pager(&self) -> bool {
         self.pager
+    }
+
+    /// Whether the output is a virtual one, which a client shows.
+    pub fn is_virtual(&self) -> bool {
+        matches!(self.kind, Kind::Virtual { .. })
+    }
+
+    /// The client that added the virtual output.
+    pub fn owner(&self) -> Option<&str> {
+        match &self.kind {
+            Kind::Virtual { owner } => owner.as_deref(),
+            Kind::Screen => None,
+        }
     }
 
     /// Whether a point lies in the work area of the output.
@@ -627,6 +662,7 @@ mod tests {
             auto_hide: false,
             clock: true,
             pager: true,
+            kind: Kind::Screen,
             offset: 0.0,
             target: 0.0,
         }

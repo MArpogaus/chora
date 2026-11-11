@@ -16,12 +16,12 @@ use serde_json::Value;
 
 use super::{Bar, NAME, Wm, decoration};
 
-/// The outputs that float, the windows that float as last sent, and the
-/// opacity that another client asked for a window (D58), which a window
-/// has again when it lands.
+/// The outputs that float, each with the client that added it, the
+/// windows that float as last sent, and the opacity that another client
+/// asked for a window (D58), which a window has again when it lands.
 #[derive(Default)]
 pub(super) struct Floats {
-    outputs: BTreeSet<String>,
+    outputs: BTreeMap<String, Option<String>>,
     sent: BTreeMap<String, Vec<Floating>>,
     asked: HashMap<String, f64>,
 }
@@ -32,6 +32,24 @@ impl Floats {
     pub(super) fn ask(&mut self, surface: &str, opacity: f64) -> bool {
         self.asked.insert(surface.to_owned(), opacity);
         !self.floats(surface)
+    }
+
+    /// Notes the opacity that a window had before a restart.
+    pub(super) fn seed(&mut self, surface: &str, opacity: f64) {
+        self.asked.insert(surface.to_owned(), opacity);
+    }
+
+    /// Every output floats no more: before a restart, which must leave no
+    /// window hidden.
+    pub(super) fn land_all(&mut self) {
+        self.outputs.clear();
+    }
+
+    /// A client went: the outputs that it added float no more, so that
+    /// their windows show while the outputs wait for their owner.
+    pub(super) fn owner_gone(&mut self, client: &str) {
+        self.outputs
+            .retain(|_, owner| owner.as_deref() != Some(client));
     }
 
     /// Forgets a window that went.
@@ -64,12 +82,13 @@ impl Wm {
     /// from now on, or no more. Answers the floating windows.
     pub(super) fn float(&mut self, Float { output, on }: Float) -> Result<Value, RpcError> {
         let rejected = |message: String| RpcError::new(RpcError::REJECTED, message);
-        let faces = |b: &Bar| b.output == output && !b.has_pager();
-        if !self.bars.iter().any(faces) {
+        let faces = |b: &&Bar| b.output == output && b.is_virtual();
+        let Some(bar) = self.bars.iter().find(faces) else {
             return Err(rejected(format!("xp has no virtual output {output}")));
-        }
+        };
         if on {
-            self.floats.outputs.insert(output.clone());
+            let owner = bar.owner().map(str::to_owned);
+            self.floats.outputs.insert(output.clone(), owner);
         } else {
             self.floats.outputs.remove(&output);
         }
@@ -83,7 +102,7 @@ impl Wm {
     /// that show on a floating output.
     fn floating(&self) -> BTreeMap<String, Vec<Floating>> {
         let mut now = BTreeMap::new();
-        for output in &self.floats.outputs {
+        for output in self.floats.outputs.keys() {
             let Some(bar) = self.bars.iter().find(|b| b.output == *output) else {
                 continue;
             };
@@ -113,7 +132,7 @@ impl Wm {
             return Vec::new();
         }
         let bars = &self.bars;
-        (self.floats.outputs).retain(|o| bars.iter().any(|b| b.output == *o));
+        (self.floats.outputs).retain(|o, _| bars.iter().any(|b| b.output == *o && b.is_virtual()));
         let now = self.floating();
         if now == self.floats.sent {
             return Vec::new();

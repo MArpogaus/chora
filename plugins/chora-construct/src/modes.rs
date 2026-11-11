@@ -272,7 +272,8 @@ impl Construct {
         };
         let call = json!({"client": cube::MANAGER, "method": "activate",
             "params": {"surface": surface}});
-        let activated: Result<Value, _> = self.rt.conn.call("methods.call", call);
+        let wait = super::float::ANSWER;
+        let activated: Result<Value, _> = (self.rt.conn).call_within("methods.call", call, wait);
         if let Err(err) = activated {
             eprintln!("chora-construct: the focus after the step in: {err}");
         }

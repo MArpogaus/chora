@@ -86,7 +86,8 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 19] = [
+const EVENTS: [&str; 20] = [
+    "client.disconnected",
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -634,6 +635,10 @@ impl Wm {
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
+            Event::ClientDisconnected { name } => {
+                self.floats.owner_gone(&name);
+                Vec::new()
+            }
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -681,6 +686,7 @@ impl Wm {
                 self.activate(&surface)
             }
             Call::Restart => {
+                self.floats.land_all();
                 self.apply(self.keep_for_restart())
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 self.done = true;
@@ -784,6 +790,9 @@ impl Wm {
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk, false);
         if let Some(look) = self.kept.get(surface).map(|k| k.look.clone()) {
+            if let Some(opacity) = look.opacity {
+                self.floats.seed(surface, opacity);
+            }
             commands.push(Command::Update {
                 id: decoration::group_id(surface),
                 props: look,
@@ -1187,7 +1196,7 @@ impl Wm {
         let per_output = self.settings.value.tasks_per_output;
         let lists: Vec<Vec<Task<'_>>> = (self.bars.iter().enumerate())
             .map(|(i, bar)| {
-                let own = per_output || !bar.has_pager();
+                let own = per_output || bar.is_virtual();
                 let listed = tasks.iter().filter(|(_, at)| !own || *at == i);
                 listed.map(|(task, _)| task.clone()).collect()
             })
@@ -3174,6 +3183,7 @@ impl Wm {
                 if let Some(command) = session.restart {
                     session::run(command);
                 } else {
+                    self.floats.land_all();
                     commands.extend(self.keep_for_restart());
                     self.done = true;
                     self.restart = true;

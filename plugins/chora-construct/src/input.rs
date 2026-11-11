@@ -62,6 +62,7 @@ impl Construct {
                 if !nodes.is_empty() {
                     eprintln!("chora-construct: layers stay out: {}", nodes.join(" "));
                 }
+                self.float_dropped(&nodes)?;
                 let ours = [
                     "construct-hud",
                     "construct-ask",

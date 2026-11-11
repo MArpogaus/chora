@@ -8,6 +8,7 @@
 //! the cube go.
 
 use std::{
+    collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
     process::{Child, Stdio},
     time::{Duration, Instant},
@@ -28,6 +29,8 @@ use super::{
 
 /// The group of the cube in the camera group, and the prefix of a face.
 pub(crate) const CUBE: &str = "construct-cube";
+/// The prefix of every node of the cube: its faces and the planes of
+/// its floating windows.
 pub(crate) const CUBE_PREFIX: &str = "construct-cube-";
 const FACE: &str = "construct-cube-face-";
 /// The client name of the window manager of the cube.
@@ -78,9 +81,14 @@ pub(crate) struct Host {
     /// the step back.
     pub(crate) switching: bool,
     /// The floating windows of each face, the lowest first, while they
-    /// float (`float.rs`); and when their planes go after they landed.
-    floats: Option<Vec<Vec<Floating>>>,
+    /// float (`float.rs`), and when their planes go after they landed.
+    floats: Vec<Option<Vec<Floating>>>,
     landing: Option<Instant>,
+    /// The faces whose window manager owes an answer, when the construct
+    /// asks again, and the faces that stay flat until the cube rests.
+    owing: BTreeSet<usize>,
+    again: Option<Instant>,
+    denied: BTreeSet<usize>,
 }
 
 fn face_id(i: usize) -> String {
@@ -177,8 +185,7 @@ impl Host {
     /// each at the place of its window, off the face by its lift, which
     /// grows with the stand back and with the turn.
     fn planes(&self, i: usize, shows: bool) -> Vec<Command> {
-        let windows = self.floats.as_ref().and_then(|f| f.get(i));
-        let windows = windows.map(Vec::as_slice).unwrap_or_default();
+        let windows = self.floats_of(i).unwrap_or_default();
         let phase = self.stand.max(turned(self.angle));
         let plane = |(k, window): (usize, &Floating)| {
             let lift = float::lift(phase, k, windows.len());
@@ -197,21 +204,39 @@ impl Host {
         windows.iter().enumerate().map(plane).collect()
     }
 
+    /// The updates of the planes of a face as it shows now.
+    pub(crate) fn plane_updates(&self, face: usize) -> Vec<Command> {
+        self.planes(face, self.shown.get(face) == Some(&true))
+    }
+
     /// The outputs in face order.
     pub(crate) fn outputs(&self) -> &[String] {
         &self.outputs
     }
 
-    /// Whether the windows float now: the cube stands back, steps or
-    /// turns. Not before the window manager connected.
+    /// Whether windows float now: the cube stands back, steps or turns.
+    /// Not before the window manager connected.
     pub(crate) fn wants_float(&self) -> bool {
         let moves = self.turn.is_some() || self.step.is_some() || self.stand > 0.0;
         self.connect_by.is_none() && (moves || !self.view.forwards())
     }
 
-    /// Whether the windows float, also while they land.
-    pub(crate) fn floating(&self) -> bool {
-        self.floats.is_some()
+    /// Whether the windows of a face float now: windows float, the face
+    /// shows, and its planes were not refused.
+    pub(crate) fn face_floats(&self, face: usize) -> bool {
+        let shows = self.shown.get(face) == Some(&true);
+        self.wants_float() && shows && !self.denied.contains(&face)
+    }
+
+    /// The floating windows of a face; none while it is flat.
+    pub(crate) fn floats_of(&self, face: usize) -> Option<&[Floating]> {
+        self.floats.get(face)?.as_deref()
+    }
+
+    /// The faces whose windows float.
+    pub(crate) fn floating(&self) -> Vec<usize> {
+        let faces = 0..self.floats.len();
+        faces.filter(|i| self.floats_of(*i).is_some()).collect()
     }
 
     /// When the planes of the landed windows go.
@@ -220,32 +245,68 @@ impl Host {
     }
 
     /// The windows land at a time, or float on.
-    pub(crate) fn land(&mut self, at: Option<Instant>) {
+    pub(crate) fn land_at(&mut self, at: Option<Instant>) {
         self.landing = at;
     }
 
-    /// The windows landed: answers the planes that go.
+    /// The windows landed and the cube rests: answers the planes that
+    /// go. Every face may float again.
     pub(crate) fn landed(&mut self) -> Vec<String> {
         self.landing = None;
-        let floats = self.floats.take().unwrap_or_default();
-        let ids = |(i, windows): (usize, Vec<Floating>)| {
-            let id = move |w: Floating| super::float::plane_id(i, &w.surface);
-            windows.into_iter().map(id)
-        };
-        floats.into_iter().enumerate().flat_map(ids).collect()
+        self.denied.clear();
+        let faces = 0..self.floats.len();
+        faces.flat_map(|i| self.set_floats(i, None)).collect()
     }
 
-    /// Sets the floating windows of a face; answers the planes of
-    /// before.
-    pub(crate) fn set_floats(&mut self, face: usize, windows: Vec<Floating>) -> Vec<String> {
-        let faces = self.outputs.len();
-        let floats = self.floats.get_or_insert_with(|| vec![Vec::new(); faces]);
-        let Some(slot) = floats.get_mut(face) else {
+    /// Sets the floating windows of a face, or none for a flat face;
+    /// answers the planes of before.
+    pub(crate) fn set_floats(
+        &mut self,
+        face: usize,
+        windows: Option<Vec<Floating>>,
+    ) -> Vec<String> {
+        let Some(slot) = self.floats.get_mut(face) else {
             return Vec::new();
         };
-        let old = std::mem::replace(slot, windows);
+        let old = std::mem::replace(slot, windows).unwrap_or_default();
         let id = |w: Floating| super::float::plane_id(face, &w.surface);
         old.into_iter().map(id).collect()
+    }
+
+    /// Notes whether the window manager owes an answer for a face.
+    /// Answers whether that is new.
+    pub(crate) fn owes(&mut self, face: usize, owes: bool) -> bool {
+        if owes {
+            self.owing.insert(face)
+        } else {
+            self.owing.remove(&face)
+        }
+    }
+
+    /// Whether the window manager owes an answer for a face.
+    pub(crate) fn owed(&self, face: usize) -> bool {
+        self.owing.contains(&face)
+    }
+
+    /// When the construct asks the window manager again.
+    pub(crate) fn asks_again(&self) -> Option<Instant> {
+        self.again
+    }
+
+    /// Sets when the construct asks again; none after every answer.
+    pub(crate) fn ask_again(&mut self, at: Option<Instant>) {
+        self.again = at;
+    }
+
+    /// A face stays flat until the cube rests.
+    pub(crate) fn deny(&mut self, face: usize) {
+        self.denied.insert(face);
+    }
+
+    /// Whether the cube waits for a time: the planes of landed windows
+    /// go, or the construct asks the window manager again.
+    fn waits(&self) -> bool {
+        self.landing.is_some() || self.again.is_some()
     }
 
     /// The mode of the view.
@@ -378,6 +439,7 @@ impl Construct {
         let reach = self.lens.focal + cube.size[0] / 2.0;
         Host {
             shown: vec![false; outputs.len()],
+            floats: vec![None; outputs.len()],
             outputs,
             child,
             connect_by: Some(Instant::now() + CONNECT),
@@ -395,8 +457,10 @@ impl Construct {
             focus: None,
             queued: false,
             switching: false,
-            floats: None,
             landing: None,
+            owing: BTreeSet::new(),
+            again: None,
+            denied: BTreeSet::new(),
         }
     }
 
@@ -477,8 +541,8 @@ impl Construct {
                 host.step = None;
             }
         }
-        self.sync_float()?;
-        self.frame()
+        self.frame()?;
+        self.sync_float()
     }
 
     /// The updates of the faces of the cube for the pose now.
@@ -489,8 +553,7 @@ impl Construct {
 
     /// Whether the cube turns or steps and needs frames.
     pub(crate) fn cube_turns(&self) -> bool {
-        (self.cube.as_ref())
-            .is_some_and(|c| c.turn.is_some() || c.step.is_some() || c.landing.is_some())
+        (self.cube.as_ref()).is_some_and(|c| c.turn.is_some() || c.step.is_some() || c.waits())
     }
 
     /// Closes the cube: its window manager ends, and its outputs and the
