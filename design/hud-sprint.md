@@ -411,8 +411,9 @@ Exit criteria of the sprint:
 - `chat: {slot: <name>}`: the host places the chat in the box the claim
   holder announces in `<wm>.chat.slot`; no box, the default place.
 - `chat: {margin: px}`, 0 to 128.
-- Panel colours `text`, `muted`, `accent`, each through the contrast
-  check of rule 5.
+- Panel colours `colours: {text, muted, accent}`, and `fill`, `border`,
+  `tail: left|right`, `chat.glow`, each through the contrast check of
+  rule 5 on every load (11-11, after the H8-H10 look round).
 - `figure: <picture in the folder>`, optional; the xp service reads
   hud.yaml.
 - The host finds folders in its own dir, then $XDG_DATA_HOME/chora/huds
