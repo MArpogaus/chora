@@ -135,6 +135,8 @@ struct Tiling {
     bent: HashMap<String, Target>,
     /// The meshes of a drag that the next transaction carries.
     meshes: Vec<Command>,
+    /// The indicator of the volume keys.
+    volume: chora_kit::volume::Indicator,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -178,6 +180,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         effects: Driver::new(&settings_effects),
         bent: HashMap::new(),
         meshes: Vec::new(),
+        volume: chora_kit::volume::Indicator::default(),
     };
     tiling.start()?;
     Ok(serve(&mut tiling)?)
@@ -880,6 +883,10 @@ impl Tiling {
                 Ok(())
             }
             Some(Effect::Close(surface)) => self.apply(vec![Command::Close { surface }]),
+            Some(Effect::Volume(change)) => {
+                self.volume.change(NAME, change);
+                Ok(())
+            }
             // The same path as the method `settings.reload`.
             Some(Effect::Reload) => {
                 if let Err(err) = runtime::reload_settings(self) {
@@ -1493,6 +1500,7 @@ mod tests {
             effects: Driver::new(effects),
             bent: HashMap::new(),
             meshes: Vec::new(),
+            volume: chora_kit::volume::Indicator::default(),
         };
         (tiling, methods)
     }
@@ -2002,5 +2010,52 @@ mod tests {
             [Command::Update { props, .. }] if props.visible == Some(false)
         ));
         assert_eq!(changes(Some(&hidden), &hidden).len(), 0);
+    }
+}
+
+/// The scripts of the panel in `flavors/tiling/waybar`, run with stand-ins
+/// of `wpctl` on the PATH.
+#[cfg(test)]
+mod panel {
+    use std::{os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+
+    fn waybar_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/waybar")
+    }
+
+    /// Runs `sh SCRIPT ARGS` with the stand-ins `(name, shell code)` first
+    /// on the PATH, and answers what it prints.
+    fn run(name: &str, script: &str, args: &[&str], fakes: &[(&str, &str)]) -> String {
+        let dir = std::env::temp_dir().join(format!("chora-panel-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a directory");
+        for (fake, code) in fakes {
+            let path = dir.join(fake);
+            std::fs::write(&path, format!("#!/bin/sh\n{code}\n")).expect("a stand-in");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        }
+        let path = format!("{}:/usr/bin:/bin", dir.display());
+        let out = Command::new("sh")
+            .arg(waybar_dir().join(script))
+            .args(args)
+            .env("PATH", path)
+            .env("XDG_RUNTIME_DIR", &dir)
+            .output()
+            .expect("sh runs");
+        let _ = std::fs::remove_dir_all(dir);
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    }
+
+    #[test]
+    fn the_volume_always_has_a_label() {
+        let volume = |name, answer: &str| run(name, "volume.sh", &[], &[("wpctl", answer)]);
+        assert_eq!(volume("loud", "echo 'Volume: 0.40'"), "vol 40%");
+        assert_eq!(volume("muted", "echo 'Volume: 0.40 [MUTED]'"), "vol muted");
+        assert_eq!(volume("none", "exit 1"), "vol none");
+        let config = std::fs::read_to_string(waybar_dir().join("config.jsonc")).expect("config");
+        assert!(config.contains("\"custom/volume\""), "{config}");
+        assert!(
+            !config.contains("\"pulseaudio\""),
+            "the unlabelled module is gone"
+        );
     }
 }

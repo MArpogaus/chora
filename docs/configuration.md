@@ -228,7 +228,7 @@ default map:
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
 | `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl` and shows it for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -1261,7 +1261,10 @@ its own package and needs no configuration.
   `choractl call tiling get_tags` each second, and `jq` with
   `waybar/tags.jq` turns the answer into the text: the shown and the
   occupied tags, shown ones underlined, focused ones bold and urgent ones
-  red.
+  red. The volume module runs `waybar/volume.sh` each second, which asks
+  `wpctl` of WirePlumber and prints `vol 40%`, `vol muted`, or `vol none`
+  without `wpctl` or a sound output; a click mutes or unmutes, and the
+  wheel changes the volume.
 - **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
   `chora-tiling` say. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.

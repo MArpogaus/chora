@@ -129,5 +129,9 @@ bindings:
   MOD+a: {run: chora-chat}
   # swayidle of the tiling flavor runs swaylock on this request
   MOD+Shift+Escape: {run: loginctl lock-session}
+  # Sound: the media keys need no modifier, as they type nothing.
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
   # The plugin
   MOD+Ctrl+r: reload

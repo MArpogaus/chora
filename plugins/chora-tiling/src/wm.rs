@@ -124,6 +124,7 @@ pub enum Effect {
     Run(String),
     Close(String),
     Reload,
+    Volume(chora_kit::volume::Change),
 }
 
 /// The meta key of a window node with its state, see [`Wm::window_meta`].
@@ -384,6 +385,7 @@ impl Wm {
             Action::Run(command) => return Some(Effect::Run(command.clone())),
             Action::Close => return self.focused().map(|id| Effect::Close(id.into())),
             Action::Reload => return Some(Effect::Reload),
+            Action::Volume(change) => return Some(Effect::Volume(*change)),
             // The plugin handles the button events of a drag itself.
             Action::Drag | Action::Give(_) => return None,
             Action::FocusNext => self.focus_next(),

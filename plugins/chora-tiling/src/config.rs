@@ -103,6 +103,9 @@ pub enum Action {
     /// On a pointer button: drags the window under the pointer. Dropped
     /// in the claim of another window manager, it goes there (D55).
     Drag,
+    /// Changes the volume of the default sound output and shows it for
+    /// a moment: `up`, `down`, `mute` or `{set: PERCENT}`.
+    Volume(chora_kit::volume::Change),
 }
 
 /// How a new window looks (#99).
@@ -227,7 +230,7 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use chora_kit::settings::parse;
+    use chora_kit::{settings::parse, volume::Change};
 
     use super::*;
 
@@ -277,6 +280,19 @@ mod tests {
             config.binding("MOD+Shift+1").unwrap().to_string(),
             "Shift+Super+1"
         );
+    }
+
+    #[test]
+    fn the_media_keys_change_the_volume() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for (key, change) in [
+            ("XF86AudioRaiseVolume", Change::Up),
+            ("XF86AudioLowerVolume", Change::Down),
+            ("XF86AudioMute", Change::Mute),
+        ] {
+            assert_eq!(config.bindings[key], Action::Volume(change));
+            assert_eq!(config.binding(key).unwrap().to_string(), key);
+        }
     }
 
     /// W9: settings.set took {"run": ""}.
