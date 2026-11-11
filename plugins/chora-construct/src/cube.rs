@@ -10,7 +10,7 @@
 use std::{
     collections::BTreeSet,
     f64::consts::{FRAC_PI_2, SQRT_2},
-    process::{Child, Stdio},
+    process::Child,
     time::{Duration, Instant},
 };
 
@@ -626,10 +626,7 @@ impl Construct {
             self.settings.value.cube_manager,
             flags.join(" ")
         );
-        let spawned = std::process::Command::new("sh")
-            .args(["-c", &command])
-            .stdin(Stdio::null())
-            .spawn();
+        let spawned = super::wm::child_command(&command).spawn();
         let child = match spawned {
             Ok(child) => child,
             Err(err) => {
