@@ -1,0 +1,141 @@
+{
+ "rows": [
+  {
+   "chapter": "8 voice and chat",
+   "act": 1,
+   "frame": 77,
+   "kind": "look",
+   "description": "Look at the xp desktop",
+   "expected": "Desktop with taskbar, no paperclip yet",
+   "still": "08-01-desktop",
+   "happened": "",
+   "abs": 152
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 2,
+   "frame": 61,
+   "kind": "voice event",
+   "description": "The fake voice agent hears 'Open the chat' and says 'Opening the chat.'",
+   "expected": "The paperclip says Opening the chat. in a balloon",
+   "still": "08-02-voice-said",
+   "happened": "",
+   "abs": 252
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 3,
+   "frame": 106,
+   "kind": "voice action",
+   "description": "The voice agent opens the chat (assistant chat.show)",
+   "expected": "The chat opens with the helper list: 1 Atlas working",
+   "still": "08-03-chat-by-voice",
+   "happened": "",
+   "abs": 434
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 4,
+   "frame": 16,
+   "kind": "keys",
+   "description": "Type 1 and press Return WITHOUT clicking first",
+   "expected": "The helper Atlas is picked (or the keys go to another window)",
+   "still": "08-04-pick-by-keys-no-click",
+   "happened": "",
+   "abs": 526
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 5,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "Click the row 1 Atlas",
+   "expected": "Atlas is picked: header with Stop and Close, transcript",
+   "still": "08-05-pick-by-click",
+   "happened": "",
+   "abs": 631
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 6,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "Click into the message field",
+   "expected": "The field takes the keyboard",
+   "still": "08-06-field",
+   "happened": "",
+   "abs": 739
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 7,
+   "frame": 87,
+   "kind": "keys",
+   "description": "Type 'Please also add Monday.' at 6 characters a second",
+   "expected": "The text shows in the field",
+   "still": "08-07-typed",
+   "happened": "",
+   "abs": 810
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 8,
+   "frame": 204,
+   "kind": "key",
+   "description": "Press Return",
+   "expected": "The message is sent and the field empties",
+   "still": "08-08-sent",
+   "happened": "",
+   "abs": 927
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 9,
+   "frame": 76,
+   "kind": "voice event",
+   "description": "The helper asks a question that needs a key",
+   "expected": "A card: Atlas wants to write the file notes.txt, Alt+Y or Alt+N",
+   "still": "08-09-question",
+   "happened": "",
+   "abs": 1064
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 10,
+   "frame": 151,
+   "kind": "key",
+   "description": "Press Alt+y to answer yes",
+   "expected": "The question is answered: the card goes",
+   "still": "08-10-alt-y",
+   "happened": "",
+   "abs": 1139
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 11,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "Click Stop",
+   "expected": "The helper is stopped (agent.cancel reaches the agent); the header changes",
+   "still": "08-11-stop",
+   "happened": "",
+   "abs": 1307
+  },
+  {
+   "chapter": "8 voice and chat",
+   "act": 12,
+   "frame": 16,
+   "kind": "look",
+   "description": "Look at the end state",
+   "expected": "Chat still open, helper stopped",
+   "still": "08-12-end",
+   "happened": "",
+   "abs": 1430
+  }
+ ],
+ "observed": {
+  "answers": "",
+  "keys": "{\"binding\": \"Alt+y\", \"event\": \"input.key\", \"injected\": true, \"seq\": 10, \"state\": \"pressed\"}\n{\"binding\": \"Alt+y\", \"event\": \"input.key\", \"injected\": true, \"seq\": 11, \"state\": \"released\"}\n",
+  "chat_calls": " \"chat.open\", \"params\": {\"name\": \"atlas\"}}\n{\"method\": \"agent.read\", \"params\": {\"after\": 0, \"name\": \"atlas\"}}\n{\"method\": \"agent.read\", \"params\": {\"after\": 4, \"name\": \"atlas\"}}\n{\"method\": \"agent\", \"params\": {\"name\": \"atlas\", \"text\": \"Please also add Monday.\", \"tool\": \"agent_say\"}}\n{\"method\": \"agent.read\", \"params\": {\"after\": 4, \"name\": \"atlas\"}}\n{\"method\": \"agent.read\", \"params\": {\"after\": 4, \"name\": \"atlas\"}}\n{\"method\": \"agent.read\", \"params\": {\"after\": 4, \"name\": \"atlas\"}}\n{\"method\": \"agent.cancel\", \"params\": {\"name\": \"atlas\"}}\n{\"method\": \"agent.read\", \"params\": {\"after\": 4, \"name\": \"atlas\"}}\n"
+ }
+}

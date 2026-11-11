@@ -1,0 +1,222 @@
+[
+ {
+  "chapter": "2 tiling",
+  "act": 1,
+  "frame": 53,
+  "kind": "look",
+  "description": "The empty tiling desktop",
+  "expected": "Dark background, waybar with clock and volume, the Chat pill",
+  "still": "02-01-empty",
+  "happened": "",
+  "abs": 128
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 2,
+  "frame": 107,
+  "kind": "key",
+  "description": "Press Super+Return",
+  "expected": "A terminal opens and fills the screen",
+  "still": "02-02-terminal",
+  "happened": "",
+  "abs": 182
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 3,
+  "frame": 213,
+  "kind": "keys",
+  "description": "Type cat friday.md",
+  "expected": "The shell prints the Friday list",
+  "still": "02-03-cat",
+  "happened": "",
+  "abs": 288
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 4,
+  "frame": 303,
+  "kind": "key",
+  "description": "Press Super+Return (second window)",
+  "expected": "A new window opens as master, 2 windows tile",
+  "still": "02-04-window-2",
+  "happened": "",
+  "abs": 378
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 5,
+  "frame": 409,
+  "kind": "key",
+  "description": "Press Super+Return (third window)",
+  "expected": "A new window opens as master, 3 windows tile",
+  "still": "02-05-window-3",
+  "happened": "",
+  "abs": 484
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 6,
+  "frame": 515,
+  "kind": "key",
+  "description": "Press Super+Return (fourth window)",
+  "expected": "A new window opens as master, 4 windows tile",
+  "still": "02-06-window-4",
+  "happened": "",
+  "abs": 590
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 7,
+  "frame": 621,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in tile_left",
+  "still": "02-07-layout-tile_left",
+  "happened": "",
+  "abs": 696
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 8,
+  "frame": 688,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "The windows re-tile in tile_bottom",
+  "still": "02-08-layout-tile_bottom",
+  "happened": "",
+  "abs": 763
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 9,
+  "frame": 755,
+  "kind": "key",
+  "description": "Press Super+space (next layout)",
+  "expected": "After two more presses the windows are in a 2x2 grid",
+  "still": "02-09-layout-fair",
+  "happened": "",
+  "abs": 830
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 10,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Move the pointer over another window",
+  "expected": "Focus follows the pointer",
+  "still": "02-10-focus-pointer",
+  "happened": "",
+  "abs": 924
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 11,
+  "frame": 86,
+  "kind": "key",
+  "description": "Press Super+l (wider master)",
+  "expected": "The master area grows",
+  "still": "02-11-master-wider",
+  "happened": "",
+  "abs": 994
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 12,
+  "frame": 147,
+  "kind": "key",
+  "description": "Press Super+Shift+c (close the focused window)",
+  "expected": "The window closes and the others fill the space",
+  "still": "02-12-closed",
+  "happened": "",
+  "abs": 1055
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 13,
+  "frame": 223,
+  "kind": "key",
+  "description": "Press Super+Shift+2 (send the window to tag 2)",
+  "expected": "The focused window leaves tag 1 for tag 2",
+  "still": "02-13-to-tag-2",
+  "happened": "",
+  "abs": 1131
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 14,
+  "frame": 290,
+  "kind": "key",
+  "description": "Press Super+2 (view tag 2)",
+  "expected": "Tag 2 shows the moved window alone",
+  "still": "02-14-tag-2",
+  "happened": "",
+  "abs": 1198
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 15,
+  "frame": 357,
+  "kind": "key",
+  "description": "Press Super+1 (back to tag 1)",
+  "expected": "The other windows are back",
+  "still": "02-15-tag-1",
+  "happened": "",
+  "abs": 1265
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 16,
+  "frame": 424,
+  "kind": "pointer",
+  "description": "Move the pointer over the Connected module of the bar",
+  "expected": "A tooltip shows the address",
+  "still": "02-16-bar-hover",
+  "happened": "",
+  "abs": 1332
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 17,
+  "frame": 16,
+  "kind": "key",
+  "description": "Press Super+a (chat panel)",
+  "expected": "The chat opens as a side panel with the helper list",
+  "still": "02-17-chat-panel",
+  "happened": "",
+  "abs": 1397
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 18,
+  "frame": 107,
+  "kind": "keys",
+  "description": "Type 1 and press Return (pick Atlas)",
+  "expected": "Atlas is picked: header and transcript",
+  "still": "02-18-picked",
+  "happened": "",
+  "abs": 1488
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 19,
+  "frame": 193,
+  "kind": "keys",
+  "description": "Type 'Please also add Monday.' and press Return",
+  "expected": "The message is sent and the field empties",
+  "still": "02-19-sent",
+  "happened": "",
+  "abs": 1574
+ },
+ {
+  "chapter": "2 tiling",
+  "act": 20,
+  "frame": 329,
+  "kind": "key",
+  "description": "Press Escape",
+  "expected": "The chat panel closes",
+  "still": "02-20-chat-closed",
+  "happened": "",
+  "abs": 1710
+ }
+]

@@ -1,0 +1,233 @@
+[
+ {
+  "chapter": "1 xp",
+  "act": 1,
+  "frame": 53,
+  "kind": "look",
+  "description": "The xp desktop",
+  "expected": "Bliss desktop, taskbar with Start, four desktop buttons, volume 40%, clock",
+  "still": "01-01-desktop",
+  "happened": "",
+  "abs": 128
+ },
+ {
+  "chapter": "1 xp",
+  "act": 2,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click Start",
+  "expected": "The Start menu opens: Terminal, four programs, All Programs",
+  "still": "01-02-start-menu",
+  "happened": "",
+  "abs": 183
+ },
+ {
+  "chapter": "1 xp",
+  "act": 3,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click Terminal",
+  "expected": "A terminal window opens with a shell and a task button",
+  "still": "01-03-terminal-open",
+  "happened": "",
+  "abs": 255
+ },
+ {
+  "chapter": "1 xp",
+  "act": 4,
+  "frame": 138,
+  "kind": "keys",
+  "description": "Type ls, then cat friday.md",
+  "expected": "The shell lists the notes and prints the Friday list",
+  "still": "01-04-shell",
+  "happened": "",
+  "abs": 377
+ },
+ {
+  "chapter": "1 xp",
+  "act": 5,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Start, then Notes",
+  "expected": "A Notes window opens over the terminal, a second task button",
+  "still": "01-05-notes-open",
+  "happened": "",
+  "abs": 498
+ },
+ {
+  "chapter": "1 xp",
+  "act": 6,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Drag the title bar of Notes to the right",
+  "expected": "The window follows and bends like jelly, then settles",
+  "still": "01-06-wobbly-drag",
+  "happened": "",
+  "abs": 669
+ },
+ {
+  "chapter": "1 xp",
+  "act": 7,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click the terminal button on the taskbar",
+  "expected": "The terminal comes to the front",
+  "still": "01-07-taskbar-terminal",
+  "happened": "",
+  "abs": 773
+ },
+ {
+  "chapter": "1 xp",
+  "act": 8,
+  "frame": 87,
+  "kind": "pointer",
+  "description": "Click the speaker in the tray",
+  "expected": "Volume mutes: the tray says Muted",
+  "still": "01-08-muted",
+  "happened": "",
+  "abs": 844
+ },
+ {
+  "chapter": "1 xp",
+  "act": 9,
+  "frame": 158,
+  "kind": "pointer",
+  "description": "Click the speaker again",
+  "expected": "Volume comes back to 40%",
+  "still": "01-09-unmuted",
+  "happened": "",
+  "abs": 915
+ },
+ {
+  "chapter": "1 xp",
+  "act": 10,
+  "frame": 10,
+  "kind": "voice event",
+  "description": "The fake voice agent says: Good morning! Your notes for Friday are ready.",
+  "expected": "The paperclip appears with a balloon of that sentence",
+  "still": "01-10-paperclip-balloon",
+  "happened": "",
+  "abs": 984
+ },
+ {
+  "chapter": "1 xp",
+  "act": 11,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click the paperclip",
+  "expected": "The balloon becomes the chat: Chat with a helper, 1 Atlas working, a field",
+  "still": "01-11-chat-open",
+  "happened": "",
+  "abs": 1196
+ },
+ {
+  "chapter": "1 xp",
+  "act": 12,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click Close",
+  "expected": "The chat closes; only the paperclip stays",
+  "still": "01-12-chat-collapsed",
+  "happened": "",
+  "abs": 1289
+ },
+ {
+  "chapter": "1 xp",
+  "act": 13,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click the paperclip again",
+  "expected": "The chat opens again",
+  "still": "01-13-chat-reopened",
+  "happened": "",
+  "abs": 1373
+ },
+ {
+  "chapter": "1 xp",
+  "act": 14,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click the row 1 Atlas",
+  "expected": "Atlas is picked; its transcript shows",
+  "still": "01-14-helper-picked",
+  "happened": "",
+  "abs": 1457
+ },
+ {
+  "chapter": "1 xp",
+  "act": 15,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click into the message field",
+  "expected": "The field takes the keyboard (caret)",
+  "still": "01-15-field-click",
+  "happened": "",
+  "abs": 1550
+ },
+ {
+  "chapter": "1 xp",
+  "act": 16,
+  "frame": 87,
+  "kind": "keys",
+  "description": "Type 'Please also add Monday.'",
+  "expected": "The text shows in the field",
+  "still": "01-16-typed",
+  "happened": "",
+  "abs": 1621
+ },
+ {
+  "chapter": "1 xp",
+  "act": 17,
+  "frame": 201,
+  "kind": "key",
+  "description": "Press Return",
+  "expected": "The message is sent: the field empties",
+  "still": "01-17-sent",
+  "happened": "",
+  "abs": 1735
+ },
+ {
+  "chapter": "1 xp",
+  "act": 18,
+  "frame": 61,
+  "kind": "voice event",
+  "description": "The helper asks: Atlas wants to write the file notes.txt",
+  "expected": "A question card with Yes and No shows in the chat",
+  "still": "01-18-question",
+  "happened": "",
+  "abs": 1848
+ },
+ {
+  "chapter": "1 xp",
+  "act": 19,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click Yes on the card",
+  "expected": "The click answers the question",
+  "still": "01-19-answered",
+  "happened": "",
+  "abs": 1909
+ },
+ {
+  "chapter": "1 xp",
+  "act": 20,
+  "frame": 16,
+  "kind": "voice event",
+  "description": "The fake agent takes the answer and closes the question",
+  "expected": "The card goes, the chat is back with the field",
+  "still": "01-19b-card-closed",
+  "happened": "",
+  "abs": 2002
+ },
+ {
+  "chapter": "1 xp",
+  "act": 21,
+  "frame": 82,
+  "kind": "key",
+  "description": "Press F1",
+  "expected": "Key overlay (if xp has one)",
+  "still": "01-20-f1",
+  "happened": "",
+  "abs": 2068
+ }
+]

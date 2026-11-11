@@ -1,0 +1,123 @@
+[
+ {
+  "chapter": "3 mc (dark)",
+  "act": 1,
+  "frame": 53,
+  "kind": "look",
+  "description": "mc at start",
+  "expected": "Scene 1 AGENDA: times in the margin, header with the helpers",
+  "still": "03-01-start-dark",
+  "happened": "",
+  "abs": 128
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 2,
+  "frame": 107,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 2",
+  "still": "03-02-next-scene-2-dark",
+  "happened": "",
+  "abs": 182
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 3,
+  "frame": 180,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 3",
+  "still": "03-03-next-scene-3-dark",
+  "happened": "",
+  "abs": 255
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 4,
+  "frame": 253,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 4",
+  "still": "03-04-next-scene-4-dark",
+  "happened": "",
+  "abs": 328
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 5,
+  "frame": 326,
+  "kind": "key",
+  "description": "Press Super+a (agenda)",
+  "expected": "The agenda again",
+  "still": "03-09-agenda-dark",
+  "happened": "",
+  "abs": 401
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 6,
+  "frame": 399,
+  "kind": "key",
+  "description": "Press Super+Return (drawer)",
+  "expected": "A terminal drawer slides in",
+  "still": "03-10-drawer-dark",
+  "happened": "",
+  "abs": 474
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 7,
+  "frame": 490,
+  "kind": "keys",
+  "description": "Type cat friday.md in the drawer",
+  "expected": "The shell prints the Friday list in the drawer",
+  "still": "03-11-drawer-cat-dark",
+  "happened": "",
+  "abs": 565
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 8,
+  "frame": 586,
+  "kind": "key",
+  "description": "Press Super+Return again",
+  "expected": "The drawer closes",
+  "still": "03-12-drawer-closed-dark",
+  "happened": "",
+  "abs": 661
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 9,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click the Chat ... pill",
+  "expected": "The chat drawer opens with the helper list",
+  "still": "03-14-chat-drawer-dark",
+  "happened": "",
+  "abs": 811
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 10,
+  "frame": 123,
+  "kind": "keys",
+  "description": "Type 1 and press Return (pick Atlas)",
+  "expected": "Atlas is picked in the drawer",
+  "still": "03-15-picked-dark",
+  "happened": "",
+  "abs": 918
+ },
+ {
+  "chapter": "3 mc (dark)",
+  "act": 11,
+  "frame": 206,
+  "kind": "key",
+  "description": "Press Escape",
+  "expected": "The drawer closes",
+  "still": "03-16-chat-closed-dark",
+  "happened": "",
+  "abs": 1001
+ }
+]

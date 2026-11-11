@@ -1,0 +1,178 @@
+[
+ {
+  "chapter": "3 mc (light)",
+  "act": 1,
+  "frame": 53,
+  "kind": "look",
+  "description": "mc at start",
+  "expected": "Scene 1 AGENDA: times in the margin, header with the helpers",
+  "still": "03-01-start-light",
+  "happened": "",
+  "abs": 128
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 2,
+  "frame": 107,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 2",
+  "still": "03-02-next-scene-2-light",
+  "happened": "",
+  "abs": 182
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 3,
+  "frame": 180,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 3",
+  "still": "03-03-next-scene-3-light",
+  "happened": "",
+  "abs": 255
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 4,
+  "frame": 253,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 4",
+  "still": "03-04-next-scene-4-light",
+  "happened": "",
+  "abs": 328
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 5,
+  "frame": 326,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 5",
+  "still": "03-05-next-scene-5-light",
+  "happened": "",
+  "abs": 401
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 6,
+  "frame": 399,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 6",
+  "still": "03-06-next-scene-6-light",
+  "happened": "",
+  "abs": 474
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 7,
+  "frame": 472,
+  "kind": "key",
+  "description": "Press Super+Right (next scene)",
+  "expected": "The scene fades to number 7",
+  "still": "03-07-next-scene-7-light",
+  "happened": "",
+  "abs": 547
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 8,
+  "frame": 545,
+  "kind": "key",
+  "description": "Press Super+o (overview)",
+  "expected": "The overview lists the scenes",
+  "still": "03-08-overview-light",
+  "happened": "",
+  "abs": 620
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 9,
+  "frame": 618,
+  "kind": "key",
+  "description": "Press Super+a (agenda)",
+  "expected": "The agenda again",
+  "still": "03-09-agenda-light",
+  "happened": "",
+  "abs": 693
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 10,
+  "frame": 691,
+  "kind": "key",
+  "description": "Press Super+Return (drawer)",
+  "expected": "A terminal drawer slides in",
+  "still": "03-10-drawer-light",
+  "happened": "",
+  "abs": 766
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 11,
+  "frame": 782,
+  "kind": "keys",
+  "description": "Type cat friday.md in the drawer",
+  "expected": "The shell prints the Friday list in the drawer",
+  "still": "03-11-drawer-cat-light",
+  "happened": "",
+  "abs": 857
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 12,
+  "frame": 878,
+  "kind": "key",
+  "description": "Press Super+Return again",
+  "expected": "The drawer closes",
+  "still": "03-12-drawer-closed-light",
+  "happened": "",
+  "abs": 953
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 13,
+  "frame": 951,
+  "kind": "key",
+  "description": "Press Super+n (right side)",
+  "expected": "The right side shows",
+  "still": "03-13-right-light",
+  "happened": "",
+  "abs": 1026
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 14,
+  "frame": 16,
+  "kind": "pointer",
+  "description": "Click the Chat ... pill",
+  "expected": "The chat drawer opens with the helper list",
+  "still": "03-14-chat-drawer-light",
+  "happened": "",
+  "abs": 1195
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 15,
+  "frame": 123,
+  "kind": "keys",
+  "description": "Type 1 and press Return (pick Atlas)",
+  "expected": "Atlas is picked in the drawer",
+  "still": "03-15-picked-light",
+  "happened": "",
+  "abs": 1302
+ },
+ {
+  "chapter": "3 mc (light)",
+  "act": 16,
+  "frame": 206,
+  "kind": "key",
+  "description": "Press Escape",
+  "expected": "The drawer closes",
+  "still": "03-16-chat-closed-light",
+  "happened": "",
+  "abs": 1385
+ }
+]

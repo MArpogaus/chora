@@ -1,0 +1,164 @@
+{
+ "rows": [
+  {
+   "chapter": "7 window drags between looks",
+   "act": 1,
+   "frame": 77,
+   "kind": "look",
+   "description": "Two screens: xp on the left, tiling on the right (empty)",
+   "expected": "xp desktop with taskbar; tiling desktop empty",
+   "still": "07-01-two-screens",
+   "happened": "",
+   "abs": 152
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 2,
+   "frame": 131,
+   "kind": "pointer",
+   "description": "Click Start",
+   "expected": "The Start menu opens on the xp screen",
+   "still": "07-02-start",
+   "happened": "",
+   "abs": 206
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 3,
+   "frame": 202,
+   "kind": "pointer",
+   "description": "Click Notes",
+   "expected": "A Notes window opens on the xp screen",
+   "still": "07-03-notes-open",
+   "happened": "",
+   "abs": 277
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 4,
+   "frame": 31,
+   "kind": "pointer",
+   "description": "DRAG 1: pull the title bar of Notes from xp to the tiling screen",
+   "expected": "Notes leaves xp and tiles in the tiling screen (full height)",
+   "still": "07-04-drag-xp-to-tiling",
+   "happened": "",
+   "abs": 430
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 5,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "DRAG 2: Super+drag Notes from tiling to the construct screen",
+   "expected": "Notes leaves tiling and becomes a pane in the construct space",
+   "still": "07-05-drag-tiling-to-construct",
+   "happened": "",
+   "abs": 601
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 6,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "DRAG 3: Super+drag the Notes pane from construct to the xp screen",
+   "expected": "Notes leaves the construct and shows in xp with a title bar and a task button",
+   "still": "07-06-drag-construct-to-xp",
+   "happened": "",
+   "abs": 785
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 7,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "DRAG 4: pull the title bar of Notes from xp to the mc screen",
+   "expected": "Notes becomes the window of an mc scene",
+   "still": "07-07-drag-xp-to-mc",
+   "happened": "",
+   "abs": 969
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 8,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "DRAG 5: Super+drag Notes out of mc to the xp screen",
+   "expected": "Notes leaves mc and shows in xp",
+   "still": "07-08-drag-mc-out",
+   "happened": "",
+   "abs": 1155
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 9,
+   "frame": 16,
+   "kind": "key",
+   "description": "GIVE BY KEY: Super+Alt+1 (give the focused window to tiling)",
+   "expected": "Notes goes to tiling and fills its screen",
+   "still": "07-09-give-key-tiling",
+   "happened": "",
+   "abs": 1339
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 10,
+   "frame": 16,
+   "kind": "key",
+   "description": "GIVE BY KEY: Super+Alt+2 (give the focused window to xp)",
+   "expected": "Notes goes back to xp",
+   "still": "07-10-give-key-xp",
+   "happened": "",
+   "abs": 1461
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 11,
+   "frame": 16,
+   "kind": "pointer",
+   "description": "GIVE BY MENU: Start > Control Panel",
+   "expected": "The menu opens with Control Panel highlighted",
+   "still": "07-11-menu-control-panel",
+   "happened": "",
+   "abs": 1583
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 12,
+   "frame": 134,
+   "kind": "pointer",
+   "description": "Click Keyboard Shortcuts",
+   "expected": "The submenu lists Super+Alt+1: window to tiling and the others",
+   "still": "07-12-menu-shortcuts",
+   "happened": "",
+   "abs": 1701
+  },
+  {
+   "chapter": "7 window drags between looks",
+   "act": 13,
+   "frame": 221,
+   "kind": "pointer",
+   "description": "Click Super+Alt+1: window to tiling",
+   "expected": "Notes goes to tiling and the menu closes",
+   "still": "07-13-give-menu-tiling",
+   "happened": "",
+   "abs": 1788
+  }
+ ],
+ "observed": {
+  "07-03-notes-open": "owner xp, focused True, rects {'HEADLESS-2': [28.0, 54.0, 700.0, 500.0]}",
+  "07-04-drag-xp-to-tiling": "owner tiling, focused True, rects {'HEADLESS-3': [4.0, 4.0, 1272.0, 712.0]}",
+  "07-05-drag-tiling-to-construct": "owner construct, focused True, rects {'HEADLESS-1': [4.0, 4.0, 1272.0, 712.0]}",
+  "07-06-drag-construct-to-xp": "owner xp, focused True, rects {'HEADLESS-2': [58.0, 84.0, 700.0, 500.0]}",
+  "07-07-drag-xp-to-mc": "owner mc, focused True, rects {'HEADLESS-4': [0.0, 54.0, 1280.0, 666.0]}",
+  "07-08-drag-mc-out": "owner xp, focused True, rects {'HEADLESS-2': [4.0, 30.0, 700.0, 500.0]}",
+  "07-09-give-key-tiling": "owner tiling, focused True, rects {'HEADLESS-3': [4.0, 4.0, 1272.0, 712.0]}",
+  "07-10-give-key-xp": "owner xp, focused True, rects {'HEADLESS-2': [4.0, 30.0, 700.0, 500.0]}",
+  "07-13-give-menu-tiling": "owner tiling, focused True, rects {'HEADLESS-3': [4.0, 4.0, 1272.0, 712.0]}",
+  "audit": [
+   [
+    "s1",
+    "tiling"
+   ]
+  ]
+ }
+}
