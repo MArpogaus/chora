@@ -44,20 +44,45 @@ use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 
 use crate::state::State;
 
-const USAGE: &str =
-    "usage: chora [--version] [--headless WxH[@SCALE][+X+Y][,...]] [-- COMMAND [ARGS...]]";
+const USAGE: &str = "usage: chora [--version] \
+     [--headless WxH[@SCALE][+X+Y][,...] [--test-injected-drag-gives]] [-- COMMAND [ARGS...]]";
 
-/// The virtual outputs of `--headless`, and the arguments after them.
+/// The flag of the headless backend, for tests: an injected button press
+/// counts as a press of the user for `give_grab`.
+const TEST_INJECTED_DRAG_GIVES: &str = "--test-injected-drag-gives";
+
+/// The virtual outputs of `--headless` with its test flag, and the
+/// arguments after them. The test flag is no flag without `--headless`.
+#[allow(clippy::type_complexity, reason = "the parts of the command line")]
 fn headless_outputs(
     args: &[String],
-) -> Result<(Option<Vec<backend::headless::Spec>>, &[String]), String> {
+) -> Result<(Option<(Vec<backend::headless::Spec>, bool)>, &[String]), String> {
     match args {
         [flag, specs, rest @ ..] if flag == "--headless" => {
-            Ok((Some(backend::headless::parse_specs(specs)?), rest))
+            let specs = backend::headless::parse_specs(specs)?;
+            match rest {
+                [test, rest @ ..] if test == TEST_INJECTED_DRAG_GIVES => {
+                    Ok((Some((specs, true)), rest))
+                }
+                _ => Ok((Some((specs, false)), rest)),
+            }
         }
         [flag] if flag == "--headless" => Err(USAGE.into()),
         _ => Ok((None, args)),
     }
+}
+
+/// Turns on the test mode of `--test-injected-drag-gives` when the
+/// command line asks for it, with a warning in the log, and gives the
+/// outputs back.
+fn test_mode<T>(state: &mut State, specs: T, test: bool) -> T {
+    if test {
+        tracing::warn!(
+            "{TEST_INJECTED_DRAG_GIVES}: an injected press gives its drag; for tests only"
+        );
+        state.injected_drag_gives = true;
+    }
+    specs
 }
 
 /// Runs the compositor with the arguments of the command line, without the
@@ -122,6 +147,7 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             })
             .map_err(|e| e.error)?;
     }
+    let headless = headless.map(|(specs, test)| test_mode(&mut state, specs, test));
     backend::init(&mut state, headless.as_deref(), command)?;
     input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
@@ -130,4 +156,38 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         return Err("the startup command failed".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TEST_INJECTED_DRAG_GIVES, headless_outputs};
+
+    fn args(words: &[&str]) -> Vec<String> {
+        words.iter().map(|word| (*word).to_owned()).collect()
+    }
+
+    /// The test mode is a flag of `--headless` and of nothing else: a
+    /// flag is not inherited by the programs that the core starts, and
+    /// without `--headless` it is a wrong argument.
+    #[test]
+    fn the_test_flag_belongs_to_the_headless_backend() {
+        let plain = args(&["--headless", "640x480", "--", "true"]);
+        let (headless, rest) = headless_outputs(&plain).unwrap();
+        assert!(headless.is_some_and(|(_, test)| !test));
+        assert_eq!(rest, &plain[2..]);
+        let test = args(&[
+            "--headless",
+            "640x480",
+            TEST_INJECTED_DRAG_GIVES,
+            "--",
+            "true",
+        ]);
+        let (headless, rest) = headless_outputs(&test).unwrap();
+        assert!(headless.is_some_and(|(_, test)| test));
+        assert_eq!(rest, &test[3..]);
+        let alone = args(&[TEST_INJECTED_DRAG_GIVES]);
+        let (headless, rest) = headless_outputs(&alone).unwrap();
+        assert!(headless.is_none());
+        assert_eq!(rest, &alone[..], "left for the usage error");
+    }
 }

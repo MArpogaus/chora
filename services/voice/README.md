@@ -46,8 +46,10 @@ With the package, link the quadlets from there and skip the build below:
 `ln -s /usr/share/chora/voice/quadlets/* ~/.config/containers/systemd/`.
 At the end, start the agent with `systemctl --user enable --now
 chora-voice`. The packages leave out `gufo.sh` and `agent-sandbox.sh`.
-`agent-sandbox.sh`, the default `sandbox_cmd`, is not part of chora. Put
-your own sandbox on the `PATH` of the unit, or set `sandbox_cmd`.
+`agent-sandbox.sh`, the default `sandbox_cmd`, is in the repository as
+`dist/sandbox/agent-sandbox.sh`, a minimal sandbox with bubblewrap
+(`bwrap`). Put it, or your own sandbox of that name, on the `PATH` of
+the unit, or set `sandbox_cmd`.
 
 Download the ASR and TTS models from Hugging Face, and link the GGUF of
 an LLM from the [model table of
@@ -369,8 +371,10 @@ An empty `coder_cmd` (the default) turns the coding tools off. With a
 harness in `coder_cmd`, the LLM gets the tools `code_task`,
 `code_status`, `code_cancel` and `list_projects`. The harness is any
 command that takes the task as its last argument. The agent starts it
-in `sandbox_cmd` (default `[agent-sandbox.sh]`: a podman container,
-read-only, without capabilities), in the directory of the task:
+in `sandbox_cmd` (default `[agent-sandbox.sh]`: with the script of
+`dist/sandbox` a bubblewrap sandbox, read-only but for the directory
+of the task, with its own home and without the sockets of the session
+and the network), in the directory of the task:
 
 ```yaml
 coder_cmd: [claude, -p, --output-format, stream-json, --verbose]
@@ -412,14 +416,17 @@ agent_voices: [ryan, vivian, serena, eric]
 ```
 
 So the command line of an agent is `agent-sandbox.sh opencode acp`,
-started in `~/Projekte/chora`. `agent-sandbox.sh` mounts the current
-directory into its container, keeps ACP on stdin and stdout without a
-tty, and has its own home in `~/.config/sandbox-agent-home`. Configure
-the agent there, for example the model of opencode. Note: the version
-of `agent-sandbox.sh` of 2026-10-31 drops the arguments after the
-command (its option loop never fills `ARGS`), so `acp` and the task of
-`coder_cmd` do not reach the container. Its `case` needs a last branch
-`*) ARGS+=("$1") ;;`. `{dir}` and
+started in `~/Projekte/chora`. `agent-sandbox.sh` of `dist/sandbox`
+keeps the current directory writable and the rest of the file system
+read-only, keeps ACP on stdin and stdout without a tty, and has its own
+home in `~/.config/sandbox-agent-home` (`AGENT_SANDBOX_HOME`). Configure
+the agent there, for example the model of opencode; an agent that is
+installed in your home directory is not there. `/tmp`, `/run` and the
+runtime directory are empty, so the agent reaches no socket of chora,
+Wayland or D-Bus. It has no network: an agent that calls its model over
+the network needs `sandbox_cmd: [agent-sandbox.sh, --net]`. It refuses
+the home directory as a project. `tests/agent-sandbox.sh` checks all
+that. `{dir}` and
 `{project}` in `agent_cmd` are replaced by the project. The projects
 are those of `agent_projects` and the directories of
 `~/.local/share/chora/inventory`.

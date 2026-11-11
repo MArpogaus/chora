@@ -46,6 +46,7 @@ mod modes;
 mod overlay;
 mod panes;
 mod plugin;
+mod pull;
 mod scene;
 mod space;
 mod voice;

@@ -432,7 +432,9 @@ holds a `remove` with `to` and a `give_grab` with the same `surface` and
 `to`: the receiver gets `surface.detached`, then `input.button` with the
 binding `move`, the state `pressed`, the `surface` and `grab`, then
 `input.moved` and the release as for any move. The giver hears no more
-of that button. The receiver attaches the window and goes on with the
+of that button. A drag that started through a pane of a virtual output
+leaves that pane with the give: the receiver gets the point under the
+pointer on the screen. The receiver attaches the window and goes on with the
 drag from `grab`: `point`, `velocity` and the state of an effect in
 `wobble`.
 
@@ -460,8 +462,9 @@ the first; when the user let go and pressed again in between, or any
 rule fails by then, the whole transaction fails with an error, and the
 window and the drag stay with the giver.
 
-The core passes `velocity` and `wobble` on unread. No window manager of
-the repository uses `velocity` yet.
+The core passes `velocity` and `wobble` on unread. `chora-xp` sends the
+speed of the pointer, smoothed over its last moves, as `velocity`; no
+window manager of the repository reads it yet.
 
 `window.give` of every window manager takes `grab` and sends the
 `give_grab`. `chora-tiling` and `chora-xp` add the springs of their
@@ -469,8 +472,45 @@ wobble as `wobble` (`offsets` and `velocity` of the 16 control points)
 unless the caller sent some, and stop their own drag. `chora-tiling`
 goes on with a drag that it receives: the window sits with `point`,
 kept inside the window, under the pointer and wobbles on from the
-springs. `chora-xp`, `chora-mc` and `chora-construct` grab no `move` and
-so receive no drag.
+springs. `chora-construct` grabs `move` too, while the camera
+is in no window; inside a window a press of `move` goes to that window,
+so a window that draws its own title bar keeps its click. A window that
+comes with its drag becomes a pane, moved so that `point` is under the
+pointer, and the moves and the release of `move` drag and drop the pane
+as a drag with the modifier does. The pane of an own window wobbles on
+with a depth, and the camera stays where it is: it leaves a window
+that it is in, and a pane with a corner behind the eye goes ahead of it
+first. A pane of an own window that a drag drops over a resting face of
+the cube goes back: the construct gives the window to the window
+manager whose claim holds the drop point on the output of that face, as
+a drop on a screen does, and asks it, with `window.move` and `at`, to
+put it there. `window.move` of `chora-xp` is privileged, and the
+construct calls it as a free client of the main socket. A construct on
+a client socket or a confined connection never gets there: the core
+refuses its virtual outputs, so `cube.open` fails with code 9, and
+without a face it pulls no window out and drops none on one. If the
+call still fails, the window stays a window of the manager that got
+it, at the place that manager chose, and the construct logs the error. So a move from face to face looks like a move inside that window
+manager. `chora-xp` and `chora-mc` grab no `move` and so receive no
+drag.
+
+`chora-xp` gives by itself on a virtual output: when the drag of a title
+bar is more than 8 pixels outside the output where it started, the
+window goes with the drag
+to the owner of that output, the client that shows it as a pane. When
+the core refuses, as for an injected drag, the window stays with
+`chora-xp` for the rest of the drag.
+
+A gate has no real pointer. The flag `--test-injected-drag-gives` of
+the core, valid only right after `--headless SPECS`, makes an injected
+button press count as a button press of the user for `give_grab`, and
+for nothing else. It also turns off the rule that no input was injected
+since the press, as every input of a gate is injected. The core logs a
+warning at its start, and no child inherits the mode, as it is no
+variable of the environment. It is for tests.
+`tests/gate-construct-pull.sh` pulls a window out of a face of the cube
+with it, and checks without it that the core refuses the give of an
+injected drag.
 
 The grab ends when its receiver disconnects, and when the receiver does
 not own the window and no reservation keeps the window for it, for
