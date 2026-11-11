@@ -61,6 +61,8 @@ pub struct Frame {
     pub clear: Vec<[i32; 4]>,
     /// The head of the figure, where the tail of a `bubble` chat points.
     pub tip: Option<[i32; 2]>,
+    /// The height of the field at the bottom of the view.
+    pub field: i32,
 }
 
 impl Frame {
@@ -161,6 +163,8 @@ impl Frame {
 
 /// The gap between the view and what it stands beside.
 const ASIDE: i32 = 8;
+/// The height of a field of one line, before it tells its own.
+pub const ONE_LINE_FIELD: i32 = 36;
 /// The corner radius of a `bubble` chat.
 pub const BALLOON_RADIUS: i32 = 10;
 
@@ -339,6 +343,8 @@ pub struct Session {
     /// The height of the card of the question in the view, whose room the
     /// transcript leaves free.
     card_height: Option<i32>,
+    /// The height of the field, as it last told it.
+    field_height: Option<i32>,
 }
 
 /// The rectangle of the view in the work area: x, y, width, height. The
@@ -711,6 +717,10 @@ impl Session {
             match event {
                 FieldEvent::Say(text) => changed |= self.said(out, &text, frame),
                 FieldEvent::Shown => {}
+                FieldEvent::Height(height) => {
+                    changed |= self.field_height != Some(height);
+                    self.field_height = Some(height);
+                }
                 FieldEvent::Keyboard(on) => self.keyboard = on,
                 FieldEvent::Closed => {
                     self.close_view(out);
@@ -943,6 +953,12 @@ impl Session {
         lines
     }
 
+    /// The height of the field: as it told it, else one line.
+    #[must_use]
+    pub fn field_height(&self) -> i32 {
+        self.field_height.unwrap_or(ONE_LINE_FIELD)
+    }
+
     /// The card of the question stands in the view, this high.
     pub fn card_shown(&mut self, height: i32) {
         self.card_height = Some(height);
@@ -1125,6 +1141,7 @@ mod tests {
             slot: None,
             clear: Vec::new(),
             tip: None,
+            field: ONE_LINE_FIELD,
         }
     }
 

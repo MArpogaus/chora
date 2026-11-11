@@ -231,6 +231,7 @@ impl Agent {
                 .assistant
                 .as_ref()
                 .map(crate::assistant::Assistant::tip),
+            field: self.chat.field_height(),
         };
         self.chat_seen = Some(frame.clone());
         Ok(Some(frame))

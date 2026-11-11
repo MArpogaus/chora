@@ -40,7 +40,6 @@ pub const PAD: i32 = 14;
 pub const LINE: i32 = 20;
 pub const GAP: i32 = 6;
 const BUTTON: [i32; 2] = [88, 28];
-pub const FIELD_ROOM: i32 = 100;
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
@@ -64,7 +63,7 @@ pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
     let [x, y, w, h] = frame.rect();
     let [ax, ay, aw, ah] = frame.area;
     let left = x + w - card_inset(frame) - size[0];
-    let top = y + h - FIELD_ROOM - LINE - 2 * GAP - size[1];
+    let top = y + h - field_room(frame) - LINE - 2 * GAP - size[1];
     [
         left.clamp(ax, (ax + aw - size[0]).max(ax)),
         top.clamp(ay, (ay + ah - size[1]).max(ay)),
@@ -75,6 +74,12 @@ pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
 /// whose outline the card leaves whole.
 fn card_inset(frame: &Frame) -> i32 {
     if frame.tail().is_some() { PAD } else { 0 }
+}
+
+/// The room at the bottom of the view that the field takes, with its
+/// inset in a balloon and a gap above it.
+fn field_room(frame: &Frame) -> i32 {
+    frame.field + card_inset(frame) + GAP
 }
 
 /// The widest card inside the view.
@@ -206,6 +211,7 @@ struct Parts {
     buttons: &'static [(&'static str, Word)],
     top_row: i32,
     body_top: i32,
+    field_room: i32,
 }
 
 #[allow(
@@ -243,7 +249,8 @@ impl Session {
         let buttons = buttons(&self.mode);
         let top_row = PAD + LINE + GAP;
         let body_top = top_row + BUTTON[1] + GAP;
-        let below = FIELD_ROOM + if hint.is_some() { LINE + GAP } else { 0 } + self.card_room();
+        let below =
+            field_room(frame) + if hint.is_some() { LINE + GAP } else { 0 } + self.card_room();
         let listed = LINE * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / LINE).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
@@ -259,6 +266,7 @@ impl Session {
             buttons,
             top_row,
             body_top,
+            field_room: field_room(frame),
         }
     }
 
@@ -406,7 +414,7 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
     let [_, _, w, h] = parts.rect;
     let mut commands = Vec::new();
     if let Some(hint) = &parts.hint {
-        let at = [PAD, h - FIELD_ROOM - LINE - GAP, w - 2 * PAD, LINE];
+        let at = [PAD, h - parts.field_room - LINE - GAP, w - 2 * PAD, LINE];
         let picture = Picture::new(w, h).text(Text::new(hint, Font::Body, rgba(colours.text), at));
         let path = theme.render(&picture);
         commands.push(create(
@@ -485,6 +493,7 @@ mod tests {
             slot: None,
             clear: Vec::new(),
             tip: Some([1144, 560]),
+            field: 36,
         };
         let most = frame.rect();
         let mut session = Session::new();
@@ -499,6 +508,14 @@ mod tests {
         session.agent_said(&"many words ".repeat(400));
         let full = session.parts(&theme, &frame, Language::En).rect;
         assert_eq!(full, most, "it grows up to its most");
+        frame.field = 100;
+        session.agent_said("Atlas is writing your notes.");
+        let four = session.parts(&theme, &frame, Language::En).rect;
+        assert_eq!(
+            four[3] - short[3],
+            100 - 36,
+            "the balloon grows with its field"
+        );
         frame.tip = None;
         assert_eq!(
             session.parts(&theme, &frame, Language::En).rect,

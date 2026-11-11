@@ -29,6 +29,8 @@ pub enum FieldEvent {
     Keyboard(bool),
     /// Esc closed the field, or the compositor did.
     Closed,
+    /// The field is this many logical pixels high now.
+    Height(i32),
 }
 
 /// A running field.
@@ -48,6 +50,9 @@ fn parse(line: &str) -> Option<FieldEvent> {
         "shown" => Some(FieldEvent::Shown),
         "keyboard" => Some(FieldEvent::Keyboard(value["data"]["on"] == true)),
         "closed" => Some(FieldEvent::Closed),
+        "height" => (value["data"]["height"].as_u64())
+            .and_then(|height| i32::try_from(height).ok())
+            .map(FieldEvent::Height),
         _ => None,
     }
 }
@@ -248,6 +253,11 @@ mod tests {
             parse(r#"{"event":"keyboard","data":{"on":true}}"#),
             Some(FieldEvent::Keyboard(true))
         );
+        assert_eq!(
+            parse(r#"{"event":"height","data":{"height":56}}"#),
+            Some(FieldEvent::Height(56))
+        );
+        assert_eq!(parse(r#"{"event":"height","data":{"height":-1}}"#), None);
         assert_eq!(parse(r#"{"event":"other"}"#), None);
         assert_eq!(parse("nonsense"), None);
     }
