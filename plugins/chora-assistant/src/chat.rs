@@ -29,12 +29,14 @@ use crate::{
     field::{FieldEvent, say_params},
 };
 
+mod face;
 mod glass;
 mod host;
 mod view;
 
+pub use face::Face;
 pub use host::{Announced, ShowParams, exported, token_of};
-pub use view::{card_origin, card_width};
+pub use view::{card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;
@@ -78,12 +80,14 @@ pub struct Frame {
 
 impl Frame {
     /// The rectangle of the view: the box of the slot inside the work
-    /// area, else the place of the `chat:` values, `margin` away from the
-    /// edges of the work area; beside what the view must not cover.
+    /// area exactly as announced, else the place of the `chat:` values,
+    /// `margin` away from the edges of the work area; there beside what
+    /// the view must not cover. The client of a slot owns the box, so the
+    /// view never steps aside in it.
     #[must_use]
     pub fn rect(&self) -> [i32; 4] {
         if let Some(slot) = self.slot.and_then(|slot| self.clipped(slot)) {
-            return self.aside(slot);
+            return slot;
         }
         if let Some(tip) = self.balloon_tip() {
             return self.balloon(tip);
@@ -371,6 +375,21 @@ pub struct Session {
     field_height: Option<i32>,
     /// The top of the card of the question in the view, on the output.
     card_top: Option<i32>,
+    /// The question that the state still names was ended: the card went,
+    /// by an answer that voice has not told yet.
+    answered: Answered,
+    /// What the person sent that the transcript does not hold yet, with the
+    /// `seq` it was sent after: it shows at once and goes when voice has it.
+    sent: Vec<(String, u64)>,
+}
+
+/// Whether the question that the state of the helper still names was
+/// answered here.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum Answered {
+    #[default]
+    No,
+    Yes,
 }
 
 /// The rectangle of the view in the work area: x, y, width, height. The
@@ -431,6 +450,14 @@ fn hairline(border: [u8; 3], fill: [u8; 3]) -> [u8; 3] {
     })
 }
 
+/// The fill, the text colour and the muted colour of the page of a look,
+/// and its reading face: what a card takes that stands in the page.
+#[must_use]
+pub fn page_ink(look: &Look) -> ([u8; 3], [u8; 3], [u8; 3], Option<Face>) {
+    let colours = colours(look);
+    (colours.fill, colours.text, colours.name, Face::of(look))
+}
+
 fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
     [r, g, b, 255]
 }
@@ -455,7 +482,7 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
             "background": rgba(colours.fill),
             "text": rgba(colours.text),
             "border": rgba(colours.border),
-            "hint": rgba(colours.text),
+            "hint": rgba(colours.name),
         },
     });
     if let Some(token) = token {
@@ -565,7 +592,14 @@ impl Session {
     }
 
     fn waiting(&self) -> bool {
-        self.status.state == "question"
+        self.status.state == "question" && self.answered == Answered::No
+    }
+
+    /// Whether the helper of the chat runs a prompt that Stop can end: it
+    /// works, thinks, speaks or asks.
+    #[must_use]
+    pub fn running(&self) -> bool {
+        ["working", "thinking", "speaking", "question"].contains(&self.status.state.as_str())
     }
 
     /// Whether the view is to be drawn again, and the mark taken away.
@@ -623,6 +657,7 @@ impl Session {
         if !same {
             self.close_chat(out);
             self.transcript = Transcript::default();
+            self.sent.clear();
             self.status = Status::default();
             self.head = 0;
             self.epoch = None;
@@ -663,10 +698,26 @@ impl Session {
             .ok()
             .and_then(|text| text.as_str().map(parse_list))
             .unwrap_or_default();
+        if let Some(last) = self.only_helper(&picks) {
+            self.open_chat(out, &last);
+            return;
+        }
         self.mode = Mode::List(picks);
         if let Some(link) = self.link.as_mut() {
             link.clear();
         }
+    }
+
+    /// The helper of the last chat when it is the only one that runs: a
+    /// person who closed its chat reopens that chat, not a list of one.
+    fn only_helper(&self, picks: &[Pick]) -> Option<String> {
+        let mut agents = picks.iter().filter_map(|pick| match pick {
+            Pick::Agent(name) => Some(name),
+            Pick::Project(_) => None,
+        });
+        let (only, none_more) = (agents.next()?, agents.next().is_none());
+        let last = self.last.as_deref()?;
+        (none_more && only.eq_ignore_ascii_case(last)).then(|| only.clone())
     }
 
     fn close_chat(&mut self, out: &mut dyn Outside) {
@@ -690,6 +741,15 @@ impl Session {
             link.place(&field_place(frame, token));
         }
         Ok(())
+    }
+
+    /// A press on a node of the host takes the keyboard from the field. The
+    /// press is an act of the person, so the field gets it back with the
+    /// token of that act; without a token it gets nothing.
+    pub fn refocus(&mut self, out: &mut dyn Outside, frame: &Frame, token: Option<&str>) {
+        if self.is_open() {
+            let _ = self.place_field(out, frame, token);
+        }
     }
 
     /// A click on the "Chat ..." row: the list, with the token of the
@@ -793,14 +853,24 @@ impl Session {
                     self.close_view(out);
                     changed = true;
                 }
-                FieldEvent::Stop => {
-                    if let Mode::Chat(name) = &self.mode {
-                        let _ = out.voice("agent.cancel", json!({"name": name}));
-                    }
-                }
+                FieldEvent::Stop => changed |= self.cancel(out),
             }
         }
         changed
+    }
+
+    /// Stops the running prompt of the helper: voice is asked, and the
+    /// header stops saying that it works until voice says otherwise. True
+    /// when the view changed.
+    pub fn cancel(&mut self, out: &mut dyn Outside) -> bool {
+        let Mode::Chat(name) = &self.mode else {
+            return false;
+        };
+        let _ = out.voice("agent.cancel", json!({"name": name}));
+        "idle".clone_into(&mut self.status.state);
+        self.status.task.clear();
+        self.status.steps = None;
+        true
     }
 
     fn said(&mut self, out: &mut dyn Outside, text: &str, frame: &Frame) -> bool {
@@ -813,7 +883,11 @@ impl Session {
                 if refused && let Some(link) = self.link.as_mut() {
                     link.say_failed(text);
                 }
-                self.pull(out)
+                if !refused {
+                    self.sent.push((sanitize(text), self.transcript.after()));
+                }
+                self.pull(out);
+                true
             }
             Mode::List(picks) => {
                 let text = text.trim();
@@ -905,6 +979,10 @@ impl Session {
 
     /// A question appeared: where its card goes, fixed until it ends.
     pub fn question_asked(&mut self) -> Where {
+        self.answered = Answered::No;
+        if let Some(link) = self.link.as_mut() {
+            link.question(true);
+        }
         let place = if self.is_open() {
             Where::Chat
         } else {
@@ -915,6 +993,10 @@ impl Session {
 
     /// The question ended.
     pub fn question_ended(&mut self) {
+        self.answered = Answered::Yes;
+        if let Some(link) = self.link.as_mut() {
+            link.question(false);
+        }
         self.card = None;
         self.card_height = None;
         self.card_top = None;
@@ -1014,6 +1096,9 @@ impl Session {
         } else {
             Vec::new()
         };
+        if matches!(self.mode, Mode::Chat(_)) {
+            lines.extend(self.echoes(language, measure));
+        }
         let spoken = self
             .spoken
             .as_deref()
@@ -1024,6 +1109,38 @@ impl Session {
             text,
         }));
         lines
+    }
+
+    /// The lines of what the person sent that the transcript does not hold
+    /// yet: as the transcript will show it, the label over the first line.
+    fn echoes(&self, language: Language, measure: &Measure) -> Vec<Line> {
+        let label = say(language, Word::You, &[]);
+        let mut lines = Vec::new();
+        for (text, _) in &self.sent {
+            for (n, part) in wrap(text, measure.max, measure.width)
+                .into_iter()
+                .enumerate()
+            {
+                lines.push(Line {
+                    role: Role::User,
+                    label: (n == 0).then(|| label.clone()),
+                    text: part,
+                });
+            }
+        }
+        lines
+    }
+
+    /// Drops what the person sent once the transcript holds it.
+    fn settle_sent(&mut self) {
+        let entries = self.transcript.entries();
+        self.sent.retain(|(text, after)| {
+            !entries.iter().any(|entry| {
+                entry.role == Role::User
+                    && entry.seq.is_some_and(|seq| seq > *after)
+                    && entry.text == *text
+            })
+        });
     }
 
     /// The height of the field: as it told it, else one line.
@@ -1098,6 +1215,7 @@ impl Session {
             self.offline = false;
             self.epoch = answer["epoch"].as_u64().or(self.epoch);
             self.transcript.apply(&answer);
+            self.settle_sent();
             if self.transcript.after() == after || self.transcript.after() >= self.head {
                 break;
             }
@@ -1121,6 +1239,19 @@ mod tests {
 
     use super::*;
     use crate::context::Switcher;
+
+    #[test]
+    fn the_last_helper_reopens_when_it_is_the_only_one() {
+        let mut session = Session::new();
+        let one = [Pick::Agent("Atlas".into()), Pick::Project("notes".into())];
+        assert_eq!(session.only_helper(&one), None, "no chat was open yet");
+        session.last = Some("atlas".into());
+        assert_eq!(session.only_helper(&one).as_deref(), Some("Atlas"));
+        let two = [Pick::Agent("Atlas".into()), Pick::Agent("Vega".into())];
+        assert_eq!(session.only_helper(&two), None, "two helpers: a list");
+        session.last = Some("Vega".into());
+        assert_eq!(session.only_helper(&one), None, "the last one is gone");
+    }
 
     #[derive(Default)]
     struct Log {
@@ -1304,6 +1435,21 @@ mod tests {
     }
 
     #[test]
+    fn a_press_in_the_view_gives_the_field_the_keyboard_back_with_its_token() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.refocus(&mut out, &frame, Some("act-0"));
+        assert!(log.borrow().places.is_empty(), "a closed view has no field");
+        session
+            .show(&mut out, Some("atlas"), Some("act-1"), &frame)
+            .unwrap();
+        session.refocus(&mut out, &frame, Some("act-2"));
+        assert_eq!(log.borrow().places.last().unwrap()["token"], "act-2");
+        session.refocus(&mut out, &frame, None);
+        assert!(log.borrow().places.last().unwrap().get("token").is_none());
+    }
+
+    #[test]
     fn a_slot_box_stays_in_the_work_area_and_in_the_limits_of_the_chat() {
         let mut frame = frame(Look::default());
         frame.area = [0, 24, 1280, 696];
@@ -1324,8 +1470,8 @@ mod tests {
         frame.clear = vec![[500, 500, 100, 100]];
         assert_eq!(
             frame.rect(),
-            [608, 400, 600, 280],
-            "beside what it would cover"
+            [40, 400, 600, 280],
+            "the box of a slot is the view, whatever stands in it"
         );
     }
 
@@ -1375,6 +1521,20 @@ mod tests {
         let place = field_place(&frame, None);
         assert_eq!(place["width"], 1200);
         assert_eq!(place["margin"], json!([0, 0, 40, 40]));
+    }
+
+    #[test]
+    fn the_field_of_a_plain_chat_has_a_muted_hint_and_no_scale() {
+        let mut frame = frame(Look {
+            text: Some([41, 38, 36]),
+            name: Some([110, 105, 99]),
+            ..Look::default()
+        });
+        frame.scale = 2;
+        let place = field_place(&frame, None);
+        assert!(place.get("scale").is_none(), "the plain field paints at 1");
+        assert_eq!(place["look"]["hint"], json!([110, 105, 99, 255]));
+        assert_eq!(place["look"]["text"], json!([41, 38, 36, 255]));
     }
 
     #[test]
@@ -1641,6 +1801,64 @@ mod tests {
     }
 
     #[test]
+    fn a_sent_message_shows_at_once_and_the_transcript_takes_its_place() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        log.borrow_mut()
+            .events
+            .push(FieldEvent::Say("Tidy up".into()));
+        assert!(session.field_events(&mut out, &frame), "the view changes");
+        let lines = session.lines(Language::En, &measure());
+        let last = lines.last().expect("a line for the message");
+        assert_eq!((last.role, last.text.as_str()), (Role::User, "Tidy up"));
+        assert_eq!(last.label.as_deref(), Some("You"));
+        log.borrow_mut()
+            .read
+            .push(answer(1, &[(1, "user", "Tidy up"), (2, "agent", "On it.")]));
+        let state = json!({"name": "atlas", "state": "working", "seq": 2, "epoch": 1});
+        session.voice_event(&mut out, "voice.state", &state);
+        let texts: Vec<String> = session
+            .lines(Language::En, &measure())
+            .into_iter()
+            .map(|l| l.text)
+            .collect();
+        assert_eq!(texts, ["Tidy up", "On it."], "said once, not twice");
+    }
+
+    #[test]
+    fn a_refused_message_is_no_line_of_the_chat() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        log.borrow_mut().down = true;
+        log.borrow_mut().events.push(FieldEvent::Say("Lost".into()));
+        session.field_events(&mut out, &frame);
+        assert_eq!(session.lines(Language::En, &measure()).len(), 0);
+    }
+
+    #[test]
+    fn stop_ends_the_working_of_the_header_until_voice_says_otherwise() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        let state = json!({"name": "atlas", "state": "working", "task": "Tidy", "seq": 0});
+        session.voice_event(&mut out, "voice.state", &state);
+        assert!(session.header(Language::En).contains("working"));
+        log.borrow_mut().events.push(FieldEvent::Stop);
+        assert!(session.field_events(&mut out, &frame));
+        assert!(
+            !session.header(Language::En).contains("working"),
+            "{}",
+            session.header(Language::En)
+        );
+        assert_eq!(calls(&log, "agent.cancel").len(), 1);
+        let again = json!({"name": "atlas", "state": "working", "task": "Tidy", "seq": 0});
+        session.voice_event(&mut out, "voice.state", &again);
+        assert!(session.header(Language::En).contains("working"));
+    }
+
+    #[test]
     fn a_text_that_matches_no_entry_asks_to_pick_a_helper_first() {
         let (mut session, mut out, log) = setup();
         let frame = frame(Look::default());
@@ -1677,6 +1895,7 @@ mod tests {
             .show(&mut out, Some("atlas"), Some("act"), &frame)
             .unwrap();
         session.hide(&mut out);
+        session.last = None;
         let before = log.borrow().clears;
         session.clicked_row(&mut out, &frame).unwrap();
         assert_eq!(
@@ -1727,6 +1946,7 @@ mod tests {
         log.borrow_mut().read.push(answer);
         assert!(session.pull(&mut out));
         session.hide(&mut out);
+        session.last = None;
         session.clicked_row(&mut out, &frame).unwrap();
         assert_eq!(session.lines(Language::En, &measure()), Vec::new());
     }
@@ -1831,11 +2051,41 @@ mod tests {
         );
         session.question_ended();
         session.voice_event(&mut out, "voice.state", &state);
+        assert_eq!(
+            session.hint(Language::En),
+            None,
+            "a question that was answered leaves no hint before voice says so"
+        );
+        session.hide(&mut out);
+        session.question_asked();
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
         assert!(
             session
                 .hint(Language::En)
-                .is_some_and(|h| h.contains("Alt+Y"))
+                .is_some_and(|h| h.contains("Alt+Y")),
+            "a card elsewhere: the hint names the keys"
         );
+    }
+
+    #[test]
+    fn a_second_question_in_an_open_chat_tells_the_field_to_wait() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_asked();
+        session.question_ended();
+        assert_eq!(log.borrow().questions.last(), Some(&false));
+        assert_eq!(session.question_asked(), Where::Chat);
+        assert_eq!(log.borrow().questions.last(), Some(&true));
+    }
+
+    #[test]
+    fn an_answered_question_leaves_the_field_without_its_note() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_ended();
+        assert_eq!(log.borrow().questions.last(), Some(&false));
     }
 
     #[test]

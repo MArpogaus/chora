@@ -16,7 +16,7 @@ panels:
 - id: agents
   source: agents
   anchor: top_right
-  margin: [16, 16]
+  margin: [16, 48]
   rows: '{name}  {state}  {task}'
   max_rows: 4
   action: chat

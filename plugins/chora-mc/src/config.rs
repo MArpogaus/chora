@@ -49,6 +49,10 @@ pub enum Action {
         content: String,
         region: Region,
     },
+    /// Shows all keys in the key list, or only the six that show first.
+    Keys,
+    /// Asks the HUD host to open the chat with a helper.
+    Chat,
 }
 
 /// How an agent of `agent.set` shows in a state.
@@ -208,7 +212,7 @@ impl Type {
         PropsUpdate {
             // A text node needs a text.
             text: Some(if text.is_empty() { " ".into() } else { text }),
-            family: style.family.clone(),
+            family: style.family.as_deref().map(crate::fonts::pick),
             font_size: Some(self.size),
             line_height: Some(self.line / self.size),
             color: Some(self.color),
@@ -513,6 +517,57 @@ mod tests {
 
     use super::*;
 
+    /// The relative luminance of a color, as WCAG 2 has it.
+    fn luminance([r, g, b, _]: [f64; 4]) -> f64 {
+        let lin = |c: f64| {
+            if c <= 0.039_28 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    fn contrast(a: [f64; 4], b: [f64; 4]) -> f64 {
+        let (x, y) = (luminance(a), luminance(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    /// The colors that carry text read on the paper: `text` at 7:1, the
+    /// rest at 4.5:1, in both themes.
+    #[test]
+    fn the_text_colors_have_contrast_on_the_page() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for (theme, colors) in [
+            ("light", &config.themes.light),
+            ("dark", &config.themes.dark),
+        ] {
+            let page = colors["background"];
+            let least = [("text", 7.0)]
+                .into_iter()
+                .chain(["muted", "accent", "green", "amber", "blue", "red"].map(|c| (c, 4.5)));
+            for (name, least) in least {
+                let ratio = contrast(colors[name], page);
+                assert!(
+                    ratio >= least,
+                    "{theme} {name}: {ratio:.2} is under {least}"
+                );
+            }
+        }
+    }
+
+    /// Nothing that a person reads is under 14 pixels: the review of the
+    /// look found the running head and the clock at 11.6.
+    #[test]
+    fn no_style_of_the_default_is_under_14_pixels() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for name in config.styles.keys() {
+            let size = config.resolve(name, None).unwrap().size;
+            assert!(size >= 14.0, "{name} is {size} px");
+        }
+    }
+
     /// The default drags a window of mc with Super and the left button.
     #[test]
     fn the_default_binds_the_drag_to_a_pointer_button() {
@@ -527,11 +582,25 @@ mod tests {
         assert_eq!(config.voice_hud, VoiceHud::Host);
     }
 
+    /// Super+a is the chat as in every look; the terminal has its own key.
+    #[test]
+    fn the_default_keys_of_the_chat_and_the_terminal() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.bindings["Super+a"], Action::Chat);
+        assert_eq!(
+            config.bindings["Super+Return"],
+            Action::Scene("terminal".into())
+        );
+    }
+
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
-        assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
+        assert_eq!(
+            config.bindings["Super+Home"],
+            Action::Scene("agenda".into())
+        );
         let give = DEFAULT.replace("Super+n:", "Super+g: {give: xp}\n  Super+n:");
         let given = parse::<Config>(&give).unwrap();
         assert_eq!(given.bindings["Super+g"], Action::Give("xp".into()));
@@ -610,9 +679,9 @@ mod tests {
         // An em follows the base: the running head of the default.
         let mut config = parse::<Config>(DEFAULT).unwrap();
         let head = |c: &Config| c.resolve("running_head", None).unwrap().size;
-        assert!((head(&config) - 11.0).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 14.25).abs() < 0.01, "{}", head(&config));
         config.scale.base = 27.0;
-        assert!((head(&config) - 16.5).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 20.25).abs() < 0.01, "{}", head(&config));
         let caps = Style {
             uppercase: Some(true),
             ..Style::default()

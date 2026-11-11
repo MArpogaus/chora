@@ -424,7 +424,9 @@ grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
 the text, flush right, and the text wraps under it. A panel names the
 styles of its lines, its title and its notes with `style`, `title_style`
 and `note_style`; each takes a `base` (by default `body`, `heading` and
-`margin`) and changes single fields.
+`margin`) and changes single fields. A panel may set `empty`, words that
+show in `muted` while it has no lines, so that a page without data says
+what it is for: the agenda says `Nothing planned today.`
 
 All scenes share the `page` of the settings, so that the text block
 and the head stay in place from scene to scene. A scene may set its own
@@ -463,15 +465,22 @@ With the setting `voice_hud: host`, the default, the HUD host
 `plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
 of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
 indicator; it still shows the helpers that `voice.state` names. A click
-on the column of a helper in the scene `agents` calls `assistant
-chat.show {name}`. While the event `assistant.chat` of the client
-`assistant` says that the chat is open on the output of mc, the drawer
-shows alone with the content `chat`, and mc emits its box as
-`mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
-output, `null` when the drawer closes). mc names its theme to the host
+on the column of a helper in the scene `agents`, or on its row in a
+region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
+`assistant` says that the chat is open on the output of mc, the content
+`chat` of the margin column holds it: the texts with `folds: true`, such
+as the notifications, fold into their head and the count of their lines
+with `Show` flush right, the key list goes, and mc emits the box under the
+head `Chat` as `mc.chat.slot {output, rect}` (`rect` is
+`[x, y, width, height]` on the output, `null` when the chat closes). The
+page keeps its place. While the chat is closed the content `chat` is the
+door `Chat with a helper ...` with the key of the chat flush right; a
+click on it asks the host to open the chat. mc names its theme to the host
 with `mc.theme {theme}` at its start, when its settings change and on
 `assistant.ready` of the host, and the host draws the mc folder in that
 theme.
+The host emits `assistant.chat.keyboard {on}` when the field of the chat
+gets or loses the keyboard; a test that sends Esc waits for `on: true`.
 
 | Method | Parameters |
 |--------|------------|
@@ -494,7 +503,7 @@ theme.
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`; a critical one also shows in red in the text `urgent` until the next one |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one also shows in red in the text `urgent` until the next one |
 | `notify.clear` | none; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
@@ -551,7 +560,12 @@ with `settings.reload`:
   (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
-  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
+  `uppercase`. A `family` may be a list, `TeX Gyre Pagella, DejaVu Serif`:
+  the plugin asks fontconfig and the directories of `CHORA_FONT_DIRS` and
+  uses the first name that the machine has, so that the page is set in a
+  serif and not in a second sans without Pagella. Nothing is under 14
+  pixels at the default scale: the running head and the clock are the
+  `label` size. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
   the built-in scenes also use `data`, `mono` and `lead`. The
   [style guide](mc-style.md) gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
@@ -573,7 +587,9 @@ with `settings.reload`:
   be narrower, the page shows fewer columns and the panels wrap into new
   rows in reading order, each at the top-most, then left-most place
   below the panels before it; an empty panel takes no room. A row is
-  never lower than the least height. A page that is longer than the
+  never lower than the least height, except a row of only empty panels
+  that say why they are empty: it is as high as those words (two lines),
+  so that every such message shows at 1280 by 800. A page that is longer than the
   output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `order`: the scenes in their order (default `agenda`, `morning`,
@@ -584,7 +600,7 @@ with `settings.reload`:
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
-  `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
@@ -596,9 +612,10 @@ with `settings.reload`:
 - `test_accept_injected_keys`: `false`; for tests only, the bindings
   take the keys of `input.inject` as keys of the user (see
   [Injected keys](#injected-keys)).
-- `voice_hud`: `own`; `own` draws the voice HUD of mc, `host` leaves it
-  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`
-  and its chat drawer.
+- `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
+  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
+  The chat shows in the margin column of mc, in the box that mc announces
+  (see the HUD host above).
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -633,12 +650,17 @@ region. The page itself never moves when a region shows.
   side: a slot below 0 goes left, 0 in the middle, above 0 right. The
   right end keeps its place, the left end comes next, and a text that
   does not fit ends in an ellipsis.
-- `left` and `right` are columns beside the page, `size` em wide, their
-  contents one under the other with a title in the style `running_head`.
-  The page leaves room for a side that has contents, so that its text
-  never moves; where both sides would leave the text less than three
-  quarters of the measure of one column, the sides do not show. The
-  columns of the grid that do not fit wrap into new rows.
+- `left` and `right` are columns beside the page, `size` lines of the
+  baseline grid wide, their contents one under the other with a title in
+  the style `label`. The right side is the margin column: it is 26 per
+  cent of the output wide in whole lines, from `size` lines (336 pixels
+  at 1280) up to a third more (448 pixels at 1920), with a gutter of two
+  lines at the edge of the output and one of two lines between it and the
+  text block, and a hairline in the middle of that gap. The page leaves
+  room for a side that has contents, so that its text never moves; where
+  both sides would leave the text less than three quarters of the measure
+  of one column, the sides do not show. The columns of the grid that do
+  not fit wrap into new rows.
 - `drawer` is a sheet of `size` lines over the bottom of the page, with a
   hairline above it, for a docked app.
 
@@ -649,6 +671,14 @@ toggle, else from the `regions` of the scene file (for example
 toggle, and the app window leaves the header, the footer, the drawer and
 a shown side free. A toggle stays for all scenes.
 
+The pointer works on the items that a click acts on: a row of the key
+list, a helper in a region, a row of a page with a time and a line of the
+overview. Under the pointer an item shows a focus mark, a bar of 2 by 20
+pixels in the `text` color, 12 pixels left of it. A click on a key row
+does what its key does, a click on a helper opens the chat with it, a
+click on a line of the overview shows that scene, and a click on another
+row of a page makes mc emit `mc.row.chosen {scene, panel, index}`.
+
 The `contents` are named. Their `kind` is one of:
 
 | Kind | Shows |
@@ -657,8 +687,10 @@ The `contents` are named. Their `kind` is one of:
 | `clock` | the time as `date` formats it with `format`, each minute anew |
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
-| `agents` | the sign and the name of each agent of `agent.set`, each in the color of its state, in the style `hud` |
-| `text` | a `title` and `lines` that `content.set` and `content.add` change |
+| `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
+| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest and `Esc`, in the words of the six rows. A thin space follows the plus before an arrow |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -673,17 +705,22 @@ back to it, and the next press hides the region and gives the keyboard
 back to the scene. When the app ends, its region hides. A drawer that a
 preset or a scene shows starts its app when the settings load.
 
-The default bindings are `Super+Return` for the drawer, `Super+n` for the
-right side, and `Super+Up` and `Super+Down` for the header and the
-footer.
+The default bindings are `Super+a` for the chat (`chat` asks the HUD host
+to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
+scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
+header and the footer, and `Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
+needs the grant `input.grab-any`, so the key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
-the agents, the state of the agent and the clock right; the footer shows
+the clock right; the footer shows
 the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
-content `next`); the right side shows the notes, which an agent fills
-with `content.add`, and the notifications below them, newest on top;
-`Super+Return` opens `foot` in the drawer in the colors of the theme.
+content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page); the right side shows the notes, which an agent fills
+with `content.add`, and the notifications below them, newest on top, and
+the key list at its foot. The state of the voice agent and the helpers
+stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
+terminal is the scene `terminal`, `foot` in the colors of the theme, and
+the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.
 On a narrow page the header has no room for many agents and the long
 clock: the end of the line is cut. Set the rule of `time` instead of

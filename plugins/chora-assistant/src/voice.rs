@@ -73,6 +73,22 @@ impl Agent {
         Ok(true)
     }
 
+    /// When the button that took no click shows its normal state again.
+    pub fn flash_due(&self) -> Option<Instant> {
+        self.flash.as_ref().map(|(_, at)| *at)
+    }
+
+    /// Puts the button that took no click back.
+    pub fn flash_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        let Some((node, _)) = self.flash.take_if(|(_, at)| *at <= now) else {
+            return Ok(());
+        };
+        if self.card.is_none() {
+            return Ok(());
+        }
+        self.apply(vec![card::pressed(&node, false)])
+    }
+
     /// When the next try to ask the voice agent for its state is due.
     pub fn ask_due(&self) -> Option<Instant> {
         self.state_ask.map(|(at, _)| at)
@@ -210,10 +226,7 @@ impl Agent {
         if self.card.is_some() || !self.balloon_chat() || self.chat.is_open() {
             return;
         }
-        let asking = (self.helpers.iter())
-            .find(|(_, helper)| helper.state == "question")
-            .map(|(name, _)| name.clone());
-        if let Err(err) = self.chat_show(asking.as_deref(), None) {
+        if let Err(err) = self.chat_show(self.asking().as_deref(), None) {
             eprintln!("chora-assistant: the balloon for the question: {err}");
         }
     }
@@ -279,13 +292,43 @@ impl Agent {
         )
     }
 
+    /// The helper that has a question: the title of a card names it when
+    /// the event does not.
+    fn asking(&self) -> Option<String> {
+        (self.helpers.iter())
+            .find(|(_, helper)| helper.state == "question")
+            .map(|(name, _)| name.clone())
+    }
+
+    /// A card for a question on an output, not placed yet.
+    fn new_card(&self, question: Question, (buttons, output): (bool, &str), now: Instant) -> Shown {
+        let (ink, face) = self.card_ink();
+        Shown {
+            id: question.answer_id.clone(),
+            card: chora_kit::ask::Card::new(question, now),
+            buttons,
+            output: output.to_owned(),
+            origin: [0, 0],
+            notice: false,
+            too_long: false,
+            max_width: None,
+            glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
+                .then_some(self.values.dark),
+            ink,
+            face,
+        }
+    }
+
     /// The question of `voice.confirm` as a card, once and in one place
     /// until it ends; its end takes the card away. A question whose whole
     /// text does not fit has no buttons and is refused at once.
     fn confirm(&mut self, data: &Value, now: Instant) -> Result<Vec<Command>, ClientError> {
-        let Some(question) = Question::from_event(data, None) else {
+        let Some(mut question) = Question::from_event(data, None) else {
             return Ok(self.end_card(data));
         };
+        if question.agent.is_none() {
+            question.agent = self.asking();
+        }
         let id = question.answer_id.clone();
         if !self.settings.value.enabled || self.card.as_ref().is_some_and(|c| c.id == id) {
             return Ok(Vec::new());
@@ -294,21 +337,11 @@ impl Agent {
         let Some((output, scale)) = self.output()? else {
             return Ok(Vec::new());
         };
+        self.card_fonts();
         self.card_theme.set_scale(scale);
         let figure = self.figure_rect(&output);
         let mut commands = self.ensure_top(&output.name);
-        let mut shown = Shown {
-            card: chora_kit::ask::Card::new(question, now),
-            id,
-            buttons: data["buttons"] == true,
-            output: output.name.clone(),
-            origin: [0, 0],
-            notice: false,
-            too_long: false,
-            max_width: None,
-            glass: (self.values.chat().style == chora_kit::hud::ChatStyle::Glass)
-                .then_some(self.values.dark),
-        };
+        let mut shown = self.new_card(question, (data["buttons"] == true, &output.name), now);
         self.place_card(&mut shown, figure, &output)?;
         let language = self.language;
         if let Some(old) = self.card.take() {
@@ -341,17 +374,55 @@ impl Agent {
         Ok(commands)
     }
 
+    /// The family of the card: the sans of the look where the folder names
+    /// a slot, else the one of the host. The fonts stay those of the host:
+    /// a family by name, never a font file of a folder.
+    fn card_fonts(&mut self) {
+        let want = if self.values.slot {
+            self.values.font.clone()
+        } else {
+            crate::HOST_FAMILY.to_owned()
+        };
+        if want == self.card_family {
+            return;
+        }
+        match card::theme(&self.source.cache, &want) {
+            Ok(theme) => {
+                self.card_theme = theme;
+                self.card_family = want;
+            }
+            Err(err) => eprintln!("chora-assistant: card fonts: {err}"),
+        }
+    }
+
+    /// What the card is drawn in: the page of the look where the folder
+    /// names a slot, else the card of the host.
+    fn card_ink(&self) -> (card::Ink, Option<chat::Face>) {
+        if !self.values.slot {
+            return (card::Ink::HOST, None);
+        }
+        let (fill, text, muted, face) = chat::page_ink(&self.values.chat());
+        (card::Ink::page(fill, text, muted), face)
+    }
+
     /// The end of a question, by `done` with its id.
     fn end_card(&mut self, data: &Value) -> Vec<Command> {
         let Some(id) = chora_kit::ask::event_id(data) else {
             return Vec::new();
         };
         if self.card.as_ref().is_some_and(|c| c.id == id) {
-            let old = self.card.take();
-            self.chat.question_ended();
-            return old.as_ref().map(card::hide).unwrap_or_default();
+            return self.close_card();
         }
         Vec::new()
+    }
+
+    /// Takes the card away: its answer reached voice, which ends the
+    /// question with `done` too, but an agent that does not say so leaves
+    /// no card on the screen after the answer.
+    fn close_card(&mut self) -> Vec<Command> {
+        let old = self.card.take();
+        self.chat.question_ended();
+        old.as_ref().map(card::hide).unwrap_or_default()
     }
 
     /// The width, the size and the corner of a new card; a card that
@@ -607,11 +678,11 @@ impl Agent {
         Ok(commands)
     }
 
-    /// The card in the balloon of the figure follows the balloon when the
-    /// field changes its height, so that it stands above the hint; its
-    /// buttons take no click for a moment, as after any move.
+    /// The card in the view of the chat follows the view when the field
+    /// changes its height, so that it stands above the hint. A re-layout is
+    /// no new question: the guard of its buttons does not start again.
     pub fn card_follows(&mut self) -> Result<Vec<Command>, ClientError> {
-        if !self.balloon_chat() || self.chat.card_top().is_none() {
+        if self.chat.card_top().is_none() {
             return Ok(Vec::new());
         }
         let (Some(frame), Some((output, _))) = (self.chat_frame()?, self.output()?) else {
@@ -622,12 +693,10 @@ impl Agent {
         };
         let size = card::size(&self.card_theme, &shown, self.language, output.size);
         let origin = chat::card_origin(&frame, size);
-        if origin == shown.origin {
+        if !card::follow(&mut shown, origin) {
             self.card = Some(shown);
             return Ok(Vec::new());
         }
-        shown.origin = origin;
-        shown.card.moved(Instant::now());
         self.chat.card_shown(origin[1], size[1]);
         let mut commands = card::hide(&shown);
         let (theme, language) = (&mut self.card_theme, self.language);
@@ -718,12 +787,18 @@ impl Agent {
         };
         match outcome {
             Outcome::Answer(params) => {
-                if let Err(err) = self.voice_call("confirm.answer", &params) {
+                let answered = self.voice_call("confirm.answer", &params);
+                if let Err(err) = &answered {
                     eprintln!("chora-assistant: voice: confirm.answer: {err}");
+                    return Ok((true, Vec::new()));
                 }
-                Ok((true, Vec::new()))
+                Ok((true, self.close_card()))
             }
-            Outcome::Ignored => Ok((true, Vec::new())),
+            Outcome::TooSoon => {
+                eprintln!("chora-assistant: a press on {node} came too soon after the card");
+                self.flash = Some((node.to_owned(), Instant::now() + card::FLASH));
+                Ok((true, vec![card::pressed(node, true)]))
+            }
             Outcome::Notice => {
                 shown.notice = true;
                 let shown = shown.clone();

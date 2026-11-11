@@ -13,13 +13,19 @@ use crate::{
     Mc,
     config::{Color, Style},
     invalid,
-    region::{self, Content, Item, MAX_LINES, Region},
+    region::{self, Content, Item, Put, Region},
     scene::{Panel, check_name},
 };
 
 /// The scene that shows the agents, one column each.
 const SCENE: &str = "agents";
 
+/// The most helpers that a side shows, one row each.
+const MAX_ROWS: usize = 4;
+/// The width of the sign of a helper and the space after it, in pixels.
+const SIGN_WIDTH: f64 = 18.0;
+/// The lines of the notifications: three, with a blank line between them.
+const NOTIFY_LINES: usize = 3;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
@@ -40,6 +46,12 @@ pub struct Agent {
     /// The time of the first report, as HH:MM.
     pub since: String,
 }
+
+/// The fields of `agent.set` that a state of the voice agent may carry; the
+/// others, such as `seq` and `epoch` for the host, are not for mc.
+pub const STATE_FIELDS: [&str; 8] = [
+    "name", "state", "task", "said", "voice", "plan", "question", "log",
+];
 
 /// Parameters of `agent.set`; a missing field keeps its value.
 #[derive(Deserialize)]
@@ -195,6 +207,14 @@ const URGENT: &str = "urgent";
 /// detail in mono.
 const CONFIRM: &str = "confirm";
 
+/// Whom a `chat.show` was for, for its error line: never an empty name.
+fn chat_who(name: Option<&str>) -> String {
+    name.map_or_else(
+        || "for the helper that the host chooses".to_owned(),
+        |name| format!("with {name}"),
+    )
+}
+
 impl Mc {
     /// Adds an agent or changes it.
     pub fn set_agent(&mut self, set: SetAgent) -> Result<(), RpcError> {
@@ -283,6 +303,9 @@ impl Mc {
         name: &str,
         content: &Content,
     ) -> Vec<Item> {
+        if !region.is_line() {
+            return self.agent_rows(region, slot, name, content);
+        }
         let config = &self.settings.value;
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
@@ -295,13 +318,67 @@ impl Mc {
                     .copied()
                     .unwrap_or(base);
                 Item {
-                    id: format!("{id}-{i}"),
-                    slot,
-                    props: ty.props(&text),
-                    first: i == 0,
+                    hit: Some(format!("agent:{}", agent.name)),
+                    ..Item::text(format!("{id}-{i}"), slot, ty.props(&text), i == 0)
                 }
             })
             .collect()
+    }
+
+    /// The rows of the helpers in a side: the sign in the color of the
+    /// state, the name in `text`, and the state and the task in `muted`
+    /// after it; at most four rows, then how many more there are.
+    fn agent_rows(&self, region: Region, slot: i32, name: &str, content: &Content) -> Vec<Item> {
+        let config = &self.settings.value;
+        let id = format!("{}-{name}", self.region_id(region));
+        let colors = config.colors();
+        let muted = self.content_type(content, false);
+        let color = |name: &str| colors.get(name).copied().unwrap_or(muted.color);
+        let (mut sign, mut text) = (muted.clone(), muted.clone());
+        text.color = color("text");
+        let mut items = Vec::new();
+        for (i, agent) in self.agents.iter().take(MAX_ROWS).enumerate() {
+            let state = config.states.get(&agent.state);
+            sign.color = state.map_or(muted.color, |s| color(&s.color));
+            let mark = state.map_or("", |s| s.sign.as_str());
+            let words = state
+                .and_then(|s| s.label.as_deref())
+                .unwrap_or(&agent.state);
+            let detail = if agent.task.is_empty() {
+                words.to_owned()
+            } else {
+                format!("{words} · {}", agent.task)
+            };
+            let row = |part: &str, put, x, props| Item {
+                x,
+                put,
+                ..Item::text(format!("{id}-{i}-{part}"), slot, props, false)
+            };
+            items.push(Item {
+                hit: Some(format!("agent:{}", agent.name)),
+                ..row("sign", Put::Stack, 0.0, sign.props(mark))
+            });
+            items.push(row("name", Put::Row, SIGN_WIDTH, text.props(&agent.name)));
+            items.push(row(
+                "state",
+                Put::After,
+                SIGN_WIDTH + 60.0,
+                muted.props(&detail),
+            ));
+        }
+        let more = self.agents.len().saturating_sub(MAX_ROWS);
+        if more > 0 {
+            let props = muted.props(&format!("+{more} more"));
+            items.push(Item {
+                put: Put::Stack,
+                x: SIGN_WIDTH,
+                ..Item::text(format!("{id}-more"), slot, props, false)
+            });
+        }
+        if let Some(first) = items.first_mut() {
+            first.first = true;
+        }
+        items
     }
 
     /// A click on the column of a helper in the agents scene asks the HUD
@@ -337,15 +414,32 @@ impl Mc {
         let Some(name) = hit else {
             return false;
         };
-        let mut params = json!({"name": name});
+        self.chat_with(Some(&name));
+        true
+    }
+
+    /// Asks the HUD host to show the chat, with a helper or with the one
+    /// that it chooses.
+    pub fn chat_with(&mut self, name: Option<&str>) {
+        let mut params = json!({});
+        if let Some(name) = name {
+            params["name"] = json!(name);
+        }
         if let Some(token) = self.rt.conn.activation_token() {
             params["token"] = json!(token);
         }
         let call = json!({"client": "assistant", "method": "chat.show", "params": params});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-mc: chat.show {name}: {err}");
+            eprintln!("chora-mc: chat.show {}: {err}", chat_who(name));
         }
-        true
+    }
+
+    /// Asks the HUD host to close the chat.
+    pub fn chat_close(&mut self) {
+        let call = json!({"client": "assistant", "method": "chat.hide", "params": {}});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-mc: chat.hide: {err}");
+        }
     }
 
     /// Shows one agent alone in the agents scene, with its transcript in
@@ -500,17 +594,10 @@ impl Mc {
         if urgency == Urgency::Critical {
             self.set_text(URGENT, None, |_| vec![format!("✕  {text}")])?;
         }
-        // Newest on top, an empty line between two.
         self.set_text(NOTIFY, None, |old| {
             let mut lines = vec![line];
-            if !old.is_empty() {
-                lines.push(String::new());
-            }
             lines.extend(old);
-            lines.truncate(MAX_LINES);
-            while lines.last().is_some_and(String::is_empty) {
-                lines.pop();
-            }
+            lines.truncate(NOTIFY_LINES);
             lines
         })
     }
@@ -757,6 +844,15 @@ fn band(agent: &Agent) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn an_error_of_chat_show_without_a_name_names_the_reason() {
+        assert_eq!(
+            super::chat_who(None),
+            "for the helper that the host chooses"
+        );
+        assert_eq!(super::chat_who(Some("Atlas")), "with Atlas");
+    }
+
+    #[test]
     fn one_agent_takes_the_whole_width_two_half_each() {
         let cell = [0, 0, 1, 2];
         assert_eq!(super::agent_cell(cell, 1, 1, 4), [0, 0, 4, 2]);
@@ -803,6 +899,32 @@ mod tests {
             called.last(),
             Some(
                 &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Bert"}})
+            )
+        );
+    }
+
+    /// A click on the row of a helper in the margin asks the host to show
+    /// the chat with that helper, with no key.
+    #[test]
+    fn a_click_on_the_row_of_a_helper_shows_its_chat() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("row-chat", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let state = json!({"name": "Atlas", "state": "working"});
+        mc.follow("voice.state", "voice", state).unwrap();
+        mc.show("agenda", false).unwrap();
+        let name = mc.current.clone().unwrap();
+        let id = (mc.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.hit.as_deref() == Some("agent:Atlas"))
+            .map(|i| i.id)
+            .expect("an item for Atlas that takes a click");
+        assert!(mc.click_hit(&format!("{id}-hit")));
+        let called = model.lock().unwrap().called.clone();
+        assert_eq!(
+            called.last(),
+            Some(
+                &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Atlas"}})
             )
         );
     }

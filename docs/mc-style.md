@@ -14,7 +14,9 @@ change it there, not here.
    the scene title, the panel titles, the body and the lead. Inter sets
    the frame and machine data: the header, the footer, the sides, the
    margin notes, the HUD and the style `data`. The style `mono` is for
-   commands, paths and code only. Do not add a third family.
+   commands, paths and code only. Do not add a third family. The family
+   of `body` is a list, `TeX Gyre Pagella, DejaVu Serif`, so that a machine
+   without Pagella shows a serif and not a second sans.
 2. **Five sizes.** Use only these steps of the scale:
 
     | Step | Role | Styles |
@@ -25,9 +27,12 @@ change it there, not here.
     | 2 | the lead of a scene, at most one | `lead` |
     | 3 | the scene title and its number | `chapter`, `chapter_number` |
 
-    Do not set Pagella below step 0. The labels of the regions are the
-    one exception: capitals of Inter at 0.61 em, as tall as the lowercase
-    of `margin`.
+    Do not set Pagella below step 0. The labels of the regions, the
+    running head and the clock are the one exception: capitals of Inter
+    at 0.75 em, the size of `margin`. Nothing on the page is under 14
+    pixels, in the header as in the margin column; the gate
+    `tests/gate-mc-column.sh` checks every text. The scale base is 19
+    pixels on a baseline grid of 28.
 3. **One weight.** Pagella is always regular. Inter is regular, the
    labels of the regions are medium (500). Do not use bold or italic for
    emphasis; use place, size and space.
@@ -46,7 +51,9 @@ change it there, not here.
 6. **Three roles.** `text` is for content. `muted` is for panel titles,
    labels, notes, the scene number and its bar. `faint` is for hairlines
    and for an agent that rests. Do not set text that people must read in
-   `faint`.
+   `faint`. Text colors keep their contrast on the page: `text` at
+   least 7:1 and `muted`, `accent` and the four state colors at least
+   4.5:1, in both themes; a test of the default checks it.
 7. **One accent.** The `accent` color is on the scene title and on the
    state of the voice agent only. The
    colors `green`, `amber`, `blue` and `red` show a state, for example of
@@ -66,7 +73,9 @@ change it there, not here.
     the capitals, with the same space on both sides.
 11. **Hairlines, no boxes.** A rule is one pixel in `faint`, left of a
     panel. There is no rule at the left edge of the text block and no
-    rule beside an empty panel. Do not add boxes, fills or shadows.
+    rule beside an empty panel. The one other rule runs between the text
+    block and the margin column, in the middle of the gap. Do not add
+    boxes, fills or shadows.
 
 ## Layout
 
@@ -76,7 +85,8 @@ change it there, not here.
 13. **Narrow outputs.** 1280 logical pixels is a main target, not an
     edge case. A page shows only as many columns as fit at `min_panel`;
     the other panels wrap into new rows in reading order. A row is never
-    lower than `min_panel`. When the page is longer than the output, it
+    lower than `min_panel`, except a row of only empty panels with their
+    words: it is as high as the words, so that each message shows. When the page is longer than the output, it
     scrolls with the wheel.
 14. **Columns follow the content.** The agents scene has as many
     columns as agents: one agent takes the whole width, two take half
@@ -91,3 +101,19 @@ change it there, not here.
     a named style in `mc.yaml` and a rule on this page. Before a merge,
     capture the scene at 1920x1080 and at 1280x720, in the dark and the
     light theme, and compare it with these rules.
+
+## The margin column
+
+16. **The key list.** The column ends with six rows of a key and its
+    words under a hairline and the head `Keys`: the key in `text` with
+    weight 500, the words in `muted`, both in the style `margin`, on the
+    baseline grid. It shows until the user hides the column with
+    `Super+n`; `Super+F1` shows all keys in its place. The list is on
+    `Super+F1`, not on `F1`, because a plain F1 belongs to a program in a
+    scene and needs the grant `input.grab-any`.
+    The full list goes by task, in the words of the six rows.
+17. **One focus mark.** What a click acts on shows a bar of 2 by 20
+    pixels in `text`, 12 pixels left of it, while the pointer is over it:
+    no underline, no fill and no change of color. A word flush right in a
+    head, `Esc  Close` and `Show`, takes its own box and its own bar, not
+    those of the row.

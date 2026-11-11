@@ -213,6 +213,9 @@ pub struct Switcher {
     field: bool,
     /// The theme that each window manager named, by client.
     themes: BTreeMap<String, String>,
+    /// The client that holds the slot of the chat of the folder: its theme
+    /// is the look's where no window manager claims the screen.
+    look: Option<String>,
 }
 
 impl Default for Switcher {
@@ -230,6 +233,7 @@ impl Switcher {
             state: "asleep".into(),
             agents: "none".into(),
             chat: "none".into(),
+            theme: "light".into(),
             ..Context::default()
         };
         Self {
@@ -244,6 +248,7 @@ impl Switcher {
             question: false,
             field: false,
             themes: BTreeMap::new(),
+            look: None,
         }
     }
 
@@ -313,10 +318,27 @@ impl Switcher {
         self.set(|context| &mut context.theme, &theme, now);
     }
 
-    /// The theme of the space, else of the window manager, else light.
+    /// The client that the folder on the screen names as the holder of the
+    /// slot of its chat, none when it names no slot.
+    pub fn set_look_client(&mut self, client: Option<String>, now: Instant) {
+        if self.look == client {
+            return;
+        }
+        self.look = client;
+        let theme = self.theme_of(&self.wanted);
+        self.set(|context| &mut context.theme, &theme, now);
+    }
+
+    /// The theme of the space, else of the window manager, else of the
+    /// client of the slot, else light.
     fn theme_of(&self, context: &Context) -> String {
+        let look = self
+            .look
+            .as_ref()
+            .and_then(|client| self.themes.get(client));
         (self.themes.get(&context.space))
             .or_else(|| self.themes.get(&context.wm))
+            .or(look)
             .map_or_else(|| "light".to_owned(), String::clone)
     }
 
@@ -594,6 +616,21 @@ mod tests {
         assert_eq!(switcher.applied().theme, "dark", "tiling names no theme");
         switcher.set_theme("mc", "light", now);
         assert!(switcher.due().is_some());
+        switcher.resolve(None, now);
+        assert_eq!(switcher.applied().theme, "light");
+    }
+
+    #[test]
+    fn the_client_of_the_slot_gives_the_theme_where_no_manager_claims_the_screen() {
+        let now = Instant::now();
+        let mut switcher = Switcher::new();
+        switcher.set_theme("mc", "dark", now);
+        switcher.resolve(None, now);
+        assert_eq!(switcher.applied().theme, "light", "no claim, no slot");
+        switcher.set_look_client(Some("mc".into()), now);
+        switcher.resolve(None, now);
+        assert_eq!(switcher.applied().theme, "dark", "mc owns the look");
+        switcher.set_look_client(None, now);
         switcher.resolve(None, now);
         assert_eq!(switcher.applied().theme, "light");
     }

@@ -6,8 +6,9 @@ panels:
 - id: lead
   cell: [0, 0, 2, 2]
   style: {base: lead}
-- {id: weather, cell: [2, 0, 1, 1], rule: faint}
-- {id: day, cell: [3, 0, 1, 2], rule: faint}
-- {id: mail, cell: [2, 1, 1, 1], rule: faint}
-- {id: overnight, cell: [0, 2, 2, 1]}
-- {id: reading, cell: [2, 2, 2, 1], rule: faint}
+  empty: No briefing yet. The collector has not run.
+- {id: weather, cell: [2, 0, 1, 1], rule: faint, empty: No weather yet.}
+- {id: day, cell: [3, 0, 1, 2], rule: faint, empty: Nothing planned today.}
+- {id: mail, cell: [2, 1, 1, 1], rule: faint, empty: No mail yet.}
+- {id: overnight, cell: [0, 2, 2, 1], empty: Nothing overnight.}
+- {id: reading, cell: [2, 2, 2, 1], rule: faint, empty: Nothing to read yet.}

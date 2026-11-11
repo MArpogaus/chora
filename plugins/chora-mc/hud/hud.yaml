@@ -2,30 +2,35 @@ hud: 1
 font: Inter
 panels:
 - id: state
+  when: {theme: light}
   source: voice
   anchor: top_right
-  margin: [32, 16]
+  margin: [56, 19]
   picture: state.svg#{state}
   text: '{state}'
   action: mute
+  fill: [247, 245, 237]
+  colours:
+    text: [41, 38, 36]
+    accent: [140, 36, 31]
+- id: state-dark
+  when: {theme: dark}
+  source: voice
+  anchor: top_right
+  margin: [56, 19]
+  picture: state-dark.svg#{state}
+  text: '{state}'
+  action: mute
+  fill: [28, 28, 28]
+  colours:
+    text: [217, 212, 201]
+    accent: [204, 120, 102]
 - id: line
   source: say
   near: state
   style: plain
   text: '{text}'
   max_chars: 160
-- id: agents
-  source: agents
-  anchor: top_right
-  margin: [32, 56]
-  style: plain
-  rows: '{name} · {state} · {task}'
-  max_rows: 4
-  action: chat
-  colours:
-    text: [41, 38, 36]
-    muted: [110, 105, 99]
-    accent: [140, 36, 31]
 chat:
   style: plain
   font: TeX Gyre Pagella
@@ -41,9 +46,3 @@ dark:
     text: [217, 212, 201]
     name: [140, 138, 130]
     border: [66, 66, 64]
-  panels:
-    agents:
-      colours:
-        text: [217, 212, 201]
-        muted: [140, 138, 130]
-        accent: [204, 120, 102]

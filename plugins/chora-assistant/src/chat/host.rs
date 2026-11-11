@@ -28,7 +28,9 @@ use serde_json::{Value, json};
 
 use super::{
     Frame, Link, Outside, colours, held_box, rgba, slot_box,
-    view::{CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of},
+    view::{
+        CHAT, CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of,
+    },
 };
 use crate::{
     Agent,
@@ -41,6 +43,16 @@ use crate::{
 /// How long the chat goes without a pull before the host reads again: voice
 /// ends a chat that nobody reads for ten minutes.
 const KEEPALIVE: Duration = Duration::from_secs(120);
+
+/// The data of `assistant.chat.keyboard` when the keyboard of the field
+/// differs from what was told last.
+fn keyboard_change(told: &mut bool, now: bool) -> Option<Value> {
+    if *told == now {
+        return None;
+    }
+    *told = now;
+    Some(json!({"on": now}))
+}
 
 /// The time of the next pull that keeps the chat alive.
 fn due(last: Instant) -> Instant {
@@ -181,15 +193,16 @@ fn chat_look(values: &Values) -> Look {
 
 /// The rows by id, each with its text and its words in their colours:
 /// the "Chat ..." row, then the helpers; none while the chat is `open`,
-/// whose header names its helper and which the rows would cover, and none
-/// when the figure opens the chat, the one way in.
+/// whose header names its helper and which the rows would cover, none
+/// when the figure opens the chat, the one way in, and none when the
+/// folder names a slot, whose client draws the door and the helpers.
 fn row_lines(
     language: Language,
     helpers: &BTreeMap<String, rows::Helper>,
     values: &Values,
     open: bool,
 ) -> Vec<(String, String, Vec<Tinted>)> {
-    if open || values.chats {
+    if open || values.chats || values.slot {
         return Vec::new();
     }
     let (most, tints) = values.helpers;
@@ -367,9 +380,18 @@ impl Agent {
         }
         match node {
             STOP => {
-                if let Some(name) = self.chat.helper().map(str::to_owned) {
-                    let _ = self.voice_call("agent.cancel", &json!({"name": name}));
+                let mut bridge = Bridge {
+                    conn: &mut self.rt.conn,
+                    client: voice_client(self.voice.as_ref()),
+                };
+                if self.chat.cancel(&mut bridge) {
+                    self.chat_draw()?;
                 }
+                self.chat_refocus();
+                Ok(true)
+            }
+            CHAT => {
+                self.chat_refocus();
                 Ok(true)
             }
             CLOSE => {
@@ -378,6 +400,23 @@ impl Agent {
             }
             _ => Ok(false),
         }
+    }
+
+    /// A press on a node of the host while the chat is open: the field has
+    /// the keyboard again, with the token of the press.
+    pub fn chat_refocus(&mut self) {
+        if !self.chat.is_open() {
+            return;
+        }
+        let Some(frame) = self.chat_seen.clone() else {
+            return;
+        };
+        let mut bridge = Bridge {
+            conn: &mut self.rt.conn,
+            client: voice_client(self.voice.as_ref()),
+        };
+        let token = bridge.token();
+        self.chat.refocus(&mut bridge, &frame, token.as_deref());
     }
 
     /// A click on the "Chat ..." row, or on a figure that opens the chat:
@@ -445,6 +484,7 @@ impl Agent {
 
     /// Takes what the field told and keeps the chat alive.
     pub fn chat_step(&mut self, now: Instant) -> Result<(), ClientError> {
+        self.announce_keyboard()?;
         if !self.chat.is_open() && !self.chat.keyboard() {
             return Ok(());
         }
@@ -465,10 +505,21 @@ impl Agent {
             self.chat_retried = now;
             changed |= self.chat.retry(&mut bridge);
         }
+        self.announce_keyboard()?;
         if changed {
             self.chat_draw()?;
         }
         Ok(())
+    }
+
+    /// Tells with `assistant.chat.keyboard {on}` when the field got or lost
+    /// the keyboard, so that a test waits for it and not for a time.
+    fn announce_keyboard(&mut self) -> Result<(), ClientError> {
+        let Some(data) = keyboard_change(&mut self.keyboard_told, self.chat.keyboard()) else {
+            return Ok(());
+        };
+        let emit = json!({"event": "assistant.chat.keyboard", "data": data});
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
 
     /// The "Chat ..." row and one row for each helper, drawn again on the
@@ -590,6 +641,8 @@ impl Agent {
     /// on the screen names, beside the events of the host.
     pub fn watch_slot(&mut self) -> Result<(), ClientError> {
         let wanted = chat_look(&self.values).slot;
+        self.switcher
+            .set_look_client(wanted.clone(), Instant::now());
         if wanted.is_none() || wanted == self.slot_client {
             return Ok(());
         }
@@ -640,6 +693,21 @@ impl Agent {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_keyboard_of_the_field_is_told_once_per_change() {
+        let mut told = false;
+        assert_eq!(super::keyboard_change(&mut told, false), None);
+        assert_eq!(
+            super::keyboard_change(&mut told, true),
+            Some(serde_json::json!({"on": true}))
+        );
+        assert_eq!(super::keyboard_change(&mut told, true), None);
+        assert_eq!(
+            super::keyboard_change(&mut told, false),
+            Some(serde_json::json!({"on": false}))
+        );
+    }
+
     use super::*;
 
     #[test]
@@ -672,12 +740,21 @@ mod tests {
         assert_eq!(ids(&neutral, true), Vec::<String>::new());
         let clip = Values {
             chats: true,
-            ..neutral
+            ..neutral.clone()
         };
         assert_eq!(
             ids(&clip, false),
             Vec::<String>::new(),
             "the figure is the one way in"
+        );
+        let margin = Values {
+            slot: true,
+            ..neutral
+        };
+        assert_eq!(
+            ids(&margin, false),
+            Vec::<String>::new(),
+            "the client of the slot draws the door and the helpers"
         );
     }
 

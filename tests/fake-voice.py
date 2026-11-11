@@ -11,6 +11,12 @@ file of the first argument after each call; the parameters of each
 call of `confirm.answer` go as a line of JSON to that file plus
 `.answers`.
 
+With FAKE_VOICE_KEYS=1 the agent grabs Alt+y and Alt+n; a press of one
+answers the question that it emitted last with `voice.confirm` and is not
+done, as the real agent does: the answer goes to the file of the first
+argument plus `.answers`, and the agent ends the question with
+`voice.confirm {id, done: true}`.
+
 FAKE_VOICE_ENTRIES names a JSON file with the transcript of the helper
 `atlas`; then the agent also exports `agent`, `agent.read`,
 `agent.cancel`, `chat.open` and `chat.close`. `agent.read` answers the
@@ -40,6 +46,7 @@ lock = threading.Lock()
 next_id = 0
 state = json.loads(os.environ.get("FAKE_VOICE_STATE", "{}"))
 state_delay = float(os.environ.get("FAKE_VOICE_STATE_DELAY", "0"))
+pending = {"id": None}
 
 
 def send(method, params):
@@ -66,6 +73,21 @@ def chat_answer(method, params):
     return {}
 
 
+def answer_by_key(params):
+    """A press of a grabbed answer key answers the question that waits, and
+    the agent ends it, as the real agent does."""
+    asked = pending["id"]
+    if asked is None or params.get("state", "pressed") != "pressed":
+        return
+    yes = {"Alt+y": True, "Alt+n": False}.get(params.get("binding"))
+    if yes is None:
+        return
+    pending["id"] = None
+    with open(claims_file + ".answers", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"id": asked, "yes": yes}, sort_keys=True) + "\n")
+    send("events.emit", {"event": "voice.confirm", "data": {"id": asked, "done": True}})
+
+
 def serve():
     """Answer the calls of indicator.claim and count them."""
     claims = 0
@@ -78,6 +100,7 @@ def serve():
             # FAKE_VOICE_KEYS=1: the grabbed Alt+y and Alt+n of a physical question
             with open(claims_file + ".keys", "a", encoding="utf-8") as f:
                 f.write(json.dumps(params, sort_keys=True) + "\n")
+            answer_by_key(params)
         if message.get("method") == "event" and params.get("event") == "method.called":
             if params.get("method") == "indicator.claim":
                 claims += 1
@@ -115,5 +138,8 @@ for line in sys.stdin:
     event, _, data = line.strip().partition(" ")
     if event == "voice.state" and "name" not in json.loads(data or "{}"):
         state = json.loads(data)
+    if event == "voice.confirm":
+        asked = json.loads(data or "{}")
+        pending["id"] = None if asked.get("done") else asked.get("id")
     if event:
         send("events.emit", {"event": event, "data": json.loads(data or "null")})

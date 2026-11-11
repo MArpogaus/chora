@@ -14,6 +14,8 @@
 
 mod agent;
 mod config;
+mod fonts;
+mod keys;
 mod manage;
 mod region;
 mod scene;
@@ -48,6 +50,8 @@ use crate::{
 
 /// The client name, and the id of the group that holds the scenes.
 const NAME: &str = "mc";
+/// The most panels of a scene whose rows take the pointer.
+const MAX_HIT_PANELS: usize = 24;
 /// The id of the line of the HUD before the regions; a start removes it.
 const HUD: &str = "mc-hud";
 /// The id of a hidden node whose empty animations time the typewriter.
@@ -224,6 +228,15 @@ struct SoloParams {
     shown: Option<bool>,
 }
 
+/// Whether the HUD host shows the chat in the margin column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Chat {
+    /// The column shows the door.
+    Closed,
+    /// The column holds the box of the chat.
+    Open,
+}
+
 /// A content alone in a region, and whether the region showed by a
 /// toggle before it.
 pub struct Solo {
@@ -333,6 +346,14 @@ struct Mc {
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
     solo: Option<Solo>,
+    /// How much of the key list shows.
+    keys: keys::List,
+    /// Whether the HUD host shows the chat in the margin column.
+    chat: Chat,
+    /// Where the box of the chat of the last layout is.
+    slot: Option<[f64; 4]>,
+    /// The output and the box that the host was told last.
+    slot_sent: Option<(String, Option<[f64; 4]>)>,
     /// The spoken confirmation that shows, until its answer.
     confirming: Option<agent::Confirming>,
     /// Whether mc claims the state indicator of the voice agent at its
@@ -492,6 +513,10 @@ impl Mc {
             agents: Vec::new(),
             agent_focus: None,
             solo: None,
+            keys: keys::List::default(),
+            chat: Chat::Closed,
+            slot: None,
+            slot_sent: None,
             confirming: None,
             claim_due: true,
             scroll: BTreeMap::new(),
@@ -505,12 +530,10 @@ impl Mc {
 const VOICE: &str = "voice";
 /// The client name of the HUD host.
 const ASSISTANT: &str = "assistant";
-/// The content that holds the drawer for the chat of the HUD host.
-const CHAT: &str = "chat";
 
 /// The events; `voice.*` are those of the voice agent (D65),
 /// `assistant.chat` says where the HUD host shows its chat.
-const EVENTS: [&str; 15] = [
+const EVENTS: [&str; 17] = [
     "voice.*",
     "assistant.chat",
     "assistant.ready",
@@ -519,6 +542,8 @@ const EVENTS: [&str; 15] = [
     "client.disconnected",
     "pointer.scroll",
     "pointer.pressed",
+    "pointer.entered",
+    "pointer.left",
     "animation.done",
     "surface.created",
     "surface.destroyed",
@@ -808,6 +833,8 @@ impl Plugin for Mc {
                 injected,
                 ..
             } => self.press(&node, position, injected),
+            Event::PointerEntered { node, .. } => self.mark(&node, true),
+            Event::PointerLeft { node } => self.mark(&node, false),
             _ => Ok(()),
         }
     }
@@ -993,6 +1020,7 @@ impl Mc {
             Some("state") => {
                 if let Some(object) = data.as_object_mut() {
                     object.entry("name").or_insert_with(|| client.into());
+                    object.retain(|key, _| agent::STATE_FIELDS.contains(&key.as_str()));
                 }
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
@@ -1038,29 +1066,27 @@ impl Mc {
     /// A press of the pointer: on a column of a helper it opens the chat,
     /// else it is a click.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.click_agent(node, at) {
+        if self.click_agent(node, at) || self.click_hit(node) {
             return Ok(());
         }
         self.click(node, at, injected)
     }
 
     /// `assistant.chat` of the HUD host: while it shows the chat on the
-    /// output of mc, the drawer shows alone and mc emits its box as
-    /// `mc.chat.slot {output, rect}`; else the drawer shows as before.
+    /// output of mc, the margin column holds it: the notifications fold,
+    /// the key list goes, and mc emits the box under the head `Chat` as
+    /// `mc.chat.slot {output, rect}`; `rect` is `null` when it closes.
     fn chat_drawer(&mut self, data: &Value) -> Result<(), ClientError> {
         let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
             return Ok(());
         };
         let here = data.get("output").and_then(Value::as_str) == Some(output.as_str());
         let open = here && data.get("open").and_then(Value::as_bool) == Some(true);
-        let shows = self.solo.as_ref().is_some_and(|s| s.content == CHAT);
-        if open == shows {
+        if open == (self.chat == Chat::Open) {
             return Ok(());
         }
-        self.solo(CHAT, Region::Drawer, Some(open), false)?;
-        let rect = if open { self.drawer_box() } else { None };
-        let emit = json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
-        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+        self.chat = if open { Chat::Open } else { Chat::Closed };
+        self.render()
     }
 
     /// Names the theme of mc to the HUD host, which colours its look by it.
@@ -1808,28 +1834,35 @@ impl Mc {
     }
 
     /// Where the parts of a page go on the output, with the sides of the
-    /// scene `name` beside it.
+    /// scene `name` beside it. The text stays centered, with room for the
+    /// sides, so that it never moves when one shows: centered where it
+    /// fits, else beside the sides. The margin column of the right keeps
+    /// one gutter at the edge and one beside the text, whatever its width.
     fn geometry_of(&self, name: &str, scene: &Scene) -> Option<Geometry> {
         let output = self.output.as_ref()?;
         let [w, h] = output.size.map(f64::from);
         let config = &self.settings.value;
         let (em, b) = (config.scale.base, config.scale.baseline);
         let page = &config.page;
-        let (note, gap) = (page.margin * em, page.gap * em);
+        let (note, gap) = (page.margin * em, (page.gap * em).floor());
         let cols = f64::from(scene.grid()[0]);
         let want = cols * page.measure * em + (cols - 1.0) * (note + 2.0 * gap);
-        // A margin column on both sides, so that the text stays centered,
-        // and room for the sides, so that the text never moves when one
-        // shows: centered where it fits, else beside the sides.
         let [left, right] = self.side_widths(name);
         let need = |side: f64| if side > 0.0 { side + gap } else { 0.0 };
-        let (lneed, rneed) = (note + gap + need(left), (note + gap).max(need(right)));
-        let width = want.min(w - lneed - rneed - 4.0 * b).max(b);
-        let centered = ((w - width) / 2.0).round();
-        let x = centered
-            .min(w - 2.0 * b - rneed - width)
-            .max(2.0 * b + lneed)
-            .round();
+        let lneed = note + gap + need(left);
+        let (x, width) = if right > 0.0 {
+            let x = (2.0 * b + lneed).round();
+            (x, want.min(w - x - right - 4.0 * b).max(b))
+        } else {
+            let rneed = note + gap;
+            let width = want.min(w - lneed - rneed - 4.0 * b).max(b);
+            let centered = ((w - width) / 2.0).round();
+            let x = centered
+                .min(w - 2.0 * b - rneed - width)
+                .max(2.0 * b + lneed)
+                .round();
+            (x, width)
+        };
         let top = if Self::has_chapter(scene) {
             HEAD * b + self.chapter_height(scene)
         } else {
@@ -1894,7 +1927,10 @@ impl Mc {
 
     /// The box of a panel on the screen, without its margin.
     /// As many columns as fit at the least width of a panel; the panels
-    /// wrap into new rows, which keep at least the least height.
+    /// wrap into new rows, which keep at least the least height. An empty
+    /// panel takes no room, unless it says why it is empty: then it takes
+    /// one short row for its words, so that every such message shows on a
+    /// small output.
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
@@ -1909,27 +1945,88 @@ impl Mc {
         let [x, y, w, h] = geo.text;
         let [cols, rows] = scene.grid();
         let fit = ((w + gap[0]) / (min_w + gap[0])).floor().max(1.0) as u32;
-        let (cell, grid) = if fit >= cols {
-            (panel.cell, [cols, rows])
-        } else {
-            // An empty panel takes no room.
-            let cells: Vec<_> = (scene.panels.iter())
-                .map(|p| {
-                    let [x, y, w, h] = p.cell;
-                    [x, y, w, if p.is_empty() { 0 } else { h }]
-                })
-                .collect();
-            let (flowed, flowed_rows) = scene::flow(&cells, fit);
-            let at = scene.panels.iter().position(|p| p.id == panel.id)?;
-            // It still gets its own height: a node of no size stalls the
-            // shader of the write.
-            let [x, y, w, _] = flowed[at];
-            ([x, y, w, panel.cell[3]], [fit, flowed_rows.max(1)])
+        if fit >= cols {
+            let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
+            let shown = f64::from(rows);
+            let height = row * shown + gap[1] * (shown - 1.0);
+            return Some(scene::place(
+                panel.cell,
+                [cols, rows],
+                [x, y, w, height],
+                gap,
+            ));
+        }
+        let cells: Vec<_> = (scene.panels.iter())
+            .map(|p| {
+                let [x, y, w, rows] = p.cell;
+                let rows = match (p.is_empty(), p.empty.is_empty()) {
+                    (false, _) => rows,
+                    (true, true) => 0,
+                    (true, false) => 1,
+                };
+                [x, y, w, rows]
+            })
+            .collect();
+        let (flowed, flowed_rows) = scene::flow(&cells, fit);
+        let at = scene.panels.iter().position(|p| p.id == panel.id)?;
+        let [cx, cy, cw, ch] = flowed[at];
+        let heights = self.row_heights(scene, &flowed, flowed_rows, (h, gap[1], min_h));
+        let [bx, _, bw, _] = scene::place([cx, 0, cw, 1], [fit, 1], [x, y, w, 1.0], gap);
+        if ch == 0 {
+            let rows = f64::from(panel.cell[3].max(1));
+            let by = y + heights.iter().sum::<f64>();
+            return Some([bx, by, bw, min_h * rows + gap[1] * (rows - 1.0)]);
+        }
+        let above: f64 = heights.iter().take(cy as usize).sum();
+        let spanned: f64 = heights.iter().skip(cy as usize).take(ch as usize).sum();
+        let by = y + above + gap[1] * f64::from(cy);
+        Some([bx, by, bw, spanned + gap[1] * f64::from(ch - 1)])
+    }
+
+    /// The heights of the rows of a page that wrapped: a row that holds
+    /// only panels with their words of emptiness is as high as those
+    /// words; the other rows share the rest of the height, and none is
+    /// lower than the least height.
+    fn row_heights(
+        &self,
+        scene: &Scene,
+        flowed: &[[u32; 4]],
+        rows: u32,
+        (height, gap, min_h): (f64, f64, f64),
+    ) -> Vec<f64> {
+        let words = |p: &Panel| p.is_empty() && !p.empty.is_empty();
+        let rows_of = |r: u32| {
+            scene
+                .panels
+                .iter()
+                .zip(flowed)
+                .filter(move |(_, c)| c[3] > 0 && (c[1]..c[1] + c[3]).contains(&r))
+                .map(|(p, _)| p)
         };
-        let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
-        let shown = f64::from(grid[1]);
-        let height = row * shown + gap[1] * (shown - 1.0);
-        Some(scene::place(cell, grid, [x, y, w, height], gap))
+        let short: Vec<Option<f64>> = (0..rows)
+            .map(|r| {
+                let mut panels = rows_of(r).peekable();
+                panels.peek()?;
+                let mut most: f64 = 0.0;
+                for p in panels {
+                    if !words(p) {
+                        return None;
+                    }
+                    let line = self.ty("body", p.style.as_ref()).line;
+                    most = most.max(self.lines_top(p) + 2.0 * line);
+                }
+                Some(most)
+            })
+            .collect();
+        let taken: f64 = short.iter().flatten().sum();
+        let tall = u32::try_from(short.iter().filter(|s| s.is_none()).count()).unwrap_or(1);
+        let gaps = gap * f64::from(rows.saturating_sub(1));
+        let share = if tall == 0 {
+            0.0
+        } else {
+            ((height - gaps - taken) / f64::from(tall)).max(min_h)
+        };
+        short.into_iter().map(|s| s.unwrap_or(share)).collect()
     }
 
     /// The top of the lines of a panel, below its title.
@@ -1992,8 +2089,9 @@ impl Mc {
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
-                #[allow(clippy::cast_precision_loss)] // rows of one screen
+                #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
                 let y = top + i as f64 * body.line;
+                commands.extend(self.row_hit(name, &id, i, [indent, y, w, body.line]));
                 commands.push(add(
                     &format!("line-{i}"),
                     text(&body, line, indent, y, true),
@@ -2004,9 +2102,59 @@ impl Mc {
                 }
             }
         } else if !panel.lines.is_empty() {
+            if name == manage::OVERVIEW {
+                commands.extend(self.overview_hits(name, &id, panel, [indent, top, w, body.line]));
+            }
             let props = text(&body, &panel.text(), indent, top, true);
             commands.push(add("lines", props));
+        } else if !panel.empty.is_empty() {
+            let props = text(&self.quiet(&body), &panel.empty, indent, top, true);
+            commands.push(add("empty", props));
         }
+        commands
+    }
+
+    /// The hit of each line of the overview.
+    fn overview_hits(
+        &self,
+        name: &str,
+        id: &str,
+        panel: &Panel,
+        [x, top, w, line]: [f64; 4],
+    ) -> Vec<Command> {
+        let rows = (0..panel.lines.len()).map(|i| {
+            #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
+            let y = top + i as f64 * line;
+            self.row_hit(name, id, i, [x, y, w, line])
+        });
+        rows.flatten().collect()
+    }
+
+    /// A type in `muted`: the words of an empty panel stay quiet.
+    fn quiet(&self, ty: &Type) -> Type {
+        let muted = self.settings.value.colors().get("muted").copied();
+        let mut quiet = ty.clone();
+        quiet.color = muted.unwrap_or(ty.color);
+        quiet
+    }
+
+    /// Whether the rows of a scene take the pointer: not those of a scene
+    /// with very many panels, which would build slowly.
+    fn has_hits(&self, scene: &str) -> bool {
+        (self.scenes.get(scene)).is_some_and(|s| s.panels.len() <= MAX_HIT_PANELS)
+    }
+
+    /// The hit and the focus mark of row `i` of a panel, at a box of the
+    /// panel group: the hit spans the margin and the text.
+    fn row_hit(&self, scene: &str, panel: &str, row: usize, at: [f64; 4]) -> Vec<Command> {
+        if !self.has_hits(scene) {
+            return Vec::new();
+        }
+        let [x, y, w, h] = at;
+        let ink = (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
+        let base = format!("{panel}-row-{row}");
+        let mut commands = region::hit_nodes(&base, panel, ink).to_vec();
+        commands.extend(region::hit_place(&base, [0.0, y, x + w, h], x));
         commands
     }
 
@@ -2052,11 +2200,18 @@ impl Mc {
             };
             let body = self.ty("body", panel.style.as_ref());
             let note = self.ty("margin", panel.note_style.as_ref());
+            let wide = self.place(name, panel).map_or(0.0, |p| p[2] + indent);
             for (i, (time, _)) in rows.iter().enumerate() {
                 let Some([_, _, _, height]) = rect(&format!("{id}-line-{i}")) else {
                     break; // below the panel
                 };
                 commands.push(move_to(format!("{id}-line-{i}"), indent, y));
+                let hit = region::hit_place(
+                    &format!("{id}-row-{i}"),
+                    [0.0, y, wide, height.max(body.line)],
+                    indent,
+                );
+                commands.extend(hit);
                 let note_id = format!("{id}-note-{i}");
                 if !time.is_empty()
                     && let Some([_, _, width, _]) = rect(&note_id)
@@ -2073,7 +2228,9 @@ impl Mc {
     /// Scrolls the page of the current scene by `dy`, from its top to its
     /// last panel at the bottom of the text block.
     fn scroll_page(&mut self, node: &str, dy: f64) -> Result<(), ClientError> {
-        let Some(name) = self.current.clone().filter(|n| wheel_id(n) == node) else {
+        let over =
+            |n: &String| wheel_id(n) == node || node.starts_with(&format!("{}-", panels_id(n)));
+        let Some(name) = self.current.clone().filter(over) else {
             return Ok(());
         };
         let (Some(scene), Some(geo)) = (self.scenes.get(&name), self.geometry(&name)) else {
@@ -2787,7 +2944,7 @@ impl Mc {
         }
     }
 
-    fn act(&mut self, binding: &str) {
+    pub fn act(&mut self, binding: &str) {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
         };
@@ -2823,6 +2980,17 @@ impl Mc {
             Action::Solo { content, region } => {
                 if let Err(err) = self.solo(&content, region, None, true) {
                     eprintln!("chora-mc: solo {content}: {err}");
+                }
+                return;
+            }
+            Action::Chat => {
+                self.chat_with(None);
+                return;
+            }
+            Action::Keys => {
+                self.keys = self.keys.flip();
+                if let Err(err) = self.render() {
+                    eprintln!("chora-mc: keys: {err}");
                 }
                 return;
             }
@@ -2882,6 +3050,145 @@ mod tests {
                 ..PropsUpdate::default()
             },
         )
+    }
+
+    /// A page without data says what it is and why it is empty, in
+    /// `muted`; with a line the words go.
+    #[test]
+    fn an_empty_panel_says_why_in_muted() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("empty-panel", [1280, 800]);
+        mc.settings.value.write.enabled = false;
+        mc.show("agenda", false).unwrap();
+        let id = "mc-s-agenda-panels-today-empty";
+        assert_eq!(
+            crate::testing::text(&model, id).as_deref(),
+            Some("Nothing planned today.")
+        );
+        let muted = mc.settings.value.colors()["muted"];
+        let color = model.lock().unwrap().scene.node(id).unwrap().props.color;
+        assert_eq!(color, Some(muted));
+        let lines = json!({"scene": "agenda", "panel": "today", "lines": ["09:00\tStand-up"]});
+        mc.method("panel.set", lines).unwrap();
+        assert!(!crate::testing::has(&model, id), "a line takes its place");
+    }
+
+    /// With no entry left today the footer points to the next page, and a
+    /// click on it turns the page; an entry takes its place.
+    #[test]
+    fn the_footer_points_to_the_next_page_when_no_entry_is_next() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("next-page", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let next = |mc: &super::Mc| {
+            let plan = mc.items("agenda");
+            let (items, _) = &plan[&crate::region::Region::Footer];
+            items
+                .iter()
+                .find(|i| i.id.ends_with("-next"))
+                .map(|i| (i.props.text.clone().unwrap(), i.hit.clone()))
+        };
+        let (text, hit) = next(&mc).expect("a line in the footer");
+        assert_eq!(text, "→ 2  The Morning");
+        assert_eq!(hit.as_deref(), Some("key:Super+Right"));
+        mc.method(
+            "content.set",
+            json!({"content": "next", "lines": ["11:30  Coffee"]}),
+        )
+        .unwrap();
+        assert_eq!(next(&mc).unwrap().0, "11:30  Coffee");
+    }
+
+    fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {
+        let name = mc.current.clone().unwrap();
+        let mut plan = mc.items(&name);
+        plan.remove(&crate::region::Region::Right)
+            .map(|(items, _)| items)
+            .unwrap_or_default()
+    }
+
+    /// A note is one line: its time in the margin style, its words in the
+    /// reading face at a hanging indent. No blank line between two notes.
+    #[test]
+    fn a_notification_is_one_line_with_its_time_in_the_margin_style() {
+        use chora_kit::runtime::Plugin as _;
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("notes", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        for title in ["One", "Two", "Three", "Four"] {
+            mc.method("notify.push", json!({"title": title})).unwrap();
+        }
+        let items = right_items(&mc);
+        let words: Vec<_> = (items.iter())
+            .filter(|i| i.id.contains("-notify-") && !i.id.ends_with("-title"))
+            .collect();
+        assert_eq!(words.len(), 6, "three notes of a time and words each");
+        assert_eq!(words[0].props.family.as_deref(), Some("Inter"));
+        assert_eq!(words[0].props.text.as_deref().map(str::len), Some(5));
+        assert_eq!(words[1].props.text.as_deref(), Some("Four"));
+        assert_eq!(words[1].put, crate::region::Put::Row);
+        assert!(words[1].x > 40.0, "a hanging indent: {}", words[1].x);
+        assert!(words[2].put == crate::region::Put::Stack, "the next note");
+        let tall = |i: &&crate::region::Item| i.props.font_size.unwrap_or(0.0) < 15.0;
+        assert!(words.iter().step_by(2).all(tall), "times at 14.25");
+    }
+
+    /// The empty words stay quiet and the folded head counts nothing.
+    #[test]
+    fn nothing_new_is_muted_and_the_folded_head_counts_zero() {
+        let (mut mc, _) = crate::testing::mc("quiet", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let muted = mc.settings.value.colors()["muted"];
+        let items = right_items(&mc);
+        let empty = items.iter().find(|i| i.id.ends_with("-notify")).unwrap();
+        assert_eq!(empty.props.text.as_deref(), Some("Nothing new."));
+        assert_eq!(empty.props.color, Some(muted));
+        mc.chat = crate::Chat::Open;
+        let items = right_items(&mc);
+        let head = items
+            .iter()
+            .find(|i| i.id.ends_with("-notify-title"))
+            .unwrap();
+        assert_eq!(head.props.text.as_deref(), Some("NOTIFICATIONS  0"));
+    }
+
+    /// With the voice HUD to the host the first line of the column stays
+    /// free for its state word, and the helpers are mc's own rows.
+    #[test]
+    fn the_column_keeps_the_state_line_free_and_draws_the_helpers() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("state-line", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let items = right_items(&mc);
+        assert!(items[0].id.ends_with("-state"), "{}", items[0].id);
+        mc.follow(
+            "voice.state",
+            "voice",
+            json!({"name": "Atlas", "state": "working", "task": "Tidy notes"}),
+        )
+        .unwrap();
+        let items = right_items(&mc);
+        let name = items.iter().find(|i| i.id.ends_with("-0-name")).unwrap();
+        assert_eq!(name.props.text.as_deref(), Some("Atlas"));
+    }
+
+    /// The voice agent adds `seq`, `epoch`, `chat` and the steps to the
+    /// state of a helper, for the host: mc still shows the helper.
+    #[test]
+    fn a_state_of_a_helper_with_the_fields_of_the_host_shows_the_helper() {
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("host-fields", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let state = json!({"name": "Atlas", "state": "working", "task": "Tidy",
+            "seq": 4, "epoch": 2, "chat": true, "step": 1, "steps": 2});
+        mc.follow("voice.state", "voice", state).unwrap();
+        let items = right_items(&mc);
+        assert!(
+            items.iter().any(|i| i.id.ends_with("-0-name")),
+            "a row for Atlas"
+        );
     }
 
     /// A new state of an agent changes the text of its column in place:
@@ -3052,33 +3359,104 @@ mod tests {
         assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", true)));
     }
 
-    /// `assistant.chat` of the host opens the drawer on the output of mc
-    /// and mc emits its box as `mc.chat.slot`; a close hides the drawer
-    /// again. Another output or another client changes nothing.
-    #[test]
-    fn an_open_chat_opens_the_drawer_and_emits_its_box() {
-        use serde_json::json;
-        let (mut mc, model) = crate::testing::mc("chat-drawer", [1920, 1080]);
-        let first = mc.settings.value.default_scene.clone();
-        mc.show(&first, false).unwrap();
-        let chat = |client: &str, open: bool, output: &str| chora_scene::Event::Emitted {
+    use serde_json::{Value, json};
+
+    fn chat_event(client: &str, open: bool, output: &str) -> chora_scene::Event {
+        chora_scene::Event::Emitted {
             event: "assistant.chat".into(),
             client: client.into(),
             data: json!({"open": open, "name": "Atlas", "output": output}),
-        };
-        assert_eq!(mc.drawer_box(), None);
-        chora_kit::runtime::Plugin::event(&mut mc, chat("evil", true, "test")).unwrap();
-        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "other")).unwrap();
-        assert_eq!(mc.drawer_box(), None);
-        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", true, "test")).unwrap();
-        let rect = mc.drawer_box().expect("the drawer shows");
-        let emits = model.lock().unwrap().emits.clone();
+        }
+    }
+
+    fn key_items(mc: &super::Mc, scene: &str) -> usize {
+        let items = mc.items(scene).into_values().flat_map(|(items, _)| items);
+        items.filter(|i| i.id.contains("-keys-")).count()
+    }
+
+    /// Another output or another client than the host changes nothing.
+    #[test]
+    fn only_the_host_opens_the_chat_on_the_output_of_mc() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _) = crate::testing::mc("chat-other", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        mc.event(chat_event("evil", true, "test")).unwrap();
+        mc.event(chat_event("assistant", true, "other")).unwrap();
+        assert_eq!(mc.chat_slot(), None);
+        assert!(key_items(&mc, &first) > 0, "the key list stays");
+    }
+
+    /// `assistant.chat` of the host opens the chat in the margin column of
+    /// mc and mc emits its box as `mc.chat.slot`: the key list goes, and
+    /// the page keeps its place; a close brings the key list back.
+    #[test]
+    fn an_open_chat_takes_the_margin_column_and_emits_its_box() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-column", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        let text_block = mc.geometry(&first).unwrap().text;
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let rect = mc.chat_slot().expect("the chat has a box");
+        let column = mc.boxes_of(&first)[&crate::region::Region::Right];
+        assert_eq!((rect[0], rect[2]), (column[0], column[2]), "the column");
+        assert!(rect[1] > column[1] && rect[1] + rect[3] <= column[1] + column[3]);
+        assert_eq!(key_items(&mc, &first), 0, "no key list beside the chat");
+        assert_eq!(mc.geometry(&first).unwrap().text, text_block, "the page");
+        let emit = |rect: Value| json!({"event": "mc.chat.slot", "data": {"output": "test", "rect": rect}});
+        assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(json!(rect))));
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert_eq!(mc.chat_slot(), None);
+        assert!(key_items(&mc, &first) > 0, "the key list is back");
+        assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(Value::Null)));
+    }
+
+    /// A page that is longer than the output scrolls (the mission scene
+    /// with its data); every other panel of a built-in scene stands inside
+    /// the text block at 1280 by 800, so that the words of an empty panel
+    /// show.
+    #[test]
+    fn every_panel_of_a_scene_is_placed_at_1280_by_800() {
+        let (mut mc, _model) = crate::testing::mc("panels-1280", [1280, 800]);
+        for (name, _) in crate::scene::BUILT_IN {
+            mc.show(name, false).unwrap();
+            let scene = mc.scenes.get(name).unwrap().clone();
+            let [tx, ty, tw, th] = mc.geometry(name).unwrap().text;
+            for panel in &scene.panels {
+                let [x, y, w, h] = mc.place(name, panel).expect("a box");
+                assert!(w > 0.0 && h > 0.0, "{name}: panel {} has no size", panel.id);
+                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 0.5;
+                assert!(
+                    inside || name == "mission",
+                    "{name}: panel {} at {:?} is not inside the text block",
+                    panel.id,
+                    [x, y, w, h]
+                );
+            }
+        }
+    }
+
+    /// The host is told again when the output of the box changes, and not
+    /// again while nothing changed.
+    #[test]
+    fn the_slot_is_sent_again_for_another_output_only() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-slot-output", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let sent = || model.lock().unwrap().emits.len();
+        let once = sent();
+        mc.send_slot().unwrap();
+        assert_eq!(sent(), once, "nothing changed");
+        mc.output.as_mut().unwrap().name = "other".into();
+        mc.send_slot().unwrap();
+        assert_eq!(sent(), once + 1, "the output changed");
         assert_eq!(
-            emits.last(),
-            Some(&json!({"event": "mc.chat.slot", "data": {"output": "test", "rect": rect}}))
+            model.lock().unwrap().emits.last().unwrap()["data"]["output"],
+            "other"
         );
-        chora_kit::runtime::Plugin::event(&mut mc, chat("assistant", false, "test")).unwrap();
-        assert_eq!(mc.drawer_box(), None);
     }
 
     /// Only the voice agent sets the agent `voice`, by its events or by

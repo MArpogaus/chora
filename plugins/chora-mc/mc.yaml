@@ -10,7 +10,8 @@ theme: dark
 test_accept_injected_keys: false
 # Who draws the voice HUD: host, the HUD host chora-assistant draws the
 # state, the sentence and the question of the voice agent with the folder
-# plugins/chora-mc/hud, and mc opens its drawer for the chat of the host;
+# plugins/chora-mc/hud, and mc holds the chat of the host in its margin
+# column;
 # own, mc shows them itself.
 voice_hud: host
 # Each color is RGBA from 0 to 1. A style names a color of the theme;
@@ -19,11 +20,11 @@ themes:
   light:
     background: [0.97, 0.96, 0.93, 1.0]
     text: [0.16, 0.15, 0.14, 1.0]
-    muted: [0.50, 0.48, 0.45, 1.0]
+    muted: [0.431, 0.412, 0.380, 1.0]
     faint: [0.83, 0.81, 0.77, 1.0]
     accent: [0.55, 0.14, 0.12, 1.0]
     green: [0.25, 0.46, 0.33, 1.0]
-    amber: [0.72, 0.47, 0.08, 1.0]
+    amber: [0.588, 0.384, 0.078, 1.0]
     blue: [0.22, 0.38, 0.58, 1.0]
     red: [0.70, 0.13, 0.12, 1.0]
     magenta: [0.52, 0.25, 0.50, 1.0]
@@ -43,9 +44,9 @@ themes:
 # The font sizes are steps of a modular scale: base times ratio to the
 # power of the step. Each line of text is whole lines of the baseline grid.
 scale:
-  base: 18
+  base: 19
   ratio: 1.333
-  baseline: 27
+  baseline: 28
 # The styles of text. Each has a family, a weight (300 light, 400 normal,
 # 700 bold), a style (normal or italic), a size in pixels, in em of
 # scale.base or as a step of the scale, a color, a line_height, a
@@ -58,12 +59,14 @@ scale:
 # /usr/share/texlive/texmf-dist/fonts/opentype/public/tex-gyre to
 # CHORA_FONT_DIRS of chora. On Arch Linux, tex-gyre-fonts needs neither.
 # Inter is in the package rsms-inter-fonts, on Arch Linux inter-font.
-# Without a family, a system font shows.
+# A family can be a list, "TeX Gyre Pagella, DejaVu Serif": the first name
+# that the machine has is used, so that a page without Pagella is still set
+# in a serif. Without a family, a system font shows.
 # docs/mc-style.md has the rules that these styles follow.
 styles:
   # Text to read: Pagella with old-style figures.
   body:
-    family: TeX Gyre Pagella
+    family: TeX Gyre Pagella, DejaVu Serif
     line_height: 1.5
     features: {onum: 1}
   # The title of a panel: spaced small caps, one step up, muted.
@@ -93,16 +96,20 @@ styles:
   data:
     family: Inter
     line_height: 1.5
-  # Labels of the regions: spaced capitals of Inter, as tall as the
-  # lowercase of margin.
+  # Labels of the regions and the head and the clock of the page: spaced
+  # capitals of Inter at the size of margin, so that nothing is under 14
+  # pixels.
   running_head:
     family: Inter
     weight: 500
-    em: 0.6112
+    em: 0.75
     color: muted
     letter_spacing: 0.2
     uppercase: true
     features: {tnum: 1}
+  # The labels of the margin column: the running head.
+  label:
+    base: running_head
   # The lead of a scene: one step over the heading, at most one a page.
   lead:
     base: body
@@ -157,17 +164,21 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # --manage-windows), {toggle: REGION}, which shows or hides a region; a docked
 # app in it takes the focus first, the next press hides it, or
 # {solo: {content: NAME, region: REGION}}, which shows the content alone
-# in the region over any scene; the next press hides it again.
+# in the region over any scene; the next press hides it again, or keys,
+# which shows all keys in the key list of the right side, or six again,
+# or chat, which asks the HUD host to open the chat.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
-  Super+a: {scene: agenda}
+  Super+Home: {scene: agenda}
+  Super+a: chat
   Super+o: {scene: overview}
   Super+space: {run: fuzzel}
-  Super+Return: {toggle: drawer}
+  Super+Return: {scene: terminal}
   Super+n: {toggle: right}
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
+  Super+F1: keys
   Super+F12: {solo: {content: overlay, region: drawer}}
   Super+BTN_LEFT: drag
 # The states of an agent of agent.set: the sign and the color of each,
@@ -184,14 +195,15 @@ states:
   asleep: {sign: ☾, color: faint}
 # The regions around the page, as in the Emacs package auto-side-windows:
 # a header and a footer line, sizes in lines of the baseline grid; a left
-# and a right side, sizes in em; a drawer at the bottom, size in lines. A
-# region shows only with something in it, and a scene file can show or
-# hide one with `regions: {right: false}`.
+# and a right side, sizes in lines of the grid as well, and the right side
+# grows with the output, to a third more; a drawer at the bottom, size in
+# lines. A region shows only with something in it, and a scene file can
+# show or hide one with `regions: {right: false}`.
 regions:
   header: {shown: true, size: 2}
   footer: {shown: true, size: 2}
-  left: {shown: false, size: 12}
-  right: {shown: true, size: 13}
+  left: {shown: false, size: 8}
+  right: {shown: true, size: 12}
   drawer: {shown: false, size: 14}
 # What the regions show, by name. Kinds: head (the running head of the
 # scene), clock (a format of `date`), state and hud (the state and the
@@ -210,15 +222,16 @@ contents:
   state: {kind: state}
   hud: {kind: hud}
   agents: {kind: agents}
-  notify: {kind: text, title: Notifications}
+  notify: {kind: text, title: Notifications, empty: true, folds: true, style: {base: body}}
   urgent: {kind: text, style: {base: running_head, color: red}}
-  # The box of the chat of the HUD host, alone in the drawer while the
-  # host shows the chat on the output of mc.
-  chat: {kind: text, title: Chat}
+  # The chat of the HUD host in the margin column: a door while it is
+  # closed, and the box that mc names to the host while it is open.
+  chat: {kind: chat}
   # A spoken confirmation of voice.confirm, alone in the drawer.
   confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
+  keys: {kind: keys}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
   # foot in the colors of the theme, also in the terminal scene. The
@@ -247,14 +260,17 @@ rules:
 - {content: head, region: header, slot: -1}
 - {content: hud, scenes: ['@app'], region: header, slot: 0}
 - {content: urgent, region: footer, slot: 0}
-- {content: agents, region: header, slot: 1}
-- {content: state, region: header, slot: 2}
+- {content: agents, scenes: ['@app'], region: header, slot: 1}
+- {content: state, scenes: ['@app'], region: header, slot: 2}
 - {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
 - {content: next, scenes: ['@page'], region: footer, slot: 1}
+- {content: state, region: right, slot: -3}
+- {content: agents, region: right, slot: -2}
 - {content: notes, region: right}
 - {content: notify, region: right, slot: 1}
-- {content: shell, region: drawer}
+- {content: chat, region: right, slot: 5}
+- {content: keys, region: right, slot: 9}
 # The arrangement of the regions: a name of presets. A preset sets which
 # regions show and its own rules; without rules, those above apply.
 #   quiet:  the header alone, the words of the agent in its middle
@@ -299,3 +315,5 @@ presets:
     - {content: state, region: footer, slot: 1}
     - {content: notes, region: right}
     - {content: notify, region: right, slot: 1}
+    - {content: chat, region: right, slot: 5}
+    - {content: keys, region: right, slot: 9}

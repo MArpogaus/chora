@@ -82,6 +82,8 @@ const EVENTS: &[&str] = &[
     "client.connected",
     "client.disconnected",
     "pointer.pressed",
+    "pointer.entered",
+    "pointer.left",
     "output.changed",
     "output.removed",
     "construct.theme",
@@ -181,6 +183,8 @@ struct Agent {
     look_cache: PathBuf,
     /// The theme of the card and the badge, with the fonts of the host.
     card_theme: Theme,
+    /// The base family of `card_theme`.
+    card_family: String,
     language: Language,
     assistant: Option<Assistant>,
     /// The camera of the construct is in a pane: the island dims.
@@ -218,6 +222,15 @@ struct Agent {
     chat_row: Option<[i32; 4]>,
     /// The sentence that the agent speaks, and when it ends.
     said: Option<(String, Instant)>,
+    /// The item of the host under the pointer, whose mark shows: a view or
+    /// a card that is drawn again keeps it.
+    hovered: Option<String>,
+    /// Whether `assistant.chat.keyboard` last said that the field has the
+    /// keyboard.
+    keyboard_told: bool,
+    /// The button of the card that shows its pressed state, and when it
+    /// goes back.
+    flash: Option<(String, Instant)>,
 }
 
 impl Plugin for Agent {
@@ -230,6 +243,8 @@ impl Plugin for Agent {
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
+            Event::PointerEntered { node, .. } => self.hover(&node, true),
+            Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
                 self.switcher.touch(Instant::now());
                 if self.card.is_some() {
@@ -369,6 +384,7 @@ impl Agent {
             slot_client: None,
             look_cache,
             card_theme,
+            card_family: HOST_FAMILY.to_owned(),
             language: language(),
             assistant: None,
             in_pane: false,
@@ -387,6 +403,9 @@ impl Agent {
             row: None,
             chat_row: None,
             said: None,
+            hovered: None,
+            flash: None,
+            keyboard_told: false,
         };
         let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
         (agent.rt.conn)
@@ -409,6 +428,10 @@ impl Agent {
         }
         self.theme.size_images(&mut commands);
         self.card_theme.size_images(&mut commands);
+        forget_hover(&mut self.hovered, &commands);
+        if let Some(node) = &self.hovered {
+            chat::keep_mark(&mut commands, node);
+        }
         self.rt.conn.apply(commands)
     }
 
@@ -423,12 +446,28 @@ impl Agent {
         Ok(outputs.into_iter().nth(at).map(|o| (o, scale)))
     }
 
+    /// The mark of the item under the pointer shows, and goes when the
+    /// pointer leaves; an item that is gone has no mark to change.
+    fn hover(&mut self, node: &str, over: bool) -> Vec<Command> {
+        let Some(mark) = chat::marked(node) else {
+            return Vec::new();
+        };
+        if over {
+            self.hovered = Some(node.to_owned());
+        } else if self.hovered.as_deref() == Some(node) {
+            self.hovered = None;
+        }
+        let _ = self.apply(vec![chat::show_mark(&mark, over)]);
+        Vec::new()
+    }
+
     /// A press on the figure mutes the mic or opens the chat, as the
     /// folder says, one on the badge turns it on, and one on a button of
     /// the question answers it.
     fn pressed(&mut self, node: &str, injected: bool) -> Result<Vec<Command>, ClientError> {
         let (handled, commands) = self.press_card(node, injected)?;
         if handled {
+            self.chat_refocus();
             return Ok(commands);
         }
         if node == card::BADGE {
@@ -449,6 +488,18 @@ impl Agent {
             return Ok(self.press_assistant(injected));
         }
         Ok(Vec::new())
+    }
+}
+
+/// Forgets the item under the pointer when `commands` remove its node: the
+/// pointer never left it, and a node of the same id that appears later is
+/// no longer under the pointer.
+fn forget_hover(hovered: &mut Option<String>, commands: &[Command]) {
+    let removed = commands
+        .iter()
+        .any(|c| matches!(c, Command::Remove { id, .. } if Some(id) == hovered.as_ref()));
+    if removed {
+        *hovered = None;
     }
 }
 
@@ -532,6 +583,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             agent.switch_due(now),
             agent.chat_due(now),
             agent.ask_due(),
+            agent.flash_due(),
         ]
         .into_iter()
         .flatten()
@@ -545,6 +597,7 @@ fn serve(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             runtime::dispatch(&mut agent, event)?;
         }
         agent.ask_step(Instant::now())?;
+        agent.flash_step(Instant::now())?;
         agent.chat_step(Instant::now())?;
         agent.assistant_step(Instant::now())?;
         agent.switch_step(Instant::now())?;
@@ -605,6 +658,19 @@ mod tests {
     use super::*;
     use crate::config::Figure;
 
+    #[test]
+    fn the_item_under_the_pointer_is_forgotten_when_its_node_goes() {
+        let remove = |id: &str| Command::Remove {
+            id: id.into(),
+            to: None,
+        };
+        let mut hovered = Some(card::YES.to_owned());
+        forget_hover(&mut hovered, &[remove(card::NO)]);
+        assert_eq!(hovered.as_deref(), Some(card::YES));
+        forget_hover(&mut hovered, &[remove(card::CARD), remove(card::YES)]);
+        assert_eq!(hovered, None);
+    }
+
     fn cache(test: &str) -> PathBuf {
         std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()))
     }
@@ -619,6 +685,15 @@ mod tests {
         let (theme, values) = load_hud(&[huds()], NEUTRAL, &Context::default(), &cache)
             .expect("the neutral folder loads");
         (theme, values, cache)
+    }
+
+    #[test]
+    fn the_rows_of_the_neutral_folder_stand_below_the_bar_of_tiling() {
+        let (_, values, cache) = loaded("neutral-rows");
+        let (anchor, [_, top]) = values.rows;
+        assert_eq!(anchor, chora_kit::hud::Anchor::TopRight);
+        assert!(top >= 48, "the islands of the bar reach y 40: {top}");
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]
@@ -806,6 +881,8 @@ mod tests {
             too_long: false,
             max_width: None,
             glass: None,
+            ink: card::Ink::HOST,
+            face: None,
         };
         assert!(card::fits(&host, &waiting, Language::En, output.size));
         let size = card::size(&host, &waiting, Language::En, output.size);

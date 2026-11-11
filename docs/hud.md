@@ -205,7 +205,11 @@ figure, toward the middle of the output, on the backing of a plain
 sentence: `text: '{state}'` shows `Listening` in the language of the
 screen. There `{state}` is the word of the word table, not the name of
 the state. The neutral and the mc folders show it, so the state never
-depends on a colour alone.
+depends on a colour alone. The word is 11 pixels, next to a shape that
+shows the same state; in a folder that names a `slot` it is the 14
+pixels of text that a person reads, in the `accent` of the `colours` of
+the panel, and the margin that the folder gives keeps the word on the
+first line of the margin of the client.
 
 A sentence (`source: say`) shows in a bubble above the figure, or below
 a figure at the top. With `style: plain` it has no hairline and no
@@ -239,8 +243,11 @@ The host draws the rows of the helpers itself: a panel with
 `source: agents` and `action: chat` gives their place, `max_rows` (4 if
 left out) and `colours`. Below the "Chat ..." row stands one row for each
 helper, `Atlas · working · Write file (2/2)`: the name, the state word of
-the word table and the task with its step. The rows stack away from the
-edge of the anchor; while the `when` of the panel does not match, only
+the word table and the task with its step. A folder that names a `slot`
+in its `chat:` block has no row and no "Chat ..." row at all: the client
+of the slot draws the door and the helpers in its own margin, and the host
+never paints over its text. The neutral folder puts its rows 48 pixels from
+the top, below the islands of the bar of tiling, which reach y 40. The rows stack away from the edge of the anchor; while the `when` of the panel does not match, only
 the "Chat ..." row shows, in the same place. A folder whose figure
 opens the chat has no "Chat ..." row. A click on a row opens the chat with that helper.
 While the chat is open, no row shows: its header names the helper, and
@@ -324,13 +331,27 @@ values only. A folder without the block gets the neutral chat.
 |---|---|
 | `style` | `plain`, `bubble` or `glass`; `bubble` is the balloon of the figure, see below. |
 | `fill`, `text`, `name`, `border` | Colours as `[r, g, b]`, 0 to 255. A colour left out takes the host's. |
-| `font` | Font family. Default: the font of the folder. |
-| `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. |
+| `font` | Font family. Default: the font of the folder. A plain chat that names one sets the text that a person reads, the messages, in it, with a serif behind it, `DejaVu Serif`, where the host does not have it, since the host reads no fontconfig directory; the names of the speakers stay in the sans of the folder. |
+| `size` | Text size in pixels, 14 to 48; a value outside is refused. Default 14. A line of text is one and a half times as high, and a long message wraps at its words, never cut with an ellipsis. |
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
-| `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. |
+| `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers, exactly as announced: the view never steps aside in it, and it does not move or grow while a question shows. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. The client also gives the theme of the look where no window manager claims the screen. A folder with a slot draws no "Chat ..." row and no row of a helper, and its question card takes the page of the look, see below. |
+
+Where a person closed the chat of a helper and that helper is the only one
+that runs, the next open without a name (Super+a, a click on the door)
+shows its chat with its draft, not a list of one; with two helpers or
+none that was chosen, the list shows.
+
+The empty-field hint of a plain chat is in the colour `name`. Its field
+paints at one pixel to a pixel, so that it is soft on an output of scale 2
+until `chora-chat` paints a plain field at the scale, as it does a glass one.
+
+A transcript that does not fit scrolls by whole messages: the oldest
+lines go with the line of their speaker, and the end of a message that fills
+the view alone stands under its speaker's line, so that no reply shows
+without who said it.
 
 A `glass` chat is the glass column of the construct style (rules 18 to
 25, the tokens of `chora_kit::glass`, light or dark after the theme): 28
@@ -349,8 +370,19 @@ and the transcript flows under it. The text of a glass chat is checked
 against its `fill` over a black and over a white pane.
 
 The view never covers the figure, its bubble or the "Chat ..." row: a
-view that would, moves sideways beside them, also a view in a slot. A
-view at `left` or `right` is a side panel and keeps its edge.
+view that would, moves sideways beside them. A view in a slot does not: the
+client owns the box. A view at `left` or `right` is a side panel and keeps
+its edge.
+
+A plain view in a slot is the chat in the margin of a client: no box, only
+its fill, no header and no Close, which the client has in its head of the
+chat; Stop is a word without a box at the top right. The speaker stands on
+a line of its own over the message. What the person sends shows at once as
+a line of the transcript, and goes when voice has the message. Stop asks
+voice to cancel and the header stops saying `working` until voice says
+otherwise. The chat takes the pointer over its box, so a hover or a click
+never reaches the page under it, and a press on a button of the host gives
+the keyboard back to the field.
 
 The open chat is the one surface of the helpers in every look: a
 sentence of the agent shows inside it, under the transcript, not in a
@@ -415,8 +447,11 @@ prompt, the detail, and, for a question that only a key or a click may
 answer, the key line of the event and the note that a spoken yes does not
 count; the buttons Yes and No follow when the event has `buttons`. The
 card appears in one place and stays there until the question ends. It
-is drawn with the host fonts at 14 px, dark text on a light fill. A press
-on a button answers with `confirm.answer`, except an injected press, which
+is drawn with the host fonts at 14 px, dark text on a light fill, with an
+even padding of 14 pixels at the sides and as much under the buttons as the
+ink of the first line stands under the top edge. A press
+on a button answers with `confirm.answer` and takes the card away, as the
+end of the question does, except an injected press, which
 shows "Please use your own mouse or keyboard." on the card, and a click in
 the first 400 ms after the card appeared, which does nothing. The card is
 at most 560 px wide and leaves 64 px at the sides of the output. The key
@@ -425,6 +460,31 @@ detail, does not fit in 80 percent of the height of the output, the card
 shows no buttons and says "Too long to show. Refused.", and the host
 answers `confirm.answer {yes: false}` at once. The host removes control,
 bidi and zero-width characters from the prompt and the detail.
+
+In a folder that names a `slot`, the buttons of the card, Stop and the
+rows of the list of helpers show the one focus mark of mc while the pointer
+is over them: a frame of 2 pixels round a button of the card, a bar of 2 by
+20 pixels, 12 pixels left of Stop or of a row, in the text colour. A row of
+the list is a line of 28 pixels with its number in `name`, and the mark
+stays when the view is drawn again under the pointer. Stop is a word in
+`name`, flush right at the top of the view, and shows only while the helper
+works, thinks, speaks or asks.
+
+A folder that names a `slot` gets the card in the page of its look: the
+fill of its chat, one rule of a pixel in its text colour, square corners,
+buttons in the fill of the page with the same rule, 7:1 on both themes,
+as wide as the view and pinned above the field, 14 px of padding and a half
+line above the buttons. The title and the key line are set in Inter at
+weight 500, 14 px, the prompt in the reading face of the chat, the detail
+and the path in a mono face at 14 px, the note in `name`. The title is
+"Question from NAME" with the name of the helper that asks, also when the
+event has no `name`. The words, the order and the keys stay those of every
+look. In a dark theme the card is dark. The card follows the view when the
+field grows, so that it never covers the hint. While a question
+waits, a line above the field says that typing does not answer; it wraps
+at its words and is never cut. When the card is answered here, the line
+and the note "A question is waiting." of the field go at once, before voice
+ends the question.
 
 A folder with a `glass` chat gets the glass card of the construct style:
 400 px wide, the title as a label, the prompt at 16 px, the detail in a
