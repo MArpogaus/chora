@@ -714,11 +714,13 @@ Else it goes a little to the side, nearer or farther, but only to a spot
 where its whole face shows in the view and covers no other pane. When no
 spot in the view is free, the window becomes no pane: it waits in the
 window list, and the HUD shows "No room in view: in the window list
-(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys
-`Super+t` and `Super+space` and a window that another window manager gives to the
-construct follow the same rule. A pane of a construct file and a choice
-in the window list come also when the view is full, beside the panes in
-the way. The space lies on
+(Tab)". Turn, then choose it with `Tab` or `window.show`. A window that another
+window manager gives to the construct follows the same rule. A window
+that the person opens with `Super+t`, `Super+space` or the launcher, a
+pane of a construct file and a choice in the window list come also when
+the view is full, beside the panes in the way. The camera flies into the
+pane of a window that the person opened, so that it shows at 1:1 and
+has the keyboard; the fly-out key leaves it. The space lies on
 the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.
@@ -776,7 +778,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
-| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, and the construct claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
+| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
@@ -953,11 +955,11 @@ it. The voice agent shows it with the method `help.toggle`.
 ### The window list
 
 In the construct, every window is a pane. `Tab`, the key `windows`,
-opens the window list over the space. It shows the windows that have no
-visible pane: a pane behind the camera, beyond the leash radius, out
-of the view, or covered by the front face of a cube in use mode, and
-every window without a pane, of any owner. Each row has
-the label of the window, its owner and the place of its pane. `Up` and
+opens the window list over the space. It shows every window, of any
+owner, by its name. A window that does not show has the note "not in
+view": a pane behind the camera, beyond the leash radius, out of the
+view, or covered by the front face of a cube in use mode, and a window
+without a pane. With no window, the list says "no windows". `Up` and
 `Down` move the selection, and `Return` or a click chooses. A choice
 flies to the pane. A window of another client, such as tiling, xp or mc,
 first becomes a pane at its own size. `Escape` or `Tab` closes the list.
@@ -965,7 +967,9 @@ first becomes a pane at its own size. `Escape` or `Tab` closes the list.
 claim (D55); `Return` gives the window to the one selected.
 
 `Super+Alt+1` to `Super+Alt+4` give the focused window to tiling, xp, mc
-or construct, also the window of the pane that the camera flew into. The
+or construct, also the window of the pane that the camera flew into;
+with no focused window, the window of the pane ahead. A give that
+does not happen shows a notice in the HUD. The
 construct grabs the keys while a flavor shows, if no other window manager
 holds them, and gives a window of another window manager through its
 owner. When the flavor ends, the next window manager takes the keys.
@@ -1012,6 +1016,13 @@ cannot tell an injected click (`input.inject`) from a real one.
 The construct claims the indicator of the agent (`indicator.claim`) at
 the start and on each connection of the agent, and hides the HUD while
 the agent is away.
+
+The notices of the construct show in the same place with either value
+of `voice_hud`, as one line of text on the glass with no label and no
+ring, for 4 s: a typed key that does nothing, a window with no room in
+view, and a give key that gives nothing ("No window to give.", "xp did
+not take the window."). A give key gives the focused window, else the
+window of the pane ahead.
 
 Only the clients that the voice agent names may claim its indicator and
 answer its questions with `confirm.answer`: the names of its security

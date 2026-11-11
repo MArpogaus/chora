@@ -2,10 +2,10 @@
 
 The HUD folder of `chora-construct` for the HUD host `chora-assistant`,
 after `docs/construct-style.md` in its light theme: one glass card at the
-top centre of the work area with the state ring, the host's state word
-and one line of speech below it. One chip per helper with its state
-stands at the top left, 32 from the edges, on glass, away from OPEN CUBE
-at the bottom left.
+top centre of the work area with the state ring, its state word beside
+it (`text: '{state}'`) and one line of speech below it. One chip per
+helper with its state stands at the top left, 32 from the edges, on
+glass.
 A click on the ring mutes the mic; a click on a chip opens the chat with
 that helper. The chat is a glass panel at the right, 480 pixels wide, in
 Inter 16: the fill is `glass` of the light theme at its opacity of 0.94,
@@ -15,7 +15,7 @@ work area.
 
 construct uses this folder with `voice_hud: host` in
 `chora-construct.yaml`: construct then draws no voice HUD and no question
-glass of its own and claims no indicator.
+glass of its own, only its own notices, and claims no indicator.
 
 | File | Content | Source | License |
 |------|---------|--------|---------|

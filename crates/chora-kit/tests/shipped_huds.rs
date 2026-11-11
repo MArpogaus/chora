@@ -75,3 +75,14 @@ fn the_xp_folder_is_one_balloon_of_the_paperclip() {
         "the sentence wears the look of the chat"
     );
 }
+
+/// The ring of the construct folder has its state word beside it
+/// (construct style rule 14): the ring alone never names the state.
+#[test]
+fn the_construct_folder_names_the_voice_state_beside_its_ring() {
+    let construct = shipped("plugins/chora-construct/hud");
+    let ring = (construct.panels.iter())
+        .find(|panel| panel.source == Source::Voice)
+        .expect("a voice panel");
+    assert_eq!(ring.text.as_deref(), Some("{state}"));
+}

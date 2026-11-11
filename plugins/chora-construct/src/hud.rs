@@ -1200,13 +1200,12 @@ impl Voice {
         level: f64,
         glow: bool,
     ) -> Vec<Command> {
-        // Without the agent, only a notice shows, without a ring.
         let (ring_mode, label) = match &self.state {
             Some(state) => match mode(state) {
                 (ring, "") => (ring, state.to_uppercase()),
                 (ring, label) => (ring, label.into()),
             },
-            None if self.say.is_some() => (-1.0, "NOTICE".into()),
+            None if self.say.is_some() => (-1.0, String::new()),
             None => return vec![fade(HUD, 0.0, FADE_OUT)],
         };
         let ringless = look.plain || ring_mode < 0.0;
@@ -1222,7 +1221,8 @@ impl Voice {
         let label = look.one_line(Role::Label, &label, wrap);
         let [line_w, line_h] =
             (line.as_ref()).map_or([0.0; 2], |(t, _)| look.size(Role::Text, t, Some(wrap)));
-        let content = 16.0 + line_h;
+        let label_h = if label.is_empty() { 0.0 } else { 16.0 };
+        let content = label_h + line_h;
         let label_w = look.size(Role::Label, &label, None)[0];
         let w = (pad * 2.0 + slot + label_w.max(line_w)).ceil();
         let h = pad * 2.0 + content.max(if ringless { 0.0 } else { RING });
@@ -1267,7 +1267,7 @@ impl Voice {
                     look.colors.text
                 };
                 PropsUpdate {
-                    transform: at(pad + slot, top + 16.0),
+                    transform: at(pad + slot, top + label_h),
                     max_width: Some(wrap),
                     visible: Some(true),
                     opacity: Some(1.0),
@@ -1631,6 +1631,28 @@ mod tests {
             assert!(w <= out[0] - 8.0 * config.style.unit, "{out:?}: {w}");
             assert!(h <= 2.0 * pad + 16.0 + 48.0, "{out:?}: {h}");
         }
+    }
+
+    /// A notice is one calm line: the sentence alone, with no label above
+    /// it and no ring.
+    #[test]
+    fn a_notice_is_one_line_without_a_label() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let mut voice = Voice::default();
+        voice.notice("No room in view", Instant::now());
+        let hud = measured(&metrics, || {
+            voice.hud(&look, [1280.0, 720.0], false, 0.0, true)
+        });
+        assert_eq!(text_of(&hud, HUD_SAY), Some("No room in view"));
+        assert_eq!(text_of(&hud, HUD_STATE).map(str::trim), Some(""));
+        let glass = hud.iter().find_map(|c| match c {
+            Command::Update { id, props } if id == HUD_GLASS => props.size,
+            _ => None,
+        });
+        let pad = look.pad();
+        assert_eq!(glass.unwrap()[1], 2.0 * pad + Role::Text.size().1);
     }
 
     /// The question grows with its prompt as the core wraps it.
