@@ -66,8 +66,9 @@ so that no window covers them. They sit at the bottom right, above the
 taskbar of the face: there they cover no title band and no button of a
 window, so a click on the close button of a maximized window never
 steps back. In use mode they stay left of the desktop icons of the face
-in their row, so that they cover no label. In use mode one chip shows, `STEP BACK  Alt+Esc`, with its
-key. It is calm: it must not compete with the work on the face. The
+in their row, so that they cover no label. In use mode one chip shows,
+`STEP BACK  Alt+Esc`, with its key. It is calm: it must not compete
+with the work on the face. The
 turn chips carry an arrow, `← TURN LEFT` and `TURN RIGHT →`. In
 navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
