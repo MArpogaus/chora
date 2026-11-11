@@ -399,7 +399,9 @@ chat.show {name}`. While the event `assistant.chat` of the client
 `assistant` says that the chat is open on the output of mc, the drawer
 shows alone with the content `chat`, and mc emits its box as
 `mc.chat.slot {output, rect}` (`rect` is `[x, y, width, height]` on the
-output, `null` when the drawer closes).
+output, `null` when the drawer closes). mc names its theme to the host
+with `mc.theme {theme}` at its start, when its settings change and when
+the host connects, and the host draws the mc folder in that theme.
 
 | Method | Parameters |
 |--------|------------|
@@ -694,7 +696,7 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 flavor: `chora -- chora-construct` starts into it, and the directory
 `flavors/construct/` holds its target and its services: `chora-construct`
 and `chora-assistant`, the voice HUD and the chat in the construct
-folder. The first output shows
+folder, in the theme that `construct.theme` names. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
 lies over a smooth, white, glossy floor, as in a photo studio. In the
 dark theme, a black void lies over a black glossy floor. A crisp

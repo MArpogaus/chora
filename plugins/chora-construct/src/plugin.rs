@@ -70,6 +70,7 @@ impl Plugin for Construct {
                 }
                 Ok(())
             }
+            Event::ClientConnected { name } if name == "assistant" => self.name_theme(),
             event => self.other(event),
         }
     }
@@ -222,6 +223,7 @@ impl Plugin for Construct {
         self.effects.set(&self.settings.value.effects);
         self.regrab().map_err(rejected)?;
         self.restyle().map_err(rejected)?;
+        self.name_theme().map_err(rejected)?;
         self.frame().map_err(rejected)
     }
 }

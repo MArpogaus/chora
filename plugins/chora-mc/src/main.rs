@@ -770,6 +770,7 @@ impl Plugin for Mc {
                 node: Some(node), ..
             } => self.timer(&node),
             Event::EffectsDropped { client } if client == NAME => self.effects_dropped(),
+            Event::ClientConnected { name } if name == ASSISTANT => self.name_theme(),
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
@@ -888,6 +889,8 @@ impl Plugin for Mc {
                 "idle".clone_into(&mut agent.state);
             }
         }
+        self.name_theme()
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
         let theme_only = self.built && !plain && self.shape.as_ref() == Some(&self.shape_of());
         self.rt
             .ungrab_all()
@@ -1056,6 +1059,13 @@ impl Mc {
         self.solo(CHAT, Region::Drawer, Some(open), false)?;
         let rect = if open { self.drawer_box() } else { None };
         let emit = json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+    }
+
+    /// Names the theme of mc to the HUD host, which colours its look by it.
+    fn name_theme(&mut self) -> Result<(), ClientError> {
+        let dark = self.settings.value.theme == config::Theme::Dark;
+        let emit = chora_kit::hud::theme_event(NAME, dark);
         self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
     }
 
@@ -1369,6 +1379,7 @@ impl Mc {
         // After the removal: it detaches the kept windows, and those
         // events would adopt them a second time.
         self.rt.announce(&EVENTS, methods)?;
+        self.name_theme()?;
         self.grab_all()?;
         self.build()?;
         self.grab_drags()?;
@@ -3017,6 +3028,23 @@ mod tests {
                 .iter()
                 .any(|m| m == "indicator.claim")
         );
+    }
+
+    /// mc names its theme to the HUD host when the host connects and when
+    /// the settings change.
+    #[test]
+    fn mc_names_its_theme_to_the_hud_host() {
+        let (mut mc, model) = crate::testing::mc("theme", [1920, 1080]);
+        mc.settings.value.theme = crate::config::Theme::Light;
+        let connected = chora_scene::Event::ClientConnected {
+            name: "assistant".into(),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, connected).unwrap();
+        let last = || model.lock().unwrap().emits.last().cloned();
+        assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", false)));
+        mc.settings.value.theme = crate::config::Theme::Dark;
+        chora_kit::runtime::Plugin::settings_changed(&mut mc).unwrap();
+        assert_eq!(last(), Some(chora_kit::hud::theme_event("mc", true)));
     }
 
     /// `assistant.chat` of the host opens the drawer on the output of mc
