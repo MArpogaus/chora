@@ -40,7 +40,7 @@ shot() { ctl capture "${SHOTS:-/tmp}/mc-column-$1.png" >/dev/null || fail "captu
 
 until_ok 'has_text "AGENDA"' || fail "no first screen: $(texts | tr '\n' '|')"
 
-for t in "Super+F1" "All keys" "Super+← →" "Turn the page" "Super+Space" "Start a program" \
+for t in "Super+F1" "All keys" "Super+ ← →" "Turn the page" "Super+Space" "Start a program" \
     "Super+n" "Hide this column" "Esc" "Back one step"; do
     has_text "$t" || fail "the key list lacks \"$t\" on the first screen"
 done
@@ -97,9 +97,13 @@ click_at "$x" "$y"
 until_ok '[ "$(current)" = terminal ]' 20 || fail "a click on a line of the overview does not show that scene: $(current)"
 ok "a mouse alone reaches All keys, the overview and the terminal scene"
 
-small=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.rects | length) > 0 and (.rects | to_entries[0].value[0]) >= 860 and .font_size < 14) | "\(.text):\(.font_size)"] | join(" ")')
-[ -z "$small" ] || fail "text under 14 px in the column: $small"
-ok "nothing in the column is under 14 px"
+small=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.rects | length) > 0 and .font_size < 14) | "\(.text):\(.font_size)"] | join(" ")')
+[ -z "$small" ] || fail "text under 14 px on the page: $small"
+ok "no text on the page is under 14 px"
+
+sans=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.rects | length) > 0 and (.family | IN("Inter", "TeX Gyre Pagella", "DejaVu Serif", "DejaVu Sans Mono") | not)) | "\(.text):\(.family)"] | join(" ")')
+[ -z "$sans" ] || fail "text in a family of the frame that is not Inter or a serif: $sans"
+ok "the page is set in Inter and a serif, never in a second sans"
 
 rect_of() {
     ctl query "owner:mc kind:rect" | jq -c --arg s "$1" \
@@ -112,9 +116,9 @@ expect_rect() {
 }
 close_list() { has_text "Show overview" && key Super+F1; sleep 1; }
 key Super+Home
-close_list
 until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda to measure"
 sleep 1
+close_list
 expect_rect "right-keys-title-rule" "[888.0,562.0,336.0,1.0]"
 expect_rect "right-edge" "[860.0,28.0,1.0,744.0]"
 ok "at 1280x800 the column stands at 888 to 1224 with its hairline at 860"
@@ -157,7 +161,7 @@ drawer=$(ctl call mc region.list '{}' | jq -r '.regions.drawer.contents | length
 [ "$drawer" = 0 ] || fail "the default setup still has contents in the drawer"
 ok "Super+a asks for the chat, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
 
-notices() { texts | grep -c ' Note [0-9]$'; }
+notices() { texts | grep -c '^Note [0-9]$'; }
 has_text "NOTIFICATIONS" || fail "no NOTIFICATIONS head on an empty column"
 has_text "Nothing new." || fail "the empty notifications do not say so"
 ok "an empty column says Nothing new. under its head"
