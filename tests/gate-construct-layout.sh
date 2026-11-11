@@ -345,12 +345,20 @@ SCRIPT
         ctl call construct construct.list | grep -q '"name": "sunset' && break
         sleep 0.25
     done
+    key Return
+    until_ok any_front || { echo "FAIL: $tag: Return did not fly into the pane of the sunset"; failed=1; }
     key Alt+Escape
-    echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null
-    sleep 1.5
-    audit walk "$tag"
-    hints_are "fly-in keys terminal walk" || { echo "FAIL: $tag: the hints with one pane are: $(hint_ids)"; failed=1; }
+    until_ok '! any_front' || { echo "FAIL: $tag: Alt+Escape did not step back from the pane of the sunset"; failed=1; }
+    if until_ok 'hints_are "fly-in keys terminal walk"'; then
+        ok "$tag: one pane: $(hint_ids)"
+    else
+        echo "FAIL: $tag: the hints with one pane are: $(hint_ids)"
+        failed=1
+    fi
     hint_bar "$tag" "$size"
+    echo '[{"pointer_move": {"position": [24, 712]}}]' | ctl inject >/dev/null
+    sleep 0.5
+    audit walk "$tag"
 
     ask
     until_shows hud-card || echo "FAIL: $tag: no question card"
