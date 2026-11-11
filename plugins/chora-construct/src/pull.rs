@@ -2,9 +2,9 @@
 //! its drag, as `chora-xp` does when a title bar leaves a face of the
 //! cube, becomes a pane under the pointer and goes on with the drag and
 //! with the wobble, now with a depth. A pane that a drag drops over a
-//! face of the cube goes back: its window is a window of the manager of
-//! the cube again, on the output of that face, at the drop point, which
-//! the release of the drag names. So a
+//! resting face of the cube goes back: its window goes to the window
+//! manager whose claim holds the drop point on the output of that face,
+//! which puts it there. So a
 //! move from face to face stays inside that manager for the user.
 
 use std::time::Duration;
@@ -16,9 +16,9 @@ use chora_scene::{
 };
 use serde_json::{Value, json};
 
-use super::{ClientError, Construct, Event, Moving, NAME, PressState, cube, give, space};
+use super::{ClientError, Construct, Event, Moving, NAME, PressState, give, space};
 
-/// How long the manager of the cube may take to place a window.
+/// How long the window manager of a face may take to place a window.
 const PLACE_WAIT: Duration = Duration::from_secs(2);
 
 /// The ids of the faces of the cube start with this.
@@ -79,22 +79,31 @@ pub(crate) fn held_at(shown: [f64; 4], size: [f64; 2], point: [f64; 2]) -> [f64;
 }
 
 impl Construct {
-    /// Takes the press of `move` that comes with a window and its drag;
-    /// any other event goes back to the caller.
+    /// Takes the press of `move` that comes with a window and its drag,
+    /// and the release of a moved pane that the space would not take: a
+    /// drop over a face of the cube, and a release while the camera is in
+    /// a window or on its way into one, which must still end the drag. A
+    /// press of `move` without a drag, of a window that draws its own
+    /// title bar, moves no pane while the camera is in a window. Any
+    /// other event goes back to the caller.
     pub(crate) fn pulled(&mut self, event: Event) -> Result<Option<Event>, ClientError> {
-        let over = match &event {
+        let released = match &event {
             Event::InputButton {
                 state: PressState::Released,
+                position,
                 output,
                 local,
                 ..
-            } => Some((output.clone(), *local)),
+            } => Some((output.clone(), *local, self.local(*position))),
             _ => None,
         };
-        if let Some((output, point)) = over
-            && self.drop_on_a_face(&output, point)?
-        {
-            return Ok(None);
+        if let Some((output, point, at)) = released {
+            if self.drop_on_a_face(&output, point)? {
+                return Ok(None);
+            }
+            if self.moving.is_some() && self.inside().is_some() {
+                return self.release(at, None).map(|()| None);
+            }
         }
         match event {
             Event::InputButton {
@@ -108,17 +117,23 @@ impl Construct {
                 let at = self.local(position);
                 self.take_pulled(&surface, at, &grab).map(|()| None)
             }
+            Event::InputButton {
+                binding,
+                state: PressState::Pressed,
+                grab: None,
+                ..
+            } if binding == give::MOVE && self.inside().is_some() => Ok(None),
             event => Ok(Some(event)),
         }
     }
 
-    /// The drop of a moved pane of an own window over a face of the cube:
-    /// the release names the output of the face and the point in it, or,
-    /// under the dragged pane, the screen and the point there. The window
-    /// goes to the manager of the cube, which places it on the output of
-    /// the face at that point. Returns whether the
-    /// drop went there; a refusal leaves the pane to the drop of the
-    /// space.
+    /// The drop of a moved pane of an own window over a resting face of
+    /// the cube: the release names the output of the face and the point
+    /// in it, or, under the dragged pane, the screen and the point there.
+    /// The window goes to the window manager whose claim holds that point
+    /// of the output of the face, as a drop on a screen does (D55), and
+    /// that manager is asked to put it at the drop point. Returns whether
+    /// the window went; else the drop of the space takes the pane.
     #[allow(clippy::cast_possible_truncation, reason = "a point of an output")]
     fn drop_on_a_face(&mut self, output: &str, point: [f64; 2]) -> Result<bool, ClientError> {
         let dragged = self.moving.as_ref().and_then(|moving| {
@@ -128,7 +143,8 @@ impl Construct {
         let Some(surface) = dragged else {
             return Ok(false);
         };
-        let face = if is_a_face(&self.rt.outputs()?, output) {
+        let outputs = self.rt.outputs()?;
+        let face = if is_a_face(&outputs, output) {
             Some((output.to_owned(), point))
         } else {
             let shaders = Query {
@@ -141,8 +157,15 @@ impl Construct {
         let Some((output, point)) = face else {
             return Ok(false);
         };
-        let output = output.as_str();
-        if let Err(err) = self.give(&surface, cube::MANAGER) {
+        let Some(corner) = outputs.iter().find(|o| o.name == output) else {
+            return Ok(false);
+        };
+        let [x, y] = corner.position.map(f64::from);
+        let holder = (self.rt.conn).claimant_at([x + point[0], y + point[1]]);
+        let Some(to) = holder.map_err(ClientError::Rpc)? else {
+            return Ok(false);
+        };
+        if let Err(err) = self.give(&surface, &to) {
             eprintln!("chora-construct: {surface} stays a pane: {err}");
             return Ok(false);
         }
@@ -151,7 +174,7 @@ impl Construct {
         }
         let at = point.map(|v| v.round() as i32);
         let place = MethodCall {
-            client: cube::MANAGER.into(),
+            client: to,
             method: "window.move".into(),
             params: json!({"surface": surface, "output": output, "at": at}),
         };
@@ -164,15 +187,17 @@ impl Construct {
     }
 
     /// The press of `move` that comes with a window and its drag, at a
-    /// point of the output. The window has its pane from the handover, or
-    /// gets it now; a window without room for a pane stays hidden and is
-    /// not lost. The camera flies to a window that is handed over; for a
-    /// window that comes in the middle of a drag it turns back and stays
-    /// where the user stands. The pane moves so that the point of the window that the
-    /// giver names is under the pointer, and the moves and the release of
-    /// `move` then drag and drop it as a drag with the modifier does. A
-    /// pane of an own window wobbles on in 3D, from the springs of the
-    /// giver when it sent some.
+    /// point of the output. The window has its pane from the handover,
+    /// or gets it now; a window that gets no pane is attached hidden, so
+    /// it is not lost, and the drag ends for it. The camera flies to a
+    /// window that is handed over: for a window that comes in the middle
+    /// of a drag it turns back and stays where the user stands. A pane
+    /// with a corner behind the eye goes ahead of the camera first. The
+    /// pane then moves so that the point of the window that the giver
+    /// names is under the pointer, and the moves and the release of
+    /// `move` drag and drop it as a drag with the modifier does. A pane
+    /// of an own window wobbles on in 3D, from the springs of the giver
+    /// when it sent some.
     pub(crate) fn take_pulled(
         &mut self,
         surface: &str,
@@ -187,13 +212,28 @@ impl Construct {
         if self.inside().as_deref() == Some(surface) {
             self.leave_window()?;
         }
-        let Some(pane) = of_window(self).map(|i| &self.panes[i]) else {
+        let Some(i) = of_window(self) else {
             return Ok(());
         };
-        let shown = space::screen_box(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
-        let Some(shown) = shown else {
+        let boxed = |construct: &Self| {
+            let pane = &construct.panes[i];
+            space::screen_box(
+                &construct.lens,
+                &construct.pose,
+                pane.at,
+                pane.size,
+                pane.yaw,
+            )
+        };
+        if boxed(self).is_none()
+            && let Some(ahead) = self.place(None, self.panes[i].size, true)
+        {
+            self.move_pane(i, ahead)?;
+        }
+        let Some(shown) = boxed(self) else {
             return Ok(());
         };
+        let pane = &self.panes[i];
         let from = held_at(shown, pane.size, grab.point);
         self.moving = Some(Moving {
             name: pane.name.clone(),

@@ -310,6 +310,8 @@ impl Construct {
             if let Err(err) = self.rt.grab(drag, Grab::Drag) {
                 eprintln!("chora-construct: the drag: {err}");
             }
+        }
+        if self.active && !self.overlay && self.flown.is_none() {
             let moves = parse(chora_kit::give::MOVE.into())?;
             if let Err(err) = self.rt.grab(moves, Grab::Drag) {
                 eprintln!("chora-construct: the drag of a given window: {err}");
