@@ -161,6 +161,16 @@ impl Construct {
     /// The keys and the pointer of the walk, and the fly-out binding.
     #[allow(clippy::too_many_lines, reason = "one arm per event")]
     pub(crate) fn input(&mut self, event: Event) -> Result<(), ClientError> {
+        if let Event::NodeKey {
+            node,
+            key,
+            state: PressState::Released,
+            ..
+        } = &event
+            && node == LOOK
+        {
+            self.stride_release(key);
+        }
         if self.start_input(&event)?
             || self.hint_input(&event)?
             || self.help_input(&event)?
@@ -184,6 +194,9 @@ impl Construct {
                 Some(Action::Windows) => return self.open_list(),
                 Some(Action::Help) => return self.toggle_help(),
                 Some(Action::Cube) => return self.cube_key(),
+                Some(action @ (Action::Forward | Action::Back | Action::Left | Action::Right)) => {
+                    self.stride_press(&key, action);
+                }
                 Some(action) => self.act(action),
                 None if text.is_some() => return self.keys_walk(),
                 None => {}

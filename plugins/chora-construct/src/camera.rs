@@ -4,7 +4,7 @@
 use super::{
     Action, ClientError, Command, Construct, Content, FLY_MS, FRONT, Flown, Glide, Grab, LOOK,
     LOOK_RATE, Pane, Pose, PropsUpdate, RpcError, STEP, STEP_MS, TURN, Transform, Value, json,
-    space, update,
+    space, stride, update,
 };
 
 /// The surface that the camera is in or on its way into.
@@ -95,6 +95,9 @@ impl Construct {
     }
 
     pub(crate) fn glide_to(&mut self, to: Pose, ms: f64, into: Option<Flown>) {
+        if into.is_some() {
+            self.stride = None;
+        }
         self.glide = Some(Glide {
             from: self.pose,
             to,
@@ -114,6 +117,7 @@ impl Construct {
                 "the camera is in a pane; fly out first",
             ));
         }
+        self.stride = None;
         let finite = [to.x, to.z, to.yaw, to.pitch, ms]
             .iter()
             .all(|v| v.is_finite());
@@ -160,6 +164,7 @@ impl Construct {
                     yaw,
                     pitch: 0.0,
                 };
+                self.stride = None;
                 return self.glide_to(home, FLY_MS, None);
             }
             Action::Terminal
@@ -178,6 +183,77 @@ impl Construct {
             }
         }
         self.glide_to(t, STEP_MS, None);
+    }
+
+    /// A walk key went down: one pane step in a tap, more while it is
+    /// held. A repeat of the key that is down changes nothing.
+    pub(crate) fn stride_press(&mut self, key: &str, action: Action) {
+        let (ahead, aside) = match action {
+            Action::Forward => (1.0, 0.0),
+            Action::Back => (-1.0, 0.0),
+            Action::Left => (0.0, -1.0),
+            Action::Right => (0.0, 1.0),
+            _ => return,
+        };
+        if self.flown.is_some() || self.in_pane() {
+            return;
+        }
+        if self
+            .stride
+            .as_ref()
+            .is_some_and(|s| s.held() && s.key == key)
+        {
+            return;
+        }
+        let now = chora_kit::clock::now();
+        let from = self
+            .stride
+            .as_ref()
+            .map_or([self.pose.x, self.pose.z], |s| s.at(now).0);
+        let [fx, fz] = self.pose.forward();
+        let dir = [fx * ahead + fz * aside, fz * ahead - fx * aside];
+        self.stride = Some(stride::Stride::new(key, dir, from, now));
+    }
+
+    /// A walk key went up.
+    pub(crate) fn stride_release(&mut self, key: &str) {
+        if let Some(stride) = self.stride.as_mut().filter(|s| s.key == key) {
+            stride.release(chora_kit::clock::now());
+        }
+    }
+
+    /// One frame of the walk: the place of the camera on the leash.
+    pub(crate) fn step_stride(&mut self) -> Result<(), ClientError> {
+        let Some((key, held)) = self.stride.as_ref().map(|s| (s.key.clone(), s.held())) else {
+            return Ok(());
+        };
+        if held && (self.help || self.list.is_some() || self.in_pane()) {
+            self.stride_release(&key);
+        }
+        let Some(stride) = &self.stride else {
+            return Ok(());
+        };
+        let (at, done) = stride.at(chora_kit::clock::now());
+        let radius = self.radius();
+        let length = at[0].hypot(at[1]);
+        let at = if length > radius {
+            [at[0] * radius / length, at[1] * radius / length]
+        } else {
+            at
+        };
+        [self.pose.x, self.pose.z] = at;
+        if let Some(glide) = self.glide.as_mut().filter(|g| g.into.is_none()) {
+            for pose in [&mut glide.from, &mut glide.to] {
+                [pose.x, pose.z] = at;
+            }
+        }
+        if done {
+            self.stride = None;
+        }
+        if self.glide.is_none() {
+            return self.frame();
+        }
+        Ok(())
     }
 
     /// Walks `ahead` forward and `aside` to the right, on the leash.

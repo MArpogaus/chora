@@ -507,6 +507,8 @@ struct Construct {
     fog_scale: f64,
     pose: Pose,
     glide: Option<Glide>,
+    /// The walk of the key that is down, or still stopping.
+    stride: Option<stride::Stride>,
     panes: Vec<Pane>,
     /// The look of the panes as last sent; `None` sends it again.
     sent: Option<PaneLook>,
@@ -653,6 +655,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         lens: Lens::new(1280.0, 800.0),
         pose: start,
         glide: None,
+        stride: None,
         panes: Vec::new(),
         sent: None,
         flown: None,

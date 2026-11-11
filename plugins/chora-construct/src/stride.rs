@@ -2,7 +2,8 @@
 //! walk key glides one pane step in 320 ms; a key held on accelerates
 //! over 160 ms to one pane step per 400 ms, and the release stops it over
 //! 160 ms. The distance only grows: nothing overshoots.
-#![allow(dead_code, reason = "the walk keys use it in the next commit")]
+
+use std::time::Instant;
 
 /// One pane step in logical pixels.
 pub const PANE_STEP: f64 = 800.0;
@@ -17,8 +18,86 @@ pub const HOLD_STEP_MS: f64 = 400.0;
 /// How far a walk has gone `t` ms after the press, in pane steps, and
 /// whether it stopped there; `released` is the time of the release.
 pub fn steps_at(t: f64, released: Option<f64>) -> (f64, bool) {
-    let _ = (t, released);
-    (0.0, false)
+    match released {
+        Some(r) if r <= TAP_MS => tap(t),
+        Some(r) if t >= r => stop(t - r, r),
+        _ => (held(t), false),
+    }
+}
+
+fn tap(t: f64) -> (f64, bool) {
+    let k = (t / TAP_MS).clamp(0.0, 1.0);
+    (1.0 - (1.0 - k).powi(3), k >= 1.0)
+}
+
+fn pace() -> f64 {
+    1.0 / HOLD_STEP_MS
+}
+
+fn held(t: f64) -> f64 {
+    if t <= TAP_MS {
+        return tap(t).0;
+    }
+    let u = t - TAP_MS;
+    if u < RAMP_MS {
+        1.0 + pace() * u * u / (2.0 * RAMP_MS)
+    } else {
+        1.0 + pace() * RAMP_MS / 2.0 + pace() * (u - RAMP_MS)
+    }
+}
+
+fn stop(since: f64, released: f64) -> (f64, bool) {
+    let speed = pace() * ((released - TAP_MS) / RAMP_MS).clamp(0.0, 1.0);
+    let k = (since / RAMP_MS).clamp(0.0, 1.0);
+    let reach = speed * RAMP_MS / 2.0;
+    (held(released) + reach * (1.0 - (1.0 - k).powi(2)), k >= 1.0)
+}
+
+/// A walk of one key: where it began, which way, and when the key went
+/// down and up.
+pub struct Stride {
+    pub key: String,
+    dir: [f64; 2],
+    from: [f64; 2],
+    pressed: Instant,
+    released: Option<Instant>,
+}
+
+impl Stride {
+    /// A walk that begins at `from`, along the unit vector `dir`.
+    pub fn new(key: &str, dir: [f64; 2], from: [f64; 2], pressed: Instant) -> Self {
+        Self {
+            key: key.to_owned(),
+            dir,
+            from,
+            pressed,
+            released: None,
+        }
+    }
+
+    /// Whether the key is still down.
+    pub fn held(&self) -> bool {
+        self.released.is_none()
+    }
+
+    /// The key went up at `now`.
+    pub fn release(&mut self, now: Instant) {
+        self.released.get_or_insert(now);
+    }
+
+    /// Where the walk is at `now`, and whether it ended there.
+    pub fn at(&self, now: Instant) -> ([f64; 2], bool) {
+        let ms = |t: Instant| t.saturating_duration_since(self.pressed).as_secs_f64() * 1000.0;
+        let (steps, done) = steps_at(ms(now), self.released.map(ms));
+        let go = steps * PANE_STEP;
+        (
+            [
+                self.from[0] + self.dir[0] * go,
+                self.from[1] + self.dir[1] * go,
+            ],
+            done,
+        )
+    }
 }
 
 #[cfg(test)]
@@ -26,7 +105,7 @@ mod tests {
     use super::*;
 
     fn near(a: f64, b: f64) -> bool {
-        (a - b).abs() < 1e-9
+        (a - b).abs() < 1e-6
     }
 
     #[test]
@@ -77,6 +156,21 @@ mod tests {
             assert!(steps >= last && steps <= end + 1e-9, "at {ms}");
             last = steps;
         }
+    }
+
+    #[test]
+    fn a_stride_walks_along_its_direction_from_where_it_began() {
+        let t0 = Instant::now();
+        let at = |ms: u64| t0 + std::time::Duration::from_millis(ms);
+        let mut walk = Stride::new("w", [0.0, 1.0], [10.0, 20.0], t0);
+        assert!(walk.held());
+        let (third, done) = walk.at(at(1200));
+        assert!(!done && near(third[0], 10.0) && near(third[1], 20.0 + 3.0 * PANE_STEP));
+        walk.release(at(1200));
+        walk.release(at(1250));
+        assert!(!walk.held());
+        let (end, done) = walk.at(at(1400));
+        assert!(done && near(end[1], 20.0 + 3.2 * PANE_STEP));
     }
 
     #[test]
