@@ -61,6 +61,14 @@ click_at_move() {
     y=$(jq -n --argjson r "$1" '$r[1] + $r[3] / 2 | floor')
     echo "[{\"pointer_move\": {\"position\": [$x, $y]}}]" | ctl inject >/dev/null || fail "inject move"
 }
+host_mark() {
+    ctl query "owner:assistant kind:rect" | jq -e --arg id "$1-mark" '[.[] | select(.id == $id and .opacity == 1)] | length == 1' >/dev/null
+}
+hover_marks() {
+    until_ok "node_exists $1" 20 || fail "$theme: no $1"
+    click_at_move "$(node_rect "$1")"
+    until_ok "host_mark $1" 20 || fail "$theme: no hover mark on $1"
+}
 mark_of() {
     ctl query "owner:mc kind:rect" | jq -ec --arg s "$1-mark" '[.[] | select((.id | endswith($s)) and .opacity == 1 and (.rects | length) > 0)][0].rects | to_entries[0].value'
 }
@@ -135,9 +143,18 @@ run_theme() {
 
     key Super+a
     until_ok 'node_exists hud-chat' 40 || fail "$theme: Super+a does not show the chat"
+    sleep 2
+    hover_marks hud-chat-pick-1
+    click_at_move "[400, 400, 1, 1]"
+    until_ok '! host_mark hud-chat-pick-1' 20 || fail "$theme: the mark of the list row stays after the pointer left"
+    jq -ne --argjson r "$(node_rect hud-chat-pick-1)" '$r[3] == 28 and $r[1] % 28 == 0' >/dev/null ||
+        fail "$theme: the row of the list $(node_rect hud-chat-pick-1) is not a line of the grid of 28"
+    ok "$theme: a row of the list is a line of the grid, shows a hover mark and loses it"
     type_text 1
     key Return
     sleep 1
+    hover_marks hud-chat-stop
+    ok "$theme: Stop shows a hover mark"
     slot=$(jq -c 'select(.data.rect != null) | .data.rect' "$work/slots.jsonl" | tail -n 1)
     chat=$(node_rect hud-chat)
     jq -ne --argjson s "$slot" --argjson c "$chat" '[range(4)] | all(. as $i | (($c[$i] - $s[$i]) | fabs) < 2)' >/dev/null ||
@@ -161,6 +178,9 @@ run_theme() {
         fail "$theme: the card does not name the helper: $(ctl query id:hud-card | jq -r '.[0].meta.text' | head -n 1)"
     yes=$(node_rect hud-card-yes)
     no=$(node_rect hud-card-no)
+    hover_marks hud-card-yes
+    hover_marks hud-card-no
+    ok "$theme: Yes and No show a hover mark"
     jq -ne --argjson y "$yes" --argjson n "$no" '$y[2] == 88 and $y[3] == 32 and $n[2] == 88 and $n[0] - $y[0] - $y[2] == 8' >/dev/null ||
         fail "$theme: the buttons are $yes and $no"
     page=$work/card-$theme.png

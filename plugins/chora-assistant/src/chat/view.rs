@@ -44,6 +44,11 @@ pub const PAD: i32 = 14;
 pub const LINE: i32 = 20;
 pub const GAP: i32 = 6;
 const BUTTON: [i32; 2] = [88, 28];
+/// The height of a row of the list of helpers in the margin of a client:
+/// a line of its grid.
+const MARGIN_ROW: i32 = 28;
+/// The room of the number of a row of the list.
+const NUMBER_ROOM: i32 = 22;
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
@@ -207,6 +212,117 @@ pub fn create(id: &str, parent: &str, props: PropsUpdate) -> Command {
     }
 }
 
+/// The height of a row of the list of helpers.
+fn list_row(margin: bool) -> i32 {
+    if margin { MARGIN_ROW } else { LINE }
+}
+
+/// The width of the bar that marks the item under the pointer.
+pub const MARK: [i32; 2] = [2, 20];
+/// The gap between that bar and its item.
+pub const MARK_GAP: i32 = 12;
+
+/// The id of the mark of an item.
+#[must_use]
+pub fn mark_id(item: &str) -> String {
+    format!("{item}-mark")
+}
+
+/// The id of the item that a mark belongs to, for a node of the host that
+/// shows a mark while the pointer is over it.
+#[must_use]
+pub fn marked(node: &str) -> Option<String> {
+    let known = [STOP, CLOSE, crate::card::YES, crate::card::NO];
+    (known.contains(&node) || pick_of(node).is_some()).then(|| mark_id(node))
+}
+
+/// A bar, hidden, that shows left of an item at `at` while the pointer is
+/// over it: the one focus mark of mc.
+pub fn bar(id: &str, parent: &str, at: [i32; 2], ink: [u8; 3]) -> Command {
+    let props = PropsUpdate {
+        transform: Some(Transform::translate(
+            f64::from(at[0] - MARK_GAP - MARK[0]),
+            f64::from(at[1]),
+            0.0,
+        )),
+        size: Some(MARK.map(f64::from)),
+        color: Some(unit(ink)),
+        opacity: Some(0.0),
+        visible: Some(true),
+        input: Some(InputMode::Pass),
+        ..PropsUpdate::default()
+    };
+    Command::Create {
+        id: mark_id(id),
+        kind: NodeKind::Rect,
+        parent: parent.into(),
+        props,
+    }
+}
+
+/// A frame of 2 pixels around a button at `at`, hidden, that shows while
+/// the pointer is over the button.
+pub fn frame(id: &str, parent: &str, (at, size): ([i32; 2], [i32; 2]), ink: [u8; 3]) -> Command {
+    let props = PropsUpdate {
+        transform: Some(Transform::translate(
+            f64::from(at[0]),
+            f64::from(at[1]),
+            0.0,
+        )),
+        size: Some(size.map(f64::from)),
+        color: Some([0.0; 4]),
+        border: Some(Some(chora_scene::Border {
+            width: 2.0,
+            color: unit(ink),
+        })),
+        opacity: Some(0.0),
+        visible: Some(true),
+        input: Some(InputMode::Pass),
+        ..PropsUpdate::default()
+    };
+    Command::Create {
+        id: mark_id(id),
+        kind: NodeKind::Rect,
+        parent: parent.into(),
+        props,
+    }
+}
+
+/// An opaque colour as the scene takes it.
+fn unit([r, g, b]: [u8; 3]) -> [f64; 4] {
+    [
+        f64::from(r) / 255.0,
+        f64::from(g) / 255.0,
+        f64::from(b) / 255.0,
+        1.0,
+    ]
+}
+
+/// Shows the mark of `node` where `commands` create it, so that a view or a
+/// card drawn again under the pointer keeps its mark.
+pub fn keep_mark(commands: &mut [Command], node: &str) {
+    let wanted = mark_id(node);
+    for command in commands {
+        if let Command::Create { id, props, .. } = command
+            && *id == wanted
+        {
+            props.opacity = Some(1.0);
+        }
+    }
+}
+
+/// The command that shows or hides a mark.
+#[must_use]
+pub fn show_mark(mark: &str, shown: bool) -> Command {
+    Command::Update {
+        id: mark.into(),
+        props: PropsUpdate {
+            opacity: Some(if shown { 1.0 } else { 0.0 }),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
 /// The buttons of the view, left to right: Close in every view, so that a
 /// person who uses only the mouse can always leave; Stop only in a chat. A
 /// view in the margin of a client has no Close: the client has it in its
@@ -324,7 +440,7 @@ impl Session {
             (false, _) => top_row + BUTTON[1] + GAP,
         };
         let below = field_room(frame) + hint_room(&hint) + self.card_room();
-        let listed = LINE * i32::try_from(list.len()).unwrap_or(0);
+        let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
         rows.drain(..rows.len().saturating_sub(room));
@@ -476,7 +592,8 @@ fn shape_of(frame: &Frame, size: [i32; 2], colours: Colours) -> String {
 /// The rows of the transcript on the picture of the view: the messages in
 /// the face of the look where it has one, the rest in the sans.
 fn rows_picture(mut picture: Picture, parts: &Parts, w: i32) -> Picture {
-    let below_list = parts.body_top + LINE * i32::try_from(parts.list.len()).unwrap_or(0);
+    let below_list =
+        parts.body_top + list_row(parts.margin) * i32::try_from(parts.list.len()).unwrap_or(0);
     for (n, row) in (0..).zip(&parts.rows) {
         let y = below_list + n * parts.row_h;
         let face = parts.face.as_ref().filter(|_| row.read);
@@ -491,6 +608,26 @@ fn rows_picture(mut picture: Picture, parts: &Parts, w: i32) -> Picture {
             ];
             picture.text(Text::new(&row.text, row.font, rgba(row.colour), at))
         };
+    }
+    picture
+}
+
+/// The rows of the list of helpers on the picture of the view: the number
+/// in `name`, the words in the text colour.
+fn list_picture(mut picture: Picture, parts: &Parts, (w, colours): (i32, Colours)) -> Picture {
+    let row = list_row(parts.margin);
+    for (n, entry) in (0..).zip(&parts.list) {
+        let top = parts.body_top + n * row + (row - LINE) / 2;
+        let (number, words) = entry.split_once("  ").unwrap_or(("", entry));
+        let at = [parts.inset, top, NUMBER_ROOM, LINE];
+        picture = picture.text(Text::new(number, Font::Body, rgba(colours.name), at));
+        let at = [
+            parts.inset + NUMBER_ROOM,
+            top,
+            w - 2 * parts.inset - NUMBER_ROOM,
+            LINE,
+        ];
+        picture = picture.text(Text::new(words, Font::Body, rgba(colours.text), at));
     }
     picture
 }
@@ -520,15 +657,7 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         ));
     }
     picture = rows_picture(picture, parts, w);
-    for (n, entry) in (0..).zip(&parts.list) {
-        let at = [
-            parts.inset,
-            parts.body_top + n * LINE,
-            w - 2 * parts.inset,
-            LINE,
-        ];
-        picture = picture.text(Text::new(entry, Font::Body, rgba(colours.text), at));
-    }
+    picture = list_picture(picture, parts, (w, colours));
     let shown = std::iter::once(parts.header.as_str())
         .chain(parts.rows.iter().map(|row| row.text.as_str()))
         .collect::<Vec<_>>();
@@ -581,16 +710,24 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
             (button(theme, label, colours), at)
         };
         commands.push(create(id, VIEW, image(path, at, label, InputMode::Accept)));
+        commands.push(if parts.margin {
+            bar(id, VIEW, at, colours.text)
+        } else {
+            frame(id, VIEW, (at, BUTTON), colours.text)
+        });
     }
+    let row = list_row(parts.margin);
     for (n, entry) in (0..).zip(&parts.list) {
-        let blank = theme.render(&Picture::new(w - 2 * parts.inset, LINE));
-        let at = [parts.inset, parts.body_top + n * LINE];
+        let blank = theme.render(&Picture::new(w - 2 * parts.inset, row));
+        let at = [parts.inset, parts.body_top + n * row];
         let id = format!("{PICK}{}", n + 1);
         commands.push(create(
             &id,
             VIEW,
             image(blank, at, entry, InputMode::Accept),
         ));
+        let bar_at = [at[0], at[1] + (row - MARK[1]) / 2];
+        commands.push(bar(&id, VIEW, bar_at, colours.text));
     }
     commands
 }

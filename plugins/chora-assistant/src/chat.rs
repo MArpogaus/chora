@@ -36,7 +36,7 @@ mod view;
 
 pub use face::Face;
 pub use host::{Announced, ShowParams, exported, token_of};
-pub use view::{card_origin, card_width};
+pub use view::{card_origin, card_width, frame, keep_mark, mark_id, marked, show_mark};
 
 const PULLS: usize = 8;
 const MAX_STATES: usize = 64;

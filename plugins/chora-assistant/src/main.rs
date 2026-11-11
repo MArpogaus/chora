@@ -82,6 +82,8 @@ const EVENTS: &[&str] = &[
     "client.connected",
     "client.disconnected",
     "pointer.pressed",
+    "pointer.entered",
+    "pointer.left",
     "output.changed",
     "output.removed",
     "construct.theme",
@@ -220,6 +222,9 @@ struct Agent {
     chat_row: Option<[i32; 4]>,
     /// The sentence that the agent speaks, and when it ends.
     said: Option<(String, Instant)>,
+    /// The item of the host under the pointer, whose mark shows: a view or
+    /// a card that is drawn again keeps it.
+    hovered: Option<String>,
 }
 
 impl Plugin for Agent {
@@ -232,6 +237,8 @@ impl Plugin for Agent {
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
         let commands = match event {
             Event::PointerPressed { node, injected, .. } => self.pressed(&node, injected)?,
+            Event::PointerEntered { node, .. } => self.hover(&node, true),
+            Event::PointerLeft { node } => self.hover(&node, false),
             Event::OutputChanged { .. } | Event::OutputRemoved { .. } => {
                 self.switcher.touch(Instant::now());
                 if self.card.is_some() {
@@ -390,6 +397,7 @@ impl Agent {
             row: None,
             chat_row: None,
             said: None,
+            hovered: None,
         };
         let ready = serde_json::json!({"event": "assistant.ready", "data": {}});
         (agent.rt.conn)
@@ -412,6 +420,9 @@ impl Agent {
         }
         self.theme.size_images(&mut commands);
         self.card_theme.size_images(&mut commands);
+        if let Some(node) = &self.hovered {
+            chat::keep_mark(&mut commands, node);
+        }
         self.rt.conn.apply(commands)
     }
 
@@ -424,6 +435,21 @@ impl Agent {
         let wanted = self.switcher.applied().output.as_str();
         let at = outputs.iter().position(|o| o.name == wanted).unwrap_or(0);
         Ok(outputs.into_iter().nth(at).map(|o| (o, scale)))
+    }
+
+    /// The mark of the item under the pointer shows, and goes when the
+    /// pointer leaves; an item that is gone has no mark to change.
+    fn hover(&mut self, node: &str, over: bool) -> Vec<Command> {
+        let Some(mark) = chat::marked(node) else {
+            return Vec::new();
+        };
+        if over {
+            self.hovered = Some(node.to_owned());
+        } else if self.hovered.as_deref() == Some(node) {
+            self.hovered = None;
+        }
+        let _ = self.apply(vec![chat::show_mark(&mark, over)]);
+        Vec::new()
     }
 
     /// A press on the figure mutes the mic or opens the chat, as the

@@ -452,6 +452,13 @@ shows no buttons and says "Too long to show. Refused.", and the host
 answers `confirm.answer {yes: false}` at once. The host removes control,
 bidi and zero-width characters from the prompt and the detail.
 
+In a folder that names a `slot`, the buttons of the card, Stop and the
+rows of the list of helpers show the one focus mark of mc while the pointer
+is over them: a frame of 2 pixels round a button of the card, a bar of 2 by
+20 pixels, 12 pixels left of Stop or of a row, in the text colour. A row of
+the list is a line of 28 pixels with its number in `name`, and the mark
+stays when the view is drawn again under the pointer.
+
 A folder that names a `slot` gets the card in the page of its look: the
 fill of its chat, one rule of a pixel in its text colour, square corners,
 buttons in the fill of the page with the same rule, 7:1 on both themes,

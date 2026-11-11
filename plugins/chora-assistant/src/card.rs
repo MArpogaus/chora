@@ -607,6 +607,10 @@ pub fn show(
                 parent: TOP.into(),
                 props,
             });
+            if shown.glass.is_none() {
+                let at = ([x + bx, y + by], BUTTON);
+                commands.push(crate::chat::frame(id, TOP, at, shown.ink.text));
+            }
         }
     }
     commands
@@ -622,14 +626,18 @@ pub fn hide(shown: &Shown) -> Vec<Command> {
         .map(|_| GLASS);
     let shadow = shown.glass.map(|_| SHADOW).into_iter().chain(blurred);
     let buttons = (shown.buttons && !shown.too_long).then_some([YES, NO]);
+    let marks = buttons
+        .filter(|_| shown.glass.is_none())
+        .into_iter()
+        .flatten()
+        .map(crate::chat::mark_id);
     shadow
         .into_iter()
-        .chain([CARD])
-        .chain(buttons.into_iter().flatten())
-        .map(|id| Command::Remove {
-            id: id.into(),
-            to: None,
-        })
+        .map(str::to_owned)
+        .chain([CARD.to_owned()])
+        .chain(buttons.into_iter().flatten().map(str::to_owned))
+        .chain(marks)
+        .map(|id| Command::Remove { id, to: None })
         .collect()
 }
 
