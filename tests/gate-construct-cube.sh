@@ -45,7 +45,8 @@
 #    than the ended xp owns it.
 # 5. A window manager that never connects: the outputs go after the
 #    wait. cube.close removes a cube.
-# 6. A construct that starts again removes the virtual outputs that it
+# 6. The xp of the cube ends with a construct that is killed (C2). A
+#    construct that starts again removes the virtual outputs that it
 #    left.
 #
 # Usage: tests/gate-construct-cube.sh   BIN: directory with the binaries
@@ -427,9 +428,9 @@ call cube.open '{}' >/dev/null || fail "cube.open before the restart"
 until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs before the restart"
 construct=$(pid_of chora-construct)
 kill -9 "$construct"
+until_ok 'test -z "$(pid_of chora-xp)"' 40 || fail "the xp of the cube outlived the construct that died: $(pid_of chora-xp)"
+ok "the xp of the cube ends with a construct that dies without a word"
 "$bin/chora-construct" >"$work/construct2.log" 2>&1 &
 pids+=($!)
 until_ok 'test -z "$(virtuals)"' 16 || fail "the restarted construct left its outputs: $(virtuals)"
 ok "a restarted construct removed the outputs that it left"
-xp_pid=$(pid_of chora-xp)
-[ -z "$xp_pid" ] || kill "$xp_pid"
