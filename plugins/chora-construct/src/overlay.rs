@@ -389,7 +389,7 @@ impl Construct {
 /// The notice of the construct under the island of the host.
 const NOTICE: &str = "construct-notice";
 /// The widest notice, and its top: under the island, 8 below it.
-const NOTICE_WIDTH: f64 = 360.0;
+const NOTICE_WIDTH: f64 = 520.0;
 const NOTICE_TOP: f64 = 80.0;
 
 /// Where a point `delta` from the camera is for the person who looks along
@@ -434,7 +434,7 @@ fn close_word(query: &str, language: chora_kit::words::Language) -> String {
 impl Construct {
     /// The notice of the construct, with the HUD of the host: one line of
     /// `text` on a glass capsule under the island at the top right, at
-    /// most 360 wide, for its 4 seconds (construct HUD spec, section 5).
+    /// most 520 wide, for its 4 seconds (construct HUD spec, section 5).
     pub(crate) fn draw_notice(&mut self) -> Result<(), ClientError> {
         use chora_kit::glass::{CAPSULE, Type, margin};
         let mut commands = Vec::new();
