@@ -100,6 +100,7 @@ impl Construct {
             attached: hold == Hold::Own,
         };
         let mut commands = self.pane_nodes(&pane);
+        self.add_placeholder(&mut commands, &pane)?;
         if pane.attached {
             let fresh = !self.hidden.contains(&surface.to_string());
             self.hidden.retain(|s| s != surface);
@@ -133,6 +134,31 @@ impl Construct {
         }
         self.panes.push(pane);
         self.frame()
+    }
+
+    /// Puts the placeholder of the pane into its commands, right after
+    /// the node of the pane, so that it lies under the window.
+    fn add_placeholder(
+        &mut self,
+        commands: &mut Vec<Command>,
+        pane: &Pane,
+    ) -> Result<(), ClientError> {
+        let command = match &pane.content {
+            Content::Window { command } => command.clone(),
+            _ => None,
+        };
+        let name = self.window_label(&pane.source, command.as_deref());
+        let node = pane.node();
+        let wait = self.fitted(|s| {
+            crate::placeholder::draw(&s.styled(), pane.size, &node, &pane.source, &name)
+        })?;
+        let after = (commands.iter())
+            .position(|c| matches!(c, Command::Create { id, .. } if *id == node))
+            .map_or(commands.len(), |at| at + 1);
+        for (k, command) in wait.into_iter().enumerate() {
+            commands.insert(after + k, command);
+        }
+        Ok(())
     }
 
     /// A new window: the launcher's own window, a pane of the construct,

@@ -171,16 +171,33 @@ impl Construct {
         commands
     }
 
-    /// The title of the window of a pane, else its name.
+    /// The label text of a pane: the title of its window, or what
+    /// `names::pane_label` makes of a window without one; the name of a
+    /// pane without a window.
     fn pane_title(&mut self, k: usize) -> String {
         let pane = &self.panes[k];
         let fallback = pane.name.clone();
         let Some(surface) = pane.window().map(str::to_owned) else {
             return fallback;
         };
-        (self.rt.conn.query(&format!("id:{surface}")).ok())
-            .and_then(|nodes| nodes.into_iter().next()?.surface?.title)
-            .filter(|title| !title.trim().is_empty())
-            .unwrap_or(fallback)
+        let command = match &pane.content {
+            crate::Content::Window { command } => command.clone(),
+            _ => None,
+        };
+        let label = self.window_label(&surface, command.as_deref());
+        if label.is_empty() { fallback } else { label }
+    }
+
+    /// The label of the window `surface` that was started with `command`,
+    /// from what the core knows of it now.
+    pub(crate) fn window_label(&mut self, surface: &str, command: Option<&str>) -> String {
+        let info = (self.rt.conn.query(&format!("id:{surface}")).ok())
+            .and_then(|nodes| nodes.into_iter().next()?.surface)
+            .unwrap_or_default();
+        crate::names::pane_label(
+            (info.title.as_deref(), info.app_id.as_deref()),
+            (command, &self.settings.value.terminal),
+            chora_kit::words::Language::of_session(),
+        )
     }
 }

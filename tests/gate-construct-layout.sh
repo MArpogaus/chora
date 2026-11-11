@@ -35,6 +35,12 @@
 # typed keys reach the right terminal; Alt+Escape steps back; the window
 # audit finds every terminal as a pane.
 #
+# The new terminal never shows a grey slab: from the moment its pane
+# stands, each sample finds the placeholder with the ring or the first
+# buffer of the window. The label of its pane reads Terminal, not the app
+# id, no label shows in use mode, and none is left 400 ms after the pane
+# closes.
+#
 # The walk hints show only what applies, at most five, centred and 32 from
 # the bottom: with one pane `W A S D Walk`, `Fly in`, `Super T Terminal`
 # and `F1 All keys`, with three panes also `Tab Windows`. The last cells
@@ -101,6 +107,26 @@ press_at() {
     read -r x y w h < <(rect_of "$1")
     [ -n "${x:-}" ] || return 1
     echo "[{\"pointer_move\": {\"position\": [$((${x%.*} + ${w%.*} / 2)), $((${y%.*} + ${h%.*} / 2))]}}, {\"click\": {}}]" | ctl inject >/dev/null
+}
+label_is() { [ "$(ctl query id:construct-label-body-text | jq -r '.[0].text // empty')" = "$1" ]; }
+label_gone() { ctl query id:construct-label-body | jq -e 'length == 0 or .[0].visible == false or (.[0].opacity // 1) < 0.05' >/dev/null 2>&1; }
+has_node() { ctl query "id:$1" | jq -e 'length > 0' >/dev/null 2>&1; }
+has_buffer() { ctl query "id:$1" | jq -e '.[0].surface.size | (. != null) and .[0] > 0 and .[1] > 0' >/dev/null 2>&1; }
+frames_have_content() {
+    local surface=$1 seen=0 n
+    for n in $(seq 80); do
+        if has_node "construct-wait-$surface"; then
+            seen=1
+        elif has_buffer "$surface"; then
+            echo "$seen"
+            return 0
+        else
+            echo "no placeholder and no buffer in sample $n"
+            return 1
+        fi
+    done
+    echo "the window shows no buffer after 80 samples"
+    return 1
 }
 front_is() { [ "$(front_count)" = "$1" ]; }
 panes_are() { [ "$(panes_n)" = "$1" ]; }
@@ -198,12 +224,19 @@ first_floor() {
 }
 
 use_mode() {
-    local tag=$1 x y w h first second
+    local tag=$1 x y w h first second seen
     : >"$work/typed"
     key Super+t
     until_ok 'pane_named startcell' || { echo "FAIL: $tag: Super+T started no terminal"; failed=1; return; }
+    if seen=$(frames_have_content "$(ctl call construct construct.list | jq -r '.panes[0].surface')"); then
+        ok "$tag: every sample of the new pane showed content (placeholder seen: $seen)"
+    else
+        echo "FAIL: $tag: the new pane showed a slab: $seen"
+        failed=1
+    fi
     key Alt+Escape
     sleep 2
+    until_ok 'label_is Terminal' || { echo "FAIL: $tag: the label of the terminal pane is '$(ctl query id:construct-label-body-text | jq -r '.[0].text')', not Terminal"; failed=1; }
     if front_is 0; then
         ok "$tag: Alt+Escape during the fly-in stepped back"
     else
@@ -215,6 +248,7 @@ use_mode() {
     key Return
     until_ok 'front_is 1' || { echo "FAIL: $tag: Return did not fly into the pane"; failed=1; return; }
     hint_up || { echo "FAIL: $tag: no hint Alt Esc Step back in use mode"; failed=1; return; }
+    until_ok label_gone || { echo "FAIL: $tag: a pane label shows in use mode"; failed=1; }
     typed d
     until_ok 'typed_is d' || { echo "FAIL: $tag: a key typed in use mode did not reach the terminal: $(cat "$work/typed")"; failed=1; }
     key Alt+Escape
@@ -234,6 +268,12 @@ use_mode() {
     until_ok 'panes_are 2' || { echo "FAIL: $tag: Super+T in use mode started no second terminal"; failed=1; return; }
     first=$(ctl call construct construct.list | jq -r '.panes[0].surface')
     second=$(ctl call construct construct.list | jq -r '.panes[1].surface')
+    if seen=$(frames_have_content "$second"); then
+        ok "$tag: every sample of the second pane showed content (placeholder seen: $seen)"
+    else
+        echo "FAIL: $tag: the second pane showed a slab: $seen"
+        failed=1
+    fi
     until_ok "parent_is $second construct-front" ||
         { echo "FAIL: $tag: the second terminal did not open flown in"; failed=1; return; }
     ! parent_is "$first" construct-front ||
@@ -253,6 +293,8 @@ use_mode() {
     done
     until_ok 'ctl query app_id:startcell | jq -e "length == 0" >/dev/null' ||
         { echo "FAIL: $tag: a terminal window is left after the close"; failed=1; }
+    sleep 0.4
+    label_gone || { echo "FAIL: $tag: a pane label is left 400 ms after the last pane closed"; failed=1; }
 }
 
 hint_bar() {

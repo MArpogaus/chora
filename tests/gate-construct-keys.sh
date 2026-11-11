@@ -93,13 +93,13 @@ until_ok 'test "$(app_focused term)" = True' || fail "the new pane term has no k
 ok "the camera flew into the new pane term, which has the keyboard"
 
 key Super+Alt+2
-until_ok 'say | grep -q "xp did not take the window"' ||
+until_ok 'say | grep -q "XP did not take the window: it is not running."' ||
     fail "a give of the focused window to xp, which does not run, said nothing: $(say)"
 until_ok flown_in || fail "the camera is in no pane"
 key Alt+Escape
 until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
 key Super+Alt+3
-until_ok 'say | grep -q "mc did not take the window"' ||
+until_ok 'say | grep -q "Media center did not take the window: it is not running."' ||
     fail "a give of the pane ahead to mc, which does not run, said nothing: $(say)"
 [ "$(panes)" = term ] || fail "the refused gives lost the pane: $(panes)"
 ok "a give to a window manager that does not run says so, for the focused window and the pane ahead"

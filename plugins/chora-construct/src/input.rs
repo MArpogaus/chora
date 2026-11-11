@@ -9,6 +9,13 @@ use super::{
     cube, give, hud, space, window_flown_into,
 };
 
+/// The notice of a window manager that did not take a window, with the
+/// reason from the error.
+fn refusal(language: Language, manager: &str, error: &str) -> String {
+    let reason = crate::names::reason(error, language);
+    crate::names::refused(language, manager, &reason)
+}
+
 /// The text of a typed key that a search takes: printable text without
 /// Ctrl, Alt or Super.
 fn typed(text: Option<&str>, modifiers: &[String]) -> Option<String> {
@@ -61,7 +68,7 @@ impl Construct {
             {
                 eprintln!("chora-construct: give to {to}: {err}");
                 let language = Language::of_session();
-                let words = say(language, Word::GiveRefused, &[("manager", to)]);
+                let words = refusal(language, to, &err.to_string());
                 self.voice.notice(&words, Instant::now());
                 return self.draw_hud();
             }
@@ -82,7 +89,7 @@ impl Construct {
                 Ok(_) => return Ok(()),
                 Err(err) => {
                     eprintln!("chora-construct: give to {to}: {}", err.message);
-                    say(language, Word::GiveRefused, &[("manager", to)])
+                    refusal(language, to, &err.message)
                 }
             },
         };
