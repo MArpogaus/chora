@@ -288,3 +288,8 @@ focus glow is a timed shader, so the whole screen redraws every frame
 (about 43 frames a second on llvmpipe). Calm and power: a still desktop
 must draw nothing (render.stats 0). Fix: a static glow, or animate only
 on a focus change and then stop. Priority: high (battery on laptops).
+
+## F7 (11-11): hang watchdog test flaked once
+hang::tests::a_main_loop_that_blocks_for_5_s_triggers_the_watchdog failed
+once in a local run of the HUD worker (passed 3 later and in the gate).
+Treat as a timing bug until shown otherwise.
