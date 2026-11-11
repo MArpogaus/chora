@@ -341,3 +341,7 @@ gets only the earcon (its reply waits blocked). Speak the same phrase.
 ## T2 (11-11): gate-construct-hud.sh help row count stale
 "the help has 21 rows, not 18": the gate pins an old count after new
 bindings. Not a merge-gate step. Fix the count (or count from config).
+
+## T3 (11-11): gate-construct-windows fails on the session branch
+"d1 is not shown with tiling" on 536aaee (not a merge-gate step). For
+rc criterion 3 every opt-in gate must pass once: find the cause.
