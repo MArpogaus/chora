@@ -66,10 +66,18 @@ pub struct State {
     /// The hints are drawn anew at the next look, also when their set
     /// stays: the chips of the cube moved under them.
     pub stale: bool,
-    /// Where the face label hangs, the middle of the bottom edge of the
-    /// face ahead at rest, and the shares of its dots last sent.
-    pub anchor: Option<[f64; 2]>,
+    /// The face label as last drawn, and the shares of its dots last sent.
+    pub label: Option<Label>,
     pub weights: Vec<f64>,
+}
+
+/// The face label as drawn: its width, the corner of the hints that its
+/// place is relative to, and the place from there.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Label {
+    pub width: f64,
+    pub corner: [f64; 2],
+    pub at: [f64; 2],
 }
 
 /// The hints of the walk, in the order they show.
@@ -336,6 +344,36 @@ fn rgb(c: [f64; 4]) -> [f64; 3] {
     [c[0], c[1], c[2]]
 }
 
+/// The width of the face label of `faces` dots.
+#[must_use]
+pub fn face_label_width(look: &Look, (manager, words): (&str, &str), faces: usize) -> f64 {
+    let name_w = look.size(face(Type::Small, 500), manager, None)[0].ceil();
+    let words_w = look.size(face(Type::Small, 400), words, None)[0].ceil();
+    #[allow(clippy::cast_precision_loss, reason = "a few faces")]
+    let dots_w = faces as f64 * 6.0 + faces.saturating_sub(1) as f64 * 4.0;
+    16.0 + name_w + GAP + words_w + GAP + 4.0 + dots_w + 16.0
+}
+
+/// The place of a face label of `width` under the point `[centre, bottom]`
+/// of the hints, 8 below it: the left is rounded once, so the middle of
+/// the label is within half a pixel of the point.
+#[must_use]
+pub fn face_label_place(width: f64, [centre, bottom]: [f64; 2]) -> [f64; 2] {
+    [(centre - width / 2.0).round(), bottom.round() + 8.0]
+}
+
+/// The update that moves the face label to `[x, y]` of the hints.
+#[must_use]
+pub fn face_label_move([x, y]: [f64; 2]) -> Command {
+    Command::Update {
+        id: FACE_LABEL.into(),
+        props: PropsUpdate {
+            transform: Some(Transform::translate(x, y, 0.0)),
+            ..PropsUpdate::default()
+        },
+    }
+}
+
 /// The face label of a cube stood back (spec, section 5): a capsule 32
 /// high, 8 under the cube and centred on `centre`, with the name of its
 /// window manager, the face in words, muted, and a dot per face, the
@@ -352,18 +390,16 @@ pub fn face_label(
     let (name_role, words_role) = (face(Type::Small, 500), face(Type::Small, 400));
     let name_w = look.size(name_role, manager, None)[0].ceil();
     let words_w = look.size(words_role, words, None)[0].ceil();
-    #[allow(clippy::cast_precision_loss, reason = "a few faces")]
-    let dots_w = faces as f64 * 6.0 + faces.saturating_sub(1) as f64 * 4.0;
-    let w = 16.0 + name_w + GAP + words_w + GAP + 4.0 + dots_w + 16.0;
+    let w = face_label_width(look, (manager, words), faces);
     let h = chora_kit::glass::LABEL_CAPSULE;
-    let x = (centre - w / 2.0).round();
+    let [x, y] = face_label_place(w, [centre, bottom]);
     let mut commands = surface(
         look,
         m,
         &Surface {
             id: FACE_LABEL,
             parent: HINTS,
-            rect: [x, bottom.round() + 8.0, w, h],
+            rect: [x, y, w, h],
             radius: h / 2.0,
             strong: false,
             name: "face-label",
@@ -654,5 +690,15 @@ mod tests {
             Some("construct-mode-turn-left"),
             "a hint under the pointer keeps its own fill"
         );
+    }
+
+    #[test]
+    fn the_face_label_is_centred_within_half_a_pixel_and_rounds_its_left_once() {
+        for centre in [400.0, 400.3, 400.5, 400.7, 655.25] {
+            let [x, y] = face_label_place(205.0, [centre, 300.4]);
+            assert!((x + 205.0 / 2.0 - centre).abs() <= 0.5, "{centre}: {x}");
+            assert!((x - x.round()).abs() < 1e-12, "a whole pixel");
+            assert!((y - 308.0).abs() < 1e-12, "8 below the edge");
+        }
     }
 }

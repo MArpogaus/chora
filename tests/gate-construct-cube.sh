@@ -182,6 +182,30 @@ until_ok 'test "$(prop construct-cube-mirror-0 visible)" = True && test "$(prop 
 shadow_width=$(prop construct-fog uniforms | python3 -I -c 'import ast, sys; print(ast.literal_eval(sys.stdin.read())["s0"][2])')
 python3 -I -c 'import sys; sys.exit(not float(sys.argv[1]) > 0)' "$shadow_width" || fail "the cube has no shadow on the floor: s0 $shadow_width"
 ok "stood back, the cube rests turned toward the next face, with its shadow and its mirror image in the floor"
+label_at() { ctl query id:construct-face-label-glass | python3 -I -c 'import json, sys; r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]; print("%.2f %.2f" % (r[0] + r[2] / 2, r[1]))'; }
+face_middle() { ctl query "id:construct-cube-face-$1" | python3 -I -c 'import json, sys; r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]; print("%.2f" % (r[0] + r[2] / 2))'; }
+sleep 1
+read -r label_x label_y <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - float(sys.argv[2])) <= 1.0)' "$label_x" "$(face_middle 0)" || fail "the face label is not under the middle of the bottom edge of the front face: label $label_x, face $(face_middle 0)"
+ok "the face label hangs under the middle of the bottom edge of the face turned to rest, to the pixel"
+call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn for the label"
+sleep 1
+read -r mid_x mid_y <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not max(abs(float(sys.argv[1]) - float(sys.argv[3])), abs(float(sys.argv[2]) - float(sys.argv[4]))) > 2.0)' "$label_x" "$label_y" "$mid_x" "$mid_y" || fail "the face label stays at its place while the cube turns: $label_x $label_y, then $mid_x $mid_y"
+until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 40 || fail "the slow turn did not end on face 2"
+sleep 3
+read -r end_x _ <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - float(sys.argv[2])) <= 1.0)' "$end_x" "$(face_middle 1)" || fail "after the turn the label is not under the face at the front: label $end_x, face $(face_middle 1)"
+key Ctrl+Alt+Left
+until_ok 'front_face0_label' 20 || fail "Ctrl+Alt+Left did not turn back after the label check"
+sleep 1
+ok "the face label follows the bottom edge of the cube while it turns and ends under the face at the front"
+shadow_layers=$(prop construct-face-label-shadow uniforms | python3 -I -c '
+import ast, sys
+u = ast.literal_eval(sys.stdin.read())
+print([u[k] for k in ("near", "mid", "far")])')
+[ "$shadow_layers" = "[[1.0, 1.0, 0.06, 0.0], [4.0, 6.0, 0.08, 0.0], [0.0, 1.0, 0.0, 0.0]]" ] || fail "the face label capsule has no short shadow: $shadow_layers"
+ok "the face label capsule takes the short shadow, 0 1 2 at 0.06 and 0 4 12 at 0.08, no grey smudge under it"
 [ "$(edge construct-mode-step-in 1)" -gt 400 ] || fail "the chips are in the upper half, over the title band: y $(edge construct-mode-step-in 1)"
 [ "$(edge construct-mode-step-in 3)" -ge 24 ] || fail "a chip is $(edge construct-mode-step-in 3) px high, less than 24"
 [ $(($(edge construct-mode-step-in 1) + $(edge construct-mode-step-in 3))) -le $((800 - 32)) ] || fail "the chips leave the margin of 32 at the bottom"

@@ -195,9 +195,20 @@ pub fn backdrop(m: &Material) -> Option<chora_scene::Backdrop> {
     })
 }
 
+/// The tallest surface that takes the short shadow of a capsule, and its
+/// three layers: offset down, deviation and alpha. 0 1 2 at 0.06 and 0 4
+/// 12 at 0.08; a capsule has no third layer. A tall panel shadow under a
+/// label shows as a grey smudge three times its height.
+const CAPSULE_MAX: f64 = 40.0;
+const CAPSULE_SHADOW: [[f64; 3]; 3] = [[1.0, 1.0, 0.06], [4.0, 6.0, 0.08], [0.0, 1.0, 0.0]];
+
 /// The shadow node of a surface of `[w, h, r]`.
 fn shadow(look: &Look, m: &Material, id: &str, parent: &str, [w, h, r]: [f64; 3]) -> Command {
     let layer = |k: usize| {
+        if h <= CAPSULE_MAX {
+            let [y, deviation, alpha] = CAPSULE_SHADOW[k];
+            return Uniform::Vector(vec![y, deviation, alpha, 0.0]);
+        }
         let l = m.shadows[k];
         Uniform::Vector(vec![l.y, l.blur / 2.0, l.alpha, 0.0])
     };

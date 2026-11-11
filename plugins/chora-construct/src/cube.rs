@@ -434,17 +434,18 @@ impl Host {
     /// Where the face label hangs: the middle of the projected bottom
     /// edge of the face at the front, and while the cube turns of the two
     /// faces that share the turn, by their share of it.
-    #[allow(
-        dead_code,
-        clippy::unused_self,
-        reason = "a stub until the next commit"
-    )]
-    pub(crate) fn label_anchor(
-        &self,
-        _lens: &super::space::Lens,
-        _pose: &Pose,
-    ) -> Option<[f64; 2]> {
-        None
+    pub(crate) fn label_anchor(&self, lens: &super::space::Lens, pose: &Pose) -> Option<[f64; 2]> {
+        let (mut sum, mut total) = ([0.0, 0.0], 0.0);
+        for (i, share) in self.dot_weights().into_iter().enumerate() {
+            if share <= 0.0 {
+                continue;
+            }
+            let m = super::space::screen_matrix(lens, pose, &self.world(i));
+            let at = super::space::bottom_middle(&m, self.cube.size_of(i));
+            sum = [sum[0] + share * at[0], sum[1] + share * at[1]];
+            total += share;
+        }
+        (total > 0.0).then(|| [sum[0] / total, sum[1] / total])
     }
 
     /// The place of face `i` in the camera group: the cube group over the

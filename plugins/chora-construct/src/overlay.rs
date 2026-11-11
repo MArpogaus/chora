@@ -632,6 +632,7 @@ impl Construct {
         };
         let wanted = set.map(|s| (s, self.hovered_hint(), stamp));
         if wanted == self.hints.shown && !std::mem::take(&mut self.hints.stale) {
+            self.follow_label()?;
             return self.turn_dots();
         }
         let had = self.hints.shown.take();
@@ -800,28 +801,16 @@ impl Construct {
 
     /// The face label under the front face of the cube stood back. It
     /// names the face nearest to the front while the cube turns, and it
-    /// hangs where it hung at rest.
+    /// hangs under the middle of the projected bottom edge of that face.
     fn face_label(&mut self, [hx, hy]: [f64; 2]) -> Result<Vec<Command>, ClientError> {
         use chora_kit::words::{Language, Word, say};
-        let Some((front, faces)) = self.cube.as_ref().map(crate::cube::Host::front_face) else {
-            return Ok(Vec::new());
-        };
-        let turning = self.cube.as_ref().is_some_and(crate::cube::Host::turning);
-        let held = self.hints.anchor.filter(|_| turning);
-        let anchor = if let Some(anchor) = held {
-            anchor
-        } else {
-            let Some(r) = self.face_rect(front)? else {
-                return Ok(Vec::new());
-            };
-            let anchor = [r[0] + r[2] / 2.0, r[1] + r[3]];
-            self.hints.anchor = Some(anchor);
-            anchor
-        };
-        let at = [anchor[0] - hx, anchor[1] - hy];
         let Some(host) = self.cube.as_ref() else {
             return Ok(Vec::new());
         };
+        let Some(anchor) = host.label_anchor(&self.lens, &self.pose) else {
+            return Ok(Vec::new());
+        };
+        let faces = host.front_face().1;
         let (named, language) = (host.label_face(), Language::of_session());
         let manager = host.manager_name().to_owned();
         let failed = |i: usize| matches!(host.health_of(i), crate::faces::Health::Failed(_));
@@ -832,15 +821,41 @@ impl Construct {
         } else {
             say(language, Word::Face, &[("face", &face), ("faces", &count)])
         };
-        self.fitted(|s| {
-            crate::hints::face_label(
-                &s.styled(),
-                (&manager, &format!("\u{b7} {words}")),
-                (named, faces),
-                at,
-                &hollow,
-            )
-        })
+        let at = [anchor[0] - hx, anchor[1] - hy];
+        let (commands, width) = self.fitted(|s| {
+            let look = s.styled();
+            let said = (manager.as_str(), format!("\u{b7} {words}"));
+            let width = crate::hints::face_label_width(&look, (said.0, &said.1), faces);
+            let drawn =
+                crate::hints::face_label(&look, (said.0, &said.1), (named, faces), at, &hollow);
+            (drawn, width)
+        })?;
+        self.hints.label = Some(crate::hints::Label {
+            width,
+            corner: [hx, hy],
+            at: crate::hints::face_label_place(width, at),
+        });
+        Ok(commands)
+    }
+
+    /// The face label follows the front face of the cube: where the face
+    /// has gone since the label was drawn, it moves.
+    fn follow_label(&mut self) -> Result<(), ClientError> {
+        let (Some(label), Some(host)) = (self.hints.label, self.cube.as_ref()) else {
+            return Ok(());
+        };
+        let Some(anchor) = host.label_anchor(&self.lens, &self.pose) else {
+            return Ok(());
+        };
+        let at = crate::hints::face_label_place(
+            label.width,
+            [anchor[0] - label.corner[0], anchor[1] - label.corner[1]],
+        );
+        if at.iter().zip(label.at).all(|(a, b)| (a - b).abs() < 0.5) {
+            return Ok(());
+        }
+        self.hints.label = Some(crate::hints::Label { at, ..label });
+        self.rt.conn.apply(vec![crate::hints::face_label_move(at)])
     }
 
     /// The face whose card shows now: the face ahead while the cube

@@ -92,8 +92,11 @@ rule 5. `plans/construct-hud.md` adds the section.
    screen root. They never turn or scale with the camera. The stack from
    the back is: panes, pane labels, voice HUD, window list, question.
 10. **Labels sit in the space, drawn flat.** A pane label sits 8 below
-    the projected bottom edge of its pane, centred. It is a flat node at
-    that point, not a projected one, so it stays sharp. Only the pane
+    the projected bottom edge of its pane, its middle within half a pixel
+    of the middle of that edge, also for a turned pane. It is a flat node
+    at that point, not a projected one, so it stays sharp. The face label
+    of a cube hangs the same way under its front face and follows it while
+    the cube turns. Only the pane
     ahead and the pane under the pointer show a label.
 11. **Text only on glass.** Text never sits on the bare space or on a
     pane. Every text stays inside its panel, within the padding, as
@@ -173,7 +176,9 @@ mockups rendered over real captures.
     runs along the top edge inside, an outer hairline of 1 px sets the
     surface off the space, and a soft long shadow lifts it. Panels and
     cards have a radius of 24, rows and fields 16, keycaps 6, and
-    capsules are fully round.
+    capsules are fully round. A capsule up to 40 high takes a short
+    shadow, 0 1 2 at 0.06 and 0 4 12 at 0.08, since the long shadow of a
+    panel shows under a label as a grey smudge three times its height.
 19. **The tint adapts.** Where the space behind a surface is too dark
     for the light theme, or too bright for the dark, the tint rises to
     0.82 or 0.84 over 240 ms, so the contrast of rule 5 holds over any

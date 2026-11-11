@@ -153,7 +153,7 @@ impl Construct {
         });
         let pane = &self.panes[k];
         let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
-        let [x, y] = space::project(&matrix, pane.size[0] / 2.0, pane.size[1]);
+        let [x, y] = space::bottom_middle(&matrix, pane.size);
         let unit = self.settings.value.style.unit;
         let place = Transform::translate((x - pill / 2.0).round(), (y + unit).round(), 0.0);
         let mut commands = vec![update(

@@ -248,9 +248,10 @@ pub fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
 /// middle of the two projected bottom corners, which for a turned node
 /// is not the projection of the middle of the edge.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub fn bottom_middle(m: &[f64; 16], [w, h]: [f64; 2]) -> [f64; 2] {
-    project(m, w / 2.0, h)
+    let [ax, ay] = project(m, 0.0, h);
+    let [bx, by] = project(m, w, h);
+    [ax.midpoint(bx), ay.midpoint(by)]
 }
 
 /// The depth of a point in front of the camera, in camera space.
