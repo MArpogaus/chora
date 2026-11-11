@@ -4,6 +4,7 @@
 
 use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
+use chora_kit::volume::Volume;
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, Transform};
 
 use crate::{
@@ -33,6 +34,11 @@ const TASK_WIDTH: i32 = 160;
 const TRAY_WIDTH: i32 = 82;
 /// The notification area without the clock.
 const TRAY_EMPTY: i32 = 14;
+/// The speaker of the notification area, left of the clock: a click
+/// mutes or unmutes.
+const SPEAKER: i32 = 64;
+/// The speaker, drawn in the coordinates of the notification area.
+const SPEAKER_SHAPE: &str = r##"<path d="M7 12h3l5-4v14l-5-4H7z" fill="#ffffff"/>"##;
 /// What shows of a taskbar that hides itself, as on XP.
 pub const HIDDEN_STRIP: i32 = 2;
 /// How long the taskbar takes to slide away or back.
@@ -275,7 +281,7 @@ impl Bar {
         &self,
         theme: &mut Theme,
         parent: &str,
-        clock: &str,
+        (clock, volume): (&str, Option<Volume>),
         desktop: usize,
     ) -> Vec<Command> {
         let image = |id: String| Command::Create {
@@ -298,16 +304,21 @@ impl Bar {
         commands.extend((0..DESKTOPS).map(|d| image(self.pager_id(d))));
         commands.extend(self.layout(theme));
         commands.push(self.start(theme, "normal"));
-        commands.push(self.tray(theme, clock));
+        commands.push(self.tray(theme, clock, volume));
         commands.extend(self.pager(theme, desktop, None));
         commands
     }
 
     /// Moves the taskbar to the new work area of its output.
-    pub fn resize(&mut self, theme: &mut Theme, output: &OutputInfo, clock: &str) -> Vec<Command> {
+    pub fn resize(
+        &mut self,
+        theme: &mut Theme,
+        output: &OutputInfo,
+        (clock, volume): (&str, Option<Volume>),
+    ) -> Vec<Command> {
         self.area = output.layout_area();
         let mut commands = self.layout(theme);
-        commands.push(self.tray(theme, clock));
+        commands.push(self.tray(theme, clock, volume));
         commands
     }
 
@@ -398,12 +409,18 @@ impl Bar {
             .then(|| [x + w - TRAY_WIDTH, y + h - HEIGHT, TRAY_WIDTH, HEIGHT])
     }
 
-    /// The notification area with the icon and the clock, at the right
+    /// The speaker in scene coordinates: a click there mutes or unmutes.
+    pub fn speaker_rect(&self) -> Rect {
+        let [x, y, w, h] = self.area;
+        [x + w - self.tray_width(), y + h - HEIGHT, SPEAKER, HEIGHT]
+    }
+
+    /// The notification area with the speaker and the clock, at the right
     /// edge.
-    pub fn tray(&self, theme: &mut Theme, clock: &str) -> Command {
+    pub fn tray(&self, theme: &mut Theme, clock: &str, volume: Option<Volume>) -> Command {
         let width = self.tray_width();
         let clock = self.clock.then_some(clock);
-        let picture = tray(width, clock);
+        let picture = tray(width, clock, volume);
         update(
             &format!("xp-tray-{}", self.output),
             PropsUpdate {
@@ -514,14 +531,21 @@ impl Bar {
 
 /// The width of a notification area with or without the clock.
 fn tray_width(clock: bool) -> i32 {
-    if clock { TRAY_WIDTH } else { TRAY_EMPTY }
+    SPEAKER + if clock { TRAY_WIDTH } else { TRAY_EMPTY }
 }
 
-/// The notification area of a width, with the clock at the right.
-fn tray(width: i32, clock: Option<&str>) -> Picture {
+/// The notification area of a width, with the speaker and its volume at
+/// the left and the clock at the right.
+fn tray(width: i32, clock: Option<&str>, volume: Option<Volume>) -> Picture {
     let mut picture = Picture::new(width, HEIGHT)
         .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
+    picture = picture.svg(SPEAKER_SHAPE).text(Text::new(
+        &chora_kit::volume::label(volume),
+        Font::Ui,
+        WHITE,
+        [18, 0, SPEAKER - 18, HEIGHT],
+    ));
     if let Some(clock) = clock {
         let left = width - TRAY_WIDTH;
         picture = picture.text(
@@ -599,7 +623,11 @@ pub fn preview(
         Some(clock) => {
             let width = tray_width(!clock.is_empty());
             let clock = (!clock.is_empty()).then_some(clock);
-            picture = picture.layers_of(tray(width, clock), [w - width, bar_y]);
+            let sample = Volume {
+                percent: 50,
+                muted: false,
+            };
+            picture = picture.layers_of(tray(width, clock, Some(sample)), [w - width, bar_y]);
         }
     }
     if !on_top {
@@ -710,6 +738,37 @@ mod tests {
         assert!(bar.offset.abs() < 1e-9);
     }
 
+    fn texts(picture: &Picture) -> Vec<String> {
+        picture
+            .layers
+            .iter()
+            .filter_map(|l| match l {
+                chora_draw::theme::Layer::Text(t) => Some(t.line.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_tray_has_a_speaker_with_the_volume() {
+        let at = |percent, muted| Some(chora_kit::volume::Volume { percent, muted });
+        let width = tray_width(true);
+        assert_eq!(
+            texts(&tray(width, Some("6:46 AM"), at(40, false))),
+            ["40%", "6:46 AM"]
+        );
+        assert_eq!(texts(&tray(width, None, at(40, true))), ["Muted"]);
+        assert_eq!(texts(&tray(width, None, None)), ["No sound"]);
+        let bar = bar(0);
+        let [x, y, w, h] = bar.speaker_rect();
+        assert_eq!([y, h], [800 - HEIGHT, HEIGHT]);
+        assert!(
+            x + w <= bar.clock_rect().expect("a clock")[0],
+            "left of the clock"
+        );
+        assert!(w >= 24, "a click target of 24 px");
+    }
+
     #[test]
     fn without_the_clock_the_tray_shrinks() {
         let mut bar = bar(0);
@@ -718,7 +777,7 @@ mod tests {
             clock: false,
             ..crate::config::defaults().taskbar
         });
-        assert_eq!(bar.tray_width(), TRAY_EMPTY);
+        assert_eq!(bar.tray_width(), TRAY_EMPTY + SPEAKER);
         assert_eq!(bar.clock_rect(), None);
     }
 }

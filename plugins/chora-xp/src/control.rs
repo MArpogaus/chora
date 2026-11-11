@@ -1,9 +1,12 @@
 //! Control Panel as a menu, as XP's start menu could show it: Display
 //! opens Display Properties, Desktop lists the wallpapers, and Effects
 //! the effects of the plugin. The current choice of each has a check
-//! mark. Effects also turns XP's sounds on and off.
+//! mark. Effects also turns XP's sounds on and off. Sound mutes and sets
+//! the volume.
 
 use std::path::{Path, PathBuf};
+
+use chora_kit::volume::{Change, Volume};
 
 use crate::apps::{Kind, Node};
 
@@ -27,7 +30,14 @@ pub enum Setting {
     DateTime,
     /// Opens Display Properties.
     Display,
+    /// Changes the volume of the default sound output.
+    Volume(Change),
+    /// Tells something and changes nothing.
+    Note,
 }
+
+/// The volumes of Sound, in percent.
+const VOLUMES: [u32; 4] = [25, 50, 75, 100];
 
 /// An effect that the menu turns on and off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -116,7 +126,12 @@ pub fn wallpapers(dirs: &[PathBuf]) -> Vec<PathBuf> {
 }
 
 /// The cascade of the Control Panel for the wallpaper and the effects.
-pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Vec<Node> {
+pub fn menu(
+    wallpaper: Option<&Path>,
+    walls: &[PathBuf],
+    toggles: Toggles,
+    volume: Option<Volume>,
+) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
         title,
         icon: String::new(),
@@ -163,12 +178,41 @@ pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Ve
             kind: Kind::Pick(Setting::Display, false),
         },
         group("Effects", "preferences-desktop-effects", effects),
+        group("Sound", "audio-volume-medium", sound(volume)),
         Node {
             title: "Taskbar and Start Menu".into(),
             icon: "preferences-system-windows".into(),
             kind: Kind::Pick(Setting::Taskbar, false),
         },
     ]
+}
+
+/// The rows of Sound: Mute and the volumes, the current one checked
+/// when it is one of them;
+/// without a sound output one row that says so.
+fn sound(volume: Option<Volume>) -> Vec<Node> {
+    let pick = |title: String, setting, checked| Node {
+        title,
+        icon: String::new(),
+        kind: Kind::Pick(setting, checked),
+    };
+    let Some(volume) = volume else {
+        return vec![pick(chora_kit::volume::label(None), Setting::Note, false)];
+    };
+    let current = (!volume.muted).then_some(volume.percent);
+    let mut rows = vec![pick(
+        "Mute".into(),
+        Setting::Volume(Change::Mute),
+        volume.muted,
+    )];
+    rows.extend(VOLUMES.into_iter().map(|v| {
+        pick(
+            format!("{v}%"),
+            Setting::Volume(Change::Set(v)),
+            Some(v) == current,
+        )
+    }));
+    rows
 }
 
 /// The name of a wallpaper file as XP shows it: "blue-hills" is "Blue
@@ -195,7 +239,10 @@ pub fn name_of(stem: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use chora_kit::effects::Kind as Shared;
+    use chora_kit::{
+        effects::Kind as Shared,
+        volume::{Change, Volume},
+    };
 
     use super::*;
 
@@ -227,7 +274,7 @@ mod tests {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
         let mut toggles = crate::config::defaults().effects;
         toggles.flip(Effect::Lamp);
-        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles);
+        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles, None);
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
         assert_eq!(name_of("purplef"), "Purple flower");
@@ -241,6 +288,45 @@ mod tests {
                 ("Sounds", true)
             ]
         );
+    }
+
+    fn group<'a>(menu: &'a [Node], title: &str) -> &'a Node {
+        menu.iter().find(|n| n.title == title).expect(title)
+    }
+
+    #[test]
+    fn sound_shows_the_volume_and_mutes() {
+        let toggles = crate::config::defaults().effects;
+        let at = |percent, muted| Some(Volume { percent, muted });
+        let loud = menu(None, &[], toggles, at(50, false));
+        assert_eq!(
+            picks(group(&loud, "Sound")),
+            [
+                ("Mute", false),
+                ("25%", false),
+                ("50%", true),
+                ("75%", false),
+                ("100%", false)
+            ]
+        );
+        let Kind::Group(rows) = &group(&loud, "Sound").kind else {
+            panic!("a group");
+        };
+        assert_eq!(
+            rows[0].kind,
+            Kind::Pick(Setting::Volume(Change::Mute), false)
+        );
+        assert_eq!(
+            rows[4].kind,
+            Kind::Pick(Setting::Volume(Change::Set(100)), false)
+        );
+        let muted = menu(None, &[], toggles, at(50, true));
+        assert_eq!(
+            picks(group(&muted, "Sound"))[..3],
+            [("Mute", true), ("25%", false), ("50%", false)]
+        );
+        let silent = menu(None, &[], toggles, None);
+        assert_eq!(picks(group(&silent, "Sound")), [("No sound", false)]);
     }
 
     #[test]

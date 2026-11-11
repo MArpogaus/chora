@@ -1542,6 +1542,8 @@ settings, as `settings.set` does:
 - **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off;
+- **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
+  sound output, through `wpctl`; without one, the entry "No sound";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -1565,7 +1567,10 @@ keyboard does not work it (D45):
   then reaches down to the strip, and maximized windows grow into it.
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
-  in the notification area, or shrinks the area without it. Group
+  in the notification area, or shrinks the area without it. Left of the
+  clock, the speaker shows the volume of the default sound output, as
+  `wpctl` reads it each second: `40%`, `Muted` or `No sound`; a click on
+  it mutes or unmutes. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
@@ -1695,6 +1700,7 @@ of another client changes nothing.
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
 | Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
 | Super+e | start the terminal |
+| XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
