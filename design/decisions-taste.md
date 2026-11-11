@@ -54,3 +54,17 @@ autonomously until sat"). Each is reversible; the user may override any.
   Super+Shift+Space). The product promise is four desktops in one
   session; one launcher key across them beats tiling custom. Rejected:
   per-look launcher keys (swarm finding "keys differ per look").
+
+## xp v2 (design/looks/xp-v2.md, mocks media/2026-11-12/design/xp/)
+
+- D1 to D15 accepted as written (Large Fonts sizing, F1 help window built
+  from live bindings, "Super" naming, Stop greyed not hidden, no default
+  button on the question card, icon-only tray volume, desktops 1 to 4,
+  Recycle Bin above the paperclip). The mock reads as XP at first glance
+  without its art; that is the bar.
+- Open "Super+E": **opens the file manager** (Win+E means files in XP);
+  when none is installed, a balloon says so and names the setting. It no
+  longer opens a terminal. Rejected: keep terminal (surprises every XP
+  user).
+- Cross-look rule applied: Super+Space opens the program launcher (in xp
+  the Start menu's Run box); Super alone still opens Start.
