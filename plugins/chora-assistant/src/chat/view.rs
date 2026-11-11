@@ -234,7 +234,7 @@ struct Parts {
     margin: bool,
     inset: i32,
     header: String,
-    hint: Option<String>,
+    hint: Vec<String>,
     rows: Vec<Row>,
     list: Vec<String>,
     buttons: &'static [(&'static str, Word)],
@@ -265,10 +265,25 @@ fn rows_above(card_top: Option<i32>, start: i32, (rows, row_h): (usize, i32)) ->
     rows.min(usize::try_from(fit).unwrap_or(0))
 }
 
-/// The top of the hint line above the field in a view `h` high: a gap above
-/// the room that the field takes.
-fn hint_top(h: i32, field_room: i32) -> i32 {
-    h - field_room - LINE - GAP
+/// The top of a hint of `lines` lines above the field in a view `h` high: a
+/// gap above the room that the field takes.
+fn hint_top(h: i32, field_room: i32, lines: i32) -> i32 {
+    h - field_room - lines * LINE - GAP
+}
+
+/// The room that a hint takes above the field, with its gap.
+fn hint_room(hint: &[String]) -> i32 {
+    if hint.is_empty() {
+        return 0;
+    }
+    i32::try_from(hint.len()).unwrap_or(1) * LINE + GAP
+}
+
+/// The lines of a hint: it wraps at its words and is never cut.
+fn hint_lines(theme: &Theme, hint: &str, width: i32) -> Vec<String> {
+    chora_draw::text::wrap(hint, f64::from(width), |line| {
+        theme.text_width(line, Font::Body)
+    })
 }
 
 /// The rectangle of the view: a balloon of the figure as high as its
@@ -297,7 +312,9 @@ impl Session {
             width: &width_of,
         };
         let lines = self.lines(language, &measure);
-        let hint = self.hint(language);
+        let hint = (self.hint(language))
+            .map(|hint| hint_lines(theme, &hint, rect[2] - 2 * inset))
+            .unwrap_or_default();
         let list = self.entries(language);
         let buttons = buttons(&self.mode, margin);
         let top_row = if margin { PAD } else { PAD + LINE + GAP };
@@ -306,8 +323,7 @@ impl Session {
             (true, false) => PAD + LINE + GAP,
             (false, _) => top_row + BUTTON[1] + GAP,
         };
-        let below =
-            field_room(frame) + if hint.is_some() { LINE + GAP } else { 0 } + self.card_room();
+        let below = field_room(frame) + hint_room(&hint) + self.card_room();
         let listed = LINE * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
@@ -542,17 +558,18 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
 fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language) -> Vec<Command> {
     let [_, _, w, h] = parts.rect;
     let mut commands = Vec::new();
-    if let Some(hint) = &parts.hint {
-        let size = [w - 2 * parts.inset, LINE];
-        let picture = Picture::new(size[0], size[1]).text(Text::new(
-            hint,
-            Font::Body,
-            rgba(colours.text),
-            [0, 0, size[0], size[1]],
-        ));
+    if !parts.hint.is_empty() {
+        let lines = i32::try_from(parts.hint.len()).unwrap_or(1);
+        let size = [w - 2 * parts.inset, lines * LINE];
+        let mut picture = Picture::new(size[0], size[1]);
+        for (n, line) in (0..).zip(&parts.hint) {
+            let at = [0, n * LINE, size[0], LINE];
+            picture = picture.text(Text::new(line, Font::Body, rgba(colours.text), at));
+        }
         let path = theme.render(&picture);
-        let at = [parts.inset, hint_top(h, parts.field_room)];
-        commands.push(create(HINT, VIEW, image(path, at, hint, InputMode::Pass)));
+        let at = [parts.inset, hint_top(h, parts.field_room, lines)];
+        let text = parts.hint.join(" ");
+        commands.push(create(HINT, VIEW, image(path, at, &text, InputMode::Pass)));
     }
     for (n, (id, word)) in (0..).zip(parts.buttons) {
         let label = word.text(language);
@@ -705,7 +722,7 @@ mod tests {
                 card: None,
             };
             let h = frame.rect()[3];
-            let end = hint_top(h, field_room(&frame)) + LINE;
+            let end = hint_top(h, field_room(&frame), 1) + LINE;
             assert!(
                 end + GAP <= h - field,
                 "{end} meets the field of {field} in {h}"

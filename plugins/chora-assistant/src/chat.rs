@@ -375,9 +375,21 @@ pub struct Session {
     field_height: Option<i32>,
     /// The top of the card of the question in the view, on the output.
     card_top: Option<i32>,
+    /// The question that the state still names was ended: the card went,
+    /// by an answer that voice has not told yet.
+    answered: Answered,
     /// What the person sent that the transcript does not hold yet, with the
     /// `seq` it was sent after: it shows at once and goes when voice has it.
     sent: Vec<(String, u64)>,
+}
+
+/// Whether the question that the state of the helper still names was
+/// answered here.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum Answered {
+    #[default]
+    No,
+    Yes,
 }
 
 /// The rectangle of the view in the work area: x, y, width, height. The
@@ -580,7 +592,7 @@ impl Session {
     }
 
     fn waiting(&self) -> bool {
-        self.status.state == "question"
+        self.status.state == "question" && self.answered == Answered::No
     }
 
     /// Whether the view is to be drawn again, and the mark taken away.
@@ -960,6 +972,7 @@ impl Session {
 
     /// A question appeared: where its card goes, fixed until it ends.
     pub fn question_asked(&mut self) -> Where {
+        self.answered = Answered::No;
         let place = if self.is_open() {
             Where::Chat
         } else {
@@ -970,6 +983,10 @@ impl Session {
 
     /// The question ended.
     pub fn question_ended(&mut self) {
+        self.answered = Answered::Yes;
+        if let Some(link) = self.link.as_mut() {
+            link.question(false);
+        }
         self.card = None;
         self.card_height = None;
         self.card_top = None;
@@ -1854,6 +1871,7 @@ mod tests {
             .show(&mut out, Some("atlas"), Some("act"), &frame)
             .unwrap();
         session.hide(&mut out);
+        session.last = None;
         let before = log.borrow().clears;
         session.clicked_row(&mut out, &frame).unwrap();
         assert_eq!(
@@ -1904,6 +1922,7 @@ mod tests {
         log.borrow_mut().read.push(answer);
         assert!(session.pull(&mut out));
         session.hide(&mut out);
+        session.last = None;
         session.clicked_row(&mut out, &frame).unwrap();
         assert_eq!(session.lines(Language::En, &measure()), Vec::new());
     }
@@ -2008,11 +2027,29 @@ mod tests {
         );
         session.question_ended();
         session.voice_event(&mut out, "voice.state", &state);
+        assert_eq!(
+            session.hint(Language::En),
+            None,
+            "a question that was answered leaves no hint before voice says so"
+        );
+        session.hide(&mut out);
+        session.question_asked();
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
         assert!(
             session
                 .hint(Language::En)
-                .is_some_and(|h| h.contains("Alt+Y"))
+                .is_some_and(|h| h.contains("Alt+Y")),
+            "a card elsewhere: the hint names the keys"
         );
+    }
+
+    #[test]
+    fn an_answered_question_leaves_the_field_without_its_note() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.question_ended();
+        assert_eq!(log.borrow().questions.last(), Some(&false));
     }
 
     #[test]

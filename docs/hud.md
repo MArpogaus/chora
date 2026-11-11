@@ -462,7 +462,11 @@ and the path in a mono face at 14 px, the note in `name`. The title is
 "Question from NAME" with the name of the helper that asks, also when the
 event has no `name`. The words, the order and the keys stay those of every
 look. In a dark theme the card is dark. The card follows the view when the
-field grows, so that it never covers the hint.
+field grows, so that it never covers the hint. While a question
+waits, a line above the field says that typing does not answer; it wraps
+at its words and is never cut. When the card is answered here, the line
+and the note "A question is waiting." of the field go at once, before voice
+ends the question.
 
 A folder with a `glass` chat gets the glass card of the construct style:
 400 px wide, the title as a label, the prompt at 16 px, the detail in a

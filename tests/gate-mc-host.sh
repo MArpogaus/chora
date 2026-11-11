@@ -174,6 +174,7 @@ run_theme() {
     click_node "$yes"
     until_ok '! node_exists hud-card' 20 || fail "$theme: the card stays after a click on Yes"
     grep -q '"yes": true' "$work/claims.answers" || fail "$theme: voice got no answer"
+    until_ok '! node_exists hud-chat-hint' 20 || fail "$theme: the hint about a question stays after the card went: $(ctl query id:hud-chat-hint | jq -r '.[0].meta.text')"
     sleep 1
     key Escape
     until_ok '! node_exists hud-chat' 20 || fail "$theme: Esc does not close the chat after a click on Yes"
