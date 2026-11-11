@@ -8,7 +8,8 @@
 # 2. A probe window opens on the front face, which shows its output at
 #    1:1: a click near its corner reaches it at that point.
 # 3. A slow cube.turn forwards nothing while it runs; then the next face
-#    is at the front, and the face before looks away and hides.
+#    is at the front, and the face before looks away and hides. xp moves
+#    the window to the output of the next face.
 # 4. When xp ends, the construct removes the outputs and the cube, and
 #    the probe window is not lost: a screen shows it, or a client other
 #    than the ended xp owns it.
@@ -106,6 +107,10 @@ until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop co
     fail "the cube did not turn: face 0 $(prop construct-cube-face-0 visible), face 1 $(prop construct-cube-face-1 visible) $(prop construct-cube-face-1 forward)"
 [ "$(prop construct-cube-face-2 visible)" = False ] || fail "a turn during a turn went on to face 2"
 ok "a slow turn forwarded nothing, a turn during it was ignored, and face 1 is at the front"
+second=$(echo "$opened" | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["outputs"][1])')
+ctl call xp window.move "{\"surface\": \"$surface\", \"output\": \"$second\"}" >/dev/null || fail "xp window.move"
+until_ok 'probe | grep -q " $second "' 20 || fail "the probe window did not move to $second: $(probe)"
+ok "a window moved from the face of $front to the face of $second, which is at the front"
 
 xp_pid=$(pid_of chora-xp)
 [ -n "$xp_pid" ] || fail "no xp process of this session"

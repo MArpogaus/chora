@@ -15,8 +15,14 @@
 #                        its outputs and keeps three taskbars
 #   no-cube-on-faces     xp has no desktop cube of its own on virtual
 #                        outputs: the taskbars show no desktop buttons,
-#                        Super with the left button turns nothing, and
-#                        `turn_to` leaves the window where it shows
+#                        Super with the left button turns nothing, xp
+#                        holds no turn key, so another client grabs it,
+#                        and `turn_to` answers and leaves the window
+#                        where it shows
+#   drag-keeps-rect      an injected drag of the title bar from the first
+#                        virtual output to the second, which jumps far in
+#                        one move: the window shows on an output at every
+#                        look in the 2 s after the release
 #
 # A cell measures pass or gap; a line `missing` in the table EXPECTED is a
 # cell that xp cannot pass yet and that does not run. The gate fails on
@@ -36,6 +42,7 @@ opens-under-pointer pass
 moves-to-face pass
 face-removed pass
 no-cube-on-faces pass
+drag-keeps-rect pass
 '
 
 . "$(dirname "$0")/gate-lib.sh"
@@ -118,7 +125,7 @@ cell_face_removed() {
     for left in "${faces[@]:0:3}"; do
         ctl query "id:xp-bar-$left" | jq -e 'length == 1' >/dev/null || return 1
     done
-    on_face "${faces[0]}" 10 || on_face "${faces[1]}" 1 || on_face "${faces[2]}" 1
+    on_face "${faces[0]}" 4
 }
 
 cell_no_cube_on_faces() {
@@ -134,9 +141,25 @@ cell_no_cube_on_faces() {
     inject '[{"button": {"state": "released"}},
       {"key": {"key": "Super_L", "state": "released"}}]'
     [ "$hidden" = 0 ] || return 1
-    ctl call xp turn_to '{"desktop": 1}' >/dev/null 2>&1
+    python3 -I "$repo/tests/pane-host.py" --grab Ctrl+Alt+Right >/dev/null 2>&1 || return 1
+    ctl call xp turn_to '{"desktop": 1}' >/dev/null 2>&1 || return 1
     sleep 1
     ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null
+}
+
+cell_drag_keeps_rect() {
+    local at face=${faces[0]}
+    on_face "$face" 4 || return 1
+    at=$(ctl query "id:xp-title-$w" | jq -c --arg face "$face" '.[0].rects[$face] | [20 + .[0] + 60, 10 + .[1] + 10]')
+    inject "[{\"pointer_move\": {\"position\": $at}},
+      {\"button\": {\"state\": \"pressed\", \"hold\": true}},
+      {\"pointer_move\": {\"position\": [200, 150]}},
+      {\"pointer_move\": {\"position\": [960, 200]}},
+      {\"button\": {\"state\": \"released\"}}]"
+    for _ in $(seq 10); do
+        ctl query "id:$w" | jq -e '(.[0].rects | length) > 0' >/dev/null || return 1
+        sleep 0.2
+    done
 }
 
 declare -A got
@@ -156,7 +179,7 @@ cell() {
         fail "the window left xp after $id: $(ctl query "id:$w" | jq -c '.[0] | {owner, rects}')"
 }
 
-cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces)
+cells=(faces-have-bars opens-under-pointer moves-to-face face-removed no-cube-on-faces drag-keeps-rect)
 for id in "${cells[@]}"; do cell "$id"; done
 ctl capture "$shots/faces.png" >/dev/null 2>&1
 

@@ -116,37 +116,6 @@ impl Driver {
         }
     }
 
-    /// A window that came with its drag from another window manager
-    /// (`give_grab`) is grabbed at a point of the scene: it wobbles on
-    /// from the springs that the giver sent, if it sent some.
-    pub fn grab_given(
-        &mut self,
-        key: &str,
-        target: &Target,
-        point: [f64; 2],
-        springs: Option<&serde_json::Value>,
-    ) {
-        self.grab(key, target, point);
-        if let (Some(wobble), Some(springs)) = (self.wobbles.get_mut(key), springs) {
-            wobble.take_springs(target.origin, springs);
-        }
-    }
-
-    /// A window that wobbles takes the springs that another window
-    /// manager sent with its drag, for the window at an origin.
-    pub fn take_springs(&mut self, key: &str, origin: [f64; 2], springs: &serde_json::Value) {
-        if let Some(wobble) = self.wobbles.get_mut(key) {
-            wobble.take_springs(origin, springs);
-        }
-    }
-
-    /// The springs of a window that wobbles, for the window manager that
-    /// gets it with its drag.
-    #[must_use]
-    pub fn springs(&self, key: &str, target: &Target) -> Option<serde_json::Value> {
-        Some(self.wobbles.get(key)?.springs(target.origin))
-    }
-
     /// A window in 3D is grabbed: it starts to wobble with a depth. The
     /// origin and the grab are in the coordinates of the space of the
     /// window, and `view` is the x and y of the direction of the view, as
@@ -176,6 +145,37 @@ impl Driver {
         wobble.advance_3d(origin, Instant::now());
         self.origins.insert(key.into(), origin);
         Some(mesh(target, wobble.mesh([origin[0], origin[1]])))
+    }
+
+    /// A window that came with its drag from another window manager
+    /// (`give_grab`) is grabbed at a point of the scene: it wobbles on
+    /// from the springs that the giver sent, if it sent some.
+    pub fn grab_given(
+        &mut self,
+        key: &str,
+        target: &Target,
+        point: [f64; 2],
+        springs: Option<&serde_json::Value>,
+    ) {
+        self.grab(key, target, point);
+        if let (Some(wobble), Some(springs)) = (self.wobbles.get_mut(key), springs) {
+            wobble.take_springs(target.origin, springs);
+        }
+    }
+
+    /// A window that wobbles takes the springs that another window
+    /// manager sent with its drag, for the window at an origin.
+    pub fn take_springs(&mut self, key: &str, origin: [f64; 2], springs: &serde_json::Value) {
+        if let Some(wobble) = self.wobbles.get_mut(key) {
+            wobble.take_springs(origin, springs);
+        }
+    }
+
+    /// The springs of a window that wobbles, for the window manager that
+    /// gets it with its drag.
+    #[must_use]
+    pub fn springs(&self, key: &str, target: &Target) -> Option<serde_json::Value> {
+        Some(self.wobbles.get(key)?.springs(target.origin))
     }
 
     /// Whether a lamp runs for a window.
