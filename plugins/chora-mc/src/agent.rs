@@ -337,19 +337,23 @@ impl Mc {
         let Some(name) = hit else {
             return false;
         };
-        self.chat_with(&name);
+        self.chat_with(Some(&name));
         true
     }
 
-    /// Asks the HUD host to show the chat with a helper.
-    pub fn chat_with(&mut self, name: &str) {
-        let mut params = json!({"name": name});
+    /// Asks the HUD host to show the chat, with a helper or with the one
+    /// that it chooses.
+    pub fn chat_with(&mut self, name: Option<&str>) {
+        let mut params = json!({});
+        if let Some(name) = name {
+            params["name"] = json!(name);
+        }
         if let Some(token) = self.rt.conn.activation_token() {
             params["token"] = json!(token);
         }
         let call = json!({"client": "assistant", "method": "chat.show", "params": params});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-mc: chat.show {name}: {err}");
+            eprintln!("chora-mc: chat.show {}: {err}", name.unwrap_or_default());
         }
     }
 

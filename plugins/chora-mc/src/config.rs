@@ -51,6 +51,8 @@ pub enum Action {
     },
     /// Shows all keys in the key list, or only the six that show first.
     Keys,
+    /// Asks the HUD host to open the chat with a helper.
+    Chat,
 }
 
 /// How an agent of `agent.set` shows in a state.
@@ -569,11 +571,25 @@ mod tests {
         assert_eq!(config.voice_hud, VoiceHud::Host);
     }
 
+    /// Super+a is the chat as in every look; the terminal has its own key.
+    #[test]
+    fn the_default_keys_of_the_chat_and_the_terminal() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.bindings["Super+a"], Action::Chat);
+        assert_eq!(
+            config.bindings["Super+Return"],
+            Action::Scene("terminal".into())
+        );
+    }
+
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
-        assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
+        assert_eq!(
+            config.bindings["Super+Home"],
+            Action::Scene("agenda".into())
+        );
         let give = DEFAULT.replace("Super+n:", "Super+g: {give: xp}\n  Super+n:");
         let given = parse::<Config>(&give).unwrap();
         assert_eq!(given.bindings["Super+g"], Action::Give("xp".into()));

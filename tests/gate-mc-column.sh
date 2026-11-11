@@ -111,7 +111,7 @@ expect_rect() {
     [ "$got" = "$2" ] || fail "$1 is at $got, not at $2"
 }
 close_list() { has_text "Show overview" && key Super+F1; sleep 1; }
-key Super+a
+key Super+Home
 close_list
 until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda to measure"
 sleep 1
@@ -144,6 +144,19 @@ column_at() {
     shot "$size"
     ok "at $size the column stands at $left to $((left + width)), nothing is clipped"
 }
+has_text "Chat with a helper" || fail "the key list does not name the chat"
+has_text "Super+a" || fail "the key list does not name Super+a"
+key Super+Return
+until_ok '[ "$(current)" = terminal ]' 20 || fail "Super+Return does not show the terminal scene: $(current)"
+key Super+Home
+until_ok '[ "$(current)" = agenda ]' 20 || fail "Super+Home does not show the agenda"
+key Super+a
+until_ok 'grep -q "chat.show" "$XDG_CONFIG_HOME/mc.log"' 20 || fail "Super+a does not ask the host for the chat"
+[ "$(current)" = agenda ] || fail "Super+a left the agenda for $(current)"
+drawer=$(ctl call mc region.list '{}' | jq -r '.regions.drawer.contents | length')
+[ "$drawer" = 0 ] || fail "the default setup still has contents in the drawer"
+ok "Super+a asks for the chat, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
+
 notices() { texts | grep -c ' Note [0-9]$'; }
 has_text "NOTIFICATIONS" || fail "no NOTIFICATIONS head on an empty column"
 has_text "Nothing new." || fail "the empty notifications do not say so"

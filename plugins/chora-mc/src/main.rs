@@ -2880,6 +2880,10 @@ impl Mc {
                 }
                 return;
             }
+            Action::Chat => {
+                self.chat_with(None);
+                return;
+            }
             Action::Keys => {
                 self.keys = self.keys.flip();
                 if let Err(err) = self.render() {

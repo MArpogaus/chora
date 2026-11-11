@@ -1312,7 +1312,7 @@ impl Mc {
             .and_then(|i| i.hit);
         match token.as_deref().and_then(|t| t.split_once(':')) {
             Some(("key", binding)) => self.act(binding),
-            Some(("agent", agent)) => self.chat_with(agent),
+            Some(("agent", agent)) => self.chat_with(Some(agent)),
             _ => return self.click_row(base),
         }
         true
@@ -1643,7 +1643,7 @@ mod tests {
         );
         assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
         assert_eq!(names(&page, Region::Right), ["notes", "notify", "keys"]);
-        assert_eq!(names(&page, Region::Drawer), ["shell"]);
+        assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
         // Over an app, the words of the agent go to the header.
         assert_eq!(
             names(&app, Region::Header),

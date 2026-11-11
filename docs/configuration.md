@@ -515,7 +515,7 @@ with `settings.reload`:
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
   `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
-  `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
@@ -618,9 +618,10 @@ back to it, and the next press hides the region and gives the keyboard
 back to the scene. When the app ends, its region hides. A drawer that a
 preset or a scene shows starts its app when the settings load.
 
-The default bindings are `Super+Return` for the drawer, `Super+n` for the
-right side, `Super+Up` and `Super+Down` for the header and the footer, and
-`Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
+The default bindings are `Super+a` for the chat (`chat` asks the HUD host
+to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
+scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
+header and the footer, and `Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
 needs the grant `input.grab-any`, so the key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
@@ -629,8 +630,9 @@ the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
 content `next`); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
-the key list at its foot;
-`Super+Return` opens `foot` in the drawer in the colors of the theme.
+the key list at its foot. The drawer holds nothing in `desk`; the
+terminal is the scene `terminal`, `foot` in the colors of the theme, and
+the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.
 On a narrow page the header has no room for many agents and the long
 clock: the end of the line is cut. Set the rule of `time` instead of

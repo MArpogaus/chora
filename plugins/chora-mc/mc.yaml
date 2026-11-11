@@ -163,14 +163,16 @@ order: [agenda, morning, agents, mission, terminal, overview]
 # app in it takes the focus first, the next press hides it, or
 # {solo: {content: NAME, region: REGION}}, which shows the content alone
 # in the region over any scene; the next press hides it again, or keys,
-# which shows all keys in the key list of the right side, or six again.
+# which shows all keys in the key list of the right side, or six again,
+# or chat, which asks the HUD host to open the chat.
 bindings:
   Super+Right: next_scene
   Super+Left: previous_scene
-  Super+a: {scene: agenda}
+  Super+Home: {scene: agenda}
+  Super+a: chat
   Super+o: {scene: overview}
   Super+space: {run: fuzzel}
-  Super+Return: {toggle: drawer}
+  Super+Return: {scene: terminal}
   Super+n: {toggle: right}
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
@@ -264,7 +266,6 @@ rules:
 - {content: notes, region: right}
 - {content: notify, region: right, slot: 1}
 - {content: keys, region: right, slot: 9}
-- {content: shell, region: drawer}
 # The arrangement of the regions: a name of presets. A preset sets which
 # regions show and its own rules; without rules, those above apply.
 #   quiet:  the header alone, the words of the agent in its middle

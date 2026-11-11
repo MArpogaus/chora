@@ -73,8 +73,8 @@ pub fn short(config: &Config) -> Vec<Row> {
     if let Some(key) = find(&|a| matches!(a, Action::Run(_))) {
         rows.push(Row::new(human(key), "Start a program", Some(key)));
     }
-    if let Some(key) = find(&|a| matches!(a, Action::Scene(s) if s == "agenda")) {
-        rows.push(Row::new(human(key), "Show the agenda", Some(key)));
+    if let Some(key) = find(&|a| *a == Action::Chat) {
+        rows.push(Row::new(human(key), "Chat with a helper", Some(key)));
     }
     if let Some(key) = find(&|a| *a == Action::Toggle(crate::region::Region::Right)) {
         rows.push(Row::new(human(key), "Hide this column", Some(key)));
@@ -106,6 +106,7 @@ fn words(action: &Action) -> Option<String> {
         Action::Toggle(region) => format!("Show or hide the {}", region.name()),
         Action::Solo { content, .. } => format!("Show the {content}"),
         Action::Keys => "All keys".to_owned(),
+        Action::Chat => "Chat with a helper".to_owned(),
     })
 }
 
