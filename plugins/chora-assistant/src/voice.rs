@@ -647,11 +647,11 @@ impl Agent {
         Ok(commands)
     }
 
-    /// The card in the balloon of the figure follows the balloon when the
-    /// field changes its height, so that it stands above the hint; its
-    /// buttons take no click for a moment, as after any move.
+    /// The card in the view of the chat follows the view when the field
+    /// changes its height, so that it stands above the hint; its buttons
+    /// take no click for a moment, as after any move.
     pub fn card_follows(&mut self) -> Result<Vec<Command>, ClientError> {
-        if !self.balloon_chat() || self.chat.card_top().is_none() {
+        if self.chat.card_top().is_none() {
             return Ok(Vec::new());
         }
         let (Some(frame), Some((output, _))) = (self.chat_frame()?, self.output()?) else {

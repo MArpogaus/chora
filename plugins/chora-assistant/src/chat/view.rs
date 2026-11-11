@@ -543,19 +543,16 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
     let [_, _, w, h] = parts.rect;
     let mut commands = Vec::new();
     if let Some(hint) = &parts.hint {
-        let at = [
-            parts.inset,
-            hint_top(h, parts.field_room),
-            w - 2 * parts.inset,
-            LINE,
-        ];
-        let picture = Picture::new(w, h).text(Text::new(hint, Font::Body, rgba(colours.text), at));
-        let path = theme.render(&picture);
-        commands.push(create(
-            HINT,
-            VIEW,
-            image(path, [0, 0], hint, InputMode::Pass),
+        let size = [w - 2 * parts.inset, LINE];
+        let picture = Picture::new(size[0], size[1]).text(Text::new(
+            hint,
+            Font::Body,
+            rgba(colours.text),
+            [0, 0, size[0], size[1]],
         ));
+        let path = theme.render(&picture);
+        let at = [parts.inset, hint_top(h, parts.field_room)];
+        commands.push(create(HINT, VIEW, image(path, at, hint, InputMode::Pass)));
     }
     for (n, (id, word)) in (0..).zip(parts.buttons) {
         let label = word.text(language);

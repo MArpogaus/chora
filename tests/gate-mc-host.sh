@@ -149,9 +149,20 @@ run_theme() {
     [ "${pixel% *}" = "${background% *}" ] || fail "$theme: the card is filled $pixel, the page is $background"
     ok "$theme: the card is as wide as the column, in the fill of the page, with 88 by 32 buttons 8 apart"
 
+    hint_clear() {
+        jq -ne --argjson c "$(node_rect hud-card)" --argjson h "$(node_rect hud-chat-hint)" '$c[1] + $c[3] <= $h[1]' >/dev/null
+    }
+    hint_clear || fail "$theme: the card $(node_rect hud-card) covers the hint $(node_rect hud-chat-hint)"
+    for _ in $(seq 55); do key a; done
+    until_ok 'hint_clear' 20 || fail "$theme: with a field of two lines the card $(node_rect hud-card) covers the hint $(node_rect hud-chat-hint)"
+    ok "$theme: the card stands above the hint, also when the field grows to two lines"
+    sleep 1
+    yes=$(node_rect hud-card-yes)
+
     click_node "$yes"
     until_ok '! node_exists hud-card' 20 || fail "$theme: the card stays after a click on Yes"
     grep -q '"yes": true' "$work/claims.answers" || fail "$theme: voice got no answer"
+    sleep 1
     key Escape
     until_ok '! node_exists hud-chat' 20 || fail "$theme: Esc does not close the chat after a click on Yes"
     ok "$theme: a click on Yes answers, the card goes, and Esc closes the chat"
@@ -168,5 +179,6 @@ run_theme() {
     key Escape
 }
 
-run_theme light
-run_theme dark
+for theme in ${GATE_THEMES:-light dark}; do
+    run_theme "$theme"
+done
