@@ -9,7 +9,7 @@ bugs and surprises, not to fix anything. Never read or edit source code.
     L=/tmp/claude-0/-home-user/8a28ab73-2182-54dd-8448-69a0fbb58e8a/scratchpad/swarm.sh
     $L start NAME FLAVOR          # waits for a free slot, prints PERSONA_ENV=<file>
     PERSONA_ENV=<file> python3 -I /tmp/swarm-src/tests/persona/act.py ACTION ...
-        look                      # prints a PNG path; Read that PNG to see the screen
+        look --max-side 512       # prints a PNG path; Read that PNG to see the screen
         click X Y [--button right] [--double]
         move X Y
         drag X1 Y1 X2 Y2
@@ -21,11 +21,11 @@ bugs and surprises, not to fix anything. Never read or edit source code.
 If `start` times out, run it again (another tester holds the slot).
 Coordinates are pixels of the last screenshot. Look after every action or
 two; wait a moment (sleep 1) after actions that start an animation.
-Budget: at most 90 actions. Stop earlier when your goals are done.
+Budget: at most 45 actions and 20 looks. Stop as soon as your goals are done or blocked. Keep your thinking short.
 
 ## Report
 
-Write your report to /home/user/wt/log/reports/swarm-2/NAME.md, at most 80
+Write your report to /home/user/wt/log/reports/swarm-2/NAME.md, at most 40
 lines, exactly this shape:
 
     # NAME (FLAVOR)

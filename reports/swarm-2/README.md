@@ -12,3 +12,9 @@ User call at 71% model use: use the remaining budget to test massively with haik
 ## Triage notes while running
 - c-cube run 1 is environment noise in its main finding: the cube's xp manager looked for its theme in /usr/share/chora/flavors, which this container lacked; it restarted in a loop ("I come back") and never connected, so the cube stayed black. Fixed by linking /usr/share/chora/flavors to the source checkout; the cube then shows the xp face. Kept as c-cube-run1-env.md. The product finding that remains: a manager that cannot start gives 10 s of black with no message (needs an error state).
 - m-tv (mc shows only "1 AGENDA", no key reacts) and x-office (LibreOffice and thunar missing) may be partly environment too; the triage pass checks each against the container.
+
+## Budget rule (user, 11-12)
+- Stop testing at 85% weekly model use; keep the rest for major fixes and the review loop.
+- Launch a new tester only while the last reports still bring new findings.
+- Haiku runs are trimmed: 512 px looks, at most 45 actions and 20 looks, reports of at most 40 lines (brief updated after wave 2 started).
+- The weekly reset is Saturday 10:59. After it, the heavy work (fixes, code review, RC) runs on Fable until it is used up, then on a reset.
