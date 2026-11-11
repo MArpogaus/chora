@@ -106,7 +106,7 @@ esac
 case $flavor in
 tiling)
     companions=(
-        "chora-tiling --launch swaybg"
+        "sh $repo/flavors/tiling/wallpaper.sh"
         "sh $repo/flavors/tiling/waybar/waybar.sh $repo/flavors/tiling/waybar"
         "chora-assistant"
     )

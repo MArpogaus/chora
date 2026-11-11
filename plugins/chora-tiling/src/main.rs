@@ -827,8 +827,11 @@ impl Tiling {
 
     /// Takes the colours of the theme and writes the files of the flavor
     /// that carry them; `reload` asks the panel to read its style again,
-    /// which it must when the colours changed under it. Without a user
-    /// manager there is nothing to reload.
+    /// which it must when the colours changed under it, and the wallpaper
+    /// to start again when the scheme changed. A panel or wallpaper that
+    /// `waybar.sh` or `wallpaper.sh` runs gets `SIGUSR2`, else the unit is
+    /// reloaded or restarted; without a user manager there is nothing
+    /// to do.
     fn apply_theme(&mut self, reload: bool) {
         let look = &self.settings.value.look;
         let scheme = look.theme.scheme(system_for(look.theme));
@@ -855,10 +858,16 @@ impl Tiling {
                 .status();
         };
         if reload && changed {
-            user_unit("reload", PANEL_UNIT);
+            match theme::companion("panel", "waybar.sh") {
+                Some(pid) => theme::signal(pid, "USR2"),
+                None => user_unit("reload", PANEL_UNIT),
+            }
         }
         if reload && new_scheme {
-            user_unit("restart", WALLPAPER_UNIT);
+            match theme::companion("wallpaper", "wallpaper.sh") {
+                Some(pid) => theme::signal(pid, "USR2"),
+                None => user_unit("restart", WALLPAPER_UNIT),
+            }
         }
     }
 
