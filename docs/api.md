@@ -667,7 +667,7 @@ answers every request.
 | `input.inject(events)` | send synthetic input: pointer, buttons, scrolling, keys, shortcuts and text; needs a grant |
 | `input.configure(keyboard, touchpad, mouse)` | set the input devices of the session (D35): `keyboard` has `repeat_rate` (0 to 100 per second, 0 for no repeat) and `repeat_delay` (100 to 5000 ms), which every `wl_keyboard` gets as `repeat_info` and which the keys of nodes follow; `touchpad` (devices that can tap) and `mouse` (the other pointer devices) have `tap`, `natural_scroll`, `left_handed`, `accel_profile` (`flat` or `adaptive`) and `accel_speed` (-1 to 1), which the core sets through libinput on the tty backend, also on devices that come later; the settings last until the session ends; a device that lacks a setting skips it; a missing field keeps its value, so empty params only read; `null` resets a field, the key repeat to the 25 per second and 200 ms of the core, a libinput setting to the default of each device; returns all settings that are set; a value out of range fails with code -32602; a client socket needs the capability `methods.privileged`; the `input` of a view calls it ([Views](configuration.md#views)) |
 | `screen.capture(output, node, max_side)` | capture an output or a node as a PNG file; needs a grant |
-| `record.step(fps)`, `record.frame(output)`, `record.stop` | a recording with a stepped scene clock (see [Recording](#recording)); they work only on the admin socket and only on the headless backend, `choractl record` calls them |
+| `record.step(fps)`, `record.frame(output, pointer)`, `record.stop` | a recording with a stepped scene clock (see [Recording](#recording)); they work only on the admin socket and only on the headless backend, `choractl record` calls them |
 | `camera.release(output)` | take the camera of an output away from its owner, live or gone, without telling it, so that the view goes back to its default and any client can own the camera again; the old owner takes the camera back with its next camera command; works only on the admin socket, `choractl camera release OUTPUT` calls it |
 | `grants.set(client, capabilities)`, `grants.revoke(client, capabilities)`, `grants.list` | grant or revoke capabilities for a client name. `choractl grant` and `choractl revoke` call them. `grants.set` and `grants.revoke` work only on the admin socket. A name with a client socket answers code 9, because `clients.yaml` holds its capabilities. For a name of the main socket, `methods.call`, `session.quit`, `methods.privileged` and `activation.token` count only on connections with `confined: true` in their `hello`, such as `choractl mcp`. |
 | `clients.create(name, capabilities)` | open the client socket of a name with exactly those capabilities and return its `path` (see [Client sockets](#client-sockets)); equal capabilities keep the socket and give back what the revoke binding took, changed ones recreate it; without `capabilities`, an existing socket keeps its own; only on the admin socket; `choractl clients create NAME` and `choractl clients up` call it |
@@ -1148,9 +1148,13 @@ the renderer. It is for demo media and tests of a headless session.
   answer has the count of the steps as `frame` and the scene time of the
   recording as `time_ms`. `fps` is 1 to 240 and stays the same during a
   recording.
-- `record.frame(output)` answers the picture of an output, as
+- `record.frame(output, pointer)` answers the picture of an output, as
   `screen.capture` does; the first output if `output` is missing. It
-  fails while the session is locked.
+  fails while the session is locked. `pointer` says how the picture
+  shows the pointer: `mark` (the default) as the screen does, with no
+  cursor and with the mark of injected input; `arrow` with a plain arrow
+  at the pointer and without the mark; `none` with neither. The mark
+  stays on the screen in every case.
 - `record.stop` ends the recording, and so does the end of its
   connection: the clock runs again.
 
@@ -1171,7 +1175,9 @@ of the panes.
 each frame, it calls `record.step`, then `clock.step` of every plugin
 that exports it, then `record.frame`.
 At the end, also after a failure, it lets all clocks run again. With
-`--script FILE`, it sends requests at given frames, before the step of
+`--pointer arrow` or `--pointer none`, the frames show an arrow or
+nothing in place of the mark of injected input. With `--script FILE`,
+it sends requests at given frames, before the step of
 the frame; the file has one JSON object per line:
 
 ```json

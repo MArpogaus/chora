@@ -38,6 +38,10 @@ pub struct Recording {
     /// frame: {"frame": N, "method": "input.inject", "params": {}}.
     #[arg(long)]
     script: Option<PathBuf>,
+    /// How the frames show the pointer: mark (as the screen, with the
+    /// mark of injected input), arrow (a plain arrow, no mark) or none.
+    #[arg(long, default_value = "mark", value_parser = ["mark", "arrow", "none"])]
+    pointer: String,
 }
 
 /// A request of a script, sent before the step of its frame.
@@ -133,7 +137,10 @@ fn frames(client: &mut Client, recording: &Recording, clocks: &[String]) -> Resu
         }
         step(client, recording.fps, clocks)?;
         let picture: Picture = client
-            .call("record.frame", json!({"output": recording.output}))
+            .call(
+                "record.frame",
+                json!({"output": recording.output, "pointer": recording.pointer}),
+            )
             .map_err(|e| format!("frame {frame}: {e}"))?;
         let png = STANDARD
             .decode(&picture.png)

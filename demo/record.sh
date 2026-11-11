@@ -78,7 +78,8 @@ for clip in "${clips[@]}"; do
     mkdir -p "$frames"
     python3 -I "$repo/demo/paths.py" "$clip" >"$work/$clip.cues"
     count=$(python3 -I "$repo/demo/paths.py" "$clip" frames)
-    "$bin/choractl" record --fps "$fps" --frames "$count" --out "$frames" --script "$work/$clip.cues" >/dev/null
+    "$bin/choractl" record --fps "$fps" --frames "$count" --out "$frames" --script "$work/$clip.cues" \
+        --pointer arrow >/dev/null
     quiet=(-hide_banner -loglevel error -y)
     ffmpeg "${quiet[@]}" -framerate "$fps" -i "$frames/frame-%05d.png" \
         -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -movflags +faststart "$out/construct-$clip.mp4"

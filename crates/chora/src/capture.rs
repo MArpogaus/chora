@@ -93,8 +93,19 @@ impl State {
 
     /// The picture of a capture, as the result of `screen.capture`.
     pub fn picture(&mut self, capture: &Capture) -> Result<Value, RpcError> {
+        self.picture_with(capture, |_, _| {})
+    }
+
+    /// The picture of a capture after `draw` changed its pixels; `draw`
+    /// also gets the pixels per logical pixel.
+    pub fn picture_with(
+        &mut self,
+        capture: &Capture,
+        draw: impl FnOnce(&mut Pixels, f64),
+    ) -> Result<Value, RpcError> {
         let shot = self.plan(capture)?;
-        let pixels = self.render_shot(&shot).map_err(rejected)?;
+        let mut pixels = self.render_shot(&shot).map_err(rejected)?;
+        draw(&mut pixels, shot.view.scale);
         let png = encode(&pixels).map_err(rejected)?;
         if png.len() > MAX_PNG {
             return Err(RpcError::new(

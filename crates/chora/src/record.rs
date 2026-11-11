@@ -4,6 +4,11 @@
 //! between the steps and move by exactly one frame time with each step,
 //! so that the frames do not depend on the speed of the renderer.
 //!
+//! A frame shows the pointer as the injection mark of the screen, as a
+//! plain arrow, or not at all. The mark itself stays on the screen: only
+//! the picture of a recording, which a person asked for on the admin
+//! socket, may leave it out.
+//!
 //! The methods work only on the admin socket and only on the headless
 //! backend: a recording stops the animations of the whole session and
 //! shows every output. The recording ends with `record.stop` or with its
@@ -15,6 +20,7 @@ use serde_json::{Value, json};
 
 use crate::{
     backend::Backend,
+    capture::Pixels,
     ipc::{params_of, rejected},
     state::State,
 };
@@ -51,6 +57,73 @@ struct Step {
 struct Frame {
     #[serde(default)]
     output: Option<String>,
+    #[serde(default)]
+    pointer: Pointer,
+}
+
+/// How a frame shows the pointer.
+#[derive(Clone, Copy, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum Pointer {
+    /// As the screen does: no cursor, and the mark of injected input.
+    #[default]
+    Mark,
+    /// A plain arrow at the pointer, and no mark.
+    Arrow,
+    /// Neither.
+    None,
+}
+
+/// The outline of the arrow in logical pixels, from its tip.
+const ARROW: [[f64; 2]; 7] = [
+    [0.0, 0.0],
+    [0.0, 16.0],
+    [4.0, 12.5],
+    [7.0, 18.5],
+    [9.5, 17.3],
+    [6.5, 11.5],
+    [11.5, 11.5],
+];
+
+/// Whether a point lies inside the arrow.
+fn in_arrow(x: f64, y: f64) -> bool {
+    let mut inside = false;
+    for (i, a) in ARROW.iter().enumerate() {
+        let b = ARROW[(i + 1) % ARROW.len()];
+        if (a[1] > y) != (b[1] > y) && x < a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+/// Draws a white arrow with a black outline of one logical pixel, with
+/// its tip at a point of the picture in logical pixels.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "pixels inside the picture"
+)]
+fn draw_arrow(pixels: &mut Pixels, scale: f64, tip: [f64; 2]) {
+    let (left, top) = ((tip[0] - 2.0) * scale, (tip[1] - 2.0) * scale);
+    let (right, bottom) = ((tip[0] + 14.0) * scale, (tip[1] + 21.0) * scale);
+    let columns = left.max(0.0) as u32..(right.max(0.0) as u32).min(pixels.width);
+    for row in top.max(0.0) as u32..(bottom.max(0.0) as u32).min(pixels.height) {
+        for column in columns.clone() {
+            let x = (f64::from(column) + 0.5) / scale - tip[0];
+            let y = (f64::from(row) + 0.5) / scale - tip[1];
+            let near = [-1.0, 0.0, 1.0]
+                .iter()
+                .any(|dx| [-1.0, 0.0, 1.0].iter().any(|dy| in_arrow(x + dx, y + dy)));
+            let color = match (in_arrow(x, y), near) {
+                (true, _) => [255, 255, 255, 255],
+                (false, true) => [0, 0, 0, 255],
+                (false, false) => continue,
+            };
+            let at = (row as usize * pixels.width as usize + column as usize) * 4;
+            pixels.rgba[at..at + 4].copy_from_slice(&color);
+        }
+    }
 }
 
 impl State {
@@ -87,18 +160,42 @@ impl State {
                 if self.lock.is_some() {
                     return Err(rejected("the session is locked"));
                 }
-                let Frame { output } = params_of(params)?;
-                self.picture(&Capture {
-                    output,
-                    node: None,
-                    max_side: None,
-                })
+                self.record_frame(params_of(params)?)
             }
             _ => {
                 self.recording_closed(conn);
                 Ok(Value::Null)
             }
         }
+    }
+
+    /// The picture of an output with the pointer as the frame wants it.
+    /// Without the mark, the scene renders once without the mark of
+    /// injected input; the mark stays on the screen.
+    fn record_frame(&mut self, frame: Frame) -> Result<Value, RpcError> {
+        let capture = Capture {
+            output: frame.output,
+            node: None,
+            max_side: None,
+        };
+        if frame.pointer == Pointer::Mark {
+            return self.picture(&capture);
+        }
+        let first = self.outputs.first().map(smithay::output::Output::name);
+        let shown = capture.output.clone().or(first);
+        let tip = (self.screen_spot(self.pointer_layout))
+            .filter(|spot| Some(spot.output.name()) == shown)
+            .filter(|_| frame.pointer == Pointer::Arrow)
+            .map(|spot| [spot.local.x, spot.local.y]);
+        let with_mark = self.scene.clone();
+        self.scene.remove_injection();
+        let picture = self.picture_with(&capture, |pixels, scale| {
+            if let Some(tip) = tip {
+                draw_arrow(pixels, scale, tip);
+            }
+        });
+        self.scene = with_mark;
+        picture
     }
 
     /// One step: the scene time moves by one frame of `fps`. The first
