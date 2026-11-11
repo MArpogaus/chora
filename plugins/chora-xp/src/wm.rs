@@ -158,18 +158,21 @@ pub enum Key {
     Give(&'static str),
     /// A media key changes the volume.
     Volume(volume::Change),
+    /// Opens the chat, as on tiling.
+    Chat,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
-/// stands in when another client holds them. The media keys are those of
-/// tiling.
-const KEYS: [(&str, &str, Key); 13] = [
+/// stands in when another client holds them. The media keys and the chat
+/// key are those of tiling.
+const KEYS: [(&str, &str, Key); 14] = [
     ("Ctrl+Escape", "", Key::Start),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "", Key::Switch(-1)),
     ("Super+e", "", Key::Terminal),
+    (control::CHAT_KEY, "", Key::Chat),
     ("XF86AudioRaiseVolume", "", Key::Volume(volume::Change::Up)),
     (
         "XF86AudioLowerVolume",
@@ -1549,6 +1552,10 @@ impl Wm {
                 Vec::new()
             }
             Some(Key::Volume(change)) => self.change_volume(change, true),
+            Some(Key::Chat) => {
+                self.start_program(control::CHAT);
+                Vec::new()
+            }
             Some(Key::Cube) | None => Vec::new(),
         }
     }
@@ -3161,6 +3168,18 @@ impl Wm {
                 self.change(json!({ "effects": toggles }))
             }
             Setting::Volume(change) => self.change_volume(*change, false),
+            Setting::Give(to) => {
+                if let Err(err) = give::focused(self, to) {
+                    let message = Message {
+                        icon: "",
+                        summary: "Keyboard Shortcuts",
+                        body: &err.message,
+                        expire_ms: -1,
+                    };
+                    self.notifier.show("chora-xp", None, &message);
+                }
+                Vec::new()
+            }
             Setting::Note => Vec::new(),
             Setting::Taskbar | Setting::DateTime | Setting::Display => {
                 let area = output
@@ -3614,9 +3633,9 @@ mod tests {
 
     use super::*;
 
-    /// The volume keys are bound as on tiling.
+    /// The volume keys and the chat key are bound as on tiling.
     #[test]
-    fn the_media_keys_are_bound() {
+    fn the_media_keys_and_the_chat_key_are_bound() {
         let bound = |name: &str| KEYS.iter().find(|(b, _, _)| *b == name).map(|k| k.2);
         assert!(matches!(
             bound("XF86AudioRaiseVolume"),
@@ -3630,6 +3649,7 @@ mod tests {
             bound("XF86AudioMute"),
             Some(Key::Volume(Change::Mute))
         ));
+        assert!(matches!(bound("Super+a"), Some(Key::Chat)));
     }
 
     /// A window that comes back from the space lands with the middle of

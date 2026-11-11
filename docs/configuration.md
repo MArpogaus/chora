@@ -1542,6 +1542,10 @@ settings, as `settings.set` does:
 - **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off;
+- **Keyboard Shortcuts**: the keys that every window manager shares:
+  `Super+Alt+1` to `Super+Alt+4`, which give the focused window to
+  tiling, xp, mc or construct, and `Super+a`, which opens the chat. A
+  click on an entry does what its key does;
 - **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
   sound output, through `wpctl`; without one, the entry "No sound";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
@@ -1700,6 +1704,7 @@ of another client changes nothing.
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
 | Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
 | Super+e | start the terminal |
+| Super+a | open the chat (`chora-chat`), as on tiling |
 | XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |

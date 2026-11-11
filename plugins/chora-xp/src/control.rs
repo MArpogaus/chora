@@ -2,7 +2,8 @@
 //! opens Display Properties, Desktop lists the wallpapers, and Effects
 //! the effects of the plugin. The current choice of each has a check
 //! mark. Effects also turns XP's sounds on and off. Sound mutes and sets
-//! the volume.
+//! the volume, and Keyboard Shortcuts lists the keys that every window
+//! manager shares.
 
 use std::path::{Path, PathBuf};
 
@@ -32,6 +33,8 @@ pub enum Setting {
     Display,
     /// Changes the volume of the default sound output.
     Volume(Change),
+    /// Gives the focused window to the window manager of this name (D55).
+    Give(&'static str),
     /// Tells something and changes nothing.
     Note,
 }
@@ -178,6 +181,11 @@ pub fn menu(
             kind: Kind::Pick(Setting::Display, false),
         },
         group("Effects", "preferences-desktop-effects", effects),
+        group(
+            "Keyboard Shortcuts",
+            "preferences-desktop-keyboard",
+            shortcuts(),
+        ),
         group("Sound", "audio-volume-medium", sound(volume)),
         Node {
             title: "Taskbar and Start Menu".into(),
@@ -214,6 +222,30 @@ fn sound(volume: Option<Volume>) -> Vec<Node> {
     }));
     rows
 }
+
+/// The rows of Keyboard Shortcuts: the keys that give the focused window
+/// to another window manager, and the key of the chat, which also opens
+/// it from here.
+fn shortcuts() -> Vec<Node> {
+    let mut rows: Vec<Node> = (chora_kit::give::KEYS.into_iter())
+        .map(|(key, to)| Node {
+            title: format!("{key}: window to {to}"),
+            icon: String::new(),
+            kind: Kind::Pick(Setting::Give(to), false),
+        })
+        .collect();
+    rows.push(Node {
+        title: format!("{CHAT_KEY}: chat"),
+        icon: String::new(),
+        kind: Kind::Run(CHAT.into()),
+    });
+    rows
+}
+
+/// The key that opens the chat, on every window manager.
+pub const CHAT_KEY: &str = "Super+a";
+/// The command that opens the chat.
+pub const CHAT: &str = "chora-chat";
 
 /// The name of a wallpaper file as XP shows it: "blue-hills" is "Blue
 /// hills", and XP's short file names have their long names.
@@ -327,6 +359,27 @@ mod tests {
         );
         let silent = menu(None, &[], toggles, None);
         assert_eq!(picks(group(&silent, "Sound")), [("No sound", false)]);
+    }
+
+    #[test]
+    fn the_keys_of_every_window_manager_are_on_the_menu() {
+        let menu = menu(None, &[], crate::config::defaults().effects, None);
+        let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
+            panic!("a group");
+        };
+        let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
+        assert_eq!(
+            titles,
+            [
+                "Super+Alt+1: window to tiling",
+                "Super+Alt+2: window to xp",
+                "Super+Alt+3: window to mc",
+                "Super+Alt+4: window to construct",
+                "Super+a: chat",
+            ]
+        );
+        assert_eq!(rows[0].kind, Kind::Pick(Setting::Give("tiling"), false));
+        assert_eq!(rows[4].kind, Kind::Run("chora-chat".into()));
     }
 
     #[test]
