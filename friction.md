@@ -219,3 +219,13 @@ they checked against the shared design note, not against each look's
 people. Fix: design documents per look (design/looks/), shared
 invariants only where they matter, a combination document for the
 seams, and UI reviews against the look's own document first.
+
+## 30 (11-11 ~21:40): a new worker session could not run setup.sh
+The construct-hud worker session (opus) was refused `bash ../log/setup.sh`
+by its permission classifier ("code from external"); without it no
+build, hooks or captures. It stopped correctly. Earlier workers ran the
+same script. Workaround: the lane runs as a local agent in this
+container (setup done); the overlay and marble lanes follow locally
+when disk allows. For next week: ask the user whether the cloud
+environment's own setup script can run setup.sh, so new workers start
+ready.

@@ -48,3 +48,12 @@ Build lane starts now (tint fallback until the core blur merges); the
 floor reflection gets a roughness blur like polished marble (blurred,
 fading with distance from the pane, a faint Fresnel); then a UI
 refinement loop of up to 3 rounds with a separate reviewer.
+
+## Lanes split (11-11 ~21:40)
+1. claude/construct-hud: the HUD itself plus the construct layout audit
+   (local agent, wt/hud).
+2. claude/keys-overlay: the shared bindings overlay in chora-kit, wired
+   into all four window managers, mc Agenda off Super+A (local, wt/keys,
+   when disk allows).
+3. Marble floor reflections: after the core blur merges.
+4. UI refinement loop: separate reviewer, up to 3 rounds.
