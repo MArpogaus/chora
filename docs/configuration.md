@@ -254,6 +254,12 @@ hand-over fails, the window stays and goes back to the middle of its
 output.
 Mouse resizes of floating windows do not exist.
 
+No `MOD` chord that no binding uses reaches a program: `chora-tiling`
+grabs `MOD+KEY`, `MOD+Shift+KEY` and `MOD+Ctrl+KEY` for the letters, the
+digits, the punctuation, `F1` to `F12`, the navigation keys and `Print`,
+and swallows the ones that the file does not bind, so `Super+q` types no
+`q` in a terminal. A key that the file binds keeps its action.
+
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
 and `get_tags` changes something and answers with the layout info of the current tag,
