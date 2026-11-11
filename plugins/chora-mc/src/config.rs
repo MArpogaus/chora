@@ -39,6 +39,9 @@ pub enum Action {
     /// Gives the focused window to the window manager of this name (D55),
     /// whoever owns it.
     Give(String),
+    /// On a pointer button: a window of mc that is pressed and let go on
+    /// the claim of another window manager goes to that one (D55).
+    Drag,
     /// Shows or hides a region; a docked app takes the focus first.
     Toggle(Region),
     /// Shows a content alone in a region over any scene, or hides it.
@@ -493,6 +496,13 @@ mod tests {
     use chora_kit::settings::parse;
 
     use super::*;
+
+    /// The default drags a window of mc with Super and the left button.
+    #[test]
+    fn the_default_binds_the_drag_to_a_pointer_button() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.bindings["Super+BTN_LEFT"], Action::Drag);
+    }
 
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {

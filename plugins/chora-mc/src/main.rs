@@ -315,6 +315,8 @@ struct Mc {
     shape: Option<Value>,
     /// The surface that the plugin gave the keyboard last.
     focused: Option<String>,
+    /// The window that a `drag` binding holds since its press.
+    dragged: Option<String>,
     /// The activation tokens of the apps of `app.open`: voice and agents
     /// start them, and their first window does not take the keyboard.
     quiet: BTreeSet<String>,
@@ -482,6 +484,7 @@ impl Mc {
             shape: None,
             rendered: None,
             focused: None,
+            dragged: None,
             quiet: BTreeSet::new(),
             dock_focus: None,
             clocks: BTreeMap::new(),
@@ -774,6 +777,16 @@ impl Plugin for Mc {
                 ..
             } => {
                 self.act(&binding);
+                Ok(())
+            }
+            Event::InputButton {
+                binding,
+                state,
+                position,
+                surface,
+                ..
+            } => {
+                self.drag(&binding, state, position, surface);
                 Ok(())
             }
             // `voice.*` also matches a client named `voice.evil`: only
@@ -1306,6 +1319,7 @@ impl Mc {
         self.rt.announce(&EVENTS, methods)?;
         self.grab_all()?;
         self.build()?;
+        self.grab_drags()?;
         let first = self.order().into_iter().next();
         let default = Some(self.settings.value.default_scene.clone())
             .filter(|v| self.scenes.contains_key(v))
@@ -1335,14 +1349,35 @@ impl Mc {
     /// only logs.
     #[allow(clippy::expect_used, reason = "the settings check their bindings")]
     fn grab_all(&mut self) -> Result<(), ClientError> {
-        for (text, action) in self.settings.value.bindings.clone() {
-            let binding = text.parse().expect("the settings check their bindings");
-            self.rt.grab(binding, action)?;
+        self.grab_some(|action| *action != Action::Drag)?;
+        if self.built {
+            self.grab_drags()?;
         }
         self.rt.give_keys(Some(|to| Action::Give(to.into())));
         self.rt
             .accept_injected(self.settings.value.test_accept_injected_keys);
         self.rt.grab_give_keys()
+    }
+
+    /// Grabs the bindings whose action `wanted` accepts.
+    #[allow(clippy::expect_used, reason = "the settings check their bindings")]
+    fn grab_some(&mut self, wanted: impl Fn(&Action) -> bool) -> Result<(), ClientError> {
+        let bindings = self.settings.value.bindings.clone();
+        for (text, action) in bindings.into_iter().filter(|(_, a)| wanted(a)) {
+            let binding = text.parse().expect("the settings check their bindings");
+            self.rt.grab(binding, action)?;
+        }
+        Ok(())
+    }
+
+    /// Grabs the `drag` bindings, after the build that sets the claim:
+    /// only window managers with a claim share a pointer button (D55),
+    /// so mc grabs none unless it manages windows.
+    fn grab_drags(&mut self) -> Result<(), ClientError> {
+        if !self.manage_windows {
+            return Ok(());
+        }
+        self.grab_some(|action| *action == Action::Drag)
     }
 
     /// The claim: the work area of an output, below the header and above
@@ -2657,6 +2692,37 @@ impl Mc {
         self.render()
     }
 
+    /// A drag (D55): the press takes the window of mc that asked for a
+    /// move, else the window of the scene that shows, and a release on the claim of another window manager hands the
+    /// window to that one. Elsewhere the window stays; mc moves none.
+    fn drag(&mut self, binding: &str, state: PressState, point: [f64; 2], on: Option<String>) {
+        if !matches!(self.rt.action(binding), Some(Action::Drag)) {
+            return;
+        }
+        if state == PressState::Pressed {
+            let shown = || self.windows.get(self.current.as_deref()?).cloned();
+            self.dragged = on
+                .filter(|s| self.windows.values().any(|w| w == s))
+                .or_else(shown);
+            return;
+        }
+        let Some(surface) = self.dragged.take() else {
+            return;
+        };
+        let given = match self.rt.conn.claimant_at(point) {
+            Ok(Some(to)) if to != NAME => self.give(chora_kit::give::Give {
+                surface: surface.clone(),
+                to,
+                grab: None,
+            }),
+            Ok(_) => return,
+            Err(err) => Err(err),
+        };
+        if let Err(err) = given {
+            eprintln!("chora-mc: {surface} stays: {}", err.message);
+        }
+    }
+
     fn act(&mut self, binding: &str) {
         let Some(action) = self.rt.action(binding).cloned() else {
             return;
@@ -2683,6 +2749,7 @@ impl Mc {
                 }
                 return;
             }
+            Action::Drag => return,
             Action::Toggle(region) => {
                 if let Err(err) = self.toggle(region, None, true) {
                     eprintln!("chora-mc: toggle {}: {err}", region.name());

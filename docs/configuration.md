@@ -499,12 +499,19 @@ with `settings.reload`:
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
   scene file may set its own `chapter.number`.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`,
+  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
   `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
   `region.solo`; the default `Super+F12` shows the test overlay in the
   drawer). `give: NAME` gives the focused window to the window manager
   `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
-  construct with no line in the file.
+  construct with no line in the file. `drag` is for a pointer button
+  (the default `Super+BTN_LEFT`) and works with `--manage-windows`: a
+  window of mc that is pressed and let go on the area of another window
+  manager goes to that one. mc moves no window itself, so a release
+  elsewhere changes nothing.
+- `test_accept_injected_keys`: `false`; for tests only, the bindings
+  take the keys of `input.inject` as keys of the user (see
+  [Injected keys](#injected-keys)).
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -747,6 +754,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
 | `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
 
@@ -1723,6 +1731,7 @@ that the file leaves out takes its default:
 | `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
 
 Migration: a `chora-xp.yaml` from before the split has the key `assistant`,

@@ -147,7 +147,9 @@ default_scene: agenda
 order: [agenda, morning, agents, mission, terminal, overview]
 # A binding and its action: next_scene, previous_scene, {scene: NAME},
 # {run: COMMAND}, which starts a shell command whose window gets a scene
-# of its own, {toggle: REGION}, which shows or hides a region; a docked
+# of its own, drag on a pointer button, which gives the pressed window
+# to the window manager on whose area the button is let go (only with
+# --manage-windows), {toggle: REGION}, which shows or hides a region; a docked
 # app in it takes the focus first, the next press hides it, or
 # {solo: {content: NAME, region: REGION}}, which shows the content alone
 # in the region over any scene; the next press hides it again.
@@ -162,6 +164,7 @@ bindings:
   Super+Up: {toggle: header}
   Super+Down: {toggle: footer}
   Super+F12: {solo: {content: overlay, region: drawer}}
+  Super+BTN_LEFT: drag
 # The states of an agent of agent.set: the sign and the color of each,
 # and a label for the agents scene; without a label, the name.
 states:
