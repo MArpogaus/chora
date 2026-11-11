@@ -386,3 +386,11 @@ anonymised reports using a small shell script."
    GitHub issue text (title, answers, versions, the paste link) and the
    new-issue URL with the text filled in. No upload without that yes;
    a `--no-upload` path keeps the file-only report.
+
+## U3 (11-11): one surface per helper conversation, in every look
+Seen in hud-mc/-dark and hud-construct/-dark after the theme merge: the
+construct shows a floating sentence balloon apart from the open chat,
+and mc repeats the sentence top right while the drawer is open. Rule
+(as the user set for xp): while the chat is open, the sentence and the
+question live inside the chat surface; no second balloon. Also OPEN CUBE
+touches the screen edge (fix pending in claude/ux-construct).
