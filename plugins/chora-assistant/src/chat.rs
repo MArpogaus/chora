@@ -679,10 +679,26 @@ impl Session {
             .ok()
             .and_then(|text| text.as_str().map(parse_list))
             .unwrap_or_default();
+        if let Some(last) = self.only_helper(&picks) {
+            self.open_chat(out, &last);
+            return;
+        }
         self.mode = Mode::List(picks);
         if let Some(link) = self.link.as_mut() {
             link.clear();
         }
+    }
+
+    /// The helper of the last chat when it is the only one that runs: a
+    /// person who closed its chat reopens that chat, not a list of one.
+    fn only_helper(&self, picks: &[Pick]) -> Option<String> {
+        let mut agents = picks.iter().filter_map(|pick| match pick {
+            Pick::Agent(name) => Some(name),
+            Pick::Project(_) => None,
+        });
+        let (only, none_more) = (agents.next()?, agents.next().is_none());
+        let last = self.last.as_deref()?;
+        (none_more && only.eq_ignore_ascii_case(last)).then(|| only.clone())
     }
 
     fn close_chat(&mut self, out: &mut dyn Outside) {
@@ -1196,6 +1212,19 @@ mod tests {
 
     use super::*;
     use crate::context::Switcher;
+
+    #[test]
+    fn the_last_helper_reopens_when_it_is_the_only_one() {
+        let mut session = Session::new();
+        let one = [Pick::Agent("Atlas".into()), Pick::Project("notes".into())];
+        assert_eq!(session.only_helper(&one), None, "no chat was open yet");
+        session.last = Some("atlas".into());
+        assert_eq!(session.only_helper(&one).as_deref(), Some("Atlas"));
+        let two = [Pick::Agent("Atlas".into()), Pick::Agent("Vega".into())];
+        assert_eq!(session.only_helper(&two), None, "two helpers: a list");
+        session.last = Some("Vega".into());
+        assert_eq!(session.only_helper(&one), None, "the last one is gone");
+    }
 
     #[derive(Default)]
     struct Log {

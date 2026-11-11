@@ -181,6 +181,9 @@ run_theme() {
 
     key Super+a
     until_ok 'node_exists hud-chat' 40 || fail "$theme: no chat for the second question"
+    until_ok 'node_exists hud-chat-stop' 20 || fail "$theme: Super+a after Esc does not reopen the chat of the one helper"
+    node_exists hud-chat-pick-1 && fail "$theme: Super+a after Esc shows the list of helpers again"
+    ok "$theme: Super+a after Esc reopens the chat of the one helper"
     ask 72
     until_ok 'node_exists hud-card' 40 || fail "$theme: no card for the second question"
     sleep 1

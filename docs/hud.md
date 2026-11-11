@@ -339,6 +339,11 @@ values only. A folder without the block gets the neutral chat.
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers, exactly as announced: the view never steps aside in it, and it does not move or grow while a question shows. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. The client also gives the theme of the look where no window manager claims the screen. A folder with a slot draws no "Chat ..." row and no row of a helper, and its question card takes the page of the look, see below. |
 
+Where a person closed the chat of a helper and that helper is the only one
+that runs, the next open without a name (Super+a, a click on the door)
+shows its chat with its draft, not a list of one; with two helpers or
+none that was chosen, the list shows.
+
 A `glass` chat is the glass column of the construct style (rules 18 to
 25, the tokens of `chora_kit::glass`, light or dark after the theme): 28
 hundredths of the work area wide, from 400 to its `width`, corners of
