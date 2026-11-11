@@ -105,6 +105,37 @@ pub struct Placement {
     /// The client decides when `None`.
     pub size: Option<[i32; 2]>,
     pub states: States,
+    /// The radius of the corners; 0 for square ones.
+    pub radius: u16,
+    /// The size of the frame of the window: its size, or the size that its
+    /// client chose.
+    pub frame: [i32; 2],
+    /// The width of the border around the window; 0 for none.
+    pub border: u16,
+    /// Which colour the border has.
+    pub mark: Mark,
+}
+
+/// The colour of the border of a window.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Mark {
+    /// The line colour: a window without the focus.
+    #[default]
+    Line,
+    /// The accent: the window with the focus.
+    Focus,
+    /// A window that asked for attention.
+    Urgent,
+}
+
+/// How the tiles of a layout look: the grow of the work area to reach the
+/// outer gap, half the inner gap, the radius and the border.
+#[derive(Default)]
+struct TileLook {
+    edge: i32,
+    half: i32,
+    radius: u16,
+    border: u16,
 }
 
 /// The toplevel states of a window.
@@ -551,6 +582,10 @@ impl Wm {
                 at: None,
                 size: None,
                 states: States::default(),
+                radius: 0,
+                frame: [1, 1],
+                border: 0,
+                mark: Mark::Line,
             })
             .collect();
         hidden
@@ -577,42 +612,59 @@ impl Wm {
             tag.layout,
             Layout::Max | Layout::Fullscreen | Layout::Magnifier
         );
+        let TileLook {
+            edge,
+            half,
+            radius,
+            border,
+        } = self.look_of(tag.layout);
         let cells = layout::arrange(
             tag.layout,
             tiled.len(),
-            (output.area, output.full),
+            (layout::grow(output.area, -edge), output.full),
             Some(top_at),
             tag.params,
         );
-        let gap = if tag.layout == Layout::Fullscreen {
-            0
-        } else {
-            i32::from(self.config.gap)
-        };
         let mut placed = Vec::new();
         for (i, (window, cell)) in tiled.iter().zip(cells).enumerate() {
-            let [x, y, w, h] = layout::inset(cell, gap);
+            let [x, y, w, h] = layout::inset(cell, half);
             let states = States {
                 tiled: true,
                 activated: Some(&*window.id) == focused,
                 ..States::default()
             };
-            let rank = if window.on_top {
-                ON_TOP
-            } else if Some(&*window.id) == top {
-                TOP
-            } else if stacks && i == top_at {
-                TILED_TOP
-            } else {
-                TILED
-            };
-            placed.push((rank, placement(window, [x, y], Some([w, h]), states)));
+            let rank = tiled_rank(window, Some(&*window.id) == top, stacks && i == top_at);
+            let mut placed_window = placement(window, [x, y], Some([w, h]), states);
+            placed_window.radius = radius;
+            placed_window.border = border;
+            placed.push((rank, placed_window));
         }
         for window in windows.iter().filter(|w| !self.tiles(w)) {
             let id = Some(&*window.id);
-            placed.push(float(window, output, id == top, id == focused));
+            placed.push(float(
+                window,
+                output,
+                id == top,
+                id == focused,
+                (self.config.look.radius, self.config.look.border),
+            ));
         }
         placed
+    }
+
+    /// The gaps, the radius and the border of the tiles of a layout: the
+    /// max and fullscreen layouts have none.
+    fn look_of(&self, layout: Layout) -> TileLook {
+        if matches!(layout, Layout::Max | Layout::Fullscreen) {
+            return TileLook::default();
+        }
+        let (outer, inner) = self.config.gaps();
+        TileLook {
+            edge: outer - inner / 2,
+            half: inner / 2,
+            radius: self.config.look.radius,
+            border: self.config.look.border,
+        }
     }
 
     fn tiles(&self, window: &Window) -> bool {
@@ -962,7 +1014,27 @@ fn json(value: &impl Serialize) -> String {
 }
 
 /// The placement and the rank of a window that does not tile.
-fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, Placement) {
+/// The stacking rank of a tiled window: `top` is the last raised window,
+/// `shown` the one that a stacking layout shows.
+fn tiled_rank(window: &Window, top: bool, shown: bool) -> u8 {
+    if window.on_top {
+        ON_TOP
+    } else if top {
+        TOP
+    } else if shown {
+        TILED_TOP
+    } else {
+        TILED
+    }
+}
+
+fn float(
+    window: &Window,
+    output: &Output,
+    top: bool,
+    activated: bool,
+    (radius, border): (u16, u16),
+) -> (u8, Placement) {
     let rank = match (window.on_top, top) {
         (true, _) => ON_TOP,
         (false, true) => TOP,
@@ -982,6 +1054,11 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
         };
         return (rank, placement(window, [x, y], Some([w, h]), states));
     }
+    let radius = if window.maximized == (true, true) {
+        0
+    } else {
+        radius
+    };
     let [ax, ay, aw, ah] = output.area;
     let [sw, sh] = window.size.unwrap_or([aw / 2, ah / 2]);
     let (mx, my) = window.maximized;
@@ -999,10 +1076,10 @@ fn float(window: &Window, output: &Output, top: bool, activated: bool) -> (u8, P
         activated,
         ..States::default()
     };
-    (
-        rank,
-        placement(window, at, (mx || my).then_some([w, h]), states),
-    )
+    let mut placed = placement(window, at, (mx || my).then_some([w, h]), states);
+    placed.radius = radius;
+    placed.border = border;
+    (rank, placed)
 }
 
 /// Adds or removes a tag of a window, but keeps its last tag.
@@ -1039,6 +1116,16 @@ fn placement(window: &Window, at: [i32; 2], size: Option<[i32; 2]>, states: Stat
         at: Some(at),
         size,
         states,
+        radius: 0,
+        frame: size.or(window.size).unwrap_or([1, 1]),
+        border: 0,
+        mark: if window.urgent {
+            Mark::Urgent
+        } else if states.activated {
+            Mark::Focus
+        } else {
+            Mark::Line
+        },
     }
 }
 
@@ -1085,7 +1172,13 @@ mod tests {
 
     fn wm(windows: &[&str]) -> Wm {
         let mut wm = Wm::new(chora_kit::settings::parse::<Config>(DEFAULT).unwrap());
-        wm.config.gap = 0;
+        wm.config.look = crate::config::Look {
+            gap_outer: Some(0),
+            gap_inner: Some(0),
+            radius: 0,
+            border: 0,
+            ..crate::config::Look::default()
+        };
         wm.set_output("A", [0, 0, 100, 60], [0, 0, 100, 80]);
         for id in windows {
             wm.add_window(id);

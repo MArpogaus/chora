@@ -189,6 +189,13 @@ pub fn inset([x, y, w, h]: Rect, gap: i32) -> Rect {
     [x + gx, y + gy, (w - 2 * gx).max(1), (h - 2 * gy).max(1)]
 }
 
+/// Grows a rect by `by` on all sides, or shrinks it when `by` is negative,
+/// but never below 1 pixel.
+pub fn grow([x, y, w, h]: Rect, by: i32) -> Rect {
+    let by = by.max(-((w - 1) / 2)).max(-((h - 1) / 2));
+    [x - by, y - by, w + 2 * by, h + 2 * by]
+}
+
 fn transpose([x, y, w, h]: Rect) -> Rect {
     [y, x, h, w]
 }

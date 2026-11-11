@@ -14,7 +14,7 @@ mod layout;
 mod wm;
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
     process::ExitCode,
 };
@@ -26,8 +26,8 @@ use chora_kit::{
     settings::{self, Store},
 };
 use chora_scene::{
-    Command, Event, GivenGrab, NodeKind, OutputInfo, PropsUpdate, ROOT, SurfaceRequest,
-    ToplevelState, Transform,
+    Clip, Command, Event, GivenGrab, InputMode, NodeKind, OutputInfo, PropsUpdate, ROOT,
+    SurfaceRequest, ToplevelState, Transform, Uniform,
     ipc::{ClientError, ExportMethod, PressState, Query, RpcError},
 };
 use clap::Parser;
@@ -37,7 +37,7 @@ use serde_json::{Value, json};
 use crate::{
     config::{Action, Config},
     layout::Layout,
-    wm::{Effect, Placement, States, WINDOW_KEY, Wm},
+    wm::{Effect, Mark, Placement, States, WINDOW_KEY, Wm},
 };
 
 /// The client name, and the group that holds the windows.
@@ -137,6 +137,13 @@ struct Tiling {
     meshes: Vec<Command>,
     /// The indicator of the volume keys.
     volume: chora_kit::volume::Mixer,
+    /// The windows that have a group in the core, by surface id.
+    groups: HashSet<String>,
+    /// The windows that left and whose groups the next transaction removes.
+    stale: Vec<String>,
+    /// The path of the shader of the borders; none without a runtime
+    /// directory, and the windows then have no border.
+    border: Option<String>,
 }
 
 #[allow(clippy::print_stdout, reason = "--print-config prints the default")]
@@ -181,6 +188,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         bent: HashMap::new(),
         meshes: Vec::new(),
         volume: chora_kit::volume::Mixer::new(NAME),
+        groups: HashSet::new(),
+        stale: Vec::new(),
+        border: border_shader(),
     };
     tiling.start()?;
     Ok(serve(&mut tiling)?)
@@ -355,6 +365,10 @@ impl Tiling {
                 Some((n["id"].as_str()?.to_owned(), text))
             })
             .collect();
+        for node in kept {
+            let surface = node["id"].as_str().and_then(|id| id.strip_prefix(GROUP));
+            self.groups.extend(surface.map(str::to_owned));
+        }
         self.wm.restore(&group, &windows);
         for (id, _) in &windows {
             if !self.wm.has(id) {
@@ -398,6 +412,7 @@ impl Tiling {
         self.rt.ungrab_all()?;
         self.wm.reconfigure(self.settings.value.clone());
         self.effects.set(&self.settings.value.effects);
+        self.sent.clear();
         self.grab_all()?;
         self.relayout()
     }
@@ -573,16 +588,8 @@ impl Tiling {
     /// True when the method focuses a window on its own.
     fn tune(&mut self, method: &str, params: Value) -> Result<bool, RpcError> {
         Ok(match method {
-            "set_layout" => {
-                let change: SetLayout = runtime::params(params)?;
-                if let Some(layout) = change.layout {
-                    self.wm.set_layout(layout);
-                }
-                self.wm.config.gap = change.gap.unwrap_or(self.wm.config.gap);
-                false
-            }
-            "next_layout" => {
-                self.wm.act(&Action::NextLayout);
+            "set_layout" | "next_layout" => {
+                self.change_layout(method, params)?;
                 false
             }
             "view_tag" => {
@@ -630,6 +637,24 @@ impl Tiling {
                 ));
             }
         })
+    }
+
+    /// `set_layout` and `next_layout`.
+    fn change_layout(&mut self, method: &str, params: Value) -> Result<(), RpcError> {
+        if method == "next_layout" {
+            self.wm.act(&Action::NextLayout);
+            return Ok(());
+        }
+        let change: SetLayout = runtime::params(params)?;
+        if let Some(layout) = change.layout {
+            self.wm.set_layout(layout);
+        }
+        if let Some(gap) = change.gap {
+            self.wm.config.gap = gap;
+            self.wm.config.look.gap_outer = None;
+            self.wm.config.look.gap_inner = None;
+        }
+        Ok(())
     }
 
     /// A tag number of the configuration.
@@ -942,12 +967,17 @@ impl Tiling {
         if ignored {
             return self.pass_on_reserved(surface);
         }
-        let attach = Command::Attach {
+        let mut commands = Vec::new();
+        if !self.groups.contains(surface) {
+            commands.extend(frame_nodes(surface, self.border.as_deref()));
+        }
+        commands.push(Command::Attach {
             surface: surface.into(),
-            parent: NAME.into(),
-        };
-        match self.call_apply(vec![attach]) {
+            parent: clip_of(surface),
+        });
+        match self.call_apply(commands) {
             Ok(()) => {
+                self.groups.insert(surface.into());
                 // A new window of tiling takes the focus.
                 self.wm.add_window(surface);
                 if let Some(size) = size {
@@ -975,13 +1005,11 @@ impl Tiling {
     fn relayout(&mut self) -> Result<(), ClientError> {
         let placements = self.wm.arrange();
         let mut commands = Vec::new();
-        for placement in &placements {
-            commands.extend(changes(self.sent.get(&placement.id), placement));
-        }
+        commands.extend(self.window_changes(&placements));
         let order: Vec<String> = placements.iter().map(|p| p.id.clone()).collect();
         if order != self.order {
             commands.extend(order.iter().enumerate().map(|(index, id)| Command::Move {
-                id: id.clone(),
+                id: group_of(id),
                 parent: None,
                 index: Some(index),
             }));
@@ -1009,6 +1037,10 @@ impl Tiling {
             });
         }
         commands.append(&mut self.meshes);
+        commands.extend(self.stale.drain(..).map(|id| Command::Remove {
+            id: group_of(&id),
+            to: None,
+        }));
         if commands.is_empty() {
             return Ok(());
         }
@@ -1031,6 +1063,17 @@ impl Tiling {
         Ok(())
     }
 
+    /// The commands that bring the windows from what was sent to their
+    /// placements.
+    fn window_changes(&self, placements: &[Placement]) -> Vec<Command> {
+        let colors = self.wm.config.look.palette.rgb().unwrap_or_default();
+        let shown = self.border.is_some().then_some(&colors);
+        placements
+            .iter()
+            .flat_map(|p| changes(self.sent.get(&p.id), p, shown))
+            .collect()
+    }
+
     /// The meta of the group and of each window, by node.
     fn meta(&self) -> HashMap<String, BTreeMap<String, String>> {
         let windows = self.wm.window_meta().into_iter();
@@ -1046,6 +1089,9 @@ impl Tiling {
         self.wm.remove_window(id);
         self.sent.remove(id);
         self.saved.remove(id);
+        if self.groups.remove(id) {
+            self.stale.push(id.into());
+        }
         self.effects.cancel_wobble(id);
         self.bent.remove(id);
         // The focus on it is no longer that of tiling: when the window
@@ -1135,6 +1181,88 @@ fn taken(
     }
 }
 
+/// The prefix of the id of the group that frames a window.
+const GROUP: &str = "tw-";
+
+/// The id of the node that clips a window to its corners.
+fn clip_of(surface: &str) -> String {
+    format!("tc-{surface}")
+}
+
+/// The id of the node that draws the border of a window.
+fn border_of(surface: &str) -> String {
+    format!("tb-{surface}")
+}
+
+/// The nodes of a new window: the group that carries it, the border and
+/// the clip that holds the surface.
+fn frame_nodes(surface: &str, border: Option<&str>) -> Vec<Command> {
+    let create = |id: String, kind, parent: String, props| Command::Create {
+        id,
+        kind,
+        parent,
+        props,
+    };
+    let hidden = PropsUpdate {
+        size: Some([1.0, 1.0]),
+        visible: Some(false),
+        ..PropsUpdate::default()
+    };
+    let mut nodes = vec![create(
+        group_of(surface),
+        NodeKind::Group,
+        NAME.into(),
+        hidden.clone(),
+    )];
+    if let Some(shader) = border {
+        let props = PropsUpdate {
+            shader: Some(shader.into()),
+            input: Some(InputMode::Pass),
+            ..hidden
+        };
+        nodes.push(create(
+            border_of(surface),
+            NodeKind::Shader,
+            group_of(surface),
+            props,
+        ));
+    }
+    nodes.push(create(
+        clip_of(surface),
+        NodeKind::Group,
+        group_of(surface),
+        PropsUpdate {
+            size: Some([1.0, 1.0]),
+            ..PropsUpdate::default()
+        },
+    ));
+    nodes
+}
+
+/// The shader of the borders, written into the runtime directory of the
+/// user; none when there is none, or it is no absolute path (the shared
+/// temporary directory would let another user plant it first).
+fn border_shader() -> Option<String> {
+    let runtime = std::path::PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
+    let path = runtime.join("chora-tiling").join("border.frag");
+    let text = include_str!("../border.frag");
+    runtime.is_absolute().then_some(())?;
+    if chora_kit::read_text(&path, chora_kit::MAX_TEXT)
+        .ok()
+        .as_deref()
+        != Some(text)
+    {
+        chora_kit::write_file(&path, text.as_bytes()).ok()?;
+    }
+    Some(path.to_string_lossy().into_owned())
+}
+
+/// The id of the group of a window: it holds the surface, clips it to the
+/// rounded corners and carries its position.
+fn group_of(surface: &str) -> String {
+    format!("{GROUP}{surface}")
+}
+
 /// Whether an answered request takes the window out of tiling: the core
 /// accepted a `move` to a parent that is not the tiling group. A rejected
 /// transaction leaves the window managed (D31).
@@ -1162,10 +1290,13 @@ fn answers(wm: &mut Wm, node: &str, action: &str, args: &Value) -> Option<Vec<Co
         }]),
         "move" => Some(vec![Command::Move {
             id: node.into(),
-            parent: args
-                .get("parent")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
+            parent: args.get("parent").and_then(Value::as_str).map(|p| {
+                if p == NAME {
+                    group_of(node)
+                } else {
+                    p.to_owned()
+                }
+            }),
             index: args
                 .get("index")
                 .and_then(Value::as_u64)
@@ -1211,7 +1342,12 @@ fn styled(style: &config::Style, surface: &str) -> Command {
 }
 
 /// The commands that bring a window from what was sent to its placement.
-fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
+/// `colors` are the colours of the palette when the window has a border.
+fn changes(
+    sent: Option<&Placement>,
+    placement: &Placement,
+    colors: Option<&[[f64; 3]; 4]>,
+) -> Vec<Command> {
     let id = &placement.id;
     let Some([x, y]) = placement.at else {
         return hide(sent, id);
@@ -1220,17 +1356,81 @@ fn changes(sent: Option<&Placement>, placement: &Placement) -> Vec<Command> {
     if sent.is_none_or(|s| s.size != placement.size || s.states != placement.states) {
         commands.push(configure(id, placement.size, placement.states));
     }
-    if sent.is_none_or(|s| s.at != placement.at) {
-        commands.push(Command::Update {
-            id: id.clone(),
-            props: PropsUpdate {
+    let moved = sent.is_none_or(|s| s.at != placement.at);
+    if moved {
+        commands.push(update(
+            group_of(id),
+            PropsUpdate {
                 transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
                 visible: Some(true),
                 ..PropsUpdate::default()
             },
-        });
+        ));
+    }
+    let reshaped = sent.is_none_or(|s| s.frame != placement.frame);
+    let rounded = sent.is_none_or(|s| s.radius != placement.radius);
+    if reshaped || rounded {
+        let mut props = PropsUpdate::default();
+        if reshaped {
+            props.size = Some(placement.frame.map(f64::from));
+        }
+        if rounded {
+            props.clip = Some((placement.radius > 0).then(|| Clip {
+                radius: f64::from(placement.radius),
+            }));
+        }
+        commands.push(update(clip_of(id), props));
+    }
+    if let Some(colors) = colors
+        && sent.is_none_or(|s| {
+            s.frame != placement.frame
+                || s.radius != placement.radius
+                || s.border != placement.border
+                || s.mark != placement.mark
+        })
+    {
+        commands.push(border_update(id, placement, colors));
     }
     commands
+}
+
+fn update(id: String, props: PropsUpdate) -> Command {
+    Command::Update { id, props }
+}
+
+/// The update of the border node of a window: its size and place around
+/// the window, its colours and whether it shows.
+fn border_update(id: &str, placement: &Placement, colors: &[[f64; 3]; 4]) -> Command {
+    let width = f64::from(placement.border);
+    let [from, to] = match placement.mark {
+        Mark::Focus => [colors[0], colors[1]],
+        Mark::Line => [colors[2]; 2],
+        Mark::Urgent => [colors[3]; 2],
+    };
+    let color = |[r, g, b]: [f64; 3]| Uniform::Vector(vec![r, g, b, 1.0]);
+    let [w, h] = placement.frame.map(f64::from);
+    update(
+        border_of(id),
+        PropsUpdate {
+            visible: Some(placement.border > 0),
+            size: Some([w + 2.0 * width, h + 2.0 * width]),
+            transform: Some(Transform::translate(-width, -width, 0.0)),
+            uniforms: Some(BTreeMap::from([
+                ("from".to_owned(), color(from)),
+                ("to".to_owned(), color(to)),
+                (
+                    "radius".to_owned(),
+                    Uniform::Float(f64::from(placement.radius) + width),
+                ),
+                ("width".to_owned(), Uniform::Float(width)),
+                (
+                    "logical".to_owned(),
+                    Uniform::Vector(vec![w + 2.0 * width, h + 2.0 * width]),
+                ),
+            ])),
+            ..PropsUpdate::default()
+        },
+    )
 }
 
 /// The update from the saved meta of a node to its new meta. A key that
@@ -1264,7 +1464,7 @@ fn hide(sent: Option<&Placement>, id: &str) -> Vec<Command> {
         commands.push(configure(id, sent.size, states));
     }
     commands.push(Command::Update {
-        id: id.into(),
+        id: group_of(id),
         props: PropsUpdate {
             visible: Some(false),
             ..PropsUpdate::default()
@@ -1517,6 +1717,9 @@ mod tests {
             bent: HashMap::new(),
             meshes: Vec::new(),
             volume: chora_kit::volume::Mixer::new(NAME),
+            groups: HashSet::new(),
+            stale: Vec::new(),
+            border: None,
         };
         (tiling, methods)
     }
@@ -2013,8 +2216,12 @@ mod tests {
             at: Some([0, 0]),
             size: Some([10, 10]),
             states: States::default(),
+            radius: 0,
+            frame: [10, 10],
+            border: 0,
+            mark: Mark::Line,
         };
-        assert!(changes(None, &placed).iter().all(|c| !matches!(c,
+        assert!(changes(None, &placed, None).iter().all(|c| !matches!(c,
             Command::Update { props, .. } if props.opacity.is_some() || props.effects.is_some())));
     }
 
@@ -2031,13 +2238,17 @@ mod tests {
             at: None,
             size: None,
             states: States::default(),
+            radius: 0,
+            frame: [10, 10],
+            border: 0,
+            mark: Mark::Line,
         };
-        let commands = changes(None, &hidden);
+        let commands = changes(None, &hidden, None);
         assert!(matches!(
             &commands[..],
             [Command::Update { props, .. }] if props.visible == Some(false)
         ));
-        assert_eq!(changes(Some(&hidden), &hidden).len(), 0);
+        assert_eq!(changes(Some(&hidden), &hidden, None).len(), 0);
     }
 }
 

@@ -10,8 +10,28 @@ modifier: Super
 # For tests only: take the keys of input.inject as keys of the user. Off,
 # the bindings ignore injected keys; keep it off outside tests.
 test_accept_injected_keys: false
-# The gap around each window, in logical pixels.
+# The gap of the old look, in logical pixels: the edge gets it, two tiles
+# get twice. It applies where look has null for a gap, and the method
+# set_layout sets it.
 gap: 4
+# The look of the windows, in logical pixels: the gap between the tiles and
+# the edge of the work area, the gap between two tiles and the radius of the
+# corners. The max and fullscreen layouts have no gap and no corners.
+look:
+  gap_outer: 12
+  gap_inner: 10
+  radius: 10
+  # The width of the border around each window, outside it; 0 for none. The
+  # max and fullscreen layouts have none.
+  border: 2
+  # The colours of the border, #rrggbb: the focused window has a gradient
+  # from accent to accent_2 (the same colour twice makes it solid), the
+  # others line, and a window that asked for attention urgent.
+  palette:
+    accent: '#a78bfa'
+    accent_2: '#5eead4'
+    line: '#2e3344'
+    urgent: '#f87171'
 # The number of tags of each output, at most 16.
 tags: 9
 # The layouts in the order of next_layout. Each tag starts with the first.

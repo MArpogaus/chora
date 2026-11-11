@@ -220,7 +220,8 @@ default map:
 | Option | Meaning |
 |--------|---------|
 | `modifier` | what `MOD` means in the bindings: Super or Alt |
-| `gap` | the gap around each window, in logical pixels |
+| `gap` | the gap of the old look, in logical pixels: the edge gets it, two tiles get twice; it applies where `look` has `null` for a gap, and `set_layout` sets it |
+| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the tiles and the edge of the work area, `gap_inner` (10) between two tiles, `radius` (10) of the corners, `border` (2) the width of the border outside each window and `palette` its colours (`accent`, `accent_2`, `line`, `urgent`, each `#rrggbb`); `gap_outer` and `gap_inner` take `gap` when `null`; the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
 | `tags` | the number of tags of each output, at most 16 |
 | `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
@@ -253,6 +254,18 @@ whose claim holds the drop point (D55). Without one there, or when the
 hand-over fails, the window stays and goes back to the middle of its
 output.
 Mouse resizes of floating windows do not exist.
+
+Each window sits in a group of its own, `tw-ID` in the scene. The group
+carries the position and holds the border, `tb-ID`, a shader node that
+`chora-tiling` writes to `$XDG_RUNTIME_DIR/chora-tiling/border.frag`, and
+the clip `tc-ID`, which holds the surface and rounds its corners to
+`look.radius`. Tools that query `parent` of a window find `tc-ID`.
+
+The focus mark is the border: the focused window has a 2 px gradient at
+135 degrees from `look.palette.accent` to `accent_2` (the same colour twice
+makes it solid), the others `line`, and a window that asked for attention
+`urgent`, without blinking. Light means focus, so no other part of the
+look uses `accent_2`.
 
 No `MOD` chord that no binding uses reaches a program: `chora-tiling`
 grabs `MOD+KEY`, `MOD+Shift+KEY` and `MOD+Ctrl+KEY` for the letters, the

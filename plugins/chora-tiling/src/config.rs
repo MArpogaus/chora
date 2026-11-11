@@ -205,6 +205,115 @@ pub struct Style {
     pub effects: Vec<ShaderEffect>,
 }
 
+/// The look of the windows: the values of the design, in logical pixels.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields, default)]
+pub struct Look {
+    /// The gap between the tiles and the edge of the work area. `null`
+    /// takes `gap`.
+    pub gap_outer: Option<u16>,
+    /// The gap between two tiles. `null` takes twice `gap`.
+    pub gap_inner: Option<u16>,
+    /// The radius of the corners of a window; 0 for square ones.
+    pub radius: u16,
+    /// The width of the border around a window, outside it; 0 for none.
+    pub border: u16,
+    /// The colours of the border.
+    pub palette: Palette,
+}
+
+/// The colours of the look, each `#rrggbb`.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields, default)]
+pub struct Palette {
+    /// The border of the focused window, at the top left of its gradient.
+    pub accent: String,
+    /// The bottom right end of the gradient of the focus border; the same
+    /// as `accent` for a solid border.
+    pub accent_2: String,
+    /// The border of a window that has no focus.
+    pub line: String,
+    /// The border of a window that asked for attention.
+    pub urgent: String,
+}
+
+impl Default for Palette {
+    fn default() -> Self {
+        Self {
+            accent: "#a78bfa".into(),
+            accent_2: "#5eead4".into(),
+            line: "#2e3344".into(),
+            urgent: "#f87171".into(),
+        }
+    }
+}
+
+impl Palette {
+    /// The colours as `(name, [r, g, b])`, each channel from 0 to 1, or the
+    /// name of the colour that is no `#rrggbb`.
+    ///
+    /// # Errors
+    ///
+    /// A colour is not `#rrggbb`.
+    pub fn rgb(&self) -> Result<[[f64; 3]; 4], String> {
+        let parse = |name: &str, text: &str| -> Result<[f64; 3], String> {
+            let digits = text.strip_prefix('#').filter(|d| d.len() == 6);
+            let value = digits.and_then(|d| u32::from_str_radix(d, 16).ok());
+            let value = value.ok_or_else(|| format!("look.palette.{name}: #rrggbb"))?;
+            Ok([16, 8, 0].map(|shift| f64::from((value >> shift) & 255) / 255.0))
+        };
+        Ok([
+            parse("accent", &self.accent)?,
+            parse("accent_2", &self.accent_2)?,
+            parse("line", &self.line)?,
+            parse("urgent", &self.urgent)?,
+        ])
+    }
+}
+
+impl Look {
+    /// Whether the values are within their limits.
+    fn check(&self) -> Result<(), String> {
+        for (name, gap) in [
+            ("look.gap_outer", self.gap_outer),
+            ("look.gap_inner", self.gap_inner),
+        ] {
+            if gap.is_some_and(|g| g > MAX_GAP) {
+                return Err(format!("{name}: at most {MAX_GAP}"));
+            }
+        }
+        self.palette.rgb()?;
+        if self.border > MAX_BORDER {
+            return Err(format!("look.border: at most {MAX_BORDER}"));
+        }
+        if self.radius > MAX_RADIUS {
+            return Err(format!("look.radius: at most {MAX_RADIUS}"));
+        }
+        Ok(())
+    }
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Self {
+            gap_outer: Some(12),
+            gap_inner: Some(10),
+            radius: 10,
+            border: 2,
+            palette: Palette::default(),
+        }
+    }
+}
+
+/// The most that a gap of the look can be.
+pub const MAX_GAP: u16 = 128;
+
+/// The most that the border of the look can be.
+pub const MAX_BORDER: u16 = 16;
+
+/// The most that the radius of the look can be.
+pub const MAX_RADIUS: u16 = 64;
+
 /// The configuration of the plugin.
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -215,8 +324,13 @@ pub struct Config {
     /// user. Off, the bindings ignore injected keys.
     #[serde(default)]
     pub test_accept_injected_keys: bool,
-    /// The gap around each window, in logical pixels.
+    /// The gap of the old look, in logical pixels around each window: the
+    /// edge gets it, two tiles get twice. It applies where `look` has
+    /// `null` for a gap, and `set_layout` sets it.
     pub gap: u16,
+    /// The look of the windows.
+    #[serde(default)]
+    pub look: Look,
     /// The number of tags of each output.
     pub tags: usize,
     /// The layouts in the order of `next_layout`.
@@ -252,6 +366,7 @@ impl Settings for Config {
         if !SHARE.contains(&self.master_width) {
             return Err("master_width: from 0.05 to 0.95".into());
         }
+        self.look.check()?;
         if self.columns == 0 {
             return Err("columns: at least 1".into());
         }
@@ -302,6 +417,16 @@ impl Settings for Config {
 }
 
 impl Config {
+    /// The gaps in use: the one to the edge and the one between tiles.
+    #[must_use]
+    pub fn gaps(&self) -> (i32, i32) {
+        let gap = i32::from(self.gap);
+        (
+            self.look.gap_outer.map_or(gap, i32::from),
+            self.look.gap_inner.map_or(2 * gap, i32::from),
+        )
+    }
+
     /// The `MOD` chords that a program must not get: every key of
     /// [`SWALLOWED`] with `MOD`, `MOD+Shift` and `MOD+Ctrl`.
     pub fn swallowed(&self) -> impl Iterator<Item = Binding> + '_ {
@@ -362,6 +487,20 @@ mod tests {
             assert!(chords.contains(&chord.to_owned()), "{chord}");
         }
         assert!(!chords.iter().any(|c| c.starts_with("Alt+")));
+    }
+
+    #[test]
+    fn the_look_has_the_gaps_and_the_radius_of_the_design() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.gaps(), (12, 10));
+        assert_eq!(config.look.radius, 10);
+        let old = DEFAULT.replace("gap_outer: 12", "gap_outer: null");
+        let old = old.replace("gap_inner: 10", "gap_inner: null");
+        assert_eq!(parse::<Config>(&old).unwrap().gaps(), (4, 8));
+        let wide = DEFAULT.replace("gap_inner: 10", "gap_inner: 900");
+        assert!(parse::<Config>(&wide).unwrap_err().contains("gap_inner"));
+        let round = DEFAULT.replace("radius: 10", "radius: 900");
+        assert!(parse::<Config>(&round).unwrap_err().contains("radius"));
     }
 
     #[test]
