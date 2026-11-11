@@ -126,6 +126,9 @@ const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 const GLASS_SHADER: &str = include_str!("../glass.frag");
 /// The notice of a window that finds no room in the view.
 const NO_ROOM: &str = "No room in view: in the window list (Tab)";
+/// The notice of a typed key that does nothing in the space; the key of
+/// the help follows it.
+const KEYS_WALK: &str = "The keys walk here.";
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
 /// The left button, as Linux names it.

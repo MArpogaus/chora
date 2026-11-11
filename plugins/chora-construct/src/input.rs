@@ -2,9 +2,9 @@
 //! keys.
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, LIST,
-    LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give, hud, space,
-    window_flown_into,
+    Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
+    KEYS_WALK, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL, give,
+    hud, space, window_flown_into,
 };
 
 impl Construct {
@@ -80,14 +80,24 @@ impl Construct {
                 node,
                 key,
                 state: PressState::Pressed,
+                modifiers,
+                text,
                 ..
-            } if node == LOOK => match self.settings.value.keys.get(&key) {
+            } if node == LOOK => match self.settings.value.action(&key, &modifiers) {
                 Some(Action::Terminal) => self.start_terminal(),
                 Some(Action::Launcher) => self.start_launcher(),
                 Some(Action::Close) => return self.close_ahead(),
                 Some(Action::Windows) => return self.open_list(),
                 Some(Action::Help) => return self.toggle_help(),
-                Some(&action) => self.act(action),
+                Some(action) => self.act(action),
+                None if text.is_some() => {
+                    let help = (self.settings.value.keys.iter())
+                        .find(|(_, action)| **action == Action::Help)
+                        .map_or(String::new(), |(key, _)| format!(" {key} shows them all."));
+                    self.voice
+                        .notice(&format!("{KEYS_WALK}{help}"), Instant::now());
+                    return self.draw_hud();
+                }
                 None => {}
             },
             Event::InputKey {

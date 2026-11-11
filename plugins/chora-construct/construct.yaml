@@ -22,7 +22,11 @@ pane_distance: 2000
 # launcher (starts the launcher), close (asks the window of the pane
 # nearest the middle of the view to close), windows (opens and closes
 # the window list) or help (shows and hides the panel of the bindings).
-# The space takes the keyboard, so the keys need no modifier. In the
+# The space takes the keyboard, so the walk keys need no modifier. A key
+# that starts or closes something names Super, as in Super+t, so that
+# text typed into the space by mistake starts nothing; such text gets a
+# short notice that the keys walk. Ctrl, Alt and Super come in that
+# order; Shift is part of the key, as in T. In the
 # window list, Up and Down move the selection, Return chooses, and
 # Escape or the windows key closes it.
 keys:
@@ -40,9 +44,9 @@ keys:
   f: look_down
   h: home
   Return: fly_in
-  t: terminal
-  space: launcher
-  x: close
+  Super+t: terminal
+  Super+space: launcher
+  Super+x: close
   Tab: windows
   F1: help
 # The shell command of the key terminal; its window becomes a pane in

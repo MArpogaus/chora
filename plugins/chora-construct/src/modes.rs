@@ -305,12 +305,12 @@ impl Construct {
     /// keys of the view act and the others go on to the walk. In use
     /// mode the keys of the walk do nothing, so that the face stays at
     /// 1:1; the keys that open something go on.
-    fn key_act(&self, view: View, key: &str) -> Option<Pressed> {
+    fn key_act(&self, view: View, key: &str, modifiers: &[String]) -> Option<Pressed> {
         if let Some(act) = view.key(key) {
             return Some(Pressed::Act(act));
         }
         let opens = matches!(
-            self.settings.value.keys.get(key),
+            self.settings.value.action(key, modifiers),
             Some(Action::Terminal | Action::Launcher | Action::Windows | Action::Help)
         );
         (view.mode() == Mode::Use && !opens).then_some(Pressed::Nothing)
@@ -421,8 +421,9 @@ impl Construct {
                 node,
                 key,
                 state: PressState::Pressed,
+                modifiers,
                 ..
-            } if node == LOOK => self.key_act(view, key),
+            } if node == LOOK => self.key_act(view, key, modifiers),
             Event::PointerPressed {
                 node,
                 button,

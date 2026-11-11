@@ -222,7 +222,8 @@ pub struct Config {
     pub radius: f64,
     /// The distance of a new pane in logical pixels.
     pub pane_distance: f64,
-    /// Keysym name to action.
+    /// Keysym name to action; a key that starts or closes something
+    /// names its modifier, as in `Super+t`.
     pub keys: BTreeMap<String, Action>,
     /// The shell command of the action `terminal`.
     pub terminal: String,
@@ -325,6 +326,19 @@ impl Settings for Config {
 }
 
 impl Config {
+    /// The action of a key that the space got: the key with its Ctrl,
+    /// Alt and Super in that order, as in `Super+t`. Shift is part of
+    /// the key, as in `T`.
+    #[must_use]
+    pub fn action(&self, key: &str, modifiers: &[String]) -> Option<Action> {
+        let mut name: Vec<&str> = ["Ctrl", "Alt", "Super"]
+            .into_iter()
+            .filter(|m| modifiers.iter().any(|held| held == m))
+            .collect();
+        name.push(key);
+        self.keys.get(&name.join("+")).copied()
+    }
+
     /// The rows of the help panel: the keys of each action, the fly-out
     /// binding, and the drag and the wheel with the modifier.
     #[must_use]
@@ -394,10 +408,29 @@ mod tests {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
         config.check().unwrap();
         assert_eq!(config.keys["Return"], Action::FlyIn);
-        assert_eq!(config.keys["space"], Action::Launcher);
+        assert_eq!(config.keys["Super+space"], Action::Launcher);
         assert_eq!(config.keys["Tab"], Action::Windows);
         assert_eq!(config.voice_hud, VoiceHud::Own);
         assert_eq!(config.style.font, "Inter");
+    }
+
+    /// A key that starts or closes something takes the modifier, so
+    /// that text typed into the space starts nothing; the walk keys
+    /// take none, and Shift is part of the key.
+    #[test]
+    fn keys_that_start_or_close_need_super() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let super_ = ["Super".to_owned()];
+        for key in ["t", "space", "x"] {
+            assert_eq!(config.action(key, &[]), None, "{key} alone");
+        }
+        assert_eq!(config.action("t", &super_), Some(Action::Terminal));
+        assert_eq!(config.action("space", &super_), Some(Action::Launcher));
+        assert_eq!(config.action("x", &super_), Some(Action::Close));
+        assert_eq!(config.action("w", &[]), Some(Action::Forward));
+        assert_eq!(config.action("w", &super_), None);
+        let shift = ["Shift".to_owned()];
+        assert_eq!(config.action("Return", &shift), Some(Action::FlyIn));
     }
 
     /// The defaults reach the ratios of rule 5, and a muted that is too

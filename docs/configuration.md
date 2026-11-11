@@ -706,8 +706,8 @@ Else it goes a little to the side, nearer or farther, but only to a spot
 where its whole face shows in the view and covers no other pane. When no
 spot in the view is free, the window becomes no pane: it waits in the
 window list, and the HUD shows "No room in view: in the window list
-(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys `t`
-and `space` and a window that another window manager gives to the
+(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys
+`Super+t` and `Super+space` and a window that another window manager gives to the
 construct follow the same rule. A pane of a construct file and a choice
 in the window list come also when the view is full, beside the panes in
 the way. The space lies on
@@ -737,12 +737,12 @@ at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
 flies back to the pose before. `tests/gate-construct-3d.sh` checks the
 direct input.
 
-`t` starts the terminal, and its window becomes a pane in the view
-direction. `space` starts the launcher. The launcher itself is no pane:
+`Super+t` starts the terminal, and its window becomes a pane in the view
+direction. `Super+space` starts the launcher. The launcher itself is no pane:
 a layer-shell launcher such as fuzzel shows over the space, and a
 launcher window that maps with the activation token of its start shows
 in the middle of the output. The first other window after the launcher
-becomes a pane, also beside another flavor. `x` asks the window of the
+becomes a pane, also beside another flavor. `Super+x` asks the window of the
 pane nearest the middle of the view to close, as a close button does, so
 a program can ask about unsaved work first; the pane goes when the
 window closes. `tests/gate-construct-keys.sh` checks the three keys.
@@ -759,7 +759,7 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help` |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help`. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |

@@ -1,9 +1,11 @@
 #!/bin/bash
 # Gate of the keys that create and close panes in chora-construct:
-# t starts the terminal, and its window becomes a pane; space starts the
-# launcher, whose own window shows without a pane, and the program that
-# it starts becomes a pane; after the launcher the walk has the keyboard
-# again; x asks the window of the pane ahead to close, and its pane goes;
+# text typed into the space starts and closes nothing, and the HUD says
+# that the keys walk; Super+t starts the terminal, and its window becomes
+# a pane; Super+space starts the launcher, whose own window shows without
+# a pane, and the program that it starts becomes a pane; after the
+# launcher the walk has the keyboard again; Super+x asks the window of
+# the pane ahead to close, and its pane goes;
 # pane.remove asks as well, and a window that refuses stays a pane; a
 # radius of settings.set leashes the panes at once.
 # The launcher here is a foot window that starts a second foot; where
@@ -61,11 +63,19 @@ until_ok() {
 }
 
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
-key t
-until_ok 'test "$(panes)" = term' || fail "t: the panes are '$(panes)'"
-ok "t made the terminal the pane term"
+echo '[{"text": {"text": "text x "}}]' | ctl inject || fail "inject text"
+until_ok 'ctl query id:construct-hud-say | grep -q "keys walk"' ||
+    fail "typed text got no notice: $(ctl query id:construct-hud-say)"
+sleep 1
+[ -z "$(panes)" ] || fail "typed text made panes: $(panes)"
+ctl query kind:surface | grep -q '"term"' && fail "typed text started the terminal"
+ok "typed text starts nothing, and the HUD says that the keys walk"
 
-key space
+key Super+t
+until_ok 'test "$(panes)" = term' || fail "Super+t: the panes are '$(panes)'"
+ok "Super+t made the terminal the pane term"
+
+key Super+space
 until_ok 'ctl query kind:surface | grep -q \"launcher\"' ||
     fail "the launcher showed no window"
 [ "$(panes)" = term ] || fail "the launcher became a pane: $(panes)"
@@ -75,9 +85,9 @@ until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no k
 ok "the walk has the keyboard again"
 
 before=$(panes)
-key x
-until_ok 'test "$(panes)" != "$before"' || fail "x closed no pane: $(panes)"
-ok "x closed a pane: $before -> $(panes)"
+key Super+x
+until_ok 'test "$(panes)" != "$before"' || fail "Super+x closed no pane: $(panes)"
+ok "Super+x closed a pane: $before -> $(panes)"
 
 # pane.remove only asks the window to close, as x does: a window that
 # refuses, as chora-probe does, stays a pane, and shows.
@@ -110,7 +120,7 @@ if ! command -v fuzzel >/dev/null; then
 fi
 ctl call construct settings.set '{"launcher": "fuzzel"}' >/dev/null || fail "settings.set launcher"
 for notify in true false; do
-    key space
+    key Super+space
     sleep 2
     echo "[{\"text\": {\"text\": \"Notify$notify\"}}]" | ctl inject || fail "inject Notify$notify"
     sleep 0.5
