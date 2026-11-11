@@ -126,9 +126,9 @@ const MIRROR_SHADER: &str = include_str!("../mirror.frag");
 const GLASS_SHADER: &str = include_str!("../glass.frag");
 /// The notice of a window that finds no room in the view.
 const NO_ROOM: &str = "No room in view: in the window list (Tab)";
-/// The notice of a typed key that does nothing in the space; the key of
-/// the help follows it.
-const KEYS_WALK: &str = "The keys walk here.";
+/// How long the notice of a typed key that does nothing waits before it
+/// shows again.
+const KEYS_WALK_AGAIN: Duration = Duration::from_secs(10);
 /// The client name of the voice agent (docs/voice.md, section 10).
 const VOICE: &str = "voice";
 /// The left button, as Linux names it.
@@ -437,6 +437,8 @@ struct Construct {
     launcher: Option<(String, Option<u32>)>,
     launcher_window: Option<String>,
     launched: Option<Instant>,
+    /// When the notice of the walk keys last showed.
+    keys_walked: Option<Instant>,
     output: Option<OutputInfo>,
     lens: Lens,
     pose: Pose,
@@ -550,6 +552,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         launcher: None,
         launcher_window: None,
         launched: None,
+        keys_walked: None,
         output: None,
         lens: Lens::new(1280.0, 800.0),
         pose: start,

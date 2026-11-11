@@ -142,10 +142,13 @@ pub enum Word {
     NoOutputDevice,
     /// A change of the volume failed.
     ChangeFailed,
+    /// A typed key that does nothing in the construct; `{key}` shows the
+    /// keys.
+    KeysWalk,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 52] = [
+pub const ALL: [Word; 53] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -198,6 +201,7 @@ pub const ALL: [Word; 52] = [
     Word::NoWpctl,
     Word::NoOutputDevice,
     Word::ChangeFailed,
+    Word::KeysWalk,
 ];
 
 impl Word {
@@ -268,6 +272,7 @@ impl Word {
             Self::NoWpctl => "wpctl not found",
             Self::NoOutputDevice => "No output device",
             Self::ChangeFailed => "Change failed",
+            Self::KeysWalk => "The keys walk here. {key} shows them all.",
         }
     }
 
@@ -334,6 +339,7 @@ impl Word {
             Self::NoWpctl => "wpctl nicht gefunden",
             Self::NoOutputDevice => "Kein Ausgabegerät",
             Self::ChangeFailed => "Änderung fehlgeschlagen",
+            Self::KeysWalk => "Hier bewegen die Tasten die Ansicht. {key} zeigt alle.",
         }
     }
 }
