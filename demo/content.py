@@ -2,10 +2,14 @@
 """The content of the panes of the demo scene, for a terminal with sixel.
 
 Usage: demo/content.py KIND [FILE]
-  picture       a generated landscape that fills the terminal
+  picture [SEED]  a generated landscape that fills the terminal
+  mosaic [SEED]   the landscape from half-block characters, two pixels a
+                  cell, for a terminal with a small font and no sixel
   code FILE     a Rust file with syntax colours
   page          a page with headings, text and two generated pictures
+  notes         a page of text only: headings, a list and small charts
   palette       a colour chart with bars
+  bars          a bar chart from half-block characters
 
 Everything is generated here: no asset has a licence of a third party.
 The pictures need Pillow. The terminal size comes from the terminal;
@@ -195,10 +199,32 @@ def code(path):
     sys.stdout.write(bar((187, 154, 247), f"NORMAL  {start + 1}:1  utf-8", columns))
 
 
-def picture():
+def picture(seed):
     columns, lines = cells()
     width, height = cell()
-    sys.stdout.write(sixel(landscape((int(columns * width), int(lines * height) - 1)), 200))
+    sys.stdout.write(sixel(landscape((int(columns * width), int(lines * height) - 1), seed), 200))
+
+
+def mosaic(image):
+    """An image of the size of the terminal in half blocks: the upper
+    pixel of a cell is its foreground, the lower one its background."""
+    columns, lines = cells()
+    pixels = image.convert("RGB").resize((columns, lines * 2), Image.Resampling.LANCZOS).load()
+    rows = []
+    for line in range(lines):
+        row = []
+        for x in range(columns):
+            top, bottom = pixels[x, line * 2], pixels[x, line * 2 + 1]
+            row.append(f"{ESC}[38;2;{top[0]};{top[1]};{top[2]};48;2;{bottom[0]};{bottom[1]};{bottom[2]}m▀")
+        rows.append("".join(row) + f"{ESC}[0m")
+    sys.stdout.write("\r\n".join(rows))
+
+
+def scene(draw, seed):
+    """A picture of four times the pixels of the mosaic, so that the
+    mosaic is smooth."""
+    columns, lines = cells()
+    return draw((columns * 4, lines * 8), seed)
 
 
 def page():
@@ -224,6 +250,35 @@ def page():
     print("  " + rgb((158, 206, 106), "●") + rgb(muted, " scene  ") + rgb((224, 175, 104), "●") + rgb(muted, " plugins  ") + rgb((247, 118, 142), "●") + rgb(muted, " effects"))
 
 
+def notes():
+    columns, _ = cells()
+    width = min(columns, 72) - 4
+    heading, accent, muted = (192, 202, 245), (122, 162, 247), (130, 139, 184)
+    colors = [(247, 118, 142), (255, 158, 100), (224, 175, 104), (158, 206, 106), (125, 207, 255), (187, 154, 247)]
+    rng = random.Random(9)
+    print()
+    print("  " + rgb(heading, "chora", bold=True) + rgb(muted, "  ·  a compositor that gives forms a place"))
+    print("  " + rgb(accent, "─" * width))
+    print()
+    print("  " + rgb(heading, "A desktop on every face", bold=True))
+    for line in (
+        "Each face of the cube is a screen of its own, with a",
+        "taskbar and windows. Step back and the windows float.",
+    ):
+        print("  " + rgb(TEXT, line[:width]))
+    print()
+    items = [("step back", "see the whole cube"), ("turn", "go to the next face"), ("pull", "take a window into the space")]
+    for color, (name, text) in zip(colors[3:], items):
+        print("  " + rgb(color, "●") + " " + rgb(heading, f"{name:<10}", bold=True) + rgb(muted, text[: width - 13]))
+    print()
+    print("  " + rgb(heading, "frames", bold=True) + rgb(muted, "  ms, last minute"))
+    for row, color in enumerate(colors[:4]):
+        levels = [abs(math.sin(i / 6 + row * 1.3)) * (0.55 + 0.45 * rng.random()) for i in range(width)]
+        print("  " + rgb(color, "".join("▁▂▃▄▅▆▇█"[min(int(v * 8), 7)] for v in levels)))
+    print()
+    sys.stdout.write("  " + rgb(colors[3], "●") + rgb(muted, " scene  ") + rgb(colors[2], "●") + rgb(muted, " plugins  ") + rgb(colors[0], "●") + rgb(muted, " effects"))
+
+
 def palette():
     columns, lines = cells()
     names = ["red", "orange", "yellow", "green", "cyan", "blue", "violet"]
@@ -242,11 +297,17 @@ def main():
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
     sys.stdout.write(f"{ESC}[?25l{ESC}[2J{ESC}[H")
     if kind == "picture":
-        picture()
+        picture(int(sys.argv[2]) if len(sys.argv) > 2 else 7)
+    elif kind == "mosaic":
+        mosaic(scene(landscape, int(sys.argv[2]) if len(sys.argv) > 2 else 7))
+    elif kind == "bars":
+        mosaic(scene(chart, 11))
     elif kind == "code" and len(sys.argv) > 2:
         code(sys.argv[2])
     elif kind == "page":
         page()
+    elif kind == "notes":
+        notes()
     elif kind == "palette":
         palette()
     else:
