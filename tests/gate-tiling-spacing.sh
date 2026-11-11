@@ -5,6 +5,8 @@
 # weight); and every gap between two items of the islands, from the edge
 # of an island to the first item, from item to separator, from separator
 # to item, is the same 12 px, within 2 px for the side bearing of a glyph.
+# The tooltips of Apps and Keys stay inside the islands (r2, 12), and the
+# month of the clock marks today (r2, 14).
 #
 # Usage: tests/gate-tiling-spacing.sh   BIN: directory with the binaries
 set -u
@@ -127,3 +129,33 @@ if problems:
     sys.exit("; ".join(problems))
 PY
 ok "12 px between the items of the islands, the layout word left aligned, Keys like Apps"
+
+grant input.inject
+for target in 50 1230; do
+    echo "[{\"pointer_move\": {\"position\": [$target, 24]}}]" | ctl inject - >/dev/null || fail "the pointer move"
+    sleep 0.3
+    echo "[{\"pointer_move\": {\"position\": [$((target + 2)), 25]}}]" | ctl inject - >/dev/null || fail "the pointer move"
+    sleep 2.5
+    ctl capture --output HEADLESS-1 "$shot" >/dev/null || fail "the capture"
+    python3 -I - "$repo/tests/png-pixel.py" "$shot" "$target" <<'PY' || fail "the tooltip at $target does not sit inside its island"
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("png_pixel", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+rows = [bytes(r) for r in mod.rows(open(sys.argv[2], "rb").read())]
+px = lambda x, y: tuple(rows[y][x * 4:x * 4 + 3])
+bg = px(640, 300)
+far = lambda a, b: sum(abs(p - q) for p, q in zip(a, b)) > 20
+cols = [x for x in range(0, 1280) if any(far(px(x, y), bg) for y in range(48, 100))]
+assert cols, "no tooltip under the bar"
+left, right = min(cols), max(cols)
+if int(sys.argv[3]) < 640:
+    assert left >= 12, f"the tooltip starts at x {left}, left of the island at 12"
+else:
+    assert right <= 1267, f"the tooltip ends at x {right}, right of the island at 1267"
+PY
+done
+ok "the tooltips of Apps and Keys stay inside the islands"
+
+grep -q '"today"' "$flavor/waybar/config.jsonc" || fail "the month of the clock does not mark today"
+ok "the month of the clock marks today"

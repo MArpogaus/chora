@@ -250,6 +250,7 @@ fn spell(keys: &str) -> String {
         .map(|key| match key {
             "BTN_LEFT" => "drag",
             "slash" => "/",
+            "space" => "Space",
             "Return" => "Enter",
             "Escape" => "Esc",
             other => other,
@@ -860,6 +861,37 @@ mod tests {
         assert_eq!(plan.size[0], 880.0);
         let tight = laid_out(696.0);
         assert!(tight.size[1] <= 696.0, "the panel is {}", tight.size[1]);
+    }
+
+    #[test]
+    fn the_tooltips_of_the_bar_spell_keys_as_the_key_list_does() {
+        let flavor =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/tiling/waybar");
+        let list: Vec<String> = groups()
+            .iter()
+            .flat_map(|(_, rows)| rows.iter().flat_map(|(keys, _)| keys.split(" / ")))
+            .map(str::to_owned)
+            .collect();
+        let mut named = 0;
+        for file in ["config.jsonc", "layout.sh"] {
+            let text = std::fs::read_to_string(flavor.join(file)).unwrap();
+            for line in text
+                .lines()
+                .filter(|l| l.contains("tip") && !l.contains("de*"))
+            {
+                for word in line
+                    .split(['(', ')', '"', '\\'])
+                    .filter(|w| w.starts_with("Super+"))
+                {
+                    named += 1;
+                    assert!(
+                        list.iter().any(|keys| keys == word),
+                        "{file}: {word} is not spelled like the key list:\n{list:?}"
+                    );
+                }
+            }
+        }
+        assert_eq!(named, 4);
     }
 
     #[test]

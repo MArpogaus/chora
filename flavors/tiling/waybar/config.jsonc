@@ -112,14 +112,17 @@
     "on-click": "choractl call tiling show_keys"
   },
   "custom/power": {
-    "exec": "echo '{\"text\": \" \", \"tooltip\": \"Power menu (Super+Shift+E)\"}'",
+    "exec": "echo '{\"text\": \" \", \"tooltip\": \"Power menu (Super+Shift+e)\"}'",
     "return-type": "json",
     "interval": "once",
     "on-click": "choractl run -- chora-tiling --launch power"
   },
   "clock": {
     "format": "{:%a %d %b %H:%M}",
-    "tooltip-format": "<tt>{calendar}</tt>"
+    "tooltip-format": "<tt>{calendar}</tt>",
+    "calendar": {
+      "format": {"today": "<b><u>{}</u></b>"}
+    }
   },
   "custom/volume": {
     "exec": "sh \"$CHORA_FLAVOR_DIR/waybar/volume.sh\"",
