@@ -15,7 +15,7 @@ Running:
 
 Done 11-11 (late): swarm 2 (9 runs) triaged: 20 verified, 9 rejected (env), `reports/swarm-2/findings.md`; PM card and compact hook (friction 33, 34).
 
-Next, this week (cap 85 % weekly, user 11-11):
+Next, this week (haiku test swarms may run up to 85 % weekly use while they find new issues; user 11-11):
 1. Triage swarm 3; fold the screencast worker's product surprises into feedback.
 2. Cheap lanes: flakes F10/F11, T3 gate-construct-windows, CI draft and release dry run (local only), logging inventory.
 3. Status page refresh after each event.
