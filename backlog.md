@@ -337,3 +337,7 @@ client xp runs already". Same one-line fix in the cube's pre_exec.
 A spoken "Ja" now gets "For this I need a key press or a click" for a
 helper's question, but a key-only question of voice's own turn still
 gets only the earcon (its reply waits blocked). Speak the same phrase.
+
+## T2 (11-11): gate-construct-hud.sh help row count stale
+"the help has 21 rows, not 18": the gate pins an old count after new
+bindings. Not a merge-gate step. Fix the count (or count from config).
