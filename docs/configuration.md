@@ -752,8 +752,14 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 
 While a cube is open, the construct grabs `Ctrl+Alt+Left` and
 `Ctrl+Alt+Right`, which turn the cube by one face, and in use mode
-`fly_out`, which steps back from the front face. In navigate mode
-`Return` and `Escape` step in again ([cube modes](cube-modes.md)).
+`fly_out`, which steps back from the front face. A turn key during a
+turn queues one more turn. In navigate mode `Return` and `Escape` step
+in again ([cube modes](cube-modes.md)). In use mode the keys of the walk
+do nothing, so that the face stays at 1:1; `terminal`, `launcher`,
+`windows` and `help` still work. A binding that another client holds is
+logged, and the chips still work. While the window switcher of xp shows
+on a face, the construct gives `fly_out` up, so that `Alt+Escape`
+cancels the switcher; xp tells it with the event `xp.switcher`.
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
@@ -845,8 +851,8 @@ windows of the other flavor.
 | `pane.fly` | `name`: flies into the pane |
 | `cube.open` | privileged. `faces`, 1 to 4, 4 by default: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
 | `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 500 a quarter turn by default; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view |
-| `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, the construct takes the keyboard, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the top right. Answers the `mode`, `use` or `navigate`. Refused without a cube |
-| `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, the window that had the keyboard before the step back gets it again, and the chip `STEP BACK` shows. Answers the `mode`. Refused without a cube |
+| `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
+| `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. The window that had the keyboard before a person stepped back gets it again, when its face is at the front again. Answers the `mode`. Refused without a cube |
 | `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
@@ -1652,7 +1658,7 @@ of another client changes nothing.
 | Alt+F4 | close the focused window |
 | Ctrl+Escape | open or close the start menu |
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
-| Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. |
+| Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
 | Super+e | start the terminal |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |

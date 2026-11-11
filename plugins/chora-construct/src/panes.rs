@@ -323,6 +323,7 @@ impl Construct {
         self.rt.conn.apply(commands)?;
         self.draw_hud()?;
         self.draw_ask()?;
+        self.draw_modes()?;
         self.frame()
     }
 

@@ -26,8 +26,11 @@ the view, not to a window.
 | use | the front face at 1:1, and the control `STEP BACK` | the face: pointer and keys reach the window manager and its windows |
 | navigate | the cube from a step back, with its edges, and the controls `TURN LEFT`, `TURN RIGHT` and `STEP IN` | the construct: the pointer and the keys move the view and turn the cube |
 
+| turning, in either mode | the cube on its way to the next face | nothing: no face takes input; one more turn key or turn chip queues one turn |
+
 A turn is a part of both modes: while the cube turns, no face takes
-input, and the mode after the turn is the mode before it. The session
+input, and the mode after the turn is the mode before it. A click on a
+face during a turn does nothing. The session
 starts in use mode when a cube opens, as a fly-in ends today. A lock
 ends neither mode; an unlocked session shows the mode of before.
 
@@ -58,14 +61,22 @@ mode.
 ## The visible way in
 
 The controls are glass chips of the construct style, in the role
-`label`, at the top right of the screen, in the overlay of the screen,
-so that no window covers them. In use mode one chip shows, `STEP BACK`.
-It is small and calm: it must not compete with the work on the face. In
+`text`, one line and at least 24 px high, in the overlay of the screen,
+so that no window covers them. They sit at the bottom right, above the
+taskbar of the face: there they cover no title band and no button of a
+window, so a click on the close button of a maximized window never
+steps back. In use mode one chip shows, `STEP BACK  Alt+Esc`, with its
+key. It is calm: it must not compete with the work on the face. The
+turn chips carry an arrow, `← TURN LEFT` and `TURN RIGHT →`. In
 navigate mode three chips show, and each face of the cube is a control
 of its own: the pointer over a face lights its edge, and a click steps
 into it. A chip never takes the keyboard (principle 11): a click on
 `STEP BACK` moves the keyboard to the construct because the person
-clicked, and a click on a face moves it into the face.
+clicked, and a click on a face moves it into the face. The method
+`view.step_back` and the voice leave the keyboard where it is. A step
+in gives the keyboard back to the window of before only when its face
+is at the front again; after a turn to another face, the person
+chooses a window there.
 
 ## Words
 
@@ -94,10 +105,12 @@ The voice agent says what happened in the same words: "I stepped back",
 
 The construct has the two modes, the four chips, the keys of the table
 and the methods `view.step_back` and `view.step_in`. A step in also
-brings the camera back to where the front face shows at 1:1, and gives
-the keyboard back to the window that had it. A click on a face in
-navigate mode turns the cube to that face and steps in.
+brings the camera back to where the front face shows at 1:1. A click on
+a face in navigate mode turns the cube to that face and steps in. The
+help panel lists the keys of the cube. While the window switcher of xp
+shows, `Alt+Escape` belongs to the switcher.
 
-Not there yet: a drag on the cube that turns it, the lit edge of the
-face under the pointer, `Escape` alone in use mode with the grant
-`input.grab-any`, and the phrases of the voice agent.
+Open: a drag on the cube that turns it, the lit edge of the face under
+the pointer, `Escape` alone in use mode with the grant
+`input.grab-any`, and the phrases of the voice agent ("step back",
+"turn left", "turn right", "step in"), which will call the methods.

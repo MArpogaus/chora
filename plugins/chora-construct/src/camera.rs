@@ -316,7 +316,8 @@ impl Construct {
             let fly_out = parse(self.settings.value.fly_out.clone())?;
             self.rt.grab(fly_out, Grab::FlyOut)?;
         }
-        self.grab_cube_keys()
+        self.grab_cube_keys();
+        Ok(())
     }
 
     /// Puts the window back into its pane and gives the keys back to the

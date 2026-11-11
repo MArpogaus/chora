@@ -564,8 +564,9 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The events of the plugin.
-const EVENTS: [&str; 18] = [
+const EVENTS: [&str; 19] = [
     "voice.*",
+    modes::SWITCHER,
     "client.connected",
     "client.disconnected",
     "effects.dropped",

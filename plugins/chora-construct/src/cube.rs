@@ -68,7 +68,13 @@ pub(crate) struct Host {
     /// The pose that shows the front face at 1:1, and the window that
     /// had the keyboard before the step back.
     home: Pose,
-    focus: Option<String>,
+    focus: Option<(String, usize)>,
+    /// A turn that a person asked for during a turn took the place of
+    /// the end of the running one; one such turn at most.
+    queued: bool,
+    /// The window switcher of the faces shows, and has the binding of
+    /// the step back.
+    pub(crate) switching: bool,
 }
 
 fn face_id(i: usize) -> String {
@@ -181,14 +187,39 @@ impl Host {
         changed
     }
 
-    /// Notes the window that had the keyboard before the step back.
+    /// Notes the window that had the keyboard before the step back, with
+    /// the face at the front then.
     pub(crate) fn note_focus(&mut self, window: Option<String>) {
-        self.focus = window;
+        self.focus = window.map(|window| (window, self.front));
     }
 
-    /// The window that gets the keyboard again at the step in.
+    /// The window that gets the keyboard again at the step in: the noted
+    /// one, when its face is at the front again.
     pub(crate) fn take_focus(&mut self) -> Option<String> {
-        self.focus.take()
+        let (window, front) = self.focus.take()?;
+        (front == self.front).then_some(window)
+    }
+
+    /// The output of the face at the front.
+    pub(crate) fn front_output(&self) -> String {
+        self.outputs.get(self.front).cloned().unwrap_or_default()
+    }
+
+    /// Starts a turn by `by` faces. During a turn, a turn that a person
+    /// asked for takes the place of the end of the running one, once
+    /// (`queue`); any other is ignored. Answers whether the cube turns
+    /// to a new face.
+    fn start_turn(&mut self, by: i32, duration: Duration, queue: bool, now: Instant) -> bool {
+        let fresh = self.view.act(Act::Turn(by));
+        let queues = queue && by != 0 && self.turn.is_some() && !self.queued;
+        if !fresh && !queues {
+            return false;
+        }
+        self.queued = !fresh;
+        self.front = next_front(self.front, by, self.outputs.len());
+        let to = Cube::turn_of(self.front);
+        self.turn = Some(Turn::new(self.angle, to, now, duration));
+        true
     }
 
     /// The quarter turns from the front face to `face`, the short way.
@@ -274,6 +305,8 @@ impl Construct {
             step: None,
             home: self.pose,
             focus: None,
+            queued: false,
+            switching: false,
         }
     }
 
@@ -311,26 +344,25 @@ impl Construct {
     }
 
     /// Turns the cube by `by` quarter turns in `ms`, a quarter turn in
-    /// 500 ms by default; a turn while one runs is ignored.
-    pub(crate) fn turn_cube(&mut self, by: i32, ms: Option<u64>) -> Result<(), ClientError> {
+    /// 500 ms by default. A turn while one runs is ignored; with `queue`,
+    /// for the keys and the chips of a person, one such turn goes on from
+    /// the running one.
+    pub(crate) fn turn_cube(
+        &mut self,
+        by: i32,
+        ms: Option<u64>,
+        queue: bool,
+    ) -> Result<(), ClientError> {
         let Some(host) = &mut self.cube else {
             return Err(ClientError::Rpc(RpcError::new(
                 RpcError::REJECTED,
                 "no cube is open; cube.open first",
             )));
         };
-        if !host.view.act(Act::Turn(by)) {
-            return Ok(());
-        }
-        let front = next_front(host.front, by, host.outputs.len());
-        host.front = front;
         let duration = ms.map_or(TURN, Duration::from_millis);
-        host.turn = Some(Turn::new(
-            host.angle,
-            Cube::turn_of(front),
-            Instant::now(),
-            duration,
-        ));
+        if host.start_turn(by, duration, queue, Instant::now()) {
+            self.draw_modes()?;
+        }
         Ok(())
     }
 
@@ -344,12 +376,14 @@ impl Construct {
             host.angle = turn.at(now);
             if turn.done(now) {
                 host.turn = None;
+                host.queued = false;
                 host.view.turn_ended();
             }
         }
         if let Some(step) = host.step {
             host.stand = step.at(now);
             if step.done(now) {
+                host.stand = host.stand.round();
                 host.step = None;
             }
         }
