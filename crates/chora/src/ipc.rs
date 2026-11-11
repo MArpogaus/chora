@@ -2984,6 +2984,50 @@ mod tests {
         );
     }
 
+    /// A key that a window manager grabbed is an act of the person
+    /// toward it, as a click on its empty screen is: the window that the
+    /// key starts opens there, not where the last click chose (M4).
+    #[test]
+    fn a_grabbed_key_of_the_user_chooses_its_manager_for_a_new_window() {
+        use smithay::backend::input::{InputTime, KeyState};
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
+        let _b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
+        a.ok(&mut core, "input.grab", json!({"binding": "Super+Return"}));
+        let mut wayland = Wayland::connect(&mut core);
+        click_at(&mut core, (600.0, 300.0), false);
+        let key = |core: &mut Core, code: u32, state, injected| {
+            crate::input::key(
+                &mut core.state,
+                (code + 8).into(),
+                state,
+                InputTime::now(),
+                injected,
+            );
+        };
+        let super_return = |core: &mut Core, injected| {
+            for (code, state) in [
+                (125, KeyState::Pressed),
+                (28, KeyState::Pressed),
+                (28, KeyState::Released),
+                (125, KeyState::Released),
+            ] {
+                key(core, code, state, injected);
+            }
+        };
+        super_return(&mut core, true);
+        wayland.toplevel(&mut core, "one");
+        assert_eq!(reserved_for(&core, "s1").as_deref(), Some("b"), "injected");
+        super_return(&mut core, false);
+        wayland.toplevel(&mut core, "two");
+        assert_eq!(
+            reserved_for(&core, "s2").as_deref(),
+            Some("a"),
+            "the key of a"
+        );
+    }
+
     /// Where a surface is: `(owner, parent, reserved for)`.
     fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
         let node = core.state.scene.node(surface).unwrap();

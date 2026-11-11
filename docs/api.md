@@ -341,8 +341,8 @@ Several window managers share the scene (D55). A window manager sets
 a toplevel, the core reserves it for one window manager:
 
 1. the owner of its parent toplevel, for a dialog;
-2. else the window manager that a click of the user chose, if it holds
-   a claim;
+2. else the window manager that a click or a key of the user chose, if
+   it holds a claim;
 3. else the owner of the node or surface with the keyboard focus, if it
    holds a claim;
 4. else the owner of the smallest claim that contains the pointer.
@@ -350,7 +350,10 @@ a toplevel, the core reserves it for one window manager:
 A press of a real pointer button on a point of a claim with no window
 under it chooses the owner of the smallest such claim, unless that one
 has the keyboard focus anyway: who clicks the empty screen of another
-window manager gets the next new windows there. The choice ends with
+window manager gets the next new windows there. A key of the user that
+a window manager grabbed chooses that one in the same way, so that the
+window that its key starts, such as the terminal of `Super+Return`,
+opens there. The choice ends with
 the next press of the user that chooses nobody, and when the keyboard
 focus changes, for example when the chosen manager focuses its new
 window. An injected press neither chooses nor ends a choice.

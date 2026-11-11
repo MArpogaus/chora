@@ -919,6 +919,18 @@ impl State {
         self.chosen_manager = claimant.map(|manager| (manager, self.focus_now()));
     }
 
+    /// A key of the user that the window manager of `conn` grabbed
+    /// chooses it for the next new windows, as a click on its empty claim
+    /// does (D55): the window that the key starts opens there.
+    pub fn choose_manager_of(&mut self, conn: u64) {
+        let Some(name) = self.ipc.name(conn).map(String::from) else {
+            return;
+        };
+        if self.scene.holds_claim(&name) {
+            self.chosen_manager = Some((name, self.focus_now()));
+        }
+    }
+
     /// Notes a key or button press. A real one is the newest real press;
     /// an injected one ends the real press and the act before it, so that
     /// no token carries an act that an injection hides.

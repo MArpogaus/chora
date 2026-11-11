@@ -145,6 +145,9 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
         }
         Some(KeyAction::Grab(conn, binding, injected)) => {
             state.note_act(vec![conn]);
+            if !injected && key_state == KeyState::Pressed {
+                state.choose_manager_of(conn);
+            }
             hold_grab(state, conn, binding, code, injected);
         }
         Some(KeyAction::Node(owner, event)) => {
