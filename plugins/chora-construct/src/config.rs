@@ -244,6 +244,10 @@ pub struct Config {
     /// `--output NAME` for each face. It runs as the client `xp`.
     #[serde(default = "cube_manager")]
     pub cube_manager: String,
+    /// The window managers of `pane.manager`: the client name of each,
+    /// and its command, which gets `--output NAME`.
+    #[serde(default = "managers")]
+    pub managers: std::collections::BTreeMap<String, String>,
     pub style: Style,
 }
 
@@ -293,6 +297,16 @@ fn cube_manager() -> String {
     "chora-xp".into()
 }
 
+fn managers() -> std::collections::BTreeMap<String, String> {
+    [
+        ("xp", "chora-xp"),
+        ("tiling", "chora-tiling"),
+        ("mc", "chora-mc --manage-windows"),
+    ]
+    .map(|(name, command)| (name.to_owned(), command.to_owned()))
+    .into()
+}
+
 impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         if !(self.radius.is_finite() && self.radius >= 100.0) {
@@ -314,6 +328,7 @@ impl Settings for Config {
             return Err("effects: the construct has no task button, so only wobbly".into());
         }
         self.check_style()?;
+        self.check_managers()?;
         if !self.start.is_empty() {
             crate::file::check_name(&self.start).map_err(|e| format!("start: {e}"))?;
         }
@@ -360,6 +375,17 @@ impl Config {
             ),
         ]);
         rows
+    }
+
+    /// Each window manager has a command.
+    fn check_managers(&self) -> Result<(), String> {
+        if self.cube_manager.trim().is_empty() {
+            return Err("cube_manager: the command is empty".into());
+        }
+        match self.managers.iter().find(|(_, c)| c.trim().is_empty()) {
+            Some((name, _)) => Err(format!("managers.{name}: the command is empty")),
+            None => Ok(()),
+        }
     }
 
     fn check_style(&self) -> Result<(), String> {
@@ -508,6 +534,18 @@ mod tests {
         assert!((hud::GLASS_ALPHA - light.glass[3]).abs() < 1e-9);
         assert!(near(rgb(chat.border), &light.edge));
         assert!(near(rgb(chat.glow), &config.style.accent));
+    }
+
+    /// A window manager needs a command: an empty one fails the check.
+    #[test]
+    fn a_manager_without_a_command_fails() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let mut empty = config.clone();
+        empty.managers.insert("tiling".into(), "  ".into());
+        assert!(empty.check().unwrap_err().contains("managers.tiling"));
+        let mut cube = config;
+        cube.cube_manager = String::new();
+        assert!(cube.check().unwrap_err().contains("cube_manager"));
     }
 
     /// The help lists the bindings of the settings, also changed ones.

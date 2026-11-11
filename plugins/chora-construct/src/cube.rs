@@ -532,7 +532,7 @@ impl Construct {
         if !(1..=FACES).contains(&faces) {
             return refuse(format!("faces: {faces} is not 1 to {FACES}"));
         }
-        if self.manager_runs()? {
+        if self.has_manager(MANAGER) || self.manager_runs()? {
             return refuse(format!("a client {MANAGER} runs already"));
         }
         let size = [self.lens.w, self.lens.h];
@@ -628,12 +628,16 @@ impl Construct {
 
     /// The time by which the window manager must connect.
     pub(crate) fn cube_deadline(&self) -> Option<Instant> {
-        self.cube.as_ref().and_then(|c| c.connect_by)
+        let cube = self.cube.as_ref().and_then(|c| c.connect_by);
+        let panes = self.manager_deadline();
+        cube.into_iter().chain(panes).min()
     }
 
     /// Closes the cube when its window manager did not connect in time.
     pub(crate) fn check_cube(&mut self) -> Result<(), ClientError> {
-        if self.cube_deadline().is_some_and(|t| t <= Instant::now()) {
+        self.check_managers()?;
+        let late = self.cube.as_ref().and_then(|c| c.connect_by);
+        if late.is_some_and(|t| t <= Instant::now()) {
             eprintln!("chora-construct: the window manager of the cube did not connect");
             return self.close_cube();
         }
@@ -776,7 +780,11 @@ impl Construct {
 
     /// Adds `faces` virtual outputs of `size` at the scale of the view;
     /// none when one fails.
-    fn add_outputs(&mut self, faces: usize, size: [f64; 2]) -> Result<Vec<String>, ClientError> {
+    pub(crate) fn add_outputs(
+        &mut self,
+        faces: usize,
+        size: [f64; 2],
+    ) -> Result<Vec<String>, ClientError> {
         let scale = self.output.as_ref().map_or(1.0, |o| o.scale);
         let spec = format!(
             "{}x{}@{scale}",
@@ -798,7 +806,7 @@ impl Construct {
         Ok(outputs)
     }
 
-    fn remove_outputs(&mut self, outputs: &[String]) {
+    pub(crate) fn remove_outputs(&mut self, outputs: &[String]) {
         for output in outputs {
             let removed: Result<Value, _> =
                 (self.rt.conn).call("output.remove", json!({"output": output}));
@@ -810,7 +818,7 @@ impl Construct {
 }
 
 /// Ends a window manager of the cube and reaps it.
-fn end(child: &mut Child) {
+pub(crate) fn end(child: &mut Child) {
     if let Err(err) = child.kill() {
         eprintln!("chora-construct: end the window manager of the cube: {err}");
     }

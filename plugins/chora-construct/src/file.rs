@@ -17,6 +17,8 @@ pub enum Kind {
     Program,
     /// A node tree of another plugin, such as an mc scene.
     Plugin,
+    /// A window manager on a virtual output of the construct.
+    Manager,
 }
 
 /// A pane as the file has it.
@@ -32,6 +34,10 @@ pub struct PaneFile {
     pub plugin: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scene: Option<String>,
+    /// The client name of the window manager of a manager pane, a key
+    /// of the setting `managers`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manager: Option<String>,
     /// The centre on the ground, (x, z); without it, the pane goes ahead
     /// of the camera (C7).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -114,6 +120,19 @@ impl PaneFile {
                     return Err("a plugin pane has no command".into());
                 }
             }
+            Kind::Manager => {
+                check_name(
+                    self.manager
+                        .as_deref()
+                        .ok_or("a manager pane needs a manager")?,
+                )?;
+                if self.command.is_some() || self.plugin.is_some() || self.scene.is_some() {
+                    return Err("a manager pane has no command, plugin or scene".into());
+                }
+            }
+        }
+        if self.kind != Kind::Manager && self.manager.is_some() {
+            return Err("only a manager pane has a manager".into());
         }
         if let Some(at) = self.at {
             finite("at", &at)?;
@@ -222,6 +241,7 @@ mod tests {
                     command: Some("foot -e sh -c 'echo \"hi\"'".into()),
                     plugin: None,
                     scene: None,
+                    manager: None,
                     at: Some([1.0 / 3.0, 2000.0]),
                     yaw: Some(-2.5),
                     size: Some([1280.0, 800.0]),
@@ -231,6 +251,7 @@ mod tests {
                     command: None,
                     plugin: Some("mc".into()),
                     scene: Some("mission".into()),
+                    manager: None,
                     at: Some([-1408.7, 1999.9]),
                     yaw: None,
                     size: None,
@@ -278,6 +299,10 @@ mod tests {
             "panes: [{kind: plugin, plugin: 'mc x', scene: a}]",
             "panes: [{kind: plugin, plugin: mc, scene: a, command: foot}]",
             "panes: [{kind: program, command: foot, size: [0, 10]}]",
+            "panes: [{kind: manager}]",
+            "panes: [{kind: manager, manager: 'x p'}]",
+            "panes: [{kind: manager, manager: xp, command: foot}]",
+            "panes: [{kind: program, command: foot, manager: xp}]",
             "radius: 10",
             "camera: {x: .nan}",
             "camera: {roll: 1}",
@@ -288,5 +313,7 @@ mod tests {
         let file = parse("panes: [{kind: program, command: foot}]").unwrap();
         assert_eq!(file.camera, Pose::default());
         assert_eq!(file.panes[0].at, None);
+        let file = parse("panes: [{kind: manager, manager: tiling}]").unwrap();
+        assert_eq!(file.panes[0].manager.as_deref(), Some("tiling"));
     }
 }

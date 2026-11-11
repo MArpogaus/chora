@@ -524,6 +524,9 @@ with `settings.reload`:
 - `test_accept_injected_keys`: `false`; for tests only, the bindings
   take the keys of `input.inject` as keys of the user (see
   [Injected keys](#injected-keys)).
+- `voice_hud`: `own`; `own` draws the voice HUD of mc, `host` leaves it
+  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`
+  and its chat drawer.
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -764,7 +767,8 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
-| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp` |
+| `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
+| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
 | `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
 | `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `voice_hud` | `own` | `own`: draw the voice HUD and the questions, and hide the dot of the voice agent; `host`: the HUD host `chora-assistant` draws them with the folder `plugins/chora-construct/hud`, and the construct claims no indicator. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
@@ -827,7 +831,9 @@ start pose of the camera, the leash radius R and the panes. A pane has a
 which starts with `choractl run`. A plugin pane has a `plugin`, the client
 name, and a `scene`. It shows the node that the plugin tags
 `meta:pane=SCENE` through its node texture, for example the page of an mc
-scene. The pose is `at`, the centre on the ground as `[x, z]`, `yaw`,
+scene. A manager pane has a `manager`, a key of the setting `managers`:
+the construct starts that window manager on a virtual output of the
+`size` of the pane and shows the output in the pane. The pose is `at`, the centre on the ground as `[x, z]`, `yaw`,
 the turn of its face in radians (0 faces along +z), and `size`, in
 logical pixels. Without `at`, the pane goes ahead of the camera; without
 `yaw`, it faces the camera where it comes; without `size`, a program
@@ -846,6 +852,9 @@ panes:
   plugin: mc
   scene: mission
   at: [700, 2200]
+- kind: manager
+  manager: tiling
+  size: [1024, 768]
 ```
 
 A file in this directory is the user's own, as an mc scene file is: its
@@ -873,6 +882,7 @@ windows of the other flavor.
 | `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
 | `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash. The pane then faces the camera; answers the new `at` |
 | `pane.resize` | `name` and `scale`, for example 1.25 |
+| `pane.manager` | privileged. `manager`, a key of the setting `managers`, and `size`, `[width, height]` in logical pixels, 1024 x 768 by default and at most the view: adds a virtual output of that size, starts the window manager on it as a child with `--output NAME`, and shows the output in a pane ahead. The pane passes the pointer into the output at any place and turn (D69), so the windows of the manager take clicks; the modifier with a drag moves the pane. One pane per manager: refused while a client of that name runs, in a pane, on the cube or by itself. While the construct has the keyboard, a new window under the pane goes to its manager; while a window in a pane has it, to the manager of that window (D55). A manager that ends, or does not connect within 10 s, takes its pane and its output with it; `pane.remove` ends it, and the child gets `SIGTERM` when the construct ends. The windows on the output then go back to the window manager that gave them, else to a screen (D69). Answers the `name` of the pane and its `output`. `tests/gate-construct-wm-pane.sh` checks it |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
 | `cube.open` | privileged. `faces`, 1 to 4, 4 by default: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends, or when it does not connect within 10 s. Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
@@ -1403,7 +1413,9 @@ dragged out of these work areas goes to the window manager whose claim
 holds the drop point, with `remove` and `to`. Without one there, or when
 the core refuses, the window stays. A new window opens on the first
 output; when the pointer entered a virtual output of `chora-xp` last, it
-opens there. A title bar
+opens there. When `chora-xp` starts on virtual outputs only and has no
+window yet, it leaves the keyboard where it is, with the client that
+shows the outputs. A title bar
 dropped on an output of `chora-xp` that shows no part of the window, as
 on another virtual output, puts the window there, under the pointer. When
 all outputs of `chora-xp` are virtual ones, it has no desktop cube of

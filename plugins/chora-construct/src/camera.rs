@@ -243,6 +243,7 @@ impl Construct {
                 attached: false,
                 plugin: Some((plugin.clone(), scene.clone())),
             }),
+            Content::Manager { .. } => None,
         };
         self.glide_to(to, FLY_MS, into);
     }

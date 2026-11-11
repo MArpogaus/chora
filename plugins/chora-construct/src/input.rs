@@ -22,9 +22,9 @@ impl Construct {
                 Ok(())
             }
             Event::ClientConnected { ref name } | Event::ClientDisconnected { ref name }
-                if name == crate::cube::MANAGER =>
+                if self.manages(name) =>
             {
-                self.cube_client(&event)
+                self.manager_client(&event)
             }
             Event::ClientDisconnected { name } if name == VOICE => {
                 self.claim.due = true;
