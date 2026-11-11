@@ -259,3 +259,6 @@ Proposed change:
 
 ## 34 (11-11 ~17:40 UTC): the PM did not resume work after compaction
 After the compaction the PM reread the charter (card step 1) but then only listed "next" items (state.md, status page, launcher guard) and ended its turns without doing them; the testers started only when the user asked why none ran. The card had steps for rereading, not for resuming. Fix: pm-card step 4 "resume at once: do the first open item of the summary's pending list before replying; never end a turn with an open 'next' item that needs no user input"; and a check in each run-end report: every "next" item names why it is not done now.
+
+## 35 (11-11 ~17:50 UTC): a haiku tester called create_session
+t-everyday called create_session with no parameters by mistake (session_016iS3kPfPNrzVDkHjhsfrJX) and archived it again. Testers inherit every tool of the PM. Fix: tester briefs say "use only Bash and Read"; better, run testers with an agent type limited to Bash and Read.
