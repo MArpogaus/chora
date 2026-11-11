@@ -9,6 +9,7 @@ answers.md stays the full log; this file is the current set.
 - 11-11 "Reset is sat 10:59. Well then finalize this week with heavy tasks layer off yo fable. Resetting once its fully used."
   Reading: after the reset Saturday 10:59 Bangkok, heavy work (major fixes, review per area) runs on Fable until used up; then the user resets again.
 - 11-11 "No, its not this weeks cap. Its the cap for the user test swarm if they keep discovering new issues etc"
+- 11-11 "To address the compactation issue. Have a sub screen the transcripts and look in project log files and adjust the pm hook to be mor rebust."
 - 11-11 "This must not happen again. You confirmed correctly before. Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"
   Reading: this file plus the hook; the PM keeps the overview itself.
 - 11-11 "Why did you muss this. Reread the whole charter after compactation. ... The pm session hast to remain robust" (friction 33): reread the charter in full after every compaction.

@@ -260,3 +260,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - Context management leaks after compaction: note as a major issue; the PM session must stay robust (friction 33).
 - 71% at 17:02 UTC (user); usage.py estimate since 16:42: 1.88 M units, i.e. under 1%, consistent.
 - Correction (user, 11-11 ~17:55 UTC): 85 % is not a cap for the week; it is the limit up to which the haiku test swarms may run while they keep finding new issues. The rest of the week goes to major fixes and the review loop.
+- 11-11 ~18:10 UTC (user): a subagent screens the transcripts and the session log files for every user decision, and the PM hook is made more robust.
