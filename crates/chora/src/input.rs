@@ -668,6 +668,9 @@ pub fn press_button(
         state.track_press(serial, injected);
         let real = !injected || state.injected_drag_gives;
         state.last_real_button = real.then_some((serial, code));
+        if real {
+            state.choose_manager();
+        }
     } else {
         state
             .last_real_button
