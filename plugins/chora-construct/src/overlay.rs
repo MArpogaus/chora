@@ -549,6 +549,7 @@ impl Construct {
                     item(key(Action::FlyIn), Word::FlyIn, "fly-in"),
                     item(key(Action::Windows), Word::WindowsHint, "windows"),
                     item(key(Action::Help), Word::AllKeys, "keys"),
+                    item(key(Action::Cube), Word::Cube, "cube"),
                 ]
             }
             Set::Flown => vec![item(
@@ -637,6 +638,7 @@ impl Construct {
             "windows" => self.open_list()?,
             "keys" => self.toggle_help()?,
             "step-back" => self.fly_out()?,
+            "cube" => self.cube_key()?,
             _ => {}
         }
         Ok(true)

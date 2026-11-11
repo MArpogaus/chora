@@ -6,7 +6,7 @@ use chora_kit::words::{Language, Word, say};
 use super::{
     Action, BTN_LEFT, ClientError, Command, Construct, Content, Drag, Event, FLY_MS, Grab, Instant,
     KEYS_WALK_AGAIN, LIST, LIST_ROW, LOOK, Moving, NAME, Pane, PressState, VOICE, Voice, WHEEL,
-    cube, give, hud, modes, space, window_flown_into,
+    cube, give, hud, space, window_flown_into,
 };
 
 /// The text of a typed key that a search takes: printable text without
@@ -175,6 +175,7 @@ impl Construct {
                 Some(Action::Close) => return self.close_ahead(),
                 Some(Action::Windows) => return self.open_list(),
                 Some(Action::Help) => return self.toggle_help(),
+                Some(Action::Cube) => return self.cube_key(),
                 Some(action) => self.act(action),
                 None if text.is_some() => return self.keys_walk(),
                 None => {}
@@ -204,21 +205,6 @@ impl Construct {
                 };
             }
             Event::InputMoved { position, .. } => return self.moved(self.local(position)),
-            Event::PointerPressed {
-                node,
-                button,
-                injected,
-                ..
-            } if button == BTN_LEFT
-                && node == modes::OPEN_CUBE
-                && (!injected || self.rt.accepts_injected()) =>
-            {
-                if let Err(err) = self.open_cube(cube::FACES) {
-                    self.voice.notice(&err.to_string(), Instant::now());
-                    return self.draw_hud();
-                }
-                return Ok(());
-            }
             Event::PointerPressed {
                 node,
                 button,
@@ -491,6 +477,19 @@ impl Construct {
             }
             _ => Ok(false),
         }
+    }
+
+    /// The key of the cube opens one while none is open; a refusal is a
+    /// notice.
+    pub(crate) fn cube_key(&mut self) -> Result<(), ClientError> {
+        if self.cube.is_some() {
+            return Ok(());
+        }
+        if let Err(err) = self.open_cube(cube::FACES) {
+            self.voice.notice(&err.to_string(), Instant::now());
+            return self.draw_hud();
+        }
+        Ok(())
     }
 
     /// The keys and the clicks of the open window list; whether it took

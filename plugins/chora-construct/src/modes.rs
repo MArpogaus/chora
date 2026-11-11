@@ -35,7 +35,6 @@ const ICON: &str = "xp-icon-";
 /// cannot see yet.
 const BAR: f64 = 40.0;
 /// The chip that opens a cube while none is open: the visible way in.
-pub(crate) const OPEN_CUBE: &str = "construct-open-cube";
 /// The chips in the order of the screen, from the left.
 const CHIPS: [Word; 4] = [
     Word::StepBack,
@@ -134,12 +133,6 @@ fn chips_of(view: View, flown: bool) -> &'static [Word] {
     if flown { &[] } else { view.controls() }
 }
 
-/// Whether OPEN CUBE shows: while no cube is open, and not while the
-/// camera is in a pane, whose content it would cover.
-fn open_cube_shows(cube: bool, flown: bool) -> bool {
-    !cube && !flown
-}
-
 /// The right edge of the chips in the row `[top, bottom]` of a view
 /// `width` wide: left of the desktop icons in the right half that reach
 /// into the row.
@@ -189,7 +182,7 @@ impl Construct {
         self.regrab()?;
         self.draw_help(false)?;
         self.pane_input()?;
-        self.draw_open_cube()
+        Ok(())
     }
 
     /// Stood back, the windows of the panes take no pointer input: a
@@ -259,7 +252,6 @@ impl Construct {
     /// They stay left of the desktop icons in their row.
     pub(crate) fn draw_modes(&mut self) -> Result<(), ClientError> {
         self.pane_input()?;
-        self.draw_open_cube()?;
         let flown = self.flown.is_some();
         let Some(shown) = self.cube.as_ref().map(|c| chips_of(c.view(), flown)) else {
             return Ok(());
@@ -286,23 +278,6 @@ impl Construct {
         self.rt.conn.try_apply(commands)?;
         self.hints.shown = None;
         self.draw_hints()
-    }
-
-    /// The chip OPEN CUBE at the bottom right, where the chips of a cube
-    /// show, while no cube is open and the camera is in no pane.
-    fn draw_open_cube(&mut self) -> Result<(), ClientError> {
-        let text = Word::OpenCube.text(language()).to_owned();
-        let mut commands = Vec::new();
-        if (self.rt.conn).query(&format!("id:{OPEN_CUBE}"))?.is_empty() {
-            commands.extend(self.styled().chip(OPEN_CUBE, NAME, &text));
-        }
-        let show = open_cube_shows(self.cube.is_some(), self.flown.is_some())
-            && !self.help
-            && self.list.is_none();
-        let edge = chora_kit::glass::margin(self.lens.w);
-        let at = [edge, self.lens.h - edge - 32.0];
-        commands.extend(self.fitted(|s| s.styled().chip_at(OPEN_CUBE, &text, at, show))?);
-        self.rt.conn.try_apply(commands).map(drop)
     }
 
     /// The bindings of the cube: the turn keys in both modes, and the
@@ -744,13 +719,6 @@ mod tests {
         view.act(Act::StepBack);
         assert_eq!(chips_of(view, false).len(), 3);
         assert_eq!(chips_of(view, true), [], "navigate mode too");
-    }
-
-    #[test]
-    fn open_cube_shows_only_without_a_cube_and_outside_a_pane() {
-        assert!(open_cube_shows(false, false));
-        assert!(!open_cube_shows(true, false));
-        assert!(!open_cube_shows(false, true), "in a pane");
     }
 
     #[test]

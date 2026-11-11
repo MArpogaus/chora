@@ -49,6 +49,7 @@ keys:
   Super+x: close
   Tab: windows
   F1: help
+  Super+c: cube
 # The shell command of the key terminal; its window becomes a pane in
 # the view direction.
 # For tests only: take the keys of input.inject as keys of the user. Off,

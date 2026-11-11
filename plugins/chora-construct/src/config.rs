@@ -35,6 +35,8 @@ pub enum Action {
     Windows,
     /// Shows or hides the help panel with the bindings.
     Help,
+    /// Opens the cube of the setting `cube_manager`.
+    Cube,
 }
 
 /// Light or dark.
@@ -399,6 +401,11 @@ impl Config {
                 row("Back to the start", one(Action::Home), Vec::new()),
                 row("Fly into the pane ahead", one(Action::FlyIn), Vec::new()),
                 row("Show the windows", one(Action::Windows), Vec::new()),
+                row(
+                    "Open the cube",
+                    if cube { Vec::new() } else { one(Action::Cube) },
+                    Vec::new(),
+                ),
             ],
         };
         let panes = KeyGroup {
@@ -689,6 +696,18 @@ mod tests {
         let mut cube = config;
         cube.cube_manager = String::new();
         assert!(cube.check().unwrap_err().contains("cube_manager"));
+    }
+
+    /// Super+C opens the cube: a key, not a button.
+    #[test]
+    fn super_c_opens_the_cube() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.keys.get("Super+c"), Some(&Action::Cube));
+        let opens = (config.help_groups(false).into_iter())
+            .flat_map(|g| g.rows)
+            .find(|r| r.what == "Open the cube")
+            .map(|r| r.keys);
+        assert_eq!(opens.unwrap(), ["Super", "C"]);
     }
 
     /// The help lists the keys of the cube only while a cube is open, and
