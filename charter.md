@@ -1060,3 +1060,13 @@ Model use this week (user, 11-10 18:05): Fable takes the heavy work
 the user resets it if the work is not through, else Fable starts fresh
 on Monday. The rest of the week runs on the other models' remaining
 budget (opus for dev, sonnet for light tasks).
+
+Model use, revised (user, 11-11 ~11:00): after another full reset, burn
+Fable this week on the heavy work. When Fable is spent, the user resets
+it and the rest of the week runs on the other models until Saturday;
+the new week starts with Fable again; at a later limit the user resets
+again or the session runs on without Fable. PM plan: Fable lanes for
+core, security reviews and the cube/demo; the tail of the week on opus
+and sonnet goes to lighter work (persona tests, docs, packaging,
+website, flakes). The 5-hour limit stays the real pace: at most four
+heavy lanes, resume after a 429.
