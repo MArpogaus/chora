@@ -111,9 +111,10 @@ audit() {
 }
 
 first_floor() {
-    local tag=$1 w=${2%x*} h=${2#*x} x y cw ch
-    w=${w%@*}
-    h=${h%@*}
+    local tag=$1 scale=1 w=${2%x*} h=${2#*x} x y cw ch
+    [[ $2 == *@* ]] && scale=${2#*@}
+    w=$(awk -v n="${w%@*}" -v s="$scale" 'BEGIN { print n / s }')
+    h=$(awk -v n="${h%@*}" -v s="$scale" 'BEGIN { print n / s }')
     until_ok card_shows || { echo "FAIL: $tag: the empty floor shows no start card"; failed=1; return; }
     audit start "$tag"
     read -r x y cw ch < <(rect_of construct-start-glass)
