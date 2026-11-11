@@ -242,3 +242,17 @@ the screen; the brief forbids reading the repo.
 
 ## 32 (11-12): the charter names a `--fast` train flag the script lacks
 The 11-11 reflection rules say "merge train with `--fast`". `train.sh` has no such flag, so it read `--fast` as a branch spec, failed to fetch it and reported a fake CONFLICT. No harm was done, but one train run was lost. Fix: either add the flag to train.sh or reword the charter rule. Rules that name a tool option must be checked against the tool.
+
+## 33 (11-11 ~17:10 UTC): MAJOR. The PM drifts from the charter after compaction
+Evidence, all after the last compaction of 11-11:
+- The usage cross-check had failed silently (no recent result event in a single long turn); the PM noticed only when the user asked.
+- `git add -A` was used about eight times on the session log; section 3 forbids it.
+- Chat replies ran far over the "one or two lines" rule (user, 11-10).
+- Swarm 2 ignored section 8: new report format instead of `feedback/` and `triage.py`, 800 px looks and 90 steps instead of 640 and 30 (cost tokens; the user had to point it out).
+- `state.md` ("Running 11-10 17:00") and `answers.md` were not updated at the merge trains or after user decisions of 11-11; the status page was not updated after the HUD merge.
+- Friction 32 blamed train.sh; in fact merge-gate.sh lacks the `--fast` mode that reflection rule 2 names, so that rule was never built.
+Cause: the compaction summary carried the task list but not the charter rules, and the PM continued from the summary without rereading the charter. Context management leaks rules, not tasks.
+Proposed change:
+1. `pm-card.md`, a short card of the hard rules plus the reread steps (charter in full, state, answers, friction), injected automatically after each compaction by a SessionStart hook with matcher `compact` in `~/.claude/settings.json`. The PM may not edit its own settings (the classifier refused it), so the user adds the hook.
+2. Guards for the rules that broke: a session-log pre-commit check that rejects a commit when `state.md` is older than the last merge on the session branch; the persona launcher enforces max_side 640 and 30 steps itself.
+3. Keep PM turns short so compactions come less often.

@@ -251,3 +251,10 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 
 - Calibration: the user reports the used share of the weekly limit in
   the session chat during the first days; each report is added here.
+
+## 11-11 (chat, copied late; friction 33)
+- 68% at 15:08 UTC; 71% at 16:42 UTC (weekly limit, all models).
+- Use the remaining budget for mass haiku user tests, data only, no fixes yet; cap at 85% weekly use, the rest for major fixes and the review loop. Haiku must use far fewer tokens; keep testing only while new data arrives.
+- The reset is Saturday 10:59; the rest of this week's heavy work then runs on Fable until it is used up, and the user resets again.
+- After the RC (user, earlier 11-11): an extensive user testing round. Release authorized when all is clean.
+- Context management leaks after compaction: note as a major issue; the PM session must stay robust (friction 33).
