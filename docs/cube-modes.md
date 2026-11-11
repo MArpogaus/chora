@@ -83,10 +83,10 @@ window there. While the camera is in a pane no chip shows: the keys
 of the cube do not hold there. A `cube.open` from inside a pane first
 leaves the pane, so the cube opens ahead of where the person stood.
 
-While no cube is open, the chip `OPEN CUBE` shows at the bottom left of
-the construct, away from the voice HUD at the bottom right. A click on it
+While no cube is open, the chip `OPEN CUBE` shows at the bottom right of
+the construct, where the chips of a cube show. A click on it
 opens a cube of four faces, as `cube.open` without params does, and the
-chip hides while the cube is open. A refusal, for example while another
+chip hides while the cube is open and while the camera is in a pane. A refusal, for example while another
 client `xp` runs, shows in the HUD.
 
 ## Words

@@ -124,6 +124,12 @@ fn chips_of(view: View, flown: bool) -> &'static [Word] {
     if flown { &[] } else { view.controls() }
 }
 
+/// Whether OPEN CUBE shows: while no cube is open, and not while the
+/// camera is in a pane, whose content it would cover.
+fn open_cube_shows(cube: bool, flown: bool) -> bool {
+    !cube && !flown
+}
+
 /// The right edge of the chips in the row `[top, bottom]` of a view
 /// `width` wide: left of the desktop icons in the right half that reach
 /// into the row.
@@ -238,20 +244,17 @@ impl Construct {
         self.rt.conn.try_apply(commands).map(drop)
     }
 
-    /// The chip OPEN CUBE at the bottom left, while no cube is open.
+    /// The chip OPEN CUBE at the bottom right, where the chips of a cube
+    /// show, while no cube is open and the camera is in no pane.
     fn draw_open_cube(&mut self) -> Result<(), ClientError> {
         let text = Word::OpenCube.text(language()).to_uppercase();
         let mut commands = Vec::new();
         if (self.rt.conn).query(&format!("id:{OPEN_CUBE}"))?.is_empty() {
             commands.extend(self.styled().chip(OPEN_CUBE, NAME, &text));
         }
-        let show = self.cube.is_none();
-        let bottom = self.lens.h;
-        commands.extend(self.fitted(|s| {
-            let look = s.styled();
-            let width = look.place_chip(OPEN_CUBE, &text, [0.0, bottom], false).1;
-            look.place_chip(OPEN_CUBE, &text, [width, bottom], show).0
-        })?);
+        let show = open_cube_shows(self.cube.is_some(), self.flown.is_some());
+        let corner = [self.lens.w, self.lens.h];
+        commands.extend(self.fitted(|s| s.styled().place_chip(OPEN_CUBE, &text, corner, show).0)?);
         self.rt.conn.try_apply(commands).map(drop)
     }
 
@@ -650,6 +653,13 @@ mod tests {
         view.act(Act::StepBack);
         assert_eq!(chips_of(view, false).len(), 3);
         assert_eq!(chips_of(view, true), [], "navigate mode too");
+    }
+
+    #[test]
+    fn open_cube_shows_only_without_a_cube_and_outside_a_pane() {
+        assert!(open_cube_shows(false, false));
+        assert!(!open_cube_shows(true, false));
+        assert!(!open_cube_shows(false, true), "in a pane");
     }
 
     #[test]
