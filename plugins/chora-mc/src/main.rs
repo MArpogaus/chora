@@ -352,8 +352,8 @@ struct Mc {
     chat: Chat,
     /// Where the box of the chat of the last layout is.
     slot: Option<[f64; 4]>,
-    /// The box that the host was told last.
-    slot_sent: Option<[f64; 4]>,
+    /// The output and the box that the host was told last.
+    slot_sent: Option<(String, Option<[f64; 4]>)>,
     /// The spoken confirmation that shows, until its answer.
     confirming: Option<agent::Confirming>,
     /// Whether mc claims the state indicator of the voice agent at its
@@ -1929,7 +1929,8 @@ impl Mc {
     /// As many columns as fit at the least width of a panel; the panels
     /// wrap into new rows, which keep at least the least height. An empty
     /// panel takes no room, unless it says why it is empty: then it takes
-    /// one row for its words.
+    /// one short row for its words, so that every such message shows on a
+    /// small output.
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
@@ -1944,32 +1945,88 @@ impl Mc {
         let [x, y, w, h] = geo.text;
         let [cols, rows] = scene.grid();
         let fit = ((w + gap[0]) / (min_w + gap[0])).floor().max(1.0) as u32;
-        let (cell, grid) = if fit >= cols {
-            (panel.cell, [cols, rows])
-        } else {
-            let cells: Vec<_> = (scene.panels.iter())
-                .map(|p| {
-                    let [x, y, w, h] = p.cell;
-                    let rows = match (p.is_empty(), p.empty.is_empty()) {
-                        (false, _) => h,
-                        (true, true) => 0,
-                        (true, false) => 1,
-                    };
-                    [x, y, w, rows]
-                })
-                .collect();
-            let (flowed, flowed_rows) = scene::flow(&cells, fit);
-            let at = scene.panels.iter().position(|p| p.id == panel.id)?;
-            // It still gets its own height: a node of no size stalls the
-            // shader of the write.
-            let [x, y, w, h] = flowed[at];
-            let rows = if h == 0 { panel.cell[3] } else { h };
-            ([x, y, w, rows], [fit, flowed_rows.max(1)])
+        if fit >= cols {
+            let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
+            let shown = f64::from(rows);
+            let height = row * shown + gap[1] * (shown - 1.0);
+            return Some(scene::place(
+                panel.cell,
+                [cols, rows],
+                [x, y, w, height],
+                gap,
+            ));
+        }
+        let cells: Vec<_> = (scene.panels.iter())
+            .map(|p| {
+                let [x, y, w, rows] = p.cell;
+                let rows = match (p.is_empty(), p.empty.is_empty()) {
+                    (false, _) => rows,
+                    (true, true) => 0,
+                    (true, false) => 1,
+                };
+                [x, y, w, rows]
+            })
+            .collect();
+        let (flowed, flowed_rows) = scene::flow(&cells, fit);
+        let at = scene.panels.iter().position(|p| p.id == panel.id)?;
+        let [cx, cy, cw, ch] = flowed[at];
+        let heights = self.row_heights(scene, &flowed, flowed_rows, (h, gap[1], min_h));
+        let [bx, _, bw, _] = scene::place([cx, 0, cw, 1], [fit, 1], [x, y, w, 1.0], gap);
+        if ch == 0 {
+            let rows = f64::from(panel.cell[3].max(1));
+            let by = y + heights.iter().sum::<f64>();
+            return Some([bx, by, bw, min_h * rows + gap[1] * (rows - 1.0)]);
+        }
+        let above: f64 = heights.iter().take(cy as usize).sum();
+        let spanned: f64 = heights.iter().skip(cy as usize).take(ch as usize).sum();
+        let by = y + above + gap[1] * f64::from(cy);
+        Some([bx, by, bw, spanned + gap[1] * f64::from(ch - 1)])
+    }
+
+    /// The heights of the rows of a page that wrapped: a row that holds
+    /// only panels with their words of emptiness is as high as those
+    /// words; the other rows share the rest of the height, and none is
+    /// lower than the least height.
+    fn row_heights(
+        &self,
+        scene: &Scene,
+        flowed: &[[u32; 4]],
+        rows: u32,
+        (height, gap, min_h): (f64, f64, f64),
+    ) -> Vec<f64> {
+        let words = |p: &Panel| p.is_empty() && !p.empty.is_empty();
+        let rows_of = |r: u32| {
+            scene
+                .panels
+                .iter()
+                .zip(flowed)
+                .filter(move |(_, c)| c[3] > 0 && (c[1]..c[1] + c[3]).contains(&r))
+                .map(|(p, _)| p)
         };
-        let row = ((h - gap[1] * f64::from(rows - 1)) / f64::from(rows)).max(min_h);
-        let shown = f64::from(grid[1]);
-        let height = row * shown + gap[1] * (shown - 1.0);
-        Some(scene::place(cell, grid, [x, y, w, height], gap))
+        let short: Vec<Option<f64>> = (0..rows)
+            .map(|r| {
+                let mut panels = rows_of(r).peekable();
+                panels.peek()?;
+                let mut most: f64 = 0.0;
+                for p in panels {
+                    if !words(p) {
+                        return None;
+                    }
+                    let line = self.ty("body", p.style.as_ref()).line;
+                    most = most.max(self.lines_top(p) + 2.0 * line);
+                }
+                Some(most)
+            })
+            .collect();
+        let taken: f64 = short.iter().flatten().sum();
+        let tall = u32::try_from(short.iter().filter(|s| s.is_none()).count()).unwrap_or(1);
+        let gaps = gap * f64::from(rows.saturating_sub(1));
+        let share = if tall == 0 {
+            0.0
+        } else {
+            ((height - gaps - taken) / f64::from(tall)).max(min_h)
+        };
+        short.into_iter().map(|s| s.unwrap_or(share)).collect()
     }
 
     /// The top of the lines of a panel, below its title.
@@ -3353,6 +3410,53 @@ mod tests {
         assert_eq!(mc.chat_slot(), None);
         assert!(key_items(&mc, &first) > 0, "the key list is back");
         assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(Value::Null)));
+    }
+
+    /// A page that is longer than the output scrolls (the mission scene
+    /// with its data); every other panel of a built-in scene stands inside
+    /// the text block at 1280 by 800, so that the words of an empty panel
+    /// show.
+    #[test]
+    fn every_panel_of_a_scene_is_placed_at_1280_by_800() {
+        let (mut mc, _model) = crate::testing::mc("panels-1280", [1280, 800]);
+        for (name, _) in crate::scene::BUILT_IN {
+            mc.show(name, false).unwrap();
+            let scene = mc.scenes.get(name).unwrap().clone();
+            let [tx, ty, tw, th] = mc.geometry(name).unwrap().text;
+            for panel in &scene.panels {
+                let [x, y, w, h] = mc.place(name, panel).expect("a box");
+                assert!(w > 0.0 && h > 0.0, "{name}: panel {} has no size", panel.id);
+                let inside = x >= tx && x + w <= tx + tw + 0.5 && y + h <= ty + th + 0.5;
+                assert!(
+                    inside || name == "mission",
+                    "{name}: panel {} at {:?} is not inside the text block",
+                    panel.id,
+                    [x, y, w, h]
+                );
+            }
+        }
+    }
+
+    /// The host is told again when the output of the box changes, and not
+    /// again while nothing changed.
+    #[test]
+    fn the_slot_is_sent_again_for_another_output_only() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-slot-output", [1920, 1080]);
+        let first = mc.settings.value.default_scene.clone();
+        mc.show(&first, false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let sent = || model.lock().unwrap().emits.len();
+        let once = sent();
+        mc.send_slot().unwrap();
+        assert_eq!(sent(), once, "nothing changed");
+        mc.output.as_mut().unwrap().name = "other".into();
+        mc.send_slot().unwrap();
+        assert_eq!(sent(), once + 1, "the output changed");
+        assert_eq!(
+            model.lock().unwrap().emits.last().unwrap()["data"]["output"],
+            "other"
+        );
     }
 
     /// Only the voice agent sets the agent `voice`, by its events or by

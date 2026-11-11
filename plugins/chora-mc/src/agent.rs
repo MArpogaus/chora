@@ -207,6 +207,14 @@ const URGENT: &str = "urgent";
 /// detail in mono.
 const CONFIRM: &str = "confirm";
 
+/// Whom a `chat.show` was for, for its error line: never an empty name.
+fn chat_who(name: Option<&str>) -> String {
+    name.map_or_else(
+        || "for the helper that the host chooses".to_owned(),
+        |name| format!("with {name}"),
+    )
+}
+
 impl Mc {
     /// Adds an agent or changes it.
     pub fn set_agent(&mut self, set: SetAgent) -> Result<(), RpcError> {
@@ -422,7 +430,7 @@ impl Mc {
         }
         let call = json!({"client": "assistant", "method": "chat.show", "params": params});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
-            eprintln!("chora-mc: chat.show {}: {err}", name.unwrap_or_default());
+            eprintln!("chora-mc: chat.show {}: {err}", chat_who(name));
         }
     }
 
@@ -835,6 +843,15 @@ fn band(agent: &Agent) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_error_of_chat_show_without_a_name_names_the_reason() {
+        assert_eq!(
+            super::chat_who(None),
+            "for the helper that the host chooses"
+        );
+        assert_eq!(super::chat_who(Some("Atlas")), "with Atlas");
+    }
+
     #[test]
     fn one_agent_takes_the_whole_width_two_half_each() {
         let cell = [0, 0, 1, 2];

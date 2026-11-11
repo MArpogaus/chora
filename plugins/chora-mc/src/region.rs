@@ -831,22 +831,29 @@ impl Mc {
         self.slot.filter(|_| self.chat == crate::Chat::Open)
     }
 
-    /// Tells the HUD host where the chat goes, when the box moved.
+    /// Tells the HUD host where the chat goes, when the box or the output
+    /// changed since the host was told last. A failed emit is tried again
+    /// at the next layout.
     pub fn send_slot(&mut self) -> Result<(), ClientError> {
         let rect = self.chat_slot();
         let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
             return Ok(());
         };
-        if rect == self.slot_sent {
+        let told = self.slot_sent.as_ref();
+        let unchanged = match told {
+            Some((sent, sent_rect)) => *sent == output && *sent_rect == rect,
+            None => rect.is_none(),
+        };
+        if unchanged {
             return Ok(());
         }
-        self.slot_sent = rect;
         let emit =
             serde_json::json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
         self.rt
             .conn
-            .call::<_, serde_json::Value>("events.emit", emit)
-            .map(drop)
+            .call::<_, serde_json::Value>("events.emit", emit)?;
+        self.slot_sent = Some((output, rect));
+        Ok(())
     }
 
     /// The box of the drawer of the current scene, while it shows.
