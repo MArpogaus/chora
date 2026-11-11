@@ -247,8 +247,10 @@ pub struct Config {
     pub style: Style,
 }
 
-/// Who draws the voice HUD and the questions of the voice agent.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+/// Who draws the voice HUD and the questions of the voice agent. The
+/// values `true` and `false` of earlier versions read as `own` and
+/// `host` for one release.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoiceHud {
     /// The construct draws them and claims the indicator of the agent.
@@ -256,6 +258,26 @@ pub enum VoiceHud {
     /// The HUD host `chora-assistant` draws them; the construct claims
     /// nothing.
     Host,
+}
+
+impl<'de> Deserialize<'de> for VoiceHud {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Written {
+            Before(bool),
+            Name(String),
+        }
+        match Written::deserialize(deserializer)? {
+            Written::Before(true) => Ok(Self::Own),
+            Written::Before(false) => Ok(Self::Host),
+            Written::Name(name) if name == "own" => Ok(Self::Own),
+            Written::Name(name) if name == "host" => Ok(Self::Host),
+            Written::Name(name) => Err(serde::de::Error::custom(format!(
+                "voice_hud: {name:?} is not own or host"
+            ))),
+        }
+    }
 }
 
 impl Config {
