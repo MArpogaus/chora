@@ -339,6 +339,23 @@ impl Config {
         self.keys.get(&name.join("+")).copied()
     }
 
+    /// The warnings of a configuration that works but surprises: a key
+    /// that starts or closes something without a modifier, which typed
+    /// text presses.
+    #[must_use]
+    pub fn warnings(&self) -> Vec<String> {
+        let opens = [Action::Terminal, Action::Launcher, Action::Close];
+        (self.keys.iter())
+            .filter(|(key, action)| opens.contains(action) && !key.contains('+'))
+            .map(|(key, _)| {
+                format!(
+                    "the key {key} starts or closes something without a modifier: \
+                     text typed into the space presses it; name Super, as in Super+{key}"
+                )
+            })
+            .collect()
+    }
+
     /// The rows of the help panel: the keys of each action, the fly-out
     /// binding, and the drag and the wheel with the modifier.
     #[must_use]
@@ -431,6 +448,21 @@ mod tests {
         assert_eq!(config.action("w", &super_), None);
         let shift = ["Shift".to_owned()];
         assert_eq!(config.action("Return", &shift), Some(Action::FlyIn));
+    }
+
+    /// A start or close key without a modifier still works, but the load
+    /// warns: typed text would start or close something.
+    #[test]
+    fn a_start_or_close_key_without_a_modifier_warns() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.warnings(), Vec::<String>::new());
+        let plain = DEFAULT.replace("Super+t: terminal", "t: terminal");
+        let config: Config = serde_saphyr::from_str(&plain).unwrap();
+        assert_eq!(
+            config.warnings(),
+            ["the key t starts or closes something without a modifier: \
+              text typed into the space presses it; name Super, as in Super+t"]
+        );
     }
 
     /// The defaults reach the ratios of rule 5, and a muted that is too

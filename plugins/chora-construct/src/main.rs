@@ -522,6 +522,9 @@ fn shader_file(
 fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let path = settings::File::<Config>::path(args.config.clone(), "chora-construct")?;
     let settings = settings::File::<Config>::load(path, config::DEFAULT)?;
+    for warning in settings.value.warnings() {
+        eprintln!("chora-construct: {warning}");
+    }
     let rt = Runtime::connect(NAME, Vec::new())?;
     let start = Pose::default();
     let shader = |name: &str, text: &str| {
