@@ -47,12 +47,17 @@ fn the_colours_of_every_shipped_folder_read_well() {
         );
     }
     let mc = shipped("plugins/chora-mc/hud");
-    let rows = mc
+    assert!(
+        mc.panels.iter().all(|panel| panel.source != Source::Agents),
+        "mc draws the helper rows in its own column"
+    );
+    let states: Vec<_> = mc
         .panels
         .iter()
-        .find(|panel| panel.source == Source::Agents)
-        .expect("the rows of mc");
-    assert!(rows.colours.accent.is_some() && rows.colours.muted.is_some());
+        .filter(|panel| panel.source == Source::Voice)
+        .collect();
+    assert_eq!(states.len(), 2, "the state word of mc, light and dark");
+    assert!(states.iter().all(|state| state.colours.accent.is_some()));
 }
 
 #[test]
