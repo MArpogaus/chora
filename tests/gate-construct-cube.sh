@@ -17,7 +17,11 @@
 #    turn. Alt+Escape steps back and takes the keyboard; Return steps in
 #    and the window of before takes typed text again, but not after a
 #    step into another face. A click on a face and a click on the chip
-#    STEP IN step in. After the switcher of xp showed and closed,
+#    STEP IN step in. In navigate mode the edge of the face under the
+#    pointer is lit, and a drag on a face turns the cube by one face.
+#    With the grant input.grab-any and fly_out Escape, Escape alone
+#    steps back; without the grant the chip names no key. After the
+#    switcher of xp showed and closed,
 #    Alt+Escape steps back again; that the switcher has Alt+Escape while
 #    it shows is a unit test of the construct, as injected keys do not
 #    stay down between two requests.
@@ -221,6 +225,44 @@ until_ok "$stood_back" 20 || fail "Alt+Escape did not step back a fourth time"
 inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, {"click": {}}]'
 until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
 ok "a click on a face and a click on the chip STEP IN step in"
+
+[ "$(prop construct-cube-edge visible)" != True ] || fail "the edge of a face is lit in use mode"
+key Alt+Escape
+until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the hover"
+inject '[{"pointer_move": {"position": [10, 10]}}, {"pointer_move": {"position": [640, 400]}}]'
+until_ok 'test "$(prop construct-cube-edge visible)" = True' 20 || fail "the edge of the face under the pointer is not lit: $(prop construct-cube-edge visible)"
+inject '[{"pointer_move": {"position": [10, 10]}}]'
+until_ok 'test "$(prop construct-cube-edge visible)" = False' 20 || fail "the edge stays lit after the pointer left the face"
+ok "in navigate mode the edge of the face under the pointer is lit"
+
+drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}, {\"pointer_move\": {\"position\": [$(( ($1 + $2) / 2 )), 400]}}, {\"pointer_move\": {\"position\": [$2, 400]}}, {\"button\": {\"state\": \"released\"}}]"; }
+drag 800 300
+until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "a drag to the left did not turn the cube to the next face"
+sleep 1
+[ "$(prop construct-cube-face-1 forward)" = False ] || fail "a drag on the cube stepped in"
+drag 500 1000
+until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a drag to the right did not turn the cube back"
+sleep 1
+drag 640 700
+sleep 1
+eval "$stood_back" || fail "a short drag turned the cube or left navigate mode"
+call view.step_in >/dev/null || fail "view.step_in after the drags"
+until_ok "$stepped_in" 20 || fail "no step in after the drags"
+ok "a drag on a face turns the cube by one face, and a short drag steps in"
+
+call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
+sleep 0.5
+if prop construct-mode-step-back-text text | grep -q "Esc"; then fail "the chip names Escape although the construct cannot grab it: $(prop construct-mode-step-back-text text)"; fi
+"$bin/choractl" grant construct input.grab-any || fail "the grant input.grab-any"
+call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape with the grant"
+until_ok 'prop construct-mode-step-back-text text | grep -q "  Esc$"' 20 || fail "the chip does not name Escape: $(prop construct-mode-step-back-text text)"
+plain Escape
+until_ok "$stood_back" 20 || fail "Escape alone did not step back with input.grab-any"
+plain Escape
+until_ok "$stepped_in" 20 || fail "Escape did not step in again"
+call settings.set '{"fly_out": "Alt+Escape"}' >/dev/null || fail "settings.set fly_out Alt+Escape"
+until_ok 'prop construct-mode-step-back-text text | grep -q "Alt+Esc"' 20 || fail "the chip does not name Alt+Escape again"
+ok "with input.grab-any and fly_out Escape, Escape alone steps back and in; without the grant the chip names no key"
 
 inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "Tab", "state": "pressed"}}, {"key": {"key": "Tab", "state": "released"}}, {"key": {"key": "Alt_L", "state": "released"}}]'
 sleep 0.5
