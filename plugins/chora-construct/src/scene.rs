@@ -48,7 +48,7 @@ impl Construct {
     /// Handles events; during a glide, frames come every 16 ms.
     pub(crate) fn serve(&mut self) -> Result<(), ClientError> {
         loop {
-            let plugins = self.waiting.iter().any(|w| w.pane.kind == Kind::Plugin);
+            let plugins = self.waiting.iter().any(|w| w.pane.kind != Kind::Program);
             let wait = if self.glide.is_some() || self.effects.animating() || self.cube_turns() {
                 FRAME
             } else if plugins {
@@ -107,6 +107,7 @@ impl Construct {
         self.panes = kept;
         let commands: Vec<Command> = gone.iter().flat_map(Pane::remove).collect();
         self.rt.conn.apply(commands)?;
+        self.end_managers();
         self.active = true;
         self.waiting.clear();
         self.build()?;
@@ -126,6 +127,11 @@ impl Construct {
                         self.waiting.push(Waiting::new(None, pane));
                     }
                 }
+                Kind::Manager => {
+                    if let Some(pane) = self.show_manager(pane)? {
+                        self.waiting.push(Waiting::new(None, pane));
+                    }
+                }
             }
         }
         self.frame()
@@ -139,6 +145,7 @@ impl Construct {
             return Ok(());
         }
         self.close_cube()?;
+        self.end_managers();
         self.rt.conn.apply(vec![
             Command::FocusNode { node: None },
             Command::Remove {
@@ -198,16 +205,45 @@ impl Construct {
         Ok(None)
     }
 
-    /// Looks again for the nodes of the plugin panes that wait.
+    /// Shows the manager pane of a file; answers the pane back while a
+    /// client of that name still runs, as the manager of the construct
+    /// before, which ends. A pane whose manager the setting `managers`
+    /// lacks goes, with one message.
+    pub(crate) fn show_manager(&mut self, file: PaneFile) -> Result<Option<PaneFile>, ClientError> {
+        let manager = file.manager.clone().unwrap_or_default();
+        if let Some(reason) = super::wm::unknown_manager(&self.settings.value.managers, &manager) {
+            eprintln!("chora-construct: the pane of {manager} goes: {reason}");
+            return Ok(None);
+        }
+        match self.open_manager(&manager, None, Some(&file)) {
+            Ok(_) => Ok(None),
+            Err(ClientError::Rpc(err)) if err.code == super::RpcError::REJECTED => {
+                eprintln!(
+                    "chora-construct: the pane of {manager} waits: {}",
+                    err.message
+                );
+                Ok(Some(file))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Looks again for the nodes of the plugin panes that wait, and for
+    /// the window managers of the manager panes that wait.
     pub(crate) fn retry_plugins(&mut self) -> Result<(), ClientError> {
         let (plugins, programs): (Vec<Waiting>, Vec<Waiting>) = std::mem::take(&mut self.waiting)
             .into_iter()
-            .partition(|w| w.pane.kind == Kind::Plugin);
+            .partition(|w| w.pane.kind != Kind::Program);
         self.waiting = programs;
         let mut shown = false;
         for waiting in plugins {
             let Waiting { pane, .. } = waiting;
-            match self.show_plugin(pane)? {
+            let left = if pane.kind == Kind::Manager {
+                self.show_manager(pane)?
+            } else {
+                self.show_plugin(pane)?
+            };
+            match left {
                 Some(pane) => self.waiting.push(Waiting { pane, ..waiting }),
                 None => shown = true,
             }
@@ -251,6 +287,11 @@ impl Construct {
                         v["kind"] = json!("plugin");
                         v["plugin"] = json!(plugin);
                         v["scene"] = json!(scene);
+                    }
+                    Content::Manager { manager } => {
+                        v["kind"] = json!("manager");
+                        v["manager"] = json!(manager);
+                        v["output"] = json!(self.manager_output(manager));
                     }
                 }
                 v

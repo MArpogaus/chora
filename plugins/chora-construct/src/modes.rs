@@ -6,8 +6,6 @@
 //! in use mode, TURN LEFT, TURN RIGHT and STEP IN in navigate mode. `chora_kit::modes` holds the
 //! model; this file draws it and takes its input.
 
-use std::time::Instant;
-
 use chora_kit::{
     modes::{Act, Mode, View},
     words::{Language, Word},
@@ -232,7 +230,8 @@ impl Construct {
         if act == Act::StepBack && self.flown.is_some() {
             self.fly_out()?;
         }
-        let changed = (self.cube.as_mut()).is_some_and(|host| host.act(act, Instant::now()));
+        let changed =
+            (self.cube.as_mut()).is_some_and(|host| host.act(act, chora_kit::clock::now()));
         if !changed {
             return Ok(());
         }

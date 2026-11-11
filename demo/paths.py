@@ -7,6 +7,12 @@ Usage: demo/paths.py CLIP          prints the cues, one JSON object per line
   CLIP  walk: the camera walks through the construct of
               demo/scene-construct.sh and comes back
         swing: the pane in the middle is grabbed, swung and let go, twice
+        cube: in the cube of demo/scene-cube.sh, a click on STEP BACK,
+              four slow quarter turns and a click on STEP IN
+        float: the cube stood back and stopped in a turn; the last frame
+               is the still
+        pull: the camera stands off, a window is dragged by its title bar
+              off the front face, swings as a pane and is dropped
 
 The clips run at 30 frames a second on an output of 1280 by 720.
 """
@@ -96,7 +102,76 @@ def swing():
     return end + 36
 
 
-CLIPS = {"walk": walk, "swing": swing}
+def construct(frame, method, params):
+    cue(frame, "methods.call", {"client": "construct", "method": method, "params": params})
+
+
+def glide_pointer(frame, start, end, frames):
+    """Moves the pointer from a point to a point over a count of frames."""
+    for step in range(1, frames + 1):
+        k = smooth(step / frames)
+        move(frame + step, start[0] + (end[0] - start[0]) * k, start[1] + (end[1] - start[1]) * k)
+    return frame + frames
+
+
+REST = (930, 470)
+CHIP = (1200, 656)
+QUARTER_MS = 1500
+QUARTER = QUARTER_MS * 30 // 1000
+
+
+def cube():
+    move(1, *REST)
+    frame = glide_pointer(14, REST, CHIP, 22)
+    frame += 6
+    inject(frame, [{"click": {}}])
+    frame += 20
+    for _ in range(4):
+        construct(frame, "cube.turn", {"by": 1, "ms": QUARTER_MS})
+        frame += QUARTER + 10
+    frame += 2
+    inject(frame, [{"click": {}}])
+    frame = glide_pointer(frame + 16, CHIP, REST, 22)
+    return frame + 10
+
+
+def float_still():
+    move(1, 1100, 560)
+    construct(2, "view.step_back", {})
+    construct(20, "cube.turn", {"by": 1, "ms": 4000})
+    return 46
+
+
+PULL_VIEW = {"x": -360, "z": -600, "yaw": 0.38, "pitch": -0.02}
+TITLE = (330, 147)
+
+
+def pull():
+    move(1, 640, 420)
+    glide(8, {**PULL_VIEW}, 1400)
+    frame = glide_pointer(30, (640, 420), TITLE, 26)
+    frame += 6
+    inject(frame, [{"button": {"state": "pressed", "hold": True}}])
+    at = list(TITLE)
+
+    def to(frames, dx, dy):
+        nonlocal frame, at
+        end = (at[0] + dx, at[1] + dy)
+        frame = glide_pointer(frame, at, end, frames)
+        at = list(end)
+
+    to(24, 300, 45)
+    to(22, 370, 75)
+    frame += 4
+    to(9, 80, 80)
+    to(10, -130, -40)
+    to(9, 70, 25)
+    frame += 6
+    inject(frame, [{"button": {"state": "released"}}])
+    return frame + 50
+
+
+CLIPS = {"walk": walk, "swing": swing, "cube": cube, "float": float_still, "pull": pull}
 
 
 def main():
