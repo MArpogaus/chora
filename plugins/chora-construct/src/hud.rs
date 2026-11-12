@@ -684,11 +684,10 @@ impl Look<'_> {
         commands.push(update(
             &id,
             PropsUpdate {
-                opacity: Some(0.0),
+                opacity: Some(NEIGHBOUR_OPACITY),
                 ..PropsUpdate::default()
             },
         ));
-        commands.push(fade(&id, NEIGHBOUR_OPACITY, FADE_IN));
         (commands, w)
     }
 

@@ -1364,7 +1364,11 @@ impl Construct {
                 update(
                     &mirror_id(i),
                     PropsUpdate {
-                        uniforms: Some(super::panes::mirror_uniforms(win, look)),
+                        uniforms: Some(super::panes::mirror_uniforms(
+                            win,
+                            look,
+                            super::panes::CUBE_FEATHER,
+                        )),
                         ..PropsUpdate::default()
                     },
                 )
@@ -1412,7 +1416,11 @@ impl Construct {
                         PropsUpdate {
                             size: Some(super::panes::mirror_size(cube.size_of(i))),
                             shader: Some(self.mirror_shader.clone()),
-                            uniforms: Some(super::panes::mirror_uniforms(win.clone(), &look)),
+                            uniforms: Some(super::panes::mirror_uniforms(
+                                win.clone(),
+                                &look,
+                                super::panes::CUBE_FEATHER,
+                            )),
                             visible: Some(false),
                             ..PropsUpdate::default()
                         },

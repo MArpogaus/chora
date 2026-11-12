@@ -144,6 +144,12 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
     }
 }
 
+/// The soft edge of the mirror image of a pane, in texture pixels.
+pub(crate) const PANE_FEATHER: f64 = 24.0;
+/// The soft edge of the mirror image of a cube face, in texture pixels:
+/// the faces meet on their edges.
+pub(crate) const CUBE_FEATHER: f64 = 3.0;
+
 /// The roughness of the polished floor in a mirror image (mirror.frag):
 /// the blur in pixels of its texture at the contact line and at the top,
 /// the stretch of the blur along the view, and the waver of the bumps.
@@ -151,8 +157,13 @@ pub(crate) const ROUGH: [f64; 4] = [0.6, 10.0, 1.6, 1.2];
 
 /// The uniforms of a mirror image: the pane's node, the gloss of the
 /// floor, the distances of the haze and the fresnel, and the roughness.
-pub(crate) fn mirror_uniforms(win: Uniform, look: &PaneLook) -> BTreeMap<String, Uniform> {
+pub(crate) fn mirror_uniforms(
+    win: Uniform,
+    look: &PaneLook,
+    feather: f64,
+) -> BTreeMap<String, Uniform> {
     BTreeMap::from([
+        ("feather".into(), Uniform::Float(feather)),
         ("win".into(), win),
         ("rough".into(), Uniform::Vector(ROUGH.to_vec())),
         ("gloss".into(), Uniform::Float(look.gloss)),
@@ -396,7 +407,7 @@ impl Construct {
             update(
                 &pane.mirror(),
                 PropsUpdate {
-                    uniforms: Some(mirror_uniforms(pane.reads(), look)),
+                    uniforms: Some(mirror_uniforms(pane.reads(), look, PANE_FEATHER)),
                     ..PropsUpdate::default()
                 },
             ),
@@ -460,7 +471,7 @@ impl Construct {
                 PropsUpdate {
                     size: Some(mirror),
                     shader: Some(self.mirror_shader.clone()),
-                    uniforms: Some(mirror_uniforms(pane.reads(), &look)),
+                    uniforms: Some(mirror_uniforms(pane.reads(), &look, PANE_FEATHER)),
                     transform: Some(Transform::from_matrix(space::mirror_model(
                         &self.lens, pane.at, pane.size, pane.yaw, k,
                     ))),
