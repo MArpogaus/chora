@@ -280,3 +280,5 @@ The user asked at 02:24 UTC to plan a token analysis; the PM started a sonnet ag
 
 ## 41 (2026-11-12 04:16 UTC): a cloud worker sat in PENDING for 89 minutes unnoticed
 The construct UI worker created at 02:47 UTC never started; the PM saw it only at the 04:15 watchdog. Cost: the critical-path lane lost 1.5 h. Fix: after every create_session, a send_later check after 6 minutes (routines.md, before briefing a worker); a still-pending worker is replaced or run as a local agent.
+
+42. 11-12 05:06 UTC: three brief updates sent to the xp worker mid-turn (04:26 to 04:31 UTC) reached it only after its report, so it applied none of them and then hit its 250k context limit. Fix: send_message to a busy worker with priority "next" so it joins the running turn; anything that changes scope goes into the brief of the next round, not into a mid-turn message.
