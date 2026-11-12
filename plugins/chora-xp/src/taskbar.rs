@@ -32,26 +32,34 @@ const LUNA_ROWS: [&str; 30] = [
 const TASK_HEIGHT: i32 = 28;
 const TASK_GAP: i32 = 4;
 const TASK_WIDTH: i32 = 180;
-const TRAY_WIDTH: i32 = 90;
+const TRAY_WIDTH: i32 = 80;
 /// The notification area without the clock.
-const TRAY_EMPTY: i32 = 14;
-/// The helper of the notification area, at its left: 12 pixels of room,
-/// the 16 pixel icon and 8 pixels to the speaker. A click opens the chat.
-pub const HELPER: i32 = 36;
-/// The helper, a small paperclip, drawn in the coordinates of its room.
-const HELPER_SHAPE: &str = r##"<path d="M17.5 12.2L12.6 17.1a2.4 2.4 0 0 0 3.4 3.4L21.8 14.7a4 4 0 0 0-5.7-5.7L10.2 14.9a5.6 5.6 0 0 0 7.9 7.9L22.6 18.3" stroke="#ffffff" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>"##;
-/// The speaker of the notification area, left of the clock: 12 pixels of
-/// room, the 16 pixel icon and 8 pixels to the clock. A click mutes or
-/// unmutes. It keeps its width: the level and the word "Muted" are in its
-/// tooltip.
-pub const SPEAKER: i32 = 36;
-/// The speaker, drawn in the coordinates of the notification area.
-const SPEAKER_SHAPE: &str = r##"<path d="M12 12h3.5l5-4v14l-5-4H12z" fill="#ffffff"/>"##;
+const TRAY_EMPTY: i32 = 8;
+/// The helper of the notification area, at its left: 12 pixels of room
+/// before the 16 pixel icon and 4 after. A click opens the chat.
+pub const HELPER: i32 = 32;
+/// The helper, a small paperclip, drawn on a grid of 16 pixels.
+const HELPER_SHAPE: &str = r##"<path d="M6.5 5.5V10.5a1.75 1.75 0 0 0 3.5 0V4.25a3.5 3.5 0 0 0-7 0V10a5 5 0 0 0 10 0V5" stroke="#ffffff" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>"##;
+/// The speaker of the notification area, left of the clock: 4 pixels
+/// of room before the 16 pixel icon and 4 after, so that the icons stand
+/// 8 pixels apart. A click mutes or unmutes. It keeps its width: the level
+/// and the word "Muted" are in its tooltip.
+pub const SPEAKER: i32 = 24;
+/// The speaker on a grid of 16 pixels.
+const SPEAKER_SHAPE: &str = r##"<path d="M1.5 5.75H5L9 2.25v11.5L5 10.25H1.5z" fill="#ffffff"/>"##;
 /// The waves of a speaker that plays.
-const SPEAKER_WAVE: &str =
-    r##"<path d="M23 11.5a4.5 4.5 0 0 1 0 7" stroke="#ffffff" fill="none" stroke-width="1.6"/>"##;
-/// The red no-sign over a speaker that is muted or has no output.
-const SPEAKER_OFF: &str = r##"<g transform="translate(14 7)"><circle cx="8" cy="8" r="6" fill="none" stroke="#F52F15" stroke-width="2.2"/><path d="M3.8 3.8L12.2 12.2" stroke="#F52F15" stroke-width="2.2"/></g>"##;
+const SPEAKER_WAVE: &str = r##"<path d="M11.5 5.5a3.5 3.5 0 0 1 0 5M13.25 3.5a6.25 6.25 0 0 1 0 9" stroke="#ffffff" fill="none" stroke-width="1.5"/>"##;
+/// The red no-sign over a speaker that is muted or has no output, round
+/// the middle of its grid of 16 pixels.
+const NO_SIGN: &str = r##"<circle cx="8" cy="8" r="6.5" fill="none" stroke="#D8321F" stroke-width="2"/><path d="M3.4 3.4L12.6 12.6" stroke="#D8321F" stroke-width="2"/>"##;
+/// The room before the first icon of the notification area and after the
+/// clock.
+const TRAY_PAD: i32 = 12;
+/// How far the measured width of the clock runs beyond its last column of
+/// ink.
+const CLOCK_BEARING: i32 = 2;
+/// The side of an icon of the notification area.
+const TRAY_ICON: i32 = 16;
 /// What shows of a taskbar that hides itself, as on XP.
 pub const HIDDEN_STRIP: i32 = 2;
 /// How long the taskbar takes to slide away or back.
@@ -133,9 +141,6 @@ pub enum Part {
     /// The helper of the notification area of an output.
     Helper(String),
 }
-
-/// The red no-sign over the helper, in the coordinates of its room.
-const HELPER_OFF: &str = r##"<g transform="translate(9 7)"><circle cx="8" cy="8" r="6" fill="none" stroke="#F52F15" stroke-width="2.2"/><path d="M3.8 3.8L12.2 12.2" stroke="#F52F15" stroke-width="2.2"/></g>"##;
 
 /// What the icons of the notification area show: the speaker and the
 /// helper, which shows the red no-sign while the microphone is off.
@@ -512,7 +517,7 @@ impl Bar {
     pub fn tray(&self, theme: &mut Theme, clock: &str, icons: Icons) -> Vec<Command> {
         let width = self.tray_width();
         let clock = self.clock.then_some(clock);
-        let picture = tray(width, clock, icons);
+        let picture = tray(theme, width, clock, icons);
         let blank = Picture::new(SPEAKER, HEIGHT);
         let helper = Picture::new(HELPER, HEIGHT);
         let left = f64::from(self.area[2] - width);
@@ -646,35 +651,36 @@ fn tray_width(clock: bool) -> i32 {
 }
 
 /// The notification area of a width, with the helper and the speaker at the
-/// left and the clock at the right.
-fn tray(width: i32, clock: Option<&str>, icons: Icons) -> Picture {
+/// left and the clock at the right: 12 pixels at both ends, 8 between the
+/// icons and the clock.
+fn tray(theme: &Theme, width: i32, clock: Option<&str>, icons: Icons) -> Picture {
     let mut picture = Picture::new(width, HEIGHT)
         .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
-    let shape = match icons.speaker {
+    let speaker = match icons.speaker {
         Speaker::On => format!("{SPEAKER_SHAPE}{SPEAKER_WAVE}"),
-        Speaker::Off => format!("{SPEAKER_SHAPE}{SPEAKER_OFF}"),
+        Speaker::Off => format!("{SPEAKER_SHAPE}{NO_SIGN}"),
     };
     let helper = if icons.mic_off {
-        format!("{HELPER_SHAPE}{HELPER_OFF}")
+        format!("{HELPER_SHAPE}{NO_SIGN}")
     } else {
         HELPER_SHAPE.to_owned()
     };
-    let top = (HEIGHT - 30) / 2;
+    let top = (HEIGHT - TRAY_ICON) / 2;
+    let speaker_left = HELPER + (SPEAKER - TRAY_ICON) / 2;
     picture = picture.svg(format!(
-        r#"<g transform="translate(0 {top})">{helper}</g><g transform="translate({HELPER} {top})">{shape}</g>"#
+        r#"<g transform="translate({TRAY_PAD} {top})">{helper}</g><g transform="translate({speaker_left} {top})">{speaker}</g>"#
     ));
     if let Some(clock) = clock {
-        let left = width - TRAY_WIDTH;
-        picture = picture.text(
-            Text::new(
-                clock,
-                Font::Ui,
-                WHITE,
-                [left + 2, 0, TRAY_WIDTH - 4, HEIGHT],
-            )
-            .centered(),
-        );
+        #[allow(clippy::cast_possible_truncation)]
+        let ink = theme.text_width(clock, Font::Ui).ceil() as i32;
+        let left = width - TRAY_PAD - ink + CLOCK_BEARING;
+        picture = picture.text(Text::new(
+            clock,
+            Font::Ui,
+            WHITE,
+            [left, 0, ink + 2, HEIGHT],
+        ));
     }
     picture
 }
@@ -742,6 +748,7 @@ pub fn preview(
             let width = tray_width(!clock.is_empty());
             let clock = (!clock.is_empty()).then_some(clock);
             let tray = tray(
+                theme,
                 width,
                 clock,
                 Icons {
@@ -947,22 +954,134 @@ mod tests {
 
     #[test]
     fn the_tray_has_an_icon_for_the_speaker_and_a_clock() {
+        let (theme, cache) = crate::sheets::tests::theme("tray-texts");
         let width = tray_width(true);
         assert_eq!(
-            texts(&tray(width, Some("6:46 AM"), icons(Speaker::On, false))),
+            texts(&tray(
+                &theme,
+                width,
+                Some("6:46 AM"),
+                icons(Speaker::On, false)
+            )),
             ["6:46 AM"]
         );
         assert_eq!(
-            texts(&tray(tray_width(false), None, icons(Speaker::Off, false))).len(),
+            texts(&tray(
+                &theme,
+                tray_width(false),
+                None,
+                icons(Speaker::Off, false)
+            ))
+            .len(),
             0
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    fn light(c: [u8; 3]) -> bool {
+        c.iter().all(|v| *v > 120)
+    }
+
+    fn red(c: [u8; 3]) -> bool {
+        c[0] > 140 && c[1] < 120 && c[2] < 120
+    }
+
+    fn tray_runs(clock: &str, icons: Icons, step: i32) -> (Vec<crate::sheets::tests::Ink>, i32) {
+        let (mut theme, cache) = crate::sheets::tests::theme(&format!("tray-ink-{step}"));
+        theme.set_scale(f64::from(step));
+        let width = tray_width(true);
+        let picture = tray(&theme, width, Some(clock), icons);
+        let image = crate::sheets::tests::draw(&mut theme, &picture);
+        let found = crate::sheets::tests::runs(&image, 7 * step, |c| light(c) || red(c));
+        let _ = std::fs::remove_dir_all(cache);
+        (
+            found
+                .into_iter()
+                .map(|r| crate::sheets::tests::Ink {
+                    left: r.left / step,
+                    top: r.top / step,
+                    right: (r.right + step - 1) / step,
+                    bottom: (r.bottom + step - 1) / step,
+                    count: r.count / (step * step),
+                })
+                .collect(),
+            width,
+        )
+    }
+
+    fn check_tray_grid(clock: &str, step: i32) {
+        let (runs, width) = tray_runs(clock, icons(Speaker::On, false), step);
+        assert_eq!(runs.len(), 3, "{runs:?} at scale {step}");
+        let [helper, speaker, text] = [runs[0], runs[1], runs[2]];
+        for icon in [helper, speaker] {
+            assert!(icon.width() <= 16 && icon.height() <= 16, "{icon:?}");
+            assert!(
+                (icon.top + icon.bottom - HEIGHT).abs() <= 1,
+                "{icon:?} is not on the middle of the bar"
+            );
+        }
+        assert!(
+            (helper.left + helper.right - 2 * TRAY_PAD - 16).abs() <= 1,
+            "{helper:?}"
+        );
+        assert!(
+            ((speaker.left + speaker.right) - (helper.left + helper.right) - 48).abs() <= 2,
+            "{helper:?} {speaker:?}"
+        );
+        assert!(text.left - speaker.right >= 8, "{speaker:?} {text:?}");
+        assert!(
+            (width - TRAY_PAD - text.right).abs() <= 1,
+            "the clock ends {} px from the edge at scale {step}",
+            width - text.right
         );
     }
 
     #[test]
+    fn the_tray_icons_sit_on_a_grid_of_16_with_12_pixels_at_the_ends_and_8_between() {
+        for step in [1, 2] {
+            for clock in ["3:26 AM", "12:59 PM"] {
+                check_tray_grid(clock, step);
+            }
+        }
+    }
+
+    #[test]
+    fn the_speaker_has_ink_and_the_no_sign_is_the_palette_red_round_the_same_middle() {
+        let (runs, _) = tray_runs("3:26 AM", icons(Speaker::On, false), 1);
+        let speaker = runs[1];
+        assert!(
+            speaker.count * 10 >= speaker.width() * speaker.height() * 3,
+            "{speaker:?} is a stub"
+        );
+        assert!(speaker.width() >= 12, "{speaker:?}");
+        let (runs, _) = tray_runs("3:26 AM", icons(Speaker::Off, true), 1);
+        for icon in [runs[0], runs[1]] {
+            assert_eq!(icon.width(), 16, "{icon:?}");
+            assert_eq!(icon.height(), 16, "{icon:?}");
+        }
+        let (mut theme, cache) = crate::sheets::tests::theme("tray-red");
+        let picture = tray(&theme, tray_width(true), None, icons(Speaker::Off, false));
+        let image = crate::sheets::tests::draw(&mut theme, &picture);
+        let reds: Vec<[u8; 3]> = (0..i32::try_from(image.width()).expect("w"))
+            .flat_map(|x| (0..HEIGHT).map(move |y| [x, y]))
+            .map(|[x, y]| crate::sheets::tests::rgb(&image, x, y))
+            .filter(|c| red(*c))
+            .collect();
+        let reddest = reds.iter().map(|c| c[0]).max().expect("a red");
+        assert!(
+            reddest <= 0xD8 + 4,
+            "red {reddest:#x} is brighter than #D8321F"
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn the_tray_has_the_same_width_muted_or_not() {
+        let (theme, cache) = crate::sheets::tests::theme("tray-width");
         let width = tray_width(true);
-        let on = tray(width, Some("6:46 AM"), icons(Speaker::On, false));
-        let off = tray(width, Some("6:46 AM"), icons(Speaker::Off, true));
+        let on = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On, false));
+        let off = tray(&theme, width, Some("6:46 AM"), icons(Speaker::Off, true));
+        let _ = std::fs::remove_dir_all(cache);
         assert_eq!(on.size, off.size);
         let bar = bar(0);
         let [x, y, w, h] = bar.speaker_rect();
@@ -989,9 +1108,11 @@ mod tests {
 
     #[test]
     fn the_helper_shows_the_red_no_sign_while_the_microphone_is_off_at_the_same_width() {
+        let (theme, cache) = crate::sheets::tests::theme("tray-mic");
         let width = tray_width(true);
-        let on = tray(width, Some("6:46 AM"), icons(Speaker::On, false));
-        let off = tray(width, Some("6:46 AM"), icons(Speaker::On, true));
+        let on = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On, false));
+        let off = tray(&theme, width, Some("6:46 AM"), icons(Speaker::On, true));
+        let _ = std::fs::remove_dir_all(cache);
         assert_eq!(on.size, off.size);
         assert_ne!(on, off);
     }

@@ -54,6 +54,64 @@ pub mod tests {
         [p.red(), p.green(), p.blue()]
     }
 
+    /// A run of columns of an image with ink, as pixels: the box of the
+    /// ink and how many pixels it has.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct Ink {
+        pub left: i32,
+        pub top: i32,
+        pub right: i32,
+        pub bottom: i32,
+        pub count: i32,
+    }
+
+    impl Ink {
+        pub fn width(&self) -> i32 {
+            self.right - self.left
+        }
+
+        pub fn height(&self) -> i32 {
+            self.bottom - self.top
+        }
+    }
+
+    /// The runs of columns with ink in the image, divided by at least
+    /// `gap` columns without.
+    pub fn runs(image: &Pixmap, gap: i32, is_ink: impl Fn([u8; 3]) -> bool) -> Vec<Ink> {
+        let (w, h) = (
+            i32::try_from(image.width()).expect("w"),
+            i32::try_from(image.height()).expect("h"),
+        );
+        let mut found: Vec<Ink> = Vec::new();
+        let mut empty = gap;
+        for x in 0..w {
+            let ys: Vec<i32> = (0..h).filter(|y| is_ink(rgb(image, x, *y))).collect();
+            if ys.is_empty() {
+                empty += 1;
+                continue;
+            }
+            let (top, bottom) = (ys[0], ys[ys.len() - 1] + 1);
+            let count = i32::try_from(ys.len()).expect("count");
+            match found.last_mut() {
+                Some(run) if empty < gap => {
+                    run.right = x + 1;
+                    run.top = run.top.min(top);
+                    run.bottom = run.bottom.max(bottom);
+                    run.count += count;
+                }
+                _ => found.push(Ink {
+                    left: x,
+                    top,
+                    right: x + 1,
+                    bottom,
+                    count,
+                }),
+            }
+            empty = 0;
+        }
+        found
+    }
+
     #[test]
     #[allow(clippy::float_cmp)]
     fn frames_have_the_sizes_of_their_parts() {
