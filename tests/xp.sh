@@ -533,6 +533,17 @@ query '*' >"$out/audit-nodes.json"
 AUDIT_KINDS=image python3 -I "$(dirname "$0")/hud-audit.py" "$out/audit-outputs.json" \
     "$out/audit-nodes.json" xp assistant notify >"$out/audit.log" || fail "layout audit: $(cat "$out/audit.log")"
 
+notify "Windows Update" "Your updates are ready to install."
+wait_for has_node id:notify-card
+read -r nx ny <<<"$(query id:notify-card | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"')"
+read -r nw nh <<<"$(query id:notify-card-body | jq -r '.[0].size | "\(.[0] | ceil) \(.[1] | ceil)"')"
+read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
+if test $((nx + nw)) -gt "$fx" && test $((fx + fw)) -gt "$nx" && test $((ny + nh)) -gt "$fy" && test $((fy + fh)) -gt "$ny"; then
+    fail "the notification covers the paperclip: balloon $nx,$ny ${nw}x$nh, paperclip $fx,$fy ${fw}x$fh"
+fi
+click $((nx + nw / 2)) $((ny + nh / 2)) || fail "the click failed"
+wait_for has_node_count 0 id:notify-card
+
 step "16b. the chat has XP's form: a close box, Stop and Send, and a card with Yes and No of 80 by 28"
 echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 2}' >&5
 "$bin/choractl" call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
