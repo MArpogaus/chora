@@ -274,3 +274,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-12 ~02:45 UTC (user): cloud env updated, test it; intensive reflection loop; fix the latest problems; tighten rules and strategy; the user should never need to steer (verbatim in decisions-now.md).
 - 11-12 ~02:50 UTC (user): still 87 %; do not be paranoid about the token limit. usage.py overstates (it estimated ~90 % for this point); budget lines use the user's readings from now on.
 - 11-12 ~02:55 UTC (user): "Loop the reflection sharpening until no new findings apear".
+- 11-12 ~03:00 UTC (user): work autonomously, do not rely on the user; improve the estimate or respect its uncertainty; use the week's tokens fully without waste. Recalibration: 61.0 M units from 71 % (16:42) to 87 % (01:30) = 3.8 M units per point (was 2.8). Now about 88 % (87 + 5.1/3.8), range 87 to 90.
