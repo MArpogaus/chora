@@ -388,12 +388,14 @@ keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
 wait_for has_node_count 0 id:xp-face-1
 
-step "12b. Super+F1 opens Help and Support on the keyboard shortcuts, and Escape closes it"
+step "12b. Super+F1 opens Help and Support with a task button, and Escape closes both"
 keys 125+59 || fail "the keys failed: $out/probe.log"
 wait_for has_node id:xp-dlg-help
+wait_for has_node id:xp-task-helppanel-winit
 grim "$out/help.png"
 keys 1 || fail "the keys failed: $out/probe.log"
 wait_for has_node_count 0 id:xp-dlg-help
+wait_for has_node_count 0 id:xp-task-helppanel-winit
 
 step "12c. Super alone opens and closes the start menu; Super+d shows the desktop and brings it back"
 keys 125 || fail "the keys failed: $out/probe.log"
@@ -497,6 +499,15 @@ pids+=($!)
 exec 5>"$out/voice.in"
 echo 'voice.state {"state": "listening"}' >&5
 wait_for has_node id:hud-figure
+node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
+node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
+has_node id:xp-helper-winit || fail "the tray has no helper"
+test "$(node_size xp-helper-winit)" = "[36,36]" || fail "the helper is not 36 by 36"
+tray_before=$(node_size xp-tray-winit)
+echo 'voice.state {"state": "listening", "muted": {"mic": true}}' >&5
+sleep 1
+test "$(node_size xp-tray-winit)" = "$tray_before" || fail "a muted microphone changed the width of the tray"
+echo 'voice.state {"state": "listening", "muted": {"mic": false}}' >&5
 figure_rect() { query id:hud-figure | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
 bin_rect() {
     query kind:image | jq -c '[.[] | select(.id | startswith("xp-icon-"))]
@@ -514,8 +525,6 @@ wait_for speech_visible
 grim "$out/paperclip.png"
 
 step "16b. the chat has XP's form: a close box, Stop and Send, and a card with Yes and No of 80 by 28"
-node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
-node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
 echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 2}' >&5
 "$bin/choractl" call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
 wait_for has_node id:hud-chat-send

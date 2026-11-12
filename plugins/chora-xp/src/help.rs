@@ -22,6 +22,8 @@ use crate::{
 
 /// The client area: the pane and the page.
 pub const SIZE: [i32; 2] = [776, 600];
+/// The title of the window, also on its task button and in Alt+Tab.
+pub const TITLE: &str = "Help and Support";
 const PANE: i32 = 220;
 const LINK_ROW: i32 = 24;
 const NAVY: [u8; 4] = [0, 60, 116, 255];
@@ -183,7 +185,7 @@ impl HelpDialog {
     /// the table of keys.
     pub fn new(topic: usize, rows: Vec<Row>, area: Rect) -> Self {
         Self {
-            dialog: Dialog::new("help", "Help and Support", SIZE, area),
+            dialog: Dialog::new("help", TITLE, SIZE, area),
             topic: topic.min(TOPICS.len() - 1),
             rows,
         }

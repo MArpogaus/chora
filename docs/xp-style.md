@@ -38,7 +38,8 @@ something off? If yes, it is a finding. The second rule is chora's own:
    pane at the left lists the topics (Start a program, Find a window, Chat
    with a helper, Change the volume, Keyboard shortcuts), the page is
    white at the right. F1 and Super+F1 open it on Keyboard shortcuts;
-   Escape closes it.
+   Escape closes it. It has a button on the taskbar, which raises it, and
+   an entry in Alt+Tab, first while it has the focus.
 5. **The key table is generated.** It is made from the bindings that the
    plugin holds (`help::rows`), grouped "Start and find", "The helper" and
    "Windows", one key cap per chord: button face, 1 px `#8C8A7F`, 2 px at
@@ -78,7 +79,9 @@ something off? If yes, it is a finding. The second rule is chora's own:
 ## Taskbar and tray
 
 10. **The tray has icons, not words.** 12 px of room at the left, a 16 px
-    speaker icon, 8 px to the clock. Muted or no sound shows a red
+    helper icon (a small paperclip: a click opens the chat, the tooltip is
+    the state word, a red no-sign shows while the microphone is off), 8 px,
+    a 16 px speaker icon, 8 px to the clock. Muted or no sound shows a red
     no-sign; the width does not change. The words and the level are in the
     tooltip, which has the pale yellow fill and a 1 px black border of every
     balloon, 14 px text, and shows after 500 ms above the part under the

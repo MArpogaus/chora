@@ -23,7 +23,7 @@ use chora_kit::{
     runtime::{Plugin, Runtime},
     settings::{self, Store},
     volume::{self, Mixer, Reading},
-    words::Language,
+    words::{self, Language, Word},
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -76,6 +76,10 @@ const MENU_KEY: &str = "ContextMenu";
 
 /// The node of XP's Alt+Tab.
 const SWITCHER: &str = "xp-alttab";
+/// The name that the open Help and Support window has for the task
+/// buttons and Alt+Tab, in the place of a surface. It has no dash, which
+/// the ids of task buttons split at.
+const HELP_TASK: &str = "helppanel";
 /// How often and how long apart the switcher asks for Alt+Escape: a
 /// client that holds it gives it up on the event `xp.switcher`.
 const ESCAPE_TRIES: u32 = 4;
@@ -93,7 +97,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 20] = [
+const EVENTS: [&str; 21] = [
     "client.disconnected",
     "surface.created",
     "surface.changed",
@@ -114,6 +118,7 @@ const EVENTS: [&str; 20] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
+    "voice.state",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -253,6 +258,45 @@ struct Resize {
     released: bool,
 }
 
+/// Puts Help and Support into the entries of the switcher: first while it
+/// has the focus, so that the first step leaves it, else after the
+/// windows.
+fn add_help(entries: &mut Vec<switcher::Entry>, help: switcher::Entry, active: bool) {
+    let at = if active { 0 } else { entries.len() };
+    entries.insert(at, help);
+}
+
+/// What voice announces about the helper: its state and the microphone.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Helper {
+    state: Option<String>,
+    mic_off: bool,
+}
+
+impl Helper {
+    /// The helper of a `voice.state` of voice itself; none for the state
+    /// of a named helper, which is not the voice of the person.
+    fn of(data: &Value) -> Option<Self> {
+        if data.get("name").is_some() {
+            return None;
+        }
+        Some(Self {
+            state: data["state"].as_str().map(str::to_owned),
+            mic_off: data["muted"]["mic"].as_bool().unwrap_or(false),
+        })
+    }
+
+    /// The word of its tooltip: "Voice off" while the microphone is off,
+    /// else the state word, else the name of the door.
+    fn word(&self) -> Word {
+        match (self.mic_off, &self.state) {
+            (true, _) => Word::VoiceOff,
+            (false, Some(state)) => words::state(state).unwrap_or(Word::ChatLauncher),
+            (false, None) => Word::ChatLauncher,
+        }
+    }
+}
+
 /// The state of the window manager.
 pub struct Wm {
     rt: Runtime<Key>,
@@ -343,6 +387,7 @@ pub struct Wm {
     /// The reading that the speaker of the taskbars shows; none before
     /// the first.
     volume: Option<Reading>,
+    helper: Helper,
     /// Runs wpctl off the main loop.
     mixer: Mixer,
     /// When the volume was last read.
@@ -459,6 +504,7 @@ impl Wm {
             launches: Launches::new(),
             notifier: Notifier::new(),
             volume: None,
+            helper: Helper::default(),
             mixer: Mixer::new(NAME),
             volume_read: Instant::now(),
         };
@@ -591,7 +637,7 @@ impl Wm {
         );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
-        let tray = (self.clock.as_str(), self.speaker());
+        let tray = (self.clock.as_str(), self.icons());
         commands.extend(bar.create(&mut self.theme, BARS, tray, self.desktop));
         self.bars.push(bar);
         commands
@@ -719,6 +765,11 @@ impl Wm {
                 [self.rescale()?, self.output_changed(&output)].concat()
             }
             Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if event == "voice.state" && client == "voice" => self.voice_state(&data),
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
                 Vec::new()
@@ -866,6 +917,30 @@ impl Wm {
         }
     }
 
+    /// What the icons of the notification area show.
+    fn icons(&self) -> taskbar::Icons {
+        taskbar::Icons {
+            speaker: self.speaker(),
+            mic_off: self.helper.mic_off,
+        }
+    }
+
+    /// The tooltip of the helper: its state word, or "Voice off" while the
+    /// microphone is off.
+    fn helper_tip(&self) -> String {
+        self.helper.word().text(Language::of_session()).to_owned()
+    }
+
+    /// The state of the helper that voice announces: the tray icon shows
+    /// the microphone and the tooltip the state word.
+    fn voice_state(&mut self, data: &Value) -> Vec<Command> {
+        let Some(helper) = Helper::of(data).filter(|helper| *helper != self.helper) else {
+            return Vec::new();
+        };
+        self.helper = helper;
+        self.trays()
+    }
+
     /// The tooltip of the speaker: the level, or what is wrong.
     fn speaker_tip(&self) -> String {
         match self.volume {
@@ -877,10 +952,10 @@ impl Wm {
     /// The notification areas of every taskbar, with the clock and the
     /// volume.
     fn trays(&mut self) -> Vec<Command> {
-        let speaker = self.speaker();
+        let icons = self.icons();
         let mut commands = Vec::new();
         for bar in &self.bars {
-            commands.extend(bar.tray(&mut self.theme, &self.clock, speaker));
+            commands.extend(bar.tray(&mut self.theme, &self.clock, icons));
         }
         commands
     }
@@ -1060,6 +1135,9 @@ impl Wm {
     /// Raises, restores and focuses a window; a window of another desktop
     /// turns the cube to it.
     fn activate(&mut self, surface: &str) -> Vec<Command> {
+        if surface == HELP_TASK {
+            return self.focus_help();
+        }
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
@@ -1371,10 +1449,47 @@ impl Wm {
             })
             .collect();
         drop(tasks);
+        let mut lists = lists;
+        if let (Some(list), true) = (lists.first_mut(), self.has_help()) {
+            list.push(Task {
+                surface: HELP_TASK,
+                title: help::TITLE,
+                icon: self.icons.find("help-browser"),
+                active: self.help_active(),
+                minimized: false,
+                hovered: hovered.as_deref() == Some(HELP_TASK),
+            });
+        }
         let mut commands = Vec::new();
         for (bar, list) in self.bars.iter_mut().zip(&lists) {
             commands.extend(bar.tasks(&mut self.theme, list));
         }
+        commands
+    }
+
+    /// Whether Help and Support is open.
+    fn has_help(&self) -> bool {
+        self.panels.iter().any(|p| matches!(p, Panel::Help(_)))
+    }
+
+    /// Whether Help and Support has the focus: it is the topmost panel and
+    /// no window has the focus.
+    fn help_active(&self) -> bool {
+        self.focused.is_none() && matches!(self.panels.last(), Some(Panel::Help(_)))
+    }
+
+    /// Takes Help and Support to the top with the keyboard.
+    fn focus_help(&mut self) -> Vec<Command> {
+        let mut commands = self
+            .raise_panel(|p| matches!(p, Panel::Help(_)))
+            .unwrap_or_default();
+        commands.extend(self.focus(None));
+        if let Some(Panel::Help(panel)) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.dialog.group()),
+            });
+        }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -1456,6 +1571,7 @@ impl Wm {
                 bar.pager_rect(desktop),
             ),
             Some(taskbar::Part::Speaker(_)) => (self.speaker_tip(), bar.speaker_rect()),
+            Some(taskbar::Part::Helper(_)) => (self.helper_tip(), bar.helper_rect()),
             _ => return Vec::new(),
         };
         self.tip.rest(node, text, target, Instant::now());
@@ -1479,7 +1595,7 @@ impl Wm {
             Some(taskbar::Part::Task(_)) => self.sync_tasks(),
             Some(taskbar::Part::Pager(_)) => self.pagers(),
             None if Menu::owns(node) => self.menu.hover(&mut self.theme, node, on),
-            Some(taskbar::Part::Speaker(_)) | None => Vec::new(),
+            Some(taskbar::Part::Speaker(_) | taskbar::Part::Helper(_)) | None => Vec::new(),
         }
     }
 
@@ -1517,7 +1633,7 @@ impl Wm {
             &self.settings.value.wallpaper,
             output,
         )];
-        let tray = (self.clock.as_str(), self.speaker());
+        let tray = (self.clock.as_str(), self.icons());
         commands.extend(self.bars[i].resize(&mut self.theme, output, tray));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
@@ -1732,7 +1848,7 @@ impl Wm {
                 .filter(|w| w.shown && w.desktop == self.desktop)
                 .collect();
             windows.sort_by_key(|w| w.minimized);
-            let entries = windows
+            let mut entries = windows
                 .into_iter()
                 .map(|w| switcher::Entry {
                     surface: w.surface.clone(),
@@ -1742,6 +1858,14 @@ impl Wm {
                         .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
                 })
                 .collect::<Vec<_>>();
+            if self.has_help() {
+                let help = switcher::Entry {
+                    surface: HELP_TASK.into(),
+                    title: help::TITLE.into(),
+                    icon: self.icons.program_sized("help-browser", 32),
+                };
+                add_help(&mut entries, help, self.help_active());
+            }
             let Some(switcher) = Switcher::new(entries, step) else {
                 return commands;
             };
@@ -2457,6 +2581,11 @@ impl Wm {
             }
             taskbar::Part::Pager(desktop) => self.turn_to(desktop),
             taskbar::Part::Speaker(_) => Vec::new(),
+            taskbar::Part::Helper(_) => {
+                self.start_program(control::CHAT);
+                Vec::new()
+            }
+            taskbar::Part::Task(surface) if surface == HELP_TASK => self.focus_help(),
             taskbar::Part::Task(surface) => {
                 let minimized = self
                     .index(&surface)
@@ -2871,11 +3000,13 @@ impl Wm {
             commands.extend(panel.dialog.create(&mut self.theme, DIALOGS, page));
             self.panels.push(Panel::Help(panel));
         }
+        commands.extend(self.focus(None));
         if let Some(Panel::Help(panel)) = self.panels.last() {
             commands.push(Command::FocusNode {
                 node: Some(panel.dialog.group()),
             });
         }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -3061,8 +3192,8 @@ impl Wm {
             && let Some(top) = self.topmost_except("")
         {
             commands.extend(self.focus(Some(&top)));
-            commands.extend(self.sync_tasks());
         }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -3225,8 +3356,8 @@ impl Wm {
         for i in 0..self.bars.len() {
             let before = self.bars[i].usable();
             self.bars[i].configure(settings);
-            let speaker = self.speaker();
-            commands.extend(self.bars[i].tray(&mut self.theme, &self.clock, speaker));
+            let icons = self.icons();
+            commands.extend(self.bars[i].tray(&mut self.theme, &self.clock, icons));
             commands.extend(self.refit(before, self.bars[i].usable()));
         }
         if old.on_top != settings.on_top {
@@ -4189,6 +4320,48 @@ mod tests {
             ..output
         };
         assert_eq!(without_reserve(&reserved, other).work_area[3], 770);
+    }
+
+    #[test]
+    fn the_helper_tooltip_is_the_state_word_and_voice_off_while_the_microphone_is_off() {
+        let word = |data: Value| Helper::of(&data).map(|h| h.word());
+        assert_eq!(word(json!({"state": "working"})), Some(Word::Working));
+        assert_eq!(word(json!({})), Some(Word::ChatLauncher));
+        assert_eq!(
+            word(json!({"state": "listening", "muted": {"mic": true}})),
+            Some(Word::VoiceOff)
+        );
+        assert_eq!(
+            word(json!({"state": "listening", "muted": {"mic": false}})),
+            Some(Word::Listening)
+        );
+        assert_eq!(word(json!({"name": "coder", "state": "working"})), None);
+    }
+
+    #[test]
+    fn help_and_support_is_a_task_button_and_an_entry_of_the_switcher() {
+        assert_eq!(
+            taskbar::Part::of(&format!("xp-task-{HELP_TASK}-DP-1")),
+            Some(taskbar::Part::Task(HELP_TASK.into()))
+        );
+        let entry = |name: &str| switcher::Entry {
+            surface: name.into(),
+            title: name.into(),
+            icon: None,
+        };
+        let surfaces = |entries: &[switcher::Entry]| {
+            entries
+                .iter()
+                .map(|e| e.surface.clone())
+                .collect::<Vec<_>>()
+        };
+        let mut away = vec![entry("s1"), entry("s2")];
+        add_help(&mut away, entry(HELP_TASK), false);
+        assert_eq!(surfaces(&away), ["s1", "s2", HELP_TASK]);
+        let mut active = vec![entry("s1"), entry("s2")];
+        add_help(&mut active, entry(HELP_TASK), true);
+        assert_eq!(surfaces(&active), [HELP_TASK, "s1", "s2"]);
+        assert_eq!(help::TITLE, "Help and Support");
     }
 
     #[test]
