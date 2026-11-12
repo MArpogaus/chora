@@ -75,6 +75,18 @@ pub fn manager_name(manager: &str) -> String {
     }
 }
 
+/// The name on the label of face `face` (counted from 0) of a cube of
+/// `faces` faces that all run the manager `manager`: a number after the
+/// name tells the faces apart.
+#[must_use]
+pub fn face_title(manager: &str, face: usize, faces: usize) -> String {
+    if faces > 1 {
+        format!("{manager} {}", face + 1)
+    } else {
+        manager.to_owned()
+    }
+}
+
 /// The display name of the window manager that a command line starts:
 /// its program without the path and without the prefix `chora-`.
 #[must_use]
@@ -173,6 +185,14 @@ mod tests {
         assert_eq!(manager_name("mc"), "Media center");
         assert_eq!(manager_name("construct"), "Construct");
         assert_eq!(manager_name("other"), "Other");
+    }
+
+    #[test]
+    fn faces_of_one_manager_are_numbered() {
+        assert_eq!(face_title("XP", 0, 4), "XP 1");
+        assert_eq!(face_title("XP", 3, 4), "XP 4");
+        assert_eq!(face_title("Tiling", 1, 4), "Tiling 2");
+        assert_eq!(face_title("XP", 0, 1), "XP");
     }
 
     #[test]

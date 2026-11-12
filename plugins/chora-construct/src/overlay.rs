@@ -824,7 +824,8 @@ impl Construct {
         let at = [anchor[0] - hx, anchor[1] - hy];
         let (commands, width) = self.fitted(|s| {
             let look = s.styled();
-            let said = (manager.as_str(), format!("\u{b7} {words}"));
+            let title = crate::names::face_title(&manager, named, faces);
+            let said = (title.as_str(), format!("\u{b7} {words}"));
             let width = crate::hints::face_label_width(&look, (said.0, &said.1), faces);
             let drawn =
                 crate::hints::face_label(&look, (said.0, &said.1), (named, faces), at, &hollow);
