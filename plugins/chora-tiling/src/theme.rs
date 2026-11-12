@@ -591,8 +591,8 @@ pub fn flavor_dirs() -> Vec<std::path::PathBuf> {
 }
 
 /// The value of `XDG_DATA_DIRS` that lets the launcher list the
-/// `applications` folder of the flavor (the entries Screenshot and
-/// Screenshot of an area): the first directory that has one, in front
+/// `applications` folder of the flavor (the entries Screenshot, Screenshot
+/// of an area and the looks): the first directory that has one, in front
 /// of what `current` says, or of the default of the specification.
 #[must_use]
 pub fn data_dirs(dirs: &[std::path::PathBuf], current: Option<&str>) -> Option<String> {
@@ -607,7 +607,7 @@ pub fn data_dirs(dirs: &[std::path::PathBuf], current: Option<&str>) -> Option<S
 pub const INSTALLED: &str = "/usr/share/chora/flavors/tiling";
 
 /// The script that a program of the flavor runs, `sh power.sh` for
-/// `power` and `sh screenshot.sh` for `screenshot`, or the name of the
+/// `power`, `sh screenshot.sh` for `screenshot` and `sh look.sh` for `look`, or the name of the
 /// script that no directory has.
 fn script_line(program: &str, dirs: &[std::path::PathBuf]) -> Result<Vec<String>, LaunchError> {
     let name = format!("{program}.sh");
@@ -714,7 +714,7 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "screenshot" | "power" => line = script_line(program, dirs)?,
+        "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {

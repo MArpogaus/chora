@@ -1416,8 +1416,9 @@ The package installs the tiling flavor (D51):
 ├── swaylock.conf                     # the lock screen in the palette
 ├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
 ├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
+├── look.sh                           # Light look, Dark look and System look: look.theme at once
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
-├── applications/                     # the entries Screenshot and Screenshot of an area
+├── applications/                     # the entries Screenshot, Screenshot of an area and the three looks
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
@@ -1527,8 +1528,8 @@ its own package and needs no configuration.
   the flavor: `CHORA_FLAVOR_DIR`, `/usr/share/chora/flavors/tiling`, and the
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
-  `applications/` of the flavor too: **Screenshot** and **Screenshot of an
-  area** are the way for the mouse. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  `applications/` of the flavor too: **Screenshot**, **Screenshot of an
+  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
