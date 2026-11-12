@@ -498,6 +498,7 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
             "text": rgba(colours.text),
             "border": rgba(colours.border),
             "hint": rgba(colours.name),
+            "radius": frame.look.radius.map_or(0, |r| r.saturating_sub(2)),
         },
     });
     if let Some(token) = token {
