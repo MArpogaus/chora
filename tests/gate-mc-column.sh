@@ -4,6 +4,9 @@
 # the list adds its checks here; a check reads the texts and the rects of
 # the nodes of mc with `choractl query`.
 #
+# A text moves a few pixels to stand its baseline on the grid, so the boxes
+# of two lines may meet by 3 pixels; their capitals never do.
+#
 # The mission scene holds data in every panel and scrolls with the wheel
 # (rule 13 of docs/mc-style.md), so its panels are not all in view.
 #
@@ -142,8 +145,8 @@ key Super+Home
 until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda to measure"
 sleep 1
 close_list
-expect_rect "right-keys-title-rule" "[888.0,576.0,336.0,1.0]"
-expect_rect "right-edge" "[860.0,28.0,1.0,744.0]"
+expect_rect "right-keys-title-rule" "[888.0,574.0,336.0,1.0]"
+expect_rect "right-edge" "[860.0,37.0,1.0,738.0]"
 ok "at 1280x800 the column stands at 888 to 1224 with its hairline at 860"
 
 overlaps() {
@@ -152,7 +155,7 @@ overlaps() {
         [range(0; $a | length) as $i | range($i + 1; $a | length) as $j |
          ($a[$i].r) as $p | ($a[$j].r) as $q |
          select($p[0] + 1 < $q[0] + $q[2] and $q[0] + 1 < $p[0] + $p[2] and
-                $p[1] + 1 < $q[1] + $q[3] and $q[1] + 1 < $p[1] + $p[3]) |
+                $p[1] + 3 < $q[1] + $q[3] and $q[1] + 3 < $p[1] + $p[3]) |
          "\($a[$i].t) / \($a[$j].t)"] | join("; ")'
 }
 for scene in morning agenda; do
@@ -200,8 +203,8 @@ column_at() {
     ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start at $size"
     until_ok 'has_text "AGENDA"' || fail "no first screen at $size"
     sleep 1
-    expect_rect "right-keys-title-rule" "[$left.0,$((h - 14 - 196 - 14)).0,$width.0,1.0]"
-    expect_rect "right-edge" "[$((left - 28)).0,28.0,1.0,$((h - 56)).0]"
+    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - 196 - 14)).0,$width.0,1.0]"
+    expect_rect "right-edge" "[$((left - 28)).0,37.0,1.0,$((h / 28 * 28 - 46)).0]"
     fits "$w" "$h"
     shot "$size"
     ok "at $size the column stands at $left to $((left + width)), nothing is clipped"
