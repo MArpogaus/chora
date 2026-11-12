@@ -67,7 +67,7 @@ screened-through: 2026-11-12T02:11:00Z (bump to the newest user message recorded
 
 ## PM process
 - 11-12 ~02:10 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"
-  Reading: wake every 30 min; use cloud workers again; keep visual polishing and run test swarms on the new looks.
+  Reading: wake often; cloud workers; polish and swarms on the new looks.
 - 11-12 ~01:40 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
   Reading: archive finished worker sessions; a recurring wake-up keeps the PM working; start parallel lanes now.
 - 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
