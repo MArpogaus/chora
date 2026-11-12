@@ -277,3 +277,6 @@ The tooling worker found user.email = noreply@anthropic.com in its clone and set
 
 ## 40 (2026-11-12 02:43 UTC): "plan" was run, not planned
 The user asked at 02:24 UTC to plan a token analysis; the PM started a sonnet agent at once and spent budget at 90 %. The user corrected: plan means a backlog entry, run when resources allow. Fix: decisions-now.md PM process 02:43; the PM pushes back on work that is not needed now.
+
+## 41 (2026-11-12 04:16 UTC): a cloud worker sat in PENDING for 89 minutes unnoticed
+The construct UI worker created at 02:47 UTC never started; the PM saw it only at the 04:15 watchdog. Cost: the critical-path lane lost 1.5 h. Fix: after every create_session, a send_later check after 6 minutes (routines.md, before briefing a worker); a still-pending worker is replaced or run as a local agent.

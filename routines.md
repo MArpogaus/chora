@@ -54,3 +54,4 @@ first and act on its flags; the questions cover what a script cannot see.
 | Before an outward or destructive act (delete, push --delete, tag, PR, publish) | check the user's authorization and the permission scope first; do it as one small step; on refusal, log it under Blocked with the exact command for the user |
 | A lane silent for 2 h (no push, no report) | get_session or the agent's last output; nudge once, then replace it with a fresh agent and a handover |
 | Before briefing a worker | the brief template of design/product-briefs.md: goal, brief section, design note, area, acceptance checks, gates incl. `cargo test --workspace`, do-nots, report form |
+- After create_session: a send_later check after 6 minutes that the worker left PENDING; if not, archive it and run the task as a local agent (friction 41).
