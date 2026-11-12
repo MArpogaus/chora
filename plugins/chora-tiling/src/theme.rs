@@ -952,12 +952,24 @@ mod tests {
         let shot = std::fs::read_to_string(apps.join("chora-screenshot.desktop")).unwrap();
         assert!(shot.contains("\nName=Screenshot\n"));
         assert!(shot.contains("\nExec=chora-tiling --launch screenshot\n"));
+        for (file, name, word) in [
+            ("chora-look-light.desktop", "Light look", "light"),
+            ("chora-look-dark.desktop", "Dark look", "dark"),
+            ("chora-look-system.desktop", "System look", "system"),
+        ] {
+            let entry = std::fs::read_to_string(apps.join(file)).unwrap();
+            assert!(entry.contains(&format!("\nName={name}\n")), "{file}");
+            assert!(
+                entry.contains(&format!("\nExec=chora-tiling --launch look {word}\n")),
+                "{file}"
+            );
+        }
     }
 
     #[test]
     fn a_missing_script_is_an_error_and_never_true() {
         let none = [std::path::PathBuf::from("/nonexistent/flavor")];
-        for program in ["power", "screenshot"] {
+        for program in ["power", "screenshot", "look"] {
             let err = launch_line(program, &[], &none, Scheme::Ink).unwrap_err();
             assert!(err.to_string().contains(&format!("{program}.sh")));
             assert!(err.notice().0.contains("not installed"));
