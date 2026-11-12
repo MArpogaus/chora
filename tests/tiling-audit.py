@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 """Audit the surfaces of the tiling look on a capture.
 
-Usage: tests/tiling-audit.py CAPTURE.png NODES.json THEME SCALE CELL [BAR]
+Usage: tests/tiling-audit.py CAPTURE.png NODES.json THEME SCALE CELL [BAR] [WALL]
   NODES.json  `choractl query '*'`
   THEME       ink or paper
   SCALE       the scale of the output
   CELL        desktop, chat, question or fullscreen
   BAR         `bar` when the panel runs: the islands stand at y 8 to 40
+  WALL        `wall` when the wallpaper runs behind the tiles (cell desktop)
 
 Prints one `FAIL:` line per finding; exit status 1 on a finding.
 
@@ -17,6 +18,9 @@ Prints one `FAIL:` line per finding; exit status 1 on a finding.
               the radius family of 10 to 14
   overlap     a helper surface stays clear of the bar and of the tile borders
   fullscreen  with a fullscreen window the bar islands do not show
+  look        the wallpaper shows at the corners of the screen, the focused
+              tile has a glow of its own colour on the outer side, and an
+              unfocused tile casts a shadow
 
 The shader that draws a tile border dims it by up to a fifth, so the border
 is compared with `line` within that range; the exact token is checked in
@@ -70,9 +74,63 @@ def tiles(nodes):
     return found
 
 
+def wallpaper(theme):
+    name = "wallpaper.png" if theme == "ink" else "wallpaper-paper.png"
+    return load(pathlib.Path(__file__).resolve().parent.parent / "flavors" / "tiling" / name)
+
+
+def look(rows, nodes, theme, scale):
+    """The findings of the look cell: the capture against the wallpaper."""
+    wall = wallpaper(theme)
+    height, width = len(wall), len(wall[0]) // 4
+    out_w, out_h = len(rows[0]) // 4, len(rows)
+    fill = max(out_w / width, out_h / height)
+
+    def at(grid, x, y, factor):
+        x, y = int(x * factor), int(y * factor)
+        y = min(max(y, 0), len(grid) - 1)
+        x = min(max(x, 0), len(grid[0]) // 4 - 1)
+        return tuple(grid[y][x * 4:x * 4 + 3])
+
+    def behind(x, y):
+        wx = (x * scale - (out_w - width * fill) / 2) / fill
+        wy = (y * scale - (out_h - height * fill) / 2) / fill
+        return at(wall, wx, wy, 1)
+
+    def shown(x, y):
+        return at(rows, x, y, scale)
+
+    def gap(a, b):
+        return sum(abs(p - q) for p, q in zip(a, b))
+
+    problems = []
+    w, h = out_w / scale, out_h / scale
+    for x, y in ((2, 2), (w - 3, h - 3)):
+        if gap(shown(x, y), behind(x, y)) > 24:
+            problems.append(f"look backdrop: {shown(x, y)} at {int(x)},{int(y)} is not the wallpaper {behind(x, y)}")
+    focus = [n for n in nodes if n.get("id", "").startswith("tg-") and n.get("opacity") == 1.0 and n.get("rects")]
+    for node in focus:
+        x, y, tw, th = next(iter(node["rects"].values()))
+        px = x - 4 if x < w - (x + tw) else x + tw + 3
+        py = y + th / 2
+        if gap(shown(px, py), behind(px, py)) < 20:
+            problems.append(f"look glow: {shown(px, py)} at {int(px)},{int(py)} beside the focused tile is the wallpaper {behind(px, py)}")
+    for node in nodes:
+        if not node.get("id", "").startswith("tb-") or not node.get("rects"):
+            continue
+        x, y, tw, th = next(iter(node["rects"].values()))
+        if any(f["id"][3:] == node["id"][3:] for f in focus):
+            continue
+        px, py = x + tw / 2, y + th + 4
+        if gap(shown(px, py), behind(px, py)) < 4:
+            problems.append(f"look shadow: {shown(px, py)} at {int(px)},{int(py)} under an unfocused tile is the wallpaper {behind(px, py)}")
+    return problems
+
+
 def main():
     png, nodes_file, theme, scale, cell = sys.argv[1:6]
-    bar = len(sys.argv) > 6 and sys.argv[6] == "bar"
+    flags = sys.argv[6:]
+    bar = "bar" in flags
     scale = float(scale)
     rows = load(png)
     palette = TOKENS[theme]
@@ -117,7 +175,7 @@ def main():
                 problems.append(f"radius {name}: the corner turns in {steps} px, not the radius family of 10 to 14")
         borders = tiles(nodes)
         want = palette["line"]
-        edge = [px(rect[0] + 1, rect[1] + rect[3] / 2) for rect in borders.values()]
+        edge = [px(rect[0] + rect[2] - 2, rect[1] + rect[3] / 2) for rect in borders.values()]
         low = tuple(0.8 * c - 6 for c in want)
         high = tuple(1.1 * c + 6 for c in want)
         if borders and not any(all(a <= c <= b for a, c, b in zip(low, color, high)) for color in edge):
@@ -141,6 +199,8 @@ def main():
             if not near(px(x, 24), window, 6):
                 problems.append(f"fullscreen: the bar shows over the window at x {x}")
                 break
+    if "wall" in flags and cell == "desktop":
+        problems.extend(look(rows, nodes, theme, scale))
     for problem in problems:
         print("FAIL:", problem)
     return 1 if problems else 0

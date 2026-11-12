@@ -48,13 +48,14 @@ until_shows() {
 }
 
 audit() {
-    local cell=$1 tag=$2 theme=$3 scale=$4 out bar=
+    local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall=''
     [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
     sleep 1
     ctl query '*' >"$shots/audit-$cell-$tag.json"
     ctl capture "$shots/audit-$cell-$tag.png" >/dev/null 2>&1
+    [ -z "${wallpaper_pid:-}" ] || wall=wall
     [ "$(pixel "$shots/audit-$cell-$tag.png" $((24 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/audit-$cell-$tag.png" $((24 * ${scale%.*})) $((300 * ${scale%.*})))" ] && bar=bar
-    if out=$(python3 -I "$repo/tests/tiling-audit.py" "$shots/audit-$cell-$tag.png" "$shots/audit-$cell-$tag.json" "$theme" "$scale" "$cell" $bar); then
+    if out=$(python3 -I "$repo/tests/tiling-audit.py" "$shots/audit-$cell-$tag.png" "$shots/audit-$cell-$tag.json" "$theme" "$scale" "$cell" $bar $wall); then
         ok "$cell $tag${bar:+ (bar)}"
     else
         echo "FAIL: $cell $tag:"
@@ -74,6 +75,9 @@ round() {
     grant screen.capture input.inject methods.call
     CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/waybar/waybar.sh" "$flavor/waybar" >/dev/null 2>&1 &
     run_pid $!
+    CHORA_FLAVOR_DIR=$flavor setsid sh "$flavor/wallpaper.sh" >/dev/null 2>&1 &
+    wallpaper_pid=$!
+    run_pid $wallpaper_pid
     rm -f "$work/voice.in"
     mkfifo "$work/voice.in"
     python3 -I "$repo/tests/fake-voice.py" "$work/claims" <"$work/voice.in" >"$shots/voice-$tag.log" 2>&1 &
@@ -120,6 +124,7 @@ round() {
     wait 2>/dev/null
     pids=()
     run_pids=()
+    wallpaper_pid=
 }
 
 for theme in ${THEMES:-ink paper}; do

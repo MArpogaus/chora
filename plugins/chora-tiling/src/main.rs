@@ -1922,7 +1922,7 @@ fn changes(sent: Option<&Placement>, placement: &Placement, dress: &Dress) -> Ve
                 || s.mark != placement.mark
         }) {
             commands.extend(border_updates(placement, colors));
-            commands.extend(dress::shadow_updates(placement, dress.shadows));
+            commands.extend(dress::shadow_updates(placement, dress.shadows, colors[0]));
         }
         commands.extend(dress::fade(sent, placement, dress.animate));
     }
