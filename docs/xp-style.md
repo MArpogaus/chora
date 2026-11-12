@@ -94,3 +94,5 @@ something off? If yes, it is a finding. The second rule is chora's own:
 12. **Stop is greyed, not hidden, when no prompt runs** (`idle_stop: grey` in
     the `chat:` block of the HUD folder), so that the header does not jump;
     it takes a press only while a prompt runs.
+13. **The balloon fades in 160 ms** and never rests half transparent: a
+    capture 200 ms after it went finds it gone or whole.

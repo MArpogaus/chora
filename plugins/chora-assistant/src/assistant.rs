@@ -61,8 +61,9 @@ const BLINK: Duration = Duration::from_millis(140);
 const LINGER: Duration = Duration::from_secs(3);
 /// How long the island keeps a sentence after it ends.
 const ISLAND_LINGER: Duration = Duration::from_secs(2);
-/// How long the balloon takes to fade out, in milliseconds.
-const FADE: f64 = 600.0;
+/// How long the balloon takes to fade out, in milliseconds: a capture 200 ms
+/// after it went finds it gone, never half transparent.
+const FADE: f64 = 160.0;
 
 /// The widest line of a sentence without a box.
 const MAX_PLAIN: f64 = 420.0;
@@ -1204,6 +1205,25 @@ mod tests {
             .iter()
             .any(|c| matches!(c, Command::Update { props, .. } if props.opacity == Some(DIM)));
         assert!(dim, "{commands:?}");
+    }
+
+    #[test]
+    fn the_balloon_fades_in_160_ms_so_that_it_never_rests_translucent() {
+        let (mut theme, values, _) = crate::tests::loaded("fade");
+        let now = Instant::now();
+        let mut a = assistant(&values, "idle", now);
+        a.fades_at = Some(now);
+        let commands = a.step(&mut theme, now);
+        let fade = commands.iter().find_map(|c| match c {
+            Command::Animate {
+                id,
+                props,
+                duration,
+                ..
+            } if id == SPEECH && props.opacity == Some(0.0) => Some(*duration),
+            _ => None,
+        });
+        assert!(fade.is_some_and(|ms| ms <= 160.0), "{commands:?}");
     }
 
     #[test]
