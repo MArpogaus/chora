@@ -800,8 +800,8 @@ impl Assistant {
 
     /// The head of the figure on the output, where a tail points.
     pub fn tip(&self) -> [i32; 2] {
-        let [hx, hy] = self.values.figure.head();
-        [self.origin[0] + hx, self.origin[1] + hy]
+        let [x, y, w, _] = self.rect();
+        [x + w / 2, y]
     }
 
     /// The rectangle of the figure on the output: x, y, width, height.
@@ -1189,6 +1189,21 @@ mod tests {
         assert_eq!(opacity(island.island_dimmed(false)), Some(1.0));
         let figure = assistant(&values, "listening", now);
         assert!(figure.island_dimmed(true).is_none());
+    }
+
+    /// A tail points at the middle of the top edge of the box that the
+    /// figure or the island fills, never at a point inside or beside it.
+    #[test]
+    fn the_tip_of_a_tail_is_the_middle_of_the_top_edge_of_the_box() {
+        let values = Values::neutral("sans-serif");
+        let now = Instant::now();
+        let mut shown = assistant(&values, "listening", now);
+        let [x, y, w, _] = shown.rect();
+        assert_eq!(shown.tip(), [x + w / 2, y]);
+        shown.island = Some(Content::default());
+        shown.island_size = [200, 48];
+        let [x, y, w, _] = shown.rect();
+        assert_eq!(shown.tip(), [x + w / 2, y]);
     }
 
     /// While the agent sleeps, the figure stays, dimmed, so that the mic

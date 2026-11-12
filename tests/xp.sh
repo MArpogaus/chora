@@ -564,7 +564,7 @@ wait_for chat_says "Atlas — Working"
 wait_for chat_says "Write file, step 2 of 2"
 echo 'voice.say {"text": "The notes are ready.", "duration_ms": 20000}' >&5
 wait_for chat_says "The notes are ready."
-echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
+echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/notes.txt", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
 wait_for has_node id:hud-card-yes
 test "$(node_size hud-card-yes)" = "[80,28]" || fail "Yes is not 80 by 28: $(node_size hud-card-yes)"
 test $(($(node_x hud-card-no) - $(node_x hud-card-yes))) = 88 || fail "Yes and No are not 8 pixels apart"
