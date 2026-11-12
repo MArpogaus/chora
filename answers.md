@@ -281,3 +281,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 2026-11-12 02:12 UTC (user): reflect on the routines and self-check setup, find missing questions (verbatim in decisions-now.md). Done: 5 questions and 3 condition routines added to routines.md.
 - 2026-11-12 02:13 UTC (user): "Don't take my word for granted." Self-check question 13 (challenge) added; the PM pushes back with reasons.
 - 2026-11-12 02:17 UTC (user): 90 % now; finish and merge running lanes, then intensive UX/UI reviews and testing until the stop, collecting data for next week; the floating chat button checked: gone on 59df16e, but no visible chat entry in tiling (verbatim in decisions-now.md).
+- 2026-11-12 02:21 UTC (user): prefer sonnet and haiku to last the day; the two opus deep reviews were stopped and restarted on sonnet.
