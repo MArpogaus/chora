@@ -149,7 +149,6 @@ pub const DIM: f64 = 0.45;
 /// while the pointer lights the edge of a face, the hint `step_in` that
 /// steps into that face.
 #[must_use]
-#[allow(dead_code, reason = "a stub until the next commit")]
 pub fn hovered(pointer: Option<&str>, face_lit: bool, step_in: &str) -> Option<String> {
     (pointer.map(str::to_owned)).or_else(|| face_lit.then(|| step_in.to_owned()))
 }

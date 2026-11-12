@@ -11,7 +11,7 @@
 use std::{
     os::unix::process::CommandExt,
     process::{Child, Stdio},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use chora_scene::Event;
@@ -23,8 +23,6 @@ use super::{ClientError, Construct, Content, Pane, PaneFile, RpcError, cube};
 const SIZE: [f64; 2] = [1024.0, 768.0];
 /// The smallest side of the output of a pane.
 const SMALLEST: f64 = 100.0;
-/// How long a window manager may take to connect.
-const CONNECT: Duration = Duration::from_secs(10);
 
 /// A window manager in a pane: its client name, its output, its process
 /// and, until it connects, the time it has.
@@ -126,7 +124,7 @@ impl Construct {
             manager: manager.to_owned(),
             output,
             child,
-            connect_by: Some(Instant::now() + CONNECT),
+            connect_by: Some(Instant::now() + crate::faces::LIMIT),
         });
         self.frame()?;
         Ok(answer)

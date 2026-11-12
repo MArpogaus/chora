@@ -616,12 +616,6 @@ impl Host {
         self.health.get(face).cloned().unwrap_or(Health::Up)
     }
 
-    /// Whether a face other than `face` works.
-    pub(crate) fn others_up(&self, face: usize) -> bool {
-        let up = |(i, h): (usize, &Health)| i != face && *h == Health::Up;
-        self.health.iter().enumerate().any(up)
-    }
-
     /// Whether every face works.
     pub(crate) fn works(&self) -> bool {
         self.health.iter().all(|h| *h == Health::Up)
@@ -1199,7 +1193,7 @@ impl Construct {
     }
 
     /// Turns the cube by `by` quarter turns in `ms`, a quarter turn in
-    /// 500 ms by default. A turn while one runs is ignored; with `queue`,
+    /// 360 ms by default. A turn while one runs is ignored; with `queue`,
     /// for the keys, the chips and the drag of a person, one such turn
     /// goes on from the running one. Answers whether the cube took the
     /// turn.

@@ -152,7 +152,7 @@ drag to the left, like the key `Ctrl+Alt+Right`, brings the next face. The camer
 stays at the mid height of the cube, and the cube stands back far enough
 that the next face shows at that angle. The turn by key or by hand
 starts from this pose and keeps it. A step in glides the 14 degrees away
-with the step, over 480 ms, so that in use mode the face is square and
+with the step, over 380 ms, so that in use mode the face is square and
 at 1:1: a 1 px line of the face is 1 px on the screen. The cube has the
 floor shadow and the mirror image in the floor that every pane has; a
 face that looks away has no mirror image, and none shows in use mode.
@@ -168,13 +168,12 @@ the face ahead, in use mode and stood back. It hides while the cube
 turns or steps and while a command surface shows.
 
 The faces fail when the manager exits before it connected, or has not
-connected within 5 s. The card then says what failed and the next step:
+connected within 10 s. The card then says what failed and the next step:
 `Media center did not start.`, the reason in a data well, such as
 `chora-mc stopped after 2 s: it needs foot 1.26 or later.` (the program
 and the last line it wrote to its error output) or `chora-mc did not
-connect within 5 s.`, and `The other faces still work.` while another
-face works, else `Click or press Return to try again.`. The face label
-says `did not start`, the dot of the face is a hollow ring, and the
+connect within 10 s.`, and `Click or press Return to try again.`. The
+face label says `did not start`, the dot of the face is a hollow ring, and the
 middle hint reads `Return Try again`. No red shows anywhere: the word
 and the hollow dot carry the failure. The cube stays, with its virtual
 outputs, and the error shows on the face only.

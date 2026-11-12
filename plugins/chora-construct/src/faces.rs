@@ -1,7 +1,7 @@
 //! The starting and failed states of a face of the cube (construct look
 //! v2, section 4): a face whose window manager is starting shows its
 //! plain fill with a flat glass card, the working ring and `Starting
-//! Media center`. A manager that is not up within 5 s, or that exits,
+//! Media center`. A manager that is not up within 10 s, or that exits,
 //! turns the card into what failed, the reason in a data well and the
 //! next step. There is no red: the word and a hollow dot carry the
 //! failure. The words live here, as those of the start card do.
@@ -21,8 +21,9 @@ use crate::{
 
 /// The group of the card.
 pub const CARD: &str = "construct-face-card";
-/// How long a window manager may take to connect.
-pub const LIMIT: Duration = Duration::from_secs(5);
+/// How long a window manager of a face or of a pane may take to
+/// connect.
+pub const LIMIT: Duration = Duration::from_secs(10);
 /// The width of the card, its padding and the padding of its well.
 const WIDTH: f64 = 400.0;
 const PAD: f64 = 24.0;
@@ -47,10 +48,9 @@ pub struct Words {
     pub foot: Option<String>,
 }
 
-/// The words of the card of a face of `manager` in a health; `others_up`
-/// says whether another face works.
+/// The words of the card of a face of `manager` in a health.
 #[must_use]
-pub fn words(language: Language, manager: &str, health: &Health, others_up: bool) -> Words {
+pub fn words(language: Language, manager: &str, health: &Health) -> Words {
     let Health::Failed(reason) = health else {
         let head = match language {
             Language::En => format!("Starting {manager}"),
@@ -62,20 +62,12 @@ pub fn words(language: Language, manager: &str, health: &Health, others_up: bool
             foot: None,
         };
     };
-    let (head, foot) = match (language, others_up) {
-        (Language::En, true) => (
-            format!("{manager} did not start."),
-            "The other faces still work.",
-        ),
-        (Language::En, false) => (
+    let (head, foot) = match language {
+        Language::En => (
             format!("{manager} did not start."),
             "Click or press Return to try again.",
         ),
-        (Language::De, true) => (
-            format!("{manager} wurde nicht gestartet."),
-            "Die anderen Flächen funktionieren weiter.",
-        ),
-        (Language::De, false) => (
+        Language::De => (
             format!("{manager} wurde nicht gestartet."),
             "Klicken oder Return drücken, um es erneut zu versuchen.",
         ),
@@ -88,14 +80,20 @@ pub fn words(language: Language, manager: &str, health: &Health, others_up: bool
 }
 
 /// The place of the card of a face, fetched only when `inputs` differ
-/// from those of the cached place.
-#[allow(dead_code)]
+/// from those of the cached place; a face not drawn yet is asked again.
 pub fn cached<E>(
-    _cache: &mut Option<(String, Option<[f64; 4]>)>,
-    _inputs: &str,
+    cache: &mut Option<(String, Option<[f64; 4]>)>,
+    inputs: &str,
     fetch: impl FnOnce() -> Result<Option<[f64; 4]>, E>,
 ) -> Result<Option<[f64; 4]>, E> {
-    fetch()
+    if let Some((held, rect)) = cache
+        && held == inputs
+    {
+        return Ok(*rect);
+    }
+    let rect = fetch()?;
+    *cache = rect.map(|rect| (inputs.to_owned(), Some(rect)));
+    Ok(rect)
 }
 
 /// What the face label says of a failed face.
@@ -303,17 +301,17 @@ mod tests {
 
     #[test]
     fn a_starting_face_says_which_manager_starts() {
-        let w = words(EN, "Media center", &Health::Starting, false);
+        let w = words(EN, "Media center", &Health::Starting);
         assert_eq!(w.head, "Starting Media center");
         assert_eq!((w.reason, w.foot), (None, None));
-        let de = words(DE, "Media center", &Health::Starting, false);
+        let de = words(DE, "Media center", &Health::Starting);
         assert_eq!(de.head, "Media center wird gestartet");
     }
 
     #[test]
     fn a_failed_face_says_what_failed_why_and_what_to_do() {
         let failed = Health::Failed("chora-mc stopped after 2 s: it needs foot.".into());
-        let w = words(EN, "Media center", &failed, true);
+        let w = words(EN, "Media center", &failed);
         assert_eq!(w.head, "Media center did not start.");
         assert_eq!(
             w.foot.as_deref(),
@@ -323,12 +321,7 @@ mod tests {
             w.reason.as_deref(),
             Some("chora-mc stopped after 2 s: it needs foot.")
         );
-        let alone = words(EN, "Media center", &failed, false);
-        assert_eq!(
-            alone.foot.as_deref(),
-            Some("Click or press Return to try again.")
-        );
-        let de = words(DE, "XP", &failed, true);
+        let de = words(DE, "XP", &failed);
         assert_eq!(de.head, "XP wurde nicht gestartet.");
         assert_eq!(
             de.foot.as_deref(),
@@ -435,7 +428,7 @@ mod tests {
     #[test]
     fn the_card_is_a_glass_card_centred_on_the_face_with_its_words_in_it() {
         let failed = Health::Failed("chora-mc stopped after 2 s: it needs foot.".into());
-        let w = words(EN, "Media center", &failed, true);
+        let w = words(EN, "Media center", &failed);
         let commands = look_drawn(&w, false);
         let nodes = created(&commands);
         let group = nodes.iter().find(|(id, _)| *id == CARD).expect("the card");
@@ -466,10 +459,10 @@ mod tests {
 
     #[test]
     fn the_working_ring_shows_while_the_manager_starts_and_no_red_anywhere() {
-        let starting = words(EN, "XP", &Health::Starting, false);
+        let starting = words(EN, "XP", &Health::Starting);
         let with = look_drawn(&starting, true);
         assert!(created(&with).iter().any(|(id, _)| id.ends_with("-ring")));
-        let failed = words(EN, "XP", &Health::Failed("x".into()), true);
+        let failed = words(EN, "XP", &Health::Failed("x".into()));
         let without = look_drawn(&failed, false);
         assert!(
             !created(&without)

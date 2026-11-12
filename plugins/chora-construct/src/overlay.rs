@@ -266,6 +266,7 @@ impl Construct {
         self.label_drawn = false;
         self.start_card.up = false;
         self.face_card = None;
+        self.face_place = None;
         self.draw_hud()?;
         self.draw_ask()?;
         if self.list.is_some() {
@@ -862,7 +863,7 @@ impl Construct {
     /// The face whose card shows now: the face ahead while the cube
     /// rests and its window manager is not up, with its health, the name
     /// of its manager and whether another face works.
-    fn card_wanted(&self) -> Option<(usize, crate::faces::Health, String, bool)> {
+    fn card_wanted(&self) -> Option<(usize, crate::faces::Health, String)> {
         let hidden = !self.active
             || self.flown.is_some()
             || self.help
@@ -872,14 +873,8 @@ impl Construct {
         let host = (self.cube.as_ref()).filter(|c| !hidden && c.rests())?;
         let front = host.front_face().0;
         let health = host.health_of(front);
-        (health != crate::faces::Health::Up).then(|| {
-            (
-                front,
-                health,
-                host.manager_name().to_owned(),
-                host.others_up(front),
-            )
-        })
+        (health != crate::faces::Health::Up)
+            .then(|| (front, health, host.manager_name().to_owned()))
     }
 
     /// The card of the face ahead while its window manager starts or
@@ -892,10 +887,16 @@ impl Construct {
         let out = [self.lens.w, self.lens.h];
         let stood_back = self.cube.as_ref().is_some_and(|c| !c.view().forwards());
         let placed = match ahead {
-            Some((front, ..)) => self.face_rect(front)?,
+            Some((front, ref health, _)) => {
+                let inputs = format!("{front}{health:?}{out:?}{stood_back}");
+                let mut cache = self.face_place.take();
+                let placed = faces::cached(&mut cache, &inputs, || self.face_rect(front));
+                self.face_place = cache;
+                placed?
+            }
             None => None,
         };
-        let (Some((front, health, name, others_up)), Some(rect)) = (ahead, placed) else {
+        let (Some((front, health, name)), Some(rect)) = (ahead, placed) else {
             if self.face_card.take().is_some() {
                 self.rt.conn.try_apply(faces::hide())?;
             }
@@ -905,7 +906,7 @@ impl Construct {
         if self.face_card.as_deref() == Some(&key) {
             return Ok(());
         }
-        let words = faces::words(Language::of_session(), &name, &health, others_up);
+        let words = faces::words(Language::of_session(), &name, &health);
         let centre = [rect[0] + rect[2] / 2.0, rect[1] + rect[3] / 2.0];
         let mut commands = Vec::new();
         if !self
