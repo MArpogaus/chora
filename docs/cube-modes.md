@@ -146,7 +146,9 @@ use mode the hints stay hidden while the cube turns.
 ## The cube at rest
 
 Stood back, the cube rests 14 degrees off square, turned toward the next
-face, so that its depth and a sliver of the next face show. The camera
+face, so that its depth and a sliver of the next face show at the
+right. The faces stand to the right in the order of their numbers: a
+drag to the left, like the key `Ctrl+Alt+Right`, brings the next face. The camera
 stays at the mid height of the cube, and the cube stands back far enough
 that the next face shows at that angle. The turn by key or by hand
 starts from this pose and keeps it. A step in glides the 14 degrees away

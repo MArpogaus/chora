@@ -142,6 +142,12 @@ pub(crate) struct Host {
     denied: BTreeSet<usize>,
 }
 
+/// The face of the geometry of the kit that shows face `i`: the four sides
+/// run the other way round.
+fn mirrored(i: usize) -> usize {
+    if i < 4 { (4 - i) % 4 } else { i }
+}
+
 /// The last line that a window manager wrote to its error output.
 type Tail = Arc<Mutex<String>>;
 
@@ -413,6 +419,29 @@ impl Host {
         rests && self.view.forwards() && super::space::depth(pose, at) > self.front_depth(pose)
     }
 
+    /// Face `i` of the cube at `angle`. The faces stand to the right in
+    /// the order of their numbers, so that the next face comes from the
+    /// right when a drag to the left turns the cube: the geometry of the
+    /// kit puts them at the left, so the sides and the turn are mirrored.
+    pub(crate) fn face_at(&self, i: usize, angle: f64) -> Matrix {
+        self.cube.face(mirrored(i), -angle)
+    }
+
+    /// A plane lifted over face `i` at `angle`, as `Cube::lifted`.
+    pub(crate) fn lifted_at(&self, i: usize, angle: f64, at: [f64; 2], lift: f64) -> Matrix {
+        self.cube.lifted(mirrored(i), -angle, at, lift)
+    }
+
+    /// How squarely face `i` at `angle` looks at the eye.
+    pub(crate) fn facing_at(&self, i: usize, angle: f64, eye: [f64; 3]) -> f64 {
+        self.cube.facing(mirrored(i), -angle, eye)
+    }
+
+    /// Whether face `i` at `angle` shows its front to the eye.
+    pub(crate) fn faces_eye_at(&self, i: usize, angle: f64, eye: [f64; 3]) -> bool {
+        self.facing_at(i, angle, eye) > 0.0
+    }
+
     /// The angle at which the faces show: the angle of the turn, and the
     /// rest pose of a cube that stands back.
     pub(crate) fn drawn_angle(&self) -> f64 {
@@ -453,7 +482,7 @@ impl Host {
     pub(crate) fn world(&self, i: usize) -> Matrix {
         mul4(
             &placement(self.centre(), self.yaw),
-            &self.cube.face(i, self.drawn_angle()),
+            &self.face_at(i, self.drawn_angle()),
         )
     }
 
@@ -492,7 +521,7 @@ impl Host {
             },
         )];
         for i in 0..self.outputs.len() {
-            let shows = self.cube.faces_eye(i, self.drawn_angle(), eye);
+            let shows = self.faces_eye_at(i, self.drawn_angle(), eye);
             let changed = self.shown.get(i) != Some(&shows);
             if let Some(slot) = self.shown.get_mut(i) {
                 *slot = shows;
@@ -501,9 +530,7 @@ impl Host {
             commands.push(update(
                 &face_id(i),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(
-                        self.cube.face(i, self.drawn_angle()),
-                    )),
+                    transform: Some(Transform::from_matrix(self.face_at(i, self.drawn_angle()))),
                     visible: changed.then_some(shows),
                     forward: Some(up && self.view.forwards() && self.stand <= 0.0),
                     ..PropsUpdate::default()
@@ -512,7 +539,7 @@ impl Host {
             commands.push(update(
                 &fill_id(i),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(self.cube.lifted(
+                    transform: Some(Transform::from_matrix(self.lifted_at(
                         i,
                         self.drawn_angle(),
                         [0.0, 0.0],
@@ -574,7 +601,7 @@ impl Host {
     /// How many units of face `face` one pixel of the screen is at its
     /// middle: the distance of the eye over the focal length.
     fn edge_scale(&self, face: usize) -> f64 {
-        let m = self.cube.face(face, self.drawn_angle());
+        let m = self.face_at(face, self.drawn_angle());
         let [w, h] = self.cube.size_of(face);
         let centre = [0, 1, 2].map(|r| m[r] * w / 2.0 + m[4 + r] * h / 2.0 + m[12 + r]);
         let reach = (0..3)
@@ -753,7 +780,7 @@ impl Host {
     /// eye, so that a face at a grazing angle floats them flat and no
     /// plane shows as a sliver beside the cube.
     fn float_share(&self, i: usize, eye: [f64; 3]) -> f64 {
-        let facing = self.cube.facing(i, self.drawn_angle(), eye).clamp(0.0, 1.0);
+        let facing = self.facing_at(i, self.drawn_angle(), eye).clamp(0.0, 1.0);
         self.stand.max(turned(self.angle)) * facing
     }
 
@@ -789,7 +816,7 @@ impl Host {
             update(
                 &super::float::plane_id(i, &window.surface),
                 PropsUpdate {
-                    transform: Some(Transform::from_matrix(self.cube.lifted(
+                    transform: Some(Transform::from_matrix(self.lifted_at(
                         i,
                         self.drawn_angle(),
                         at,
@@ -1381,7 +1408,7 @@ impl Construct {
             ..PropsUpdate::default()
         };
         let edge = PropsUpdate {
-            transform: Some(Transform::from_matrix(host.cube.lifted(
+            transform: Some(Transform::from_matrix(host.lifted_at(
                 face,
                 angle,
                 [0.0, 0.0],
@@ -1404,7 +1431,7 @@ impl Construct {
         let mut grown = IDENTITY;
         (grown[0], grown[5], grown[12], grown[13]) = (k, k, -reach, -reach);
         let place = mul4(
-            &host.cube.lifted(face, angle, [0.0, 0.0], EDGE_LIFT / 2.0),
+            &host.lifted_at(face, angle, [0.0, 0.0], EDGE_LIFT / 2.0),
             &grown,
         );
         let glow = PropsUpdate {
@@ -1582,7 +1609,7 @@ mod tests {
         let eye = host.eye([0.0, 0.0]);
         let first = (1..90)
             .map(|k| -f64::from(k) * FRAC_PI_2 / 90.0)
-            .find(|angle| host.cube.faces_eye(1, *angle, eye))
+            .find(|angle| host.faces_eye_at(1, *angle, eye))
             .expect("face 1 comes into view");
         host.angle = first;
         let share = host.float_share(1, host.eye([0.0, 0.0]));
@@ -1826,13 +1853,13 @@ mod tests {
             host.drawn_angle()
         );
         let eye = host.eye([0.0, 0.0]);
-        assert!(host.cube.faces_eye(0, host.drawn_angle(), eye), "the front");
+        assert!(host.faces_eye_at(0, host.drawn_angle(), eye), "the front");
         assert!(
-            host.cube.faces_eye(1, host.drawn_angle(), eye),
+            host.faces_eye_at(1, host.drawn_angle(), eye),
             "the next face"
         );
         assert!(
-            !host.cube.faces_eye(3, host.drawn_angle(), eye),
+            !host.faces_eye_at(3, host.drawn_angle(), eye),
             "not the one before"
         );
         host.stand = 0.5;
@@ -1855,7 +1882,7 @@ mod tests {
         assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
         let eye = host.eye([0.0, 0.0]);
         assert!(
-            host.cube.faces_eye(2, host.drawn_angle(), eye),
+            host.faces_eye_at(2, host.drawn_angle(), eye),
             "the next face of face 1 shows"
         );
         let _ = host.child.wait();

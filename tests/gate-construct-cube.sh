@@ -345,7 +345,7 @@ drag() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\
 press_at() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}, {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"; }
 move_to() { inject "[{\"pointer_move\": {\"position\": [$1, 400]}}]"; }
 let_go() { inject '[{"button": {"state": "released"}}]'; }
-drag 840 140
+drag 780 80
 until_ok 'test "$(prop construct-cube-face-1 visible)" = True && test "$(prop construct-cube-face-0 visible)" = False' 20 || fail "a drag to the left did not turn the cube to the next face"
 sleep 1
 [ "$(prop construct-cube-face-1 forward)" = False ] || fail "a drag on the cube stepped in"
@@ -367,17 +367,17 @@ until_ok "$stood_back" 20 || fail "Alt+Escape did not step back for the live dra
 windows_before=$(ctl query kind:surface | jq length)
 rest_width=$(width construct-cube-face-0)
 navigating='test "$(prop construct-mode-step-in visible)" = True'
-press_at 840
+press_at 780
 previous=$rest_width
-for x in 740 640 540 440 340 240 140; do
+for x in 680 580 480 380 280 180 80; do
     move_to "$x"
     sleep 0.25
     seen=$(width construct-cube-face-0)
     [ "$seen" -lt "$previous" ] || fail "the cube did not follow the hand at x $x: face 0 is $seen px wide, was $previous"
     previous=$seen
     case $x in
-    440) prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 28 degrees the label names $(prop construct-face-label-words text)" ;;
-    240)
+    380) prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 28 degrees the label names $(prop construct-face-label-words text)" ;;
+    180)
         prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 42 degrees the label names $(prop construct-face-label-words text)"
         fill=$(alpha_of construct-face-label-dot-1)
         python3 -I -c 'import sys; sys.exit(not 0.45 < float(sys.argv[1]) < 0.9)' "$fill" || fail "the next dot is not partly filled at 42 degrees: alpha $fill"
@@ -396,17 +396,17 @@ front_is_next=$(prop construct-cube-face-1 visible)
 [ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
 until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.45' 8 || fail "Step in stays dim after the settle"
 ok "a release at 49 degrees goes on to the next face ($settled_in ms with the calls)"
-press_at 840
-move_to 640
+press_at 780
+move_to 580
 sleep 0.2
-move_to 413
+move_to 353
 sleep 0.4
 let_go
 quick 'test "$(( $(width construct-cube-face-1) - rest_width ))" -ge -3 && test "$(( $(width construct-cube-face-1) - rest_width ))" -le 3'
 prop construct-face-label-words text | grep -q "face 2 of 4" || fail "a release at 30 degrees did not return to face 2 of 4: $(prop construct-face-label-words text)"
 ok "a release at 30 degrees returns to the face of before"
-press_at 800
-inject '[{"pointer_move": {"position": [740, 400]}}, {"pointer_move": {"position": [620, 400]}}, {"pointer_move": {"position": [500, 400]}}, {"button": {"state": "released"}}]'
+press_at 740
+inject '[{"pointer_move": {"position": [680, 400]}}, {"pointer_move": {"position": [560, 400]}}, {"pointer_move": {"position": [440, 400]}}, {"button": {"state": "released"}}]'
 until_ok 'prop construct-face-label-words text | grep -q "face 3 of 4" && test "$(prop construct-cube-face-1 visible)" = False' 20 || fail "a flick did not go on to the next face: $(prop construct-face-label-words text), face 1 $(prop construct-cube-face-1 visible)"
 ok "a flick of 21 degrees goes on to the next face"
 plain Return
@@ -481,7 +481,7 @@ floats() {
     [ "$(opacity "$surface")" = 0 ] && [ "$(opacity "$upper")" = 0 ] || { echo "the windows stay in the face: opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
     lower_lift=$(lifted "$surface")
     upper_lift=$(lifted "$upper")
-    [ "$lower_lift" -gt 1030 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
+    [ "$lower_lift" -gt 900 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
     [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
     [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
     still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }

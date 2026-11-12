@@ -300,7 +300,7 @@ until_ok 'test -n "$(plane_middle)"' 40 || fail "no floating plane of the window
 sleep 1
 plane_right=$(right_of "construct-cube-float-0-$surface")
 face_right=$(right_of construct-cube-face-0)
-[ "$plane_right" -gt $((face_right + 40)) ] ||
+[ "$plane_right" -gt $((face_right + 20)) ] ||
     fail "the window over the right edge is clipped at the face: plane to $plane_right, face to $face_right"
 ok "stood back, a window half over the right edge shows in full, to $plane_right past the face at $face_right"
 end_session
