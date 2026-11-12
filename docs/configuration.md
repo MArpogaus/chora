@@ -1729,7 +1729,8 @@ its scale, its shown windows move back into its work area. A window that
 does not fit shrinks to it. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
-the pointer rests on them for 350 ms, or on a click. A click on a program
+the pointer rests on them for 400 ms, on the label of a row as well as
+on its arrow, or on a click. A click on a program
 starts it and closes the menu; a click outside closes the menu. The open
 menu takes the keyboard. Up and Down move in a column or a cascade. Left
 and Right go between the columns and into and out of the cascades.

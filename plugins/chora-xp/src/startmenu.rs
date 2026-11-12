@@ -33,8 +33,9 @@ const PINNED_ROW: i32 = 48;
 const PLACE_ROW: i32 = 30;
 const SEPARATOR: i32 = 8;
 const ALL_PROGRAMS: i32 = 24;
-/// XP opens and closes cascades after the pointer rests this long.
-const HOVER_DELAY: Duration = Duration::from_millis(350);
+/// XP opens and closes cascades after the pointer rests this long: 400
+/// milliseconds, on the label of a row as well as on its arrow.
+const HOVER_DELAY: Duration = Duration::from_millis(400);
 const GROUP: &str = "xp-menu";
 /// The node that takes the keyboard while the menu is open.
 pub const FOCUS: &str = GROUP;
@@ -1233,6 +1234,36 @@ mod tests {
         assert_eq!(full_name(passwd, "erika").as_deref(), Some("Erika Muster"));
         assert_eq!(full_name(passwd, "plain"), None);
         assert_eq!(full_name(passwd, "nobody"), None);
+    }
+
+    #[test]
+    fn resting_on_the_label_of_the_control_panel_opens_its_cascade_after_400_ms() {
+        let (mut theme, cache) = crate::dialog::tests::theme("rest");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let mut menu = Menu::new(&config(), Vec::new(), &theme, &mut icons);
+        menu.control = vec![Node {
+            title: "Display".into(),
+            icon: String::new(),
+            kind: apps::Kind::Run("true".into()),
+        }];
+        let index = menu
+            .entries
+            .iter()
+            .position(|e| e.title == CONTROL_PANEL)
+            .unwrap();
+        let start = Instant::now();
+        menu.hover(&mut theme, &item_id(index), true);
+        let due = menu.due().expect("a cascade waits");
+        assert!(
+            due >= start + Duration::from_millis(400),
+            "{:?}",
+            due - start
+        );
+        assert_eq!(menu.rest(&mut theme, &mut icons, start).len(), 0);
+        assert!(menu.cascades.is_empty());
+        menu.rest(&mut theme, &mut icons, due);
+        assert_eq!(menu.cascades.len(), 1);
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]
