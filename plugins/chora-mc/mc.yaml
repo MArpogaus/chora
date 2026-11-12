@@ -231,6 +231,7 @@ contents:
   confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
+  prev: {kind: text}
   keys: {kind: keys}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
@@ -264,6 +265,7 @@ rules:
 - {content: state, scenes: ['@app'], region: header, slot: 2}
 - {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
+- {content: prev, scenes: ['@page'], region: footer, slot: -2}
 - {content: next, scenes: ['@page'], region: footer, slot: 1}
 - {content: state, region: right, slot: -3}
 - {content: agents, region: right, slot: -2}
@@ -299,6 +301,7 @@ presets:
     - {content: state, region: header, slot: 2}
     - {content: clock, region: header, slot: 3}
     - {content: hud, region: footer, slot: -1}
+    - {content: prev, scenes: ['@page'], region: footer, slot: -2}
     - {content: next, scenes: ['@page'], region: footer, slot: 1}
     - {content: outline, region: left, slot: 0}
     - {content: notes, region: left, slot: 1}

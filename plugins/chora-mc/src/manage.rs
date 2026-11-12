@@ -57,12 +57,23 @@ impl Mc {
     /// The line that points to the page after a scene, as the footer
     /// shows it when no entry is next: the arrow, the number and the title.
     pub fn next_page_line(&self, name: &str) -> Option<String> {
+        self.page_line(name, 1, "→")
+    }
+
+    /// The line that points to the page before a scene.
+    pub fn previous_page_line(&self, name: &str) -> Option<String> {
+        self.page_line(name, -1, "←")
+    }
+
+    fn page_line(&self, name: &str, step: isize, arrow: &str) -> Option<String> {
         let names = self.order();
         let at = names.iter().position(|n| n == name)?;
-        let next = names.get((at + 1) % names.len())?;
-        let scene = self.scenes.get(next)?;
-        let title = (scene.chapter.title.clone()).unwrap_or_else(|| crate::title_of(next));
-        Some(format!("→ {}  {title}", self.number(next)))
+        let count = isize::try_from(names.len()).ok()?;
+        let to = usize::try_from((isize::try_from(at).ok()? + step).rem_euclid(count)).ok()?;
+        let target = names.get(to)?;
+        let scene = self.scenes.get(target)?;
+        let title = (scene.chapter.title.clone()).unwrap_or_else(|| crate::title_of(target));
+        Some(format!("{arrow} {}  {title}", self.number(target)))
     }
 
     /// Adds a scene at the end of the order, or replaces one in place.

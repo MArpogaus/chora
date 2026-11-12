@@ -341,6 +341,9 @@ fn next_minute_after(now: u128) -> f64 {
 /// The content that names the next entry of the day in the footer.
 const NEXT: &str = "next";
 
+/// The content that names the previous page in the footer.
+const PREV: &str = "prev";
+
 /// One text node of a region.
 pub struct Item {
     pub id: String,
@@ -657,6 +660,10 @@ impl Mc {
         if name == NEXT && region.is_line() {
             let line = self.next_page_line(scene).unwrap_or_default();
             return (line, self.key_of(&crate::config::Action::NextScene));
+        }
+        if name == PREV && region.is_line() {
+            let line = self.previous_page_line(scene).unwrap_or_default();
+            return (line, self.key_of(&crate::config::Action::PreviousScene));
         }
         (String::new(), None)
     }
@@ -1537,6 +1544,9 @@ impl Mc {
         let Some(base) = node.strip_suffix("-hit") else {
             return false;
         };
+        if base.ends_with("-chapter-head") {
+            return self.show_overview();
+        }
         let name = self.current.clone().unwrap_or_default();
         let token = (self.items(&name).into_values())
             .flat_map(|(items, _)| items)
@@ -1548,6 +1558,14 @@ impl Mc {
             Some(("chat", "open")) => self.chat_with(None),
             Some(("chat", "close")) => self.chat_close(),
             _ => return self.click_row(base),
+        }
+        true
+    }
+
+    /// Shows the page list, as a click on the head of a page does.
+    fn show_overview(&mut self) -> bool {
+        if let Err(err) = self.show(crate::manage::OVERVIEW, true) {
+            eprintln!("chora-mc: {}: {}", crate::manage::OVERVIEW, err.message);
         }
         true
     }
@@ -1887,7 +1905,10 @@ mod tests {
         let page = layout(&config.rules, &config.contents, "agenda", false);
         let app = layout(&config.rules, &config.contents, "foot", true);
         assert_eq!(names(&page, Region::Header), ["head", "clock"]);
-        assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
+        assert_eq!(
+            names(&page, Region::Footer),
+            ["prev", "hud", "urgent", "next"]
+        );
         assert_eq!(
             names(&page, Region::Right),
             ["state", "agents", "notes", "notify", "chat", "keys"]
@@ -1912,7 +1933,7 @@ mod tests {
         assert_eq!(
             names(&moved, Region::Left),
             [
-                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+                "confirm", "next", "notes", "notify", "outline", "overlay", "prev", "urgent"
             ]
         );
         assert_eq!(
