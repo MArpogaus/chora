@@ -259,7 +259,9 @@ The key list shows on `MOD+slash` and on the button **Keys** of the
 panel: a glass panel as wide as its longest word and 24 px more, so the
 margin is 24 px left of the keycaps and right of the words, and as high as
 its rows and 24 px more, centred on the current output, with the heading "Keys", the line
-"Super+/ shows this list again. Esc closes it." and the rows of every
+"Super+/ shows this list again. Esc closes it.", a line **Mouse** with the
+basics of the pointer (the Apps button starts a program, a click on a tag shows it,
+`Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows, Layouts, Tags, Programs and
 System: the keys on a keycap in JetBrains Mono, then the words of the
 action in Inter ("Next window"; `run` shows its command). Each group is

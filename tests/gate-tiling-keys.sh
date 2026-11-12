@@ -57,6 +57,19 @@ for n in mono:
         fail("the keycap %r is %s wide, a monospace face has %s" % (n["text"], got, want))
 ' || fail "the key list is drawn badly"
 ok "no two texts of the key list overlap and the keycaps are monospace"
+for word in "Mouse" "Apps starts a program" "click a tag" "Super+drag" "power icon"; do
+    grep -q "$word" <<<"$shown" || fail "the key list has no mouse line with '$word'"
+done
+list | python3 -I -c '
+import json, sys
+nodes = {n["id"]: n for n in json.load(sys.stdin) if n["id"].startswith("tiling-keys")}
+rect = lambda n: next(iter(n["rects"].values()))
+panel = [m for m in nodes.values() if m.get("rects") and m["id"].endswith("-b")]
+assert panel, "no mouse line"
+x, y, w, h = rect(panel[0])
+assert w < 790, "the mouse line is %s wide and may leave the panel" % w
+' || fail "the mouse line is not in the key list"
+ok "the key list has a mouse line"
 rects=$(ctl query 'kind:rect') || fail "ctl query failed"
 python3 -I -c '
 import json, sys

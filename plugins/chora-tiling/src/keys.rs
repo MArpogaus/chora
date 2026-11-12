@@ -639,14 +639,24 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
 
 fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
     let de = lang == Language::De;
-    let (name, hint) = if de {
+    let (name, hint, mouse, basics) = if de {
         (
             "Tasten",
             "Super+/ zeigt diese Liste wieder. Esc schließt sie.",
+            "Maus",
+            "Apps startet Programme · Tag anklicken zeigt ihn · Super+ziehen verschiebt ein Fenster · \
+             das Ein/Aus-Symbol sperrt oder beendet",
         )
     } else {
-        ("Keys", "Super+/ shows this list again. Esc closes it.")
+        (
+            "Keys",
+            "Super+/ shows this list again. Esc closes it.",
+            "Mouse",
+            "Apps starts a program · click a tag to show it · Super+drag moves a window · \
+             the power icon locks or ends the session",
+        )
     };
+    let muted = channels(&colors.muted);
     vec![
         text(
             &format!("{body}-t"),
@@ -658,7 +668,19 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
             &format!("{body}-h"),
             body,
             hint,
-            &Face::new([24.0, 48.0], 14.0, 400, channels(&colors.muted)),
+            &Face::new([120.0, 26.0], 14.0, 400, muted),
+        ),
+        text(
+            &format!("{body}-m"),
+            body,
+            mouse,
+            &Face::new([24.0, 56.0], 14.0, 600, muted),
+        ),
+        text(
+            &format!("{body}-b"),
+            body,
+            basics,
+            &Face::new([84.0, 56.0], 14.0, 400, channels(&colors.text)),
         ),
     ]
 }
