@@ -1926,6 +1926,9 @@ impl Wm {
             return Vec::new();
         }
         self.resize = None;
+        if let Some(used) = &mut self.tap {
+            *used = true;
+        }
         let mut commands = self.close_context();
         commands.extend(self.press_node(node, button, position));
         commands
