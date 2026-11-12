@@ -40,6 +40,20 @@ pub mod tests {
         (theme.expect("the theme loads"), cache)
     }
 
+    /// A picture drawn at scale 1.
+    pub fn draw(theme: &mut Theme, picture: &Picture) -> Pixmap {
+        Pixmap::load_png(theme.render(picture)).expect("a PNG file")
+    }
+
+    /// The color of a pixel of an opaque picture.
+    pub fn rgb(image: &Pixmap, x: i32, y: i32) -> [u8; 3] {
+        let p = image
+            .pixel(u32::try_from(x).expect("x"), u32::try_from(y).expect("y"))
+            .expect("inside")
+            .demultiply();
+        [p.red(), p.green(), p.blue()]
+    }
+
     #[test]
     #[allow(clippy::float_cmp)]
     fn frames_have_the_sizes_of_their_parts() {

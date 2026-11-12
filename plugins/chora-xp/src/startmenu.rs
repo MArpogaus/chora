@@ -29,6 +29,9 @@ const FOOTER: i32 = 44;
 /// The frame around the columns.
 const FRAME: i32 = 2;
 const LEFT: i32 = 220;
+const TILE: i32 = 48;
+const TILE_X: i32 = 9;
+const TILE_Y: i32 = 9;
 const PROGRAM_ROW: i32 = 36;
 const PINNED_ROW: i32 = 48;
 const PLACE_ROW: i32 = 36;
@@ -254,9 +257,6 @@ impl Menu {
             .size(sheets::WINXP, "startmenu-footer")
             .unwrap_or([WIDTH, 41]);
         let face = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".face"));
-        let avatar = face
-            .filter(|f| f.is_file())
-            .unwrap_or_else(|| theme.path("winxp/user.svg"));
         let name = Text::new(
             &self.user,
             Font::Name,
@@ -270,13 +270,15 @@ impl Menu {
                 "startmenu-body",
                 [0, header[1], WIDTH, body + HEADER + 1 - header[1] + 1],
             )
-            .element(sheets::WINXP, "startmenu-header", [0, 0, WIDTH, header[1]])
+            .layers_of(
+                header_art(theme, face.as_deref().filter(|f| f.is_file()), header[1]),
+                [0, 0],
+            )
             .element(
                 sheets::WINXP,
                 "startmenu-footer",
                 [0, self.height - footer[1], WIDTH, footer[1]],
             )
-            .file(&avatar, [9, 9, 48, 48])
             .text(name);
         for rect in &self.separators {
             let id = if rect[0] < LEFT {
@@ -1072,6 +1074,28 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
     ]
 }
 
+/// The header of the menu: XP's blue band with the picture of the user in
+/// a square tile of 48 pixels, a ring of 2 pixels white all round.
+fn header_art(theme: &Theme, face: Option<&Path>, height: i32) -> Picture {
+    let picture = Picture::new(WIDTH, height).element(
+        sheets::WINXP,
+        "startmenu-header",
+        [0, 0, WIDTH, height],
+    );
+    match face {
+        None => picture.file(&theme.path("winxp/user.svg"), [TILE_X, TILE_Y, TILE, TILE]),
+        Some(face) => picture
+            .file(face, [TILE_X + 2, TILE_Y + 2, TILE - 4, TILE - 4])
+            .svg(format!(
+                r##"<rect x="{}" y="{}" width="{}" height="{}" rx="4" fill="none" stroke="#ffffff" stroke-width="2"/>"##,
+                TILE_X + 1,
+                TILE_Y + 1,
+                TILE - 2,
+                TILE - 2
+            )),
+    }
+}
+
 /// The picture of an entry, normal or highlighted.
 fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
     let [_, _, w, h] = entry.rect;
@@ -1204,6 +1228,63 @@ mod tests {
             .map(|e| e.title.as_str())
             .collect();
         assert_eq!(cascades, [CONTROL_PANEL]);
+    }
+
+    const WHITE: [u8; 3] = [255, 255, 255];
+    const FIGURE: [u8; 3] = [0x3b, 0x6f, 0xd0];
+
+    fn near(a: [u8; 3], b: [u8; 3]) -> bool {
+        a.iter().zip(b).all(|(x, y)| x.abs_diff(y) < 24)
+    }
+
+    #[test]
+    fn the_user_tile_is_one_square_with_an_equal_ring_and_a_centred_figure() {
+        let (mut theme, cache) = crate::sheets::tests::theme("tile");
+        let art = header_art(&theme, None, 67);
+        let image = crate::sheets::tests::draw(&mut theme, &art);
+        let at = |x, y| crate::sheets::tests::rgb(&image, x, y);
+        for y in 4..62 {
+            for x in TILE_X + TILE + 2..TILE_X + TILE + 14 {
+                assert!(
+                    near(at(x, y), at(120, y)),
+                    "{x},{y} beside the tile is {:?}, the band is {:?}",
+                    at(x, y),
+                    at(120, y)
+                );
+            }
+        }
+        let mid = TILE_Y + TILE / 2;
+        let left = (TILE_X..TILE_X + 6)
+            .filter(|x| near(at(*x, mid), WHITE))
+            .count();
+        let right = (TILE_X + TILE - 6..TILE_X + TILE)
+            .filter(|x| near(at(*x, mid), WHITE))
+            .count();
+        let col = TILE_X + TILE / 2;
+        let top = (TILE_Y..TILE_Y + 6)
+            .filter(|y| near(at(col, *y), WHITE))
+            .count();
+        let bottom = (TILE_Y + TILE - 6..TILE_Y + TILE)
+            .filter(|y| near(at(col, *y), WHITE))
+            .count();
+        assert_eq!([left, right, top, bottom], [2, 2, 2, 2]);
+        let ink: Vec<[i32; 2]> = (TILE_Y..TILE_Y + TILE)
+            .flat_map(|y| (TILE_X..TILE_X + TILE).map(move |x| [x, y]))
+            .filter(|[x, y]| near(at(*x, *y), FIGURE))
+            .collect();
+        let min_x = ink.iter().map(|p| p[0]).min().expect("a figure");
+        let max_x = ink.iter().map(|p| p[0]).max().expect("a figure");
+        let min_y = ink.iter().map(|p| p[1]).min().expect("a figure");
+        assert!(
+            ((min_x - TILE_X - 2) - (TILE_X + TILE - 3 - max_x)).abs() <= 1,
+            "the figure is off centre: {min_x}..{max_x}"
+        );
+        assert!(
+            min_y - TILE_Y - 2 >= 5,
+            "the head is {} px from the ring",
+            min_y - TILE_Y - 2
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     fn with_programs(n: usize) -> Config {
