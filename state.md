@@ -36,7 +36,7 @@ Budget about 93 % of the week by usage.py; the reset is Sat 10:59. Light work on
 2. construct-v2 on the tour worker continues; review and merge when it reports.
 3. Disk: 7.9 GB free; remove the tiling-v2 target (merged) and the mc-v2 target after its merge; no new builds below 8 GB.
 4. review_due.py says DUE (range a03be22..HEAD, 64 critical files): every merge had its own review; the weekly round over the whole range runs as the per-area code review on Fable after the reset (decisions-now.md).
-5. xp-v2 build started 11-12 ~06:40 Bangkok on sonnet in wt/xp-v2 (disk 21 GB free after the merged targets went), pushing per step so a usage stop loses nothing; it continues on Fable after the reset if unfinished. After the reset (Fable): the core fontconfig fix, packaging of the new flavor files, the per-area review, the leftovers in backlog.md.
+5. xp-v2: 8 of 15 build steps pushed (5e61a6f: F1 help, Start menu, keys, caption buttons, tooltips and pager, icon grid and balloon, Control Panel hover, Stop greyed, balloon fade). Open: steps 2, 4, 10, 13 and the helper tray icon, the 14 px chrome sweep, taskbar 36 px, Help as a window; then UI review and code review. Continues on Fable after the reset. After the reset (Fable): the core fontconfig fix, packaging of the new flavor files, the per-area review, the leftovers in backlog.md.
 
 ## Foundation gate
 
