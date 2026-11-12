@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 01:59 UTC)
+## Now (2026-11-12 02:07 UTC)
 
 budget: 87 % at 2026-11-12 01:26 UTC (user), estimate 88 to 90 %, stop about 08:00 to 09:00 UTC (rate 1.8 points per hour); reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -20,7 +20,7 @@ Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz hourly at :35; resume after res
 
 ## Queue
 
-1. construct-v2: worker's fixes, then UI review round 1 on its pushed captures (opus, confirm-only where the code review already covers), then train 3 with claude/pkg.
+1. construct-v2: code fixes by the tour worker (then it waits); UI review 1 says FIX (7 main-path flaws, reports/review-construct-v2.md): a fresh cloud worker fixes them after the code fixes; UI review 2 confirm-only; then train 3 with claude/pkg; then the tour worker records tour-v3.
 2. tooling lane: review (sonnet, bugs and simplicity), merge in train 3 if ready, else first train Saturday; then the session-log hook goes live.
 3. swarm5-fixes: review, merge (next train).
 4. xp-v2: layout audit green, UI review 1 (taste and the look document only), fix round fresh, review 2 confirm-only, merge.
