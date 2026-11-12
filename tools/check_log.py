@@ -2,7 +2,7 @@
 """Pre-commit check of the session log: state, decisions, answers and rules files.
 
 Run from the log worktree (or pass --root). Added lines come from the staged
-diff. The clock is the real UTC time; --now YYYY-MM-DDTHH:MM overrides it.
+diff; only the entry stamp that starts a line is checked (later times in a line may be plans). The clock is the real UTC time; --now YYYY-MM-DDTHH:MM overrides it.
 Exit 1 and one line per problem when a rule is broken.
 """
 import argparse
@@ -39,8 +39,13 @@ def line_times(line, now):
         yield m.group(0).strip(), zone, parse_time(year, month, day, hour, minute, zone, now)
 
 
+STAMP = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?(?:\d{4}-)?(?:\d{2}-\d{2}[ T]+)?\d{2}:\d{2}")
+
+
 def check_added_line(name, line, now):
-    for text, zone, moment in line_times(line, now):
+    if not STAMP.match(line):
+        return
+    for text, zone, moment in list(line_times(line, now))[:1]:
         if zone is None:
             yield f"{name}: time without zone (UTC or Bkk): {text!r} in: {line.strip()[:80]}"
         elif moment > now:
@@ -83,8 +88,8 @@ def check_state(text, now):
 
 
 def check_decisions(text, now):
-    head, sep, tail = text.partition("## Design")
-    for label, part in (("before ## Design", head), ("from ## Design", sep + tail)):
+    head, sep, tail = text.partition("## PM process")
+    for label, part in (("before ## PM process", head), ("from ## PM process", sep + tail)):
         if len(part) > DECISIONS_MAX_CHARS:
             yield f"decisions-now.md: part {label} has {len(part)} characters, limit {DECISIONS_MAX_CHARS}"
     m = re.search(r"^screened-through:\s*(\S+)", text, re.M)
