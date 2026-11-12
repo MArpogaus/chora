@@ -256,7 +256,7 @@ impl Menu {
         let face = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".face"));
         let avatar = face
             .filter(|f| f.is_file())
-            .unwrap_or_else(|| theme.path("winxp/start-flag.svg"));
+            .unwrap_or_else(|| theme.path("winxp/user.svg"));
         let name = Text::new(
             &self.user,
             Font::Name,

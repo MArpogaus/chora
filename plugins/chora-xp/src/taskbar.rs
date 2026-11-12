@@ -688,7 +688,7 @@ fn start_button(theme: &Theme, look: &str) -> Picture {
             &format!("startbutton-{look}"),
             [0, 0, START_WIDTH, HEIGHT],
         )
-        .file(&start_flag(theme), [12, 7 + shift, 22, 22])
+        .file(&start_mark(theme), [12, 7 + shift, 22, 22])
         .text(
             Text::new("start", Font::Start, WHITE, [40, 1 + shift, 78, HEIGHT])
                 .shadow([0, 20, 0, 180]),
@@ -764,12 +764,9 @@ pub fn preview(
     picture
 }
 
-/// The flag of the start button: XP's own `start_flag.png` of the
-/// Windows XP pack, 20 pixels as on XP, when it is installed, else the
-/// flag of the theme.
-fn start_flag(theme: &Theme) -> PathBuf {
-    chora_kit::xdg::data_file("winxp-kde/start_flag.png")
-        .unwrap_or_else(|| theme.path("winxp/start-flag.svg"))
+/// The mark of the start button: the own mark of chora, one color.
+fn start_mark(theme: &Theme) -> PathBuf {
+    theme.path("winxp/start-mark.svg")
 }
 
 fn update(id: &str, props: PropsUpdate) -> Command {
@@ -832,6 +829,62 @@ mod tests {
             kind: Kind::Screen,
             offset: 0.0,
             target: 0.0,
+        }
+    }
+
+    #[test]
+    fn the_start_button_draws_no_flag() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
+        let cache = std::env::temp_dir().join(format!("chora-xp-start-{}", std::process::id()));
+        let theme =
+            Theme::load(&dir, &cache, &sheets::ALL, sheets::FAMILY).expect("the theme loads");
+        for look in ["normal", "hover", "pressed"] {
+            let picture = start_button(&theme, look);
+            for layer in &picture.layers {
+                if let chora_draw::theme::Layer::File { path, .. } = layer {
+                    let path = path.to_string_lossy().to_lowercase();
+                    assert!(!path.contains("flag"), "{look}: {path}");
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn no_flag_asset_ships_with_the_xp_flavor() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp");
+        let mut dirs = vec![root];
+        while let Some(dir) = dirs.pop() {
+            for entry in std::fs::read_dir(&dir).unwrap().flatten() {
+                let path = entry.path();
+                let name = entry.file_name().to_string_lossy().to_lowercase();
+                assert!(!name.contains("flag"), "{}", path.display());
+                if path.is_dir() {
+                    dirs.push(path);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_sources_of_the_plugin_name_no_flag_asset() {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        for entry in std::fs::read_dir(src).unwrap().flatten() {
+            let Ok(text) = std::fs::read_to_string(entry.path()) else {
+                continue;
+            };
+            for pattern in ["start-", "start_"] {
+                let pattern = format!("{pattern}{}", "flag");
+                let hits = text
+                    .lines()
+                    .filter(|l| !l.trim_start().starts_with("//") && l.contains(&pattern));
+                assert_eq!(
+                    hits.count(),
+                    0,
+                    "{} names {pattern}",
+                    entry.path().display()
+                );
+            }
         }
     }
 

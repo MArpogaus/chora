@@ -6,13 +6,14 @@ but the ones drawn for chora come from
 [kde-plasma-winxp-launcher](https://github.com/MArpogaus/kde-plasma-winxp-launcher)
 (commit `3e08801`), which bundles the Exposé theme and its own Windows XP
 pack. No file here belongs to Microsoft: the fonts, Bliss, the sounds and
-the original start flag stay out, as in the reference repository.
+the Windows flag stay out, as in the reference repository.
 
 | Path | Content | Source | License |
 |------|---------|--------|---------|
 | `expose/decoration.svg`, `expose/close.svg`, `expose/maximize.svg`, `expose/minimize.svg`, `expose/restore.svg`, `expose/exposerc` | window frame, title bar buttons and their layout | [Exposé](https://www.opencode.net/phob1an/expose) by phob1an (Mark Whittaker), Aurorae theme `aurorae/themes/expose/` | GPL-3.0, `expose/LICENSE` |
 | `winxp/winxp.svg`, `winxp/tasks.svg` | start button, start menu, notification area, task buttons | the Windows XP pack of kde-plasma-winxp-launcher, in its Plasma theme `desktoptheme/expose/widgets/` | GPL-2.0-or-later, `winxp/LICENSE` |
-| `winxp/start-flag.svg`, `winxp/log-off.svg`, `winxp/turn-off.svg` | the flag of the start button, the icons of Log Off and Turn Off Computer | kde-plasma-winxp-launcher, start menu widget `contents/images/`; original artwork | GPL-2.0-or-later, `winxp/LICENSE` |
+| `winxp/log-off.svg`, `winxp/turn-off.svg` | the icons of Log Off and Turn Off Computer | kde-plasma-winxp-launcher, start menu widget `contents/images/`; original artwork | GPL-2.0-or-later, `winxp/LICENSE` |
+| `winxp/start-mark.svg`, `winxp/user.svg` | the mark of the start button and of the Turn Off dialog, the picture of the user in the start menu | drawn for chora, no Microsoft artwork | GPL-3.0-or-later, as chora |
 | `winxp/cascade-arrow.svg`, `winxp/cascade-arrow-selected.svg` | the arrow of a program group in All Programs, black and white | drawn for chora after the arrow of XP's menus | GPL-3.0-or-later, as chora |
 | `winxp/check.svg`, `winxp/check-selected.svg` | the check mark of the current choice in the Control Panel, black and white | drawn for chora after the check mark of XP's menus | GPL-3.0-or-later, as chora |
 | `winxp/switch-user.svg`, `winxp/stand-by.svg`, `winxp/restart.svg` | the icons of the Log Off and Turn Off dialogs | kde-plasma-winxp-launcher (commit `868b5b9`), start menu widget `contents/images/`; original artwork | GPL-2.0-or-later, `winxp/LICENSE` |
@@ -37,5 +38,4 @@ files above when they are not. The repository holds none of them.
 |--------------------------------|-----|
 | `fonts/WindowsXP/*.ttf` | XP's fonts, before all other fonts: Tahoma and Tahoma Bold for menus and buttons, Trebuchet MS Bold for the titles, Franklin Gothic Medium Italic for the start button |
 | `wallpapers/WindowsXP/*.jpg` | the wallpapers of Control Panel > Desktop; `bliss.jpg` is the default wallpaper |
-| `winxp-kde/start_flag.png` | XP's flag on the start button, instead of `winxp/start-flag.svg` |
 | `sounds/WindowsXP/stereo/*.wav` | XP's sounds for the start, Log Off and Turn Off |
