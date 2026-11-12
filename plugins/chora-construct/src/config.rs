@@ -560,6 +560,14 @@ mod tests {
         assert_eq!(config.style.font, "Inter");
     }
 
+    #[test]
+    fn the_terminal_of_the_default_file_pads_its_text_12_by_12() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let words: Vec<&str> = config.terminal.split_whitespace().collect();
+        assert_eq!(words.first(), Some(&"foot"));
+        assert!(words.contains(&"pad=12x12"), "{:?}", config.terminal);
+    }
+
     /// A key that starts or closes something takes the modifier, so
     /// that text typed into the space starts nothing; the walk keys
     /// take none, and Shift is part of the key.

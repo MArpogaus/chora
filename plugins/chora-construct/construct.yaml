@@ -56,7 +56,7 @@ keys:
 # For tests only: take the keys of input.inject as keys of the user. Off,
 # the bindings ignore injected keys; keep it off outside tests.
 test_accept_injected_keys: false
-terminal: foot
+terminal: foot -o pad=12x12
 # The shell command of the key launcher. The launcher itself is no pane:
 # a layer-shell launcher such as fuzzel shows over the space, and a
 # window of a launcher shows in the middle of the output. The first
