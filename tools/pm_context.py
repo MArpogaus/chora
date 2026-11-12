@@ -3,7 +3,8 @@
 
 Modes:
   card       pm-card.md, the "Now" section of state.md, the newest lines of answers.md
-  decisions  decisions-now.md plus user messages newer than its screened-through line
+  decisions  decisions-now.md up to its Design section, plus user messages newer than its screened-through line
+  decisions2 decisions-now.md from its Design section on (two hooks keep each under the cap)
   precompact instructions for the compaction summary (PreCompact stdout)
   prompt     one reminder line (UserPromptSubmit)
 
@@ -126,8 +127,16 @@ def mode_card():
     )
 
 
-def mode_decisions(transcript):
+def decisions_part(part):
     text = read("decisions-now.md")
+    cut = text.find("\n## Design")
+    if cut < 0:
+        return text if part == 1 else ""
+    return text[:cut + 1] if part == 1 else "decisions-now.md, continued:\n" + text[cut + 1:]
+
+
+def mode_decisions(transcript):
+    text = decisions_part(1)
     messages = unrecorded_messages(transcript, screened_through())
     if messages:
         text += (
@@ -162,10 +171,11 @@ def main():
     builders = {
         "card": mode_card,
         "decisions": lambda: mode_decisions(transcript),
+        "decisions2": lambda: decisions_part(2),
         "precompact": lambda: mode_precompact(transcript),
     }
     if mode not in builders:
-        sys.exit(f"unknown mode {mode}; use card, decisions, precompact or prompt")
+        sys.exit(f"unknown mode {mode}; use card, decisions, decisions2, precompact or prompt")
     print(capped(builders[mode]()))
 
 
