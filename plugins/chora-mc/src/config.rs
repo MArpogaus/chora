@@ -550,8 +550,7 @@ mod tests {
         (x.max(y) + 0.05) / (x.min(y) + 0.05)
     }
 
-    /// The colors that carry text read on the paper: `text` at 7:1, the
-    /// rest at 4.5:1, in both themes.
+    /// The colors that carry text read on the paper at 7:1 in both themes.
     #[test]
     fn the_text_colors_have_contrast_on_the_page() {
         let config = parse::<Config>(DEFAULT).unwrap();
@@ -560,10 +559,8 @@ mod tests {
             ("dark", &config.themes.dark),
         ] {
             let page = colors["background"];
-            let least = [("text", 7.0), ("muted", 7.0)]
-                .into_iter()
-                .chain(["accent", "green", "amber", "blue", "red"].map(|c| (c, 4.5)));
-            for (name, least) in least {
+            let names = ["text", "muted", "accent", "green", "amber", "blue", "red"];
+            for (name, least) in names.map(|c| (c, 7.0)) {
                 let ratio = contrast(colors[name], page);
                 assert!(
                     ratio >= least,
