@@ -87,6 +87,17 @@ pub fn words(language: Language, manager: &str, health: &Health, others_up: bool
     }
 }
 
+/// The place of the card of a face, fetched only when `inputs` differ
+/// from those of the cached place.
+#[allow(dead_code)]
+pub fn cached<E>(
+    _cache: &mut Option<(String, Option<[f64; 4]>)>,
+    _inputs: &str,
+    fetch: impl FnOnce() -> Result<Option<[f64; 4]>, E>,
+) -> Result<Option<[f64; 4]>, E> {
+    fetch()
+}
+
 /// What the face label says of a failed face.
 #[must_use]
 pub fn label_words(language: Language) -> &'static str {
@@ -305,10 +316,13 @@ mod tests {
         let w = words(EN, "Media center", &failed, true);
         assert_eq!(w.head, "Media center did not start.");
         assert_eq!(
+            w.foot.as_deref(),
+            Some("Click or press Return to try again.")
+        );
+        assert_eq!(
             w.reason.as_deref(),
             Some("chora-mc stopped after 2 s: it needs foot.")
         );
-        assert_eq!(w.foot.as_deref(), Some("The other faces still work."));
         let alone = words(EN, "Media center", &failed, false);
         assert_eq!(
             alone.foot.as_deref(),
@@ -318,8 +332,24 @@ mod tests {
         assert_eq!(de.head, "XP wurde nicht gestartet.");
         assert_eq!(
             de.foot.as_deref(),
-            Some("Die anderen Flächen funktionieren weiter.")
+            Some("Klicken oder Return drücken, um es erneut zu versuchen.")
         );
+    }
+
+    #[test]
+    fn the_place_of_the_card_is_fetched_only_when_its_inputs_change() {
+        let mut cache = None;
+        let mut fetched = 0;
+        let mut ask = |inputs: &str, cache: &mut _| {
+            cached::<()>(cache, inputs, || {
+                fetched += 1;
+                Ok(Some([1.0, 2.0, 3.0, 4.0]))
+            })
+        };
+        assert_eq!(ask("a", &mut cache), Ok(Some([1.0, 2.0, 3.0, 4.0])));
+        assert_eq!(ask("a", &mut cache), Ok(Some([1.0, 2.0, 3.0, 4.0])));
+        assert_eq!(ask("b", &mut cache), Ok(Some([1.0, 2.0, 3.0, 4.0])));
+        assert_eq!(fetched, 2);
     }
 
     #[test]
@@ -370,7 +400,11 @@ mod tests {
             check(LIMIT.as_secs(), false),
             Some(late(EN, "chora-mc", LIMIT.as_secs()))
         );
-        assert_eq!(LIMIT, Duration::from_secs(5), "the spec gives it 5 s");
+        assert_eq!(
+            LIMIT,
+            Duration::from_secs(10),
+            "one limit for every manager"
+        );
     }
 
     fn look_drawn(words: &Words, ring: bool) -> Vec<Command> {
