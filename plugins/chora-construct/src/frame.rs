@@ -82,7 +82,9 @@ impl Construct {
         if self.output.is_none() || !self.active {
             return Ok(());
         }
+        let stood_back = self.stood_back();
         let mut near: Vec<(&Pane, f64)> = (self.panes.iter())
+            .filter(|_| !stood_back)
             .map(|p| (p, space::depth(&self.pose, p.at)))
             .filter(|(_, depth)| *depth > 0.0)
             .collect();
@@ -115,7 +117,7 @@ impl Construct {
         }
         self.sent = Some(look);
         if !self.glass.plain {
-            let glow = focus.filter(|_| self.flown.is_none()).map_or(
+            let glow = (focus.filter(|_| self.flown.is_none() && !stood_back)).map_or(
                 PropsUpdate {
                     visible: Some(false),
                     ..PropsUpdate::default()
@@ -155,13 +157,20 @@ impl Construct {
             .collect()
     }
 
+    /// Whether a cube stands back: the panes give way to it.
+    pub(crate) fn stood_back(&self) -> bool {
+        (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Navigate)
+    }
+
     /// Hides a pane and its mirror image while the camera stands behind
-    /// its face, and shows them again in front of it; only on a change.
+    /// its face or a cube stands back, and shows them again; only on a
+    /// change.
     fn back_faces(&mut self) -> Vec<Command> {
         let eye = [self.pose.x, self.pose.z];
+        let stood_back = self.stood_back();
         let mut commands = Vec::new();
         for pane in &self.panes {
-            let back = space::shows_back(eye, pane.at, pane.yaw);
+            let back = stood_back || space::shows_back(eye, pane.at, pane.yaw);
             if back == self.backs.contains(&pane.name) {
                 continue;
             }

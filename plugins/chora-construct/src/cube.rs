@@ -66,6 +66,9 @@ const POLL: Duration = Duration::from_millis(100);
 /// How far the cube turns off square toward the next face when it
 /// stands back, in radians: 14 degrees.
 pub(crate) const REST: f64 = 14.0 * std::f64::consts::PI / 180.0;
+/// Which way the cube turns more for the angle at which the eye sees its
+/// centre, so that it shows the same side as before it moved aside.
+const LEAN: f64 = -1.0;
 /// The mirror image of a face in the floor.
 const MIRROR: &str = "construct-cube-mirror-";
 /// The most faces: the side faces of a cube.
@@ -112,6 +115,11 @@ pub(crate) struct Host {
     view: View,
     far: f64,
     stand: f64,
+    /// How far the cube stands to the side of the view axis, so that
+    /// its corners on the screen are centred on it, and how far it
+    /// turns more, so that it still shows the same side to the eye.
+    shift: f64,
+    lean: f64,
     step: Option<Turn>,
     /// The pose that shows the front face at 1:1, and the window that
     /// had the keyboard before the step back.
@@ -445,7 +453,7 @@ impl Host {
     /// The angle at which the faces show: the angle of the turn, and the
     /// rest pose of a cube that stands back.
     pub(crate) fn drawn_angle(&self) -> f64 {
-        self.angle - REST * self.stand
+        self.angle - REST * self.stand + self.lean
     }
 
     /// The shadows of the cube on the floor, in the form of the shadows of
@@ -460,21 +468,11 @@ impl Host {
             .to_vec()
     }
 
-    /// Where the face label hangs: the middle of the projected bottom
-    /// edge of the face at the front, and while the cube turns of the two
-    /// faces that share the turn, by their share of it.
+    /// Where the face label hangs: on the view axis, at the lowest
+    /// corner of the cube on the screen; the label stands 8 below it.
     pub(crate) fn label_anchor(&self, lens: &super::space::Lens, pose: &Pose) -> Option<[f64; 2]> {
-        let (mut sum, mut total) = ([0.0, 0.0], 0.0);
-        for (i, share) in self.dot_weights().into_iter().enumerate() {
-            if share <= 0.0 {
-                continue;
-            }
-            let m = super::space::screen_matrix(lens, pose, &self.world(i));
-            let at = super::space::bottom_middle(&m, self.cube.size_of(i));
-            sum = [sum[0] + share * at[0], sum[1] + share * at[1]];
-            total += share;
-        }
-        (total > 0.0).then(|| [sum[0] / total, sum[1] / total])
+        let (_, low) = self.outline(lens, pose)?;
+        Some([lens.w / 2.0, low])
     }
 
     /// The place of face `i` in the camera group: the cube group over the
@@ -504,7 +502,71 @@ impl Host {
     fn centre(&self) -> [f64; 2] {
         let back = step_back(self.angle, self.cube.size[0]) + self.stand * self.far;
         let (s, c) = self.yaw.sin_cos();
-        [self.at[0] + s * back, self.at[1] + c * back]
+        [
+            self.at[0] + s * back + c * self.shift,
+            self.at[1] + c * back - s * self.shift,
+        ]
+    }
+
+    /// The corners of the cube on the screen of `lens` and `pose`: the
+    /// range of x that it covers, and the lowest y; none while a corner
+    /// is behind the eye.
+    fn outline(&self, lens: &super::space::Lens, pose: &Pose) -> Option<([f64; 2], f64)> {
+        let (mut x, mut low) = ([f64::MAX, f64::MIN], f64::MIN);
+        for i in 0..self.outputs.len() {
+            let m = super::space::screen_matrix(lens, pose, &self.world(i));
+            let [w, h] = self.cube.size_of(i);
+            for (u, v) in [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)] {
+                if m[3] * u + m[7] * v + m[15] <= 1e-6 {
+                    return None;
+                }
+                let [px, py] = super::space::project(&m, u, v);
+                x = [x[0].min(px), x[1].max(px)];
+                low = low.max(py);
+            }
+        }
+        (x[0] <= x[1]).then_some((x, low))
+    }
+
+    /// Aims the cube that stands back: it moves sideways, across the
+    /// view, until the corners that it covers on the screen are centred
+    /// on the view axis, at the rest pose and in every turn. In use mode
+    /// the face fills the view and nothing shifts.
+    pub(crate) fn aim(&mut self, lens: &super::space::Lens, pose: &Pose) {
+        self.shift = 0.0;
+        self.lean = 0.0;
+        if self.stand <= 0.0 {
+            return;
+        }
+        for _ in 0..3 {
+            self.centre_on_axis(lens, pose);
+            let depth = super::space::depth(pose, self.centre()).max(1.0);
+            self.lean = LEAN * self.shift.atan2(depth);
+        }
+        self.centre_on_axis(lens, pose);
+    }
+
+    /// Moves the cube sideways until its corners on the screen are
+    /// centred on the view axis.
+    fn centre_on_axis(&mut self, lens: &super::space::Lens, pose: &Pose) {
+        let off = |host: &mut Self, shift: f64| {
+            host.shift = shift;
+            host.outline(lens, pose)
+                .map(|([lo, hi], _)| lo.midpoint(hi) - lens.w / 2.0)
+        };
+        let limit = self.cube.size[0];
+        let mut shift = self.shift;
+        for _ in 0..5 {
+            let (Some(here), Some(next)) = (off(self, shift), off(self, shift + 1.0)) else {
+                break;
+            };
+            let slope = next - here;
+            if slope.abs() < 1e-9 {
+                break;
+            }
+            shift = (shift - here / slope).clamp(-limit, limit);
+        }
+        self.shift = shift;
     }
 
     /// The updates of the cube at the angle now: its place, the transform
@@ -1118,6 +1180,8 @@ impl Construct {
             view: View::default(),
             far: STAND * self.lens.focal,
             stand: 0.0,
+            shift: 0.0,
+            lean: 0.0,
             step: None,
             home: self.pose,
             focus: None,
@@ -1247,9 +1311,11 @@ impl Construct {
     pub(crate) fn cube_faces(&mut self) -> Vec<Command> {
         let eye = [self.pose.x, self.pose.z];
         let ground = self.lens.ground;
+        let (lens, pose) = (self.lens, self.pose);
         let Some(host) = self.cube.as_mut() else {
             return Vec::new();
         };
+        host.aim(&lens, &pose);
         let mut commands = host.faces(eye, ground);
         let plan = host.edge_plan();
         commands.extend(self.edge_commands(plan));
@@ -1658,6 +1724,8 @@ mod tests {
             view: View::default(),
             far: STAND * 832.0,
             stand: 0.0,
+            shift: 0.0,
+            lean: 0.0,
             step: None,
             home: Pose::default(),
             focus: None,
@@ -2053,37 +2121,97 @@ mod tests {
         assert!(bottom_of(&host, 0)[0] > front, "a drag to the right, right");
     }
 
-    #[test]
-    fn the_face_label_hangs_under_the_projected_bottom_edge_of_the_front_face() {
-        let mut host = host_of(4);
-        host.stand = 1.0;
-        let lens = lens_of(&host);
-        let at = host
-            .label_anchor(&lens, &Pose::default())
-            .expect("an anchor");
-        let want = bottom_of(&host, 0);
-        assert!((at[0] - want[0]).abs() < 1e-6 && (at[1] - want[1]).abs() < 1e-6);
+    fn aimed(host: &mut Host) -> super::super::space::Lens {
+        let lens = lens_of(host);
+        host.aim(&lens, &Pose::default());
+        lens
     }
 
     #[test]
-    fn the_face_label_follows_the_cube_while_it_turns() {
+    fn the_cube_stood_back_is_centred_on_the_view_axis_at_every_face_and_turn() {
+        for front in 0..4 {
+            for turn in [0.0, 0.2, -0.3, QUARTER / 2.0] {
+                let mut host = host_of(4);
+                host.stand = 1.0;
+                host.angle = QUARTER * f64::from(front) + turn;
+                let lens = aimed(&mut host);
+                let ([lo, hi], _) = host.outline(&lens, &Pose::default()).expect("outline");
+                assert!(
+                    (lo.midpoint(hi) - lens.w / 2.0).abs() < 0.5,
+                    "face {front} turn {turn}: {lo} to {hi}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_cube_rests_turned_the_same_way_at_every_face() {
+        for turns in 0..4_u8 {
+            let front = usize::from(turns);
+            let mut host = host_of(4);
+            host.stand = 1.0;
+            host.angle = -QUARTER * f64::from(turns);
+            host.front = front;
+            aimed(&mut host);
+            let next = (front + 1) % 4;
+            assert!(
+                bottom_of(&host, next)[0] > bottom_of(&host, front)[0],
+                "the next face shows at the right of face {front}"
+            );
+        }
+    }
+
+    fn side_width(host: &Host, lens: &super::super::space::Lens) -> f64 {
+        let ([_, hi], _) = host.outline(lens, &Pose::default()).expect("outline");
+        let m = super::super::space::screen_matrix(lens, &Pose::default(), &host.world(0));
+        let [right, _] = super::super::space::project(&m, host.cube.size_of(0)[0], 0.0);
+        hi - right
+    }
+
+    #[test]
+    fn centred_on_the_axis_the_cube_still_shows_its_next_face_as_before() {
         let mut host = host_of(4);
         host.stand = 1.0;
         let lens = lens_of(&host);
-        let rest = host.label_anchor(&lens, &Pose::default()).expect("rest");
-        host.angle = -QUARTER / 2.0;
-        let (a, b) = (bottom_of(&host, 0), bottom_of(&host, 1));
-        let mid = host
-            .label_anchor(&lens, &Pose::default())
-            .expect("mid turn");
+        let before = side_width(&host, &lens);
+        host.aim(&lens, &Pose::default());
+        let after = side_width(&host, &lens);
+        assert!(before > 10.0, "the next face shows: {before}");
         assert!(
-            (mid[0] - a[0].midpoint(b[0])).abs() < 1e-6,
-            "{mid:?} {a:?} {b:?}"
+            (after - before).abs() < 0.2 * before,
+            "{after} px of the next face, {before} before"
         );
-        assert!((mid[1] - a[1].midpoint(b[1])).abs() < 1e-6);
-        assert!(
-            (mid[1] - rest[1]).abs() > 1e-6 || (mid[0] - rest[0]).abs() > 1e-6,
-            "the label does not stay at its anchor"
-        );
+    }
+
+    #[test]
+    fn a_cube_in_use_mode_is_not_shifted() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        aimed(&mut host);
+        assert!(host.shift.abs() > 1.0, "stood back it shifts sideways");
+        host.stand = 0.0;
+        aimed(&mut host);
+        assert_eq!(host.shift, 0.0, "stepped in the face fills the view");
+    }
+
+    #[test]
+    fn the_face_label_hangs_8_under_the_lowest_corner_on_the_view_axis() {
+        let mut host = host_of(4);
+        host.stand = 1.0;
+        for front in 0..4_u8 {
+            host.angle = QUARTER * f64::from(front);
+            let lens = aimed(&mut host);
+            let at = host
+                .label_anchor(&lens, &Pose::default())
+                .expect("an anchor");
+            let (_, low) = host.outline(&lens, &Pose::default()).expect("outline");
+            assert!((at[0] - lens.w / 2.0).abs() < 1e-9, "on the view axis");
+            assert!((at[1] - low).abs() < 1e-9, "at the lowest corner");
+            let place = crate::hints::face_label_place(200.0, at);
+            assert!(
+                (place[1] - low.round() - 8.0).abs() < 1e-9,
+                "8 px below: {place:?} {low}"
+            );
+        }
     }
 }

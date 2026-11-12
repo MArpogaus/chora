@@ -183,23 +183,26 @@ shadow_width=$(prop construct-fog uniforms | python3 -I -c 'import ast, sys; pri
 python3 -I -c 'import sys; sys.exit(not float(sys.argv[1]) > 0)' "$shadow_width" || fail "the cube has no shadow on the floor: s0 $shadow_width"
 ok "stood back, the cube rests turned toward the next face, with its shadow and its mirror image in the floor"
 label_at() { ctl query id:construct-face-label-glass | python3 -I -c 'import json, sys; r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]; print("%.2f %.2f" % (r[0] + r[2] / 2, r[1]))'; }
-face_middle() { ctl query "id:construct-cube-face-$1" | python3 -I -c 'import json, sys; r = json.load(sys.stdin)[0]["rects"]["HEADLESS-1"]; print("%.2f" % (r[0] + r[2] / 2))'; }
+lowest() { ctl query "owner:construct" | python3 -I -c 'import json, sys; print("%.2f" % max(r[1] + r[3] for n in json.load(sys.stdin) if n["id"].startswith("construct-cube-face-") and n.get("visible") for r in [n["rects"]["HEADLESS-1"]]))'; }
 sleep 1
 read -r label_x label_y <<<"$(label_at)"
-python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - float(sys.argv[2])) <= 1.0)' "$label_x" "$(face_middle 0)" || fail "the face label is not under the middle of the bottom edge of the front face: label $label_x, face $(face_middle 0)"
-ok "the face label hangs under the middle of the bottom edge of the face turned to rest, to the pixel"
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - 640.0) <= 1.0)' "$label_x" || fail "the face label is not on the view axis: x $label_x"
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - float(sys.argv[2]) - 8.0) <= 1.0)' "$label_y" "$(lowest)" || fail "the face label is not 8 px under the lowest corner of the cube: label y $label_y, lowest $(lowest)"
+cube_centre=$(ctl query "owner:construct" | python3 -I -c 'import json, sys; rs = [n["rects"]["HEADLESS-1"] for n in json.load(sys.stdin) if n["id"].startswith("construct-cube-face-") and n.get("visible")]; print("%.2f" % ((min(r[0] for r in rs) + max(r[0] + r[2] for r in rs)) / 2))')
+python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - 640.0) <= 1.0)' "$cube_centre" || fail "the cube is not centred on the view axis: centre $cube_centre"
+ok "the cube stood back is centred on the view axis, and the face label hangs on the axis 8 px under its lowest corner"
 call cube.turn '{"by": 1, "ms": 3000}' >/dev/null || fail "a slow cube.turn for the label"
 sleep 1
 read -r mid_x mid_y <<<"$(label_at)"
 python3 -I -c 'import sys; sys.exit(not max(abs(float(sys.argv[1]) - float(sys.argv[3])), abs(float(sys.argv[2]) - float(sys.argv[4]))) > 2.0)' "$label_x" "$label_y" "$mid_x" "$mid_y" || fail "the face label stays at its place while the cube turns: $label_x $label_y, then $mid_x $mid_y"
 until_ok 'prop construct-face-label-words text | grep -q "face 2 of 4"' 40 || fail "the slow turn did not end on face 2"
 sleep 3
-read -r end_x _ <<<"$(label_at)"
-python3 -I -c 'import sys; sys.exit(not abs(float(sys.argv[1]) - float(sys.argv[2])) <= 1.0)' "$end_x" "$(face_middle 1)" || fail "after the turn the label is not under the face at the front: label $end_x, face $(face_middle 1)"
+read -r end_x end_y <<<"$(label_at)"
+python3 -I -c 'import sys; sys.exit(not (abs(float(sys.argv[1]) - 640.0) <= 1.0 and abs(float(sys.argv[2]) - float(sys.argv[3]) - 8.0) <= 1.0))' "$end_x" "$end_y" "$(lowest)" || fail "after the turn the label is not on the axis 8 px under the cube: label $end_x $end_y, lowest $(lowest)"
 key Ctrl+Alt+Left
 until_ok 'front_face0_label' 20 || fail "Ctrl+Alt+Left did not turn back after the label check"
 sleep 1
-ok "the face label follows the bottom edge of the cube while it turns and ends under the face at the front"
+ok "the face label follows the lowest corner of the cube while it turns and ends on the axis under it"
 shadow_layers=$(prop construct-face-label-shadow uniforms | python3 -I -c '
 import ast, sys
 u = ast.literal_eval(sys.stdin.read())
@@ -669,3 +672,18 @@ ok "the xp of the cube ends with a construct that dies without a word"
 pids+=($!)
 until_ok 'test -z "$(virtuals)"' 16 || fail "the restarted construct left its outputs: $(virtuals)"
 ok "a restarted construct removed the outputs that it left"
+
+"$bin/chora-probe" window 300 200 --report >"$work/pane.log" 2>&1 &
+pids+=($!)
+until_ok 'call construct.list | grep -q "\"surface\""' 40 || fail "a window became no pane before the cube"
+pane_node=construct-pane-$(call construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["panes"][0]["surface"])')
+[ "$(prop "$pane_node" visible)" = True ] || fail "the pane of the probe window does not show while walking: $(prop "$pane_node" visible)"
+call cube.open '{}' >/dev/null || fail "cube.open with a pane open"
+until_ok 'test "$(virtuals | wc -w)" = 4' || fail "no outputs with a pane open"
+call view.step_back >/dev/null || fail "view.step_back with a pane open"
+until_ok '[ "$(prop construct-cube-face-0 forward)" = False ]' 20 || fail "no step back with a pane open"
+until_ok '[ "$(prop "$pane_node" visible)" = False ]' 20 || fail "the pane stays in front of the cube stood back: visible $(prop "$pane_node" visible)"
+until_ok '[ "$(prop construct-label visible)" != True ] || [ "$(prop construct-label-body opacity)" = 0.0 ]' 20 || fail "the pane label shows over the cube stood back"
+until_ok '[ "$(edge construct-face-label-glass 1)" -gt 0 ]' 20 || fail "no face label with a pane open"
+ok "stood back with a pane open, the pane gives way to the cube and its label hides, the face label stays under the cube"
+call view.step_in >/dev/null || fail "view.step_in with a pane open"
