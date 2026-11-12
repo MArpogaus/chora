@@ -547,7 +547,7 @@ mod tests {
         };
         for (what, xs) in [
             ("a note", words("-notify-0")),
-            ("a helper", words("-agents-0-name")),
+            ("a helper", words("-agents-0-state")),
             ("a key", words("-keys-1-words")),
         ] {
             assert!(!xs.is_empty(), "no {what}");

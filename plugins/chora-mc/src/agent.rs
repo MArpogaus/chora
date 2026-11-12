@@ -19,6 +19,8 @@ use crate::{
 
 /// The scene that shows the agents, one column each.
 const SCENE: &str = "agents";
+/// The room of the sign of a helper before its name, in pixels.
+const SIGN_WIDTH: f64 = 18.0;
 
 /// The most helpers that a side shows, one row each.
 const MAX_ROWS: usize = 4;
@@ -356,16 +358,11 @@ impl Mc {
                 hit: Some(format!("agent:{}", agent.name)),
                 ..row("sign", Put::Stack, 0.0, sign.props(mark))
             });
-            items.push(row(
-                "name",
-                Put::Row,
-                chora_kit::hud::LABEL_COLUMN,
-                text.props(&agent.name),
-            ));
+            items.push(row("name", Put::Row, SIGN_WIDTH, text.props(&agent.name)));
             items.push(row(
                 "state",
-                Put::After,
-                chora_kit::hud::LABEL_COLUMN + 60.0,
+                Put::Row,
+                chora_kit::hud::LABEL_COLUMN,
                 muted.props(&detail),
             ));
         }

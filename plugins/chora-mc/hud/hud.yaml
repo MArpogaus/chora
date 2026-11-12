@@ -5,7 +5,7 @@ panels:
   when: {theme: light}
   source: voice
   anchor: top_right
-  margin: [56, 19]
+  margin: [56, 34]
   picture: state.svg#{state}
   text: '{state}'
   action: mute
@@ -17,7 +17,7 @@ panels:
   when: {theme: dark}
   source: voice
   anchor: top_right
-  margin: [56, 19]
+  margin: [56, 34]
   picture: state-dark.svg#{state}
   text: '{state}'
   action: mute

@@ -377,8 +377,6 @@ pub enum Put {
     FootRow,
     /// In the line of the item before it, at `x`.
     Row,
-    /// In the line of the item before it, after its end.
-    After,
     /// In the line of the item before it, flush right.
     End,
     /// Where the box of the chat begins: it runs to the foot of the side.
@@ -391,7 +389,7 @@ impl Put {
     }
 
     fn row(self) -> bool {
-        matches!(self, Self::FootRow | Self::Row | Self::After | Self::End)
+        matches!(self, Self::FootRow | Self::Row | Self::End)
     }
 }
 
@@ -1214,13 +1212,12 @@ impl Mc {
     ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
         let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
-        for (i, item) in items.iter().enumerate() {
+        for item in items {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
             heights.push(h.max(baseline));
             widths.push(w);
-            let at = match (item.put, i.checked_sub(1)) {
-                (Put::After, Some(before)) => lefts[before] + widths[before] + AFTER_GAP,
-                (Put::End, _) => (width - w + trailing(&item.props)).max(0.0),
+            let at = match item.put {
+                Put::End => (width - w + trailing(&item.props)).max(0.0),
                 _ => item.x,
             };
             lefts.push(at);
@@ -1784,9 +1781,6 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64, ink: Ink) -> [
         },
     ]
 }
-
-/// The space between an item and the one after it in a line, in pixels.
-const AFTER_GAP: f64 = 8.0;
 
 /// The time and the words of a note, `18:51  Update ready`.
 fn split_time(line: &str) -> Option<(&str, &str)> {

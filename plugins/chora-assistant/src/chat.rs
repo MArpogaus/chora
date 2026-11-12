@@ -495,6 +495,12 @@ pub fn field_place_for(frame: &Frame, token: Option<&str>, to: Option<&str>) -> 
         place["margin"][3] = json!(margin.unwrap_or(0) - i64::from(FIELD_INSET));
         place["width"] = json!(w + FIELD_INSET);
         place["scale"] = json!(frame.scale);
+        let to = to.map(|name| {
+            let mut letters = name.chars();
+            (letters.next().into_iter().flat_map(char::to_uppercase))
+                .chain(letters)
+                .collect::<String>()
+        });
         place["look"]["column"] = json!({"inset": FIELD_INSET, "to": to});
     }
     if let Some(token) = token {
