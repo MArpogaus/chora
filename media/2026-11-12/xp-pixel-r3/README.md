@@ -1,0 +1,1 @@
+Fallback captures (own art, no import) of claude/xp-pixel at 2e33b071, 1x (1280x800) and 2x (2560x1600), from tests/xp.sh. New: turn-off.png (Turn Off dialog), run.png (Run), cascade.png (Control Panel submenu), chat-question.png.
