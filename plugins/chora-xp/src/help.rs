@@ -32,6 +32,11 @@ const INK: [u8; 4] = [0, 0, 0, 255];
 const GREY: [u8; 4] = [77, 77, 77, 255];
 const CAP_HEIGHT: i32 = 24;
 const ROW: i32 = 32;
+const TABLE_TOP: i32 = 100;
+const GROUP_GAP: i32 = 8;
+const GROUP_ROW: i32 = 26;
+const BOTTOM: i32 = 16;
+const MIN_ROW: i32 = 26;
 const PAGE_LEFT: i32 = PANE + 24;
 const PAGE_WIDTH: i32 = SIZE[0] - PANE - 48;
 
@@ -172,22 +177,57 @@ fn lines(topic: usize) -> &'static [&'static str] {
     }
 }
 
+/// The y at which the table of `rows` ends, with rows `row` high.
+fn table_end(rows: &[Row], height: i32) -> i32 {
+    let mut y = TABLE_TOP;
+    let mut group_now = "";
+    for line in rows {
+        if line.group != group_now {
+            group_now = line.group;
+            y += GROUP_GAP + GROUP_ROW;
+        }
+        y += height;
+    }
+    y
+}
+
+/// The client area for a table of `rows` in a work area: high enough for
+/// every row, within the work area, and the height of one row.
+fn fit(rows: &[Row], area: Rect) -> ([i32; 2], i32) {
+    let room = area[3] - (crate::dialog::outer([0, 0])[1]) - BOTTOM;
+    let height = (table_end(rows, ROW) + BOTTOM)
+        .max(SIZE[1])
+        .min(room.max(SIZE[1]));
+    let groups = rows
+        .iter()
+        .map(|r| r.group)
+        .collect::<std::collections::BTreeSet<_>>();
+    let extra = TABLE_TOP + groups.len() as i32 * (GROUP_GAP + GROUP_ROW);
+    let row = ((height - BOTTOM - extra) / rows.len().max(1) as i32).clamp(MIN_ROW, ROW);
+    ([SIZE[0], height], row)
+}
+
 /// The open help.
 pub struct HelpDialog {
     /// The window.
     pub dialog: Dialog,
     topic: usize,
     rows: Vec<Row>,
+    size: [i32; 2],
+    row: i32,
 }
 
 impl HelpDialog {
     /// The help on a topic, in the middle of a work area, with the rows of
     /// the table of keys.
     pub fn new(topic: usize, rows: Vec<Row>, area: Rect) -> Self {
+        let (size, row) = fit(&rows, area);
         Self {
-            dialog: Dialog::new("help", TITLE, SIZE, area),
+            dialog: Dialog::new("help", TITLE, size, area),
             topic: topic.min(TOPICS.len() - 1),
             rows,
+            size,
+            row,
         }
     }
 
@@ -216,7 +256,7 @@ impl HelpDialog {
 
     /// The page: the face, the pane, the topic.
     pub fn page(&self, theme: &Theme) -> Page {
-        let [w, h] = SIZE;
+        let [w, h] = self.size;
         let mut canvas = Canvas {
             svg: format!(
                 r##"<defs><linearGradient id="pane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7BA2E7"/><stop offset="1" stop-color="#6375D6"/></linearGradient><linearGradient id="head" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C6D3F7"/></linearGradient><linearGradient id="rule" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3C6FD6"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient><linearGradient id="cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect width="{w}" height="{h}" fill="#FFFFFF"/><rect width="{PANE}" height="{h}" fill="url(#pane)"/>"##
@@ -304,13 +344,13 @@ impl HelpDialog {
                 let width = theme.text_width(chord, Font::Body).ceil() as i32 + 16;
                 canvas.cap(
                     chord,
-                    [x, y + (ROW - CAP_HEIGHT) / 2 + 1, width, CAP_HEIGHT],
+                    [x, y + (self.row - CAP_HEIGHT) / 2 + 1, width, CAP_HEIGHT],
                 );
                 x += width + 8;
             }
-            let rect = [PAGE_LEFT + 214, y, PAGE_WIDTH - 214, ROW];
+            let rect = [PAGE_LEFT + 214, y, PAGE_WIDTH - 214, self.row];
             canvas.text(row.text, Font::Body, INK, rect);
-            y += ROW;
+            y += self.row;
             canvas.rule(y - 1, "#E6E4DB");
         }
     }
@@ -417,6 +457,22 @@ mod tests {
             .map(|r| GROUPS.iter().position(|g| *g == r.group).unwrap())
             .collect();
         assert!(order.windows(2).all(|w| w[0] <= w[1]), "{order:?}");
+    }
+
+    #[test]
+    fn the_last_row_of_the_table_is_inside_the_window() {
+        let rows = rows(all);
+        for area in [[0, 0, 1280, 764], [0, 0, 1024, 728]] {
+            let (size, row) = fit(&rows, area);
+            let end = table_end(&rows, row);
+            assert!(
+                end <= size[1],
+                "{area:?}: the table ends at {end}, the page at {}",
+                size[1]
+            );
+            let outer = crate::dialog::outer(size);
+            assert!(outer[1] <= area[3], "{area:?}: the window is {outer:?}");
+        }
     }
 
     #[test]
