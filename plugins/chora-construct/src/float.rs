@@ -105,7 +105,9 @@ impl Construct {
     /// Lifts the windows off the faces that show when the cube leaves its
     /// rest in use mode, and lets them land when it rests there again.
     /// Called after each frame of a cube that moves, and again a while
-    /// after the window manager did not answer.
+    /// after the window manager did not answer. The first face that gets
+    /// no answer ends the round: one deaf window manager must not block
+    /// the construct for the wait of each face.
     pub(crate) fn sync_float(&mut self) -> Result<(), ClientError> {
         let now = Instant::now();
         let Some(host) = &self.cube else {
@@ -118,8 +120,11 @@ impl Construct {
         let mut answered = true;
         for face in 0..faces {
             answered &= self.sync_face(face, wanted)?;
+            if !answered {
+                break;
+            }
         }
-        if !wanted {
+        if answered && !wanted {
             answered &= self.land(now)?;
         }
         if let Some(host) = &mut self.cube {
