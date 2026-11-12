@@ -27,3 +27,4 @@ chat:
   name: [0, 60, 116]
   border: [0, 0, 0]
   idle_stop: grey
+  form: xp
