@@ -508,11 +508,10 @@ impl Host {
         ]
     }
 
-    /// The corners of the cube on the screen of `lens` and `pose`: the
-    /// range of x that it covers, and the lowest y; none while a corner
-    /// is behind the eye.
-    fn outline(&self, lens: &super::space::Lens, pose: &Pose) -> Option<([f64; 2], f64)> {
-        let (mut x, mut low) = ([f64::MAX, f64::MIN], f64::MIN);
+    /// The corners of the cube on the screen of `lens` and `pose`; none
+    /// while a corner is behind the eye.
+    fn corners(&self, lens: &super::space::Lens, pose: &Pose) -> Option<Vec<[f64; 2]>> {
+        let mut corners = Vec::new();
         for i in 0..self.outputs.len() {
             let m = super::space::screen_matrix(lens, pose, &self.world(i));
             let [w, h] = self.cube.size_of(i);
@@ -520,12 +519,41 @@ impl Host {
                 if m[3] * u + m[7] * v + m[15] <= 1e-6 {
                     return None;
                 }
-                let [px, py] = super::space::project(&m, u, v);
-                x = [x[0].min(px), x[1].max(px)];
-                low = low.max(py);
+                corners.push(super::space::project(&m, u, v));
             }
         }
+        Some(corners)
+    }
+
+    /// The range of x that the cube covers on the screen, and its lowest
+    /// y.
+    fn outline(&self, lens: &super::space::Lens, pose: &Pose) -> Option<([f64; 2], f64)> {
+        let corners = self.corners(lens, pose)?;
+        let x = corners.iter().fold([f64::MAX, f64::MIN], |x, c| {
+            [x[0].min(c[0]), x[1].max(c[0])]
+        });
+        let low = corners.iter().map(|c| c[1]).fold(f64::MIN, f64::max);
         (x[0] <= x[1]).then_some((x, low))
+    }
+
+    /// The box `[left, top, right, bottom]` that the cube covers on the
+    /// screen.
+    pub(crate) fn screen_box(&self, lens: &super::space::Lens, pose: &Pose) -> Option<[f64; 4]> {
+        let corners = self.corners(lens, pose)?;
+        let fold = |k: usize, f: fn(f64, f64) -> f64, from: f64| {
+            corners.iter().map(|c| c[k]).fold(from, f)
+        };
+        Some([
+            fold(0, f64::min, f64::MAX),
+            fold(1, f64::min, f64::MAX),
+            fold(0, f64::max, f64::MIN),
+            fold(1, f64::max, f64::MIN),
+        ])
+    }
+
+    /// How far the middle of the cube is from `pose`, along the view.
+    pub(crate) fn depth_of(&self, pose: &Pose) -> f64 {
+        super::space::depth(pose, self.centre())
     }
 
     /// Aims the cube that stands back: it moves sideways, across the

@@ -9,6 +9,12 @@ use super::{
     SHADOWS, SKY, Transform, Uniform, shadow_w, space, update, vec3,
 };
 use crate::panes::PaneLook;
+use chora_kit::modes::Mode;
+
+/// Whether two boxes `[left, top, right, bottom]` overlap.
+fn overlaps(a: [f64; 4], b: [f64; 4]) -> bool {
+    a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]
+}
 
 impl Construct {
     /// The sky, the ground and the fog for the pose, with the shadows of
@@ -82,9 +88,8 @@ impl Construct {
         if self.output.is_none() || !self.active {
             return Ok(());
         }
-        let stood_back = self.stood_back();
         let mut near: Vec<(&Pane, f64)> = (self.panes.iter())
-            .filter(|_| !stood_back)
+            .filter(|p| !self.covers_cube(p))
             .map(|p| (p, space::depth(&self.pose, p.at)))
             .filter(|(_, depth)| *depth > 0.0)
             .collect();
@@ -117,7 +122,9 @@ impl Construct {
         }
         self.sent = Some(look);
         if !self.glass.plain {
-            let glow = (focus.filter(|_| self.flown.is_none() && !stood_back)).map_or(
+            let glow = (focus
+                .filter(|&k| self.flown.is_none() && !self.covers_cube(&self.panes[k])))
+            .map_or(
                 PropsUpdate {
                     visible: Some(false),
                     ..PropsUpdate::default()
@@ -157,9 +164,26 @@ impl Construct {
             .collect()
     }
 
-    /// Whether a cube stands back: the panes give way to it.
-    pub(crate) fn stood_back(&self) -> bool {
-        (self.cube.as_ref()).is_some_and(|c| c.view().mode() == chora_kit::modes::Mode::Navigate)
+    /// Whether a cube stands back, and the pane is in front of it on the
+    /// screen: the pane gives way to the cube. A pane beside the cube, as
+    /// one that was pulled out of it, stays.
+    pub(crate) fn covers_cube(&self, pane: &Pane) -> bool {
+        let Some(host) = (self.cube.as_ref()).filter(|c| c.view().mode() == Mode::Navigate) else {
+            return false;
+        };
+        let Some(cube) = host.screen_box(&self.lens, &self.pose) else {
+            return false;
+        };
+        let m = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
+        let [w, h] = pane.size;
+        let box_of = [(0.0, 0.0), (w, 0.0), (0.0, h), (w, h)]
+            .map(|(u, v)| space::project(&m, u, v))
+            .into_iter()
+            .fold([f64::MAX, f64::MAX, f64::MIN, f64::MIN], |b, [x, y]| {
+                [b[0].min(x), b[1].min(y), b[2].max(x), b[3].max(y)]
+            });
+        let in_front = space::depth(&self.pose, pane.at) < host.depth_of(&self.pose);
+        in_front && overlaps(cube, box_of)
     }
 
     /// Hides a pane and its mirror image while the camera stands behind
@@ -167,10 +191,9 @@ impl Construct {
     /// change.
     fn back_faces(&mut self) -> Vec<Command> {
         let eye = [self.pose.x, self.pose.z];
-        let stood_back = self.stood_back();
         let mut commands = Vec::new();
         for pane in &self.panes {
-            let back = stood_back || space::shows_back(eye, pane.at, pane.yaw);
+            let back = self.covers_cube(pane) || space::shows_back(eye, pane.at, pane.yaw);
             if back == self.backs.contains(&pane.name) {
                 continue;
             }
@@ -243,5 +266,24 @@ impl Construct {
             visible: Some(true),
             ..PropsUpdate::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::overlaps;
+
+    #[test]
+    fn a_pane_in_front_of_the_cube_overlaps_it_and_one_beside_it_does_not() {
+        let cube = [430.0, 260.0, 850.0, 540.0];
+        assert!(overlaps(cube, [375.0, 235.0, 905.0, 565.0]), "a pane ahead");
+        assert!(
+            !overlaps(cube, [900.0, 235.0, 1200.0, 565.0]),
+            "a pulled pane"
+        );
+        assert!(
+            !overlaps(cube, [850.0, 260.0, 1000.0, 540.0]),
+            "touching only"
+        );
     }
 }
