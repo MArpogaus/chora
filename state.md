@@ -2,9 +2,9 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 05:27 UTC)
+## Now (2026-11-12 05:47 UTC)
 
-budget: 93 % at 2026-11-12 04:23 UTC (user); stop about 06:00 UTC; reset Sat 11-14 03:59 UTC.
+budget: 69 % at 2026-11-12 05:47 UTC (user; 93 % at 04:23 was a different reading); no stop at 06:00; reset Sat 11-14 03:59 UTC.
 session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
 last_reviewed: per-merge reviews only; the per-area review of the whole range a03be22..HEAD is due (Fable, Saturday).
 

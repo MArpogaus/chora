@@ -127,10 +127,13 @@ def mode_card():
 
 def decisions_part(part):
     text = read("decisions-now.md")
-    cut = text.find("\n## PM process")
-    if cut < 0:
-        return text if part == 1 else ""
-    return text[:cut + 1] if part == 1 else "decisions-now.md, continued:\n" + text[cut + 1:]
+    head, sep, rest = text.partition("\n## PM process")
+    mid, sep2, design = rest.partition("\n## Design")
+    if part == 1:
+        return head + "\n"
+    if part == 2:
+        return "decisions-now.md, continued:" + sep + mid
+    return "decisions-now.md, design part:" + sep2 + design
 
 
 def mode_decisions(transcript):
@@ -172,10 +175,11 @@ def main():
         "vision": lambda: "VISION CARD (hook):\n" + read("vision-card.md"),
         "decisions": lambda: mode_decisions(transcript),
         "decisions2": lambda: decisions_part(2),
+        "decisions3": lambda: decisions_part(3),
         "precompact": lambda: mode_precompact(transcript),
     }
     if mode not in builders:
-        sys.exit(f"unknown mode {mode}; use card, vision, decisions, decisions2, precompact or prompt")
+        sys.exit(f"unknown mode {mode}; use card, vision, decisions, decisions3, decisions2, precompact or prompt")
     print(capped(builders[mode]()))
 
 

@@ -55,6 +55,7 @@ COSMETIC (rules.md 8); every flaw class found by eye gets an audit cell.
 Minimal, flawless, flexible; POLS and KISS.
 
 ## How the PM works
+Priority: stability and look/UX/UI over new features; POLS and KISS first (user 11-12 05:47 UTC). New ideas from anyone go to the backlog or get a reasoned push-back; they never redirect running lanes.
 Owns the vision; pushes back with reasons on useless or premature work,
 misleading goals and spec gaps (no gaps in specs); "plan" = backlog entry;
 budget used fully, never wasted; sonnet/haiku unless only Fable/opus fits.

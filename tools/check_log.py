@@ -89,8 +89,10 @@ def check_state(text, now):
 
 
 def check_decisions(text, now):
-    head, sep, tail = text.partition("## PM process")
-    for label, part in (("before ## PM process", head), ("from ## PM process", sep + tail)):
+    head, sep, rest = text.partition("\n## PM process")
+    mid, sep2, design = rest.partition("\n## Design")
+    parts = (("before ## PM process", head), ("from ## PM process", sep + mid), ("from ## Design", sep2 + design))
+    for label, part in parts:
         if len(part) > DECISIONS_MAX_CHARS:
             yield f"decisions-now.md: part {label} has {len(part)} characters, limit {DECISIONS_MAX_CHARS}"
     m = re.search(r"^screened-through:\s*(\S+)", text, re.M)
