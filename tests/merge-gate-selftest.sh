@@ -237,9 +237,10 @@ gate_only() {
 FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
 check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
 mkdir "$work/nopc"
-for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date; do
+for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env; do
     ln -s "$(command -v "$tool")" "$work/nopc/$tool"
 done
+rm -rf "$work/runs"
 PATH="$work/nopc" gate_only
 check "the pre-commit step fails when pre-commit is missing" "$?" 1
 check "the pre-commit step says that pre-commit is missing" "$(grep -c '^FAIL: pre-commit is not installed' "$work/runs"/*/pre-commit.log)" 1
@@ -261,11 +262,11 @@ check "a missing tool is never a FAIL" "$(grep -c ' FAIL ' "$work/out")" 0
 ci_local deny nosuch
 check "an unknown job is a usage error" "$?" 2
 check "an unknown job stops before any job runs" "$(grep -c ' SKIP \| FAIL ' "$work/out")" 0
-check "an unknown job leaves no log directory" "$(ls "$work/ci-tmp" | wc -l)" 0
+check "an unknown job leaves no log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
 ci_local --help
-check "--help leaves no log directory" "$(ls "$work/ci-tmp" | wc -l)" 0
+check "--help leaves no log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
 ci_local deny
-check "a run without a failure removes its log directory" "$(ls "$work/ci-tmp" | wc -l)" 0
+check "a run without a failure removes its log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
 
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"

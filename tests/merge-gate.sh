@@ -17,18 +17,23 @@
 # `winit` runs a virtual output with xp in a chora nested on the winit
 # backend; `wm-pane` runs xp and tiling each in a pane of the construct.
 # `red-first` checks the range BASE..HEAD (commits that are not merges, oldest
-# first): each `fix` or `feat` commit needs a commit of the range that adds
-# or changes a test file (a path under tests/, a test_*, *_test or *_tests
-# file, or an added #[test] line) before it or in it. Else the step prints
-# RED-FIRST MISSING with the subject and fails, unless the commit body has
-# a line `No test: <reason>`. `pre-commit` runs the hooks over the same range.
+# first, in topological order): each `fix` or `feat` commit needs a commit
+# of the range that changes a test before it or in it, so a test may come in
+# the same commit as the fix. A test is a Rust file under a tests/ directory,
+# a Rust file with an added #[test] line, tests/gate-*.sh (not gate-lib.sh
+# or gate-lock.sh), tests/*-selftest.sh or tests/test_*.py; helper scripts
+# such as tests/gate-lib.sh and tests/ci-local.sh do not count. Else the step
+# prints RED-FIRST MISSING with the subject and fails, unless the commit body
+# has a line `No test: <reason>`. `pre-commit` runs the hooks over the same
+# range, with SKIP=cargo-clippy,lychee,vale as CI does, and fails when
+# pre-commit is not installed.
 # A step fails when its exit code is not 0, when its log has a line that
 # starts with `FAIL:` or `MISMATCH`, or when it has the line
 # `test result: FAILED`. One line per step: name, PASS or FAIL, seconds,
 # log path. A failed step prints the last 30 lines of its log.
 #
 # Usage: tests/merge-gate.sh [--only STEP,...] [--worker STEP,...] [--push BRANCH]
-#                            [--base REF]
+#                            [--base REF] [--red-first-check]
 #   --only STEP,...  run only these steps; never pushes
 #   --worker STEP,...  the lane mode: build, test, clippy and the steps
 #                    named here (`--worker xp,hud`; `--worker ''` for none);
@@ -37,6 +42,7 @@
 #                    origin/claude/autonomous-dev-session-3w-i33pg7)
 #   --push BRANCH    after every step passed, `git push origin HEAD:BRANCH`;
 #                    refuses when the work tree has uncommitted changes
+#   --red-first-check  run only the red-first check, without the lock
 #   -h, --help       this text
 #   MERGE_GATE_STEPS  file with one `name|command` per line, instead of the
 #                     steps above (the self-test uses it)
@@ -101,9 +107,9 @@ red_first() {
     while read -r sha; do
         [ -n "$sha" ] || continue
         subject=$(git -C "$repo" log -1 --format=%s "$sha")
-        diff=$(git -C "$repo" show --format= --name-only "$sha")
-        if grep -Eq '(^|/)tests/|(^|/)test_[^/]*$|_tests?\.[a-z]+$' <<<"$diff" ||
-            git -C "$repo" show --format= -U0 "$sha" | grep -Eq '^\+[[:space:]]*#\[(tokio::)?test'; then
+        diff=$(git -C "$repo" show --format= --name-only "$sha" | grep -Ev '^tests/gate-(lib|lock)\.sh$')
+        if grep -Eq '(^|/)tests/.*\.rs$|^tests/gate-[^/]*\.sh$|^tests/[^/]*-selftest\.sh$|^tests/test_[^/]*\.py$' <<<"$diff" ||
+            git -C "$repo" show --format= -U0 "$sha" -- '*.rs' | grep -Eq '^\+[[:space:]]*#\[(tokio::)?test'; then
             seen=1
         fi
         grep -Eq '^(fix|feat)(\([^)]*\))?!?:' <<<"$subject" || continue
@@ -112,7 +118,7 @@ red_first() {
         grep -Eq '^No test: .+' <<<"$body" && continue
         echo "RED-FIRST MISSING: $(git -C "$repo" log -1 --format='%h %s' "$sha")"
         missing=1
-    done < <(git -C "$repo" rev-list --reverse --no-merges "$base..HEAD")
+    done < <(git -C "$repo" rev-list --reverse --no-merges --topo-order "$base..HEAD")
     [ "$missing" = 0 ] && echo "red-first: every fix and feat commit has a test before it or in it"
     return "$missing"
 }
@@ -125,7 +131,7 @@ fi
 default_steps() {
     cat <<STEPS
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
-pre-commit|pre-commit run --from-ref "$base" --to-ref HEAD
+pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
 gate-lib|tests/gate-lib-selftest.sh
 build|cargo build --workspace
 test|cargo test --workspace
