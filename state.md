@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 02:18 UTC)
+## Now (2026-11-12 02:29 UTC)
 
 budget: 90 % at 2026-11-12 02:17 UTC (user), estimate 90 to 91 %, stop about 06:00 to 08:00 UTC; reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -19,6 +19,9 @@ Lanes:
 Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz every 2 h at :15; self-check trig_01X5NqMSsvxMSpYFJxo5Wxsg at 00:50, 06:50, 12:50, 18:50 UTC (routines.md); resume after reset trig_01Cbw7Sgz7WRVpTnjsN1zdwq (Sat 04:05 UTC); the old three-runs task trig_012VGJoVzsJ81hFa6AufBc9S disabled (replaced by the watchdog).
 
 ## Queue
+
+Deep UX tiling (reports/ux-deep-tiling.md): 4 MAJOR for next week: no visible chat entry; helper surfaces (pill, Listening dot, card, 400 px chat panel) white in a system font, not Ink, 1 px under the bar (this is the "floating chat button" the user saw: confirmed real, not old); no notification daemon in the tiling flavor; launcher preselects Screenshot. Harness bug before swarm 6: persona session.sh never starts chora-assistant (command -v before PATH) and the assistant needs an installed huds folder.
+
 
 End of week (user 02:17 UTC): finish the running lanes and merge (construct, pkg, tooling, swarm5-fixes; xp if ready), then intensive UX/UI reviews of all four looks with fresh captures at 1x and 2x (one opus reviewer per look plus a cross-look consistency reviewer against design/looks/shared.md) and swarm 6 on the merged build: data for next week, fixes only for main-path blockers.
 
