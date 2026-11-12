@@ -320,4 +320,15 @@ mod tests {
             assert!(!log.contains(" err:"), "{log}");
         }
     }
+
+    #[test]
+    fn every_page_with_a_head_keeps_its_column_and_its_hairline() {
+        for scene in ["agenda", "terminal", "overview"] {
+            let (mut mc, _) = crate::testing::mc("audit-pages", [1280, 800]);
+            mc.show(scene, false).unwrap();
+            let listed = mc.list();
+            let right = &listed["regions"]["right"];
+            assert_eq!(right["visible"], true, "{scene} shows no column: {right}");
+        }
+    }
 }
