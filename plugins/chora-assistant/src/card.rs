@@ -306,13 +306,34 @@ fn page_rows(
             Part::NoVoiceYes => Set::Note,
         };
         let measure = |line: &str| theme.svg_width(&element(set, face, line, [0, 0], [0; 3]));
-        rows.extend(
-            wrap(&text, width, measure)
-                .into_iter()
-                .map(|line| (set, line)),
-        );
+        let lines = no_widow(wrap(&text, width, measure), width, measure);
+        rows.extend(lines.into_iter().map(|line| (set, line)));
+    }
+    if parts == usize::MAX && shown.buttons && !shown.too_long {
+        let measure = |line: &str| theme.svg_width(&element(Set::Note, face, line, [0, 0], [0; 3]));
+        let said = Word::TypingNoAnswer.text(language);
+        let lines = no_widow(wrap(said, width, measure), width, measure);
+        rows.extend(lines.into_iter().map(|line| (Set::Note, line)));
     }
     rows
+}
+
+/// The lines with no one word alone on the last: the last word of the line
+/// before goes down to it, when both stay inside `width`.
+fn no_widow(mut lines: Vec<String>, width: f64, measure: impl Fn(&str) -> f64) -> Vec<String> {
+    let n = lines.len();
+    if n < 2 || lines[n - 1].contains(' ') {
+        return lines;
+    }
+    let Some((rest, word)) = lines[n - 2].rsplit_once(' ') else {
+        return lines;
+    };
+    let (cut, last) = (rest.len(), format!("{word} {}", lines[n - 1]));
+    if measure(&last) <= width {
+        lines[n - 2].truncate(cut);
+        lines[n - 1] = last;
+    }
+    lines
 }
 
 /// The height of the lines of a card in a page.
@@ -956,6 +977,46 @@ mod tests {
         assert_eq!(no[0] - yes[0], BUTTON[0] + BUTTON_GAP);
         assert!(hud::contrast([41, 38, 36], [247, 245, 237]) >= hud::MIN_KEY_CONTRAST);
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    /// A card in a page leaves no word alone on a line: the path and its
+    /// size do not wrap to a lone "bytes)", and the note that typing does
+    /// not answer stands in the card, the last line.
+    #[test]
+    fn a_card_in_a_page_has_no_widow_and_holds_the_typing_line() {
+        let cache = cache("page-widow");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::page([247, 245, 237], [41, 38, 36], [110, 105, 99]);
+        card.face = Some(Face::serif(19));
+        card.max_width = Some(336);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        let lines: Vec<&str> = laid.text.lines().collect();
+        assert!(!lines.contains(&"bytes)"), "a widow: {lines:?}");
+        assert!(lines.contains(&"(412 bytes)"), "{lines:?}");
+        assert_eq!(lines.last(), Some(&"Typing does not answer."), "{lines:?}");
+        assert_eq!(
+            laid.picture.size[1] % PAGE_ROW,
+            0,
+            "whole lines of the grid"
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_last_word_of_a_line_goes_down_to_a_lone_word() {
+        let chars = |line: &str| 10.0 * f64::from(u32::try_from(line.chars().count()).unwrap());
+        let lines = |l: &[&str]| l.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert_eq!(
+            no_widow(lines(&["~/a/b.txt (412", "bytes)"]), 140.0, chars),
+            ["~/a/b.txt", "(412 bytes)"]
+        );
+        assert_eq!(
+            no_widow(lines(&["one two", "three"]), 50.0, chars),
+            ["one two", "three"],
+            "it must fit"
+        );
+        assert_eq!(no_widow(lines(&["aaaa", "b"]), 90.0, chars), ["aaaa", "b"]);
     }
 
     #[test]

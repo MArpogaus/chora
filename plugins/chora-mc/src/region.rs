@@ -8,7 +8,9 @@
 
 use std::collections::BTreeMap;
 
-use chora_scene::{Command, Easing, NodeKind, PropsUpdate, ToplevelState, ipc::ClientError};
+use chora_scene::{
+    Command, Easing, NodeKind, PropsUpdate, ToplevelState, Transform, ipc::ClientError,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -345,6 +347,7 @@ const NEXT: &str = "next";
 
 /// The content that names the previous page in the footer.
 const PREV: &str = "prev";
+const URGENT: &str = "urgent";
 
 /// One text node of a region.
 pub struct Item {
@@ -362,6 +365,8 @@ pub struct Item {
     /// What a click on it does: a binding as `key:Super+n`, a helper as
     /// `agent:NAME`; it also shows the focus mark under the pointer.
     pub hit: Option<String>,
+    /// A close mark stands before the text: two bars, drawn, not a glyph.
+    pub mark: bool,
 }
 
 /// Where an item of a side stands.
@@ -405,6 +410,7 @@ impl Item {
             put: Put::Stack,
             before: 0.0,
             hit: None,
+            mark: false,
         }
     }
 }
@@ -694,8 +700,14 @@ impl Mc {
             if quiet && !is_title {
                 props.color = self.settings.value.colors().get("muted").copied();
             }
+            let urgent = name == URGENT && region.is_line();
             Item {
-                hit: hit.clone(),
+                hit: if urgent {
+                    Some("urgent:clear".into())
+                } else {
+                    hit.clone()
+                },
+                mark: urgent,
                 ..Item::text(id, slot, props, first)
             }
         };
@@ -1165,6 +1177,7 @@ impl Mc {
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
+            commands.extend(close_nodes(item, &id, faint));
             if item.hit.is_some() {
                 let ink = colors.get("text").copied().unwrap_or(faint);
                 commands.extend(hit_nodes(&item.id, &id, ink));
@@ -1420,6 +1433,10 @@ impl Mc {
     /// Places the items of a line: the end keeps its place, the start ends
     /// before it, and the middle sits between them; what does not fit is
     /// cut.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one pass over the three groups of a line"
+    )]
     fn line(
         &mut self,
         items: &[Item],
@@ -1431,7 +1448,7 @@ impl Mc {
         let mut sizes = Vec::new();
         for item in items {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
-            sizes.push((item, w, h));
+            sizes.push((item, w + lead(item), h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
             (sizes.iter())
@@ -1466,6 +1483,7 @@ impl Mc {
             let last = group.len().saturating_sub(1);
             for (i, (item, w, h)) in group.into_iter().enumerate() {
                 let left = x0 + room - next;
+                let lead = lead(item);
                 let x = if flush && i == last {
                     next + trailing(&item.props)
                 } else {
@@ -1477,7 +1495,8 @@ impl Mc {
                 let y = ((height - h.max(baseline)) / 2.0).round();
                 let ink = props_ink(&item.props);
                 let y = y + self.to_grid(top + y + ink.top + ink.height);
-                commands.push(move_to(item.id.clone(), x, y));
+                commands.push(move_to(item.id.clone(), x + lead, y));
+                commands.extend(close_place(item, [x, y + ink.top + ink.height / 2.0]));
                 if item.hit.is_some() {
                     let at = [x, y, w.min(left), h.max(baseline)];
                     commands.extend(hit_place(&item.id, at, x, props_ink(&item.props)));
@@ -1578,6 +1597,11 @@ impl Mc {
             Some(("agent", agent)) => self.chat_with(Some(agent)),
             Some(("chat", "open")) => self.chat_with(None),
             Some(("chat", "close")) => self.chat_close(),
+            Some(("urgent", "clear")) => {
+                if let Err(err) = self.clear_notifications() {
+                    eprintln!("chora-mc: urgent: {}", err.message);
+                }
+            }
             _ => return self.click_row(base),
         }
         true
@@ -1780,6 +1804,65 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64, ink: Ink) -> [
             },
         },
     ]
+}
+
+/// The side of the close mark of an urgent line and its hit; the bars are
+/// as thick as the hairline of the hover mark.
+pub const CLOSE: f64 = 14.0;
+/// The space between the close mark and the words.
+const CLOSE_GAP: f64 = 8.0;
+
+/// The room that an item keeps before its text for its close mark.
+fn lead(item: &Item) -> f64 {
+    if item.mark { CLOSE + CLOSE_GAP } else { 0.0 }
+}
+
+/// The id of a bar of the close mark of an item: `n` is 0 or 1.
+pub fn close_id(base: &str, n: usize) -> String {
+    format!("{base}-close-{n}")
+}
+
+/// The two bars of the close mark of an item, if it has one, in the color
+/// of its text; `close_place` crosses them at 45 degrees.
+fn close_nodes(item: &Item, parent: &str, fallback: [f64; 4]) -> Vec<Command> {
+    let color = item.props.color.unwrap_or(fallback);
+    (0..2)
+        .filter(|_| item.mark)
+        .map(|n| {
+            let mut bar = rect(
+                &close_id(&item.id, n),
+                parent,
+                [0.0, 0.0, CLOSE, 2.0],
+                color,
+            );
+            if let Command::Create { props, .. } = &mut bar {
+                props.input = Some(chora_scene::InputMode::Pass);
+            }
+            bar
+        })
+        .collect()
+}
+
+/// Puts the bars on the cross of a mark whose left edge is `x` and whose
+/// centre stands at `y`.
+fn close_place(item: &Item, [x, y]: [f64; 2]) -> Vec<Command> {
+    let centre = [x + CLOSE / 2.0, y];
+    (0..2)
+        .filter(|_| item.mark)
+        .map(|n| {
+            let turn = if n == 0 { 45.0 } else { -45.0 };
+            let at = Transform::translate(centre[0], centre[1], 0.0)
+                .then(&Transform::rotate_z(turn))
+                .then(&Transform::translate(-CLOSE / 2.0, -1.0, 0.0));
+            Command::Update {
+                id: close_id(&item.id, n),
+                props: PropsUpdate {
+                    transform: Some(at),
+                    ..PropsUpdate::default()
+                },
+            }
+        })
+        .collect()
 }
 
 /// The time and the words of a note, `18:51  Update ready`.

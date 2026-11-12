@@ -595,7 +595,7 @@ impl Mc {
         };
         let line = format!("{}  {}", region::date("%H:%M"), text.replace('\n', " "));
         if urgency == Urgency::Critical {
-            self.set_text(URGENT, None, |_| vec![format!("✕  {text}")])?;
+            self.set_text(URGENT, None, |_| vec![text.clone()])?;
         }
         self.set_text(NOTIFY, None, |old| {
             let mut lines = vec![line];

@@ -632,6 +632,42 @@ mod tests {
         }
     }
 
+    /// The urgent line of the footer is marked by a drawn close mark and
+    /// not by a glyph: two bars at 45 degrees, in a hit of 14 pixels or
+    /// more, and a click on it clears the line.
+    #[test]
+    fn the_urgent_line_has_a_drawn_close_mark_of_14_pixels() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("audit-urgent", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.method(
+            "notify.push",
+            serde_json::json!({"title": "Disk is full", "urgency": "critical"}),
+        )
+        .unwrap();
+        let name = mc.current.clone().unwrap();
+        let item = (mc.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id.ends_with("-urgent"))
+            .expect("the urgent line");
+        let words = item.props.text.clone().unwrap();
+        assert!(!words.contains('✕'), "a fallback glyph: {words}");
+        assert!(item.mark, "no close mark");
+        let core = model.lock().unwrap();
+        for n in 0..2 {
+            let id = crate::region::close_id(&item.id, n);
+            let bar = core
+                .scene
+                .node(&id)
+                .unwrap_or_else(|| panic!("no bar {id}"));
+            let [w, h] = bar.props.size.unwrap();
+            assert!(w >= 14.0 && h >= 1.5, "bar {w}x{h}");
+        }
+        drop(core);
+        assert!(mc.click_hit(&format!("{}-hit", item.id)));
+        assert!(mc.texts["urgent"].1.is_empty(), "the click clears the line");
+    }
+
     #[test]
     fn every_sign_of_a_state_is_a_shape_and_not_a_thin_letter() {
         let (mc, _) = crate::testing::mc("audit-signs", [1280, 800]);

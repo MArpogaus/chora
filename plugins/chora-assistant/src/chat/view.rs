@@ -501,6 +501,7 @@ impl Session {
         };
         let lines = self.lines(language, &measure);
         let hint = (self.hint(language))
+            .filter(|_| !(margin && self.card == Some(crate::chat::Where::Chat)))
             .map(|hint| hint_lines(theme, &hint, rect[2] - 2 * inset))
             .unwrap_or_default();
         let list = self.entries(language);
@@ -909,6 +910,37 @@ mod tests {
             frame.rect(),
             "a panel keeps its size"
         );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    /// In the margin the card holds the line that typing does not answer,
+    /// so no hint of the same words stands outside it, above the field.
+    #[test]
+    fn the_typing_line_stands_in_the_card_and_not_above_the_field() {
+        let (theme, _, cache) = crate::tests::loaded("margin-typing");
+        let frame = Frame {
+            output: "HEADLESS-1".into(),
+            size: [1280, 800],
+            area: [0, 0, 1280, 800],
+            look: Look::default(),
+            slot: Some([944, 92, 336, 700]),
+            clear: Vec::new(),
+            tip: None,
+            field: 28,
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
+        };
+        assert!(in_margin(&frame), "a slot in the plain look is the margin");
+        let mut session = Session::new();
+        session.mode = Mode::Chat("Atlas".into());
+        session.status.state = "question".into();
+        session.question_asked();
+        assert_eq!(session.card, Some(crate::chat::Where::Chat));
+        assert!(session.hint(Language::En).is_some(), "the model has it");
+        let hint = session.parts(&theme, &frame, Language::En).hint;
+        assert!(hint.is_empty(), "outside the card: {hint:?}");
         let _ = std::fs::remove_dir_all(cache);
     }
 

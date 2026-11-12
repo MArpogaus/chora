@@ -560,9 +560,9 @@ mod tests {
             ("dark", &config.themes.dark),
         ] {
             let page = colors["background"];
-            let least = [("text", 7.0)]
+            let least = [("text", 7.0), ("muted", 7.0)]
                 .into_iter()
-                .chain(["muted", "accent", "green", "amber", "blue", "red"].map(|c| (c, 4.5)));
+                .chain(["accent", "green", "amber", "blue", "red"].map(|c| (c, 4.5)));
             for (name, least) in least {
                 let ratio = contrast(colors[name], page);
                 assert!(
