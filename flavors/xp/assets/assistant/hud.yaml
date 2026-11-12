@@ -26,3 +26,4 @@ chat:
   text: [0, 0, 0]
   name: [0, 60, 116]
   border: [0, 0, 0]
+  idle_stop: grey

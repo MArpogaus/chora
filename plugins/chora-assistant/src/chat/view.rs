@@ -14,7 +14,7 @@ use chora_draw::{
 };
 use chora_kit::{
     chat::{Line, Measure, Role},
-    hud::{Chat as Look, ChatStyle},
+    hud::{Chat as Look, ChatStyle, IdleStop},
     words::{Language, Word},
 };
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
@@ -194,6 +194,26 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
         });
     }
     rows
+}
+
+/// The colours of a button that takes no press: the ink halfway to the
+/// fill.
+fn dimmed(colours: Colours) -> Colours {
+    let half = |ink: u8, fill: u8| {
+        u8::try_from(u16::midpoint(u16::from(ink), u16::from(fill))).unwrap_or(ink)
+    };
+    let mix = |ink: [u8; 3]| {
+        [
+            half(ink[0], colours.fill[0]),
+            half(ink[1], colours.fill[1]),
+            half(ink[2], colours.fill[2]),
+        ]
+    };
+    Colours {
+        text: mix(colours.text),
+        border: mix(colours.border),
+        ..colours
+    }
 }
 
 fn button(theme: &mut Theme, label: &str, colours: Colours) -> String {
@@ -386,6 +406,7 @@ struct Parts {
     list: Vec<String>,
     buttons: &'static [(&'static str, Word)],
     running: bool,
+    grey_stop: bool,
     top_row: i32,
     body_top: i32,
     field_room: i32,
@@ -501,6 +522,7 @@ impl Session {
             list,
             buttons,
             running: self.running(),
+            grey_stop: frame.look.idle_stop == IdleStop::Grey,
             top_row,
             body_top,
             field_room: field_room(frame),
@@ -734,9 +756,16 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
         commands.push(create(HINT, VIEW, image(path, at, &text, InputMode::Pass)));
     }
     for (n, (id, word)) in (0..).zip(parts.buttons) {
-        if *id == STOP && !parts.running {
+        let idle = *id == STOP && !parts.running;
+        if idle && !parts.grey_stop {
             continue;
         }
+        let colours = if idle { dimmed(colours) } else { colours };
+        let input = if idle {
+            InputMode::Pass
+        } else {
+            InputMode::Accept
+        };
         let label = word.text(language);
         let (path, at) = if parts.margin {
             let (path, [width, _]) = link(theme, label, colours);
@@ -745,7 +774,7 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
             let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
             (button(theme, label, colours), at)
         };
-        commands.push(create(id, VIEW, image(path, at, label, InputMode::Accept)));
+        commands.push(create(id, VIEW, image(path, at, label, input)));
         commands.push(if parts.margin {
             bar(id, VIEW, at, colours.text)
         } else {
@@ -946,6 +975,68 @@ mod tests {
                 "{end} meets the field of {field} in {h}"
             );
         }
+    }
+
+    fn idle_frame(idle_stop: IdleStop) -> Frame {
+        Frame {
+            output: "HEADLESS-1".into(),
+            size: [1280, 800],
+            area: [0, 0, 1280, 770],
+            look: Look {
+                style: ChatStyle::Bubble,
+                width: Some(340),
+                idle_stop,
+                ..Look::default()
+            },
+            slot: None,
+            clear: Vec::new(),
+            tip: Some([1144, 560]),
+            field: 36,
+            ring: None,
+            dark: false,
+            scale: 1,
+            card: None,
+        }
+    }
+
+    fn stop_of(idle_stop: IdleStop) -> Option<(InputMode, bool)> {
+        let (mut theme, _, cache) = crate::tests::loaded("idle-stop");
+        let frame = idle_frame(idle_stop);
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        let parts = session.parts(&theme, &frame, Language::En);
+        assert!(!parts.running);
+        let commands = extras(
+            &mut theme,
+            &parts,
+            super::super::colours(&frame.look),
+            Language::En,
+        );
+        let _ = std::fs::remove_dir_all(cache);
+        commands.iter().find_map(|command| match command {
+            Command::Create { id, props, .. } if id == STOP => {
+                Some((props.input.expect("an input mode"), true))
+            }
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn stop_is_grey_and_takes_no_press_when_no_prompt_runs_if_the_look_says_so() {
+        assert_eq!(stop_of(IdleStop::Grey), Some((InputMode::Pass, true)));
+        assert_eq!(stop_of(IdleStop::Hide), None);
+    }
+
+    #[test]
+    fn a_dimmed_button_is_halfway_to_the_fill() {
+        let colours = Colours {
+            fill: [255, 255, 255],
+            text: [0, 0, 0],
+            name: [0, 0, 0],
+            border: [0, 0, 0],
+        };
+        assert_eq!(dimmed(colours).text, [127, 127, 127]);
+        assert_eq!(dimmed(colours).fill, [255, 255, 255]);
     }
 
     #[test]

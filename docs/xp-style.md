@@ -88,3 +88,9 @@ something off? If yes, it is a finding. The second rule is chora's own:
     edge and 8 px above the taskbar, the bin 8 px above the paperclip on
     the same centre line. The tail of the balloon ends on the head of the
     paperclip, and the border of every balloon is black.
+
+## The helper's balloon
+
+12. **Stop is greyed, not hidden, when no prompt runs** (`idle_stop: grey` in
+    the `chat:` block of the HUD folder), so that the header does not jump;
+    it takes a press only while a prompt runs.

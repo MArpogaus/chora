@@ -366,6 +366,19 @@ pub struct Chat {
     pub slot: Option<String>,
     /// The colour of the glow around a glass chat.
     pub glow: Option<[u8; 3]>,
+    /// What the Stop button does while no prompt runs.
+    pub idle_stop: IdleStop,
+}
+
+/// What the Stop button of the chat does while no prompt runs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IdleStop {
+    /// The button is not there.
+    #[default]
+    Hide,
+    /// The button stays in its place, grey, and takes no press.
+    Grey,
 }
 
 impl Default for Chat {
@@ -383,6 +396,7 @@ impl Default for Chat {
             margin: 0,
             slot: None,
             glow: None,
+            idle_stop: IdleStop::Hide,
         }
     }
 }

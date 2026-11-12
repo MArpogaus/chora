@@ -336,6 +336,7 @@ values only. A folder without the block gets the neutral chat.
 | `anchor` | The place. Default `right`. |
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
+| `idle_stop` | `hide` or `grey`. Stop shows only while a prompt runs, as `hide` does, the default; `grey` keeps it in its place, greyed and without a press, so that the header does not jump. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers, exactly as announced: the view never steps aside in it, and it does not move or grow while a question shows. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. The client also gives the theme of the look where no window manager claims the screen. A folder with a slot draws no "Chat ..." row and no row of a helper, and its question card takes the page of the look, see below. |
 
