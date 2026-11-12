@@ -16,8 +16,9 @@ SECTIONS = ("Now", "Queue", "Blocked")
 STATE_MAX_LINES = 80
 DECISIONS_MAX_CHARS = 9000
 RULES_MAX = 20
+REFLECTIONS_FROM = "2026-11-12"
 TIME = re.compile(
-    r"(?<![\d:])(?:(\d{4})-)?(?:(\d{2})-(\d{2})[ T]+)?(\d{2}):(\d{2})(?::\d{2})?(?![\d:])\s*(Z\b|UTC\b|Bkk\b)?"
+    r"(?<![\d:])(?:(\d{4})-)?(?:(\d{2})-(\d{2})[ T]+~?)?(\d{2}):(\d{2})(?::\d{2})?(?![\d:])\s*(Z\b|UTC\b|Bkk\b)?"
 )
 NOW_HEADER = re.compile(r"^## Now \((\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}) (UTC|Bkk)\)")
 
@@ -39,7 +40,7 @@ def line_times(line, now):
         yield m.group(0).strip(), zone, parse_time(year, month, day, hour, minute, zone, now)
 
 
-STAMP = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?(?:\d{4}-)?(?:\d{2}-\d{2}[ T]+)?\d{2}:\d{2}")
+STAMP = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?(?:\d{4}-)?(?:\d{2}-\d{2}[ T]+)?~?\d{2}:\d{2}")
 
 
 def check_added_line(name, line, now):
@@ -122,6 +123,40 @@ def check_rules(text):
             yield f"rules.md: rule without a Guard: line: {first.strip()[:60]}"
 
 
+def count_rules(text):
+    return sum(1 for l in text.splitlines() if re.match(r"^\d+\.\s", l))
+
+
+def check_rules_growth(root, text):
+    old = subprocess.run(["git", "show", "HEAD:rules.md"], cwd=root, capture_output=True, text=True)
+    if old.returncode == 0 and count_rules(text) > count_rules(old.stdout):
+        yield f"rules.md: {count_rules(text)} rules, HEAD has {count_rules(old.stdout)}: remove a rule to add one"
+
+
+def check_merge_has_status(root):
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True, text=True
+    ).stdout.split()
+    if any(l.startswith("session branch:") for l in added_lines(root, "state.md")):
+        if not any(n.startswith("status/") for n in staged):
+            yield "state.md: the session branch line changed (a merge) but nothing under status/ changed"
+
+
+def check_reflections(root, now):
+    for path in sorted(Path(root).glob("reflections/*.md")):
+        m = re.match(r"(\d{4}-\d{2}-\d{2})", path.name)
+        if not m or m.group(1) < REFLECTIONS_FROM:
+            continue
+        if datetime.fromisoformat(m.group(1)).replace(tzinfo=timezone.utc) + timedelta(hours=24) > now:
+            continue
+        text = path.read_text()
+        points = re.findall(r"^#{2,4}\s+(\d+)\.", text, re.M)
+        answers = set(re.findall(r"^(\d+)\.\s+Answer:", text, re.M))
+        for n in points:
+            if n not in answers and not re.search(rf"^#{{2,4}}\s+{n}\.[^#]*?^Answer:", text, re.M | re.S):
+                yield f"{path.name}: point {n} has no 'Answer:' line"
+
+
 def added_lines(root, name):
     out = subprocess.run(
         ["git", "diff", "--cached", "-U0", "--", name], cwd=root, capture_output=True, text=True
@@ -139,6 +174,9 @@ def run(root, now):
         problems += check_decisions(decisions.read_text(), now)
     if rules.exists():
         problems += check_rules(rules.read_text())
+        problems += check_rules_growth(root, rules.read_text())
+    problems += check_merge_has_status(root)
+    problems += check_reflections(root, now)
     for name in ("state.md", "decisions-now.md", "answers.md"):
         for line in added_lines(root, name):
             problems += check_added_line(name, line, now)

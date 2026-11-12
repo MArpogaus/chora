@@ -2,13 +2,15 @@
 """Print the live lanes of the PM session (read-only): subagents, chora processes, merged worktrees, disk, PM context.
 
 Usage: python3 tools/lanes.py [--all]   (--all lists finished subagents too)
-Flags: subagent context above 250k, opus or fable builders, chora process older than 1 h,
+Exit status 1 when any flag is raised. Flags: fewer than two lanes (running local subagents plus the
+cloud workers under "Lanes:" of state.md Now), subagent context above 250k, opus or fable builders, chora process older than 1 h,
 worktree merged into the session branch, PM context above 400k ("compact now").
 """
 import argparse
 import json
 import os
 import shutil
+import sys
 import subprocess
 import time
 from pathlib import Path
@@ -19,6 +21,8 @@ WT = Path("/home/user/wt")
 CODE = Path("/home/user/chora")
 BASE = "origin/claude/autonomous-dev-session-3w-i33pg7"
 AGENT_CONTEXT_LIMIT = 250_000
+STATE = Path("/home/user/wt/log/state.md")
+MIN_LANES = 2
 PM_CONTEXT_LIMIT = 400_000
 PROCESS_AGE_LIMIT = 3600
 ACTIVE_WINDOW = 1800
@@ -94,9 +98,34 @@ def merged_worktrees():
         if not path.startswith(str(WT)) or "branch" not in fields:
             continue
         head = fields["HEAD"]
+        branch = fields["branch"].replace("refs/heads/", "")
+        created = subprocess.run(
+            ["git", "reflog", "show", "--format=%H", fields["branch"]], cwd=CODE, capture_output=True, text=True
+        ).stdout.split()
         merged = subprocess.run(["git", "merge-base", "--is-ancestor", head, BASE], cwd=CODE).returncode == 0
-        rows.append((os.path.basename(path), fields["branch"].replace("refs/heads/", ""), "MERGED, remove" if merged else ""))
+        if created and created[-1] == head:
+            flag = "fresh lane"
+        else:
+            flag = "MERGED, remove" if merged else ""
+        rows.append((os.path.basename(path), branch, flag))
     return rows
+
+
+def cloud_lanes():
+    try:
+        text = STATE.read_text()
+    except OSError:
+        return 0
+    count, on = 0, False
+    for line in text.splitlines():
+        if line.startswith("Lanes:"):
+            on = True
+        elif on and line.startswith("- "):
+            lower = line.lower()
+            count += "cloud" in lower and "done" not in lower
+        elif on and not line.strip():
+            break
+    return count
 
 
 def pm_context():
@@ -108,24 +137,33 @@ def table(title, header, rows):
     print(f"\n{title}")
     if not rows:
         print("  none")
-        return
+        return 0
     widths = [max(len(str(x)) for x in col) for col in zip(header, *rows)]
     for r in (header, *rows):
         print("  " + "  ".join(str(c).ljust(w) for c, w in zip(r, widths)).rstrip())
+    return sum(1 for r in rows if r[-1] and r[-1] != "fresh lane")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--all", action="store_true")
     args = ap.parse_args()
-    table("subagents (unfinished or active in 30 min)", ("agent", "model", "idle", "context", "flag"), subagents(args.all))
-    table("chora processes", ("pid", "age", "name", "flag"), chora_processes())
-    table("worktrees", ("dir", "branch", "flag"), merged_worktrees())
+    flags = 0
+    agents = subagents(args.all)
+    flags += table("subagents (unfinished or active in 30 min)", ("agent", "model", "idle", "context", "flag"), agents)
+    flags += table("chora processes", ("pid", "age", "name", "flag"), chora_processes())
+    flags += table("worktrees", ("dir", "branch", "flag"), merged_worktrees())
     free = shutil.disk_usage("/home").free / 2**30
     print(f"\ndisk free: {free:.1f} GB" + ("  LOW" if free < 10 else ""))
+    flags += free < 10
     model, ctx, flag = pm_context()
     print(f"PM context: {ctx // 1000}k ({model}) {flag}".rstrip())
+    flags += bool(flag)
+    lanes = len(agents) + cloud_lanes()
+    print(f"lanes: {lanes} running (local subagents plus cloud workers in state.md)" + ("  FEWER THAN TWO LANES" if lanes < MIN_LANES else ""))
+    flags += lanes < MIN_LANES
+    return 1 if flags else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
