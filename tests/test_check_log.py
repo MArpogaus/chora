@@ -54,7 +54,7 @@ class CheckLog(unittest.TestCase):
         self.red({"state.md": GOOD_STATE.replace("budget:", "money:")}, "budget:")
 
     def test_added_time_future(self):
-        self.red({"state.md": GOOD_STATE + "- seen 11:00 UTC\n"}, "later than now", True)
+        self.red({"state.md": GOOD_STATE + "- 11:00 UTC seen\n"}, "later than now", True)
 
     def test_plan_time_mid_line_ok(self):
         self.assertEqual(run({"state.md": GOOD_STATE + "- stop about 23:00 UTC, Sat 04:05\n"}, True)[0], 0)
@@ -63,7 +63,7 @@ class CheckLog(unittest.TestCase):
         self.red({"answers.md": "- 11-12 10:30 UTC: x\n"}, "later than now", True)
 
     def test_added_time_no_zone(self):
-        self.red({"answers.md": "user said at 09:00\n"}, "without zone", True)
+        self.red({"answers.md": "- 09:00 user said\n"}, "without zone", True)
 
     def test_added_time_dated_past_ok(self):
         self.assertEqual(run({"answers.md": "11-11 17:48 UTC ok\n"}, True)[0], 0)
