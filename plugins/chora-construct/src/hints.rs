@@ -34,6 +34,10 @@ pub const FLOWN: Duration = Duration::from_secs(3);
 /// the hints of the walk.
 pub const BOTTOM: f64 = 64.0;
 
+/// How far over the bottom edge the capsule of a flown-in pane stands, so
+/// that it clears the taskbar of a program under it.
+pub const LIFT: f64 = 24.0;
+
 /// Which hints show.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Set {
@@ -260,6 +264,23 @@ pub fn capsule_width(look: &Look, items: &[Item]) -> f64 {
     (2.0 * PAD + inner + gaps).ceil()
 }
 
+/// The capsule over a program has one rounded rim: the hairline outside,
+/// and neither the inner ring nor the straight highlight, which the
+/// program shows through as a doubled outline and a line that ignores
+/// the curve.
+fn single_rim(commands: &mut Vec<Command>) {
+    let highlight = format!("{HINTS}-hi");
+    let glass = format!("{HINTS}-glass");
+    commands.retain(|c| !matches!(c, Command::Create { id, .. } if *id == highlight));
+    for c in commands.iter_mut() {
+        if let Command::Create { id, props, .. } = c
+            && *id == glass
+        {
+            props.border = Some(None);
+        }
+    }
+}
+
 /// The hints at the bottom centre of an output of `out`, made anew; the
 /// hint under the pointer, `hovered`, has the hover fill. A hint that is a
 /// chip moves its node over the capsule.
@@ -288,6 +309,9 @@ pub fn draw(
             input: InputMode::Pass,
         },
     );
+    if over_content {
+        single_rim(&mut commands);
+    }
     commands.push(group(HITS, crate::NAME, [0.0, 0.0], InputMode::Accept));
     let mut left = PAD;
     for (k, item) in items.iter().enumerate() {

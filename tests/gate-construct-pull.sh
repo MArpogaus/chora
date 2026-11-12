@@ -7,6 +7,8 @@
 # The front face of a resting cube fills its screen, so the drag leaves
 # the face over the edge of the screen, onto a second output.
 #
+# PULL_SHOT: a PNG path that keeps a capture of the pane in the pull.
+#
 # 1. With the flag --test-injected-press-is-real of the core (headless
 #    only), where an injected press gives its drag: inside the face the window moves and
 #    stays with xp; past the edge it is a pane of the construct, and the
@@ -132,6 +134,7 @@ inject "[{\"pointer_move\": {\"position\": [260, 340], \"output\": \"$edge\"}}]"
 inject '[{"pointer_move": {"position": [900, 420]}}]'
 until_ok 'python3 -I -c "import sys; sys.exit(float(sys.argv[1]) <= 0)" "$(deepest "$surface")"' 20 || fail "the mesh of the pane has no depth: $(deepest "$surface")"
 ok "the pane wobbles on with a depth of $(deepest "$surface")"
+[ -z "${PULL_SHOT:-}" ] || ctl capture "$PULL_SHOT" >/dev/null
 inject "[{\"pointer_move\": {\"position\": [220, 320], \"output\": \"$edge\"}},
     {\"button\": {\"state\": \"released\"}}]"
 sleep 1

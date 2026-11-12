@@ -685,9 +685,12 @@ impl Construct {
         items: &[crate::hints::Item],
         hover: Option<&str>,
     ) -> Result<Vec<Command>, ClientError> {
-        let out = [self.lens.w, self.lens.h];
+        let over = set == crate::hints::Set::Flown;
+        let out = [
+            self.lens.w,
+            self.lens.h - if over { crate::hints::LIFT } else { 0.0 },
+        ];
         self.fitted(|s| {
-            let over = set == crate::hints::Set::Flown;
             let base = s.styled();
             let look = if over {
                 crate::hints::over_content(&base)

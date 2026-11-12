@@ -175,7 +175,8 @@ fn mirrored(core: &mut Core, wm: &mut Client) -> (usize, Vec<u8>) {
             "size": [200, 160], "shader": shader("mirror.frag"),
             "transform": {"translate": [100, 100]},
             "uniforms": {"win": {"node": "pane"}, "gloss": 1, "depth": 1, "reach": 0,
-                         "ground": 0, "rough": [0.6, 10, 1.6, 1.2]}}}},
+                         "ground": 0, "rough": [0.6, 10, 1.6, 1.2],
+                         "feather": 3, "fall": 60}}}},
     ]});
     wm.ok(core, "scene.apply", commands);
     capture(core, wm)

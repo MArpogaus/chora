@@ -1367,7 +1367,7 @@ impl Construct {
                         uniforms: Some(super::panes::mirror_uniforms(
                             win,
                             look,
-                            super::panes::CUBE_FEATHER,
+                            (super::panes::CUBE_FEATHER, super::panes::CUBE_FALL),
                         )),
                         ..PropsUpdate::default()
                     },
@@ -1419,7 +1419,7 @@ impl Construct {
                             uniforms: Some(super::panes::mirror_uniforms(
                                 win.clone(),
                                 &look,
-                                super::panes::CUBE_FEATHER,
+                                (super::panes::CUBE_FEATHER, super::panes::CUBE_FALL),
                             )),
                             visible: Some(false),
                             ..PropsUpdate::default()

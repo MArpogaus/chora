@@ -1,6 +1,8 @@
 //! Voice glue: following the voice agent, answers, the tick, and drawing
 //! the voice HUD.
 
+use chora_kit::modes::Mode;
+
 use super::{
     ClientError, Command, Construct, Duration, Instant, Look, PropsUpdate, Transform, VOICE, Value,
     hud, json, space, update,
@@ -146,30 +148,38 @@ impl Construct {
     /// the list is open, and when the pane does not show. The text and the
     /// pill change only with the pane.
     pub(crate) fn label_commands(&mut self) -> Vec<Command> {
-        let hidden = label_hidden(&[
+        let away = [
             self.flown.is_some(),
             self.moving.is_some(),
             self.effects.animating(),
             self.list.is_some(),
             self.help,
             self.glide.as_ref().is_some_and(|g| g.into.is_some()),
-            self.cube.is_some(),
-        ]);
+        ];
+        let cube = self.cube.is_some();
+        let stood_back = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Navigate);
+        let hidden = label_hidden(&[away.iter().any(|a| *a), cube]);
         let pick = if hidden { None } else { self.focus() };
         let mut commands = self.focus_label(pick);
-        commands.extend(self.neighbour_labels(pick, hidden));
+        let beside_hidden = away.iter().any(|a| *a) || (cube && !stood_back);
+        commands.extend(self.neighbour_labels(pick, beside_hidden, stood_back));
         commands
     }
 
     /// The labels of the other panes that show at least 40 % (every pane
     /// has a label, the brief), named at 60 % and 8 below their bottom
     /// edge. None while the label hides.
-    fn neighbour_labels(&mut self, focus: Option<usize>, hidden: bool) -> Vec<Command> {
-        let want: Vec<(usize, [f64; 4])> = if hidden || focus.is_none() {
+    fn neighbour_labels(
+        &mut self,
+        focus: Option<usize>,
+        hidden: bool,
+        stood_back: bool,
+    ) -> Vec<Command> {
+        let want: Vec<(usize, [f64; 4])> = if hidden || (focus.is_none() && !stood_back) {
             Vec::new()
         } else {
             (0..self.panes.len())
-                .filter(|k| Some(*k) != focus)
+                .filter(|k| Some(*k) != focus && !self.backs.contains(&self.panes[*k].name))
                 .filter_map(|k| {
                     let p = &self.panes[k];
                     let b = space::screen_box(&self.lens, &self.pose, p.at, p.size, p.yaw)?;

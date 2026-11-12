@@ -53,6 +53,12 @@ begin() {
     sleep 2
 }
 
+ctl() { (
+    # shellcheck source=/dev/null
+    . "$PERSONA_ENV"
+    export CHORA_SOCKET XDG_RUNTIME_DIR PATH
+    choractl "$@"
+) >/dev/null; }
 act() { python3 -I "$repo/tests/persona/act.py" "$@" >/dev/null; }
 key() { act key "$1"; sleep "${2:-1.5}"; }
 lit() { python3 -I -c 'import sys; from PIL import Image; sys.exit(not sum(Image.open(sys.argv[1]).convert("L").resize((64, 40)).getdata()) > 20 * 64 * 40)' "$1"; }
@@ -86,12 +92,35 @@ if want cube-stood-back-with-pane; then
     begin
     key Super+t 4
     key Alt+Escape 2.5
-    key a 1.5
-    key a 1.5
+    key Super+t 4
+    key Alt+Escape 2.5
     key Super+c 2.5
     key Alt+Escape 2.5
     shot cube-stood-back-with-pane
     stop
+fi
+
+if want cube-turning; then
+    begin
+    key Super+c 2.5
+    key Alt+Escape 2.5
+    ctl call construct cube.turn '{"by": 1, "ms": 4000}'
+    sleep 1.2
+    shot cube-turning
+    stop
+fi
+
+if want failed-face || want failed-face-stood-back; then
+    printf '#!/bin/sh\necho "it needs foot 1.26 or later." >&2\nsleep 2\nexit 1\n' >"$out/failing-manager.sh"
+    chmod +x "$out/failing-manager.sh"
+    begin
+    ctl call construct settings.set "{\"cube_manager\": \"$out/failing-manager.sh\"}"
+    key Super+c 6
+    shot failed-face
+    key Alt+Escape 2.5
+    shot failed-face-stood-back
+    stop
+    rm -f "$out/failing-manager.sh"
 fi
 
 if want stepped-into-face; then

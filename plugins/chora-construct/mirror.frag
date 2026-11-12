@@ -29,6 +29,7 @@ uniform float reach;  // the focal length over the leash radius
 uniform vec3 fade;    // the haze of the pane: where it starts, how fast
                       // it grows, and its most
 uniform float ground; // the height of the eye over the focal length
+uniform float fall;    // how far the image reaches below the pane, in texture pixels
 uniform float feather; // the soft edge at the sides and the top, in texture pixels
 uniform vec4 rough;   // the blur in texture pixels at the contact line
                       // and at the top, its stretch along the view, and
@@ -76,10 +77,10 @@ void main() {
     vec4 c = blurred(uv, vec2(r, r * rough.z));
     // The side edges are feathered by `feather`: 3 px for the faces of a
     // cube, so that they sit on each other's edges, more for a pane, so
-    // that no hard slab stands on the floor; the image ends 60 px under
-    // the pane.
+    // that no hard slab stands on the floor; the image ends `fall` px
+    // under the pane.
     float side = feather / size.x;
-    float down = smoothstep(1.0 - 60.0 / size.y, 1.0, k);
+    float down = smoothstep(1.0 - fall / size.y, 1.0, k);
     float soft = smoothstep(0.0, side, v_uv.x) * smoothstep(1.0, 1.0 - side, v_uv.x)
                * smoothstep(1.0, 1.0 - max(feather / size.y, 0.02), k) * smoothstep(0.0, 1.25 * w, d) * down;
     float haze = (1.0 - exp(-max(max(depth - 1.0, 0.0) * reach - fade.x, 0.0) * fade.y)) * fade.z;

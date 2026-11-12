@@ -552,7 +552,13 @@ impl Construct {
     pub(crate) fn beside_spot(&self, from: Pose) -> ([f64; 2], f64) {
         let size = [self.lens.w, self.lens.h];
         let others: Vec<_> = self.panes.iter().map(|p| (p.at, p.size[0])).collect();
-        let at = space::beside(&from, self.settings.value.pane_distance, size[0], &others);
+        let at = space::beside(
+            &self.lens,
+            &from,
+            self.settings.value.pane_distance,
+            size[0],
+            &others,
+        );
         (at, space::facing([from.x, from.z], at))
     }
 

@@ -145,10 +145,15 @@ pub(crate) fn handed_over(size: Option<[f64; 2]>, lens: &space::Lens) -> PaneFil
 }
 
 /// The soft edge of the mirror image of a pane, in texture pixels.
-pub(crate) const PANE_FEATHER: f64 = 24.0;
+pub(crate) const PANE_FEATHER: f64 = 60.0;
+/// How far the mirror image of a pane reaches below it, in texture
+/// pixels: a reflection with a body, not a stripe.
+pub(crate) const PANE_FALL: f64 = 240.0;
 /// The soft edge of the mirror image of a cube face, in texture pixels:
 /// the faces meet on their edges.
 pub(crate) const CUBE_FEATHER: f64 = 3.0;
+/// How far the mirror image of a cube face reaches below it.
+pub(crate) const CUBE_FALL: f64 = 60.0;
 
 /// The roughness of the polished floor in a mirror image (mirror.frag):
 /// the blur in pixels of its texture at the contact line and at the top,
@@ -160,10 +165,11 @@ pub(crate) const ROUGH: [f64; 4] = [0.6, 10.0, 1.6, 1.2];
 pub(crate) fn mirror_uniforms(
     win: Uniform,
     look: &PaneLook,
-    feather: f64,
+    (feather, fall): (f64, f64),
 ) -> BTreeMap<String, Uniform> {
     BTreeMap::from([
         ("feather".into(), Uniform::Float(feather)),
+        ("fall".into(), Uniform::Float(fall)),
         ("win".into(), win),
         ("rough".into(), Uniform::Vector(ROUGH.to_vec())),
         ("gloss".into(), Uniform::Float(look.gloss)),
@@ -377,7 +383,7 @@ impl Construct {
         at.or_else(|| space::place(&self.lens, &self.pose, distance, size, &others))
             .or_else(|| {
                 let widths: Vec<_> = others.iter().map(|(at, size, _)| (*at, size[0])).collect();
-                force.then(|| space::beside(&self.pose, distance, size[0], &widths))
+                force.then(|| space::beside(&self.lens, &self.pose, distance, size[0], &widths))
             })
     }
 
@@ -407,7 +413,11 @@ impl Construct {
             update(
                 &pane.mirror(),
                 PropsUpdate {
-                    uniforms: Some(mirror_uniforms(pane.reads(), look, PANE_FEATHER)),
+                    uniforms: Some(mirror_uniforms(
+                        pane.reads(),
+                        look,
+                        (PANE_FEATHER, PANE_FALL),
+                    )),
                     ..PropsUpdate::default()
                 },
             ),
@@ -471,7 +481,11 @@ impl Construct {
                 PropsUpdate {
                     size: Some(mirror),
                     shader: Some(self.mirror_shader.clone()),
-                    uniforms: Some(mirror_uniforms(pane.reads(), &look, PANE_FEATHER)),
+                    uniforms: Some(mirror_uniforms(
+                        pane.reads(),
+                        &look,
+                        (PANE_FEATHER, PANE_FALL),
+                    )),
                     transform: Some(Transform::from_matrix(space::mirror_model(
                         &self.lens, pane.at, pane.size, pane.yaw, k,
                     ))),
