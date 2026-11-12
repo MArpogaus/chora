@@ -14,23 +14,25 @@ use crate::{
 };
 
 /// The height of the taskbar.
-pub const HEIGHT: i32 = 30;
-const START_WIDTH: i32 = 100;
+pub const HEIGHT: i32 = 36;
+const START_WIDTH: i32 = 120;
 /// The left edge of the first task button.
-const TASKS_LEFT: i32 = 106;
-const TASK_TOP: i32 = 3;
-/// The rows of XP's taskbar, top first, as Luna draws it: a light edge,
-/// then the blue that the task buttons stand out from.
-const ROWS: [&str; HEIGHT as usize] = [
+const TASKS_LEFT: i32 = 126;
+const TASK_TOP: i32 = 4;
+/// The rows of XP's taskbar at its own height of 30 pixels, top first, as
+/// Luna draws it: a light edge, then the blue that the task buttons stand
+/// out from. A taskbar of 36 pixels repeats rows of the blue between the
+/// light edge and the dark one.
+const LUNA_ROWS: [&str; 30] = [
     "3168d5", "3888e9", "4993e6", "307be5", "286add", "245dd7", "2359d6", "2257d5", "2257d5",
     "2257d6", "2157d7", "2259d7", "225ad9", "235bd9", "235cdb", "245ddb", "245edc", "245ddb",
     "245edc", "255fdc", "2660dd", "2661dd", "2662df", "2662df", "2663e0", "2663e0", "2561de",
     "235bd9", "1e50c4", "1941a5",
 ];
-const TASK_HEIGHT: i32 = 25;
-const TASK_GAP: i32 = 3;
-const TASK_WIDTH: i32 = 160;
-const TRAY_WIDTH: i32 = 82;
+const TASK_HEIGHT: i32 = 28;
+const TASK_GAP: i32 = 4;
+const TASK_WIDTH: i32 = 180;
+const TRAY_WIDTH: i32 = 90;
 /// The notification area without the clock.
 const TRAY_EMPTY: i32 = 14;
 /// The speaker of the notification area, left of the clock: 12 pixels of
@@ -605,7 +607,10 @@ fn tray(width: i32, clock: Option<&str>, speaker: Speaker) -> Picture {
         Speaker::On => format!("{SPEAKER_SHAPE}{SPEAKER_WAVE}"),
         Speaker::Off => format!("{SPEAKER_SHAPE}{SPEAKER_OFF}"),
     };
-    picture = picture.svg(shape);
+    picture = picture.svg(format!(
+        r#"<g transform="translate(0 {})">{shape}</g>"#,
+        (HEIGHT - 30) / 2
+    ));
     if let Some(clock) = clock {
         let left = width - TRAY_WIDTH;
         picture = picture.text(
@@ -630,9 +635,9 @@ fn start_button(theme: &Theme, look: &str) -> Picture {
             &format!("startbutton-{look}"),
             [0, 0, START_WIDTH, HEIGHT],
         )
-        .file(&start_flag(theme), [10, 5 + shift, 20, 20])
+        .file(&start_flag(theme), [12, 7 + shift, 22, 22])
         .text(
-            Text::new("start", Font::Start, WHITE, [35, 1 + shift, 62, HEIGHT])
+            Text::new("start", Font::Start, WHITE, [40, 1 + shift, 78, HEIGHT])
                 .shadow([0, 20, 0, 180]),
         )
 }
@@ -721,9 +726,26 @@ fn at(x: f64, y: f64) -> PropsUpdate {
     }
 }
 
+/// The rows of the taskbar at its height: the five light rows at the top
+/// and the two dark ones at the bottom of Luna's 30, and the blue between
+/// them stretched over the rest.
+fn luna_rows() -> Vec<&'static str> {
+    let (top, bottom) = (5, 2);
+    let middle = LUNA_ROWS.len() - top - bottom;
+    let room = usize::try_from(HEIGHT).unwrap_or(0) - top - bottom;
+    (0..usize::try_from(HEIGHT).unwrap_or(0))
+        .map(|y| match y {
+            y if y < top => LUNA_ROWS[y],
+            y if y >= top + room => LUNA_ROWS[LUNA_ROWS.len() - (top + room + bottom - y)],
+            y => LUNA_ROWS[top + (y - top) * middle / room],
+        })
+        .collect()
+}
+
 /// XP's rows of the taskbar as SVG, `width` wide from `top` down.
 fn rows(width: i32, top: i32) -> String {
-    ROWS.iter()
+    luna_rows()
+        .into_iter()
         .zip(top..)
         .fold(String::new(), |mut out, (color, y)| {
             let _ = write!(
@@ -763,20 +785,20 @@ mod tests {
 
     #[test]
     fn task_buttons_share_the_room() {
-        assert_eq!(bar(2).task_rect(1), [106 + 163, 3, 160, 25]);
+        assert_eq!(bar(2).task_rect(1), [126 + 184, 4, 180, 28]);
         let crowded = bar(40);
         let [x, _, w, _] = crowded.task_rect(39);
         assert!(
             x + w <= 1280 - TRAY_WIDTH - PAGER_WIDTH || w == 24,
             "{x} {w}"
         );
-        assert_eq!(bar(1).task_target("s0"), Some([106.0, 773.0, 160.0, 25.0]));
+        assert_eq!(bar(1).task_target("s0"), Some([126.0, 768.0, 180.0, 28.0]));
     }
 
     #[test]
     fn a_taskbar_that_hides_itself_leaves_the_work_area_to_the_windows() {
         let mut bar = bar(0);
-        assert_eq!(bar.usable(), [0, 0, 1280, 770]);
+        assert_eq!(bar.usable(), [0, 0, 1280, 764]);
         bar.configure(Settings {
             auto_hide: true,
             ..crate::config::defaults().taskbar
@@ -788,7 +810,7 @@ mod tests {
         assert!(bar.sliding());
         bar.slide(0.1);
         assert!(!bar.sliding());
-        assert!((bar.offset - 28.0).abs() < 1e-9);
+        assert!((bar.offset - 34.0).abs() < 1e-9);
         // The pointer at the bottom edge brings it back.
         bar.hide(false);
         bar.slide(0.2);
@@ -835,7 +857,7 @@ mod tests {
         let rects: Vec<Rect> = (0..DESKTOPS).map(|d| bar.pager_rect(d)).collect();
         for [_, y, w, h] in &rects {
             assert_eq!([*w, *h], [24, 24]);
-            assert_eq!(*y, 800 - HEIGHT + 3);
+            assert_eq!(*y, 800 - HEIGHT + 6);
         }
         for pair in rects.windows(2) {
             assert_eq!(pair[0][0] + 24 + 2, pair[1][0]);
@@ -862,6 +884,20 @@ mod tests {
         assert_eq!(image(task(true, true)), image(task(false, true)));
         assert_ne!(image(task(true, false)), image(task(false, false)));
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_taskbar_is_36_high_with_28_high_task_buttons_180_wide_and_4_apart() {
+        assert_eq!(HEIGHT, 36);
+        let bar = bar(2);
+        let [x0, y0, w0, h0] = bar.task_rect(0);
+        let [x1, ..] = bar.task_rect(1);
+        assert_eq!([y0, w0, h0], [4, 180, 28]);
+        assert_eq!(x1, x0 + w0 + 4);
+        assert_eq!(luna_rows().len(), 36);
+        assert_eq!(luna_rows()[0], LUNA_ROWS[0]);
+        assert_eq!(luna_rows()[35], LUNA_ROWS[29]);
+        assert_eq!(luna_rows()[34], LUNA_ROWS[28]);
     }
 
     #[test]

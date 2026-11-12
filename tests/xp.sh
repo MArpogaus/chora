@@ -149,7 +149,7 @@ wait_for pixel_is 60 795 "$green"
 grim "$out/desktop.png"
 
 step "2b. the work area of the core ends above the taskbar, for the other clients"
-area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 30' >/dev/null; }
+area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 36' >/dev/null; }
 wait_for area_above_bar
 
 step "3. two foot windows get title bars"
@@ -260,7 +260,7 @@ wait "$job" || fail "the click failed"
 wait_for visible false
 wait_for flat "$top"
 # The task buttons follow the start button, 163 pixels apart.
-click $((106 + 163 + 80)) 785 &
+click $((126 + 184 + 90)) 785 &
 job=$!
 wait_for bent "$top" 50
 sleep 0.7
@@ -309,8 +309,7 @@ read -r x y <<<"$(frame "$top")"
 w=$(frame_width "$top")
 title_button 1 "$x" "$y" "$w"
 size_is() { test "$(query "id:$top" | jq -c '.[0].surface.size')" = "$1"; }
-# 800 pixels less the taskbar and the title bar, both 30 pixels high.
-wait_for size_is "[1280,740]"
+wait_for size_is "[1280,734]"
 test "$(frame "$top")" = "0 0" || fail "maximized at $(frame "$top")"
 grim "$out/maximized.png"
 
