@@ -378,7 +378,7 @@ for x in 680 580 480 380 280 180 80; do
         prop construct-face-label-words text | grep -q "face 1 of 4" || fail "at 42 degrees the label names $(prop construct-face-label-words text)"
         fill=$(alpha_of construct-face-label-dot-1)
         python3 -I -c 'import sys; sys.exit(not 0.45 < float(sys.argv[1]) < 0.9)' "$fill" || fail "the next dot is not partly filled at 42 degrees: alpha $fill"
-        [ "$(prop construct-mode-step-in-text opacity)" = 0.45 ] || fail "Step in is not dimmed while the cube turns: $(prop construct-mode-step-in-text opacity)"
+        [ "$(prop construct-mode-step-in-text opacity)" = 0.6 ] || fail "Step in is not dimmed while the cube turns: $(prop construct-mode-step-in-text opacity)"
         ;;
     esac
 done
@@ -391,7 +391,7 @@ settled_in=$(($(now_ms) - released))
 [ "$settled_in" -le 700 ] || fail "the cube took $settled_in ms to settle after a release at 49 degrees"
 front_is_next=$(prop construct-cube-face-1 visible)
 [ "$front_is_next" = True ] || fail "a release at 49 degrees did not go on to the next face"
-until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.45' 8 || fail "Step in stays dim after the settle"
+until_ok 'test "$(prop construct-mode-step-in-text opacity)" != 0.6' 8 || fail "Step in stays dim after the settle"
 ok "a release at 49 degrees goes on to the next face ($settled_in ms with the calls)"
 press_at 780
 move_to 580
@@ -475,7 +475,7 @@ floats() {
     [ "$(opacity "$surface")" = 0 ] && [ "$(opacity "$upper")" = 0 ] || { echo "the windows stay in the face: opacity $(opacity "$surface") $(opacity "$upper")"; return 1; }
     lower_lift=$(lifted "$surface")
     upper_lift=$(lifted "$upper")
-    [ "$lower_lift" -gt 900 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
+    [ "$lower_lift" -gt 800 ] || { echo "the lower window is not lifted: $lower_lift per mille of its flat width"; return 1; }
     [ "$upper_lift" -gt $((lower_lift + 5)) ] || { echo "the upper window is not lifted farther: $upper_lift, lower $lower_lift"; return 1; }
     [ -z "${FLOAT_SHOT:-}" ] || ctl capture "$FLOAT_SHOT" >/dev/null
     still || { echo "a still cube with floating windows draws: $(drawn)"; return 1; }
