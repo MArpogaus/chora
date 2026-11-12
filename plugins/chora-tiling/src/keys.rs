@@ -644,8 +644,8 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
             "Tasten",
             "Super+/ zeigt diese Liste wieder. Esc schließt sie.",
             "Maus",
-            "Apps startet Programme · Tag anklicken zeigt ihn · Super+ziehen verschiebt ein Fenster · \
-             das Ein/Aus-Symbol sperrt oder beendet",
+            "Apps startet Programme · Tag anklicken zeigt ihn · Super+ziehen verschiebt · \
+             Ein/Aus-Symbol: Sitzung",
         )
     } else {
         (
@@ -653,7 +653,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
             "Super+/ shows this list again. Esc closes it.",
             "Mouse",
             "Apps starts a program · click a tag to show it · Super+drag moves a window · \
-             the power icon locks or ends the session",
+             power icon: lock, log out",
         )
     };
     let muted = channels(&colors.muted);
