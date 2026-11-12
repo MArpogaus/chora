@@ -488,14 +488,20 @@ impl Construct {
     /// of its hints.
     fn hint_set(&mut self) -> Option<crate::hints::Set> {
         use crate::hints::{FLOWN, Set, WALK};
+        use chora_kit::modes::Mode;
         let now = Instant::now();
         let flown = self.in_pane();
+        let in_face = (self.cube.as_ref()).is_some_and(|c| c.view().mode() == Mode::Use);
+        let engaged = flown || in_face;
         if !self.hints.started || flown != self.hints.flown {
             self.hints.announce = true;
-            self.hints.started = true;
-            self.hints.flown = flown;
-            self.hints.until = Some(now + if flown { FLOWN } else { WALK });
         }
+        if !self.hints.started || engaged != self.hints.engaged {
+            self.hints.started = true;
+            self.hints.until = Some(now + if engaged { FLOWN } else { WALK });
+        }
+        self.hints.flown = flown;
+        self.hints.engaged = engaged;
         if self.hints.until.is_some_and(|t| t <= now) {
             self.hints.until = None;
         }
@@ -517,12 +523,12 @@ impl Construct {
         if stood_back {
             return Some(Set::Cube);
         }
-        let timed = self.hints.until.is_some();
-        match (flown, self.cube.is_some()) {
-            (true, _) if timed => Some(Set::Flown),
-            (false, false) if timed || self.hints.low => Some(Set::Walk),
-            _ => None,
-        }
+        crate::hints::resting_set(crate::hints::Resting {
+            engaged,
+            has_cube: self.cube.is_some(),
+            timed: self.hints.until.is_some(),
+            low: self.hints.low,
+        })
     }
 
     /// The caps of the key of an action: a one-letter key if it has one.
@@ -959,6 +965,9 @@ impl Construct {
             "terminal" => self.start_terminal(),
             "windows" => self.open_list()?,
             "keys" => self.toggle_help()?,
+            "step-back" if self.flown.is_none() && self.cube.is_some() => {
+                self.mode_act(chora_kit::modes::Act::StepBack, crate::modes::By::Person)?;
+            }
             "step-back" => self.fly_out()?,
             "cube" => self.cube_key()?,
             _ => {}

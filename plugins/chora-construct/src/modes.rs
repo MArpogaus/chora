@@ -131,7 +131,11 @@ fn cube_bindings(mode: Mode, switching: bool, step_back: Option<&String>) -> Vec
 /// The chips that show: those of the mode, and none while the camera is
 /// in a pane, where the keys of the cube do not hold.
 fn chips_of(view: View, flown: bool) -> &'static [Word] {
-    if flown { &[] } else { view.controls() }
+    if flown || view.mode() == Mode::Use {
+        &[]
+    } else {
+        view.controls()
+    }
 }
 
 /// The right edge of the chips in the row `[top, bottom]` of a view
@@ -769,7 +773,7 @@ mod tests {
     #[test]
     fn no_chip_shows_while_the_camera_is_in_a_pane() {
         let mut view = View::default();
-        assert_eq!(chips_of(view, false), &[Word::StepBack]);
+        assert_eq!(chips_of(view, false), [], "use mode has no corner chip");
         assert_eq!(chips_of(view, true), []);
         view.act(Act::StepBack);
         assert_eq!(chips_of(view, false).len(), 3);

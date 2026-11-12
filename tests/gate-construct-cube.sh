@@ -217,19 +217,12 @@ call view.step_in >/dev/null || fail "view.step_in"
 until_ok "$stepped_in" 20 || fail "view.step_in did not step in"
 [ "$(prop construct-cube-face-1 visible)" = False ] || fail "after the step in the next face still shows: the face is not square"
 [ "$(prop construct-cube-mirror-0 visible)" = False ] || fail "after the step in the mirror image of the cube shows"
-prop construct-mode-step-back-text text | grep -q "Alt+Esc" || fail "the chip STEP BACK does not name its key: $(prop construct-mode-step-back-text text)"
-covered_icons() {
-    { ctl query id:construct-mode-step-back; ctl query "owner:xp kind:image"; } | python3 -I -c '
-import json, sys
-chip, images = [json.loads(part) for part in sys.stdin.read().replace("]\n[", "]\0[").split("\0")]
-c = chip[0]["rects"]["HEADLESS-1"]
-for n in images:
-    r = n["rects"].get(sys.argv[1])
-    if n["id"].startswith("xp-icon-") and r and r[0] < c[0] + c[2] and c[0] < r[0] + r[2] and r[1] < c[1] + c[3] and c[1] < r[1] + r[3]:
-        print(n["id"])' "$front"
-}
-until_ok 'test -z "$(covered_icons)"' 20 || fail "the chip STEP BACK covers the desktop icons $(covered_icons)"
-ok "the chip STEP BACK covers no desktop icon of the face"
+step_keys() { local k out=""; for k in 0 1 2; do out="$out$(prop "construct-hints-step-back-keys-$k-text" text | grep -v -e False -e gone)"; done; echo "$out"; }
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 20 || fail "no hint Step back in use mode: $(prop construct-hint-step-back visible)"
+[ "$(prop construct-mode-step-back visible)" != True ] || fail "the corner chip STEP BACK shows in use mode: v2 has none"
+[ "$(prop construct-hints-step-back-word text)" = "Step back" ] || fail "the hint Step back has the word $(prop construct-hints-step-back-word text)"
+[ "$(step_keys)" = "AltEsc" ] || fail "the hint Step back names the keys $(step_keys)"
+ok "in use mode no chip covers the face; the hint Alt Esc Step back shows at the bottom centre"
 
 before=$(keys_got 1)
 plain Escape
@@ -261,7 +254,8 @@ sleep 0.5
 [ "$(keys_got 30)" = "$before" ] || fail "after Alt+Escape the window still gets typed text"
 plain Return
 until_ok "$stepped_in" 20 || fail "Return did not step in: forward $(prop construct-cube-face-0 forward), width $(width construct-cube-face-0)"
-[ "$(prop construct-mode-step-back visible)" = True ] || fail "the chip STEP BACK does not show in use mode"
+[ "$(prop construct-mode-step-back visible)" != True ] || fail "the chip STEP BACK shows in use mode"
+until_ok 'test "$(prop construct-hint-step-back visible)" = True' 20 || fail "the hint Step back does not show after the step in"
 before=$(keys_got 30)
 plain a
 until_ok 'test "$(keys_got 30)" -gt "$before"' 20 || fail "typed text after the step in did not reach the window"
@@ -429,19 +423,16 @@ key Ctrl+Alt+Right
 until_ok 'test "$(prop construct-cube-face-0 visible)" = True && test "$(prop construct-cube-face-3 visible)" = False' 20 || fail "the turn key did not bring face 0 back to the front"
 plain Return
 until_ok "$stepped_in" 20 || fail "no step in at the end of the drags"
-call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape"
-sleep 0.5
-if prop construct-mode-step-back-text text | grep -q "Esc"; then fail "the chip names Escape although the construct cannot grab it: $(prop construct-mode-step-back-text text)"; fi
 "$bin/choractl" grant construct input.grab-any || fail "the grant input.grab-any"
 call settings.set '{"fly_out": "Escape"}' >/dev/null || fail "settings.set fly_out Escape with the grant"
-until_ok 'prop construct-mode-step-back-text text | grep -q "  Esc$"' 20 || fail "the chip does not name Escape: $(prop construct-mode-step-back-text text)"
+sleep 0.5
 plain Escape
 until_ok "$stood_back" 20 || fail "Escape alone did not step back with input.grab-any"
 plain Escape
 until_ok "$stepped_in" 20 || fail "Escape did not step in again"
+until_ok 'test "$(step_keys)" = Esc' 20 || fail "the hint does not name Escape: $(step_keys)"
 call settings.set '{"fly_out": "Alt+Escape"}' >/dev/null || fail "settings.set fly_out Alt+Escape"
-until_ok 'prop construct-mode-step-back-text text | grep -q "Alt+Esc"' 20 || fail "the chip does not name Alt+Escape again"
-ok "with input.grab-any and fly_out Escape, Escape alone steps back and in; without the grant the chip names no key"
+ok "with input.grab-any and fly_out Escape, Escape alone steps back and in, and the hint names Escape"
 
 inject '[{"key": {"key": "Alt_L", "state": "pressed"}}, {"key": {"key": "Tab", "state": "pressed"}}, {"key": {"key": "Tab", "state": "released"}}, {"key": {"key": "Alt_L", "state": "released"}}]'
 sleep 0.5

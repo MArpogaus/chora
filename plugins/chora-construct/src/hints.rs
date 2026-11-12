@@ -59,6 +59,9 @@ pub struct State {
     pub low: bool,
     /// Whether the camera was in a pane at the last look.
     pub flown: bool,
+    /// Whether the camera was in a pane or the cube stepped in at the
+    /// last look.
+    pub engaged: bool,
     /// The construct drew its first frame.
     pub started: bool,
     /// The camera went into a pane or out of one: the host hears it.
@@ -104,6 +107,35 @@ pub fn walking(panes: usize, ahead: bool) -> Vec<Walking> {
     }
     hints.extend([Walking::Terminal, Walking::Keys]);
     hints
+}
+
+/// The set that applies while the hints are not hidden and the cube is
+/// not stood back: in a pane or stepped into a face (`engaged`) the hint
+/// `Step back` for its time or while the pointer rests at the bottom;
+/// walking without a cube the hints of the walk.
+#[must_use]
+pub fn resting_set(at: Resting) -> Option<Set> {
+    let shows = at.timed || at.low;
+    match (at.engaged, at.has_cube) {
+        (true, _) if shows => Some(Set::Flown),
+        (false, false) if shows => Some(Set::Walk),
+        _ => None,
+    }
+}
+
+/// What decides the set of a camera that rests: whether it is in a pane or
+/// stepped into a face, whether a cube is open, whether the time of the
+/// hints runs, and whether the pointer rests at the bottom.
+#[derive(Clone, Copy, Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent states of the hints"
+)]
+pub struct Resting {
+    pub engaged: bool,
+    pub has_cube: bool,
+    pub timed: bool,
+    pub low: bool,
 }
 
 /// The word of the hint `Terminal`.
@@ -517,6 +549,23 @@ mod tests {
         for panes in 0..8 {
             assert!(walking(panes, true).len() <= 5);
         }
+    }
+
+    #[test]
+    fn stepped_into_a_face_the_hint_step_back_shows_for_its_time_and_on_dwell() {
+        let at = |engaged, has_cube, timed, low| {
+            resting_set(Resting {
+                engaged,
+                has_cube,
+                timed,
+                low,
+            })
+        };
+        assert_eq!(at(true, true, true, false), Some(Set::Flown));
+        assert_eq!(at(true, true, false, true), Some(Set::Flown));
+        assert_eq!(at(true, true, false, false), None);
+        assert_eq!(at(false, false, true, false), Some(Set::Walk));
+        assert_eq!(at(false, true, true, false), None);
     }
 
     #[test]
