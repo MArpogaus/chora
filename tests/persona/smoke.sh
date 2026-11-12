@@ -119,4 +119,35 @@ cmp -s "$dir/keep/actions.jsonl" "$dir/log.before" || fail "PERSONA_KEEP holds n
 echo "keep: $shots captures and the log"
 [[ -e $dir/s/sentinel ]] || fail "the session removed the PERSONA_DIR of its caller"
 echo "PERSONA_DIR of the caller is still there"
+looks() {
+    local flavor=$1 d=$dir/look-$1 pid env_file calls
+    mkdir "$d"
+    PERSONA_DIR=$d "$here/session.sh" "$flavor" >"$d.out" 2>"$d.err" &
+    pid=$!
+    for _ in $(seq 150); do
+        [[ -s $d.out ]] && break
+        kill -0 "$pid" 2>/dev/null || fail "$flavor: session ended: $(cat "$d.err")"
+        sleep 0.2
+    done
+    [[ -s $d.out ]] || fail "$flavor: no session"
+    env_file=$(sed -n 's/^PERSONA_ENV=//p' "$d.out")
+    ctl() {
+        CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$env_file") XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file") \
+            "${CHORA_BIN:-$repo/target/debug}/choractl" "$@"
+    }
+    session_path=$(sed -n 's/^PATH=//p' "$env_file")
+    calls=$d/fake/calls.log
+    ctl wait owner:assistant --timeout 20 >/dev/null 2>&1 || fail "$flavor: chora-assistant is not running"
+    ctl call voice state '{}' >/dev/null 2>&1 || fail "$flavor: fake-voice does not answer"
+    PATH=$session_path notify-send persona-smoke body || fail "$flavor: notify-send failed"
+    grep -q 'notify-send persona-smoke' "$calls" 2>/dev/null || fail "$flavor: notify-send did not reach the stub"
+    PATH=$session_path loginctl lock-session || fail "$flavor: loginctl failed"
+    grep -q 'loginctl lock-session' "$calls" || fail "$flavor: loginctl lock-session did not reach the fake"
+    echo "$flavor: assistant, voice, notify-send and lock-session are in place"
+    "$here/session.sh" --stop "$env_file"
+    wait "$pid" || true
+}
+for flavor in tiling xp mc construct; do
+    looks "$flavor"
+done
 echo "PASS"
