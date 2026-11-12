@@ -26,6 +26,8 @@ uniform vec2 size;    // of this node's texture, in pixels
 uniform float gloss;  // the strength of the floor
 uniform float depth;  // distance of the eye over the focal length
 uniform float reach;  // the focal length over the leash radius
+uniform vec3 fade;    // the haze of the pane: where it starts, how fast
+                      // it grows, and its most
 uniform float ground; // the height of the eye over the focal length
 uniform vec4 rough;   // the blur in texture pixels at the contact line
                       // and at the top, its stretch along the view, and
@@ -74,7 +76,7 @@ void main() {
     float side = max(0.02, 1.5 * r / size.x);
     float soft = smoothstep(0.0, side, v_uv.x) * smoothstep(1.0, 1.0 - side, v_uv.x)
                * smoothstep(1.0, 0.98, k) * smoothstep(0.0, 1.25 * w, d);
-    float haze = (1.0 - exp(-max(depth - 1.0, 0.0) * reach * 1.5)) * 0.9;
+    float haze = (1.0 - exp(-max(max(depth - 1.0, 0.0) * reach - fade.x, 0.0) * fade.y)) * fade.z;
     float grazing = 1.0 - ground / length(vec2(ground, depth));
     float fresnel = 0.05 + 0.95 * pow(grazing, 5.0);
     float strength = gloss * (0.4 + 0.6 * fresnel) * (1.0 - haze);
