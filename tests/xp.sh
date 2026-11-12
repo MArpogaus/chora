@@ -505,7 +505,9 @@ wait_for has_node id:hud-figure
 node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
 node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
 has_node id:xp-helper-winit || fail "the tray has no helper"
-test "$(node_size xp-helper-winit)" = "[36,36]" || fail "the helper is not 36 by 36"
+test "$(node_size xp-helper-winit)" = "[32,36]" || fail "the helper is not 32 by 36"
+test "$(node_size xp-tray-winit)" = "[136,36]" || fail "the tray is not 136 by 36: $(node_size xp-tray-winit)"
+test "$(node_x xp-helper-winit)" = "$(node_x xp-tray-winit)" || fail "the helper does not start at the left edge of the tray"
 tray_before=$(node_size xp-tray-winit)
 echo 'voice.state {"state": "listening", "muted": {"mic": true}}' >&5
 sleep 1
