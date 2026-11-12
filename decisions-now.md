@@ -4,9 +4,11 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:21:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:24:06Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
+- 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
+  Reading: a sonnet analysis of all transcripts and worker sessions by agent, model, purpose and day, with concrete efficiency rules for week 2.
 - 11-12 02:21 UTC "Burning tokens quickly. Prefer sonnet and haiku  now where possible to last through the day."
   Reading: opus only where nothing else fits (none planned today); reviews and builds on sonnet, swarms on haiku; PM turns short.
 - 11-12 02:17 UTC "Okay, good. We're at 90% now, when all the running tasks are finished and everything is merged and clean. Finish this week off with intensive UX/UI reviews and testing to collect as much data and find as much frictions, bugs, and inconsistencies that we can address next week. One thing I just noted on the piling screenshots, there seems to be still a floating chat button. Maybe this is still an old state, and have the UX/UI agents intensively visually validating our individual views and ensure that we are following consistent design languages and giving the best user experience."
