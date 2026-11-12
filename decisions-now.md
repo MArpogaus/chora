@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Keep it under 9,000 characters (hook cap 10,000).
 Times Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:46:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:50:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -22,7 +22,8 @@ screened-through: 2026-11-12T02:46:00Z (bump to the newest user message recorded
 - Usage readings the user posts go to answers.md the same turn (charter 1.2).
 
 ## Communication
-- 11-12 ~08:00 "87 %. Update status page with screenshots and screen cast when new looks are ready"
+- 11-12 ~08:00 "87 %. Update status page with screenshots and screen cast when new looks are ready"; ~09:50 "Still at 87. Don't be to paranoid about token limit"
+  Reading: report the user's reading, not the usage.py guess (it overstated by ~8 points); do not hold work back for budget.
 - 11-09 00:48 "Antworte ab sofort immer english"
 - 11-10 07:12 "Keep summaries here to a minimum to save tokens. I have the status page, or asking if I need info"
   Reading: chat replies one or two lines; each run ends with done, running, next, blocked, budget (charter 11).

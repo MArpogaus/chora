@@ -272,3 +272,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-12 ~01:40 UTC (user): archive stale sub-sessions; arm a watchdog to keep the PM going; start parallel lanes now (verbatim in decisions-now.md).
 - 11-12 ~02:10 UTC (user): wake every 30 min; cloud workers; visual polishing and swarms on the new looks (verbatim in decisions-now.md).
 - 11-12 ~02:45 UTC (user): cloud env updated, test it; intensive reflection loop; fix the latest problems; tighten rules and strategy; the user should never need to steer (verbatim in decisions-now.md).
+- 11-12 ~02:50 UTC (user): still 87 %; do not be paranoid about the token limit. usage.py overstates (it estimated ~90 % for this point); budget lines use the user's readings from now on.
