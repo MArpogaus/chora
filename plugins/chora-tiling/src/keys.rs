@@ -921,6 +921,34 @@ mod tests {
         assert_eq!(groups[0].1[1].1, "Previous window");
     }
 
+    fn words_of(commands: &[Command]) -> Vec<String> {
+        commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { props, .. } => props.text.clone(),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_list_has_a_mouse_line_under_its_header() {
+        let colors = Colors::of(Scheme::Ink);
+        let config = parse::<Config>(DEFAULT).unwrap();
+        let drawn = |lang| {
+            let rows = rows(&config, lang);
+            words_of(&key_list("screen:X", [1280.0, 800.0], &rows, &colors, lang))
+        };
+        let en = drawn(Language::En);
+        assert!(en.contains(&"Mouse".to_owned()), "{en:?}");
+        let line = en.iter().find(|w| w.starts_with("Apps")).expect("a line");
+        for part in ["Apps", "click a tag", "Super+drag", "power icon"] {
+            assert!(line.contains(part), "{part} in {line}");
+        }
+        let de = drawn(Language::De);
+        assert!(de.contains(&"Maus".to_owned()), "{de:?}");
+    }
+
     #[test]
     fn the_keys_are_words() {
         let all: String = groups()
