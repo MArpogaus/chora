@@ -5,7 +5,10 @@ Usage: tests/tiling-audit.py CAPTURE.png NODES.json THEME SCALE CELL [BAR] [WALL
   NODES.json  `choractl query '*'`
   THEME       ink or paper
   SCALE       the scale of the output
-  CELL        desktop, chat, question, toast, keys, layout, tooltip, launcher or fullscreen
+  CELL        desktop, chat, question, toast, keys, layout, tooltip, launcher,
+              fullscreen, chatq (chat and question card) or chattoast
+              (chat and a notification)
+  REF         `ref=CHAT.png`: the capture of the chat alone (cell chattoast)
   BAR         `bar` when the panel runs: the islands stand at y 8 to 40
   WALL        `wall` when the wallpaper runs behind the tiles (cell desktop)
 
@@ -37,6 +40,12 @@ Prints one `FAIL:` line per finding; exit status 1 on a finding.
               round
   launcher    fuzzel stands opaque in the `surface` fill
   fullscreen  with a fullscreen window the bar islands do not show
+  icons       the icons of the bar are drawn at the output scale: at a scale
+              above 1 their edge has few mid-tones, as the text has
+  chatq       the question card stands clear of the chat panel, the state word
+              and the orb, and the card shows
+  chattoast   the notification stands clear of the chat panel: the panel
+              looks as it does without one, and the notification shows
   scrim       the key list's scrim is tinted, not grey, and the bar and the
               surfaces under the scrim stay within a few levels of each other
   look        the wallpaper shows at the corners of the screen, the focused
@@ -59,6 +68,7 @@ TOKENS = {
 }
 ORBS = [(167, 139, 250), (94, 234, 212), (248, 113, 113), (154, 161, 180), (36, 40, 54)]
 CHIP_HEIGHT = 26
+TEXT = {"ink": (230, 232, 239), "paper": (27, 30, 39)}
 TERMINAL = {"ink": (22, 25, 34), "paper": (255, 255, 255)}
 PAD = 14
 TOLERANCE = 9
@@ -205,7 +215,7 @@ def main():
         if not any(near(colour, token, 12) for token in ORBS):
             problems.append(f"chip: the orb {colour} is no colour of the palette")
     panel, close = named.get("hud-chat"), named.get("hud-chat-close")
-    if cell == "chat" and panel:
+    if cell in ("chat", "chatq") and panel:
         for part, rect in (("state word", named.get("hud-word")), ("orb", named.get("hud-figure"))):
             if not rect:
                 problems.append(f"chat: the {part} is not on the screen")
@@ -220,6 +230,36 @@ def main():
         spot = px(panel[0] + PAD + 1, panel[1] + panel[3] - PAD - 2)
         if not near(spot, fill, 6):
             problems.append(f"chat: the corner of the input field {spot} is not clear, so the field is square")
+    def meets(a, b):
+        return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+
+    card = named.get("hud-card")
+    if cell == "chatq":
+        if not (panel and card):
+            problems.append(f"chatq: the chat {panel} and the card {card} must both show")
+        elif meets(panel, card):
+            problems.append(f"chatq: the card {card} covers or is covered by the chat panel {panel}")
+    if cell == "chattoast":
+        ref = next((f[4:] for f in flags if f.startswith("ref=")), None)
+        if not (panel and ref):
+            problems.append("chattoast: no chat panel or no reference capture")
+        else:
+            before = load(ref)
+
+            def changed(x0, x1):
+                found = 0
+                for yy in range(int(660 * scale), int(736 * scale), 2):
+                    for xx in range(int(x0 * scale), int(x1 * scale), 2):
+                        a, b = rows[yy][xx * 4:xx * 4 + 3], before[yy][xx * 4:xx * 4 + 3]
+                        found += sum(abs(p - q) for p, q in zip(a, b)) > 40
+                return found
+
+            under = changed(panel[0], panel[0] + panel[2])
+            if under > 40:
+                problems.append(f"chattoast: the notification changes {under} samples of the chat panel {panel}")
+            beside = changed(500, panel[0])
+            if beside < 100:
+                problems.append(f"chattoast: no notification beside the chat panel, {beside} samples changed")
     if cell == "toast":
         left, right, bottom = 896, 1256, 738
         fill = px(right - 16, bottom - 6)
@@ -242,6 +282,20 @@ def main():
         island = px(570, 24)
         if not near(island, palette["surface"]):
             problems.append(f"tokens bar: the clock island fill {island} is not `surface` {palette['surface']}")
+    if bar and cell == "desktop" and scale > 1:
+        text = TEXT[theme]
+        mid = full = 0
+        for yy in range(int(14 * scale), int(34 * scale)):
+            for xx in range(int(22 * scale), int(44 * scale)):
+                p = tuple(rows[yy][xx * 4:xx * 4 + 3])
+                if near(p, palette["surface"], 6):
+                    continue
+                if near(p, text, 6):
+                    full += 1
+                else:
+                    mid += 1
+        if full < 20 or mid > 0.6 * full:
+            problems.append(f"icons: the Apps icon has {mid} mid-tone and {full} solid pixels, it is a raster scaled up")
     if bar:
         pill = [x for x in range(12, 560) if near(px(x, 24), palette["surface-2"], 3)]
         edge = [x for x in range(12, 560) if near(px(x, 24), palette["line"], 14)]
@@ -275,7 +329,7 @@ def main():
             fill = dominant(keys)
             if not near(fill, palette["surface"]):
                 problems.append(f"tokens keys: the key list fill {fill} is not `surface` {palette['surface']}")
-    if cell not in ("fullscreen", "keys", "toast", "layout", "tooltip", "launcher"):
+    if cell not in ("fullscreen", "keys", "toast", "layout", "tooltip", "launcher", "chattoast"):
         if not helpers:
             problems.append(f"{cell}: no helper surface on the screen")
         for name, rect in helpers.items():
@@ -293,14 +347,14 @@ def main():
         edge = [px(x, rect[1] + rect[3] / 2) for rect in borders.values() for x in (rect[0] + 1, rect[0] + rect[2] - 2)]
         low = tuple(0.8 * c - 6 for c in want)
         high = tuple((1.1 if scale == int(scale) else 1.3) * c + 6 for c in want)
-        if borders and cell != "chat" and not any(all(a <= c <= b for a, c, b in zip(low, color, high)) for color in edge):
+        if borders and cell not in ("chat", "chatq") and not any(all(a <= c <= b for a, c, b in zip(low, color, high)) for color in edge):
             problems.append(f"tokens tile border: {edge} is not `line` {want}")
         for name, rect in helpers.items():
             if bar and rect[1] < BAR[1] + 8 and name != "hud-chat":
                 problems.append(f"overlap {name} reaches the bar: top {rect[1]}")
             if bar and name == "hud-chat" and rect[1] < BAR[1] + GAP:
                 problems.append(f"overlap {name} sticks to the bar: top {rect[1]}")
-            if name == "hud-chat":
+            if name == "hud-chat" or cell == "chatq":
                 continue
             for tile, t in borders.items():
                 x, y, w, h = rect

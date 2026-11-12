@@ -371,9 +371,23 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
     }
 }
 
+/// Whether the chat of the assistant opened or closed, when `event` says so:
+/// the notifications step aside of the panel while it is open.
+fn chat_open(event: &Event) -> Option<bool> {
+    match event {
+        Event::Emitted {
+            event,
+            client,
+            data,
+        } if event == "assistant.chat" && client == "assistant" => data["open"].as_bool(),
+        _ => None,
+    }
+}
+
 /// The events that tiling handles.
-const EVENTS: [&str; 14] = [
+const EVENTS: [&str; 15] = [
     "assistant.ready",
+    "assistant.chat",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -589,6 +603,15 @@ impl Tiling {
         if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
         {
             return self.name_theme();
+        }
+        if let Some(open) = chat_open(&event) {
+            let _ = std::process::Command::new("makoctl")
+                .args(["mode", if open { "-a" } else { "-r" }, "chat"])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+            return Ok(());
         }
         match self.overlay_event(&event) {
             Some(done) => done,
@@ -2225,6 +2248,18 @@ mod tests {
         os::unix::net::UnixListener,
         sync::{Arc, Mutex},
     };
+
+    #[test]
+    fn the_notifications_follow_the_chat_of_the_assistant() {
+        let said = |client: &str, open: bool| Event::Emitted {
+            event: "assistant.chat".into(),
+            client: client.into(),
+            data: serde_json::json!({"open": open}),
+        };
+        assert_eq!(chat_open(&said("assistant", true)), Some(true));
+        assert_eq!(chat_open(&said("assistant", false)), Some(false));
+        assert_eq!(chat_open(&said("other", true)), None);
+    }
 
     use chora_kit::conn::Conn;
 

@@ -329,9 +329,12 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
         ("mako.conf", mako(colors)),
-        ("icons/apps.svg", icon(&colors.text, APPS)),
-        ("icons/keys.svg", icon(&colors.text, KEYS_ICON)),
-        ("icons/power.svg", icon(&colors.text, POWER)),
+        ("icons/apps.svg", icon(&colors.text, APPS, 16)),
+        ("icons/apps@2.svg", icon(&colors.text, APPS, 32)),
+        ("icons/keys.svg", icon(&colors.text, KEYS_ICON, 16)),
+        ("icons/keys@2.svg", icon(&colors.text, KEYS_ICON, 32)),
+        ("icons/power.svg", icon(&colors.text, POWER, 16)),
+        ("icons/power@2.svg", icon(&colors.text, POWER, 32)),
     ]
 }
 
@@ -342,9 +345,12 @@ const APPS: &str = r#"<g fill="C"><rect x="1.5" y="1.5" width="5.5" height="5.5"
 const KEYS_ICON: &str = r#"<rect x="1" y="3.5" width="14" height="9" rx="2.5" fill="none" stroke="C" stroke-width="1.5"/><g fill="C"><rect x="3.5" y="6" width="1.5" height="1.5" rx=".4"/><rect x="7.25" y="6" width="1.5" height="1.5" rx=".4"/><rect x="11" y="6" width="1.5" height="1.5" rx=".4"/><rect x="4.5" y="9" width="7" height="1.5" rx=".5"/></g>"#;
 const POWER: &str = r#"<path d="M4.6 4.2a5.5 5.5 0 1 0 6.8 0M8 1.5v6" fill="none" stroke="C" stroke-width="1.5" stroke-linecap="round"/>"#;
 
-fn icon(color: &str, shapes: &str) -> String {
+/// An icon drawn at `size` pixels of its 16 px grid: the panel takes the
+/// 16 px file at scale 1 and the 32 px file at a higher scale
+/// (`-gtk-scaled`), so that it is drawn at the scale of the output.
+fn icon(color: &str, shapes: &str, size: u32) -> String {
     format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 16 16\">{}</svg>\n",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{size}\" height=\"{size}\" viewBox=\"0 0 16 16\">{}</svg>\n",
         shapes.replace("\"C\"", &format!("\"{color}\""))
     )
 }
@@ -402,6 +408,9 @@ fn mako(c: &Colors) -> String {
          border-color={line}\n\
          progress-color=over {accent}\n\
          \n\
+         [mode=chat]\n\
+         margin=24,{beside},62,24\n\
+         \n\
          [urgency=high]\n\
          border-color={urgent}\n\
          default-timeout=0\n",
@@ -410,8 +419,14 @@ fn mako(c: &Colors) -> String {
         line = c.line,
         accent = c.accent,
         urgent = c.urgent,
+        beside = CHAT_BESIDE,
     )
 }
+
+/// The right margin of a notification while the chat panel is open: the
+/// panel is 400 wide, 13 from the edge, and the notification stands 12
+/// left of it.
+const CHAT_BESIDE: i32 = 424;
 
 fn foot(c: &Colors) -> String {
     let b = bare;
@@ -1068,6 +1083,7 @@ mod tests {
         let all = files(&Colors::of(Scheme::Ink));
         let mako = &all.iter().find(|(k, _)| *k == "mako.conf").unwrap().1;
         assert!(mako.contains("margin=24,24,62,24"));
+        assert!(mako.contains("[mode=chat]\nmargin=24,424,62,24"));
         assert!(!mako.contains("max-icon-size"), "mako refuses a size of 0");
     }
 }

@@ -74,15 +74,15 @@ tooltip label {
 }
 
 #custom-apps {
-  background-image: url("icons/apps.svg");
+  background-image: -gtk-scaled(url("icons/apps.svg"), url("icons/apps@2.svg"));
 }
 
 #custom-keys {
-  background-image: url("icons/keys.svg");
+  background-image: -gtk-scaled(url("icons/keys.svg"), url("icons/keys@2.svg"));
 }
 
 #custom-power {
-  background-image: url("icons/power.svg");
+  background-image: -gtk-scaled(url("icons/power.svg"), url("icons/power@2.svg"));
   background-position: center;
   min-width: 16px;
   padding: 0 6px;

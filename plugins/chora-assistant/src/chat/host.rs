@@ -295,6 +295,7 @@ impl Agent {
         let panel = (open && at_edge).then(|| frame.rect());
         commands.extend((self.assistant.as_mut()).and_then(|a| a.clear_of(panel)));
         commands.extend(self.card_follows()?);
+        commands.extend(self.card_clears(panel)?);
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());
         let was_open = self.announced.as_ref().is_some_and(|(open, ..)| *open);

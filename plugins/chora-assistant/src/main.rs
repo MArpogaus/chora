@@ -68,8 +68,9 @@ use crate::{
 /// The client name of the plugin, the prefix of its methods.
 const NAME: &str = "assistant";
 
-/// The font family of what the host draws itself.
-const HOST_FAMILY: &str = chora_draw::text::SANS_SERIF;
+/// The font family of what the host draws itself: Inter, as on every helper
+/// surface, never the sans of the system.
+const HOST_FAMILY: &str = chora_kit::glass::SANS;
 
 /// How long the loop waits for an event while nothing moves.
 const IDLE: Duration = Duration::from_secs(60);
@@ -655,6 +656,11 @@ fn load_folder(dir: &Path, context: &Context, cache: &Path) -> Result<(Theme, Va
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_card_of_the_host_is_set_in_inter() {
+        assert_eq!(HOST_FAMILY, "Inter");
+    }
     use super::*;
     use crate::config::Figure;
 

@@ -716,6 +716,31 @@ impl Agent {
         Ok(commands)
     }
 
+    /// A card that stays at the figure steps aside of an open chat panel
+    /// (x, y, width, height), as the figure does, and shows again at its
+    /// new place. A card in the view of the chat is the view's.
+    pub fn card_clears(&mut self, panel: Option<[i32; 4]>) -> Result<Vec<Command>, ClientError> {
+        let (Some(panel), None) = (panel, self.chat.card_top()) else {
+            return Ok(Vec::new());
+        };
+        let Some((output, _)) = self.output()? else {
+            return Ok(Vec::new());
+        };
+        let Some(mut shown) = self.card.take() else {
+            return Ok(Vec::new());
+        };
+        let size = card::size(&self.card_theme, &shown, self.language, output.size);
+        if !card::clear_of(&mut shown, size, panel) {
+            self.card = Some(shown);
+            return Ok(Vec::new());
+        }
+        let mut commands = card::hide(&shown);
+        let (theme, language) = (&mut self.card_theme, self.language);
+        commands.extend(card::show(theme, &shown, language, output.size, true));
+        self.card = Some(shown);
+        Ok(commands)
+    }
+
     /// When the figure moves, blinks or fades its balloon next.
     pub fn assistant_due(&self) -> Option<Instant> {
         self.assistant.as_ref().map(Assistant::due)
