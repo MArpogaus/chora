@@ -154,7 +154,7 @@ def main():
     flags += table("chora processes", ("pid", "age", "name", "flag"), chora_processes())
     flags += table("worktrees", ("dir", "branch", "flag"), merged_worktrees())
     free = shutil.disk_usage("/home").free / 2**30
-    print(f"\ndisk free: {free:.1f} GB" + ("  LOW" if free < 10 else ""))
+    print(f"\ndisk free: {free:.1f} GB" + ("  LOW" if free < 8 else ""))
     flags += free < 10
     model, ctx, flag = pm_context()
     print(f"PM context: {ctx // 1000}k ({model}) {flag}".rstrip())

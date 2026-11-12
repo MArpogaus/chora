@@ -634,3 +634,14 @@ source; rules.md 14 is the rule.
 
 new findings: 9 (above LOW: 6). The loop does not stop: R3-1 and R3-2 need an answer before
 the limit stop (about 08:00 UTC).
+
+## Answers to round 3 (2026-11-12 02:15 UTC)
+
+- Times: built (answers.md 271 to 273 carry transcript times; the four unlabeled Bangkok entries in decisions-now.md are marked Bkk).
+- R3-1 daily judge never starts: built (self-check at 00:50, 06:50, 12:50, 18:50 UTC; the judge starts at 18:50; the weekly report only at 12:50 on a Bangkok Friday).
+- R3-2 cost: built (watchdog every 2 h with a one-line "no change" path; self-check every 6 h; a pre-stop routine disables both before the weekly stop and the reset resume re-enables them).
+- R3-3 overlap: built (10 questions; the mechanical ones are lanes.py's flags). R3-4 missing items: built (PM cost, the user's last chat question, pre-stop, post-compaction routines).
+- R3-5 future time in routines.md: built (removed). check_log.py covering routines.md and "~" times: scheduled with the tooling fixes (Saturday if not today).
+- R3-6 lanes.py: built for the disk floor (8 GB, as routines.md); reviewer agents in the lane count and the sticky "compact now": scheduled with the tooling fixes.
+- LOW: Answer lines for rounds 2 and 3 are these sections; the self-check prompt no longer counts questions; rule 4's guard is lanes.py at each wake plus the self-check log; the judge cites rules.md 14.
+- Loop status: round 3 brought 6 points above LOW, all answered; round 4 runs after the tooling fixes land, confirm-only.

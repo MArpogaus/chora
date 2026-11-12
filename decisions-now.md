@@ -15,7 +15,7 @@ screened-through: 2026-11-12T02:13:11Z (bump to the newest user message recorded
   Reading: no new Fable lane until the weekly reset Saturday 10:59.
 - 11-11 17:56 "Got another fable reset for next week. So we can haven other full fable round next week."
 - 11-11 23:53 "Haiku should use considerable less tokens. Only keep testing as new data arrives. I think limiting to 85% shall be sufficient. Reserving the rest for major fixes and the review loop."
-- 11-12 00:29 "No, its not this weeks cap. Its the cap for the user test swarm if they keep discovering new issues etc"
+- 11-12 00:29 Bkk "No, its not this weeks cap. Its the cap for the user test swarm if they keep discovering new issues etc"
   Reading: haiku swarms may run until weekly use reaches 85 %, only while they find new issues. NOT a week cap: the rest goes to major fixes and the review loop.
 - 11-11 23:53 "Reset is sat 10:59. Well then finalize this week with heavy tasks layer off yo fable. Resetting once its fully used."
   Reading (garbled dictation): after the Saturday reset, heavy work (major fixes, review per area) runs on Fable until used up; then the user resets it. No Fable before (13:13).
@@ -78,9 +78,9 @@ screened-through: 2026-11-12T02:13:11Z (bump to the newest user message recorded
   Reading: test the new cloud setup; run an intensive opus reflection; fix what it finds; tighten rules and strategy so the user never has to steer. 01:43 UTC "Loop the reflection sharpening until no new findings apear": repeat judge, answer, apply until a round finds nothing new.
 - 11-12 01:35 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"
 - 11-12 01:29 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
-- 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
-- 11-12 00:27 "you did not pick up work after compactation" Reading: resume the first open item at once (pm-card step 4).
-- 11-12 00:30 "Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"
+- 11-11 23:59 Bkk "Reread the whole charter after compactation. ... The pm session hast to remain robust"
+- 11-12 00:27 Bkk "you did not pick up work after compactation" Reading: resume the first open item at once (pm-card step 4).
+- 11-12 00:30 Bkk "Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"
 - 11-09 11:13 daily opus reflection (charter 11a); 11-11 18:34 "Make sure you note these frictions and problems."
 - 11-11 11:43 "Check you sub session. All running? Close stale ones" Reading: check at each run start.
 - 11-10 14:45 "Agreed, go with the hybrid" Reading: workers for heavy lanes and testers, merges only here; one persistent PM.

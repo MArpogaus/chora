@@ -268,9 +268,9 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-11 ~19:00 UTC (user, verbatim in decisions-now.md): product brief per plugin (deliverables, requirements, USPs, target groups); clear worker instructions.
 - 11-11 ~19:20 UTC (user, verbatim in decisions-now.md): stay focused on the main targets, aim for perfection.
 - 11-11 ~20:00 UTC estimate (usage.py): 38.3 M units since the 71 % reading = about 14 %, so about 85 % plus the tour worker; pace about 4.5 %/h with three heavy lanes. PM pacing: finish tiling and mc (round 3, review, merge train) and the construct worker; xp waits; when the weekly limit stops the session, resume at the Saturday reset (send_later).
-- 11-12 ~01:00 UTC (user): 87 % weekly use (usage.py estimate of ~95 % was high: the 2.8 M units per percent calibration overstates; recalibrate from this reading). Status page gets screenshots and a screencast per look as it lands (verbatim in decisions-now.md).
-- 11-12 ~01:40 UTC (user): archive stale sub-sessions; arm a watchdog to keep the PM going; start parallel lanes now (verbatim in decisions-now.md).
-- 11-12 ~02:10 UTC (user): wake every 30 min; cloud workers; visual polishing and swarms on the new looks (verbatim in decisions-now.md).
+- 11-12 01:26 UTC (user): 87 % weekly use (usage.py estimate of ~95 % was high: the 2.8 M units per percent calibration overstates; recalibrate from this reading). Status page gets screenshots and a screencast per look as it lands (verbatim in decisions-now.md).
+- 11-12 01:29 UTC (user): archive stale sub-sessions; arm a watchdog to keep the PM going; start parallel lanes now (verbatim in decisions-now.md).
+- 11-12 01:35 UTC (user): wake every 30 min; cloud workers; visual polishing and swarms on the new looks (verbatim in decisions-now.md).
 - 11-12 01:41 UTC (user): cloud env updated, test it; intensive reflection loop; fix the latest problems; tighten rules and strategy; the user should never need to steer (verbatim in decisions-now.md).
 - 11-12 01:42 UTC (user): still 87 %; do not be paranoid about the token limit. usage.py overstates (it estimated ~90 % for this point); budget lines use the user's readings from now on.
 - 11-12 01:43 UTC (user): "Loop the reflection sharpening until no new findings apear".
