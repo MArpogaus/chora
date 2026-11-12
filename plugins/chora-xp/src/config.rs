@@ -98,17 +98,19 @@ pub struct Session {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// The shell command of the terminal, for Super+e and the desktop
-    /// files that need one.
+    /// The shell command of the terminal, for the Terminal of the start
+    /// menu and the desktop files that need one.
     pub terminal: String,
     /// For tests only: take the keys of `input.inject` as keys of the
     /// user. Off, the bindings ignore injected keys.
     #[serde(default)]
     pub test_accept_injected_keys: bool,
-    /// The shell command of Run, and of All Programs when no desktop file
-    /// lists a program.
+    /// The shell command of Run and of Super+Space, and of All Programs
+    /// when no desktop file lists a program.
     pub launcher: String,
-    /// The shell command of the file manager; the folder follows it.
+    /// The shell command of the file manager, for Super+e, the places of
+    /// the start menu and the folders of the desktop; the folder follows
+    /// it.
     pub file_manager: String,
     /// The programs at the top left of the start menu, below the
     /// terminal.

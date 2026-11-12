@@ -16,17 +16,17 @@ use crate::{
 };
 
 /// The height of a row.
-const ROW: i32 = 17;
+const ROW: i32 = 28;
 /// The height of a separator.
-const SEPARATOR: i32 = 9;
+const SEPARATOR: i32 = 11;
 /// The border and the padding around the rows.
 const PAD: i32 = 3;
 /// The soft shadow at the right and the bottom.
 const SHADOW: i32 = 4;
 /// The text starts after the column of the check marks.
-const TEXT_X: i32 = 17;
+const TEXT_X: i32 = 28;
 /// The room right of the text, for the arrow of a submenu.
-const TEXT_END: i32 = 24;
+const TEXT_END: i32 = 28;
 const PREFIX: &str = "xp-ctx-";
 /// The node that takes the keyboard while a menu is open: its root.
 pub const FOCUS: &str = "xp-ctx-0";

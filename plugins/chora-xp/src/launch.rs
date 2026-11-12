@@ -16,6 +16,10 @@ pub const SHOW_AFTER: Duration = Duration::from_secs(2);
 /// How long a program may take to open its first window.
 pub const GIVE_UP: Duration = Duration::from_secs(30);
 
+/// Programs that show no toplevel window, a layer-shell launcher or a
+/// toggle that hands over to a running instance: their start is no wait.
+const DETACHED: [&str; 2] = ["fuzzel", "chora-chat"];
+
 /// How many tokens of opened windows are kept.
 const OPENED: usize = 32;
 
@@ -28,6 +32,11 @@ pub enum Change {
         token: String,
         /// The name of the program.
         name: String,
+    },
+    /// The program runs and needs no window: its message ends.
+    Done {
+        /// The message of its start, which this one closes.
+        note: Option<u32>,
     },
     /// The program did not open a window.
     Failed {
@@ -57,6 +66,7 @@ impl Change {
     pub fn text(&self) -> (String, String) {
         match self {
             Self::Starting { name, .. } => (format!("Starting {name}"), "Please wait.".into()),
+            Self::Done { .. } => (String::new(), String::new()),
             Self::Failed { name, why, .. } => {
                 let body = match why {
                     Why::Missing => "The program is not installed.".to_string(),
@@ -74,6 +84,7 @@ impl Change {
 struct Entry {
     name: String,
     token: String,
+    pid: Option<u32>,
     since: Instant,
     windows_before: u64,
     note: Option<u32>,
@@ -84,6 +95,7 @@ struct Entry {
 struct Started {
     name: String,
     token: Option<String>,
+    pid: Option<u32>,
     since: Instant,
     windows_before: u64,
 }
@@ -145,10 +157,11 @@ impl Launches {
         let sender = self.sender.clone();
         let windows_before = self.windows;
         std::thread::spawn(move || {
-            let token = chora_kit::launch(&command, token.as_deref()).map(|(token, _)| token);
+            let answer = chora_kit::launch(&command, token.as_deref());
             let _ = sender.send(Started {
                 name,
-                token,
+                pid: answer.as_ref().and_then(|(_, pid)| *pid),
+                token: answer.map(|(token, _)| token),
                 since: now,
                 windows_before,
             });
@@ -180,12 +193,13 @@ impl Launches {
         let Some(token) = started.token else {
             return;
         };
-        if self.opened.contains(&token) {
+        if self.opened.contains(&token) || DETACHED.contains(&started.name.as_str()) {
             return;
         }
         self.entries.push(Entry {
             name: started.name,
             token,
+            pid: started.pid,
             since: started.since,
             windows_before: started.windows_before,
             note: None,
@@ -224,7 +238,9 @@ impl Launches {
         self.entries.retain_mut(|entry| {
             let age = now.saturating_duration_since(entry.since);
             if age >= GIVE_UP {
-                if entry.windows_before == windows {
+                if entry.pid.is_some_and(chora_kit::alive) {
+                    changes.push(Change::Done { note: entry.note });
+                } else if entry.windows_before == windows {
                     changes.push(Change::Failed {
                         name: entry.name.clone(),
                         note: entry.note,
@@ -274,6 +290,20 @@ fn missing(command: &str, on_path: impl Fn(&str) -> bool) -> bool {
     plain && !shell && !BUILTINS.contains(&word) && !on_path(word)
 }
 
+/// The launcher command in the look of xp: `fuzzel` with the `file` of
+/// the flavor as its configuration, unless the command names one or the
+/// file is missing. Another command stays as it is.
+#[must_use]
+pub fn themed(command: &str, file: &std::path::Path) -> String {
+    let mut words = command.split_whitespace();
+    let named = words.clone().any(|w| w == "--config" || w == "-c");
+    if words.next() != Some("fuzzel") || named || !file.is_file() {
+        return command.to_owned();
+    }
+    let rest = command.trim_start().trim_start_matches("fuzzel");
+    format!("fuzzel --config '{}'{rest}", file.display())
+}
+
 /// The name of the program of a shell command: its first word without
 /// quotes and directory.
 #[must_use]
@@ -298,6 +328,7 @@ mod tests {
         Started {
             name: "writer".into(),
             token: Some("t1".into()),
+            pid: None,
             since,
             windows_before: 0,
         }
@@ -447,6 +478,84 @@ mod tests {
             }]
         );
         assert_eq!(launches.check(seconds(now, 60)), none());
+    }
+
+    #[test]
+    fn a_launcher_without_a_toplevel_is_not_followed() {
+        for name in ["fuzzel", "chora-chat"] {
+            let now = Instant::now();
+            let mut launches = Launches::new();
+            launches.add(Started {
+                name: name.into(),
+                ..started(now)
+            });
+            assert_eq!(launches.check(seconds(now, 2)), none(), "{name}");
+            assert_eq!(launches.check(seconds(now, 40)), none(), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_program_that_still_runs_at_the_limit_is_no_failure() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(Started {
+            pid: Some(std::process::id()),
+            ..started(now)
+        });
+        launches.check(seconds(now, 2));
+        launches.noted("t1", 12);
+        assert_eq!(
+            launches.check(seconds(now, GIVE_UP.as_secs())),
+            [Change::Done { note: Some(12) }]
+        );
+        assert_eq!(launches.check(seconds(now, 60)), none());
+    }
+
+    #[test]
+    fn a_program_that_ended_without_a_window_is_a_failure() {
+        let now = Instant::now();
+        let mut launches = Launches::new();
+        launches.add(Started {
+            pid: Some(u32::MAX),
+            ..started(now)
+        });
+        assert!(matches!(
+            launches.check(seconds(now, GIVE_UP.as_secs())).as_slice(),
+            [Change::Failed { why: Why::Slow, .. }]
+        ));
+    }
+
+    #[test]
+    fn fuzzel_takes_the_look_of_xp() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-themed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("fuzzel.ini");
+        std::fs::write(&file, "[main]\n").unwrap();
+        let line = themed("fuzzel", &file);
+        assert_eq!(line, format!("fuzzel --config '{}'", file.display()));
+        assert!(themed("fuzzel --dmenu", &file).ends_with(" --dmenu"));
+        assert_eq!(
+            themed("fuzzel --config /x.ini", &file),
+            "fuzzel --config /x.ini"
+        );
+        assert_eq!(themed("rofi -show run", &file), "rofi -show run");
+        assert_eq!(themed("fuzzel", &dir.join("none.ini")), "fuzzel");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_shipped_fuzzel_file_is_xp_and_opaque() {
+        let text = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+        assert!(text.contains("font=Tahoma:pixelsize=14"), "{text}");
+        assert!(text.contains("prompt=\"Open: \""), "{text}");
+        for key in ["background", "text", "selection", "border"] {
+            let value = text
+                .lines()
+                .find_map(|l| l.strip_prefix(&format!("{key}=")))
+                .unwrap_or_else(|| panic!("{key}"));
+            assert!(value.ends_with("ff"), "{key} is not opaque: {value}");
+        }
+        assert!(text.contains("selection=316ac5ff"), "{text}");
     }
 
     #[test]

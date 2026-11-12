@@ -79,6 +79,9 @@ pub enum Font {
 /// smallest size of text that a person must read.
 pub const BODY_SIZE: u32 = 14;
 
+/// The size of the label of the start button in pixels.
+pub const START_SIZE: u32 = 21;
+
 /// Where a line of text sits in its rectangle.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Align {
@@ -255,6 +258,16 @@ impl Fonts {
             specs,
             host_only: true,
         }
+    }
+
+    /// Sets the chrome fonts to XP's Large Fonts: the menu and button
+    /// fonts and the title at [`BODY_SIZE`] pixels, the label of the start
+    /// button at [`START_SIZE`].
+    pub fn large_chrome(&mut self) {
+        for font in [Font::Ui, Font::UiBold, Font::Title] {
+            self.specs[font as usize].size = BODY_SIZE;
+        }
+        self.specs[Font::Start as usize].size = START_SIZE;
     }
 
     /// Whether the fonts are those of the host only, with no font file of
@@ -649,6 +662,24 @@ mod tests {
         assert!(!has_family(db, "Zqwvxkjh"), "{:?}", families(db));
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn large_chrome_makes_all_chrome_text_14_px_but_the_start_label_and_the_names() {
+        let mut host = Fonts::host(SANS_SERIF);
+        assert_eq!(host.size(Font::Ui), 11);
+        host.large_chrome();
+        for font in [
+            Font::Ui,
+            Font::UiBold,
+            Font::Title,
+            Font::Body,
+            Font::BodyBold,
+        ] {
+            assert_eq!(host.size(font), 14, "{font:?}");
+        }
+        assert_eq!(host.size(Font::Start), 21);
+        assert!(host.size(Font::Name) >= 14 && host.size(Font::Dialog) >= 14);
     }
 
     #[test]

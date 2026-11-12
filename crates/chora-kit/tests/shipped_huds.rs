@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use chora_kit::hud::{self, Anchor, ChatStyle, Hud, Source};
+use chora_kit::hud::{self, Anchor, ChatForm, ChatStyle, Hud, IdleStop, Source};
 
 fn repo(below: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -23,7 +23,9 @@ fn the_xp_folder_loads_with_the_balloon_chat() {
     assert_eq!(xp.chat.style, ChatStyle::Bubble);
     assert_eq!(xp.chat.font.as_deref(), Some("Tahoma"));
     assert_eq!(xp.chat.size, 14);
-    assert_eq!(xp.chat.border, Some([0x7f, 0x9d, 0xb9]));
+    assert_eq!(xp.chat.border, Some([0, 0, 0]));
+    assert_eq!(xp.chat.idle_stop, IdleStop::Grey);
+    assert_eq!(xp.chat.form, ChatForm::Xp);
     assert_eq!(xp.chat.place(), (Anchor::BottomRight, 340));
     assert_eq!(
         xp.chat.contrast_errors(&hud::Chat::default()),

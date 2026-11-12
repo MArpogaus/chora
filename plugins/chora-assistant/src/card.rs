@@ -73,6 +73,8 @@ pub struct Ink {
     /// The card stands in the page of a look: its title, prompt, detail
     /// and key line are set as the page sets them.
     pub page: Option<[u8; 3]>,
+    /// The card is XP's: a white group box, push buttons.
+    pub xp: bool,
 }
 
 impl Ink {
@@ -84,6 +86,19 @@ impl Ink {
         button: BUTTON_FILL,
         radius: 8,
         page: None,
+        xp: false,
+    };
+
+    /// The card of the XP balloon: a white group box with a 1 px rule of
+    /// `#ACA899` and corners of 3, grey notes.
+    pub const XP: Self = Self {
+        fill: [255, 255, 255],
+        border: [172, 168, 153],
+        text: [0, 0, 0],
+        button: [255, 255, 255],
+        radius: 3,
+        page: Some([77, 77, 77]),
+        xp: true,
     };
 
     /// A card in the page of a look: the fill of its page, one rule in the
@@ -98,6 +113,7 @@ impl Ink {
             button: fill,
             radius: 0,
             page: Some(muted),
+            xp: false,
         }
     }
 
@@ -254,6 +270,18 @@ const MONO: &str = "DejaVu Sans Mono, Liberation Mono, monospace";
 const PAGE_SIZE: u32 = 14;
 const PAGE_WEIGHT: u32 = 500;
 const PAGE_PAD: i32 = 14;
+const XP_PAD: i32 = 12;
+const XP_BUTTON: [i32; 2] = [80, 28];
+const XP_DETAIL_INSET: i32 = 6;
+
+/// The padding of a card in a page and the size of its buttons.
+fn metrics(ink: Ink) -> (i32, [i32; 2]) {
+    if ink.xp {
+        (XP_PAD, XP_BUTTON)
+    } else {
+        (PAGE_PAD, BUTTON)
+    }
+}
 
 /// How a line of the card in a page is set.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -268,6 +296,12 @@ enum Set {
 /// The SVG element of a line of the card in a page: the row starts at `y`.
 fn element(set: Set, face: &Face, text: &str, [x, y]: [i32; 2], rgb: [u8; 3]) -> String {
     let [red, green, blue] = rgb;
+    if face.is_xp() {
+        return match set {
+            Set::Title => face.bold_element(text, [x, y], rgb),
+            _ => face.element(text, [x, y], rgb),
+        };
+    }
     let (family, weight) = match set {
         Set::Prompt => return face.element(text, [x, y], rgb),
         Set::Detail => (MONO, 400),
@@ -300,8 +334,13 @@ fn page_rows(
             Part::NoVoiceYes => Set::Note,
         };
         let measure = |line: &str| theme.svg_width(&element(set, face, line, [0, 0], [0; 3]));
+        let room = if face.is_xp() && set == Set::Detail {
+            width - f64::from(2 * XP_DETAIL_INSET)
+        } else {
+            width
+        };
         rows.extend(
-            wrap(&text, width, measure)
+            wrap(&text, room, measure)
                 .into_iter()
                 .map(|line| (set, line)),
         );
@@ -309,17 +348,19 @@ fn page_rows(
     rows
 }
 
+/// The height of a line of a card in a page: the reading face sets the
+/// prompt, and every line of XP's card.
+fn row_height(face: &Face, set: Set) -> i32 {
+    if set == Set::Prompt || face.is_xp() {
+        face.line()
+    } else {
+        LINE
+    }
+}
+
 /// The height of the lines of a card in a page.
 fn page_height(face: &Face, rows: &[(Set, String)]) -> i32 {
-    rows.iter()
-        .map(|(set, _)| {
-            if *set == Set::Prompt {
-                face.line()
-            } else {
-                LINE
-            }
-        })
-        .sum()
+    rows.iter().map(|(set, _)| row_height(face, *set)).sum()
 }
 
 /// The lines of the card in a page and whether the question is too long to
@@ -343,27 +384,42 @@ fn page_content(
     (rows, true)
 }
 
+/// The sunken box behind a line of the detail in XP's card: the colours
+/// of an edit box, a 1 px rule of `#7F9DB9`, as wide as the card inside
+/// its padding.
+fn detail_box(width: i32, pad: i32, y: i32, line: i32) -> String {
+    format!(
+        r##"<rect x="{pad}.5" y="{y}.5" width="{}" height="{}" fill="#F1EFE2" stroke="#7F9DB9"/>"##,
+        width - 2 * pad - 1,
+        line - 1
+    )
+}
+
 /// The SVG of the lines of the card in a page, and of the note under the
 /// buttons: `note_at` is the top of the note.
 fn page_body(
     face: &Face,
     (rows, notice): (&[(Set, String)], &[String]),
     (ink, muted): ([u8; 3], [u8; 3]),
-    note_at: i32,
+    (width, pad, note_at): (i32, i32, i32),
 ) -> String {
     let mut body = String::new();
-    let mut y = PAGE_PAD;
+    let mut y = pad;
     for (set, line) in rows {
         let rgb = if *set == Set::Note { muted } else { ink };
-        body += &element(*set, face, line, [PAGE_PAD, y], rgb);
-        y += if *set == Set::Prompt {
-            face.line()
+        if face.is_xp() && *set == Set::Detail {
+            body += &detail_box(width, pad, y, face.line());
+        }
+        let inset = if face.is_xp() && *set == Set::Detail {
+            XP_DETAIL_INSET
         } else {
-            LINE
+            0
         };
+        body += &element(*set, face, line, [pad + inset, y], rgb);
+        y += row_height(face, *set);
     }
     for (n, line) in (0..).zip(notice) {
-        body += &element(Set::Note, face, line, [PAGE_PAD, note_at + n * LINE], muted);
+        body += &element(Set::Note, face, line, [pad, note_at + n * LINE], muted);
     }
     body
 }
@@ -379,27 +435,28 @@ fn page_layout(
     (screen, muted): ([i32; 2], [u8; 3]),
 ) -> Layout {
     let face = shown.face.clone().unwrap_or_else(|| Face::serif(18));
+    let (pad, button) = metrics(shown.ink);
     let width = width(screen, shown.max_width);
-    let inner = f64::from(width - 2 * PAGE_PAD);
+    let inner = f64::from(width - 2 * pad);
     let injected = Word::Injected.text(language);
     let notice = wrap(injected, inner, |line| {
         theme.svg_width(&element(Set::Note, &face, line, [0, 0], [0; 3]))
     });
     let notice_room = i32::try_from(notice.len()).unwrap_or(0) * LINE;
-    let below = PAGE_PAD + BUTTON[1] + if shown.notice { notice_room } else { 0 };
-    let most = screen[1] * 8 / 10 - 2 * PAGE_PAD - below;
+    let below = pad + button[1] + if shown.notice { notice_room } else { 0 };
+    let most = screen[1] * 8 / 10 - 2 * pad - below;
     let (rows, too_long) = page_content(theme, shown, language, (&face, inner, most));
     let buttons_shown = shown.buttons && !too_long;
     let content = page_height(&face, &rows);
-    let height = 2 * PAGE_PAD + content + if buttons_shown { below } else { 0 };
-    let top = PAGE_PAD + content + PAGE_PAD;
+    let height = 2 * pad + content + if buttons_shown { below } else { 0 };
+    let top = pad + content + pad;
     let noted = buttons_shown && shown.notice;
     let shown_notice: &[String] = if noted { &notice } else { &[] };
     let body = page_body(
         &face,
         (&rows, shown_notice),
         (shown.ink.text, muted),
-        top + BUTTON[1],
+        (width, pad, top + button[1]),
     );
     let picture = Picture::new(width, height)
         .svg(shown.ink.style().shape([width, height], 0))
@@ -415,8 +472,7 @@ fn page_layout(
     text.truncate(floor_boundary(&text, MAX_TEXT_META));
     Layout {
         picture,
-        buttons: buttons_shown
-            .then_some([[PAGE_PAD, top], [PAGE_PAD + BUTTON[0] + BUTTON_GAP, top]]),
+        buttons: buttons_shown.then_some([[pad, top], [pad + button[0] + BUTTON_GAP, top]]),
         text,
         too_long,
     }
@@ -520,7 +576,32 @@ fn image(path: String, at: [i32; 2], text: &str, input: InputMode) -> PropsUpdat
     }
 }
 
-fn button(theme: &mut Theme, label: &str, ink: Ink) -> String {
+/// XP's push button: white to `#E3E1D7`, a rim of `#003C74`, the label in
+/// the face of the balloon.
+fn xp_button(theme: &mut Theme, label: &str, face: &Face) -> String {
+    let [w, h] = XP_BUTTON;
+    let width = theme.svg_width(&face.element(label, [0, 0], [0; 3]));
+    let x = (f64::from(w) - width) / 2.0;
+    let top = (h - face.line()) / 2;
+    let shape = format!(
+        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="3" fill="url(#face)" stroke="#003C74"/>"##,
+        w - 1,
+        h - 1
+    );
+    #[allow(clippy::cast_possible_truncation, reason = "a pixel position")]
+    let label = face.element(label, [x.round() as i32, top], [0, 0, 0]);
+    theme.render(&Picture::new(w, h).svg(shape).svg(label))
+}
+
+/// The colour of the ring that shows around a button under the pointer in
+/// XP's card: the orange of XP's hover.
+const XP_HOVER: [u8; 3] = [248, 179, 48];
+
+fn button(theme: &mut Theme, label: &str, shown: &Shown) -> String {
+    let ink = shown.ink;
+    if let (true, Some(face)) = (ink.xp, shown.face.as_ref()) {
+        return xp_button(theme, label, face);
+    }
     let flat = Style {
         fill: ink.button,
         radius: ink.radius.min(4),
@@ -592,28 +673,47 @@ pub fn show(
     }
     commands.push(put(CARD, card, fresh));
     if let (true, Some(at)) = (fresh, buttons) {
-        let [yes, no] = Card::buttons(language);
-        let keys = &shown.card.question.keys;
-        for (((id, label), key), [bx, by]) in [(YES, yes), (NO, no)]
-            .into_iter()
-            .zip([&keys.yes, &keys.no])
-            .zip(at)
-        {
-            let picture = match shown.glass {
-                Some(dark) => crate::card_glass::segment(theme, key, label, (size[0], dark)),
-                None => button(theme, label, shown.ink),
+        commands.extend(answer_buttons(theme, shown, language, (at, size[0])));
+    }
+    commands
+}
+
+/// The commands that create Yes and No at their places in the card, each
+/// with the ring that shows under the pointer unless the card is glass.
+fn answer_buttons(
+    theme: &mut Theme,
+    shown: &Shown,
+    language: Language,
+    (at, width): ([[i32; 2]; 2], i32),
+) -> Vec<Command> {
+    let [x, y] = shown.origin;
+    let [yes, no] = Card::buttons(language);
+    let keys = &shown.card.question.keys;
+    let mut commands = Vec::new();
+    for (((id, label), key), [bx, by]) in [(YES, yes), (NO, no)]
+        .into_iter()
+        .zip([&keys.yes, &keys.no])
+        .zip(at)
+    {
+        let picture = match shown.glass {
+            Some(dark) => crate::card_glass::segment(theme, key, label, (width, dark)),
+            None => button(theme, label, shown),
+        };
+        let props = image(picture, [x + bx, y + by], label, InputMode::Accept);
+        commands.push(Command::Create {
+            id: id.into(),
+            kind: NodeKind::Image,
+            parent: TOP.into(),
+            props,
+        });
+        if shown.glass.is_none() {
+            let at = ([x + bx, y + by], metrics(shown.ink).1);
+            let ring = if shown.ink.xp {
+                XP_HOVER
+            } else {
+                shown.ink.text
             };
-            let props = image(picture, [x + bx, y + by], label, InputMode::Accept);
-            commands.push(Command::Create {
-                id: id.into(),
-                kind: NodeKind::Image,
-                parent: TOP.into(),
-                props,
-            });
-            if shown.glass.is_none() {
-                let at = ([x + bx, y + by], BUTTON);
-                commands.push(crate::chat::frame(id, TOP, at, shown.ink.text));
-            }
+            commands.push(crate::chat::frame(id, TOP, at, ring));
         }
     }
     commands
@@ -940,6 +1040,70 @@ mod tests {
         assert_eq!(no[0] - yes[0], BUTTON[0] + BUTTON_GAP);
         assert!(hud::contrast([41, 38, 36], [247, 245, 237]) >= hud::MIN_KEY_CONTRAST);
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_xp_card_is_a_white_group_box_with_push_buttons_80_by_28_and_8_apart() {
+        let cache = cache("xp-card");
+        let theme = theme(&cache, "Tahoma").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::XP;
+        card.face = Some(Face::of(&xp_look()).unwrap());
+        card.max_width = Some(312);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        assert_eq!(laid.picture.size[0], 312);
+        let shape = laid
+            .picture
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                Layer::Svg(body) => Some(body.as_str()),
+                _ => None,
+            })
+            .expect("the shape of the card");
+        assert!(shape.contains("fill=\"rgb(255,255,255)\""), "{shape}");
+        assert!(shape.contains("stroke=\"rgb(172,168,153)\""), "{shape}");
+        let [yes, no] = laid.buttons.expect("buttons");
+        assert_eq!([yes[0], no[0] - yes[0]], [12, 80 + 8]);
+        assert_eq!(yes[1], no[1]);
+        assert_eq!(laid.picture.size[1], yes[1] + 28 + 12);
+        assert!(laid.text.contains("Question from Atlas"), "{}", laid.text);
+        assert!(laid.text.contains("Alt+Y"), "{}", laid.text);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a colour from 0 to 1 as a byte"
+    )]
+    fn the_xp_card_has_no_default_button_and_rings_its_buttons_in_orange() {
+        let cache = cache("xp-ring");
+        let mut theme = theme(&cache, "Tahoma").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::XP;
+        card.face = Some(Face::of(&xp_look()).unwrap());
+        card.max_width = Some(312);
+        let commands = show(&mut theme, &card, Language::En, [1280, 800], true);
+        let ring = commands.iter().find_map(|command| match command {
+            Command::Create { id, props, .. } if *id == crate::chat::mark_id(YES) => {
+                props.border.flatten()
+            }
+            _ => None,
+        });
+        let [r, g, b, _] = ring.expect("a ring").color;
+        assert_eq!([r, g, b].map(|c| (c * 255.0).round() as u8), [248, 179, 48]);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    fn xp_look() -> hud::Chat {
+        hud::Chat {
+            font: Some("Tahoma".into()),
+            size: 14,
+            form: hud::ChatForm::Xp,
+            ..hud::Chat::default()
+        }
     }
 
     #[test]

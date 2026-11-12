@@ -206,7 +206,7 @@ Where the XP files go:
 | Today in `flavors/xp/theme` | Goes to |
 |-----------------------------|---------|
 | `expose/*` | `assets/stack` |
-| `winxp/winxp.svg`, `winxp/tasks.svg`, `winxp/start-flag.svg`, `winxp/cascade-arrow*.svg` | `assets/panel` |
+| `winxp/winxp.svg`, `winxp/tasks.svg`, `winxp/start-mark.svg`, `winxp/user.svg`, `winxp/cascade-arrow*.svg` | `assets/panel` |
 | `winxp/balloon-close*.svg` | `assets/notify`; `balloon-info.svg` went with the icon of the notification area |
 | `wallpaper/bloff.png` | `assets/desk` |
 | `winxp/dialog*.svg`, `winxp/log-off.svg`, `winxp/turn-off.svg`, `winxp/switch-user.svg`, `winxp/stand-by.svg`, `winxp/restart.svg`, `winxp/check*.svg` | the folder of the gimmick |

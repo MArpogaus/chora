@@ -1408,7 +1408,8 @@ and the field ignores both. Each line is one JSON object.
 - Host to field: `{"place": {...}}`, `{"question": true}`,
   `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`,
   `{"pick_first": "text"}`, `"clear"`, which empties the draft when the
-  chat goes to another helper, `"hide"` and `"quit"`. The host builds
+  chat goes to another helper, `"send"`, which sends the draft as Enter
+  does (the Send button of the XP form), `"hide"` and `"quit"`. The host builds
   `question` from `voice.state` of the helper of the field, and `keys`
   from `voice.confirm`.
 - Field to host: `{"say": "text"}`, which the host sends with `voice

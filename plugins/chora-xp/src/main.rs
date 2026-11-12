@@ -20,6 +20,7 @@ mod decoration;
 mod desktop_icons;
 mod dialog;
 mod display;
+mod help;
 mod launch;
 mod session;
 mod sheets;
@@ -28,6 +29,7 @@ mod startmenu;
 mod switcher;
 mod taskbar;
 mod taskbar_dialog;
+mod tooltip;
 mod wallpaper;
 mod window;
 mod wm;
@@ -107,7 +109,8 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     );
     let cache = theme::cache_dir("chora-xp")?;
     let theme = Theme::load(&dir, &cache, &sheets::ALL, sheets::FAMILY)
-        .map_err(|e| format!("theme: {e}"))?;
+        .map_err(|e| format!("theme: {e}"))?
+        .large_chrome();
     let mut wm = Wm::start(args.outputs.clone(), theme, settings, args.slow_motion)?;
     event_loop(&mut wm)?;
     if wm.restart {

@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use chora_kit::{
     ask::Question,
-    hud::Anchor,
+    hud::{Anchor, ChatForm},
     words::{self, Word},
 };
 use chora_scene::{Command, NodeKind, OutputInfo, PropsUpdate, ipc::ClientError};
@@ -378,7 +378,7 @@ impl Agent {
     /// a slot, else the one of the host. The fonts stay those of the host:
     /// a family by name, never a font file of a folder.
     fn card_fonts(&mut self) {
-        let want = if self.values.slot {
+        let want = if self.values.slot || self.values.chat().form == ChatForm::Xp {
             self.values.font.clone()
         } else {
             crate::HOST_FAMILY.to_owned()
@@ -398,6 +398,10 @@ impl Agent {
     /// What the card is drawn in: the page of the look where the folder
     /// names a slot, else the card of the host.
     fn card_ink(&self) -> (card::Ink, Option<chat::Face>) {
+        let chat = self.values.chat();
+        if chat.form == ChatForm::Xp {
+            return (card::Ink::XP, chat::Face::of(&chat));
+        }
         if !self.values.slot {
             return (card::Ink::HOST, None);
         }

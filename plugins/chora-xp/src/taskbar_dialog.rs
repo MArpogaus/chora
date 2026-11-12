@@ -127,7 +127,7 @@ impl TaskbarDialog {
                 true,
             )
             .enabled(false),
-            Control::push("customize", "Customize...", [292, 312]).enabled(false),
+            Control::push("customize", "Customize...", [284, 312]).enabled(false),
         ]);
         *body = picture;
     }
@@ -192,7 +192,7 @@ fn start_menu_tab(theme: &mut Theme, body: &mut Picture, controls: &mut Vec<Cont
     picture = gray(picture, "earlier versions of Windows.", 313);
     controls.extend([
         Control::radio("xp", "Start menu", [25, 226, 200, CHECK], true),
-        Control::push("customize", "Customize...", [303, 226]).enabled(false),
+        Control::push("customize", "Customize...", [292, 226]).enabled(false),
         Control::radio(
             "classic",
             "Classic Start menu",
@@ -200,7 +200,7 @@ fn start_menu_tab(theme: &mut Theme, body: &mut Picture, controls: &mut Vec<Cont
             false,
         )
         .enabled(false),
-        Control::push("customize-classic", "Customize...", [303, 280]).enabled(false),
+        Control::push("customize-classic", "Customize...", [292, 280]).enabled(false),
     ]);
     *body = picture;
 }

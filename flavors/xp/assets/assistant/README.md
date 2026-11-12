@@ -3,8 +3,8 @@
 The look of the assistant in the XP flavor, a HUD folder (`docs/hud.md`).
 chora-assistant shows it for windows of chora-xp, by the rules of `huds`,
 and reads `hud.yaml`: the paperclip with eyes and eyebrows above the right end
-of the taskbar, which blinks, and its one balloon, pale yellow with the
-1-pixel border of an XP edit box (#7F9DB9) and a tail at the paperclip.
+of the taskbar, which blinks, and its one balloon, pale yellow with a
+1-pixel black border, as every balloon of XP has, and a tail at the paperclip.
 Collapsed, the balloon shows the last sentence; a click on it or on the
 paperclip expands it into the chat, 340 pixels wide, in Tahoma 14, with
 the transcript, the field, Close and the card of a question inside. No

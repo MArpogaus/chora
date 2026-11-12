@@ -122,6 +122,11 @@ impl Field {
         self.send(&json!("clear"))
     }
 
+    /// Sends the draft, as Enter in the field does.
+    pub fn send_draft(&mut self) -> std::io::Result<()> {
+        self.send(&json!("send"))
+    }
+
     /// Gives a line back that was typed before a helper was picked.
     pub fn pick_first(&mut self, text: &str) -> std::io::Result<()> {
         self.send(&json!({"pick_first": text}))
@@ -195,6 +200,10 @@ impl Link for Field {
 
     fn pick_first(&mut self, text: &str) {
         log(Self::pick_first(self, text));
+    }
+
+    fn send_draft(&mut self) {
+        log(Self::send_draft(self));
     }
 
     fn clear(&mut self) {

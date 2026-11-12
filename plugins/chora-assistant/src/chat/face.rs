@@ -4,11 +4,14 @@
 //! fontconfig and a family such as TeX Gyre Pagella may be missing.
 
 use chora_draw::{text::Font, theme::Theme};
-use chora_kit::hud::Chat as Look;
+use chora_kit::hud::{Chat as Look, ChatForm};
 
 /// What stands behind the family of the folder, so that a missing family
 /// still shows in a serif.
 const BEHIND: &str = "DejaVu Serif, Liberation Serif, serif";
+
+/// What stands behind the family of an XP chat, which is a sans.
+const BEHIND_SANS: &str = "DejaVu Sans, Liberation Sans, sans-serif";
 
 /// The distance of two lines of the text, in tenths of its size.
 const LEADING: u32 = 15;
@@ -18,6 +21,7 @@ const LEADING: u32 = 15;
 pub struct Face {
     family: String,
     size: u32,
+    xp: bool,
 }
 
 impl Face {
@@ -30,6 +34,7 @@ impl Face {
         (!family.is_empty() && family.chars().all(plain)).then(|| Self {
             family: family.to_owned(),
             size: look.size,
+            xp: look.form == ChatForm::Xp,
         })
     }
 
@@ -39,6 +44,7 @@ impl Face {
         Self {
             family: "serif".to_owned(),
             size,
+            xp: false,
         }
     }
 
@@ -48,13 +54,37 @@ impl Face {
         i32::try_from((self.size * LEADING).div_ceil(10)).unwrap_or(i32::MAX)
     }
 
+    /// Whether the face is that of the XP form of the balloon.
+    #[must_use]
+    pub fn is_xp(&self) -> bool {
+        self.xp
+    }
+
     /// The SVG element of a line of text whose row starts at `y`, `x` from
     /// the left, in a colour.
     #[must_use]
-    pub fn element(&self, text: &str, [x, y]: [i32; 2], [red, green, blue]: [u8; 3]) -> String {
+    pub fn element(&self, text: &str, at: [i32; 2], rgb: [u8; 3]) -> String {
+        self.weighted(text, at, rgb, false)
+    }
+
+    /// The same line in bold.
+    #[must_use]
+    pub fn bold_element(&self, text: &str, at: [i32; 2], rgb: [u8; 3]) -> String {
+        self.weighted(text, at, rgb, true)
+    }
+
+    fn weighted(
+        &self,
+        text: &str,
+        [x, y]: [i32; 2],
+        [red, green, blue]: [u8; 3],
+        bold: bool,
+    ) -> String {
         let baseline = f64::from(y) + f64::from(self.line()) / 2.0 + f64::from(self.size) * 0.34;
+        let behind = if self.xp { BEHIND_SANS } else { BEHIND };
+        let weight = if bold { r#" font-weight="bold""# } else { "" };
         format!(
-            r#"<text x="{x}" y="{baseline:.2}" font-family="{}, {BEHIND}" font-size="{}" fill="rgb({red},{green},{blue})" xml:space="preserve">{}</text>"#,
+            r#"<text x="{x}" y="{baseline:.2}" font-family="{}, {behind}"{weight} font-size="{}" fill="rgb({red},{green},{blue})" xml:space="preserve">{}</text>"#,
             self.family,
             self.size,
             escape(text)

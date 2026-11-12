@@ -195,10 +195,12 @@ pub enum Word {
     EveryLook,
     /// The cube face label: face `{face}` of `{faces}`.
     Face,
+    /// The step of a helper's task, in a header: step `{step}` of `{steps}`.
+    StepOf,
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 78] = [
+pub const ALL: [Word; 79] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -277,6 +279,7 @@ pub const ALL: [Word; 78] = [
     Word::OnlyNow,
     Word::EveryLook,
     Word::Face,
+    Word::StepOf,
 ];
 
 impl Word {
@@ -374,6 +377,7 @@ impl Word {
             Self::OnlyNow => "Only the keys that work now are listed.",
             Self::EveryLook => "every look",
             Self::Face => "face {face} of {faces}",
+            Self::StepOf => "step {step} of {steps}",
         }
     }
 
@@ -468,6 +472,7 @@ impl Word {
             Self::OnlyNow => "Nur die Tasten, die jetzt gehen, stehen hier.",
             Self::EveryLook => "in jeder Ansicht",
             Self::Face => "Seite {face} von {faces}",
+            Self::StepOf => "Schritt {step} von {steps}",
         }
     }
 }

@@ -82,11 +82,12 @@ impl Control {
 
     /// A push button of XP's size at a place.
     pub fn push(name: &str, label: &str, [x, y]: [i32; 2]) -> Self {
+        let chars = i32::try_from(label.chars().count()).unwrap_or(0);
         Self::new(
             name,
             Kind::Push { default: false },
             label,
-            [x, y, BUTTON[0], BUTTON[1]],
+            [x, y, BUTTON[0].max(chars * 7 + 16), BUTTON[1]],
         )
     }
 
@@ -861,11 +862,11 @@ impl Dialog {
         let title = Picture::new(ow - 2 * EDGE - 30, TITLE).text(
             Text::new(
                 &self.title,
-                Font::Title,
+                Font::BodyBold,
                 [255, 255, 255, 255],
-                [2, 1, ow, TITLE],
+                [2, 0, ow, TITLE],
             )
-            .shadow([10, 24, 131, 255]),
+            .shadow(decoration::TITLE_SHADOW),
         );
         let mut commands = vec![
             Command::Create {
@@ -1063,11 +1064,11 @@ pub mod tests {
         picture = picture.text(
             Text::new(
                 &dialog.title,
-                Font::Title,
+                Font::BodyBold,
                 [255, 255, 255, 255],
-                [EDGE + 2, 1, ow, TITLE],
+                [EDGE + 2, 0, ow, TITLE],
             )
-            .shadow([10, 24, 131, 255]),
+            .shadow(decoration::TITLE_SHADOW),
         );
         let close = decoration::button_rect(ow, Button::Close);
         picture = picture.frame(sheets::CLOSE, "active", close);

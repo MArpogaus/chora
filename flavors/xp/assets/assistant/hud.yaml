@@ -4,13 +4,13 @@ panels:
 - id: clip
   source: voice
   anchor: bottom_right
-  margin: [96, 2]
+  margin: [8, 8]
   picture: paperclip.svg#{state}
   action: chat
 - id: line
   source: say
   anchor: bottom_right
-  margin: [96, 90]
+  margin: [96, 84]
   style: bubble
   text: '{text}'
   max_chars: 160
@@ -25,4 +25,6 @@ chat:
   fill: [255, 255, 225]
   text: [0, 0, 0]
   name: [0, 60, 116]
-  border: [127, 157, 185]
+  border: [0, 0, 0]
+  idle_stop: grey
+  form: xp

@@ -34,9 +34,9 @@ const MONTHS: [&str; 12] = [
     "November",
     "December",
 ];
-const MONTH: Rect = [27, 57, 75, 21];
-const YEAR: Rect = [112, 57, 63, 21];
-const YEAR_SPIN: Rect = [176, 57, 16, 21];
+const MONTH: Rect = [27, 57, 98, 21];
+const YEAR: Rect = [135, 57, 54, 21];
+const YEAR_SPIN: Rect = [190, 57, 16, 21];
 const CALENDAR: Rect = [27, 89, 162, 128];
 const CLOCK: Rect = [222, 51, 140, 140];
 const TIME: Rect = [245, 200, 108, 20];

@@ -180,7 +180,7 @@ impl Dialog {
                 [255, 255, 255, 255],
                 [13, 1, 250, 43],
             ))
-            .file(&theme.path("winxp/start-flag.svg"), [269, 5, 38, 38]);
+            .file(&theme.path("winxp/start-mark.svg"), [269, 5, 38, 38]);
         let size = self.size.map(f64::from);
         let mut commands = vec![
             Command::Create {

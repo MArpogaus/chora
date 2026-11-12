@@ -366,6 +366,33 @@ pub struct Chat {
     pub slot: Option<String>,
     /// The colour of the glow around a glass chat.
     pub glow: Option<[u8; 3]>,
+    /// What the Stop button does while no prompt runs.
+    pub idle_stop: IdleStop,
+    /// The form of the balloon: the plain one, or XP's.
+    pub form: ChatForm,
+}
+
+/// The form of the parts of a balloon chat.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChatForm {
+    /// Boxes in the colours of the look.
+    #[default]
+    Plain,
+    /// A close box, push buttons, a white field with a Send button, a
+    /// header of two lines and the question in a group box.
+    Xp,
+}
+
+/// What the Stop button of the chat does while no prompt runs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IdleStop {
+    /// The button is not there.
+    #[default]
+    Hide,
+    /// The button stays in its place, grey, and takes no press.
+    Grey,
 }
 
 impl Default for Chat {
@@ -383,6 +410,8 @@ impl Default for Chat {
             margin: 0,
             slot: None,
             glow: None,
+            idle_stop: IdleStop::Hide,
+            form: ChatForm::Plain,
         }
     }
 }

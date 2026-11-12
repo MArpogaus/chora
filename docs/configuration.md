@@ -1606,6 +1606,10 @@ connects with the client name `xp`.
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```
 
+When `launcher` is `fuzzel`, `chora-xp` starts it with `theme/fuzzel.ini` of the
+flavor: Tahoma, the colors of XP, opaque, the prompt "Open:". A launcher with its
+own `--config` keeps it.
+
 The session "chora (Windows XP)" on the login screen starts it with the XP
 cursors, which the package installs to `/usr/share/icons/ModernXP`.
 `theme/README.md` lists the source and the license of every file of the
@@ -1623,8 +1627,6 @@ uses them instead of the free files of the theme:
   of newer Windows.
 - `wallpapers/WindowsXP/*.jpg`: Bliss (`bliss.jpg`) is the wallpaper
   instead of Bløff, and Control Panel > Desktop lists all of them.
-- `winxp-kde/start_flag.png`: XP's flag on the start button, at its own
-  size of 20 pixels.
 - `sounds/WindowsXP/stereo/`: XP's sounds. `login.wav` plays when
   `chora-xp` starts, `logout.wav` on Log Off, `shutdown.wav` on Turn Off
   and nothing for a notification. The first of `pw-play`, `paplay`
@@ -1649,8 +1651,12 @@ reads the insets of a slice in pixels of the file. The pictures:
 - a taskbar at the bottom of the work area of each output, with the start
   button, one button per window of the current desktop, four desktop
   buttons and a clock;
-- the start menu with the user name, programs, places, the Control Panel,
-  Log Off and Turn Off Computer, and All Programs with the applications of
+- the start menu with the full name of the account (the login name when
+  the comment of the account is empty), two pinned rows, Terminal with
+  "Type commands" and Chat with a helper with "Ask the helper in your
+  words", then the `programs` without subtitles, places, the Control Panel,
+  Help and Support, Run, Log Off and Turn Off Computer, and All Programs
+  with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
 - the icons of the desktop, between the wallpaper and the windows;
@@ -1730,7 +1736,8 @@ its scale, its shown windows move back into its work area. A window that
 does not fit shrinks to it. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
-the pointer rests on them for 350 ms, or on a click. A click on a program
+the pointer rests on them for 400 ms, on the label of a row as well as
+on its arrow, or on a click. A click on a program
 starts it and closes the menu; a click outside closes the menu. The open
 menu takes the keyboard. Up and Down move in a column or a cascade. Left
 and Right go between the columns and into and out of the cascades.
@@ -1865,12 +1872,14 @@ keyboard does not work it (D45):
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
-  clock, the speaker shows the volume of the default sound output:
-  `40%`, `Muted`, `Sound unavailable` or `Change failed`, in the
-  language of the session, and it
-  grows to fit the words. `wpctl` runs on a thread of its own, at most 2
-  seconds a call, after each change and every 5 seconds; a click on the
-  speaker mutes or unmutes. Group
+  clock, the speaker is an icon of 16 pixels, with a red no-sign when the
+  sound is muted or unavailable. Its width never changes; the tooltip
+  that shows after half a second says `Volume 40%`, `Muted`, `Sound
+  unavailable` or `Change failed`, in the language of the session. The
+  desktop buttons 1 to 4 are 24 by 24 pixels with the tooltip `Desktop 2
+  of 4`, and the clock has the date. `wpctl` runs on a thread of its own,
+  at most 2 seconds a call, after each change and every 5 seconds; a click
+  on the speaker mutes or unmutes. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
@@ -1999,7 +2008,11 @@ of another client changes nothing.
 | Ctrl+Escape | open or close the start menu |
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
 | Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
-| Super+e | start the terminal |
+| Super, pressed and let go alone | open or close the start menu. A key or a button of the plugin pressed with it, such as Super+d, cancels it; a chord that no client grabs, such as Super+t, is not seen and still opens the menu on its release |
+| Super+d | show the desktop: puts the windows of the desktop away; pressed again, brings the same windows back |
+| Super+Space | open the launcher, the command of `launcher`, which is the Run box of the start menu |
+| Super+e | open the home folder in the file manager; when `file_manager` is not installed, a balloon says so and names the setting. It no longer starts the terminal |
+| F1, Super+F1 | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. Escape closes the window. A key without Ctrl, Alt or Super needs `choractl grant xp input.grab-any`; without the grant, Super+F1 works (the construct's F1 is the same) |
 | Super+a | open the chat (`chora-chat`), as on tiling |
 | XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
@@ -2048,10 +2061,10 @@ that the file leaves out takes its default:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `terminal` | `foot` | the terminal of Super+e and of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
+| `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
 | `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `programs` | none | the programs at the top left of the start menu below Terminal, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
+| `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
 | `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |

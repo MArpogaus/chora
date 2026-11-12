@@ -152,7 +152,7 @@ wait_for pixel_is 60 795 "$green"
 grim "$out/desktop.png"
 
 step "2b. the work area of the core ends above the taskbar, for the other clients"
-area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 30' >/dev/null; }
+area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 36' >/dev/null; }
 wait_for area_above_bar
 
 step "3. two foot windows get title bars"
@@ -197,6 +197,17 @@ bent() {
 }
 flat() { query "id:xp-win-$1" | jq -e '.[0].mesh == null' >/dev/null; }
 
+step "3b. the caption buttons are 24 by 24 with 2 pixels between and 4 from the frame edge"
+button_rect() { query "id:xp-$1-${ids[1]}" | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
+read -r cx cy cw ch < <(button_rect close | jq -r 'join(" ")')
+read -r mx _ mw _ < <(button_rect max | jq -r 'join(" ")')
+read -r nx _ nw _ < <(button_rect min | jq -r 'join(" ")')
+test "$cw $ch $mw $nw" = "24 24 24 24" || fail "button sizes: $cw $ch $mw $nw"
+test $((mx + mw + 2)) = "$cx" && test $((nx + nw + 2)) = "$mx" || fail "button gaps: $nx $mx $cx"
+read -r fx fy <<<"$(frame "${ids[1]}")"
+test $((fx + $(frame_width "${ids[1]}") - 4)) = $((cx + cw)) || fail "the close button is not 4 pixels from the edge"
+test $((cy - fy)) = 3 || fail "the buttons are not 3 pixels below the frame top"
+
 step "4. the close button and the start button light up under the pointer"
 image_of() { query "id:$1" | jq -r '.[0].image'; }
 lit() { test "$(image_of "$1")" != "$2"; }
@@ -204,7 +215,7 @@ read -r x y <<<"$(frame "${ids[1]}")"
 w=$(frame_width "${ids[1]}")
 close=$(image_of "xp-close-${ids[1]}")
 start=$(image_of xp-start-winit)
-timeout 20 "$bin/chora-probe" point $((x + w - 17)) $((y + 16)) 1500 >>"$out/probe.log" 2>&1 &
+timeout 20 "$bin/chora-probe" point $((x + w - 16)) $((y + 15)) 1500 >>"$out/probe.log" 2>&1 &
 job=$!
 wait_for lit "xp-close-${ids[1]}" "$close"
 grim "$out/hover.png"
@@ -239,10 +250,7 @@ grim "$out/dragged.png"
 
 step "6. the minimize button hides the window, its task button shows it"
 click() { timeout 20 "$bin/chora-probe" drag "$1" "$2" "$1" "$2" >>"$out/probe.log" 2>&1; }
-# Clicks button N of the title bar of a frame at X Y with the width W:
-# 0 close, 1 maximize, 2 minimize. The 22 pixel buttons sit 6 pixels from
-# the right edge, 2 pixels apart, 5 pixels from the top.
-title_button() { click $(($2 + $4 - 17 - 24 * $1)) $(($3 + 16)) || fail "the click failed"; }
+title_button() { click $(($2 + $4 - 16 - 26 * $1)) $(($3 + 15)) || fail "the click failed"; }
 visible() { test "$(query "id:xp-win-$top" | jq '.[0].visible')" = "$1"; }
 title_button 2 "$x" "$y" "$w" &
 job=$!
@@ -255,7 +263,7 @@ wait "$job" || fail "the click failed"
 wait_for visible false
 wait_for flat "$top"
 # The task buttons follow the start button, 163 pixels apart.
-click $((106 + 163 + 80)) 785 &
+click $((126 + 184 + 90)) 785 &
 job=$!
 wait_for bent "$top" 50
 sleep 0.7
@@ -276,6 +284,18 @@ grim "$out/menu.png"
 click 50 785 || fail "the click failed"
 wait_for menu_visible false
 
+step "7b. resting on the label of Control Panel for 400 ms opens its cascade"
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+read -r cx cy cw ch < <(query kind:image | jq -r '[.[] | select(.meta.text == "Control Panel" and (.id | startswith("xp-item-")))] | .[0].rects | to_entries[0].value | map(floor) | join(" ")')
+timeout 20 "$bin/chora-probe" point $((cx + 60)) $((cy + ch / 2)) 2500 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for has_node id:xp-menu-cascade-0
+grim "$out/cascade.png"
+wait "$job" || fail "the pointer failed: $out/probe.log"
+click 50 785 || fail "the click failed"
+wait_for menu_visible false
+
 step "8. the Terminal entry of the start menu starts a terminal"
 count_is() { test "$(query "kind:surface owner:xp" | jq length)" = "$1"; }
 click 50 785 || fail "the click failed"
@@ -292,8 +312,7 @@ read -r x y <<<"$(frame "$top")"
 w=$(frame_width "$top")
 title_button 1 "$x" "$y" "$w"
 size_is() { test "$(query "id:$top" | jq -c '.[0].surface.size')" = "$1"; }
-# 800 pixels less the taskbar and the title bar, both 30 pixels high.
-wait_for size_is "[1280,740]"
+wait_for size_is "[1280,734]"
 test "$(frame "$top")" = "0 0" || fail "maximized at $(frame "$top")"
 grim "$out/maximized.png"
 
@@ -345,6 +364,21 @@ wait "$job" || fail "the click failed"
 wait_for desk_visible 0 true
 wait_for has_node_count 0 id:xp-face-1
 
+step "11b. a tooltip names the desktop button that the pointer rests on, and goes with it"
+read -r px py <<<"$(pager_at 3)"
+timeout 20 "$bin/chora-probe" point "$px" "$py" 3000 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for has_node id:xp-tooltip
+grim "$out/tooltip.png"
+tip_above() {
+    query id:xp-tooltip | jq -e --argjson y "$py" \
+        '.[0].rects | to_entries[0].value | (.[1] + .[3]) <= $y' >/dev/null
+}
+wait_for tip_above
+wait "$job" || fail "the pointer failed: $out/probe.log"
+timeout 20 "$bin/chora-probe" point 640 300 600 >>"$out/probe.log" 2>&1 || fail "the pointer failed"
+wait_for has_node_count 0 id:xp-tooltip
+
 step "12. Ctrl+Alt+Right turns the cube, and Ctrl+Alt+Left turns it back"
 # A virtual keyboard of the host with its keymap: left Ctrl 29, left Alt
 # 56, Right 106, Left 105.
@@ -355,6 +389,30 @@ wait_for has_node_count 0 id:xp-face-0
 desk_visible 0 false || fail "the first desktop still shows"
 keys 29+56+105 || fail "the keys failed: $out/probe.log"
 wait_for desk_visible 0 true
+wait_for has_node_count 0 id:xp-face-1
+
+step "12b. Super+F1 opens Help and Support with a task button, and Escape closes both"
+keys 125+59 || fail "the keys failed: $out/probe.log"
+wait_for has_node id:xp-dlg-help
+wait_for has_node id:xp-task-helppanel-winit
+grim "$out/help.png"
+keys 1 || fail "the keys failed: $out/probe.log"
+wait_for has_node_count 0 id:xp-dlg-help
+wait_for has_node_count 0 id:xp-task-helppanel-winit
+
+step "12c. Super alone opens and closes the start menu; Super+d shows the desktop and brings it back"
+keys 125 || fail "the keys failed: $out/probe.log"
+wait_for menu_visible true
+keys 125 || fail "the keys failed: $out/probe.log"
+wait_for menu_visible false
+windows_shown() { test "$(query meta:xp=window | jq '[.[] | select(.visible)] | length')" = "$1"; }
+before=$(query meta:xp=window | jq '[.[] | select(.visible)] | length')
+test "$before" -ge 1 || fail "no window shows before Super+d"
+keys 125+32 || fail "the keys failed: $out/probe.log"
+wait_for windows_shown 0
+menu_visible false || fail "Super+d opened the start menu"
+keys 125+32 || fail "the keys failed: $out/probe.log"
+wait_for windows_shown "$before"
 
 step "13. My Documents of the start menu starts the file manager"
 # Only its window is checked here. tests/gate-0.8-xp-token.sh checks the
@@ -433,11 +491,37 @@ wait_for has_node_count 0 id:notify-card
 
 step "16. the paperclip shows the state and the sentence of the voice agent"
 mkfifo "$out/voice.in"
-python3 -I "$(dirname "$0")/fake-voice.py" "$out/claims" <"$out/voice.in" >"$out/voice.log" 2>&1 &
+cat >"$out/entries.json" <<'JSON'
+[
+ {"seq": 1, "role": "user", "text": "Please write notes.txt"},
+ {"seq": 2, "role": "agent", "text": "I will write the file now."}
+]
+JSON
+FAKE_VOICE_ENTRIES="$out/entries.json" python3 -I "$(dirname "$0")/fake-voice.py" "$out/claims" <"$out/voice.in" >"$out/voice.log" 2>&1 &
 pids+=($!)
 exec 5>"$out/voice.in"
 echo 'voice.state {"state": "listening"}' >&5
 wait_for has_node id:hud-figure
+node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
+node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
+has_node id:xp-helper-winit || fail "the tray has no helper"
+test "$(node_size xp-helper-winit)" = "[36,36]" || fail "the helper is not 36 by 36"
+tray_before=$(node_size xp-tray-winit)
+echo 'voice.state {"state": "listening", "muted": {"mic": true}}' >&5
+sleep 1
+test "$(node_size xp-tray-winit)" = "$tray_before" || fail "a muted microphone changed the width of the tray"
+echo 'voice.state {"state": "listening", "muted": {"mic": false}}' >&5
+figure_rect() { query id:hud-figure | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
+bin_rect() {
+    query kind:image | jq -c '[.[] | select(.id | startswith("xp-icon-"))]
+        | sort_by(.id[8:] | tonumber) | last | .rects | to_entries[0].value | map(floor)'
+}
+read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
+near() { test $(($1 - $2)) -le 3 && test $(($2 - $1)) -le 3; }
+near $((fx + fw)) 1272 || fail "the paperclip is not 8 pixels from the right edge: $fx $fw"
+test $((fy + fh)) = 756 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
+read -r bx _ bw _ < <(bin_rect | jq -r 'join(" ")')
+near $((bx + bw / 2)) $((fx + fw / 2)) || fail "the bin and the paperclip do not share a centre line: $bx $bw $fx $fw"
 echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
 speech_visible() { test "$(query id:hud-line | jq '.[0].visible')" = true; }
 wait_for speech_visible
@@ -446,6 +530,29 @@ grim "$out/paperclip.png"
 query '*' >"$out/audit-nodes.json"
 AUDIT_KINDS=image python3 -I "$(dirname "$0")/hud-audit.py" "$out/audit-outputs.json" \
     "$out/audit-nodes.json" xp assistant notify >"$out/audit.log" || fail "layout audit: $(cat "$out/audit.log")"
+
+step "16b. the chat has XP's form: a close box, Stop and Send, and a card with Yes and No of 80 by 28"
+echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 2}' >&5
+"$bin/choractl" call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
+wait_for has_node id:hud-chat-send
+has_node id:hud-chat-close || fail "no close box"
+has_node id:hud-chat-stop || fail "no Stop button"
+test "$(node_size hud-chat-send)" = "[64,28]" || fail "Send is not 64 by 28: $(node_size hud-chat-send)"
+test "$(node_size hud-chat-close)" = "[18,18]" || fail "the close box is not 18 by 18"
+chat_text() { query id:hud-chat | jq -r '.[0].meta.text // empty'; }
+chat_says() { chat_text | grep -qF "$1"; }
+wait_for chat_says "Atlas — Working"
+wait_for chat_says "Write file, step 2 of 2"
+echo 'voice.say {"text": "The notes are ready.", "duration_ms": 20000}' >&5
+wait_for chat_says "The notes are ready."
+echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
+wait_for has_node id:hud-card-yes
+test "$(node_size hud-card-yes)" = "[80,28]" || fail "Yes is not 80 by 28: $(node_size hud-card-yes)"
+test $(($(node_x hud-card-no) - $(node_x hud-card-yes))) = 88 || fail "Yes and No are not 8 pixels apart"
+grim "$out/chat-question.png"
+echo 'voice.confirm {"id": "51", "done": true}' >&5
+"$bin/choractl" call assistant chat.hide '{}' >/dev/null || fail "chat.hide failed"
+wait_for has_node_count 0 id:hud-chat
 
 step "17. a second chora-notify leaves the bus name to the first and ends cleanly"
 DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/notify" \

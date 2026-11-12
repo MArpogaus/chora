@@ -5,7 +5,7 @@
 //!
 //! The host writes one JSON object per line to stdin: `{"place": {...}}`,
 //! `{"question": true}`, `{"keys": {"yes", "no"}}`, `{"say_failed":
-//! "text"}`, `{"pick_first": "text"}`, `"clear"`, `"hide"` and `"quit"`. The field writes one per line to stdout:
+//! "text"}`, `{"pick_first": "text"}`, `"clear"`, `"send"`, `"hide"` and `"quit"`. The field writes one per line to stdout:
 //! `{"say": "text"}` and `{"event": "shown" | "keyboard" | "closed" |
 //! "height", "data": {...}}`, `height` with the height of the field in
 //! logical pixels when it changes. The end of stdin ends the field.
@@ -40,6 +40,8 @@ pub enum Msg {
     Clear,
     /// The text of a paste.
     Paste(String),
+    /// Send the draft, as Enter does: the Send button of the host.
+    Send,
     /// Take the surface away and keep the draft.
     Hide,
     /// End the program.
@@ -65,6 +67,7 @@ enum Line {
     SayFailed(String),
     PickFirst(String),
     Clear,
+    Send,
     Hide,
     Quit,
 }
@@ -102,6 +105,7 @@ fn parse(line: &str) -> Result<Msg, serde_json::Error> {
         Line::SayFailed(text) => Msg::SayFailed(text),
         Line::PickFirst(text) => Msg::PickFirst(text),
         Line::Clear => Msg::Clear,
+        Line::Send => Msg::Send,
         Line::Hide => Msg::Hide,
         Line::Quit => Msg::Quit,
     })
@@ -167,6 +171,7 @@ mod tests {
     #[test]
     fn clear_is_a_line_of_the_host() {
         assert!(matches!(parse(r#""clear""#), Ok(Msg::Clear)));
+        assert!(matches!(parse(r#""send""#), Ok(Msg::Send)));
     }
 
     #[test]

@@ -36,7 +36,7 @@ pub mod tests {
     pub fn theme(test: &str) -> (Theme, PathBuf) {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
         let cache = std::env::temp_dir().join(format!("chora-xp-{test}-{}", std::process::id()));
-        let theme = Theme::load(&dir, &cache, &ALL, FAMILY);
+        let theme = Theme::load(&dir, &cache, &ALL, FAMILY).map(Theme::large_chrome);
         (theme.expect("the theme loads"), cache)
     }
 

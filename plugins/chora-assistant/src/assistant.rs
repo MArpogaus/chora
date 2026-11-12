@@ -61,8 +61,9 @@ const BLINK: Duration = Duration::from_millis(140);
 const LINGER: Duration = Duration::from_secs(3);
 /// How long the island keeps a sentence after it ends.
 const ISLAND_LINGER: Duration = Duration::from_secs(2);
-/// How long the balloon takes to fade out, in milliseconds.
-const FADE: f64 = 600.0;
+/// How long the balloon takes to fade out, in milliseconds: a capture 200 ms
+/// after it went finds it gone, never half transparent.
+const FADE: f64 = 160.0;
 
 /// The widest line of a sentence without a box.
 const MAX_PLAIN: f64 = 420.0;
@@ -137,7 +138,7 @@ impl Pose {
             (Self::Listening, 0) => Some(([1.0, 1.0], [-2.0, 0.0], 250.0)),
             (Self::Asking, 0) => Some(([1.0, 1.0], [0.0, -2.0], 250.0)),
             (Self::Thinking, _) => Some(([1.0, 1.0], [if even { 2.0 } else { -2.0 }, 0.0], 700.0)),
-            (Self::Speaking, _) if even => Some(([0.98, 1.03], [0.0, -4.0], 180.0)),
+            (Self::Speaking, _) if even => Some(([1.0, 1.0], [0.0, -4.0], 180.0)),
             (Self::Speaking, _) => Some(([1.0, 1.0], [0.0, 0.0], 180.0)),
             _ => None,
         }
@@ -1037,14 +1038,12 @@ impl Assistant {
         let mut commands = Vec::new();
         if self.moves_at.is_some_and(|at| at <= now) {
             self.moves_at = self.pose.motion(self.step).map(|(scale, offset, ms)| {
-                commands.push(Command::Animate {
+                commands.push(Command::Update {
                     id: BODY.into(),
                     props: PropsUpdate {
                         transform: Some(body(self.values.figure.pivot(), scale, offset)),
                         ..PropsUpdate::default()
                     },
-                    duration: ms,
-                    easing: Easing::EaseInOut,
                 });
                 self.step += 1;
                 now + Duration::from_secs_f64(ms / 1000.0)
@@ -1204,6 +1203,42 @@ mod tests {
             .iter()
             .any(|c| matches!(c, Command::Update { props, .. } if props.opacity == Some(DIM)));
         assert!(dim, "{commands:?}");
+    }
+
+    #[test]
+    fn the_body_hops_in_whole_pixels_never_between_them() {
+        let (mut theme, values, _) = crate::tests::loaded("hop");
+        let now = Instant::now();
+        let mut a = assistant(&values, "idle", now);
+        a.pose = Pose::Speaking;
+        a.moves_at = Some(now);
+        let commands = a.step(&mut theme, now);
+        let eased = commands
+            .iter()
+            .any(|c| matches!(c, Command::Animate { id, .. } if id == BODY));
+        let jumped = commands
+            .iter()
+            .any(|c| matches!(c, Command::Update { id, props } if id == BODY && props.transform.is_some()));
+        assert!(!eased && jumped, "{commands:?}");
+    }
+
+    #[test]
+    fn the_balloon_fades_in_160_ms_so_that_it_never_rests_translucent() {
+        let (mut theme, values, _) = crate::tests::loaded("fade");
+        let now = Instant::now();
+        let mut a = assistant(&values, "idle", now);
+        a.fades_at = Some(now);
+        let commands = a.step(&mut theme, now);
+        let fade = commands.iter().find_map(|c| match c {
+            Command::Animate {
+                id,
+                props,
+                duration,
+                ..
+            } if id == SPEECH && props.opacity == Some(0.0) => Some(*duration),
+            _ => None,
+        });
+        assert!(fade.is_some_and(|ms| ms <= 160.0), "{commands:?}");
     }
 
     #[test]
@@ -1437,5 +1472,24 @@ mod tests {
         let (left, ..) = place((&style, true), [120, 40], [500, 300], area);
         assert_eq!(right[0], 500 + style.tail_inset - 120);
         assert_eq!(left[0], 500 - style.tail_inset);
+    }
+
+    #[test]
+    fn the_body_never_scales_so_its_picture_is_drawn_at_the_size_of_its_file() {
+        for pose in [
+            Pose::Idle,
+            Pose::Listening,
+            Pose::Asking,
+            Pose::Thinking,
+            Pose::Speaking,
+            Pose::Sleeping,
+        ] {
+            for step in 0..4 {
+                if let Some((scale, offset, _)) = pose.motion(step) {
+                    assert_eq!(scale, [1.0, 1.0], "{pose:?} step {step}");
+                    assert!(offset.iter().all(|o| o.fract() == 0.0), "{pose:?}");
+                }
+            }
+        }
     }
 }
