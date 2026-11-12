@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:12:30Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:13:11Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -68,6 +68,8 @@ screened-through: 2026-11-12T02:12:30Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
+- 11-12 02:13 UTC "Don't take my word for granted."
+  Reading: the user's suggestions are input, not orders to follow blindly; the PM weighs them against evidence and pushes back with reasons when they conflict (decisions stay verbatim; the PM's reading may disagree and says why).
 - 11-12 02:12 UTC "Reflect on that new setup, check if we need any other questions to ask. Did I miss anything? I'll take my round and deeply rethink and details that are helpful for you to get your work done."
   Reading: review the self-check questions and routines for gaps now; the user will add details later.
 - 11-12 02:09 UTC "Establish regular routines triggered by time or certain conditions. Also, use a time trigger to regularly reflect on your work and ask you several questions like, am I still on track? Do I need new data to have new decisions? Do I need to run a cleanup? Do I need to run tests? Am I still aligned? Am I using time and resources efficiently? Do I need another reflection round? Be self-critical and try to be the best project manager and learn from your own faults."

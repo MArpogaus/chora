@@ -13,7 +13,7 @@ Times are UTC.
 | Weekly report | Friday's last self-check | `reports/week-N.md` from the log files |
 | Reset resume | Sat 04:05 UTC (trig_01Cbw7Sgz7WRVpTnjsN1zdwq) | work the Queue of state.md |
 
-Self-check questions (be self-critical; a "yes" or a worry needs an action now; questions 9 to 13 added 2026-11-12 02:15 UTC after the PM's review of the setup):
+Self-check questions (be self-critical; a "yes" or a worry needs an action now; questions 9 to 14 added 2026-11-12 02:15 UTC after the PM's review of the setup):
 1. On track? Compare the Queue and the rc dates with what merged since the last check.
 2. Aligned? Read decisions-now.md: does each running lane serve a user decision or an rc criterion?
 3. New data needed before a decision? (a swarm, a capture, a measurement, a user reading)
@@ -26,7 +26,8 @@ Self-check questions (be self-critical; a "yes" or a worry needs an action now; 
 10. Risks: what could stop work in the next 12 h (limit stop, disk, a permission refusal, a stuck worker, a flaky gate), and is the fallback ready (resume task, Queue, small steps)?
 11. Waiting on me: is any lane, report, review verdict or user message unread or unanswered? Is any lane silent for more than 2 h?
 12. User value: if the user looked now, what would they try first, and is it in its best shape (status page pictures current, demo path working)?
-13. Rules: did a friction pattern repeat, is any rule unguarded or dead, did the rule count grow without one going out?
+13. Challenge: did I follow a user suggestion or an agent report without checking it against evidence? Where do I disagree, and did I say so?
+14. Rules: did a friction pattern repeat, is any rule unguarded or dead, did the rule count grow without one going out?
 
 ## Condition routines
 
