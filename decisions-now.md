@@ -4,9 +4,11 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:13:11Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:17:40Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
+- 11-12 02:17 UTC "Okay, good. We're at 90% now, when all the running tasks are finished and everything is merged and clean. Finish this week off with intensive UX/UI reviews and testing to collect as much data and find as much frictions, bugs, and inconsistencies that we can address next week. One thing I just noted on the piling screenshots, there seems to be still a floating chat button. Maybe this is still an old state, and have the UX/UI agents intensively visually validating our individual views and ensure that we are following consistent design languages and giving the best user experience."
+  Reading: finish running lanes and merge; then spend the rest of the week on intensive UX/UI reviews of every look and testing (data for next week, few fixes). Checked: the floating "Chat" tab is gone on 59df16e (swarm 5 shot t5-keys/003), but tiling now shows no visible chat entry at all (an RC requirement) and a "Every key" tooltip lingers: both go to the reviews.
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
   Reading: pacing guide, not a cap; "don't mindlessly burn tokens".
 - 11-10 16:20 "Respect 5h limit in your planning?" 16:46 "Why cap yo only two hevy workers? ... We have stable sub sessions now"
