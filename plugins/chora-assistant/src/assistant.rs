@@ -1038,14 +1038,12 @@ impl Assistant {
         let mut commands = Vec::new();
         if self.moves_at.is_some_and(|at| at <= now) {
             self.moves_at = self.pose.motion(self.step).map(|(scale, offset, ms)| {
-                commands.push(Command::Animate {
+                commands.push(Command::Update {
                     id: BODY.into(),
                     props: PropsUpdate {
                         transform: Some(body(self.values.figure.pivot(), scale, offset)),
                         ..PropsUpdate::default()
                     },
-                    duration: ms,
-                    easing: Easing::EaseInOut,
                 });
                 self.step += 1;
                 now + Duration::from_secs_f64(ms / 1000.0)
@@ -1205,6 +1203,23 @@ mod tests {
             .iter()
             .any(|c| matches!(c, Command::Update { props, .. } if props.opacity == Some(DIM)));
         assert!(dim, "{commands:?}");
+    }
+
+    #[test]
+    fn the_body_hops_in_whole_pixels_never_between_them() {
+        let (mut theme, values, _) = crate::tests::loaded("hop");
+        let now = Instant::now();
+        let mut a = assistant(&values, "idle", now);
+        a.pose = Pose::Speaking;
+        a.moves_at = Some(now);
+        let commands = a.step(&mut theme, now);
+        let eased = commands
+            .iter()
+            .any(|c| matches!(c, Command::Animate { id, .. } if id == BODY));
+        let jumped = commands
+            .iter()
+            .any(|c| matches!(c, Command::Update { id, props } if id == BODY && props.transform.is_some()));
+        assert!(!eased && jumped, "{commands:?}");
     }
 
     #[test]
