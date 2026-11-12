@@ -100,6 +100,25 @@ click_at "$x" "$y"
 until_ok '[ "$(current)" = terminal ]' 20 || fail "a click on a line of the overview does not show that scene: $(current)"
 ok "a mouse alone reaches All keys, the overview and the terminal scene"
 
+key Super+Home
+until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda before the morning scene"
+sleep 1
+key Super+Right
+until_ok '[ "$(current)" = morning ]' 20 || fail "Super+Right does not show the morning scene: $(current)"
+until_ok 'has_text "← 1  Agenda"' 20 || fail "the footer has no line to the previous page"
+sleep 1
+read -r x y <<<"$(center_of "← 1  Agenda")"
+click_at "$x" "$y"
+until_ok '[ "$(current)" = agenda ]' 20 || fail "a click on the previous page does not turn back: $(current)"
+sleep 1
+read -r x y <<<"$(hit_center chapter-head)"
+[ -n "$x" ] || fail "the head of the agenda takes no pointer"
+move_to "$x" "$y"
+until_ok '[ "$(bars)" = 1 ]' 8 || fail "no focus bar over the head of a page"
+click_at "$x" "$y"
+until_ok '[ "$(current)" = overview ]' 20 || fail "a click on the head does not show the overview: $(current)"
+ok "the footer turns back with the mouse and the head of a page opens the page list"
+
 small=$(ctl query "owner:mc kind:text" | jq -r '[.[] | select(.visible and (.rects | length) > 0 and .font_size < 14) | "\(.text):\(.font_size)"] | join(" ")')
 [ -z "$small" ] || fail "text under 14 px on the page: $small"
 ok "no text on the page is under 14 px"

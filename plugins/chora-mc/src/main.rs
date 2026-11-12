@@ -1919,6 +1919,15 @@ impl Mc {
                         props,
                     ));
                 }
+                if name != manage::OVERVIEW {
+                    let ink =
+                        (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
+                    commands.extend(region::hit_nodes(
+                        &chapter_id(name, "head"),
+                        &panels_id(name),
+                        ink,
+                    ));
+                }
             }
             Layout::None => {}
         }
@@ -2181,6 +2190,13 @@ impl Mc {
             commands.push(move_to(chapter_id(name, "bar"), bar[0], bar[1]));
             let x = bar[0] + bar[2] + space.round();
             commands.push(move_to(chapter_id(name, "title"), x, HEAD * geo.baseline));
+            if name != manage::OVERVIEW
+                && let Some([_, _, title_w, title_h]) = rect(&chapter_id(name, "title"))
+            {
+                let left = geo.text[0];
+                let box_ = [left, HEAD * geo.baseline, x + title_w - left, title_h];
+                commands.extend(region::hit_place(&chapter_id(name, "head"), box_, left));
+            }
         }
         for panel in &scene.panels {
             let id = panel_id(name, &panel.id);
@@ -3059,10 +3075,16 @@ mod tests {
         let (mut mc, model) = crate::testing::mc("head-hit", [1280, 800]);
         mc.show("agenda", false).unwrap();
         let hit = "mc-s-agenda-chapter-head-hit";
-        assert!(crate::testing::has(&model, hit), "the head takes the pointer");
+        assert!(
+            crate::testing::has(&model, hit),
+            "the head takes the pointer"
+        );
         assert!(mc.click_hit(hit));
         assert_eq!(mc.current.as_deref(), Some("overview"));
-        assert!(!crate::testing::has(&model, "mc-s-overview-chapter-head-hit"));
+        assert!(!crate::testing::has(
+            &model,
+            "mc-s-overview-chapter-head-hit"
+        ));
     }
 
     /// A page without data says what it is and why it is empty, in
