@@ -39,6 +39,6 @@ Saturday 11-14 from 04:05 UTC (Fable): first a big, very critical reflection on 
 
 ## Blocked
 
-- Needs you (licensing, rules.md 11): the xp legal line in design/product-briefs.md (replicate metrics, colour and behaviour; no Microsoft art, names, sounds or Windows Tahoma). Until you answer, workers follow that line.
+- Needs you: the name or URL of the XFCE total-conversion repository the xp asset import copies from (user 11-12 04:25 UTC; no script found in chora).
 
 - Deleting 46 merged claude/* branches on origin: refused by the permission check; reports/stale-branches.md.

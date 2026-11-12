@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (split at the PM process heading; Design is last); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T04:20:23Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T04:25:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
@@ -91,6 +91,8 @@ screened-through: 2026-11-12T04:20:23Z (bump to the newest user message recorded
   Reading: focus on the main targets (polish of the four looks, RC requirements in design/product-briefs.md); quality over quantity; aim for perfection.
 
 ## Design
+- 11-12 04:25 UTC "So you may run until you run out of tokens, but don't waste them. Try to invest the remaining budget as good as possible to make the best out of the remaining week. Reset is on Saturday morning. Regarding the Microsoft-owned material, we had migration script to copy over files as an optional step for users from the XFCE total conversion repository, including the iConcept, XP sounds, and the background images. Everything else we are building shall focus on perfect behavior replication and a pixel-perfect experience when those assets are copied into place. Confirm"
+  Reading: run to the end of the budget, no waste. chora ships no Microsoft art; an optional user-run import copies icons, XP sounds and wallpapers from the XFCE total-conversion repo; xp is built to be pixel perfect once they are in place, and still whole with our own fallbacks without them. PM: no such script exists in the chora repo (grep 11-12 04:26 UTC); the source repo is unnamed; the import script is a week-2 lane.
 - 11-12 04:20 UTC "Xp goal is pixel perfect replication and ux similar yo original. Mc shall be a modern voice first computing experience where content shapes the view, following traditional typesetting rules. Sharpen plugin goals accordingly. Critically reflect on thus and any other instructions. Push back when out of budget miss leading and roast me in unclrities their shall be no gaps in our specifications."
   Reading: design/product-briefs.md xp and mc rewritten, with a "Spec gaps" list and PM defaults; the xp legal line goes to Needs you.
 - 11-12 04:16 UTC "Did you already have the visual reviews over the new versions of our reviews? I already realized there is a glitch or a error in the XP start menu on the user icon, and also the tray icons look a bit off. For MC, the vertical bar should have the heights of the text. These are the kind of visual defects we want to automatically capture. We are aiming for perfect aesthetics. Have that on your rule list and ensure that we are having visual reviews for every remake until it's polished to perfection."

@@ -33,11 +33,15 @@ worked around. Requirements marked **RC** block the release candidate.
   1024x768 and 1280x800, Normal font size. Metrics, colours, gradients,
   spacing, positions and behaviour match the reference to the pixel; the
   look document lists each reference value.
-- **Legal line (not negotiable, see Needs you):** replicate shape, metrics,
-  colour and behaviour; never ship Microsoft art or names: no flag logo,
-  Bliss, Clippit, Windows sounds, "Windows"/"XP" wording, or Tahoma from a
-  Windows copy. Our own icons drawn to XP's grid (16, 24, 32, 48 px), a
-  metric-compatible free font (Wine Tahoma) and our own wallpaper.
+- **Assets (user 11-12 04:25 UTC):** chora ships no Microsoft art or
+  names (no flag logo, Bliss, Clippit, Windows sounds, Tahoma from a
+  Windows copy). An optional, user-run import copies the icons, XP sounds
+  and wallpapers from the XFCE total-conversion repository into place;
+  with them in place xp is pixel perfect in look and sound. Without them
+  xp falls back to our own icons on XP's grid (16, 24, 32, 48 px), Wine
+  Tahoma and our own wallpaper, and stays complete. Every size, position
+  and behaviour is built for the imported assets; audit cells run both
+  ways.
 - **Target groups:** primary, people who know XP (Erika, 74; Murat, 52;
   mouse only). Secondary, nostalgic users who notice every wrong pixel.
 - **Accessibility:** XP's own way: Normal (96 DPI, 8 pt Tahoma = 11 px)
@@ -166,8 +170,9 @@ separate reviewer checks captures at 1x and 2x against the look document.
 1. xp "pixel perfect" vs the 14 px floor (D1) and the 74-year-old
    target: contradictory. Default: replica at 96 DPI, XP's "Large size"
    as the accessibility option (above).
-2. xp "replication" vs trademarks: a literal replica would ship Microsoft
-   art. Default: replicate metrics and behaviour only (legal line above);
+2. xp "replication" vs trademarks: settled by the user 11-12 04:25 UTC
+   (optional asset import, above). Gap: the import script is not in the
+   chora repo and the source repository is not named; week-2 lane;
    the line itself goes to Needs you (licensing, rules.md 11).
 3. xp reference: no reference captures exist in the repo and we may not
    ship them. Default: a measurement table (element, size, colour,
