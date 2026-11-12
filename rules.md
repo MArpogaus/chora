@@ -17,8 +17,11 @@ two guard scripts.
 3. **Times.** Every written time comes from `date -u` or the transcript and names
    its zone (UTC in the log files, Bangkok on the status page). Guard:
    check_log.py rejects a future time or one without a zone.
-4. **Resume.** The hourly watchdog and the reset task point only to the Queue of
-   `state.md`. Guard: lanes.py at each wake; the trigger prompts say so.
+4. **Routines.** The time and condition routines of `routines.md` run: the
+   hourly watchdog, the 3-hourly self-check with its questions, the daily
+   judge, the weekly report and the reset resume; scheduled prompts point only
+   to the Queue of `state.md` and to `routines.md`. Guard: lanes.py at each
+   wake; the self-check log shows a block every 3 h.
 5. **Never idle.** While the week has budget at least two lanes run, and the PM
    never ends a turn with a Queue item that needs no user. Guard: lanes.py idle
    check at each watchdog wake.

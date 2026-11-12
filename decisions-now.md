@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T01:46:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:10:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -68,6 +68,8 @@ screened-through: 2026-11-12T01:46:00Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
+- 11-12 02:09 UTC "Establish regular routines triggered by time or certain conditions. Also, use a time trigger to regularly reflect on your work and ask you several questions like, am I still on track? Do I need new data to have new decisions? Do I need to run a cleanup? Do I need to run tests? Am I still aligned? Am I using time and resources efficiently? Do I need another reflection round? Be self-critical and try to be the best project manager and learn from your own faults."
+  Reading: routines.md lists time and condition routines; a 3-hourly self-check trigger asks these questions and logs answers and actions.
 - 11-12 01:41 UTC "Updated cloud env. Quick test. Have a intensive refection loop and fix our latest problems and issues. The pm shall own the project remain always aware and use tokens and time efficently. Never loose context ore focus. Titen rules and overall strategy. I shalle note ever need to steers anymore"
   Reading: test the new cloud setup; run an intensive opus reflection; fix what it finds; tighten rules and strategy so the user never has to steer. 01:43 UTC "Loop the reflection sharpening until no new findings apear": repeat judge, answer, apply until a round finds nothing new.
 - 11-12 01:35 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"

@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 02:07 UTC)
+## Now (2026-11-12 02:10 UTC)
 
 budget: 87 % at 2026-11-12 01:26 UTC (user), estimate 88 to 90 %, stop about 08:00 to 09:00 UTC (rate 1.8 points per hour); reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -16,7 +16,7 @@ Lanes:
 - week-1 report: local sonnet agent, reports/week-1.md.
 - ready, not merged: claude/pkg (80f31a7, reviewed, python3 fix in) waits for train 3 with construct-v2.
 
-Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz hourly at :35; resume after reset trig_01Cbw7Sgz7WRVpTnjsN1zdwq (Sat 04:05 UTC); the old three-runs task trig_012VGJoVzsJ81hFa6AufBc9S disabled (replaced by the watchdog).
+Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz hourly at :35; self-check trig_01X5NqMSsvxMSpYFJxo5Wxsg every 3 h at :50 (routines.md); resume after reset trig_01Cbw7Sgz7WRVpTnjsN1zdwq (Sat 04:05 UTC); the old three-runs task trig_012VGJoVzsJ81hFa6AufBc9S disabled (replaced by the watchdog).
 
 ## Queue
 

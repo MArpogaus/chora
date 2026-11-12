@@ -277,3 +277,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-12 01:45 UTC (user): work autonomously, do not rely on the user; improve the estimate or respect its uncertainty; use the week's tokens fully without waste. Recalibration: 61.0 M units from 71 % (16:42) to 87 % (01:30) = 3.8 M units per point (was 2.8). Now about 88 % (87 + 5.1/3.8), range 87 to 90.
 - 11-12 01:53 UTC: cloud environment verified ready (question 7 closed); heavy lanes move to cloud workers again.
 - 2026-11-12 01:56 UTC: invented times in decisions-now.md corrected to transcript times (judge 11-12 point 6); from now every time comes from date -u or the transcript.
+- 2026-11-12 02:09 UTC (user): regular routines by time and condition; a time trigger for self-critical self-checks (verbatim in decisions-now.md). Built: routines.md, rules.md 4, self-check trigger trig_01X5NqMSsvxMSpYFJxo5Wxsg.
