@@ -1,7 +1,8 @@
 //! The start menu: XP's header with the user name, programs on the left,
 //! places on the right, and Log Off and Turn Off Computer in the footer.
 //! The geometry follows the measurements of the reference start menu
-//! (`XpTheme.qml`): 382 pixels wide, a 64 pixel header, a 40 pixel footer.
+//! (`XpTheme.qml`) at XP's Large Fonts size: 420 pixels wide, a 64 pixel
+//! header, a 44 pixel footer, rows of 36 and 48 pixels.
 
 use std::{
     path::{Path, PathBuf},
@@ -22,15 +23,15 @@ use crate::{
     theme::{Picture, Rect, Theme},
 };
 
-const WIDTH: i32 = 382;
+const WIDTH: i32 = 420;
 const HEADER: i32 = 64;
-const FOOTER: i32 = 40;
+const FOOTER: i32 = 44;
 /// The frame around the columns.
 const FRAME: i32 = 2;
-const LEFT: i32 = 189;
+const LEFT: i32 = 220;
 const PROGRAM_ROW: i32 = 36;
 const PINNED_ROW: i32 = 48;
-const PLACE_ROW: i32 = 30;
+const PLACE_ROW: i32 = 36;
 const SEPARATOR: i32 = 8;
 const ALL_PROGRAMS: i32 = 24;
 /// XP opens and closes cascades after the pointer rests this long: 400
@@ -142,8 +143,15 @@ pub struct Menu {
 impl Menu {
     /// Lays out the menu.
     pub fn new(config: &Config, apps: Vec<Node>, theme: &Theme, icons: &mut Icons) -> Self {
-        let mut entries = programs(config, icons);
         let places = places(config, icons);
+        let pool = fill_pool(config, &apps);
+        let right = right_height(&places);
+        let mut extra = 0;
+        let mut entries = programs(config, icons, &pool[..extra]);
+        while left_height(&entries) < right && extra < pool.len() {
+            extra += 1;
+            entries = programs(config, icons, &pool[..extra]);
+        }
         let body = body_height(&entries, &places);
         let height = HEADER + 1 + body + 1 + FOOTER;
         let top = HEADER + 1;
@@ -830,7 +838,7 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
 
 /// The programs of the left column, below each other: the terminal of
 /// the settings first.
-fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
+fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
     let top = HEADER + 1 + 5;
     let pinned = [
         (
@@ -841,7 +849,7 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         ),
         (
             "Chat with a helper",
-            "Ask the helper in your words",
+            "Ask in your words",
             control::CHAT.to_string(),
             icons
                 .first_sized(&["chora-chat", "user-available", "dialog-information"], 32)
@@ -873,7 +881,40 @@ fn programs(config: &Config, icons: &mut Icons) -> Vec<Entry> {
         cascade: false,
         rect: [FRAME + 2, recent + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
     }));
+    let first = i32::try_from(config.programs.len()).unwrap_or(0);
+    entries.extend(extra.iter().zip(first..).map(|(node, i)| Entry {
+        title: node.title.clone(),
+        subtitle: None,
+        icon: icons.program(&node.icon),
+        bold: false,
+        kind: Kind::Program,
+        action: Action::Run(match &node.kind {
+            apps::Kind::Run(command) => command.clone(),
+            _ => String::new(),
+        }),
+        cascade: false,
+        rect: [FRAME + 2, recent + i * PROGRAM_ROW, LEFT - 4, PROGRAM_ROW],
+    }));
     entries
+}
+
+/// The programs of the desktop files that fill the left column when the
+/// settings list too few for it to reach the height of the right one:
+/// the first programs of All Programs, none that the settings list.
+fn fill_pool<'a>(config: &Config, apps: &'a [Node]) -> Vec<&'a Node> {
+    fn flatten<'a>(nodes: &'a [Node], out: &mut Vec<&'a Node>) {
+        for node in nodes {
+            match &node.kind {
+                apps::Kind::Group(inner) => flatten(inner, out),
+                apps::Kind::Run(_) => out.push(node),
+                apps::Kind::Pick(..) => {}
+            }
+        }
+    }
+    let mut pool = Vec::new();
+    flatten(apps, &mut pool);
+    pool.retain(|n| !config.programs.iter().any(|p| p.title == n.title));
+    pool
 }
 
 /// The name that the header shows: the full name of the account, else its
@@ -977,24 +1018,31 @@ fn place_separators(places: &[Entry], top: i32) -> Vec<Rect> {
 
 /// The height of the columns: the higher of both.
 fn body_height(programs: &[Entry], places: &[Entry]) -> i32 {
-    let bottom = |entries: &[Entry]| {
-        entries
-            .iter()
-            .map(|e| e.rect[1] + e.rect[3])
-            .max()
-            .unwrap_or(0)
-            - HEADER
-            - 1
-    };
-    // The left column ends with a separator and All Programs.
-    let left = bottom(programs) + SEPARATOR + 2 + ALL_PROGRAMS + 6;
-    let right = bottom(places) + 6;
-    left.max(right)
+    left_height(programs).max(right_height(places))
+}
+
+fn bottom(entries: &[Entry]) -> i32 {
+    entries
+        .iter()
+        .map(|e| e.rect[1] + e.rect[3])
+        .max()
+        .unwrap_or(0)
+        - HEADER
+        - 1
+}
+
+/// The left column ends with a separator and All Programs.
+fn left_height(programs: &[Entry]) -> i32 {
+    bottom(programs) + SEPARATOR + 2 + ALL_PROGRAMS + 6
+}
+
+fn right_height(places: &[Entry]) -> i32 {
+    bottom(places) + 6
 }
 
 /// Log Off and Turn Off Computer at the right of the footer.
 fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
-    let y = height - FOOTER + 5;
+    let y = height - FOOTER + 7;
     let button = |title: &str, icon: &str, action, x, w| Entry {
         title: title.into(),
         subtitle: None,
@@ -1010,15 +1058,15 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
             "Log Off",
             "winxp/log-off.svg",
             Action::LogOff,
-            WIDTH - 5 - 140 - 8 - 80,
-            80,
+            WIDTH - 5 - 176 - 8 - 96,
+            96,
         ),
         button(
             "Turn Off Computer",
             "winxp/turn-off.svg",
             Action::TurnOff,
-            WIDTH - 5 - 140,
-            140,
+            WIDTH - 5 - 176,
+            176,
         ),
     ]
 }
@@ -1144,7 +1192,7 @@ mod tests {
     #[test]
     fn the_columns_have_the_height_of_xp() {
         let mut icons = Icons::new(crate::icons::THEMES);
-        let programs = programs(&config(), &mut icons);
+        let programs = programs(&config(), &mut icons, &[]);
         assert_eq!(programs[0].action, Action::Run("kitty".into()));
         let places = places(&config(), &mut icons);
         assert!(body_height(&programs, &places) < 330);
@@ -1173,7 +1221,7 @@ mod tests {
     fn the_pinned_rows_have_plain_subtitles_and_the_recent_rows_none() {
         let mut icons = Icons::new(crate::icons::THEMES);
         let config = with_programs(3);
-        let programs = programs(&config, &mut icons);
+        let programs = programs(&config, &mut icons, &[]);
         assert_eq!(programs[0].title, "Terminal");
         assert_eq!(programs[1].title, "Chat with a helper");
         assert_eq!(programs[1].action, Action::Run("chora-chat".into()));
@@ -1202,7 +1250,7 @@ mod tests {
     fn the_menu_has_no_filler_when_the_left_column_is_the_taller() {
         let mut icons = Icons::new(crate::icons::THEMES);
         let config = with_programs(4);
-        let programs = programs(&config, &mut icons);
+        let programs = programs(&config, &mut icons, &[]);
         let places = places(&config, &mut icons);
         let top = HEADER + 1;
         let body = body_height(&programs, &places);
@@ -1213,6 +1261,52 @@ mod tests {
             .unwrap();
         let all = top + body - 6 - ALL_PROGRAMS;
         assert!(all - last <= SEPARATOR + 2 + 12, "{} px", all - last);
+    }
+
+    fn app(title: &str) -> Node {
+        Node {
+            title: title.into(),
+            icon: String::new(),
+            kind: apps::Kind::Run(format!("run-{title}")),
+        }
+    }
+
+    #[test]
+    fn few_programs_are_filled_from_the_desktop_files_so_the_left_column_has_no_gap() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-fill");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let apps: Vec<Node> = vec![
+            Node {
+                title: "Accessories".into(),
+                icon: String::new(),
+                kind: apps::Kind::Group((0..12).map(|i| app(&format!("App {i}"))).collect()),
+            },
+            app("Loose"),
+        ];
+        let menu = Menu::new(&config(), apps, &theme, &mut icons);
+        let programs: Vec<&Entry> = menu
+            .entries
+            .iter()
+            .filter(|e| e.kind == Kind::Program)
+            .collect();
+        assert!(programs.len() > 2, "{} rows", programs.len());
+        assert!(programs[2..].iter().all(|e| e.subtitle.is_none()));
+        let last = programs
+            .iter()
+            .map(|e| e.rect[1] + e.rect[3])
+            .max()
+            .unwrap();
+        let all = menu
+            .entries
+            .iter()
+            .find(|e| e.kind == Kind::AllPrograms)
+            .unwrap();
+        assert!(
+            all.rect[1] - last <= SEPARATOR + 2 + 12,
+            "{} px",
+            all.rect[1] - last
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]
@@ -1273,6 +1367,12 @@ mod tests {
         assert!(Menu::owns("xp-item-0") && Menu::owns("xp-menu-frame"));
     }
 
+    fn down_to_all_programs(menu: &mut Menu, theme: &mut Theme, icons: &mut Icons) {
+        while menu.entries[menu.hovered.unwrap()].kind != Kind::AllPrograms {
+            menu.key(theme, icons, "Down");
+        }
+    }
+
     #[test]
     fn the_keys_walk_the_columns_and_the_cascades() {
         let (mut theme, cache) = crate::dialog::tests::theme("startkeys");
@@ -1296,9 +1396,8 @@ mod tests {
             menu.entries[menu.hovered.unwrap()].title,
             "Chat with a helper"
         );
-        // Down again reaches All Programs; Right opens it on its group,
-        // and Right again opens the group on its program.
-        key(&mut menu, "Down");
+        down_to_all_programs(&mut menu, &mut theme, &mut icons);
+        let mut key = |menu: &mut Menu, k: &str| menu.key(&mut theme, &mut icons, k);
         key(&mut menu, "Right");
         key(&mut menu, "Right");
         assert_eq!(menu.cascades.len(), 2);

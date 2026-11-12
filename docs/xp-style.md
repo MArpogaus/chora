@@ -14,8 +14,9 @@ something off? If yes, it is a finding. The second rule is chora's own:
 
 ## Sizes: XP's Large Fonts
 
-1. **One reading size, 14 px, line 20 px.** All text of the chrome is
-   Tahoma: the copy of the theme, or XP's own when it is installed. Bold
+1. **One reading size, 14 px, line 20 px.** All text of the chrome (Start
+   menu rows, taskbar, tray, menus, dialogs, tooltips) is 14 px; the label
+   of the Start button is 21 px. It is all Tahoma: the copy of the theme, or XP's own when it is installed. Bold
    is for titles, names and the pinned rows only. The heading of a Help
    page is 18 px.
 2. **Grid unit 4 px, paddings 8 or 12.** Taskbar 36, task button 180 by 28
@@ -48,10 +49,13 @@ something off? If yes, it is a finding. The second rule is chora's own:
 
 6. **Two pinned rows, then recent programs.** The pinned rows are 48 px
    high with a bold name and a grey line of plain words: Terminal "Type
-   commands", Chat with a helper "Ask the helper in your words". The
+   commands", Chat with a helper "Ask in your words". The
    rows below a rule are 36 px high, in regular weight, with no subtitle:
    a raw command is never a subtitle. The right column has Help and
-   Support above Run. The height of the menu follows its rows; no filler.
+   Support above Run. The height of the menu follows its rows; when the
+   settings list too few programs for the left column to reach the right
+   one, the first programs of All Programs fill it, so that no white band
+   stands over All Programs. The menu is 420 px wide, the left column 220.
 7. **The header names the person**: the full name of the account, else
    its login name.
 
