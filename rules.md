@@ -25,12 +25,15 @@ two guard scripts.
 5. **Never idle.** While the week has budget at least two lanes run, and the PM
    never ends a turn with a Queue item that needs no user. Guard: lanes.py idle
    check at each watchdog wake.
-6. **Lanes.** At most four heavy lanes, one area per lane, cloud workers first
-   (the environment sets itself up). Builders are sonnet; opus for design
-   passes, UI reviews and security views; Fable for the items `decisions-now.md`
-   names after a reset. A builder does at most 3 build steps or one fix round,
-   then hands over in a note; fix rounds start fresh. Agents run gates in the
-   foreground. Guard: lanes.py (context over 250 k, opus or Fable builder).
+6. **Lanes and context.** At most four heavy lanes, one area per lane, cloud
+   workers first. Builders, fix rounds and reviews are sonnet, swarms and
+   triage haiku; opus only for a design pass the user asks for; Fable for the
+   items `decisions-now.md` names after a reset. Every agent and worker stays
+   under 250 k context: at most 3 build steps or one fix round, then a handover
+   note and a fresh agent. Workers message the PM only when done or blocked;
+   agents run gates in the foreground. The PM keeps its own context small (short
+   turns, one log commit per wake). Guard: lanes.py (context over 250 k, model
+   per lane, PM context).
 7. **Merge.** Only through `tests/merge-gate.sh`: lock, red first, pre-commit
    over the range, one full gate per train, at most three trains a day; lanes
    use `--worker`; a merged worktree and its target go in the same step.
@@ -45,9 +48,10 @@ two guard scripts.
    each picture names its build. Guard: check_log.py (merge without status/
    change); manual check of pictures.
 10. **Budget.** The meter is the user's latest reading; between readings the
-    estimate is reading plus `usage.py` units since, at 3.8 M units per point,
-    given as a range. No throttle below the week's end; the only cap is the 85 %
-    swarm limit. `state.md` Now carries `budget: <reading> at <time>, estimate
+    estimate is reading plus (local `usage.py` units plus cloud worker units)
+    since, at 5.4 M weighted units per point (token analysis of week 1), given as
+    a range. No throttle below the week's end; the only cap is the 85 % swarm
+    limit. `state.md` Now carries `budget: <reading> at <time>, estimate
     <range>, stop about <time>`. Guard: check_log.py.
 11. **Questions.** Only security policy, licensing and outward acts that the
     user has not authorized go to the user, batched under "Needs you"; taste and
