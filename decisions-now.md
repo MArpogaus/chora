@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Keep it under 9,000 characters (hook cap 10,000).
 Times Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T01:41:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:11:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -66,6 +66,8 @@ screened-through: 2026-11-12T01:41:00Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
+- 11-12 ~02:10 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"
+  Reading: wake every 30 min; use cloud workers again; keep visual polishing and run test swarms on the new looks.
 - 11-12 ~01:40 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
   Reading: archive finished worker sessions; a recurring wake-up keeps the PM working; start parallel lanes now.
 - 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
