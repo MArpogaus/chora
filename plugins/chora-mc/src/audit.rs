@@ -163,25 +163,11 @@ fn bar_findings(model: &Model) -> (usize, Vec<String>) {
     (checked, out)
 }
 
-fn inside_findings(model: &Model, column: [f64; 4], gutter: f64) -> Vec<String> {
-    let mut out = Vec::new();
-    for text in texts(model) {
-        if text.x < column[0] - TOLERANCE || text.x >= column[0] + column[2] {
-            continue;
-        }
-        let bottom = text.y + text.line;
-        if text.y < column[1] - TOLERANCE || bottom > column[1] + column[3] - gutter + TOLERANCE {
-            out.push(format!(
-                "{}: {:.1}..{:.1} leaves the column {:.1}..{:.1}",
-                text.id,
-                text.y,
-                bottom,
-                column[1],
-                column[1] + column[3] - gutter
-            ));
-        }
-    }
-    out
+fn above_keys(items: &[crate::region::Item]) -> Vec<String> {
+    let stays = |i: &&crate::region::Item| i.id.contains("-notify") || i.id.contains("-chat");
+    let over = items.iter().filter(stays);
+    over.map(|i| format!("{} stays above the list of all keys", i.id))
+        .collect()
 }
 
 fn rule_findings(model: &Model) -> Vec<String> {
@@ -241,13 +227,31 @@ mod tests {
     #[test]
     fn the_key_list_stays_inside_its_column() {
         for size in SIZES {
-            let (mut mc, model) = crate::testing::mc("audit-column", size);
+            let (mut mc, _model) = crate::testing::mc("audit-column", size);
             mc.show("agenda", false).unwrap();
             for list in [List::Six, List::All] {
                 mc.keys = list;
-                mc.render().unwrap();
                 let column = mc.boxes_of("agenda")[&Region::Right];
-                all(&inside_findings(&model, column, 0.0));
+                let plan = mc.items("agenda");
+                let (items, _) = &plan[&Region::Right];
+                let baseline = mc.settings.value.scale.baseline;
+                let heights: Vec<f64> = items
+                    .iter()
+                    .map(|i| {
+                        let size = i.props.font_size.unwrap_or(16.0);
+                        (size * i.props.line_height.unwrap_or(1.2)).max(baseline)
+                    })
+                    .collect();
+                let (_, flow) = crate::region::lines(items, &heights, false, baseline);
+                let (_, foot) = crate::region::lines(items, &heights, true, baseline);
+                if list == List::All {
+                    all(&above_keys(items));
+                }
+                assert!(
+                    flow + foot <= column[3],
+                    "{list:?} at {size:?}: the flow takes {flow}, the foot {foot} of {}",
+                    column[3]
+                );
             }
         }
     }
@@ -295,6 +299,25 @@ mod tests {
             let left = bar - (number + width - after * n.size);
             let right = (title + before * t.size) - (bar + 1.0);
             assert!((left - right).abs() <= 1.0, "gaps {left:.1} and {right:.1}");
+        }
+    }
+
+    #[test]
+    fn the_terminal_command_leaves_foot_without_a_config_error() {
+        let installed = std::process::Command::new("foot").arg("--version").output();
+        if installed.is_err() {
+            return;
+        }
+        let (mc, _) = crate::testing::mc("audit-foot", [1280, 800]);
+        let config = &mc.settings.value;
+        for colors in [&config.themes.light, &config.themes.dark] {
+            let command = crate::region::command(&config.contents["shell"].command, colors);
+            let run = std::process::Command::new("sh")
+                .args(["-c", &format!("{command} --check-config")])
+                .output()
+                .unwrap();
+            let log = String::from_utf8_lossy(&run.stderr);
+            assert!(!log.contains(" err:"), "{log}");
         }
     }
 }

@@ -655,7 +655,9 @@ mod tests {
         for colors in [&config.themes.light, &config.themes.dark] {
             let command = region::command(&config.contents["shell"].command, colors);
             assert!(!command.contains('{'), "{command}");
-            assert!(command.contains("colors-dark.regular5="), "{command}");
+            assert!(command.contains("colors.regular5="), "{command}");
+            assert!(!command.contains("colors-dark"), "{command}");
+            assert!(command.contains("pixelsize=14"), "{command}");
         }
     }
 

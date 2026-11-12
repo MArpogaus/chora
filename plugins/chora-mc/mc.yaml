@@ -235,24 +235,26 @@ contents:
   keys: {kind: keys}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
-  # foot in the colors of the theme, also in the terminal scene. The
-  # section colors-dark needs foot 1.26 or later.
+  # foot in the colors of the theme, also in the terminal scene, at 14
+  # pixels like the other text. The section is colors, which every foot
+  # reads: foot 1.26 and later take it as colors-dark, and before 1.26 a
+  # section colors-dark is an error that fills the terminal.
   shell:
     kind: app
     command: >-
-      foot -o pad=0x0
-      -o colors-dark.background={background} -o colors-dark.foreground={text}
-      -o 'colors-dark.cursor={background} {text}'
-      -o colors-dark.selection-background={faint}
-      -o colors-dark.selection-foreground={text}
-      -o colors-dark.regular0={faint} -o colors-dark.bright0={muted}
-      -o colors-dark.regular1={red} -o colors-dark.bright1={red}
-      -o colors-dark.regular2={green} -o colors-dark.bright2={green}
-      -o colors-dark.regular3={amber} -o colors-dark.bright3={amber}
-      -o colors-dark.regular4={blue} -o colors-dark.bright4={blue}
-      -o colors-dark.regular5={magenta} -o colors-dark.bright5={magenta}
-      -o colors-dark.regular6={cyan} -o colors-dark.bright6={cyan}
-      -o colors-dark.regular7={text} -o colors-dark.bright7={text}
+      foot -o pad=0x0 -o 'font=DejaVu Sans Mono:pixelsize=14'
+      -o colors.background={background} -o colors.foreground={text}
+      -o 'cursor.color={background} {text}'
+      -o colors.selection-background={faint}
+      -o colors.selection-foreground={text}
+      -o colors.regular0={faint} -o colors.bright0={muted}
+      -o colors.regular1={red} -o colors.bright1={red}
+      -o colors.regular2={green} -o colors.bright2={green}
+      -o colors.regular3={amber} -o colors.bright3={amber}
+      -o colors.regular4={blue} -o colors.bright4={blue}
+      -o colors.regular5={magenta} -o colors.bright5={magenta}
+      -o colors.regular6={cyan} -o colors.bright6={cyan}
+      -o colors.regular7={text} -o colors.bright7={text}
 # Which content goes where: the first rule that matches wins. A rule names
 # a content or a kind, optionally the scenes (names, @app or @page), a
 # region and a slot. In a line a slot below 0 goes left, 0 in the middle,

@@ -634,6 +634,10 @@ impl Mc {
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let side = !region.is_line();
+        let all_keys = side && self.keys == crate::keys::List::All;
+        if all_keys && (content.kind == Kind::Chat || content.folds) {
+            return Vec::new();
+        }
         match content.kind {
             Kind::Agents => self.agent_items(region, slot, name, content),
             Kind::Chat if side => self.chat_items(slot, name, content, region),
@@ -1797,7 +1801,12 @@ const MARK_GAP: f64 = 12.0;
 
 /// The vertical places of the items that sit in the foot, or of those
 /// that do not, from 0, and where they end.
-fn lines(items: &[Item], heights: &[f64], foot: bool, baseline: f64) -> (Vec<(usize, f64)>, f64) {
+pub fn lines(
+    items: &[Item],
+    heights: &[f64],
+    foot: bool,
+    baseline: f64,
+) -> (Vec<(usize, f64)>, f64) {
     let (mut y, mut line, mut out) = (0.0, 0.0, Vec::new());
     for (i, item) in items
         .iter()
