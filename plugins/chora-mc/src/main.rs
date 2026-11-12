@@ -13,6 +13,8 @@
 )]
 
 mod agent;
+#[cfg(test)]
+mod audit;
 mod config;
 mod fonts;
 mod keys;
@@ -44,6 +46,7 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config, Layout, Style, Type},
+    fonts::Ink,
     region::{FIT_MS, Kind, MAX_LINES, PARKED, REGIONS, Region, Rule},
     scene::{Panel, Scene},
 };
@@ -1817,15 +1820,26 @@ impl Mc {
     }
 
     /// The bar between the number and the title of a head at `x`: a
-    /// hairline from the baseline of the title up to its capitals.
-    // ponytail: tuned by eye for TeX Gyre Pagella, as `baseline_shift`;
-    // read the metrics of the font when another font is off.
+    /// hairline from the capitals of the title down to its baseline.
     fn bar(&self, x: f64) -> [f64; 4] {
         let title = self.ty("chapter", None);
-        let baseline = HEAD * self.settings.value.scale.baseline + title.line / 2.0;
-        let baseline = baseline + 0.21 * title.size;
-        let cap = 0.69 * title.size;
-        [x, (baseline - cap).round(), 1.0, cap.round()]
+        let ink = title.ink();
+        [
+            x,
+            HEAD * self.settings.value.scale.baseline + ink.top,
+            1.0,
+            ink.height,
+        ]
+    }
+
+    /// The ink of a head part: how far its first ink starts after its box
+    /// and its last ink ends before the end of it, in pixels.
+    fn bearings(&self, style: &str, text: &str) -> [f64; 2] {
+        let ty = self.ty(style, None);
+        let (family, weight) = (ty.family(), ty.weight());
+        let text = ty.props(text).text.unwrap_or_default();
+        let em = family.and_then(|f| fonts::bearings(f, weight, &text));
+        em.unwrap_or([0.0; 2]).map(|e| e * ty.size)
     }
 
     /// Where the parts of the page of a scene go on the output.
@@ -1937,33 +1951,62 @@ impl Mc {
     }
 
     /// Moves the bar and the title of the head after the number, which is
-    /// `width` wide, and sizes the hit of the head to the three.
+    /// `width` wide, and sizes the hit of the head to the three. The bar
+    /// stands in the middle between the ink of the number and that of
+    /// the title.
     fn align_head(
         &self,
         name: &str,
+        scene: &Scene,
         geo: &Geometry,
-        (width, title): (f64, Option<[f64; 4]>),
+        rect: &dyn Fn(&str) -> Option<[f64; 4]>,
     ) -> Vec<Command> {
+        let Some([_, _, width, _]) = rect(&chapter_id(name, "number")) else {
+            return Vec::new();
+        };
+        if !Self::has_chapter(scene) || self.layout(scene) != Layout::Number {
+            return Vec::new();
+        }
+        let title = rect(&chapter_id(name, "title"));
         let space = BAR_SPACE * self.ty("chapter", None).size;
-        let bar = self.bar((geo.text[0] + width + space).round());
-        let x = bar[0] + bar[2] + space.round();
+        let words = scene
+            .chapter
+            .title
+            .clone()
+            .unwrap_or_else(|| title_of(name));
+        let after = self.bearings("chapter_number", &self.number(name))[1];
+        let before = self.bearings("chapter", &words)[0];
+        let bar = self.bar((geo.text[0] + width - after + space).round());
+        let x = bar[0] + bar[2] + space.round() - before;
         let mut commands = vec![
             move_to(chapter_id(name, "bar"), bar[0], bar[1]),
             move_to(chapter_id(name, "title"), x, HEAD * geo.baseline),
         ];
-        commands.extend(Self::head_hit_place(name, geo, x, title));
+        commands.extend(self.head_hit_place(name, geo, x, title));
         commands
     }
 
     /// Sizes the hit of the head to the number, the bar and the title,
     /// whose title now stands at `x` and measures `title`.
-    fn head_hit_place(name: &str, geo: &Geometry, x: f64, title: Option<[f64; 4]>) -> Vec<Command> {
+    fn head_hit_place(
+        &self,
+        name: &str,
+        geo: &Geometry,
+        x: f64,
+        title: Option<[f64; 4]>,
+    ) -> Vec<Command> {
         let Some([_, _, width, height]) = title.filter(|_| name != manage::OVERVIEW) else {
             return Vec::new();
         };
         let left = geo.text[0];
         let at = [left, HEAD * geo.baseline, x + width - left, height];
-        region::hit_place(&chapter_id(name, "head"), at, left).to_vec()
+        region::hit_place(
+            &chapter_id(name, "head"),
+            at,
+            left,
+            self.ty("chapter", None).ink(),
+        )
+        .to_vec()
     }
 
     /// The box of a panel on the screen, without its margin.
@@ -2122,6 +2165,7 @@ impl Mc {
         }
         let top = self.lines_top(panel);
         let body = self.ty("body", panel.style.as_ref());
+        let caps = body.ink();
         if let Some(rows) = panel.columns() {
             // One node per row, so that a row wraps and its note stays on
             // its first line; `align` stacks the rows as the core lays
@@ -2132,7 +2176,8 @@ impl Mc {
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
                 #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
                 let y = top + i as f64 * body.line;
-                commands.extend(self.row_hit(name, &id, i, [indent, y, w, body.line]));
+                let at = ([indent, y, w, body.line], caps);
+                commands.extend(self.row_hit(name, &id, i, at));
                 commands.push(add(
                     &format!("line-{i}"),
                     text(&body, line, indent, y, true),
@@ -2163,10 +2208,11 @@ impl Mc {
         panel: &Panel,
         [x, top, w, line]: [f64; 4],
     ) -> Vec<Command> {
+        let ink = self.ty("body", panel.style.as_ref()).ink();
         let rows = (0..panel.lines.len()).map(|i| {
             #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
             let y = top + i as f64 * line;
-            self.row_hit(name, id, i, [x, y, w, line])
+            self.row_hit(name, id, i, ([x, y, w, line], ink))
         });
         rows.flatten().collect()
     }
@@ -2187,7 +2233,13 @@ impl Mc {
 
     /// The hit and the focus mark of row `i` of a panel, at a box of the
     /// panel group: the hit spans the margin and the text.
-    fn row_hit(&self, scene: &str, panel: &str, row: usize, at: [f64; 4]) -> Vec<Command> {
+    fn row_hit(
+        &self,
+        scene: &str,
+        panel: &str,
+        row: usize,
+        (at, caps): ([f64; 4], Ink),
+    ) -> Vec<Command> {
         if !self.has_hits(scene) {
             return Vec::new();
         }
@@ -2195,7 +2247,7 @@ impl Mc {
         let ink = (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
         let base = format!("{panel}-row-{row}");
         let mut commands = region::hit_nodes(&base, panel, ink).to_vec();
-        commands.extend(region::hit_place(&base, [0.0, y, x + w, h], x));
+        commands.extend(region::hit_place(&base, [0.0, y, x + w, h], x, caps));
         commands
     }
 
@@ -2213,12 +2265,7 @@ impl Mc {
         let rect = |id: &str| rects.get(id).copied();
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
-        if Self::has_chapter(&scene)
-            && self.layout(&scene) == Layout::Number
-            && let Some([_, _, width, _]) = rect(&chapter_id(name, "number"))
-        {
-            commands.extend(self.align_head(name, &geo, (width, rect(&chapter_id(name, "title")))));
-        }
+        commands.extend(self.align_head(name, &scene, &geo, &|id| rect(id)));
         for panel in &scene.panels {
             let id = panel_id(name, &panel.id);
             // A title that wraps pushes the lines down by its extra lines.
@@ -2247,6 +2294,7 @@ impl Mc {
                     &format!("{id}-row-{i}"),
                     [0.0, y, wide, height.max(body.line)],
                     indent,
+                    body.ink(),
                 );
                 commands.extend(hit);
                 let note_id = format!("{id}-note-{i}");

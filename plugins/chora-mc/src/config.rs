@@ -201,6 +201,22 @@ pub struct Type {
 }
 
 impl Type {
+    /// The family of this type, as written in the style.
+    pub fn family(&self) -> Option<&str> {
+        self.style.family.as_deref()
+    }
+
+    pub fn weight(&self) -> Option<u16> {
+        self.style.weight
+    }
+
+    /// The capitals of this type, from the top of its text box.
+    pub fn ink(&self) -> crate::fonts::Ink {
+        let style = &self.style;
+        let family = style.family.as_deref();
+        crate::fonts::ink(family, style.weight, self.size, self.line)
+    }
+
     /// The props of a text node with this type.
     pub fn props(&self, text: &str) -> PropsUpdate {
         let style = &self.style;

@@ -133,7 +133,7 @@ pub fn mc(dir: &str, size: [i32; 2]) -> (Mc, Model) {
         rt,
         settings,
         dir.join("scenes"),
-        [PathBuf::new(), PathBuf::new()],
+        [dir.join("write.frag"), dir.join("blur.frag")],
     );
     mc.output = Some(OutputInfo {
         name: "test".into(),

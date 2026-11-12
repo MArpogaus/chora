@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Mc,
     config::{Style, Type},
-    create, move_to,
+    create,
+    fonts::{self, Ink},
+    move_to,
     scene::{MAX_TEXT, Scene, check_name},
     title_of,
 };
@@ -1237,7 +1239,12 @@ impl Mc {
                     [0.0, width]
                 };
                 let at = if item.put == Put::End { x } else { item.x };
-                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at));
+                let ink = props_ink(&item.props);
+                let ink = Ink {
+                    top: ink.top + item.dy,
+                    ..ink
+                };
+                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at, ink));
             }
             if item.put == Put::FootRule {
                 let y = y - (baseline / 2.0).round();
@@ -1459,7 +1466,8 @@ impl Mc {
                 let y = ((height - h.max(baseline)) / 2.0).round();
                 commands.push(move_to(item.id.clone(), x, y));
                 if item.hit.is_some() {
-                    commands.extend(hit_place(&item.id, [x, y, w.min(left), h.max(baseline)], x));
+                    let at = [x, y, w.min(left), h.max(baseline)];
+                    commands.extend(hit_place(&item.id, at, x, props_ink(&item.props)));
                 }
                 x += w.min(left) + gap;
             }
@@ -1709,7 +1717,8 @@ pub fn mark_id(base: &str) -> String {
 
 /// The transparent rect that takes the pointer over something that a
 /// click acts on, and the focus mark that shows beside it under the
-/// pointer: a bar of 2 by 20 pixels in the color `ink`.
+/// pointer: a bar of 2 pixels in the color `ink`, as high as the capitals that it
+/// marks, which `hit_place` sets.
 pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
     let mark = PropsUpdate {
         input: Some(chora_scene::InputMode::Pass),
@@ -1728,7 +1737,7 @@ pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
             kind: NodeKind::Rect,
             parent: parent.into(),
             props: PropsUpdate {
-                size: Some([MARK[0], MARK[1]]),
+                size: Some([MARK_WIDTH, MARK_WIDTH]),
                 color: Some(ink),
                 ..mark
             },
@@ -1737,8 +1746,9 @@ pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
 }
 
 /// Sizes the hit of an item to its box, and puts its mark 12 pixels left
-/// of the item at `item_x`, in the middle of the height of the box.
-pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3] {
+/// of the item at `item_x`, as high as the capitals of its text, which
+/// start `top` pixels below the box.
+pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64, ink: Ink) -> [Command; 4] {
     [
         move_to(format!("{base}-hit"), x, y),
         Command::Update {
@@ -1748,11 +1758,14 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3
                 ..PropsUpdate::default()
             },
         },
-        move_to(
-            mark_id(base),
-            item_x - MARK_GAP - MARK[0],
-            y + ((h - MARK[1]) / 2.0).round(),
-        ),
+        move_to(mark_id(base), item_x - MARK_GAP, y + ink.top),
+        Command::Update {
+            id: mark_id(base),
+            props: PropsUpdate {
+                size: Some([MARK_WIDTH, ink.height.max(1.0)]),
+                ..PropsUpdate::default()
+            },
+        },
     ]
 }
 
@@ -1771,8 +1784,15 @@ fn split_time(line: &str) -> Option<(&str, &str)> {
     (digits(hour) && digits(minute)).then_some((time, words.trim_start()))
 }
 
+/// The capitals of the text that the props describe, from the top of its box.
+fn props_ink(props: &PropsUpdate) -> Ink {
+    let size = props.font_size.unwrap_or(16.0);
+    let line = size * props.line_height.unwrap_or(1.2);
+    fonts::ink(props.family.as_deref(), props.weight, size, line)
+}
+
 /// The size of the focus mark, and its distance from what it marks.
-const MARK: [f64; 2] = [2.0, 20.0];
+const MARK_WIDTH: f64 = 2.0;
 const MARK_GAP: f64 = 12.0;
 
 /// The vertical places of the items that sit in the foot, or of those
