@@ -20,13 +20,13 @@ use crate::{
 /// The width of the left, right and bottom borders.
 pub const BORDER: i32 = 4;
 /// The height of the title bar.
-pub const TITLE: i32 = 30;
+pub const TITLE: i32 = 25;
 /// The shadow around the frame in the frame elements.
 pub const SHADOW: i32 = 10;
 /// The size of a button.
-const BUTTON: i32 = 24;
+const BUTTON: i32 = 21;
 /// The space above the buttons.
-const BUTTON_TOP: i32 = 3;
+const BUTTON_TOP: i32 = 2;
 /// The space between the buttons and the right edge of the frame.
 const BUTTON_EDGE: i32 = 4;
 /// The space between two buttons.
@@ -35,7 +35,7 @@ const BUTTON_GAP: i32 = 2;
 const EDGE: i32 = 6;
 /// The icon of the application in the title bar, from the corner of the
 /// frame; a click on it opens the system menu.
-pub const ICON: Rect = [EDGE, 7, 16, 16];
+pub const ICON: Rect = [EDGE, 4, 16, 16];
 
 /// The shadow of the title text, one pixel to the bottom right.
 pub const TITLE_SHADOW: [u8; 4] = [10, 30, 80, 255];
@@ -430,7 +430,7 @@ pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     } else {
         [216, 228, 248, 255]
     };
-    let mut text = Text::new(title, Font::BodyBold, color, [EDGE + 2, 0, w, TITLE]);
+    let mut text = Text::new(title, Font::Title, color, [EDGE + 2, 0, w, TITLE]);
     if active {
         text = text.shadow(TITLE_SHADOW);
     }
@@ -491,16 +491,16 @@ mod tests {
 
     #[test]
     fn the_frame_wraps_the_client() {
-        assert_eq!(outer([640, 480], false), [648, 514]);
+        assert_eq!(outer([640, 480], false), [648, 509]);
         assert_eq!(inner(outer([640, 480], false), false), [640, 480]);
-        assert_eq!(outer([1280, 740], true), [1280, 770]);
+        assert_eq!(outer([1280, 740], true), [1280, 765]);
     }
 
     #[test]
-    fn the_caption_buttons_are_24_by_24_two_apart_and_4_from_the_edge() {
+    fn the_caption_buttons_are_21_by_21_two_apart_and_4_from_the_edge() {
         let rects = Button::ALL.map(|b| button_rect(200, b));
         for [_, _, w, h] in rects {
-            assert_eq!([w, h], [24, 24]);
+            assert_eq!([w, h], [21, 21]);
         }
         assert_eq!(rects[0][0] + rects[0][2], 200 - 4);
         assert_eq!(rects[1][0] + rects[1][2] + 2, rects[0][0]);
@@ -531,7 +531,7 @@ mod tests {
     }
 
     #[test]
-    fn every_caption_button_fills_its_24_pixels_active_or_not() {
+    fn every_caption_button_fills_its_21_pixels_active_or_not() {
         let (mut theme, cache) = crate::sheets::tests::theme("caption-fill");
         let sheets = [
             sheets::CLOSE,
@@ -541,7 +541,7 @@ mod tests {
         ];
         for step in [1_u32, 2] {
             theme.set_scale(f64::from(step));
-            let side = 24 * step - 1;
+            let side = 21 * step - 1;
             for (sheet, state) in sheets
                 .iter()
                 .flat_map(|s| ["active", "inactive", "hover", "pressed"].map(|t| (*s, t)))
@@ -563,7 +563,7 @@ mod tests {
         let (mut theme, cache) = crate::sheets::tests::theme("caption-red");
         let picture = button_picture(sheets::CLOSE, "inactive");
         let image = crate::sheets::tests::draw(&mut theme, &picture);
-        let [r, g, b] = crate::sheets::tests::rgb(&image, 12, 6);
+        let [r, g, b] = crate::sheets::tests::rgb(&image, 10, 5);
         assert!(
             i32::from(r) - i32::from(g.max(b)) >= 60,
             "the inactive close button is {r},{g},{b}"

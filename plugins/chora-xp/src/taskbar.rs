@@ -14,25 +14,25 @@ use crate::{
 };
 
 /// The height of the taskbar.
-pub const HEIGHT: i32 = 36;
-const START_WIDTH: i32 = 120;
+pub const HEIGHT: i32 = 30;
+const START_WIDTH: i32 = 99;
 /// The left edge of the first task button.
-const TASKS_LEFT: i32 = 126;
-const TASK_TOP: i32 = 4;
+const TASKS_LEFT: i32 = 105;
+const TASK_TOP: i32 = 3;
 /// The rows of XP's taskbar at its own height of 30 pixels, top first, as
 /// Luna draws it: a light edge, then the blue that the task buttons stand
-/// out from. A taskbar of 36 pixels repeats rows of the blue between the
-/// light edge and the dark one.
+/// out from. A taller taskbar repeats rows of the blue between the light
+/// edge and the dark one.
 const LUNA_ROWS: [&str; 30] = [
     "3168d5", "3888e9", "4993e6", "307be5", "286add", "245dd7", "2359d6", "2257d5", "2257d5",
     "2257d6", "2157d7", "2259d7", "225ad9", "235bd9", "235cdb", "245ddb", "245edc", "245ddb",
     "245edc", "255fdc", "2660dd", "2661dd", "2662df", "2662df", "2663e0", "2663e0", "2561de",
     "235bd9", "1e50c4", "1941a5",
 ];
-const TASK_HEIGHT: i32 = 28;
-const TASK_GAP: i32 = 4;
-const TASK_WIDTH: i32 = 180;
-const TRAY_WIDTH: i32 = 80;
+const TASK_HEIGHT: i32 = 24;
+const TASK_GAP: i32 = 2;
+const TASK_WIDTH: i32 = 160;
+const TRAY_WIDTH: i32 = 72;
 /// The notification area without the clock.
 const TRAY_EMPTY: i32 = 8;
 /// The helper of the notification area, at its left: 12 pixels of room
@@ -66,7 +66,7 @@ pub const HIDDEN_STRIP: i32 = 2;
 const SLIDE_TIME: f64 = 0.15;
 /// The buttons of the desktops, left of the tray, as in the virtual
 /// desktop manager of the power toys for XP.
-const PAGER_BUTTON: i32 = 24;
+const PAGER_BUTTON: i32 = 22;
 const PAGER_TOP: i32 = (HEIGHT - PAGER_BUTTON) / 2;
 const PAGER_GAP: i32 = 2;
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // four
@@ -686,8 +686,8 @@ fn task_picture(w: i32, task: &Task<'_>) -> Picture {
         Picture::new(w, TASK_HEIGHT).frame(sheets::TASKS, prefix, [0, 0, w, TASK_HEIGHT]);
     let mut left = 8;
     if let Some(icon) = &task.icon {
-        picture = picture.file(icon, [7 + shift, (TASK_HEIGHT - 16) / 2 + shift, 16, 16]);
-        left = 27;
+        picture = picture.file(icon, [5 + shift, (TASK_HEIGHT - 16) / 2 + shift, 16, 16]);
+        left = 25;
     }
     picture.text(Text::new(
         task.title,
@@ -706,10 +706,9 @@ fn start_button(theme: &Theme, look: &str) -> Picture {
             &format!("startbutton-{look}"),
             [0, 0, START_WIDTH, HEIGHT],
         )
-        .file(&start_mark(theme), [12, 7 + shift, 22, 22])
+        .file(&start_mark(theme), [9, 5 + shift, 20, 20])
         .text(
-            Text::new("start", Font::Start, WHITE, [40, 1 + shift, 78, HEIGHT])
-                .shadow([0, 20, 0, 180]),
+            Text::new("start", Font::Start, WHITE, [33, shift, 64, HEIGHT]).shadow([0, 20, 0, 180]),
         )
 }
 
@@ -981,20 +980,20 @@ mod tests {
 
     #[test]
     fn task_buttons_share_the_room() {
-        assert_eq!(bar(2).task_rect(1), [126 + 184, 4, 180, 28]);
+        assert_eq!(bar(2).task_rect(1), [105 + 162, 3, 160, 24]);
         let crowded = bar(40);
         let [x, _, w, _] = crowded.task_rect(39);
         assert!(
             x + w <= 1280 - TRAY_WIDTH - PAGER_WIDTH || w == 24,
             "{x} {w}"
         );
-        assert_eq!(bar(1).task_target("s0"), Some([126.0, 768.0, 180.0, 28.0]));
+        assert_eq!(bar(1).task_target("s0"), Some([105.0, 773.0, 160.0, 24.0]));
     }
 
     #[test]
     fn a_taskbar_that_hides_itself_leaves_the_work_area_to_the_windows() {
         let mut bar = bar(0);
-        assert_eq!(bar.usable(), [0, 0, 1280, 764]);
+        assert_eq!(bar.usable(), [0, 0, 1280, 770]);
         bar.configure(Settings {
             auto_hide: true,
             ..crate::config::defaults().taskbar
@@ -1006,7 +1005,7 @@ mod tests {
         assert!(bar.sliding());
         bar.slide(0.1);
         assert!(!bar.sliding());
-        assert!((bar.offset - 34.0).abs() < 1e-9);
+        assert!((bar.offset - 28.0).abs() < 1e-9);
         // The pointer at the bottom edge brings it back.
         bar.hide(false);
         bar.slide(0.2);
@@ -1197,17 +1196,17 @@ mod tests {
     }
 
     #[test]
-    fn the_desktop_buttons_are_24_by_24_two_apart() {
+    fn the_desktop_buttons_are_22_by_22_two_apart() {
         let bar = bar(0);
         let rects: Vec<Rect> = (0..DESKTOPS).map(|d| bar.pager_rect(d)).collect();
         for [_, y, w, h] in &rects {
-            assert_eq!([*w, *h], [24, 24]);
-            assert_eq!(*y, 800 - HEIGHT + 6);
+            assert_eq!([*w, *h], [22, 22]);
+            assert_eq!(*y, 800 - HEIGHT + 4);
         }
         for pair in rects.windows(2) {
-            assert_eq!(pair[0][0] + 24 + 2, pair[1][0]);
+            assert_eq!(pair[0][0] + 22 + 2, pair[1][0]);
         }
-        assert!(rects[DESKTOPS - 1][0] + 24 <= 1280 - bar.tray_width());
+        assert!(rects[DESKTOPS - 1][0] + 22 <= 1280 - bar.tray_width());
     }
 
     #[test]
@@ -1232,17 +1231,17 @@ mod tests {
     }
 
     #[test]
-    fn the_taskbar_is_36_high_with_28_high_task_buttons_180_wide_and_4_apart() {
-        assert_eq!(HEIGHT, 36);
+    fn the_taskbar_is_30_high_with_24_high_task_buttons_160_wide_and_2_apart() {
+        assert_eq!(HEIGHT, 30);
         let bar = bar(2);
         let [x0, y0, w0, h0] = bar.task_rect(0);
         let [x1, ..] = bar.task_rect(1);
-        assert_eq!([y0, w0, h0], [4, 180, 28]);
-        assert_eq!(x1, x0 + w0 + 4);
-        assert_eq!(luna_rows().len(), 36);
+        assert_eq!([y0, w0, h0], [3, 160, 24]);
+        assert_eq!(x1, x0 + w0 + 2);
+        assert_eq!(luna_rows().len(), 30);
         assert_eq!(luna_rows()[0], LUNA_ROWS[0]);
-        assert_eq!(luna_rows()[35], LUNA_ROWS[29]);
-        assert_eq!(luna_rows()[34], LUNA_ROWS[28]);
+        assert_eq!(luna_rows()[29], LUNA_ROWS[29]);
+        assert_eq!(luna_rows()[28], LUNA_ROWS[28]);
     }
 
     #[test]

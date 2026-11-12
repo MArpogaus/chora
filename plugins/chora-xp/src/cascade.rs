@@ -14,11 +14,11 @@ use crate::{
 };
 
 /// The height of a row.
-pub const ROW: i32 = 28;
+pub const ROW: i32 = 22;
 /// A cascade overlaps the menu it comes from.
 const OVERLAP: i32 = 2;
 /// The text starts 23 pixels into a row, after a 16 pixel icon.
-const TEXT_X: i32 = 30;
+const TEXT_X: i32 = 26;
 
 /// The distance of the rows from the outer edges of the frame, left, top,
 /// right and bottom: the `cascade-hint-*-margin` elements of the theme.
@@ -361,7 +361,7 @@ mod tests {
     fn all_programs_grows_up_from_its_button() {
         let button = [6, 674, 179, 24];
         let c = Cascade::new(0, &[60.0; 10], MARGINS, [button, AREA], None);
-        assert_eq!(c.rect, [185, 417, 141, 286]);
+        assert_eq!(c.rect, [185, 477, 141, 226]);
         // The last row ends level with the button.
         assert_eq!(c.row(9)[1] + ROW, 698);
         // No room on the right: it shifts left.
@@ -378,7 +378,7 @@ mod tests {
         // the row.
         assert_eq!(c.rect[..2], [185 + 141 - 4 - 2, 166]);
         assert_eq!(c.row(0)[..2], [c.rect[0] + 6, 167]);
-        assert_eq!(c.rect[2], 260 + 11);
+        assert_eq!(c.rect[2], 263);
     }
 
     #[test]
@@ -387,7 +387,7 @@ mod tests {
         let row = [806, 700, 130, 22];
         let c = Cascade::new(1, &[200.0; 3], MARGINS, [row, AREA], Some(parent));
         // Left of the parent, ending level with the row.
-        assert_eq!(c.rect[0], 800 + 2 - (271 - 4));
+        assert_eq!(c.rect[0], 800 + 2 - (263 - 4));
         assert_eq!(c.row(2)[1] + ROW, 722);
     }
 
@@ -395,8 +395,8 @@ mod tests {
     fn long_menus_wrap_into_columns() {
         let c = Cascade::new(0, &[10.0; 70], MARGINS, [[6, 674, 179, 24], AREA], None);
         assert_eq!(c.rect[2], 3 * 130 + 11);
-        assert_eq!(c.rect[3], 26 * ROW + 6);
-        assert_eq!(c.row(26)[..2], [c.rect[0] + 6 + 130, c.rect[1] + 1]);
+        assert_eq!(c.rect[3], 33 * ROW + 6);
+        assert_eq!(c.row(33)[..2], [c.rect[0] + 6 + 130, c.rect[1] + 1]);
         // At least five rows on a tiny screen.
         let c = Cascade::new(
             0,

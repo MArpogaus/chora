@@ -1,8 +1,8 @@
 //! The start menu: XP's header with the user name, programs on the left,
 //! places on the right, and Log Off and Turn Off Computer in the footer.
 //! The geometry follows the measurements of the reference start menu
-//! (`XpTheme.qml`) at XP's Large Fonts size: 420 pixels wide, a 64 pixel
-//! header, a 44 pixel footer, rows of 36 and 48 pixels.
+//! (`XpTheme.qml`) at XP Normal size: 380 pixels wide, a 54 pixel
+//! header, a 38 pixel footer, rows of 34 and 42 pixels.
 
 use std::{
     path::{Path, PathBuf},
@@ -23,20 +23,20 @@ use crate::{
     theme::{Picture, Rect, Theme},
 };
 
-const WIDTH: i32 = 420;
-const HEADER: i32 = 64;
-const FOOTER: i32 = 44;
+const WIDTH: i32 = 380;
+const HEADER: i32 = 54;
+const FOOTER: i32 = 38;
 /// The frame around the columns.
 const FRAME: i32 = 2;
-const LEFT: i32 = 220;
+const LEFT: i32 = 190;
 const TILE: i32 = 48;
-const TILE_X: i32 = 9;
-const TILE_Y: i32 = 9;
-const PROGRAM_ROW: i32 = 36;
-const PINNED_ROW: i32 = 48;
-const PLACE_ROW: i32 = 36;
-const SEPARATOR: i32 = 8;
-const ALL_PROGRAMS: i32 = 24;
+const TILE_X: i32 = 6;
+const TILE_Y: i32 = 3;
+const PROGRAM_ROW: i32 = 34;
+const PINNED_ROW: i32 = 42;
+const PLACE_ROW: i32 = 26;
+const SEPARATOR: i32 = 6;
+const ALL_PROGRAMS: i32 = 26;
 /// XP opens and closes cascades after the pointer rests this long: 400
 /// milliseconds, on the label of a row as well as on its arrow.
 const HOVER_DELAY: Duration = Duration::from_millis(400);
@@ -1240,10 +1240,10 @@ mod tests {
     #[test]
     fn the_user_tile_is_one_square_with_an_equal_ring_and_a_centred_figure() {
         let (mut theme, cache) = crate::sheets::tests::theme("tile");
-        let art = header_art(&theme, None, 67);
+        let art = header_art(&theme, None, 57);
         let image = crate::sheets::tests::draw(&mut theme, &art);
         let at = |x, y| crate::sheets::tests::rgb(&image, x, y);
-        for y in 4..62 {
+        for y in 4..50 {
             for x in TILE_X + TILE + 2..TILE_X + TILE + 14 {
                 assert!(
                     near(at(x, y), at(120, y)),
@@ -1268,8 +1268,8 @@ mod tests {
             .filter(|y| near(at(col, *y), WHITE))
             .count();
         assert_eq!([left, right, top, bottom], [2, 2, 2, 2]);
-        let ink: Vec<[i32; 2]> = (TILE_Y..TILE_Y + TILE)
-            .flat_map(|y| (TILE_X..TILE_X + TILE).map(move |x| [x, y]))
+        let ink: Vec<[i32; 2]> = (TILE_Y + 2..TILE_Y + TILE - 2)
+            .flat_map(|y| (TILE_X + 2..TILE_X + TILE - 2).map(move |x| [x, y]))
             .filter(|[x, y]| near(at(*x, *y), FIGURE))
             .collect();
         let min_x = ink.iter().map(|p| p[0]).min().expect("a figure");

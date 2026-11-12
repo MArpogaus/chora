@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn a_resize_keeps_the_opposite_edges_and_a_smallest_size() {
         let frame = [100, 100, 400, 300];
-        let min = [112, 35];
+        let min = [112, 30];
         let left_top = Edges {
             left: true,
             top: true,
@@ -505,7 +505,7 @@ mod tests {
         );
         assert_eq!(
             resized(frame, left_top, [1000, 1000], min),
-            [388, 365, 112, 35]
+            [388, 370, 112, 30]
         );
         let right = Edges {
             right: true,
@@ -524,7 +524,7 @@ mod tests {
         assert!(w.edges([12.0, 100.0]).is_some());
         w.maximize([0, 0, 1280, 770]);
         assert_eq!(w.edges([1.0, 100.0]), None);
-        assert_eq!(w.min_frame(), [112, 35]);
+        assert_eq!(w.min_frame(), [112, 30]);
     }
 
     #[test]
@@ -577,7 +577,7 @@ mod tests {
         w.size = Some([600, 400]);
         w.pos = [50, 60];
         w.maximize([0, 0, 1280, 770]);
-        assert_eq!((w.pos, w.size), ([0, 0], Some([1280, 740])));
+        assert_eq!((w.pos, w.size), ([0, 0], Some([1280, 745])));
         assert!(w.unmaximize(true).is_some());
         assert_eq!(
             (w.pos, w.size, w.title.as_str()),

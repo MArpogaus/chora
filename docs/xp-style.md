@@ -10,19 +10,22 @@ Clippit, no "Windows" name.
 
 One question decides taste: would a person who used XP for years notice
 something off? If yes, it is a finding. The second rule is chora's own:
-14 px text, 24 px targets and honest state words.
+honest state words.
 
-## Sizes: XP's Large Fonts
+## Sizes: XP Normal at 96 DPI
 
-1. **One reading size, 14 px, line 20 px.** All text of the chrome (Start
-   menu rows, taskbar, tray, menus, dialogs, tooltips) is 14 px; the label
-   of the Start button is 21 px. It is all Tahoma: the copy of the theme, or XP's own when it is installed. Bold
-   is for titles, names and the pinned rows only. The heading of a Help
-   page is 18 px.
-2. **Grid unit 4 px, paddings 8 or 12.** Taskbar 36, task button 180 by 28
-   with 4 between, title bar 30, frame 4, caption buttons 24 by 24 with 2
-   between, menu rows 36 (pinned 48), push buttons 80 by 28 with 8
-   between, desktop cells 80 by 88, balloon 340 wide with radius 8.
+1. **One reading size, 11 px (8 pt Tahoma).** All text of the chrome (Start
+   menu rows, taskbar, tray, menus, tooltips) is 11 px; titles are Trebuchet
+   Bold 13 px and the label of the Start button 17 px. It is all Tahoma: the
+   copy of the theme, or XP's own when it is installed. Bold is for titles,
+   names and the pinned rows only. Text that a person must read at length
+   (the helper's balloon, Help pages) stays at 14 px. XP's "Large size"
+   (120 DPI) is not the default: it is the scale 125 % of Display Properties.
+2. **Grid unit 2 px.** Taskbar 30, Start button 99 by 30, task button 160 by
+   24 with 2 between, title bar 25, frame 4, caption buttons 21 by 21 with 2
+   between, menu rows 22 (Start menu: pinned 42, programs 34, places 26),
+   push buttons 73 by 21, desktop-button pager 22 by 22, Start menu 380 wide
+   with a left column of 190, balloon 340 wide with radius 8.
 
 ## Colors
 
@@ -48,15 +51,15 @@ something off? If yes, it is a finding. The second rule is chora's own:
 
 ## The Start menu
 
-6. **Two pinned rows, then recent programs.** The pinned rows are 48 px
+6. **Two pinned rows, then recent programs.** The pinned rows are 42 px
    high with a bold name and a grey line of plain words: Terminal "Type
    commands", Chat with a helper "Ask in your words". The
-   rows below a rule are 36 px high, in regular weight, with no subtitle:
+   rows below a rule are 34 px high, in regular weight, with no subtitle:
    a raw command is never a subtitle. The right column has Help and
    Support above Run. The height of the menu follows its rows; when the
    settings list too few programs for the left column to reach the right
    one, the first programs of All Programs fill it, so that no white band
-   stands over All Programs. The menu is 420 px wide, the left column 220.
+   stands over All Programs. The menu is 380 px wide, the left column 190.
 7. **The header names the person**: the full name of the account, else
    its login name.
 
@@ -70,9 +73,9 @@ something off? If yes, it is a finding. The second rule is chora's own:
 
 ## Title bars
 
-9. **Caption buttons are 24 by 24 with 2 px between**, 4 px from the right
-   edge of the frame and 3 px below its top, so that a finger or a pointer
-   hits them (principle P7). The title is Tahoma Bold 14 px in white with a
+9. **Caption buttons are 21 by 21 with 2 px between**, 4 px from the right
+   edge of the frame and 2 px below its top, so that a finger or a pointer
+   hits them (principle P7). The title is Trebuchet Bold 13 px in white with a
    1 px shadow `#0A1E50` one pixel to the bottom right; an inactive window
    has the title `#D8E4F8`.
 
@@ -84,8 +87,8 @@ something off? If yes, it is a finding. The second rule is chora's own:
     a 16 px speaker icon, 8 px to the clock. Muted or no sound shows a red
     no-sign; the width does not change. The words and the level are in the
     tooltip, which has the pale yellow fill and a 1 px black border of every
-    balloon, 14 px text, and shows after 500 ms above the part under the
-    pointer. The desktop buttons are 24 by 24, 2 px apart, with the tooltip
+    balloon, 11 px text, and shows after 500 ms above the part under the
+    pointer. The desktop buttons are 22 by 22, 2 px apart, with the tooltip
     "Desktop N of 4".
 
 ## Desktop and helper

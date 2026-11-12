@@ -158,7 +158,7 @@ wait_for pixel_is 60 795 "$green"
 grim "$out/desktop.png"
 
 step "2b. the work area of the core ends above the taskbar, for the other clients"
-area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 36' >/dev/null; }
+area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 30' >/dev/null; }
 wait_for area_above_bar
 
 step "3. two foot windows get title bars"
@@ -203,16 +203,16 @@ bent() {
 }
 flat() { query "id:xp-win-$1" | jq -e '.[0].mesh == null' >/dev/null; }
 
-step "3b. the caption buttons are 24 by 24 with 2 pixels between and 4 from the frame edge"
+step "3b. the caption buttons are 21 by 21 with 2 pixels between and 4 from the frame edge"
 button_rect() { query "id:xp-$1-${ids[1]}" | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
 read -r cx cy cw ch < <(button_rect close | jq -r 'join(" ")')
 read -r mx _ mw _ < <(button_rect max | jq -r 'join(" ")')
 read -r nx _ nw _ < <(button_rect min | jq -r 'join(" ")')
-test "$cw $ch $mw $nw" = "24 24 24 24" || fail "button sizes: $cw $ch $mw $nw"
+test "$cw $ch $mw $nw" = "21 21 21 21" || fail "button sizes: $cw $ch $mw $nw"
 test $((mx + mw + 2)) = "$cx" && test $((nx + nw + 2)) = "$mx" || fail "button gaps: $nx $mx $cx"
 read -r fx fy <<<"$(frame "${ids[1]}")"
 test $((fx + $(frame_width "${ids[1]}") - 4)) = $((cx + cw)) || fail "the close button is not 4 pixels from the edge"
-test $((cy - fy)) = 3 || fail "the buttons are not 3 pixels below the frame top"
+test $((cy - fy)) = 2 || fail "the buttons are not 2 pixels below the frame top"
 
 step "4. the close button and the start button light up under the pointer"
 image_of() { query "id:$1" | jq -r '.[0].image'; }
@@ -268,8 +268,7 @@ query "id:xp-win-$top" >"$out/lamp.json"
 wait "$job" || fail "the click failed"
 wait_for visible false
 wait_for flat "$top"
-# The task buttons follow the start button, 163 pixels apart.
-click $((126 + 184 + 90)) 785 &
+click $((105 + 162 + 80)) 785 &
 job=$!
 wait_for bent "$top" 50
 sleep 0.7
@@ -306,8 +305,7 @@ step "8. the Terminal entry of the start menu starts a terminal"
 count_is() { test "$(query "kind:surface owner:xp" | jq length)" = "$1"; }
 click 50 785 || fail "the click failed"
 wait_for menu_visible true
-# The first program sits below the 64 pixel header, 36 pixels high.
-click 100 $((menu_y + 88)) || fail "the click failed"
+click 100 $((menu_y + 75)) || fail "the click failed"
 wait_for menu_visible false
 wait_for count_is 3
 
@@ -318,7 +316,7 @@ read -r x y <<<"$(frame "$top")"
 w=$(frame_width "$top")
 title_button 1 "$x" "$y" "$w"
 size_is() { test "$(query "id:$top" | jq -c '.[0].surface.size')" = "$1"; }
-wait_for size_is "[1280,734]"
+wait_for size_is "[1280,745]"
 test "$(frame "$top")" = "0 0" || fail "maximized at $(frame "$top")"
 grim "$out/maximized.png"
 
@@ -511,8 +509,8 @@ wait_for has_node id:hud-figure
 node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
 node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
 has_node id:xp-helper-winit || fail "the tray has no helper"
-test "$(node_size xp-helper-winit)" = "[32,36]" || fail "the helper is not 32 by 36"
-test "$(node_size xp-tray-winit)" = "[136,36]" || fail "the tray is not 136 by 36: $(node_size xp-tray-winit)"
+test "$(node_size xp-helper-winit)" = "[32,30]" || fail "the helper is not 32 by 30"
+test "$(node_size xp-tray-winit)" = "[128,30]" || fail "the tray is not 128 by 30: $(node_size xp-tray-winit)"
 test "$(node_x xp-helper-winit)" = "$(node_x xp-tray-winit)" || fail "the helper does not start at the left edge of the tray"
 tray_before=$(node_size xp-tray-winit)
 echo 'voice.state {"state": "listening", "muted": {"mic": true}}' >&5
@@ -527,7 +525,7 @@ bin_rect() {
 read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
 near() { test $(($1 - $2)) -le 3 && test $(($2 - $1)) -le 3; }
 near $((fx + fw)) 1272 || fail "the paperclip is not 8 pixels from the right edge: $fx $fw"
-test $((fy + fh)) = 756 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
+test $((fy + fh)) = 762 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
 read -r bx _ bw _ < <(bin_rect | jq -r 'join(" ")')
 near $((bx + bw / 2)) $((fx + fw / 2)) || fail "the bin and the paperclip do not share a centre line: $bx $bw $fx $fw"
 echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
