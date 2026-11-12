@@ -106,7 +106,7 @@ honest state words.
     it takes a press only while a prompt runs.
 13. **The balloon has XP's form** (`form: xp`): a header of two lines (the
     name in bold with the state word after an em dash, then the task and
-    the step in grey), a close box of 18 px at the top right, Stop and Send
+    the step in grey), a close box of 21 px at the top right, Stop and Send
     as push buttons, the field in white with a 1 px rule of `#7F9DB9`, and
     the question as a white group box with Yes and No as push buttons of
     80 by 28 px, 8 px apart. No button is the default one.

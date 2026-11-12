@@ -59,9 +59,9 @@ const MAX_META: usize = 4000;
 const XP_HEAD_Y: i32 = 10;
 const XP_RULE_Y: i32 = 58;
 const XP_BODY_TOP: i32 = 69;
-const XP_STOP: [i32; 2] = [56, 28];
+const XP_STOP: [i32; 2] = [56, 21];
 pub const XP_SEND: [i32; 2] = [64, 28];
-const XP_CLOSE: i32 = 18;
+const XP_CLOSE: i32 = 21;
 const XP_GAP: i32 = 8;
 const XP_RULE: [u8; 3] = [216, 213, 176];
 const XP_GREY: [u8; 3] = [77, 77, 77];
@@ -803,7 +803,7 @@ fn xp_push(theme: &mut Theme, label: &str, [w, h]: [i32; 2], enabled: bool) -> S
 fn xp_close(theme: &mut Theme) -> String {
     let size = XP_CLOSE;
     let shape = format!(
-        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#face)" stroke="#003C74"/><path d="M5.5 5.5L12.5 12.5M12.5 5.5L5.5 12.5" stroke="#1B3B7A" stroke-width="1.6"/>"##,
+        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#face)" stroke="#003C74"/><path d="M6.5 6.5L14.5 14.5M14.5 6.5L6.5 14.5" stroke="#1B3B7A" stroke-width="1.6"/>"##,
         size - 1,
         size - 1
     );
@@ -828,7 +828,7 @@ fn xp_extras(theme: &mut Theme, parts: &Parts, xp: &XpParts, language: Language)
         ));
         commands.push(frame(id, VIEW, (at, size), XP_HOVER));
     };
-    let close_at = [w - PAD - XP_CLOSE, XP_HEAD_Y + 2];
+    let close_at = [w - PAD - XP_CLOSE, XP_HEAD_Y];
     add(
         CLOSE,
         xp_close(theme),
@@ -1302,9 +1302,14 @@ mod tests {
         let (parts, commands) = xp_commands("xp-places", false, true);
         let [_, _, w, h] = parts.rect;
         let close = created(&commands, CLOSE).expect("a close box");
-        assert_eq!(at(close), [w - PAD - 18, XP_HEAD_Y + 2]);
+        assert_eq!(at(close), [w - PAD - XP_CLOSE, XP_HEAD_Y]);
         let stop = created(&commands, STOP).expect("Stop");
-        assert_eq!(at(stop)[1], XP_HEAD_Y);
+        assert_eq!(
+            at(stop)[1],
+            at(close)[1],
+            "Stop and the close box share a top"
+        );
+        assert_eq!(XP_STOP[1], XP_CLOSE, "and a height");
         assert_eq!(at(stop)[0] + XP_STOP[0] + XP_GAP, at(close)[0]);
         assert_eq!(stop.input, Some(InputMode::Accept));
         let send = created(&commands, SEND).expect("Send");

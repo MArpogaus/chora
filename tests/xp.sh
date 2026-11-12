@@ -555,7 +555,7 @@ wait_for has_node id:hud-chat-send
 has_node id:hud-chat-close || fail "no close box"
 has_node id:hud-chat-stop || fail "no Stop button"
 test "$(node_size hud-chat-send)" = "[64,28]" || fail "Send is not 64 by 28: $(node_size hud-chat-send)"
-test "$(node_size hud-chat-close)" = "[18,18]" || fail "the close box is not 18 by 18"
+test "$(node_size hud-chat-close)" = "[21,21]" || fail "the close box is not 21 by 21"
 chat_text() { query id:hud-chat | jq -r '.[0].meta.text // empty'; }
 chat_says() { chat_text | grep -qF "$1"; }
 wait_for chat_says "Atlas — Working"
@@ -600,6 +600,24 @@ open_my_documents_with() {
 open_my_documents_with chora-no-such-manager
 wait_for said Notify "Cannot open chora-no-such-manager"
 grim "$out/cannot-open.png"
+item_text() { query kind:image | jq -r --arg t "$1" '[.[] | select(.meta.text == $t)] | .[0].rects | to_entries[0].value | map(floor) | join(" ")'; }
+click_text() {
+    read -r ix iy iw ih < <(item_text "$1")
+    click $((ix + iw / 2)) $((iy + ih / 2)) || fail "the click on $1 failed"
+}
+step "16c. the start menu opens the Turn Off Computer dialog and Run"
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+click 287 751 || fail "the click on Turn Off Computer failed"
+wait_for has_node id:xp-session
+grim "$out/turn-off.png"
+click 745 478 || fail "the click on Cancel failed"
+wait_for has_node_count 0 id:xp-session
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+click_text "Run..."
+sleep 1
+grim "$out/run.png"
 printf '#!/bin/sh\nsleep 3\nexec foot\n' >"$out/slow-manager"
 chmod +x "$out/slow-manager"
 open_my_documents_with "$out/slow-manager"

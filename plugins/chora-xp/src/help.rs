@@ -34,6 +34,8 @@ const CAP_HEIGHT: i32 = 24;
 const ROW: i32 = 32;
 const TABLE_TOP: i32 = 100;
 const GROUP_GAP: i32 = 8;
+/// The width of the word between two chords of one binding.
+const OR_WIDTH: i32 = 16;
 const GROUP_ROW: i32 = 26;
 const BOTTOM: i32 = 16;
 const MIN_ROW: i32 = 26;
@@ -347,6 +349,10 @@ impl HelpDialog {
                     [x, y + (self.row - CAP_HEIGHT) / 2 + 1, width, CAP_HEIGHT],
                 );
                 x += width + 8;
+                if chord != row.keys.last().unwrap_or(chord) {
+                    canvas.text("or", Font::Body, GREY, [x, y, OR_WIDTH, self.row]);
+                    x += OR_WIDTH + 8;
+                }
             }
             let rect = [PAGE_LEFT + 214, y, PAGE_WIDTH - 214, self.row];
             canvas.text(row.text, Font::Body, INK, rect);
@@ -419,6 +425,23 @@ mod tests {
 
     fn all(_: &str) -> bool {
         true
+    }
+
+    #[test]
+    fn two_chords_of_one_binding_stand_apart_by_the_word_or() {
+        let (theme, cache) = crate::sheets::tests::theme("help-or");
+        let all_rows = rows(all);
+        let pairs = all_rows.iter().filter(|r| r.keys.len() > 1).count();
+        let dialog = HelpDialog::new(KEYBOARD, all_rows, [0, 0, 1280, 800]);
+        let page = dialog.page(&theme).body.expect("a page");
+        let ors = page
+            .layers
+            .iter()
+            .filter(|layer| matches!(layer, chora_draw::theme::Layer::Text(t) if t.line == "or"))
+            .count();
+        let _ = std::fs::remove_dir_all(cache);
+        assert!(pairs > 0, "no binding has two chords");
+        assert!(ors >= pairs, "{ors} words 'or' for {pairs} bindings");
     }
 
     #[test]
