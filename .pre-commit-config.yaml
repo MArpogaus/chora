@@ -4,6 +4,13 @@ default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: local
     hooks:
+      - id: check-log
+        name: session log state, decisions, answers and rules
+        language: system
+        entry: python3 tools/check_log.py
+        files: ^(state|decisions-now|answers|rules)\.md$
+        pass_filenames: false
+        stages: [pre-commit]
       - id: no-agent-trailers
         name: no Co-Authored-By, Claude-Session or "Generated with" in the message
         language: pygrep
