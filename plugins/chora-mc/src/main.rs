@@ -3101,6 +3101,24 @@ mod tests {
         assert_eq!(next(&mc).unwrap().0, "11:30  Coffee");
     }
 
+    /// The footer also points to the previous page, and a click on it
+    /// turns the page back.
+    #[test]
+    fn the_footer_points_to_the_previous_page_and_a_click_goes_back() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _) = crate::testing::mc("prev-page", [1280, 800]);
+        mc.show("morning", false).unwrap();
+        let plan = mc.items("morning");
+        let (items, _) = &plan[&crate::region::Region::Footer];
+        let prev = items
+            .iter()
+            .find(|i| i.id.ends_with("-prev"))
+            .expect("a line to the previous page");
+        assert_eq!(prev.props.text.as_deref(), Some("← 1  Agenda"));
+        assert_eq!(prev.hit.as_deref(), Some("key:Super+Left"));
+        assert!(prev.slot < 0, "the previous page stands at the left");
+    }
+
     fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {
         let name = mc.current.clone().unwrap();
         let mut plan = mc.items(&name);
