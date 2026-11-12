@@ -13,7 +13,7 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 use crate::{
     sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Theme},
+    theme::{Picture, Rect, Sheet, Theme},
     window::GRIP,
 };
 
@@ -403,11 +403,7 @@ fn button(theme: &mut Theme, surface: &str, look: &Look<'_>, button: Button) -> 
         (state, true) => state.to_string(),
         (state, false) => format!("{state}-inactive"),
     };
-    let picture = Picture::new(BUTTON, BUTTON).frame(
-        button.sheet(look.maximized),
-        &state,
-        [0, 0, BUTTON, BUTTON],
-    );
+    let picture = button_picture(button.sheet(look.maximized), &state);
     Command::Update {
         id: button_id(surface, button),
         props: PropsUpdate {
@@ -442,9 +438,24 @@ pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     let state = if active { "active" } else { "inactive" };
     for button in Button::ALL {
         let rect = [button.x(w), BUTTON_TOP, BUTTON, BUTTON];
-        picture = picture.frame(button.sheet(false), state, rect);
+        picture = picture.frame(button.sheet(false), state, button_art(rect, state));
     }
     picture
+}
+
+/// The picture of a caption button of a state.
+fn button_picture(sheet: Sheet, state: &str) -> Picture {
+    Picture::new(BUTTON, BUTTON).frame(sheet, state, button_art([0, 0, BUTTON, BUTTON], state))
+}
+
+/// The rect that the art of a button of a state fills: the inactive art
+/// has a margin of a pixel, so it is drawn a pixel larger.
+fn button_art([x, y, w, h]: Rect, state: &str) -> Rect {
+    if state.ends_with("inactive") {
+        [x - 1, y - 1, w + 2, h + 2]
+    } else {
+        [x, y, w, h]
+    }
 }
 
 /// Props that put a node at a position relative to the top-left corner of
@@ -501,5 +512,62 @@ mod tests {
     fn the_title_is_14_pixel_bold_with_the_dark_blue_shadow() {
         assert_eq!(TITLE_SHADOW, [0x0A, 0x1E, 0x50, 255]);
         assert_eq!(chora_draw::text::BODY_SIZE, 14);
+    }
+
+    fn visible(image: &resvg::tiny_skia::Pixmap) -> [u32; 4] {
+        let mut found = [u32::MAX, u32::MAX, 0, 0];
+        let seen = (0..image.height())
+            .flat_map(|y| (0..image.width()).map(move |x| [x, y]))
+            .filter(|[x, y]| image.pixel(*x, *y).is_some_and(|p| p.alpha() > 100));
+        for [x, y] in seen {
+            found = [
+                found[0].min(x),
+                found[1].min(y),
+                found[2].max(x),
+                found[3].max(y),
+            ];
+        }
+        found
+    }
+
+    #[test]
+    fn every_caption_button_fills_its_24_pixels_active_or_not() {
+        let (mut theme, cache) = crate::sheets::tests::theme("caption-fill");
+        let sheets = [
+            sheets::CLOSE,
+            sheets::MAXIMIZE,
+            sheets::MINIMIZE,
+            sheets::RESTORE,
+        ];
+        for step in [1_u32, 2] {
+            theme.set_scale(f64::from(step));
+            let side = 24 * step - 1;
+            for (sheet, state) in sheets
+                .iter()
+                .flat_map(|s| ["active", "inactive", "hover", "pressed"].map(|t| (*s, t)))
+            {
+                let image = crate::sheets::tests::draw(&mut theme, &button_picture(sheet, state));
+                assert_eq!(
+                    visible(&image),
+                    [0, 0, side, side],
+                    "{} {state} at scale {step}",
+                    sheet.0
+                );
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_inactive_close_button_stays_red() {
+        let (mut theme, cache) = crate::sheets::tests::theme("caption-red");
+        let picture = button_picture(sheets::CLOSE, "inactive");
+        let image = crate::sheets::tests::draw(&mut theme, &picture);
+        let [r, g, b] = crate::sheets::tests::rgb(&image, 12, 6);
+        assert!(
+            i32::from(r) - i32::from(g.max(b)) >= 60,
+            "the inactive close button is {r},{g},{b}"
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 }
