@@ -11,6 +11,7 @@ const TOLERANCE: f64 = 1.0;
 #[derive(Clone, Debug)]
 struct Text {
     id: String,
+    words: String,
     x: f64,
     y: f64,
     size: f64,
@@ -58,13 +59,27 @@ fn generation(id: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
+thread_local! {
+    /// The set of regions that shows now, when a test says: the fake core
+    /// does not run the fade that hides the set before it.
+    static LIVE: std::cell::Cell<Option<u8>> = const { std::cell::Cell::new(None) };
+}
+
+/// Tells the audit which set of regions of `mc` shows now.
+fn pin(mc: &crate::Mc) {
+    LIVE.with(|live| live.set(Some(mc.set)));
+}
+
 fn ids(model: &Model, kind: NodeKind) -> Vec<String> {
     let core = model.lock().unwrap();
     let mine: Vec<&str> = (core.scene.nodes())
         .filter(|n| n.kind == kind && n.owner.as_deref() == Some(crate::NAME))
         .map(|n| n.id.as_str())
         .collect();
-    let newest = mine.iter().filter_map(|id| generation(id)).max();
+    let newest = LIVE
+        .with(std::cell::Cell::get)
+        .map(u32::from)
+        .or_else(|| mine.iter().filter_map(|id| generation(id)).max());
     let current = |id: &&str| generation(id).is_none_or(|g| Some(g) == newest);
     mine.into_iter()
         .filter(current)
@@ -83,6 +98,7 @@ fn texts(model: &Model) -> Vec<Text> {
         let props = &core.scene.node(&id).unwrap().props;
         let size = props.font_size.unwrap_or(16.0);
         out.push(Text {
+            words: props.text.clone().unwrap_or_default(),
             id,
             x,
             y,
@@ -418,6 +434,210 @@ mod tests {
                 heads.iter().any(|h| h.ends_with(&id)),
                 "no {id} in {heads:?}"
             );
+        }
+    }
+
+    /// A helper that has a question, as voice tells mc.
+    fn helper(mc: &mut crate::Mc) {
+        let state = serde_json::json!({"name": "Atlas", "state": "question", "task": "Write file"});
+        mc.follow("voice.state", "voice", state).unwrap();
+    }
+
+    /// Every state that a page shows: with notes, a question of a helper,
+    /// the chat open, and the key list whole.
+    fn states(scene: &str, size: [i32; 2]) -> Vec<(String, crate::Mc, Model)> {
+        use chora_kit::runtime::Plugin as _;
+        let mut out = Vec::new();
+        for state in ["rest", "notes", "chat", "keys"] {
+            let (mut mc, model) = crate::testing::mc(&format!("audit-grid-{scene}-{state}"), size);
+            mc.show(scene, false).unwrap();
+            if state != "rest" {
+                for title in ["Update ready", "Backup done and a longer line"] {
+                    mc.method("notify.push", serde_json::json!({"title": title}))
+                        .unwrap();
+                }
+                helper(&mut mc);
+            }
+            if state == "chat" {
+                mc.chat = crate::Chat::Open;
+            }
+            if state == "keys" {
+                mc.keys = List::All;
+            }
+            mc.render().unwrap();
+            pin(&mc);
+            out.push((format!("{scene}/{state}"), mc, model));
+        }
+        out
+    }
+
+    fn base(t: &Text) -> f64 {
+        t.y + truth(t).1
+    }
+
+    /// How far the baseline of a text is from the nearest line of the grid.
+    fn apart(mc: &crate::Mc, t: &Text) -> f64 {
+        let b = mc.settings.value.scale.baseline;
+        let d = (base(t) - mc.phase()).rem_euclid(b);
+        d.min(b - d)
+    }
+
+    #[test]
+    fn every_baseline_of_a_page_stands_on_one_grid() {
+        for size in SIZES {
+            for scene in ["agenda", "terminal", "overview", "morning"] {
+                for (state, mc, model) in states(scene, size) {
+                    let apart = |t: &Text| apart(&mc, t);
+                    let off: Vec<String> = (texts(&model).iter())
+                        .filter(|t| apart(t) > TOLERANCE)
+                        .map(|t| format!("{} at {:.1} is {:.1} off", t.id, base(t), apart(t)))
+                        .collect();
+                    assert!(off.is_empty(), "{state} at {size:?}\n{}", off.join("\n"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_right_column_starts_on_the_same_line_of_the_grid_on_every_page() {
+        for size in SIZES {
+            let mut first = Vec::new();
+            for scene in ["agenda", "terminal", "overview", "morning"] {
+                let (mut mc, model) = crate::testing::mc(&format!("audit-top-{scene}"), size);
+                mc.show(scene, false).unwrap();
+                mc.render().unwrap();
+                pin(&mc);
+                let top = texts(&model)
+                    .into_iter()
+                    .filter(|t| t.id.contains("-right-") && !t.words.trim().is_empty())
+                    .map(|t| base(&t))
+                    .fold(f64::MAX, f64::min);
+                first.push((scene, top));
+            }
+            for (scene, top) in &first {
+                assert!(
+                    (top - first[0].1).abs() <= TOLERANCE,
+                    "{first:?} {scene} at {size:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_label_columns_of_the_margin_column_are_one_width() {
+        use chora_kit::hud::LABEL_COLUMN;
+        use chora_kit::runtime::Plugin as _;
+        assert_eq!(LABEL_COLUMN % 14.0, 0.0, "a multiple of 14");
+        let (mut mc, model) = crate::testing::mc("audit-labels", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        for title in ["Update ready", "Backup done and a longer line"] {
+            mc.method("notify.push", serde_json::json!({"title": title}))
+                .unwrap();
+        }
+        helper(&mut mc);
+        mc.render().unwrap();
+        pin(&mc);
+        let column = mc.boxes_of("agenda")[&Region::Right][0];
+        let all = texts(&model);
+        let words = |suffix: &str| -> Vec<f64> {
+            all.iter()
+                .filter(|t| t.id.contains("-right-") && t.id.ends_with(suffix))
+                .map(|t| t.x - column)
+                .collect()
+        };
+        for (what, xs) in [
+            ("a note", words("-notify-0")),
+            ("a helper", words("-agents-0-name")),
+            ("a key", words("-keys-1-words")),
+        ] {
+            assert!(!xs.is_empty(), "no {what}");
+            assert!(xs.iter().all(|x| *x == LABEL_COLUMN), "{what} at {xs:?}");
+        }
+        mc.keys = List::All;
+        mc.render().unwrap();
+        pin(&mc);
+        let widest = ["Super+Return", "Super+Space", "Super+Home"]
+            .map(|k| {
+                let ty = mc.ty("margin", None);
+                let em = crate::fonts::advance(ty.family().unwrap(), Some(500), k).unwrap();
+                em * ty.size
+            })
+            .into_iter()
+            .fold(0.0, f64::max);
+        assert!(LABEL_COLUMN >= widest + 8.0, "{widest} in {LABEL_COLUMN}");
+        assert!(
+            LABEL_COLUMN < widest + 8.0 + 14.0,
+            "{widest} in {LABEL_COLUMN}"
+        );
+    }
+
+    #[test]
+    fn the_terminal_is_set_at_14_pixels_or_more_on_the_grid() {
+        let (mc, _) = crate::testing::mc("audit-mono", [1280, 800]);
+        let config = &mc.settings.value;
+        let command =
+            crate::region::command(&config.contents["shell"].command, &config.themes.light);
+        let number = |key: &str| -> f64 {
+            let at = command
+                .find(key)
+                .unwrap_or_else(|| panic!("no {key} in {command}"));
+            let digits: String = (command[at + key.len()..].chars())
+                .take_while(char::is_ascii_digit)
+                .collect();
+            digits.parse().unwrap()
+        };
+        let size = number("pixelsize=");
+        assert!(size >= 14.0, "the terminal is set at {size} pixels");
+        assert_eq!(
+            number("line-height="),
+            config.scale.baseline,
+            "a line of the terminal is a line of the grid"
+        );
+    }
+
+    #[test]
+    fn the_hairline_of_the_column_runs_from_its_first_capitals_to_the_footer_baseline() {
+        for size in SIZES {
+            for (state, mc, model) in states("agenda", size) {
+                let edge = rects(&model)
+                    .into_iter()
+                    .find(|r| r.id.ends_with("-right-edge"))
+                    .unwrap();
+                let all = texts(&model);
+                let column: Vec<&Text> = all.iter().filter(|t| t.id.contains("-right-")).collect();
+                let first = column
+                    .iter()
+                    .map(|t| t.y + truth(t).0)
+                    .fold(f64::MAX, f64::min);
+                let foot = all.iter().find(|t| t.id.contains("-footer-next")).unwrap();
+                assert!(
+                    (edge.y - first).abs() <= 1.5,
+                    "{state}: the rule starts at {} and the capitals at {first}",
+                    edge.y
+                );
+                let end = edge.y + edge.h;
+                assert!(
+                    (end - base(foot)).abs() <= 1.5,
+                    "{state}: the rule ends at {end}, the footer baseline is {}",
+                    base(foot)
+                );
+                let gutter = f64::from(size[1]) - base(foot);
+                assert!(gutter >= 20.0, "{state}: {gutter} below the last baseline");
+                let low = all.iter().map(|t| t.y + t.line).fold(0.0, f64::max);
+                assert!(
+                    low <= f64::from(size[1]) - mc.settings.value.scale.baseline / 2.0,
+                    "{state}: a line ends at {low}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_sign_of_a_state_is_a_shape_and_not_a_thin_letter() {
+        let (mc, _) = crate::testing::mc("audit-signs", [1280, 800]);
+        for (state, look) in &mc.settings.value.states {
+            let sign = look.sign.chars().next().unwrap_or(' ');
+            assert!(!sign.is_ascii(), "{state} is signed with {sign:?}");
         }
     }
 }

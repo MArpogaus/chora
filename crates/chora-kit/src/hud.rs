@@ -30,6 +30,11 @@ pub const MAX_DEPTH: usize = 4;
 pub const MAX_ID: usize = 32;
 /// The smallest text size of the chat.
 pub const MIN_CHAT_SIZE: u32 = 14;
+/// The width of the label column of the margin column of mc, in pixels: the
+/// widest label of the key list, rounded up to 14, with room for a gap. The
+/// notes, the signs of the helpers, the keys and the numbers of the chat
+/// list all start their words after it.
+pub const LABEL_COLUMN: f64 = 112.0;
 /// The largest text size of the chat.
 pub const MAX_CHAT_SIZE: u32 = 48;
 /// The widest chat, in pixels.

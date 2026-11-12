@@ -1171,16 +1171,6 @@ fn title_of(name: &str) -> String {
     })
 }
 
-/// How far a note sits below the top of its line, so that its baseline
-/// meets the baseline of the body, whatever faces they are set in.
-fn baseline_shift(body: &Type, note: &Type) -> f64 {
-    let base = |ty: &Type| {
-        let ink = ty.ink();
-        ink.top + ink.height
-    };
-    base(body) - base(note)
-}
-
 /// Adds a word to a text, with a space after other words.
 fn push_word(text: &mut String, word: &str) {
     if !text.is_empty() {
@@ -1820,17 +1810,46 @@ impl Mc {
         }
     }
 
+    /// The phase of the one baseline grid: where the baseline of the
+    /// margin type stands in a line of the grid. Every baseline of the
+    /// page, of the head, the panels, the column and the footer, falls on
+    /// a line of the grid plus this.
+    pub fn phase(&self) -> f64 {
+        let ink = self.ty("margin", None).ink();
+        ink.top + ink.height
+    }
+
+    /// How far a text whose baseline would stand at `baseline` on the
+    /// output moves to stand on the nearest baseline of the grid, in whole
+    /// pixels; half a line moves down.
+    pub fn to_grid(&self, baseline: f64) -> f64 {
+        let b = self.settings.value.scale.baseline;
+        let up = (self.phase() - baseline).rem_euclid(b);
+        (if up > b / 2.0 { up - b } else { up }).round()
+    }
+
+    /// The place `rel` below the top of a block that stands at `top` on the
+    /// output, moved so that the baseline of a text of type `ty` that
+    /// starts there stands on the grid.
+    fn lift(&self, top: f64, rel: f64, ty: &Type) -> f64 {
+        let ink = ty.ink();
+        rel + self.to_grid(top + rel + ink.top + ink.height)
+    }
+
+    /// The top of the head of a scene: its line, moved so that the
+    /// baseline of the title stands on the grid.
+    fn head_y(&self) -> f64 {
+        let top = HEAD * self.settings.value.scale.baseline;
+        let ink = self.ty("chapter", None).ink();
+        top + self.to_grid(top + ink.top + ink.height)
+    }
+
     /// The bar between the number and the title of a head at `x`: a
     /// hairline from the capitals of the title down to its baseline.
     fn bar(&self, x: f64) -> [f64; 4] {
         let title = self.ty("chapter", None);
         let ink = title.ink();
-        [
-            x,
-            HEAD * self.settings.value.scale.baseline + ink.top,
-            1.0,
-            ink.height,
-        ]
+        [x, self.head_y() + ink.top, 1.0, ink.height]
     }
 
     /// The ink of a head part: how far its first ink starts after its box
@@ -1899,7 +1918,6 @@ impl Mc {
             return Vec::new();
         };
         let [x, _, _, _] = geo.text;
-        let b = geo.baseline;
         let chapter = &scene.chapter;
         let number = self.number(name);
         let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
@@ -1924,7 +1942,7 @@ impl Mc {
                 ];
                 for (part, ty, text, x) in parts {
                     let props = PropsUpdate {
-                        transform: Some(translate(x, HEAD * b)),
+                        transform: Some(translate(x, self.head_y())),
                         ..ty.props(&text)
                     };
                     commands.push(create(
@@ -1981,7 +1999,7 @@ impl Mc {
         let x = bar[0] + bar[2] + space.round() - before;
         let mut commands = vec![
             move_to(chapter_id(name, "bar"), bar[0], bar[1]),
-            move_to(chapter_id(name, "title"), x, HEAD * geo.baseline),
+            move_to(chapter_id(name, "title"), x, self.head_y()),
         ];
         commands.extend(self.head_hit_place(name, geo, x, title));
         commands
@@ -2000,7 +2018,7 @@ impl Mc {
             return Vec::new();
         };
         let left = geo.text[0];
-        let at = [left, HEAD * geo.baseline, x + width - left, height];
+        let at = [left, self.head_y(), x + width - left, height];
         region::hit_place(
             &chapter_id(name, "head"),
             at,
@@ -2162,11 +2180,11 @@ impl Mc {
         let add = |part: &str, props| create(&format!("{id}-{part}"), NodeKind::Text, &id, props);
         if !panel.title.is_empty() {
             let title = self.ty("heading", panel.title_style.as_ref());
-            commands.push(add("title", text(&title, &panel.title, indent, 0.0, true)));
+            let at = self.lift(y, 0.0, &title);
+            commands.push(add("title", text(&title, &panel.title, indent, at, true)));
         }
         let top = self.lines_top(panel);
         let body = self.ty("body", panel.style.as_ref());
-        let caps = body.ink();
         if let Some(rows) = panel.columns() {
             // One node per row, so that a row wraps and its note stays on
             // its first line; `align` stacks the rows as the core lays
@@ -2176,26 +2194,26 @@ impl Mc {
             let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
                 #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
-                let y = top + i as f64 * body.line;
-                let at = ([indent, y, w, body.line], caps);
-                commands.extend(self.row_hit(name, &id, i, at));
-                commands.push(add(
-                    &format!("line-{i}"),
-                    text(&body, line, indent, y, true),
-                ));
+                let row = top + i as f64 * body.line;
+                let at = self.lift(y, row, &body);
+                let hit = ([indent, at, w, body.line], body.ink());
+                commands.extend(self.row_hit(name, &id, i, hit));
+                let words = text(&body, line, indent, at, true);
+                commands.push(add(&format!("line-{i}"), words));
                 if !time.is_empty() {
-                    let props = text(&note, time, 0.0, y + baseline_shift(&body, &note), false);
-                    commands.push(add(&format!("note-{i}"), props));
+                    let at = self.lift(y, row, &note);
+                    commands.push(add(&format!("note-{i}"), text(&note, time, 0.0, at, false)));
                 }
             }
         } else if !panel.lines.is_empty() {
             if name == manage::OVERVIEW {
                 commands.extend(self.overview_hits(name, &id, panel, [indent, top, w, body.line]));
             }
-            let props = text(&body, &panel.text(), indent, top, true);
+            let props = text(&body, &panel.text(), indent, self.lift(y, top, &body), true);
             commands.push(add("lines", props));
         } else if !panel.empty.is_empty() {
-            let props = text(&self.quiet(&body), &panel.empty, indent, top, true);
+            let quiet = self.quiet(&body);
+            let props = text(&quiet, &panel.empty, indent, self.lift(y, top, &body), true);
             commands.push(add("empty", props));
         }
         commands
@@ -2277,9 +2295,12 @@ impl Mc {
                 let line = self.ty("heading", panel.title_style.as_ref()).line;
                 y += (height - line).max(0.0);
             }
+            let top_of_panel = self.place(name, panel).map_or(0.0, |p| p[1]);
             let Some(rows) = panel.columns() else {
                 if !panel.lines.is_empty() && y > self.lines_top(panel) {
-                    commands.push(move_to(format!("{id}-lines"), indent, y));
+                    let body = self.ty("body", panel.style.as_ref());
+                    let at = self.lift(top_of_panel, y, &body);
+                    commands.push(move_to(format!("{id}-lines"), indent, at));
                 }
                 continue;
             };
@@ -2290,10 +2311,11 @@ impl Mc {
                 let Some([_, _, _, height]) = rect(&format!("{id}-line-{i}")) else {
                     break; // below the panel
                 };
-                commands.push(move_to(format!("{id}-line-{i}"), indent, y));
+                let at = self.lift(top_of_panel, y, &body);
+                commands.push(move_to(format!("{id}-line-{i}"), indent, at));
                 let hit = region::hit_place(
                     &format!("{id}-row-{i}"),
-                    [0.0, y, wide, height.max(body.line)],
+                    [0.0, at, wide, height.max(body.line)],
                     indent,
                     body.ink(),
                 );
@@ -2303,7 +2325,8 @@ impl Mc {
                     && let Some([_, _, width, _]) = rect(&note_id)
                 {
                     let x = (geo.note - width).max(0.0);
-                    commands.push(move_to(note_id, x, y + baseline_shift(&body, &note)));
+                    let at = self.lift(top_of_panel, y, &note);
+                    commands.push(move_to(note_id, x, at));
                 }
                 y += height.max(body.line);
             }

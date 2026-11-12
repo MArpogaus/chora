@@ -357,9 +357,6 @@ pub struct Item {
     /// The place across a side, from its left edge.
     pub x: f64,
     pub put: Put,
-    /// How far it stands below the place of its line, so that the
-    /// baseline of a note meets the baseline of the text beside it.
-    pub dy: f64,
     /// Space before the item in a stack, in pixels.
     pub before: f64,
     /// What a click on it does: a binding as `key:Super+n`, a helper as
@@ -408,7 +405,6 @@ impl Item {
             first,
             x: 0.0,
             put: Put::Stack,
-            dy: 0.0,
             before: 0.0,
             hit: None,
         }
@@ -800,12 +796,13 @@ impl Mc {
         let [lw, rw] = self.side_widths(name);
         let side_top = if headless { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
-        let column_top = ((head - b) / 2.0).max(0.0).round();
+        let column_top = b;
+        let column_end = (h / b).floor() * b;
         let column = [
             w - 2.0 * b - rw,
             column_top,
             rw,
-            (h - 2.0 * column_top).max(b),
+            (column_end - column_top).max(b),
         ];
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
         if headless {
@@ -1142,8 +1139,10 @@ impl Mc {
         if region == Region::Right {
             let baseline = config.scale.baseline;
             let faint = colors.get("faint").copied().unwrap_or(config.background());
-            let tall = (f64::from(self.output_size()[1]) - 2.0 * baseline).max(1.0);
-            let edge = [-baseline, baseline - top, 1.0, tall];
+            let caps = self.ty("margin", None).ink().height;
+            let first = self.phase() - caps;
+            let last = height - (baseline - self.phase());
+            let edge = [-baseline, first, 1.0, (last - first).max(1.0)];
             commands.push(rect(&format!("{id}-edge"), &id, edge, faint));
         }
         if region == Region::Drawer {
@@ -1197,7 +1196,7 @@ impl Mc {
         for (region, (items, _)) in items {
             let [left, top, width, height] = boxes.regions[region];
             if region.is_line() {
-                commands.extend(self.line(items, [width, height], probed)?);
+                commands.extend(self.line(items, [top, width, height], probed)?);
                 continue;
             }
             commands.extend(self.stack(items, [left, top, width, height], probed)?);
@@ -1241,7 +1240,9 @@ impl Mc {
         {
             let idx = item;
             let item = &items[idx];
-            commands.push(move_to(item.id.clone(), lefts[idx], y + item.dy));
+            let ink = props_ink(&item.props);
+            let shift = self.to_grid(top + y + ink.top + ink.height);
+            commands.push(move_to(item.id.clone(), lefts[idx], y + shift));
             if item.hit.is_some() {
                 let [x, w] = if item.put == Put::End {
                     [lefts[idx], widths[idx]]
@@ -1249,9 +1250,8 @@ impl Mc {
                     [0.0, width]
                 };
                 let at = if item.put == Put::End { x } else { item.x };
-                let ink = props_ink(&item.props);
                 let ink = Ink {
-                    top: ink.top + item.dy,
+                    top: ink.top + shift,
                     ..ink
                 };
                 commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at, ink));
@@ -1280,10 +1280,8 @@ impl Mc {
         let mut items = vec![Item::text(format!("{id}-title"), slot, head, true)];
         let margin = self.ty("margin", None);
         let open = self.chat == crate::Chat::Open;
-        let shift = crate::baseline_shift(&self.content_type(content, false), &margin);
         let end = |part: &str, text: &str, hit: Option<&str>| Item {
             put: Put::End,
-            dy: if open { 0.0 } else { shift },
             hit: hit.map(str::to_owned),
             ..Item::text(format!("{id}-{part}"), slot, margin.props(text), false)
         };
@@ -1331,8 +1329,7 @@ impl Mc {
         let baseline = self.settings.value.scale.baseline;
         let note = self.ty("margin", None);
         let body = self.content_type(content, false);
-        let x = (note.size * NOTE_EM).round();
-        let shift = crate::baseline_shift(&body, &note);
+        let x = chora_kit::hud::LABEL_COLUMN;
         let lines = text.lines().filter(|line| !line.trim().is_empty());
         for (i, line) in lines.enumerate() {
             let Some((time, words)) = split_time(line) else {
@@ -1341,8 +1338,7 @@ impl Mc {
                 continue;
             };
             items.push(Item {
-                dy: shift,
-                before: if i > 0 { (baseline / 2.0).round() } else { 0.0 },
+                before: if i > 0 { baseline } else { 0.0 },
                 ..Item::text(format!("{id}-{i}-time"), slot, note.props(time), false)
             });
             items.push(Item {
@@ -1399,7 +1395,7 @@ impl Mc {
             ..Item::text(format!("{id}-title"), slot, head, true)
         }];
         let mut ty = self.content_type(content, false);
-        let words_x = (ty.size * 8.7).round();
+        let words_x = chora_kit::hud::LABEL_COLUMN;
         let words = ty.clone();
         ty.color = config.colors().get("text").copied().unwrap_or(ty.color);
         for (i, row) in rows.iter().enumerate() {
@@ -1430,7 +1426,7 @@ impl Mc {
     fn line(
         &mut self,
         items: &[Item],
-        [width, height]: [f64; 2],
+        [top, width, height]: [f64; 3],
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let config = &self.settings.value;
@@ -1482,6 +1478,8 @@ impl Mc {
                     commands.push(shorten(item, left / w));
                 }
                 let y = ((height - h.max(baseline)) / 2.0).round();
+                let ink = props_ink(&item.props);
+                let y = y + self.to_grid(top + y + ink.top + ink.height);
                 commands.push(move_to(item.id.clone(), x, y));
                 if item.hit.is_some() {
                     let at = [x, y, w.min(left), h.max(baseline)];
@@ -1790,10 +1788,6 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64, ink: Ink) -> [
 /// The space between an item and the one after it in a line, in pixels.
 const AFTER_GAP: f64 = 8.0;
 
-/// The width that a time takes in a list of notes, in em of the margin
-/// style: the words of a note start after it.
-const NOTE_EM: f64 = 4.7;
-
 /// The time and the words of a note, `18:51  Update ready`.
 fn split_time(line: &str) -> Option<(&str, &str)> {
     let (time, words) = line.split_once("  ")?;
@@ -1964,10 +1958,9 @@ mod tests {
             ["state", "agents", "notes", "notify", "chat", "keys"]
         );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
-        // Over an app, the words of the agent go to the header.
         assert_eq!(
             names(&app, Region::Header),
-            ["head", "hud", "agents", "state", "clock"]
+            ["head", "hud", "agents", "clock"]
         );
         assert_eq!(names(&app, Region::Footer), ["urgent"]);
         // A rule of the session goes first; one by kind catches the rest.

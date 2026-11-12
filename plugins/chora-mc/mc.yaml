@@ -189,7 +189,7 @@ states:
   thinking: {sign: ◌, color: blue}
   working: {sign: ●, color: green}
   speaking: {sign: ◐, color: accent}
-  question: {sign: '?', color: amber, label: has a question}
+  question: {sign: ●, color: amber, label: has a question}
   blocked: {sign: ✕, color: red}
   done: {sign: ✓, color: green}
   asleep: {sign: ☾, color: faint}
@@ -235,14 +235,16 @@ contents:
   keys: {kind: keys}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
-  # foot in the colors of the theme, also in the terminal scene, at 14
-  # pixels like the other text. The section is colors, which every foot
+  # foot in the colors of the theme, also in the terminal scene, at 15
+  # pixels with the line of the baseline grid, so that no text of mc is
+  # under 14 pixels. The section is colors, which every foot
   # reads: foot 1.26 and later take it as colors-dark, and before 1.26 a
   # section colors-dark is an error that fills the terminal.
   shell:
     kind: app
     command: >-
-      foot -o pad=0x0 -o 'font=DejaVu Sans Mono:pixelsize=14'
+      foot -o pad=0x0 -o 'font=DejaVu Sans Mono:pixelsize=15'
+      -o line-height=28px
       -o colors.background={background} -o colors.foreground={text}
       -o 'cursor.color={background} {text}'
       -o colors.selection-background={faint}
@@ -264,7 +266,6 @@ rules:
 - {content: hud, scenes: ['@app'], region: header, slot: 0}
 - {content: urgent, region: footer, slot: 0}
 - {content: agents, scenes: ['@app'], region: header, slot: 1}
-- {content: state, scenes: ['@app'], region: header, slot: 2}
 - {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
 - {content: prev, scenes: ['@page'], region: footer, slot: -2}

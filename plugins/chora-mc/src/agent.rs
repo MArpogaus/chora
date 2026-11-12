@@ -22,8 +22,6 @@ const SCENE: &str = "agents";
 
 /// The most helpers that a side shows, one row each.
 const MAX_ROWS: usize = 4;
-/// The width of the sign of a helper and the space after it, in pixels.
-const SIGN_WIDTH: f64 = 18.0;
 /// The lines of the notifications: three, with a blank line between them.
 const NOTIFY_LINES: usize = 3;
 /// The last words of an agent that its column shows, at most.
@@ -358,11 +356,16 @@ impl Mc {
                 hit: Some(format!("agent:{}", agent.name)),
                 ..row("sign", Put::Stack, 0.0, sign.props(mark))
             });
-            items.push(row("name", Put::Row, SIGN_WIDTH, text.props(&agent.name)));
+            items.push(row(
+                "name",
+                Put::Row,
+                chora_kit::hud::LABEL_COLUMN,
+                text.props(&agent.name),
+            ));
             items.push(row(
                 "state",
                 Put::After,
-                SIGN_WIDTH + 60.0,
+                chora_kit::hud::LABEL_COLUMN + 60.0,
                 muted.props(&detail),
             ));
         }
@@ -371,7 +374,7 @@ impl Mc {
             let props = muted.props(&format!("+{more} more"));
             items.push(Item {
                 put: Put::Stack,
-                x: SIGN_WIDTH,
+                x: chora_kit::hud::LABEL_COLUMN,
                 ..Item::text(format!("{id}-more"), slot, props, false)
             });
         }

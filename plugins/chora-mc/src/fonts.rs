@@ -199,6 +199,23 @@ pub fn ink_of(em: Em, size: f64, line: f64) -> Ink {
     }
 }
 
+/// The advance of a text in em, without kerning: what the label columns
+/// are measured with.
+#[cfg(test)]
+#[must_use]
+pub fn advance(family: &str, weight: Option<u16>, text: &str) -> Option<f64> {
+    let name = pick(family);
+    let bytes = face_bytes(&name, weight.unwrap_or(400))?;
+    let face = ttf_parser::Face::parse(&bytes, 0).ok()?;
+    let upem = f64::from(face.units_per_em());
+    text.chars()
+        .map(|c| {
+            let id = face.glyph_index(c)?;
+            Some(f64::from(face.glyph_hor_advance(id)?) / upem)
+        })
+        .sum()
+}
+
 /// The ink of the first and the last glyph of a text in em: the space
 /// between the edge of its box and the first ink, and between the last ink
 /// and the end of its advance.

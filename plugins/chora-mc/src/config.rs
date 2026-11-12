@@ -657,7 +657,7 @@ mod tests {
             assert!(!command.contains('{'), "{command}");
             assert!(command.contains("colors.regular5="), "{command}");
             assert!(!command.contains("colors-dark"), "{command}");
-            assert!(command.contains("pixelsize=14"), "{command}");
+            assert!(command.contains("pixelsize=15"), "{command}");
         }
     }
 
