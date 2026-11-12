@@ -2883,7 +2883,8 @@ impl Wm {
 
     /// Starts a program and follows it until its window shows.
     fn start_program(&mut self, command: &str) {
-        self.start_named(command, launch::program_name(command));
+        let command = launch::themed(command, &self.theme.path("fuzzel.ini"));
+        self.start_named(&command, launch::program_name(&command));
     }
 
     /// Starts a program that the user knows by another name than its

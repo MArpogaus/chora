@@ -1601,6 +1601,10 @@ connects with the client name `xp`.
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```
 
+When `launcher` is `fuzzel`, `chora-xp` starts it with `theme/fuzzel.ini` of the
+flavor: Tahoma, the colors of XP, opaque, the prompt "Open:". A launcher with its
+own `--config` keeps it.
+
 The session "chora (Windows XP)" on the login screen starts it with the XP
 cursors, which the package installs to `/usr/share/icons/ModernXP`.
 `theme/README.md` lists the source and the license of every file of the

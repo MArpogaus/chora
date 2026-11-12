@@ -290,6 +290,20 @@ fn missing(command: &str, on_path: impl Fn(&str) -> bool) -> bool {
     plain && !shell && !BUILTINS.contains(&word) && !on_path(word)
 }
 
+/// The launcher command in the look of xp: `fuzzel` with the `file` of
+/// the flavor as its configuration, unless the command names one or the
+/// file is missing. Another command stays as it is.
+#[must_use]
+pub fn themed(command: &str, file: &std::path::Path) -> String {
+    let mut words = command.split_whitespace();
+    let named = words.clone().any(|w| w == "--config" || w == "-c");
+    if words.next() != Some("fuzzel") || named || !file.is_file() {
+        return command.to_owned();
+    }
+    let rest = command.trim_start().trim_start_matches("fuzzel");
+    format!("fuzzel --config '{}'{rest}", file.display())
+}
+
 /// The name of the program of a shell command: its first word without
 /// quotes and directory.
 #[must_use]
@@ -509,6 +523,39 @@ mod tests {
             launches.check(seconds(now, GIVE_UP.as_secs())).as_slice(),
             [Change::Failed { why: Why::Slow, .. }]
         ));
+    }
+
+    #[test]
+    fn fuzzel_takes_the_look_of_xp() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-themed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("fuzzel.ini");
+        std::fs::write(&file, "[main]\n").unwrap();
+        let line = themed("fuzzel", &file);
+        assert_eq!(line, format!("fuzzel --config '{}'", file.display()));
+        assert!(themed("fuzzel --dmenu", &file).ends_with(" --dmenu"));
+        assert_eq!(
+            themed("fuzzel --config /x.ini", &file),
+            "fuzzel --config /x.ini"
+        );
+        assert_eq!(themed("rofi -show run", &file), "rofi -show run");
+        assert_eq!(themed("fuzzel", &dir.join("none.ini")), "fuzzel");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_shipped_fuzzel_file_is_xp_and_opaque() {
+        let text = include_str!("../../../flavors/xp/theme/fuzzel.ini");
+        assert!(text.contains("font=Tahoma:pixelsize=14"), "{text}");
+        assert!(text.contains("prompt=\"Open: \""), "{text}");
+        for key in ["background", "text", "selection", "border"] {
+            let value = text
+                .lines()
+                .find_map(|l| l.strip_prefix(&format!("{key}=")))
+                .unwrap_or_else(|| panic!("{key}"));
+            assert!(value.ends_with("ff"), "{key} is not opaque: {value}");
+        }
+        assert!(text.contains("selection=316ac5ff"), "{text}");
     }
 
     #[test]
