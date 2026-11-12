@@ -101,6 +101,26 @@ impl Ink {
         }
     }
 
+    /// A card in the colours of a chat: its fill, hairline and text, the
+    /// fill of its buttons and the radius of its corners.
+    #[must_use]
+    pub const fn themed(
+        fill: [u8; 3],
+        border: [u8; 3],
+        text: [u8; 3],
+        button: [u8; 3],
+        radius: i32,
+    ) -> Self {
+        Self {
+            fill,
+            border,
+            text,
+            button,
+            radius,
+            page: None,
+        }
+    }
+
     fn style(self) -> Style {
         Style {
             fill: self.fill,
@@ -523,7 +543,11 @@ fn image(path: String, at: [i32; 2], text: &str, input: InputMode) -> PropsUpdat
 fn button(theme: &mut Theme, label: &str, ink: Ink) -> String {
     let flat = Style {
         fill: ink.button,
-        radius: ink.radius.min(4),
+        radius: if ink.radius > Ink::HOST.radius {
+            ink.radius - 2
+        } else {
+            ink.radius.min(4)
+        },
         ..ink.style()
     };
     let [w, h] = BUTTON;

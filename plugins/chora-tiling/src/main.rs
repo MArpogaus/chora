@@ -169,6 +169,9 @@ struct Tiling {
     last_tag: usize,
     /// What the panel was last told: the layout and the tags.
     bar: Option<(Option<Layout>, Vec<OutputTags>)>,
+    /// The pid of the panel and whether it was told to hide for a
+    /// fullscreen window.
+    bar_hidden: Option<(u32, bool)>,
     /// Whether the next placement is a rebuild, not a change a person made:
     /// nothing moves.
     still: bool,
@@ -306,6 +309,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         shadow: runtime_shader("shadow.frag", dress::SHADOW_SHADER),
         last_tag: 0,
         bar: None,
+        bar_hidden: None,
         still: true,
         keys_open: false,
         chip_until: None,
@@ -368,7 +372,8 @@ fn serve(tiling: &mut Tiling) -> Result<(), ClientError> {
 }
 
 /// The events that tiling handles.
-const EVENTS: [&str; 13] = [
+const EVENTS: [&str; 14] = [
+    "assistant.ready",
     "surface.created",
     "surface.destroyed",
     "surface.detached",
@@ -581,6 +586,10 @@ impl Tiling {
     }
 
     fn handle(&mut self, event: Event) -> Result<(), ClientError> {
+        if matches!(&event, Event::Emitted { event, client, .. } if event == "assistant.ready" && client == "assistant")
+        {
+            return self.name_theme();
+        }
         match self.overlay_event(&event) {
             Some(done) => done,
             None => self.handle_scene(event),
@@ -871,6 +880,7 @@ impl Tiling {
             (look.theme == theme::Theme::System).then(|| std::time::Instant::now() + THEME_CHECK);
         self.scheme = scheme;
         self.colors = colors;
+        let _ = self.name_theme();
         let Some(dir) = theme::default_dir() else {
             return;
         };
@@ -891,6 +901,14 @@ impl Tiling {
                 Some(pid) => theme::signal(pid, "USR2"),
                 None => user_unit("reload", PANEL_UNIT),
             }
+        }
+        if reload && changed {
+            let _ = std::process::Command::new("makoctl")
+                .arg("reload")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
         }
         if reload && new_scheme {
             match theme::companion("wallpaper", "wallpaper.sh") {
@@ -947,12 +965,43 @@ impl Tiling {
     /// `SIGRTMIN+1` to waybar, which the modules of the tags and of the
     /// layout answer by asking again; without a panel nothing happens.
     fn push_bar(&mut self) {
+        self.hide_bar_for_fullscreen();
         if !self.bar_changed() {
             return;
         }
         if let Some(pid) = theme::companion("waybar", "waybar") {
             theme::signal(pid, "RTMIN+1");
         }
+    }
+
+    /// Names the theme to the HUD host, which colours its panels, chat and
+    /// question card by it.
+    fn name_theme(&mut self) -> Result<(), ClientError> {
+        let emit = chora_kit::hud::theme_event(NAME, self.scheme == theme::Scheme::Ink);
+        self.rt.conn.call::<_, Value>("events.emit", emit).map(drop)
+    }
+
+    /// Hides the panel with `SIGUSR1` while a window is fullscreen and shows
+    /// it again after: the islands never float over the content.
+    fn hide_bar_for_fullscreen(&mut self) {
+        let want = self.wm.fullscreen_shown();
+        if self.bar_hidden.is_some_and(|(_, hidden)| hidden == want)
+            || (!want && self.bar_hidden.is_none())
+        {
+            return;
+        }
+        let Some(pid) = theme::companion("waybar", "waybar") else {
+            self.bar_hidden = None;
+            return;
+        };
+        let hidden = self
+            .bar_hidden
+            .filter(|(old, _)| *old == pid)
+            .is_some_and(|(_, hidden)| hidden);
+        if hidden != want {
+            theme::signal(pid, "USR1");
+        }
+        self.bar_hidden = Some((pid, want));
     }
 
     /// Whether the layout or the tags differ from what the panel was last
@@ -2243,6 +2292,7 @@ mod tests {
             shadow: None,
             last_tag: 0,
             bar: None,
+            bar_hidden: None,
             still: true,
             keys_open: false,
             chip_until: None,

@@ -199,7 +199,7 @@ impl Default for Line {
 /// neutral folder.
 const NEUTRAL_ANCHOR: Anchor = Anchor::BottomRight;
 const NEUTRAL_MARGIN: [i32; 2] = [16, 16];
-const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [16, 48]);
+const NEUTRAL_ROWS: (Anchor, [i32; 2]) = (Anchor::TopRight, [24, 24]);
 /// The height of the tail of a bubble with a tail.
 pub const TAIL: i32 = 18;
 

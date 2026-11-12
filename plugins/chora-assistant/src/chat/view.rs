@@ -113,7 +113,7 @@ fn look_id(look: &Look) -> u64 {
 /// The style of the panel and of a box in it.
 pub fn style_of(look: &Look, colours: Colours) -> Style {
     let radius = match look.style {
-        ChatStyle::Plain => 0,
+        ChatStyle::Plain => look.radius.map_or(0, |r| i32::try_from(r).unwrap_or(0)),
         ChatStyle::Bubble => super::BALLOON_RADIUS,
         ChatStyle::Glass => 14,
     };
@@ -198,9 +198,11 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
 
 fn button(theme: &mut Theme, label: &str, colours: Colours) -> String {
     let [w, h] = BUTTON;
+    let plain = style_of(&Look::default(), colours);
     let style = Style {
-        radius: 4,
-        ..style_of(&Look::default(), colours)
+        radius: colours.radius.map_or(4, |r| (r - 2).max(0)),
+        fill: colours.well.unwrap_or(plain.fill),
+        ..plain
     };
     let picture = Picture::new(w, h)
         .svg(style.shape([w, h], 0))

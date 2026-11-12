@@ -589,8 +589,11 @@ impl Agent {
         let colours = colours(&chat_look(&self.values));
         let (fill, border) = self.values.row_box;
         let plain = style_of(&Look::default(), colours);
+        let radius = chat_look(&self.values)
+            .radius
+            .map_or(8, |r| i32::try_from(r).unwrap_or(8));
         let style = Style {
-            radius: 8,
+            radius,
             fill: fill.unwrap_or(plain.fill),
             border: border.unwrap_or(plain.border),
             ..plain

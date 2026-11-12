@@ -548,6 +548,14 @@ impl Wm {
             .collect()
     }
 
+    /// Whether the current output shows a fullscreen window: one that asked
+    /// for it, or any window in the fullscreen layout.
+    pub fn fullscreen_shown(&self) -> bool {
+        let shown = self.shown_on(self.current);
+        let layout = self.current().is_some_and(|(l, _)| l == Layout::Fullscreen);
+        (layout && !shown.is_empty()) || shown.iter().any(|&i| self.windows[i].fullscreen)
+    }
+
     /// The tags of each output, for a panel.
     pub fn tags(&self) -> Vec<OutputTags> {
         self.outputs
@@ -1449,6 +1457,16 @@ mod tests {
         assert_eq!(wm.focused(), Some("a"));
         wm.act(&Action::RestoreMinimized);
         assert_eq!(wm.focused(), Some("b"));
+    }
+
+    #[test]
+    fn a_fullscreen_window_asks_the_panel_to_hide() {
+        let mut wm = wm(&["a", "b"]);
+        assert!(!wm.fullscreen_shown());
+        wm.act(&Action::ToggleFullscreen);
+        assert!(wm.fullscreen_shown());
+        wm.act(&Action::ToggleFullscreen);
+        assert!(!wm.fullscreen_shown());
     }
 
     #[test]

@@ -398,10 +398,20 @@ impl Agent {
     /// What the card is drawn in: the page of the look where the folder
     /// names a slot, else the card of the host.
     fn card_ink(&self) -> (card::Ink, Option<chat::Face>) {
+        let look = self.values.chat();
         if !self.values.slot {
+            if look.card == chora_kit::hud::CardLook::Chat {
+                let (fill, text, ..) = chat::page_ink(&look);
+                let border = chat::border_ink(&look);
+                let radius = look.radius.map_or(card::Ink::HOST.radius, |r| {
+                    i32::try_from(r).unwrap_or(card::Ink::HOST.radius)
+                });
+                let button = look.well.unwrap_or(fill);
+                return (card::Ink::themed(fill, border, text, button, radius), None);
+            }
             return (card::Ink::HOST, None);
         }
-        let (fill, text, muted, face) = chat::page_ink(&self.values.chat());
+        let (fill, text, muted, face) = chat::page_ink(&look);
         (card::Ink::page(fill, text, muted), face)
     }
 
@@ -675,6 +685,7 @@ impl Agent {
             self.card = Some(shown);
         }
         commands.extend(self.sync_badge()?);
+        commands.extend(self.sync_row()?);
         Ok(commands)
     }
 

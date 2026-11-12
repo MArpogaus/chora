@@ -692,7 +692,7 @@ mod tests {
         let (_, values, cache) = loaded("neutral-rows");
         let (anchor, [_, top]) = values.rows;
         assert_eq!(anchor, chora_kit::hud::Anchor::TopRight);
-        assert!(top >= 48, "the islands of the bar reach y 40: {top}");
+        assert!(top >= 24, "the rows stand 12 below the tile top: {top}");
         let _ = std::fs::remove_dir_all(cache);
     }
 
@@ -704,7 +704,7 @@ mod tests {
             Figure::Sheet { size: [24, 24], .. }
         ));
         assert_eq!(values.anchor, chora_kit::hud::Anchor::BottomRight);
-        assert_eq!(values.margin, [16, 16]);
+        assert_eq!(values.margin, [24, 24]);
         assert_eq!(values.speech.tail, 0, "no tail");
         assert!(values.mutes);
         assert!(theme.confined());

@@ -1,31 +1,69 @@
 hud: 1
-font: sans-serif
+font: Inter
 panels:
 - id: figure
   source: voice
   anchor: bottom_right
-  margin: [16, 16]
+  margin: [24, 24]
   picture: dot.svg#{state}
   text: '{state}'
   action: mute
+  fill: [255, 255, 255]
+  colours:
+    text: [27, 30, 39]
+    accent: [109, 74, 255]
 - id: line
   source: say
   near: figure
   style: bubble
   text: '{text}'
+  fill: [255, 255, 255]
+  colours:
+    text: [27, 30, 39]
 - id: agents
   source: agents
   anchor: top_right
-  margin: [16, 48]
+  margin: [24, 24]
   rows: '{name}  {state}  {task}'
   max_rows: 4
   action: chat
+  fill: [255, 255, 255]
+  colours:
+    text: [27, 30, 39]
+    accent: [109, 74, 255]
+    muted: [91, 98, 116]
 chat:
   style: plain
   size: 14
   anchor: right
   width: 400
-  fill: [250, 250, 250]
-  text: [32, 32, 32]
-  name: [0, 80, 160]
-  border: [60, 60, 60]
+  margin: 12
+  radius: 10
+  card: chat
+  fill: [255, 255, 255]
+  text: [27, 30, 39]
+  name: [91, 98, 116]
+  well: [242, 243, 247]
+dark:
+  chat:
+    fill: [26, 29, 39]
+    text: [230, 232, 239]
+    name: [154, 161, 180]
+    border: [46, 51, 68]
+    well: [36, 40, 54]
+  panels:
+    figure:
+      fill: [26, 29, 39]
+      colours:
+        text: [230, 232, 239]
+        accent: [167, 139, 250]
+    line:
+      fill: [26, 29, 39]
+      colours:
+        text: [230, 232, 239]
+    agents:
+      fill: [26, 29, 39]
+      colours:
+        text: [230, 232, 239]
+        accent: [167, 139, 250]
+        muted: [154, 161, 180]

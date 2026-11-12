@@ -310,7 +310,7 @@ construct do. The host listens to `construct.theme`,
 is the theme of the client of `space`, else of `wm`, else `light`.
 
 The block `dark:` gives the colours of the dark theme over those of the
-folder: `chat` takes `fill`, `text`, `name`, `border` and `glow`, and
+folder: `chat` takes `fill`, `text`, `name`, `border`, `well` and `glow`, and
 `panels` takes, by the `id` of a panel, `fill`, `border` and `colours`.
 A colour left out stays as it is in the light theme. An id that no panel
 has is an error, and the dark colours pass the same contrast check.
@@ -337,6 +337,9 @@ values only. A folder without the block gets the neutral chat.
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
+| `radius` | The corner radius of a plain view, of the question card (with `card: chat`), of the buttons (2 less) and of the rows of the helpers, 0 to 24. |
+| `well` | The colour of the field and of the buttons of the view and the card; the fill if left out. `dark:` takes it too. |
+| `card` | `host` (default) or `chat`: with `chat` the question card has the fill, hairline, text and `radius` of the chat and its buttons the `well`, as in the neutral folder of the tiling look. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers, exactly as announced: the view never steps aside in it, and it does not move or grow while a question shows. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. The client also gives the theme of the look where no window manager claims the screen. A folder with a slot draws no "Chat ..." row and no row of a helper, and its question card takes the page of the look, see below. |
 
 Where a person closed the chat of a helper and that helper is the only one

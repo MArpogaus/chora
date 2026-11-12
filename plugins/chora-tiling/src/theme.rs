@@ -128,7 +128,7 @@ impl Colors {
         };
         match scheme {
             Scheme::Ink => make([
-                "#11131a", "#1a1d27", "#242836", "#3a4054", "#e6e8ef", "#9aa1b4", "#a78bfa",
+                "#11131a", "#1a1d27", "#242836", "#2e3344", "#e6e8ef", "#9aa1b4", "#a78bfa",
                 "#11131a", "#5eead4", "#f87171", "#161922", "#86e0a0", "#f0cd6e", "#7aa2f7",
             ]),
             Scheme::Paper => make([
@@ -328,6 +328,7 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("fuzzel.ini", fuzzel(colors)),
         ("foot.ini", foot(colors)),
         ("swaylock.conf", swaylock(colors)),
+        ("mako.conf", mako(colors)),
         ("icons/apps.svg", icon(&colors.text, APPS)),
         ("icons/keys.svg", icon(&colors.text, KEYS_ICON)),
         ("icons/power.svg", icon(&colors.muted, POWER)),
@@ -376,7 +377,40 @@ fn fuzzel(c: &Colors) -> String {
          \n\
          [border]\n\
          width=1\n\
-         radius=12\n"
+         radius=12\n\
+         selection-radius=8\n"
+    )
+}
+
+fn mako(c: &Colors) -> String {
+    format!(
+        "# The notifications of the tiling flavor: an island in the palette, 12\n\
+         # from the corner like a tile. Written by chora-tiling --apply-theme from\n\
+         # the palette of chora-tiling.yaml.\n\
+         font=Inter 14\n\
+         layer=overlay\n\
+         anchor=bottom-right\n\
+         margin=12\n\
+         padding=12\n\
+         width=360\n\
+         border-size=1\n\
+         border-radius=10\n\
+         icons=0\n\
+         max-icon-size=0\n\
+         default-timeout=10000\n\
+         background-color={surface}\n\
+         text-color={text}\n\
+         border-color={line}\n\
+         progress-color=over {accent}\n\
+         \n\
+         [urgency=high]\n\
+         border-color={urgent}\n\
+         default-timeout=0\n",
+        surface = c.surface,
+        text = c.text,
+        line = c.line,
+        accent = c.accent,
+        urgent = c.urgent,
     )
 }
 
@@ -722,6 +756,11 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
+        "mako" => line.extend(
+            find(&["mako.conf"])
+                .into_iter()
+                .flat_map(|f| ["--config".into(), f]),
+        ),
         "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
@@ -1000,6 +1039,11 @@ mod tests {
         let all = files(&ink);
         let text = |n: &str| all.iter().find(|(k, _)| *k == n).unwrap().1.clone();
         assert!(text("fuzzel.ini").contains("background=1a1d27ff"));
+        assert!(text("fuzzel.ini").contains("selection-radius=8"));
+        let mako = text("mako.conf");
+        assert!(mako.contains("background-color=#1a1d27"));
+        assert!(mako.contains("border-color=#2e3344"));
+        assert!(mako.contains("border-radius=10"));
         assert!(text("foot.ini").contains("pad=16x16"));
         assert!(text("foot.ini").contains("font=JetBrains Mono:size=10.5"));
     }
