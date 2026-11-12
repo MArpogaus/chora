@@ -177,7 +177,7 @@ def run(root, now):
         problems += check_rules_growth(root, rules.read_text())
     problems += check_merge_has_status(root)
     problems += check_reflections(root, now)
-    for name in ("state.md", "decisions-now.md", "answers.md"):
+    for name in ("state.md", "decisions-now.md", "answers.md", "routines.md", "rules.md"):
         for line in added_lines(root, name):
             problems += check_added_line(name, line, now)
     return problems

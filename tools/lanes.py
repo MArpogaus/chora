@@ -4,7 +4,8 @@
 Usage: python3 tools/lanes.py [--all]   (--all lists finished subagents too)
 Exit status 1 when any flag is raised. Flags: fewer than two lanes (running local subagents plus the
 cloud workers under "Lanes:" of state.md Now), subagent context above 250k, opus or fable builders, chora process older than 1 h,
-worktree merged into the session branch, PM context above 400k ("compact now").
+worktree merged into the session branch, PM context above 400k and grown since the last run, stored in /tmp/lanes-pm-context ("compact now").
+Reviewer and judge agents (description or prompt with review, judge or reflection) are not lanes.
 """
 import argparse
 import json
@@ -27,6 +28,8 @@ PM_CONTEXT_LIMIT = 400_000
 PROCESS_AGE_LIMIT = 3600
 ACTIVE_WINDOW = 1800
 HEAVY = ("opus", "fable")
+REVIEW_WORDS = ("review", "judge", "reflection")
+LAST_CONTEXT = Path("/tmp/lanes-pm-context")
 
 
 def ago(seconds):
@@ -52,6 +55,23 @@ def last_turn(path):
     return model, context
 
 
+def is_reviewer(meta):
+    text = f"{meta.get('description') or ''} {meta.get('prompt') or ''}".lower()
+    return any(word in text for word in REVIEW_WORDS)
+
+
+def compact_flag(context, last_file=LAST_CONTEXT):
+    try:
+        last = int(Path(last_file).read_text())
+    except (OSError, ValueError):
+        last = 0
+    try:
+        Path(last_file).write_text(f"{context}\n")
+    except OSError:
+        pass
+    return "compact now" if context > PM_CONTEXT_LIMIT and context > last else ""
+
+
 def subagents(show_all):
     rows, now = [], time.time()
     for p in SESSION.glob("subagents/*.jsonl"):
@@ -60,6 +80,8 @@ def subagents(show_all):
             meta = json.loads(p.with_suffix(".meta.json").read_text())
         except (OSError, ValueError):
             pass
+        if is_reviewer(meta):
+            continue
         idle = max(0, now - p.stat().st_mtime)
         if meta.get("finished") and not show_all:
             continue
@@ -130,7 +152,7 @@ def cloud_lanes():
 
 def pm_context():
     model, ctx = last_turn(MAIN)
-    return model.replace("claude-", ""), ctx, "compact now" if ctx > PM_CONTEXT_LIMIT else ""
+    return model.replace("claude-", ""), ctx, compact_flag(ctx)
 
 
 def table(title, header, rows):
