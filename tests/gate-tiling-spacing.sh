@@ -56,7 +56,7 @@ def separators(a, b):
     found = []
     for x in range(a + 4, b - 3):
         column = [px(x, y) for y in range(17, 31)]
-        if all(c == column[0] for c in column) and sum(abs(p - q) for p, q in zip(column[0], (58, 64, 84))) < 12 and px(x, 12) != column[0]:
+        if all(c == column[0] for c in column) and sum(abs(p - q) for p, q in zip(column[0], (46, 51, 68))) < 12 and px(x, 12) != column[0]:
             found.append(x)
     return found
 
