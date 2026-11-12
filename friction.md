@@ -283,3 +283,4 @@ The construct UI worker created at 02:47 UTC never started; the PM saw it only a
 
 ## 42 (2026-11-12 05:06 UTC): mid-turn brief updates never reached the xp worker
 Three brief updates sent to the xp worker mid-turn (04:26 to 04:31 UTC) reached it only after its report, so it applied none of them and then hit its 250k context limit. Fix: send_message to a busy worker with priority "next" so it joins the running turn; anything that changes scope goes into the brief of the next round, not into a mid-turn message.
+Recurrence 11-12 05:14 UTC: the xp round 2 worker also stayed PENDING (8 min); the 6-minute check caught it and the lane moved to a local agent. Two of six cloud workers today never started: prefer local agents for urgent lanes.
