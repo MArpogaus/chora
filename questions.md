@@ -96,5 +96,5 @@ Defaults taken unless the user objects:
   Microsoft names, logos or the Bliss-like wallpaper on the website and
   in captures, until the user decides; voice demos only in English.
 
-## 7 (11-11): cloud environment setup script
+## 7 (11-11): cloud environment setup script (ANSWERED 11-12: the user updated the environment; a check worker found every tool, dev library, hook and the git identity ready, and choractl built in 35 s)
 Cloud workers can no longer run setup.sh themselves (friction 37). May the environment setup script run `bash setup.sh` from the session-log branch, so workers start with the build packages and hooks? Default until then: build lanes run locally, two at a time.
