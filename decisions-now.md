@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Keep it under 9,000 characters (hook cap 10,000).
 Times Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T01:27:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T01:41:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -66,6 +66,8 @@ screened-through: 2026-11-12T01:27:00Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
+- 11-12 ~01:40 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
+  Reading: archive finished worker sessions; a recurring wake-up keeps the PM working; start parallel lanes now.
 - 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
 - 11-12 00:27 "you did not pick up work after compactation" Reading: resume the first open item at once (pm-card step 4).
 - 11-12 00:30 "Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"
@@ -73,9 +75,9 @@ screened-through: 2026-11-12T01:27:00Z (bump to the newest user message recorded
 - 11-11 11:43 "Check you sub session. All running? Close stale ones" Reading: check at each run start.
 - 11-10 14:45 "Agreed, go with the hybrid" Reading: workers for heavy lanes and testers, merges only here; one persistent PM.
 - 11-11 ~18:40 UTC "Polish the ui ux towards perfection is the goal for this week. ... Mc shall rather include in the right margin where notifactions are shown anyway instead of stealing half the screan. Make tiling more exiting and "hyperland like" it shall stay hackable ... stunning visuals in each view all with their own design philosophy" (full text in answers.md)
-  Reading: this week's goal is UI/UX polish toward perfection; design agents revisit every look ("ui voices" read as UI views/looks); tiling gets a Hyprland-like, exciting look but stays hackable; mc puts its helper into the right margin with the notifications instead of half the screen; each look follows its own design philosophy consistently.
+  Reading: polish toward perfection; a design agent per look; each look its own aesthetic.
 - 11-11 ~18:50 UTC "Not deciding anything now. You work autonomously until sat. ... take wise decitens. Self adapt to frictions and keep logging your progress."
-  Reading: the PM works alone until Saturday; the user takes no decisions now, so taste questions of the design passes are decided by the PM (this overrides "the user decides taste" of reflection 2 rule 4 until the user returns; each decision is logged with its reason and stays reversible). Self-adapt to frictions; keep logging progress (state.md, status page, reports).
+  Reading: the PM decides taste until the user returns (overrides reflection 2 rule 4), each decision logged and reversible.
 - 11-11 ~19:00 UTC "Get you head around what each plugin shall deliver. Define clear requirements USPS and target groups for each. Be a wise leader and give clear instructions to your workforce."
   Reading: the PM writes a product brief per plugin (what it delivers, requirements, USPs, target groups) and briefs every worker from it.
 - 11-11 ~19:20 UTC "Stay focused on our main targets and try to deliver the best results. You as aiming to words perfection"
