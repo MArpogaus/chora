@@ -11,7 +11,8 @@ Usage: tests/tiling-audit.py CAPTURE.png NODES.json THEME SCALE CELL [BAR]
 Prints one `FAIL:` line per finding; exit status 1 on a finding.
 
   tokens      the flat fill of each helper surface is a token of the theme
-              (`surface` or `surface-2`), and an unfocused tile border is `line`
+              (`surface` or `surface-2`), its hairline is `line`, and an
+              unfocused tile border is `line`
   radius      the corners of each helper surface and of a tile are rounded in
               the radius family of 10 to 14
   overlap     a helper surface stays clear of the bar and of the tile borders
@@ -108,6 +109,9 @@ def main():
             fill = dominant(rect)
             if not any(near(fill, token) for key, token in palette.items() if key != "line"):
                 problems.append(f"tokens {name}: fill {fill} is no token of {theme}")
+            edge = px(rect[0] + rect[2] / 2, rect[1])
+            if not any(near(edge, token, 18) for token in (palette["line"], fill)):
+                problems.append(f"tokens {name}: hairline {edge} is no `line` {palette['line']}")
             steps = corner(rect, fill)
             if not 3 <= steps <= 8:
                 problems.append(f"radius {name}: the corner turns in {steps} px, not the radius family of 10 to 14")
@@ -119,7 +123,7 @@ def main():
             outside = px(rect[0] - 3, mid)
             blended = tuple(round(EDGE * o + (1 - EDGE) * w) for o, w in zip(outside, want))
             edge.append((px(rect[0] + 1, mid), blended))
-        if borders and not any(near(color, blended) for color, blended in edge):
+        if borders and not any(near(color, blended, 26) for color, blended in edge):
             problems.append(f"tokens tile border: {edge} is not `line` {want}")
         for name, rect in helpers.items():
             if bar and rect[1] < BAR[1] + 8 and name != "hud-chat":

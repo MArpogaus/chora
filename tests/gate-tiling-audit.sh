@@ -9,7 +9,8 @@
 #   overlap     a helper surface under the bar or on a tile border
 #   fullscreen  the bar islands over a fullscreen window
 # The cells: desktop (two tiles and the "Chat ..." row), chat (the chat
-# open), question (the card), fullscreen (a fullscreen window).
+# open), question (the card), fullscreen (a fullscreen window). A capture of
+# the key list is kept as audit-keys-TAG.png, and not audited.
 #
 # Usage: tests/gate-tiling-audit.sh   BIN: directory with the binaries
 #   SIZES   the outputs (default "1280x800 2560x1600@2")
@@ -102,6 +103,11 @@ round() {
     audit chat "$tag" "$theme" "$scale"
     ctl call assistant chat.hide >/dev/null 2>&1
 
+    echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
+    sleep 1.5
+    ctl capture "$shots/audit-keys-$tag.png" >/dev/null 2>&1
+    echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
+    sleep 1
     ctl run foot -F -T fullscreen sh -c 'echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
     sleep 3
     audit fullscreen "$tag" "$theme" "$scale"
