@@ -480,12 +480,12 @@ impl Config {
                     ("tiling", "1"),
                     ("xp", "2"),
                     ("mc", "3"),
-                    ("the construct", "4"),
+                    ("construct", "4"),
                 ]
                 .into_iter()
                 .map(|(to, n)| {
                     row(
-                        &format!("Give it to {to}"),
+                        &format!("Give it to {}", crate::names::manager_name(to)),
                         chord(&format!("Super+Alt+{n}")),
                         Vec::new(),
                     )
