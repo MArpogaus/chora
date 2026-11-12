@@ -138,6 +138,23 @@ pub struct Resting {
     pub low: bool,
 }
 
+/// The look of the hints that hang over the content of a program or a
+/// face, which may be any colour: the dark glass at its strong tint, with
+/// the light text, which reads over white and over black alike, where the
+/// light glass turned grey over a dark terminal.
+#[must_use]
+pub fn over_content<'a>(look: &Look<'a>) -> Look<'a> {
+    Look {
+        style: look.style,
+        colors: look.colors,
+        plain: look.plain,
+        shader: look.shader,
+        shadow: look.shadow,
+        glass: Material::of(true),
+        metrics: look.metrics,
+    }
+}
+
 /// The word of the hint `Terminal`.
 #[must_use]
 pub fn terminal_word(_language: chora_kit::words::Language) -> &'static str {
@@ -247,7 +264,13 @@ pub fn capsule_width(look: &Look, items: &[Item]) -> f64 {
 /// hint under the pointer, `hovered`, has the hover fill. A hint that is a
 /// chip moves its node over the capsule.
 #[must_use]
-pub fn draw(look: &Look, items: &[Item], out: [f64; 2], hovered: Option<&str>) -> Vec<Command> {
+pub fn draw(
+    look: &Look,
+    items: &[Item],
+    out: [f64; 2],
+    hovered: Option<&str>,
+    over_content: bool,
+) -> Vec<Command> {
     let m = &look.glass;
     let w = capsule_width(look, items);
     let x = ((out[0] - w) / 2.0).round();
@@ -260,7 +283,7 @@ pub fn draw(look: &Look, items: &[Item], out: [f64; 2], hovered: Option<&str>) -
             parent: crate::NAME,
             rect: [x, y, w, CAPSULE],
             radius: CAPSULE / 2.0,
-            strong: false,
+            strong: over_content,
             name: "hints",
             input: InputMode::Pass,
         },
@@ -566,6 +589,43 @@ mod tests {
         assert_eq!(at(true, true, false, false), None);
         assert_eq!(at(false, false, true, false), Some(Set::Walk));
         assert_eq!(at(false, true, true, false), None);
+    }
+
+    #[test]
+    fn the_hints_over_a_program_use_the_dark_strong_glass_not_a_grey_mix() {
+        let config: Config = serde_saphyr::from_str(crate::config::DEFAULT).unwrap();
+        let metrics = Metrics::default();
+        let light = Look {
+            style: &config.style,
+            colors: &config.style.themes.light,
+            plain: false,
+            shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: Material::of(false),
+            metrics: &metrics,
+        };
+        let items = [Item {
+            keys: vec!["Alt".into(), "Esc".into()],
+            word: "Step back".into(),
+            keys_last: false,
+            hit: format!("{HINT}step-back"),
+            chip: false,
+        }];
+        let fill = |look: &Look, over: bool| {
+            draw(look, &items, [1280.0, 800.0], None, over)
+                .into_iter()
+                .find_map(|c| match c {
+                    Command::Create { id, props, .. } if id == format!("{HINTS}-glass") => {
+                        props.color
+                    }
+                    _ => None,
+                })
+                .expect("the glass of the capsule")
+        };
+        let dark = Material::of(true);
+        assert_eq!(fill(&over_content(&light), true), dark.fill(true));
+        assert_eq!(fill(&light, false), Material::of(false).fill(false));
+        assert_eq!(over_content(&light).glass.text, dark.text);
     }
 
     #[test]

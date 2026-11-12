@@ -174,15 +174,25 @@ pub fn surface(look: &Look, m: &Material, s: &Surface<'_>) -> Vec<Command> {
             ..PropsUpdate::default()
         },
     ));
-    let inset = r - (r * r - (r - 1.0).powi(2)).max(0.0).sqrt();
     commands.push(rect(
         &format!("{id}-hi"),
         id,
-        [inset, 0.0, w - 2.0 * inset, 1.0],
+        highlight(w, r),
         0.0,
         m.highlight,
     ));
     commands
+}
+
+/// The highlight along the top edge of a surface `w` wide with corner
+/// radius `r`: one pixel high, inside the inner ring, and as wide as
+/// the rounded rect is there, less a pixel, so that it never reaches
+/// out of the capsule.
+#[must_use]
+pub fn highlight(w: f64, r: f64) -> [f64; 4] {
+    let inner = (r - 1.0).max(0.0);
+    let inset = 1.0 + r - ((inner * inner) - (r - 1.5).powi(2)).max(0.0).sqrt();
+    [inset, 1.0, (w - 2.0 * inset).max(0.0), 1.0]
 }
 
 /// The blur of the core behind a surface, while `chora_kit::glass` asks
@@ -319,6 +329,20 @@ pub fn chord(binding: &str) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::{config::Config, hud::Metrics};
+
+    #[test]
+    fn the_highlight_lies_inside_the_rounded_rect_by_a_pixel() {
+        for (w, r) in [(154.0, 16.0), (448.0, 24.0), (90.0, 16.0)] {
+            let [x, y, width, h] = highlight(w, r);
+            assert!(y >= 1.0 && h <= 1.0, "inside the ring: {y}");
+            let (cx, cy) = (r, r);
+            let reach = |px: f64| ((px - cx).hypot(y + h / 2.0 - cy)).max(0.0);
+            assert!(reach(x) <= r - 1.0 + 1e-9, "left end {x} of {w}x{r}");
+            let right = x + width;
+            let mirrored = (w - right).abs() - x;
+            assert!(mirrored.abs() < 1e-9, "symmetric");
+        }
+    }
 
     #[test]
     fn a_surface_is_its_shadow_hairline_tint_and_highlight_named_for_the_audit() {

@@ -652,15 +652,7 @@ impl Construct {
             let items = self.hint_items(set);
             let out = [self.lens.w, self.lens.h];
             let hover = self.hovered_hint();
-            commands.extend(self.fitted(|s| {
-                let look = s.styled();
-                let mut commands = crate::hints::draw(&look, &items, out, hover.as_deref());
-                let places = crate::hints::places(&look, &items, out);
-                for (item, at) in items.iter().zip(places).filter(|(i, _)| i.chip) {
-                    commands.push(crate::hints::chip_word(&look, item, at));
-                }
-                commands
-            })?);
+            commands.extend(self.hint_capsule(set, &items, hover.as_deref())?);
             if set == crate::hints::Set::Cube {
                 let corner = crate::hints::origin(&self.styled(), &items, out);
                 commands.extend(self.face_label(corner)?);
@@ -678,6 +670,32 @@ impl Construct {
         self.hints.weights.clear();
         self.rt.conn.apply(commands)?;
         self.turn_dots()
+    }
+
+    /// The capsule of the hints of `set`: the glass, the hits and the
+    /// words of the chips; over a program or a face the dark glass.
+    fn hint_capsule(
+        &mut self,
+        set: crate::hints::Set,
+        items: &[crate::hints::Item],
+        hover: Option<&str>,
+    ) -> Result<Vec<Command>, ClientError> {
+        let out = [self.lens.w, self.lens.h];
+        self.fitted(|s| {
+            let over = set == crate::hints::Set::Flown;
+            let base = s.styled();
+            let look = if over {
+                crate::hints::over_content(&base)
+            } else {
+                base
+            };
+            let mut commands = crate::hints::draw(&look, items, out, hover, over);
+            let places = crate::hints::places(&look, items, out);
+            for (item, at) in items.iter().zip(places).filter(|(i, _)| i.chip) {
+                commands.push(crate::hints::chip_word(&look, item, at));
+            }
+            commands
+        })
     }
 
     /// The hint with the hover fill: the one under the pointer, or Step
