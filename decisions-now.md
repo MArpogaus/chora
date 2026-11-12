@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Keep it under 9,000 characters (hook cap 10,000).
 Times Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:11:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:46:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -23,7 +23,6 @@ screened-through: 2026-11-12T02:11:00Z (bump to the newest user message recorded
 
 ## Communication
 - 11-12 ~08:00 "87 %. Update status page with screenshots and screen cast when new looks are ready"
-  Reading: each look that lands gets screenshots and a screencast on the status page.
 - 11-09 00:48 "Antworte ab sofort immer english"
 - 11-10 07:12 "Keep summaries here to a minimum to save tokens. I have the status page, or asking if I need info"
   Reading: chat replies one or two lines; each run ends with done, running, next, blocked, budget (charter 11).
@@ -66,10 +65,10 @@ screened-through: 2026-11-12T02:11:00Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
+- 11-12 ~02:45 UTC "Updated cloud env. Quick test. Have a intensive refection loop and fix our latest problems and issues. The pm shall own the project remain always aware and use tokens and time efficently. Never loose context ore focus. Titen rules and overall strategy. I shalle note ever need to steers anymore"
+  Reading: test the new cloud setup; run an intensive opus reflection; fix what it finds; tighten rules and strategy so the user never has to steer.
 - 11-12 ~02:10 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"
-  Reading: wake often; cloud workers; polish and swarms on the new looks.
 - 11-12 ~01:40 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
-  Reading: archive finished worker sessions; a recurring wake-up keeps the PM working; start parallel lanes now.
 - 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
 - 11-12 00:27 "you did not pick up work after compactation" Reading: resume the first open item at once (pm-card step 4).
 - 11-12 00:30 "Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"

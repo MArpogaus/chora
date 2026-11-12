@@ -271,3 +271,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-12 ~01:00 UTC (user): 87 % weekly use (usage.py estimate of ~95 % was high: the 2.8 M units per percent calibration overstates; recalibrate from this reading). Status page gets screenshots and a screencast per look as it lands (verbatim in decisions-now.md).
 - 11-12 ~01:40 UTC (user): archive stale sub-sessions; arm a watchdog to keep the PM going; start parallel lanes now (verbatim in decisions-now.md).
 - 11-12 ~02:10 UTC (user): wake every 30 min; cloud workers; visual polishing and swarms on the new looks (verbatim in decisions-now.md).
+- 11-12 ~02:45 UTC (user): cloud env updated, test it; intensive reflection loop; fix the latest problems; tighten rules and strategy; the user should never need to steer (verbatim in decisions-now.md).
