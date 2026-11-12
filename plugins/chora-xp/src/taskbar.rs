@@ -52,6 +52,9 @@ const SPEAKER_WAVE: &str = r##"<path d="M11.5 5.5a3.5 3.5 0 0 1 0 5M13.25 3.5a6.
 /// The red no-sign over a speaker that is muted or has no output, round
 /// the middle of its grid of 16 pixels.
 const NO_SIGN: &str = r##"<circle cx="8" cy="8" r="6.5" fill="none" stroke="#D8321F" stroke-width="2"/><path d="M3.4 3.4L12.6 12.6" stroke="#D8321F" stroke-width="2"/>"##;
+/// The red no-sign as a badge at the lower right corner of a speaker, so
+/// that its cone stays whole.
+const NO_BADGE: &str = r##"<circle cx="12" cy="10.8" r="3.2" fill="none" stroke="#D8321F" stroke-width="1.6"/><path d="M9.8 8.6L14.2 13" stroke="#D8321F" stroke-width="1.6"/>"##;
 /// The room before the first icon of the notification area and after the
 /// clock.
 const TRAY_PAD: i32 = 12;
@@ -645,7 +648,7 @@ fn tray(theme: &Theme, width: i32, clock: Option<&str>, icons: Icons) -> Picture
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
     let speaker = match icons.speaker {
         Speaker::On => format!("{SPEAKER_SHAPE}{SPEAKER_WAVE}"),
-        Speaker::Off => format!("{SPEAKER_SHAPE}{NO_SIGN}"),
+        Speaker::Off => format!("{SPEAKER_SHAPE}{NO_BADGE}"),
     };
     let helper = if icons.mic_off {
         format!("{HELPER_SHAPE}{NO_SIGN}")
@@ -1121,7 +1124,7 @@ mod tests {
     }
 
     #[test]
-    fn the_speaker_has_ink_and_the_no_sign_is_the_palette_red_round_the_same_middle() {
+    fn the_speaker_has_ink_and_the_no_sign_is_the_palette_red() {
         let (runs, _) = tray_runs("3:26 AM", icons(Speaker::On, false), 1);
         let speaker = runs[1];
         assert!(
@@ -1130,11 +1133,14 @@ mod tests {
         );
         assert!(speaker.width() >= 12, "{speaker:?}");
         let (runs, _) = tray_runs("3:26 AM", icons(Speaker::Off, true), 1);
-        for (icon, middle) in [(runs[0], TRAY_PAD + 8), (runs[1], HELPER + 12)] {
+        for (icon, middle, slack) in [(runs[0], TRAY_PAD + 8, 1), (runs[1], HELPER + 12, 3)] {
             assert!((14..=16).contains(&icon.width()), "{icon:?}");
-            assert!((14..=16).contains(&icon.height()), "{icon:?}");
-            assert!((icon.left + icon.right - 2 * middle).abs() <= 1, "{icon:?}");
-            assert!((icon.top + icon.bottom - HEIGHT).abs() <= 1, "{icon:?}");
+            assert!((12..=16).contains(&icon.height()), "{icon:?}");
+            assert!(
+                (icon.left + icon.right - 2 * middle).abs() <= slack,
+                "{icon:?}"
+            );
+            assert!((icon.top + icon.bottom - HEIGHT).abs() <= slack, "{icon:?}");
         }
         let (mut theme, cache) = crate::sheets::tests::theme("tray-red");
         let picture = tray(&theme, tray_width(true), None, icons(Speaker::Off, false));
@@ -1151,6 +1157,31 @@ mod tests {
             "the red of the no-sign is {purest:?}, not #D8321F"
         );
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_muted_speaker_keeps_its_cone_and_wears_the_no_sign_as_a_badge() {
+        let (mut theme, cache) = crate::sheets::tests::theme("tray-cone");
+        let mut cone = |speaker| {
+            let picture = tray(&theme, tray_width(true), None, icons(speaker, false));
+            let image = crate::sheets::tests::draw(&mut theme, &picture);
+            let left = HELPER + (SPEAKER - TRAY_ICON) / 2;
+            let top = (HEIGHT - TRAY_ICON) / 2;
+            (left..left + 9)
+                .flat_map(|x| (top..top + TRAY_ICON).map(move |y| [x, y]))
+                .filter(|[x, y]| {
+                    let [r, g, b] = crate::sheets::tests::rgb(&image, *x, *y);
+                    r > 235 && g > 235 && b > 235
+                })
+                .count()
+        };
+        let (on, off) = (cone(Speaker::On), cone(Speaker::Off));
+        let _ = std::fs::remove_dir_all(cache);
+        assert!(on >= 40, "the cone has {on} white pixels");
+        assert!(
+            off * 10 >= on * 8,
+            "the no-sign cuts the cone: {off} of {on}"
+        );
     }
 
     #[test]

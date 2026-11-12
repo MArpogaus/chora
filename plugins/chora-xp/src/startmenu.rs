@@ -393,7 +393,7 @@ impl Menu {
                 Some(Item {
                     title: node.title.clone(),
                     action: Action::Run(command.clone()),
-                    icon: icons.program(&node.icon),
+                    icon: program_art(icons, &node.icon),
                     program: None,
                 })
             }
@@ -749,7 +749,7 @@ impl Menu {
         cascade.icons = nodes
             .iter()
             .map(|n| match n.kind {
-                apps::Kind::Run(_) => icons.program(&n.icon),
+                apps::Kind::Run(_) => program_art(icons, &n.icon),
                 _ => icons.find(&n.icon),
             })
             .collect();
@@ -839,6 +839,43 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
     (f64::from(x)..f64::from(x + w)).contains(&px) && (f64::from(y)..f64::from(y + h)).contains(&py)
 }
 
+/// The icon of a program, but only art that fills its square: a PNG file
+/// whose ink is under 60 % of its side is a fragment, and the program gets
+/// the generic icon of the theme instead.
+pub fn program_art(icons: &mut Icons, name: &str) -> Option<PathBuf> {
+    let found = icons.program(name);
+    if !found.as_deref().is_some_and(is_fragment) {
+        return found;
+    }
+    icons
+        .find("applications-other")
+        .or_else(|| icons.find("application-x-executable"))
+        .or(found)
+}
+
+/// Whether a file is a PNG whose ink is under 60 % of its square.
+pub fn is_fragment(path: &Path) -> bool {
+    path.extension().is_some_and(|e| e == "png") && ink_of(path).is_some_and(|ink| ink < 0.6)
+}
+
+/// The larger side of the ink of a PNG file, as a share of its larger side.
+fn ink_of(path: &Path) -> Option<f64> {
+    let image = resvg::tiny_skia::Pixmap::load_png(path).ok()?;
+    let mut found: Option<[u32; 4]> = None;
+    for y in 0..image.height() {
+        for x in 0..image.width() {
+            if image.pixel(x, y).is_some_and(|p| p.alpha() > 40) {
+                found = Some(found.map_or([x, y, x, y], |f| {
+                    [f[0].min(x), f[1].min(y), f[2].max(x), f[3].max(y)]
+                }));
+            }
+        }
+    }
+    let [x0, y0, x1, y1] = found?;
+    let side = f64::from(image.width().max(image.height()));
+    Some(f64::from((x1 - x0 + 1).max(y1 - y0 + 1)) / side)
+}
+
 /// The programs of the left column, below each other: the terminal of
 /// the settings first.
 fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
@@ -877,7 +914,7 @@ fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
     entries.extend(config.programs.iter().zip(0..).map(|(program, i)| Entry {
         title: program.title.clone(),
         subtitle: None,
-        icon: icons.program(&program.icon),
+        icon: program_art(icons, &program.icon),
         bold: false,
         kind: Kind::Program,
         action: Action::Run(program.command.clone()),
@@ -888,7 +925,7 @@ fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
     entries.extend(extra.iter().zip(first..).map(|(node, i)| Entry {
         title: node.title.clone(),
         subtitle: None,
-        icon: icons.program(&node.icon),
+        icon: program_art(icons, &node.icon),
         bold: false,
         kind: Kind::Program,
         action: Action::Run(match &node.kind {
@@ -1551,5 +1588,29 @@ mod tests {
             assert!(hovered != Some(Kind::Footer), "{key} lit a footer button");
         }
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn art_that_is_a_fragment_is_told_from_art_that_fills_its_square() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-art-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let draw = |name: &str, side: u32, ink: u32| {
+            let mut image = resvg::tiny_skia::Pixmap::new(side, side).expect("a pixmap");
+            for y in 0..ink {
+                for x in 0..ink {
+                    image.pixels_mut()[(y * side + x) as usize] =
+                        resvg::tiny_skia::PremultipliedColorU8::from_rgba(200, 0, 0, 255)
+                            .expect("a colour");
+                }
+            }
+            image.save_png(dir.join(name)).expect("a file");
+            dir.join(name)
+        };
+        let fragment = draw("fragment.png", 48, 12);
+        let whole = draw("whole.png", 48, 44);
+        assert!(is_fragment(&fragment));
+        assert!(!is_fragment(&whole));
+        assert!(!is_fragment(&dir.join("missing.png")));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

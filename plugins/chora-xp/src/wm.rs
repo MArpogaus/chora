@@ -1026,9 +1026,7 @@ impl Wm {
         }
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
-        window.icon = self
-            .icons
-            .program(window.app_id.as_deref().unwrap_or_default());
+        window.icon = window_icon(&mut self.icons, window.app_id.as_deref());
         // A window keeps its desktop over a restart.
         window.desktop = self.kept.get(surface).map_or(self.desktop, |k| k.desktop);
         let desk = desk_id(window.desktop);
@@ -1272,7 +1270,7 @@ impl Wm {
             return Vec::new();
         }
         self.windows[i].title = title;
-        self.windows[i].icon = self.icons.program(app_id.as_deref().unwrap_or_default());
+        self.windows[i].icon = window_icon(&mut self.icons, app_id.as_deref());
         self.windows[i].app_id = app_id;
         let active = self.is_active(surface);
         let mut commands = self.windows[i].style(&mut self.theme, active);
@@ -4099,6 +4097,39 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
         (tx + px - fx).clamp(tx, tx + (tw - keep).max(0)),
         (ty + py - fy).clamp(ty, ty + (th - keep).max(0)),
     ]
+}
+
+/// The application ids of terminals, which show XP's command prompt.
+const TERMINALS: [&str; 9] = [
+    "foot",
+    "footclient",
+    "xterm",
+    "alacritty",
+    "kitty",
+    "konsole",
+    "wezterm",
+    "gnome-terminal",
+    "org.wezfurlong.wezterm",
+];
+
+/// The icon of a window for its title bar and task button, 16 pixels: a
+/// terminal gets the command prompt, a program its own icon of that size,
+/// and a program without art the generic program icon of the theme.
+fn window_icon(icons: &mut Icons, app_id: Option<&str>) -> Option<std::path::PathBuf> {
+    let id = app_id.unwrap_or_default();
+    let lower = id.to_ascii_lowercase();
+    if let Some(prompt) = TERMINALS
+        .contains(&lower.as_str())
+        .then(|| icons.find_sized("utilities-terminal", 16))
+        .flatten()
+    {
+        return Some(prompt);
+    }
+    icons
+        .find_sized(id, 16)
+        .filter(|file| !crate::startmenu::is_fragment(file))
+        .or_else(|| icons.find_sized("applications-other", 16))
+        .or_else(|| icons.program_sized(id, 16))
 }
 
 #[cfg(test)]
