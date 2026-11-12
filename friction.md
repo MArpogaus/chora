@@ -271,3 +271,6 @@ The construct-v2 worker's `bash /tmp/log/setup.sh` was refused by its auto-mode 
 
 ## 38 (11-12 ~00:30 UTC): a lane passed its own tests but broke the workspace
 The mc fix round ran cargo test for chora-mc and chora-assistant only (my brief listed those and told it not to run merge-gate.sh). The full gate then failed in chora-kit's shipped_huds test, which still expected a rows panel that mc no longer ships. The PM updated the test itself (one test, commit on claude/mc-v2) instead of a new fix round, to save a round trip. Fix: every build brief requires `cargo test --workspace` before the final push, even when the merge gate is the PM's.
+
+## 39 (2026-11-12 02:34 UTC): cloud workers start with the wrong git identity
+The tooling worker found user.email = noreply@anthropic.com in its clone and set the user's address by hand. Other workers may have committed with the wrong author. Fix: the environment setup script sets `git config --global user.name "Marcel Arpogaus"` and `user.email 38564291+MArpogaus@users.noreply.github.com` (question for the user, it is their setting); until then every worker brief says "check git config user.email before the first commit"; the merge gate checks the author of every commit in the range.
