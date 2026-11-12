@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 02:10 UTC)
+## Now (2026-11-12 02:14 UTC)
 
 budget: 87 % at 2026-11-12 01:26 UTC (user), estimate 88 to 90 %, stop about 08:00 to 09:00 UTC (rate 1.8 points per hour); reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -12,7 +12,7 @@ Lanes:
 - construct-v2: tour worker session_016iS3kNcWCmF1YP1YaxYmP6 (sonnet, cloud): fixing the code review (3 MEDIUM, 9 LOW), XP face labels, then records tour-v3.
 - swarm5-fixes: cloud worker session_016iS3kM51byn28e4KkoLSee (sonnet): mc mouse way back, AGENDA heading, tiling light/dark switch, key list mouse section, fuzzel version.
 - xp-v2: local sonnet agent in wt/xp-v2: steps 2, 4, 10, 13, tray icon, 14 px sweep, Help as a window.
-- tooling: local sonnet agent: tools/check_log.py, tools/lanes.py (log branch); merge-gate --worker, red-first, pre-commit range, hud-audit in every look's gate, tests/ci-local.sh (claude/tooling).
+- tooling: log tools live (check_log.py hook, lanes.py, 18 tests); claude/tooling code review FIX (3 MEDIUM: ci-local skip path, pre-commit step skips, red-first order and test paths): cloud worker session_016iS3kMhTbAjyJBj4Q5zpNB fixing. The xp gate goes red on the paperclip size (real flaw): sent to the xp agent.
 - week-1 report: local sonnet agent, reports/week-1.md.
 - ready, not merged: claude/pkg (80f31a7, reviewed, python3 fix in) waits for train 3 with construct-v2.
 
