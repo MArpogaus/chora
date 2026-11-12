@@ -28,22 +28,32 @@ worked around. Requirements marked **RC** block the release candidate.
 
 ## chora-xp: the familiar desktop
 
-- **Target groups:** primary, beginners and older users who know the
-  classic Windows look (Erika, 74; Murat, 52; mouse only, read slowly,
-  click twice). Secondary, nostalgic users who notice every wrong pixel.
-- **Philosophy:** familiar, friendly, mouse first; a faithful homage to
-  the XP Luna feel without trademarked assets. Everything is visible and
-  clickable; nothing needs a shortcut.
-- **USPs:** an XP desktop that is pixel-true and also has a helper that
-  can act for you; it runs as a face of the 3D cube.
-- **RC requirements:** Start menu, taskbar, tray and window buttons work
-  and match the style guide to the pixel; F1 opens a key and help sheet in
-  XP style; the helper is reachable from the tray and the Start menu;
-  Super opens Start, Super+D shows the desktop, Alt+Tab shows a switcher;
-  the taskbar highlight follows focus and minimize; Turn Off shows its
-  dialog; menu labels open their submenus.
-- **Not goals:** Windows compatibility, themes other than Luna blue/olive
-  /silver.
+- **Goal (user, 11-12 04:20 UTC):** "pixel perfect replication and ux
+  similar yo original". Reference: Windows XP SP2/SP3, Luna Blue, 96 DPI,
+  1024x768 and 1280x800, Normal font size. Metrics, colours, gradients,
+  spacing, positions and behaviour match the reference to the pixel; the
+  look document lists each reference value.
+- **Legal line (not negotiable, see Needs you):** replicate shape, metrics,
+  colour and behaviour; never ship Microsoft art or names: no flag logo,
+  Bliss, Clippit, Windows sounds, "Windows"/"XP" wording, or Tahoma from a
+  Windows copy. Our own icons drawn to XP's grid (16, 24, 32, 48 px), a
+  metric-compatible free font (Wine Tahoma) and our own wallpaper.
+- **Target groups:** primary, people who know XP (Erika, 74; Murat, 52;
+  mouse only). Secondary, nostalgic users who notice every wrong pixel.
+- **Accessibility:** XP's own way: Normal (96 DPI, 8 pt Tahoma = 11 px)
+  is the replica; "Large size" (120 DPI, as XP's Display settings had)
+  is the option for older eyes. This replaces the 14 px floor (D1) for xp.
+- **UX like the original:** Start menu two columns with user tile, All
+  Programs cascade, Run, Help and Support, Turn Off and Log Off dialogs;
+  taskbar grouping, Quick Launch, tray with balloon tips, clock, volume;
+  double-click to open, right-click menus, Alt+Tab switcher, Super opens
+  Start, Super+D desktop, Super+E file manager, F1 help. The helper lives
+  in the tray and the Start menu, as an XP-era assistant would.
+- **Done means:** a side-by-side capture diff against reference
+  measurements per element (table in the look document) shows no
+  deviation above 1 px or one colour step; every audit cell green.
+- **Not goals:** running Windows programs; themes other than Luna
+  blue/olive/silver; Microsoft art.
 
 ## chora-tiling: the hacker's desktop
 
@@ -63,22 +73,36 @@ worked around. Requirements marked **RC** block the release candidate.
   visual parameter in one documented config file.
 - **Not goals:** a settings GUI; floating-first layouts.
 
-## chora-mc: the media centre
+## chora-mc: voice-first computing
 
-- **Target groups:** primary, living-room and hands-busy people (sofa,
-  kitchen, the nurse) on voice and a remote (arrows, OK, Back).
-  Secondary, beginners with no keyboard.
-- **Philosophy:** calm, large, readable from three metres; voice first,
-  no window management; one scene fills the screen, context lives in
-  quiet margins.
-- **USPs:** a voice-first scene desktop where the helper shows its work
-  in a margin, not over your content; same session as the other looks.
-- **RC requirements:** the first screen says what it is and shows how to
-  act (remote keys and voice); every task reachable with arrows, OK and
-  Back, and by mouse click; the helper and chat live in the right margin
-  with the notifications (user, 11-11), never half the screen; a key list
-  exists; terminals and apps open in a scene without config errors.
-- **Not goals:** desktop multitasking, overlapping windows.
+- **Goal (user, 11-12 04:20 UTC):** "a modern voice first computing
+  experience where content shapes the view, following traditional
+  typesetting rules". The user-facing name "media centre" no longer fits;
+  code name stays `mc` until a name is chosen (week 2).
+- **Voice first:** every task starts and completes by voice; the screen
+  shows what was heard, what is being done and what needs a yes. Remote
+  keys (arrows, OK, Back) and mouse stay a full second path (RC), never
+  the only one.
+- **Content shapes the view:** no fixed chrome or window frames; each
+  content kind has its own page form: agenda as a list, a document as a
+  text page, a terminal as a monospaced page, media full-bleed, chat and
+  notifications in the margin. The page reflows to its content; nothing is
+  boxed that is not a thing.
+- **Typesetting rules (measurable):** one baseline grid (the column
+  pitch) that every line, rule and bar sits on; measure 45 to 75
+  characters; a modular type scale with at most four sizes; one text face
+  plus one mono; rules and bars span cap top to baseline of their text;
+  no widows or orphans in headings and lists; ragged right with
+  hyphenation (EN, DE); hanging punctuation; margins in fixed proportion
+  to the measure; small caps for labels; contrast for three metres.
+- **Target groups:** hands-busy people (kitchen, sofa, the nurse),
+  accessibility users, people who prefer talking to clicking.
+- **RC requirements:** the first screen says what it is and how to talk
+  to it and how to use the remote; every task by voice, by arrows/OK/Back
+  and by click; helper, chat and notifications in the right margin (user
+  11-11); a key list; programs open as pages without config errors; every
+  audit cell (baseline grid, bar height, measure, overlap) green.
+- **Not goals:** overlapping windows, desktop multitasking.
 
 ## chora-construct: the 3D space
 
@@ -136,3 +160,24 @@ other areas, no history rewrite, no `git add -A`, no attribution, no
 inline comments); (7) its report: at most 15 lines, commits, test
 numbers, captures, open risks. A builder never reviews its own pixels; a
 separate reviewer checks captures at 1x and 2x against the look document.
+
+## Spec gaps found 11-12 04:25 UTC and the PM's defaults (user may veto)
+
+1. xp "pixel perfect" vs the 14 px floor (D1) and the 74-year-old
+   target: contradictory. Default: replica at 96 DPI, XP's "Large size"
+   as the accessibility option (above).
+2. xp "replication" vs trademarks: a literal replica would ship Microsoft
+   art. Default: replicate metrics and behaviour only (legal line above);
+   the line itself goes to Needs you (licensing, rules.md 11).
+3. xp reference: no reference captures exist in the repo and we may not
+   ship them. Default: a measurement table (element, size, colour,
+   position) in the look document, sourced from public documentation,
+   checked by audit cells.
+4. mc identity: "media centre" in the name and briefs vs "voice-first
+   computing". Default: the brief above; rename in week 2.
+5. mc "content shapes the view": which content kinds exist is unlisted.
+   Default: agenda, document, terminal, media, chat; others week 2.
+6. mc voice first vs the remote RC: kept both; voice is primary.
+7. tiling, construct, helper: no change asked; their briefs stand.
+8. "polished to perfection" has no end: defined as a full pixel review
+   that finds nothing above COSMETIC (rules.md 8).

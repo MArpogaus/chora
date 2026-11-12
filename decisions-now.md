@@ -2,9 +2,9 @@
 
 Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
-answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
+answers.md stays the full log; this file is the current set. Two hooks print it (split at the PM process heading; Design is last); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T04:16:28Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T04:20:23Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
@@ -62,19 +62,6 @@ screened-through: 2026-11-12T04:16:28Z (bump to the newest user message recorded
 - 11-11 18:03 "After rc gates passed: have intense reflection loop and sharpen our charter etc for the next days"
 - 11-11 18:11 "Ensure good an detailed logging in all components"; anonymised report script, later paste bin + GH issue text (backlog L1)
 
-## Design
-- 11-12 04:16 UTC "Did you already have the visual reviews over the new versions of our reviews? I already realized there is a glitch or a error in the XP start menu on the user icon, and also the tray icons look a bit off. For MC, the vertical bar should have the heights of the text. These are the kind of visual defects we want to automatically capture. We are aiming for perfect aesthetics. Have that on your rule list and ensure that we are having visual reviews for every remake until it's polished to perfection."
-  Reading: rules.md 8 changes: every remake (any change to a look's pixels) gets a full pixel review, not confirm-only, and rounds repeat until a round finds nothing above COSMETIC; detail flaws (icon glitches, misaligned bars, off icons) count as findings. The pixel audit is automated where possible (layout audit cells per flaw class). Seen by the user: xp Start menu user icon glitch, xp tray icons off, mc vertical bar not text height.
-- Older design and process decisions already built (cube floating windows, ACP chat themed, grants, split reviews, status page form): see answers.md.
-- 11-09 15:28 "Minimal/flawless/flexible" (docs/design-principles.md); POLS and KISS core values (charter 1.16).
-- 11-11 18:30 "different ... design documents for all our different components and window managers" (charter "Design per look")
-- 11-11 18:21 "Ui reviews shall hunt for perfectionism"; 18:26 "Such things shall be caught by ui agent"
-- 11-11 18:26 xp HUD: "click on balloon expands it to chat. Confirmed or normal replys show in ballow. ... No other balloons next to it."
-- 11-11 19:45 "expensive blurred glass ... minimal yet complete. Avoid buttons. Keyboard / mouse focus. Add overlay to show all bindings. Shared the able plugin all other wms might also use."
-- 11-11 20:17 "Go with your defaults for the HUD mockups"; reflections "like polished marbal", 20:19 "small scratches and bumps"; backlog: osx-like theme on xp code.
-- 11-11 12:22 "Lets make it impressive demos AS features Land. Polished ... Decide such things on your own from now"
-- 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
-
 ## PM process
 - 11-12 02:43 UTC "Alright, I changed the auto compactation to 300K. Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that. Honestly, you need to get some kind of a stronger personality. Really push back when you see that certain task is useless or not necessary right now. We really need to prioritize and push this project forward, design in the interests of the project, and get better structured. This is something we want to address next week. Write down the report and the findings of the token usage profile. And we will start Saturday with a big reflection using Fable to really improve our setup and be very, very critical about the overall progress we had so far."
   Reading: "plan" means a backlog entry, not running the work; the PM pushes back with reasons on tasks that are useless or not needed now, and prioritizes what moves the project forward; structure and priorities are next week's work; the token report is written (reports/token-analysis-week1.md); Saturday starts with a big, very critical Fable reflection on setup and progress. Auto-compaction is at 300k.
@@ -102,3 +89,18 @@ screened-through: 2026-11-12T04:16:28Z (bump to the newest user message recorded
   Reading: the PM writes a product brief per plugin (what it delivers, requirements, USPs, target groups) and briefs every worker from it.
 - 11-11 17:54 UTC "Stay focused on our main targets and try to deliver the best results. You as aiming to words perfection"
   Reading: focus on the main targets (polish of the four looks, RC requirements in design/product-briefs.md); quality over quantity; aim for perfection.
+
+## Design
+- 11-12 04:20 UTC "Xp goal is pixel perfect replication and ux similar yo original. Mc shall be a modern voice first computing experience where content shapes the view, following traditional typesetting rules. Sharpen plugin goals accordingly. Critically reflect on thus and any other instructions. Push back when out of budget miss leading and roast me in unclrities their shall be no gaps in our specifications."
+  Reading: design/product-briefs.md xp and mc rewritten, with a "Spec gaps" list and PM defaults; the xp legal line goes to Needs you.
+- 11-12 04:16 UTC "Did you already have the visual reviews over the new versions of our reviews? I already realized there is a glitch or a error in the XP start menu on the user icon, and also the tray icons look a bit off. For MC, the vertical bar should have the heights of the text. These are the kind of visual defects we want to automatically capture. We are aiming for perfect aesthetics. Have that on your rule list and ensure that we are having visual reviews for every remake until it's polished to perfection."
+  Reading: rules.md 8 (full pixel review of every remake until only COSMETIC; audit cells per flaw class).
+- Older design and process decisions already built (cube floating windows, ACP chat themed, grants, split reviews, status page form): see answers.md.
+- 11-09 15:28 Bkk "Minimal/flawless/flexible" (docs/design-principles.md); POLS and KISS core values (charter 1.16).
+- 11-11 18:30 UTC "different ... design documents for all our different components and window managers" (charter "Design per look")
+- 11-11 18:21 UTC "Ui reviews shall hunt for perfectionism"; 18:26 UTC "Such things shall be caught by ui agent"
+- 11-11 18:26 UTC xp HUD: "click on balloon expands it to chat. Confirmed or normal replys show in ballow. ... No other balloons next to it."
+- 11-11 19:45 UTC "expensive blurred glass ... minimal yet complete. Avoid buttons. Keyboard / mouse focus. Add overlay to show all bindings. Shared the able plugin all other wms might also use."
+- 11-11 20:17 UTC "Go with your defaults for the HUD mockups"; reflections "like polished marbal", 20:19 UTC "small scratches and bumps"; backlog: osx-like theme on xp code.
+- 11-11 12:22 UTC "Lets make it impressive demos AS features Land. Polished ... Decide such things on your own from now"
+- 11-11 18:01 UTC voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."

@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 04:20 UTC)
+## Now (2026-11-12 04:21 UTC)
 
 budget: 90 % at 2026-11-12 02:17 UTC (user), estimate 90 to 91 %, stop about 06:00 to 08:00 UTC; reset Sat 11-14 03:59 UTC.
 session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
@@ -38,5 +38,7 @@ End of week (user 02:17 UTC): finish the running lanes and merge (construct, pkg
 Saturday 11-14 from 04:05 UTC (Fable): first a big, very critical reflection on setup and progress (backlog W2-1, user 02:43); then per-area code review of a03be22..HEAD (core and security paths first, read-only, then HIGH fixes); construct Host refactor so each cube face runs its own manager (D4); rc reflection loop on Fable. Sonnet: fix lanes by area; swarm 6 on the four v2 looks with launcher fixes (start tests/fake-voice.py, a notify-send stub, a fake loginctl running swaylock). Then flakes (core SIGSEGV tests under load), three greens in a row, CI draft PR, packaging smoke, persona round 4; rc 11-18 to 11-20.
 
 ## Blocked
+
+- Needs you (licensing, rules.md 11): the xp legal line in design/product-briefs.md (replicate metrics, colour and behaviour; no Microsoft art, names, sounds or Windows Tahoma). Until you answer, workers follow that line.
 
 - Deleting 46 merged claude/* branches on origin: refused by the permission check; reports/stale-branches.md.
