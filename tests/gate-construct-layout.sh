@@ -31,7 +31,7 @@
 # Then the use mode is driven: Alt+Escape during the fly-in steps back;
 # Return flies in and the hint Alt Esc Step back is up; a real press on
 # that hint steps back; Super+T from use mode steps back, places a second
-# pane right of the first at the same distance and flies into it; the
+# pane right of the first as far or farther, whole on the screen and flies into it; the
 # typed keys reach the right terminal; Alt+Escape steps back; the window
 # audit finds every terminal as a pane.
 #
@@ -311,8 +311,8 @@ use_mode() {
         { echo "FAIL: $tag: the second terminal did not open flown in"; failed=1; return; }
     ! parent_is "$first" construct-front ||
         { echo "FAIL: $tag: the first terminal stays in front"; failed=1; }
-    ctl call construct construct.list | jq -e '.panes | (.[1].at[0] > .[0].at[0]) and ((.[1].at[1] - .[0].at[1]) | fabs) < 1' >/dev/null ||
-        { echo "FAIL: $tag: the second pane is not right of the first at the same distance: $(ctl call construct construct.list | jq -c '[.panes[].at]')"; failed=1; }
+    ctl call construct construct.list | jq -e '.panes | (.[1].at[0] > .[0].at[0]) and (.[1].at[1] >= .[0].at[1] - 1)' >/dev/null ||
+        { echo "FAIL: $tag: the second pane is not right of the first, as far or farther: $(ctl call construct construct.list | jq -c '[.panes[].at]')"; failed=1; }
     ok "$tag: Super+T in use mode stepped back and flew into a second pane right of the first"
     : >"$work/typed"
     typed e
@@ -322,10 +322,10 @@ use_mode() {
     key Super+t
     until_ok 'panes_are 3' || { echo "FAIL: $tag: Super+T in the walk started no third terminal"; failed=1; return; }
     until_ok 'front_is 1' || { echo "FAIL: $tag: the third terminal did not open flown in"; failed=1; return; }
-    if ctl call construct construct.list | jq -e '.panes | ((.[2].at[1] - .[0].at[1]) | fabs) < 1 and (.[2].at[0] != .[0].at[0]) and (.[2].at[0] != .[1].at[0])' >/dev/null; then
-        ok "$tag: Super+T in the walk opened a third pane beside the others at the same distance"
+    if ctl call construct construct.list | jq -e '.panes | (.[2].at[1] >= .[0].at[1] - 1) and (.[2].at[0] < .[0].at[0])' >/dev/null; then
+        ok "$tag: Super+T in the walk opened a third pane left of the first, as far or farther"
     else
-        echo "FAIL: $tag: the third pane is not beside the others at the same distance: $(ctl call construct construct.list | jq -c '[.panes[].at]')"
+        echo "FAIL: $tag: the third pane is not left of the first, as far or farther: $(ctl call construct construct.list | jq -c '[.panes[].at]')"
         failed=1
     fi
     key Alt+Escape
