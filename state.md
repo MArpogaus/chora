@@ -2,14 +2,14 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 05:22 UTC)
+## Now (2026-11-12 05:23 UTC)
 
 budget: 93 % at 2026-11-12 04:23 UTC (user); stop about 06:00 UTC; reset Sat 11-14 03:59 UTC.
 session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
 last_reviewed: per-merge reviews only; the per-area review of the whole range a03be22..HEAD is due (Fable, Saturday).
 
 Lanes:
-- construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: the first worker never left PENDING (02:47 to 04:15 UTC, archived; friction 41); retry worker session_016iS3kNNrfvVqfnNJw6akRK (sonnet, started 04:16 UTC; start check 04:22). Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
+- construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: the first worker never left PENDING (02:47 to 04:15 UTC, archived; friction 41); round 2 done 05:23 UTC (83c44f81, M1-M7 fixed with tests and cube cells, full gate 19/19; worker archived); independent review running (local sonnet, reports/pixel-construct-r2.md); gap: no 2x captures. Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
 - swarm5-fixes: ready for train 4 (9644cc05: merged claude/pkg, both HIGH were covered by pkg, packaging-files.py 0 gaps in 141 files; MEDIUMs fixed; full gate passed on the 2nd run, flake in cube "a client xp runs already" added to the Saturday flake list). Worker archived.
 - full pixel reviews done (rules.md 8 new, user 04:16 UTC): xp 6/10/8 (user's Start user picture and tray confirmed), mc 3/13/8 (user's text-height bar confirmed), tiling 5/10/5 (helper surfaces unthemed, fullscreen islands); reports/pixel-{xp,mc,tiling}-v2.md.
 - pixel polish workers (sonnet, cloud; each adds audit cells red first; mc round 1 done 04:57 UTC e6cc46c, bars cap-to-baseline, F1 fits, terminal page; MINORs 3-19 running before the review; xp round 1 done 05:05 UTC 9442761, 4 of 6 MAJORs fixed with red-first tests, round 2: imported assets, 2x captures, MAJOR 6, MINORs 7-16): xp round 2: local sonnet agent in wt/xp-v2 (claude/xp-pixel; cloud worker stuck PENDING again 05:06 to 05:14 UTC, archived; friction 41 twice today), mc: rounds 1-2 done (b50159dd; worker archived at its context limit 05:18 UTC); review r2 FIX 0/12/10 (reports/pixel-mc-pixel-r2.md); round 3 local sonnet in wt/mc-pixel from 05:22 UTC (all 12 MINORs, one grid phase, mono >= 14 px, field box; tests/mc-capture.sh committed), tiling session_016iS3kQopQ54vh8Eiht7K2r (claude/tiling-pixel from swarm5-fixes). Four heavy lanes with construct: the maximum; then a full pixel review of each before train 4.
