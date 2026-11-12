@@ -480,6 +480,17 @@ pids+=($!)
 exec 5>"$out/voice.in"
 echo 'voice.state {"state": "listening"}' >&5
 wait_for has_node id:hud-figure
+figure_rect() { query id:hud-figure | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
+bin_rect() {
+    query kind:image | jq -c '[.[] | select(.id | startswith("xp-icon-"))]
+        | sort_by(.id[8:] | tonumber) | last | .rects | to_entries[0].value | map(floor)'
+}
+read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
+near() { test $(($1 - $2)) -le 3 && test $(($2 - $1)) -le 3; }
+near $((fx + fw)) 1272 || fail "the paperclip is not 8 pixels from the right edge: $fx $fw"
+test $((fy + fh)) = 762 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
+read -r bx _ bw _ < <(bin_rect | jq -r 'join(" ")')
+near $((bx + bw / 2)) $((fx + fw / 2)) || fail "the bin and the paperclip do not share a centre line: $bx $bw $fx $fw"
 echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
 speech_visible() { test "$(query id:hud-line | jq '.[0].visible')" = true; }
 wait_for speech_visible

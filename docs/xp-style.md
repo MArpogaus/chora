@@ -80,3 +80,11 @@ something off? If yes, it is a finding. The second rule is chora's own:
     balloon, 14 px text, and shows after 500 ms above the part under the
     pointer. The desktop buttons are 24 by 24, 2 px apart, with the tooltip
     "Desktop N of 4".
+
+## Desktop and helper
+
+11. **A grid of 80 by 88 pixel cells from 8, 8.** The Recycle Bin stands
+    at the right edge, 8 px from it. The paperclip stands 8 px from the right
+    edge and 8 px above the taskbar, the bin 8 px above the paperclip on
+    the same centre line. The tail of the balloon ends on the head of the
+    paperclip, and the border of every balloon is black.

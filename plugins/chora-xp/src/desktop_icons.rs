@@ -27,11 +27,14 @@ use crate::{
 /// The group of the icons, between the wallpapers and the windows.
 pub const GROUP: &str = "xp-icons";
 const PREFIX: &str = "xp-icon-";
-/// A cell of XP's grid: the icon spacing of 75 pixels in both directions.
-const CELL: i32 = 75;
+/// A cell of the grid, 80 by 88 pixels, from 8 pixels inside the work
+/// area.
+const CELL_W: i32 = 80;
+const CELL_H: i32 = 88;
+const MARGIN: i32 = 8;
 const ICON: i32 = 32;
 /// The icon in its cell: centered, 2 pixels below the top.
-const ICON_X: i32 = (CELL - ICON) / 2;
+const ICON_X: i32 = (CELL_W - ICON) / 2;
 const ICON_TOP: i32 = 2;
 /// The top of the label box in the cell, measured on XP.
 const LABEL_TOP: i32 = 40;
@@ -39,10 +42,12 @@ const LINE: i32 = 13;
 /// The widest line of a label.
 const LABEL_PX: i32 = 72;
 const LABEL_WIDTH: f64 = LABEL_PX as f64;
-/// The Recycle Bin from the bottom right of the work area: XP's
-/// default place, measured at 800x600.
-const BIN_FROM_RIGHT: i32 = 78;
-const BIN_FROM_BOTTOM: i32 = 86;
+/// The Recycle Bin from the bottom right of the work area: its cell is 8
+/// pixels from the right edge, on the centre line of the paperclip, and
+/// 8 pixels above the paperclip, which is 116 pixels high and 8 pixels
+/// above the taskbar.
+const BIN_FROM_RIGHT: i32 = MARGIN + CELL_W;
+const BIN_FROM_BOTTOM: i32 = MARGIN + 116 + MARGIN + CELL_H;
 /// A press moves this far before it drags the icon.
 const DRAG_START: f64 = 4.0;
 const WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -359,7 +364,9 @@ impl DesktopIcons {
     /// of a drop.
     pub fn on_trash(&self, [px, py]: [i32; 2]) -> bool {
         self.items.iter().zip(&self.places).any(|(item, [x, y])| {
-            item.open == Open::Trash && (*x..x + CELL).contains(&px) && (*y..y + CELL).contains(&py)
+            item.open == Open::Trash
+                && (*x..x + CELL_W).contains(&px)
+                && (*y..y + CELL_H).contains(&py)
         })
     }
 
@@ -368,7 +375,7 @@ impl DesktopIcons {
     pub fn selected_node(&self) -> Option<(String, [i32; 2])> {
         let i = self.find(self.selected.first()?)?;
         let [x, y] = self.places[i];
-        Some((Self::id(i), [x + CELL / 2, y + CELL / 2]))
+        Some((Self::id(i), [x + CELL_W / 2, y + CELL_H / 2]))
     }
 
     /// The icon that a node shows.
@@ -600,7 +607,7 @@ fn band_rect([ax, ay]: [f64; 2], [bx, by]: [f64; 2]) -> Rect {
 /// itself or the first line of its label.
 fn touches([x, y, w, h]: Rect, [cx, cy]: [i32; 2]) -> bool {
     let [ix, iy, iw, ih] = [
-        cx + (CELL - LABEL_PX) / 2,
+        cx + (CELL_W - LABEL_PX) / 2,
         cy + ICON_TOP,
         LABEL_PX,
         LABEL_TOP - ICON_TOP + LINE,
@@ -611,7 +618,8 @@ fn touches([x, y, w, h]: Rect, [cx, cy]: [i32; 2]) -> bool {
 /// Whether moved icons fit into their cells: no two in one cell, and
 /// none on an icon that stays.
 fn fits(cells: &[[i32; 2]], staying: &[[i32; 2]]) -> bool {
-    let near = |a: [i32; 2], b: [i32; 2]| (a[0] - b[0]).abs() < CELL && (a[1] - b[1]).abs() < CELL;
+    let near =
+        |a: [i32; 2], b: [i32; 2]| (a[0] - b[0]).abs() < CELL_W && (a[1] - b[1]).abs() < CELL_H;
     cells.iter().enumerate().all(|(i, c)| {
         cells[i + 1..].iter().all(|o| !near(*c, *o)) && staying.iter().all(|s| !near(*c, *s))
     })
@@ -635,8 +643,13 @@ fn picture(
     let text = widths.iter().copied().fold(0.0, f64::max).ceil() as i32;
     let rows = i32::try_from(lines.len()).unwrap_or(1);
     // The box as on XP: 1 pixel of room left of the ink, 2 right of it.
-    let boxed = [(CELL - text - 2) / 2, LABEL_TOP, text + 3, rows * LINE + 2];
-    let mut picture = Picture::new(CELL, LABEL_TOP + boxed[3]);
+    let boxed = [
+        (CELL_W - text - 2) / 2,
+        LABEL_TOP,
+        text + 3,
+        rows * LINE + 2,
+    ];
+    let mut picture = Picture::new(CELL_W, LABEL_TOP + boxed[3]);
     if let Some(file) = icons.find(&item.icon) {
         picture = picture.file(&file, [ICON_X, ICON_TOP, ICON, ICON]);
     }
@@ -650,7 +663,7 @@ fn picture(
     }
     for ((line, w), row) in lines.iter().zip(&widths).zip(0..) {
         #[allow(clippy::cast_possible_truncation)]
-        let x = ((f64::from(CELL) - w) / 2.0).round() as i32;
+        let x = ((f64::from(CELL_W) - w) / 2.0).round() as i32;
         let rect = [x, LABEL_TOP + 1 + row * LINE, LABEL_PX, LINE];
         let mut text = Text::new(line, Font::Ui, WHITE, rect);
         if !selected {
@@ -712,10 +725,15 @@ fn by_type(items: &mut [Item]) {
 /// skip the cell of the bin.
 fn layout(count: usize, [x, y, w, h]: Rect) -> (Vec<[i32; 2]>, [i32; 2]) {
     let bin = [x + w - BIN_FROM_RIGHT, y + h - BIN_FROM_BOTTOM];
-    let rows = ((h - LABEL_TOP - 2 * LINE - 2) / CELL + 1).max(1);
+    let rows = ((h - MARGIN - LABEL_TOP - 2 * LINE - 2) / CELL_H + 1).max(1);
     let cells = (0..)
-        .map(|n| [x + n / rows * CELL, y + n % rows * CELL])
-        .filter(|c| (c[0] - bin[0]).abs() >= CELL || (c[1] - bin[1]).abs() >= CELL)
+        .map(|n| {
+            [
+                x + MARGIN + n / rows * CELL_W,
+                y + MARGIN + n % rows * CELL_H,
+            ]
+        })
+        .filter(|c| (c[0] - bin[0]).abs() >= CELL_W || (c[1] - bin[1]).abs() >= CELL_H)
         .take(count)
         .collect();
     (cells, bin)
@@ -723,11 +741,12 @@ fn layout(count: usize, [x, y, w, h]: Rect) -> (Vec<[i32; 2]>, [i32; 2]) {
 
 /// The cell of the grid nearest to a place, inside the work area.
 fn snap([px, py]: [i32; 2], [x, y, w, h]: Rect) -> [i32; 2] {
-    let cell = |p: i32, origin: i32, room: i32| {
-        let last = ((room - CELL) / CELL).max(0);
-        origin + ((p - origin + CELL / 2).div_euclid(CELL)).clamp(0, last) * CELL
+    let cell = |p: i32, origin: i32, room: i32, size: i32| {
+        let origin = origin + MARGIN;
+        let last = ((room - MARGIN - size) / size).max(0);
+        origin + ((p - origin + size / 2).div_euclid(size)).clamp(0, last) * size
     };
-    [cell(px, x, w), cell(py, y, h)]
+    [cell(px, x, w, CELL_W), cell(py, y, h, CELL_H)]
 }
 
 /// Two presses on the same icon within XP's double-click time.
@@ -972,27 +991,24 @@ mod tests {
     #[test]
     fn icons_fill_columns_and_the_bin_sits_bottom_right() {
         let (cells, bin) = layout(9, [0, 0, 800, 570]);
-        assert_eq!(bin, [722, 484]);
-        // Seven rows of 75 pixels fit above the taskbar.
-        assert_eq!(cells[..2], [[0, 0], [0, 75]]);
-        assert_eq!(cells[7], [75, 0]);
-        // The columns skip the cell of the bin.
-        let (cells, bin) = layout(5, [0, 0, 300, 160]);
-        assert_eq!(bin, [222, 74]);
-        assert_eq!(cells, [[0, 0], [0, 75], [75, 0], [75, 75], [300, 0]]);
+        assert_eq!(bin, [712, 350]);
+        assert_eq!(cells[..2], [[8, 8], [8, 96]]);
+        assert_eq!(cells[6], [88, 8]);
+        let (cells, bin) = layout(5, [0, 0, 200, 260]);
+        assert_eq!(bin, [112, 40]);
+        assert_eq!(cells, [[8, 8], [8, 96], [8, 184], [88, 184], [168, 184]]);
     }
 
     #[test]
     fn the_selection_rectangle_touches_icons_and_labels() {
         // From any corner to the opposite one.
         assert_eq!(band_rect([50.4, 90.0], [10.0, 20.7]), [10, 20, 40, 70]);
-        let cell = [0, 75];
-        // The icon of the cell spans x 1 to 73, y 77 to 128.
-        assert!(touches([60, 60, 20, 20], cell));
-        assert!(touches([70, 120, 30, 30], cell));
-        assert!(!touches([74, 60, 20, 20], cell));
-        assert!(!touches([0, 129, 75, 20], cell));
-        assert!(!touches([0, 40, 75, 36], cell));
+        let cell = [0, 88];
+        assert!(touches([60, 60, 20, 40], cell));
+        assert!(touches([70, 130, 30, 30], cell));
+        assert!(!touches([77, 60, 20, 40], cell));
+        assert!(!touches([0, 142, 80, 20], cell));
+        assert!(!touches([0, 40, 80, 36], cell));
     }
 
     #[test]
@@ -1007,7 +1023,7 @@ mod tests {
             open: Open::File(key.into()),
         };
         desk.items = vec![item("a"), item("b"), item("c")];
-        desk.places = vec![[0, 0], [0, 75], [300, 300]];
+        desk.places = vec![[8, 8], [8, 96], [300, 300]];
         desk.area = [0, 0, 800, 570];
         // A band from the empty desktop over the first two icons.
         desk.press_empty(&mut theme, &mut icons, [100.0, 10.0]);
@@ -1020,7 +1036,7 @@ mod tests {
         desk.press(&mut theme, &mut icons, "xp-icon-1", [37.0, 100.0]);
         assert_eq!(desk.drag(&mut theme, &mut icons, [187.0, 104.0]).len(), 2);
         desk.release(&mut theme, &mut icons, [187.0, 104.0]);
-        assert_eq!(desk.places, [[150, 0], [150, 75], [300, 300]]);
+        assert_eq!(desk.places, [[168, 8], [168, 96], [300, 300]]);
         // The right button on one of them keeps both selected.
         desk.select_for_menu(&mut theme, &mut icons, "a".into());
         assert_eq!(desk.selected, ["a", "b"]);
@@ -1033,20 +1049,19 @@ mod tests {
 
     #[test]
     fn moved_icons_fit_into_free_cells_only() {
-        let staying = [[0, 0], [0, 75]];
-        assert!(fits(&[[75, 0], [75, 75]], &staying));
-        // One of them on an icon that stays, or two in one cell.
-        assert!(!fits(&[[75, 0], [0, 75]], &staying));
-        assert!(!fits(&[[150, 0], [150, 0]], &staying));
+        let staying = [[0, 0], [0, 88]];
+        assert!(fits(&[[80, 0], [80, 88]], &staying));
+        assert!(!fits(&[[80, 0], [0, 88]], &staying));
+        assert!(!fits(&[[160, 0], [160, 0]], &staying));
         assert!(fits(&[], &staying));
     }
 
     #[test]
     fn a_drop_snaps_to_the_nearest_cell_inside_the_area() {
         let area = [100, 0, 800, 570];
-        assert_eq!(snap([140, 30], area), [175, 0]);
-        assert_eq!(snap([120, 120], area), [100, 150]);
-        assert_eq!(snap([-500, 9000], area), [100, 450]);
+        assert_eq!(snap([140, 30], area), [108, 8]);
+        assert_eq!(snap([120, 120], area), [108, 96]);
+        assert_eq!(snap([-500, 9000], area), [108, 448]);
     }
 
     #[test]
@@ -1136,13 +1151,13 @@ mod tests {
         desk.area = [0, 0, 800, 570];
         desk.items = vec![item("a"), item("b"), item("c")];
         desk.places = desk.place(&HashMap::new());
-        assert_eq!(desk.places, [[0, 0], [0, 75], [0, 150]]);
+        assert_eq!(desk.places, [[8, 8], [8, 96], [8, 184]]);
         // b goes to the trash: c stays where it is.
         let kept = desk.cells();
         desk.items = vec![item("a"), item("c")];
-        assert_eq!(desk.place(&kept), [[0, 0], [0, 150]]);
+        assert_eq!(desk.place(&kept), [[8, 8], [8, 184]]);
         // A new icon takes the free cell of b.
         desk.items = vec![item("a"), item("aa"), item("c")];
-        assert_eq!(desk.place(&kept), [[0, 0], [0, 75], [0, 150]]);
+        assert_eq!(desk.place(&kept), [[8, 8], [8, 96], [8, 184]]);
     }
 }
