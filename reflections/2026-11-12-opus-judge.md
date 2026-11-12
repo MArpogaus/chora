@@ -442,3 +442,96 @@ this week" paragraph; section 15.
 14. Answer: built: 9 merged worktrees removed today; cloud workers used again (environment verified ready); rules.md 7 removes a worktree with its merge. Accepted that a new lane gets a fresh worker; the tour worker keeps construct-v2 only because it is set up and holds its context, and ends after tour-v3.
 15. Answer: built as rules.md 14; this section is the first answer in the file.
 16. Answer: accepted: RC requirements in design/product-briefs.md get a source tag on Saturday; PM-only items move after the rc unless they close a finding.
+
+## Round 2 (2026-11-12 01:58 UTC)
+
+Confirm-only check of 78def2f, 0f09552, 3047195, b3e40f3 (rules.md, state.md, pm-card.md,
+pm_context.py, check_log.py, lanes.py, decisions-now.md, answers.md, status/index.html) and of
+`list_triggers`. Hook outputs measured: card 7,212, decisions 6,989, decisions2 3,006,
+precompact 503 characters (all under 10,000). `check_log.py` passes on the tree; `lanes.py` runs.
+
+### Verdict per round-1 point
+
+| # | Holds? | Evidence |
+|---|---|---|
+| 1 | in part | rules 5, 9, 11 exist; their lanes.py guards never run because the watchdog prompt was not changed (R2-1) |
+| 2 | in part | state.md is Now/Queue/Blocked, 34 lines; card prints all three; unrecorded messages first; screened-through 01:46 is in the past. Not done: answers.md order and header (R2-5) |
+| 3 | yes as rule | rules.md 6; but the xp-v2 lane breaks it now (R2-6) |
+| 4 | yes | hud-xp.png removed; flaw confirmation scheduled 11-12 in tour-v3 stills. The merge-gate refusal is neither built nor scheduled, and review-checklist.md (c6df2cf, 11-11) has no "main-path flaws, any lane" table that rule 8 names as its guard |
+| 5 | yes, scheduled | tooling lane runs (train 3 or Saturday); window audit rejected with a reason |
+| 6 | in part | 11-12 entries now carry transcript UTC times; the file header still says Bangkok and older entries are Bangkok without a zone (R2-4); answers.md keeps three future "~" times (R2-5) |
+| 7 | in part | one commit per wake is a rule; PM context is 508 k and lanes.py says "compact now" (R2-7) |
+| 8 | yes as rule | the reviewer's "no green audit, no review" line is not in the checklist; hud-audit in every gate is in the tooling lane |
+| 9 | no, not as answered | only the header time, rc date and the HUD bar changed. Running still says tiling and mc are "now being built" (both merged), Next says "This week: simulated user tests ... flaky tests, CI and release dry run" (Queue: swarm and CI on Saturday), Needs you unchanged, line 131 "about 19 or 20 Nov" against header "18 to 20 Nov". The new 08:55 header makes the stale body look current. Due today per the answer |
+| 10 | yes | no throttle; CI draft PR Saturday, ci-local.sh in the tooling lane |
+| 11 | yes | `budget:` line in Now, checked by check_log.py |
+| 12 | yes | Queue follows the plan; the chat-tab lane is replaced by "fixed after merge, confirm in tour-v3" |
+| 13 | yes, with a gap | 15 rules, each with a Guard line; several guards name checks that do not exist (R2-2) |
+| 14 | yes | 4 worktrees left (log, pkg, tooling, xp-v2); old three-runs task disabled; but lanes.py flags the live tooling worktree for removal (R2-3) |
+| 15 | yes | Answers section present; check_log.py does not check it (R2-2) |
+| 16 | yes, scheduled | Saturday |
+
+### New findings
+
+**R2-1 HIGH. The watchdog was not rewired, so the lanes.py guards never run.** The prompt of
+`trig_01VxAcAFayNMtGiWDVuzJuRz` (updated 01:35, before rules.md) says "merge train per charter"
+and "If nothing runs and state.md has an open item ... start it". It names neither rules.md,
+the Queue nor `tools/lanes.py`. Rules 4, 5, 6 and 7 give "lanes.py at each watchdog wake" as
+their guard. Fix: the prompt reads "Run `python3 /home/user/wt/log/tools/lanes.py`, act on
+every flag, then work the Queue of state.md under rules.md."
+
+**R2-2 HIGH. Rules name guards that do not exist (the round-1 point 5 pattern again).**
+check_log.py checks sections, 80 lines, the Now time not in the future, the budget line,
+the 9,000 split, screened-through not in the future, the rule count and Guard lines, and
+added stamps. It does not check: rule 1 "Now after the newest merge"; rule 2 against the
+transcript; rule 9 "merge without status/ change"; rule 14 "Answer:" lines; rule 15 "a rule
+in removes one" (only the cap of 20). lanes.py has no "fewer than two lanes" check (rule 5),
+does not see cloud worker sessions (two of the five lanes in state.md), reads no triggers
+(rule 4) and always exits 0, even with flags. Rule 8's guard (the review template table) is
+not in design/looks/review-checklist.md. Fix: either build each check in the tooling lane
+with a date, or change the Guard line to "manual" now; a Guard line must name a check that runs.
+
+**R2-3 HIGH. lanes.py tells the PM to delete an active lane's worktree.** Output: `tooling
+claude/tooling MERGED, remove`. claude/tooling has no commits yet; its tip is 59df16e, the
+session branch tip, so `merge-base --is-ancestor` is true. Rule 7 says a merged worktree goes
+in the same step. Every new lane is flagged until its first commit. Fix: flag only when the
+session branch has a merge commit of that branch (`git log --merges --grep "Merge branch
+'<branch>'"`) or the branch is ahead of its fork point and fully contained.
+
+**R2-4 MEDIUM. decisions-now.md contradicts rules.md 3 on times.** Line 6: "Times Bangkok
+(UTC+7)". Entries mix unlabeled Bangkok ("11-11 23:53", "11-11 23:59", "11-12 00:27", "00:29",
+"00:30") with "UTC" ones. "11-12 00:29" (= 11-11 17:29 UTC) reads as newer than "11-11 17:50
+UTC", so which user word is newest (the file's precedence) is ambiguous after a compaction.
+The header also says the hooks split at "## Design"; the code splits at "## PM process".
+Fix: convert all entries to UTC with the zone, fix both header lines.
+
+**R2-5 MEDIUM. Invented times escape the time guard; answers.md not fixed.** The STAMP regex
+of check_log.py does not accept "~", so "- 11-12 ~02:55 UTC" passes. answers.md still holds
+"~02:55", "~03:00" and "~03:10 UTC" (all later than 01:58 now), under the heading "## 11-10
+17:05: demo captures", and its header still says "Newest first" though entries are appended.
+Fix: allow `~?` in STAMP and treat "~" as an error; correct the three lines; fix the header.
+
+**R2-6 MEDIUM. The xp-v2 lane breaks rule 6 as written.** state.md gives one local sonnet
+agent seven items (steps 2, 4, 10, 13, tray icon, 14 px sweep, Help as a window); rule 6
+allows 3 build steps per agent. lanes.py: "xp v2 remaining steps ... 348k CONTEXT>250k".
+Fix: end it with a handover note after its current step; a fresh agent continues.
+
+**R2-7 MEDIUM. The PM sits above its own compaction threshold.** lanes.py: "PM context:
+508k (opus-5-5) compact now". Every wake now costs about 50 k weighted units of cache read.
+Fix: compact at the next quiet point (the hooks are now sound), after this round is recorded.
+
+**R2-8 LOW.** state.md Queue 2 says "then the session-log hook goes live"; it is live already
+(check-log in .pre-commit-config.yaml since b3e40f3, hook installed). Reword.
+
+**R2-9 LOW.** pm_context.py compares timestamps as strings: a message in the same second as
+screened-through ("...:00.123Z" against "...:00Z") counts as screened, since "." sorts before
+"Z". Parse both as datetimes.
+
+**R2-10 LOW.** The precompact text names "decisions-now.md and pm-card.md as the source of
+truth"; it should name rules.md and the Queue of state.md too.
+
+Queue items all have an owner or a lane; no hook output is near the cap; no rule in rules.md
+contradicts the user's words in decisions-now.md other than R2-4.
+
+new findings: 10 (of them above LOW: 7). The loop continues: round 3 after R2-1 to R2-7 are
+answered.
