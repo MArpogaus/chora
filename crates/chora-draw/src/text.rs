@@ -239,10 +239,10 @@ impl Fonts {
         let start = first_family(&db, &["Franklin Gothic Medium", "Libre Franklin", base]);
         let spec = |family: &str, size, bold, italic| Spec::new(&db, family, size, bold, italic);
         let specs = [
-            spec(base, BODY_SIZE, false, false),
-            spec(base, BODY_SIZE, true, false),
-            spec(&title, BODY_SIZE, true, false),
-            spec(&start, START_SIZE, true, true),
+            spec(base, 11, false, false),
+            spec(base, 11, true, false),
+            spec(&title, 13, true, false),
+            spec(&start, 17, true, true),
             spec(base, 16, true, false),
             spec(base, 19, false, false),
             spec(base, BODY_SIZE, false, false),
@@ -258,6 +258,16 @@ impl Fonts {
             specs,
             host_only: true,
         }
+    }
+
+    /// Sets the chrome fonts to XP's Large Fonts: the menu and button
+    /// fonts and the title at [`BODY_SIZE`] pixels, the label of the start
+    /// button at [`START_SIZE`].
+    pub fn large_chrome(&mut self) {
+        for font in [Font::Ui, Font::UiBold, Font::Title] {
+            self.specs[font as usize].size = BODY_SIZE;
+        }
+        self.specs[Font::Start as usize].size = START_SIZE;
     }
 
     /// Whether the fonts are those of the host only, with no font file of
@@ -655,8 +665,10 @@ mod tests {
     }
 
     #[test]
-    fn all_chrome_text_is_14_px_but_the_start_label_and_the_names() {
-        let host = Fonts::host(SANS_SERIF);
+    fn large_chrome_makes_all_chrome_text_14_px_but_the_start_label_and_the_names() {
+        let mut host = Fonts::host(SANS_SERIF);
+        assert_eq!(host.size(Font::Ui), 11);
+        host.large_chrome();
         for font in [
             Font::Ui,
             Font::UiBold,

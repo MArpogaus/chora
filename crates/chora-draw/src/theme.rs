@@ -271,6 +271,14 @@ const PICTURES: usize = 8192;
 const MAX_SCALE: f64 = 4.0;
 
 impl Theme {
+    /// The theme with XP's Large Fonts, see [`Fonts::large_chrome`]: for
+    /// the chrome of XP, before anything is drawn.
+    #[must_use]
+    pub fn large_chrome(mut self) -> Self {
+        self.fonts.large_chrome();
+        self
+    }
+
     /// Loads the `sheets` and the fonts of an asset folder; `family` is
     /// the base font family. Rendered files go to `cache`, which this
     /// call empties first.
