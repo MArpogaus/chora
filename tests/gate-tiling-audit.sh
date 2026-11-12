@@ -110,7 +110,7 @@ round() {
     token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
     [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
         { echo "FAIL: tokens colors.css: line is ${token:-missing} in $theme"; failed=1; }
-    sleep 3
+    sleep 6
     audit desktop "$tag" "$theme" "$scale"
 
     emit voice.state '{"state": "question", "task": "Write file", "said": ""}'
