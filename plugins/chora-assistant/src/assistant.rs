@@ -1340,14 +1340,14 @@ mod tests {
         };
         assert_eq!(
             place(&output, &mut theme),
-            [1232, 712, 24, 24],
+            [1240, 720, 24, 24],
             "a bar of 40 px below"
         );
         output.default_work_area = [0; 4];
         output.work_area = [1920, 40, 1280, 760];
         assert_eq!(
             place(&output, &mut theme),
-            [1232, 752, 24, 24],
+            [1240, 760, 24, 24],
             "a core without the default area"
         );
     }

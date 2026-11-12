@@ -1,25 +1,18 @@
 hud: 1
-font: Inter
+font: sans-serif
 panels:
 - id: figure
   source: voice
   anchor: bottom_right
-  margin: [24, 24]
+  margin: [16, 16]
   picture: dot.svg#{state}
   text: '{state}'
   action: mute
-  fill: [255, 255, 255]
-  colours:
-    text: [27, 30, 39]
-    accent: [109, 74, 255]
 - id: line
   source: say
   near: figure
   style: bubble
   text: '{text}'
-  fill: [255, 255, 255]
-  colours:
-    text: [27, 30, 39]
 - id: agents
   source: agents
   anchor: top_right
@@ -34,6 +27,7 @@ panels:
     muted: [91, 98, 116]
 chat:
   style: plain
+  font: Inter
   size: 14
   anchor: right
   width: 400
@@ -53,15 +47,6 @@ dark:
     border: [46, 51, 68]
     well: [36, 40, 54]
   panels:
-    figure:
-      fill: [26, 29, 39]
-      colours:
-        text: [230, 232, 239]
-        accent: [167, 139, 250]
-    line:
-      fill: [26, 29, 39]
-      colours:
-        text: [230, 232, 239]
     agents:
       fill: [26, 29, 39]
       colours:
