@@ -544,3 +544,93 @@ answered.
 - Times: built (the five new answers.md lines carry transcript times; decisions-now.md header names the zones).
 - xp agent with 7 items: accepted, not stopped mid-run (it pushes per item); the next xp round is a fresh agent with at most 3 items.
 - PM context at 508 k: accepted; the hooks now carry Now, Queue, rules and decisions, so the automatic compaction is safe; no manual action available to the PM.
+
+## Round 3 (2026-11-12 02:14 UTC)
+
+Confirm-only check at a2b9b5d of routines.md, selfcheck-2026-11-12.md, state.md, pm-card.md,
+decisions-now.md (PM process), check_log.py, lanes.py, the tests, status/index.html and the
+three scheduled tasks (get_trigger). `tests/test_check_log.py`: 18 tests OK (pytest is not
+installed; run as a script). `check_log.py`: exit 0, also with `--now 2026-11-13T03:00`.
+`lanes.py`: exit 1 (disk 8.5 GB "LOW", PM context 545 k "compact now", xp v2 435 k).
+
+### Round-2 answers
+
+| Answer | Holds? | Evidence |
+|---|---|---|
+| Watchdog prompt | yes | trig_01VxAc... (updated 01:59) runs lanes.py, get_session per cloud worker, rules.md 7 and 8, Queue |
+| Guard checks | mostly | built in 6f6aafb: merge without status/, Answer lines, rule growth, fewer than two lanes, exit code, fresh lane. Gaps: R3-6, R3-7 |
+| Status page | yes | Running, Next, Needs you match state.md; stop and resume times in Bangkok |
+| Times | no | answers.md 273 "11-12 ~02:10 UTC (user): wake every 30 min" is the 01:35 message; 271 and 272 also "~". decisions-now.md header now says "UTC unless marked Bkk", which turns the unlabeled Bangkok entries "11-11 23:59", "11-12 00:27", "00:30" into wrong UTC times (they are 16:59, 17:27, 17:30 UTC) (R3-5) |
+| xp agent | accepted, grows | 348 k at round 2, 435 k now; lanes.py flags it each wake |
+| PM context | accepted | 545 k; see R3-2 for what it costs |
+
+### New findings
+
+**R3-1 HIGH. The daily judge can never start, and the weekly report starts too often or never.**
+The self-check cron is `50 */3 * * *` (00, 03, ... 21:50 UTC). Its prompt starts the judge
+"If the UTC hour is 16 or 17"; no fire has that hour, so routines.md "16:50 UTC via the
+self-check of that hour" never fires. The weekly report runs "If today is Friday (Bangkok)",
+which is every self-check that day (up to 8 report starts), against routines.md "Friday's
+last self-check". Friday 11-13 also lies inside the limit stop (about Thu 08:00 UTC to Sat
+04:05 UTC), so this week it never runs. Fix: judge when the hour is 15 or 18 (or its own
+one-shot task at 16:50); weekly report only in the 21:50 UTC Thursday fire (Fri 04:50 Bkk)
+or as a step of the reset resume, with a "reports/week-N.md exists" check.
+
+**R3-2 HIGH (cost). Hourly and 3-hourly wakes of a 545 k PM, with no pause at the limit stop.**
+Every tool call in a wake re-reads the whole context; a watchdog wake of about 10 calls is
+about 5 M cache-read tokens, a self-check with 14 questions and actions about twice that.
+About 24 + 8 wakes a day is several points of the week at 87 %. From the stop (about
+08:00 UTC) to the reset (Sat 04:05 UTC) about 44 watchdog and 15 self-check fires land on a
+stopped session: wasted, failed runs or turns that act on stale state at the reset. No
+routine pauses them. Fix: (a) the watchdog has a cheap path: when lanes.py shows no change
+since its last run and no cloud worker finished, reply one line with no other tool call;
+(b) a condition routine "budget estimate within 2 points of the stop, or 1 h before it":
+write the Saturday briefs, then disable the watchdog and the self-check
+(update_trigger enabled=false); the reset resume re-enables both as its first step;
+(c) the self-check every 6 h, not 3 h: the mechanical questions are already the watchdog's.
+
+**R3-3 MEDIUM. The 14 questions overlap and half are mechanical.** 4 (cleanup), 5 (tests),
+6 (efficiency), 10 (risks) and 11 (silent lanes) repeat what lanes.py and the watchdog check
+every hour; 8 and 14 both ask about faults and friction; 7 repeats rule 14. Fix: lanes.py
+prints the mechanical facts (disk, contexts, silent lanes by last push, merged worktrees,
+gate age); the self-check keeps the judgment questions: 1 on track, 2 aligned, 3 new data,
+9 honesty, 12 user value, 13 challenge, 8+14 faults and rules, and a new one (R3-4).
+
+**R3-4 MEDIUM. Missing questions and routines.**
+- No question on the PM's own cost: "what did my wakes and reviews cost since the last
+  check, and did each one change anything?" (add to 6 or the new short set).
+- No routine for the stop itself (R3-2 b) and none for the reset: re-enable the paused
+  tasks, take a fresh budget reading, check that the Saturday briefs exist.
+- No routine for compaction: pm-card step 1 reads rules.md and state.md, not routines.md,
+  although rule 4 makes it binding.
+- "Waiting on me" (11) does not ask whether the user's last chat question got an answer
+  in chat; the 02:12 question itself is one.
+
+**R3-5 MEDIUM. Times: the round-2 "built" does not hold** (table above). The routines.md
+header says "questions 9 to 13 added 2026-11-12 02:15 UTC", written in ef1a040 at 02:12:39:
+another future time, invisible to check_log.py because it checks only state.md,
+decisions-now.md and answers.md. Fix: label the three Bangkok entries "Bkk"; replace the
+"~" times in answers.md 271 to 273 with transcript times; add routines.md and
+reflections/selfcheck-*.md to the stamp check; make "~" an error, as round 2 asked (the
+test now treats "~" as a valid stamp).
+
+**R3-6 MEDIUM. lanes.py flags are permanent, so its exit code is noise.** The disk floor is
+10 GB in lanes.py and 8 GB in routines.md; "compact now" stays on because the PM cannot
+compact by hand (its round-2 answer); the xp flag stays until that agent ends. Exit 1 at
+every wake teaches the PM to ignore it. The lane count also includes this judge and the
+code reviewer (5 "running"), so rule 5 passes with no builder at work. Fix: one disk
+floor (8 GB); report PM context without a flag; count only builders and cloud workers.
+
+**R3-7 LOW.** check_reflections reads only "### N." points; the round-2 and round-3
+points (R2-n, R3-n) and their answers are not checked, and the round-2 answers are one
+list without IDs. Answer each R-point by its ID.
+
+**R3-8 LOW.** The self-check prompt says "13 now"; routines.md has 14 since a2b9b5d.
+Point the prompt at routines.md without a count. Rule 4's guard "the self-check log shows
+a block every 3 h" has no check.
+
+**R3-9 LOW.** routines.md "Daily judge ... (charter 11a)" points to the charter as a rule
+source; rules.md 14 is the rule.
+
+new findings: 9 (above LOW: 6). The loop does not stop: R3-1 and R3-2 need an answer before
+the limit stop (about 08:00 UTC).
