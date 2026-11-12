@@ -40,6 +40,53 @@ pub mod tests {
         (theme.expect("the theme loads"), cache)
     }
 
+    /// The sides of the icon slots of the look.
+    pub const ICON_SIZES: [i32; 4] = [16, 24, 32, 48];
+
+    /// The audit kind `icon-size-in-{16,24,32,48}`: the file layers of a
+    /// picture whose slot is no square of one of the sides.
+    pub fn icon_size_findings(picture: &Picture) -> Vec<String> {
+        picture
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                chora_draw::theme::Layer::File { path, rect, .. }
+                    if !path.to_string_lossy().contains("arrow")
+                        && (rect[2] != rect[3] || !ICON_SIZES.contains(&rect[2])) =>
+                {
+                    Some(format!(
+                        "{} in a slot of {}x{}",
+                        path.display(),
+                        rect[2],
+                        rect[3]
+                    ))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The audit kind `text-clipped-by-box`: the text layers of a picture
+    /// that are wider than their box, which would end in an ellipsis or
+    /// cross the edge of the box.
+    pub fn clipped_text_findings(theme: &Theme, picture: &Picture) -> Vec<String> {
+        picture
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                chora_draw::theme::Layer::Text(text)
+                    if theme.text_width(&text.line, text.font) > f64::from(text.rect[2]) =>
+                {
+                    Some(format!(
+                        "{:?} is wider than its box of {}",
+                        text.line, text.rect[2]
+                    ))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     /// A picture drawn at scale 1.
     pub fn draw(theme: &mut Theme, picture: &Picture) -> Pixmap {
         Pixmap::load_png(theme.render(picture)).expect("a PNG file")

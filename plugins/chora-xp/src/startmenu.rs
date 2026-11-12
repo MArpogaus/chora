@@ -1392,6 +1392,52 @@ mod tests {
     }
 
     #[test]
+    fn no_entry_of_the_menu_has_a_clipped_text_or_an_icon_of_another_size() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-audit");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(&with_programs(6), Vec::new(), &theme, &mut icons);
+        let mut found = Vec::new();
+        for entry in &menu.entries {
+            for down in [false, true] {
+                let picture = picture(&theme, entry, down);
+                for finding in sheets::tests::icon_size_findings(&picture)
+                    .into_iter()
+                    .chain(sheets::tests::clipped_text_findings(&theme, &picture))
+                {
+                    found.push(format!("{}: {finding}", entry.title));
+                }
+            }
+        }
+        found.sort();
+        found.dedup();
+        assert_eq!(found, Vec::<String>::new());
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_long_title_ends_inside_its_row_with_an_ellipsis() {
+        let (mut theme, cache) = crate::dialog::tests::theme("startmenu-long");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let mut config = with_programs(3);
+        config.programs[0].title = "ImageMagick (color depth and other settings)".into();
+        let menu = Menu::new(&config, Vec::new(), &theme, &mut icons);
+        let entry = menu
+            .entries
+            .iter()
+            .find(|e| e.title.starts_with("ImageMagick"))
+            .expect("the long program");
+        let drawn = picture(&theme, entry, false);
+        let image = sheets::tests::draw(&mut theme, &drawn);
+        let width = image.width();
+        let right = (0..image.height())
+            .flat_map(|y| (width - 4..width).map(move |x| (x, y)))
+            .filter(|(x, y)| image.pixel(*x, *y).is_some_and(|p| p.alpha() > 0))
+            .count();
+        assert_eq!(right, 0, "ink in the last 4 columns of the row");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn the_right_column_has_help_and_support_above_run() {
         let mut icons = Icons::new(crate::icons::THEMES);
         let places = places(&config(), &mut icons);

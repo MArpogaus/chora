@@ -589,31 +589,11 @@ impl Bar {
 
     fn task(&self, theme: &mut Theme, index: usize, task: &Task<'_>) -> Command {
         let [x, _, w, _] = self.task_rect(index);
-        let prefix = match (task.active && !task.minimized, task.minimized, task.hovered) {
-            (true, _, true) => "focus-hover",
-            (true, _, false) => "focus",
-            (false, _, true) => "hover",
-            (false, true, false) => "minimized",
-            (false, false, false) => "normal",
-        };
-        let shift = i32::from(task.active && !task.minimized);
-        let mut picture =
-            Picture::new(w, TASK_HEIGHT).frame(sheets::TASKS, prefix, [0, 0, w, TASK_HEIGHT]);
-        let mut left = 8;
-        if let Some(icon) = &task.icon {
-            picture = picture.file(icon, [7 + shift, 4 + shift, 16, 16]);
-            left = 27;
-        }
-        let label = Text::new(
-            task.title,
-            Font::Ui,
-            WHITE,
-            [left + shift, shift, w - left - 6, TASK_HEIGHT],
-        );
+        let picture = task_picture(w, task);
         update(
             &self.task_id(task.surface),
             PropsUpdate {
-                image: Some(theme.render(&picture.text(label))),
+                image: Some(theme.render(&picture)),
                 ..at(f64::from(x), f64::from(TASK_TOP))
             },
         )
@@ -689,6 +669,32 @@ fn tray(theme: &Theme, width: i32, clock: Option<&str>, icons: Icons) -> Picture
         ));
     }
     picture
+}
+
+/// The picture of a task button of a width: the frame of its look, the
+/// icon and the title on one centre line.
+fn task_picture(w: i32, task: &Task<'_>) -> Picture {
+    let prefix = match (task.active && !task.minimized, task.minimized, task.hovered) {
+        (true, _, true) => "focus-hover",
+        (true, _, false) => "focus",
+        (false, _, true) => "hover",
+        (false, true, false) => "minimized",
+        (false, false, false) => "normal",
+    };
+    let shift = i32::from(task.active && !task.minimized);
+    let mut picture =
+        Picture::new(w, TASK_HEIGHT).frame(sheets::TASKS, prefix, [0, 0, w, TASK_HEIGHT]);
+    let mut left = 8;
+    if let Some(icon) = &task.icon {
+        picture = picture.file(icon, [7 + shift, (TASK_HEIGHT - 16) / 2 + shift, 16, 16]);
+        left = 27;
+    }
+    picture.text(Text::new(
+        task.title,
+        Font::Ui,
+        WHITE,
+        [left + shift, shift, w - left - 6, TASK_HEIGHT],
+    ))
 }
 
 /// The start button in a look: `normal`, `hover` or `pressed`.
@@ -871,6 +877,42 @@ mod tests {
         output.work_area = [0, 0, 1, 1];
         output.default_work_area = [0, 0, 1, 1];
         assert!(!bar.is_stale(&output));
+    }
+
+    #[test]
+    fn the_icon_and_the_title_of_a_task_button_share_a_centre_line() {
+        for (active, minimized) in [(false, false), (true, false), (false, true)] {
+            let task = Task {
+                surface: "s1",
+                title: "foot",
+                icon: Some("/i/terminal.png".into()),
+                active,
+                minimized,
+                hovered: false,
+            };
+            let picture = task_picture(180, &task);
+            let mut centres = Vec::new();
+            for layer in &picture.layers {
+                match layer {
+                    chora_draw::theme::Layer::File { rect, .. } => {
+                        centres.push(rect[1] * 2 + rect[3]);
+                        assert!(
+                            sheets::tests::ICON_SIZES.contains(&rect[2]),
+                            "icon slot {rect:?}"
+                        );
+                    }
+                    chora_draw::theme::Layer::Text(text) => {
+                        centres.push(text.rect[1] * 2 + text.rect[3]);
+                    }
+                    _ => {}
+                }
+            }
+            assert_eq!(centres.len(), 2);
+            assert_eq!(
+                centres[0], centres[1],
+                "active {active} minimized {minimized}"
+            );
+        }
     }
 
     #[test]

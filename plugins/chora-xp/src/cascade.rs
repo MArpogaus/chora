@@ -180,7 +180,8 @@ impl Cascade {
         }
     }
 
-    /// A row: highlight, icon, name and, for a group, the arrow.
+    /// A row: highlight, icon or a placeholder, name and, for a group, the
+    /// arrow.
     fn picture(&self, theme: &Theme, row: &Row<'_>, lit: bool) -> Picture {
         let w = self.column_width;
         let mut picture = Picture::new(w, ROW);
@@ -189,6 +190,8 @@ impl Cascade {
         }
         if let Some(icon) = row.icon {
             picture = picture.file(icon, [4, (ROW - 16) / 2, 16, 16]);
+        } else if !row.checked {
+            picture = picture.svg(placeholder_icon());
         }
         if row.checked {
             let check = if lit {
@@ -246,6 +249,19 @@ pub struct Row<'a> {
     pub group: bool,
     /// A check mark instead of the icon.
     pub checked: bool,
+}
+
+/// The glyph of a row without an icon: a 16 pixel page in the gutter, so
+/// that no row has an empty slot.
+fn placeholder_icon() -> String {
+    let y = (ROW - 16) / 2;
+    format!(
+        r##"<rect x="7.5" y="{}.5" width="9" height="12" fill="#ffffff" stroke="#7F9DB9"/><path d="M9 {} h6 M9 {} h6 M9 {} h4" stroke="#7F9DB9"/>"##,
+        y + 2,
+        y + 6,
+        y + 9,
+        y + 12
+    )
 }
 
 /// The top-left corner of a cascade of a size (with its shadow): right of
@@ -316,6 +332,28 @@ mod tests {
         let theme =
             Theme::load(&dir, &cache, &sheets::ALL, sheets::FAMILY).expect("the theme loads");
         assert_eq!(Margins::of(&theme), MARGINS);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_row_without_an_icon_draws_a_placeholder_in_the_gutter() {
+        let (theme, cache) = crate::dialog::tests::theme("cascade-placeholder");
+        let c = Cascade::new(0, &[60.0; 3], MARGINS, [[6, 674, 179, 24], AREA], None);
+        let plain = |checked| Row {
+            title: "Effects",
+            icon: None,
+            group: false,
+            checked,
+        };
+        let svg_layers = |row: &Row<'_>| {
+            c.picture(&theme, row, false)
+                .layers
+                .iter()
+                .filter(|l| matches!(l, chora_draw::theme::Layer::Svg(_)))
+                .count()
+        };
+        assert_eq!(svg_layers(&plain(false)), 1);
+        assert_eq!(svg_layers(&plain(true)), 0, "a check mark takes the slot");
         let _ = std::fs::remove_dir_all(cache);
     }
 
