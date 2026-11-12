@@ -17,6 +17,12 @@ optdepends=(
   'uwsm: the sessions managed by uwsm'
   'foot: the terminal of the tiling flavor'
   'fuzzel: the launcher of the tiling flavor (1.11 or later for the mouse)'
+  'grim: the screenshots of the tiling flavor'
+  'slurp: the area of a screenshot of the tiling flavor'
+  'wl-clipboard: the clipboard copy of a screenshot of the tiling flavor'
+  'libnotify: the notices of the tiling flavor (notify-send)'
+  'inter-font: the labels of the tiling flavor and of chora-mc'
+  'ttf-jetbrains-mono: the font of foot in the tiling flavor'
   'waybar: the panel of the tiling flavor'
   'mako: the notifications of the tiling flavor'
   'swaybg: the wallpaper of the tiling flavor'
@@ -27,7 +33,6 @@ optdepends=(
   'xwayland-satellite: X11 programs'
   'xdg-desktop-portal-wlr: screen sharing'
   'xdg-desktop-portal-gtk: the other portals, such as the file chooser'
-  'inter-font: the labels of chora-mc (experimental)'
   'tex-gyre-fonts: the text of chora-mc, TeX Gyre Pagella'
   'python: the collectors of chora-mc'
   'pipewire: the microphone and the speaker of chora-voice (pw-record, pw-play)'
@@ -75,9 +80,16 @@ package() {
   install -Dm644 LICENSE LICENSES/MIT-Smithay.txt LICENSES/MIT-silero-vad.txt \
     -t "$pkgdir/usr/share/licenses/chora/"
   install -Dm644 README.md -t "$pkgdir/usr/share/doc/chora/"
-  install -Dm644 flavors/tiling/*.service flavors/tiling/*.target \
-    -t "$pkgdir/usr/share/chora/flavors/tiling/"
-  install -Dm644 flavors/tiling/waybar/* -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
+  install -Dm644 flavors/tiling/*.service flavors/tiling/*.target flavors/tiling/*.ini \
+    flavors/tiling/*.conf flavors/tiling/*.png -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm755 flavors/tiling/*.sh -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm644 flavors/tiling/applications/* \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/applications/"
+  install -Dm644 flavors/tiling/waybar/*.css flavors/tiling/waybar/*.jsonc flavors/tiling/waybar/*.jq \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
+  install -Dm755 flavors/tiling/waybar/*.sh -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
+  install -Dm644 flavors/tiling/waybar/icons/* \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/icons/"
   install -Dm644 dist/shaders/* -t "$pkgdir/usr/share/chora/shaders/"
   install -Dm644 dist/plugins/* -t "$pkgdir/usr/share/chora/plugins/"
   # chora-mc has its scenes, settings and shaders built in; the collectors
