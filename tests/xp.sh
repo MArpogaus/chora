@@ -486,7 +486,13 @@ wait_for has_node_count 0 id:notify-card
 
 step "16. the paperclip shows the state and the sentence of the voice agent"
 mkfifo "$out/voice.in"
-python3 -I "$(dirname "$0")/fake-voice.py" "$out/claims" <"$out/voice.in" >"$out/voice.log" 2>&1 &
+cat >"$out/entries.json" <<'JSON'
+[
+ {"seq": 1, "role": "user", "text": "Please write notes.txt"},
+ {"seq": 2, "role": "agent", "text": "I will write the file now."}
+]
+JSON
+FAKE_VOICE_ENTRIES="$out/entries.json" python3 -I "$(dirname "$0")/fake-voice.py" "$out/claims" <"$out/voice.in" >"$out/voice.log" 2>&1 &
 pids+=($!)
 exec 5>"$out/voice.in"
 echo 'voice.state {"state": "listening"}' >&5
@@ -499,13 +505,38 @@ bin_rect() {
 read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
 near() { test $(($1 - $2)) -le 3 && test $(($2 - $1)) -le 3; }
 near $((fx + fw)) 1272 || fail "the paperclip is not 8 pixels from the right edge: $fx $fw"
-test $((fy + fh)) = 762 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
+test $((fy + fh)) = 756 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
 read -r bx _ bw _ < <(bin_rect | jq -r 'join(" ")')
 near $((bx + bw / 2)) $((fx + fw / 2)) || fail "the bin and the paperclip do not share a centre line: $bx $bw $fx $fw"
 echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
 speech_visible() { test "$(query id:hud-line | jq '.[0].visible')" = true; }
 wait_for speech_visible
 grim "$out/paperclip.png"
+
+step "16b. the chat has XP's form: a close box, Stop and Send, and a card with Yes and No of 80 by 28"
+node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
+node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
+echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 2}' >&5
+"$bin/choractl" call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
+wait_for has_node id:hud-chat-send
+has_node id:hud-chat-close || fail "no close box"
+has_node id:hud-chat-stop || fail "no Stop button"
+test "$(node_size hud-chat-send)" = "[64,28]" || fail "Send is not 64 by 28: $(node_size hud-chat-send)"
+test "$(node_size hud-chat-close)" = "[18,18]" || fail "the close box is not 18 by 18"
+chat_text() { query id:hud-chat | jq -r '.[0].meta.text // empty'; }
+chat_says() { chat_text | grep -qF "$1"; }
+wait_for chat_says "Atlas — Working"
+wait_for chat_says "Write file, step 2 of 2"
+echo 'voice.say {"text": "The notes are ready.", "duration_ms": 20000}' >&5
+wait_for chat_says "The notes are ready."
+echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
+wait_for has_node id:hud-card-yes
+test "$(node_size hud-card-yes)" = "[80,28]" || fail "Yes is not 80 by 28: $(node_size hud-card-yes)"
+test $(($(node_x hud-card-no) - $(node_x hud-card-yes))) = 88 || fail "Yes and No are not 8 pixels apart"
+grim "$out/chat-question.png"
+echo 'voice.confirm {"id": "51", "done": true}' >&5
+"$bin/choractl" call assistant chat.hide '{}' >/dev/null || fail "chat.hide failed"
+wait_for has_node_count 0 id:hud-chat
 
 step "17. a second chora-notify leaves the bus name to the first and ends cleanly"
 DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/notify" \

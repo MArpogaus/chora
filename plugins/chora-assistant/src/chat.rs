@@ -280,6 +280,8 @@ pub trait Link {
     fn say_failed(&mut self, text: &str);
     /// A line was typed in the list before a helper was picked.
     fn pick_first(&mut self, text: &str);
+    /// Sends the draft, as Enter in the field does.
+    fn send_draft(&mut self);
     /// The chat goes to another helper or to the list: the draft goes.
     fn clear(&mut self);
     /// A voice event, for the field if it concerns the helper.
@@ -473,17 +475,28 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
     let inset = if frame.tail().is_some() { view::PAD } else { 0 };
     let [x, w, h] = [x + inset, w - 2 * inset, h - inset];
     let colours = colours(&frame.look);
+    let mut look = json!({
+        "background": rgba(colours.fill),
+        "text": rgba(colours.text),
+        "border": rgba(colours.border),
+        "hint": rgba(colours.name),
+    });
+    let mut width = w;
+    if frame.look.form == chora_kit::hud::ChatForm::Xp {
+        look = json!({
+            "background": [255, 255, 255, 255],
+            "text": [0, 0, 0, 255],
+            "border": [127, 157, 185, 255],
+            "hint": [77, 77, 77, 255],
+        });
+        width = w - view::XP_SEND[0] - view::GAP - 2;
+    }
     let mut place = json!({
         "anchor": "bottom_left",
         "margin": [0, 0, frame.size[1] - (y + h), x],
-        "width": w,
+        "width": width,
         "output": frame.output,
-        "look": {
-            "background": rgba(colours.fill),
-            "text": rgba(colours.text),
-            "border": rgba(colours.border),
-            "hint": rgba(colours.name),
-        },
+        "look": look,
     });
     if let Some(token) = token {
         place["token"] = token.into();
@@ -859,6 +872,23 @@ impl Session {
         changed
     }
 
+    /// The Send button: the field sends its draft as Enter does. Nothing
+    /// goes while a question waits: the draft stays.
+    pub fn send_draft(&mut self) {
+        if self.card.is_some() {
+            return;
+        }
+        if let Some(link) = self.link.as_mut() {
+            link.send_draft();
+        }
+    }
+
+    /// Whether a question of the helper waits.
+    #[must_use]
+    pub fn question_waits(&self) -> bool {
+        self.card.is_some()
+    }
+
     /// Stops the running prompt of the helper: voice is asked, and the
     /// header stops saying that it works until voice says otherwise. True
     /// when the view changed.
@@ -1039,6 +1069,39 @@ impl Session {
                 }
             }
         }
+    }
+
+    /// The header of the XP form in two lines: the name and the state
+    /// word, then the task and the step. Outside of a chat the words of
+    /// [`Self::header`] stand alone.
+    #[must_use]
+    pub fn header_xp(&self, language: Language) -> (String, String) {
+        let (Mode::Chat(_), false) = (&self.mode, self.card == Some(Where::Figure) || self.offline)
+        else {
+            return (self.header(language), String::new());
+        };
+        let state = words::state(&self.status.state).map_or_else(
+            || self.status.state.clone(),
+            |word| word.text(language).to_owned(),
+        );
+        let head = if state.is_empty() {
+            self.label()
+        } else {
+            format!("{} \u{2014} {state}", self.label())
+        };
+        let step = self.status.steps.map(|(step, steps)| {
+            say(
+                language,
+                Word::StepOf,
+                &[("step", &step.to_string()), ("steps", &steps.to_string())],
+            )
+        });
+        let sub = match (self.status.task.is_empty(), step) {
+            (true, step) => step.unwrap_or_default(),
+            (false, Some(step)) => format!("{}, {step}", self.status.task),
+            (false, None) => self.status.task.clone(),
+        };
+        (head, sub)
     }
 
     /// The numbered entries of the list, empty outside of it.
@@ -1269,6 +1332,7 @@ mod tests {
         dead: bool,
         hides: u32,
         clears: u32,
+        sends: u32,
     }
 
     struct Fake(Rc<RefCell<Log>>);
@@ -1323,6 +1387,10 @@ mod tests {
 
         fn pick_first(&mut self, text: &str) {
             self.0.borrow_mut().unpicked.push(text.to_owned());
+        }
+
+        fn send_draft(&mut self) {
+            self.0.borrow_mut().sends += 1;
         }
 
         fn voice_event(&mut self, _: &str, _: &Value, _: &str) {}
@@ -2098,6 +2166,48 @@ mod tests {
         assert_eq!(session.card_room(), 150 + view::GAP);
         session.question_ended();
         assert_eq!(session.card_room(), 0);
+    }
+
+    #[test]
+    fn the_xp_header_has_the_name_and_the_state_then_the_task_and_the_step() {
+        let (mut session, mut out, _log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        let state = json!({
+            "name": "Atlas", "state": "working", "task": "Tidy notes", "step": 2, "steps": 3,
+            "seq": 2, "epoch": 1
+        });
+        session.voice_event(&mut out, "voice.state", &state);
+        let (head, sub) = session.header_xp(Language::En);
+        assert_eq!(head, "Atlas \u{2014} Working");
+        assert_eq!(sub, "Tidy notes, step 2 of 3");
+        assert!(!head.chars().any(|c| c.is_ascii_digit() || c == '\u{b7}'));
+        assert_eq!(
+            session.header_xp(Language::De).1,
+            "Tidy notes, Schritt 2 von 3"
+        );
+        let list = Session::new();
+        assert_eq!(list.header_xp(Language::En), (String::new(), String::new()));
+    }
+
+    #[test]
+    fn send_asks_the_field_to_send_and_does_nothing_while_a_question_waits() {
+        let (mut session, mut out, log) = setup();
+        let frame = frame(Look::default());
+        session.show(&mut out, Some("atlas"), None, &frame).unwrap();
+        session.send_draft();
+        assert_eq!(log.borrow().sends, 1);
+        assert_eq!(session.question_asked(), Where::Chat);
+        assert!(session.question_waits());
+        session.send_draft();
+        assert_eq!(
+            log.borrow().sends,
+            1,
+            "the draft stays while a question waits"
+        );
+        session.question_ended();
+        session.send_draft();
+        assert_eq!(log.borrow().sends, 2);
     }
 
     #[test]

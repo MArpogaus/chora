@@ -98,5 +98,11 @@ something off? If yes, it is a finding. The second rule is chora's own:
 12. **Stop is greyed, not hidden, when no prompt runs** (`idle_stop: grey` in
     the `chat:` block of the HUD folder), so that the header does not jump;
     it takes a press only while a prompt runs.
-13. **The balloon fades in 160 ms** and never rests half transparent: a
+13. **The balloon has XP's form** (`form: xp`): a header of two lines (the
+    name in bold with the state word after an em dash, then the task and
+    the step in grey), a close box of 18 px at the top right, Stop and Send
+    as push buttons, the field in white with a 1 px rule of `#7F9DB9`, and
+    the question as a white group box with Yes and No as push buttons of
+    80 by 28 px, 8 px apart. No button is the default one.
+14. **The balloon fades in 160 ms** and never rests half transparent: a
     capture 200 ms after it went finds it gone or whole.

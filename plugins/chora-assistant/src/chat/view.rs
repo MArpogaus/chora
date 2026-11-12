@@ -14,7 +14,7 @@ use chora_draw::{
 };
 use chora_kit::{
     chat::{Line, Measure, Role},
-    hud::{Chat as Look, ChatStyle, IdleStop},
+    hud::{Chat as Look, ChatForm, ChatStyle, IdleStop},
     words::{Language, Word},
 };
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
@@ -37,6 +37,8 @@ pub const ROW: &str = "hud-row-chat";
 pub const STOP: &str = "hud-chat-stop";
 /// The button that closes the chat.
 pub const CLOSE: &str = "hud-chat-close";
+/// The Send button of the XP form, right of the field.
+pub const SEND: &str = "hud-chat-send";
 /// The prefix of the entries of the list: `hud-chat-pick-1`, ...
 pub const PICK: &str = "hud-chat-pick-";
 
@@ -52,6 +54,19 @@ const NUMBER_ROOM: i32 = 22;
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
+/// The XP form: the rows of the header, the rule under it, the top of the
+/// transcript and the sizes of the push buttons and the close box.
+const XP_HEAD_Y: i32 = 10;
+const XP_RULE_Y: i32 = 58;
+const XP_BODY_TOP: i32 = 69;
+const XP_STOP: [i32; 2] = [56, 28];
+pub const XP_SEND: [i32; 2] = [64, 28];
+const XP_CLOSE: i32 = 18;
+const XP_GAP: i32 = 8;
+const XP_RULE: [u8; 3] = [216, 213, 176];
+const XP_GREY: [u8; 3] = [77, 77, 77];
+const XP_HOVER: [u8; 3] = [248, 179, 48];
+
 /// How far below the top of a glass chat a card stands: where it stands
 /// under the island, which the chat replaces.
 const GLASS_CARD_TOP: i32 = 48;
@@ -66,7 +81,7 @@ pub fn pick_of(node: &str) -> Option<usize> {
 /// and the entries of the list.
 #[must_use]
 pub fn refuses_injected(node: &str) -> bool {
-    node == STOP || pick_of(node).is_some()
+    node == STOP || node == SEND || pick_of(node).is_some()
 }
 
 /// The top-left corner of a card inside the view, above the hint of the
@@ -166,7 +181,7 @@ fn keep_newest(rows: &mut Vec<Row>, keep: usize) {
     rows.drain(1..=extra);
 }
 
-fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
+fn rows_of(lines: &[Line], colours: Colours, regular_notice: bool) -> Vec<Row> {
     let mut rows = Vec::new();
     for line in lines {
         if let Some(label) = &line.label {
@@ -180,6 +195,7 @@ fn rows_of(lines: &[Line], colours: Colours) -> Vec<Row> {
             });
         }
         let (font, indent) = match line.role {
+            Role::Notice if regular_notice => (Font::Body, 0),
             Role::Question | Role::Notice => (Font::BodyBold, 0),
             Role::Tool | Role::Plan => (Font::Body, INDENT),
             Role::User | Role::Agent => (Font::Body, 0),
@@ -283,7 +299,7 @@ pub fn mark_id(item: &str) -> String {
 /// shows a mark while the pointer is over it.
 #[must_use]
 pub fn marked(node: &str) -> Option<String> {
-    let known = [STOP, CLOSE, crate::card::YES, crate::card::NO];
+    let known = [STOP, CLOSE, SEND, crate::card::YES, crate::card::NO];
     (known.contains(&node) || pick_of(node).is_some()).then(|| mark_id(node))
 }
 
@@ -410,6 +426,17 @@ struct Parts {
     top_row: i32,
     body_top: i32,
     field_room: i32,
+    xp: Option<XpParts>,
+}
+
+/// What the XP form adds to a view: the second line of the header, the
+/// height of the field for the Send button, and whether a question waits,
+/// which greys Send.
+struct XpParts {
+    head: String,
+    sub: String,
+    field: i32,
+    waits: bool,
 }
 
 /// The width of a character in the text of the view, a little over what
@@ -466,6 +493,16 @@ fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
     [x, y + h - high, w, high]
 }
 
+/// The top of the row of buttons and the top of the transcript.
+fn tops(margin: bool, no_buttons: bool, xp: bool) -> (i32, i32) {
+    match (margin, no_buttons, xp) {
+        (true, true, _) => (PAD, PAD),
+        (true, false, _) => (PAD, PAD + LINE + GAP),
+        (false, _, true) => (XP_HEAD_Y, XP_BODY_TOP),
+        (false, _, false) => (PAD + LINE + GAP, PAD + LINE + GAP + BUTTON[1] + GAP),
+    }
+}
+
 impl Session {
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
@@ -486,16 +523,13 @@ impl Session {
             .unwrap_or_default();
         let list = self.entries(language);
         let buttons = buttons(&self.mode, margin);
-        let top_row = if margin { PAD } else { PAD + LINE + GAP };
-        let body_top = match (margin, buttons.is_empty()) {
-            (true, true) => PAD,
-            (true, false) => PAD + LINE + GAP,
-            (false, _) => top_row + BUTTON[1] + GAP,
-        };
+        let xp =
+            (frame.look.form == ChatForm::Xp && !margin).then(|| self.xp_parts(frame, language));
+        let (top_row, body_top) = tops(margin, buttons.is_empty(), xp.is_some());
         let below = field_room(frame) + hint_room(&hint) + self.card_room();
         let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
-        let mut rows = rows_of(&lines, colours);
+        let mut rows = rows_of(&lines, colours, xp.is_some());
         keep_newest(&mut rows, room);
         let content =
             body_top + listed + row_h * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
@@ -512,10 +546,10 @@ impl Session {
             row_h,
             margin,
             inset,
-            header: if margin {
-                String::new()
-            } else {
-                self.header(language)
+            header: match (&xp, margin) {
+                (Some(xp), _) => xp.head.clone(),
+                (None, true) => String::new(),
+                (None, false) => self.header(language),
             },
             hint,
             rows,
@@ -526,6 +560,17 @@ impl Session {
             top_row,
             body_top,
             field_room: field_room(frame),
+            xp,
+        }
+    }
+
+    fn xp_parts(&self, frame: &Frame, language: Language) -> XpParts {
+        let (head, sub) = self.header_xp(language);
+        XpParts {
+            head,
+            sub,
+            field: frame.field,
+            waits: self.question_waits(),
         }
     }
 
@@ -687,6 +732,129 @@ fn list_picture(mut picture: Picture, parts: &Parts, (w, colours): (i32, Colours
     picture
 }
 
+/// The header of the XP form: the name in bold and the state word after
+/// an em dash, the task and the step in grey on the second line, and the
+/// rule under them.
+fn xp_header(
+    theme: &Theme,
+    mut picture: Picture,
+    xp: &XpParts,
+    (w, colours): (i32, Colours),
+) -> Picture {
+    let header = xp.head.as_str();
+    let room = w - 2 * PAD - (XP_STOP[0] + XP_GAP + XP_CLOSE + XP_GAP);
+    let (name, rest) = header
+        .split_once(" \u{2014} ")
+        .map_or((header, String::new()), |(name, rest)| {
+            (name, format!(" \u{2014} {rest}"))
+        });
+    #[allow(clippy::cast_possible_truncation, reason = "a width of a few pixels")]
+    let name_w = theme.text_width(name, Font::BodyBold).ceil() as i32;
+    picture = picture.text(Text::new(
+        name,
+        Font::BodyBold,
+        rgba(colours.text),
+        [PAD, XP_HEAD_Y, room.min(name_w + 2), LINE],
+    ));
+    if !rest.is_empty() {
+        picture = picture.text(Text::new(
+            &rest,
+            Font::Body,
+            rgba(colours.text),
+            [PAD + name_w, XP_HEAD_Y, (room - name_w).max(0), LINE],
+        ));
+    }
+    if !xp.sub.is_empty() {
+        picture = picture.text(Text::new(
+            &xp.sub,
+            Font::Body,
+            rgba(XP_GREY),
+            [PAD, XP_HEAD_Y + LINE, room, LINE],
+        ));
+    }
+    let [r, g, b] = XP_RULE;
+    picture.svg(format!(
+        r#"<rect x="{PAD}" y="{XP_RULE_Y}" width="{}" height="1" fill="rgb({r},{g},{b})"/>"#,
+        w - 2 * PAD
+    ))
+}
+
+/// XP's push button: white to `#E3E1D7` with a rim of `#003C74`; greyed it
+/// is flat, with a pale rim and grey words.
+fn xp_push(theme: &mut Theme, label: &str, [w, h]: [i32; 2], enabled: bool) -> String {
+    let (fill, rim, ink) = if enabled {
+        ("url(#face)", "#003C74", [0, 0, 0])
+    } else {
+        ("#F5F4EA", "#C9C7BA", [172, 168, 153])
+    };
+    let shape = format!(
+        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="3" fill="{fill}" stroke="{rim}"/>"##,
+        w - 1,
+        h - 1
+    );
+    let picture = Picture::new(w, h)
+        .svg(shape)
+        .text(Text::new(label, Font::Body, rgba(ink), [0, 0, w, h]).centered());
+    theme.render(&picture)
+}
+
+/// The close box of the XP form: a small square with a rim of `#003C74`
+/// and a cross.
+fn xp_close(theme: &mut Theme) -> String {
+    let size = XP_CLOSE;
+    let shape = format!(
+        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#face)" stroke="#003C74"/><path d="M5.5 5.5L12.5 12.5M12.5 5.5L5.5 12.5" stroke="#1B3B7A" stroke-width="1.6"/>"##,
+        size - 1,
+        size - 1
+    );
+    theme.render(&Picture::new(size, size).svg(shape))
+}
+
+/// The buttons of the XP form: Stop, greyed while no prompt runs, and the
+/// close box in the header, Send right of the field.
+fn xp_extras(theme: &mut Theme, parts: &Parts, xp: &XpParts, language: Language) -> Vec<Command> {
+    let [_, _, w, h] = parts.rect;
+    let mut commands = Vec::new();
+    let mut add = |id: &str, path: String, at: [i32; 2], size: [i32; 2], word: Word, live: bool| {
+        let input = if live {
+            InputMode::Accept
+        } else {
+            InputMode::Pass
+        };
+        commands.push(create(
+            id,
+            VIEW,
+            image(path, at, word.text(language), input),
+        ));
+        commands.push(frame(id, VIEW, (at, size), XP_HOVER));
+    };
+    let close_at = [w - PAD - XP_CLOSE, XP_HEAD_Y + 2];
+    add(
+        CLOSE,
+        xp_close(theme),
+        close_at,
+        [XP_CLOSE, XP_CLOSE],
+        Word::Close,
+        true,
+    );
+    if parts.buttons.iter().any(|(id, _)| *id == STOP) && (parts.running || parts.grey_stop) {
+        let live = parts.running;
+        let at = [close_at[0] - XP_GAP - XP_STOP[0], parts.top_row];
+        let path = xp_push(theme, Word::Stop.text(language), XP_STOP, live);
+        add(STOP, path, at, XP_STOP, Word::Stop, live);
+    }
+    if parts.buttons.iter().any(|(id, _)| *id == STOP) {
+        let live = !xp.waits;
+        let at = [
+            w - PAD - XP_SEND[0],
+            h - PAD - xp.field + (xp.field - XP_SEND[1]) / 2,
+        ];
+        let path = xp_push(theme, Word::Send.text(language), XP_SEND, live);
+        add(SEND, path, at, XP_SEND, Word::Send, live);
+    }
+    commands
+}
+
 fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> Vec<Command> {
     let [x, y, w, h] = parts.rect;
     let is_glass = frame.look.style == ChatStyle::Glass;
@@ -703,7 +871,9 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
         .map(|colour| glow(theme, [w, h], colour));
     let below = tail.map_or(0, |_| crate::config::TAIL);
     let mut picture = Picture::new(w, h + below).svg(shape);
-    if !parts.header.is_empty() {
+    if let Some(xp) = &parts.xp {
+        picture = xp_header(theme, picture, xp, (w, colours));
+    } else if !parts.header.is_empty() {
         picture = picture.text(Text::new(
             &parts.header,
             Font::BodyBold,
@@ -713,7 +883,13 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
     }
     picture = rows_picture(picture, parts, w);
     picture = list_picture(picture, parts, (w, colours));
+    let sub = parts
+        .xp
+        .as_ref()
+        .map(|xp| xp.sub.as_str())
+        .filter(|s| !s.is_empty());
     let shown = std::iter::once(parts.header.as_str())
+        .chain(sub)
         .chain(parts.rows.iter().map(|row| row.text.as_str()))
         .collect::<Vec<_>>();
     let rendered = theme.render(&picture);
@@ -739,22 +915,56 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
     std::iter::once(view).chain(halo).chain([chat]).collect()
 }
 
-fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language) -> Vec<Command> {
-    let [_, _, w, h] = parts.rect;
-    let mut commands = Vec::new();
-    if !parts.hint.is_empty() {
-        let lines = i32::try_from(parts.hint.len()).unwrap_or(1);
-        let size = [w - 2 * parts.inset, lines * LINE];
-        let mut picture = Picture::new(size[0], size[1]);
-        for (n, line) in (0..).zip(&parts.hint) {
-            let at = [0, n * LINE, size[0], LINE];
-            picture = picture.text(Text::new(line, Font::Body, rgba(colours.text), at));
-        }
-        let path = theme.render(&picture);
-        let at = [parts.inset, hint_top(h, parts.field_room, lines)];
-        let text = parts.hint.join(" ");
-        commands.push(create(HINT, VIEW, image(path, at, &text, InputMode::Pass)));
+/// The hint line above the field.
+fn hint_commands(theme: &mut Theme, parts: &Parts, colours: Colours) -> Vec<Command> {
+    if parts.hint.is_empty() {
+        return Vec::new();
     }
+    let [_, _, w, h] = parts.rect;
+    let lines = i32::try_from(parts.hint.len()).unwrap_or(1);
+    let size = [w - 2 * parts.inset, lines * LINE];
+    let mut picture = Picture::new(size[0], size[1]);
+    for (n, line) in (0..).zip(&parts.hint) {
+        let at = [0, n * LINE, size[0], LINE];
+        picture = picture.text(Text::new(line, Font::Body, rgba(colours.text), at));
+    }
+    let path = theme.render(&picture);
+    let at = [parts.inset, hint_top(h, parts.field_room, lines)];
+    let text = parts.hint.join(" ");
+    vec![create(HINT, VIEW, image(path, at, &text, InputMode::Pass))]
+}
+
+/// The entries of the list of helpers: a blank that takes the press and
+/// the bar that marks the one under the pointer.
+fn list_commands(theme: &mut Theme, parts: &Parts, colours: Colours) -> Vec<Command> {
+    let w = parts.rect[2];
+    let row = list_row(parts.margin);
+    let mut commands = Vec::new();
+    for (n, entry) in (0..).zip(&parts.list) {
+        let blank = theme.render(&Picture::new(w - 2 * parts.inset, row));
+        let at = [parts.inset, parts.body_top + n * row];
+        let id = format!("{PICK}{}", n + 1);
+        commands.push(create(
+            &id,
+            VIEW,
+            image(blank, at, entry, InputMode::Accept),
+        ));
+        let bar_at = [at[0], at[1] + (row - MARK[1]) / 2];
+        commands.push(bar(&id, VIEW, bar_at, colours.text));
+    }
+    commands
+}
+
+/// The buttons of a plain view: Stop and Close in boxes, or links in the
+/// margin of a client.
+fn plain_buttons(
+    theme: &mut Theme,
+    parts: &Parts,
+    colours: Colours,
+    language: Language,
+) -> Vec<Command> {
+    let w = parts.rect[2];
+    let mut commands = Vec::new();
     for (n, (id, word)) in (0..).zip(parts.buttons) {
         let idle = *id == STOP && !parts.running;
         if idle && !parts.grey_stop {
@@ -781,19 +991,16 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
             frame(id, VIEW, (at, BUTTON), colours.text)
         });
     }
-    let row = list_row(parts.margin);
-    for (n, entry) in (0..).zip(&parts.list) {
-        let blank = theme.render(&Picture::new(w - 2 * parts.inset, row));
-        let at = [parts.inset, parts.body_top + n * row];
-        let id = format!("{PICK}{}", n + 1);
-        commands.push(create(
-            &id,
-            VIEW,
-            image(blank, at, entry, InputMode::Accept),
-        ));
-        let bar_at = [at[0], at[1] + (row - MARK[1]) / 2];
-        commands.push(bar(&id, VIEW, bar_at, colours.text));
-    }
+    commands
+}
+
+fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language) -> Vec<Command> {
+    let mut commands = hint_commands(theme, parts, colours);
+    commands.extend(match &parts.xp {
+        Some(xp) => xp_extras(theme, parts, xp, language),
+        None => plain_buttons(theme, parts, colours, language),
+    });
+    commands.extend(list_commands(theme, parts, colours));
     commands
 }
 
@@ -814,12 +1021,19 @@ mod tests {
     }
 
     #[test]
+    fn a_spoken_sentence_is_regular_in_the_xp_form_and_bold_elsewhere() {
+        let lines = [line(Role::Notice, "The notes are ready.")];
+        assert_eq!(rows_of(&lines, colours(), true)[0].font, Font::Body);
+        assert_eq!(rows_of(&lines, colours(), false)[0].font, Font::BodyBold);
+    }
+
+    #[test]
     fn a_message_of_an_agent_never_takes_the_style_of_a_question() {
         let lines = [
             line(Role::Agent, "Question from Atlas: allow?"),
             line(Role::Question, "Write notes.txt?"),
         ];
-        let rows = rows_of(&lines, colours());
+        let rows = rows_of(&lines, colours(), false);
         assert_eq!(rows[0].font, Font::Body);
         assert_eq!(rows[1].font, Font::BodyBold);
         assert_eq!(rows[0].indent, 0);
@@ -1039,9 +1253,100 @@ mod tests {
         assert_eq!(dimmed(colours).fill, [255, 255, 255]);
     }
 
+    fn xp_frame(field: i32) -> Frame {
+        Frame {
+            look: Look {
+                form: ChatForm::Xp,
+                ..idle_frame(IdleStop::Grey).look
+            },
+            field,
+            ..idle_frame(IdleStop::Grey)
+        }
+    }
+
+    fn created<'a>(commands: &'a [Command], wanted: &str) -> Option<&'a PropsUpdate> {
+        commands.iter().find_map(|command| match command {
+            Command::Create { id, props, .. } if id == wanted => Some(props),
+            _ => None,
+        })
+    }
+
+    fn xp_commands(test: &str, waits: bool, running: bool) -> (Parts, Vec<Command>) {
+        let (mut theme, _, cache) = crate::tests::loaded(test);
+        let frame = xp_frame(36);
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        if waits {
+            session.question_asked();
+        }
+        let mut parts = session.parts(&theme, &frame, Language::En);
+        parts.running = running;
+        let commands = extras(
+            &mut theme,
+            &parts,
+            super::super::colours(&frame.look),
+            Language::En,
+        );
+        let _ = std::fs::remove_dir_all(cache);
+        (parts, commands)
+    }
+
+    #[allow(clippy::cast_possible_truncation, reason = "a place of a few pixels")]
+    fn at(props: &PropsUpdate) -> [i32; 2] {
+        let m = props.transform.as_ref().expect("a place").matrix();
+        [m[12].round() as i32, m[13].round() as i32]
+    }
+
+    #[test]
+    fn the_xp_form_has_a_close_box_a_stop_button_and_a_send_button_in_their_places() {
+        let (parts, commands) = xp_commands("xp-places", false, true);
+        let [_, _, w, h] = parts.rect;
+        let close = created(&commands, CLOSE).expect("a close box");
+        assert_eq!(at(close), [w - PAD - 18, XP_HEAD_Y + 2]);
+        let stop = created(&commands, STOP).expect("Stop");
+        assert_eq!(at(stop)[1], XP_HEAD_Y);
+        assert_eq!(at(stop)[0] + XP_STOP[0] + XP_GAP, at(close)[0]);
+        assert_eq!(stop.input, Some(InputMode::Accept));
+        let send = created(&commands, SEND).expect("Send");
+        assert_eq!(at(send)[0] + XP_SEND[0] + PAD, w);
+        assert!(at(send)[1] + XP_SEND[1] <= h - PAD);
+        assert_eq!(send.input, Some(InputMode::Accept));
+    }
+
+    #[test]
+    fn in_the_xp_form_stop_is_grey_when_idle_and_send_is_grey_while_a_question_waits() {
+        let (_, idle) = xp_commands("xp-idle", false, false);
+        assert_eq!(
+            created(&idle, STOP).and_then(|p| p.input),
+            Some(InputMode::Pass)
+        );
+        assert_eq!(
+            created(&idle, SEND).and_then(|p| p.input),
+            Some(InputMode::Accept)
+        );
+        let (_, asked) = xp_commands("xp-asked", true, true);
+        assert_eq!(
+            created(&asked, SEND).and_then(|p| p.input),
+            Some(InputMode::Pass)
+        );
+        assert_eq!(
+            created(&asked, CLOSE).and_then(|p| p.input),
+            Some(InputMode::Accept)
+        );
+    }
+
+    #[test]
+    fn the_xp_header_leaves_room_for_the_buttons_and_the_rows_start_under_its_rule() {
+        let (parts, _) = xp_commands("xp-header", false, true);
+        assert_eq!(parts.top_row, XP_HEAD_Y);
+        assert!(parts.body_top > XP_RULE_Y);
+        assert!(parts.xp.is_some());
+    }
+
     #[test]
     fn stop_and_the_entries_refuse_a_press_of_a_program() {
         assert!(refuses_injected(STOP));
+        assert!(refuses_injected(SEND));
         assert!(refuses_injected("hud-chat-pick-2"));
         assert!(!refuses_injected(ROW));
         assert!(!refuses_injected(CLOSE));

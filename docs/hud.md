@@ -337,6 +337,7 @@ values only. A folder without the block gets the neutral chat.
 | `width` | The width in pixels, 1 to 1600. Default 400. |
 | `margin` | The gap between the view and the edges of the work area in pixels, 0 to 128. Default 0. |
 | `idle_stop` | `hide` or `grey`. Stop shows only while a prompt runs, as `hide` does, the default; `grey` keeps it in its place, greyed and without a press, so that the header does not jump. |
+| `form` | `plain` or `xp`. `xp` draws the balloon as XP does: a close box at the top right, Stop and Send as push buttons, a white field with a 1 px rule of `#7F9DB9`, a header of two lines (the name and the state word, then the task and the step), and the question in a group box. The words, the order and the keys do not change. Default `plain`. |
 | `glow` | The colour of the glow around a `glass` chat, which falls to nothing within 16 pixels. Left out: no glow. |
 | `slot` | The name of a client, for example `mc`. The window manager with that name announces a box with its event `NAME.chat.slot {output, rect}`, and the host draws the view inside the box, `[x, y, width, height]` in pixels of the output, four numbers, exactly as announced: the view never steps aside in it, and it does not move or grow while a question shows. The host clips the box to the work area and to the widest chat, 1600 pixels; a box outside the work area is no box. Only the client of that name fills the slot; the core gives a name to one client. Without a box, and after `rect: null` or when the client leaves, the view stands at `anchor`. The client also gives the theme of the look where no window manager claims the screen. A folder with a slot draws no "Chat ..." row and no row of a helper, and its question card takes the page of the look, see below. |
 
@@ -486,6 +487,18 @@ waits, a line above the field says that typing does not answer; it wraps
 at its words and is never cut. When the card is answered here, the line
 and the note "A question is waiting." of the field go at once, before voice
 ends the question.
+
+A folder whose chat has `form: xp` gets XP's card: a white group box with a
+1 px rule of `#ACA899` and corners of 3, 12 px of padding, every line in the
+face of the chat (the title in bold, the detail in a box with a rule of
+`#7F9DB9`, the notes in `#4D4D4D`), and Yes and No as push buttons of 80 by
+28 px, 8 px apart, white to `#E3E1D7` with a rim of `#003C74` and an orange
+ring under the pointer. No button is the default one: Enter answers nothing.
+The words, the order and the keys are those of every look. The same form
+draws the header of the balloon in two lines, the name in bold and the state
+word, then the task and the step in grey; a close box of 18 px; Stop and
+Send as push buttons, Stop greyed while no prompt runs and Send greyed while
+a question waits; and the field in white with a 1 px rule of `#7F9DB9`.
 
 A folder with a `glass` chat gets the glass card of the construct style:
 400 px wide, the title as a label, the prompt at 16 px, the detail in a

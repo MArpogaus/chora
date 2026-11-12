@@ -29,7 +29,8 @@ use serde_json::{Value, json};
 use super::{
     Frame, Link, Outside, colours, held_box, rgba, slot_box,
     view::{
-        CHAT, CLOSE, GAP, LINE, PAD, ROW, STOP, create, image, pick_of, refuses_injected, style_of,
+        CHAT, CLOSE, GAP, LINE, PAD, ROW, SEND, STOP, create, image, pick_of, refuses_injected,
+        style_of,
     },
 };
 use crate::{
@@ -387,6 +388,11 @@ impl Agent {
                 if self.chat.cancel(&mut bridge) {
                     self.chat_draw()?;
                 }
+                self.chat_refocus();
+                Ok(true)
+            }
+            SEND => {
+                self.chat.send_draft();
                 self.chat_refocus();
                 Ok(true)
             }
