@@ -453,7 +453,8 @@ impl Agent {
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
             (None, Some((frame, _))) => {
-                let origin = chat::card_origin(&frame, size);
+                let hint = self.chat.hint_room(theme, &frame, language);
+                let origin = chat::card_origin(&frame, size, hint);
                 self.chat.card_shown(origin[1], size[1]);
                 origin
             }
@@ -699,7 +700,8 @@ impl Agent {
             return Ok(Vec::new());
         };
         let size = card::size(&self.card_theme, &shown, self.language, output.size);
-        let origin = chat::card_origin(&frame, size);
+        let hint = self.chat.hint_room(&self.card_theme, &frame, self.language);
+        let origin = chat::card_origin(&frame, size, hint);
         if !card::follow(&mut shown, origin) {
             self.card = Some(shown);
             return Ok(Vec::new());

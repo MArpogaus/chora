@@ -84,17 +84,18 @@ pub fn refuses_injected(node: &str) -> bool {
     node == STOP || node == SEND || pick_of(node).is_some()
 }
 
-/// The top-left corner of a card inside the view, above the hint of the
-/// field and against its right edge.
+/// The top-left corner of a card inside the view, a gap above the hint of
+/// the field (`hint` is the room it takes, 0 for none) and against its
+/// right edge.
 #[must_use]
-pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
+pub fn card_origin(frame: &Frame, size: [i32; 2], hint: i32) -> [i32; 2] {
     let [x, y, w, h] = frame.rect();
     if frame.look.style == ChatStyle::Glass {
         return [x + w - size[0], y + GLASS_CARD_TOP];
     }
     let [ax, ay, aw, ah] = frame.area;
     let left = x + w - card_inset(frame) - size[0];
-    let top = y + h - field_room(frame) - LINE - 2 * GAP - size[1];
+    let top = y + h - field_room(frame) - hint - GAP - size[1];
     [
         left.clamp(ax, (ax + aw - size[0]).max(ax)),
         top.clamp(ay, (ay + ah - size[1]).max(ay)),
@@ -159,7 +160,7 @@ pub struct Row {
 /// fills the view alone is shown under its speaker's line.
 fn keep_newest(rows: &mut Vec<Row>, keep: usize) {
     let cut = rows.len().saturating_sub(keep);
-    if cut == 0 || rows[cut].starts {
+    if cut == 0 || keep == 0 || rows[cut].starts {
         rows.drain(..cut);
         return;
     }
@@ -504,6 +505,14 @@ fn tops(margin: bool, no_buttons: bool, xp: bool) -> (i32, i32) {
 }
 
 impl Session {
+    /// The room that the hint of the field takes in a view of `frame`.
+    #[must_use]
+    pub fn hint_room(&self, theme: &Theme, frame: &Frame, language: Language) -> i32 {
+        let width = frame.rect()[2] - 2 * PAD;
+        self.hint(language)
+            .map_or(0, |hint| hint_room(&hint_lines(theme, &hint, width)))
+    }
+
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
         let rect = frame.rect();
@@ -1338,6 +1347,30 @@ mod tests {
             created(&asked, CLOSE).and_then(|p| p.input),
             Some(InputMode::Accept)
         );
+    }
+
+    #[test]
+    fn the_card_of_a_question_stands_a_gap_above_the_field_when_no_hint_shows() {
+        let (theme, _, cache) = crate::tests::loaded("card-band");
+        let frame = xp_frame(36);
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        session.agent_said("The notes are ready.");
+        session.question_asked();
+        let size = [336, 170];
+        let origin = card_origin(&frame, size, 0);
+        session.card_shown(origin[1], size[1]);
+        assert_eq!(session.hint(Language::En), None, "no hint in this state");
+        let parts = session.parts(&theme, &frame, Language::En);
+        let field_top = parts.rect[1] + parts.rect[3] - card_inset(&frame) - frame.field;
+        let band = field_top - (origin[1] + size[1]);
+        assert!(band <= 2 * GAP, "{band} px between the card and the field");
+        assert!(
+            origin[1] >= parts.rect[1],
+            "the card stands inside the balloon: {origin:?} in {:?}",
+            parts.rect
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

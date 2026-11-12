@@ -478,12 +478,18 @@ kill "$restart_job" 2>/dev/null || true
 wait_for count_is 3
 grim "$out/after-restart.png"
 
+step "14b. no name of a Microsoft product in the strings of the flavor"
+root=$(realpath "$(dirname "$0")/..")
+if grep -rIn "Windows U""pdate" "$root/plugins/chora-xp" "$root/plugins/chora-notify" "$root/flavors/xp" "$root/tests/xp.sh"; then
+    fail "a string names a Microsoft product"
+fi
+
 step "15. a notification shows as the balloon of XP, and a click closes it"
 notify() {
     busctl --address "$bus" call org.freedesktop.Notifications /org/freedesktop/Notifications \
         org.freedesktop.Notifications Notify 'susssasa{sv}i' app 0 "" "$1" "$2" 0 0 0
 }
-notify "Windows Update" "Your updates are ready to install."
+notify "Updates" "Your updates are ready to install."
 wait_for has_node id:notify-card
 read -r nx ny <<<"$(query id:notify-card | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"')"
 read -r nw nh <<<"$(query id:notify-card-body | jq -r '.[0].size | "\(.[0] | floor) \(.[1] | floor)"')"
@@ -537,7 +543,7 @@ query '*' >"$out/audit-nodes.json"
 AUDIT_KINDS=image python3 -I "$(dirname "$0")/hud-audit.py" "$out/audit-outputs.json" \
     "$out/audit-nodes.json" xp assistant notify >"$out/audit.log" || fail "layout audit: $(cat "$out/audit.log")"
 
-notify "Windows Update" "Your updates are ready to install."
+notify "Updates" "Your updates are ready to install."
 wait_for has_node id:notify-card
 read -r nx ny <<<"$(query id:notify-card | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"')"
 read -r nw nh <<<"$(query id:notify-card-body | jq -r '.[0].size | "\(.[0] | ceil) \(.[1] | ceil)"')"

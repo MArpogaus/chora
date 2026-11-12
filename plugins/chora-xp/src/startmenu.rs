@@ -1,7 +1,7 @@
 //! The start menu: XP's header with the user name, programs on the left,
 //! places on the right, and Log Off and Turn Off Computer in the footer.
 //! The geometry follows the measurements of the reference start menu
-//! (`XpTheme.qml`) at XP Normal size: 380 pixels wide, a 54 pixel
+//! (`XpTheme.qml`) at XP Normal size: 380 pixels wide, a 66 pixel
 //! header, a 38 pixel footer, rows of 34 and 42 pixels.
 
 use std::{
@@ -24,7 +24,7 @@ use crate::{
 };
 
 const WIDTH: i32 = 380;
-const HEADER: i32 = 54;
+const HEADER: i32 = 66;
 const FOOTER: i32 = 38;
 /// The frame around the columns.
 const FRAME: i32 = 2;
@@ -840,8 +840,9 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
 }
 
 /// The icon of a program, but only art that fills its square: a PNG file
-/// whose ink is under 60 % of its side is a fragment, and the program gets
-/// the generic icon of the theme instead.
+/// whose ink is under 60 % of its side, or whose marks cover under 12 % of
+/// it, is a fragment, and the program gets the generic icon of the theme
+/// instead.
 pub fn program_art(icons: &mut Icons, name: &str) -> Option<PathBuf> {
     let found = icons.program(name);
     if !found.as_deref().is_some_and(is_fragment) {
@@ -853,27 +854,38 @@ pub fn program_art(icons: &mut Icons, name: &str) -> Option<PathBuf> {
         .or(found)
 }
 
-/// Whether a file is a PNG whose ink is under 60 % of its square.
+/// Whether a file is a PNG that is a fragment of an icon.
 pub fn is_fragment(path: &Path) -> bool {
-    path.extension().is_some_and(|e| e == "png") && ink_of(path).is_some_and(|ink| ink < 0.6)
+    path.extension().is_some_and(|e| e == "png")
+        && ink_of(path).is_some_and(|(side, marks)| side < 0.6 || marks < 0.12)
 }
 
-/// The larger side of the ink of a PNG file, as a share of its larger side.
-fn ink_of(path: &Path) -> Option<f64> {
+/// The larger side of the ink of a PNG file as a share of its larger side,
+/// and the share of its pixels that are marks: not clear and not white (in
+/// a premultiplied pixel white has all channels at its alpha).
+fn ink_of(path: &Path) -> Option<(f64, f64)> {
     let image = resvg::tiny_skia::Pixmap::load_png(path).ok()?;
     let mut found: Option<[u32; 4]> = None;
+    let mut marks = 0u32;
     for y in 0..image.height() {
         for x in 0..image.width() {
-            if image.pixel(x, y).is_some_and(|p| p.alpha() > 40) {
-                found = Some(found.map_or([x, y, x, y], |f| {
-                    [f[0].min(x), f[1].min(y), f[2].max(x), f[3].max(y)]
-                }));
+            let Some(p) = image.pixel(x, y).filter(|p| p.alpha() > 40) else {
+                continue;
+            };
+            found = Some(found.map_or([x, y, x, y], |f| {
+                [f[0].min(x), f[1].min(y), f[2].max(x), f[3].max(y)]
+            }));
+            if p.red().min(p.green()).min(p.blue()) < p.alpha().saturating_sub(20) {
+                marks += 1;
             }
         }
     }
     let [x0, y0, x1, y1] = found?;
     let side = f64::from(image.width().max(image.height()));
-    Some(f64::from((x1 - x0 + 1).max(y1 - y0 + 1)) / side)
+    Some((
+        f64::from((x1 - x0 + 1).max(y1 - y0 + 1)) / side,
+        f64::from(marks) / (f64::from(image.width()) * f64::from(image.height())),
+    ))
 }
 
 /// The programs of the left column, below each other: the terminal of
@@ -1429,6 +1441,28 @@ mod tests {
     }
 
     #[test]
+    fn the_first_rows_of_both_columns_stand_a_gap_under_the_header() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-gap");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(&with_programs(3), Vec::new(), &theme, &mut icons);
+        let header = theme.size(sheets::WINXP, "startmenu-header").unwrap()[1];
+        for kind in [Kind::Program, Kind::Place] {
+            let first = menu
+                .entries
+                .iter()
+                .filter(|e| e.kind == kind)
+                .map(|e| e.rect[1])
+                .min()
+                .unwrap();
+            assert!(
+                first >= header + 4,
+                "{kind:?} starts at {first}, header {header}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn no_entry_of_the_menu_has_a_clipped_text_or_an_icon_of_another_size() {
         let (theme, cache) = crate::dialog::tests::theme("startmenu-audit");
         let mut icons = Icons::new(crate::icons::THEMES);
@@ -1611,6 +1645,26 @@ mod tests {
         assert!(is_fragment(&fragment));
         assert!(!is_fragment(&whole));
         assert!(!is_fragment(&dir.join("missing.png")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn art_of_a_white_page_with_a_few_marks_is_a_fragment() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-page-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let draw = |name: &str, every: u32| {
+            let mut image = resvg::tiny_skia::Pixmap::new(64, 64).expect("a pixmap");
+            for (i, pixel) in (0u32..).zip(image.pixels_mut()) {
+                let marked = i % 64 % every == 0 && i / 64 % every == 0;
+                let green = if marked { 0 } else { 255 };
+                *pixel = resvg::tiny_skia::PremultipliedColorU8::from_rgba(255, green, green, 255)
+                    .expect("a colour");
+            }
+            image.save_png(dir.join(name)).expect("a file");
+            dir.join(name)
+        };
+        assert!(is_fragment(&draw("dots.png", 8)), "dots on white");
+        assert!(!is_fragment(&draw("solid.png", 1)), "a filled square");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
