@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 02:29 UTC)
+## Now (2026-11-12 02:31 UTC)
 
 budget: 90 % at 2026-11-12 02:17 UTC (user), estimate 90 to 91 %, stop about 06:00 to 08:00 UTC; reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -11,7 +11,7 @@ last_reviewed: per-merge reviews only; the per-area review of the whole range a0
 Lanes:
 - construct-v2: tour worker session_016iS3kNcWCmF1YP1YaxYmP6 (sonnet, cloud): fixing the code review (3 MEDIUM, 9 LOW), XP face labels, then records tour-v3.
 - swarm5-fixes: cloud worker session_016iS3kM51byn28e4KkoLSee (sonnet): mc mouse way back, AGENDA heading, tiling light/dark switch, key list mouse section, fuzzel version.
-- xp-v2: local sonnet agent in wt/xp-v2: steps 2, 4, 10, 13, tray icon, 14 px sweep, Help as a window.
+- xp-v2: round 2 done (52e7044); UI review FIX (4 MAJOR: a Windows flag in three places, Help table cut off, Run unthemed, false launch balloons; reports/review-xp-v2.md); cloud worker session_016iS3kNoQYkfu5FnAnT5HM8 fixing; review 2 confirms M1 to M4 only.
 - tooling: log tools live (check_log.py hook, lanes.py, 18 tests); claude/tooling code review FIX (3 MEDIUM: ci-local skip path, pre-commit step skips, red-first order and test paths): cloud worker session_016iS3kMhTbAjyJBj4Q5zpNB fixing. The xp gate goes red on the paperclip size (real flaw): sent to the xp agent.
 - week-1 report: local sonnet agent, reports/week-1.md.
 - ready, not merged: claude/pkg (80f31a7, reviewed, python3 fix in) waits for train 3 with construct-v2.
