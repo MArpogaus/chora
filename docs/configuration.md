@@ -1432,7 +1432,12 @@ Each unit starts only when its program is installed. The packages
 recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
 swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 `xdg-desktop-portal-gtk`. mako starts from the unit of
-its own package and needs no configuration.
+its own package and needs no configuration. The helpers of the scripts
+are recommended too: grim and slurp (screenshots), wl-clipboard
+(`wl-copy`) and libnotify (`notify-send`). The fonts are Inter (Arch
+`inter-font`, Fedora `rsms-inter-fonts`), JetBrains Mono (`ttf-jetbrains-mono`,
+`jetbrains-mono-fonts`) and TeX Gyre Pagella for chora-mc (`tex-gyre-fonts`,
+`texlive-tex-gyre`). The packages set no minimum version of fuzzel.
 
 - **The panel**: waybar with the configuration of the flavor. It shows only
   modules that need no IPC of sway, in the words of a person: the tags of
