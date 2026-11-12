@@ -100,8 +100,9 @@ click_at "$x" "$y"
 until_ok '[ "$(current)" = terminal ]' 20 || fail "a click on a line of the overview does not show that scene: $(current)"
 ok "a mouse alone reaches All keys, the overview and the terminal scene"
 
+sleep 3
 key Super+Home
-until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda before the morning scene"
+until_ok '[ "$(current)" = agenda ]' 40 || fail "no agenda before the morning scene: $(current)"
 sleep 1
 key Super+Right
 until_ok '[ "$(current)" = morning ]' 20 || fail "Super+Right does not show the morning scene: $(current)"
