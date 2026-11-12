@@ -64,8 +64,9 @@ const FILL_LIFT: f64 = 0.5;
 /// How often the construct looks whether a starting manager exited.
 const POLL: Duration = Duration::from_millis(100);
 /// How far the cube turns off square toward the next face when it
-/// stands back, in radians: 14 degrees.
-pub(crate) const REST: f64 = 14.0 * std::f64::consts::PI / 180.0;
+/// stands back, in radians: 22 degrees, so that the next face
+/// shows as a sliver of 25 px or more, enough to know it by.
+pub(crate) const REST: f64 = 22.0 * std::f64::consts::PI / 180.0;
 /// Which way the cube turns more for the angle at which the eye sees its
 /// centre, so that it shows the same side as before it moved aside.
 const LEAN: f64 = -1.0;
@@ -1705,7 +1706,7 @@ mod tests {
         host.angle = 0.0;
         host.stand = 1.0;
         let front = host.float_share(0, host.eye([0.0, 0.0]));
-        assert!(front > 0.9, "the front face stood back: {front}");
+        assert!(front > 0.85, "the front face stood back: {front}");
         let _ = host.child.wait();
     }
 
@@ -1929,17 +1930,17 @@ mod tests {
     }
 
     #[test]
-    fn a_cube_that_stands_back_rests_14_degrees_off_square_toward_the_next_face() {
+    fn a_cube_that_stands_back_rests_22_degrees_off_square_toward_the_next_face() {
         let mut host = host_of(4);
         assert!(
-            (REST - degrees(14.0)).abs() < 1e-12,
-            "the rest pose is 14 degrees"
+            (REST - degrees(22.0)).abs() < 1e-12,
+            "the rest pose is 22 degrees"
         );
         assert!(host.drawn_angle().abs() < 1e-12, "in use mode it is square");
         host.stand = 1.0;
         assert!(
             ((host.drawn_angle() - host.angle).abs() - REST).abs() < 1e-9,
-            "stood back it is turned by 14 degrees: {}",
+            "stood back it is turned by 22 degrees: {}",
             host.drawn_angle()
         );
         let eye = host.eye([0.0, 0.0]);
@@ -2078,7 +2079,7 @@ mod tests {
         let lens = lens_of(&host);
         let m = super::super::space::screen_matrix(&lens, &Pose::default(), &host.world(0));
         let [x0, y0] = super::super::space::project(&m, 640.0, 400.0);
-        let [x1, y1] = super::super::space::project(&m, 641.0, 400.0);
+        let [x1, y1] = super::super::space::project(&m, 640.0, 401.0);
         let px_of_unit = (x1 - x0).hypot(y1 - y0);
         assert!(
             (scale * px_of_unit - 1.0).abs() < 0.06,

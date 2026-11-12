@@ -118,6 +118,15 @@ fn rgb3(c: [f64; 4]) -> [f64; 3] {
     [c[0], c[1], c[2]]
 }
 
+/// The opacity of the label of a pane that is not in focus.
+pub const NEIGHBOUR_OPACITY: f64 = 0.6;
+
+/// The id of the label of pane `k` that is not in focus.
+#[must_use]
+pub fn neighbour_id(k: usize) -> String {
+    format!("construct-label-n-{k}")
+}
+
 /// The width of the pill of a pane label at most.
 const LABEL_MAX: f64 = 320.0;
 /// The most characters of a single line that the fit tries: more never
@@ -636,6 +645,50 @@ impl Look<'_> {
             },
         ));
         commands.push(fade(LABEL_BODY, 1.0, FADE_IN));
+        (commands, w)
+    }
+
+    /// The label of a pane that is not the focus (the brief: every pane
+    /// has a label): the capsule of [`Self::label`] at 60 % in a group of
+    /// its own, `construct-label-n-{k}`, which the walk moves with each
+    /// frame. Answers the commands and the width.
+    #[must_use]
+    pub fn neighbour_label(&self, k: usize, name: &str) -> (Vec<Command>, f64) {
+        use chora_kit::glass::{LABEL_CAPSULE, Type};
+        let role = Role::Face(Type::Small, 500);
+        let pad = 2.0 * self.style.unit;
+        let text = self.one_line(role, name, LABEL_MAX - pad * 2.0);
+        let w = (self.size(role, &text, None)[0] + pad * 2.0).ceil();
+        let id = neighbour_id(k);
+        let mut commands = crate::glass::surface(
+            self,
+            &self.glass,
+            &crate::glass::Surface {
+                id: &id,
+                parent: crate::NAME,
+                rect: [0.0, 0.0, w, LABEL_CAPSULE],
+                radius: LABEL_CAPSULE / 2.0,
+                strong: false,
+                name: "pane-label",
+                input: InputMode::Pass,
+            },
+        );
+        commands.push(crate::glass::text(
+            self,
+            &format!("{id}-text"),
+            &id,
+            (role, &text),
+            [pad, (LABEL_CAPSULE - 20.0) / 2.0],
+            self.glass.text,
+        ));
+        commands.push(update(
+            &id,
+            PropsUpdate {
+                opacity: Some(0.0),
+                ..PropsUpdate::default()
+            },
+        ));
+        commands.push(fade(&id, NEIGHBOUR_OPACITY, FADE_IN));
         (commands, w)
     }
 

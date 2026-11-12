@@ -560,6 +560,9 @@ struct Construct {
     pointer: Option<[f64; 2]>,
     /// The pane that the label names, if it shows.
     labelled: Option<String>,
+    /// The labels of the panes beside it, by pane index: the pane's name,
+    /// the text drawn and the width of the capsule.
+    neighbours: std::collections::BTreeMap<usize, (String, String, f64)>,
     /// The window of a pane under the pointer, from `pointer.entered`:
     /// the focus and the label follow it.
     hovered: Option<String>,
@@ -683,6 +686,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         glass: Glass::default(),
         pointer: None,
         labelled: None,
+        neighbours: std::collections::BTreeMap::new(),
         hovered: None,
         backs: std::collections::BTreeSet::new(),
         glow: None,

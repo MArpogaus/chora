@@ -13,6 +13,15 @@ pub(crate) fn label_hidden(reasons: &[bool]) -> bool {
     reasons.iter().any(|r| *r)
 }
 
+/// Whether a pane whose box on the output is `[left, top, right, bottom]`
+/// gets a label of its own in the walk: at least 40 % of its width is on
+/// an output `width` wide (every pane has a label, the brief).
+pub(crate) fn neighbour_shows([left, _, right, _]: [f64; 4], width: f64) -> bool {
+    let all = right - left;
+    let seen = right.min(width) - left.max(0.0);
+    all > 0.0 && seen >= 0.4 * all
+}
+
 impl Construct {
     /// An event `voice.KIND` of the voice agent, while the construct
     /// draws the voice HUD. Wrong data only log.
@@ -147,6 +156,91 @@ impl Construct {
             self.cube.is_some(),
         ]);
         let pick = if hidden { None } else { self.focus() };
+        let mut commands = self.focus_label(pick);
+        commands.extend(self.neighbour_labels(pick, hidden));
+        commands
+    }
+
+    /// The labels of the other panes that show at least 40 % (every pane
+    /// has a label, the brief), named at 60 % and 8 below their bottom
+    /// edge. None while the label hides.
+    fn neighbour_labels(&mut self, focus: Option<usize>, hidden: bool) -> Vec<Command> {
+        let want: Vec<(usize, [f64; 4])> = if hidden || focus.is_none() {
+            Vec::new()
+        } else {
+            (0..self.panes.len())
+                .filter(|k| Some(*k) != focus)
+                .filter_map(|k| {
+                    let p = &self.panes[k];
+                    let b = space::screen_box(&self.lens, &self.pose, p.at, p.size, p.yaw)?;
+                    neighbour_shows(b, self.lens.w).then_some((k, b))
+                })
+                .collect()
+        };
+        let mut commands = Vec::new();
+        let gone: Vec<usize> = self
+            .neighbours
+            .iter()
+            .filter(|(k, (name, ..))| {
+                (want.iter()).all(|(w, _)| w != *k || self.panes[*w].name != *name)
+            })
+            .map(|(k, _)| *k)
+            .collect();
+        for k in gone {
+            self.neighbours.remove(&k);
+            commands.push(Command::Remove {
+                id: hud::neighbour_id(k),
+                to: None,
+            });
+        }
+        for (k, _) in want {
+            let name = self.pane_title(k);
+            let known = self.neighbours.get(&k);
+            let width = match known {
+                Some((_, text, w)) if *text == name => *w,
+                _ => {
+                    if known.is_some() {
+                        commands.push(Command::Remove {
+                            id: hud::neighbour_id(k),
+                            to: None,
+                        });
+                    }
+                    let fitted = self.fitted(|s| s.styled().neighbour_label(k, &name));
+                    let (drawn, w) = fitted.unwrap_or_else(|err| {
+                        eprintln!("chora-construct: measure the label: {err}");
+                        self.styled().neighbour_label(k, &name)
+                    });
+                    commands.extend(drawn);
+                    self.neighbours
+                        .insert(k, (self.panes[k].name.clone(), name, w));
+                    w
+                }
+            };
+            commands.push(self.place_neighbour(k, width));
+        }
+        commands
+    }
+
+    /// Moves the label of pane `k` of `width` under the pane, inside the
+    /// output, so that a pane cut by its edge keeps its name.
+    fn place_neighbour(&self, k: usize, width: f64) -> Command {
+        let pane = &self.panes[k];
+        let matrix = space::pane_matrix(&self.lens, &self.pose, pane.at, pane.size, pane.yaw);
+        let [x, y] = space::bottom_middle(&matrix, pane.size);
+        let unit = self.settings.value.style.unit;
+        let x = (x - width / 2.0)
+            .round()
+            .clamp(8.0, (self.lens.w - width - 8.0).max(8.0));
+        update(
+            &hud::neighbour_id(k),
+            PropsUpdate {
+                transform: Some(Transform::translate(x, (y + unit).round(), 0.0)),
+                ..PropsUpdate::default()
+            },
+        )
+    }
+
+    fn focus_label(&mut self, pick: Option<usize>) -> Vec<Command> {
         let Some(k) = pick else {
             return match self.labelled.take() {
                 Some(_) => Look::label_hide(),
@@ -223,5 +317,25 @@ mod tests {
         let mut with_cube = [false; 7];
         with_cube[6] = true;
         assert!(label_hidden(&with_cube), "no label over a face or the cube");
+    }
+
+    #[test]
+    fn a_neighbour_pane_has_a_label_when_40_percent_of_it_is_on_screen() {
+        use super::neighbour_shows;
+        assert!(neighbour_shows([0.0, 0.0, 329.0, 340.0], 1280.0), "whole");
+        assert!(neighbour_shows([-190.0, 0.0, 330.0, 340.0], 1280.0), "63 %");
+        assert!(
+            !neighbour_shows([-310.0, 0.0, 200.0, 340.0], 1280.0),
+            "under 40 %"
+        );
+        assert!(
+            neighbour_shows([1100.0, 0.0, 1400.0, 340.0], 1280.0),
+            "60 %"
+        );
+        assert!(
+            !neighbour_shows([1200.0, 0.0, 1600.0, 340.0], 1280.0),
+            "20 %"
+        );
+        assert!(!neighbour_shows([5.0, 0.0, 5.0, 340.0], 1280.0), "no width");
     }
 }

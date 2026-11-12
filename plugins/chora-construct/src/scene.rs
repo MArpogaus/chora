@@ -179,6 +179,7 @@ impl Construct {
         }
         self.list = None;
         self.labelled = None;
+        self.neighbours.clear();
         self.label_drawn = false;
         self.rt.ungrab_all()?;
         self.active = false;

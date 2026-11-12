@@ -286,6 +286,7 @@ impl Construct {
                 self.backs.clear();
                 commands.extend(self.styled().groups(NAME));
                 self.labelled = None;
+                self.neighbours.clear();
                 self.label_drawn = false;
                 self.start_card = crate::start::State::default();
             }

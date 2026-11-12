@@ -261,7 +261,12 @@ impl Construct {
             })
             .into();
         commands.extend(self.styled().groups(NAME));
+        commands.extend(self.neighbours.keys().map(|k| Command::Remove {
+            id: hud::neighbour_id(*k),
+            to: None,
+        }));
         self.rt.conn.try_apply(commands)?;
+        self.neighbours.clear();
         self.labelled = None;
         self.label_drawn = false;
         self.start_card.up = false;

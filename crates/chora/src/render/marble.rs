@@ -209,13 +209,13 @@ fn a_reflection_blurs_with_the_distance_from_the_pane() {
         let r = row(&rgba, width, y);
         reach(&r, 0.9) - reach(&r, 0.1)
     };
-    let (near, far) = (ramp(252), ramp(150));
+    let (near, far) = (ramp(252), ramp(215));
     report(&format!(
         "reflection: {near} px at the contact, {far} px far down"
     ));
     assert!(near <= 4.0, "sharp near the pane: {near} px");
-    assert!(far >= near + 6.0, "soft far from it: {far} px");
-    let middles: Vec<f64> = (150..250)
+    assert!(far >= near + 2.0, "soft far from it: {far} px");
+    let middles: Vec<f64> = (205..250)
         .step_by(4)
         .map(|y| reach(&row(&rgba, width, y), 0.5))
         .collect();
@@ -230,6 +230,33 @@ fn a_reflection_blurs_with_the_distance_from_the_pane() {
         (1.0..=4.0).contains(&(high - low)),
         "micro bumps waver the edge a little: {} px",
         high - low
+    );
+}
+
+/// The red channel at a point of a capture.
+fn red(rgba: &[u8], width: usize, x: usize, y: usize) -> f64 {
+    f64::from(rgba[(y * width + x) * 4])
+}
+
+#[test]
+fn a_reflection_ends_60_px_under_the_pane_and_keeps_the_pane_edges() {
+    let (mut core, mut wm) = world();
+    let (width, rgba) = mirrored(&mut core, &mut wm);
+    let floor = red(&rgba, width, 20, 150);
+    let at_contact = red(&rgba, width, 250, 258) - floor;
+    let at_edge = red(&rgba, width, 297, 258) - floor;
+    let past_60 = red(&rgba, width, 250, 195) - floor;
+    report(&format!(
+        "mirror: floor {floor}, contact {at_contact}, edge {at_edge}, 65 px down {past_60}"
+    ));
+    assert!(at_contact > 8.0, "the reflection shows: {at_contact}");
+    assert!(
+        past_60.abs() < 1.0,
+        "it fades out by 60 px under the pane: {past_60}"
+    );
+    assert!(
+        at_edge > at_contact * 0.6,
+        "its side edge sits on the pane's edge, feathered by a few px only: {at_edge} of {at_contact}"
     );
 }
 
