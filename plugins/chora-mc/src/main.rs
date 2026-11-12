@@ -3052,6 +3052,19 @@ mod tests {
         )
     }
 
+    /// The head of a page opens the page list: it takes the pointer like
+    /// every other item, and the overview itself has no such hit.
+    #[test]
+    fn a_click_on_the_head_of_a_page_shows_the_overview() {
+        let (mut mc, model) = crate::testing::mc("head-hit", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let hit = "mc-s-agenda-chapter-head-hit";
+        assert!(crate::testing::has(&model, hit), "the head takes the pointer");
+        assert!(mc.click_hit(hit));
+        assert_eq!(mc.current.as_deref(), Some("overview"));
+        assert!(!crate::testing::has(&model, "mc-s-overview-chapter-head-hit"));
+    }
+
     /// A page without data says what it is and why it is empty, in
     /// `muted`; with a line the words go.
     #[test]
