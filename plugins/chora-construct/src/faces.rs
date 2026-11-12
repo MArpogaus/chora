@@ -65,11 +65,11 @@ pub fn words(language: Language, manager: &str, health: &Health) -> Words {
     let (head, foot) = match language {
         Language::En => (
             format!("{manager} did not start."),
-            "Click or press Return to try again.",
+            "The other faces still work.",
         ),
         Language::De => (
             format!("{manager} wurde nicht gestartet."),
-            "Klicken oder Return drücken, um es erneut zu versuchen.",
+            "Die anderen Flächen laufen weiter.",
         ),
     };
     Words {
@@ -313,10 +313,7 @@ mod tests {
         let failed = Health::Failed("chora-mc stopped after 2 s: it needs foot.".into());
         let w = words(EN, "Media center", &failed);
         assert_eq!(w.head, "Media center did not start.");
-        assert_eq!(
-            w.foot.as_deref(),
-            Some("Click or press Return to try again.")
-        );
+        assert_eq!(w.foot.as_deref(), Some("The other faces still work."));
         assert_eq!(
             w.reason.as_deref(),
             Some("chora-mc stopped after 2 s: it needs foot.")
@@ -325,7 +322,7 @@ mod tests {
         assert_eq!(de.head, "XP wurde nicht gestartet.");
         assert_eq!(
             de.foot.as_deref(),
-            Some("Klicken oder Return drücken, um es erneut zu versuchen.")
+            Some("Die anderen Flächen laufen weiter.")
         );
     }
 

@@ -192,7 +192,7 @@ pub fn dot_updates(m: &Material, weights: &[f64]) -> Vec<Command> {
 }
 
 /// How dim the hint `Step in` is while the cube turns.
-pub const DIM: f64 = 0.45;
+pub const DIM: f64 = 0.6;
 
 /// The hint that has the hover fill: the one under the pointer, else,
 /// while the pointer lights the edge of a face, the hint `step_in` that
@@ -769,7 +769,7 @@ mod tests {
             hit: "construct-mode-step-in".into(),
             chip: true,
         };
-        assert!((DIM - 0.45).abs() < 1e-9);
+        assert!((DIM - 0.6).abs() < 1e-9, "0.6 keeps 4.5:1");
         let dimmed = dim(&item);
         let opacity = |id: &str| {
             dimmed.iter().find_map(|c| match c {

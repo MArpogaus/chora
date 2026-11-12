@@ -140,7 +140,7 @@ moves that window and does not turn the cube.
 While the cube turns in navigate mode the hints stay. The face label
 names the face nearest to the front, so it changes at 45 degrees; the
 dot of the face before the angle loses the accent that the dot of the
-next face gains; and the hint `Step in` dims to an opacity of 0.45. In
+next face gains; and the hint `Step in` dims to an opacity of 0.6. In
 use mode the hints stay hidden while the cube turns.
 
 ## The cube at rest
