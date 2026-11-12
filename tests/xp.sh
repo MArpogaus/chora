@@ -568,6 +568,13 @@ echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.
 wait_for has_node id:hud-card-yes
 test "$(node_size hud-card-yes)" = "[80,28]" || fail "Yes is not 80 by 28: $(node_size hud-card-yes)"
 test $(($(node_x hud-card-no) - $(node_x hud-card-yes))) = 88 || fail "Yes and No are not 8 pixels apart"
+node_y() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[1] | floor'; }
+node_h() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[3] | floor'; }
+wait_for chat_says "Atlas — Working"
+has_node id:hud-chat-stop || fail "the question hides Stop (scale ${XP_SCALE:-1})"
+test "$(node_y hud-chat)" -le "$(node_y hud-card-yes)" || fail "the card stands above the balloon: chat y $(node_y hud-chat), Yes y $(node_y hud-card-yes)"
+chat_high() { test "$(node_h hud-chat)" -ge 380; }
+chat_high || fail "the balloon is $(node_h hud-chat) px high with a question, not 380 or more (scale ${XP_SCALE:-1})"
 grim "$out/chat-question.png"
 echo 'voice.confirm {"id": "51", "done": true}' >&5
 "$bin/choractl" call assistant chat.hide '{}' >/dev/null || fail "chat.hide failed"

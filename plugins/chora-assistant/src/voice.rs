@@ -343,6 +343,9 @@ impl Agent {
         let mut commands = self.ensure_top(&output.name);
         let mut shown = self.new_card(question, (data["buttons"] == true, &output.name), now);
         self.place_card(&mut shown, figure, &output)?;
+        if self.chat.question_asked() == Where::Chat && self.chat.is_open() {
+            self.chat_draw()?;
+        }
         let language = self.language;
         if let Some(old) = self.card.take() {
             commands.extend(card::hide(&old));
