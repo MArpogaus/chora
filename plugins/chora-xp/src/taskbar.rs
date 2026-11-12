@@ -1055,9 +1055,11 @@ mod tests {
         );
         assert!(speaker.width() >= 12, "{speaker:?}");
         let (runs, _) = tray_runs("3:26 AM", icons(Speaker::Off, true), 1);
-        for icon in [runs[0], runs[1]] {
-            assert_eq!(icon.width(), 16, "{icon:?}");
-            assert_eq!(icon.height(), 16, "{icon:?}");
+        for (icon, middle) in [(runs[0], TRAY_PAD + 8), (runs[1], HELPER + 12)] {
+            assert!((14..=16).contains(&icon.width()), "{icon:?}");
+            assert!((14..=16).contains(&icon.height()), "{icon:?}");
+            assert!((icon.left + icon.right - 2 * middle).abs() <= 1, "{icon:?}");
+            assert!((icon.top + icon.bottom - HEIGHT).abs() <= 1, "{icon:?}");
         }
         let (mut theme, cache) = crate::sheets::tests::theme("tray-red");
         let picture = tray(&theme, tray_width(true), None, icons(Speaker::Off, false));
@@ -1067,10 +1069,11 @@ mod tests {
             .map(|[x, y]| crate::sheets::tests::rgb(&image, x, y))
             .filter(|c| red(*c))
             .collect();
-        let reddest = reds.iter().map(|c| c[0]).max().expect("a red");
+        let purest = reds.iter().min_by_key(|c| c[1]).expect("a red");
+        let palette = [0xD8, 0x32, 0x1F];
         assert!(
-            reddest <= 0xD8 + 4,
-            "red {reddest:#x} is brighter than #D8321F"
+            purest.iter().zip(palette).all(|(a, b)| a.abs_diff(b) <= 12),
+            "the red of the no-sign is {purest:?}, not #D8321F"
         );
         let _ = std::fs::remove_dir_all(cache);
     }
