@@ -55,6 +55,5 @@ Totals old: FIXED 10 (B1, B2, B3, 1, 2, 6, 9, 10, 12, 15), OPEN 14 (B4*, B5, 3, 
 
 ## Verdict: FIX
 
-No MAJOR left. Counts: MAJOR 0, MINOR 9 (open old 3, 4, 5, 7, 8, 11, 13 + new N1..N5 minus overlap: 7 old + 5 new = 12 listed; of these 7, 8, 13 not captured), COSMETIC 11 (old B4, B5, 14, 16, 17, 18 + new N6..N9 = 10, plus 15 residual stroke weight).
-Clean tally: MAJOR 0; MINOR 12 (old 7 + new 5); COSMETIC 10 (old 6 + new 4).
+No MAJOR left. Clean tally: MAJOR 0; MINOR 12 (old 7 + new 5); COSMETIC 10 (old 6 + new 4).
 Top 3: (1) chat-question stack overflow and 15 px bottom gutter (N1) with the still-boxed, soft, third-face field (4, N2); (2) baseline grid in four phases (N3) and column top jumping 22 vs 78 (N4); (3) terminal mono ~13 px (N5). All B1-B3, F1 and footer/baseline fixes verified at 1x and 2x.
