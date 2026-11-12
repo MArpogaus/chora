@@ -704,7 +704,7 @@ mod tests {
             Figure::Sheet { size: [24, 24], .. }
         ));
         assert_eq!(values.anchor, chora_kit::hud::Anchor::BottomRight);
-        assert_eq!(values.margin, [16, 16]);
+        assert_eq!(values.margin, [24, 24]);
         assert_eq!(values.speech.tail, 0, "no tail");
         assert!(values.mutes);
         assert!(theme.confined());

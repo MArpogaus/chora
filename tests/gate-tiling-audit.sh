@@ -88,6 +88,10 @@ round() {
         ctl capture "$shots/probe-$tag.png" >/dev/null 2>&1 &&
             [ "$(pixel "$shots/probe-$tag.png" $((24 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/probe-$tag.png" $((24 * ${scale%.*})) $((300 * ${scale%.*})))" ] && break
     done
+    token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
+    [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
+        { echo "FAIL: tokens colors.css: line is ${token:-missing} in $theme"; failed=1; }
+    sleep 3
     audit desktop "$tag" "$theme" "$scale"
 
     emit voice.state '{"state": "question", "task": "Write file", "said": ""}'

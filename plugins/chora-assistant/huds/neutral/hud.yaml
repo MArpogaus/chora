@@ -4,7 +4,7 @@ panels:
 - id: figure
   source: voice
   anchor: bottom_right
-  margin: [16, 16]
+  margin: [24, 24]
   picture: dot.svg#{state}
   text: '{state}'
   action: mute

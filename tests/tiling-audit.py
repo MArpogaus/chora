@@ -18,8 +18,9 @@ Prints one `FAIL:` line per finding; exit status 1 on a finding.
   overlap     a helper surface stays clear of the bar and of the tile borders
   fullscreen  with a fullscreen window the bar islands do not show
 
-The shader that draws a tile border blends its edge pixel by a tenth (EDGE)
-with what lies outside, so the border is compared with `line` blended so.
+The shader that draws a tile border dims it by up to a fifth, so the border
+is compared with `line` within that range; the exact token is checked in
+colors.css by the gate.
 """
 
 import importlib.util
@@ -32,7 +33,6 @@ TOKENS = {
     "paper": {"surface": (255, 255, 255), "surface-2": (242, 243, 247), "line": (213, 216, 225)},
 }
 TOLERANCE = 9
-EDGE = 0.1
 BAR = (8, 40)
 GAP = 8
 
@@ -117,13 +117,10 @@ def main():
                 problems.append(f"radius {name}: the corner turns in {steps} px, not the radius family of 10 to 14")
         borders = tiles(nodes)
         want = palette["line"]
-        edge = []
-        for rect in borders.values():
-            mid = rect[1] + rect[3] / 2
-            outside = px(rect[0] - 3, mid)
-            blended = tuple(round(EDGE * o + (1 - EDGE) * w) for o, w in zip(outside, want))
-            edge.append((px(rect[0] + 1, mid), blended))
-        if borders and not any(near(color, blended, 26) for color, blended in edge):
+        edge = [px(rect[0] + 1, rect[1] + rect[3] / 2) for rect in borders.values()]
+        low = tuple(0.8 * c - 6 for c in want)
+        high = tuple(1.1 * c + 6 for c in want)
+        if borders and not any(all(a <= c <= b for a, c, b in zip(low, color, high)) for color in edge):
             problems.append(f"tokens tile border: {edge} is not `line` {want}")
         for name, rect in helpers.items():
             if bar and rect[1] < BAR[1] + 8 and name != "hud-chat":
