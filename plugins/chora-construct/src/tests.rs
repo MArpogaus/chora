@@ -368,3 +368,32 @@ fn the_frame_of_a_pane_takes_the_size_of_the_buffer() {
         "under half a pixel"
     );
 }
+
+/// Taking the flight into a pane leaves a plain glide of the walk
+/// alone.
+#[test]
+fn taking_the_flight_into_a_pane_keeps_a_plain_glide() {
+    let glide = |into| Glide {
+        from: Pose::default(),
+        to: Pose::default(),
+        start: std::time::Instant::now(),
+        ms: 380.0,
+        into,
+        smooth: false,
+    };
+    let flown = Flown {
+        surface: "s1".into(),
+        back: Pose::default(),
+        attached: false,
+        plugin: None,
+    };
+    let mut plain = Some(glide(None));
+    assert!(take_flight(&mut plain).is_none());
+    assert!(plain.is_some(), "a plain glide stays");
+    let mut flying = Some(glide(Some(flown)));
+    assert_eq!(
+        take_flight(&mut flying).map(|f| f.surface),
+        Some("s1".into())
+    );
+    assert!(flying.is_none());
+}

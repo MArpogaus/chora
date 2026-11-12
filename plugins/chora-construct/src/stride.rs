@@ -15,6 +15,11 @@ pub const RAMP_MS: f64 = 160.0;
 /// The time of one pane step at the pace of a held key.
 pub const HOLD_STEP_MS: f64 = 400.0;
 
+/// The longest a key may stay down: a key whose release got lost stops
+/// its walk after this time.
+#[allow(dead_code)]
+pub const MAX_HOLD_MS: f64 = 5000.0;
+
 /// How far a walk has gone `t` ms after the press, in pane steps, and
 /// whether it stopped there; `released` is the time of the release.
 pub fn steps_at(t: f64, released: Option<f64>) -> (f64, bool) {
@@ -84,6 +89,11 @@ impl Stride {
     pub fn release(&mut self, now: Instant) {
         self.released.get_or_insert(now);
     }
+
+    /// Releases a key that has been down longer than [`MAX_HOLD_MS`], as
+    /// of the time that it passed.
+    #[allow(dead_code, clippy::unused_self)]
+    pub fn expire(&mut self, _now: Instant) {}
 
     /// Where the walk is at `now`, and whether it ended there.
     pub fn at(&self, now: Instant) -> ([f64; 2], bool) {
@@ -171,6 +181,20 @@ mod tests {
         assert!(!walk.held());
         let (end, done) = walk.at(at(1400));
         assert!(done && near(end[1], 20.0 + 3.2 * PANE_STEP));
+    }
+
+    #[test]
+    fn a_key_that_is_never_released_stops_the_walk_after_five_seconds() {
+        let t0 = Instant::now();
+        let at = |ms: u64| t0 + std::time::Duration::from_millis(ms);
+        let mut walk = Stride::new("w", [0.0, 1.0], [0.0, 0.0], t0);
+        walk.expire(at(4999));
+        assert!(walk.held());
+        walk.expire(at(60_000));
+        assert!(!walk.held());
+        let (end, done) = walk.at(at(60_000));
+        let (stopped, _) = steps_at(MAX_HOLD_MS + RAMP_MS, Some(MAX_HOLD_MS));
+        assert!(done && near(end[1], stopped * PANE_STEP));
     }
 
     #[test]

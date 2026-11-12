@@ -73,6 +73,13 @@ pub(crate) fn ahead(panes: &[Pane], lens: &space::Lens, pose: &Pose, far: f64) -
         .map(|(i, _)| i)
 }
 
+/// The flight into a pane that `glide` is on, taken out of it; a glide
+/// that goes nowhere into a pane stays.
+#[allow(dead_code)]
+pub(crate) fn take_flight(glide: &mut Option<Glide>) -> Option<Flown> {
+    glide.take().and_then(|g| g.into)
+}
+
 impl Construct {
     /// The leash radius: the construct file's, or the settings'.
     pub(crate) fn radius(&self) -> f64 {
