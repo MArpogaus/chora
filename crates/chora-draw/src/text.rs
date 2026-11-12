@@ -260,6 +260,18 @@ impl Fonts {
         }
     }
 
+    /// The font of a window title: Trebuchet MS Bold at 13 pixels when the
+    /// family has a real bold face, else the bold body font.
+    #[must_use]
+    pub fn window_title(&self) -> Font {
+        let title = self.spec(Font::Title);
+        if title.family == "Trebuchet MS" && !title.faux_bold {
+            Font::Title
+        } else {
+            Font::BodyBold
+        }
+    }
+
     /// Sets the chrome fonts to XP's Large Fonts: the menu and button
     /// fonts and the title at [`BODY_SIZE`] pixels, the label of the start
     /// button at [`START_SIZE`].
@@ -552,6 +564,17 @@ mod tests {
     }
 
     #[test]
+    fn a_window_title_keeps_the_body_font_without_trebuchet() {
+        let mut db = Database::new();
+        db.load_fonts_dir(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../flavors/xp/theme/fonts"
+        ));
+        let fonts = Fonts::with(db, "Tahoma");
+        assert_eq!(fonts.window_title(), Font::BodyBold);
+    }
+
+    #[test]
     fn a_title_renders_without_a_bold_face() {
         let mut db = Database::new();
         db.load_fonts_dir(concat!(
@@ -581,6 +604,7 @@ mod tests {
         let mut db = Database::new();
         db.load_fonts_dir(std::path::Path::new(&assets).join("fonts/WindowsXP"));
         let fonts = Fonts::with(db, "Tahoma");
+        assert_eq!(fonts.window_title(), Font::Title);
         let title = fonts.spec(Font::Title);
         assert_eq!(title.family, "Trebuchet MS");
         assert!(!title.faux_bold, "the bold face must load, not be faked");
@@ -595,6 +619,17 @@ mod tests {
             (23.0..=25.5).contains(&width),
             "foot is {width} px wide, trebucbd.ttf at 13 px makes 24.7"
         );
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(60, 20).expect("a pixmap");
+        fonts
+            .draw(&line, Transform::identity(), &mut pixmap.as_mut())
+            .expect("the title parses");
+        let columns: Vec<usize> = (0..60)
+            .filter(|x| (0..20).any(|y| pixmap.pixel(*x, y).is_some_and(|p| p.alpha() > 100)))
+            .map(|x| x as usize)
+            .collect();
+        let ink = columns.last().unwrap() - columns.first().unwrap() + 1;
+        eprintln!("INK {ink} {columns:?}");
+        assert!((22..=26).contains(&ink), "foot inks {ink} columns");
     }
 
     /// Six pixels per character.

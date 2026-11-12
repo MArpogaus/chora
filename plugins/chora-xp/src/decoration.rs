@@ -369,12 +369,8 @@ fn title(theme: &mut Theme, surface: &str, look: &Look<'_>) -> Command {
         picture = picture.file(icon, [0, y, w, h]);
         left = 21;
     }
-    let mut text = Text::new(
-        look.title,
-        Font::BodyBold,
-        color,
-        [left, 0, width - left, TITLE],
-    );
+    let font = theme.fonts().window_title();
+    let mut text = Text::new(look.title, font, color, [left, 0, width - left, TITLE]);
     if look.active {
         text = text.shadow(TITLE_SHADOW);
     }
