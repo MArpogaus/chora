@@ -2,20 +2,17 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 03:08 UTC)
+## Now (2026-11-12 03:21 UTC)
 
 budget: 90 % at 2026-11-12 02:17 UTC (user), estimate 90 to 91 %, stop about 06:00 to 08:00 UTC; reset Sat 11-14 03:59 UTC.
-session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
+session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
 last_reviewed: per-merge reviews only; the per-area review of the whole range a03be22..HEAD is due (Fable, Saturday).
 
 Lanes:
 - construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: cloud worker session_016iS3kNCBEXbSe5Vg8a7z6o (sonnet). Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
-- swarm5-fixes: review FIX (reports/review-swarm5-fixes.md: 2 HIGH packaging gaps, PKGBUILD and RPM miss flavor files incl. applications/; 2 MEDIUM); fix round: cloud worker (sonnet) on claude/swarm5-fixes after merging claude/pkg; goes in the first train of Bangkok 11-13 with construct.
-- train 3 running: tooling + pkg + xp-v2 merged in /home/user/wt/xp-v2 (detached), tests/merge-gate.sh --push, log /tmp/train3.log.
-- xp-v2: ready (abd862b: review 2 PASS, paperclip whole-pixel hop fixes the tooling layout audit; worker archived).
-- Train 3 decision (PM, 03:08 UTC): merge the ready branches now (tooling, pkg, xp-v2, swarm5-fixes once its review passes) instead of waiting for construct; construct goes in the first train of Bangkok 11-13 (from 17:00 UTC). Reason: lock in four reviewed lanes before the budget stop; the end-of-week UX reviews need the merged build.
-- ready, not merged: claude/tooling (5f15153, review fixes in; xp gate red until the xp paperclip fix merges).
-- ready, not merged: claude/pkg (80f31a7, reviewed, python3 fix in) waits for train 3 with construct-v2.
+- swarm5-fixes: review FIX (reports/review-swarm5-fixes.md: 2 HIGH packaging gaps, PKGBUILD and RPM miss flavor files incl. applications/; 2 MEDIUM); fix round: cloud worker session_016iS3kPmm6d8P5DigLxtn3j (sonnet) on claude/swarm5-fixes after merging claude/pkg; goes in the first train of Bangkok 11-13 with construct.
+- persona harness (before swarm 6): cloud worker session_016iS3kQEJH5FPrD7Pnxqy6V on claude/persona-harness (assistant start, huds folder, fake-voice, notify stub, fake loginctl; smoke red first).
+- deep UX xp + cross-look consistency on 8f358fa: cloud worker session_016iS3kLqz2FxSkoSjPzSbma (sonnet; reports/ux-deep-xp.md, reports/ux-cross-look.md). Push-back: no re-run of the tiling and mc deep reviews (done 02:3x UTC, nothing merged on them since).
 
 Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz every 2 h at :15; self-check trig_01X5NqMSsvxMSpYFJxo5Wxsg at 00:50, 06:50, 12:50, 18:50 UTC (routines.md); resume after reset trig_01Cbw7Sgz7WRVpTnjsN1zdwq (Sat 04:05 UTC); the old three-runs task trig_012VGJoVzsJ81hFa6AufBc9S disabled (replaced by the watchdog).
 

@@ -100,7 +100,7 @@ footer { font-size: 13px; color: var(--muted); }
     <div class="eyebrow">chora · autonomous development session</div>
     <h1>Where the session stands</h1>
     <div class="meta">
-      <span>Updated Thu 12 Nov, 08:55 Bangkok</span>
+      <span>Updated Thu 12 Nov, 10:23 Bangkok</span>
       <span>Day 4 of 22</span>
       <span>Release candidate: est. 18 to 20 Nov</span>
     </div>
@@ -119,24 +119,25 @@ footer { font-size: 13px; color: var(--muted); }
       <div class="panel">
         <h3>Running</h3>
         <ul class="plain run">
-          <li>Construct v2: review fixes, then a screencast of all new looks</li>
-          <li>xp v2: the second half of its steps (text size, taskbar, question card, chat field, help window)</li>
-          <li>Fixes from the latest simulated user test of tiling and mc (mouse way back in mc, a light/dark switch in tiling)</li>
-          <li>Guard tools for the project manager's own rules, and a local copy of the CI checks</li></ul>
+          <li>Construct v2: fixing the 7 visible flaws its picture review found, then a second review</li>
+          <li>Packaging: the Arch and RPM packages miss some tiling files (found in review)</li>
+          <li>The simulated-user test kit: start the helper, voice and notifications like a real session</li>
+          <li>A deep usability review of xp and a check that the looks agree on shared keys and words</li></ul>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <ul class="plain">
-          <li>Merge construct v2 and the packaging update; then xp v2 and the test fixes</li>
-          <li>The weekly limit stops work about Thu 15:00 to 16:00 Bangkok; work resumes Sat 11:05 Bangkok</li>
-          <li>Saturday: code review per area on Fable, a different desktop on each cube face, the CI pull request draft</li>
-          <li>Release candidate about 18 to 20 Nov, then a user test round</li>
+          <li>Merge construct v2 and the tiling/mc test fixes (next merge window from Fri 00:00 Bangkok)</li>
+          <li>Simulated user round 6 on all four new looks; findings collected for next week</li>
+          <li>The weekly limit stops work about Thu 13:00 to 15:00 Bangkok; work resumes Sat 11:05 Bangkok</li>
+          <li>Saturday: a critical review of the setup and progress so far, then code review per area</li>
         </ul>
       </div>
       <div class="panel">
         <h3>Needs you</h3>
         <ul class="plain you">
           <li>Which machine is the voice reference (latency, echo)?</li>
+          <li>Delete 46 merged branches (the session may not; list in the reports)</li>
         </ul>
       </div>
     </div>
@@ -169,6 +170,8 @@ footer { font-size: 13px; color: var(--muted); }
       <figure data-kind="looks"><img src="img/tiling-v2-paper.png" alt="Tiling look v2 in the light Paper theme" loading="lazy"><figcaption><b>Tiling v2, light.</b> Follows the system light or dark setting. 12 Nov.</figcaption></figure>
       <figure data-kind="looks"><img src="img/mc-v2.png" alt="mc look v2: The Morning page with the right margin column" loading="lazy"><figcaption><b>mc v2.</b> A printed page; helpers, notifications and keys live in the right margin. 12 Nov.</figcaption></figure>
       <figure data-kind="looks"><img src="img/mc-v2-chat-dark.png" alt="mc look v2 dark: the chat and a question card in the right margin" loading="lazy"><figcaption><b>mc v2 chat, dark.</b> The chat and the question card stay in the margin; the page does not move. Test text in the field. 12 Nov.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/xp-v2-start.png" alt="xp look v2: the Start menu open" loading="lazy"><figcaption><b>xp v2 Start menu.</b> Build 8f358fa, reviewed.</figcaption></figure>
+      <figure data-kind="looks"><img src="img/xp-v2-run.png" alt="xp look v2: the Run box in xp colours" loading="lazy"><figcaption><b>xp v2 Run.</b> Build 8f358fa, reviewed.</figcaption></figure>
       <figure data-kind="looks"><img src="img/xp-wobbly.png" alt="xp desktop with a terminal bending while dragged" loading="lazy"><figcaption><b>xp wobble.</b> One shared effects driver. 10 Nov.</figcaption></figure>
       <figure data-kind="looks"><img src="img/mc.png" alt="The media center look with the Agenda page" loading="lazy"><figcaption><b>mc.</b> The calm media-center look. 9 Nov.</figcaption></figure>
       <figure data-kind="looks"><img src="img/xp-cube-3d.png" alt="The old xp desktop cube with two floating terminals" loading="lazy"><figcaption><b>Old xp cube.</b> The look the construct cube now matches. 9 Nov.</figcaption></figure>
@@ -178,8 +181,9 @@ footer { font-size: 13px; color: var(--muted); }
 
   <section class="view" id="view-log" aria-label="Log" hidden>
     <details class="day" open>
-      <summary><span>Thu 12 Nov</span><span>6 entries</span></summary>
+      <summary><span>Thu 12 Nov</span><span>7 entries</span></summary>
       <ul class="timeline">
+        <li><time>10:20</time><p><span class="tag ok">merged</span>xp look v2: its own start mark (no Windows flag), a Help window that shows every row, a Run box in xp colours, no false launch notes; plus guard tools and the packaging check. Two picture reviews, all 19 gate steps green.</p></li>
         <li><time>06:30</time><p><span class="tag ok">merged</span>mc look v2: the helper, chat, notifications and questions now live in the right margin like notes on a printed page; a visible key list; the chat and question card follow each look's colours and fonts in every look. Three review rounds, all 17 gate steps green.</p></li>
         <li><time>04:50</time><p><span class="tag ok">merged</span>Tiling look v2: floating bar islands, a glowing focus border, rounded corners and shadows, a key list, light and dark themes, power menu and screenshots. Three review rounds, all 17 gate steps green.</p></li>
         <li><time>01:00</time><p><span class="tag info">design</span>Design passes for all four looks done; four builders started. Simulated user tests stopped: the last round found nothing new.</p></li>
