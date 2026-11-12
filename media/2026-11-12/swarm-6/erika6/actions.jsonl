@@ -1,0 +1,30 @@
+{"time": 1794454306.463, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.03, "result": {"path": "/tmp/persona.1e2lsa/shots/001.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454308.9, "action": "click", "args": {"x": 28.0, "y": 390.0, "button": "left", "double": false}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794454310.338, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.035, "result": {"path": "/tmp/persona.1e2lsa/shots/002.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454312.675, "action": "click", "args": {"x": 38.0, "y": 313.0, "button": "left", "double": true}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794454317.012, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.03, "result": {"path": "/tmp/persona.1e2lsa/shots/003.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454329.264, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.031, "result": {"path": "/tmp/persona.1e2lsa/shots/004.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454352.076, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.032, "result": {"path": "/tmp/persona.1e2lsa/shots/005.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454355.732, "action": "click", "args": {"x": 28.0, "y": 390.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794454356.78, "action": "click", "args": {"x": 38.0, "y": 313.0, "button": "left", "double": true}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794454359.832, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.035, "result": {"path": "/tmp/persona.1e2lsa/shots/006.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454362.562, "action": "click", "args": {"x": 28.0, "y": 390.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794454363.612, "action": "click", "args": {"x": 150.0, "y": 322.0, "button": "left", "double": true}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794454366.666, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.031, "result": {"path": "/tmp/persona.1e2lsa/shots/007.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454369.719, "action": "click", "args": {"x": 166.0, "y": 80.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794454370.773, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.029, "result": {"path": "/tmp/persona.1e2lsa/shots/008.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454373.387, "action": "click", "args": {"x": 611.0, "y": 350.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794454375.44, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.03, "result": {"path": "/tmp/persona.1e2lsa/shots/009.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454378.934, "action": "click", "args": {"x": 530.0, "y": 294.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794454378.987, "action": "type", "args": {"text": "How do I make the sound quieter"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794454379.055, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.01, "result": "ok"}
+{"time": 1794454383.111, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.032, "result": {"path": "/tmp/persona.1e2lsa/shots/010.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454385.805, "action": "click", "args": {"x": 492.0, "y": 255.0, "button": "left", "double": false}, "ok": true, "seconds": 0.006, "result": "ok"}
+{"time": 1794454386.855, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.032, "result": {"path": "/tmp/persona.1e2lsa/shots/011.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454389.4, "action": "click", "args": {"x": 530.0, "y": 294.0, "button": "left", "double": false}, "ok": true, "seconds": 0.005, "result": "ok"}
+{"time": 1794454389.449, "action": "type", "args": {"text": "How do I make the sound quieter"}, "ok": true, "seconds": 0.009, "result": "ok"}
+{"time": 1794454389.502, "action": "key", "args": {"combo": "Return"}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794454394.553, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.031, "result": {"path": "/tmp/persona.1e2lsa/shots/012.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454405.489, "action": "look", "args": {"max_side": 640}, "ok": true, "seconds": 0.033, "result": {"path": "/tmp/persona.1e2lsa/shots/013.png", "info": {"height": 400, "origin": [0.0, 0.0], "scale": 0.5, "width": 640}}}
+{"time": 1794454409.618, "action": "click", "args": {"x": 28.0, "y": 390.0, "button": "left", "double": false}, "ok": true, "seconds": 0.008, "result": "ok"}
+{"time": 1794454409.672, "action": "click", "args": {"x": 165.0, "y": 371.0, "button": "left", "double": false}, "ok": true, "seconds": 0.008, "result": "ok"}
