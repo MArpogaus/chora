@@ -23,7 +23,7 @@ fn the_xp_folder_loads_with_the_balloon_chat() {
     assert_eq!(xp.chat.style, ChatStyle::Bubble);
     assert_eq!(xp.chat.font.as_deref(), Some("Tahoma"));
     assert_eq!(xp.chat.size, 14);
-    assert_eq!(xp.chat.border, Some([0x7f, 0x9d, 0xb9]));
+    assert_eq!(xp.chat.border, Some([0, 0, 0]));
     assert_eq!(xp.chat.place(), (Anchor::BottomRight, 340));
     assert_eq!(
         xp.chat.contrast_errors(&hud::Chat::default()),
