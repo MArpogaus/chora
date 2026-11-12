@@ -331,7 +331,7 @@ pub fn files(colors: &Colors) -> Vec<(&'static str, String)> {
         ("mako.conf", mako(colors)),
         ("icons/apps.svg", icon(&colors.text, APPS)),
         ("icons/keys.svg", icon(&colors.text, KEYS_ICON)),
-        ("icons/power.svg", icon(&colors.muted, POWER)),
+        ("icons/power.svg", icon(&colors.text, POWER)),
     ]
 }
 
@@ -384,19 +384,18 @@ fn fuzzel(c: &Colors) -> String {
 
 fn mako(c: &Colors) -> String {
     format!(
-        "# The notifications of the tiling flavor: an island in the palette, 12\n\
-         # from the corner like a tile. Written by chora-tiling --apply-theme from\n\
-         # the palette of chora-tiling.yaml.\n\
+        "# The notifications of the tiling flavor: an island in the palette, above\n\
+         # the dot of the helper and 12 inside the border of a tile. Written by\n\
+         # chora-tiling --apply-theme from the palette of chora-tiling.yaml.\n\
          font=Inter 14\n\
          layer=overlay\n\
          anchor=bottom-right\n\
-         margin=12\n\
+         margin=24,24,62,24\n\
          padding=12\n\
          width=360\n\
          border-size=1\n\
          border-radius=10\n\
          icons=0\n\
-         max-icon-size=0\n\
          default-timeout=10000\n\
          background-color={surface}\n\
          text-color={text}\n\
@@ -1046,5 +1045,29 @@ mod tests {
         assert!(mako.contains("border-radius=10"));
         assert!(text("foot.ini").contains("pad=16x16"));
         assert!(text("foot.ini").contains("font=JetBrains Mono:size=10.5"));
+    }
+
+    #[test]
+    fn the_three_icons_of_the_panel_have_the_colour_of_its_text() {
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            for (name, svg) in files(&colors)
+                .iter()
+                .filter(|(k, _)| k.starts_with("icons/"))
+            {
+                assert!(
+                    svg.to_lowercase().contains(&colors.text.to_lowercase()),
+                    "{name} in {scheme:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_notifications_keep_clear_of_the_dot_and_the_border() {
+        let all = files(&Colors::of(Scheme::Ink));
+        let mako = &all.iter().find(|(k, _)| *k == "mako.conf").unwrap().1;
+        assert!(mako.contains("margin=24,24,62,24"));
+        assert!(!mako.contains("max-icon-size"), "mako refuses a size of 0");
     }
 }
