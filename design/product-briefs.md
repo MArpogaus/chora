@@ -161,7 +161,7 @@ inline comments); (7) its report: at most 15 lines, commits, test
 numbers, captures, open risks. A builder never reviews its own pixels; a
 separate reviewer checks captures at 1x and 2x against the look document.
 
-## Spec gaps found 11-12 04:25 UTC and the PM's defaults (user may veto)
+## Spec gaps found 11-12 04:22 UTC and the PM's defaults (user may veto)
 
 1. xp "pixel perfect" vs the 14 px floor (D1) and the 74-year-old
    target: contradictory. Default: replica at 96 DPI, XP's "Large size"
