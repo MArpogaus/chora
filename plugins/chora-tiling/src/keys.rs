@@ -567,6 +567,13 @@ pub fn key_list(
     commands
 }
 
+/// Whether the renderer's size of the text node `id` counts for the width of
+/// the panel: the labels of the rows and the Mouse line.
+#[must_use]
+pub fn sets_width(id: &str) -> bool {
+    id.starts_with(KEYS) && (id.ends_with("-l") || id.ends_with("-b"))
+}
+
 /// The updates that make the panel as wide as its content: `right` is where
 /// the longest word ends, in the coordinates of the panel, which the
 /// renderer reports once it drew them. The panel keeps its height, takes
@@ -969,6 +976,31 @@ mod tests {
         }
         let de = drawn(Language::De);
         assert!(de.contains(&"Maus".to_owned()), "{de:?}");
+    }
+
+    #[test]
+    fn the_mouse_line_of_each_language_counts_for_the_width_of_the_panel() {
+        let colors = Colors::of(Scheme::Ink);
+        for (lang, start) in [(Language::En, "Apps"), (Language::De, "Apps")] {
+            let commands = header(&format!("{KEYS}-body"), &colors, lang);
+            let line = commands
+                .iter()
+                .find_map(|c| match c {
+                    Command::Create { id, props, .. }
+                        if props.text.as_deref().is_some_and(|t| t.starts_with(start)) =>
+                    {
+                        Some(id.clone())
+                    }
+                    _ => None,
+                })
+                .expect("a line");
+            assert!(sets_width(&line), "{line}");
+        }
+        let wide = fit_list([1280.0, 800.0], 640.0, 900.0);
+        let Command::Update { props, .. } = &wide[0] else {
+            panic!("no update of the panel");
+        };
+        assert_eq!(props.size, Some([924.0, 640.0]));
     }
 
     #[test]

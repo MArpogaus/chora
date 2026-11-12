@@ -662,6 +662,14 @@ impl LaunchError {
                 "Ausschaltmenü nicht installiert",
                 "Die Datei power.sh des Tiling-Flavors fehlt.",
             ),
+            ("look", false) => (
+                "Look switch not installed",
+                "The file look.sh of the tiling flavor was not found.",
+            ),
+            ("look", true) => (
+                "Look-Umschalter nicht installiert",
+                "Die Datei look.sh des Tiling-Flavors fehlt.",
+            ),
             (_, false) => (
                 "Screenshot not installed",
                 "The file screenshot.sh of the tiling flavor was not found.",
@@ -972,7 +980,8 @@ mod tests {
         for program in ["power", "screenshot", "look"] {
             let err = launch_line(program, &[], &none, Scheme::Ink).unwrap_err();
             assert!(err.to_string().contains(&format!("{program}.sh")));
-            assert!(err.notice().0.contains("not installed"));
+            let (title, text) = err.notice();
+            assert!(text.contains(&format!("{program}.sh")), "{title}: {text}");
         }
     }
 

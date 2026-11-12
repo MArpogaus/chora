@@ -1077,11 +1077,7 @@ impl Tiling {
         let words = self.query("kind:text").unwrap_or_default();
         let right = words
             .iter()
-            .filter(|n| {
-                n["id"]
-                    .as_str()
-                    .is_some_and(|id| id.starts_with(keys::KEYS) && id.ends_with("-l"))
-            })
+            .filter(|n| n["id"].as_str().is_some_and(keys::sets_width))
             .filter_map(rect)
             .map(|r| r[0] + r[2] - panel[0])
             .fold(0.0, f64::max);
