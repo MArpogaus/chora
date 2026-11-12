@@ -162,9 +162,8 @@ pub struct Values {
     pub island: bool,
     /// The folder names the client whose margin holds the chat, `chat.slot`:
     /// that client draws the doors and the helpers there, so the host draws
-    /// no "Chat ..." row and no row of a helper, sets its state word at the
-    /// size of text that a person reads, and gives its question card the
-    /// look of the chat.
+    /// no "Chat ..." row and no row of a helper, and gives its question card
+    /// the look of the chat.
     pub slot: bool,
     /// The colour of the state word, `colours.accent` of the voice panel.
     pub word_ink: Option<[u8; 3]>,
@@ -220,7 +219,10 @@ fn speech_of(panel: &chora_kit::hud::Panel, hud: &Hud) -> Style {
         page(hud.chat.fill, host.fill),
         page(hud.chat.text, host.text),
     );
-    let edge = hud.chat.border.filter(|_| balloon);
+    let edge = hud
+        .chat
+        .border
+        .filter(|_| balloon || hud.chat.card == chora_kit::hud::CardLook::Chat);
     Style {
         fill: panel.fill.or(paper).unwrap_or(neutral.fill),
         border: panel.border.or(edge).unwrap_or(neutral.border),

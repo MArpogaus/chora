@@ -1,5 +1,5 @@
 hud: 1
-font: sans-serif
+font: Inter
 panels:
 - id: figure
   source: voice
@@ -13,6 +13,9 @@ panels:
   near: figure
   style: bubble
   text: '{text}'
+  fill: [255, 255, 255]
+  colours:
+    text: [27, 30, 39]
 - id: agents
   source: agents
   anchor: top_right
@@ -47,6 +50,10 @@ dark:
     border: [46, 51, 68]
     well: [36, 40, 54]
   panels:
+    line:
+      fill: [26, 29, 39]
+      colours:
+        text: [230, 232, 239]
     agents:
       fill: [26, 29, 39]
       colours:

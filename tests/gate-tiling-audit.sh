@@ -8,9 +8,13 @@
 #   radius      corners of the helper surfaces outside the radius family
 #   overlap     a helper surface under the bar or on a tile border
 #   fullscreen  the bar islands over a fullscreen window
+#   surface     the bar and the key list in the one `surface` fill
+#   chip, chat  the state word and its orb; Close and the input field
+#   terminal    the fill of the tiles is the `terminal` token
+#   look        the wallpaper, the glow of the focus and the shadows
 # The cells: desktop (two tiles and the "Chat ..." row), chat (the chat
-# open), question (the card), fullscreen (a fullscreen window). A capture of
-# the key list is kept as audit-keys-TAG.png, and not audited.
+# open), question (the card), toast (a notification of mako), keys (the key
+# list), fullscreen (a fullscreen window).
 #
 # Usage: tests/gate-tiling-audit.sh   BIN: directory with the binaries
 #   SIZES   the outputs (default "1280x800 2560x1600@2")
@@ -22,6 +26,8 @@ set -u
 need_bins chora choractl chora-tiling chora-assistant
 need foot
 need waybar
+need mako
+need gdbus
 need jq
 need mkfifo
 temp_config
@@ -54,7 +60,11 @@ audit() {
     ctl query '*' >"$shots/audit-$cell-$tag.json"
     ctl capture "$shots/audit-$cell-$tag.png" >/dev/null 2>&1
     [ -z "${wallpaper_pid:-}" ] || wall=wall
-    [ "$(pixel "$shots/audit-$cell-$tag.png" $((24 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/audit-$cell-$tag.png" $((24 * ${scale%.*})) $((300 * ${scale%.*})))" ] && bar=bar
+    [ "$(pixel "$shots/audit-$cell-$tag.png" $((570 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/audit-$cell-$tag.png" $((570 * ${scale%.*})) $((44 * ${scale%.*})))" ] && bar=bar
+    if [ "$cell" != fullscreen ] && [ -z "$bar" ]; then
+        echo "FAIL: $cell $tag: the bar does not show"
+        failed=1
+    fi
     if out=$(python3 -I "$repo/tests/tiling-audit.py" "$shots/audit-$cell-$tag.png" "$shots/audit-$cell-$tag.json" "$theme" "$scale" "$cell" $bar $wall); then
         ok "$cell $tag${bar:+ (bar)}"
     else
@@ -85,12 +95,12 @@ round() {
     exec 3>"$work/voice.in"
     XDG_DATA_HOME=$work/data "$bin/chora-assistant" >"$shots/assistant-$tag.log" 2>&1 &
     pids+=($!)
-    for i in 1 2; do ctl run foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$tag: foot"; done
+    for i in 1 2; do ctl run "$bin/chora-tiling" --launch foot -T "w$i" sh -c 'echo hello; sleep 600' >/dev/null || fail "$tag: foot"; done
     ctl wait id:hud-row-chat --timeout 20 >/dev/null 2>&1
     for _ in $(seq 30); do
         sleep 1
         ctl capture "$shots/probe-$tag.png" >/dev/null 2>&1 &&
-            [ "$(pixel "$shots/probe-$tag.png" $((24 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/probe-$tag.png" $((24 * ${scale%.*})) $((300 * ${scale%.*})))" ] && break
+            [ "$(pixel "$shots/probe-$tag.png" $((570 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/probe-$tag.png" $((570 * ${scale%.*})) $((44 * ${scale%.*})))" ] && break
     done
     token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
     [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
@@ -111,12 +121,21 @@ round() {
     audit chat "$tag" "$theme" "$scale"
     ctl call assistant chat.hide >/dev/null 2>&1
 
+    "$bin/chora-tiling" --launch mako >"$shots/mako-$tag.log" 2>&1 &
+    pids+=($!)
+    sleep 2
+    gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications \
+        --method org.freedesktop.Notifications.Notify chora-audit 0 "" "Build finished" \
+        "All 14 checks passed in 3.2 s." '[]' '{}' 20000 >/dev/null 2>&1 || echo "FAIL: $tag: no notification daemon"
+    sleep 1.5
+    audit toast "$tag" "$theme" "$scale"
+    makoctl dismiss --all >/dev/null 2>&1
     echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
     sleep 1.5
-    ctl capture "$shots/audit-keys-$tag.png" >/dev/null 2>&1
+    audit keys "$tag" "$theme" "$scale"
     echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
     sleep 1
-    ctl run foot -F -T fullscreen sh -c 'echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
+    ctl run "$bin/chora-tiling" --launch foot -F -T fullscreen sh -c 'printf "\\n\\n\\n\\n\\n\\n\\n\\n"; echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
     sleep 3
     audit fullscreen "$tag" "$theme" "$scale"
     exec 3>&-

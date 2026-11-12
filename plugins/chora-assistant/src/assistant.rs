@@ -70,6 +70,12 @@ const MAX_PLAIN: f64 = 420.0;
 const BESIDE: i32 = 8;
 /// The padding of the backing of a sentence without a box.
 const BACKING: i32 = 4;
+/// The height of the line of text of the state word, which has the size of
+/// text that a person reads.
+const WORD_LINE: i32 = 18;
+/// The padding and the corner radius of the chip of the state word.
+const WORD_PAD: i32 = 10;
+const WORD_RADIUS: i32 = 12;
 /// How far above and below the figure a balloon may reach.
 const BALLOON_REACH: i32 = 144;
 
@@ -711,23 +717,26 @@ impl Assistant {
         }
         let template = self.values.word.as_deref()?;
         let text = chora_kit::hud::render(template, &serde_json::json!({ "state": label }));
-        let font = self.word_font();
+        let font = Font::Body;
         #[allow(
             clippy::cast_possible_truncation,
             reason = "a word is narrower than a screen"
         )]
         let size = [
-            theme.text_width(&text, font).ceil() as i32 + 2 * BACKING,
-            LINE + 2 * BACKING,
+            theme.text_width(&text, font).ceil() as i32 + 2 * WORD_PAD,
+            WORD_LINE + 2 * BACKING,
         ];
         self.word = size;
         let [x, y, ..] = self.word_at(size);
         let [red, green, blue] = self.values.speech.fill;
+        let [edge_red, edge_green, edge_blue] = self.values.speech.border;
         let [w, h] = size;
         let backing = format!(
-            r#"<rect width="{w}" height="{h}" rx="{BACKING}" fill="rgb({red},{green},{blue})"/>"#
+            r#"<rect x="0.5" y="0.5" width="{}" height="{}" rx="{WORD_RADIUS}" fill="rgb({red},{green},{blue})" stroke="rgb({edge_red},{edge_green},{edge_blue})"/>"#,
+            w - 1,
+            h - 1
         );
-        let place = [BACKING, BACKING, w - 2 * BACKING, LINE];
+        let place = [WORD_PAD, BACKING, w - 2 * WORD_PAD, WORD_LINE];
         let colour = self.values.word_ink.map_or_else(
             || self.values.speech.text_rgba(),
             |[red, green, blue]| [red, green, blue, 255],
@@ -746,17 +755,6 @@ impl Assistant {
             meta: Some([("text".to_owned(), text)].into()),
             ..PropsUpdate::default()
         })
-    }
-
-    /// The font of the state word: text that a person reads, 14 pixels,
-    /// where the folder names a slot; the small one of the status line
-    /// beside a figure otherwise.
-    fn word_font(&self) -> Font {
-        if self.values.slot {
-            Font::Body
-        } else {
-            Font::Ui
-        }
     }
 
     /// The rectangle of a word of `size` beside the figure, in the middle
