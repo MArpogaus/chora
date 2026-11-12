@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Three hooks print it (split at the PM process and Design headings); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T05:47:12Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T05:48:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
@@ -63,6 +63,9 @@ screened-through: 2026-11-12T05:47:12Z (bump to the newest user message recorded
 - 11-11 18:11 "Ensure good an detailed logging in all components"; anonymised report script, later paste bin + GH issue text (backlog L1)
 
 ## PM process
+- 11-12 05:48 UTC "96%
+One more note for Saturday. We have to prune our management notes. This has to stay lean. A lean overview only contain the necessary information. I think we polluted it a lot. Maybe there is even misleading or conflicting information right there. This needs a lot of cleaning and realignment."
+  Reading: W2-1 adds a prune of the PM notes (state, decisions, rules, routines, pm-card, vision card, charter, backlog): lean, only the necessary, no conflicts. Budget 96 % (the 69 % was likely a misread).
 - 11-12 05:47 UTC "69% now. One more note for the reflection round on Saturday. I'm not quite happy with the degree of autonomy we achieved in this session. I think I confused you with introducing too many new ideas and concepts. Your job should be to collect those, put them in the backlog if they are feasible, push back if they conflict with any of our decisions or targets, and always keep the project goals into focus. Don't let you distract either by yourself, by losing context, or by me introducing too many new ideas. You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation. So stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority for our guidelines. Just note this down for the reflection note. We will give it to the Fable judge, and we really need to polish and sharpen our interactions. We lose track too often. You forgot project goals, or got kind of misaligned or out of scope. So let's try to get this working better next week."
   Reading: new ideas -> backlog (if feasible) or push-back; goals first; stability and look/UX/UI beat new features; POLS and KISS top; input to W2-1. Budget 69 % (meter differs from the 93 % reading).
 - 11-12 04:32 UTC "Since we arrive on such points again and again, please try to ensure that you have a consistent understanding of our project goals, individual design decisions, the target groups, and the purpose each of the components have. You are the project lead, the project manager. You have to have a clear understanding what you are doing and why certain decisions are taken. If there is anything unclear or you don't know why you're doing something or what target you're working for, you are losing yourself. So try to realign and maintain a clear vision for this project. You are constantly losing context. We really need to improve this."
