@@ -24,7 +24,7 @@ panels:
   fill: [28, 28, 28]
   colours:
     text: [217, 212, 201]
-    accent: [204, 120, 102]
+    accent: [216, 152, 138]
 - id: line
   source: say
   near: state
