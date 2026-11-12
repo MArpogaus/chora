@@ -1051,6 +1051,28 @@ mod tests {
         let _ = fs::remove_dir_all(cache);
     }
 
+    /// The head of the paperclip is within 4 pixels of the top of its
+    /// picture, where the tail of a balloon points.
+    #[test]
+    fn the_head_of_the_paperclip_is_at_the_top_of_its_picture() {
+        const CLIP: Sheet = Sheet("paperclip.svg");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/assets/assistant");
+        let cache = std::env::temp_dir().join(format!("chora-draw-head-{}", std::process::id()));
+        let mut theme = Theme::load(&dir, &cache, &[CLIP], "sans-serif").expect("the sheet");
+        let [w, h] = theme.sheet_size(CLIP).expect("a size");
+        for state in ["idle", "listening", "working", "speaking", "question"] {
+            let picture = Picture::new(w, h).in_place(CLIP, state, [0, 0, w, h]);
+            let image = Pixmap::load_png(theme.render(&picture)).expect("a PNG file");
+            let top = (0..image.height())
+                .find(|&y| {
+                    (0..image.width()).any(|x| image.pixel(x, y).is_some_and(|p| p.alpha() > 40))
+                })
+                .expect("ink");
+            assert!(top <= 4, "{state}: the head starts {top} px below the top");
+        }
+        let _ = fs::remove_dir_all(cache);
+    }
+
     /// Every state of the paperclip of xp, at 1x and 2x: drawn whole, with
     /// an empty edge all round, so that nothing is cut off.
     #[test]

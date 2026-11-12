@@ -765,7 +765,7 @@ mod tests {
         let Figure::Sheet { sheet, size, .. } = values.figure else {
             panic!("the figure is {:?}", values.figure);
         };
-        assert_eq!((sheet.0, size), ("paperclip.svg", [80, 116]));
+        assert_eq!((sheet.0, size), ("paperclip.svg", [80, 104]));
         assert!(values.hud.is_some(), "the chat look of the folder");
         let _ = std::fs::remove_dir_all(source.cache);
     }
