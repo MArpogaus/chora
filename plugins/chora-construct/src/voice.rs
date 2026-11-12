@@ -6,6 +6,13 @@ use super::{
     hud, json, space, update,
 };
 
+/// Whether the pane label hides: it hides while any of `reasons` holds;
+/// the last is an open cube, stood back or stepped into a face, where a
+/// label would float over a face or the cube.
+pub(crate) fn label_hidden(reasons: &[bool]) -> bool {
+    reasons.iter().any(|r| *r)
+}
+
 impl Construct {
     /// An event `voice.KIND` of the voice agent, while the construct
     /// draws the voice HUD. Wrong data only log.
@@ -130,12 +137,15 @@ impl Construct {
     /// the list is open, and when the pane does not show. The text and the
     /// pill change only with the pane.
     pub(crate) fn label_commands(&mut self) -> Vec<Command> {
-        let hidden = self.flown.is_some()
-            || self.moving.is_some()
-            || self.effects.animating()
-            || self.list.is_some()
-            || self.help
-            || self.glide.as_ref().is_some_and(|g| g.into.is_some());
+        let hidden = label_hidden(&[
+            self.flown.is_some(),
+            self.moving.is_some(),
+            self.effects.animating(),
+            self.list.is_some(),
+            self.help,
+            self.glide.as_ref().is_some_and(|g| g.into.is_some()),
+            self.cube.is_some(),
+        ]);
         let pick = if hidden { None } else { self.focus() };
         let Some(k) = pick else {
             return match self.labelled.take() {
@@ -200,5 +210,18 @@ impl Construct {
             (command, &self.settings.value.terminal),
             chora_kit::words::Language::of_session(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::label_hidden;
+
+    #[test]
+    fn a_pane_label_hides_while_a_cube_is_open_stood_back_or_stepped_in() {
+        assert!(!label_hidden(&[false; 7]), "walking shows the label");
+        let mut with_cube = [false; 7];
+        with_cube[6] = true;
+        assert!(label_hidden(&with_cube), "no label over a face or the cube");
     }
 }
