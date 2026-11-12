@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 03:03 UTC)
+## Now (2026-11-12 03:07 UTC)
 
 budget: 90 % at 2026-11-12 02:17 UTC (user), estimate 90 to 91 %, stop about 06:00 to 08:00 UTC; reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -10,7 +10,7 @@ last_reviewed: per-merge reviews only; the per-area review of the whole range a0
 
 Lanes:
 - construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: cloud worker session_016iS3kNCBEXbSe5Vg8a7z6o (sonnet). Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
-- swarm5-fixes: cloud worker session_016iS3kM51byn28e4KkoLSee (sonnet): mc mouse way back, AGENDA heading, tiling light/dark switch, key list mouse section, fuzzel version.
+- swarm5-fixes: done (4ca41a98, 5 items, red first; worker archived); code and pixel review running (local sonnet, reports/review-swarm5-fixes.md); a full merge-gate run on the tip is still needed (last 2 commits after the builder's full run); suspected: PKGBUILD misses look.sh, power.sh, applications/.
 - xp-v2: UI review 2 PASS (reports/review-xp-v2-r2.md; M1-M4 confirmed at f84bb33). Worker session_016iS3kNoQYkfu5FnAnT5HM8 fixes the paperclip size (tooling layout audit); then xp joins train 3.
 - ready, not merged: claude/tooling (5f15153, review fixes in; xp gate red until the xp paperclip fix merges).
 - ready, not merged: claude/pkg (80f31a7, reviewed, python3 fix in) waits for train 3 with construct-v2.
