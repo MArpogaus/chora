@@ -138,6 +138,7 @@ looks() {
     session_path=$(sed -n 's/^PATH=//p' "$env_file")
     calls=$d/fake/calls.log
     ctl wait owner:assistant --timeout 20 >/dev/null 2>&1 || fail "$flavor: chora-assistant is not running"
+    ctl wait id:hud-figure --timeout 20 >/dev/null 2>&1 || fail "$flavor: the assistant draws no figure"
     ctl call voice state '{}' >/dev/null 2>&1 || fail "$flavor: fake-voice does not answer"
     PATH=$session_path notify-send persona-smoke body || fail "$flavor: notify-send failed"
     grep -q 'notify-send persona-smoke' "$calls" 2>/dev/null || fail "$flavor: notify-send did not reach the stub"
