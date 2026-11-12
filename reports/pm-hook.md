@@ -55,7 +55,8 @@ the PM fell behind on recording.
         "matcher": "compact|startup|resume|clear",
         "hooks": [
           { "type": "command", "command": "python3 /home/user/wt/log/tools/pm_context.py card", "timeout": 20 },
-          { "type": "command", "command": "python3 /home/user/wt/log/tools/pm_context.py decisions", "timeout": 20 }
+          { "type": "command", "command": "python3 /home/user/wt/log/tools/pm_context.py decisions", "timeout": 20 },
+          { "type": "command", "command": "python3 /home/user/wt/log/tools/pm_context.py decisions2", "timeout": 20 }
         ]
       }
     ],
