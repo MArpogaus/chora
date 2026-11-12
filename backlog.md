@@ -442,6 +442,13 @@ look); the taskbar, the tray and the Start menu become shared widgets in
 chora-kit (a bar widget that renders as an XP taskbar, a top bar or a
 dock), so a look is a theme plus a widget layout. Needs its own design
 document (design/looks/) and the user's approval of mockups first.
+User 11-12 04:29 UTC confirmed the direction: xp is the showcase gimmick on a
+generic API; taskbar and Start menu are widgets replaceable by a dock or top
+bar, stacking or floating only. Amend roadmap X4: chora-panel is a widget host
+(edge, size, order of widgets: task list, start button and menu, tray, clock,
+dock) with a stable widget API in chora-kit, not one fixed taskbar; X7 places
+the XP widgets. Done when a second layout (dock plus top bar) runs from config
+only, no code in the panel.
 
 ## F9 closed (11-11): the wm-pane cell typed before xp gave the keyboard; it now waits for focus (d00a626).
 

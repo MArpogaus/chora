@@ -18,3 +18,15 @@
   present and falls back to our own art. Audit cells run with and without.
 - Tahoma comes from xfce-winxp-tc's fonts/ttf through the import, so the
   "Wine Tahoma" fallback is only the no-import case.
+
+## Tests and captures (user 11-12 04:29 UTC)
+
+- Every xp test run and capture uses the imported assets (benchmark = the
+  pixel-perfect version). Until chora-xp-import exists, workers fetch them
+  with the same sparse clone as get-microsoft-files.sh into
+  `~/.cache/chora/xp-assets/` (outside the repo) and point the xp asset
+  folder there.
+- The fallback (our own art, no import) is captured and audited once per
+  merge train; it must pass the layout audit and a review at "acceptable".
+- Captures with Microsoft art stay out of git and off the public status
+  page (redistribution); the status page shows fallback captures.
