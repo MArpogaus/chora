@@ -2906,6 +2906,12 @@ impl Wm {
 
     /// Tells the user that a program starts or did not open.
     fn tell(&mut self, change: &Change) {
+        if let Change::Done { note: Some(note) } = change {
+            self.notifier.close(*note);
+        }
+        if matches!(change, Change::Done { .. }) {
+            return;
+        }
         let (summary, body) = change.text();
         let (replaces, expire_ms) = match change {
             Change::Starting { .. } => (
@@ -2913,6 +2919,7 @@ impl Wm {
                 i32::try_from(launch::GIVE_UP.as_millis()).unwrap_or(-1),
             ),
             Change::Failed { note, .. } => (*note, -1),
+            Change::Done { .. } => return,
         };
         let message = Message {
             icon: "",
