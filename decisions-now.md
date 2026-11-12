@@ -4,14 +4,13 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Keep it under 9,000 characters (hook cap 10,000).
 Times Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-11T17:32:53Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T01:00:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
-  Reading: the daily share is a pacing guide, not a cap. 11-10 12:15 "don't mindlessly burn tokens".
+  Reading: pacing guide, not a cap; "don't mindlessly burn tokens".
 - 11-10 16:20 "Respect 5h limit in your planning?" 16:46 "Why cap yo only two hevy workers? ... We have stable sub sessions now"
   Reading: the 5-hour limit is the real pace; at most four heavy lanes (charter 10).
-- 11-11 10:55 "burn fable this Week. Then reset fable and use up token limit with other models until sat. New week with fable again."
 - 11-11 13:13 "Fable used up. Ive reset. Finalize, then no more fable for this week"
   Reading: no new Fable lane until the weekly reset Saturday 10:59.
 - 11-11 17:56 "Got another fable reset for next week. So we can haven other full fable round next week."
@@ -20,17 +19,15 @@ screened-through: 2026-11-11T17:32:53Z (bump to the newest user message recorded
   Reading: haiku swarms may run until weekly use reaches 85 %, only while they find new issues. NOT a week cap: the rest goes to major fixes and the review loop.
 - 11-11 23:53 "Reset is sat 10:59. Well then finalize this week with heavy tasks layer off yo fable. Resetting once its fully used."
   Reading (garbled dictation): after the Saturday reset, heavy work (major fixes, review per area) runs on Fable until used up; then the user resets it. No Fable before (13:13).
-- 11-11 18:05 "Reflection loop with opus for now sufficient. Will further sharpen with able xt week"
 - Usage readings the user posts go to answers.md the same turn (charter 1.2).
 
 ## Communication
+- 11-12 ~08:00 "87 %. Update status page with screenshots and screen cast when new looks are ready"
+  Reading: each look that lands gets screenshots and a screencast on the status page.
 - 11-09 00:48 "Antworte ab sofort immer english"
 - 11-10 07:12 "Keep summaries here to a minimum to save tokens. I have the status page, or asking if I need info"
   Reading: chat replies one or two lines; each run ends with done, running, next, blocked, budget (charter 11).
-- 11-09 19:29 "Have this a mobile first web asset hosted through Claus ai I can just check on the go." 19:25 "No h1 k2b stuff ... High level mgnt breving."
 - 11-11 18:21 "Rework status page to cluttered ... folding or tabbing section. Post detailed screenshots and screen cast showcasing all features"
-- 11-10 15:17 "Can you post son screenshots when merged?" Reading: standing, for every visible merge.
-- 11-11 22:08 "Record extensive screen cast. With slow movements ... Post it and analize user travel for consistency and pols." 22:11 "reshoot when HUD rework lands"
 - 11-09 11:16 run and week reports: "Don't overstate anything here, don't oversell it. Be critical" (charter 11b)
 
 ## Git and files
@@ -40,7 +37,6 @@ screened-through: 2026-11-11T17:32:53Z (bump to the newest user message recorded
 - 11-09 11:20 "Fix them instead of working around." (pre-commit hooks) Reading: never --no-verify.
 - 11-09 15:20 "You shall use my github email and name as in all previous commits." Reading: no AI trailers; stage by name, never git add -A (charter 3).
 - 11-09 11:33 "You may delete stale branches."
-- 11-09 11:20 split: "don't split anything yet"; 11:41 "Splitting shall be consider for every plogin aferter it has grown a certain size" (charter 1.17, 1.18)
 
 ## Testing
 - 11-08 23:58 "viele verschiedene persänlichkeiten (insbesondere auch wenig technisch affine)"; 11-09 00:28 everyday tasks ("Wi-Fi-Netzwerk verbinden")
@@ -59,17 +55,15 @@ screened-through: 2026-11-11T17:32:53Z (bump to the newest user message recorded
 - 11-11 18:11 "Ensure good an detailed logging in all components"; anonymised report script, later paste bin + GH issue text (backlog L1)
 
 ## Design
+- Older design and process decisions already built (cube floating windows, ACP chat themed, grants, split reviews, status page form): see answers.md.
 - 11-09 15:28 "Minimal/flawless/flexible" (docs/design-principles.md); POLS and KISS core values (charter 1.16).
 - 11-11 18:30 "different ... design documents for all our different components and window managers" (charter "Design per look")
 - 11-11 18:21 "Ui reviews shall hunt for perfectionism"; 18:26 "Such things shall be caught by ui agent"
 - 11-11 18:26 xp HUD: "click on balloon expands it to chat. Confirmed or normal replys show in ballow. ... No other balloons next to it."
 - 11-11 19:45 "expensive blurred glass ... minimal yet complete. Avoid buttons. Keyboard / mouse focus. Add overlay to show all bindings. Shared the able plugin all other wms might also use."
 - 11-11 20:17 "Go with your defaults for the HUD mockups"; reflections "like polished marbal", 20:19 "small scratches and bumps"; backlog: osx-like theme on xp code.
-- 11-11 08:42 "New cube has no floating Windows. Ensure same look as before"; 14:01 past the screen edge: "Not pols, would expect it to reach out into space"
-- 11-09 15:20 "Acp char shall be themed an interaded in corresponding ui"
 - 11-11 12:22 "Lets make it impressive demos AS features Land. Polished ... Decide such things on your own from now"
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
-- 11-09 12:35 grants: "User shall be able to increase grants temporary or permanent"
 
 ## PM process
 - 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
@@ -78,9 +72,9 @@ screened-through: 2026-11-11T17:32:53Z (bump to the newest user message recorded
 - 11-09 11:13 daily opus reflection (charter 11a); 11-11 18:34 "Make sure you note these frictions and problems."
 - 11-11 11:43 "Check you sub session. All running? Close stale ones" Reading: check at each run start.
 - 11-10 14:45 "Agreed, go with the hybrid" Reading: workers for heavy lanes and testers, merges only here; one persistent PM.
-- 11-11 ~18:40 UTC "OK. Told tour session to reshoot v2. The shot show some rough edges. Polish the ui ux towards perfection is the goal for this week. Revisit all ui voices with design agents and make them pretty. Tiling is still pretty ugley. Mc shall rather include in the right margin where notifactions are shown anyway instead of stealing half the screan. Make tiling more exiting and "hyperland like" it shall stay hackable and easy yo extend but we want stunning visuals in each view all with their own design philosophy and esthetics consequently followed. Agree?"
+- 11-11 ~18:40 UTC "Polish the ui ux towards perfection is the goal for this week. ... Mc shall rather include in the right margin where notifactions are shown anyway instead of stealing half the screan. Make tiling more exiting and "hyperland like" it shall stay hackable ... stunning visuals in each view all with their own design philosophy" (full text in answers.md)
   Reading: this week's goal is UI/UX polish toward perfection; design agents revisit every look ("ui voices" read as UI views/looks); tiling gets a Hyprland-like, exciting look but stays hackable; mc puts its helper into the right margin with the notifications instead of half the screen; each look follows its own design philosophy consistently.
-- 11-11 ~18:50 UTC "run xp and construct design passes in parallel too. Not deciding anything now. You work autonomously until sat. No mor intervention from my side. You are the helper m now, grow into your job be confident and take wise decitens. Self adapt to frictions and keep logging your progress. You can do it"
+- 11-11 ~18:50 UTC "Not deciding anything now. You work autonomously until sat. ... take wise decitens. Self adapt to frictions and keep logging your progress."
   Reading: the PM works alone until Saturday; the user takes no decisions now, so taste questions of the design passes are decided by the PM (this overrides "the user decides taste" of reflection 2 rule 4 until the user returns; each decision is logged with its reason and stays reversible). Self-adapt to frictions; keep logging progress (state.md, status page, reports).
 - 11-11 ~19:00 UTC "Get you head around what each plugin shall deliver. Define clear requirements USPS and target groups for each. Be a wise leader and give clear instructions to your workforce."
   Reading: the PM writes a product brief per plugin (what it delivers, requirements, USPs, target groups) and briefs every worker from it.
