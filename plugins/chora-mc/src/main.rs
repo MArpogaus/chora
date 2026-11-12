@@ -1919,19 +1919,51 @@ impl Mc {
                         props,
                     ));
                 }
-                if name != manage::OVERVIEW {
-                    let ink =
-                        (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
-                    commands.extend(region::hit_nodes(
-                        &chapter_id(name, "head"),
-                        &panels_id(name),
-                        ink,
-                    ));
-                }
+                commands.extend(self.head_hit(name));
             }
             Layout::None => {}
         }
         commands
+    }
+
+    /// The pointer hit of the head of a page, which opens the page list;
+    /// the overview itself has none.
+    fn head_hit(&self, name: &str) -> Vec<Command> {
+        if name == manage::OVERVIEW {
+            return Vec::new();
+        }
+        let ink = (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
+        region::hit_nodes(&chapter_id(name, "head"), &panels_id(name), ink).to_vec()
+    }
+
+    /// Moves the bar and the title of the head after the number, which is
+    /// `width` wide, and sizes the hit of the head to the three.
+    fn align_head(
+        &self,
+        name: &str,
+        geo: &Geometry,
+        (width, title): (f64, Option<[f64; 4]>),
+    ) -> Vec<Command> {
+        let space = BAR_SPACE * self.ty("chapter", None).size;
+        let bar = self.bar((geo.text[0] + width + space).round());
+        let x = bar[0] + bar[2] + space.round();
+        let mut commands = vec![
+            move_to(chapter_id(name, "bar"), bar[0], bar[1]),
+            move_to(chapter_id(name, "title"), x, HEAD * geo.baseline),
+        ];
+        commands.extend(Self::head_hit_place(name, geo, x, title));
+        commands
+    }
+
+    /// Sizes the hit of the head to the number, the bar and the title,
+    /// whose title now stands at `x` and measures `title`.
+    fn head_hit_place(name: &str, geo: &Geometry, x: f64, title: Option<[f64; 4]>) -> Vec<Command> {
+        let Some([_, _, width, height]) = title.filter(|_| name != manage::OVERVIEW) else {
+            return Vec::new();
+        };
+        let left = geo.text[0];
+        let at = [left, HEAD * geo.baseline, x + width - left, height];
+        region::hit_place(&chapter_id(name, "head"), at, left).to_vec()
     }
 
     /// The box of a panel on the screen, without its margin.
@@ -2185,18 +2217,7 @@ impl Mc {
             && self.layout(&scene) == Layout::Number
             && let Some([_, _, width, _]) = rect(&chapter_id(name, "number"))
         {
-            let space = BAR_SPACE * self.ty("chapter", None).size;
-            let bar = self.bar((geo.text[0] + width + space).round());
-            commands.push(move_to(chapter_id(name, "bar"), bar[0], bar[1]));
-            let x = bar[0] + bar[2] + space.round();
-            commands.push(move_to(chapter_id(name, "title"), x, HEAD * geo.baseline));
-            if name != manage::OVERVIEW
-                && let Some([_, _, title_w, title_h]) = rect(&chapter_id(name, "title"))
-            {
-                let left = geo.text[0];
-                let box_ = [left, HEAD * geo.baseline, x + title_w - left, title_h];
-                commands.extend(region::hit_place(&chapter_id(name, "head"), box_, left));
-            }
+            commands.extend(self.align_head(name, &geo, (width, rect(&chapter_id(name, "title")))));
         }
         for panel in &scene.panels {
             let id = panel_id(name, &panel.id);
@@ -3140,7 +3161,6 @@ mod tests {
     /// turns the page back.
     #[test]
     fn the_footer_points_to_the_previous_page_and_a_click_goes_back() {
-        use chora_kit::runtime::Plugin as _;
         let (mut mc, _) = crate::testing::mc("prev-page", [1280, 800]);
         mc.show("morning", false).unwrap();
         let plan = mc.items("morning");
