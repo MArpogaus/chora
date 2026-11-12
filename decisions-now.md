@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:24:06Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T02:43:48Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
@@ -74,6 +74,8 @@ screened-through: 2026-11-12T02:24:06Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
+- 11-12 02:43 UTC "Alright, I changed the auto compactation to 300K. Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that. Honestly, you need to get some kind of a stronger personality. Really push back when you see that certain task is useless or not necessary right now. We really need to prioritize and push this project forward, design in the interests of the project, and get better structured. This is something we want to address next week. Write down the report and the findings of the token usage profile. And we will start Saturday with a big reflection using Fable to really improve our setup and be very, very critical about the overall progress we had so far."
+  Reading: "plan" means a backlog entry, not running the work; the PM pushes back with reasons on tasks that are useless or not needed now, and prioritizes what moves the project forward; structure and priorities are next week's work; the token report is written (reports/token-analysis-week1.md); Saturday starts with a big, very critical Fable reflection on setup and progress. Auto-compaction is at 300k.
 - 11-12 02:13 UTC "Don't take my word for granted."
   Reading: the user's suggestions are input, not orders to follow blindly; the PM weighs them against evidence and pushes back with reasons when they conflict (decisions stay verbatim; the PM's reading may disagree and says why).
 - 11-12 02:12 UTC "Reflect on that new setup, check if we need any other questions to ask. Did I miss anything? I'll take my round and deeply rethink and details that are helpful for you to get your work done."

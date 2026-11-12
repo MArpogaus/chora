@@ -274,3 +274,6 @@ The mc fix round ran cargo test for chora-mc and chora-assistant only (my brief 
 
 ## 39 (2026-11-12 02:34 UTC): cloud workers start with the wrong git identity
 The tooling worker found user.email = noreply@anthropic.com in its clone and set the user's address by hand. Other workers may have committed with the wrong author. Fix: the environment setup script sets `git config --global user.name "Marcel Arpogaus"` and `user.email 38564291+MArpogaus@users.noreply.github.com` (question for the user, it is their setting); until then every worker brief says "check git config user.email before the first commit"; the merge gate checks the author of every commit in the range.
+
+## 40 (2026-11-12 02:43 UTC): "plan" was run, not planned
+The user asked at 02:24 UTC to plan a token analysis; the PM started a sonnet agent at once and spent budget at 90 %. The user corrected: plan means a backlog entry, run when resources allow. Fix: decisions-now.md PM process 02:43; the PM pushes back on work that is not needed now.

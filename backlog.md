@@ -453,3 +453,6 @@ document (design/looks/) and the user's approval of mockups first.
 - 11-12: Fable lane after the reset: construct Host refactor so each cube face runs its own manager (XP, Tiling, Media center, XP 2 per D4); xp-only paths (windows.float, activate, pull) must become per face.
 - 11-12: flaky core tests under load: words::a_stack_overflow_leaves_its_words and the last-words SIGSEGV handler test fail about 1 in 3 full gates, pass alone.
 - 2026-11-12 02:16 UTC: cargo deny fails on an advisory (xattr "unsound", via tar via tract-onnx); CI deny will fail too. Check for a fixed tar/xattr version or a reasoned ignore in deny.toml before the CI draft PR (Saturday).
+
+## W2-1 (11-12, user): PM structure, priorities and push-back (week 2)
+Source: user 2026-11-12 02:43 UTC. Saturday 11-14 opens with a big Fable reflection, very critical about the setup and the progress so far. Inputs: reports/token-analysis-week1.md (findings and week-2 rules), reports/week-1.md, friction.md, reflections/. Outputs: a priority order that pushes the RC forward, a cut list of work that is not needed, a leaner PM routine, and a deeper token profile only if the reflection asks for it.
