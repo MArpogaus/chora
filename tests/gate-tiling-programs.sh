@@ -17,6 +17,10 @@ export CHORA_FLAVOR_DIR=$repo/flavors/tiling
 temp_config
 session_start 1280x800 -- "$bin/chora-tiling"
 grant screen.capture
+for file in docs/configuration.md dist/arch/PKGBUILD crates/chora/Cargo.toml; do
+    grep -q "fuzzel.*1\.11" "$repo/$file" || fail "$file does not name fuzzel 1.11, the first with mouse support"
+done
+ok "the docs and the packages name fuzzel 1.11 as the least version for the mouse"
 shot=$XDG_CONFIG_HOME/programs.png
 snap() {
     sleep 3
