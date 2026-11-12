@@ -39,10 +39,15 @@ two guard scripts.
    use `--worker`; a merged worktree and its target go in the same step.
    Guard: the script; lanes.py flags merged worktrees.
 8. **UI.** Before UI review 1 the look's gate with the layout audit is green.
-   An independent reviewer rates every main-path flaw of the look, whichever
-   lane caused it; a visible main-path flaw blocks the merge; at most three
-   rounds, rounds 2 and 3 confirm only. Guard: the review template's main-path
-   table; the builder never reviews its own pixels.
+   Every remake of a look's pixels gets a full pixel review at 1x and 2x by an
+   independent reviewer (never confirm-only), down to icon glitches, bar
+   heights and alignment; rounds repeat until one finds nothing above
+   COSMETIC (user 11-12 04:16 UTC: "visual reviews for every remake until
+   it's polished to perfection"). A visible main-path flaw blocks the merge;
+   each flaw class found by eye gets an automated layout-audit cell where
+   possible. Guard: the review template's main-path table; the builder
+   never reviews its own pixels; check_log.py (no merge of a look without
+   a review file of that day).
 9. **Status page.** After every merge and notable event: header time, Running,
    Next and Needs you match `state.md`; a UI merge ships reviewed captures, and
    each picture names its build. Guard: check_log.py (merge without status/

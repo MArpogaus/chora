@@ -4,15 +4,15 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T02:43:48Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T04:16:28Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
-  Reading: a sonnet analysis of all transcripts and worker sessions by agent, model, purpose and day, with concrete efficiency rules for week 2.
+  Reading: superseded by 02:43 (plan = backlog); done anyway: reports/token-analysis-week1.md.
 - 11-12 02:21 UTC "Burning tokens quickly. Prefer sonnet and haiku  now where possible to last through the day."
   Reading: opus only where nothing else fits (none planned today); reviews and builds on sonnet, swarms on haiku; PM turns short.
 - 11-12 02:17 UTC "Okay, good. We're at 90% now, when all the running tasks are finished and everything is merged and clean. Finish this week off with intensive UX/UI reviews and testing to collect as much data and find as much frictions, bugs, and inconsistencies that we can address next week. One thing I just noted on the piling screenshots, there seems to be still a floating chat button. Maybe this is still an old state, and have the UX/UI agents intensively visually validating our individual views and ensure that we are following consistent design languages and giving the best user experience."
-  Reading: finish running lanes and merge; then spend the rest of the week on intensive UX/UI reviews of every look and testing (data for next week, few fixes). Checked: the floating "Chat" tab is gone on 59df16e (swarm 5 shot t5-keys/003), but tiling now shows no visible chat entry at all (an RC requirement) and a "Every key" tooltip lingers: both go to the reviews.
+  Reading: finish and merge running lanes; then UX/UI reviews and testing to the week's end (data for next week, few fixes).
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
   Reading: pacing guide, not a cap; "don't mindlessly burn tokens".
 - 11-10 16:20 "Respect 5h limit in your planning?" 16:46 "Why cap yo only two hevy workers? ... We have stable sub sessions now"
@@ -24,14 +24,14 @@ screened-through: 2026-11-12T02:43:48Z (bump to the newest user message recorded
 - 11-12 00:29 Bkk "No, its not this weeks cap. Its the cap for the user test swarm if they keep discovering new issues etc"
   Reading: haiku swarms may run until weekly use reaches 85 %, only while they find new issues. NOT a week cap: the rest goes to major fixes and the review loop.
 - 11-11 23:53 "Reset is sat 10:59. Well then finalize this week with heavy tasks layer off yo fable. Resetting once its fully used."
-  Reading (garbled dictation): after the Saturday reset, heavy work (major fixes, review per area) runs on Fable until used up; then the user resets it. No Fable before (13:13).
+  Reading: after the Saturday reset heavy work runs on Fable until used up.
 - Usage readings the user posts go to answers.md the same turn (charter 1.2).
 
 ## Communication
 - 11-12 01:26 UTC "87 %. Update status page with screenshots and screen cast when new looks are ready"; 01:42 UTC "Still at 87. Don't be to paranoid about token limit"
-  Reading: report the user's reading, not the usage.py guess (it overstated by ~8 points); do not hold work back for budget.
+  Reading: report the user's reading; do not hold work back for budget.
 - 11-12 01:45 UTC "Don't rely on me. I was just assisting this week, you shall work autonomously from now. Improve your estimate or respect ist uncertainty bit don't hold back work tokens shall be used up by end of the week. Still don't waste them"
-  Reading: full autonomy; estimate = last user reading + usage.py units since / 3.8 M per point, with its uncertainty; use the week fully, no waste.
+  Reading: full autonomy; estimate per rules.md 10; use the week fully, no waste.
 - 11-09 00:48 "Antworte ab sofort immer english"
 - 11-10 07:12 "Keep summaries here to a minimum to save tokens. I have the status page, or asking if I need info"
   Reading: chat replies one or two lines; each run ends with done, running, next, blocked, budget (charter 11).
@@ -63,6 +63,8 @@ screened-through: 2026-11-12T02:43:48Z (bump to the newest user message recorded
 - 11-11 18:11 "Ensure good an detailed logging in all components"; anonymised report script, later paste bin + GH issue text (backlog L1)
 
 ## Design
+- 11-12 04:16 UTC "Did you already have the visual reviews over the new versions of our reviews? I already realized there is a glitch or a error in the XP start menu on the user icon, and also the tray icons look a bit off. For MC, the vertical bar should have the heights of the text. These are the kind of visual defects we want to automatically capture. We are aiming for perfect aesthetics. Have that on your rule list and ensure that we are having visual reviews for every remake until it's polished to perfection."
+  Reading: rules.md 8 changes: every remake (any change to a look's pixels) gets a full pixel review, not confirm-only, and rounds repeat until a round finds nothing above COSMETIC; detail flaws (icon glitches, misaligned bars, off icons) count as findings. The pixel audit is automated where possible (layout audit cells per flaw class). Seen by the user: xp Start menu user icon glitch, xp tray icons off, mc vertical bar not text height.
 - Older design and process decisions already built (cube floating windows, ACP chat themed, grants, split reviews, status page form): see answers.md.
 - 11-09 15:28 "Minimal/flawless/flexible" (docs/design-principles.md); POLS and KISS core values (charter 1.16).
 - 11-11 18:30 "different ... design documents for all our different components and window managers" (charter "Design per look")
