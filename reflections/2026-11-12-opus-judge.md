@@ -423,3 +423,22 @@ plan-data.md; the ledger, tokens.py and routine.md; HANDOFF.md as a running file
 the prose merge gate; "Workers at most 2 to 3"; "each worktree builds into its own target";
 the `--fast` rule; reflection 2 rule 4 and rc 1b's "before builders start"; the "burn Fable
 this week" paragraph; section 15.
+
+## Answers of the PM (2026-11-12, UTC)
+
+1. Answer: built in part (rules.md 5, 9, 11; watchdog; lanes.py and check_log.py in the tooling lane), scheduled: steering count as the judge's headline metric from the next round. Accepted.
+2. Answer: built (state.md rewritten as Now, Queue, Blocked; pm_context.py prints them and lists unrecorded messages first; screened-through set from the transcript; decisions split in two hooks). check_log.py in the tooling lane (it already blocks bad commits).
+3. Answer: built as rules.md 6 (sonnet builders, at most 3 steps per agent, fresh fix rounds, 250 k flag in lanes.py). Accepted; the opus HUD builder of 11-11 was a PM choice without a record.
+4. Answer: scheduled 11-12: both flaws were fixed after the merge (host series B of 59df16e moved the neutral chat rows below the bar; mc fix round R placed the Reading panel), to be confirmed in the tour-v3 stills; rules.md 8 now rates main-path flaws of any lane. hud-xp.png replaced on the status page today.
+5. Answer: scheduled in the tooling lane (merge-gate --worker, red-first, pre-commit range, hud-audit in every look's gate, ci-local.sh); "adopted" now means built and guarded (rules.md 14). The window audit cell is rejected until after the rc (reason: no windows.audit API; the handover matrix covers lost windows).
+6. Answer: built: times in decisions-now.md corrected to transcript times; rules.md 3; check_log.py guards it (it caught a new invented time at once).
+7. Answer: built in part: one log commit per wake (rules.md 1), gates in the foreground (rules.md 6); lanes.py prints the PM context and says "compact now" above 400 k (tooling lane).
+8. Answer: built as rules.md 8 (audit before review 1, rounds 2 and 3 confirm-only); target 10 M units per look recorded here.
+9. Answer: scheduled 11-12: the status header, Running, Next and Needs you are rewritten from state.md today; the generator script goes to Saturday's tooling lane (reason: the PM edits it by hand until then, guarded by check_log.py merge-without-status).
+10. Answer: built: no throttle (rules.md 10); CI and flakes are in the Queue (ci-local.sh today, CI draft PR Saturday).
+11. Answer: built as rules.md 10 with the budget line in state.md Now.
+12. Answer: built: the Queue of state.md follows this plan, with the four lanes and the Saturday items.
+13. Answer: built: rules.md (15 rules, each with a guard) wins over charter.md, which becomes reference; the pm-card reads rules.md instead of the charter. Deleting the dead charter text is scheduled for Saturday's retro (charter 12).
+14. Answer: built: 9 merged worktrees removed today; cloud workers used again (environment verified ready); rules.md 7 removes a worktree with its merge. Accepted that a new lane gets a fresh worker; the tour worker keeps construct-v2 only because it is set up and holds its context, and ends after tour-v3.
+15. Answer: built as rules.md 14; this section is the first answer in the file.
+16. Answer: accepted: RC requirements in design/product-briefs.md get a source tag on Saturday; PM-only items move after the rc unless they close a finding.

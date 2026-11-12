@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (up to and from "## Design"); keep each part under 9,000 characters (hook cap 10,000).
 Times Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T03:01:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T01:46:00Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-10 15:20 "Don't be too paranoid about the limit. We shall not waste it but make sure work gets finished and weekly limit gets fully spend"
@@ -22,9 +22,9 @@ screened-through: 2026-11-12T03:01:00Z (bump to the newest user message recorded
 - Usage readings the user posts go to answers.md the same turn (charter 1.2).
 
 ## Communication
-- 11-12 ~08:00 "87 %. Update status page with screenshots and screen cast when new looks are ready"; ~09:50 "Still at 87. Don't be to paranoid about token limit"
+- 11-12 01:26 UTC "87 %. Update status page with screenshots and screen cast when new looks are ready"; 01:42 UTC "Still at 87. Don't be to paranoid about token limit"
   Reading: report the user's reading, not the usage.py guess (it overstated by ~8 points); do not hold work back for budget.
-- 11-12 ~03:00 UTC "Don't rely on me. I was just assisting this week, you shall work autonomously from now. Improve your estimate or respect ist uncertainty bit don't hold back work tokens shall be used up by end of the week. Still don't waste them"
+- 11-12 01:45 UTC "Don't rely on me. I was just assisting this week, you shall work autonomously from now. Improve your estimate or respect ist uncertainty bit don't hold back work tokens shall be used up by end of the week. Still don't waste them"
   Reading: full autonomy; estimate = last user reading + usage.py units since / 3.8 M per point, with its uncertainty; use the week fully, no waste.
 - 11-09 00:48 "Antworte ab sofort immer english"
 - 11-10 07:12 "Keep summaries here to a minimum to save tokens. I have the status page, or asking if I need info"
@@ -68,21 +68,21 @@ screened-through: 2026-11-12T03:01:00Z (bump to the newest user message recorded
 - 11-11 18:01 voice: "local models, but all of them shall be interchangeable ... Still api endpins shall be configurable."
 
 ## PM process
-- 11-12 ~02:45 UTC "Updated cloud env. Quick test. Have a intensive refection loop and fix our latest problems and issues. The pm shall own the project remain always aware and use tokens and time efficently. Never loose context ore focus. Titen rules and overall strategy. I shalle note ever need to steers anymore"
-  Reading: test the new cloud setup; run an intensive opus reflection; fix what it finds; tighten rules and strategy so the user never has to steer. ~02:55 "Loop the reflection sharpening until no new findings apear": repeat judge, answer, apply until a round finds nothing new.
-- 11-12 ~02:10 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"
-- 11-12 ~01:40 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
+- 11-12 01:41 UTC "Updated cloud env. Quick test. Have a intensive refection loop and fix our latest problems and issues. The pm shall own the project remain always aware and use tokens and time efficently. Never loose context ore focus. Titen rules and overall strategy. I shalle note ever need to steers anymore"
+  Reading: test the new cloud setup; run an intensive opus reflection; fix what it finds; tighten rules and strategy so the user never has to steer. 01:43 UTC "Loop the reflection sharpening until no new findings apear": repeat judge, answer, apply until a round finds nothing new.
+- 11-12 01:35 UTC "Wake up more often? All 30 min eg?  What about cloud workers? No visual polishing and test swarms planned anymore?"
+- 11-12 01:29 UTC "Is construct worker still run ng? Remove stale sub sessions. Arm a watchdog timer to Lee you going. What ere your next steps? What can be started right away in parallel?"
 - 11-11 23:59 "Reread the whole charter after compactation. ... The pm session hast to remain robust"
 - 11-12 00:27 "you did not pick up work after compactation" Reading: resume the first open item at once (pm-card step 4).
 - 11-12 00:30 "Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"
 - 11-09 11:13 daily opus reflection (charter 11a); 11-11 18:34 "Make sure you note these frictions and problems."
 - 11-11 11:43 "Check you sub session. All running? Close stale ones" Reading: check at each run start.
 - 11-10 14:45 "Agreed, go with the hybrid" Reading: workers for heavy lanes and testers, merges only here; one persistent PM.
-- 11-11 ~18:40 UTC "Polish the ui ux towards perfection is the goal for this week. ... Mc shall rather include in the right margin where notifactions are shown anyway instead of stealing half the screan. Make tiling more exiting and "hyperland like" it shall stay hackable ... stunning visuals in each view all with their own design philosophy" (full text in answers.md)
+- 11-11 17:48 UTC "Polish the ui ux towards perfection is the goal for this week. ... Mc shall rather include in the right margin where notifactions are shown anyway instead of stealing half the screan. Make tiling more exiting and "hyperland like" it shall stay hackable ... stunning visuals in each view all with their own design philosophy" (full text in answers.md)
   Reading: polish toward perfection; a design agent per look; each look its own aesthetic.
-- 11-11 ~18:50 UTC "Not deciding anything now. You work autonomously until sat. ... take wise decitens. Self adapt to frictions and keep logging your progress."
+- 11-11 17:50 UTC "Not deciding anything now. You work autonomously until sat. ... take wise decitens. Self adapt to frictions and keep logging your progress."
   Reading: the PM decides taste until the user returns (overrides reflection 2 rule 4), each decision logged and reversible.
-- 11-11 ~19:00 UTC "Get you head around what each plugin shall deliver. Define clear requirements USPS and target groups for each. Be a wise leader and give clear instructions to your workforce."
+- 11-11 17:53 UTC "Get you head around what each plugin shall deliver. Define clear requirements USPS and target groups for each. Be a wise leader and give clear instructions to your workforce."
   Reading: the PM writes a product brief per plugin (what it delivers, requirements, USPs, target groups) and briefs every worker from it.
-- 11-11 ~19:20 UTC "Stay focused on our main targets and try to deliver the best results. You as aiming to words perfection"
+- 11-11 17:54 UTC "Stay focused on our main targets and try to deliver the best results. You as aiming to words perfection"
   Reading: focus on the main targets (polish of the four looks, RC requirements in design/product-briefs.md); quality over quantity; aim for perfection.

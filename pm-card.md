@@ -2,8 +2,8 @@
 
 The compaction summary is lossy. It is not the plan. Before the next action:
 
-1. Read `charter.md` in full (wt/log), then `state.md`, the tail of
-   `answers.md` and of `friction.md`. Do not act on the summary alone.
+1. Read `rules.md` in full (wt/log; it wins over charter.md, which is reference),
+   then `state.md` (Now, Queue, Blocked). Do not act on the summary alone.
 2. List live lanes: local agents, worker sessions, background commands.
 3. Read `decisions-now.md` (injected below); every new user decision goes there
    verbatim the same turn, and into `answers.md`; then bump its `screened-through:`

@@ -3,8 +3,8 @@
 
 Modes:
   card       pm-card.md, the "Now" section of state.md, the newest lines of answers.md
-  decisions  decisions-now.md up to its Design section, plus user messages newer than its screened-through line
-  decisions2 decisions-now.md from its Design section on (two hooks keep each under the cap)
+  decisions  decisions-now.md up to its PM process section, plus user messages newer than its screened-through line
+  decisions2 decisions-now.md from its PM process section on (two hooks keep each under the cap)
   precompact instructions for the compaction summary (PreCompact stdout)
   prompt     one reminder line (UserPromptSubmit)
 
@@ -39,14 +39,12 @@ def hook_input():
     return {}
 
 
-def state_now(max_lines=22):
+def state_now(max_lines=60):
     lines = read("state.md").splitlines()
     out, inside = [], False
     for line in lines:
         if line.startswith("## "):
-            if inside:
-                break
-            inside = line.startswith("## Now")
+            inside = line.startswith(("## Now", "## Queue", "## Blocked"))
         if inside:
             out.append(line)
     return "\n".join(out[:max_lines])
@@ -122,14 +120,14 @@ def capped(text):
 def mode_card():
     return (
         "PM CARD (hook; read before acting):\n" + read("pm-card.md")
-        + "\nstate.md, Now section:\n" + state_now()
+        + "\nstate.md, Now, Queue and Blocked:\n" + state_now()
         + "\n\nanswers.md, newest lines:\n" + answers_newest()
     )
 
 
 def decisions_part(part):
     text = read("decisions-now.md")
-    cut = text.find("\n## Design")
+    cut = text.find("\n## PM process")
     if cut < 0:
         return text if part == 1 else ""
     return text[:cut + 1] if part == 1 else "decisions-now.md, continued:\n" + text[cut + 1:]
@@ -139,9 +137,10 @@ def mode_decisions(transcript):
     text = decisions_part(1)
     messages = unrecorded_messages(transcript, screened_through())
     if messages:
-        text += (
+        text = (
             "\nUSER MESSAGES AFTER screened-through, not yet screened (record each decision verbatim in"
             " decisions-now.md and answers.md now, then bump screened-through):\n" + format_messages(messages)
+            + "\n\n" + text
         )
     return text
 
