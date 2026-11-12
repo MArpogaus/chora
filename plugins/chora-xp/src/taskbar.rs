@@ -535,7 +535,7 @@ impl Bar {
             (false, true, false) => "minimized",
             (false, false, false) => "normal",
         };
-        let shift = i32::from(task.active);
+        let shift = i32::from(task.active && !task.minimized);
         let mut picture =
             Picture::new(w, TASK_HEIGHT).frame(sheets::TASKS, prefix, [0, 0, w, TASK_HEIGHT]);
         let mut left = 8;
@@ -841,6 +841,27 @@ mod tests {
             assert_eq!(pair[0][0] + 24 + 2, pair[1][0]);
         }
         assert!(rects[DESKTOPS - 1][0] + 24 <= 1280 - bar.tray_width());
+    }
+
+    #[test]
+    fn a_minimized_window_never_has_the_pressed_look_of_the_active_one() {
+        let (mut theme, cache) = crate::dialog::tests::theme("taskbar-minimized");
+        let bar = bar(1);
+        let task = |active, minimized| Task {
+            surface: "s0",
+            title: "Notes",
+            icon: None,
+            active,
+            minimized,
+            hovered: false,
+        };
+        let mut image = |t: Task<'_>| match bar.task(&mut theme, 0, &t) {
+            Command::Update { props, .. } => props.image,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(image(task(true, true)), image(task(false, true)));
+        assert_ne!(image(task(true, false)), image(task(false, false)));
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]
