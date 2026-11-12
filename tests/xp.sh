@@ -284,7 +284,7 @@ wait_for menu_visible false
 step "7b. resting on the label of Control Panel for 400 ms opens its cascade"
 click 50 785 || fail "the click failed"
 wait_for menu_visible true
-read -r cx cy cw ch < <(query id:xp-item-7 | jq -r '.[0].rects | to_entries[0].value | map(floor) | join(" ")')
+read -r cx cy cw ch < <(query kind:image | jq -r '[.[] | select(.meta.text == "Control Panel" and (.id | startswith("xp-item-")))] | .[0].rects | to_entries[0].value | map(floor) | join(" ")')
 timeout 20 "$bin/chora-probe" point $((cx + 60)) $((cy + ch / 2)) 2500 >>"$out/probe.log" 2>&1 &
 job=$!
 wait_for has_node id:xp-menu-cascade-0

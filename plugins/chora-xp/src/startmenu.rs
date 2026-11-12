@@ -236,6 +236,7 @@ impl Menu {
                 parent: GROUP.into(),
                 props: PropsUpdate {
                     image: Some(theme.render(&picture(theme, entry, false))),
+                    meta: Some([("text".to_owned(), entry.title.clone())].into()),
                     ..at(entry.rect[0], entry.rect[1])
                 },
             });
