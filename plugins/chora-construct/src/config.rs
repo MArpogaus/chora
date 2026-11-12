@@ -783,4 +783,23 @@ mod tests {
         whats.dedup();
         assert_eq!(whats.len(), rows, "a row stands twice");
     }
+
+    /// Polish 14: the help names the window managers as people read them.
+    #[test]
+    fn the_help_gives_a_window_to_managers_by_their_display_names() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let gives: Vec<String> = (config.help_groups(false).into_iter())
+            .filter(|g| g.head == "Give a window")
+            .flat_map(|g| g.rows.into_iter().map(|r| r.what))
+            .collect();
+        assert_eq!(
+            gives,
+            [
+                "Give it to Tiling",
+                "Give it to XP",
+                "Give it to Media center",
+                "Give it to Construct"
+            ]
+        );
+    }
 }
