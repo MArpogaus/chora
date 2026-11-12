@@ -28,7 +28,7 @@ jobs:
       with:
         persist-credentials: false
     # The pixel tests render on the software driver of Mesa.
-    - run: xargs dnf install -y rustup mesa-dri-drivers git bubblewrap < dist/fedora-build-requires.txt
+    - run: xargs dnf install -y rustup mesa-dri-drivers git bubblewrap python3 < dist/fedora-build-requires.txt
     # rustup takes the toolchain of rust-toolchain.toml.
     - run: rustup-init -y --profile minimal --default-toolchain none
     - run: echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
@@ -62,6 +62,8 @@ jobs:
       run: tests/gate-0.8-8.sh
     - name: plugins leave the connection to the runtime of chora-kit
       run: tests/gate-0.8-plugin-runtime.sh
+    - name: the packages install every file of the flavors and the HUDs
+      run: tests/packaging-files.py
 
   # The line coverage of the unit tests, without a threshold. The job
   # summary shows it per crate; lcov.info is an artifact.
