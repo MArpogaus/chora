@@ -124,6 +124,52 @@ env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock
     MERGE_GATE_RUNS="$work/runs" "$gate" --only gate-lib >"$work/out" 2>&1
 check "the step gate-lib runs the self-test of tests/gate-lib.sh" "$?" 0
 
+: >"$work/marks"
+for n in build test clippy xp hud cube; do printf '%s|echo %s >>%s/marks\n' "$n" "$n" "$work"; done >"$work/steps"
+run_gate --worker xp,hud
+check "--worker runs build, test, clippy and the named steps" "$(tr '\n' ' ' <"$work/marks")" "build test clippy xp hud "
+check "--worker exits 0" "$rc" 0
+run_gate --worker ''
+check "--worker with no steps runs the three base steps" "$(wc -l <"$work/marks")" 8
+run_gate --worker xp --push session
+check "--worker with --push is refused" "$rc" 2
+run_gate --worker nosuch
+check "--worker with an unknown step is refused" "$rc" 2
+
+rr=$work/rr
+mkdir -p "$rr/tests"
+cp "$gate" "$rr/tests/merge-gate.sh"
+cp "$repo/tests/gate-lock.sh" "$rr/tests/"
+git -C "$rr" init -q -b main
+git -C "$rr" config user.email t@t
+git -C "$rr" config user.name t
+git -C "$rr" commit -q --allow-empty -m "chore: init"
+git -C "$rr" tag base
+red() { "$rr/tests/merge-gate.sh" --red-first-check --base base 2>&1; }
+echo a >"$rr/a.rs"
+git -C "$rr" add a.rs
+git -C "$rr" commit -q -m "feat(a): no test before it"
+check "a feat commit without a test before it is red" "$(red | grep -c '^RED-FIRST MISSING: .* feat(a): no test before it$')" 1
+git -C "$rr" commit -q --amend -m "feat(a): excused" -m "No test: a pure move"
+check "a body line No test: excuses the commit" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" commit -q --amend -m "feat(a): and its test"
+echo t >"$rr/tests/a-test.sh"
+git -C "$rr" add tests/a-test.sh
+git -C "$rr" commit -q --amend --no-edit
+check "a feat commit that changes a test file is green" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+echo t >"$rr/tests/a-test.sh"
+git -C "$rr" add tests/a-test.sh
+git -C "$rr" commit -q -m "test(a): first"
+echo b >"$rr/b.rs"
+git -C "$rr" add b.rs
+git -C "$rr" commit -q -m "fix(b): test came first"
+check "a test commit before a fix commit is green" "$(red >/dev/null; echo $?)" 0
+echo c >"$rr/c.rs"
+git -C "$rr" add c.rs
+git -C "$rr" commit -q -m "refactor(c): no test needed"
+check "a refactor commit needs no test" "$(red >/dev/null; echo $?)" 0
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1
