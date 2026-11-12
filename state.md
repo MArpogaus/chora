@@ -11,7 +11,8 @@ last_reviewed: per-merge reviews only; the per-area review of the whole range a0
 Lanes:
 - construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: cloud worker session_016iS3kNCBEXbSe5Vg8a7z6o (sonnet). Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
 - swarm5-fixes: done (4ca41a98, 5 items, red first; worker archived); code and pixel review running (local sonnet, reports/review-swarm5-fixes.md); a full merge-gate run on the tip is still needed (last 2 commits after the builder's full run); suspected: PKGBUILD misses look.sh, power.sh, applications/.
-- xp-v2: UI review 2 PASS (reports/review-xp-v2-r2.md; M1-M4 confirmed at f84bb33). Worker session_016iS3kNoQYkfu5FnAnT5HM8 fixes the paperclip size (tooling layout audit); then xp joins train 3.
+- xp-v2: ready (abd862b: review 2 PASS, paperclip whole-pixel hop fixes the tooling layout audit; worker archived).
+- Train 3 decision (PM, 03:08 UTC): merge the ready branches now (tooling, pkg, xp-v2, swarm5-fixes once its review passes) instead of waiting for construct; construct goes in the first train of Bangkok 11-13 (from 17:00 UTC). Reason: lock in four reviewed lanes before the budget stop; the end-of-week UX reviews need the merged build.
 - ready, not merged: claude/tooling (5f15153, review fixes in; xp gate red until the xp paperclip fix merges).
 - ready, not merged: claude/pkg (80f31a7, reviewed, python3 fix in) waits for train 3 with construct-v2.
 
