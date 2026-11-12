@@ -141,6 +141,7 @@ for scene in morning agenda; do
     sleep 2
     clash=$(overlaps)
     [ -z "$clash" ] || fail "texts of the $scene scene overlap: $clash"
+    AUDIT_KINDS=outside,image layout_audit "mc $scene scene" mc
 done
 ok "no two texts of the morning scene or of the agenda overlap"
 

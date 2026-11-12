@@ -25,10 +25,16 @@ light around a surface, never a surface.
 
 Usage: tests/hud-audit.py OUTPUTS.json NODES.json [OWNER...]
   OWNER  the clients whose nodes count (default: construct assistant)
+  A sliced image is made to stretch; the image check leaves it out.
+  AUDIT_KINDS  environment: the kinds to report, comma separated
+         (overlap, outside, image, text; default all). The gates of the
+         tiling and mc looks use outside,image and xp image: those looks mark no
+         `surface`, so overlap and text findings would be guesses.
 Exit status: 0 no finding, 1 a finding, 2 a usage error.
 """
 
 import json
+import os
 import pathlib
 import struct
 import sys
@@ -177,7 +183,7 @@ def fmt(rect):
 def image_findings(node, rect, output, scale):
     """An image that does not show its file pixel for pixel."""
     path = node.get("image")
-    size = png_size(path) if path else None
+    size = png_size(path) if path and not node.get("slice") else None
     if size is None:
         return []
     want = [size[0] / scale, size[1] / scale]
@@ -227,7 +233,10 @@ def main():
     outputs = json.loads(pathlib.Path(sys.argv[1]).read_text())
     nodes = json.loads(pathlib.Path(sys.argv[2]).read_text())
     owners = set(sys.argv[3:]) or {"construct", "assistant"}
+    kinds = os.environ.get("AUDIT_KINDS")
     findings = audit(outputs, nodes, owners)
+    if kinds:
+        findings = [f for f in findings if f.split(":", 1)[0] in kinds.split(",")]
     for line in findings:
         print(f"FAIL: {line}")
     if not findings:

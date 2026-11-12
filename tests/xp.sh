@@ -20,6 +20,9 @@
 # restore.png, cube.png and cube-back.png. The software renderer of the
 # host is slow, so a frame budget keeps the watchdog of the core calm.
 #
+# The layout audit of tests/hud-audit.py runs on the nodes of xp, the
+# paperclip and the balloon once the paperclip speaks.
+#
 # Usage: tests/xp.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-xp, chora-notify, chora-assistant
 #            and chora-probe
@@ -439,6 +442,10 @@ echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20
 speech_visible() { test "$(query id:hud-line | jq '.[0].visible')" = true; }
 wait_for speech_visible
 grim "$out/paperclip.png"
+"$bin/choractl" outputs >"$out/audit-outputs.json"
+query '*' >"$out/audit-nodes.json"
+AUDIT_KINDS=image python3 -I "$(dirname "$0")/hud-audit.py" "$out/audit-outputs.json" \
+    "$out/audit-nodes.json" xp assistant notify >"$out/audit.log" || fail "layout audit: $(cat "$out/audit.log")"
 
 step "17. a second chora-notify leaves the bus name to the first and ends cleanly"
 DBUS_SESSION_BUS_ADDRESS=$bus timeout 20 "$bin/chora-notify" --assets "$assets/notify" \
