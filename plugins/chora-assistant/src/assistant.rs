@@ -138,7 +138,7 @@ impl Pose {
             (Self::Listening, 0) => Some(([1.0, 1.0], [-2.0, 0.0], 250.0)),
             (Self::Asking, 0) => Some(([1.0, 1.0], [0.0, -2.0], 250.0)),
             (Self::Thinking, _) => Some(([1.0, 1.0], [if even { 2.0 } else { -2.0 }, 0.0], 700.0)),
-            (Self::Speaking, _) if even => Some(([0.98, 1.03], [0.0, -4.0], 180.0)),
+            (Self::Speaking, _) if even => Some(([1.0, 1.0], [0.0, -4.0], 180.0)),
             (Self::Speaking, _) => Some(([1.0, 1.0], [0.0, 0.0], 180.0)),
             _ => None,
         }
@@ -1457,5 +1457,24 @@ mod tests {
         let (left, ..) = place((&style, true), [120, 40], [500, 300], area);
         assert_eq!(right[0], 500 + style.tail_inset - 120);
         assert_eq!(left[0], 500 - style.tail_inset);
+    }
+
+    #[test]
+    fn the_body_never_scales_so_its_picture_is_drawn_at_the_size_of_its_file() {
+        for pose in [
+            Pose::Idle,
+            Pose::Listening,
+            Pose::Asking,
+            Pose::Thinking,
+            Pose::Speaking,
+            Pose::Sleeping,
+        ] {
+            for step in 0..4 {
+                if let Some((scale, offset, _)) = pose.motion(step) {
+                    assert_eq!(scale, [1.0, 1.0], "{pose:?} step {step}");
+                    assert!(offset.iter().all(|o| o.fract() == 0.0), "{pose:?}");
+                }
+            }
+        }
     }
 }
