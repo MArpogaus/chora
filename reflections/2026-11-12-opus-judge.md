@@ -535,3 +535,12 @@ contradicts the user's words in decisions-now.md other than R2-4.
 
 new findings: 10 (of them above LOW: 7). The loop continues: round 3 after R2-1 to R2-7 are
 answered.
+
+## Answers to round 2 (2026-11-12 01:59 UTC)
+
+- Watchdog prompt: built (it now runs lanes.py, checks cloud workers via get_session, names rules.md and the Queue).
+- Missing guard checks (status with merge, Answer lines, rule count, fewer than two lanes, lanes.py exit code, fresh worktree counted as merged, "~" times): scheduled in the tooling lane today (message sent with the exact list).
+- Status page Running, Next, Needs you: built (rewritten from state.md); the old "delete branches" item was the PM's own job (user 11-09) and moved to the Queue.
+- Times: built (the five new answers.md lines carry transcript times; decisions-now.md header names the zones).
+- xp agent with 7 items: accepted, not stopped mid-run (it pushes per item); the next xp round is a fresh agent with at most 3 items.
+- PM context at 508 k: accepted; the hooks now carry Now, Queue, rules and decisions, so the automatic compaction is safe; no manual action available to the PM.

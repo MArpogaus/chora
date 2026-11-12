@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 01:56 UTC)
+## Now (2026-11-12 01:59 UTC)
 
 budget: 87 % at 2026-11-12 01:26 UTC (user), estimate 88 to 90 %, stop about 08:00 to 09:00 UTC (rate 1.8 points per hour); reset Sat 11-14 03:59 UTC.
 session branch: 59df16e (merge trains today, Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e; one train left).
@@ -26,6 +26,7 @@ Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz hourly at :35; resume after res
 4. xp-v2: layout audit green, UI review 1 (taste and the look document only), fix round fresh, review 2 confirm-only, merge.
 5. tour-v3 screencast and 6 to 10 stills of the new looks onto the status page (user 11-12).
 6. Reflection round 2 (confirm-only on the applied changes, about 1 M units); stop when only LOW points come.
+6b. Delete stale claude/* branches on GitHub that are merged (user allowed it 11-09 11:33; list from git branch -r --merged); keep unmerged ones.
 7. Before the stop: week-1 report checked by the PM; Saturday briefs written below.
 Saturday 11-14 from 04:05 UTC (Fable): per-area code review of a03be22..HEAD (core and security paths first, read-only, then HIGH fixes); construct Host refactor so each cube face runs its own manager (D4); rc reflection loop on Fable. Sonnet: fix lanes by area; swarm 6 on the four v2 looks with launcher fixes (start tests/fake-voice.py, a notify-send stub, a fake loginctl running swaylock). Then flakes (core SIGSEGV tests under load), three greens in a row, CI draft PR, packaging smoke, persona round 4; rc 11-18 to 11-20.
 
