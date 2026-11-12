@@ -46,8 +46,8 @@ two guard scripts.
    it's polished to perfection"). A visible main-path flaw blocks the merge;
    each flaw class found by eye gets an automated layout-audit cell where
    possible. Guard: the review template's main-path table; the builder
-   never reviews its own pixels; check_log.py (no merge of a look without
-   a review file of that day).
+   never reviews its own pixels; a check_log.py cell (no look merge without
+   a full review file of that day) is queued for Saturday, manual until then.
 9. **Status page.** After every merge and notable event: header time, Running,
    Next and Needs you match `state.md`; a UI merge ships reviewed captures, and
    each picture names its build. Guard: check_log.py (merge without status/
