@@ -634,7 +634,7 @@ ok "a manager that exits: the card says Media center did not start, with the rea
 call view.step_back >/dev/null || fail "view.step_back with a failed face"
 until_ok "$stood_back" 20 || fail "no step back with a failed face"
 until_ok 'prop construct-face-label-words text | grep -q "did not start"' 20 || fail "the face label does not say did not start: $(prop construct-face-label-words text)"
-[ "$(prop construct-face-label-name text)" = "Media center" ] || fail "the face label names $(prop construct-face-label-name text)"
+[ "$(prop construct-face-label-name text)" = "Media center 1" ] || fail "the face label names $(prop construct-face-label-name text)"
 [ "$(prop construct-face-label-dot-0 color)" = "[0.0, 0.0, 0.0, 0.0]" ] || fail "the dot of the failed face is not hollow: $(prop construct-face-label-dot-0 color)"
 until_ok 'prop construct-mode-step-in-text text | grep -q "Try again"' 20 || fail "the middle hint does not say Try again: $(prop construct-mode-step-in-text text)"
 [ -z "${FAILED_SHOT:-}" ] || ctl capture "$FAILED_SHOT" >/dev/null
