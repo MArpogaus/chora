@@ -169,12 +169,13 @@ def main():
     transcript = hook_input().get("transcript_path", "")
     builders = {
         "card": mode_card,
+        "vision": lambda: "VISION CARD (hook):\n" + read("vision-card.md"),
         "decisions": lambda: mode_decisions(transcript),
         "decisions2": lambda: decisions_part(2),
         "precompact": lambda: mode_precompact(transcript),
     }
     if mode not in builders:
-        sys.exit(f"unknown mode {mode}; use card, decisions, decisions2, precompact or prompt")
+        sys.exit(f"unknown mode {mode}; use card, vision, decisions, decisions2, precompact or prompt")
     print(capped(builders[mode]()))
 
 

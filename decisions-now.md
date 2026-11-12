@@ -4,7 +4,7 @@ Every user decision in chat goes here the same turn, quoted word for word,
 with date and the PM's reading. Remove an entry only when the user replaces it.
 answers.md stays the full log; this file is the current set. Two hooks print it (split at the PM process heading; Design is last); keep each part under 9,000 characters (hook cap 10,000).
 Times: UTC unless marked Bkk; undated-zone entries before 2026-11-11 12:00 are Bangkok (UTC+7). Charter section 1 still holds where not replaced below.
-screened-through: 2026-11-12T04:29:58Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
+screened-through: 2026-11-12T04:32:08Z (bump to the newest user message recorded; tools/pm_context.py lists newer ones)
 
 ## Budget and models
 - 11-12 02:24 UTC "Plan a detailed analysis where tokens went this week to be more efficient in the next week."
@@ -63,25 +63,27 @@ screened-through: 2026-11-12T04:29:58Z (bump to the newest user message recorded
 - 11-11 18:11 "Ensure good an detailed logging in all components"; anonymised report script, later paste bin + GH issue text (backlog L1)
 
 ## PM process
+- 11-12 04:32 UTC "Since we arrive on such points again and again, please try to ensure that you have a consistent understanding of our project goals, individual design decisions, the target groups, and the purpose each of the components have. You are the project lead, the project manager. You have to have a clear understanding what you are doing and why certain decisions are taken. If there is anything unclear or you don't know why you're doing something or what target you're working for, you are losing yourself. So try to realign and maintain a clear vision for this project. You are constantly losing context. We really need to improve this."
+  Reading: vision-card.md (goals, components, target groups, quality bar) is injected after every compaction and checked by self-check 7b.
 - Done and moved to answers.md: 11-12 01:29, 01:35, 01:41, 02:12 UTC; 11-11 11:43, 11-09 11:13 (sub-session checks, wake-ups, the reflection loop).
 - 11-12 02:43 UTC "Alright, I changed the auto compactation to 300K. Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that. Honestly, you need to get some kind of a stronger personality. Really push back when you see that certain task is useless or not necessary right now. We really need to prioritize and push this project forward, design in the interests of the project, and get better structured. This is something we want to address next week. Write down the report and the findings of the token usage profile. And we will start Saturday with a big reflection using Fable to really improve our setup and be very, very critical about the overall progress we had so far."
-  Reading: "plan" means a backlog entry, not running the work; the PM pushes back with reasons on tasks that are useless or not needed now, and prioritizes what moves the project forward; structure and priorities are next week's work; the token report is written (reports/token-analysis-week1.md); Saturday starts with a big, very critical Fable reflection on setup and progress. Auto-compaction is at 300k.
+  Reading: plan = backlog entry; push back on useless work; reflection Saturday on Fable (W2-1); reports/token-analysis-week1.md.
 - 11-12 02:13 UTC "Don't take my word for granted."
-  Reading: the user's suggestions are input, not orders to follow blindly; the PM weighs them against evidence and pushes back with reasons when they conflict (decisions stay verbatim; the PM's reading may disagree and says why).
+  Reading: weigh suggestions against evidence; push back with reasons.
 - 11-12 02:09 UTC "Establish regular routines triggered by time or certain conditions. Also, use a time trigger to regularly reflect on your work and ask you several questions like, am I still on track? Do I need new data to have new decisions? Do I need to run a cleanup? Do I need to run tests? Am I still aligned? Am I using time and resources efficiently? Do I need another reflection round? Be self-critical and try to be the best project manager and learn from your own faults."
-  Reading: routines.md lists time and condition routines; a 3-hourly self-check trigger asks these questions and logs answers and actions.
+  Reading: routines.md and the self-check trigger.
 - 11-11 23:59 Bkk "Reread the whole charter after compactation. ... The pm session hast to remain robust"
 - 11-12 00:27 Bkk "you did not pick up work after compactation" Reading: resume the first open item at once (pm-card step 4).
 - 11-12 00:30 Bkk "Keep note of all decition and read them after compacting. You are the pm. You must keep an overview"
 - 11-10 14:45 "Agreed, go with the hybrid" Reading: workers for heavy lanes and testers, merges only here; one persistent PM.
 - 11-11 17:48 UTC "Polish the ui ux towards perfection is the goal for this week. ... Mc shall rather include in the right margin where notifactions are shown anyway instead of stealing half the screan. Make tiling more exiting and "hyperland like" it shall stay hackable ... stunning visuals in each view all with their own design philosophy" (full text in answers.md)
-  Reading: polish toward perfection; a design agent per look; each look its own aesthetic.
+  Reading: polish toward perfection; each look its own aesthetic (vision-card.md).
 - 11-11 17:50 UTC "Not deciding anything now. You work autonomously until sat. ... take wise decitens. Self adapt to frictions and keep logging your progress."
   Reading: the PM decides taste until the user returns (overrides reflection 2 rule 4), each decision logged and reversible.
 - 11-11 17:53 UTC "Get you head around what each plugin shall deliver. Define clear requirements USPS and target groups for each. Be a wise leader and give clear instructions to your workforce."
-  Reading: the PM writes a product brief per plugin (what it delivers, requirements, USPs, target groups) and briefs every worker from it.
+  Reading: design/product-briefs.md; vision-card.md.
 - 11-11 17:54 UTC "Stay focused on our main targets and try to deliver the best results. You as aiming to words perfection"
-  Reading: focus on the main targets (polish of the four looks, RC requirements in design/product-briefs.md); quality over quantity; aim for perfection.
+  Reading: vision-card.md quality bar.
 
 ## Design
 - 11-12 04:29 UTC "from now on, install those assets, use them in all your tests and screenshots to really benchmark on the pixel perfect version, while regularly checking all fallbacks are also releasing acceptable results. Regarding the XP thing, still understanding as a opinionated theming or gimmick type of flavor, where the underlying mechanics, the stacking window manager, and the drawn widgets shall be available as a generalized API. So at a later point, we want to use this as the groundwork to, for example, mimic a Mac OS-like desktop experience or whatever the user wants. So XP is a showcase that is trying to impress and show as possible while still being a production-ready and helpful set of plugins and API that we can use to build on other kind of desktop experiences. So in this understanding, the taskbar and start menu shall become some kind of widgets, and it must be possible to replace those with a, for example, OS X like dock and a top taskbar or something completely different, as long as we stay in a stacking or floating window manager philosophy. Do you confirm and agree to this? And is this already noted down on the roadmap?"

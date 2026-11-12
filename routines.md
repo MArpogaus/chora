@@ -29,6 +29,8 @@ first and act on its flags; the questions cover what a script cannot see.
    question not answered?
 7. Cost: the PM's own spend since the last check (usage.py for the PM transcript), agents above
    250 k context, reviews that could be confirm-only; is the wake cadence still worth it?
+7b. Vision: can each running lane and queued item be traced to a line of vision-card.md
+    (goal, component purpose, target group)? If not, stop it or fix the card.
 8. User value: what would the user try first now, and is it in its best shape?
 9. Challenge: did I follow a user suggestion or an agent report without checking it; where do I
    disagree and did I say so?
