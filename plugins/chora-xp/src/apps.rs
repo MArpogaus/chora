@@ -66,7 +66,7 @@ fn group(entries: impl Iterator<Item = Entry>, terminal: &str) -> Vec<Node> {
             .map(|(_, name)| *name);
         let command = command(entry.exec, entry.terminal, terminal);
         let node = Node {
-            title: entry.name,
+            title: short_name(&entry.name),
             icon: entry.icon,
             kind: Kind::Run(command),
         };
@@ -93,6 +93,19 @@ fn group(entries: impl Iterator<Item = Entry>, terminal: &str) -> Vec<Node> {
     out
 }
 
+/// A name without its closing parenthesised part, such as the colour depth
+/// of `ImageMagick`: a menu row has no room for it.
+fn short_name(name: &str) -> String {
+    match name
+        .trim_end()
+        .strip_suffix(')')
+        .and_then(|n| n.rsplit_once(" ("))
+    {
+        Some((head, _)) if !head.trim().is_empty() => head.trim().into(),
+        _ => name.into(),
+    }
+}
+
 fn sort(nodes: &mut [Node]) {
     nodes.sort_by_cached_key(|n| n.title.to_lowercase());
 }
@@ -102,6 +115,14 @@ mod tests {
     use chora_kit::desktop_entry::Entry;
 
     use super::*;
+
+    #[test]
+    fn a_parenthesised_suffix_of_a_name_is_dropped() {
+        assert_eq!(short_name("ImageMagick (color depth=q16)"), "ImageMagick");
+        assert_eq!(short_name("Files (Thunar)"), "Files");
+        assert_eq!(short_name("(odd)"), "(odd)");
+        assert_eq!(short_name("Plain"), "Plain");
+    }
 
     #[test]
     fn programs_group_like_xp() {

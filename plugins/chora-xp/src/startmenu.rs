@@ -24,7 +24,7 @@ use crate::{
 };
 
 const WIDTH: i32 = 380;
-const HEADER: i32 = 66;
+const HEADER: i32 = 55;
 const FOOTER: i32 = 38;
 /// The frame around the columns.
 const FRAME: i32 = 2;
@@ -1126,23 +1126,32 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
 /// The header of the menu: XP's blue band with the picture of the user in
 /// a square tile of 48 pixels, a ring of 2 pixels white all round.
 fn header_art(theme: &Theme, face: Option<&Path>, height: i32) -> Picture {
-    let picture = Picture::new(WIDTH, height).element(
-        sheets::WINXP,
-        "startmenu-header",
-        [0, 0, WIDTH, height],
-    );
-    match face {
-        None => picture.file(&theme.path("winxp/user.svg"), [TILE_X, TILE_Y, TILE, TILE]),
-        Some(face) => picture
-            .file(face, [TILE_X + 2, TILE_Y + 2, TILE - 4, TILE - 4])
-            .svg(format!(
-                r##"<rect x="{}" y="{}" width="{}" height="{}" rx="4" fill="none" stroke="#ffffff" stroke-width="2"/>"##,
-                TILE_X + 1,
-                TILE_Y + 1,
-                TILE - 2,
-                TILE - 2
-            )),
-    }
+    let [x, y, t] = [TILE_X, TILE_Y, TILE];
+    let shadow = |d: i32, opacity: f64| {
+        format!(
+            r##"<rect x="{}" y="{}" width="{}" height="{}" rx="6" fill="#0a1f6a" fill-opacity="{opacity}"/>"##,
+            x + d - 2,
+            y + d - 1,
+            t + 2,
+            t + 2
+        )
+    };
+    let glyph = theme.path("winxp/user.svg");
+    Picture::new(WIDTH, height)
+        .element(sheets::WINXP, "startmenu-header", [0, 0, WIDTH, height])
+        .svg(format!(
+            r##"{}{}<rect x="{x}" y="{y}" width="{t}" height="{t}" rx="5" fill="#ffffff"/>"##,
+            shadow(2, 0.14),
+            shadow(1, 0.22)
+        ))
+        .file(face.unwrap_or(&glyph), [x + 2, y + 2, t - 4, t - 4])
+        .svg(format!(
+            r##"<rect x="{}" y="{}" width="{}" height="{}" rx="4" fill="none" stroke="#ffffff" stroke-width="2"/>"##,
+            x + 1,
+            y + 1,
+            t - 2,
+            t - 2
+        ))
 }
 
 /// The picture of an entry, normal or highlighted.
@@ -1289,7 +1298,7 @@ mod tests {
     #[test]
     fn the_user_tile_is_one_square_with_an_equal_ring_and_a_centred_figure() {
         let (mut theme, cache) = crate::sheets::tests::theme("tile");
-        let art = header_art(&theme, None, 57);
+        let art = header_art(&theme, None, 56);
         let image = crate::sheets::tests::draw(&mut theme, &art);
         let at = |x, y| crate::sheets::tests::rgb(&image, x, y);
         for y in 4..50 {
@@ -1437,6 +1446,41 @@ mod tests {
             "{} px",
             all.rect[1] - last
         );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_header_is_xps_54_pixels_and_a_rule_of_two() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-header");
+        assert_eq!(HEADER, 55);
+        assert_eq!(
+            theme.size(sheets::WINXP, "startmenu-header").unwrap()[1],
+            54 + 2
+        );
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(&with_programs(3), Vec::new(), &theme, &mut icons);
+        let first = menu.entries.iter().map(|e| e.rect[1]).min().unwrap();
+        assert!(first >= 54 + 2 + 4, "the first row starts at {first}");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_user_tile_stands_in_a_framed_picture_with_a_soft_shadow() {
+        let (mut theme, cache) = crate::sheets::tests::theme("tile-shadow");
+        let art = header_art(&theme, None, 56);
+        let image = crate::sheets::tests::draw(&mut theme, &art);
+        let at = |x, y| crate::sheets::tests::rgb(&image, x, y);
+        let (by, rx) = (TILE_Y + TILE + 1, TILE_X + TILE + 1);
+        let mid = TILE_Y + TILE / 2;
+        for (shade, band) in [
+            (at(TILE_X + TILE / 2, by), at(120, by)),
+            (at(rx, mid), at(120, mid)),
+        ] {
+            assert!(
+                shade.iter().zip(band).all(|(s, b)| *s < b) && !near(shade, WHITE),
+                "no soft shadow: {shade:?} against {band:?}"
+            );
+        }
         let _ = std::fs::remove_dir_all(cache);
     }
 

@@ -372,8 +372,8 @@ impl Fonts {
 
     /// The `<text>` element of a line, at `x` and moved down by `dy`. A
     /// window title draws without smoothing and with a thin stroke for its
-    /// weight, as XP does; a family without a bold face takes a thicker
-    /// stroke. A family without an italic face is sheared.
+    /// weight, as XP does, but none on the real Trebuchet MS Bold; a family
+    /// without a bold face takes a thicker stroke. A family without an italic face is sheared.
     fn element(&self, line: &str, text: &Text, [x, dy]: [f64; 2], color: [u8; 4]) -> String {
         let spec = self.spec(text.font);
         let [_, y, _, h] = text.rect;
@@ -406,7 +406,7 @@ impl Fonts {
         }
         let stroke = match (spec.faux_bold, title) {
             (true, _) => Some(0.6),
-            (false, true) => Some(0.3),
+            (false, true) => (spec.family != "Trebuchet MS").then_some(0.3),
             (false, false) => None,
         };
         if let Some(width) = stroke {
@@ -571,6 +571,30 @@ mod tests {
             .draw(&title, Transform::identity(), &mut pixmap.as_mut())
             .expect("the title parses");
         assert!(pixmap.pixels().iter().any(|p| p.alpha() > 0));
+    }
+
+    #[test]
+    fn the_title_is_the_real_trebuchet_bold_when_the_import_has_it() {
+        let Some(assets) = std::env::var_os("CHORA_XP_ASSETS") else {
+            return;
+        };
+        let mut db = Database::new();
+        db.load_fonts_dir(std::path::Path::new(&assets).join("fonts/WindowsXP"));
+        let fonts = Fonts::with(db, "Tahoma");
+        let title = fonts.spec(Font::Title);
+        assert_eq!(title.family, "Trebuchet MS");
+        assert!(!title.faux_bold, "the bold face must load, not be faked");
+        let line = Text::new("foot", Font::Title, [255, 255, 255, 255], [0, 0, 80, 20]);
+        let svg = fonts.element("foot", &line, [0.0, 0.0], line.color);
+        assert!(
+            !svg.contains("stroke"),
+            "a real bold face takes no stroke: {svg}"
+        );
+        let width = fonts.width("foot", Font::Title).expect("a width");
+        assert!(
+            (23.0..=25.5).contains(&width),
+            "foot is {width} px wide, trebucbd.ttf at 13 px makes 24.7"
+        );
     }
 
     /// Six pixels per character.
