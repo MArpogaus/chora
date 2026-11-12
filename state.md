@@ -26,10 +26,10 @@ Triggers: watchdog trig_01VxAcAFayNMtGiWDVuzJuRz hourly at :35; resume after res
 4. xp-v2: layout audit green, UI review 1 (taste and the look document only), fix round fresh, review 2 confirm-only, merge.
 5. tour-v3 screencast and 6 to 10 stills of the new looks onto the status page (user 11-12).
 6. Reflection round 2 (confirm-only on the applied changes, about 1 M units); stop when only LOW points come.
-6b. Delete stale claude/* branches on GitHub that are merged (user allowed it 11-09 11:33; list from git branch -r --merged); keep unmerged ones.
+6b. Stale merged branches: the PM's delete was refused by the permission check (2026-11-12); list and command in reports/stale-branches.md; low priority, for the user on return.
 7. Before the stop: week-1 report checked by the PM; Saturday briefs written below.
 Saturday 11-14 from 04:05 UTC (Fable): per-area code review of a03be22..HEAD (core and security paths first, read-only, then HIGH fixes); construct Host refactor so each cube face runs its own manager (D4); rc reflection loop on Fable. Sonnet: fix lanes by area; swarm 6 on the four v2 looks with launcher fixes (start tests/fake-voice.py, a notify-send stub, a fake loginctl running swaylock). Then flakes (core SIGSEGV tests under load), three greens in a row, CI draft PR, packaging smoke, persona round 4; rc 11-18 to 11-20.
 
 ## Blocked
 
-Nothing.
+- Deleting 46 merged claude/* branches on origin: refused by the permission check; reports/stale-branches.md.
