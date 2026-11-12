@@ -211,6 +211,13 @@ impl Session {
         self.text().matches('\n').count() + 1
     }
 
+    /// The line in an empty field of the margin column: the helper that it
+    /// writes to.
+    #[must_use]
+    pub fn write_to(&self, to: &str) -> String {
+        say(self.language, Word::WriteTo, &[("to", to)])
+    }
+
     /// The line in an empty field.
     #[must_use]
     pub fn placeholder(&self) -> Option<String> {

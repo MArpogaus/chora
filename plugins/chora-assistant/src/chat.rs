@@ -462,10 +462,15 @@ fn rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
     [r, g, b, 255]
 }
 
+/// The room left of the field in the margin column for the caret of an
+/// empty field: the surface is this much wider than the column.
+const FIELD_INSET: i32 = 6;
+
 /// The `place` line of the field for a frame, with the token if there is
-/// one: at the bottom of the view, as wide as the view.
+/// one: at the bottom of the view, as wide as the view; in the margin
+/// column with the name of the helper that it writes to.
 #[must_use]
-pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
+pub fn field_place_for(frame: &Frame, token: Option<&str>, to: Option<&str>) -> Value {
     if frame.look.style == chora_kit::hud::ChatStyle::Glass {
         return glass_field_place(frame, token);
     }
@@ -485,6 +490,13 @@ pub fn field_place(frame: &Frame, token: Option<&str>) -> Value {
             "hint": rgba(colours.name),
         },
     });
+    if frame.slot.is_some() {
+        let margin = place["margin"].as_array().and_then(|m| m[3].as_i64());
+        place["margin"][3] = json!(margin.unwrap_or(0) - i64::from(FIELD_INSET));
+        place["width"] = json!(w + FIELD_INSET);
+        place["scale"] = json!(frame.scale);
+        place["look"]["column"] = json!({"inset": FIELD_INSET, "to": to});
+    }
     if let Some(token) = token {
         place["token"] = token.into();
     }
@@ -736,9 +748,10 @@ impl Session {
             self.link = Some(out.start_field()?);
         }
         let waiting = self.waiting();
+        let to = self.helper().map(str::to_owned);
         if let Some(link) = self.link.as_mut() {
             link.question(waiting);
-            link.place(&field_place(frame, token));
+            link.place(&field_place_for(frame, token, to.as_deref()));
         }
         Ok(())
     }
@@ -823,8 +836,9 @@ impl Session {
         if !self.is_open() {
             return;
         }
+        let to = self.helper().map(str::to_owned);
         if let Some(link) = self.link.as_mut() {
-            link.place(&field_place(frame, None));
+            link.place(&field_place_for(frame, None, to.as_deref()));
         }
     }
 
@@ -1518,9 +1532,14 @@ mod tests {
         );
         frame.slot = Some([40, 400, 1200, 280]);
         assert_eq!(frame.rect(), [40, 400, 1200, 280]);
-        let place = field_place(&frame, None);
-        assert_eq!(place["width"], 1200);
-        assert_eq!(place["margin"], json!([0, 0, 40, 40]));
+        let place = field_place_for(&frame, None, Some("Atlas"));
+        assert_eq!(place["width"], 1206, "the inset of the caret on the left");
+        assert_eq!(place["margin"], json!([0, 0, 40, 34]));
+        assert_eq!(
+            place["scale"], frame.scale,
+            "sharp at the scale of the output"
+        );
+        assert_eq!(place["look"]["column"], json!({"inset": 6, "to": "Atlas"}));
     }
 
     #[test]
@@ -1531,7 +1550,7 @@ mod tests {
             ..Look::default()
         });
         frame.scale = 2;
-        let place = field_place(&frame, None);
+        let place = field_place_for(&frame, None, None);
         assert!(place.get("scale").is_none(), "the plain field paints at 1");
         assert_eq!(place["look"]["hint"], json!([110, 105, 99, 255]));
         assert_eq!(place["look"]["text"], json!([41, 38, 36, 255]));
@@ -1752,7 +1771,7 @@ mod tests {
     #[test]
     fn the_field_sits_at_the_bottom_of_the_view() {
         let frame = frame(Look::default());
-        let place = field_place(&frame, None);
+        let place = field_place_for(&frame, None, None);
         assert!(place.get("token").is_none());
         assert_eq!(
             view_rect(Anchor::Right, 400, [0, 0, 1280, 720]),

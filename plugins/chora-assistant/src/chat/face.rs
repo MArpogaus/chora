@@ -48,6 +48,16 @@ impl Face {
         i32::try_from((self.size * LEADING).div_ceil(100)).unwrap_or(i32::MAX)
     }
 
+    /// How far a line of text moves down so that its baseline stands
+    /// `baseline` below the top of a row of `row` pixels: it stands a
+    /// little low in a row on its own.
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation, reason = "a shift of a few pixels")]
+    pub fn lift(&self, baseline: i32, row: i32) -> i32 {
+        let own = f64::from(row) / 2.0 + f64::from(self.size) * 0.34;
+        (f64::from(baseline) - own).round() as i32
+    }
+
     /// The SVG element of a line of text whose row starts at `y`, `x` from
     /// the left, in a colour.
     #[must_use]

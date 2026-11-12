@@ -32,7 +32,7 @@ const FALLBACK_WIDTH: f32 = 8.0;
 const CARET: u32 = 2;
 
 /// The colors of the field, RGBA. A look gives values and nothing else.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Look {
     /// The ground.
@@ -46,7 +46,29 @@ pub struct Look {
     /// The glass of the construct HUD: the field is a well of 48 with
     /// Inter 16 and the focus ring of the accent while it has the keyboard.
     pub glass: Option<Glass>,
+    /// The field in the margin column of a client: no box, a hairline over
+    /// it, the face of the column on lines of its grid.
+    pub column: Option<Column>,
 }
+
+/// The field in the margin column of a client.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Column {
+    /// The helper that the field writes to, for its empty line.
+    #[serde(default)]
+    pub to: Option<String>,
+    /// The room left of the text for the caret of an empty field, in
+    /// logical pixels: the surface is this much wider than the column.
+    #[serde(default)]
+    pub inset: u32,
+}
+
+/// The line of the grid of the column and the face of its text.
+const COLUMN_LINE: u32 = 28;
+const COLUMN_FACE: &str = "Inter";
+/// The key that sends, at the right end of the first line of an empty field.
+const SEND_KEY: &str = "Enter";
 
 /// The colours of the focus ring of a glass field.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -76,6 +98,7 @@ impl Default for Look {
             border: [96, 104, 120, 255],
             hint: [160, 168, 182, 255],
             glass: None,
+            column: None,
         }
     }
 }
@@ -92,6 +115,8 @@ pub struct Layout {
     status: Vec<String>,
     /// The layout of a glass field.
     glass: bool,
+    /// The layout of a field in the margin column: its inset.
+    column: Option<u32>,
 }
 
 impl Layout {
@@ -113,6 +138,9 @@ impl Layout {
         if self.glass {
             return 2 * GLASS_INSET + 2 * GLASS_PAD_Y + rows.max(1) * GLASS_LINE;
         }
+        if self.column.is_some() {
+            return rows.max(1) * COLUMN_LINE;
+        }
         2 * PAD + rows.max(1) * LINE
     }
 }
@@ -120,7 +148,28 @@ impl Layout {
 /// Draws the field.
 pub struct Painter {
     fonts: Fonts,
-    widths: RefCell<HashMap<(char, bool), f32>>,
+    column: Fonts,
+    widths: RefCell<HashMap<(char, Face), f32>>,
+}
+
+/// Which face measures and draws the text of a field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Face {
+    Plain,
+    Glass,
+    Column,
+}
+
+impl Face {
+    fn of(look: &Look) -> Self {
+        if look.glass.is_some() {
+            Self::Glass
+        } else if look.column.is_some() {
+            Self::Column
+        } else {
+            Self::Plain
+        }
+    }
 }
 
 impl Painter {
@@ -129,60 +178,66 @@ impl Painter {
     pub fn new() -> Self {
         Self {
             fonts: Fonts::host(SANS_SERIF),
+            column: Fonts::host(COLUMN_FACE),
             widths: RefCell::new(HashMap::new()),
         }
     }
 
     /// The advance of a character.
-    fn advance(&self, c: char, glass: bool) -> f32 {
-        if let Some(&width) = self.widths.borrow().get(&(c, glass)) {
+    fn advance(&self, c: char, face: Face) -> f32 {
+        if let Some(&width) = self.widths.borrow().get(&(c, face)) {
             return width;
         }
-        let measure = |line: &str| {
-            if glass {
-                self.fonts
-                    .svg_width(&glass_text(line, [0.0, 0.0], [0, 0, 0, 255]))
-            } else {
-                self.fonts.width(line, Font::Body)
-            }
+        let measure = |line: &str| match face {
+            Face::Glass => self
+                .fonts
+                .svg_width(&glass_text(line, [0.0, 0.0], [0, 0, 0, 255])),
+            Face::Column => self.column.width(line, Font::Body),
+            Face::Plain => self.fonts.width(line, Font::Body),
         };
         let width = match (measure(&format!("|{c}|")), measure("||")) {
             (Some(with), Some(without)) => (with - without) as f32,
             _ => FALLBACK_WIDTH,
         };
-        self.widths.borrow_mut().insert((c, glass), width);
+        self.widths.borrow_mut().insert((c, face), width);
         width
     }
 
-    fn width_of(&self, text: &str, glass: bool) -> f32 {
-        text.chars().map(|c| self.advance(c, glass)).sum()
+    fn width_of(&self, text: &str, face: Face) -> f32 {
+        text.chars().map(|c| self.advance(c, face)).sum()
     }
 
     /// The layout of a draft in a field of `width` pixels.
     #[must_use]
     pub fn layout(&self, session: &Session, width: u32, look: &Look) -> Layout {
-        let glass = look.glass.is_some();
-        let pad = if glass {
-            GLASS_INSET + GLASS_PAD_X
-        } else {
-            PAD
+        let face = Face::of(look);
+        let glass = face == Face::Glass;
+        let column = look.column.as_ref();
+        let pad = match face {
+            Face::Glass => GLASS_INSET + GLASS_PAD_X,
+            Face::Column => column.map_or(0, |c| c.inset),
+            Face::Plain => PAD,
         };
         let inner = width.saturating_sub(2 * pad) as f32;
-        let advance = |c| self.advance(c, glass);
+        let advance = |c| self.advance(c, face);
         let before = session.before_cursor();
         let whole = format!("{before}{}", session.after_cursor());
         let lines = wrap(&whole, inner, advance);
         let caret_lines = wrap(&before, inner, advance);
         let caret_line = caret_lines.len().saturating_sub(1).min(lines.len() - 1);
         let first = (caret_line + 1).saturating_sub(MAX_LINES);
-        let caret_x = self.caret_x(&before, caret_lines.last(), glass);
+        let caret_x = self.caret_x(&before, caret_lines.last(), face);
         let status = session
             .status()
             .map(|s| wrap(&s, inner, advance))
             .unwrap_or_default();
         let status = status.into_iter().take(MAX_STATUS).collect();
         let mut shown: Vec<String> = lines.into_iter().skip(first).take(MAX_LINES).collect();
-        let placeholder = session.placeholder();
+        let to = column.and_then(|c| c.to.as_deref());
+        let placeholder = to
+            .filter(|_| session.placeholder().is_some())
+            .map(|to| session.write_to(to))
+            .or_else(|| session.placeholder());
         if let Some(text) = &placeholder {
             shown = vec![text.clone()];
         }
@@ -192,10 +247,11 @@ impl Painter {
             caret: Some((caret_line - first, caret_x)),
             status,
             glass,
+            column: column.map(|c| c.inset),
         }
     }
 
-    fn caret_x(&self, before: &str, last: Option<&String>, glass: bool) -> f32 {
+    fn caret_x(&self, before: &str, last: Option<&String>, face: Face) -> f32 {
         let line = last.map_or("", String::as_str);
         let trailing = before.chars().rev().take_while(|c| *c == ' ').count();
         let trimmed = line.trim_end_matches(' ');
@@ -204,7 +260,7 @@ impl Painter {
         } else {
             0
         };
-        self.width_of(line, glass) + self.advance(' ', glass) * spaces as f32
+        self.width_of(line, face) + self.advance(' ', face) * spaces as f32
     }
 
     /// The pixels of the field in `width` by the height of the layout, as
@@ -220,6 +276,9 @@ impl Painter {
     ) -> Vec<u8> {
         if let Some(glass) = &look.glass {
             return self.paint_glass(layout, (look, glass), (width, scale), focused);
+        }
+        if layout.column.is_some() {
+            return self.paint_column(layout, look, (width, scale), focused);
         }
         let height = layout.height();
         let Some(mut pixmap) = Pixmap::new(width.max(1), height.max(1)) else {
@@ -255,6 +314,77 @@ impl Painter {
             fill(&mut pixmap, [left, top, CARET, LINE - 4], look.text);
         }
         bgra(pixmap.data())
+    }
+
+    /// The pixels of a field in the margin column at `scale`: no box, a
+    /// hairline on the top, the text of the column on its lines of 28, and
+    /// the key that sends at the right end of the first line while the
+    /// field is empty.
+    fn paint_column(
+        &self,
+        layout: &Layout,
+        look: &Look,
+        (width, scale): (u32, u32),
+        focused: bool,
+    ) -> Vec<u8> {
+        let (height, scale) = (layout.height(), scale.max(1));
+        let inset = layout.column.unwrap_or(0);
+        let Some(mut pixmap) = Pixmap::new(width.max(1) * scale, height.max(1) * scale) else {
+            return Vec::new();
+        };
+        pixmap.fill(color(look.background));
+        let zoom = scale as f32;
+        let at = Transform::from_scale(zoom, zoom);
+        let rule = [inset, 0, width.saturating_sub(inset), 1].map(|v| v as f32 * zoom);
+        fill_f(&mut pixmap, rule, look.border);
+        let text_color = if layout.placeholder {
+            look.hint
+        } else {
+            look.text
+        };
+        let rows = layout.lines.iter().map(|l| (l, text_color));
+        let status = layout.status.iter().map(|l| (l, look.hint));
+        for (row, (line, ink)) in rows.chain(status).enumerate() {
+            let top = u32::try_from(row).unwrap_or(0) * COLUMN_LINE;
+            let rect = [inset, top, width.saturating_sub(inset), COLUMN_LINE]
+                .map(|v| i32::try_from(v).unwrap_or(0));
+            self.column_line(&mut pixmap, line, (rect, at), ink);
+        }
+        let room = width.saturating_sub(inset) as f32;
+        let first = layout
+            .lines
+            .first()
+            .map_or(0.0, |l| self.width_of(l, Face::Column));
+        let key = self.width_of(SEND_KEY, Face::Column);
+        if layout.placeholder || first + key + 14.0 < room {
+            let left = (width as f32 - key).max(0.0) as i32;
+            let rect = [left, 0, key.ceil() as i32 + 1, 28];
+            self.column_line(&mut pixmap, SEND_KEY, (rect, at), look.hint);
+        }
+        if let (true, Some((row, x))) = (focused, layout.caret) {
+            let top = u32::try_from(row).unwrap_or(0) * COLUMN_LINE + 6;
+            let left = if layout.placeholder {
+                inset.saturating_sub(2 * CARET) as f32
+            } else {
+                inset as f32 + x.round()
+            };
+            let caret = [left, top as f32, CARET as f32, 17.0].map(|v| v * zoom);
+            fill_f(&mut pixmap, caret, look.text);
+        }
+        bgra(pixmap.data())
+    }
+
+    fn column_line(
+        &self,
+        pixmap: &mut Pixmap,
+        line: &str,
+        (rect, at): ([i32; 4], Transform),
+        color: [u8; 4],
+    ) {
+        let text = Text::new(line, Font::Body, color, rect);
+        if let Err(error) = self.column.draw(&text, at, &mut pixmap.as_mut()) {
+            eprintln!("chora-chat: {error}");
+        }
     }
 
     /// The pixels of a glass field at `scale`: the well, the text in
@@ -402,6 +532,15 @@ fn color([r, g, b, a]: [u8; 4]) -> Color {
     Color::from_rgba8(r, g, b, a)
 }
 
+fn fill_f(pixmap: &mut Pixmap, [x, y, w, h]: [f32; 4], rgba: [u8; 4]) {
+    let Some(rect) = Rect::from_xywh(x, y, w, h) else {
+        return;
+    };
+    let mut paint = Paint::default();
+    paint.set_color(color(rgba));
+    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+}
+
 fn fill(pixmap: &mut Pixmap, [x, y, w, h]: [u32; 4], rgba: [u8; 4]) {
     let Some(rect) = Rect::from_xywh(x as f32, y as f32, w as f32, h as f32) else {
         return;
@@ -488,5 +627,96 @@ mod tests {
         assert!(painter.fonts.size(Font::Body) >= 14);
         let pixels = painter.paint(&layout, &Look::default(), (300, 1), true);
         assert_eq!(pixels.len(), 300 * layout.height() as usize * 4);
+    }
+
+    fn column_look() -> Look {
+        Look {
+            background: [255, 255, 255, 255],
+            text: [0, 0, 0, 255],
+            border: [200, 0, 0, 255],
+            hint: [0, 0, 200, 255],
+            glass: None,
+            column: Some(Column {
+                to: Some("Atlas".into()),
+                inset: 6,
+            }),
+        }
+    }
+
+    /// The columns and rows of ink of a layer: the pixels that are not the ground.
+    fn ink(pixels: &[u8], width: usize, rows: std::ops::Range<usize>) -> Vec<(usize, usize)> {
+        let mut found = Vec::new();
+        for y in rows {
+            for x in 0..width {
+                let p = &pixels[(y * width + x) * 4..][..4];
+                if p[..3] != [255, 255, 255] && p[3] != 0 {
+                    found.push((x, y));
+                }
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn a_field_in_the_column_is_lines_of_the_grid_without_a_box_and_sharp_at_two() {
+        let painter = Painter::new();
+        let look = column_look();
+        let layout = painter.layout(&Session::new(Language::En), 336, &look);
+        assert_eq!(layout.height(), 28, "one line of the grid of 28");
+        for scale in [1usize, 2] {
+            let pixels = painter.paint(&layout, &look, (336, scale as u32), false);
+            assert_eq!(
+                pixels.len(),
+                336 * 28 * scale * scale * 4,
+                "a buffer at the scale"
+            );
+            no_box_and_a_hairline(&pixels, scale);
+            text_in_place(&pixels, scale);
+        }
+    }
+
+    fn no_box_and_a_hairline(pixels: &[u8], scale: usize) {
+        let (width, height) = (336 * scale, 28 * scale);
+        let at = |x: usize, y: usize| pixels[(y * width + x) * 4..][..3].to_vec();
+        assert_eq!(at(0, height / 2), [255; 3], "no box on the left");
+        assert_eq!(at(width - 1, height / 2), [255; 3], "no box on the right");
+        assert_ne!(at(width / 2, 0), [255; 3], "a hairline on the top");
+        assert_eq!(at(width / 2, scale), [255; 3], "and nothing under it");
+    }
+
+    fn text_in_place(pixels: &[u8], scale: usize) {
+        let (width, height) = (336 * scale, 28 * scale);
+        let ink = ink(pixels, width, scale..height);
+        let left = ink.iter().map(|p| p.0).min().unwrap();
+        assert!(
+            (6 * scale..=8 * scale).contains(&left),
+            "the text starts at the inset 6, not at {left} of {scale}"
+        );
+        let right = ink.iter().map(|p| p.0).max().unwrap();
+        assert!(
+            right + 2 * scale >= width,
+            "Enter ends at the edge, at {right} of {width}"
+        );
+        let baseline = ink.iter().map(|p| p.1).max().unwrap() + 1;
+        assert!(
+            baseline.abs_diff(19 * scale) <= scale,
+            "the baseline is {baseline}"
+        );
+    }
+
+    #[test]
+    fn the_lines_of_a_field_in_the_column_start_at_one_inset() {
+        let painter = Painter::new();
+        let look = column_look();
+        let mut session = Session::new(Language::En);
+        session.key(Key::Text("word".into()));
+        session.set_waiting(true);
+        let layout = painter.layout(&session, 336, &look);
+        assert_eq!(layout.height(), 56);
+        let pixels = painter.paint(&layout, &look, (336, 1), false);
+        let rows =
+            |r: std::ops::Range<usize>| ink(&pixels, 336, r).iter().map(|p| p.0).min().unwrap();
+        let (first, second) = (rows(2..28), rows(30..56));
+        assert!(first.abs_diff(second) <= 1, "{first} and {second}");
     }
 }

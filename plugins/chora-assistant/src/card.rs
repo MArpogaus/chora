@@ -254,6 +254,12 @@ const MONO: &str = "DejaVu Sans Mono, Liberation Mono, monospace";
 const PAGE_SIZE: u32 = 14;
 const PAGE_WEIGHT: u32 = 500;
 const PAGE_PAD: i32 = 14;
+/// The row of a line of the card in a page: a line of the grid of 28, with
+/// the baseline 19 below its top.
+const PAGE_ROW: i32 = 28;
+/// The room under the buttons of a card in a page, so that its height is
+/// whole lines of the grid.
+const PAGE_BOTTOM: i32 = 24;
 
 /// How a line of the card in a page is set.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -269,12 +275,12 @@ enum Set {
 fn element(set: Set, face: &Face, text: &str, [x, y]: [i32; 2], rgb: [u8; 3]) -> String {
     let [red, green, blue] = rgb;
     let (family, weight) = match set {
-        Set::Prompt => return face.element(text, [x, y], rgb),
+        Set::Prompt => return face.element(text, [x, y - 1], rgb),
         Set::Detail => (MONO, 400),
         Set::Title | Set::Keys => (SANS, PAGE_WEIGHT),
         Set::Note => (SANS, 400),
     };
-    let baseline = f64::from(y) + f64::from(LINE) / 2.0 + f64::from(PAGE_SIZE) * 0.34;
+    let baseline = f64::from(y) + f64::from(PAGE_ROW) / 2.0 + f64::from(PAGE_SIZE) * 0.34;
     format!(
         r#"<text x="{x}" y="{baseline:.2}" font-family="{family}" font-weight="{weight}" font-size="{PAGE_SIZE}" fill="rgb({red},{green},{blue})" xml:space="preserve">{}</text>"#,
         escape(text)
@@ -316,7 +322,7 @@ fn page_height(face: &Face, rows: &[(Set, String)]) -> i32 {
             if *set == Set::Prompt {
                 face.line()
             } else {
-                LINE
+                PAGE_ROW
             }
         })
         .sum()
@@ -359,11 +365,17 @@ fn page_body(
         y += if *set == Set::Prompt {
             face.line()
         } else {
-            LINE
+            PAGE_ROW
         };
     }
     for (n, line) in (0..).zip(notice) {
-        body += &element(Set::Note, face, line, [PAGE_PAD, note_at + n * LINE], muted);
+        body += &element(
+            Set::Note,
+            face,
+            line,
+            [PAGE_PAD, note_at + n * PAGE_ROW],
+            muted,
+        );
     }
     body
 }
@@ -385,13 +397,17 @@ fn page_layout(
     let notice = wrap(injected, inner, |line| {
         theme.svg_width(&element(Set::Note, &face, line, [0, 0], [0; 3]))
     });
-    let notice_room = i32::try_from(notice.len()).unwrap_or(0) * LINE;
-    let below = PAGE_PAD + BUTTON[1] + if shown.notice { notice_room } else { 0 };
-    let most = screen[1] * 8 / 10 - 2 * PAGE_PAD - below;
+    let notice_room = i32::try_from(notice.len()).unwrap_or(0) * PAGE_ROW;
+    let below = PAGE_PAD + BUTTON[1] + PAGE_BOTTOM + if shown.notice { notice_room } else { 0 };
+    let most = screen[1] * 8 / 10 - PAGE_PAD - below;
     let (rows, too_long) = page_content(theme, shown, language, (&face, inner, most));
     let buttons_shown = shown.buttons && !too_long;
     let content = page_height(&face, &rows);
-    let height = 2 * PAGE_PAD + content + if buttons_shown { below } else { 0 };
+    let height = if buttons_shown {
+        PAGE_PAD + content + below
+    } else {
+        2 * PAGE_PAD + content
+    };
     let top = PAGE_PAD + content + PAGE_PAD;
     let noted = buttons_shown && shown.notice;
     let shown_notice: &[String] = if noted { &notice } else { &[] };
@@ -948,7 +964,7 @@ mod tests {
         let theme = theme(&cache, "sans-serif").unwrap();
         let mut card = shown(&notes(), Instant::now());
         card.ink = Ink::page([247, 245, 237], [41, 38, 36], [110, 105, 99]);
-        card.face = Some(Face::serif(18));
+        card.face = Some(Face::serif(19));
         card.max_width = Some(336);
         let laid = layout(&theme, &card, Language::En, [1280, 800]);
         let bodies: String = laid
@@ -974,7 +990,12 @@ mod tests {
             laid.text
         );
         let [yes, _] = laid.buttons.expect("buttons");
-        assert_eq!(laid.picture.size[1], yes[1] + BUTTON[1] + PAGE_PAD);
+        assert_eq!(laid.picture.size[1], yes[1] + BUTTON[1] + PAGE_BOTTOM);
+        assert_eq!(
+            laid.picture.size[1] % PAGE_ROW,
+            0,
+            "whole lines of the grid, so that its text stands on the baselines of the column"
+        );
         let _ = std::fs::remove_dir_all(cache);
     }
 

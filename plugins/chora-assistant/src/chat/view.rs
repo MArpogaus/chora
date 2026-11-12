@@ -47,8 +47,18 @@ const BUTTON: [i32; 2] = [88, 28];
 /// The height of a row of the list of helpers in the margin of a client:
 /// a line of its grid.
 const MARGIN_ROW: i32 = 28;
-/// The room of the number of a row of the list.
-const NUMBER_ROOM: i32 = 22;
+/// The room of the number of a row of the list: the label column of mc.
+#[allow(clippy::cast_possible_truncation, reason = "a width of a few pixels")]
+const NUMBER_ROOM: i32 = chora_kit::hud::LABEL_COLUMN as i32;
+/// How far below the top of a line of the grid the baseline stands.
+const MARGIN_BASELINE: i32 = 19;
+/// The label of the button that closes the chat, which mc sets at the
+/// right end of the head of the chat; Stop stands left of it.
+const CLOSE_LABEL: &str = "Esc  Close";
+/// The space between Stop and that label.
+const STOP_GAP: i32 = 14;
+/// Half a line of the grid: the gap between a card and the hint under it.
+const HALF_ROW: i32 = MARGIN_ROW / 2;
 const INDENT: i32 = 12;
 const MAX_META: usize = 4000;
 
@@ -79,7 +89,11 @@ pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
     }
     let [ax, ay, aw, ah] = frame.area;
     let left = x + w - card_inset(frame) - size[0];
-    let top = y + h - field_room(frame) - LINE - 2 * GAP - size[1];
+    let top = if in_margin(frame) {
+        y + h - field_room(frame) - MARGIN_ROW - HALF_ROW - size[1]
+    } else {
+        y + h - field_room(frame) - LINE - 2 * GAP - size[1]
+    };
     [
         left.clamp(ax, (ax + aw - size[0]).max(ax)),
         top.clamp(ay, (ay + ah - size[1]).max(ay)),
@@ -95,7 +109,8 @@ fn card_inset(frame: &Frame) -> i32 {
 /// The room at the bottom of the view that the field takes, with its
 /// inset in a balloon and a gap above it.
 fn field_room(frame: &Frame) -> i32 {
-    frame.field + card_inset(frame) + GAP
+    let gap = if in_margin(frame) { 0 } else { GAP };
+    frame.field + card_inset(frame) + gap
 }
 
 /// The widest card inside the view.
@@ -405,26 +420,39 @@ fn measured<'a>(theme: &'a Theme, face: Option<&'a Face>) -> impl Fn(char) -> f3
 
 /// How many of `rows` rows from `start` on the output end above the card
 /// at `card_top`, with a gap: the newest stay.
-fn rows_above(card_top: Option<i32>, start: i32, (rows, row_h): (usize, i32)) -> usize {
+fn rows_above(card_top: Option<i32>, start: i32, (rows, row_h): (usize, i32), gap: i32) -> usize {
     let Some(top) = card_top else {
         return rows;
     };
-    let fit = (top - GAP - start).max(0) / row_h;
+    let fit = (top - gap - start).max(0) / row_h;
     rows.min(usize::try_from(fit).unwrap_or(0))
 }
 
 /// The top of a hint of `lines` lines above the field in a view `h` high: a
 /// gap above the room that the field takes.
-fn hint_top(h: i32, field_room: i32, lines: i32) -> i32 {
-    h - field_room - lines * LINE - GAP
+fn hint_top(h: i32, field_room: i32, lines: i32, (row, gap): (i32, i32)) -> i32 {
+    h - field_room - lines * row - gap
 }
 
 /// The room that a hint takes above the field, with its gap.
-fn hint_room(hint: &[String]) -> i32 {
+fn hint_room(hint: &[String], (row, gap): (i32, i32)) -> i32 {
     if hint.is_empty() {
         return 0;
     }
-    i32::try_from(hint.len()).unwrap_or(1) * LINE + GAP
+    i32::try_from(hint.len()).unwrap_or(1) * row + gap
+}
+
+/// Where Stop stands in the margin column: on the head line of the chat,
+/// which is the line above the box of the view, left of `Esc  Close`,
+/// which is `close` wide and ends at the edge of the column `w` wide.
+fn stop_at(w: i32, close: i32, width: i32) -> [i32; 2] {
+    [w - close - STOP_GAP - width, -MARGIN_ROW]
+}
+
+/// The height of a line of a hint and the gap above it: a line of the grid
+/// and no gap in the margin column.
+fn hint_lines_of(margin: bool) -> (i32, i32) {
+    if margin { (MARGIN_ROW, 0) } else { (LINE, GAP) }
 }
 
 /// The lines of a hint: it wraps at its words and is never cut.
@@ -446,6 +474,18 @@ fn fitted(frame: &Frame, [x, y, w, h]: [i32; 4], content: i32) -> [i32; 4] {
 }
 
 impl Session {
+    /// The room under the rows: the field, the hint and the card, each
+    /// with its gap, which is half a line above the card in the margin.
+    fn room_below(&self, frame: &Frame, hint: &[String]) -> i32 {
+        let margin = in_margin(frame);
+        let card = match self.card_room() {
+            0 => 0,
+            room if margin => room - GAP + HALF_ROW,
+            room => room,
+        };
+        field_room(frame) + hint_room(hint, hint_lines_of(margin)) + card
+    }
+
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
         let rect = frame.rect();
@@ -465,13 +505,9 @@ impl Session {
             .unwrap_or_default();
         let list = self.entries(language);
         let buttons = buttons(&self.mode, margin);
-        let top_row = if margin { PAD } else { PAD + LINE + GAP };
-        let body_top = match (margin, buttons.is_empty()) {
-            (true, true) => PAD,
-            (true, false) => PAD + LINE + GAP,
-            (false, _) => top_row + BUTTON[1] + GAP,
-        };
-        let below = field_room(frame) + hint_room(&hint) + self.card_room();
+        let top_row = if margin { 0 } else { PAD + LINE + GAP };
+        let body_top = if margin { 0 } else { top_row + BUTTON[1] + GAP };
+        let below = self.room_below(frame, &hint);
         let listed = list_row(margin) * i32::try_from(list.len()).unwrap_or(0);
         let room = usize::try_from((rect[3] - body_top - listed - below) / row_h).unwrap_or(0);
         let mut rows = rows_of(&lines, colours);
@@ -479,10 +515,12 @@ impl Session {
         let content =
             body_top + listed + row_h * i32::try_from(rows.len()).unwrap_or(0) + GAP + below;
         let rect = fitted(frame, rect, content);
+        let gap = if margin { HALF_ROW } else { GAP };
         let above = rows_above(
             self.card_top(),
             rect[1] + body_top + listed,
             (rows.len(), row_h),
+            gap,
         );
         keep_newest(&mut rows, above);
         Parts {
@@ -599,13 +637,13 @@ fn page_shape([w, h]: [i32; 2], colours: Colours) -> String {
 fn link(theme: &mut Theme, label: &str, colours: Colours) -> (String, [i32; 2]) {
     #[allow(clippy::cast_possible_truncation, reason = "a width of a few pixels")]
     let w = theme.text_width(label, Font::Body).ceil() as i32;
-    let picture = Picture::new(w, LINE).text(Text::new(
+    let picture = Picture::new(w, MARGIN_ROW).text(Text::new(
         label,
         Font::Body,
         rgba(colours.name),
-        [0, 0, w, LINE],
+        [0, 0, w, MARGIN_ROW],
     ));
-    (theme.render(&picture), [w, LINE])
+    (theme.render(&picture), [w, MARGIN_ROW])
 }
 
 /// The outline of the view: glass, or a box, with a tail at the figure
@@ -631,6 +669,11 @@ fn rows_picture(mut picture: Picture, parts: &Parts, w: i32) -> Picture {
         let y = below_list + n * parts.row_h;
         let face = parts.face.as_ref().filter(|_| row.read);
         picture = if let Some(face) = face {
+            let y = if parts.margin {
+                y + face.lift(MARGIN_BASELINE, parts.row_h)
+            } else {
+                y
+            };
             picture.svg(face.element(&row.text, [parts.inset + row.indent, y], row.colour))
         } else {
             let at = [
@@ -720,19 +763,23 @@ fn panel(theme: &mut Theme, frame: &Frame, parts: &Parts, colours: Colours) -> V
 fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language) -> Vec<Command> {
     let [_, _, w, h] = parts.rect;
     let mut commands = Vec::new();
+    let (hint_row, hint_gap) = hint_lines_of(parts.margin);
     if !parts.hint.is_empty() {
         let lines = i32::try_from(parts.hint.len()).unwrap_or(1);
-        let size = [w - 2 * parts.inset, lines * LINE];
+        let size = [w - 2 * parts.inset, lines * hint_row];
         let mut picture = Picture::new(size[0], size[1]);
         for (n, line) in (0..).zip(&parts.hint) {
-            let at = [0, n * LINE, size[0], LINE];
+            let at = [0, n * hint_row, size[0], hint_row];
             picture = picture.text(Text::new(line, Font::Body, rgba(colours.text), at));
         }
         let path = theme.render(&picture);
-        let at = [parts.inset, hint_top(h, parts.field_room, lines)];
+        let top = hint_top(h, parts.field_room, lines, (hint_row, hint_gap));
         let text = parts.hint.join(" ");
+        let at = [parts.inset, top];
         commands.push(create(HINT, VIEW, image(path, at, &text, InputMode::Pass)));
     }
+    #[allow(clippy::cast_possible_truncation, reason = "a width of a few pixels")]
+    let close = theme.text_width(CLOSE_LABEL, Font::Body).ceil() as i32;
     for (n, (id, word)) in (0..).zip(parts.buttons) {
         if *id == STOP && !parts.running {
             continue;
@@ -740,14 +787,15 @@ fn extras(theme: &mut Theme, parts: &Parts, colours: Colours, language: Language
         let label = word.text(language);
         let (path, at) = if parts.margin {
             let (path, [width, _]) = link(theme, label, colours);
-            (path, [w - width, parts.top_row])
+            (path, stop_at(w, close, width))
         } else {
             let at = [PAD + n * (BUTTON[0] + GAP), parts.top_row];
             (button(theme, label, colours), at)
         };
         commands.push(create(id, VIEW, image(path, at, label, InputMode::Accept)));
         commands.push(if parts.margin {
-            bar(id, VIEW, at, colours.text)
+            let rest = (MARGIN_ROW - MARK[1]) / 2;
+            bar(id, VIEW, [at[0], at[1] + rest], colours.text)
         } else {
             frame(id, VIEW, (at, BUTTON), colours.text)
         });
@@ -911,14 +959,33 @@ mod tests {
 
     #[test]
     fn the_rows_end_above_the_card_where_it_stands() {
-        assert_eq!(rows_above(None, 100, (10, LINE)), 10, "no card");
-        assert_eq!(rows_above(Some(100 + 3 * LINE + GAP), 100, (10, LINE)), 3);
+        assert_eq!(rows_above(None, 100, (10, LINE), GAP), 10, "no card");
         assert_eq!(
-            rows_above(Some(100 + 3 * LINE + GAP - 1), 100, (10, LINE)),
+            rows_above(Some(100 + 3 * LINE + GAP), 100, (10, LINE), GAP),
+            3
+        );
+        assert_eq!(
+            rows_above(Some(100 + 3 * LINE + GAP - 1), 100, (10, LINE), GAP),
             2,
             "no half row"
         );
-        assert_eq!(rows_above(Some(50), 100, (10, LINE)), 0);
+        assert_eq!(rows_above(Some(50), 100, (10, LINE), GAP), 0);
+    }
+
+    #[test]
+    fn stop_stands_on_the_head_line_left_of_close_and_the_hint_on_the_grid() {
+        let [x, y] = stop_at(336, 70, 30);
+        assert_eq!(y, -MARGIN_ROW, "the line of the head, 28 above the box");
+        assert_eq!(x + 30 + STOP_GAP + 70, 336, "it ends before Esc Close");
+        for lines in 1..4 {
+            let at = hint_top(756, 28, lines, hint_lines_of(true));
+            assert_eq!(
+                at % MARGIN_ROW,
+                0,
+                "{lines} lines start on a line of the grid"
+            );
+        }
+        assert_eq!(hint_room(&["a".into()], hint_lines_of(true)), MARGIN_ROW);
     }
 
     #[test]
@@ -940,11 +1007,8 @@ mod tests {
                 card: None,
             };
             let h = frame.rect()[3];
-            let end = hint_top(h, field_room(&frame), 1) + LINE;
-            assert!(
-                end + GAP <= h - field,
-                "{end} meets the field of {field} in {h}"
-            );
+            let end = hint_top(h, field_room(&frame), 1, hint_lines_of(true)) + MARGIN_ROW;
+            assert!(end <= h - field, "{end} meets the field of {field} in {h}");
         }
     }
 
