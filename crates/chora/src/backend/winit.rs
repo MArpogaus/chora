@@ -8,7 +8,7 @@ use smithay::{
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
     desktop::layer_map_for_output,
-    output::{Mode, Output, OutputModeSource, PhysicalProperties, Subpixel},
+    output::{Mode, Output, OutputModeSource, PhysicalProperties, Scale, Subpixel},
     reexports::wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
     utils::{Physical, Size, Transform},
     wayland::{dmabuf::DmabufFeedbackBuilder, presentation::Refresh},
@@ -36,6 +36,8 @@ pub struct Winit {
     damage_tracker: OutputDamageTracker,
     /// The one output: the window.
     output: Output,
+    /// The scale factor of the host that the output followed last.
+    host_scale: f64,
 }
 
 /// Opens the window, creates its output and starts the render loop.
@@ -85,6 +87,7 @@ pub fn init(state: &mut State, command: &[String]) -> Result<(), Box<dyn std::er
         graphics,
         damage_tracker: OutputDamageTracker::from_mode_source(window_mode(&output)),
         output: output.clone(),
+        host_scale: 1.0,
     })));
     state.add_output(output);
     take_host_keymap(state);
@@ -114,9 +117,18 @@ fn take_host_keymap(state: &mut State) {
 
 fn handle(state: &mut State, event: WinitEvent) {
     match event {
-        WinitEvent::Resized { size, .. } => {
-            if let Some(backend) = winit(state) {
+        WinitEvent::Resized { size, scale_factor } => {
+            if let Some(Backend::Winit(backend)) = &mut state.backend {
                 resize(&backend.output, size);
+                if let Some(scale) = scale_change(backend.host_scale, scale_factor) {
+                    backend.host_scale = scale;
+                    backend.output.change_current_state(
+                        None,
+                        None,
+                        Some(Scale::Fractional(scale)),
+                        None,
+                    );
+                }
             }
             state.output_changed();
         }
@@ -128,6 +140,12 @@ fn handle(state: &mut State, event: WinitEvent) {
         WinitEvent::Focus(false) => crate::input::release_keys(state),
         WinitEvent::Focus(true) => {}
     }
+}
+
+/// The new scale of the output when the host changed the scale of the
+/// window, so that `chora` in a high-DPI session draws at its scale.
+fn scale_change(known: f64, now: f64) -> Option<f64> {
+    ((now - known).abs() > 1e-6 && now >= 1.0).then_some(now)
 }
 
 /// Gives the output the size of the window as its one mode, so that output
@@ -352,7 +370,15 @@ fn winit(state: &State) -> Option<&Winit> {
 
 #[cfg(test)]
 mod tests {
-    use super::title;
+    use super::{scale_change, title};
+
+    #[test]
+    fn a_new_host_scale_becomes_the_scale_of_the_output() {
+        assert_eq!(scale_change(1.0, 2.0), Some(2.0));
+        assert_eq!(scale_change(2.0, 2.0), None);
+        assert_eq!(scale_change(2.0, 1.0), Some(1.0));
+        assert_eq!(scale_change(1.0, 0.0), None);
+    }
 
     #[test]
     fn the_window_title_names_the_startup_program_or_the_socket() {

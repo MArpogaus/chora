@@ -4,13 +4,27 @@
 
 use std::{ffi::OsString, path::PathBuf};
 
-/// The XDG data directories: the data home first, then `$XDG_DATA_DIRS`.
+/// The folder of imported XP assets, laid out like a data directory
+/// (`icons/WindowsXP`, `fonts/WindowsXP`, `wallpapers/WindowsXP`, and
+/// `start-mark.png`): `$CHORA_XP_ASSETS`, when it is an absolute path.
+#[must_use]
+pub fn xp_assets() -> Option<PathBuf> {
+    assets_of(std::env::var_os("CHORA_XP_ASSETS"))
+}
+
+/// The XDG data directories: the XP assets folder first, when set, then
+/// the data home, then `$XDG_DATA_DIRS`.
 #[must_use]
 pub fn data_dirs() -> Vec<PathBuf> {
-    data_home()
+    xp_assets()
         .into_iter()
+        .chain(data_home())
         .chain(dirs_of(std::env::var_os("XDG_DATA_DIRS")))
         .collect()
+}
+
+fn assets_of(value: Option<OsString>) -> Option<PathBuf> {
+    value.map(PathBuf::from).filter(|p| p.is_absolute())
 }
 
 /// `$XDG_DATA_HOME`, else `$HOME/.local/share`; `None` without an
@@ -94,5 +108,14 @@ mod tests {
         );
         assert_eq!(dirs_of(some("")), dirs_of(None));
         assert_eq!(dirs_of(None)[1], PathBuf::from("/usr/share"));
+    }
+
+    #[test]
+    fn the_assets_folder_is_absolute_or_ignored() {
+        let some = |s: &str| Some(OsString::from(s));
+        assert_eq!(assets_of(some("/a")), Some("/a".into()));
+        assert_eq!(assets_of(some("a")), None);
+        assert_eq!(assets_of(some("")), None);
+        assert_eq!(assets_of(None), None);
     }
 }

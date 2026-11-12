@@ -23,6 +23,10 @@
 # The layout audit of tests/hud-audit.py runs on the nodes of xp, the
 # paperclip and the balloon once the paperclip speaks.
 #
+# XP_SCALE=2 runs the sway output at scale 2: the screenshots are
+# 2560x1600 and the coordinates stay those of the logical 1280x800.
+# CHORA_XP_ASSETS names a folder of imported XP assets (tests/xp-assets.sh).
+#
 # Usage: tests/xp.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-xp, chora-notify, chora-assistant
 #            and chora-probe
@@ -82,7 +86,9 @@ wait_for() {
 }
 
 step "host: headless sway"
-printf 'output HEADLESS-1 resolution 1280x800\ndefault_border none\n' >"$out/sway.conf"
+scale=${XP_SCALE:-1}
+printf 'output HEADLESS-1 resolution %sx%s scale %s\ndefault_border none\n' \
+    $((1280 * scale)) $((800 * scale)) "$scale" >"$out/sway.conf"
 WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
     sway -c "$out/sway.conf" >"$out/sway.log" 2>&1 &
 pids+=($!)
@@ -135,7 +141,7 @@ wait_for "$bin/choractl" call assistant settings.get
 # pipe that ends early would fail under pipefail.
 pixel() {
     grim -t ppm "$out/pixel.ppm"
-    od -An -tu1 -j $((16 + ($2 * 1280 + $1) * 3)) -N 3 "$out/pixel.ppm" |
+    od -An -tu1 -j $((16 + (scale > 1) + (($2 * scale) * 1280 * scale + $1 * scale) * 3)) -N 3 "$out/pixel.ppm" |
         awk '{print $1, $2, $3}'
 }
 # Succeeds when the pixel at X Y passes an awk condition on r, g and b.

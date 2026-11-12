@@ -518,7 +518,21 @@ impl Wm {
         // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
+        wm.catch_up_outputs()?;
         Ok(wm)
+    }
+
+    /// Lays out the outputs that changed before the subscription, which
+    /// sent no event for it.
+    fn catch_up_outputs(&mut self) -> Result<(), ClientError> {
+        let stale: Vec<OutputInfo> = (self.outputs().into_iter())
+            .filter(|o| self.bars.iter().any(|b| b.is_stale(o)))
+            .collect();
+        for output in &stale {
+            let commands = self.output_changed(output);
+            self.apply(commands)?;
+        }
+        Ok(())
     }
 
     /// Adopts the surfaces without an owner, as at a start, in their order

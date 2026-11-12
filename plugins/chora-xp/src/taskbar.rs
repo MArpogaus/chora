@@ -290,6 +290,12 @@ impl Bar {
         self.area
     }
 
+    /// Whether the output has another area than the taskbar knows, for
+    /// example after a change that came before the events were wanted.
+    pub fn is_stale(&self, output: &OutputInfo) -> bool {
+        self.output == output.name && self.area != output.layout_area()
+    }
+
     /// The part of the work area above the taskbar, or above its strip
     /// when it hides itself.
     pub fn usable(&self) -> Rect {
@@ -771,9 +777,13 @@ pub fn preview(
     picture
 }
 
-/// The mark of the start button: the own mark of chora, one color.
+/// The mark of the start button: the imported mark when the assets folder
+/// has one, else the own mark of chora, one color.
 fn start_mark(theme: &Theme) -> PathBuf {
-    theme.path("winxp/start-mark.svg")
+    chora_kit::xdg::xp_assets()
+        .map(|d| d.join("start-mark.png"))
+        .filter(|p| p.is_file())
+        .unwrap_or_else(|| theme.path("winxp/start-mark.svg"))
 }
 
 fn update(id: &str, props: PropsUpdate) -> Command {
@@ -837,6 +847,30 @@ mod tests {
             offset: 0.0,
             target: 0.0,
         }
+    }
+
+    #[test]
+    fn a_bar_is_stale_when_its_output_has_another_area() {
+        let mut output = OutputInfo {
+            name: "DP-1".into(),
+            position: [0, 0],
+            size: [2560, 1600],
+            scale: 1.0,
+            camera: Transform::default(),
+            work_area: [0, 0, 2560, 1600],
+            default_work_area: [0, 0, 2560, 1600],
+            is_virtual: None,
+            owner: None,
+        };
+        let bar = bar(0);
+        assert!(bar.is_stale(&output));
+        output.work_area = [0, 0, 1280, 800];
+        output.default_work_area = [0, 0, 1280, 800];
+        assert!(!bar.is_stale(&output));
+        output.name = "DP-2".into();
+        output.work_area = [0, 0, 1, 1];
+        output.default_work_area = [0, 0, 1, 1];
+        assert!(!bar.is_stale(&output));
     }
 
     #[test]
