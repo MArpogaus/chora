@@ -1172,12 +1172,13 @@ fn title_of(name: &str) -> String {
 }
 
 /// How far a note sits below the top of its line, so that its baseline
-/// meets the baseline of the body: both have the same line, and the core
-/// centers the glyphs in it.
-// ponytail: tuned by eye for TeX Gyre Pagella in the body and Inter in
-// the notes; read the ascent and descent of the fonts when this is off.
+/// meets the baseline of the body, whatever faces they are set in.
 fn baseline_shift(body: &Type, note: &Type) -> f64 {
-    (-0.2 * (body.size - note.size)).round()
+    let base = |ty: &Type| {
+        let ink = ty.ink();
+        ink.top + ink.height
+    };
+    base(body) - base(note)
 }
 
 /// Adds a word to a text, with a space after other words.

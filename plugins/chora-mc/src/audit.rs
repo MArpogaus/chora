@@ -331,4 +331,72 @@ mod tests {
             assert_eq!(right["visible"], true, "{scene} shows no column: {right}");
         }
     }
+
+    fn notified() -> (crate::Mc, Model) {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("audit-rows", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        for title in ["Update ready", "Backup done and a longer line"] {
+            mc.method("notify.push", serde_json::json!({"title": title}))
+                .unwrap();
+        }
+        (mc, model)
+    }
+
+    #[test]
+    fn items_of_one_row_share_a_baseline_and_rows_have_a_gap() {
+        let (_mc, model) = notified();
+        let all = texts(&model);
+        let mut seen = 0;
+        for time in all.iter().filter(|t| t.id.ends_with("-time")) {
+            let words = all
+                .iter()
+                .find(|t| t.id == time.id.trim_end_matches("-time"))
+                .unwrap();
+            seen += 1;
+            let base = |t: &Text| t.y + truth(t).1;
+            assert!(
+                (base(time) - base(words)).abs() <= TOLERANCE,
+                "{} and {}",
+                time.id,
+                words.id
+            );
+        }
+        assert!(seen >= 2, "{seen} rows");
+        let mut rows: Vec<&Text> = all.iter().filter(|t| t.id.ends_with("-time")).collect();
+        rows.sort_by(|a, b| a.y.total_cmp(&b.y));
+        for pair in rows.windows(2) {
+            assert!(
+                pair[1].y - pair[0].y >= pair[0].line + 14.0 - TOLERANCE,
+                "{pair:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_last_key_row_stands_on_the_baseline_of_the_footer() {
+        let (_mc, model) = notified();
+        let all = texts(&model);
+        let base = |t: &Text| t.y + truth(t).1;
+        let foot = all.iter().find(|t| t.id.contains("-footer-next")).unwrap();
+        let key = all.iter().find(|t| t.id.ends_with("-keys-5-key")).unwrap();
+        assert!(
+            (base(foot) - base(key)).abs() <= TOLERANCE,
+            "{} against {}",
+            base(foot),
+            base(key)
+        );
+    }
+
+    #[test]
+    fn no_text_of_the_column_is_set_under_14_pixels() {
+        let (mut mc, model) = notified();
+        for list in [List::Six, List::All] {
+            mc.keys = list;
+            mc.render().unwrap();
+            for text in texts(&model) {
+                assert!(text.size >= 14.0, "{} is set at {}", text.id, text.size);
+            }
+        }
+    }
 }

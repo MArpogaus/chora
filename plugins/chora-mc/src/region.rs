@@ -360,6 +360,8 @@ pub struct Item {
     /// How far it stands below the place of its line, so that the
     /// baseline of a note meets the baseline of the text beside it.
     pub dy: f64,
+    /// Space before the item in a stack, in pixels.
+    pub before: f64,
     /// What a click on it does: a binding as `key:Super+n`, a helper as
     /// `agent:NAME`; it also shows the focus mark under the pointer.
     pub hit: Option<String>,
@@ -407,6 +409,7 @@ impl Item {
             x: 0.0,
             put: Put::Stack,
             dy: 0.0,
+            before: 0.0,
             hit: None,
         }
     }
@@ -802,7 +805,7 @@ impl Mc {
             w - 2.0 * b - rw,
             column_top,
             rw,
-            (h - b - column_top).max(b),
+            (h - 2.0 * column_top).max(b),
         ];
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
         if headless {
@@ -1325,6 +1328,7 @@ impl Mc {
             let props = self.content_type(content, true).props(title);
             items.push(Item::text(format!("{id}-title"), slot, props, true));
         }
+        let baseline = self.settings.value.scale.baseline;
         let note = self.ty("margin", None);
         let body = self.content_type(content, false);
         let x = (note.size * NOTE_EM).round();
@@ -1338,6 +1342,7 @@ impl Mc {
             };
             items.push(Item {
                 dy: shift,
+                before: if i > 0 { (baseline / 2.0).round() } else { 0.0 },
                 ..Item::text(format!("{id}-{i}-time"), slot, note.props(time), false)
             });
             items.push(Item {
@@ -1824,6 +1829,7 @@ pub fn lines(
         if item.first && y > 0.0 {
             y += baseline;
         }
+        y += item.before;
         line = y;
         out.push((i, y));
         y += heights[i];
