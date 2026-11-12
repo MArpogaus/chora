@@ -29,6 +29,7 @@ mod startmenu;
 mod switcher;
 mod taskbar;
 mod taskbar_dialog;
+mod tooltip;
 mod wallpaper;
 mod window;
 mod wm;

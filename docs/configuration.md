@@ -1864,12 +1864,14 @@ keyboard does not work it (D45):
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
   in the notification area, or shrinks the area without it. Left of the
-  clock, the speaker shows the volume of the default sound output:
-  `40%`, `Muted`, `Sound unavailable` or `Change failed`, in the
-  language of the session, and it
-  grows to fit the words. `wpctl` runs on a thread of its own, at most 2
-  seconds a call, after each change and every 5 seconds; a click on the
-  speaker mutes or unmutes. Group
+  clock, the speaker is an icon of 16 pixels, with a red no-sign when the
+  sound is muted or unavailable. Its width never changes; the tooltip
+  that shows after half a second says `Volume 40%`, `Muted`, `Sound
+  unavailable` or `Change failed`, in the language of the session. The
+  desktop buttons 1 to 4 are 24 by 24 pixels with the tooltip `Desktop 2
+  of 4`, and the clock has the date. `wpctl` runs on a thread of its own,
+  at most 2 seconds a call, after each change and every 5 seconds; a click
+  on the speaker mutes or unmutes. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.

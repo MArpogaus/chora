@@ -350,6 +350,21 @@ wait "$job" || fail "the click failed"
 wait_for desk_visible 0 true
 wait_for has_node_count 0 id:xp-face-1
 
+step "11b. a tooltip names the desktop button that the pointer rests on, and goes with it"
+read -r px py <<<"$(pager_at 3)"
+timeout 20 "$bin/chora-probe" point "$px" "$py" 3000 >>"$out/probe.log" 2>&1 &
+job=$!
+wait_for has_node id:xp-tooltip
+grim "$out/tooltip.png"
+tip_above() {
+    query id:xp-tooltip | jq -e --argjson y "$py" \
+        '.[0].rects | to_entries[0].value | (.[1] + .[3]) <= $y' >/dev/null
+}
+wait_for tip_above
+wait "$job" || fail "the pointer failed: $out/probe.log"
+timeout 20 "$bin/chora-probe" point 640 300 600 >>"$out/probe.log" 2>&1 || fail "the pointer failed"
+wait_for has_node_count 0 id:xp-tooltip
+
 step "12. Ctrl+Alt+Right turns the cube, and Ctrl+Alt+Left turns it back"
 # A virtual keyboard of the host with its keymap: left Ctrl 29, left Alt
 # 56, Right 106, Left 105.

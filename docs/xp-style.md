@@ -70,3 +70,13 @@ something off? If yes, it is a finding. The second rule is chora's own:
    hits them (principle P7). The title is Tahoma Bold 14 px in white with a
    1 px shadow `#0A1E50` one pixel to the bottom right; an inactive window
    has the title `#D8E4F8`.
+
+## Taskbar and tray
+
+10. **The tray has icons, not words.** 12 px of room at the left, a 16 px
+    speaker icon, 8 px to the clock. Muted or no sound shows a red
+    no-sign; the width does not change. The words and the level are in the
+    tooltip, which has the pale yellow fill and a 1 px black border of every
+    balloon, 14 px text, and shows after 500 ms above the part under the
+    pointer. The desktop buttons are 24 by 24, 2 px apart, with the tooltip
+    "Desktop N of 4".

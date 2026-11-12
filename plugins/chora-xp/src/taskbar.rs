@@ -33,20 +33,26 @@ const TASK_WIDTH: i32 = 160;
 const TRAY_WIDTH: i32 = 82;
 /// The notification area without the clock.
 const TRAY_EMPTY: i32 = 14;
-/// The speaker of the notification area, left of the clock, at its
-/// narrowest: a click mutes or unmutes. It grows to fit its words.
-pub const SPEAKER: i32 = 64;
-/// The left of the words of the speaker, right of its shape.
-pub const SPEAKER_TEXT: i32 = 18;
+/// The speaker of the notification area, left of the clock: 12 pixels of
+/// room, the 16 pixel icon and 8 pixels to the clock. A click mutes or
+/// unmutes. It keeps its width: the level and the word "Muted" are in its
+/// tooltip.
+pub const SPEAKER: i32 = 36;
 /// The speaker, drawn in the coordinates of the notification area.
-const SPEAKER_SHAPE: &str = r##"<path d="M7 12h3l5-4v14l-5-4H7z" fill="#ffffff"/>"##;
+const SPEAKER_SHAPE: &str = r##"<path d="M12 12h3.5l5-4v14l-5-4H12z" fill="#ffffff"/>"##;
+/// The waves of a speaker that plays.
+const SPEAKER_WAVE: &str =
+    r##"<path d="M23 11.5a4.5 4.5 0 0 1 0 7" stroke="#ffffff" fill="none" stroke-width="1.6"/>"##;
+/// The red no-sign over a speaker that is muted or has no output.
+const SPEAKER_OFF: &str = r##"<g transform="translate(14 7)"><circle cx="8" cy="8" r="6" fill="none" stroke="#F52F15" stroke-width="2.2"/><path d="M3.8 3.8L12.2 12.2" stroke="#F52F15" stroke-width="2.2"/></g>"##;
 /// What shows of a taskbar that hides itself, as on XP.
 pub const HIDDEN_STRIP: i32 = 2;
 /// How long the taskbar takes to slide away or back.
 const SLIDE_TIME: f64 = 0.15;
 /// The buttons of the desktops, left of the tray, as in the virtual
 /// desktop manager of the power toys for XP.
-const PAGER_BUTTON: i32 = 22;
+const PAGER_BUTTON: i32 = 24;
+const PAGER_TOP: i32 = (HEIGHT - PAGER_BUTTON) / 2;
 const PAGER_GAP: i32 = 2;
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)] // four
 const PAGER_WIDTH: i32 = DESKTOPS as i32 * PAGER_BUTTON + (DESKTOPS as i32 - 1) * PAGER_GAP + 6;
@@ -115,6 +121,17 @@ pub enum Part {
     Task(String),
     /// The button of a desktop.
     Pager(usize),
+    /// The speaker of the notification area of an output.
+    Speaker(String),
+}
+
+/// What the speaker of the notification area shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Speaker {
+    /// Sound plays.
+    On,
+    /// Muted, or no output device: the red no-sign.
+    Off,
 }
 
 impl Part {
@@ -122,6 +139,9 @@ impl Part {
     pub fn of(node: &str) -> Option<Self> {
         if let Some(output) = node.strip_prefix("xp-start-") {
             return Some(Self::Start(output.into()));
+        }
+        if let Some(output) = node.strip_prefix("xp-speaker-") {
+            return Some(Self::Speaker(output.into()));
         }
         if let Some(rest) = node.strip_prefix("xp-pager-") {
             let (desktop, _output) = rest.split_once('-')?;
@@ -147,8 +167,6 @@ pub struct Bar {
     auto_hide: bool,
     /// The clock shows.
     clock: bool,
-    /// The width of the speaker, to fit its words.
-    speaker: i32,
     /// The buttons of the desktops show: not on a virtual output, where
     /// the plugin has no cube of its own.
     pager: bool,
@@ -169,7 +187,6 @@ impl Bar {
             shown: HashMap::new(),
             auto_hide: false,
             clock: true,
-            speaker: SPEAKER,
             pager: output.is_virtual != Some(true),
             kind: Kind::of(output),
             offset: 0.0,
@@ -224,6 +241,7 @@ impl Bar {
             "xp-panel-",
             "xp-start-",
             "xp-tray-",
+            "xp-speaker-",
             "xp-task-",
             "xp-pager-",
         ]
@@ -295,7 +313,7 @@ impl Bar {
         &self,
         theme: &mut Theme,
         parent: &str,
-        (clock, words): (&str, &str),
+        (clock, speaker): (&str, Speaker),
         desktop: usize,
     ) -> Vec<Command> {
         let image = |id: String| Command::Create {
@@ -314,11 +332,12 @@ impl Bar {
             image(format!("xp-panel-{}", self.output)),
             image(format!("xp-start-{}", self.output)),
             image(format!("xp-tray-{}", self.output)),
+            image(self.speaker_id()),
         ];
         commands.extend((0..DESKTOPS).map(|d| image(self.pager_id(d))));
         commands.extend(self.layout(theme));
         commands.push(self.start(theme, "normal"));
-        commands.push(self.tray(theme, clock, words));
+        commands.extend(self.tray(theme, clock, speaker));
         commands.extend(self.pager(theme, desktop, None));
         commands
     }
@@ -328,11 +347,11 @@ impl Bar {
         &mut self,
         theme: &mut Theme,
         output: &OutputInfo,
-        (clock, words): (&str, &str),
+        (clock, speaker): (&str, Speaker),
     ) -> Vec<Command> {
         self.area = output.layout_area();
         let mut commands = self.layout(theme);
-        commands.push(self.tray(theme, clock, words));
+        commands.extend(self.tray(theme, clock, speaker));
         commands
     }
 
@@ -367,6 +386,23 @@ impl Bar {
         )
     }
 
+    fn speaker_id(&self) -> String {
+        format!("xp-speaker-{}", self.output)
+    }
+
+    /// The button of a desktop in scene coordinates.
+    pub fn pager_rect(&self, desktop: usize) -> Rect {
+        let [left, top, width, height] = self.area;
+        let first = left + width - self.tray_width() - PAGER_WIDTH;
+        let nth = i32::try_from(desktop).unwrap_or(0);
+        [
+            first + nth * (PAGER_BUTTON + PAGER_GAP),
+            top + height - HEIGHT + PAGER_TOP,
+            PAGER_BUTTON,
+            PAGER_BUTTON,
+        ]
+    }
+
     fn pager_id(&self, desktop: usize) -> String {
         format!("xp-pager-{desktop}-{}", self.output)
     }
@@ -389,11 +425,11 @@ impl Bar {
                     &(i + 1).to_string(),
                     Font::UiBold,
                     WHITE,
-                    [0, 0, PAGER_BUTTON, TASK_HEIGHT],
+                    [0, 0, PAGER_BUTTON, PAGER_BUTTON],
                 )
                 .centered();
-                let picture = Picture::new(PAGER_BUTTON, TASK_HEIGHT)
-                    .frame(sheets::TASKS, prefix, [0, 0, PAGER_BUTTON, TASK_HEIGHT])
+                let picture = Picture::new(PAGER_BUTTON, PAGER_BUTTON)
+                    .frame(sheets::TASKS, prefix, [0, 0, PAGER_BUTTON, PAGER_BUTTON])
                     .text(label);
                 update(
                     &self.pager_id(desktop),
@@ -402,7 +438,7 @@ impl Bar {
                         visible,
                         ..at(
                             f64::from(left + i * (PAGER_BUTTON + PAGER_GAP)),
-                            f64::from(TASK_TOP),
+                            f64::from(PAGER_TOP),
                         )
                     },
                 )
@@ -412,16 +448,7 @@ impl Bar {
 
     /// The width of the notification area.
     fn tray_width(&self) -> i32 {
-        tray_width(self.clock, self.speaker)
-    }
-
-    /// Sets the width of the speaker, at least [`SPEAKER`]; true when it
-    /// changed, and the tasks and the desktop buttons move.
-    pub fn set_speaker(&mut self, width: i32) -> bool {
-        let width = width.max(SPEAKER);
-        let changed = width != self.speaker;
-        self.speaker = width;
-        changed
+        tray_width(self.clock)
     }
 
     /// The clock in scene coordinates, while it shows: a double click
@@ -435,27 +462,33 @@ impl Bar {
     /// The speaker in scene coordinates: a click there mutes or unmutes.
     pub fn speaker_rect(&self) -> Rect {
         let [x, y, w, h] = self.area;
-        [
-            x + w - self.tray_width(),
-            y + h - HEIGHT,
-            self.speaker,
-            HEIGHT,
-        ]
+        [x + w - self.tray_width(), y + h - HEIGHT, SPEAKER, HEIGHT]
     }
 
     /// The notification area with the speaker and the clock, at the right
     /// edge.
-    pub fn tray(&self, theme: &mut Theme, clock: &str, words: &str) -> Command {
+    pub fn tray(&self, theme: &mut Theme, clock: &str, speaker: Speaker) -> Vec<Command> {
         let width = self.tray_width();
         let clock = self.clock.then_some(clock);
-        let picture = tray(width, self.speaker, clock, words);
-        update(
-            &format!("xp-tray-{}", self.output),
-            PropsUpdate {
-                image: Some(theme.render(&picture)),
-                ..at(f64::from(self.area[2] - width), 0.0)
-            },
-        )
+        let picture = tray(width, clock, speaker);
+        let blank = Picture::new(SPEAKER, HEIGHT);
+        let left = f64::from(self.area[2] - width);
+        vec![
+            update(
+                &format!("xp-tray-{}", self.output),
+                PropsUpdate {
+                    image: Some(theme.render(&picture)),
+                    ..at(left, 0.0)
+                },
+            ),
+            update(
+                &self.speaker_id(),
+                PropsUpdate {
+                    image: Some(theme.render(&blank)),
+                    ..at(left, 0.0)
+                },
+            ),
+        ]
     }
 
     /// The task buttons: new ones for new windows, none for closed ones,
@@ -558,22 +591,21 @@ impl Bar {
 }
 
 /// The width of a notification area with or without the clock.
-fn tray_width(clock: bool, speaker: i32) -> i32 {
-    speaker + if clock { TRAY_WIDTH } else { TRAY_EMPTY }
+fn tray_width(clock: bool) -> i32 {
+    SPEAKER + if clock { TRAY_WIDTH } else { TRAY_EMPTY }
 }
 
-/// The notification area of a width, with the speaker and its volume at
-/// the left and the clock at the right.
-fn tray(width: i32, speaker: i32, clock: Option<&str>, words: &str) -> Picture {
+/// The notification area of a width, with the speaker at the left and the
+/// clock at the right.
+fn tray(width: i32, clock: Option<&str>, speaker: Speaker) -> Picture {
     let mut picture = Picture::new(width, HEIGHT)
         .element(sheets::WINXP, "tray-left", [0, 0, 2, HEIGHT])
         .element(sheets::WINXP, "tray-center", [2, 0, width - 2, HEIGHT]);
-    picture = picture.svg(SPEAKER_SHAPE).text(Text::new(
-        words,
-        Font::Ui,
-        WHITE,
-        [SPEAKER_TEXT, 0, speaker - SPEAKER_TEXT, HEIGHT],
-    ));
+    let shape = match speaker {
+        Speaker::On => format!("{SPEAKER_SHAPE}{SPEAKER_WAVE}"),
+        Speaker::Off => format!("{SPEAKER_SHAPE}{SPEAKER_OFF}"),
+    };
+    picture = picture.svg(shape);
     if let Some(clock) = clock {
         let left = width - TRAY_WIDTH;
         picture = picture.text(
@@ -649,9 +681,9 @@ pub fn preview(
             }
         }
         Some(clock) => {
-            let width = tray_width(!clock.is_empty(), SPEAKER);
+            let width = tray_width(!clock.is_empty());
             let clock = (!clock.is_empty()).then_some(clock);
-            let tray = tray(width, SPEAKER, clock, "50%");
+            let tray = tray(width, clock, Speaker::On);
             picture = picture.layers_of(tray, [w - width, bar_y]);
         }
     }
@@ -714,7 +746,6 @@ mod tests {
             shown: HashMap::new(),
             auto_hide: false,
             clock: true,
-            speaker: SPEAKER,
             pager: true,
             kind: Kind::Screen,
             offset: 0.0,
@@ -776,30 +807,40 @@ mod tests {
     }
 
     #[test]
-    fn the_tray_has_a_speaker_with_the_words_of_the_volume() {
-        let width = tray_width(true, SPEAKER);
+    fn the_tray_has_an_icon_for_the_speaker_and_a_clock() {
+        let width = tray_width(true);
         assert_eq!(
-            texts(&tray(width, SPEAKER, Some("6:46 AM"), "40%")),
-            ["40%", "6:46 AM"]
+            texts(&tray(width, Some("6:46 AM"), Speaker::On)),
+            ["6:46 AM"]
         );
-        assert_eq!(texts(&tray(width, SPEAKER, None, "Muted")), ["Muted"]);
+        assert_eq!(texts(&tray(tray_width(false), None, Speaker::Off)).len(), 0);
     }
 
     #[test]
-    fn the_speaker_grows_to_fit_its_words() {
-        let mut bar = bar(0);
+    fn the_tray_has_the_same_width_muted_or_not() {
+        let width = tray_width(true);
+        let on = tray(width, Some("6:46 AM"), Speaker::On);
+        let off = tray(width, Some("6:46 AM"), Speaker::Off);
+        assert_eq!(on.size, off.size);
+        let bar = bar(0);
         let [x, y, w, h] = bar.speaker_rect();
-        assert_eq!([y, h], [800 - HEIGHT, HEIGHT]);
+        assert_eq!([y, h, w], [800 - HEIGHT, HEIGHT, SPEAKER]);
         assert_eq!(x + w, bar.clock_rect().expect("a clock")[0]);
         assert!(w >= 24, "a click target of 24 px");
-        let before = bar.task_rect(39);
-        assert!(bar.set_speaker(120), "No output device needs room");
-        assert!(!bar.set_speaker(120), "no change");
-        let [x, _, w, _] = bar.speaker_rect();
-        assert_eq!((w, x + w), (120, bar.clock_rect().expect("a clock")[0]));
-        assert!(bar.task_rect(39)[0] <= before[0], "the tasks make room");
-        assert!(bar.set_speaker(10), "back to the narrowest");
-        assert_eq!(bar.speaker_rect()[2], SPEAKER, "never narrower");
+    }
+
+    #[test]
+    fn the_desktop_buttons_are_24_by_24_two_apart() {
+        let bar = bar(0);
+        let rects: Vec<Rect> = (0..DESKTOPS).map(|d| bar.pager_rect(d)).collect();
+        for [_, y, w, h] in &rects {
+            assert_eq!([*w, *h], [24, 24]);
+            assert_eq!(*y, 800 - HEIGHT + 3);
+        }
+        for pair in rects.windows(2) {
+            assert_eq!(pair[0][0] + 24 + 2, pair[1][0]);
+        }
+        assert!(rects[DESKTOPS - 1][0] + 24 <= 1280 - bar.tray_width());
     }
 
     #[test]

@@ -54,6 +54,7 @@ use crate::{
     taskbar::{self, Bar, Task},
     taskbar_dialog::{Outcome, TaskbarDialog},
     theme::{Rect, Theme},
+    tooltip::Tooltip,
     wallpaper,
     window::{self, Window},
 };
@@ -324,6 +325,8 @@ pub struct Wm {
     switch_escape: Option<String>,
     /// Alt+Space, while a window of `chora-xp` has the focus.
     system_key: Option<String>,
+    /// The tooltip of the part of the taskbar under the pointer.
+    tip: Tooltip,
     /// Super is down alone: whether another key or button went down with it.
     tap: Option<bool>,
     /// The windows that Super+d put away, which it brings back.
@@ -448,6 +451,7 @@ impl Wm {
             switcher: None,
             switch_escape: None,
             system_key: None,
+            tip: Tooltip::default(),
             tap: None,
             hidden: Vec::new(),
             cube_grab: None,
@@ -587,8 +591,7 @@ impl Wm {
         );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
-        let words = self.volume_words();
-        let tray = (self.clock.as_str(), words.as_str());
+        let tray = (self.clock.as_str(), self.speaker());
         commands.extend(bar.create(&mut self.theme, BARS, tray, self.desktop));
         self.bars.push(bar);
         commands
@@ -797,12 +800,18 @@ impl Wm {
     /// When the pointer has rested on the start menu long enough to open
     /// or close a cascade.
     pub fn menu_due(&self) -> Option<Instant> {
-        self.menu.due()
+        [self.menu.due(), self.tip.due()]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
-    /// Opens or closes the cascade where the pointer rests.
+    /// Opens or closes the cascade where the pointer rests, and shows the
+    /// tooltip of a part of the taskbar that it rests on.
     pub fn menu_rest(&mut self, now: Instant) -> Result<(), ClientError> {
-        let commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
+        let mut commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
+        let area = self.bars.first().map_or([0, 0, 1280, 800], Bar::area);
+        commands.extend(self.tip.show(&mut self.theme, MENUS, area, now));
         if commands.is_empty() {
             return Ok(());
         }
@@ -849,36 +858,40 @@ impl Wm {
             .unwrap_or_default()
     }
 
+    /// What the speaker of the taskbars shows: the icon only.
+    fn speaker(&self) -> taskbar::Speaker {
+        match self.volume {
+            Some(Reading::Level(level)) if !level.muted => taskbar::Speaker::On,
+            _ => taskbar::Speaker::Off,
+        }
+    }
+
+    /// The tooltip of the speaker: the level, or what is wrong.
+    fn speaker_tip(&self) -> String {
+        match self.volume {
+            Some(Reading::Level(level)) if !level.muted => format!("Volume {}%", level.percent),
+            _ => self.volume_words(),
+        }
+    }
+
     /// The notification areas of every taskbar, with the clock and the
     /// volume.
     fn trays(&mut self) -> Vec<Command> {
-        let words = self.volume_words();
-        self.bars
-            .iter()
-            .map(|bar| bar.tray(&mut self.theme, &self.clock, &words))
-            .collect()
-    }
-
-    /// Shows a new reading: the speakers grow or shrink to fit its words,
-    /// and the tasks and the desktop buttons move with them.
-    fn show_volume(&mut self) -> Vec<Command> {
-        let words = self.volume_words();
-        let text = self.theme.text_width(&words, crate::text::Font::Ui);
-        #[allow(clippy::cast_possible_truncation, reason = "a width in pixels")]
-        let width = text.ceil() as i32 + taskbar::SPEAKER_TEXT + 6;
-        let mut moved = false;
-        for bar in &mut self.bars {
-            moved |= bar.set_speaker(width);
-        }
-        let mut commands = self.trays();
-        if moved {
-            commands.extend(self.sync_tasks());
-            commands.extend(self.pagers());
+        let speaker = self.speaker();
+        let mut commands = Vec::new();
+        for bar in &self.bars {
+            commands.extend(bar.tray(&mut self.theme, &self.clock, speaker));
         }
         commands
     }
 
-    /// Changes the volume off the main loop; a key shows the indicator.
+    /// Shows a new reading: the speakers change their icon and keep their
+    /// width, so that nothing moves. A tooltip that shows says the new
+    /// level.
+    fn show_volume(&mut self) -> Vec<Command> {
+        self.trays()
+    }
+
     /// The speakers show the reading after it at the next tick.
     fn change_volume(&mut self, change: volume::Change, by_key: bool) -> Vec<Command> {
         self.mixer.change(change, by_key);
@@ -1405,6 +1418,7 @@ impl Wm {
             self.hover = None;
         }
         let mut commands = self.auto_hide();
+        commands.extend(self.rest_tip(node, on));
         if let Some((menu, _)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
             commands.extend(menu.hover(&mut self.theme, MENUS, node, on));
             return commands;
@@ -1415,6 +1429,37 @@ impl Wm {
         }
         commands.extend(self.hovered_node(node, on));
         commands
+    }
+
+    /// The pointer came to a part of the taskbar that has a tooltip, or left
+    /// it: the tooltip waits, or goes.
+    fn rest_tip(&mut self, node: &str, on: bool) -> Vec<Command> {
+        if !on {
+            return self.tip.cancel(Some(node));
+        }
+        let Some(output) = self.output_of(node) else {
+            return Vec::new();
+        };
+        let Some(bar) = self.bars.iter().find(|b| b.output == output) else {
+            return Vec::new();
+        };
+        if node.starts_with("xp-tray-") {
+            if let Some(clock) = bar.clock_rect() {
+                let date = chrono::Local::now().format("%A, %B %-d, %Y").to_string();
+                self.tip.rest(node, date, clock, Instant::now());
+            }
+            return Vec::new();
+        }
+        let (text, target) = match taskbar::Part::of(node) {
+            Some(taskbar::Part::Pager(desktop)) => (
+                format!("Desktop {} of {DESKTOPS}", desktop + 1),
+                bar.pager_rect(desktop),
+            ),
+            Some(taskbar::Part::Speaker(_)) => (self.speaker_tip(), bar.speaker_rect()),
+            _ => return Vec::new(),
+        };
+        self.tip.rest(node, text, target, Instant::now());
+        Vec::new()
     }
 
     fn hovered_node(&mut self, node: &str, on: bool) -> Vec<Command> {
@@ -1434,7 +1479,7 @@ impl Wm {
             Some(taskbar::Part::Task(_)) => self.sync_tasks(),
             Some(taskbar::Part::Pager(_)) => self.pagers(),
             None if Menu::owns(node) => self.menu.hover(&mut self.theme, node, on),
-            None => Vec::new(),
+            Some(taskbar::Part::Speaker(_)) | None => Vec::new(),
         }
     }
 
@@ -1472,8 +1517,7 @@ impl Wm {
             &self.settings.value.wallpaper,
             output,
         )];
-        let words = self.volume_words();
-        let tray = (self.clock.as_str(), words.as_str());
+        let tray = (self.clock.as_str(), self.speaker());
         commands.extend(self.bars[i].resize(&mut self.theme, output, tray));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
@@ -1929,7 +1973,8 @@ impl Wm {
         if let Some(used) = &mut self.tap {
             *used = true;
         }
-        let mut commands = self.close_context();
+        let mut commands = self.tip.cancel(None);
+        commands.extend(self.close_context());
         commands.extend(self.press_node(node, button, position));
         commands
     }
@@ -1991,7 +2036,7 @@ impl Wm {
         if let Some(commands) = self.open_item_menu(node, point) {
             return commands;
         }
-        let entries = if node.starts_with("xp-tray-") {
+        let entries = if node.starts_with("xp-tray-") || node.starts_with("xp-speaker-") {
             context::clock(self.taskbar.locked)
         } else if node.starts_with("xp-panel-") || node.starts_with("xp-pager-") {
             context::taskbar(self.taskbar.locked)
@@ -2277,7 +2322,7 @@ impl Wm {
 
     /// Only the left button works the taskbar, the menu and the desktop.
     fn press_left(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
-        if node.starts_with("xp-tray-") {
+        if node.starts_with("xp-tray-") || node.starts_with("xp-speaker-") {
             self.press_tray(position)
         } else if let Some(part) = taskbar::Part::of(node) {
             self.press_taskbar(part)
@@ -2411,6 +2456,7 @@ impl Wm {
                 commands
             }
             taskbar::Part::Pager(desktop) => self.turn_to(desktop),
+            taskbar::Part::Speaker(_) => Vec::new(),
             taskbar::Part::Task(surface) => {
                 let minimized = self
                     .index(&surface)
@@ -3179,8 +3225,8 @@ impl Wm {
         for i in 0..self.bars.len() {
             let before = self.bars[i].usable();
             self.bars[i].configure(settings);
-            let words = self.volume_words();
-            commands.push(self.bars[i].tray(&mut self.theme, &self.clock, &words));
+            let speaker = self.speaker();
+            commands.extend(self.bars[i].tray(&mut self.theme, &self.clock, speaker));
             commands.extend(self.refit(before, self.bars[i].usable()));
         }
         if old.on_top != settings.on_top {
