@@ -278,3 +278,4 @@ first, the cube and the pull-out when D69, cube geometry and E3 land.
 - 11-12 01:53 UTC: cloud environment verified ready (question 7 closed); heavy lanes move to cloud workers again.
 - 2026-11-12 01:56 UTC: invented times in decisions-now.md corrected to transcript times (judge 11-12 point 6); from now every time comes from date -u or the transcript.
 - 2026-11-12 02:09 UTC (user): regular routines by time and condition; a time trigger for self-critical self-checks (verbatim in decisions-now.md). Built: routines.md, rules.md 4, self-check trigger trig_01X5NqMSsvxMSpYFJxo5Wxsg.
+- 2026-11-12 02:12 UTC (user): reflect on the routines and self-check setup, find missing questions (verbatim in decisions-now.md). Done: 5 questions and 3 condition routines added to routines.md.
