@@ -113,10 +113,11 @@ auto-req = "auto"
 # chora-voice the MIT model of Silero VAD.
 license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND MIT AND OFL-1.1 AND CC-BY-SA-4.0"
 # uwsm for the sessions it manages (D50; not in Fedora 44 yet), the tools
-# of the tiling flavor (D51), X11 programs, and the portals for screen
+# of the tiling flavor (D51; fuzzel 1.11 or later, the first with mouse
+# support), X11 programs, and the portals for screen
 # sharing (D37) and the rest, the fonts of chora-mc, and pw-record,
 # pw-play and the Gufo quadlets of chora-voice.
-recommends = { pipewire-utils = "*", podman = "*", bubblewrap = "*", uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
+recommends = { pipewire-utils = "*", podman = "*", bubblewrap = "*", uwsm = "*", foot = "*", fuzzel = ">= 1.11", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
 # cargo-generate-rpm has no long description; the summary names the

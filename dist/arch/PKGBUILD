@@ -16,7 +16,7 @@ makedepends=(cargo pkgconf)
 optdepends=(
   'uwsm: the sessions managed by uwsm'
   'foot: the terminal of the tiling flavor'
-  'fuzzel: the launcher of the tiling flavor'
+  'fuzzel: the launcher of the tiling flavor (1.11 or later for the mouse)'
   'waybar: the panel of the tiling flavor'
   'mako: the notifications of the tiling flavor'
   'swaybg: the wallpaper of the tiling flavor'

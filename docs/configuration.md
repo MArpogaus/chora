@@ -1432,7 +1432,7 @@ The package installs the tiling flavor (D51):
 ```
 
 Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, mako, swaybg, swayidle,
 swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 `xdg-desktop-portal-gtk`. mako starts from the unit of
 its own package and needs no configuration.
@@ -1517,7 +1517,7 @@ its own package and needs no configuration.
   `accent` `#6d4aff`. Running programs keep the palette that they started
   with. The assistant's chat panel is drawn by `chora-assistant` and takes
   no part in the theme yet.
-- **The launcher**: `MOD+space` starts fuzzel in every look, and `MOD+r`
+- **The launcher**: `MOD+space` starts fuzzel in every look (fuzzel 1.11 or later: from 1.11 a left click selects and starts an entry and the wheel scrolls; 1.9.2 and older ignore the pointer, so the Apps button opens a list that answers keys only; 1.15 also fixes a click that started the wrong entry), and `MOD+r`
   does too, as the default bindings of `chora-tiling` say. The bindings
   start the programs of the flavor with `chora-tiling --launch PROGRAM`, which
   adds the config file of the palette: `foot.ini` for foot, `fuzzel.ini` for
