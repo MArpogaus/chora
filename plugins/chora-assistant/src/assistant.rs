@@ -68,6 +68,8 @@ const FADE: f64 = 600.0;
 const MAX_PLAIN: f64 = 420.0;
 /// The gap between the figure and a sentence without a box.
 const BESIDE: i32 = 8;
+/// The gap between the figure and an open chat panel.
+const PANEL_GAP: i32 = 12;
 /// The padding of the backing of a sentence without a box.
 const BACKING: i32 = 4;
 /// The height of the line of text of the state word, which has the size of
@@ -284,6 +286,8 @@ pub struct Assistant {
     values: Values,
     /// The top-left corner of the picture, in output coordinates.
     origin: [i32; 2],
+    /// Where the corner is without a chat panel beside it.
+    home: [i32; 2],
     /// The width of the output.
     area: [i32; 4],
     /// The state of the voice agent, as [`context_state`] names it.
@@ -407,6 +411,7 @@ impl Assistant {
         let assistant = Self {
             values,
             origin,
+            home: origin,
             area,
             state,
             pose: pose(state),
@@ -654,7 +659,8 @@ impl Assistant {
         };
         let size = island::picture(theme, &content, self.values.dark).size;
         self.island_size = size;
-        self.origin = origin(self.values.anchor, self.area, size, self.values.margin);
+        self.home = origin(self.values.anchor, self.area, size, self.values.margin);
+        self.origin = self.home;
         let [x, y] = self.origin.map(f64::from);
         let mut commands = vec![
             Command::Update {
@@ -670,6 +676,39 @@ impl Assistant {
         commands.extend(self.island_backdrop(false));
         commands.extend(self.ring(false));
         commands
+    }
+
+    /// Moves the figure and its word clear of an open chat panel (x, y,
+    /// width, height), `PANEL_GAP` away from its side, and back to its
+    /// place when there is none; the move, if the place changed.
+    pub fn clear_of(&mut self, panel: Option<[i32; 4]>) -> Option<Command> {
+        let before = self.origin;
+        self.origin = self.home;
+        let mut origin = self.home;
+        if let Some([px, py, pw, ph]) = panel {
+            let [x, y, w, h] = self.with_word();
+            let meets =
+                x < px + pw + PANEL_GAP && px - PANEL_GAP < x + w && y < py + ph && py < y + h;
+            if meets {
+                origin[0] += if x + w / 2 >= px + pw / 2 {
+                    px - PANEL_GAP - (x + w)
+                } else {
+                    px + pw + PANEL_GAP - x
+                };
+            }
+        }
+        self.origin = origin;
+        (origin != before).then(|| Command::Update {
+            id: GROUP.into(),
+            props: PropsUpdate {
+                transform: Some(Transform::translate(
+                    f64::from(origin[0]),
+                    f64::from(origin[1]),
+                    0.0,
+                )),
+                ..PropsUpdate::default()
+            },
+        })
     }
 
     /// Shows or hides the island: an open glass chat is its expanded form
@@ -1155,6 +1194,7 @@ mod tests {
         Assistant {
             values: values.clone(),
             origin: [800, 500],
+            home: [800, 500],
             area: [0, 0, 1024, 768],
             state,
             pose: pose(state),
@@ -1170,6 +1210,34 @@ mod tests {
             island_size: [0, 0],
             ring_shader: None,
         }
+    }
+
+    #[test]
+    fn an_open_chat_panel_never_covers_the_figure_and_its_word() {
+        let now = Instant::now();
+        let (_, values, _) = crate::tests::loaded("dodge");
+        let mut figure = assistant(&values, "listening", now);
+        figure.word = [80, 26];
+        figure.origin = [976, 740];
+        figure.home = [976, 740];
+        figure.area = [0, 0, 1000, 800];
+        let panel = [588, 12, 400, 776];
+        let before = figure.with_word();
+        assert!(
+            before[0] + before[2] > panel[0],
+            "the panel covers it: {before:?}"
+        );
+        let moved = figure.clear_of(Some(panel));
+        assert!(moved.is_some());
+        let [x, _, w, _] = figure.with_word();
+        assert_eq!(x + w, panel[0] - PANEL_GAP, "beside the panel, 12 away");
+        assert_eq!(figure.origin[1], 740, "at its height");
+        assert!(
+            figure.clear_of(Some(panel)).is_none(),
+            "nothing moved again"
+        );
+        assert!(figure.clear_of(None).is_some());
+        assert_eq!(figure.origin, [976, 740], "home again");
     }
 
     /// Inside a pane of the construct the island dims to 0.6 (HUD spec,

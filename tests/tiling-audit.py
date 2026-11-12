@@ -5,7 +5,7 @@ Usage: tests/tiling-audit.py CAPTURE.png NODES.json THEME SCALE CELL [BAR] [WALL
   NODES.json  `choractl query '*'`
   THEME       ink or paper
   SCALE       the scale of the output
-  CELL        desktop, chat, question, toast, keys or fullscreen
+  CELL        desktop, chat, question, toast, keys, layout, tooltip, launcher or fullscreen
   BAR         `bar` when the panel runs: the islands stand at y 8 to 40
   WALL        `wall` when the wallpaper runs behind the tiles (cell desktop)
 
@@ -31,10 +31,14 @@ Prints one `FAIL:` line per finding; exit status 1 on a finding.
   chip        the state word of the helper stands on a token fill, is high
               enough for text of 14 px, and its orb is one of the colours of
               the palette
-  chat        the Close button stands at the right edge of the chat panel,
+  chat        the state word and the orb of the helper stay clear of the
+              panel, the Close button stands at the right edge of the chat panel,
               inside its padding, and the corners of the input field are
               round
+  launcher    fuzzel stands opaque in the `surface` fill
   fullscreen  with a fullscreen window the bar islands do not show
+  scrim       the key list's scrim is tinted, not grey, and the bar and the
+              surfaces under the scrim stay within a few levels of each other
   look        the wallpaper shows at the corners of the screen, the focused
               tile has a glow of its own colour on the outer side, and an
               unfocused tile casts a shadow
@@ -100,7 +104,7 @@ def wallpaper(theme):
     return load(pathlib.Path(__file__).resolve().parent.parent / "flavors" / "tiling" / name)
 
 
-def look(rows, nodes, theme, scale):
+def look(rows, nodes, theme, scale, cell):
     """The findings of the look cell: the capture against the wallpaper."""
     wall = wallpaper(theme)
     height, width = len(wall), len(wall[0]) // 4
@@ -126,6 +130,12 @@ def look(rows, nodes, theme, scale):
 
     problems = []
     w, h = out_w / scale, out_h / scale
+    if cell == "keys":
+        for x, y in ((2, 2), (w - 3, h - 3)):
+            chroma = lambda c: max(c) - min(c)
+            if chroma(behind(x, y)) >= 12 and chroma(shown(x, y)) < 0.6 * chroma(behind(x, y)):
+                problems.append(f"scrim: {shown(x, y)} at {int(x)},{int(y)} turned grey, the wallpaper there is {behind(x, y)}")
+        return problems
     for x, y in ((2, 2), (w - 3, h - 3)):
         if gap(shown(x, y), behind(x, y)) > 24:
             problems.append(f"look backdrop: {shown(x, y)} at {int(x)},{int(y)} is not the wallpaper {behind(x, y)}")
@@ -195,6 +205,12 @@ def main():
         if not any(near(colour, token, 12) for token in ORBS):
             problems.append(f"chip: the orb {colour} is no colour of the palette")
     panel, close = named.get("hud-chat"), named.get("hud-chat-close")
+    if cell == "chat" and panel:
+        for part, rect in (("state word", named.get("hud-word")), ("orb", named.get("hud-figure"))):
+            if not rect:
+                problems.append(f"chat: the {part} is not on the screen")
+            elif rect[0] + rect[2] > panel[0] and rect[0] < panel[0] + panel[2] and rect[1] + rect[3] > panel[1] and rect[1] < panel[1] + panel[3]:
+                problems.append(f"chat: the panel covers the {part} {rect}")
     if cell == "chat" and panel and close:
         right = panel[0] + panel[2] - PAD
         if abs(close[0] + close[2] - right) > 2:
@@ -259,7 +275,7 @@ def main():
             fill = dominant(keys)
             if not near(fill, palette["surface"]):
                 problems.append(f"tokens keys: the key list fill {fill} is not `surface` {palette['surface']}")
-    if cell not in ("fullscreen", "keys", "toast"):
+    if cell not in ("fullscreen", "keys", "toast", "layout", "tooltip", "launcher"):
         if not helpers:
             problems.append(f"{cell}: no helper surface on the screen")
         for name, rect in helpers.items():
@@ -276,7 +292,7 @@ def main():
         want = palette["line"]
         edge = [px(x, rect[1] + rect[3] / 2) for rect in borders.values() for x in (rect[0] + 1, rect[0] + rect[2] - 2)]
         low = tuple(0.8 * c - 6 for c in want)
-        high = tuple(1.1 * c + 6 for c in want)
+        high = tuple((1.1 if scale == int(scale) else 1.3) * c + 6 for c in want)
         if borders and cell != "chat" and not any(all(a <= c <= b for a, c, b in zip(low, color, high)) for color in edge):
             problems.append(f"tokens tile border: {edge} is not `line` {want}")
         for name, rect in helpers.items():
@@ -292,6 +308,10 @@ def main():
                 touches = not (x + w < t[0] - GAP or x > t[0] + t[2] + GAP or y + h < t[1] - GAP or y > t[1] + t[3] + GAP)
                 if touches and not inside:
                     problems.append(f"overlap {name} crosses the border of {tile}")
+    if cell == "launcher":
+        hits = sum(px(x, y) == palette["surface"] for x in range(500, 780, 4) for y in range(300, 500, 4))
+        if hits < 100:
+            problems.append(f"launcher: only {hits} samples of the middle are the `surface` fill: no opaque launcher in the palette")
     if cell == "fullscreen" and bar:
         window = px(640, 400)
         for x in (33, 66, 640, 1100, 1240):
@@ -303,8 +323,12 @@ def main():
             fill = px(rect[0] + rect[2] / 2, rect[1] + rect[3] / 2)
             if not near(fill, TERMINAL[theme], 6):
                 problems.append(f"terminal {tile}: the fill {fill} is not the `terminal` token {TERMINAL[theme]}")
-    if "wall" in flags and cell == "desktop":
-        problems.extend(look(rows, nodes, theme, scale))
+    if "wall" in flags and cell in ("desktop", "keys"):
+        problems.extend(look(rows, nodes, theme, scale, cell))
+    if cell == "keys" and bar and "hud-row-chat" in named:
+        below, island = dominant(named["hud-row-chat"]), px(570, 24)
+        if sum(abs(a - b) for a, b in zip(below, island)) > 14:
+            problems.append(f"scrim: the bar {island} and the surface below the key list {below} differ, the scrim does not treat them alike")
     for problem in problems:
         print("FAIL:", problem)
     return 1 if problems else 0

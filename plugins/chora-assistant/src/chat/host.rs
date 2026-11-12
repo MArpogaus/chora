@@ -288,6 +288,12 @@ impl Agent {
             (self.assistant.as_ref())
                 .and_then(|a| a.island_shown(!(open && frame.look.style == ChatStyle::Glass))),
         );
+        let (anchor, _) = frame.look.place();
+        let at_edge = matches!(anchor, Anchor::Left | Anchor::Right)
+            && frame.look.style == ChatStyle::Plain
+            && frame.slot.is_none();
+        let panel = (open && at_edge).then(|| frame.rect());
+        commands.extend((self.assistant.as_mut()).and_then(|a| a.clear_of(panel)));
         commands.extend(self.card_follows()?);
         self.apply(commands)?;
         self.switcher.set_chat(self.chat.is_open(), Instant::now());

@@ -527,6 +527,11 @@ fn best_split(all: &[&(&str, Vec<(String, String)>)], pitch: f64) -> u32 {
         .unwrap_or(0)
 }
 
+/// The alpha of the scrim in the `base` colour of the theme: little enough
+/// that the bar, which no scrim reaches, stays within a few levels of the
+/// surfaces below it.
+const SCRIM: f64 = 0.20;
+
 /// The commands that draw the key list centred on an output of the given
 /// size, under its screen root `parent`.
 #[must_use]
@@ -544,7 +549,7 @@ pub fn key_list(
     ];
     let scrim = PropsUpdate {
         size: Some(output),
-        color: Some([0.0, 0.0, 0.0, 0.25]),
+        color: Some(color(channels(&colors.base), SCRIM)),
         ..PropsUpdate::default()
     };
     let body = format!("{KEYS}-body");
@@ -1080,6 +1085,29 @@ mod tests {
                 UI_FONT
             };
             assert_eq!(family.as_deref(), Some(want), "{id}");
+        }
+    }
+
+    #[test]
+    fn the_scrim_is_tinted_from_the_base_token_of_each_theme() {
+        for scheme in [Scheme::Ink, Scheme::Paper] {
+            let colors = Colors::of(scheme);
+            let list = key_list(
+                "screen:X",
+                [1280.0, 800.0],
+                &groups(),
+                &colors,
+                Language::En,
+            );
+            let color = list
+                .iter()
+                .find_map(|c| match c {
+                    Command::Create { id, props, .. } if id == "tiling-keys-scrim" => props.color,
+                    _ => None,
+                })
+                .expect("a scrim");
+            let [r, g, b] = channels(&colors.base);
+            assert_eq!(color, [r, g, b, SCRIM], "{scheme:?}");
         }
     }
 

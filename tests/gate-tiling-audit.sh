@@ -14,7 +14,9 @@
 #   look        the wallpaper, the glow of the focus and the shadows
 # The cells: desktop (two tiles and the "Chat ..." row), chat (the chat
 # open), question (the card), toast (a notification of mako), keys (the key
-# list), fullscreen (a fullscreen window).
+# list), layout (the chip of a layout change), tooltip (that of Keys),
+# launcher (fuzzel; before 1.11 without its `selection-radius`), fullscreen
+# (a fullscreen window).
 #
 # Usage: tests/gate-tiling-audit.sh   BIN: directory with the binaries
 #   SIZES   the outputs (default "1280x800 2560x1600@2")
@@ -25,6 +27,7 @@ set -u
 . "$(dirname "$0")/gate-lib.sh"
 need_bins chora choractl chora-tiling chora-assistant
 need foot
+need fuzzel
 need waybar
 need mako
 need gdbus
@@ -43,6 +46,7 @@ bus=$(dbus-daemon --session --print-address --fork 2>/dev/null | head -n 1 | cut
 [ -n "$bus" ] || bus=
 export DBUS_SESSION_BUS_ADDRESS=$bus
 
+scaled() { awk -v a="$1" -v s="$scale" 'BEGIN { printf "%d", a * s }'; }
 emit() { echo "$1 $2" >&3; }
 shows() { ctl query "id:$1" | jq -e '.[0].rects | length > 0' >/dev/null 2>&1; }
 until_shows() {
@@ -54,13 +58,13 @@ until_shows() {
 }
 
 audit() {
-    local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall=''
+    local cell=$1 tag=$2 theme=$3 scale=$4 out bar='' wall='' lead=${5:-1}
     [[ $cell =~ ^(${CELLS:-.*})$ ]] || return 0
-    sleep 1
+    sleep "$lead"
     ctl query '*' >"$shots/audit-$cell-$tag.json"
     ctl capture "$shots/audit-$cell-$tag.png" >/dev/null 2>&1
     [ -z "${wallpaper_pid:-}" ] || wall=wall
-    [ "$(pixel "$shots/audit-$cell-$tag.png" $((570 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/audit-$cell-$tag.png" $((570 * ${scale%.*})) $((44 * ${scale%.*})))" ] && bar=bar
+    [ "$(pixel "$shots/audit-$cell-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/audit-$cell-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && bar=bar
     if [ "$cell" != fullscreen ] && [ -z "$bar" ]; then
         echo "FAIL: $cell $tag: the bar does not show"
         failed=1
@@ -75,7 +79,8 @@ audit() {
 }
 
 round() {
-    local theme=$1 size=$2 tag=$1-$2 scale=1
+    local theme=$1 size=$2 tag=$1-$2
+    scale=1
     [[ $size == *@* ]] && scale=${size##*@}
     mkdir -p "$work/chora"
     printf 'enabled: true\nposition: null\nhud: neutral\nhuds: []\n' >"$work/chora/chora-assistant.yaml"
@@ -100,7 +105,7 @@ round() {
     for _ in $(seq 30); do
         sleep 1
         ctl capture "$shots/probe-$tag.png" >/dev/null 2>&1 &&
-            [ "$(pixel "$shots/probe-$tag.png" $((570 * ${scale%.*})) $((24 * ${scale%.*})))" != "$(pixel "$shots/probe-$tag.png" $((570 * ${scale%.*})) $((44 * ${scale%.*})))" ] && break
+            [ "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 24)")" != "$(pixel "$shots/probe-$tag.png" "$(scaled 570)" "$(scaled 44)")" ] && break
     done
     token=$(sed -n 's/^@define-color line \(#[0-9a-f]*\);/\1/p' "$XDG_RUNTIME_DIR/chora-tiling/theme/colors.css")
     [ "$token" = "$(python3 -I -c "import sys; print({'ink': '#2e3344', 'paper': '#d5d8e1'}[sys.argv[1]])" "$theme")" ] ||
@@ -134,6 +139,24 @@ round() {
     sleep 1.5
     audit keys "$tag" "$theme" "$scale"
     echo '[{"shortcut": {"keys": "Super+slash"}}]' | ctl inject - >/dev/null
+    sleep 1
+    ctl call tiling next_layout >/dev/null 2>&1
+    audit layout "$tag" "$theme" "$scale" 0.3
+    sleep 1
+    echo "[{\"pointer_move\": {\"position\": [1180, 24]}}]" | ctl inject - >/dev/null
+    sleep 0.3
+    echo "[{\"pointer_move\": {\"position\": [1182, 25]}}]" | ctl inject - >/dev/null
+    audit tooltip "$tag" "$theme" "$scale" 2.5
+    echo "[{\"pointer_move\": {\"position\": [640, 500]}}]" | ctl inject - >/dev/null
+    fuzzel_version=$(fuzzel --version 2>/dev/null | sed -n 's/^fuzzel version: \([0-9.]*\).*/\1/p')
+    if [ "$(printf '%s\n1.11\n' "${fuzzel_version:-0}" | sort -V | head -n 1)" != 1.11 ]; then
+        sed -i '/^selection-radius=/d' "$XDG_RUNTIME_DIR/chora-tiling/theme/fuzzel.ini"
+    fi
+    launcher=$(ctl run "$bin/chora-tiling" --launch fuzzel | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    [ -z "$launcher" ] || run_pid "$launcher"
+    audit launcher "$tag" "$theme" "$scale" 3
+    echo '[{"shortcut": {"keys": "Escape"}}]' | ctl inject - >/dev/null
+    [ -z "$launcher" ] || kill "$launcher" 2>/dev/null
     sleep 1
     ctl run "$bin/chora-tiling" --launch foot -F -T fullscreen sh -c 'printf "\\n\\n\\n\\n\\n\\n\\n\\n"; echo fullscreen; sleep 600' >/dev/null || fail "$tag: foot"
     sleep 3
