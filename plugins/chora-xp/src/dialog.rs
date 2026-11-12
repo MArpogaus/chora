@@ -82,11 +82,12 @@ impl Control {
 
     /// A push button of XP's size at a place.
     pub fn push(name: &str, label: &str, [x, y]: [i32; 2]) -> Self {
+        let chars = i32::try_from(label.chars().count()).unwrap_or(0);
         Self::new(
             name,
             Kind::Push { default: false },
             label,
-            [x, y, BUTTON[0], BUTTON[1]],
+            [x, y, BUTTON[0].max(chars * 7 + 16), BUTTON[1]],
         )
     }
 

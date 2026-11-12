@@ -79,6 +79,9 @@ pub enum Font {
 /// smallest size of text that a person must read.
 pub const BODY_SIZE: u32 = 14;
 
+/// The size of the label of the start button in pixels.
+pub const START_SIZE: u32 = 21;
+
 /// Where a line of text sits in its rectangle.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Align {
@@ -236,10 +239,10 @@ impl Fonts {
         let start = first_family(&db, &["Franklin Gothic Medium", "Libre Franklin", base]);
         let spec = |family: &str, size, bold, italic| Spec::new(&db, family, size, bold, italic);
         let specs = [
-            spec(base, 11, false, false),
-            spec(base, 11, true, false),
-            spec(&title, 13, true, false),
-            spec(&start, 17, true, true),
+            spec(base, BODY_SIZE, false, false),
+            spec(base, BODY_SIZE, true, false),
+            spec(&title, BODY_SIZE, true, false),
+            spec(&start, START_SIZE, true, true),
             spec(base, 16, true, false),
             spec(base, 19, false, false),
             spec(base, BODY_SIZE, false, false),
@@ -649,6 +652,22 @@ mod tests {
         assert!(!has_family(db, "Zqwvxkjh"), "{:?}", families(db));
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn all_chrome_text_is_14_px_but_the_start_label_and_the_names() {
+        let host = Fonts::host(SANS_SERIF);
+        for font in [
+            Font::Ui,
+            Font::UiBold,
+            Font::Title,
+            Font::Body,
+            Font::BodyBold,
+        ] {
+            assert_eq!(host.size(font), 14, "{font:?}");
+        }
+        assert_eq!(host.size(Font::Start), 21);
+        assert!(host.size(Font::Name) >= 14 && host.size(Font::Dialog) >= 14);
     }
 
     #[test]
