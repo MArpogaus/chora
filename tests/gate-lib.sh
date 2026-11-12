@@ -72,6 +72,17 @@ session_start() {
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
+layout_audit() {
+    local tag=$1 dir out
+    shift
+    dir=$(mktemp -d /tmp/gate-audit.XXXXXX)
+    tmp_dirs+=("$dir")
+    ctl outputs >"$dir/outputs.json" || fail "$tag: no outputs"
+    ctl query '*' >"$dir/nodes.json" || fail "$tag: no nodes"
+    out=$(python3 -I "$repo/tests/hud-audit.py" "$dir/outputs.json" "$dir/nodes.json" "$@") ||
+        fail "$tag: layout audit: $out"
+    ok "$tag: $out"
+}
 # run_pid <pid> remembers a program of `choractl run` (D42): it lives in
 # a unit or outside the group of the core, so gate_cleanup must end it.
 run_pids=()

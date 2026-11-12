@@ -5,6 +5,9 @@
 # launcher in every look (PM, taste decisions), so no key of the two looks
 # dead.
 #
+# The layout audit (tests/hud-audit.py) runs on the nodes of tiling while
+# the chip shows.
+#
 # Usage: tests/gate-tiling-chip.sh   BIN: directory with the binaries
 set -u
 . "$(dirname "$0")/gate-lib.sh"
@@ -35,6 +38,7 @@ for axis, name in ((0, "horizontally"), (1, "vertically")):
         sys.exit("the word is %.1f px off the centre of the chip, %s" % (off, name))
 ' <<<"$owned" || fail "the word is not centred in the chip"
 ok "the word is centred in the chip, on both axes"
+AUDIT_KINDS=outside,image layout_audit "tiling chip" tiling
 sleep 1.5
 grep -q "Tile left" <<<"$(list)" && fail "the chip stays longer than 700 ms"
 ok "the chip leaves"

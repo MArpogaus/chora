@@ -124,6 +124,150 @@ env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock
     MERGE_GATE_RUNS="$work/runs" "$gate" --only gate-lib >"$work/out" 2>&1
 check "the step gate-lib runs the self-test of tests/gate-lib.sh" "$?" 0
 
+: >"$work/marks"
+for n in build test clippy xp hud cube; do printf '%s|echo %s >>%s/marks\n' "$n" "$n" "$work"; done >"$work/steps"
+run_gate --worker xp,hud
+check "--worker runs build, test, clippy and the named steps" "$(tr '\n' ' ' <"$work/marks")" "build test clippy xp hud "
+check "--worker exits 0" "$rc" 0
+run_gate --worker ''
+check "--worker with no steps runs the three base steps" "$(wc -l <"$work/marks")" 8
+run_gate --worker xp --push session
+check "--worker with --push is refused" "$rc" 2
+run_gate --worker nosuch
+check "--worker with an unknown step is refused" "$rc" 2
+
+rr=$work/rr
+mkdir -p "$rr/tests"
+cp "$gate" "$rr/tests/merge-gate.sh"
+cp "$repo/tests/gate-lock.sh" "$rr/tests/"
+git -C "$rr" init -q -b main
+git -C "$rr" config user.email t@t
+git -C "$rr" config user.name t
+git -C "$rr" commit -q --allow-empty -m "chore: init"
+git -C "$rr" tag base
+red() { "$rr/tests/merge-gate.sh" --red-first-check --base base 2>&1; }
+echo a >"$rr/a.rs"
+git -C "$rr" add a.rs
+git -C "$rr" commit -q -m "feat(a): no test before it"
+check "a feat commit without a test before it is red" "$(red | grep -c '^RED-FIRST MISSING: .* feat(a): no test before it$')" 1
+git -C "$rr" commit -q --amend -m "feat(a): excused" -m "No test: a pure move"
+check "a body line No test: excuses the commit" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" commit -q --amend -m "feat(a): and its test"
+echo t >"$rr/tests/gate-a.sh"
+git -C "$rr" add tests/gate-a.sh
+git -C "$rr" commit -q --amend --no-edit
+check "a feat commit that changes a test file is green" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" reset -q --hard base
+echo t >"$rr/tests/gate-a.sh"
+git -C "$rr" add tests/gate-a.sh
+git -C "$rr" commit -q -m "test(a): first"
+echo b >"$rr/b.rs"
+git -C "$rr" add b.rs
+git -C "$rr" commit -q -m "fix(b): test came first"
+check "a test commit before a fix commit is green" "$(red >/dev/null; echo $?)" 0
+echo c >"$rr/c.rs"
+git -C "$rr" add c.rs
+git -C "$rr" commit -q -m "refactor(c): no test needed"
+check "a refactor commit needs no test" "$(red >/dev/null; echo $?)" 0
+
+rr_commit() {
+    git -C "$rr" add -- "${@:2}"
+    git -C "$rr" commit -q -m "$1"
+}
+rr_file() {
+    mkdir -p "$(dirname "$rr/$1")"
+    printf '%s\n' "$2" >"$rr/$1"
+}
+
+git -C "$rr" reset -q --hard base
+rr_file b.rs b
+rr_commit "fix(b): the fix comes first" b.rs
+rr_file tests/gate-b.sh t
+rr_commit "test(b): the test comes second" tests/gate-b.sh
+check "a fix before its test is red" "$(red | grep -c '^RED-FIRST MISSING: .* fix(b): the fix comes first$')" 1
+
+for helper in tests/gate-lib.sh tests/ci-local.sh tests/gate-lock.sh; do
+    git -C "$rr" reset -q --hard base
+    rr_file "$helper" t
+    rr_commit "test(h): a helper changed" "$helper"
+    rr_file c.rs c
+    rr_commit "fix(c): after a helper" c.rs
+    check "a change of $helper is not a test" "$(red | grep -c '^RED-FIRST MISSING: .* fix(c): after a helper$')" 1
+done
+
+for real in tests/gate-x.sh tests/x-selftest.sh tests/test_x.py crates/k/tests/x.rs; do
+    git -C "$rr" reset -q --hard base
+    rr_file "$real" t
+    rr_commit "test(h): a real test" "$real"
+    rr_file c.rs c
+    rr_commit "fix(c): after a test" c.rs
+    check "a change of $real is a test" "$(red >/dev/null; echo $?)" 0
+done
+
+git -C "$rr" reset -q --hard base
+rr_file lib.rs 'fn f() {}'
+rr_commit "chore: a source file" lib.rs
+rr_file lib.rs '#[test]
+fn f() {}'
+rr_commit "test(l): a #[test] line only" lib.rs
+rr_file c.rs c
+rr_commit "fix(c): after a #[test] line" c.rs
+check "a diff that only adds a #[test] line counts" "$(red >/dev/null; echo $?)" 0
+
+git -C "$rr" reset -q --hard base
+git -C "$rr" checkout -q -b side
+rr_file s.txt s
+rr_commit "chore: side" s.txt
+git -C "$rr" checkout -q main
+git -C "$rr" merge -q --no-ff side -m "fix(m): a merge without a test"
+check "a merge commit in the range is not checked" "$(red >/dev/null; echo $?)" 0
+git -C "$rr" branch -q -D side
+
+bin2=$work/bin2
+mkdir "$bin2"
+cat >"$bin2/pre-commit" <<'FAKE'
+#!/bin/bash
+echo "SKIP=${SKIP:-}" >"$FAKE_PRE_COMMIT_LOG"
+FAKE
+chmod +x "$bin2/pre-commit"
+gate_only() {
+    env -u CHORA_GATE_LOCK_HELD -u MERGE_GATE_STEPS CHORA_GATE_LOCK="$work/gate.lock" \
+        MERGE_GATE_RUNS="$work/runs" "$gate" --base HEAD --only pre-commit >"$work/out" 2>&1
+}
+FAKE_PRE_COMMIT_LOG=$work/pc.log PATH="$bin2:$PATH" gate_only
+check "the pre-commit step skips the hooks that CI runs elsewhere" "$(cat "$work/pc.log")" "SKIP=cargo-clippy,lychee,vale"
+mkdir "$work/nopc"
+for tool in bash flock mktemp sed git tail grep cat sleep kill rm touch date dirname mkdir true sh env; do
+    ln -s "$(command -v "$tool")" "$work/nopc/$tool"
+done
+rm -rf "$work/runs"
+PATH="$work/nopc" gate_only
+check "the pre-commit step fails when pre-commit is missing" "$?" 1
+check "the pre-commit step says that pre-commit is missing" "$(grep -c '^FAIL: pre-commit is not installed' "$work/runs"/*/pre-commit.log)" 1
+
+cl=$repo/tests/ci-local.sh
+nobin=$work/nobin
+mkdir "$nobin"
+for tool in bash sed mktemp dirname tail rm cat; do
+    ln -s "$(command -v "$tool")" "$nobin/$tool"
+done
+ci_local() {
+    PATH="$nobin" TMPDIR="$work/ci-tmp" "$cl" "$@" >"$work/out" 2>&1
+}
+mkdir "$work/ci-tmp"
+ci_local deny machete pre-commit
+check "a job whose tool is missing is SKIP and the run exits 0" "$?" 0
+check "three missing tools give three SKIP lines" "$(grep -c ' SKIP ' "$work/out")" 3
+check "a missing tool is never a FAIL" "$(grep -c ' FAIL ' "$work/out")" 0
+ci_local deny nosuch
+check "an unknown job is a usage error" "$?" 2
+check "an unknown job stops before any job runs" "$(grep -c ' SKIP \| FAIL ' "$work/out")" 0
+check "an unknown job leaves no log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
+ci_local --help
+check "--help leaves no log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
+ci_local deny
+check "a run without a failure removes its log directory" "$(find "$work/ci-tmp" -mindepth 1 | wc -l)" 0
+
 [ "$failures" = 0 ] || {
     echo "FAIL: $failures checks of merge-gate-selftest"
     exit 1
