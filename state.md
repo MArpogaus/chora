@@ -35,10 +35,10 @@ End of week (user 02:17 UTC): finish the running lanes and merge (construct, pkg
 6. Dropped today (PM push-back, user 02:43): no further reflection round this week; folded into the Saturday Fable reflection.
 6b. Stale merged branches: the PM's delete was refused by the permission check (2026-11-12); list and command in reports/stale-branches.md; low priority, for the user on return.
 7. Before the stop: week-1 report checked by the PM; Saturday briefs written below.
+Week 2 (sonnet): chora-xp-import, a port of kde-plasma-winxp-launcher get-microsoft-files.sh (design/xp-reference.md); xp audit cells with and without the imported assets.
 Saturday 11-14 from 04:05 UTC (Fable): first a big, very critical reflection on setup and progress (backlog W2-1, user 02:43); then per-area code review of a03be22..HEAD (core and security paths first, read-only, then HIGH fixes); construct Host refactor so each cube face runs its own manager (D4); rc reflection loop on Fable. Sonnet: fix lanes by area; swarm 6 on the four v2 looks with launcher fixes (start tests/fake-voice.py, a notify-send stub, a fake loginctl running swaylock). Then flakes (core SIGSEGV tests under load), three greens in a row, CI draft PR, packaging smoke, persona round 4; rc 11-18 to 11-20.
 
 ## Blocked
 
-- Needs you: the name or URL of the XFCE total-conversion repository the xp asset import copies from (user 11-12 04:25 UTC; no script found in chora).
 
 - Deleting 46 merged claude/* branches on origin: refused by the permission check; reports/stale-branches.md.

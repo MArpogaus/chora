@@ -171,8 +171,8 @@ separate reviewer checks captures at 1x and 2x against the look document.
    target: contradictory. Default: replica at 96 DPI, XP's "Large size"
    as the accessibility option (above).
 2. xp "replication" vs trademarks: settled by the user 11-12 04:25 UTC
-   (optional asset import, above). Gap: the import script is not in the
-   chora repo and the source repository is not named; week-2 lane;
+   (optional asset import, above). Sources: design/xp-reference.md (kde-plasma-winxp-launcher,
+   xfce-winxp-tc); the chora port is a week-2 lane;
    the line itself goes to Needs you (licensing, rules.md 11).
 3. xp reference: no reference captures exist in the repo and we may not
    ship them. Default: a measurement table (element, size, colour,
