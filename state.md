@@ -2,7 +2,7 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 03:38 UTC)
+## Now (2026-11-12 03:43 UTC)
 
 budget: 90 % at 2026-11-12 02:17 UTC (user), estimate 90 to 91 %, stop about 06:00 to 08:00 UTC; reset Sat 11-14 03:59 UTC.
 session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
@@ -10,7 +10,7 @@ last_reviewed: per-merge reviews only; the per-area review of the whole range a0
 
 Lanes:
 - construct-v2: code fixes done (e558ae9d, full gate 19/19; flake: cube navigate-click 2 of 5 under load). UI fix round M1-M7: cloud worker session_016iS3kNCBEXbSe5Vg8a7z6o (sonnet). Tour worker session_016iS3kNcWCmF1YP1YaxYmP6 idle until "go" for tour-v3 after the merge.
-- swarm5-fixes: review FIX (reports/review-swarm5-fixes.md: 2 HIGH packaging gaps, PKGBUILD and RPM miss flavor files incl. applications/; 2 MEDIUM); fix round: cloud worker session_016iS3kPmm6d8P5DigLxtn3j (sonnet) on claude/swarm5-fixes after merging claude/pkg; goes in the first train of Bangkok 11-13 with construct.
+- swarm5-fixes: ready for train 4 (9644cc05: merged claude/pkg, both HIGH were covered by pkg, packaging-files.py 0 gaps in 141 files; MEDIUMs fixed; full gate passed on the 2nd run, flake in cube "a client xp runs already" added to the Saturday flake list). Worker archived.
 - persona harness: done (claude/persona-harness 8ca9802, smoke red then green on all four looks; bug (a) did not reproduce, the gaps were huds and voice); merges in train 4.
 - swarm 6 done (reports/swarm-6.md): 6 new main-path MAJORs (helper never answers and no no-helper state; typed text dropped before picking a helper; mc arrows and Escape; mc no on-screen launcher; tiling bar Keys/Chat buttons dead; xp no volume icon). Kept for week-2 fix lanes by area (PM: no fix now, the next train is after 17:00 UTC and the budget stop is near; they would collide with swarm5-fixes in mc and tiling).
 - deep UX xp + cross-look done (3d12b22; reports/ux-deep-xp.md 6 MAJOR: no lock, Log Off silent, Run bare and silent on no match, first F1 leaks "OP" into the terminal, no-helper balloon cut, notify balloon over the paperclip; reports/ux-cross-look.md: lock missing in all looks, mc has no power/volume/screenshot, F1 key list only in xp, launchers lack "Chat with a helper", tiling Chat pill dead on click). Worker archived. Week 2: one shared-doors decision (lock, power, volume, screenshot, F1 = key list in every look) before the fix lanes.
