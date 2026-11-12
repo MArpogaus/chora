@@ -75,9 +75,8 @@ pub(crate) fn ahead(panes: &[Pane], lens: &space::Lens, pose: &Pose, far: f64) -
 
 /// The flight into a pane that `glide` is on, taken out of it; a glide
 /// that goes nowhere into a pane stays.
-#[allow(dead_code)]
 pub(crate) fn take_flight(glide: &mut Option<Glide>) -> Option<Flown> {
-    glide.take().and_then(|g| g.into)
+    glide.take_if(|g| g.into.is_some()).and_then(|g| g.into)
 }
 
 impl Construct {
@@ -202,7 +201,7 @@ impl Construct {
             Action::Right => (0.0, 1.0),
             _ => return,
         };
-        if self.flown.is_some() || self.in_pane() {
+        if self.in_pane() {
             return;
         }
         if self
@@ -231,6 +230,9 @@ impl Construct {
 
     /// One frame of the walk: the place of the camera on the leash.
     pub(crate) fn step_stride(&mut self) -> Result<(), ClientError> {
+        if let Some(stride) = self.stride.as_mut() {
+            stride.expire(chora_kit::clock::now());
+        }
         let Some((key, held)) = self.stride.as_ref().map(|s| (s.key.clone(), s.held())) else {
             return Ok(());
         };
@@ -526,10 +528,7 @@ impl Construct {
     /// into: the window goes back into its pane and the camera glides to
     /// where the fly-in began.
     pub(crate) fn fly_out(&mut self) -> Result<(), ClientError> {
-        let flown = self
-            .flown
-            .take()
-            .or_else(|| self.glide.take().and_then(|g| g.into));
+        let flown = self.flown.take().or_else(|| take_flight(&mut self.glide));
         let Some(flown) = flown else {
             return Ok(());
         };

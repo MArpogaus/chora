@@ -1,6 +1,7 @@
 //! Pointer, key and drag input: press, move, release, drop, the list
 //! keys.
 
+use crate::camera::take_flight;
 use chora_kit::words::{Language, Word, say};
 
 use super::{
@@ -379,11 +380,12 @@ impl Construct {
         if self.flown.is_some() {
             return self.fly_out();
         }
-        if let Some(into) = self.glide.take().and_then(|g| g.into) {
+        if let Some(into) = take_flight(&mut self.glide) {
             self.glide_to(into.back, FLY_MS, None);
-            return self.rt.conn.apply(vec![Command::FocusNode {
+            self.rt.conn.apply(vec![Command::FocusNode {
                 node: Some(LOOK.into()),
-            }]);
+            }])?;
+            return self.regrab();
         }
         Ok(())
     }

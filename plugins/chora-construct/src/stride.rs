@@ -1,9 +1,10 @@
 //! The walk in pane steps (construct look v2, decision D8): a tap of a
 //! walk key glides one pane step in 320 ms; a key held on accelerates
 //! over 160 ms to one pane step per 400 ms, and the release stops it over
-//! 160 ms. The distance only grows: nothing overshoots.
+//! 160 ms. The distance only grows: nothing overshoots. A key held for
+//! 5 s counts as released then, so a lost key-up cannot walk on.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// One pane step in logical pixels.
 pub const PANE_STEP: f64 = 800.0;
@@ -17,7 +18,6 @@ pub const HOLD_STEP_MS: f64 = 400.0;
 
 /// The longest a key may stay down: a key whose release got lost stops
 /// its walk after this time.
-#[allow(dead_code)]
 pub const MAX_HOLD_MS: f64 = 5000.0;
 
 /// How far a walk has gone `t` ms after the press, in pane steps, and
@@ -92,8 +92,12 @@ impl Stride {
 
     /// Releases a key that has been down longer than [`MAX_HOLD_MS`], as
     /// of the time that it passed.
-    #[allow(dead_code, clippy::unused_self)]
-    pub fn expire(&mut self, _now: Instant) {}
+    pub fn expire(&mut self, now: Instant) {
+        let limit = self.pressed + Duration::from_secs_f64(MAX_HOLD_MS / 1000.0);
+        if now >= limit {
+            self.release(limit);
+        }
+    }
 
     /// Where the walk is at `now`, and whether it ended there.
     pub fn at(&self, now: Instant) -> ([f64; 2], bool) {
