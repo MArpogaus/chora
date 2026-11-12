@@ -88,3 +88,20 @@ Product bug or not, from source (build 06044cf):
 Harness note: mouse-only runs of 25 s give no evidence on window drag, resize or close; brief mouse testers with Super+T first.
 
 new data: no
+
+## Swarm 5 (new looks: tiling v2, mc v2; binaries 59df16e)
+4 reports (t5/m5, keys and mouse), 26 findings: 5 verified, 5 duplicates, 16 rejected (13 env or harness). Detail: feedback/2026-11-11-swarm5-*.md; shots under media/2026-11-12/swarm-5/ (key shots read).
+New verified, ranked:
+1. Tiling Apps menu (fuzzel 1.9.2) ignores hover and click; I reproduced it in a probe session. Waybar buttons click through the same pointer path, so fuzzel mouse support is the suspect; retest with newer fuzzel before filing (t5-mouse/003).
+2. mc has no mouse way back: the footer shows only the next page (mc.yaml:267) (m5-mouse/005).
+3. No user-facing switch to the light look in tiling: theme is system (gsettings), yaml or settings.set only (t5-keys/010).
+4. Tiling Keys panel lists chords only, no mouse basics (t5-mouse/010). 5. mc AGENDA heading looks like a link, does nothing (m5-mouse/002).
+Fixed by the new looks: mc first screen without hint or key reaction (swarm 2 #3); key list and help for tiling and mc (swarm 2 #2, xp still open); tiling lock and power not findable (power icon works, swarm 3); tiling Print key (swarm 3); tiling bar inert, partly (Apps, Keys, power now work; Connected and No sound still inert, swarm 2 #20); empty tiling desktop now has an Apps button (swarm 3; launch needs 1).
+Env or harness (13): chat never opens (persona session starts only chora-assistant, no voice, so chat.open fails, chat.rs:674), Print and lock show nothing, page turn "lag", colors-dark errors, yellow square, shots 50 ms after a key.
+Env fixes for the launcher:
+- mc and tiling: start tests/fake-voice.py (as tests/gate-mc-host.sh:133) or chora-voice, so Super+a, the chat row and the Agents page work.
+- Notifications: install mako (and libnotify-bin for notify-send); screenshot.sh only notifies through notify-send.
+- Lock: no logind and no swayidle here; put a fake loginctl on PATH whose lock-session runs `chora-tiling --launch swaylock -f` (swaylock is installed and the core has session lock).
+- fuzzel: install 1.10 or later and retest mouse; foot 1.26 or later for mc; LANG=C.UTF-8; wait 0.5 s after a key before a look (harness shots at 50 ms); look is 640 px, so text looks tiny.
+- The yellow mark stays in every shot although inject.rs says it goes 500 ms after the last event; check whether the flag --test-injected-press-is-real keeps it.
+new data: yes

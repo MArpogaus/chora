@@ -35,7 +35,7 @@ steps: Looked at the top bar, clicked the top-left icon (it showed an unlabelled
 expected: A visible power or session menu with lock and power off options.
 actual: No lock or power control was found. The step cap was reached.
 evidence: shots/013.png
-status: verified
+status: verified; FIXED by tiling v2 (swarm 5 t5-mouse/009: power icon opens Lock, Log out, Restart, Shut down)
 
 ## Tiling has no screenshot key and Print gives no feedback
 kind: feature
@@ -46,4 +46,4 @@ steps: Pressed Print on the empty desktop.
 expected: A screenshot, or a message saying how to take one.
 actual: Nothing changed (shot 005, only the harness pointer square). tiling.yaml binds no Print key, so no screenshot exists in tiling.
 evidence: media/2026-11-12/swarm-3/t-everyday/shots/005.png
-status: verified
+status: verified; Print FIXED by tiling v2 (Super+Print saves a PNG, swarm 5 t5-keys); the missing notice is env, no notification daemon in the persona session

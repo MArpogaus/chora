@@ -14,7 +14,7 @@ steps: Clicked the "Apps" button top left; the list opened. Clicked "LibreOffice
 expected: The clicked program starts and the menu closes.
 actual: The menu stayed open with nothing launched, every time. No program started in any attempt.
 evidence: shots/003.png
-status: new
+status: verified (shot 003 read and reproduced in a probe session: hover and click leave the selection on Screenshot, no program starts; keys work; waybar buttons click through the same pointer path, so fuzzel 1.9.2 mouse handling is the suspect, cause open, retest with newer fuzzel)
 
 ## Clicking the top-bar Keys button opens a full-screen overlay that is hard to dismiss
 kind: ux
@@ -25,7 +25,7 @@ steps: Clicked the "Keys" button top right. Then clicked the power icon at the t
 expected: A help panel that closes with Escape or a click, and the other buttons still work.
 actual: The Keys panel covered the screen and stayed up. The power click was swallowed by it. After Escape, the Apps button click did not open the menu. A click on empty space behind the panel was needed before the Apps button responded.
 evidence: shots/007.png
-status: new
+status: rejected: consequence of Apps menu items ignore mouse clicks, the fuzzel menu was still open and held the keyboard and clicks (shot 007 read shows both)
 
 ## Keys panel is a keyboard shortcut list with no mouse help
 kind: ux
@@ -36,7 +36,7 @@ steps: Opened the Keys panel from the top right and read it.
 expected: Plain instructions for mouse users, such as how to open a program and close a window.
 actual: A dense grid of key combinations (Super+j, Super+Shift+Enter and so on) with terms like "Tags", "Layouts", "Float window" and "Tile". Nothing says how to do the basics with a mouse. The text is small at this size.
 evidence: shots/010.png
-status: new
+status: verified (shot 010 read: keyboard chords only, nothing on mouse basics; low)
 
 ## Power menu is found but Lock is pre-selected
 kind: ux
@@ -47,7 +47,7 @@ steps: Opened the Keys panel, then clicked the power icon at the top right.
 expected: A clear power menu, with the main actions named plainly.
 actual: The menu lists Lock, Log out, Restart and Shut down. Lock is highlighted by default, so pressing Enter by accident would lock the screen. It works and is easy to find once the power icon is clicked.
 evidence: shots/009.png
-status: new
+status: rejected: by design, a menu selects its first row; the finding itself shows the power icon is now found (fixes Lock and power controls are not findable)
 
 ## Top bar elements are unlabelled and small
 kind: ux
@@ -58,7 +58,7 @@ steps: Looked at the top bar on first start.
 expected: Clear labels for the workspace numbers and the "Tile" field.
 actual: Workspace numbers 1 to 9 sit next to an empty "Tile" box with no label or hint. "No sound" and "Connected" look like status text but may be buttons. All text is very small at this size.
 evidence: shots/001.png
-status: new
+status: duplicate of Tiling bar: Connected and workspace 1 are unlabelled and inert; the 1 vanishes (Apps, Keys and power buttons now exist; Tile, Connected and No sound still unlabelled)
 
 ## Apps menu gives no hint that it filters by typing
 kind: ux
@@ -69,4 +69,4 @@ steps: Opened the Apps menu and looked at it.
 expected: A search box that reads as a search, or a plain list of programs.
 actual: The menu shows a title "Apps" with a text cursor and a list. It is not clear whether the list can be typed into or clicked, and clicking the entries did nothing.
 evidence: shots/002.png
-status: new
+status: duplicate of Apps menu items ignore mouse clicks (the menu is a fuzzel search with an Apps prompt; confusion comes from the dead click)
