@@ -10,8 +10,8 @@ use chora_kit::hud::Chat as Look;
 /// still shows in a serif.
 const BEHIND: &str = "DejaVu Serif, Liberation Serif, serif";
 
-/// The distance of two lines of the text, in tenths of its size.
-const LEADING: u32 = 15;
+/// The distance of two lines of the text, in hundredths of its size.
+const LEADING: u32 = 147;
 
 /// A family and a size.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,7 +45,7 @@ impl Face {
     /// The height of a line of the text.
     #[must_use]
     pub fn line(&self) -> i32 {
-        i32::try_from((self.size * LEADING).div_ceil(10)).unwrap_or(i32::MAX)
+        i32::try_from((self.size * LEADING).div_ceil(100)).unwrap_or(i32::MAX)
     }
 
     /// The SVG element of a line of text whose row starts at `y`, `x` from
@@ -129,6 +129,12 @@ mod tests {
             element.contains("TeX Gyre Pagella, DejaVu Serif"),
             "{element}"
         );
+    }
+
+    #[test]
+    fn the_lines_of_the_margin_fall_on_the_grid_of_28() {
+        assert_eq!(Face::serif(19).line(), 28);
+        assert_eq!(Face::serif(18).line(), 27);
     }
 
     #[test]

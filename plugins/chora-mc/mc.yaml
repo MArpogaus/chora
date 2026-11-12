@@ -221,7 +221,7 @@ contents:
   time: {kind: clock, format: '%H:%M'}
   state: {kind: state}
   hud: {kind: hud}
-  agents: {kind: agents}
+  agents: {kind: agents, title: Helpers}
   notify: {kind: text, title: Notifications, empty: true, folds: true, style: {base: body}}
   urgent: {kind: text, style: {base: running_head, color: red}}
   # The chat of the HUD host in the margin column: a door while it is

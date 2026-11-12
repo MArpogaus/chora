@@ -1221,7 +1221,7 @@ impl Mc {
             widths.push(w);
             let at = match (item.put, i.checked_sub(1)) {
                 (Put::After, Some(before)) => lefts[before] + widths[before] + AFTER_GAP,
-                (Put::End, _) => (width - w).max(0.0),
+                (Put::End, _) => (width - w + trailing(&item.props)).max(0.0),
                 _ => item.x,
             };
             lefts.push(at);
@@ -1464,14 +1464,20 @@ impl Mc {
             .min(high - span(&middle))
             .max(low);
         let mut commands = Vec::new();
-        for (group, x0, room) in [
-            (start, 0.0, high),
-            (middle, mid_x, high - mid_x),
-            (end, end_x, width - end_x),
+        for (group, x0, room, flush) in [
+            (start, 0.0, high, false),
+            (middle, mid_x, high - mid_x, false),
+            (end, end_x, width - end_x, true),
         ] {
-            let mut x = x0;
-            for (item, w, h) in group {
-                let left = x0 + room - x;
+            let mut next = x0;
+            let last = group.len().saturating_sub(1);
+            for (i, (item, w, h)) in group.into_iter().enumerate() {
+                let left = x0 + room - next;
+                let x = if flush && i == last {
+                    next + trailing(&item.props)
+                } else {
+                    next
+                };
                 if w > left + 0.5 {
                     commands.push(shorten(item, left / w));
                 }
@@ -1481,7 +1487,7 @@ impl Mc {
                     let at = [x, y, w.min(left), h.max(baseline)];
                     commands.extend(hit_place(&item.id, at, x, props_ink(&item.props)));
                 }
-                x += w.min(left) + gap;
+                next += w.min(left) + gap;
             }
         }
         Ok(commands)
@@ -1794,6 +1800,12 @@ fn split_time(line: &str) -> Option<(&str, &str)> {
     let digits = |part: &str| part.len() == 2 && part.bytes().all(|b| b.is_ascii_digit());
     let (hour, minute) = time.split_once(':')?;
     (digits(hour) && digits(minute)).then_some((time, words.trim_start()))
+}
+
+/// The space that a text carries after its last letter: the tracking, which
+/// an item flush right gives back so that its ink meets the edge.
+fn trailing(props: &PropsUpdate) -> f64 {
+    props.letter_spacing.unwrap_or(0.0) * props.font_size.unwrap_or(0.0)
 }
 
 /// The capitals of the text that the props describe, from the top of its box.

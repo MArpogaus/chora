@@ -399,4 +399,25 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn every_section_of_the_column_has_a_head() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, _model) = crate::testing::mc("audit-heads", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let args = serde_json::json!({"name": "Atlas", "state": "working", "task": "Tidy"});
+        mc.method("agent.set", args).unwrap();
+        let plan = mc.items("agenda");
+        let heads: Vec<String> = (plan[&Region::Right].0.iter())
+            .filter(|i| i.id.ends_with("-title"))
+            .map(|i| i.id.clone())
+            .collect();
+        let want = ["agents", "notify", "chat", "keys"].map(|n| format!("-right-{n}-title"));
+        for id in want {
+            assert!(
+                heads.iter().any(|h| h.ends_with(&id)),
+                "no {id} in {heads:?}"
+            );
+        }
+    }
 }

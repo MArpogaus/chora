@@ -34,7 +34,7 @@ panels:
 chat:
   style: plain
   font: TeX Gyre Pagella
-  size: 18
+  size: 19
   slot: mc
   fill: [247, 245, 237]
   text: [41, 38, 36]

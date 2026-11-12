@@ -375,7 +375,10 @@ impl Mc {
                 ..Item::text(format!("{id}-more"), slot, props, false)
             });
         }
-        if let Some(first) = items.first_mut() {
+        if !items.is_empty() && !content.title.is_empty() {
+            let head = self.content_type(content, true).props(&content.title);
+            items.insert(0, Item::text(format!("{id}-title"), slot, head, true));
+        } else if let Some(first) = items.first_mut() {
             first.first = true;
         }
         items
