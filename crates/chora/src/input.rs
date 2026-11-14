@@ -415,7 +415,8 @@ pub fn modifier_names(mods: &ModifiersState) -> Vec<String> {
     .collect()
 }
 
-/// The fixed bindings of the safety layer (D23), then the grabs. The keymap
+/// The fixed bindings of the safety layer (D23), then the grabs. Quit,
+/// reset and revoke wait while the session is locked. The keymap
 /// turns Ctrl+Alt+F1 to F12 into the keys that switch the VT; only the
 /// modified keysyms show them.
 fn press_action(
@@ -434,7 +435,7 @@ fn press_action(
     {
         return Some(KeyAction::SwitchVt(i32::try_from(vt).ok()? + 1));
     }
-    if mods.ctrl && mods.alt {
+    if mods.ctrl && mods.alt && state.lock.is_none() {
         if syms.contains(&Keysym::BackSpace) {
             return Some(KeyAction::Quit);
         }

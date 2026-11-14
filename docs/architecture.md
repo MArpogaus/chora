@@ -470,6 +470,8 @@ The safety layer is the only built-in behavior (see
   [Input injection](api.md#input-injection). They are Ctrl+Alt+BackSpace
   (quit), Ctrl+Alt+Escape (emergency reset), Ctrl+Alt+i (revoke) and
   Ctrl+Alt+F1 to F12 (VT switch).
+  While the session is locked, only the VT switch works: nobody at the
+  lock screen ends or resets the session. SIGUSR1 still resets.
 - **Revoke binding.** Ctrl+Alt+i takes every capability away from every
   client and drops the unused activation tokens of no client. It also
   ends the grabs that need no modifier and disconnects the Wayland
