@@ -1836,6 +1836,17 @@ exec cat >/dev/null"#;
         (agents, rx, data)
     }
 
+    /// The log of an agent has its messages: only the user reads it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_log_of_an_agent_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let (agents, _rx, data) = idle_agent("log-mode").await;
+        let log = std::fs::metadata(data.join("agents/coder.log")).unwrap();
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(log.permissions().mode() & 0o777, 0o600);
+    }
+
     fn roles(read: &Value) -> Vec<(u64, String)> {
         (read["entries"].as_array().unwrap().iter())
             .map(|e| {

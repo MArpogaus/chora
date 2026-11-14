@@ -2937,6 +2937,20 @@ mod tests {
         assert_eq!(section("x", "B"), None);
     }
 
+    /// The history file has the requests of the user: only the user
+    /// reads it.
+    #[tokio::test]
+    async fn the_history_file_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let file = temp("history-mode.json");
+        let _ = std::fs::remove_file(&file);
+        let (mut chat, _server) = chat(vec![], Config::default()).await;
+        chat.file = Some(file.clone());
+        turn(&mut chat, "eins", true).await;
+        let mode = std::fs::metadata(&file).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
     #[tokio::test]
     async fn the_history_file_keeps_the_requests_for_the_next_prompt() {
         let file = temp("history.json");
