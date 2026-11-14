@@ -1556,6 +1556,19 @@ mod tests {
         assert_eq!(rx.try_recv(), Ok(true));
     }
 
+    /// A key press right after a question shows was meant for the one
+    /// before, which the sub-agent replaced: it answers nothing, and
+    /// the question stays open.
+    #[test]
+    fn a_key_does_not_answer_a_question_that_just_showed() {
+        let mut core = with_coder();
+        let mut rx = sub_question(&mut core, true);
+        core.handle(Input::ConfirmKey(true));
+        assert!(rx.try_recv().is_err(), "the question just showed");
+        assert!(core.sub_confirm.is_some());
+        assert_eq!(core.state(), State::Confirming);
+    }
+
     /// A question that takes a key names its keys as the card does.
     #[test]
     fn the_spoken_keys_are_spelled_as_on_the_card() {
