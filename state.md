@@ -26,8 +26,9 @@ session branch: 498d9dea (train 4). rc target: 11-20.
 | mc | cloud Fable ..QEL2G, claude/mc-fix 4feb4dc0 | briefs/mc-r1.md | told 16:48: finish gate, report, stop |
 | xtc | done ..QVmwt, claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | to review |
 | doors | done ..N9VG6, claude/doors ea47e27b | briefs/doors-r1.md | to review; merges before mc, xtc |
-| ci | blocked ..MMUYU, claude/ci-rc 01fe4a66 | briefs/ci-r1.md | MERGE-OK; packaging moves to Actions |
-| docs | done ..NQmGA, claude/docs 41d02965 | briefs/docs-r1.md | MERGE-OK after README key fix |
+| ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | merging with docs (gate running) |
+| docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | merging with ci (gate running) |
+| review t5 | cloud opus (starting), read-only | briefs/review-train5-r1.md | doors, xtc |
 | flakes | lost (local, died 10:35), claude/flakes 22b452ed | briefs/flakes-r1.md | restart as cloud lane, not Fable |
 
 ## Queue
