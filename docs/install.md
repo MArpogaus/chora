@@ -26,12 +26,18 @@ the experiments `chora-mc` and `chora-construct`.
 
 ## Other programs
 
+The packages require two programs, which the package manager installs:
+
+- fuzzel 1.11 or later: the launcher of the tiling look; 1.11 is the
+  first version with mouse selection.
+- fontconfig: chora-mc looks up its font faces with it.
+
 The tiling look starts these programs: waybar, fuzzel, mako, swaybg,
-swaylock, swayidle, kanshi and foot. The RPM recommends them. On Arch
-Linux, install them as optional dependencies:
+swaylock, swayidle, kanshi and foot. The RPM recommends all but fuzzel.
+On Arch Linux, install them as optional dependencies:
 
 ```bash
-sudo pacman -S --asdeps uwsm foot fuzzel waybar mako swaybg swayidle swaylock kanshi
+sudo pacman -S --asdeps uwsm foot waybar mako swaybg swayidle swaylock kanshi
 ```
 
 [uwsm](https://github.com/Vladimir-csp/uwsm) is optional. The session
@@ -40,6 +46,11 @@ uwsm is not in Fedora 44; there the session "chora" is the way in.
 
 chora-mc uses the fonts Inter and TeX Gyre Pagella. On Arch Linux,
 install `inter-font` and `tex-gyre-fonts`.
+
+chora-assistant falls back to the DejaVu faces Sans, Serif and Sans
+Mono when a look names no font. The RPM recommends `dejavu-sans-fonts`,
+`dejavu-serif-fonts` and `dejavu-sans-mono-fonts`; on Arch Linux,
+install `ttf-dejavu`.
 
 ## Optional user import
 
