@@ -26,7 +26,7 @@ session branch: 498d9dea (train 4). rc target: 11-21 (criterion 11 adds a day).
 | review core | claude/review-core eff84702 | briefs/review-core-r1.md | MERGE-OK 18:01 (CR-1..7 MINOR); merges after F14 |
 | mc | claude/mc-fix 39ceb8cb | briefs/mc-r5.md | MERGE-OK 19:5x; merges after F14 |
 | xtc | claude/xtc-fix 91fb7d96 | briefs/xtc-r1.md | MERGE-OK 17:16; merges after F14 |
-| doors | claude/doors dd8669a4 | briefs/doors-r2.md | r2 handover at context limit: 79/80 cells; in review |
+| doors | cloud Fable (starting), claude/doors dd8669a4 | briefs/doors-r3.md | r2 FIX: dr2-1 BLOCK, dr2-2 MAJOR |
 | ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | gate 17:14 FAIL at cube (F14); waits for flakes |
 | docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | waits with ci for F14 |
 | review t5 r2 | done ..LjDUA | briefs/review-train5-r2.md | mc FIX, core MERGE-OK |
