@@ -257,6 +257,11 @@ impl Live {
     }
 }
 
+/// The time of an input from the `time` of its event in milliseconds.
+pub(crate) fn input_time(ms: u64) -> Duration {
+    Duration::from_millis(ms)
+}
+
 /// The yaw of the cube for a drag of `dx` over a view `width` wide: the
 /// whole width is a quarter turn.
 pub(crate) fn yaw_of(dx: f64, width: f64) -> f64 {
@@ -1948,6 +1953,24 @@ mod tests {
         }
         host.release(at, ms(5400));
         assert_eq!(host.front, 0, "a hand that rested before it let go");
+    }
+
+    #[test]
+    fn an_event_without_a_time_takes_the_time_of_the_clock() {
+        let ms = Duration::from_millis;
+        assert_eq!(input_time(81_234), ms(81_234));
+        let first = input_time(0);
+        std::thread::sleep(ms(20));
+        let later = input_time(0);
+        assert!(later >= first + ms(20), "{first:?} then {later:?}");
+        let mut host = host_of(4);
+        host.press(0, None, [740.0, 400.0]);
+        for x in [700.0, 680.0, 660.0] {
+            host.drag([x, 400.0], 1280.0, input_time(0));
+            std::thread::sleep(ms(40));
+        }
+        host.release(Instant::now(), input_time(0));
+        assert_eq!(host.front, 0, "a slow drag without times is no flick");
     }
 
     #[test]
