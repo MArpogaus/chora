@@ -4,6 +4,7 @@
 use std::{
     fs::File,
     io::{self, BufWriter, Seek, SeekFrom, Write},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -11,6 +12,17 @@ use std::{
 use serde_json::json;
 
 use crate::pcm::{self, RATE};
+
+/// A new file that only the user reads and writes (mode 0600): a
+/// recording has the voice of the user.
+fn private(path: &Path) -> io::Result<File> {
+    File::options()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)
+}
 
 /// A WAV file that grows; the header gets its length now and then and at
 /// the end.
@@ -21,7 +33,7 @@ struct Wav {
 
 impl Wav {
     fn create(path: &Path) -> io::Result<Self> {
-        let mut file = BufWriter::new(File::create(path)?);
+        let mut file = BufWriter::new(private(path)?);
         file.write_all(&pcm::wav_header(RATE, 0))?;
         Ok(Self { file, samples: 0 })
     }
@@ -52,7 +64,7 @@ pub struct Recorder {
 
 impl Recorder {
     /// Starts a recording in a new directory under `root`, named after
-    /// the time (UTC).
+    /// the time (UTC). Only the user enters the directory (mode 0700).
     ///
     /// # Errors
     ///
@@ -62,11 +74,14 @@ impl Recorder {
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| d.as_secs());
         let dir = root.join(stamp(secs));
-        std::fs::create_dir_all(&dir)?;
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(&dir)?;
         Ok(Self {
             mic: Wav::create(&dir.join("mic.wav"))?,
             played: Wav::create(&dir.join("played.wav"))?,
-            events: BufWriter::new(File::create(dir.join("events.jsonl"))?),
+            events: BufWriter::new(private(&dir.join("events.jsonl"))?),
             dir,
         })
     }

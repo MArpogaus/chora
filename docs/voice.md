@@ -799,7 +799,8 @@ record in `~/.local/state/chora/voice-turns.jsonl` (planned for WP8;
 
 ## 12. Recording for replay
 
-With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`:
+With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`
+(mode 0700, its files 0600: a recording has the voice of the user):
 
 - `mic.wav`: all mic frames, 24 kHz, without gaps.
 - `played.wav`: all played sound (earcons and replies), one piece after
