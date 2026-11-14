@@ -121,7 +121,7 @@ impl Llm {
             .map_err(|e| e.without_url().to_string())?
             .bytes()
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.without_url().to_string())
             .and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string()))?;
         let data = models["data"].as_array().ok_or("no model list")?;
         let model = data
@@ -202,7 +202,8 @@ impl Llm {
             else {
                 return Ok(round);
             };
-            buffer.extend_from_slice(&chunk.map_err(|e| Error::Other(e.to_string()))?);
+            buffer
+                .extend_from_slice(&chunk.map_err(|e| Error::Other(e.without_url().to_string()))?);
             while let Some(end) = buffer.iter().position(|&b| b == b'\n') {
                 let line: Vec<u8> = buffer.drain(..=end).collect();
                 let line = String::from_utf8_lossy(&line);
@@ -250,7 +251,7 @@ impl Llm {
             .timeout(self.total)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.without_url().to_string())?;
         let status = response.status();
         if !status.is_success() {
             let text = response.text().await.unwrap_or_default();
