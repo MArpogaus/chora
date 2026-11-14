@@ -1122,7 +1122,8 @@ impl Mc {
         if open {
             return Ok(());
         }
-        self.take_free_keyboard()
+        let commands = self.keyboard_back();
+        self.apply(commands)
     }
 
     /// Gives the keyboard to the page that shows, when no window and no
@@ -2680,6 +2681,16 @@ impl Mc {
         std::iter::once(focus).chain(page).collect()
     }
 
+    /// The keyboard for the scene that shows, after the chat closed: the
+    /// focus that `keyboard_to` held back while the chat had the keyboard.
+    fn keyboard_back(&mut self) -> Vec<Command> {
+        let Some(name) = self.current.clone() else {
+            return Vec::new();
+        };
+        let window = self.windows.get(&name).cloned();
+        self.keyboard_to(&name, window)
+    }
+
     /// Makes `name` the current scene and puts the one before on the trail.
     fn step_to(&mut self, name: &str) {
         if self.current.as_deref() == Some(name) {
@@ -3509,6 +3520,24 @@ mod tests {
             .find(|i| i.id.ends_with("-notify-title"))
             .unwrap();
         assert_eq!(head.props.text.as_deref(), Some("NOTIFICATIONS  0"));
+    }
+
+    /// An open chat keeps the keyboard; when it closes the page that
+    /// shows gets it, to its window or its node.
+    #[test]
+    fn the_keyboard_waits_for_the_chat_and_goes_to_the_page_after() {
+        let (mut mc, _) = crate::testing::mc("keyboard-chat", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.chat = crate::Chat::Open;
+        assert_eq!(mc.keyboard_to("agenda", None).len(), 0);
+        mc.chat = crate::Chat::Closed;
+        assert_eq!(mc.keyboard_back().len(), 2);
+        mc.windows.insert("agenda".into(), "s1".into());
+        let back = mc.keyboard_back();
+        assert!(matches!(
+            back.first(),
+            Some(Command::Focus { surface: Some(s) }) if s == "s1"
+        ));
     }
 
     /// With the voice HUD to the host the first line of the column stays
