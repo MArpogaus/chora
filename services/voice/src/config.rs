@@ -1483,6 +1483,11 @@ mod tests {
             question("configure_output", screen),
             "Shall I change the screen to output winit, scale 1.5?"
         );
+        let edges = serde_json::json!({"output": "winit", "top": 40});
+        assert_eq!(
+            question("reserve_space", edges),
+            "Shall I keep space free on the screen: output winit, top 40?"
+        );
         let view = serde_json::json!({"name": "desk"});
         assert_eq!(
             question("unload_view", view),

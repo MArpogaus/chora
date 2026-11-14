@@ -3726,6 +3726,38 @@ mod tests {
         assert_eq!(text, "no backend");
     }
 
+    /// `output.configure` and `output.reserve` change the whole session,
+    /// so a confined connection needs `methods.privileged` for them (C05).
+    #[test]
+    fn output_changes_of_a_confined_client_are_privileged() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "voice-mcp", "confined": true}),
+        );
+        let configure = json!({"output": "DP-1", "scale": 1.0});
+        let reserve = json!({"output": "DP-1", "edges": {"top": 30}});
+        for (method, params) in [
+            ("output.configure", &configure),
+            ("output.reserve", &reserve),
+        ] {
+            let (error_code, text) = agent.fails(&mut core, method, params.clone());
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}: {text}");
+            assert!(text.contains("methods.privileged"), "{text}");
+        }
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.privileged"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        agent.ok(&mut core, "output.reserve", reserve);
+        let (error_code, text) = agent.fails(&mut core, "output.configure", configure);
+        assert_eq!(
+            (error_code, text.as_str()),
+            (RpcError::REJECTED, "no backend")
+        );
+    }
+
     #[test]
     fn the_reset_removes_the_client_sockets() {
         let (mut core, dir) = socket_dir("reset");

@@ -937,6 +937,18 @@ mod tests {
         assert_eq!(flag(&exported[1]), Some(json!(false)));
     }
 
+    /// `configure_output` and `reserve_space` call methods that need
+    /// `methods.privileged`, so their tools carry the flag too.
+    #[test]
+    fn the_output_tools_are_privileged() {
+        for name in ["configure_output", "reserve_space"] {
+            let tools = session_tools();
+            let tool = tools.iter().find(|t| t.name == name).unwrap();
+            let flag = tool.meta.as_ref().map(|m| m.0["privileged"].clone());
+            assert_eq!(flag, Some(json!(true)), "{name}");
+        }
+    }
+
     #[test]
     fn the_tool_list_of_the_core_goes_again_when_lost() {
         assert!(READ_ONLY.contains(&"methods.list"), "{READ_ONLY:?}");
