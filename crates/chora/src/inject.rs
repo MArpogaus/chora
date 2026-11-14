@@ -1333,6 +1333,47 @@ mod tests {
         assert_eq!(pixel(22, 22), [255, 255, 0, 255], "the mark draws on top");
     }
 
+    /// The mark draws in front of the cursor too: a large cursor surface
+    /// of a client that sits on the mark does not cover it (C13).
+    #[test]
+    fn the_cursor_does_not_cover_the_mark() {
+        use smithay::backend::renderer::element::{
+            Element, Id, Kind,
+            solid::{SolidColorBuffer, SolidColorRenderElement},
+        };
+        let mut core = Core::with_renderer();
+        let output = core.add_output("test-1", (64, 48));
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let to = json!({"events": [{"pointer_move": {"position": [10.0, 10.0]}}]});
+        agent.ok(&mut core, "input.inject", to);
+        let buffer = SolidColorBuffer::new((64, 48), [1.0, 0.0, 0.0, 1.0]);
+        let cursor = SolidColorRenderElement::from_buffer(&buffer, (0, 0), 1.0, 1.0, Kind::Cursor);
+        let cursor_id: Id = cursor.id().clone();
+        let state = &mut core.state;
+        let view = crate::render::View::of(state, &output);
+        let mut parts = crate::render::Parts {
+            scene: &state.scene,
+            windows: &state.windows,
+            assets: &mut state.assets,
+            lock: None,
+            depth: 0,
+        };
+        let backend = state.backend.as_mut().unwrap();
+        let ids = backend
+            .with_gles(|gles| {
+                let cursor = vec![crate::render::SceneElement::Solid(cursor)];
+                crate::render::screen_elements(&mut parts, gles, &output, &view, cursor)
+                    .iter()
+                    .map(|e| e.id().clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap();
+        let at = ids.iter().position(|id| *id == cursor_id);
+        assert_eq!(at, Some(1), "the mark first, then the cursor");
+    }
+
     #[test]
     fn the_list_of_held_keys_follows_presses_and_releases() {
         let mut down = Vec::new();
