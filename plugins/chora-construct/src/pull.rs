@@ -462,6 +462,7 @@ mod tests {
             local: [0.0; 2],
             modifiers: Vec::new(),
             injected,
+            time: 0,
         }
     }
 
@@ -473,6 +474,7 @@ mod tests {
             local: [0.0; 2],
             modifiers: Vec::new(),
             injected,
+            time: 0,
         }
     }
 

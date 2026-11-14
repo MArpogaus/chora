@@ -227,11 +227,12 @@ fn drag_of(press: &mut Option<Press>, at: [f64; 2]) -> Dragged {
 }
 
 /// The cube while the hand holds it: the angle at the press, the width
-/// of the view, and the last positions of the hand for its speed.
+/// of the view, and the last positions of the hand for its speed, each
+/// with the time of its input.
 struct Live {
     base: f64,
     width: f64,
-    samples: Vec<(Instant, f64)>,
+    samples: Vec<(Duration, f64)>,
 }
 
 /// How far back the speed of the hand looks, and the least time that it
@@ -240,16 +241,18 @@ const SAMPLED: Duration = Duration::from_millis(120);
 const LEAST: f64 = 0.005;
 
 impl Live {
-    /// The speed of the hand at `now` in widths per second, to the right
-    /// positive; none when it rested.
-    fn velocity(&self, now: Instant) -> f64 {
-        let recent: Vec<&(Instant, f64)> = (self.samples.iter())
-            .filter(|(at, _)| now.saturating_duration_since(*at) <= SAMPLED)
+    /// The speed of the hand at the input time `time` in widths per
+    /// second, to the right positive; none when it rested. The times are
+    /// those of the inputs, so a construct that handles the moves late
+    /// sees the same speed.
+    fn velocity(&self, time: Duration) -> f64 {
+        let recent: Vec<&(Duration, f64)> = (self.samples.iter())
+            .filter(|(at, _)| time.saturating_sub(*at) <= SAMPLED)
             .collect();
         let (Some(first), Some(last)) = (recent.first(), recent.last()) else {
             return 0.0;
         };
-        let seconds = last.0.saturating_duration_since(first.0).as_secs_f64();
+        let seconds = last.0.saturating_sub(first.0).as_secs_f64();
         (last.1 - first.1) / self.width / seconds.max(LEAST)
     }
 }
@@ -802,8 +805,9 @@ impl Host {
 
     /// The pointer moved to `at` during a press: once it went farther
     /// than a click, the cube follows the hand, a view `width` wide being
-    /// a quarter turn, without a threshold and without lag.
-    pub(crate) fn drag(&mut self, at: [f64; 2], width: f64, now: Instant) -> Dragged {
+    /// a quarter turn, without a threshold and without lag. `time` is
+    /// the time of the input of the move.
+    pub(crate) fn drag(&mut self, at: [f64; 2], width: f64, time: Duration) -> Dragged {
         let dragged = drag_of(&mut self.press, at);
         if let Dragged::Yaw(dx) = dragged {
             let live = self.live.get_or_insert_with(|| Live {
@@ -812,8 +816,8 @@ impl Host {
                 samples: Vec::new(),
             });
             live.samples
-                .retain(|(t, _)| now.saturating_duration_since(*t) <= SAMPLED);
-            live.samples.push((now, at[0]));
+                .retain(|(t, _)| time.saturating_sub(*t) <= SAMPLED);
+            live.samples.push((time, at[0]));
             let reach = 2.0 * width;
             self.angle = live.base + yaw_of(dx.clamp(-reach, reach), width);
             self.view.act(Act::Turn(1));
@@ -822,12 +826,14 @@ impl Host {
     }
 
     /// The hand lets go: the cube settles on the nearest face over 320 ms,
-    /// or goes on to the next one when the hand flicked.
-    fn settle(&mut self, now: Instant) {
+    /// or goes on to the next one when the hand flicked: by its speed at
+    /// the input time `released`, none when no release let it go.
+    fn settle(&mut self, now: Instant, released: Option<Duration>) {
         let Some(live) = self.live.take() else {
             return;
         };
-        let by = settle_by(self.angle - live.base, live.velocity(now));
+        let velocity = released.map_or(0.0, |time| live.velocity(time));
+        let by = settle_by(self.angle - live.base, velocity);
         self.front = next_front(self.front, by, self.outputs.len());
         let to = Cube::turn_of(self.front);
         self.turn = Some(Turn::new(self.angle, to, now, SETTLE));
@@ -837,14 +843,15 @@ impl Host {
     /// the person. A cube that the hand held settles.
     pub(crate) fn forget_press(&mut self, now: Instant) {
         self.press = None;
-        self.settle(now);
+        self.settle(now, None);
     }
 
-    /// The release of a press: the cube settles if the hand held it, and
-    /// the face of a click, a press that did not move, comes back.
-    pub(crate) fn release(&mut self, now: Instant) -> Option<usize> {
+    /// The release of a press, with the time of its input: the cube
+    /// settles if the hand held it, and the face of a click, a press that
+    /// did not move, comes back.
+    pub(crate) fn release(&mut self, now: Instant, time: Duration) -> Option<usize> {
         let press = self.press.take()?;
-        self.settle(now);
+        self.settle(now, Some(time));
         (!press.dragged).then_some(press.face)
     }
 
@@ -1037,7 +1044,7 @@ impl Host {
         let changed = self.view.act(act);
         if changed {
             self.press = None;
-            self.settle(now);
+            self.settle(now, None);
             let to = if act == Act::StepBack { 1.0 } else { 0.0 };
             #[allow(
                 clippy::cast_possible_truncation,
@@ -1864,19 +1871,19 @@ mod tests {
         let ms = Duration::from_millis;
         let mut host = host_of(4);
         host.press(0, None, [600.0, 300.0]);
-        host.drag([560.0, 300.0], 1280.0, at);
+        host.drag([560.0, 300.0], 1280.0, ms(0));
         assert!(
             (host.angle - yaw_of(-40.0, 1280.0)).abs() < 1e-9,
             "the cube follows at once: {}",
             host.angle
         );
-        host.drag([100.0, 300.0], 1280.0, at + ms(400));
+        host.drag([100.0, 300.0], 1280.0, ms(400));
         assert!(
             (host.angle - yaw_of(-500.0, 1280.0)).abs() < 1e-9,
             "from the press, no lag"
         );
         let released = at + ms(900);
-        assert_eq!(host.release(released), None, "a drag is no click");
+        assert_eq!(host.release(released, ms(900)), None, "a drag is no click");
         assert_eq!(host.front, 0, "35 degrees returns to the face of before");
         let turn = host.turn.expect("the cube settles");
         assert!(!turn.done(released + ms(300)));
@@ -1890,9 +1897,9 @@ mod tests {
         let ms = Duration::from_millis;
         let mut host = host_of(4);
         host.press(0, None, [600.0, 300.0]);
-        host.drag([-111.0, 300.0], 1280.0, at);
+        host.drag([-111.0, 300.0], 1280.0, ms(0));
         let released = at + ms(900);
-        host.release(released);
+        host.release(released, ms(900));
         assert_eq!(host.front, 1, "50 degrees goes on to the next face");
         let turn = host.turn.expect("the cube settles");
         assert!(turn.done(released + ms(320)));
@@ -1905,22 +1912,42 @@ mod tests {
         let ms = Duration::from_millis;
         let mut host = host_of(4);
         host.press(0, None, [600.0, 300.0]);
-        host.drag([540.0, 300.0], 1280.0, at + ms(10));
-        host.drag([440.0, 300.0], 1280.0, at + ms(60));
-        host.release(at + ms(70));
+        host.drag([540.0, 300.0], 1280.0, ms(10));
+        host.drag([440.0, 300.0], 1280.0, ms(60));
+        host.release(at + ms(70), ms(70));
         assert_eq!(
             host.front, 1,
             "160 px in 50 ms is faster than 1.5 widths a second"
         );
         let mut host = host_of(4);
         host.press(0, None, [600.0, 300.0]);
-        host.drag([604.0, 300.0], 1280.0, at);
+        host.drag([604.0, 300.0], 1280.0, ms(0));
         assert_eq!(
-            host.release(at + ms(50)),
+            host.release(at + ms(50), ms(50)),
             Some(0),
             "a press that stays is a click"
         );
         assert!(host.turn.is_none() && host.angle == 0.0);
+    }
+
+    #[test]
+    fn the_speed_of_a_flick_is_that_of_the_inputs_not_of_their_handling() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        host.press(0, None, [740.0, 400.0]);
+        for (x, time) in [(680.0, 5000), (560.0, 5001), (440.0, 5002)] {
+            host.drag([x, 400.0], 1280.0, ms(time));
+        }
+        host.release(at + ms(900), ms(5003));
+        assert_eq!(host.front, 1, "a flick that the construct handled late");
+        let mut host = host_of(4);
+        host.press(0, None, [740.0, 400.0]);
+        for (x, time) in [(680.0, 5000), (560.0, 5001), (440.0, 5002)] {
+            host.drag([x, 400.0], 1280.0, ms(time));
+        }
+        host.release(at, ms(5400));
+        assert_eq!(host.front, 0, "a hand that rested before it let go");
     }
 
     #[test]
@@ -1931,13 +1958,17 @@ mod tests {
         assert!(host.act(Act::StepBack, at));
         host.press(0, None, [600.0, 300.0]);
         assert_eq!(
-            host.release(at + ms(50)),
+            host.release(at + ms(50), ms(50)),
             Some(0),
             "a click during the step back is lost"
         );
         host.turn = Some(Turn::new(0.0, Cube::turn_of(1), at, TURN));
         host.press(0, None, [600.0, 300.0]);
-        assert_eq!(host.release(at + ms(60)), None, "a press during a turn");
+        assert_eq!(
+            host.release(at + ms(60), ms(60)),
+            None,
+            "a press during a turn"
+        );
     }
 
     fn lens_of(host: &Host) -> super::super::space::Lens {
@@ -1992,7 +2023,7 @@ mod tests {
         host.stand = 1.0;
         let rest = host.drawn_angle() - host.angle;
         host.press(0, None, [600.0, 300.0]);
-        host.drag([560.0, 300.0], 1280.0, Instant::now());
+        host.drag([560.0, 300.0], 1280.0, Duration::ZERO);
         assert!((host.drawn_angle() - host.angle - rest).abs() < 1e-9);
         assert!(host.angle < 0.0, "the hand still turns the cube");
         host.angle = Cube::turn_of(1);

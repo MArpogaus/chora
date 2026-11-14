@@ -232,6 +232,11 @@ pub enum Event {
         /// client that takes a drag for the user must ignore it.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         injected: bool,
+        /// The time of the input in milliseconds of the monotonic clock,
+        /// for the speed of a drag: the time between two events is the
+        /// time between their inputs, not between their deliveries.
+        #[serde(default)]
+        time: u64,
     },
     /// The button of a press over a rect or an image went up.
     #[serde(rename = "pointer.released")]
@@ -256,6 +261,11 @@ pub enum Event {
         /// client that takes a drag for the user must ignore it.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         injected: bool,
+        /// The time of the input in milliseconds of the monotonic clock,
+        /// for the speed of a drag: the time between two events is the
+        /// time between their inputs, not between their deliveries.
+        #[serde(default)]
+        time: u64,
     },
     /// The wheel or the touchpad scrolled over a rect, an image or a shader
     /// node that takes pointer input. Only the connections of the owner of

@@ -554,7 +554,7 @@ impl State {
 }
 
 /// The drag of a node goes to plugins only, with each new position.
-fn drag_node(state: &mut State, spot: &Spot) {
+fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
     let outputs = state.all_outputs();
     let Some(grab) = &mut state.node_grab else {
         return;
@@ -574,6 +574,7 @@ fn drag_node(state: &mut State, spot: &Spot) {
             local,
             modifiers,
             injected,
+            time: time.micros() / 1000,
         });
     }
 }
@@ -601,7 +602,7 @@ pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputT
         state.ipc.send_to(conn, &event);
     }
     let under = if state.node_grab.is_some() {
-        drag_node(state, &spot);
+        drag_node(state, &spot, time);
         None
     } else if state.button_grab.is_some() {
         None
@@ -692,7 +693,7 @@ pub fn press_button(
         start_plane_grab(state, &pointer, code, serial);
     } else {
         note_input(state, pointer.current_focus(), serial, false);
-        release_node(state, code, left_a_pane);
+        release_node(state, code, left_a_pane, time);
     }
     pointer.button(
         state,
@@ -1475,7 +1476,7 @@ impl PointerGrab<State> for PlaneGrab {
 
 /// Ends the drag of a node when its button goes up. After a press through
 /// a pane, the release is on the screen and the node keeps its last point.
-fn release_node(state: &mut State, button: u32, left_a_pane: bool) {
+fn release_node(state: &mut State, button: u32, left_a_pane: bool, time: InputTime) {
     let Some(NodeGrab { node, local, .. }) = state.node_grab.take_if(|g| g.button == button) else {
         return;
     };
@@ -1496,6 +1497,7 @@ fn release_node(state: &mut State, button: u32, left_a_pane: bool) {
         local,
         modifiers,
         injected,
+        time: time.micros() / 1000,
     });
 }
 
@@ -1905,6 +1907,30 @@ mod tests {
         assert_eq!(named(&all, "pointer.pressed")[0]["modifiers"], ctrl);
         assert_eq!(named(&all, "pointer.moved")[0]["modifiers"], ctrl);
         assert_eq!(named(&all, "pointer.released")[0]["modifiers"], json!([]));
+    }
+
+    #[test]
+    fn a_move_and_a_release_carry_the_time_of_their_input() {
+        let (mut core, _wayland, _window, _wm, mut xp) = window_and_menu();
+        apply(
+            &mut xp,
+            &mut core,
+            &json!([{"update": {"id": "menu", "props": {"transform": {"translate": [400, 0]}}}}]),
+        );
+        let at = InputTime::from_millis;
+        move_to(&mut core, 450.0, 50.0);
+        click(&mut core, true);
+        super::move_pointer(&mut core.state, (460.0, 50.0).into(), at(81_234));
+        super::press_button(
+            &mut core.state,
+            272,
+            ButtonState::Released,
+            at(81_250),
+            false,
+        );
+        let all = events(&mut xp, &mut core);
+        assert_eq!(named(&all, "pointer.moved")[0]["time"], 81_234);
+        assert_eq!(named(&all, "pointer.released")[0]["time"], 81_250);
     }
 
     #[test]
