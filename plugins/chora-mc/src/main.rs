@@ -19,6 +19,7 @@ mod config;
 mod fonts;
 mod keys;
 mod manage;
+mod mic;
 mod region;
 mod scene;
 #[cfg(test)]
@@ -291,6 +292,8 @@ struct Mc {
     current: Option<String>,
     /// The scene before the current one.
     previous: Option<String>,
+    /// The microphone of the voice agent, for the word of the state line.
+    mic: mic::Mic,
     /// The scenes that showed before the current one, the last one last:
     /// Escape on a page goes back along them.
     trail: Vec<String>,
@@ -489,6 +492,7 @@ impl Mc {
             launched: Vec::new(),
             current: None,
             previous: None,
+            mic: mic::Mic::default(),
             trail: Vec::new(),
             output: None,
             built: false,
@@ -810,9 +814,7 @@ impl Plugin for Mc {
             Event::ClientConnected { name } | Event::ClientDisconnected { name }
                 if name == VOICE =>
             {
-                self.claim_due = true;
-                self.claim_indicator(false);
-                Ok(())
+                self.voice_changed()
             }
             Event::InputKey {
                 binding,
@@ -843,9 +845,7 @@ impl Plugin for Mc {
                 modifiers,
                 ..
             } => {
-                if modifiers.is_empty() {
-                    self.page_key(&key);
-                }
+                self.page_key(&key, &modifiers);
                 Ok(())
             }
             Event::PointerScroll { node, dy, .. } => self.scroll_page(&node, dy),
@@ -1029,6 +1029,10 @@ impl Mc {
             self.claim_indicator(true);
         }
         let kind = event.strip_prefix(client).and_then(|e| e.strip_prefix('.'));
+        let own_state = client == VOICE && kind == Some("state") && data.get("name").is_none();
+        if own_state && self.mic_follows(mic::Mic::of(&data)) {
+            self.render()?;
+        }
         let host = client == VOICE && self.settings.value.voice_hud == config::VoiceHud::Host;
         let hosts_it = match kind {
             Some("confirm" | "say") => true,
@@ -1088,7 +1092,7 @@ impl Mc {
     /// A press of the pointer: on a column of a helper it opens the chat,
     /// else it is a click.
     fn press(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
-        if self.click_agent(node, at) || self.click_hit(node) {
+        if self.click_agent(node, at) || self.click_mic(node, injected) || self.click_hit(node) {
             return Ok(());
         }
         self.click(node, at, injected)
@@ -1141,10 +1145,22 @@ impl Mc {
         }])
     }
 
+    /// The voice agent came or went: its indicator is due again, and the
+    /// state of its microphone is unknown until its next state.
+    fn voice_changed(&mut self) -> Result<(), ClientError> {
+        self.claim_due = true;
+        self.claim_indicator(false);
+        if self.mic_follows(mic::Mic::Unknown) {
+            self.render()?;
+        }
+        Ok(())
+    }
+
     /// A key without a modifier while a page has the keyboard: Right and
     /// Left turn the page, Escape goes back one step.
-    fn page_key(&mut self, key: &str) {
+    fn page_key(&mut self, key: &str, modifiers: &[String]) {
         let action = match key {
+            _ if !modifiers.is_empty() => return,
             "Right" => Action::NextScene,
             "Left" => Action::PreviousScene,
             "Escape" => return self.back(),

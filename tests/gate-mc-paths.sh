@@ -14,8 +14,8 @@
 #                  turns the page
 #   mouse-back     a click on the footer of page 2 turns back
 #   mute           the state line has the word Mute; a press on it mutes
-#                  the microphone, the line then offers to turn it on, and
-#                  the arrows still turn the page
+#                  the microphone, the badge of the host then turns it on,
+#                  the word comes back, and the arrows still turn the page
 #   terminal-chat  the terminal page keeps the column; the chat opens in it
 #                  and a page turn with the chat open leaves no part of it
 #                  outside the column
@@ -201,18 +201,20 @@ cell_mute() {
     jq -ne --argjson r "$rect" '$r[0] >= 888 and $r[0] + $r[2] <= 1224 and $r[1] < 84' >/dev/null ||
         fail "Mute is not on the first line of the column: $rect"
     [ "$(jq -n --argjson s "$(text_size Mute)" '$s >= 14')" = true ] || fail "Mute is under 14 px"
-    click_rect "$rect"
-    until_ok '[ "$(bars)" = 1 ]' 8 || true
+    move_to "$(jq -n --argjson r "$rect" '$r[0] + 10')" "$(jq -n --argjson r "$rect" '$r[1] + $r[3] / 2 | floor')"
+    until_ok '[ "$(bars)" = 1 ]' 8 || fail "no focus bar over Mute"
     shot mute
+    click_rect "$rect"
     until_ok 'grep -q "\"mic\": true" "$work/claims.mute" 2>/dev/null' 20 || fail "a press on Mute does not mute the microphone"
-    until_ok 'has_text "Turn microphone on"' 20 || fail "the muted line does not offer to turn the microphone on: $(texts | tr '\n' '|')"
-    has_text "Mute" && fail "Mute stays beside a muted microphone"
+    until_ok '! has_text "Mute"' 20 || fail "Mute stays beside a muted microphone"
+    until_ok 'node_exists hud-badge' 20 || fail "the host shows no badge of the muted microphone"
+    shot muted
     key Right
     until_ok '[ "$(current)" = morning ]' 20 || fail "Right does not turn the page after the press on Mute: $(current)"
     key Left
     until_ok '[ "$(current)" = agenda ]' 20 || fail "Left does not turn back"
-    click_rect "$(text_rect "Turn microphone on")"
-    until_ok 'grep -q "\"mic\": false" "$work/claims.mute"' 20 || fail "a press on the muted line does not turn the microphone on"
+    click_rect "$(node_rect hud-badge)"
+    until_ok 'grep -q "\"mic\": false" "$work/claims.mute"' 20 || fail "a press on the badge does not turn the microphone on"
     until_ok 'has_text "Mute"' 20 || fail "Mute does not come back"
 }
 

@@ -213,7 +213,8 @@ regions:
 # agent.set, in the color of its state), text (lines of content.set and
 # content.add, with a title), app (a command docked in a side or the
 # drawer; {NAME} is the color NAME of the theme as RRGGBB; a scene's
-# app: can name such a content). Each may set a style. notify.push fills
+# app: can name such a content). Each may set a style. In a side, state
+# also holds the word Mute for the microphone of the voice agent. notify.push fills
 # the texts notify and urgent; urgent shows in the middle of the footer,
 # where the header has no room left. A critical notification starts with
 # the word Urgent in both, and a click on the line of the footer takes

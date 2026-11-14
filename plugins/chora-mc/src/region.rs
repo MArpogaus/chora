@@ -646,6 +646,7 @@ impl Mc {
         }
         match content.kind {
             Kind::Agents => self.agent_items(region, slot, name, content),
+            Kind::State if side => self.state_items(region, slot, (name, scene)),
             Kind::Chat if side => self.chat_items(slot, name, content, region),
             Kind::Keys if side => self.key_items(slot, name, content, region),
             Kind::App | Kind::Chat | Kind::Keys => Vec::new(),
@@ -678,6 +679,44 @@ impl Mc {
             return (line, self.key_of(&crate::config::Action::PreviousScene));
         }
         (String::new(), None)
+    }
+
+    /// The state line of a side: the state word that mc draws, if any,
+    /// and the word for the microphone. Where the HUD host draws the
+    /// state word at the right, the word for the microphone takes the
+    /// free line at the left.
+    fn state_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
+        let mut items = self.text_items(region, slot, (name, scene));
+        let id = format!("{}-{name}", self.region_id(region));
+        let blank = |item: &Item| {
+            item.props
+                .text
+                .as_deref()
+                .is_none_or(|t| t.trim().is_empty())
+        };
+        let alone = items.iter().all(blank);
+        if let Some(word) = self.mic_item(&id, slot, alone) {
+            if alone {
+                items.clear();
+            }
+            items.push(word);
+        }
+        items
+    }
+
+    /// The token of the hit `node`, as its item names it.
+    fn hit_token(&self, node: &str) -> Option<String> {
+        let base = node.strip_suffix("-hit")?;
+        let name = self.current.clone().unwrap_or_default();
+        (self.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id == base)
+            .and_then(|i| i.hit)
+    }
+
+    /// A press on the word for the microphone; see [`Mc::press_mic`].
+    pub fn click_mic(&mut self, node: &str, injected: bool) -> bool {
+        (self.hit_token(node)).is_some_and(|token| self.press_mic(&token, injected))
     }
 
     fn text_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
@@ -1588,11 +1627,7 @@ impl Mc {
         if base.ends_with("-chapter-head") {
             return self.show_overview();
         }
-        let name = self.current.clone().unwrap_or_default();
-        let token = (self.items(&name).into_values())
-            .flat_map(|(items, _)| items)
-            .find(|i| i.id == base)
-            .and_then(|i| i.hit);
+        let token = self.hit_token(node);
         match token.as_deref().and_then(|t| t.split_once(':')) {
             Some(("key", binding)) => self.act(binding),
             Some(("agent", agent)) => self.chat_with(Some(agent)),
