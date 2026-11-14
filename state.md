@@ -25,7 +25,7 @@ train 5 gate running (flakes, ci-rc, docs, xtc, core-r2, mc, changelog revert); 
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | train 5 | local gate, wt/train5 | rules.md 8 | full gate running since 20:16 |
-| flakes | done ..MXy5q, claude/flakes 55c527d4 | briefs/flakes-r2.md | in train 5; review running |
+| flakes | cloud Fable (starting), claude/flakes 55c527d4 | briefs/flakes-r3.md | r2 in train 5 (R1 open, exception); r3: R1, F15, races |
 | doors | cloud Fable ..PZrjj, claude/doors dd8669a4 | briefs/doors-r3.md | dr2-1 BLOCK, dr2-2 MAJOR |
 | mc | claude/mc-fix 39ceb8cb | briefs/mc-r5.md | MERGE-OK; in train 5 |
 | core | claude/core-r2 308d22dc | briefs/core-r3.md | MERGE-OK; in train 5 |
