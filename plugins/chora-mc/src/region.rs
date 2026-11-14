@@ -1306,9 +1306,9 @@ impl Mc {
 
     /// The chat in a side: while it is closed a door, `Chat with a helper`
     /// and the key of the chat flush right, under a head with the state
-    /// word of the helper; while it is open the head with `Esc  Close`, the
-    /// words that no helper is set up when there is none, and the place of
-    /// the box of the host.
+    /// word of the helper; while it is open the head with `Esc  Close` and
+    /// the place of the box of the host, whose header says so when no
+    /// helper is set up.
     fn chat_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
         let id = format!("{}-{name}", self.region_id(region));
         let head = self.content_type(content, true).props("Chat");
@@ -1325,16 +1325,6 @@ impl Mc {
                 put: Put::End,
                 ..end("close", "Esc  Close", Some("chat:close"))
             });
-            if self.agents.is_empty() {
-                let language = chora_kit::words::Language::of_session();
-                let none = chora_kit::words::Word::NoHelper.text(language);
-                items.push(Item::text(
-                    format!("{id}-none"),
-                    slot,
-                    margin.props(none),
-                    false,
-                ));
-            }
             let blank = Item::text(format!("{id}-slot"), slot, margin.props(" "), false);
             items.push(Item {
                 put: Put::Slot,

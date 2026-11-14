@@ -3417,6 +3417,18 @@ mod tests {
         assert_eq!(name.props.text.as_deref(), Some("Atlas"));
     }
 
+    /// The open chat is the box of the HUD host, whose header says that no
+    /// helper is set up: mc draws no line of its own for it.
+    #[test]
+    fn the_open_chat_leaves_the_words_of_no_helper_to_the_host() {
+        let (mut mc, _) = crate::testing::mc("chat-none", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.chat = crate::Chat::Open;
+        let items = right_items(&mc);
+        assert!(items.iter().any(|i| i.id.ends_with("-chat-slot")));
+        assert_eq!(text_of(&items, "-chat-none"), None);
+    }
+
     fn text_of(items: &[crate::region::Item], suffix: &str) -> Option<String> {
         let found = items.iter().find(|i| i.id.ends_with(suffix))?;
         found.props.text.clone()
