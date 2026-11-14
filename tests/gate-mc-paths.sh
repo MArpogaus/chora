@@ -223,6 +223,7 @@ cell_mute() {
 chat_has_sent() { ctl query "id:hud-chat" | jq -e --arg t "$1" '.[0].meta.text | endswith("You\n" + $t)' >/dev/null; }
 type_line() {
     local i
+    key space
     for ((i = 0; i < ${#1}; i++)); do
         case ${1:i:1} in
         " ") key space ;;
@@ -235,8 +236,8 @@ terminal_got() { [ -e "$PWD/$1" ]; }
 in_column() { jq -ne --argjson c "$1" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56 and $c[1] + $c[3] <= 786' >/dev/null; }
 cell_terminal_chat() {
     local chat mark_fwd=mckeyfwd mark_rev=mckeyrev
-    trap 'rm -f mckeyfwd mckeyrev' RETURN
-    rm -f mckeyfwd mckeyrev
+    trap 'rmdir mckeyfwd mckeyrev 2>/dev/null' RETURN
+    rmdir mckeyfwd mckeyrev 2>/dev/null
     key Super+Return
     until_ok '[ "$(current)" = terminal ]' 20 || fail "no terminal page: $(current)"
     sleep 2
@@ -276,8 +277,8 @@ cell_terminal_chat() {
     until_ok 'chat_has_sent hi' 20 || fail "after the page turn typed text does not reach the chat field"
     key Escape
     until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat"
-    sleep 1
-    type_line "touch $mark_fwd"
+    sleep 3
+    type_line "mkdir $mark_fwd"
     until_ok 'terminal_got $mark_fwd' 20 || fail "after the chat closed typed text does not reach the terminal"
     key Super+a
     until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat on the terminal page"
@@ -286,8 +287,8 @@ cell_terminal_chat() {
     until_ok '[ "$(current)" = mission ]' 20 || fail "Super+Left does not turn the page: $(current)"
     key Escape
     until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat on the page turned to"
-    sleep 1
-    type_line "touch $mark_rev"
+    sleep 3
+    type_line "mkdir $mark_rev"
     sleep 2
     terminal_got $mark_rev && fail "after the chat closed on another page typed text reached the hidden terminal"
     return 0
