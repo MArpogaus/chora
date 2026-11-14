@@ -4,7 +4,8 @@
 # asks are in tests/doors/lib.sh, and tests/doors/LOOK.sh answers them for
 # a look in a headless session, with stand-ins for swaylock, loginctl,
 # systemctl, wpctl, grim and notify-send. The gate prints the table
-# action x look and fails on a cell that is not `pass`.
+# action x look and fails on a cell that is not `pass`, and on a line
+# `check LOOK NAME fail` of a look, a check beside its cells.
 #
 # Usage: tests/gate-doors.sh [LOOK...]   BIN: directory with the binaries
 #   LOOK  xp, tiling, mc, construct (default all)
@@ -39,11 +40,17 @@ for id in $doors_cells; do
     done
     printf '\n'
 done
+for look in $looks; do
+    while read -r line; do
+        echo "$line"
+        bad=$((bad + 1))
+    done < <(grep -E "^check $look .* fail$" "$out/$look.log")
+done
 if [ "$bad" != 0 ]; then
     for look in $looks; do
         echo "--- $look: last lines of its log"
         grep -v '^cell ' "$out/$look.log" | tail -n 8
     done
-    fail "$bad cells are not pass"
+    fail "$bad cells or checks are not pass"
 fi
 ok "every look has every key and door"
