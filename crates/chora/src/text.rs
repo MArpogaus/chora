@@ -378,7 +378,8 @@ fn paint(fonts: &mut Fonts, key: &Key, scale: f64) -> Option<([f64; 2], [f32; 2]
         color,
     );
     if blank > 0 {
-        tracing::warn!(text = %key.text, blank, "glyphs laid out but drawn by no font");
+        let chars = key.text.chars().count();
+        tracing::warn!(chars, blank, "glyphs laid out but drawn by no font");
     }
     Some((size, [width, height], rgba))
 }
