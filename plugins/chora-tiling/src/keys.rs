@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use chora_kit::words::Language;
+use chora_kit::{volume::Change, words::Language};
 use chora_scene::{Backdrop, Border, Command, NodeKind, PropsUpdate, Transform};
 
 use crate::{
@@ -166,7 +166,9 @@ fn tag_words(action: &Action) -> Option<Words> {
 fn system_words(action: &Action) -> Option<Words> {
     Some(match action {
         Action::Reload => ["Read the settings again", "Einstellungen neu lesen"],
-        Action::Volume(_) => ["Volume", "Lautstärke"],
+        Action::Volume(Change::Up) => ["Volume up", "Lauter"],
+        Action::Volume(Change::Down) => ["Volume down", "Leiser"],
+        Action::Volume(Change::Mute) => ["Mute", "Stumm"],
         Action::ShowKeys => ["Show this list", "Diese Liste zeigen"],
         _ => return None,
     })
@@ -200,7 +202,7 @@ type Entry = (usize, String, String);
 
 /// The English words of the rows in the order that the key list shows
 /// them, by group; a row that is not here follows the others, by its keys.
-const ORDER: [&str; 44] = [
+const ORDER: [&str; 45] = [
     "Next window",
     "Previous window",
     "Window before",
@@ -243,38 +245,60 @@ const ORDER: [&str; 44] = [
     "Power menu",
     "Screenshot",
     "Screenshot of an area",
+    "Volume up / Volume down / Mute",
     "Read the settings again",
     "Show this list",
 ];
 
-/// The keys as a person says them: `BTN_LEFT` is a drag, `slash` is `/`.
+/// The keys as a person says them: `BTN_LEFT` is a drag, `slash` is `/`,
+/// and a volume key is its cap of `chora_kit::glass`.
 fn spell(keys: &str) -> String {
     keys.split('+')
         .map(|key| match key {
-            "BTN_LEFT" => "drag",
-            "slash" => "/",
-            "space" => "Space",
-            "Return" => "Enter",
-            "Escape" => "Esc",
-            other => other,
+            "BTN_LEFT" => "drag".to_owned(),
+            "slash" => "/".to_owned(),
+            "space" => "Space".to_owned(),
+            "Return" => "Enter".to_owned(),
+            "Escape" => "Esc".to_owned(),
+            other if other.starts_with("XF86Audio") => chora_kit::glass::cap(other),
+            other => other.to_owned(),
         })
         .collect::<Vec<_>>()
         .join("+")
 }
 
-/// The media keys of the volume as one name, since a keyboard prints
-/// them as signs.
-fn media_keys(de: bool) -> &'static str {
-    if de {
-        "Lautstärketasten"
-    } else {
-        "Volume keys"
-    }
+/// The row of the media keys of the volume with its group: the caps
+/// `Vol+ / Vol- / Mute` and their words in that order, in one row as the
+/// tags 1 to 9 take one.
+fn volume_row(config: &Config, de: bool) -> Option<(usize, Entry)> {
+    let mut parts: Vec<(usize, String, String, String)> = (config.bindings.iter())
+        .filter(|(binding, _)| !binding.contains("MOD"))
+        .filter_map(|(binding, action)| {
+            let Action::Volume(change) = action else {
+                return None;
+            };
+            let order = [Change::Up, Change::Down, Change::Mute]
+                .iter()
+                .position(|c| c == change)?;
+            let (_, label) = words(action, de)?;
+            let (_, english) = words(action, false)?;
+            Some((order, spell(binding), label, english))
+        })
+        .collect();
+    parts.sort();
+    let (group, _) = words(&Action::Volume(Change::Up), de)?;
+    let join = |part: fn(&(usize, String, String, String)) -> &str| {
+        parts.iter().map(part).collect::<Vec<_>>().join(" / ")
+    };
+    let english = join(|p| &p.3);
+    let rank = (ORDER.iter().position(|w| *w == english)).unwrap_or(ORDER.len());
+    (!parts.is_empty()).then(|| (group, (rank, join(|p| &p.1), join(|p| &p.2))))
 }
 
 /// The rows of the key list by group: the keys as the file spells them
 /// with `MOD` as the modifier, and the words. A `labels` entry names a
-/// binding; the bindings of the tags 1 to 9 take one row.
+/// binding; the bindings of the tags 1 to 9 take one row, and the media
+/// keys of the volume another.
 #[must_use]
 pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, String)>)> {
     let de = lang == Language::De;
@@ -284,8 +308,7 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let Some((group, label)) = words(action, de) else {
             continue;
         };
-        let media = matches!(action, Action::Volume(_)) && !binding.contains("MOD");
-        if !binding.contains("MOD") && !media {
+        if !binding.contains("MOD") {
             continue;
         }
         let english = words(action, false).map_or_else(String::new, |(_, en)| en);
@@ -295,11 +318,7 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
             .position(|w| *w == named.unwrap_or(&english))
             .unwrap_or(ORDER.len());
         let label = named.cloned().unwrap_or(label);
-        let keys = if media {
-            media_keys(de).to_owned()
-        } else {
-            spell(&binding.replace("MOD", &config.modifier))
-        };
+        let keys = spell(&binding.replace("MOD", &config.modifier));
         let Some(n) = number(action) else {
             match groups[group].iter_mut().find(|(_, _, l)| *l == label) {
                 Some((_, known, _)) if known.split(" / ").any(|k| k == keys) => {}
@@ -313,6 +332,9 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
             .to_owned();
         let span = spans.entry((group, rank, stem, label)).or_insert((n, n));
         (span.0, span.1) = (span.0.min(n), span.1.max(n));
+    }
+    if let Some((group, row)) = volume_row(config, de) {
+        groups[group].push(row);
     }
     for ((group, rank, stem, label), (low, high)) in spans {
         let range = if low == high {
@@ -1052,6 +1074,16 @@ mod tests {
             panic!("no update of the panel");
         };
         assert_eq!(props.size, Some([924.0, 640.0]));
+    }
+
+    #[test]
+    fn the_volume_keys_have_the_caps_and_the_words_of_every_look() {
+        let rows: Vec<(String, String)> = groups().into_iter().flat_map(|(_, rows)| rows).collect();
+        let row = (
+            "Vol+ / Vol- / Mute".to_owned(),
+            "Volume up / Volume down / Mute".to_owned(),
+        );
+        assert!(rows.contains(&row), "{row:?} is no row of {rows:?}");
     }
 
     #[test]

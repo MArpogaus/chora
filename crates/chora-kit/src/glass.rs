@@ -337,7 +337,8 @@ pub fn margin(width: f64) -> f64 {
 }
 
 /// A keycap shows a key as a person reads it: a single letter in capitals,
-/// the arrows as arrows and `Escape` as `Esc`.
+/// the arrows as arrows, `Escape` as `Esc` and the volume keys as `Vol+`,
+/// `Vol-` and `Mute`, in the key list of every look.
 #[must_use]
 pub fn cap(key: &str) -> String {
     match key {
@@ -350,6 +351,9 @@ pub fn cap(key: &str) -> String {
         "slash" => "/".into(),
         "space" => "Space".into(),
         "Return" | "KP_Enter" => "Return".into(),
+        "XF86AudioRaiseVolume" => "Vol+".into(),
+        "XF86AudioLowerVolume" => "Vol-".into(),
+        "XF86AudioMute" => "Mute".into(),
         key if key.chars().count() == 1 => key.to_uppercase(),
         key => {
             let mut chars = key.chars();
@@ -421,6 +425,13 @@ mod tests {
         assert_eq!(sizes, [11.0, 14.0, 16.0, 24.0]);
         assert!(Type::Label.face().caps);
         assert!(Type::Data.face().mono);
+    }
+
+    #[test]
+    fn the_volume_keys_show_as_vol_plus_vol_minus_and_mute() {
+        assert_eq!(cap("XF86AudioRaiseVolume"), "Vol+");
+        assert_eq!(cap("XF86AudioLowerVolume"), "Vol-");
+        assert_eq!(cap("XF86AudioMute"), "Mute");
     }
 
     #[test]

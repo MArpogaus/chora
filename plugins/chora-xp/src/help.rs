@@ -79,6 +79,7 @@ fn name(binding: &str) -> String {
             let mut chars = part.chars();
             match chars.next() {
                 _ if part == "BTN_LEFT" => "drag".to_string(),
+                _ if part.starts_with("XF86Audio") => chora_kit::glass::cap(part),
                 Some(c) if part.len() == 1 => c.to_ascii_uppercase().to_string(),
                 Some(c) if part.chars().all(|c| c.is_ascii_lowercase() || c == '_') => {
                     format!("{}{}", c.to_ascii_uppercase(), chars.as_str())
@@ -111,9 +112,9 @@ fn about(key: Key) -> Option<(&'static str, &'static str)> {
             "Open the Turn Off dialog: lock, log off, restart",
         ),
         Key::Screenshot => (GROUPS[3], "Take a screenshot"),
-        Key::Volume(volume::Change::Up) => (GROUPS[3], "Raise the volume"),
-        Key::Volume(volume::Change::Down) => (GROUPS[3], "Lower the volume"),
-        Key::Volume(volume::Change::Mute) => (GROUPS[3], "Mute the volume"),
+        Key::Volume(volume::Change::Up) => (GROUPS[3], "Volume up"),
+        Key::Volume(volume::Change::Down) => (GROUPS[3], "Volume down"),
+        Key::Volume(volume::Change::Mute) => (GROUPS[3], "Mute"),
         Key::Volume(volume::Change::Set(_)) | Key::Switch(_) | Key::HelpAlias | Key::Give(_) => {
             return None;
         }

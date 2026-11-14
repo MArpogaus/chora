@@ -540,7 +540,7 @@ impl Config {
                     row("Take a screenshot", one(Action::Screenshot), Vec::new()),
                     row("Volume up", one(Action::VolumeUp), Vec::new()),
                     row("Volume down", one(Action::VolumeDown), Vec::new()),
-                    row("Mute the sound", one(Action::Mute), Vec::new()),
+                    row("Mute", one(Action::Mute), Vec::new()),
                 ],
             },
         ]);
@@ -868,9 +868,9 @@ mod tests {
             "Super+Shift+Esc",
             "Super+Shift+E",
             "Super+Print",
-            "XF86AudioRaiseVolume",
-            "XF86AudioLowerVolume",
-            "XF86AudioMute",
+            "Vol+",
+            "Vol-",
+            "Mute",
         ] {
             assert!(shared.contains(&chord.to_owned()), "{chord} in {shared:?}");
         }

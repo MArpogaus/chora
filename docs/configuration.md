@@ -275,7 +275,8 @@ spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
 The option `labels` names a binding in its own words, by the binding as the
 file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
 one row, a binding with the words of another joins its row, and the
-media keys of the volume take one row, "Volume keys". The list is built each time it opens and again when the
+media keys of the volume take one row, `Vol+ / Vol- / Mute` with the words
+"Volume up / Volume down / Mute". The list is built each time it opens and again when the
 settings reload, so a binding that the file gains shows at once. It takes
 the keyboard with `focus_node` while it shows: `Esc`, `MOD+F1`, `MOD+slash` or a
 click outside closes it, and the window that had the keys gets them back.
@@ -719,7 +720,8 @@ screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
 down) and `Super+Print` takes a screenshot; these three run the scripts that
 every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
 `XF86AudioMute` change the volume of the default sound output by 5 percent
-and show it in a notice; the key list calls them `Vol+`, `Vol-` and `Mute`. `F1` is no binding: it reaches the program. A binding
+and show it in a notice; the key list calls them `Vol+`, `Vol-` and `Mute`, with
+the words "Volume up", "Volume down" and "Mute". `F1` is no binding: it reaches the program. A binding
 of one key without Ctrl, Alt or Super needs the grant `input.grab-any`, so the
 key list is on `Super+F1`.
 
@@ -1138,7 +1140,9 @@ the chat with a helper (it runs `chora-chat`), `Super+Shift+Escape`
 locks the screen, `Super+Shift+e` opens the power menu (Lock, Log out,
 Restart, Shut down), `Super+Print` takes a screenshot and
 `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute`
-change the volume. `F1` is no binding: it reaches the program of a pane.
+change the volume. The key list of every look shows these three keys as
+the caps `Vol+`, `Vol-` and `Mute` (the rule of `chora_kit::glass::cap`)
+with the words "Volume up", "Volume down" and "Mute". `F1` is no binding: it reaches the program of a pane.
 The power menu, the lock and the screenshot are the scripts of
 `flavors/shared`, and the launcher lists the entries of that folder,
 among them Chat with a helper. These keys work in the walk and while the

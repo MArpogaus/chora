@@ -156,7 +156,7 @@ fn words(action: &Action) -> Option<String> {
         Action::Screenshot => "Take a screenshot".to_owned(),
         Action::Volume(Change::Up) => "Volume up".to_owned(),
         Action::Volume(Change::Down) => "Volume down".to_owned(),
-        Action::Volume(Change::Mute) => "Mute or unmute".to_owned(),
+        Action::Volume(Change::Mute) => "Mute".to_owned(),
         Action::Volume(Change::Set(percent)) => format!("Set the volume to {percent}%"),
     })
 }
@@ -171,18 +171,17 @@ fn volume_order(change: Change) -> usize {
 }
 
 /// A key as people read it: arrows for the arrow keys, a capital Space,
-/// and the labels of the volume keys as printed on a keyboard.
+/// and the caps of the volume keys as every look shows them.
 /// A thin space after the plus keeps an arrow off it.
 pub fn human(key: &str) -> String {
     let mut out = String::new();
     for (i, part) in key.split('+').enumerate() {
+        let volume = chora_kit::glass::cap(part);
         let (shown, arrow) = match part {
             "Left" => ("←", true),
             "Right" => ("→", true),
             "space" => ("Space", false),
-            "XF86AudioRaiseVolume" => ("Vol+", false),
-            "XF86AudioLowerVolume" => ("Vol-", false),
-            "XF86AudioMute" => ("Mute", false),
+            other if other.starts_with("XF86Audio") => (volume.as_str(), false),
             other => (other, false),
         };
         if i > 0 {
@@ -261,7 +260,7 @@ mod tests {
             "Take a screenshot",
             "Volume up",
             "Volume down",
-            "Mute or unmute",
+            "Mute",
             "Back one step",
         ];
         assert_eq!(words, want);
