@@ -650,6 +650,31 @@ mod tests {
         );
     }
 
+    /// The safety chords need Ctrl and Alt of the person: an injected
+    /// release lifts no modifier that the person holds.
+    #[test]
+    fn an_injected_release_leaves_the_modifier_of_the_person_down() {
+        let mut core = Core::new();
+        let grant = json!({"client": "agent", "capabilities": ["input.inject"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        let mut agent = core.named("agent");
+        let mut voice = core.named("voice");
+        voice.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        let physical = |core: &mut Core, key: u32, state: KeyState| {
+            let key = Keycode::new(key + XKB_OFFSET);
+            crate::input::key(&mut core.state, key, state, InputTime::now(), false);
+        };
+        physical(&mut core, 56, KeyState::Pressed);
+        let release = json!({"events": [{"key": {"key": 56, "state": "released"}}]});
+        agent.ok(&mut core, "input.inject", release);
+        physical(&mut core, 21, KeyState::Pressed);
+        let events = voice.events_now(&mut core);
+        assert!(
+            events.iter().any(|e| e["params"]["event"] == "input.key"),
+            "Alt of the person still holds: {events:?}"
+        );
+    }
+
     /// A press of `input.inject` reaches the plugin of a node with
     /// `injected`, a physical press without.
     #[test]
