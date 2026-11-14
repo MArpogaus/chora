@@ -1,0 +1,48 @@
+hud: 1
+font: Inter
+panels:
+- id: state
+  when: {theme: light}
+  source: voice
+  anchor: top_right
+  margin: [56, 34]
+  picture: state.svg#{state}
+  text: '{state}'
+  action: mute
+  fill: [247, 245, 237]
+  colours:
+    text: [41, 38, 36]
+    accent: [140, 36, 31]
+- id: state-dark
+  when: {theme: dark}
+  source: voice
+  anchor: top_right
+  margin: [56, 34]
+  picture: state-dark.svg#{state}
+  text: '{state}'
+  action: mute
+  fill: [28, 28, 28]
+  colours:
+    text: [217, 212, 201]
+    accent: [216, 152, 138]
+- id: line
+  source: say
+  near: state
+  style: plain
+  text: '{text}'
+  max_chars: 160
+chat:
+  style: plain
+  font: TeX Gyre Pagella
+  size: 19
+  slot: mc
+  fill: [247, 245, 237]
+  text: [41, 38, 36]
+  name: [84, 80, 74]
+  border: [212, 207, 196]
+dark:
+  chat:
+    fill: [28, 28, 28]
+    text: [217, 212, 201]
+    name: [173, 171, 163]
+    border: [66, 66, 64]

@@ -12,6 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chora_kit::ask::show_key;
 use tokio::sync::oneshot;
 
 use serde::Serialize;
@@ -206,6 +207,8 @@ pub enum Effect {
         prompt: String,
         detail: String,
         physical: bool,
+        /// The helper that asks, for the title of the card.
+        name: Option<String>,
     },
     /// The question `id` got its answer or timed out.
     ConfirmDone(u64),
@@ -250,6 +253,11 @@ const ECHO_TAIL: Duration = Duration::from_millis(250);
 /// besides `confirm_timeout_ms`, for example when its TTS fails.
 const UNSPOKEN: Duration = Duration::from_secs(30);
 
+/// A key of `confirm_keys` answers a question only after it showed
+/// this long: an earlier press was meant for the question before, which
+/// a sub-agent can replace at any time.
+const KEY_DELAY: Duration = Duration::from_secs(1);
+
 /// How long the HUD shows a heard text.
 const HEARD_LEN: Duration = Duration::from_secs(3);
 
@@ -289,8 +297,8 @@ pub struct Core {
     confirm: Option<oneshot::Sender<Option<bool>>>,
     /// Set before a yes with an always word to the confirmation.
     confirm_always: Arc<AtomicBool>,
-    /// Only a key of `confirm_keys` answers the confirmation: a voice,
-    /// a client and an injected text cannot.
+    /// Only a key of `confirm_keys` answers the confirmation of the
+    /// reply: a voice, a client and an injected text cannot.
     physical: bool,
     unclear: u32,
     /// The question of the confirmation, and until when it waits:
@@ -340,9 +348,14 @@ pub struct Core {
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
     sub_until: Instant,
-    /// The questions so far, and the one on the screen.
+    /// Only a key answers the question of the sub-agent. A question of
+    /// the reply does not change it.
+    sub_physical: bool,
+    /// The questions so far, the one on the screen, and since when it
+    /// shows.
     confirms: u64,
     shown: Option<u64>,
+    shown_at: Instant,
 }
 
 /// A text to say when the agent listens.
@@ -352,6 +365,10 @@ struct Note {
     voice: Option<String>,
     /// A question of a sub-agent: its name and the answer.
     ask: Option<(String, oneshot::Sender<bool>)>,
+    /// What the screen shows of a question of a sub-agent.
+    detail: String,
+    /// The question takes only a key or a button, as a security question.
+    physical: bool,
 }
 
 impl From<String> for Note {
@@ -360,6 +377,8 @@ impl From<String> for Note {
             text,
             voice: None,
             ask: None,
+            detail: String::new(),
+            physical: false,
         }
     }
 }
@@ -410,8 +429,10 @@ impl Core {
             subs: BTreeMap::new(),
             sub_confirm: None,
             sub_until: now,
+            sub_physical: false,
             confirms: 0,
             shown: None,
+            shown_at: now,
         }
     }
 
@@ -599,8 +620,16 @@ impl Core {
         if matches!(self.state, State::Listening | State::Working)
             && let Some(note) = self.next_note()
         {
-            let text = note.text.clone();
-            let mut ask = self.ask(note.text, true);
+            let keys = &self.config.confirm_keys;
+            let spoken = if note.physical {
+                let line = (self.config.phrases.agent_keys)
+                    .replace("{yes}", &show_key(&keys.yes))
+                    .replace("{no}", &show_key(&keys.no));
+                format!("{} {line}", note.text)
+            } else {
+                note.text.clone()
+            };
+            let mut ask = self.ask(spoken, true);
             if let Some(Effect::Ask { voice, .. }) = ask.first_mut() {
                 *voice = note.voice;
             }
@@ -608,8 +637,10 @@ impl Core {
             // The question waits from when it is spoken.
             if note.ask.is_some() {
                 self.confirm_from = Some(Instant::now());
-                effects.extend(self.show(text.clone(), text, false));
+                let name = note.ask.as_ref().map(|(name, _)| agents::title(name));
+                effects.extend(self.show((note.text, note.detail), note.physical, name));
             }
+            self.sub_physical = note.physical;
             self.sub_confirm = note.ask;
             self.sub_until =
                 Instant::now() + Duration::from_secs(self.config.agent_permission_s.into());
@@ -621,7 +652,12 @@ impl Core {
 
     /// Shows a new question on the screen, after the end of the one
     /// before.
-    fn show(&mut self, prompt: String, detail: String, physical: bool) -> Vec<Effect> {
+    fn show(
+        &mut self,
+        (prompt, detail): (String, String),
+        physical: bool,
+        name: Option<String>,
+    ) -> Vec<Effect> {
         let mut effects: Vec<Effect> = self
             .shown
             .take()
@@ -630,11 +666,13 @@ impl Core {
             .collect();
         self.confirms += 1;
         self.shown = Some(self.confirms);
+        self.shown_at = Instant::now();
         effects.push(Effect::Confirm {
             id: self.confirms,
             prompt,
             detail,
             physical,
+            name,
         });
         effects
     }
@@ -692,16 +730,22 @@ impl Core {
                 text,
                 voice: Some(voice),
                 ask: None,
+                detail: String::new(),
+                physical: false,
             }),
             agents::Event::Ask {
                 name,
                 voice,
                 prompt,
+                detail,
+                physical,
                 answer,
             } => self.note(Note {
                 text: prompt,
+                detail,
                 voice: Some(voice),
                 ask: Some((name, answer)),
+                physical,
             }),
         }
         self.seq += 1;
@@ -713,12 +757,13 @@ impl Core {
     /// answers its question, else the rest is its prompt.
     fn address(&mut self, name: String, rest: String) -> Vec<Effect> {
         let asks = self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name);
-        crate::log::info(&format!("to {name}: {rest:?}"));
+        crate::log::debug(&format!("to {name}: {rest:?}"));
         match words::matches(&self.config, &rest, 0, asks) {
             Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
                 .chain(self.earcon(Earcon::Cancel))
                 .collect(),
-            Some(yes @ (Word::Yes | Word::Always | Word::No)) => self.yes_no(yes != Word::No),
+            Some(Word::Always) => self.always(),
+            Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
             _ if rest.is_empty() => Vec::new(),
             _ => vec![Effect::AgentPrompt { name, text: rest }],
         }
@@ -799,6 +844,16 @@ impl Core {
         self.confirm.is_some() || self.sub_confirm.is_some()
     }
 
+    /// Whether the confirmation that an answer goes to, that of the
+    /// reply first, takes only a key.
+    fn needs_key(&self) -> bool {
+        if self.confirm.is_some() {
+            self.physical
+        } else {
+            self.sub_confirm.is_some() && self.sub_physical
+        }
+    }
+
     /// Answers the confirmation that waits, that of the reply first: yes,
     /// no, or unclear (`None`, a no to a sub-agent).
     fn answer(&mut self, yes: Option<bool>) {
@@ -866,7 +921,7 @@ impl Core {
         // text never does (review 0.9.0-rc.3). Without its sound, the
         // question shows now.
         self.confirm_from = self.muted.speaker.then(Instant::now);
-        self.show(prompt, detail, physical)
+        self.show((prompt, detail), physical, None)
     }
 
     /// Whether speech that started at `onset` answers the confirmation
@@ -964,10 +1019,10 @@ impl Core {
         match result {
             Ok(t) => {
                 crate::log::info(&format!(
-                    "turn={turn} interim={}ms text={:?}",
-                    t.after_commit.as_millis(),
-                    t.text
+                    "turn={turn} interim={}ms",
+                    t.after_commit.as_millis()
                 ));
+                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
                 self.last_transcript = t.text;
                 self.seq += 1;
             }
@@ -994,11 +1049,8 @@ impl Core {
         });
         let text = match result {
             Ok(t) => {
-                crate::log::info(&format!(
-                    "turn={turn} asr={}ms text={:?}",
-                    t.after_commit.as_millis(),
-                    t.text
-                ));
+                crate::log::info(&format!("turn={turn} asr={}ms", t.after_commit.as_millis()));
+                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
                 self.last_transcript = t.text;
                 self.seq += 1;
                 self.last_transcript.trim().to_owned()
@@ -1036,35 +1088,52 @@ impl Core {
             }
             Some(Word::Sleep) => self.sleep(),
             Some(Word::Wake) => Vec::new(),
+            Some(Word::Always | Word::Yes | Word::No) if self.echo(&text) => {
+                crate::log::info("confirm: the echo of the question is no answer");
+                Vec::new()
+            }
             Some(Word::Always) => self.always(),
             Some(yes @ (Word::Yes | Word::No)) => self.yes_no(yes == Word::Yes),
             None => self.text(text, answers),
         }
     }
 
-    /// A yes with an always word; a question of a sub-agent takes it as
-    /// a yes.
+    /// A yes with an always word. A question of a sub-agent takes none:
+    /// it has no action to remember, so the answer is a plain yes or
+    /// the key.
     fn always(&mut self) -> Vec<Effect> {
-        if self.confirm.is_some() {
-            self.confirm_always.store(true, Ordering::Relaxed);
+        if self.confirm.is_none() {
+            crate::log::info("confirm: an always word answers no question of a sub-agent");
+            return Vec::new();
         }
+        self.confirm_always.store(true, Ordering::Relaxed);
         self.yes_no(true)
     }
 
     /// A spoken yes or no, or one of `voice.confirm`: the cut prompt
     /// does not play again. A yes does not answer a question that waits
-    /// for a key.
+    /// for a key; for a question of a helper it hears `phrases.need_key`.
     fn yes_no(&mut self, yes: bool) -> Vec<Effect> {
-        if yes && self.confirm.is_some() && self.physical {
+        if yes && self.needs_key() {
             crate::log::info("confirm: a yes without the key counts as nothing");
-            return Vec::new();
+            let mut effects: Vec<Effect> = self.earcon(Earcon::Error).into_iter().collect();
+            if self.confirm.is_none() {
+                effects.extend(self.ask(self.config.phrases.need_key.clone(), true));
+            }
+            return effects;
         }
         self.answered(yes)
     }
 
-    /// A key of `confirm_keys` answers the question that waits for it.
+    /// A key of `confirm_keys` answers the question that waits for it,
+    /// once the question showed for `KEY_DELAY`; an earlier press counts
+    /// as nothing.
     fn confirm_key(&mut self, yes: bool) -> Vec<Effect> {
-        if self.confirm.is_none() || !self.physical {
+        if !self.needs_key() {
+            return Vec::new();
+        }
+        if self.shown_at.elapsed() < KEY_DELAY {
+            crate::log::info("confirm: a key too soon after the question counts as nothing");
             return Vec::new();
         }
         crate::log::info("confirm: by the key");
@@ -1130,7 +1199,7 @@ impl Core {
             // New words over the agent's speech, with or without a
             // barge-in: the reply ends, the words and those that wait
             // start the next one.
-            crate::log::info(&format!("over the reply: {text:?}"));
+            crate::log::debug(&format!("over the reply: {text:?}"));
             let queued = std::mem::take(&mut self.queue);
             effects.extend(self.stop(None));
             self.queue = queued;
@@ -1139,7 +1208,7 @@ impl Core {
         }
         // While the reply thinks or runs tools, any text but a pure yes
         // or no goes into its next round ("Und größer.", "Nein, rot.").
-        crate::log::info(&format!("queued: {text:?}"));
+        crate::log::debug(&format!("queued: {text:?}"));
         if !words::answer(&self.config, &text).pure() {
             effects.push(Effect::Inject(text.clone()));
         }
@@ -1451,6 +1520,8 @@ mod tests {
             name: "coder".into(),
             voice: "ryan".into(),
             prompt: "Coder fragt: Write x. Erlauben?".into(),
+            detail: String::new(),
+            physical: false,
             answer,
         };
         assert!(no_ask(&core.handle(Input::Agent(ask))), "no cut speech");
@@ -1478,6 +1549,207 @@ mod tests {
         assert_eq!(core.state(), State::Working);
     }
 
+    /// The question on the screen showed long enough for a key.
+    fn wait_for_key(core: &mut Core) {
+        core.shown_at = Instant::now().checked_sub(KEY_DELAY).expect("uptime");
+    }
+
+    fn sub_question(core: &mut Core, physical: bool) -> oneshot::Receiver<bool> {
+        let (answer, rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Coder fragt: ls. Erlauben?".into(),
+            detail: "ls -la /home".into(),
+            physical,
+            answer,
+        };
+        let effects = core.handle(Input::Agent(ask));
+        let [(reply, _)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        core.handle(Input::Reply(reply, Reply::Done("Coder fragt".into())));
+        assert_eq!(core.state(), State::Confirming);
+        rx
+    }
+
+    /// A spoken yes to a question that takes a key is told why it counts
+    /// as nothing, and the question still waits for the key.
+    #[test]
+    fn a_spoken_yes_to_a_key_question_hears_that_it_needs_a_key() {
+        let mut core = with_coder();
+        let mut rx = sub_question(&mut core, true);
+        let effects = say(&mut core, "Ja.");
+        let need = Config::default().phrases.need_key;
+        assert_eq!(need, "For this I need a key press or a click.");
+        let said = effects
+            .iter()
+            .any(|e| matches!(e, Effect::Ask { text, say: true, .. } if *text == need));
+        assert!(said, "{effects:?}");
+        assert!(rx.try_recv().is_err(), "no answer without the key");
+        wait_for_key(&mut core);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(true));
+    }
+
+    /// A key press right after a question shows was meant for the one
+    /// before, which the sub-agent replaced: it answers nothing, and
+    /// the question stays open.
+    #[test]
+    fn a_key_does_not_answer_a_question_that_just_showed() {
+        let mut core = with_coder();
+        let mut rx = sub_question(&mut core, true);
+        core.handle(Input::ConfirmKey(true));
+        assert!(rx.try_recv().is_err(), "the question just showed");
+        assert!(core.sub_confirm.is_some());
+        assert_eq!(core.state(), State::Confirming);
+        wait_for_key(&mut core);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(true));
+    }
+
+    /// A question of the reply, asked while a question of a sub-agent
+    /// waits for a key, does not take the key rule from it: after a
+    /// spoken yes to the first, a second one counts as nothing. The
+    /// text of an older utterance starts the reply here.
+    #[test]
+    fn a_chat_question_leaves_a_sub_agent_question_physical() {
+        let mut core = with_coder();
+        let mut sub = sub_question(&mut core, true);
+        let effects = core.handle(text(9, false, Ok("Mach das Fenster zu.")));
+        let [(id, _)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        let (answer, mut rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Wirklich?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: false,
+            answer,
+        };
+        core.handle(reply(id, event));
+        let said = Reply::Said {
+            text: "Wirklich?".into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(id, said));
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+        say(&mut core, "Ja.");
+        assert!(sub.try_recv().is_err(), "no answer without the key");
+        assert!(core.sub_confirm.is_some());
+    }
+
+    /// A question that takes a key names its keys as the card does.
+    #[test]
+    fn the_spoken_keys_are_spelled_as_on_the_card() {
+        let mut core = with_coder();
+        let (answer, _rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Coder fragt: ls. Erlauben?".into(),
+            detail: String::new(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(Input::Agent(ask));
+        let [(_, said)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        assert!(said.contains("Alt+Y") && said.contains("Alt+N"), "{said}");
+        let shown = effects.iter().find_map(|e| match e {
+            Effect::Confirm { prompt, .. } => Some(prompt.clone()),
+            _ => None,
+        });
+        assert_eq!(
+            shown.as_deref(),
+            Some("Coder fragt: ls. Erlauben?"),
+            "the card names the keys once"
+        );
+        let asker = effects.iter().find_map(|e| match e {
+            Effect::Confirm { name, .. } => name.clone(),
+            _ => None,
+        });
+        assert_eq!(asker.as_deref(), Some("Coder"), "the card says who asks");
+    }
+
+    /// A permission request that runs or writes follows the rule of a
+    /// security question: a spoken yes, an always word and a yes of
+    /// `voice.confirm` count as nothing, a key and a button answer.
+    #[test]
+    fn a_physical_sub_agent_question_takes_no_spoken_yes() {
+        let mut core = with_coder();
+        let mut rx = sub_question(&mut core, true);
+        say(&mut core, "Ja.");
+        say(&mut core, "Ja, immer.");
+        say(&mut core, "Coder, ja");
+        call(&mut core, Call::Confirm(true));
+        assert!(rx.try_recv().is_err(), "no answer without the key");
+        assert!(core.sub_confirm.is_some());
+        wait_for_key(&mut core);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(true));
+        core.handle(Input::Reply(core.replies, Reply::Done(String::new())));
+
+        let mut rx = sub_question(&mut core, true);
+        let shown = core.shown.expect("on the screen");
+        let (open, _) = std::sync::mpsc::channel();
+        core.handle(Input::ConfirmButton {
+            id: shown,
+            yes: true,
+            open,
+        });
+        assert_eq!(rx.try_recv(), Ok(true));
+    }
+
+    /// A question that takes a key says which keys, shows the whole
+    /// detail, and a spoken yes that counts as nothing sounds the error.
+    #[test]
+    fn a_physical_sub_agent_question_names_its_keys() {
+        let mut core = with_coder();
+        let (answer, _rx) = oneshot::channel();
+        let ask = agents::Event::Ask {
+            name: "coder".into(),
+            voice: "ryan".into(),
+            prompt: "Coder fragt: ls. Erlauben?".into(),
+            detail: "ls -la /home".into(),
+            physical: true,
+            answer,
+        };
+        let effects = core.handle(Input::Agent(ask));
+        let [(reply, said)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        assert!(said.contains("Alt+Y") && said.contains("Alt+N"), "{said}");
+        let detail = effects.iter().find_map(|e| match e {
+            Effect::Confirm { detail, .. } => Some(detail.as_str()),
+            _ => None,
+        });
+        assert_eq!(detail, Some("ls -la /home"));
+        core.handle(Input::Reply(reply, Reply::Done("Coder fragt".into())));
+        let effects = say(&mut core, "Ja.");
+        assert!(
+            effects.contains(&Effect::Earcon(Earcon::Error)),
+            "{effects:?}"
+        );
+    }
+
+    /// An always word is no bare yes to a question of a sub-agent, and a
+    /// plain yes still answers one that only looks.
+    #[test]
+    fn an_always_word_does_not_answer_a_sub_agent_question() {
+        let mut core = with_coder();
+        let mut rx = sub_question(&mut core, false);
+        say(&mut core, "Ja, immer.");
+        say(&mut core, "Coder, immer");
+        assert!(rx.try_recv().is_err(), "an always word answers nothing");
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(true));
+    }
+
     /// A looping sub-agent: its new question replaces its old ones, a
     /// dropped question is not spoken, and the texts that wait are few.
     #[test]
@@ -1492,6 +1764,8 @@ mod tests {
                 name,
                 voice,
                 prompt,
+                detail: String::new(),
+                physical: false,
                 answer,
             };
             (Input::Agent(ask), rx)
@@ -1534,6 +1808,8 @@ mod tests {
             name: "coder".into(),
             voice: "ryan".into(),
             prompt: "Darf ich?".into(),
+            detail: String::new(),
+            physical: false,
             answer,
         };
         assert_eq!(asks(&core.handle(Input::Agent(ask))), [(1, "Darf ich?")]);
@@ -1572,6 +1848,29 @@ mod tests {
             [(1, "Coder, hallo")],
             "a gone agent: the LLM"
         );
+    }
+
+    /// What the person says reaches the log at debug only: the default
+    /// level keeps no utterance, also none to a sub-agent.
+    #[test]
+    fn utterances_stay_out_of_the_info_log() {
+        let (_guard, lines) = crate::log::capture::info();
+        let mut core = with_coder();
+        let mut effects = speak(&mut core, 10);
+        effects.extend(quiet(&mut core, 26));
+        let turn = effects
+            .iter()
+            .find_map(|e| match e {
+                Effect::Utterance { turn, .. } => Some(*turn),
+                _ => None,
+            })
+            .expect("an utterance");
+        core.handle(text(turn, true, Ok("Mein Kennwort ist Zwiebel")));
+        core.handle(text(turn, false, Ok("Mein Kennwort ist Zwiebel")));
+        say(&mut core, "Koder, nimm Zwiebel.");
+        let log = lines.text();
+        assert!(log.contains("turn="), "the stages still log: {log}");
+        assert!(!log.contains("Zwiebel"), "{log}");
     }
 
     #[test]
@@ -1810,6 +2109,7 @@ mod tests {
     /// yes waits for a question.
     #[test]
     fn a_request_during_a_reply_goes_into_its_next_round() {
+        let (_guard, lines) = crate::log::capture::info();
         let mut core = asking();
         core.handle(reply(1, chat::Event::Tool("query".into())));
         let effects = say(&mut core, "Zeig mir lieber die Agenda.");
@@ -1823,6 +2123,8 @@ mod tests {
         assert_eq!(call(&mut core, Call::State).1["queued"], 1);
         let effects = core.handle(Input::Reply(1, Reply::Done("Rot.".into())));
         assert_eq!(asks(&effects), [(2, "Ja.")]);
+        let log = lines.text();
+        assert!(!log.contains("Agenda"), "no queued text at info: {log}");
     }
 
     /// New words while the agent speaks stop the reply as a barge-in
@@ -1830,6 +2132,7 @@ mod tests {
     /// 2026-10-31: they waited until the reply ended).
     #[test]
     fn new_words_over_the_speech_stop_the_reply() {
+        let (_guard, lines) = crate::log::capture::info();
         let mut core = asking();
         say(&mut core, "Mach es rot.");
         core.handle(sound(1, 5000));
@@ -1838,6 +2141,11 @@ mod tests {
         assert!(effects.contains(&stop()), "{effects:?}");
         assert_eq!(asks(&effects), [(2, "Mach es rot. Und größer.")]);
         assert_eq!(core.state(), State::Thinking);
+        let log = lines.text();
+        assert!(
+            !log.contains("größer"),
+            "no text over the reply at info: {log}"
+        );
     }
 
     /// Reply 1 asks `prompt`, and its sound starts now.
@@ -1980,10 +2288,12 @@ mod tests {
         call(&mut core, Call::Confirm(true));
         assert!(rx.try_recv().is_err(), "no answer without the key");
         assert_eq!(core.state(), State::Confirming);
+        wait_for_key(&mut core);
         core.handle(Input::ConfirmKey(true));
         assert_eq!(rx.try_recv(), Ok(Some(true)));
         // A key answers no other question.
         let mut rx = confirm(&mut core, "Wirklich?");
+        wait_for_key(&mut core);
         core.handle(Input::ConfirmKey(true));
         assert!(rx.try_recv().is_err());
         say(&mut core, "Ja.");
@@ -2169,6 +2479,7 @@ mod tests {
             prompt: "Soll ich das Programm foot starten?".into(),
             detail: "foot -e sh".into(),
             physical: false,
+            name: None,
         };
         assert_eq!(effects, [shown]);
         let said = Reply::Said {
@@ -2262,6 +2573,19 @@ mod tests {
         core.handle(Input::Reply(1, Reply::Done("Heute ...".into())));
         let effects = say(&mut core, "drei Termine");
         assert!(no_ask(&effects), "{effects:?}");
+    }
+
+    /// The end of a question, heard again by the mic, is no answer to
+    /// it; a yes in other words is.
+    #[test]
+    fn the_echo_of_a_question_does_not_answer_it() {
+        let mut core = asking();
+        let mut rx = confirm(&mut core, "Soll ich das löschen, ja oder nein?");
+        say(&mut core, "Ja.");
+        assert!(rx.try_recv().is_err(), "the echo of the question");
+        assert_eq!(core.state(), State::Confirming);
+        say(&mut core, "Bitte.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
     }
 
     #[test]

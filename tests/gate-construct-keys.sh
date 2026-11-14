@@ -1,11 +1,21 @@
 #!/bin/bash
 # Gate of the keys that create and close panes in chora-construct:
-# t starts the terminal, and its window becomes a pane; space starts the
-# launcher, whose own window shows without a pane, and the program that
-# it starts becomes a pane; after the launcher the walk has the keyboard
-# again; x asks the window of the pane ahead to close, and its pane goes;
+# text typed into the space starts and closes nothing, and the HUD says
+# that the keys walk in one line, also under the default voice_hud: host;
+# a give key without a window says so; Super+t starts the terminal, and
+# the camera flies into its new pane, which has the keyboard; after
+# Alt+Escape, F1 shows the help, Escape hides it and d walks, and none
+# of these keys reaches the terminal, which keeps what it took before
+# (co-2; SHOTS keeps construct-keys-help.png); a give key
+# to a window manager that does not run says so, for the focused window
+# and, after Alt+Escape, for the pane ahead; Super+space starts the
+# launcher, whose own window shows without a pane, and the camera flies
+# into the pane of the program that it starts;
+# Super+x asks the window of the pane ahead to close, and its pane goes;
 # pane.remove asks as well, and a window that refuses stays a pane; a
-# radius of settings.set leashes the panes at once.
+# radius of settings.set leashes the panes at once; a Super press during
+# the flight into a pane ends it and leaves Alt+Escape and Super+t free
+# in walk mode; a window audit checks that no window is lost.
 # The launcher here is a foot window that starts a second foot; where
 # fuzzel is installed, the programs that it starts become panes too.
 #
@@ -23,7 +33,7 @@ mkdir -p "$work/chora"
 export PATH=$bin:$PATH
 font='DejaVu Sans Mono:size=10'
 cat >"$work/chora/chora-construct.yaml" <<EOF
-terminal: foot -a term -f '$font' sh -c 'sleep 600'
+terminal: foot -a term -f '$font' sh -c 'stty -icanon -echo; cat >"$work/typed"; sleep 600'
 launcher: foot -a launcher -f '$font' sh -c 'sleep 1; setsid foot -a launched -f "$font" sh -c "sleep 600" & sleep 2'
 EOF
 # fuzzel, where it is installed, finds these entries. For one of them it
@@ -51,6 +61,13 @@ panes() {
         python3 -I -c 'import json, sys; print(" ".join(sorted(p["name"] for p in json.load(sys.stdin)["panes"])))'
 }
 focused() { ctl query "$1" | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("focused") if n else "")'; }
+app_focused() {
+    ctl query kind:surface | python3 -I -c '
+import json, sys
+print(any(n.get("focused") and (n.get("surface") or {}).get("app_id") == sys.argv[1] for n in json.load(sys.stdin)))' "$1"
+}
+flown_in() { ctl query id:construct-look | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[0]["visible"])' | grep -qx False; }
+say() { ctl query id:construct-notice-text | python3 -I -c 'import json, sys; n = json.load(sys.stdin); print(n[0].get("text", "") if n else "")'; }
 # until_ok CODE: waits up to 10 s for the shell code to succeed.
 until_ok() {
     for _ in $(seq 40); do
@@ -61,28 +78,93 @@ until_ok() {
 }
 
 ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
-key t
-until_ok 'test "$(panes)" = term' || fail "t: the panes are '$(panes)'"
-ok "t made the terminal the pane term"
+echo '[{"text": {"text": "text x "}}]' | ctl inject || fail "inject text"
+until_ok 'say | grep -q "keys walk"' ||
+    fail "typed text got no notice: $(say)"
+sleep 1
+[ -z "$(panes)" ] || fail "typed text made panes: $(panes)"
+ctl query kind:surface | grep -q '"term"' && fail "typed text started the terminal"
+ok "typed text starts nothing, and the HUD says that the keys walk"
 
-key space
+key Super+Alt+2
+until_ok 'say | grep -q "No window to give"' || fail "a give key without a window said nothing: $(say)"
+ok "a give key without a window says so"
+
+key Super+t
+until_ok 'test "$(panes)" = term' || fail "Super+t: the panes are '$(panes)'"
+ok "Super+t made the terminal the pane term"
+until_ok 'test "$(app_focused term)" = True' || fail "the new pane term has no keyboard"
+ok "the camera flew into the new pane term, which has the keyboard"
+typed() { od -An -c "$work/typed" 2>/dev/null | tr -d ' \n'; }
+until_ok 'echo "[{\"text\": {\"text\": \"k\"}}]" | ctl inject && test "$(typed)" != ""' ||
+    fail "the terminal of the pane term takes no typed text"
+
+key Super+Alt+2
+until_ok 'say | grep -q "XP did not take the window: it is not running."' ||
+    fail "a give of the focused window to xp, which does not run, said nothing: $(say)"
+until_ok flown_in || fail "the camera is in no pane"
+key Alt+Escape
+until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
+key Super+Alt+3
+until_ok 'say | grep -q "Media center did not take the window: it is not running."' ||
+    fail "a give of the pane ahead to mc, which does not run, said nothing: $(say)"
+[ "$(panes)" = term ] || fail "the refused gives lost the pane: $(panes)"
+ok "a give to a window manager that does not run says so, for the focused window and the pane ahead"
+
+before=$(typed)
+help_shown() { ctl query id:construct-help | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0].get("opacity") == 1.0 else 1)'; }
+camera_x() { ctl call construct construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["camera"]["x"])'; }
+key F1
+until_ok help_shown || fail "F1 after Alt+Escape shows no help: the terminal took '$(typed)'"
+[ -z "${SHOTS:-}" ] || { "$bin/choractl" grant agent screen.capture && ctl capture "$SHOTS/construct-keys-help.png" >/dev/null; } || fail "the capture of the help"
+key Escape
+until_ok '! help_shown' || fail "Escape after F1 keeps the help"
+x0=$(camera_x)
+echo '[{"key": {"key": "d", "state": "pressed"}}]' | ctl inject || fail "inject d"
+sleep 0.4
+echo '[{"key": {"key": "d", "state": "released"}}]' | ctl inject || fail "inject d"
+until_ok 'test "$(camera_x)" != "$x0"' || fail "d after Alt+Escape does not walk: the camera stays at x $x0"
+[ "$(typed)" = "$before" ] || fail "keys of the walk went into the terminal: '$before' became '$(typed)'"
+ok "after Alt+Escape, F1 shows the help, Escape hides it and d walks; the terminal took none of them"
+
+key Return
+sleep 0.1
+echo '[{"pointer_move": {"position": [640, 400]}}, {"key": {"key": "Super_L", "state": "pressed"}}, {"button": {"state": "pressed", "hold": true}}]' | ctl inject >/dev/null || fail "inject the Super press during the flight"
+until_ok 'test "$(focused id:construct-look)" = True' || fail "a Super press during the flight into the pane gave the walk no keyboard"
+grabs_free=$(mcp_py <<'PYEND'
+import sys
+from gate_mcp import Mcp
+mcp = Mcp(stderr=sys.stderr)
+result = mcp.call("subscribe_events", {"keys": ["Alt+Escape", "Super+t"]})
+print("free" if not result.get("isError") else "held: " + str(result["content"]))
+PYEND
+)
+echo '[{"button": {"state": "released"}}, {"key": {"key": "Super_L", "state": "released"}}]' | ctl inject >/dev/null || fail "inject the release"
+[ "$grabs_free" = free ] || fail "a Super press that ended the flight into a pane left keys grabbed: $grabs_free"
+ok "a Super press during the flight into a pane ended it, and Alt+Escape and Super+t are free in walk mode"
+
+key Super+space
 until_ok 'ctl query kind:surface | grep -q \"launcher\"' ||
     fail "the launcher showed no window"
 [ "$(panes)" = term ] || fail "the launcher became a pane: $(panes)"
 until_ok 'test "$(panes)" = "launched term"' || fail "the program of the launcher is no pane: $(panes)"
 ok "the launcher showed without a pane, and its program became the pane launched"
-until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no keyboard after the launcher"
-ok "the walk has the keyboard again"
+until_ok 'test "$(app_focused launched)" = True' || fail "the pane launched has no keyboard"
+ok "the camera flew into the pane of the program of the launcher, which has the keyboard"
+until_ok flown_in || fail "the camera is in no pane"
+key Alt+Escape
+until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
 
 before=$(panes)
-key x
-until_ok 'test "$(panes)" != "$before"' || fail "x closed no pane: $(panes)"
-ok "x closed a pane: $before -> $(panes)"
+key Super+x
+until_ok 'test "$(panes)" != "$before"' || fail "Super+x closed no pane: $(panes)"
+ok "Super+x closed a pane: $before -> $(panes)"
 
 # pane.remove only asks the window to close, as x does: a window that
 # refuses, as chora-probe does, stays a pane, and shows.
 "$bin/chora-probe" window 200 40 40 &
-pids+=($!)
+probe=$!
+pids+=("$probe")
 until_ok 'panes | grep -qw chora-probe' || fail "chora-probe became no pane: $(panes)"
 ctl call construct pane.remove '{"name": "chora-probe"}' >/dev/null || fail "pane.remove"
 sleep 1
@@ -98,6 +180,13 @@ print(round(next(math.hypot(*p["at"]) for p in json.load(sys.stdin)["panes"] if 
 [ "$far" -le 1000 ] || fail "settings.set radius 1000 did not leash: a pane at $far"
 ok "settings.set radius 1000 leashed the pane at $far"
 
+kill "$probe"
+until_ok '! panes | grep -qw chora-probe' || fail "the pane of chora-probe stays: $(panes)"
+
+until_ok 'test "$(ctl query kind:surface | jq length)" = "$(panes | wc -w)"' ||
+    fail "a window is lost or left: $(ctl query kind:surface | jq length) windows for the panes '$(panes)'"
+ok "window audit: every window is a pane, and no pane has lost its window"
+
 # fuzzel, a layer-shell launcher, may pass its own token on to the
 # program that it starts; that program's window is a pane all the same.
 if ! command -v fuzzel >/dev/null; then
@@ -106,12 +195,15 @@ if ! command -v fuzzel >/dev/null; then
 fi
 ctl call construct settings.set '{"launcher": "fuzzel"}' >/dev/null || fail "settings.set launcher"
 for notify in true false; do
-    key space
+    key Super+space
     sleep 2
     echo "[{\"text\": {\"text\": \"Notify$notify\"}}]" | ctl inject || fail "inject Notify$notify"
     sleep 0.5
     key Return
     until_ok "panes | grep -qw notify-$notify" || fail "the program notify-$notify of fuzzel is no pane: $(panes)"
-    until_ok 'test "$(focused id:construct-look)" = True' || fail "the walk has no keyboard after fuzzel"
+    until_ok "test \"\$(app_focused notify-$notify)\" = True" || fail "notify-$notify has no keyboard after fuzzel"
+    until_ok flown_in || fail "notify-$notify: the camera is in no pane"
+    key Alt+Escape
+    until_ok 'test "$(focused id:construct-look)" = True' || fail "Alt+Escape gave the walk no keyboard"
 done
 ok "the programs that fuzzel started became panes, with or without the token of fuzzel"

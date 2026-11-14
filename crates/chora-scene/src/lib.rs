@@ -15,19 +15,19 @@ mod transform;
 
 pub use animation::{Easing, MAX_DURATION};
 pub use binding::{Binding, BindingError, MOVE, Modifiers};
-pub use command::{Command, Effect, ToplevelState};
+pub use command::{Command, Effect, GivenGrab, ToplevelState};
 pub use event::{Event, NAMES as EVENT_NAMES, OutputInfo, ScrollSource, SurfaceRequest};
 pub use node::{
-    Border, Clip, Decoration, FontStyle, InputMode, MAX_EFFECTS, MAX_MESH_CELLS, MAX_NODE_TEXTURES,
-    MAX_UNIFORMS, Mesh, Node, NodeKind, NodeTexture, Props, PropsUpdate, ROOT, ShaderEffect,
-    SurfaceInfo, Uniform,
+    Backdrop, Border, Clip, Decoration, FontStyle, InputMode, MAX_EFFECTS, MAX_MESH_CELLS,
+    MAX_NODE_TEXTURES, MAX_UNIFORMS, Mesh, Node, NodeKind, NodeTexture, OutputTexture, Props,
+    PropsUpdate, ROOT, ShaderEffect, SurfaceInfo, Uniform,
 };
 pub use scene::{
-    INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, OVERLAY, Placed, Scene, SceneError,
-    TransactionError, claimant_at, overlay_id,
+    INJECTION, MARK_SIDE, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, NewToplevel, OVERLAY, Placed, Scene,
+    SceneError, TransactionError, claimant_at, overlay_id,
 };
 pub use selector::{Selector, SelectorError};
-pub use transform::Transform;
+pub use transform::{Decomposed, Transform};
 
 #[cfg(test)]
 mod tests;

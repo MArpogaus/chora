@@ -115,7 +115,8 @@ impl SessionLockHandler for State {
     }
 
     fn new_surface(&mut self, surface: LockSurface, output: WlOutput) {
-        let Some(output) = Output::from_resource(&output).filter(|o| self.outputs.contains(o))
+        let Some(output) =
+            Output::from_resource(&output).filter(|o| self.all_outputs().contains(o))
         else {
             return;
         };
@@ -197,8 +198,9 @@ impl State {
     /// output changed, for example its mode, scale or transform.
     pub fn resize_lock_surfaces(&self) {
         let Some(lock) = &self.lock else { return };
+        let all = self.all_outputs();
         for (name, surface) in &lock.surfaces {
-            let Some(output) = self.outputs.iter().find(|o| o.name() == *name) else {
+            let Some(output) = all.iter().find(|o| o.name() == *name) else {
                 continue;
             };
             let size = output_area(output).size;
@@ -225,7 +227,9 @@ impl State {
     /// session locked or unlocked.
     fn lock_changed(&mut self) {
         self.node_grab = None;
+        self.press_via = None;
         self.button_grab = None;
+        self.last_real_button = None;
         let pointer = self.pointer();
         pointer.unset_grab(self, SERIAL_COUNTER.next_serial(), InputTime::now());
         self.update_focus();
@@ -243,7 +247,38 @@ fn refuse_lock() {
 mod tests {
     use smithay::output::Scale;
 
+    use smithay::{
+        backend::input::{InputTime, KeyState},
+        input::keyboard::Keycode,
+    };
+
     use crate::testing::{Core, wayland::Wayland};
+
+    /// Nobody at the lock screen ends or resets the session of the
+    /// person: the chords of the safety layer wait for the unlock.
+    #[test]
+    fn the_safety_chords_do_nothing_while_the_session_is_locked() {
+        let mut core = Core::new();
+        core.add_output("HDMI-1", (800, 600));
+        let mut plugin = core.named("wm");
+        let mut wayland = Wayland::connect(&mut core);
+        let lock = wayland.lock(&mut core);
+        wayland.lock_surface(&mut core, &lock);
+        let offset = 8;
+        for (key, state) in [
+            (29, KeyState::Pressed),
+            (56, KeyState::Pressed),
+            (1, KeyState::Pressed),
+            (1, KeyState::Released),
+        ] {
+            let key = Keycode::new(key + offset);
+            crate::input::key(&mut core.state, key, state, InputTime::now(), false);
+        }
+        assert!(
+            !plugin.closed(&mut core),
+            "the reset ran at the lock screen"
+        );
+    }
 
     #[test]
     fn a_lock_surface_follows_its_output_and_gets_the_pointer_at_once() {

@@ -1,9 +1,16 @@
 //! Control Panel as a menu, as XP's start menu could show it: Display
 //! opens Display Properties, Desktop lists the wallpapers, and Effects
 //! the effects of the plugin. The current choice of each has a check
-//! mark. Effects also turns XP's sounds on and off.
+//! mark. Effects also turns XP's sounds on and off. Sound mutes and sets
+//! the volume, and Keyboard Shortcuts lists the keys that every window
+//! manager shares.
 
 use std::path::{Path, PathBuf};
+
+use chora_kit::{
+    volume::{Change, Reading},
+    words::Language,
+};
 
 use crate::apps::{Kind, Node};
 
@@ -27,7 +34,16 @@ pub enum Setting {
     DateTime,
     /// Opens Display Properties.
     Display,
+    /// Changes the volume of the default sound output.
+    Volume(Change),
+    /// Gives the focused window to the window manager of this name (D55).
+    Give(&'static str),
+    /// Tells something and changes nothing.
+    Note,
 }
+
+/// The volumes of Sound, in percent.
+const VOLUMES: [u32; 4] = [25, 50, 75, 100];
 
 /// An effect that the menu turns on and off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,6 +85,15 @@ impl Toggles {
         }
     }
 
+    /// The effects of the shared driver that are on.
+    pub fn kinds(self) -> Vec<chora_kit::effects::Kind> {
+        use chora_kit::effects::Kind::{Lamp, Wobbly};
+        [(self.wobbly, Wobbly), (self.lamp, Lamp)]
+            .into_iter()
+            .filter_map(|(on, kind)| on.then_some(kind))
+            .collect()
+    }
+
     /// Turns an effect on or off.
     pub fn flip(&mut self, effect: Effect) {
         let on = match effect {
@@ -107,7 +132,13 @@ pub fn wallpapers(dirs: &[PathBuf]) -> Vec<PathBuf> {
 }
 
 /// The cascade of the Control Panel for the wallpaper and the effects.
-pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Vec<Node> {
+pub fn menu(
+    wallpaper: Option<&Path>,
+    walls: &[PathBuf],
+    toggles: Toggles,
+    reading: Reading,
+    held: &[&str],
+) -> Vec<Node> {
     let pick = |title: String, setting, checked| Node {
         title,
         icon: String::new(),
@@ -139,7 +170,8 @@ pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Ve
         icon: icon.into(),
         kind: Kind::Group(children),
     };
-    vec![
+    let keys = shortcuts(held);
+    let mut nodes = vec![
         Node {
             title: "Date and Time".into(),
             // XP draws a calendar; the WindowsXP theme has no
@@ -154,13 +186,83 @@ pub fn menu(wallpaper: Option<&Path>, walls: &[PathBuf], toggles: Toggles) -> Ve
             kind: Kind::Pick(Setting::Display, false),
         },
         group("Effects", "preferences-desktop-effects", effects),
+        group("Sound", "audio-volume-medium", sound(reading)),
         Node {
             title: "Taskbar and Start Menu".into(),
             icon: "preferences-system-windows".into(),
             kind: Kind::Pick(Setting::Taskbar, false),
         },
-    ]
+    ];
+    if !keys.is_empty() {
+        let at = nodes.len() - 2;
+        nodes.insert(
+            at,
+            group("Keyboard Shortcuts", "preferences-desktop-keyboard", keys),
+        );
+    }
+    nodes
 }
+
+/// The rows of Sound: Mute and the volumes, the current one checked
+/// when it is one of them; without a volume a row that says so and one
+/// that says why, in the language of the session.
+fn sound(reading: Reading) -> Vec<Node> {
+    let pick = |title: String, setting, checked| Node {
+        title,
+        icon: String::new(),
+        kind: Kind::Pick(setting, checked),
+    };
+    let Reading::Level(volume) = reading else {
+        let language = Language::of_session();
+        let why = reading
+            .why(language)
+            .map(|why| pick(why, Setting::Note, false));
+        let words = pick(reading.words(language), Setting::Note, false);
+        return std::iter::once(words).chain(why).collect();
+    };
+    let current = (!volume.muted).then_some(volume.percent);
+    let mut rows = vec![pick(
+        "Mute".into(),
+        Setting::Volume(Change::Mute),
+        volume.muted,
+    )];
+    rows.extend(VOLUMES.into_iter().map(|v| {
+        pick(
+            format!("{v}%"),
+            Setting::Volume(Change::Set(v)),
+            Some(v) == current,
+        )
+    }));
+    rows
+}
+
+/// The rows of Keyboard Shortcuts: the keys that give the focused window
+/// to another window manager, and the key of the chat, which also opens
+/// it from here; only the keys of `held`, which the plugin holds, so that
+/// no row promises a key that another client took.
+fn shortcuts(held: &[&str]) -> Vec<Node> {
+    let mut rows: Vec<Node> = (chora_kit::give::KEYS.into_iter())
+        .filter(|(key, _)| held.contains(key))
+        .map(|(key, to)| Node {
+            title: format!("{key}: window to {to}"),
+            icon: String::new(),
+            kind: Kind::Pick(Setting::Give(to), false),
+        })
+        .collect();
+    if held.contains(&CHAT_KEY) {
+        rows.push(Node {
+            title: format!("{CHAT_KEY}: chat"),
+            icon: String::new(),
+            kind: Kind::Run(CHAT.into()),
+        });
+    }
+    rows
+}
+
+/// The key that opens the chat, on every window manager.
+pub const CHAT_KEY: &str = "Super+a";
+/// The command that opens the chat.
+pub const CHAT: &str = "chora-chat";
 
 /// The name of a wallpaper file as XP shows it: "blue-hills" is "Blue
 /// hills", and XP's short file names have their long names.
@@ -186,7 +288,22 @@ pub fn name_of(stem: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use chora_kit::{
+        effects::Kind as Shared,
+        volume::{Change, Reading, Volume},
+    };
+
     use super::*;
+
+    #[test]
+    fn xp_keeps_its_wobble_and_lamp() {
+        let mut toggles = crate::config::defaults().effects;
+        assert_eq!(toggles.kinds(), [Shared::Wobbly, Shared::Lamp]);
+        toggles.flip(Effect::Wobbly);
+        assert_eq!(toggles.kinds(), [Shared::Lamp]);
+        toggles.flip(Effect::Lamp);
+        assert_eq!(toggles.kinds(), Vec::<Shared>::new());
+    }
 
     fn picks(node: &Node) -> Vec<(&str, bool)> {
         let Kind::Group(children) = &node.kind else {
@@ -206,7 +323,13 @@ mod tests {
         let walls = [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.svg")];
         let mut toggles = crate::config::defaults().effects;
         toggles.flip(Effect::Lamp);
-        let menu = menu(Some(Path::new("/w/b.svg")), &walls, toggles);
+        let menu = menu(
+            Some(Path::new("/w/b.svg")),
+            &walls,
+            toggles,
+            Reading::NoWpctl,
+            &[],
+        );
         assert_eq!(picks(&menu[1]), [("A", false), ("B", true)]);
         assert_eq!(name_of("blue_hills-2"), "Blue hills 2");
         assert_eq!(name_of("purplef"), "Purple flower");
@@ -220,6 +343,100 @@ mod tests {
                 ("Sounds", true)
             ]
         );
+    }
+
+    fn group<'a>(menu: &'a [Node], title: &str) -> &'a Node {
+        menu.iter().find(|n| n.title == title).expect(title)
+    }
+
+    const ALL_HELD: [&str; 5] = [
+        "Super+Alt+1",
+        "Super+Alt+2",
+        "Super+Alt+3",
+        "Super+Alt+4",
+        "Super+a",
+    ];
+
+    #[test]
+    fn sound_shows_the_volume_and_mutes() {
+        let toggles = crate::config::defaults().effects;
+        let at = |percent, muted| Reading::Level(Volume { percent, muted });
+        let loud = menu(None, &[], toggles, at(50, false), &ALL_HELD);
+        assert_eq!(
+            picks(group(&loud, "Sound")),
+            [
+                ("Mute", false),
+                ("25%", false),
+                ("50%", true),
+                ("75%", false),
+                ("100%", false)
+            ]
+        );
+        let Kind::Group(rows) = &group(&loud, "Sound").kind else {
+            panic!("a group");
+        };
+        assert_eq!(
+            rows[0].kind,
+            Kind::Pick(Setting::Volume(Change::Mute), false)
+        );
+        assert_eq!(
+            rows[4].kind,
+            Kind::Pick(Setting::Volume(Change::Set(100)), false)
+        );
+        let muted = menu(None, &[], toggles, at(50, true), &ALL_HELD);
+        assert_eq!(
+            picks(group(&muted, "Sound"))[..3],
+            [("Mute", true), ("25%", false), ("50%", false)]
+        );
+        for (reading, words) in [
+            (
+                Reading::NoWpctl,
+                &[("Sound unavailable", false), ("wpctl not found", false)][..],
+            ),
+            (
+                Reading::NoOutput,
+                &[("Sound unavailable", false), ("No output device", false)],
+            ),
+            (Reading::Failed, &[("Change failed", false)]),
+        ] {
+            let menu = menu(None, &[], toggles, reading, &ALL_HELD);
+            assert_eq!(picks(group(&menu, "Sound")), words);
+        }
+    }
+
+    #[test]
+    fn the_keys_of_every_window_manager_are_on_the_menu() {
+        let toggles = crate::config::defaults().effects;
+        let menu = menu(None, &[], toggles, Reading::NoWpctl, &ALL_HELD);
+        let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
+            panic!("a group");
+        };
+        let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
+        assert_eq!(
+            titles,
+            [
+                "Super+Alt+1: window to tiling",
+                "Super+Alt+2: window to xp",
+                "Super+Alt+3: window to mc",
+                "Super+Alt+4: window to construct",
+                "Super+a: chat",
+            ]
+        );
+        assert_eq!(rows[0].kind, Kind::Pick(Setting::Give("tiling"), false));
+        assert_eq!(rows[4].kind, Kind::Run("chora-chat".into()));
+    }
+
+    /// A key that another client holds is not on the menu: a row there
+    /// would promise a key that does nothing.
+    #[test]
+    fn only_the_held_keys_are_on_the_menu() {
+        let toggles = crate::config::defaults().effects;
+        let menu = menu(None, &[], toggles, Reading::NoWpctl, &["Super+Alt+2"]);
+        let Kind::Group(rows) = &group(&menu, "Keyboard Shortcuts").kind else {
+            panic!("a group");
+        };
+        let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
+        assert_eq!(titles, ["Super+Alt+2: window to xp"]);
     }
 
     #[test]

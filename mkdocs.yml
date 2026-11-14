@@ -19,8 +19,11 @@ theme:
 
 nav:
 - Home: index.md
+- Install: install.md
+- Known issues: known-issues.md
 - Concept:
   - Vision and principles: vision.md
+  - Design principles: design-principles.md
   - Glossary: glossary.md
   - Scenarios: scenarios.md
 - Design:
@@ -29,6 +32,10 @@ nav:
   - Configuration: configuration.md
   - chora-mc style guide: mc-style.md
   - chora-construct style guide: construct-style.md
+  - chora-xp style guide: xp-style.md
+  - Standing back from a cube face: cube-modes.md
+  - Split of chora-xp: xp-split.md
+  - HUD folders: hud.md
   - Project structure: project-structure.md
   - Voice agent (draft): voice.md
 - Context:

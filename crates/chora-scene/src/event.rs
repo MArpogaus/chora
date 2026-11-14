@@ -101,6 +101,10 @@ pub enum Event {
         /// Pressed or released.
         #[serde(default)]
         state: crate::ipc::PressState,
+        /// The key came from `input.inject`, not from a keyboard. A
+        /// client that takes a key for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The button of a grabbed binding, such as `Super+BTN_LEFT`, went
     /// down or up. Only the connection of the grab gets it, subscribed or
@@ -122,6 +126,10 @@ pub enum Event {
         /// binding `move`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         surface: Option<String>,
+        /// The state of a drag that another window manager gave with the
+        /// window (`give_grab`): only at such a press of `move`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grab: Option<crate::GivenGrab>,
     },
     /// The pointer moved while the button of a grabbed binding is down.
     #[serde(rename = "input.moved")]
@@ -171,9 +179,18 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The pointer in the coordinates of the node: the point of its
+        /// own plane that the pointer shows; for a window, relative to the
+        /// origin of its geometry.
+        #[serde(default)]
+        local: [f64; 2],
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The press came from `input.inject`, not from a pointer. A
+        /// client that takes a press for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
     },
     /// The pointer came over a node that takes pointer input: the top one
     /// under it, a surface, a rect or an image. Not during a drag of a
@@ -202,9 +219,24 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The pointer in the coordinates of the node: the point of its
+        /// own plane that the pointer shows, also while a drag leaves the
+        /// node. A plane that shows the pointer behind the eye keeps the
+        /// last point.
+        #[serde(default)]
+        local: [f64; 2],
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The event came from `input.inject`, not from a pointer. A
+        /// client that takes a drag for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
+        /// The time of the input in milliseconds of the monotonic clock,
+        /// for the speed of a drag: the time between two events is the
+        /// time between their inputs, not between their deliveries.
+        #[serde(default)]
+        time: u64,
     },
     /// The button of a press over a rect or an image went up.
     #[serde(rename = "pointer.released")]
@@ -216,9 +248,24 @@ pub enum Event {
         /// The pointer in scene coordinates, or in output coordinates for a
         /// node under `screen:NAME`.
         position: [f64; 2],
+        /// The pointer in the coordinates of the node: the point of its
+        /// own plane that the pointer shows, also while a drag leaves the
+        /// node. A plane that shows the pointer behind the eye keeps the
+        /// last point.
+        #[serde(default)]
+        local: [f64; 2],
         /// The modifiers that are down: `Ctrl`, `Alt`, `Shift`, `Super`.
         #[serde(default)]
         modifiers: Vec<String>,
+        /// The event came from `input.inject`, not from a pointer. A
+        /// client that takes a drag for the user must ignore it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        injected: bool,
+        /// The time of the input in milliseconds of the monotonic clock,
+        /// for the speed of a drag: the time between two events is the
+        /// time between their inputs, not between their deliveries.
+        #[serde(default)]
+        time: u64,
     },
     /// The wheel or the touchpad scrolled over a rect, an image or a shader
     /// node that takes pointer input. Only the connections of the owner of
@@ -261,6 +308,11 @@ pub enum Event {
         output: String,
         /// The nodes whose layers stay out.
         nodes: Vec<String>,
+        /// The surface node with the keyboard focus, when one of these
+        /// nodes holds it, so that it shows nothing; the keyboard stays
+        /// with it, and its window manager may move the focus.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        keyboard: Option<String>,
     },
     /// The shader of an effect failed after a change of its file. The
     /// effect keeps its last working version, or shows nothing.
@@ -318,6 +370,14 @@ pub enum Event {
         /// The parameters of the caller.
         #[serde(default)]
         params: serde_json::Value,
+        /// Whether the connection of the caller is confined. Absent means
+        /// `false`.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        confined: bool,
+        /// The number of the connection of the caller, unique while the
+        /// core runs: a plugin can tell two connections of one name apart.
+        #[serde(default)]
+        connection: u64,
     },
     /// An event that a client emitted with `events.emit` (D65). Its name
     /// starts with the name of the client and a dot, for example
@@ -393,6 +453,13 @@ pub struct OutputInfo {
     /// windows of a plugin, which a camera move or a zoom does not change.
     #[serde(default)]
     pub default_work_area: [i32; 4],
+    /// Whether no screen shows the output: its frames go into a texture
+    /// that a shader node of its owner reads.
+    #[serde(default, rename = "virtual", skip_serializing_if = "Option::is_none")]
+    pub is_virtual: Option<bool>,
+    /// The client that added a virtual output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
 }
 
 impl OutputInfo {
@@ -471,5 +538,20 @@ mod tests {
                 name: "DP-1".into()
             }
         );
+    }
+
+    #[test]
+    fn a_move_and_a_release_carry_the_time_of_their_input() {
+        use super::Event;
+        for name in ["pointer.moved", "pointer.released"] {
+            let params = serde_json::json!({"event": name, "node": "face", "button": 272,
+                "position": [440.0, 400.0], "time": 81_234});
+            let event: Event = serde_json::from_value(params).expect("a pointer event");
+            assert_eq!(
+                serde_json::to_value(&event).unwrap()["time"],
+                81_234,
+                "{name} lost the time of the input"
+            );
+        }
     }
 }

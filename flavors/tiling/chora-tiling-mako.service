@@ -1,0 +1,13 @@
+[Unit]
+Description=mako, the notifications of the tiling flavor
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=/usr/bin/mako
+Conflicts=mako.service
+
+[Service]
+# chora-tiling --launch mako reads mako.conf of the theme, of the user in
+# the chora/tiling folder of the config directory, or of the flavor.
+ExecStart=/usr/bin/chora-tiling --launch mako
+Restart=on-failure
+RestartSec=1

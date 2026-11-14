@@ -8,10 +8,11 @@
 
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex, mpsc::Sender},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use serde_json::{Value, json};
@@ -42,6 +43,17 @@ const LOG_CHARS: usize = 300;
 /// The most bytes of the words of the agent between two tool calls; the
 /// rest is cut.
 const MESSAGE_BYTES: usize = 16 * 1024;
+/// The entries of the transcript that an agent keeps, and the most text
+/// that one `agent.read` answers.
+const RING: usize = 500;
+/// The most bytes of one entry, and of the whole ring; the rest is cut
+/// or dropped, the oldest first.
+const ENTRY_BYTES: usize = 16 * 1024;
+const RING_BYTES: usize = 4 * 1024 * 1024;
+/// A chat that no `agent.read` touches for this long ends.
+const CHAT_TTL: Duration = Duration::from_secs(600);
+const CHAT_SWEEP: Duration = Duration::from_secs(30);
+const READ_BYTES: usize = 64 * 1024;
 
 /// What an agent tells the core.
 #[derive(Debug)]
@@ -58,6 +70,8 @@ pub enum Event {
         name: String,
         voice: String,
         prompt: String,
+        detail: String,
+        physical: bool,
         answer: oneshot::Sender<bool>,
     },
 }
@@ -82,6 +96,7 @@ struct Inner {
     subs: BTreeMap<String, Sub>,
     /// The number of the next actor.
     next: u64,
+    chat_ttl: Duration,
 }
 
 /// The settings of the agents, from `Config`.
@@ -114,6 +129,13 @@ impl Settings {
     }
 }
 
+/// An entry of the transcript, as `agent.read` answers it.
+struct Entry {
+    seq: u64,
+    role: &'static str,
+    text: String,
+}
+
 /// An agent as mc and `agent_status` see it.
 struct Sub {
     /// The number of its actor: a late event of an older actor of the
@@ -128,6 +150,14 @@ struct Sub {
     plan: Vec<String>,
     question: String,
     log: VecDeque<String>,
+    entries: VecDeque<Entry>,
+    /// The `seq` of the last entry; 0 before the first.
+    seq: u64,
+    /// The clients that hold a chat with this agent open, with the time
+    /// of their last `agent.read`.
+    chats: BTreeMap<String, Instant>,
+    /// The bytes of text in `entries`.
+    bytes: usize,
     started: Instant,
     /// None once its process ended.
     cmds: Option<mpsc::UnboundedSender<Cmd>>,
@@ -174,6 +204,10 @@ impl Sub {
             plan: Vec::new(),
             question: String::new(),
             log: VecDeque::new(),
+            entries: VecDeque::new(),
+            seq: 0,
+            chats: BTreeMap::new(),
+            bytes: 0,
             started: Instant::now(),
             cmds: Some(cmds),
             pid: None,
@@ -183,7 +217,46 @@ impl Sub {
     fn record(&self, name: &str) -> Value {
         json!({"name": name, "state": self.state, "task": self.task, "said": self.said,
             "voice": self.voice, "plan": self.plan, "question": self.question,
-            "log": self.log})
+            "log": self.log, "seq": self.seq, "epoch": self.id,
+            "chat": !self.chats.is_empty()})
+    }
+
+    /// Adds an entry to the transcript, hidden and cut to `ENTRY_BYTES`;
+    /// the ring drops the oldest beyond `RING` entries and `RING_BYTES`.
+    fn entry(&mut self, role: &'static str, text: &str) {
+        self.seq += 1;
+        let text = cut(&redact(text), ENTRY_BYTES);
+        self.bytes += text.len();
+        self.entries.push_back(Entry {
+            seq: self.seq,
+            role,
+            text,
+        });
+        while self.entries.len() > RING || (self.bytes > RING_BYTES && self.entries.len() > 1) {
+            if let Some(old) = self.entries.pop_front() {
+                self.bytes -= old.text.len();
+            }
+        }
+    }
+
+    /// The entries after `after`, up to `READ_BYTES` of text, the last
+    /// `seq` that the answer holds, and the `epoch` of this start of the
+    /// agent: a reader that sees another epoch starts its transcript
+    /// again. The first entry always comes, so that a reader never
+    /// stalls.
+    fn read(&self, after: u64) -> Value {
+        let mut bytes = 0;
+        let mut last = self.seq;
+        let mut entries = Vec::new();
+        for e in self.entries.iter().filter(|e| e.seq > after) {
+            bytes += e.text.len();
+            if bytes > READ_BYTES && !entries.is_empty() {
+                break;
+            }
+            last = e.seq;
+            entries.push(json!({"seq": e.seq, "role": e.role, "text": e.text}));
+        }
+        json!({"entries": entries, "seq": last, "epoch": self.id})
     }
 
     fn note(&mut self, line: &str) {
@@ -198,8 +271,53 @@ impl Sub {
     }
 }
 
+/// The text with at most `limit` bytes, cut on a char boundary and
+/// marked with an ellipsis.
+fn cut(text: &str, limit: usize) -> String {
+    if text.len() <= limit {
+        return text.to_owned();
+    }
+    let room = limit - '…'.len_utf8();
+    let end = (text.char_indices().map(|(i, _)| i))
+        .take_while(|&i| i <= room)
+        .last()
+        .unwrap_or(0);
+    format!("{}…", &text[..end])
+}
+
+/// The text without the secrets that `chat::hide` hides: a JSON text
+/// by its keys, any other text by the `key: value` and `key=value` of
+/// each line.
+fn redact(text: &str) -> String {
+    if let Ok(mut value) = serde_json::from_str::<Value>(text)
+        && (value.is_object() || value.is_array())
+    {
+        crate::chat::hide(&mut value);
+        return value.to_string();
+    }
+    (text.lines().map(redact_line))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn redact_line(line: &str) -> String {
+    let Some(at) = line.find([':', '=']) else {
+        return line.to_owned();
+    };
+    let key = (line[..at].split_whitespace().last())
+        .unwrap_or_default()
+        .trim_matches(['-', '"', '\'']);
+    let mut probe = json!({ key: "" });
+    crate::chat::hide(&mut probe);
+    if probe[key] == "(hidden)" {
+        format!("{} (hidden)", &line[..=at])
+    } else {
+        line.to_owned()
+    }
+}
+
 /// A name with a capital first letter, as spoken and as mc shows it.
-fn title(name: &str) -> String {
+pub fn title(name: &str) -> String {
     let mut chars = name.chars();
     chars.next().map_or_else(String::new, |first| {
         first.to_uppercase().chain(chars).collect()
@@ -231,6 +349,7 @@ impl Agents {
                 settings: Settings::new(config),
                 subs: BTreeMap::new(),
                 next: 0,
+                chat_ttl: CHAT_TTL,
             })),
             data,
             tx,
@@ -319,6 +438,10 @@ impl Agents {
 
     /// Runs one of `TOOLS` and answers the text for the LLM.
     pub fn call(&self, tool: &str, args: &Value) -> Value {
+        self.expire_chats();
+        if let Some(answer) = self.chat_call(tool, args) {
+            return answer;
+        }
         let arg = |key: &str| args[key].as_str().map(str::trim).filter(|s| !s.is_empty());
         match (tool, arg("name")) {
             ("agent_list", _) => self.list(),
@@ -335,6 +458,118 @@ impl Agents {
             _ => format!("error: {tool} needs a name"),
         }
         .into()
+    }
+
+    /// The chat methods of the client, which never reach the LLM:
+    /// `agent.read`, `agent.cancel`, `chat.open`, `chat.close` and
+    /// `chat.gone` (a client is gone; no `caller` is a new session).
+    /// A failure is `{"error": text}`.
+    fn chat_call(&self, method: &str, args: &Value) -> Option<Value> {
+        let name = args["name"].as_str().unwrap_or_default().to_lowercase();
+        let caller = args["caller"].as_str();
+        let answer = match method {
+            "agent.read" => {
+                let after = args["after"].as_u64().unwrap_or(0);
+                self.read(&name, after, caller)
+            }
+            "agent.cancel" => self.cancel_running(&name).map(Value::from),
+            "chat.open" | "chat.close" => match caller {
+                Some(caller) if method == "chat.open" => self.chat_open(&name, caller),
+                Some(caller) => self.chat_close(&name, caller),
+                None => Err(format!("{method} needs a caller")),
+            }
+            .map(|()| json!({})),
+            "chat.gone" => {
+                self.chat_gone(caller);
+                Ok(json!({}))
+            }
+            _ => return None,
+        };
+        Some(answer.unwrap_or_else(|error| json!({"error": error})))
+    }
+
+    /// The transcript of an agent after `after`.
+    /// A read keeps the chat of `caller` alive.
+    fn read(&self, name: &str, after: u64, caller: Option<&str>) -> Result<Value, String> {
+        let mut inner = self.lock();
+        let sub = (inner.subs.get_mut(name)).ok_or(format!("no agent {name}"))?;
+        if let Some(read) = caller.and_then(|c| sub.chats.get_mut(c)) {
+            *read = Instant::now();
+        }
+        Ok(sub.read(after))
+    }
+
+    /// Ends the chats that no read touched for the time to live.
+    fn expire_chats(&self) {
+        let mut inner = self.lock();
+        let ttl = inner.chat_ttl;
+        for (name, sub) in &mut inner.subs {
+            let before = sub.chats.len();
+            sub.chats.retain(|_, read| read.elapsed() < ttl);
+            if sub.chats.len() != before {
+                let _ = self.tx.send(Input::Agent(Event::State(sub.record(name))));
+            }
+        }
+    }
+
+    /// Cancels the prompt of an agent that runs.
+    fn cancel_running(&self, name: &str) -> Result<String, String> {
+        let name = name.to_lowercase();
+        let runs = (self.lock().subs.get(&name)).is_some_and(|s| s.cmds.is_some());
+        if runs {
+            Ok(self.cancel(&name))
+        } else {
+            Err(format!("no agent {name} runs"))
+        }
+    }
+
+    /// Marks a chat of `caller` with an agent as open.
+    fn chat_open(&self, name: &str, caller: &str) -> Result<(), String> {
+        self.chats(name, |chats| {
+            chats.insert(caller.to_owned(), Instant::now());
+            Ok(())
+        })
+    }
+
+    /// Ends the chat that `caller` opened.
+    fn chat_close(&self, name: &str, caller: &str) -> Result<(), String> {
+        self.chats(name, |chats| {
+            if chats.remove(caller).is_some() {
+                Ok(())
+            } else {
+                Err(format!("{caller} has no chat open with {name}"))
+            }
+        })
+    }
+
+    /// Ends the chats of `caller`, or of all callers.
+    fn chat_gone(&self, caller: Option<&str>) {
+        let mut inner = self.lock();
+        for (name, sub) in &mut inner.subs {
+            let before = sub.chats.len();
+            match caller {
+                Some(c) => sub.chats.remove(c).is_some(),
+                None => !std::mem::take(&mut sub.chats).is_empty(),
+            };
+            if sub.chats.len() != before {
+                let _ = self.tx.send(Input::Agent(Event::State(sub.record(name))));
+            }
+        }
+    }
+
+    fn chats(
+        &self,
+        name: &str,
+        change: impl FnOnce(&mut BTreeMap<String, Instant>) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let mut inner = self.lock();
+        let sub = (inner.subs.get_mut(name)).ok_or(format!("no agent {name}"))?;
+        let before = sub.chats.len();
+        change(&mut sub.chats)?;
+        if sub.chats.len() != before {
+            let _ = self.tx.send(Input::Agent(Event::State(sub.record(name))));
+        }
+        Ok(())
     }
 
     fn list(&self) -> String {
@@ -385,7 +620,7 @@ impl Agents {
         };
         let command: Vec<String> = inner.settings.cmd.iter().map(place).collect();
         let log = self.data.join("agents").join(format!("{name}.log"));
-        let (cmds, rx) = mpsc::unbounded_channel();
+        let (cmds, rx) = tokio::sync::mpsc::unbounded_channel();
         inner.next += 1;
         let id = inner.next;
         let sub = Sub::new(id, project, &dir, &voice, cmds);
@@ -512,12 +747,18 @@ impl Agents {
 
     /// Speaks the end of a turn in the voice of the agent, short.
     fn speak(&self, name: &str, text: &str) {
+        self.expire_chats();
         let (limit, details) = {
             let inner = self.lock();
             (inner.settings.said_chars, inner.settings.details.clone())
         };
         let text = summary(text, limit, &details);
-        if !text.is_empty() {
+        let silent = self
+            .lock()
+            .subs
+            .get(name)
+            .is_some_and(|s| !s.chats.is_empty());
+        if !text.is_empty() && !silent {
             let voice = self.voice(name);
             let _ = self.tx.send(Input::Agent(Event::Said { voice, text }));
         }
@@ -603,11 +844,38 @@ fn outcome(options: &[Value], yes: bool) -> Value {
         )
 }
 
+/// Whether a permission request takes a key or a button of the HUD, as
+/// a security question of the reply does: all but a read, a search and
+/// a thought, so a command, a write, a move, a delete, a fetch and a
+/// kind that is unknown; and any request without an `allow_once`
+/// option, which a plain yes would turn into `allow_always`.
+fn is_physical(tool: &Value, options: &[Value]) -> bool {
+    let once = options.iter().any(|o| o["kind"] == "allow_once");
+    !once || !matches!(tool["kind"].as_str(), Some("read" | "search" | "think"))
+}
+
+/// What a permission request asks, in full, for the screen.
+fn detail(tool: &Value) -> String {
+    let title = tool["title"].as_str().unwrap_or_default().trim();
+    let mut input = tool["rawInput"].clone();
+    crate::chat::hide(&mut input);
+    if input.is_null() {
+        title.to_owned()
+    } else {
+        format!("{title}\n{input}")
+    }
+}
+
 /// What a permission request asks, short enough to speak: the title of
-/// its tool call, a path as its file name, and the kind as a verb.
+/// its tool call, a path as its file name for an edit, a read, a delete
+/// and a move, and the kind as a verb.
 fn asked(tool: &Value, german: bool) -> String {
     let title = tool["title"].as_str().unwrap_or_default().trim();
-    let title = if title.starts_with('/') {
+    let short = matches!(
+        tool["kind"].as_str(),
+        Some("edit" | "read" | "delete" | "move")
+    );
+    let title = if short && title.starts_with('/') {
         Path::new(title)
             .file_name()
             .map_or(title.into(), |f| f.to_string_lossy())
@@ -689,6 +957,7 @@ impl Actor {
             s.state = "blocked";
             s.question.clear();
             s.note(&format!("✕ {why}"));
+            s.entry("notice", &why);
             s.said = why;
         });
         let ended = self.agents.lock().settings.ended.clone();
@@ -710,8 +979,10 @@ impl Actor {
         self.agents.update(&self.name, self.id, |s| s.pid = pid);
         let mut lines = read_lines(child.stdout.take().expect("piped"));
         let mut session = Session::default();
+        let mut sweep = tokio::time::interval(CHAT_SWEEP);
         loop {
             tokio::select! {
+                _ = sweep.tick() => self.agents.expire_chats(),
                 line = lines.recv() => {
                     let Some(line) = line.transpose()? else { return Ok(false) };
                     self.line(&mut rpc, &mut session, &line, dir).await?;
@@ -779,6 +1050,7 @@ impl Actor {
         self.agents.update(&self.name, self.id, |s| {
             s.state = "working";
             s.note(&format!("› {text}"));
+            s.entry("user", &text);
             s.task = text;
             s.plan.clear();
         });
@@ -904,6 +1176,28 @@ impl Actor {
         let what = asked(&params["toolCall"], german);
         let options = params["options"].as_array().cloned().unwrap_or_default();
         let prompt = question(&asks, name, &what, &options, german);
+        let physical = is_physical(&params["toolCall"], &options);
+        let detail = detail(&params["toolCall"]);
+        if crate::chat::too_long(&detail) {
+            rpc.respond(rpc_id, outcome(&options, false)).await?;
+            let told = if german {
+                format!(
+                    "{} wollte etwas tun, das zu lang ist, um es zu zeigen. Abgelehnt.",
+                    title(name)
+                )
+            } else {
+                format!(
+                    "{} asked for something too long to show. Rejected.",
+                    title(name)
+                )
+            };
+            self.agents.update(name, id, |s| {
+                s.note(&format!("! {told}"));
+                s.entry("notice", &told);
+            });
+            self.agents.speak(name, &told);
+            return Ok(());
+        }
         let (answer, rx) = oneshot::channel();
         session.question = Some(Permission {
             id: rpc_id,
@@ -913,6 +1207,7 @@ impl Actor {
         self.agents.update(name, id, |s| {
             s.state = "question";
             s.note(&format!("? {what}"));
+            s.entry("question", &what);
             s.question = what;
         });
         let voice = self.agents.voice(name);
@@ -920,6 +1215,8 @@ impl Actor {
             name: name.to_owned(),
             voice,
             prompt,
+            detail,
+            physical,
             answer,
         }));
         Ok(())
@@ -943,14 +1240,21 @@ impl Actor {
             Some("tool_call") => {
                 self.flush(session);
                 let title = update["title"].as_str().unwrap_or_default().to_owned();
-                self.agents
-                    .update(name, id, |s| s.note(&format!("⚙ {title}")));
+                self.agents.update(name, id, |s| {
+                    s.note(&format!("⚙ {title}"));
+                    s.entry("tool", &title);
+                });
             }
             Some("plan") => {
                 let plan: Vec<String> = (update["entries"].as_array().into_iter().flatten())
                     .map(plan_line)
                     .collect();
-                self.agents.update(name, id, |s| s.plan = plan);
+                self.agents.update(name, id, |s| {
+                    if s.plan != plan {
+                        s.entry("plan", &plan.join("\n"));
+                    }
+                    s.plan = plan;
+                });
             }
             _ => {}
         }
@@ -966,6 +1270,7 @@ impl Actor {
         text.clone_into(&mut session.last);
         self.agents.update(&self.name, self.id, |s| {
             s.note(text);
+            s.entry("agent", text);
             text.clone_into(&mut s.said);
         });
     }
@@ -998,8 +1303,8 @@ fn read_lines(stdout: ChildStdout) -> mpsc::Receiver<Result<Vec<u8>, String>> {
 }
 
 /// Starts the agent in its own process group, so that a stop ends the
-/// sandbox and its children, with stderr and the messages in `log`;
-/// sends `initialize`.
+/// sandbox and its children, with stderr and the messages in `log`
+/// (mode 0600); sends `initialize`.
 async fn spawn(
     command: &[String],
     dir: &Path,
@@ -1011,6 +1316,7 @@ async fn spawn(
     let file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
+        .mode(0o600)
         .open(log)
         .map_err(|e| format!("{}: {e}", log.display()))?;
     let err = file.try_clone().map_err(|e| e.to_string())?;
@@ -1067,6 +1373,51 @@ mod tests {
     use std::{sync::mpsc, time::Duration};
 
     use super::*;
+
+    /// A permission request takes a key unless it only reads, searches
+    /// or thinks, and unless its only allowing option is `allow_once`.
+    #[test]
+    fn a_permission_request_is_physical_unless_it_only_looks() {
+        let once = [
+            json!({"kind": "allow_once"}),
+            json!({"kind": "reject_once"}),
+        ];
+        for kind in ["execute", "edit", "delete", "move", "fetch", "other"] {
+            assert!(is_physical(&json!({"kind": kind}), &once), "{kind}");
+        }
+        assert!(is_physical(&json!({}), &once), "no kind");
+        for kind in ["read", "search", "think"] {
+            assert!(!is_physical(&json!({"kind": kind}), &once), "{kind}");
+        }
+        let always = [json!({"kind": "allow_always"})];
+        assert!(is_physical(&json!({"kind": "read"}), &always));
+    }
+
+    /// The title of a command is never cut to a file name, and the
+    /// screen gets the whole title and the raw input without secrets.
+    #[test]
+    fn a_command_keeps_its_whole_title_for_the_user() {
+        let tool = json!({
+            "kind": "execute",
+            "title": "/bin/true && rm -rf /home/user/x",
+            "rawInput": {"command": "ls", "api_key": "s3cret"}
+        });
+        let said = asked(&tool, false);
+        assert!(said.contains("rm -rf /home/user/x"), "{said}");
+        let long = json!({"kind": "execute", "title": "x".repeat(200)});
+        assert_eq!(detail(&long).matches('x').count(), 200);
+        let shown = detail(&tool);
+        assert!(
+            shown.contains("/bin/true && rm -rf /home/user/x"),
+            "{shown}"
+        );
+        assert!(shown.contains("\"command\":\"ls\""), "{shown}");
+        assert!(!shown.contains("s3cret"), "{shown}");
+        let edit = json!({"kind": "edit", "title": "/home/user/notes.txt"});
+        assert_eq!(asked(&edit, false), "edit notes.txt");
+        let unknown = json!({"title": "/bin/sh"});
+        assert_eq!(asked(&unknown, false), "/bin/sh");
+    }
 
     #[test]
     fn a_long_answer_speaks_its_first_sentence() {
@@ -1193,6 +1544,40 @@ mod tests {
         let _ = std::fs::remove_dir_all(&data);
     }
 
+    /// A request whose detail is too long to show whole is rejected,
+    /// and the user is told, so that no part of it hides the rest.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_request_too_long_to_show_is_rejected() {
+        let data = std::env::temp_dir().join(format!("chora-voice-long-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", None, None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        agents.prompt("demo", "LONG");
+        let (_rx, events) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.starts_with("Abgelehnt")),
+        )
+        .await;
+        assert!(!events.iter().any(|e| matches!(e, Event::Ask { .. })));
+        let told = events
+            .iter()
+            .any(|e| matches!(e, Event::Said { text, .. } if text.contains("too long")));
+        assert!(told, "{}", events.len());
+        agents.stop("demo");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
     /// A yes allows always only when the question said so.
     #[test]
     fn only_a_question_for_always_allows_always() {
@@ -1283,6 +1668,39 @@ exec cat >/dev/null"#;
         let _ = std::fs::remove_dir_all(&data);
     }
 
+    /// The agent keeps the variables that the settings name for the API
+    /// keys: a harness may use the same key as the voice LLM.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_agent_keeps_the_api_key_variables() {
+        assert!(std::env::var_os("HOME").is_some(), "the test needs HOME");
+        let data = std::env::temp_dir().join(format!("chora-voice-keys-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = r#"echo "${HOME-unset}" > seen.tmp; mv seen.tmp seen; exec cat >/dev/null"#;
+        let config = Config {
+            agent_cmd: vec!["sh".into(), "-c".into(), script.into()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            llm_api_key_env: "HOME".into(),
+            ..Config::default()
+        };
+        let (tx, _rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        assert!(agents.start("demo", Some("keys"), None).contains("starts"));
+        let seen = project.join("seen");
+        for _ in 0..100 {
+            if seen.exists() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        let home = std::fs::read_to_string(&seen).unwrap_or_default();
+        agents.stop("keys");
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(Some(home.trim().into()), std::env::var_os("HOME"));
+    }
+
     /// The fake agent of `tests/fake-acp.sh`: a prompt, its plan, its
     /// question with a yes, its answer in short; a stop ends its
     /// process.
@@ -1320,11 +1738,14 @@ exec cat >/dev/null"#;
             name,
             voice,
             prompt,
+            detail: _,
+            physical,
             answer,
         }) = events.pop()
         else {
             unreachable!()
         };
+        assert!(physical, "a write takes a key");
         assert_eq!((name.as_str(), voice.as_str()), ("coder", "ryan"));
         assert_eq!(prompt, "Coder wants to edit notes.txt. Allow?");
         let status = agents.call("agent_status", &json!({"name": "coder"}));
@@ -1387,6 +1808,343 @@ exec cat >/dev/null"#;
         let log = std::fs::read_to_string(data.join("agents/coder.log")).unwrap();
         assert!(log.contains(r#""method":"initialize""#), "{log}");
         assert!(log.contains(r#"< {"jsonrpc":"2.0","id":2,"#), "{log}");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A project with the fake agent, started and idle.
+    async fn idle_agent(tag: &str) -> (Agents, mpsc::Receiver<Input>, PathBuf) {
+        let data = std::env::temp_dir().join(format!("chora-voice-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&data);
+        let project = data.join("demo");
+        std::fs::create_dir_all(&project).unwrap();
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fake-acp.sh");
+        let config = Config {
+            agent_cmd: vec!["sh".into(), script.display().to_string()],
+            unsandboxed: true,
+            agent_projects: [("demo".into(), project.display().to_string())].into(),
+            ..Config::default()
+        };
+        let (tx, rx) = mpsc::channel();
+        let agents = Agents::new(&config, data.clone(), tx);
+        agents.start("demo", Some("coder"), None);
+        let (rx, _) = until(rx, |e| is_state(e, "idle")).await;
+        (agents, rx, data)
+    }
+
+    /// The log of an agent has its messages: only the user reads it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_log_of_an_agent_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let (agents, _rx, data) = idle_agent("log-mode").await;
+        let log = std::fs::metadata(data.join("agents/coder.log")).unwrap();
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+        assert_eq!(log.permissions().mode() & 0o777, 0o600);
+    }
+
+    fn roles(read: &Value) -> Vec<(u64, String)> {
+        (read["entries"].as_array().unwrap().iter())
+            .map(|e| {
+                (
+                    e["seq"].as_u64().unwrap(),
+                    e["role"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_state_record_carries_the_epoch() {
+        let (agents, _rx, _data) = idle_agent("epoch").await;
+        let inner = agents.lock();
+        let sub = &inner.subs["coder"];
+        assert_eq!(sub.record("coder")["epoch"], sub.id);
+    }
+
+    /// `agent.read` answers the entries after a seq, in order, with the
+    /// seq that the reader asks next; the ring keeps 500 entries.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn agent_read_answers_after_seq() {
+        let (agents, rx, data) = idle_agent("read").await;
+        assert_eq!(agents.read("coder", 0, None).unwrap()["entries"], json!([]));
+        agents.prompt("coder", "Schreib notes.txt");
+        let (rx, mut events) = until(rx, |e| matches!(e, Event::Ask { .. })).await;
+        let Some(Event::Ask { answer, .. }) = events.pop() else {
+            unreachable!()
+        };
+        let first = agents.read("coder", 0, None).unwrap();
+        let seen = roles(&first);
+        let kinds: Vec<&str> = seen.iter().map(|(_, r)| r.as_str()).collect();
+        assert_eq!(kinds, ["user", "plan", "agent", "tool", "question"]);
+        assert!(seen.windows(2).all(|w| w[1].0 == w[0].0 + 1), "{seen:?}");
+        assert_eq!(first["entries"][0]["text"], "Schreib notes.txt");
+        assert_eq!(first["entries"][3]["text"], "Read src/main.rs");
+        assert_eq!(first["seq"], seen[4].0);
+        let epoch = agents.lock().subs["coder"].id;
+        assert_eq!(first["epoch"], epoch);
+        assert_eq!(agents.read("coder", 99, None).unwrap()["epoch"], epoch);
+        let record = agents.lock().subs["coder"].record("coder");
+        assert_eq!(record["seq"], seen[4].0);
+        let after = agents.read("coder", seen[2].0, None).unwrap();
+        let kinds: Vec<String> = roles(&after).into_iter().map(|(_, r)| r).collect();
+        assert_eq!(kinds, ["tool", "question"]);
+        let none = agents.read("coder", seen[4].0, None).unwrap();
+        assert_eq!(none["entries"], json!([]));
+        assert_eq!(none["seq"], seen[4].0);
+        answer.send(true).unwrap();
+        let (_rx, _) = until(rx, |e| is_state(e, "done")).await;
+        let rest = agents.read("coder", seen[4].0, None).unwrap();
+        let rest = roles(&rest);
+        assert!(rest.iter().all(|(n, _)| *n > seen[4].0), "{rest:?}");
+        assert!(rest.iter().any(|(_, r)| r == "agent"), "{rest:?}");
+        assert!(agents.read("nobody", 0, None).is_err());
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn the_ring_keeps_500_entries_and_a_read_at_most_64_kib() {
+        let (cmds, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut sub = Sub::new(1, "demo", Path::new("/"), "ryan", cmds);
+        for i in 0..600 {
+            sub.entry("agent", &format!("line {i}"));
+        }
+        assert_eq!(sub.entries.len(), 500);
+        assert_eq!(sub.seq, 600);
+        assert_eq!(sub.entries.front().unwrap().seq, 101);
+        let mut sub = Sub::new(
+            2,
+            "demo",
+            Path::new("/"),
+            "ryan",
+            tokio::sync::mpsc::unbounded_channel().0,
+        );
+        for _ in 0..8 {
+            sub.entry("agent", &"x".repeat(16 * 1024));
+        }
+        let read = sub.read(0);
+        let bytes: usize = (read["entries"].as_array().unwrap().iter())
+            .map(|e| e["text"].as_str().unwrap().len())
+            .sum();
+        assert!(bytes <= 64 * 1024, "{bytes}");
+        assert_eq!(read["entries"].as_array().unwrap().len(), 4);
+        assert_eq!(read["seq"], 4);
+    }
+
+    /// A chat is open until its caller closes it or is gone; the agent
+    /// record says so.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn chat_open_drops_on_disconnect_and_on_chat_close() {
+        let (agents, _rx, data) = idle_agent("chat").await;
+        let open = |agents: &Agents| agents.lock().subs["coder"].record("coder")["chat"].clone();
+        assert_eq!(open(&agents), json!(false));
+        agents.chat_open("coder", "hud").unwrap();
+        agents.chat_open("coder", "other").unwrap();
+        assert_eq!(open(&agents), json!(true));
+        agents.chat_gone(Some("hud"));
+        assert_eq!(open(&agents), json!(true), "another chat is open");
+        agents.chat_gone(Some("other"));
+        assert_eq!(open(&agents), json!(false));
+        agents.chat_open("coder", "hud").unwrap();
+        assert!(agents.chat_close("coder", "stranger").is_err());
+        assert_eq!(open(&agents), json!(true), "only its opener closes it");
+        agents.chat_close("coder", "hud").unwrap();
+        assert_eq!(open(&agents), json!(false));
+        assert!(agents.chat_open("nobody", "hud").is_err());
+        agents.chat_open("coder", "hud").unwrap();
+        agents.chat_gone(None);
+        assert_eq!(open(&agents), json!(false), "a new session drops all");
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// The results of an agent with an open chat are not spoken; its
+    /// question is.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn an_open_chat_mutes_results_not_questions() {
+        let (agents, rx, data) = idle_agent("mute").await;
+        agents.chat_open("coder", "hud").unwrap();
+        agents.prompt("coder", "Schreib notes.txt");
+        let (rx, mut events) = until(rx, |e| matches!(e, Event::Ask { .. })).await;
+        let Some(Event::Ask { answer, .. }) = events.pop() else {
+            unreachable!()
+        };
+        answer.send(true).unwrap();
+        let (rx, events) = until(rx, |e| is_state(e, "done")).await;
+        assert!(!events.iter().any(|e| matches!(e, Event::Said { .. })));
+        assert!(rx.recv_timeout(Duration::from_millis(500)).is_err());
+        let read = agents.read("coder", 0, None).unwrap();
+        assert!(roles(&read).iter().any(|(_, r)| r == "agent"));
+        agents.chat_close("coder", "hud").unwrap();
+        agents.prompt("coder", "Noch eins");
+        let (rx, mut events) = until(rx, |e| matches!(e, Event::Ask { .. })).await;
+        let Some(Event::Ask { answer, .. }) = events.pop() else {
+            unreachable!()
+        };
+        answer.send(true).unwrap();
+        let (_rx, _) = until(rx, |e| matches!(e, Event::Said { .. })).await;
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// An open chat changes nothing about the gate: an edit still waits
+    /// for a key or a button, and a chat method answers no question.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn an_edit_request_stays_physical_with_a_chat_open() {
+        let (agents, rx, data) = idle_agent("physical").await;
+        agents.chat_open("coder", "hud").unwrap();
+        agents.prompt("coder", "Schreib notes.txt");
+        let (rx, mut events) = until(rx, |e| matches!(e, Event::Ask { .. })).await;
+        let Some(Event::Ask {
+            physical, answer, ..
+        }) = events.pop()
+        else {
+            unreachable!()
+        };
+        assert!(physical);
+        for text in ["yes", "y", "ja"] {
+            agents.call("agent_say", &json!({"name": "coder", "text": text}));
+        }
+        agents.call("chat.open", &json!({"name": "coder", "caller": "hud"}));
+        agents.call("agent.read", &json!({"name": "coder", "after": 0}));
+        agents.call("agent.cancel", &json!({"name": "nobody"}));
+        assert_eq!(agents.lock().subs["coder"].state, "question");
+        assert!(rx.recv_timeout(Duration::from_millis(300)).is_err());
+        let log = std::fs::read_to_string(data.join("agents/coder.log")).unwrap();
+        assert!(!log.contains(r#""outcome""#), "{log}");
+        drop(answer);
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// Cancelling an agent that runs answers at once; the lock is not
+    /// held through the cancel.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancelling_a_running_agent_does_not_deadlock() {
+        let (agents, _rx, data) = idle_agent("cancel").await;
+        let (done, answer) = std::sync::mpsc::channel();
+        let again = agents.clone();
+        std::thread::spawn(move || {
+            let _ = done.send(again.cancel_running("coder"));
+        });
+        let answer = answer.recv_timeout(Duration::from_secs(5));
+        assert_eq!(answer, Ok(Ok("coder stops its request".to_owned())));
+        assert!(agents.cancel_running("Coder").is_ok());
+        assert!(agents.cancel_running("nobody").is_err());
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    fn lone_sub() -> Sub {
+        let (cmds, _rx) = tokio::sync::mpsc::unbounded_channel();
+        Sub::new(1, "demo", Path::new("/"), "ryan", cmds)
+    }
+
+    /// An entry is cut to 16 KiB on a char boundary with an ellipsis,
+    /// and the ring holds at most 4 MiB, oldest dropped first.
+    #[test]
+    fn an_entry_is_cut_and_the_ring_has_a_byte_limit() {
+        let mut sub = lone_sub();
+        sub.entry("tool", &"é".repeat(20 * 1024));
+        let text = &sub.entries[0].text;
+        assert!(text.len() <= 16 * 1024, "{}", text.len());
+        assert!(text.len() > 16 * 1024 - 4, "{}", text.len());
+        assert!(text.ends_with('…'));
+        sub.entry("tool", &"x".repeat(16 * 1024));
+        assert_eq!(sub.entries[1].text.len(), 16 * 1024);
+        let mut sub = lone_sub();
+        for _ in 0..400 {
+            sub.entry("agent", &"x".repeat(100 * 1024));
+        }
+        let bytes: usize = sub.entries.iter().map(|e| e.text.len()).sum();
+        assert!(bytes <= 4 * 1024 * 1024, "{bytes}");
+        assert!(sub.entries.len() >= 250, "{}", sub.entries.len());
+        assert_eq!(sub.entries.back().unwrap().seq, 400);
+        assert!(sub.entries.front().unwrap().seq > 1);
+    }
+
+    /// The transcript hides what the journal hides.
+    #[test]
+    fn the_transcript_hides_secrets() {
+        let mut sub = lone_sub();
+        sub.entry("tool", r#"{"cmd": "x", "api_key": "sk-123"}"#);
+        sub.entry("tool", "curl -H\nAuthorization: Bearer abc\ntoken=xyz\nls");
+        sub.entry("tool", "Read src/main.rs");
+        let all: String = sub.entries.iter().map(|e| e.text.as_str()).collect();
+        for secret in ["sk-123", "abc", "xyz"] {
+            assert!(!all.contains(secret), "{all}");
+        }
+        assert!(all.contains("(hidden)") && all.contains("Read src/main.rs"));
+        assert!(all.contains("curl -H") && all.contains("ls"), "{all}");
+    }
+
+    /// A chat that is not read for the time to live ends; a read keeps
+    /// it, and the agent record says so.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_chat_that_is_not_read_expires() {
+        let (agents, rx, data) = idle_agent("expire").await;
+        agents.lock().chat_ttl = Duration::from_millis(300);
+        let open = |agents: &Agents| agents.lock().subs["coder"].record("coder")["chat"].clone();
+        agents.call("chat.open", &json!({"name": "coder", "caller": "hud"}));
+        agents.call("chat.open", &json!({"name": "coder", "caller": "idle"}));
+        for _ in 0..3 {
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            agents.call("agent.read", &json!({"name": "coder", "caller": "hud"}));
+            agents.expire_chats();
+        }
+        let chats: Vec<String> = agents.lock().subs["coder"].chats.keys().cloned().collect();
+        assert_eq!(chats, ["hud"]);
+        assert_eq!(open(&agents), json!(true));
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        agents.expire_chats();
+        assert_eq!(open(&agents), json!(false));
+        let (_rx, events) = until(rx, |e| matches!(e, Event::State(r) if r["chat"] == false)).await;
+        assert!(!events.is_empty());
+        agents.stop("coder");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    /// A chat method without a caller is an error, not the unknown-tool
+    /// text.
+    #[test]
+    fn chat_open_and_close_need_a_caller() {
+        let (tx, _rx) = mpsc::channel();
+        let agents = Agents::new(&Config::default(), PathBuf::from("/"), tx);
+        for method in ["chat.open", "chat.close"] {
+            let answer = agents.call(method, &json!({"name": "coder"}));
+            assert_eq!(answer["error"], format!("{method} needs a caller"));
+        }
+    }
+
+    /// The notice of a refusal and of the end of an agent has the role
+    /// `notice`, not `tool`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn notices_have_their_own_role() {
+        let (agents, rx, data) = idle_agent("notice").await;
+        agents.prompt("coder", "LONG");
+        let (rx, _) = until(
+            rx,
+            |e| matches!(e, Event::Said { text, .. } if text.contains("too long")),
+        )
+        .await;
+        let read = agents.read("coder", 0, None).unwrap();
+        let notice = read["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["text"].as_str().unwrap().contains("too long"));
+        assert_eq!(notice.unwrap()["role"], "notice");
+        let pid = agents.lock().subs["coder"].pid.unwrap();
+        let _ = std::process::Command::new("kill")
+            .arg(pid.to_string())
+            .status();
+        let (_rx, _) = until(rx, |e| is_state(e, "blocked")).await;
+        let read = agents.read("coder", 0, None).unwrap();
+        assert_eq!(
+            read["entries"].as_array().unwrap().last().unwrap()["role"],
+            "notice"
+        );
+        agents.stop("coder");
         let _ = std::fs::remove_dir_all(&data);
     }
 }

@@ -14,6 +14,8 @@ use serde_json::Value;
 pub struct Conn {
     client: Client,
     name: String,
+    /// Whether the plugin handles a method call of a confined caller now.
+    pub(crate) serving_confined: bool,
 }
 
 impl Conn {
@@ -44,13 +46,36 @@ impl Conn {
         Ok(Self {
             client: Client::connect(path, &hello)?,
             name: name.into(),
+            serving_confined: false,
         })
+    }
+
+    /// Whether the core renders in software, as on llvmpipe, so that a
+    /// plugin can choose a cheaper look.
+    #[must_use]
+    pub fn software(&self) -> bool {
+        self.client.software()
     }
 
     /// The client name of the plugin.
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// An activation token of the plugin for [`crate::run`] and
+    /// [`crate::launch`]. It carries the act of the person when the act
+    /// went to this plugin: a key or button it grabbed, a key to its node
+    /// or a press on its node. `None` when the core refuses one, and while
+    /// the plugin handles a method call of a confined caller, so that such
+    /// a caller never turns an earlier act of the person into a token; the
+    /// core refuses the stamp then too.
+    pub fn activation_token(&mut self) -> Option<String> {
+        if self.serving_confined {
+            return None;
+        }
+        let answer: Value = self.call("activation.token", Value::Null).ok()?;
+        answer["token"].as_str().map(str::to_owned)
     }
 
     /// Sends a request and waits for its response.
@@ -64,6 +89,21 @@ impl Conn {
         params: P,
     ) -> Result<R, ClientError> {
         self.client.call(method, params)
+    }
+
+    /// Calls a method of the core as [`Self::call`] does, and gives up
+    /// after `timeout` without an answer.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails, the core answers with an error, or the time ends.
+    pub fn call_within<P: serde::Serialize, R: serde::de::DeserializeOwned>(
+        &mut self,
+        method: &str,
+        params: P,
+        timeout: Duration,
+    ) -> Result<R, ClientError> {
+        self.client.call_within(method, params, timeout)
     }
 
     /// Answers a call of an exported method.
@@ -142,4 +182,66 @@ fn node(mut value: Value) -> Result<Node, ClientError> {
             .or_insert_with(|| Value::Array(Vec::new()));
     }
     Ok(serde_json::from_value(value)?)
+}
+
+/// A core that answers from a script, for the tests of the kit.
+#[cfg(test)]
+pub(crate) mod fake_core {
+    use std::{
+        io::{BufRead, BufReader, Write},
+        os::unix::net::UnixListener,
+        path::PathBuf,
+        sync::atomic::{AtomicU32, Ordering},
+        thread::JoinHandle,
+    };
+
+    use serde_json::{Value, json};
+
+    /// What the core answers to a request: a result, an error message, or
+    /// nothing at all.
+    pub(crate) enum Answer {
+        Result(Value),
+        Error(&'static str),
+        Silence,
+    }
+
+    static COUNT: AtomicU32 = AtomicU32::new(0);
+
+    /// Serves one connection with `script`, which gets the method and the
+    /// parameters of each request, until the client leaves. The thread
+    /// returns the methods that came.
+    pub(crate) fn serve(
+        script: impl Fn(&str, &Value) -> Answer + Send + 'static,
+    ) -> (PathBuf, JoinHandle<Vec<String>>) {
+        let path = std::env::temp_dir().join(format!(
+            "chora-kit-fake-{}-{}.sock",
+            std::process::id(),
+            COUNT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let listener = UnixListener::bind(&path).expect("bind the fake core");
+        let thread = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("a client");
+            let mut writer = stream.try_clone().expect("clone");
+            let mut methods = Vec::new();
+            for line in BufReader::new(stream).lines().map_while(Result::ok) {
+                let request: Value = serde_json::from_str(&line).expect("json");
+                let method = request["method"].as_str().unwrap_or_default().to_owned();
+                let id = request["id"].clone();
+                let reply = match script(&method, &request["params"]) {
+                    Answer::Result(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
+                    Answer::Error(message) => {
+                        json!({"jsonrpc": "2.0", "id": id, "error": {"code": 1, "message": message}})
+                    }
+                    Answer::Silence => {
+                        methods.push(method);
+                        continue;
+                    }
+                };
+                methods.push(method);
+                writeln!(writer, "{reply}").expect("reply");
+            }
+            methods
+        });
+        (path, thread)
+    }
 }

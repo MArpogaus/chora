@@ -292,9 +292,7 @@ delegate_noop!(App: XdgActivationV1);
 delegate_noop!(App: ZwlrLayerShellV1);
 
 fn socket_dir(tag: &str) -> (Core, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-raw-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-raw-{tag}"));
     let mut core = Core::with_renderer();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     (core, dir)
@@ -378,7 +376,7 @@ fn a_token_with_serial_zero_is_refused() {
 fn click_and_type(core: &mut Core, at: (f64, f64)) {
     crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
     for state in [ButtonState::Pressed, ButtonState::Released] {
-        crate::input::press_button(&mut core.state, 272, state, InputTime::now());
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now(), false);
     }
     let a = smithay::input::keyboard::Keycode::new(38);
     for state in [KeyState::Pressed, KeyState::Released] {
@@ -663,9 +661,7 @@ fn a_hover_locks_no_pointer_of_a_client_socket() {
 /// A core with an output `A`, the client socket of `agent`, a connection
 /// through it after `hello`, and the path of its Wayland socket.
 fn agent_ipc(tag: &str) -> (Core, PathBuf, crate::testing::Client, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-a1-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-a1-{tag}"));
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     core.add_output("A", (800, 600));
@@ -775,11 +771,38 @@ fn a_client_socket_adopts_no_foreign_window() {
     assert_eq!(mine.as_deref(), Some("agent"));
 }
 
+/// `attach` follows the rule of `create` and `move`: no window of a
+/// client socket goes under an overlay root.
+#[test]
+fn a_client_socket_attaches_no_window_to_the_screen_overlay() {
+    let (mut core, dir, mut agent, wayland) = agent_ipc("attach-screen");
+    let mut own = Wayland::connect_to(&mut core, &wayland);
+    own.toplevel(&mut core, "own");
+    let attach = json!([{"attach": {"surface": "s1", "parent": "screen:A"}}]);
+    let answer = agent.call(&mut core, "scene.apply", apply(&attach));
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let message = answer.expect_err("the attach is refused")["message"].to_string();
+    assert!(message.contains("no screen:"), "{message}");
+}
+
+/// A confined connection adds no output of the headless backend, as it
+/// adds no virtual output.
+#[test]
+fn a_client_socket_adds_no_headless_output() {
+    let (mut core, dir, mut agent, _) = agent_ipc("headless-output");
+    let answer = agent.call(&mut core, "output.add", json!({"spec": "640x480"}));
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let message = answer.expect_err("the output is refused")["message"].to_string();
+    assert!(message.contains("adds and removes no output"), "{message}");
+}
+
 /// A click at a point of the scene, down and up.
 fn click(core: &mut Core, at: (f64, f64)) {
     crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
     for state in [ButtonState::Pressed, ButtonState::Released] {
-        crate::input::press_button(&mut core.state, 272, state, InputTime::now());
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now(), false);
     }
 }
 
@@ -828,6 +851,72 @@ fn a_client_socket_focuses_a_node_only_after_its_own_press() {
     drop(core);
     std::fs::remove_dir_all(&dir).unwrap();
     assert_eq!(focused.as_deref(), Some("menu"));
+}
+
+/// A click at a point of the scene that an injection made.
+fn injected_click(core: &mut Core, at: (f64, f64)) {
+    crate::input::move_pointer(&mut core.state, at.into(), InputTime::now());
+    for state in [ButtonState::Pressed, ButtonState::Released] {
+        crate::input::press_button(&mut core.state, 272, state, InputTime::now(), true);
+    }
+}
+
+/// An injected click is no act of the person: it does not allow
+/// `focus_node` of a client socket, a real click does.
+#[test]
+fn an_injected_click_allows_no_focus_node() {
+    let (mut core, dir, mut agent, _) = agent_ipc("focus-injected");
+    let field = json!({"create": {"id": "field", "kind": "rect", "parent": "root",
+        "props": {"size": [100, 100], "color": [1, 1, 1, 1]}}});
+    agent.ok(&mut core, "scene.apply", apply(&json!([field])));
+    let focus = apply(&json!([{"focus_node": {"node": "field"}}]));
+    injected_click(&mut core, (10.0, 10.0));
+    let (_, message) = agent.fails(&mut core, "scene.apply", focus.clone());
+    assert!(message.contains("right after a press"), "{message}");
+    click(&mut core, (10.0, 10.0));
+    agent.ok(&mut core, "scene.apply", focus);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A press that an injection made gives a client socket client no
+/// token, though the client holds the keyboard and names its serial.
+#[test]
+fn an_injected_press_gives_a_client_socket_no_token() {
+    let (mut core, dir) = socket_dir("token-injected");
+    core.add_output("A", (64, 48));
+    let mut admin = core.admin();
+    let mut agent = named(&mut core, &mut admin, None);
+    let seat: WlSeat = agent.bind(7);
+    let _pointer = seat.get_pointer(&agent.queue.handle(), ());
+    let _keyboard = seat.get_keyboard(&agent.queue.handle(), ());
+    let full = KeyboardInteractivity::Exclusive;
+    let _panel = map_layer(&mut agent, &mut core, Layer::Top, None, full);
+    let activation: XdgActivationV1 = agent.bind(1);
+    let mint = |agent: &mut Raw, core: &mut Core| {
+        let press = *agent.app.button_serials.last().expect("a press");
+        let token = activation.get_activation_token(&agent.queue.handle(), ());
+        token.set_serial(press, &seat);
+        token.commit();
+        agent.roundtrip(core);
+        core.state.activation_state.tokens().count()
+    };
+    click_and_type(&mut core, (30.0, 20.0));
+    agent.roundtrip(&mut core);
+    let real = mint(&mut agent, &mut core);
+    crate::input::press_button(
+        &mut core.state,
+        272,
+        ButtonState::Pressed,
+        InputTime::now(),
+        true,
+    );
+    agent.roundtrip(&mut core);
+    let injected = mint(&mut agent, &mut core);
+    drop(core);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(real, 1, "a real press gives a token");
+    assert_eq!(injected, 1, "an injected press gave a second token");
 }
 
 /// The surfaces in the `surface.*` events of a client.
@@ -948,9 +1037,7 @@ fn open_agent(
 fn a_client_socket_has_the_capabilities_of_its_file() {
     // No renderer here either: the granted capture then fails with "no
     // renderer yet" instead, which the test reads as "past the gate".
-    let dir = std::env::temp_dir().join(format!("chora-caps-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir("chora-caps");
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     let mut admin = core.admin();
@@ -984,9 +1071,7 @@ fn a_client_socket_has_the_capabilities_of_its_file() {
 /// socket at the same path.
 #[test]
 fn the_grants_of_a_client_socket_name_point_at_the_file() {
-    let dir = std::env::temp_dir().join(format!("chora-caps-file-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir("chora-caps-file");
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     let mut admin = core.admin();
@@ -1019,9 +1104,7 @@ fn the_grants_of_a_client_socket_name_point_at_the_file() {
 
 /// A core with a socket directory, for the `clients.create` tests below.
 fn caps_core(tag: &str) -> (Core, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chora-caps-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::testing::scratch_dir(&format!("chora-caps-{tag}"));
     let mut core = Core::new();
     core.state.ipc.path = Some(dir.join("wayland-1.sock"));
     (core, dir)

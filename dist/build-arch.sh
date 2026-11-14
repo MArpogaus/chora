@@ -23,6 +23,18 @@ for path in usr/bin/chora usr/libexec/chora/chora-xwayland \
     usr/bin/chora-voice usr/lib/systemd/user/chora-voice.service \
     usr/share/chora/voice/quadlets/gufo-llm.container \
     usr/bin/chora-construct usr/share/chora/flavors/construct/chora-construct.target \
+    usr/bin/chora-notify usr/bin/chora-assistant \
+    usr/share/chora/notify/assets/values.yaml usr/share/chora/huds/neutral/hud.yaml \
+    usr/share/chora/flavors/xp/chora-xp-notify.service \
+    usr/share/chora/flavors/xp/chora-xp-assistant.service \
+    usr/share/chora/flavors/tiling/chora-tiling-assistant.service \
+    usr/share/chora/flavors/construct/chora-construct-assistant.service \
+    usr/share/chora/flavors/xp/assets/notify/values.yaml \
+    usr/share/chora/flavors/xp/assets/notify/fonts \
+    usr/share/chora/huds/xp/hud.yaml usr/share/chora/huds/xp/paperclip.svg \
+    usr/share/chora/huds/xp/fonts/tahoma.ttf \
+    usr/share/chora/huds/xp/fonts/LICENSE.Tahoma-Wine.LGPL-2.1 \
+    usr/share/chora/huds/mc/hud.yaml usr/share/chora/huds/construct/hud.yaml \
     usr/share/wayland-sessions/chora.desktop usr/share/wayland-sessions/chora-uwsm.desktop \
     usr/share/wayland-sessions/chora-construct.desktop \
     etc/xdg/uwsm/env-chora usr/share/chora/flavors/tiling/waybar/config.jsonc \

@@ -2,6 +2,9 @@
 # The license list keeps GPL-3.0-only crates out of the GPL-3.0-or-later core.
 
 [advisories]
+# ttf-parser is unmaintained with no drop-in fix; cosmic-text -> fontdb pulls it in and
+# chora-mc uses it to read font metrics. Revisit when fontdb moves to skrifa.
+ignore = ["RUSTSEC-2026-0192"]
 unmaintained = "workspace"
 yanked = "deny"
 

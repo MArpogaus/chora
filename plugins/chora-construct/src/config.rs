@@ -35,26 +35,9 @@ pub enum Action {
     Windows,
     /// Shows or hides the help panel with the bindings.
     Help,
+    /// Opens the cube of the setting `cube_manager`.
+    Cube,
 }
-
-/// The actions in the order of the help panel, with what each does.
-const HELP: [(Action, &str); 15] = [
-    (Action::Forward, "walk forward"),
-    (Action::Back, "walk back"),
-    (Action::Left, "step left"),
-    (Action::Right, "step right"),
-    (Action::TurnLeft, "turn left"),
-    (Action::TurnRight, "turn right"),
-    (Action::LookUp, "look up"),
-    (Action::LookDown, "look down"),
-    (Action::Home, "back to the start"),
-    (Action::FlyIn, "fly into the pane ahead"),
-    (Action::Terminal, "start the terminal"),
-    (Action::Launcher, "start the launcher"),
-    (Action::Close, "close the pane ahead"),
-    (Action::Windows, "open the window list"),
-    (Action::Help, "show or hide this help"),
-];
 
 /// Light or dark.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -73,9 +56,22 @@ pub struct Palette {
     pub ground: [f64; 3],
     /// The light that glints in the glossy floor.
     pub sheen: [f64; 3],
+    /// The marble of the floor: the strength of its veins, its micro
+    /// bumps and its scratches, from 0 to 1, and the size of the pattern
+    /// of the veins in logical pixels (fog.frag).
+    pub marble: [f64; 4],
 }
 
 impl Theme {
+    /// The strength of the mirror images in the glossy floor.
+    #[must_use]
+    pub fn gloss(self) -> f64 {
+        match self {
+            Self::Light => 0.4,
+            Self::Dark => 0.55,
+        }
+    }
+
     #[must_use]
     pub fn palette(self) -> Palette {
         match self {
@@ -84,12 +80,14 @@ impl Theme {
                 horizon: [1.0, 1.0, 1.0],
                 ground: [0.93, 0.93, 0.925],
                 sheen: [1.0, 1.0, 1.0],
+                marble: [0.8, 1.0, 1.0, 900.0],
             },
             Self::Dark => Palette {
                 sky: [0.0, 0.0, 0.0],
                 horizon: [0.15, 0.15, 0.16],
                 ground: [0.012, 0.012, 0.014],
                 sheen: [0.35, 0.35, 0.37],
+                marble: [0.6, 1.0, 1.0, 900.0],
             },
         }
     }
@@ -204,12 +202,17 @@ pub fn contrast(a: [f64; 3], b: [f64; 3]) -> f64 {
 pub struct Config {
     /// The construct of the flavor's start; empty for an empty space.
     pub start: String,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     pub theme: Theme,
     /// The leash radius R in logical pixels.
     pub radius: f64,
     /// The distance of a new pane in logical pixels.
     pub pane_distance: f64,
-    /// Keysym name to action.
+    /// Keysym name to action; a key that starts or closes something
+    /// names its modifier, as in `Super+t`.
     pub keys: BTreeMap<String, Action>,
     /// The shell command of the action `terminal`.
     pub terminal: String,
@@ -220,10 +223,78 @@ pub struct Config {
     /// The modifier of a drag that moves a pane and of the wheel that
     /// resizes it.
     pub modifier: String,
-    /// Whether the construct draws the voice HUD (F28) and hides the dot
-    /// of the voice agent.
-    pub voice_hud: bool,
+    /// Who draws the voice HUD (F28) and the questions: the construct,
+    /// or the HUD host with the folder `hud`.
+    pub voice_hud: VoiceHud,
+    /// The effects of the panes of own windows: `wobbly` bends a pane in
+    /// 3D while the modifier drags it.
+    #[serde(default)]
+    pub effects: Vec<chora_kit::effects::Kind>,
+    /// The command of the window manager of the cube; `cube.open` adds
+    /// `--output NAME` for each face. It runs as the client `xp`.
+    #[serde(default = "cube_manager")]
+    pub cube_manager: String,
+    /// The window managers of `pane.manager`: the client name of each,
+    /// and its command, which gets `--output NAME`.
+    #[serde(default = "managers")]
+    pub managers: std::collections::BTreeMap<String, String>,
     pub style: Style,
+}
+
+/// Who draws the voice HUD and the questions of the voice agent. The
+/// values `true` and `false` of earlier versions read as `own` and
+/// `host` for one release.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoiceHud {
+    /// The construct draws them and claims the indicator of the agent.
+    Own,
+    /// The HUD host `chora-assistant` draws them; the construct claims
+    /// nothing.
+    Host,
+}
+
+impl<'de> Deserialize<'de> for VoiceHud {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Written {
+            Before(bool),
+            Name(String),
+        }
+        match Written::deserialize(deserializer)? {
+            Written::Before(true) => Ok(Self::Own),
+            Written::Before(false) => Ok(Self::Host),
+            Written::Name(name) if name == "own" => Ok(Self::Own),
+            Written::Name(name) if name == "host" => Ok(Self::Host),
+            Written::Name(name) => Err(serde::de::Error::custom(format!(
+                "voice_hud: {name:?} is not own or host"
+            ))),
+        }
+    }
+}
+
+impl Config {
+    /// Whether the construct draws the voice HUD and the questions and
+    /// claims the indicator of the voice agent.
+    #[must_use]
+    pub fn draws_voice(&self) -> bool {
+        self.voice_hud == VoiceHud::Own
+    }
+}
+
+fn cube_manager() -> String {
+    "chora-xp".into()
+}
+
+fn managers() -> std::collections::BTreeMap<String, String> {
+    [
+        ("xp", "chora-xp"),
+        ("tiling", "chora-tiling"),
+        ("mc", "chora-mc --manage-windows"),
+    ]
+    .map(|(name, command)| (name.to_owned(), command.to_owned()))
+    .into()
 }
 
 impl Settings for Config {
@@ -243,7 +314,11 @@ impl Settings for Config {
                 self.modifier
             ));
         }
+        if self.effects.contains(&chora_kit::effects::Kind::Lamp) {
+            return Err("effects: the construct has no task button, so only wobbly".into());
+        }
         self.check_style()?;
+        self.check_managers()?;
         if !self.start.is_empty() {
             crate::file::check_name(&self.start).map_err(|e| format!("start: {e}"))?;
         }
@@ -255,29 +330,189 @@ impl Settings for Config {
 }
 
 impl Config {
-    /// The rows of the help panel: the keys of each action, the fly-out
-    /// binding, and the drag and the wheel with the modifier.
+    /// The action of a key that the space got: the key with its Ctrl,
+    /// Alt and Super in that order, as in `Super+t`. Shift is part of
+    /// the key, as in `T`.
     #[must_use]
-    pub fn help(&self) -> Vec<(String, String)> {
-        let mut rows: Vec<(String, String)> = (HELP.iter())
-            .filter_map(|(action, what)| {
-                let keys: Vec<&str> = (self.keys.iter())
-                    .filter(|(_, a)| *a == action)
-                    .map(|(k, _)| k.as_str())
-                    .collect();
-                (!keys.is_empty()).then(|| (keys.join(" / "), (*what).to_owned()))
-            })
+    pub fn action(&self, key: &str, modifiers: &[String]) -> Option<Action> {
+        let mut name: Vec<&str> = ["Ctrl", "Alt", "Super"]
+            .into_iter()
+            .filter(|m| modifiers.iter().any(|held| held == m))
             .collect();
-        let m = &self.modifier;
-        rows.extend([
-            (self.fly_out.clone(), "fly out of a pane".to_owned()),
-            (
-                format!("{m}+drag"),
-                "move a pane, or give it away".to_owned(),
-            ),
-            (format!("{m}+wheel"), "resize a pane".to_owned()),
+        name.push(key);
+        self.keys.get(&name.join("+")).copied()
+    }
+
+    /// The warnings of a configuration that works but surprises: a key
+    /// that starts or closes something without a modifier, which typed
+    /// text presses.
+    #[must_use]
+    pub fn warnings(&self) -> Vec<String> {
+        let opens = [Action::Terminal, Action::Launcher, Action::Close];
+        (self.keys.iter())
+            .filter(|(key, action)| opens.contains(action) && !key.contains('+'))
+            .map(|(key, _)| {
+                format!(
+                    "the key {key} starts or closes something without a modifier: \
+                     text typed into the space presses it; name Super, as in Super+{key}"
+                )
+            })
+            .collect()
+    }
+
+    /// The groups of keys of the help: the keys of the construct that work
+    /// now from its settings, then the keys that every look shares.
+    #[must_use]
+    #[allow(clippy::too_many_lines, reason = "one row per key")]
+    pub fn help_groups(&self, cube: bool) -> Vec<crate::command::KeyGroup> {
+        use crate::command::{KeyGroup, KeyRow, chord};
+        let settings = self;
+        let bound = |action: Action| -> Vec<Vec<String>> {
+            let mut keys: Vec<&String> = (settings.keys.iter())
+                .filter(|(_, a)| **a == action)
+                .map(|(k, _)| k)
+                .collect();
+            keys.sort_by_key(|k| (k.chars().count() != 1, (*k).clone()));
+            keys.into_iter().map(|k| chord(k)).collect()
+        };
+        let row = |what: &str, keys: Vec<String>, alt: Vec<String>| KeyRow {
+            what: what.into(),
+            keys,
+            alt,
+            gesture: None,
+        };
+        let one = |action: Action| bound(action).into_iter().next().unwrap_or_default();
+        let letters =
+            |actions: &[Action]| -> Vec<String> { actions.iter().flat_map(|a| one(*a)).collect() };
+        let second = |action: Action| bound(action).into_iter().nth(1).unwrap_or_default();
+        let help = bound(Action::Help);
+        let shared_help = (help
+            .iter()
+            .find(|k| k.first().is_some_and(|m| m == "Super")))
+        .or_else(|| help.first())
+        .cloned()
+        .unwrap_or_default();
+        let walk_help = (help.iter().find(|k| **k != shared_help))
+            .cloned()
+            .unwrap_or_default();
+        let walk = KeyGroup {
+            head: "Walk".into(),
+            shared: false,
+            rows: vec![
+                row(
+                    "Walk forward, back, sideways",
+                    letters(&[Action::Forward, Action::Left, Action::Back, Action::Right]),
+                    Vec::new(),
+                ),
+                row(
+                    "Turn left or right",
+                    letters(&[Action::TurnLeft, Action::TurnRight]),
+                    [second(Action::TurnLeft), second(Action::TurnRight)].concat(),
+                ),
+                row(
+                    "Look up or down",
+                    letters(&[Action::LookUp, Action::LookDown]),
+                    Vec::new(),
+                ),
+                row("Back to the start", one(Action::Home), Vec::new()),
+                row("Fly into the pane ahead", one(Action::FlyIn), Vec::new()),
+                row("Show the windows", one(Action::Windows), Vec::new()),
+                row("Show the keys of the walk", walk_help, Vec::new()),
+                row(
+                    "Open the cube",
+                    if cube { Vec::new() } else { one(Action::Cube) },
+                    Vec::new(),
+                ),
+            ],
+        };
+        let panes = KeyGroup {
+            head: "Panes".into(),
+            shared: false,
+            rows: vec![
+                row("Open a terminal", one(Action::Terminal), Vec::new()),
+                row("Start a program", one(Action::Launcher), Vec::new()),
+                row("Close the pane ahead", one(Action::Close), Vec::new()),
+                KeyRow {
+                    what: "Move or resize a pane".into(),
+                    keys: chord(&settings.modifier),
+                    alt: Vec::new(),
+                    gesture: Some("drag".into()),
+                },
+                row(
+                    "Step back out of a pane",
+                    chord(&settings.fly_out),
+                    Vec::new(),
+                ),
+            ],
+        };
+        let mut groups = vec![walk, panes];
+        for group in &mut groups {
+            group.rows.retain(|r| !r.keys.is_empty());
+        }
+        if cube {
+            groups.push(KeyGroup {
+                head: "Cube".into(),
+                shared: false,
+                rows: vec![
+                    row(
+                        "Turn the cube",
+                        chord("Ctrl+Alt+Left"),
+                        chord("Ctrl+Alt+Right"),
+                    ),
+                    row("Step into the face", chord("Return"), Vec::new()),
+                ],
+            });
+        }
+        groups.extend([
+            KeyGroup {
+                head: "Helper and chat".into(),
+                shared: true,
+                rows: vec![
+                    row("Answer yes to a question", chord("Alt+y"), Vec::new()),
+                    row("Answer no to a question", chord("Alt+n"), Vec::new()),
+                    row("Stop the helper", chord("Ctrl+period"), Vec::new()),
+                ],
+            },
+            KeyGroup {
+                head: "Give a window".into(),
+                shared: true,
+                rows: [
+                    ("tiling", "1"),
+                    ("xp", "2"),
+                    ("mc", "3"),
+                    ("construct", "4"),
+                ]
+                .into_iter()
+                .map(|(to, n)| {
+                    row(
+                        &format!("Give it to {}", crate::names::manager_name(to)),
+                        chord(&format!("Super+Alt+{n}")),
+                        Vec::new(),
+                    )
+                })
+                .collect(),
+            },
+            KeyGroup {
+                head: "Everywhere".into(),
+                shared: true,
+                rows: vec![
+                    row("Back out one step", chord("Escape"), Vec::new()),
+                    row("Show these keys", shared_help, Vec::new()),
+                ],
+            },
         ]);
-        rows
+        groups
+    }
+
+    /// Each window manager has a command.
+    fn check_managers(&self) -> Result<(), String> {
+        if self.cube_manager.trim().is_empty() {
+            return Err("cube_manager: the command is empty".into());
+        }
+        match self.managers.iter().find(|(_, c)| c.trim().is_empty()) {
+            Some((name, _)) => Err(format!("managers.{name}: the command is empty")),
+            None => Ok(()),
+        }
     }
 
     fn check_style(&self) -> Result<(), String> {
@@ -303,6 +538,13 @@ impl Config {
     }
 }
 
+/// Logs the [`Config::warnings`] of a configuration, one line each.
+pub fn log_warnings(config: &Config) {
+    for warning in config.warnings() {
+        eprintln!("chora-construct: {warning}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,10 +554,52 @@ mod tests {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
         config.check().unwrap();
         assert_eq!(config.keys["Return"], Action::FlyIn);
-        assert_eq!(config.keys["space"], Action::Launcher);
+        assert_eq!(config.keys["Super+space"], Action::Launcher);
         assert_eq!(config.keys["Tab"], Action::Windows);
-        assert!(config.voice_hud);
+        assert_eq!(config.voice_hud, VoiceHud::Host, "one voice indicator");
         assert_eq!(config.style.font, "Inter");
+    }
+
+    #[test]
+    fn the_terminal_of_the_default_file_pads_its_text_12_by_12() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let words: Vec<&str> = config.terminal.split_whitespace().collect();
+        assert_eq!(words.first(), Some(&"foot"));
+        assert!(words.contains(&"pad=12x12"), "{:?}", config.terminal);
+    }
+
+    /// A key that starts or closes something takes the modifier, so
+    /// that text typed into the space starts nothing; the walk keys
+    /// take none, and Shift is part of the key.
+    #[test]
+    fn keys_that_start_or_close_need_super() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let super_ = ["Super".to_owned()];
+        for key in ["t", "space", "x"] {
+            assert_eq!(config.action(key, &[]), None, "{key} alone");
+        }
+        assert_eq!(config.action("t", &super_), Some(Action::Terminal));
+        assert_eq!(config.action("space", &super_), Some(Action::Launcher));
+        assert_eq!(config.action("x", &super_), Some(Action::Close));
+        assert_eq!(config.action("w", &[]), Some(Action::Forward));
+        assert_eq!(config.action("w", &super_), None);
+        let shift = ["Shift".to_owned()];
+        assert_eq!(config.action("Return", &shift), Some(Action::FlyIn));
+    }
+
+    /// A start or close key without a modifier still works, but the load
+    /// warns: typed text would start or close something.
+    #[test]
+    fn a_start_or_close_key_without_a_modifier_warns() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.warnings(), Vec::<String>::new());
+        let plain = DEFAULT.replace("Super+t: terminal", "t: terminal");
+        let config: Config = serde_saphyr::from_str(&plain).unwrap();
+        assert_eq!(
+            config.warnings(),
+            ["the key t starts or closes something without a modifier: \
+              text typed into the space presses it; name Super, as in Super+t"]
+        );
     }
 
     /// The defaults reach the ratios of rule 5, and a muted that is too
@@ -345,23 +629,185 @@ mod tests {
         assert!(out.check().is_err());
     }
 
-    /// The help lists the bindings of the settings, also changed ones.
+    /// With `voice_hud: host` the host draws the voice HUD and the
+    /// question: the construct draws neither.
     #[test]
-    fn the_help_follows_the_settings() {
+    fn voice_hud_host_draws_no_voice_status() {
         let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
-        let rows = config.help();
-        let row = |rows: &[(String, String)], what: &str| {
-            (rows.iter())
-                .find(|(_, w)| w == what)
-                .map(|(k, _)| k.clone())
+        assert_eq!(config.voice_hud, VoiceHud::Host);
+        assert!(!config.draws_voice());
+        config.voice_hud = VoiceHud::Own;
+        assert!(config.draws_voice());
+        let text = DEFAULT.replace("voice_hud: host", "voice_hud: own");
+        let own: Config = serde_saphyr::from_str(&text).unwrap();
+        assert_eq!(own.voice_hud, VoiceHud::Own);
+    }
+
+    /// `true` and `false`, the values of the setting before `own` and
+    /// `host`, stay aliases for one release.
+    #[test]
+    fn true_and_false_are_aliases_of_own_and_host() {
+        let with = |value: &str| {
+            let text = DEFAULT.replace("voice_hud: host", &format!("voice_hud: {value}"));
+            serde_saphyr::from_str::<Config>(&text)
+                .ok()
+                .map(|config| config.voice_hud)
         };
-        assert_eq!(row(&rows, "walk forward").as_deref(), Some("Up / w"));
-        assert_eq!(row(&rows, "show or hide this help").as_deref(), Some("F1"));
-        assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Super+wheel"));
+        assert_eq!(with("true"), Some(VoiceHud::Own));
+        assert_eq!(with("false"), Some(VoiceHud::Host));
+        assert_eq!(with("own"), Some(VoiceHud::Own));
+        assert_eq!(with("maybe"), None);
+        let written = serde_json::to_value(VoiceHud::Own).unwrap();
+        assert_eq!(written, serde_json::json!("own"));
+    }
+
+    /// With `voice_hud: host` the construct never claims the indicator of
+    /// voice, also not when the claim is due.
+    #[test]
+    fn voice_hud_host_claims_no_indicator() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        config.voice_hud = VoiceHud::Host;
+        assert!(!config.draws_voice());
+        config.voice_hud = VoiceHud::Own;
+        assert!(config.draws_voice());
+    }
+
+    /// Rule 5 holds for the block `chat:` of the folder `hud`: `text` 7:1
+    /// and the names 4.5:1 on the fill; the chat is the glass panel at
+    /// the right, 480 wide, in the colours of the light theme.
+    #[test]
+    fn the_chat_of_the_folder_keeps_the_contrast_of_rule_5() {
+        use chora_kit::hud::{self, Anchor, ChatStyle};
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("hud");
+        let folder = hud::load(&dir).unwrap_or_else(|errors| panic!("{errors:?}"));
+        let chat = folder.chat;
+        assert_eq!(chat.style, ChatStyle::Glass);
+        assert_eq!(chat.place(), (Anchor::Right, 480));
+        let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
+        let fill: [f64; 3] = rgb(chat.fill).map(|side| side * hud::GLASS_ALPHA);
+        assert!(contrast(rgb(chat.text), fill) >= 7.0);
+        assert!(contrast(rgb(chat.name), fill) >= 4.5);
+        let light = chora_kit::glass::Material::of(false);
+        let near = |a: [f64; 3], b: [f64; 4]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
+        assert!(near(rgb(chat.text), light.text));
+        assert!(near(rgb(chat.name), light.muted));
+    }
+
+    /// The glass of the chat of the folder `hud` is the glass of the
+    /// light theme: its fill and opacity, its edge and the accent as the
+    /// glow (rule 6).
+    #[test]
+    fn the_chat_of_the_folder_is_the_glass_of_the_light_theme() {
+        use chora_kit::{glass::Material, hud};
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("hud");
+        let chat = hud::load(&dir).unwrap().chat;
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let light = Material::of(false);
+        let rgb = |c: Option<[u8; 3]>| c.expect("a colour").map(|v| f64::from(v) / 255.0);
+        let near = |a: [f64; 3], b: &[f64]| (0..3).all(|i| (a[i] - b[i]).abs() < 1.0 / 255.0);
+        assert!(near(rgb(chat.fill), &light.tint));
+        assert!(near(rgb(chat.text), &light.text));
+        assert!(near(rgb(chat.name), &light.muted));
+        assert!(near(rgb(chat.glow), &config.style.accent));
+    }
+
+    /// A window manager needs a command: an empty one fails the check.
+    #[test]
+    fn a_manager_without_a_command_fails() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let mut empty = config.clone();
+        empty.managers.insert("tiling".into(), "  ".into());
+        assert!(empty.check().unwrap_err().contains("managers.tiling"));
+        let mut cube = config;
+        cube.cube_manager = String::new();
+        assert!(cube.check().unwrap_err().contains("cube_manager"));
+    }
+
+    /// Super+C opens the cube: a key, not a button.
+    #[test]
+    fn super_c_opens_the_cube() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.keys.get("Super+c"), Some(&Action::Cube));
+        let opens = (config.help_groups(false).into_iter())
+            .flat_map(|g| g.rows)
+            .find(|r| r.what == "Open the cube")
+            .map(|r| r.keys);
+        assert_eq!(opens.unwrap(), ["Super", "C"]);
+    }
+
+    /// The help lists the keys of the cube only while a cube is open, and
+    /// the bindings of the settings, also changed ones.
+    #[test]
+    fn the_help_follows_the_settings_and_the_cube() {
+        let mut config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let heads = |cube| -> Vec<String> {
+            config
+                .help_groups(cube)
+                .into_iter()
+                .map(|g| g.head)
+                .collect()
+        };
+        assert!(!heads(false).contains(&"Cube".to_owned()));
+        assert!(heads(true).contains(&"Cube".to_owned()));
+        let keys = |config: &Config, what: &str| {
+            (config.help_groups(false).into_iter())
+                .flat_map(|g| g.rows)
+                .find(|r| r.what == what)
+                .map(|r| r.keys)
+        };
+        assert_eq!(
+            keys(&config, "Walk forward, back, sideways").unwrap(),
+            ["W", "A", "S", "D"]
+        );
+        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "/"]);
+        assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.keys.remove("h");
-        let rows = config.help();
-        assert_eq!(row(&rows, "resize a pane").as_deref(), Some("Alt+wheel"));
-        assert_eq!(row(&rows, "back to the start"), None);
+        assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Alt"]);
+        assert_eq!(keys(&config, "Back to the start"), None);
+    }
+
+    /// Polish 15: `Super /` is in the shared group Everywhere and `F1`
+    /// in Walk, and no row stands twice.
+    #[test]
+    fn super_slash_shows_the_help_in_everywhere_and_f1_in_walk() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.keys.get("Super+slash"), Some(&Action::Help));
+        assert_eq!(config.keys.get("F1"), Some(&Action::Help));
+        let groups = config.help_groups(false);
+        let keys_of = |head: &str| -> Vec<Vec<String>> {
+            (groups.iter().filter(|g| g.head == head))
+                .flat_map(|g| g.rows.iter().map(|r| r.keys.clone()))
+                .collect()
+        };
+        assert!(keys_of("Everywhere").contains(&vec!["Super".to_owned(), "/".to_owned()]));
+        assert!(!keys_of("Everywhere").contains(&vec!["F1".to_owned()]));
+        assert!(keys_of("Walk").contains(&vec!["F1".to_owned()]));
+        let mut whats: Vec<&str> = (groups.iter())
+            .flat_map(|g| g.rows.iter().map(|r| r.what.as_str()))
+            .collect();
+        let rows = whats.len();
+        whats.sort_unstable();
+        whats.dedup();
+        assert_eq!(whats.len(), rows, "a row stands twice");
+    }
+
+    /// Polish 14: the help names the window managers as people read them.
+    #[test]
+    fn the_help_gives_a_window_to_managers_by_their_display_names() {
+        let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        let gives: Vec<String> = (config.help_groups(false).into_iter())
+            .filter(|g| g.head == "Give a window")
+            .flat_map(|g| g.rows.into_iter().map(|r| r.what))
+            .collect();
+        assert_eq!(
+            gives,
+            [
+                "Give it to Tiling",
+                "Give it to XP",
+                "Give it to Media center",
+                "Give it to Construct"
+            ]
+        );
     }
 }

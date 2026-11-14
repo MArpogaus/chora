@@ -17,7 +17,7 @@ pub const SIZE: [i32; 2] = [314, 200];
 const BUTTON: [i32; 2] = [76, 54];
 const ICON: i32 = 33;
 const ICON_Y: i32 = 81;
-const CANCEL: Rect = [244, 169, 58, 18];
+const CANCEL: Rect = [222, 164, 80, 28];
 const GROUP: &str = "xp-session";
 const SHIELD: &str = "xp-session-shield";
 const DIALOG: &str = "xp-session-dialog";
@@ -180,7 +180,7 @@ impl Dialog {
                 [255, 255, 255, 255],
                 [13, 1, 250, 43],
             ))
-            .file(&theme.path("winxp/start-flag.svg"), [269, 5, 38, 38]);
+            .file(&theme.path("winxp/start-mark.svg"), [269, 5, 38, 38]);
         let size = self.size.map(f64::from);
         let mut commands = vec![
             Command::Create {
@@ -383,12 +383,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cancel_is_a_push_button_of_80_by_28_inside_the_dialog() {
+        assert_eq!([CANCEL[2], CANCEL[3]], [80, 28]);
+        assert!(CANCEL[0] + CANCEL[2] <= SIZE[0] - 8 && CANCEL[1] + CANCEL[3] <= SIZE[1] - 8);
+    }
+
+    #[test]
     fn the_buttons_sit_where_xp_has_them() {
         let turn_off = buttons(Mode::TurnOff, true);
         let lefts: Vec<i32> = turn_off.iter().map(|b| b.rect[0]).collect();
         // The icons of Stand By, Turn Off and Restart start at 55, 141 and
         // 226; Cancel is last.
-        assert_eq!(lefts, [55 - 21, 141 - 21, 226 - 21, 244]);
+        assert_eq!(lefts, [55 - 21, 141 - 21, 226 - 21, 222]);
         assert_eq!(turn_off[3].choice, Choice::Cancel);
         let log_off = buttons(Mode::LogOff, true);
         assert_eq!(log_off.len(), 3);

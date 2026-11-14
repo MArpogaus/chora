@@ -3,8 +3,8 @@
 
 use std::collections::BTreeMap;
 
-use chora_kit::settings::Settings;
-use chora_scene::Binding;
+use chora_kit::{ask::show_key, settings::Settings};
+use chora_scene::{Binding, ipc::valid_name};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -22,8 +22,9 @@ pub struct Confirm {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     /// What the agent asks; `{program}` stands for the program of
-    /// `run_program`, `{NAME}` for the argument `NAME` and `{args}` for
-    /// all short arguments (`Confirm::question`).
+    /// `run_program`, `{NAME}` for the argument `NAME`, `{args}` for all
+    /// short arguments, `{input}` for the events of `inject_input` and
+    /// `{params}` for the params of a method (`Confirm::question`).
     pub prompt: String,
 }
 
@@ -120,6 +121,9 @@ pub struct Phrases {
     pub details: String,
     /// The question of a sub-agent: `{name}` and `{what}`.
     pub agent_asks: String,
+    /// Said after a question of a sub-agent that only a key answers:
+    /// `{yes}` and `{no}` of `confirm_keys`.
+    pub agent_keys: String,
     /// A sub-agent ended by itself: `{name}`.
     pub agent_ended: String,
     /// The question before a change of the agent's own settings: `{key}`
@@ -139,6 +143,12 @@ pub struct Phrases {
     pub allowed: String,
     /// Said when three answers of a turn stopped mid-sentence.
     pub lost: String,
+    /// The question before a method that its export marks privileged:
+    /// `{method}`, `{client}` and `{params}`.
+    pub privileged: String,
+    /// Said after a spoken yes to a question that only a key or a click
+    /// answers.
+    pub need_key: String,
 }
 
 impl Default for Phrases {
@@ -150,6 +160,7 @@ impl Default for Phrases {
             asr_failed: "I did not understand you.".into(),
             details: "Details on the screen.".into(),
             agent_asks: "{name} wants to {what}. Allow?".into(),
+            agent_keys: "Press {yes} for yes or {no} for no.".into(),
             agent_ended: "{name} has ended.".into(),
             settings_set: "Shall I set {key} to {value}?".into(),
             settings_security:
@@ -161,6 +172,8 @@ impl Default for Phrases {
             ready: "Ready.".into(),
             allowed: "Allowed for this session.".into(),
             lost: "I lost the thread, please say it again.".into(),
+            privileged: PRIVILEGED_PROMPT.into(),
+            need_key: "For this I need a key press or a click.".into(),
         }
     }
 }
@@ -274,6 +287,10 @@ pub struct Config {
     /// `{corner, offset}`. A plugin that shows the state hides it with
     /// `indicator.claim`.
     pub indicator: Indicator,
+    /// The client names of the main socket that may claim the indicator
+    /// and answer a question with `confirm.answer`: the HUDs. A name with
+    /// the grant `indicator.claim` of the core may too, for the session.
+    pub indicator_clients: Vec<String>,
     /// Empty: the built-in prompt.
     pub system_prompt: String,
     /// Empty: the built-in documents.
@@ -360,60 +377,41 @@ fn rule(tool: &str, prompt: &str) -> Confirm {
 
 /// The tools that ask first (docs/voice.md section 9).
 fn default_confirm() -> Vec<Confirm> {
-    let mut rules = vec![
+    vec![
         Confirm {
             commands: words(&["remove", "close"]),
             ..rule("apply_commands", "Shall I remove that?")
         },
+        rule("load_view", "Shall I load the view {name}?"),
         rule("unload_view", "Shall I remove the view {name}?"),
-        rule("inject_input", "Shall I type or click?"),
+        rule("inject_input", "Shall I type or click: {input}?"),
         rule("code_task", "Shall I start the coding task?"),
-        rule("agent_start", "Shall I start an agent for {project}?"),
+        rule("agent_start", "Shall I start a helper for {project}?"),
         // A program can do all that the user can (D42).
         rule("run_program", "Shall I start the program {program}?"),
         rule("configure_output", "Shall I change the screen to {args}?"),
+        rule(
+            "reserve_space",
+            "Shall I keep space free on the screen: {args}?",
+        ),
         rule("*.restart", "Shall I restart the plugin?"),
         Confirm {
             method: Some("*restart".into()),
             ..rule("call_method", "Shall I restart the plugin {client}?")
         },
-    ];
-    // The privileged methods of the plugins: `methods.privileged` opens
-    // them all, and their export flag does not reach the agent. Then the
-    // methods that ask although they are not privileged.
-    for &method in PRIVILEGED.iter().chain(&SENSITIVE) {
-        rules.push(rule(&format!("*.{method}"), PRIVILEGED_PROMPT));
-        rules.push(Confirm {
-            method: Some(method.into()),
-            ..rule("call_method", PRIVILEGED_PROMPT)
-        });
-    }
-    rules
+    ]
 }
 
-/// The privileged methods of the plugins that ask first: a hand-kept
-/// copy of their export flags.
-// ponytail: a copy; `choractl mcp` could pass the export flag through.
-const PRIVILEGED: [&str; 11] = [
-    "settings.set",
-    "settings.reload",
-    "app.open",
-    "scene.save",
-    "scene.rename",
-    "scene.move",
-    "construct.load",
-    "construct.save",
-    "region.toggle",
-    "region.put",
-    "region.solo",
-];
+/// Takes the variables `keys` with the API keys (`Config::key_envs`)
+/// out of the environment of a child: no child needs them.
+pub fn without_keys(command: &mut std::process::Command, keys: &[String]) {
+    for key in keys {
+        command.env_remove(key);
+    }
+}
 
-/// Methods that are not privileged but ask first: `window.give` hides a
-/// window in another client, `agent.set` and `notify.push` of chora-mc
-/// show what the user trusts as the voice agent or a notification.
-const SENSITIVE: [&str; 3] = ["window.give", "agent.set", "notify.push"];
-
-const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}?";
+/// The question before a privileged method (`phrases.privileged`).
+const PRIVILEGED_PROMPT: &str = "Shall I run {method} of the plugin {client}{params}?";
 
 impl Config {
     /// The command line of a harness: in `sandbox_cmd`, unless
@@ -423,6 +421,19 @@ impl Config {
             return cmd.to_vec();
         }
         self.sandbox_cmd.iter().chain(cmd).cloned().collect()
+    }
+
+    /// The names of the environment variables with the API keys.
+    pub fn key_envs(&self) -> Vec<String> {
+        [
+            &self.asr_api_key_env,
+            &self.tts_api_key_env,
+            &self.llm_api_key_env,
+        ]
+        .into_iter()
+        .filter(|name| !name.is_empty())
+        .cloned()
+        .collect()
     }
 
     /// The language of the TTS: `tts_language`, else the one of
@@ -515,6 +526,7 @@ impl Config {
             &mut p.asr_failed,
             &mut p.details,
             &mut p.agent_asks,
+            &mut p.agent_keys,
             &mut p.agent_ended,
             &mut p.settings_set,
             &mut p.settings_security,
@@ -523,6 +535,8 @@ impl Config {
             &mut p.ready,
             &mut p.allowed,
             &mut p.lost,
+            &mut p.privileged,
+            &mut p.need_key,
         ];
         let prompts = out.confirm.iter_mut().map(|r| &mut r.prompt);
         for text in texts.into_iter().chain(prompts) {
@@ -569,19 +583,23 @@ impl Config {
         template
             .replace("{key}", &keys.join(", "))
             .replace("{value}", &values.join(", "))
-            .replace("{yes}", &self.confirm_keys.yes)
-            .replace("{no}", &self.confirm_keys.no)
+            .replace("{yes}", &show_key(&self.confirm_keys.yes))
+            .replace("{no}", &show_key(&self.confirm_keys.no))
     }
 }
 
 impl Confirm {
     /// The question for a call with `args`: `{program}` is the program of
-    /// `run_program`, `{NAME}` the argument `NAME` and `{args}` all
-    /// arguments that are a text, a number or a boolean. `{client}` and
-    /// `{method}` also name the plugin tool `tool` of a rule `*.METHOD`.
+    /// `run_program` (its whole command line when it has arguments or a
+    /// path), `{NAME}` the argument `NAME` and `{args}` all arguments
+    /// that are a text, a number or a boolean. `{client}` and `{method}`
+    /// also name the plugin tool `tool` of a rule `*.METHOD`. `{input}`
+    /// is what `inject_input` types or presses, and `{params}` the
+    /// params of a method as `: key value, key value`, or nothing.
     pub fn question(&self, tool: &str, args: &serde_json::Value) -> String {
-        let program = crate::tools::program(args).unwrap_or_default();
-        let mut text = self.prompt.replace("{program}", program);
+        let mut text = (self.prompt.replace("{program}", &spoken_program(args)))
+            .replace("{input}", &spoken_events(args))
+            .replace("{params}", &spoken_params(tool, args));
         let named = (args["client"].as_str()).zip(args["method"].as_str());
         let from_tool = || {
             let method = self.tool.strip_prefix("*.")?;
@@ -607,6 +625,68 @@ impl Confirm {
     }
 }
 
+/// A value as the TTS says it, without quotes and never cut: a change
+/// must not stay unsaid.
+fn said(v: &serde_json::Value) -> String {
+    v.as_str().map_or_else(|| v.to_string(), str::to_owned)
+}
+
+/// The program of `run_program` as the TTS says it: the file name of a
+/// bare program, else the whole command line, so that no argument and no
+/// directory stays unsaid.
+fn spoken_program(args: &serde_json::Value) -> String {
+    let words: Vec<&str> = (args["argv"].as_array().into_iter().flatten())
+        .filter_map(serde_json::Value::as_str)
+        .collect();
+    match words.as_slice() {
+        [one] if !one.contains('/') => (*one).to_owned(),
+        _ => words.join(" "),
+    }
+}
+
+/// The events of `inject_input` as the TTS says them: the text, the
+/// keys and shortcuts, and the pointer events by their kind.
+fn spoken_events(args: &serde_json::Value) -> String {
+    let events = args["events"].as_array().into_iter().flatten();
+    let say = |event: &serde_json::Value| {
+        let (kind, body) = event.as_object()?.iter().next()?;
+        Some(match kind.as_str() {
+            "text" => {
+                let text = said(&body["text"]).replace('\n', " Return ");
+                format!("the text {}", text.trim_end())
+            }
+            "key" => format!("the key {}", said(&body["key"])),
+            "shortcut" => format!("the shortcut {}", said(&body["keys"])),
+            other => other.replace('_', " "),
+        })
+    };
+    events.filter_map(say).collect::<Vec<_>>().join(", ")
+}
+
+/// The params of a method call as the TTS says them, after a colon, or
+/// nothing: `call_method` has them in `params`, a plugin tool is the
+/// params.
+fn spoken_params(tool: &str, args: &serde_json::Value) -> String {
+    let params = if tool == "call_method" {
+        &args["params"]
+    } else {
+        args
+    };
+    let list = match params {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Object(map) => (map.iter())
+            .map(|(k, v)| format!("{} {}", k.replace('_', " "), said(v)))
+            .collect::<Vec<_>>()
+            .join(", "),
+        other => said(other),
+    };
+    if list.is_empty() {
+        list
+    } else {
+        format!(": {list}")
+    }
+}
+
 /// A value as the TTS says it: a text without quotes, at most 60
 /// characters.
 fn spoken(v: &serde_json::Value) -> String {
@@ -621,7 +701,7 @@ fn spoken(v: &serde_json::Value) -> String {
 /// Whether a settings key decides what the agent may do or run, where
 /// its data goes, or whether the user sees and hears it work.
 pub fn security_key(key: &str) -> bool {
-    const KEYS: [&str; 27] = [
+    const KEYS: [&str; 28] = [
         "allow_programs",
         "allow_methods",
         "always_words",
@@ -643,6 +723,7 @@ pub fn security_key(key: &str) -> bool {
         "prompt_file",
         "context_docs",
         "indicator",
+        "indicator_clients",
         "earcons",
         "confirm_timeout_ms",
         "ptt_key",
@@ -657,10 +738,14 @@ pub fn security_key(key: &str) -> bool {
 }
 
 /// The default phrases and confirm prompts, and their German.
-const GERMAN: [(&str, &str); 24] = [
+const GERMAN: [(&str, &str); 28] = [
     ("One moment.", "Moment."),
     ("Allowed for this session.", "Für diese Sitzung erlaubt."),
     ("Ready.", "Bereit."),
+    (
+        "Press {yes} for yes or {no} for no.",
+        "Drücken Sie {yes} für Ja oder {no} für Nein.",
+    ),
     ("Heard: {text}", "Gehört: {text}"),
     (
         "The language model does not answer.",
@@ -676,12 +761,12 @@ const GERMAN: [(&str, &str); 24] = [
     ),
     (
         "I did not understand you.",
-        "Ich habe dich nicht verstanden.",
+        "Ich habe Sie nicht verstanden.",
     ),
     ("Details on the screen.", "Details auf dem Bildschirm."),
     (
         "I lost the thread, please say it again.",
-        "Ich habe den Faden verloren, sag es bitte noch einmal.",
+        "Ich habe den Faden verloren, sagen Sie es bitte noch einmal.",
     ),
     (
         "{name} wants to {what}. Allow?",
@@ -696,21 +781,28 @@ const GERMAN: [(&str, &str); 24] = [
         "Security setting! Shall I set {key}? The full value is on the screen. \
          Press {yes} for yes or {no} for no.",
         "Sicherheitseinstellung! Soll ich {key} setzen? Der volle Wert steht auf dem \
-         Bildschirm. Drück {yes} für ja oder {no} für nein.",
+         Bildschirm. Drücken Sie {yes} für Ja oder {no} für Nein.",
     ),
     ("Shall I remove that?", "Soll ich das entfernen?"),
+    (
+        "Shall I load the view {name}?",
+        "Soll ich die Ansicht {name} laden?",
+    ),
     (
         "Shall I remove the view {name}?",
         "Soll ich die Ansicht {name} entfernen?",
     ),
-    ("Shall I type or click?", "Soll ich tippen oder klicken?"),
+    (
+        "Shall I type or click: {input}?",
+        "Soll ich tippen oder klicken: {input}?",
+    ),
     (
         "Shall I start the coding task?",
         "Soll ich die Programmieraufgabe starten?",
     ),
     (
-        "Shall I start an agent for {project}?",
-        "Soll ich einen Agenten für {project} starten?",
+        "Shall I start a helper for {project}?",
+        "Soll ich einen Helfer für {project} starten?",
     ),
     (
         "Shall I start the program {program}?",
@@ -721,6 +813,10 @@ const GERMAN: [(&str, &str); 24] = [
         "Soll ich den Bildschirm auf {args} ändern?",
     ),
     (
+        "Shall I keep space free on the screen: {args}?",
+        "Soll ich auf dem Bildschirm Platz freihalten: {args}?",
+    ),
+    (
         "Shall I restart the plugin?",
         "Soll ich das Plugin neu starten?",
     ),
@@ -729,8 +825,12 @@ const GERMAN: [(&str, &str); 24] = [
         "Soll ich das Plugin {client} neu starten?",
     ),
     (
+        "For this I need a key press or a click.",
+        "Dafür brauche ich einen Tastendruck oder einen Klick.",
+    ),
+    (
         PRIVILEGED_PROMPT,
-        "Soll ich {method} des Plugins {client} ausführen?",
+        "Soll ich {method} des Plugins {client}{params} ausführen?",
     ),
 ];
 
@@ -872,6 +972,7 @@ impl Default for Config {
             earcons: true,
             earcon_volume: 0.3,
             indicator: Indicator::On(true),
+            indicator_clients: words(&["assistant", "construct", "mc"]),
             system_prompt: String::new(),
             context_docs: Vec::new(),
             prompt_file: "~/.config/chora/voice-prompt.md".into(),
@@ -1047,6 +1148,9 @@ impl Settings for Config {
     fn check(&self) -> Result<(), String> {
         self.check_values()?;
         self.check_harnesses()?;
+        if let Some(name) = (self.indicator_clients.iter()).find(|n| !valid_name(n)) {
+            return Err(format!("indicator_clients: {name:?} is no client name"));
+        }
         self.check_words()
     }
 }
@@ -1132,6 +1236,96 @@ mod tests {
             assert!(err.contains("confirm_keys"), "{yaml}: {err}");
         }
         assert!(security_key("confirm_keys"));
+    }
+
+    /// Review A1: the HUDs that may claim the indicator and answer are a
+    /// security setting.
+    #[test]
+    fn indicator_clients_are_the_three_huds_and_a_security_key() {
+        let config = Config::default();
+        assert_eq!(config.indicator_clients, ["assistant", "construct", "mc"]);
+        let config = parse::<Config>("indicator_clients: [mc]").unwrap();
+        assert_eq!(config.indicator_clients, ["mc"]);
+        assert!(parse::<Config>("indicator_clients: ['m c']").is_err());
+        assert!(security_key("indicator_clients"));
+    }
+
+    /// Review A1: the sandbox of the agents hides the main socket of
+    /// chora; `env` as a sandbox hides nothing and shows that the probe
+    /// sees a socket. Without `agent-sandbox.sh` on `PATH` only the probe
+    /// runs, with a line on stderr, and with `CI` set the test fails.
+    /// `unsandboxed: true` skips the sandbox and this check.
+    #[test]
+    #[allow(clippy::print_stderr, reason = "the skip must show in the test log")]
+    fn the_sandbox_hides_the_main_socket() {
+        let probe = Probe::bind();
+        let mut sockets = vec![probe.0.clone()];
+        if let Some(main) = std::env::var_os(chora_scene::ipc::SOCKET_ENV) {
+            sockets.push(chora_scene::ipc::admin_socket(std::path::Path::new(&main)));
+            sockets.push(main.into());
+        }
+        let no_sandbox = Config {
+            sandbox_cmd: words(&["env"]),
+            ..Config::default()
+        };
+        assert_eq!(sandbox_reaches(&no_sandbox, &probe.0), "reached");
+        let default = Config::default();
+        let sandbox = &default.sandbox_cmd[0];
+        if !on_path(sandbox) {
+            eprintln!("skip: {sandbox} not on PATH");
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "{sandbox} not on PATH in CI"
+            );
+            return;
+        }
+        for socket in &sockets {
+            assert_eq!(sandbox_reaches(&default, socket), "hidden", "{socket:?}");
+        }
+    }
+
+    /// A socket for the probe in `XDG_RUNTIME_DIR`, where the main socket
+    /// of chora lives; it goes also when the test panics.
+    struct Probe(std::path::PathBuf);
+
+    impl Probe {
+        fn bind() -> Self {
+            let dir =
+                std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, Into::into);
+            let path = dir.join(format!("chora-sandbox-probe-{}.sock", std::process::id()));
+            let _ = std::fs::remove_file(&path);
+            std::os::unix::net::UnixListener::bind(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for Probe {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    /// Runs a probe in the sandbox of `config`, in an empty directory:
+    /// `reached` when `socket` is there, `hidden` when not.
+    fn sandbox_reaches(config: &Config, socket: &std::path::Path) -> String {
+        let probe = "if test -e \"$1\"; then echo reached; else echo hidden; fi";
+        let socket = socket.to_string_lossy().into_owned();
+        let argv = config.spawn(&words(&["sh", "-c", probe, "sh", &socket]));
+        let empty = std::env::temp_dir().join(format!("chora-sandbox-cwd-{}", std::process::id()));
+        std::fs::create_dir_all(&empty).unwrap();
+        let out = std::process::Command::new(&argv[0])
+            .args(&argv[1..])
+            .current_dir(&empty)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        std::fs::remove_dir(&empty).unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    }
+
+    fn on_path(program: &str) -> bool {
+        std::env::var_os("PATH")
+            .is_some_and(|paths| std::env::split_paths(&paths).any(|d| d.join(program).is_file()))
     }
 
     #[test]
@@ -1246,6 +1440,28 @@ mod tests {
     }
 
     #[test]
+    fn german_words_say_helper_and_sie() {
+        let du = ["drücke", "drück", "dich", "dir", "du", "sag", "dein"];
+        for (en, de) in GERMAN {
+            assert!(!en.contains("agent"), "{en}");
+            assert!(!de.contains("Agent"), "{de}");
+            let words: Vec<String> = de
+                .split(|c: char| !c.is_alphabetic())
+                .map(str::to_lowercase)
+                .collect();
+            assert!(du.iter().all(|w| !words.iter().any(|x| x == w)), "{de}");
+        }
+        let config = Config {
+            reply_language: "de".into(),
+            ..Config::default()
+        };
+        assert_eq!(
+            config.localized().phrases.need_key,
+            "Dafür brauche ich einen Tastendruck oder einen Klick."
+        );
+    }
+
+    #[test]
     fn german_replies_get_the_german_defaults_only() {
         let mut config = Config::default();
         assert_eq!(config.localized(), config, "English stays");
@@ -1275,6 +1491,11 @@ mod tests {
             question("configure_output", screen),
             "Shall I change the screen to output winit, scale 1.5?"
         );
+        let edges = serde_json::json!({"output": "winit", "top": 40});
+        assert_eq!(
+            question("reserve_space", edges),
+            "Shall I keep space free on the screen: output winit, top 40?"
+        );
         let view = serde_json::json!({"name": "desk"});
         assert_eq!(
             question("unload_view", view),
@@ -1283,7 +1504,37 @@ mod tests {
         let argv = serde_json::json!({"argv": ["/usr/bin/foot", "-e"]});
         assert_eq!(
             question("run_program", argv),
+            "Shall I start the program /usr/bin/foot -e?"
+        );
+        let hidden = serde_json::json!({"argv": ["/tmp/x/firefox", "-e", "rm -rf ~"]});
+        assert_eq!(
+            question("run_program", hidden),
+            "Shall I start the program /tmp/x/firefox -e rm -rf ~?"
+        );
+        let bare = serde_json::json!({"argv": ["foot"]});
+        assert_eq!(
+            question("run_program", bare),
             "Shall I start the program foot?"
+        );
+        let ask = rule("*.settings.set", &Phrases::default().privileged);
+        let patch = serde_json::json!({"allow_programs": ["sh"], "volume": 3});
+        assert_eq!(
+            ask.question("xp.settings.set", &patch),
+            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
+        );
+        let call = serde_json::json!({"client": "xp", "method": "settings.set", "params": patch});
+        assert_eq!(
+            ask.question("call_method", &call),
+            "Shall I run settings set of the plugin xp: allow programs [\"sh\"], volume 3?"
+        );
+        let typed = serde_json::json!({"events": [
+            {"text": {"text": "rm -rf ~\n"}},
+            {"shortcut": {"keys": "Ctrl+q"}},
+            {"click": {}},
+        ]});
+        assert_eq!(
+            question("inject_input", typed),
+            "Shall I type or click: the text rm -rf ~ Return, the shortcut Ctrl+q, click?"
         );
     }
 

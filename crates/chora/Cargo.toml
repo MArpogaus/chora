@@ -3,7 +3,9 @@ base64.workspace = true
 calloop.workspace = true
 chora-scene.workspace = true
 cosmic-text.workspace = true
+euclid = "0.22"
 libc = "0.2"
+plane-split = "0.18"
 png = "0.18"
 serde.workspace = true
 serde_json.workspace = true
@@ -39,6 +41,11 @@ assets = [
   { source = "target/release/choractl", dest = "/usr/bin/choractl", mode = "755" },
   { source = "target/release/chora-tiling", dest = "/usr/bin/chora-tiling", mode = "755" },
   { source = "target/release/chora-xp", dest = "/usr/bin/chora-xp", mode = "755" },
+  { source = "target/release/chora-notify", dest = "/usr/bin/chora-notify", mode = "755" },
+  { source = "target/release/chora-assistant", dest = "/usr/bin/chora-assistant", mode = "755" },
+  # The neutral asset folder of each block (D73).
+  { source = "../../plugins/chora-notify/assets/*", dest = "/usr/share/chora/notify/assets/", mode = "644" },
+  { source = "../../plugins/chora-assistant/huds/neutral/*", dest = "/usr/share/chora/huds/neutral/", mode = "644" },
   { source = "target/release/chora-mc", dest = "/usr/bin/chora-mc", mode = "755" },
   # chora-mc has its scenes, settings and shaders built in; the collectors
   # that fill the scenes run from here.
@@ -67,12 +74,23 @@ assets = [
   { source = "../../dist/portal/chora-portals.conf", dest = "/usr/share/xdg-desktop-portal/chora-portals.conf", mode = "644" },
   { source = "../../dist/portal/xdg-desktop-portal-wlr", dest = "/etc/xdg/xdg-desktop-portal-wlr/chora", mode = "644", config = "noreplace" },
   { source = "../../dist/session/chora-session", dest = "/usr/bin/chora-session", mode = "755" },
+  { source = "../../dist/sandbox/agent-sandbox.sh", dest = "/usr/bin/agent-sandbox.sh", mode = "755" },
   { source = "../../dist/session/chora-flavor", dest = "/usr/bin/chora-flavor", mode = "755" },
   { source = "../../dist/session/chora-xwayland", dest = "/usr/libexec/chora/chora-xwayland", mode = "755" },
   { source = "../../dist/session/chora@.service", dest = "/usr/lib/systemd/user/chora@.service", mode = "644" },
   { source = "../../dist/session/chora-shutdown.target", dest = "/usr/lib/systemd/user/chora-shutdown.target", mode = "644" },
-  { source = "../../flavors/tiling/*", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
-  { source = "../../flavors/tiling/waybar/*", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
+  { source = "../../flavors/tiling/*.service", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../flavors/tiling/*.target", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../flavors/tiling/*.ini", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../flavors/tiling/*.conf", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../flavors/tiling/*.png", dest = "/usr/share/chora/flavors/tiling/", mode = "644" },
+  { source = "../../flavors/tiling/*.sh", dest = "/usr/share/chora/flavors/tiling/", mode = "755" },
+  { source = "../../flavors/tiling/applications/*", dest = "/usr/share/chora/flavors/tiling/applications/", mode = "644" },
+  { source = "../../flavors/tiling/waybar/*.css", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
+  { source = "../../flavors/tiling/waybar/*.jsonc", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
+  { source = "../../flavors/tiling/waybar/*.jq", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "644" },
+  { source = "../../flavors/tiling/waybar/*.sh", dest = "/usr/share/chora/flavors/tiling/waybar/", mode = "755" },
+  { source = "../../flavors/tiling/waybar/icons/*", dest = "/usr/share/chora/flavors/tiling/waybar/icons/", mode = "644" },
   { source = "../../dist/shaders/*", dest = "/usr/share/chora/shaders/", mode = "644" },
   { source = "../../dist/plugins/*", dest = "/usr/share/chora/plugins/", mode = "644" },
   { source = "target/release/chora-construct", dest = "/usr/bin/chora-construct", mode = "755" },
@@ -83,6 +101,19 @@ assets = [
   { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/theme/fonts/", mode = "644" },
   { source = "../../flavors/xp/theme/wallpaper/*", dest = "/usr/share/chora/flavors/xp/theme/wallpaper/", mode = "644" },
   { source = "../../flavors/xp/theme/winxp/*", dest = "/usr/share/chora/flavors/xp/theme/winxp/", mode = "644" },
+  # The XP folders of the blocks. cargo-generate-rpm has no entry for a
+  # link, so each folder carries a copy of the fonts that the Arch package
+  # links to the theme.
+  { source = "../../flavors/xp/assets/notify/README.md", dest = "/usr/share/chora/flavors/xp/assets/notify/README.md", mode = "644" },
+  { source = "../../flavors/xp/assets/notify/values.yaml", dest = "/usr/share/chora/flavors/xp/assets/notify/values.yaml", mode = "644" },
+  { source = "../../flavors/xp/assets/notify/*.svg", dest = "/usr/share/chora/flavors/xp/assets/notify/", mode = "644" },
+  { source = "../../flavors/xp/theme/fonts/*", dest = "/usr/share/chora/flavors/xp/assets/notify/fonts/", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/README.md", dest = "/usr/share/chora/huds/xp/README.md", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/hud.yaml", dest = "/usr/share/chora/huds/xp/hud.yaml", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/paperclip.svg", dest = "/usr/share/chora/huds/xp/paperclip.svg", mode = "644" },
+  { source = "../../flavors/xp/assets/assistant/fonts/*", dest = "/usr/share/chora/huds/xp/fonts/", mode = "644" },
+  { source = "../../plugins/chora-mc/hud/*", dest = "/usr/share/chora/huds/mc/", mode = "644" },
+  { source = "../../plugins/chora-construct/hud/*", dest = "/usr/share/chora/huds/construct/", mode = "644" },
   # The cursors of the XP session, where XCURSOR_THEME=ModernXP finds them.
   { source = "../../flavors/xp/theme/cursors/ModernXP/**/*", dest = "/usr/share/icons/ModernXP/", mode = "644" }
 ]
@@ -92,10 +123,11 @@ auto-req = "auto"
 # chora-voice the MIT model of Silero VAD.
 license = "GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-3.0-only AND LGPL-2.1-or-later AND MIT AND OFL-1.1 AND CC-BY-SA-4.0"
 # uwsm for the sessions it manages (D50; not in Fedora 44 yet), the tools
-# of the tiling flavor (D51), X11 programs, and the portals for screen
+# of the tiling flavor (D51; fuzzel 1.11 or later, the first with mouse
+# support), X11 programs, and the portals for screen
 # sharing (D37) and the rest, the fonts of chora-mc, and pw-record,
 # pw-play and the Gufo quadlets of chora-voice.
-recommends = { pipewire-utils = "*", podman = "*", uwsm = "*", foot = "*", fuzzel = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
+recommends = { pipewire-utils = "*", podman = "*", bubblewrap = "*", uwsm = "*", foot = "*", fuzzel = ">= 1.11", grim = "*", slurp = "*", wl-clipboard = "*", libnotify = "*", jetbrains-mono-fonts = "*", waybar = "*", jq = "*", mako = "*", swaybg = "*", swayidle = "*", swaylock = "*", kanshi = "*", xwayland-satellite = "*", xdg-desktop-portal-wlr = "*", xdg-desktop-portal-gtk = "*", rsms-inter-fonts = "*", texlive-tex-gyre = "*" }
 # Smithay loads libEGL at runtime, so auto-req does not see it.
 requires = { mesa-libEGL = "*" }
 # cargo-generate-rpm has no long description; the summary names the

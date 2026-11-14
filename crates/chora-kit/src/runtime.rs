@@ -19,6 +19,15 @@ use serde_json::{Value, json};
 
 use crate::{conn::Conn, settings::Store};
 
+/// The time between two tries to grab give keys that another client held.
+const REGRAB: Duration = Duration::from_secs(2);
+
+/// Whether the environment says that this is a test session, which takes
+/// the keys of `input.inject`.
+fn test_session() -> bool {
+    std::env::var("CHORA_TEST_ACCEPT_INJECTED_KEYS").is_ok_and(|v| v == "1")
+}
+
 /// A plugin on the runtime: it handles the events and the calls of its
 /// exported methods.
 pub trait Plugin {
@@ -68,6 +77,20 @@ pub struct Runtime<A> {
     outputs: Vec<String>,
     /// The grabbed bindings, as the core names them.
     grabs: Vec<(String, A)>,
+    /// The bindings whose refusal was logged, so that each logs once.
+    refused: std::collections::HashSet<String>,
+    /// Makes the action of a give key; none when the plugin has no give
+    /// keys.
+    give_keys: Option<fn(&'static str) -> A>,
+    /// The last try to grab give keys that another client held.
+    give_tried: Option<Instant>,
+    /// Whether a key of `input.inject` runs a binding (test sessions).
+    inject_ok: bool,
+    /// Whether the connection of the caller of the method that runs now is
+    /// confined, for a method that acts in the name of the plugin.
+    pub confined_call: bool,
+    /// The client name of the caller of the method that runs now.
+    pub caller: String,
 }
 
 impl<A> Runtime<A> {
@@ -107,7 +130,81 @@ impl<A> Runtime<A> {
             name: name.into(),
             outputs,
             grabs: Vec::new(),
+            refused: std::collections::HashSet::new(),
+            give_keys: None,
+            give_tried: None,
+            inject_ok: test_session(),
+            confined_call: false,
+            caller: String::new(),
         }
+    }
+
+    /// Sets whether a key of `input.inject` runs a binding of the plugin;
+    /// off by default, since only a person presses the keys of a
+    /// window manager. The environment variable
+    /// `CHORA_TEST_ACCEPT_INJECTED_KEYS=1` of the test sessions turns it
+    /// on too.
+    pub fn accept_injected(&mut self, setting: bool) {
+        self.inject_ok = setting || test_session();
+    }
+
+    /// Whether the plugin takes input of `input.inject` as the person's:
+    /// the setting of [`Self::accept_injected`] or a test session.
+    #[must_use]
+    pub fn accepts_injected(&self) -> bool {
+        self.inject_ok
+    }
+
+    /// Sets the action of a give key of [`crate::give::KEYS`] by its
+    /// target, or none for no give keys.
+    pub fn give_keys(&mut self, make: Option<fn(&'static str) -> A>) {
+        self.give_keys = make;
+    }
+
+    /// Whether the plugin holds a binding, such as `Super+Alt+1`.
+    #[must_use]
+    pub fn holds(&self, binding: &str) -> bool {
+        binding
+            .parse::<Binding>()
+            .is_ok_and(|b| self.grabs.iter().any(|(held, _)| *held == b.to_string()))
+    }
+
+    /// Grabs the give keys that the plugin does not hold; a key that
+    /// another client holds stays free for the next try.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn grab_give_keys(&mut self) -> Result<(), ClientError> {
+        let Some(make) = self.give_keys else {
+            return Ok(());
+        };
+        for (key, to) in crate::give::KEYS {
+            let Ok(binding) = key.parse::<Binding>() else {
+                continue;
+            };
+            let text = binding.to_string();
+            if self.grabs.iter().any(|(b, _)| *b == text) {
+                continue;
+            }
+            self.grab(binding, make(to))?;
+        }
+        Ok(())
+    }
+
+    /// As [`Self::grab_give_keys`], at most every [`REGRAB`], so that a
+    /// plugin calls it per event: a client that held a key may have gone.
+    ///
+    /// # Errors
+    ///
+    /// The socket fails.
+    pub fn regrab_give_keys(&mut self) -> Result<(), ClientError> {
+        let now = Instant::now();
+        if self.give_keys.is_none() || self.give_tried.is_some_and(|t| now < t + REGRAB) {
+            return Ok(());
+        }
+        self.give_tried = Some(now);
+        self.grab_give_keys()
     }
 
     /// Subscribes to `events` and exports `methods`. The events of the
@@ -156,8 +253,9 @@ impl<A> Runtime<A> {
         Ok(outputs)
     }
 
-    /// Grabs a binding for an action. False, with a log line, when another
-    /// client holds it.
+    /// Grabs a binding for an action. False when the core refuses it, for
+    /// example while another client holds it; the first refusal of a
+    /// binding logs a line.
     ///
     /// # Errors
     ///
@@ -165,6 +263,10 @@ impl<A> Runtime<A> {
     /// `settings.set` with it fails.
     pub fn grab(&mut self, binding: Binding, action: A) -> Result<bool, ClientError> {
         let text = binding.to_string();
+        if let Some(held) = self.grabs.iter_mut().find(|(b, _)| *b == text) {
+            held.1 = action;
+            return Ok(true);
+        }
         match self.conn.call::<_, String>("input.grab", Grab { binding }) {
             Ok(normal) => {
                 self.grabs.push((normal, action));
@@ -174,21 +276,37 @@ impl<A> Runtime<A> {
                 Err(RpcError::new(err.code, format!("{text}: {}", err.message)).into())
             }
             Err(ClientError::Rpc(err)) => {
-                eprintln!("chora-{}: {text}: {err}", self.name);
+                if self.refused.insert(text.clone()) {
+                    eprintln!("chora-{}: {text}: {err}", self.name);
+                }
                 Ok(false)
             }
             Err(err) => Err(err),
         }
     }
 
-    /// Lets all grabbed bindings go.
+    /// Lets all grabbed bindings go, except the give keys while the
+    /// plugin has them (see [`Self::give_keys`]): no other client may take
+    /// them between two grabs of the plugin.
     ///
     /// # Errors
     ///
     /// The socket fails, the core refuses an ungrab, or the core named a
     /// grabbed binding that does not parse.
     pub fn ungrab_all(&mut self) -> Result<(), ClientError> {
-        for (normal, _) in std::mem::take(&mut self.grabs) {
+        let keep = |normal: &str, serves: bool| {
+            serves
+                && crate::give::KEYS
+                    .iter()
+                    .filter_map(|(key, _)| key.parse::<Binding>().ok())
+                    .any(|b| b.to_string() == normal)
+        };
+        let serves = self.give_keys.is_some();
+        let (kept, dropped): (Vec<_>, Vec<_>) = std::mem::take(&mut self.grabs)
+            .into_iter()
+            .partition(|(normal, _)| keep(normal, serves));
+        self.grabs = kept;
+        for (normal, _) in dropped {
             let binding = normal.parse().map_err(|err| {
                 RpcError::new(RpcError::INVALID_PARAMS, format!("{normal}: {err}"))
             })?;
@@ -233,10 +351,15 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
     match event {
         Event::MethodCalled {
             call,
+            caller,
             method,
             params,
+            confined,
             ..
         } => {
+            rt.confined_call = confined;
+            rt.caller = caller;
+            rt.conn.serving_confined = confined;
             let result = match method.as_str() {
                 "settings.get" => {
                     (plugin.settings().map(|s| s.get())).ok_or_else(|| no_settings("settings.get"))
@@ -246,6 +369,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
                 _ => plugin.method(&method, params),
             };
             let rt = plugin.runtime();
+            rt.conn.serving_confined = false;
             match rt.conn.answer(call, result.map_err(capped)) {
                 Err(ClientError::Rpc(err)) => {
                     eprintln!("chora-{}: {err}", rt.name);
@@ -256,7 +380,11 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
         }
         Event::OutputChanged { output } if !rt.manages(&output.name) => Ok(()),
         Event::OutputRemoved { name } if !rt.manages(&name) => Ok(()),
-        event => plugin.event(event),
+        Event::InputKey { injected: true, .. } if !rt.inject_ok => Ok(()),
+        event => {
+            rt.regrab_give_keys()?;
+            plugin.event(event)
+        }
     }
 }
 
@@ -269,7 +397,7 @@ pub fn dispatch<P: Plugin>(plugin: &mut P, event: Event) -> Result<(), ClientErr
 ///
 /// The plugin has no settings, a change is wrong, the plugin cannot apply
 /// it, or the file cannot be written.
-fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
+pub fn set_settings<P: Plugin>(plugin: &mut P, changes: Value) -> Result<Value, RpcError> {
     let no_settings = || no_settings("settings.set");
     let answer = plugin.settings().ok_or_else(no_settings)?.set(changes)?;
     apply(plugin)?;
@@ -367,14 +495,23 @@ pub fn privileged(method: ExportMethod) -> ExportMethod {
     }
 }
 
-/// Parses the parameters of an exported method.
+/// Parses the parameters of an exported method. No parameters (`null`)
+/// read as an empty object, so the defaults of `T` apply.
 ///
 /// # Errors
 ///
 /// The parameters do not fit `T`.
 pub fn params<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
-    serde_json::from_value(params)
-        .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+    let read = |params| {
+        serde_json::from_value(params)
+            .map_err(|e| RpcError::new(RpcError::INVALID_PARAMS, e.to_string()))
+    };
+    if params.is_null()
+        && let Ok(none) = serde_json::from_value(Value::Null)
+    {
+        return Ok(none);
+    }
+    read(if params.is_null() { json!({}) } else { params })
 }
 
 /// Runs sessions of the plugin `name` until one ends without an error.
@@ -426,6 +563,20 @@ mod tests {
         File,
         tests::{DEFAULT, Demo, dir},
     };
+
+    #[derive(Debug, serde::Deserialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
+    struct Faces {
+        #[serde(default)]
+        faces: usize,
+    }
+
+    #[test]
+    fn no_params_read_as_the_defaults() {
+        assert_eq!(params::<Faces>(Value::Null).unwrap(), Faces { faces: 0 });
+        assert_eq!(params::<Option<u8>>(Value::Null).unwrap(), None);
+        assert!(params::<Faces>(json!({"sides": 3})).is_err());
+    }
 
     /// A plugin whose apply of settings fails on demand.
     struct Fake {
@@ -554,5 +705,93 @@ mod tests {
             }
         }
         panic!("the plugin never gave up");
+    }
+
+    #[test]
+    fn the_give_keys_are_grabbed_again_when_another_client_lets_them_go() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+
+        use crate::conn::fake_core::{self, Answer};
+
+        let released = Arc::new(AtomicBool::new(false));
+        let seen = Arc::clone(&released);
+        let (path, _core) = fake_core::serve(move |method, params| match method {
+            "input.grab" if params["binding"] == "Alt+Super+2" && !seen.load(Ordering::SeqCst) => {
+                Answer::Error("Alt+Super+2 is grabbed already")
+            }
+            "input.grab" => Answer::Result(params["binding"].clone()),
+            _ => Answer::Result(Value::Null),
+        });
+        let conn = Conn::connect_at("mc", &path).unwrap();
+        let mut rt: Runtime<&'static str> = Runtime::with(conn, "mc", Vec::new());
+        rt.give_keys(Some(|to| to));
+        rt.grab_give_keys().unwrap();
+        for (key, to) in [("Alt+Super+1", "tiling"), ("Alt+Super+3", "mc")] {
+            assert_eq!(rt.action(key), Some(&to));
+        }
+        assert_eq!(rt.action("Alt+Super+4"), Some(&"construct"));
+        assert_eq!(rt.action("Alt+Super+2"), None);
+        released.store(true, Ordering::SeqCst);
+        rt.grab_give_keys().unwrap();
+        assert_eq!(rt.action("Alt+Super+2"), Some(&"xp"));
+    }
+
+    struct Recorder {
+        rt: Runtime<()>,
+        seen: Vec<Event>,
+    }
+
+    impl Plugin for Recorder {
+        type Action = ();
+
+        fn runtime(&mut self) -> &mut Runtime<()> {
+            &mut self.rt
+        }
+
+        fn event(&mut self, event: Event) -> Result<(), ClientError> {
+            self.seen.push(event);
+            Ok(())
+        }
+
+        fn method(&mut self, method: &str, _: Value) -> Result<Value, RpcError> {
+            Err(RpcError::new(RpcError::METHOD_NOT_FOUND, method))
+        }
+    }
+
+    fn key(injected: bool) -> Event {
+        Event::InputKey {
+            binding: "Alt+Super+2".into(),
+            state: chora_scene::ipc::PressState::Pressed,
+            injected,
+        }
+    }
+
+    fn recorder() -> Recorder {
+        use crate::conn::fake_core::{self, Answer};
+
+        let (path, _core) = fake_core::serve(|_, _| Answer::Result(Value::Null));
+        let conn = Conn::connect_at("tiling", &path).unwrap();
+        Recorder {
+            rt: Runtime::with(conn, "tiling", Vec::new()),
+            seen: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn an_injected_key_runs_no_binding_unless_the_setting_is_on() {
+        let mut plugin = recorder();
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen, []);
+        dispatch(&mut plugin, key(false)).unwrap();
+        assert_eq!(plugin.seen.len(), 1);
+        plugin.rt.accept_injected(true);
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen.len(), 2);
+        plugin.rt.accept_injected(false);
+        dispatch(&mut plugin, key(true)).unwrap();
+        assert_eq!(plugin.seen.len(), 2);
     }
 }

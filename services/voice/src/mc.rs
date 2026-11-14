@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chora_kit::conn::Conn;
+use chora_kit::{ask::show_key, conn::Conn};
 use chora_scene::ipc::ClientError;
 use serde_json::{Value, json};
 
@@ -65,6 +65,8 @@ pub enum Report {
         hud: bool,
         /// Only these keys answer: `physical: true` and `keys` go out.
         keys: Option<ConfirmKeys>,
+        /// The helper that asks: `name` goes out.
+        name: Option<String>,
     },
     /// The question `id` is over: `voice.confirm {id, done: true}`.
     ConfirmDone(u64),
@@ -191,13 +193,14 @@ impl Reporter {
             detail,
             hud,
             keys,
+            name,
         } = report
         else {
             return;
         };
         if hud {
             let keys = (keys.as_ref())
-                .map(|k| format!("\n{} = yes, {} = no", k.yes, k.no))
+                .map(|k| format!("\n{} = yes, {} = no", show_key(&k.yes), show_key(&k.no)))
                 .unwrap_or_default();
             self.question(Some(&format!("{prompt}\n{detail}{keys}")));
         }
@@ -206,6 +209,9 @@ impl Reporter {
         // A claimer may answer by `confirm.answer`.
         if !hud {
             data["buttons"] = true.into();
+        }
+        if let Some(name) = name {
+            data["name"] = name.into();
         }
         if let Some(keys) = keys {
             data["physical"] = true.into();
@@ -388,6 +394,7 @@ mod tests {
             detail: detail.clone(),
             hud: false,
             keys: None,
+            name: None,
         };
         reports.send(confirm).unwrap();
         // Review rc3 round 2, 1.1: the id is a text, as chora-mc reads it.
@@ -403,10 +410,30 @@ mod tests {
             detail: "allow_programs: [sh]".into(),
             hud: false,
             keys: Some(crate::config::ConfirmKeys::default()),
+            name: None,
         };
         reports.send(confirm).unwrap();
         let shown = json!({"id": "4", "prompt": "Sicher?", "detail": "allow_programs: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         assert_eq!(emitted.recv_timeout(wait).unwrap(), ("confirm", shown));
+    }
+
+    /// The question of a helper names it, for the title of the card.
+    #[test]
+    fn a_question_of_a_helper_names_it() {
+        let (emits, emitted) = mpsc::channel();
+        let reports = start("voice", emits);
+        let confirm = Report::Confirm {
+            id: 5,
+            prompt: "Atlas möchte notes.txt schreiben. Erlauben?".into(),
+            detail: String::new(),
+            hud: false,
+            keys: None,
+            name: Some("Atlas".into()),
+        };
+        reports.send(confirm).unwrap();
+        let (event, shown) = emitted.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(event, "confirm");
+        assert_eq!(shown["name"], "Atlas");
     }
 }

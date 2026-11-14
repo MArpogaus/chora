@@ -1,0 +1,311 @@
+//! The notification server of the freedesktop specification on the
+//! session bus, so that `notify-send` and programs show their notifications.
+//! zbus serves the bus on its own thread; the calls reach the main loop
+//! through a channel, and the main loop sends the signals.
+
+use std::{
+    collections::HashMap,
+    sync::mpsc::{Receiver, Sender, channel},
+};
+
+use zbus::{
+    blocking::Connection,
+    fdo::{RequestNameFlags, RequestNameReply},
+    zvariant::OwnedValue,
+};
+
+const NAME: &str = "org.freedesktop.Notifications";
+const PATH: &str = "/org/freedesktop/Notifications";
+
+/// A notification as the main loop gets it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Note {
+    /// Its id, which `replaces_id` names.
+    pub id: u32,
+    /// The icon: a name of the icon theme or a path; empty for none.
+    pub icon: String,
+    /// The bold title.
+    pub summary: String,
+    /// The text below it.
+    pub body: String,
+    /// The keys of the actions, without their labels.
+    pub actions: Vec<String>,
+    /// The `expire_timeout` of the client in milliseconds: -1 for the
+    /// default, 0 for no end.
+    pub expire_ms: i32,
+}
+
+/// A call of a client.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Request {
+    /// Show a notification, or update the one with the same id.
+    Notify(Note),
+    /// `CloseNotification`.
+    Close(u32),
+}
+
+/// Why a notification closed, as the specification numbers it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reason {
+    /// Its time ran out.
+    Expired = 1,
+    /// A click closed it.
+    Dismissed = 2,
+    /// `CloseNotification` closed it.
+    Closed = 3,
+}
+
+/// A signal for the clients.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Signal {
+    /// `NotificationClosed`.
+    Closed(u32, Reason),
+    /// `ActionInvoked`.
+    Action(u32, String),
+}
+
+/// The icon of a notification: the `image-path` hint before `app_icon`,
+/// as the specification orders them.
+fn icon(app_icon: &str, hints: &HashMap<String, OwnedValue>) -> String {
+    ["image-path", "image_path"]
+        .iter()
+        .find_map(|key| {
+            let value = hints.get(*key)?;
+            String::try_from(value.try_clone().ok()?).ok()
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| app_icon.into())
+        .trim_start_matches("file://")
+        .into()
+}
+
+/// The keys of an action list, which alternates keys and labels.
+fn action_keys(actions: &[String]) -> Vec<String> {
+    let (pairs, _) = actions.as_chunks::<2>();
+    pairs.iter().map(|[key, _]| key.clone()).collect()
+}
+
+/// The object on the bus.
+struct Server {
+    requests: Sender<Request>,
+    last: u32,
+}
+
+#[zbus::interface(name = "org.freedesktop.Notifications")]
+impl Server {
+    #[allow(
+        clippy::too_many_arguments,
+        clippy::needless_pass_by_value,
+        reason = "the arguments of the specification, as zbus hands them over"
+    )]
+    fn notify(
+        &mut self,
+        app_name: String,
+        replaces_id: u32,
+        app_icon: String,
+        summary: String,
+        body: String,
+        actions: Vec<String>,
+        hints: HashMap<String, OwnedValue>,
+        expire_timeout: i32,
+    ) -> u32 {
+        let _ = app_name;
+        let id = if replaces_id == 0 {
+            self.last = self.last.wrapping_add(1).max(1);
+            self.last
+        } else {
+            replaces_id
+        };
+        let _ = self.requests.send(Request::Notify(Note {
+            id,
+            icon: icon(&app_icon, &hints),
+            summary,
+            body,
+            actions: action_keys(&actions),
+            expire_ms: expire_timeout,
+        }));
+        id
+    }
+
+    fn close_notification(&self, id: u32) {
+        let _ = self.requests.send(Request::Close(id));
+    }
+
+    #[allow(clippy::unused_self, reason = "zbus calls it on the object")]
+    fn get_capabilities(&self) -> Vec<&str> {
+        vec!["actions", "body", "icon-static"]
+    }
+
+    #[allow(clippy::unused_self)]
+    fn get_server_information(&self) -> (&str, &str, &str, &str) {
+        ("chora-notify", "chora", env!("CARGO_PKG_VERSION"), "1.2")
+    }
+}
+
+/// The server on the session bus.
+pub struct Bus {
+    conn: Connection,
+    /// The calls of the clients.
+    pub requests: Receiver<Request>,
+}
+
+/// Why the server did not start.
+#[derive(Debug, PartialEq, Eq)]
+pub enum StartError {
+    /// Another server owns the name.
+    Taken,
+    /// The bus failed.
+    Failed(String),
+}
+
+impl std::fmt::Display for StartError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Taken => write!(f, "{NAME} has another owner"),
+            Self::Failed(err) => f.write_str(err),
+        }
+    }
+}
+
+impl std::error::Error for StartError {}
+
+impl Bus {
+    /// Takes the name on the session bus, if no other server has it: it
+    /// never queues for the name, nor takes it from its owner.
+    ///
+    /// # Errors
+    ///
+    /// The bus fails, or another server owns the name.
+    pub fn start() -> Result<Self, StartError> {
+        Self::on(Connection::session().map_err(|e| StartError::Failed(e.to_string()))?)
+    }
+
+    /// Takes the name on a connection, as [`Self::start`].
+    ///
+    /// # Errors
+    ///
+    /// The bus fails, or another server owns the name.
+    pub fn on(conn: Connection) -> Result<Self, StartError> {
+        let failed = |e: zbus::Error| StartError::Failed(e.to_string());
+        let (tx, requests) = channel();
+        let server = Server {
+            requests: tx,
+            last: 0,
+        };
+        conn.object_server().at(PATH, server).map_err(failed)?;
+        match conn.request_name_with_flags(NAME, RequestNameFlags::DoNotQueue.into()) {
+            Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => {
+                Ok(Self { conn, requests })
+            }
+            Ok(_) | Err(zbus::Error::NameTaken) => Err(StartError::Taken),
+            Err(err) => Err(StartError::Failed(err.to_string())),
+        }
+    }
+
+    /// Sends a signal to the clients.
+    pub fn emit(&self, signal: &Signal) {
+        let sent = match signal {
+            Signal::Closed(id, reason) => self.conn.emit_signal(
+                None::<()>,
+                PATH,
+                NAME,
+                "NotificationClosed",
+                &(*id, *reason as u32),
+            ),
+            Signal::Action(id, key) => {
+                self.conn
+                    .emit_signal(None::<()>, PATH, NAME, "ActionInvoked", &(*id, key))
+            }
+        };
+        if let Err(err) = sent {
+            eprintln!("chora-notify: {err}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_second_server_finds_the_name_taken() {
+        let Ok(daemon) = std::process::Command::new("dbus-daemon")
+            .args(["--session", "--nofork", "--print-address"])
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+        else {
+            return;
+        };
+        let mut daemon = KillOnDrop(daemon);
+        let mut address = String::new();
+        let stdout = daemon.0.stdout.take().unwrap();
+        std::io::BufRead::read_line(&mut std::io::BufReader::new(stdout), &mut address).unwrap();
+        let connect = || {
+            zbus::blocking::connection::Builder::address(address.trim())
+                .unwrap()
+                .build()
+                .unwrap()
+        };
+        let first = Bus::on(connect()).expect("the name is free");
+        assert_eq!(Bus::on(connect()).err(), Some(StartError::Taken));
+        drop(first);
+    }
+
+    struct KillOnDrop(std::process::Child);
+
+    impl Drop for KillOnDrop {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    #[test]
+    fn actions_come_in_pairs() {
+        let list = ["default", "Open", "later", "Later", "odd"].map(String::from);
+        assert_eq!(action_keys(&list), ["default", "later"]);
+    }
+
+    #[test]
+    fn the_image_path_comes_before_the_app_icon() {
+        let mut hints = HashMap::new();
+        assert_eq!(icon("mail", &hints), "mail");
+        hints.insert(
+            "image-path".into(),
+            OwnedValue::try_from(zbus::zvariant::Value::from("file:///tmp/a.png")).unwrap(),
+        );
+        assert_eq!(icon("mail", &hints), "/tmp/a.png");
+    }
+
+    #[test]
+    fn ids_count_up_and_replace() {
+        let (tx, rx) = channel();
+        let mut server = Server {
+            requests: tx,
+            last: 0,
+        };
+        let mut notify = |replaces| {
+            server.notify(
+                "app".into(),
+                replaces,
+                String::new(),
+                "s".into(),
+                "b".into(),
+                Vec::new(),
+                HashMap::new(),
+                -1,
+            )
+        };
+        assert_eq!(notify(0), 1);
+        assert_eq!(notify(0), 2);
+        assert_eq!(notify(7), 7);
+        let ids: Vec<u32> = rx
+            .try_iter()
+            .map(|r| match r {
+                Request::Notify(note) => note.id,
+                Request::Close(_) => 0,
+            })
+            .collect();
+        assert_eq!(ids, [1, 2, 7]);
+    }
+}

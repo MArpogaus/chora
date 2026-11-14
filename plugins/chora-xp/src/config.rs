@@ -7,7 +7,7 @@ use chora_kit::settings::Settings;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{assistant, control::Toggles, taskbar, theme::Theme, wallpaper};
+use crate::{control::Toggles, taskbar, theme::Theme, wallpaper};
 
 /// The default settings.
 pub const DEFAULT: &str = include_str!("../xp.yaml");
@@ -98,25 +98,39 @@ pub struct Session {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    /// The shell command of the terminal, for Super+e and the desktop
-    /// files that need one.
+    /// The shell command of the terminal, for the Terminal of the start
+    /// menu and the desktop files that need one.
     pub terminal: String,
-    /// The shell command of Run, and of All Programs when no desktop file
-    /// lists a program.
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
+    /// The shell command of Run and of Super+Space, and of All Programs
+    /// when no desktop file lists a program.
     pub launcher: String,
-    /// The shell command of the file manager; the folder follows it.
+    /// The shell command of the file manager, for Super+e, the places of
+    /// the start menu and the folders of the desktop; the folder follows
+    /// it.
     pub file_manager: String,
+    /// The shell command of the plain text editor, Notepad of the start
+    /// menu. Without it, or when its program is not installed, the first
+    /// installed editor serves.
+    #[serde(default)]
+    pub editor: Option<String>,
     /// The programs at the top left of the start menu, below the
     /// terminal.
     pub programs: Vec<Program>,
+    /// Each taskbar lists only the windows of its own output. Off, every
+    /// taskbar of a screen lists all windows. The taskbar of a virtual
+    /// output always lists its own windows only.
+    #[serde(default)]
+    pub tasks_per_output: bool,
     /// The format of the clock of the taskbar, as in strftime.
     pub clock_format: String,
     pub wallpaper: Wallpaper,
     pub taskbar: taskbar::Settings,
     pub effects: Toggles,
     pub session: Session,
-    /// The paperclip of the voice agent.
-    pub assistant: assistant::Settings,
 }
 
 impl Settings for Config {
@@ -126,6 +140,7 @@ impl Settings for Config {
             ("terminal", Some(&self.terminal)),
             ("launcher", Some(&self.launcher)),
             ("file_manager", Some(&self.file_manager)),
+            ("editor", self.editor.as_ref()),
             ("session.turn_off", session.turn_off.as_ref()),
             ("session.restart", session.restart.as_ref()),
             ("session.stand_by", session.stand_by.as_ref()),
@@ -176,6 +191,15 @@ impl Settings for Config {
     }
 }
 
+/// The way out of an old settings file, for the log: the key `assistant`
+/// moved into `chora-assistant.yaml` as `enabled`.
+pub fn migration_hint(error: &str) -> Option<&'static str> {
+    error.contains("unknown field `assistant`").then_some(
+        "assistant.enabled moved to chora-assistant.yaml as enabled; remove the key \
+         assistant (Migration in docs/configuration.md)",
+    )
+}
+
 /// The default settings, for the tests.
 #[cfg(test)]
 pub fn defaults() -> Config {
@@ -200,6 +224,21 @@ mod tests {
         assert_eq!(session.restart.as_deref(), Some("systemctl reboot"));
         assert_eq!(session.stand_by.as_deref(), Some("systemctl suspend"));
         assert_eq!(session.log_off.as_deref(), Some("choractl quit"));
+    }
+
+    #[test]
+    fn the_old_assistant_key_is_named_with_the_way_out() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-old-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("chora-xp.yaml");
+        std::fs::write(&path, "terminal: kitty\nassistant:\n  enabled: false\n").unwrap();
+        let file = File::<Config>::load(path, DEFAULT).unwrap();
+        let err = file.broken().expect("the old key breaks the file");
+        assert!(err.contains("assistant"), "{err}");
+        let hint = migration_hint(err).expect("a hint");
+        assert!(hint.contains("chora-assistant.yaml"), "{hint}");
+        assert_eq!(migration_hint("terminal: an empty command"), None);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

@@ -1,0 +1,29 @@
+hud: 1
+font: Inter
+panels:
+- id: island
+  source: voice
+  anchor: top_right
+  margin: [32, 32]
+  picture: ring.svg#{state}
+  text: '{state}'
+  style: island
+  action: chat
+chat:
+  style: glass
+  font: Inter
+  size: 16
+  anchor: right
+  width: 480
+  margin: 32
+  fill: [248, 249, 251]
+  text: [20, 24, 30]
+  name: [74, 82, 96]
+  border: [16, 20, 28]
+  glow: [38, 128, 180]
+dark:
+  chat:
+    fill: [24, 26, 32]
+    text: [236, 238, 242]
+    name: [163, 170, 181]
+    border: [0, 0, 0]

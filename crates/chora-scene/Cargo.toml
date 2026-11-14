@@ -1,4 +1,5 @@
 [dependencies]
+glam.workspace = true
 imbl.workspace = true
 schemars = { workspace = true, optional = true }
 serde.workspace = true

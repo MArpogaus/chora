@@ -1,7 +1,7 @@
 //! Protocol handlers: the parts of the Wayland protocols that Smithay leaves
 //! to the compositor.
 
-use std::sync::atomic::Ordering;
+use std::{any::Any, sync::atomic::Ordering};
 
 use chora_scene::{Event, SurfaceRequest};
 use smithay::{
@@ -14,6 +14,7 @@ use smithay::{
     },
     input::{
         Seat, SeatHandler, SeatState,
+        dnd::{DnDGrab, DndGrabHandler, DndTarget, GrabType, Source},
         pointer::{CursorImageStatus, Focus, PointerHandle},
     },
     output::Output,
@@ -22,7 +23,8 @@ use smithay::{
         wayland_server::{
             Client, Resource,
             protocol::{
-                wl_buffer::WlBuffer, wl_output::WlOutput, wl_seat::WlSeat, wl_surface::WlSurface,
+                wl_buffer::WlBuffer, wl_data_source::WlDataSource, wl_output::WlOutput,
+                wl_seat::WlSeat, wl_surface::WlSurface,
             },
         },
     },
@@ -53,6 +55,7 @@ use smithay::{
 };
 
 use crate::{
+    backend::import::CommitImports,
     output::output_area,
     state::{ClientState, State},
 };
@@ -74,7 +77,14 @@ impl CompositorHandler for State {
     }
 
     fn commit(&mut self, surface: &WlSurface) {
+        let imports = (!is_sync_subsurface(surface)).then(|| CommitImports::of(surface));
+        if let (Some(imports), Some(backend)) = (&imports, &mut self.backend) {
+            imports.before(backend);
+        }
         on_commit_buffer_handler::<Self>(surface);
+        if let (Some(imports), Some(backend)) = (&imports, &mut self.backend) {
+            imports.after(backend);
+        }
         if !is_sync_subsurface(surface) {
             let root = root_surface(surface);
             if let Some(id) = self.surface_id(&root) {
@@ -149,6 +159,29 @@ impl State {
         (pid, token)
     }
 
+    /// The window manager of a new toplevel when the pointer is over a
+    /// pane that forwards into a virtual output: a `host` of that pane
+    /// that would get the toplevel, as a node of it has the keyboard,
+    /// passes it to the manager whose claim on the output holds the
+    /// pointer. A window of the host with the keyboard keeps the toplevel,
+    /// and so does a manager that a click chose. The caller names no host
+    /// for a toplevel with a parent, which stays with the manager of its
+    /// parent.
+    fn under_the_pane_of(
+        &self,
+        to: Option<String>,
+        host: Option<&str>,
+        new: &chora_scene::NewToplevel,
+        live: impl Fn(&str) -> bool,
+    ) -> Option<String> {
+        let keyboard = self.scene.focused_node_owner();
+        if new.chosen.is_some() || host.is_none() || to.as_deref() != host || keyboard != host {
+            return to;
+        }
+        let behind = chora_scene::claimant_at(self.scene.nodes(), new.point, live);
+        behind.map(String::from).or(to)
+    }
+
     /// Sends `surface.created` for the toplevels of the last batch, and
     /// the requests that waited for it.
     fn announce(&mut self) {
@@ -191,19 +224,27 @@ impl State {
             let info = self.surface_info(id);
             self.scene.add_surface(id, info.clone());
             // Without an output, the pointer is in no claim.
-            let pointer = self
-                .spot(self.pointer_layout)
+            let spot = self.spot(self.pointer_layout);
+            let pointer = spot
+                .as_ref()
                 .map_or([f64::NAN; 2], |s| [s.scene.x, s.scene.y]);
+            let host = (spot.as_ref().and_then(|s| s.via.as_deref()))
+                .and_then(|pane| self.scene.node(pane)?.owner.clone());
             let focused = self.focused_surface().map(String::from);
             let parent = toplevel.parent().and_then(|p| self.surface_id(&p));
             let ipc = &self.ipc;
             // A client socket manages only the windows of its own name.
             let own = |n: &str| !ipc.has_socket(n) || info.client.as_deref() == Some(n);
-            let to = (self.scene)
-                .manager_of_new(parent.as_deref(), focused.as_deref(), pointer, |n| {
-                    ipc.live(n) && own(n)
-                })
-                .map(String::from);
+            let live = |n: &str| ipc.live(n) && own(n);
+            let new = chora_scene::NewToplevel {
+                parent: parent.as_deref(),
+                focused: focused.as_deref(),
+                chosen: self.chosen_manager(),
+                point: pointer,
+            };
+            let to = (self.scene).manager_of_new(&new, live).map(String::from);
+            let host = host.filter(|_| parent.is_none());
+            let to = self.under_the_pane_of(to, host.as_deref(), &new, live);
             self.scene.reserve(id, to.as_deref());
             self.reserved(id, None, false);
             self.list_toplevel(id);
@@ -276,8 +317,90 @@ impl DataDeviceHandler for State {
     }
 }
 
-impl smithay::input::dnd::DndGrabHandler for State {}
-impl WaylandDndGrabHandler for State {}
+impl DndGrabHandler for State {
+    fn dropped(
+        &mut self,
+        _target: Option<DndTarget<'_, Self>>,
+        _validated: bool,
+        _seat: Seat<Self>,
+        _location: Point<f64, Logical>,
+    ) {
+        self.client_drag = false;
+    }
+
+    fn cancelled(&mut self, _seat: Seat<Self>, _location: Point<f64, Logical>) {
+        self.client_drag = false;
+    }
+}
+
+impl WaylandDndGrabHandler for State {
+    /// Starts the drag of a client at the real press that the pointer is
+    /// grabbed with. The target is the surface under the pointer, so the
+    /// press stops pinning the surface that it hit, also under a plane.
+    /// The icon of the drag is not shown. Only the client under the press
+    /// may drag, only for a button press of the person that is still
+    /// down, never while the session is locked, and never for a confined
+    /// client.
+    fn dnd_requested<S: Source>(
+        &mut self,
+        source: S,
+        _icon: Option<WlSurface>,
+        seat: Seat<Self>,
+        serial: Serial,
+        type_: GrabType,
+    ) {
+        let start_data = seat
+            .get_pointer()
+            .filter(|_| type_ == GrabType::Pointer)
+            .and_then(|pointer| Some((pointer.grab_start_data()?, pointer)));
+        let Some((start_data, pointer)) = start_data.filter(|(data, _)| {
+            data.focus
+                .as_ref()
+                .is_some_and(|(origin, _)| self.drag_allowed(&source, origin, serial))
+        }) else {
+            source.cancel();
+            return;
+        };
+        let grab = DnDGrab::new_pointer(&self.display_handle, start_data, source, seat);
+        pointer.set_grab(self, grab, serial, Focus::Keep);
+        self.client_drag = true;
+    }
+}
+
+impl State {
+    /// Whether the client of `source` may start a drag from the pressed
+    /// surface `origin` with `serial`: the newest real press, of a button,
+    /// while a button is down.
+    fn drag_allowed(&self, source: &dyn Any, origin: &WlSurface, serial: Serial) -> bool {
+        let source = source
+            .downcast_ref::<WlDataSource>()
+            .map(Resource::id)
+            .or_else(|| source.downcast_ref::<WlSurface>().map(Resource::id));
+        source.is_some_and(|id| id.same_client_as(&origin.id()))
+            && self.lock.is_none()
+            && self.last_real_press == Some(serial)
+            && self
+                .last_real_button
+                .is_some_and(|(press, _)| press == serial)
+            && self.pressed(origin, serial)
+            && self.takes_part_in_drags(origin)
+    }
+
+    /// Whether the client of a surface may start or receive a drag: only
+    /// clients outside client sockets and sandboxes. Every client that a
+    /// drag crosses can read its data.
+    pub fn takes_part_in_drags(&self, surface: &WlSurface) -> bool {
+        self.display_handle
+            .get_client(surface.id())
+            .ok()
+            .and_then(|client| {
+                client
+                    .get_data::<ClientState>()
+                    .map(crate::security::unconfined)
+            })
+            .unwrap_or(false)
+    }
+}
 
 impl PrimarySelectionHandler for State {
     fn primary_selection_state(&mut self) -> &mut PrimarySelectionState {
@@ -406,7 +529,8 @@ impl XdgShellHandler for State {
             }
             keyboard.set_focus(self, grab.current_grab(), serial);
             keyboard.set_grab(self, PopupKeyboardGrab::new(&grab), serial);
-            pointer.set_grab(self, PopupPointerGrab::new(&grab), serial, Focus::Keep);
+            let grab = crate::input::PlaneGrab::popup(PopupPointerGrab::new(&grab));
+            pointer.set_grab(self, grab, serial, Focus::Keep);
         }
     }
 }
@@ -469,11 +593,15 @@ impl State {
 
     /// The area for the popups of a toplevel or a layer surface, relative to
     /// that surface: the area of the output that shows it.
-    fn popup_area(&self, root: &WlSurface) -> Option<Rectangle<i32, Logical>> {
-        if let Some(origin) = self
-            .surface_id(root)
-            .and_then(|id| crate::render::window_origin(self, &id))
+    pub(crate) fn popup_area(&self, root: &WlSurface) -> Option<Rectangle<i32, Logical>> {
+        let id = self.surface_id(root);
+        let window = id.as_ref().and_then(|id| self.windows.get(id));
+        if let Some((window, id)) = window.zip(id.as_deref())
+            && crate::render::under_plane(self, id)
         {
+            return Some(window.geometry());
+        }
+        if let Some(origin) = id.and_then(|id| crate::render::window_origin(self, &id)) {
             let mut area = self.scene_area_at(origin.to_f64());
             area.loc -= origin;
             return Some(area);

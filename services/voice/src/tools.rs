@@ -3,7 +3,7 @@
 //! confirmation (docs/voice.md sections 5 and 6).
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     io::Read,
     os::{fd::AsRawFd, unix::fs::OpenOptionsExt},
     path::{Path, PathBuf},
@@ -71,19 +71,24 @@ pub struct Tools {
     /// `settings.get`, `settings.set` and `settings.reload`, which
     /// `skipped` does not hide.
     pub own: String,
+    /// The MCP names of the tools that their export marks privileged,
+    /// also of the skipped ones (`call_method` reaches them).
+    privileged: HashSet<String>,
     /// A question about a security setting waits for a key press:
     /// `inject_input` could press the key.
     pub physical: Arc<AtomicBool>,
 }
 
-/// `CMD --name NAME mcp` as a child process; its stderr goes to ours.
-pub fn child(cmd: Vec<String>, name: String) -> Connect {
+/// `CMD --name NAME mcp` as a child process without the variables
+/// `keys`; its stderr goes to ours.
+pub fn child(cmd: Vec<String>, keys: Vec<String>, name: String) -> Connect {
     Box::new(move || {
-        let (cmd, name) = (cmd.clone(), name.clone());
+        let (cmd, keys, name) = (cmd.clone(), keys.clone(), name.clone());
         Box::pin(async move {
             let (program, args) = cmd.split_first().ok_or("chora_mcp is empty")?;
             let mut command = tokio::process::Command::new(program);
             command.args(args).args(["--name", &name, "mcp"]);
+            crate::config::without_keys(command.as_std_mut(), &keys);
             let transport =
                 TokioChildProcess::new(command).map_err(|e| format!("{program}: {e}"))?;
             ().serve(transport)
@@ -97,7 +102,7 @@ impl Tools {
     /// The tools of `choractl mcp` under the client name `name`.
     pub fn chora(config: &crate::config::Config, name: &str) -> Self {
         Self::new(
-            child(config.chora_mcp.clone(), name.to_owned()),
+            child(config.chora_mcp.clone(), config.key_envs(), name.to_owned()),
             config.skipped_tools.clone(),
             Duration::from_secs(config.tool_timeout_s.into()),
         )
@@ -109,6 +114,7 @@ impl Tools {
             service: None,
             specs: Vec::new(),
             names: HashMap::new(),
+            privileged: HashSet::new(),
             skipped,
             timeout,
             vision: false,
@@ -119,6 +125,27 @@ impl Tools {
             own: String::new(),
             physical: Arc::default(),
         }
+    }
+
+    /// The rule that asks before `tool` (its MCP name) with `args`, when
+    /// its export is privileged: by `call_method` or as a plugin tool
+    /// `CLIENT.METHOD`. The question is `prompt`. A method of the agent
+    /// itself is no case: the call refuses it.
+    pub fn privileged_rule(&self, tool: &str, args: &Value, prompt: &str) -> Option<Confirm> {
+        let (full, method) = if tool == "call_method" {
+            let (client, method) = (args["client"].as_str()?, args["method"].as_str()?);
+            (format!("{client}.{method}"), method)
+        } else {
+            (tool.to_owned(), tool.split_once('.')?.1)
+        };
+        let own = args.as_object().is_some_and(|a| self.own_client(tool, a));
+        (self.privileged.contains(&full) && !own).then(|| Confirm {
+            tool: format!("*.{method}"),
+            commands: Vec::new(),
+            argv0: Vec::new(),
+            method: None,
+            prompt: prompt.into(),
+        })
     }
 
     /// Whether `method` of `client` is a settings method of the agent
@@ -172,9 +199,9 @@ impl Tools {
 
     /// A new `chora_mcp`: the running child ends and the next refresh
     /// starts the new command.
-    pub fn restart(&mut self, cmd: Vec<String>, name: &str) {
+    pub fn restart(&mut self, cmd: Vec<String>, keys: Vec<String>, name: &str) {
         crate::log::info(&format!("mcp: restart with {cmd:?}"));
-        self.connect = child(cmd, name.to_owned());
+        self.connect = child(cmd, keys, name.to_owned());
         self.service = None;
         self.backoff = Duration::ZERO;
         self.retry_at = Instant::now();
@@ -249,6 +276,10 @@ impl Tools {
         };
         match service.list_all_tools().await {
             Ok(tools) => {
+                self.privileged = (tools.iter())
+                    .filter(|t| t.meta.as_ref().is_some_and(|m| m.0["privileged"] == true))
+                    .map(|t| t.name.to_string())
+                    .collect();
                 let tools: Vec<_> = tools
                     .into_iter()
                     .filter(|t| {
@@ -692,8 +723,8 @@ pub mod tests {
     use rmcp::{
         ErrorData, ServerHandler,
         model::{
-            CallToolResult, ListToolsResult, PaginatedRequestParams, ServerCapabilities,
-            ServerConfig, Tool,
+            CallToolResult, ListToolsResult, MetaObject, PaginatedRequestParams,
+            ServerCapabilities, ServerConfig, Tool,
         },
         service::{RequestContext, RoleServer},
     };
@@ -745,8 +776,20 @@ pub mod tests {
                 "voice.state",
                 "voice.settings.set",
                 "voice.settings.reload",
+                "mc.app.open",
+                "mc.scene.show",
             ]
-            .map(|name| Tool::new(name, format!("the tool {name}"), schema.clone()));
+            .map(|name| {
+                let mut tool = Tool::new(name, format!("the tool {name}"), schema.clone());
+                let privileged = matches!(name, "voice.settings.reload" | "mc.app.open");
+                tool.meta = Some(MetaObject(
+                    json!({ "privileged": privileged })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ));
+                tool
+            });
             std::future::ready(Ok(ListToolsResult::with_all_items(tools.to_vec())))
         }
 
@@ -824,7 +867,9 @@ pub mod tests {
             })
         });
         let config = Config::default();
-        let tools = Tools::new(connect, config.skipped_tools, Duration::from_millis(300));
+        let mut skipped = config.skipped_tools;
+        skipped.push("mc.*".into());
+        let tools = Tools::new(connect, skipped, Duration::from_millis(300));
         (tools, calls)
     }
 
@@ -1098,6 +1143,10 @@ pub mod tests {
             );
         }
         assert_eq!(
+            prompt("load_view", json!({"name": "desk"})),
+            Some("Shall I load the view {name}?")
+        );
+        assert_eq!(
             prompt("tiling.restart", json!({})),
             Some("Shall I restart the plugin?")
         );
@@ -1112,53 +1161,38 @@ pub mod tests {
         assert_eq!(prompt("query_scene", json!({})), None);
     }
 
-    /// Review 0.9.0-rc.3: `methods.privileged` opens every privileged
-    /// method without a question, so each method of the hand-kept list
-    /// in config.rs asks first, in both forms. The list can lag behind
-    /// the plugins (review rc3 round 2, 3.1).
-    #[test]
-    fn privileged_methods_ask_by_client_and_method() {
-        let rules = Config::default().confirm;
-        let ask =
-            |tool: &str, args: Value| rule(&rules, tool, &args).map(|r| r.question(tool, &args));
-        for (tool, args) in [
-            ("mc.app.open", json!({"app": "foot"})),
-            ("call_method", json!({"client": "mc", "method": "app.open"})),
-        ] {
-            assert_eq!(
-                ask(tool, args).as_deref(),
-                Some("Shall I run app open of the plugin mc?")
-            );
-        }
-        for method in [
-            "settings.set",
-            "settings.reload",
-            "scene.save",
-            "scene.rename",
-            "scene.move",
-            "construct.load",
-            "construct.save",
-            "region.toggle",
-            "region.put",
-            "region.solo",
-            "window.give",
-            "agent.set",
-            "notify.push",
-        ] {
-            assert!(
-                ask(&format!("xp.{method}"), json!({})).is_some(),
-                "{method}"
-            );
-            let args = json!({"client": "xp", "method": method});
-            assert!(ask("call_method", args).is_some(), "{method}");
-        }
+    /// `methods.privileged` opens every privileged method, so the agent
+    /// asks before each tool that the export marks privileged, in both
+    /// forms, also when `skipped_tools` hides the tool. The flag comes in
+    /// the `_meta` of the tool, not from a list kept by hand.
+    #[tokio::test]
+    async fn privileged_methods_ask_by_their_flag() {
+        let (mut tools, _) = fake(0);
+        tools.refresh().await;
+        let prompt = Config::default().phrases.privileged;
+        let ask = |tool: &str, args: Value| {
+            let rule = tools.privileged_rule(tool, &args, &prompt)?;
+            Some(rule.question(tool, &args))
+        };
+        assert_eq!(
+            ask("mc.app.open", json!({"app": "foot"})).as_deref(),
+            Some("Shall I run app open of the plugin mc: app foot?")
+        );
+        let call = json!({"client": "mc", "method": "app.open", "params": {"app": "sh"}});
+        assert_eq!(
+            ask("call_method", call).as_deref(),
+            Some("Shall I run app open of the plugin mc: app sh?")
+        );
+        let call = json!({"client": "mc", "method": "scene.show"});
+        assert_eq!(ask("call_method", call), None, "not privileged");
         assert_eq!(ask("mc.scene.show", json!({})), None);
-        // Not privileged in construct.
-        assert_eq!(ask("construct.pane.remove", json!({})), None);
+        let unknown = json!({"client": "mc", "method": "nope"});
+        assert_eq!(ask("call_method", unknown), None);
         assert_eq!(
             ask("voice.settings.reload", json!({})).as_deref(),
             Some("Shall I run settings reload of the plugin voice?")
         );
+        assert_eq!(ask("echo", json!({})), None);
     }
 
     /// A project `proj` with `a.txt`, `sub/`, `bin`, `latin1`, `big.txt`

@@ -8,6 +8,7 @@
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
+    ffi::OsString,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
@@ -97,15 +98,29 @@ fn is_default(props: &PropsUpdate) -> bool {
 /// The directories of a kind of file, for example `views`: the one in
 /// `$XDG_CONFIG_HOME/chora/` first, then the one of the package.
 fn dirs(kind: &str) -> Vec<PathBuf> {
-    let config = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")));
+    let config = config_home(
+        std::env::var_os("XDG_CONFIG_HOME"),
+        std::env::var_os("HOME"),
+    );
     let mut dirs: Vec<PathBuf> = config
         .map(|c| c.join("chora").join(kind))
         .into_iter()
         .collect();
     dirs.push(Path::new("/usr/share/chora").join(kind));
     dirs
+}
+
+/// The configuration directory of the user: `$XDG_CONFIG_HOME`, else
+/// `$HOME/.config`; `None` without an absolute one.
+fn config_home(xdg: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
+    absolute(xdg).or_else(|| absolute(home).map(|h| h.join(".config")))
+}
+
+/// The directory of an environment variable, if it is an absolute path.
+/// Empty and relative values do not count, as the XDG specification
+/// says, so that no path resolves against the current directory.
+pub fn absolute(value: Option<OsString>) -> Option<PathBuf> {
+    value.map(PathBuf::from).filter(|p| p.is_absolute())
 }
 
 /// The file of a name: a path as it is, or `NAME.yaml` in the first
@@ -232,35 +247,52 @@ pub fn unload(name: &str, confined: bool) -> Result<Value, String> {
 }
 
 /// Writes the current nodes of a view to its file, with the plugins of
-/// the file that was there. Returns the path.
+/// the file that was there. Returns the path. A file that does not
+/// parse, or a view that is not loaded while its file has a scene, is an
+/// error, and nothing is written.
 pub fn save(name: &str, file: Option<&str>, confined: bool) -> Result<Value, String> {
     check_name(name)?;
     let path = match file {
         Some(f) => PathBuf::from(f),
         None => dirs("views")[0].join(format!("{name}.yaml")),
     };
-    let (plugins, input) = find("views", name)
-        .ok()
-        .and_then(|p| read_yaml::<View>(&p).ok())
-        .map(|v| (v.plugins, v.input))
-        .unwrap_or_default();
+    let old = find("views", name).ok();
     let mut client = connect(name, confined)?;
     let nodes = owned(&mut client, name)?;
-    let view = View {
-        name: name.into(),
-        plugins,
-        scene: in_order(&nodes)
-            .into_iter()
-            .map(view_node)
-            .collect::<Result<_, _>>()?,
-        input,
-    };
+    let view = to_save(name, old.as_deref(), &nodes)?;
     let text = to_yaml(&view)?;
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(serde_json::json!({"view": name, "file": path, "nodes": view.scene.len()}))
+}
+
+/// The view to write: the nodes that the view owns now, with the
+/// plugins and the input of the file that was there.
+///
+/// # Errors
+///
+/// The file that was there does not parse, or it has a scene and the
+/// view owns no nodes, so it is not loaded: the save would lose what
+/// the file holds.
+fn to_save(name: &str, old: Option<&Path>, nodes: &[Node]) -> Result<View, String> {
+    let old = old.map(read_yaml::<View>).transpose()?;
+    if nodes.is_empty() && old.as_ref().is_some_and(|v| !v.scene.is_empty()) {
+        return Err(format!(
+            "the view {name} is not loaded: it owns no nodes, and the scene of its file stays"
+        ));
+    }
+    let (plugins, input) = old.map(|v| (v.plugins, v.input)).unwrap_or_default();
+    Ok(View {
+        name: name.into(),
+        plugins,
+        scene: in_order(nodes)
+            .into_iter()
+            .map(view_node)
+            .collect::<Result<_, _>>()?,
+        input,
+    })
 }
 
 /// Checks what the core cannot: unique ids, and no surfaces.
@@ -306,7 +338,7 @@ fn start_plugins(client: &mut Client, plugins: &[PluginUse]) -> Result<Vec<Strin
     for manifest in &manifests {
         if !running.contains_key(&manifest.name) {
             let argv = ["sh".into(), "-c".into(), manifest.exec.clone()];
-            let answer = crate::run_program(client, &argv, Some(&manifest.name))
+            let answer = crate::run_program(client, &argv, (Some(&manifest.name), None))
                 .map_err(|e| format!("{}: {e}", manifest.name))?;
             // A unit that runs already answers no token: nothing started.
             if !answer["token"].is_null() {
@@ -598,6 +630,69 @@ mod tests {
             "a path stays a path"
         );
         assert!(find("views", "..").is_err());
+    }
+
+    /// An empty or relative `$XDG_CONFIG_HOME` or `$HOME` would read
+    /// views and manifests from the current directory.
+    #[test]
+    fn empty_and_relative_directories_do_not_count() {
+        let some = |s: &str| Some(OsString::from(s));
+        assert_eq!(config_home(some("/c"), some("/h")), Some("/c".into()));
+        assert_eq!(config_home(None, some("/h")), Some("/h/.config".into()));
+        assert_eq!(config_home(some(""), some("/h")), Some("/h/.config".into()));
+        assert_eq!(
+            config_home(some("c"), some("/h")),
+            Some("/h/.config".into())
+        );
+        assert_eq!(config_home(some(""), some("")), None);
+        assert_eq!(config_home(None, some("h")), None);
+    }
+
+    const SAVED: &str = "name: work\nplugins:\n- name: tiling\nscene:\n- {id: old, kind: rect}\n";
+
+    fn saved(name: &str, text: &str) -> PathBuf {
+        let path =
+            std::env::temp_dir().join(format!("choractl-{name}-{}.yaml", std::process::id()));
+        std::fs::write(&path, text).unwrap();
+        path
+    }
+
+    fn owned_node() -> Node {
+        Node {
+            id: "bar".into(),
+            kind: NodeKind::Rect,
+            owner: Some("view-work".into()),
+            parent: Some(ROOT.into()),
+            children: Vec::new(),
+            props: Props::default(),
+            surface: None,
+            to: None,
+        }
+    }
+
+    /// A save keeps the plugins of the old file. A view that is not
+    /// loaded owns no nodes: its save would write an empty scene over
+    /// the saved one.
+    #[test]
+    fn a_save_of_an_unloaded_view_keeps_the_saved_scene() {
+        let path = saved("unloaded", SAVED);
+        let view = to_save("work", Some(&path), &[owned_node()]).unwrap();
+        assert_eq!(view.plugins[0].name, "tiling");
+        assert_eq!(view.scene[0].id, "bar");
+        let err = to_save("work", Some(&path), &[]).unwrap_err();
+        assert!(err.contains("work is not loaded"), "{err}");
+        assert_eq!(to_save("work", None, &[]).unwrap().scene, []);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    /// A file that does not parse is no missing file: a save over it
+    /// would drop its plugins and its input.
+    #[test]
+    fn a_save_over_a_broken_file_is_an_error() {
+        let path = saved("broken", &format!("{SAVED}color: red\n"));
+        let err = to_save("work", Some(&path), &[owned_node()]).unwrap_err();
+        assert!(err.contains("choractl-broken-"), "{err}");
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]

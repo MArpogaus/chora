@@ -30,9 +30,21 @@
 //!   checks that the sandboxed client sees no privileged global.
 //! - `repeat-info`: prints the rate and the delay of the key repeat that
 //!   the keyboard gets.
+//! - `live FRAMES`: shows a toplevel that commits a new color on each frame
+//!   callback, FRAMES times, and prints the mean, the 99th percentile and
+//!   the largest interval of the callbacks in milliseconds; a window with
+//!   live content, for `tests/3d-bench.sh`.
+//! - `clip TEXT`: shows a toplevel `chora-probe`, offers TEXT as the
+//!   selection when it gets the keyboard, and prints a line `enter` or
+//!   `leave` each time the keyboard comes or goes, until it is killed.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
 //!   size of each configure, until it is killed. With `--exit-on-close`,
-//!   it exits with 0 when the compositor asks it to close.
+//!   it exits with 0 when the compositor asks it to close. With
+//!   `--recolor FILE R G B`, it commits the second color once FILE exists.
+//!   With `--report`, it activates with `XDG_ACTIVATION_TOKEN` when the
+//!   environment has it, and prints a line `press X Y` for each button
+//!   press, at the point of the surface, and `key CODE` for each key
+//!   press that it gets.
 
 #![allow(
     clippy::print_stdout,
@@ -57,10 +69,15 @@ use rustix::{
     time::{ClockId, clock_gettime},
 };
 use wayland_client::{
-    Connection, Dispatch, EventQueue, QueueHandle, delegate_noop,
+    Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop, event_created_child,
     protocol::{
         wl_buffer::{self, WlBuffer},
+        wl_callback::{self, WlCallback},
         wl_compositor::WlCompositor,
+        wl_data_device::{self, WlDataDevice},
+        wl_data_device_manager::WlDataDeviceManager,
+        wl_data_offer::WlDataOffer,
+        wl_data_source::{self, WlDataSource},
         wl_keyboard, wl_pointer, wl_registry, wl_seat, wl_shm,
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
@@ -123,6 +140,13 @@ struct Probe {
     pointer_manager: Option<ZwlrVirtualPointerManagerV1>,
     keyboard_manager: Option<ZwpVirtualKeyboardManagerV1>,
     activation: Option<XdgActivationV1>,
+    data_manager: Option<WlDataDeviceManager>,
+    /// The text that mode `clip` offers, once it is told to.
+    clip: Option<String>,
+    /// How often the keyboard came to the surface of mode `clip`, and the
+    /// serial of the last time.
+    enters: u32,
+    enter_serial: u32,
     /// The activation token that the compositor answered.
     token: Option<String>,
     /// `Some(true)` after `locked`, `Some(false)` after `finished`.
@@ -139,6 +163,8 @@ struct Probe {
     repeat: Option<(i32, i32)>,
     /// Whether the compositor asked the toplevel to close.
     closed: bool,
+    /// The frame callbacks that were done.
+    frames: u64,
     /// The clock of presentation times.
     clock: Option<u32>,
     /// The answer to the request for presentation feedback.
@@ -151,6 +177,10 @@ struct Probe {
     decoration_manager: Option<ZxdgDecorationManagerV1>,
     /// Kept alive so that the compositor keeps drawing the frame.
     decorations: Vec<ZxdgToplevelDecorationV1>,
+    /// Mode `window --report`: print the presses of buttons and keys.
+    report: bool,
+    /// The last point of the pointer on the surface.
+    pointer_at: (f64, f64),
 }
 
 /// The answer to a request for presentation feedback.
@@ -187,6 +217,8 @@ fn main() -> ExitCode {
         "capture" => capture::capture(&mut queue, &mut probe),
         "sandbox" => sandbox::sandbox(&mut queue, &mut probe),
         "window" => window(&mut queue, &mut probe),
+        "live" => live(&mut queue, &mut probe),
+        "clip" => clip(&mut queue, &mut probe),
         "activated" => activated(&mut queue, &mut probe),
         "repeat-info" => repeat_info(&mut queue, &mut probe),
         "held-commit" => match size_args() {
@@ -565,6 +597,14 @@ fn toplevel(queue: &mut Queue, probe: &mut Probe) -> Result<(WlSurface, XdgSurfa
     let qh = queue.handle();
     let wm_base = probe.wm_base.clone().ok_or("no xdg shell")?;
     let surface = create_surface(probe, &qh)?;
+    if probe.report
+        && let (Some(activation), Ok(token)) = (
+            probe.activation.as_ref(),
+            std::env::var("XDG_ACTIVATION_TOKEN"),
+        )
+    {
+        activation.activate(token, &surface);
+    }
     let xdg_surface = wm_base.get_xdg_surface(&surface, &qh, 1);
     let toplevel = xdg_surface.get_toplevel(&qh, ());
     toplevel.set_app_id("chora-probe".into());
@@ -590,17 +630,28 @@ fn create_surface(probe: &Probe, qh: &QueueHandle<Probe>) -> Result<WlSurface, S
 /// Shows a toplevel in one color until the probe is killed. Each configure
 /// with a new size gets a new buffer of that size.
 fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
-    let color: Vec<u8> = std::env::args()
-        .skip(2)
-        .filter_map(|a| a.parse().ok())
-        .collect();
-    let [red, green, blue] = color[..] else {
-        return Err("usage: window R G B".into());
+    let args: Vec<String> = std::env::args().skip(2).collect();
+    let usage = || "usage: window R G B [--exit-on-close] [--recolor FILE R G B]".to_owned();
+    let first = pixel_of(args.iter().take_while(|a| !a.starts_with("--"))).ok_or_else(usage)?;
+    let exit_on_close = args.iter().any(|a| a == "--exit-on-close");
+    let recolor = match args.iter().position(|a| a == "--recolor") {
+        Some(at) => {
+            let file = args.get(at + 1).ok_or_else(usage)?;
+            let next = pixel_of(args.iter().skip(at + 2)).ok_or_else(usage)?;
+            Some((std::path::PathBuf::from(file), next))
+        }
+        None => None,
     };
-    let exit_on_close = std::env::args().any(|a| a == "--exit-on-close");
-    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    let wait = if recolor.is_some() { HELD } else { TIMEOUT };
+    probe.report = args.iter().any(|a| a == "--report");
     let qh = queue.handle();
-    let mut shown = [0, 0];
+    if probe.report {
+        let seat = probe.seat.clone().ok_or("no seat")?;
+        seat.get_pointer(&qh, ());
+        seat.get_keyboard(&qh, ());
+    }
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    let mut shown = ([0, 0], first);
     loop {
         if exit_on_close && probe.closed {
             return Ok("closed".into());
@@ -610,13 +661,100 @@ fn window(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
             Some(&size) if size[0] > 0 && size[1] > 0 => size,
             _ => [200, 200],
         };
-        if size != shown {
-            paint(probe, &qh, &surface, size, [blue, green, red, 0xff])?;
-            shown = size;
+        let pixel = match &recolor {
+            Some((file, next)) if file.exists() => *next,
+            _ => first,
+        };
+        if (size, pixel) != shown {
+            paint(probe, &qh, &surface, size, pixel)?;
+            shown = (size, pixel);
         }
-        dispatch_until(queue, probe, TIMEOUT, |p| {
+        dispatch_until(queue, probe, wait, |p| {
             p.sizes.len() > configures || (exit_on_close && p.closed)
         });
+    }
+}
+
+/// The pixel of the first three numbers of arguments, R G B, in the
+/// byte order of the shm format.
+fn pixel_of<'a>(args: impl Iterator<Item = &'a String>) -> Option<[u8; 4]> {
+    let color: Vec<u8> = args.take(3).filter_map(|a| a.parse().ok()).collect();
+    let [red, green, blue] = color[..] else {
+        return None;
+    };
+    Some([blue, green, red, 0xff])
+}
+
+/// Shows a toplevel that commits a new color on each frame callback and
+/// reports the intervals of the callbacks.
+fn live(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let frames: usize = std::env::args()
+        .nth(2)
+        .and_then(|a| a.parse().ok())
+        .ok_or("usage: live FRAMES")?;
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    let qh = queue.handle();
+    let size = match probe.sizes.last() {
+        Some(&size) if size[0] > 0 && size[1] > 0 => size,
+        _ => [200, 200],
+    };
+    let mut times = Vec::with_capacity(frames);
+    for frame in 0..frames {
+        let seen = probe.frames;
+        surface.frame(&qh, ());
+        let shade = u8::try_from(frame % 256).unwrap_or(0);
+        paint(
+            probe,
+            &qh,
+            &surface,
+            size,
+            [shade, shade / 2, 255 - shade, 0xff],
+        )?;
+        if !dispatch_until(queue, probe, TIMEOUT, |p| p.frames > seen) {
+            return Err(format!("no frame callback after {frame} frames"));
+        }
+        times.push(monotonic());
+    }
+    let mut gaps: Vec<f64> = times
+        .windows(2)
+        .map(|pair| pair[1].saturating_sub(pair[0]).as_secs_f64() * 1000.0)
+        .collect();
+    gaps.sort_by(f64::total_cmp);
+    let mean = gaps.iter().sum::<f64>() / f64::from(u32::try_from(gaps.len().max(1)).unwrap_or(1));
+    let at = |part: usize| gaps.get(gaps.len() * part / 100).or(gaps.last());
+    let (p99, max) = (
+        at(99).copied().unwrap_or(0.0),
+        gaps.last().copied().unwrap_or(0.0),
+    );
+    Ok(format!(
+        "{frames} frames, mean {mean:.2} ms, p99 {p99:.2} ms, max {max:.2} ms"
+    ))
+}
+
+/// Shows a toplevel that offers a text as the selection from its first
+/// keyboard enter on, and reports each enter and leave on stdout.
+fn clip(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
+    let text = std::env::args().nth(2).ok_or("usage: clip TEXT")?;
+    probe.clip = Some(text);
+    let qh = queue.handle();
+    let seat = probe.seat.clone().ok_or("no seat")?;
+    let manager = probe.data_manager.clone().ok_or("no data device manager")?;
+    seat.get_keyboard(&qh, ());
+    let device = manager.get_data_device(&seat, &qh, ());
+    let source = manager.create_data_source(&qh, ());
+    source.offer("text/plain;charset=utf-8".into());
+    let (surface, _xdg_surface) = toplevel(queue, probe)?;
+    show(probe, &qh, &surface, [200, 200])?;
+    let mut offered = false;
+    loop {
+        let enters = probe.enters;
+        if !dispatch_until(queue, probe, TIMEOUT, |p| p.enters != enters) {
+            continue;
+        }
+        if !offered {
+            device.set_selection(Some(&source), probe.enter_serial);
+            offered = true;
+        }
     }
 }
 
@@ -730,6 +868,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Probe {
             }
             "wp_presentation" => probe.presentation = Some(registry.bind(name, 1, qh, ())),
             "xdg_activation_v1" => probe.activation = Some(registry.bind(name, 1, qh, ())),
+            "wl_data_device_manager" => probe.data_manager = Some(registry.bind(name, 3, qh, ())),
             "zwp_virtual_keyboard_manager_v1" => {
                 probe.keyboard_manager = Some(registry.bind(name, 1, qh, ()));
             }
@@ -856,8 +995,53 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Probe {
         _: &QueueHandle<Self>,
     ) {
         match event {
-            wl_keyboard::Event::Enter { .. } => probe.keyboard = true,
+            wl_keyboard::Event::Enter { serial, .. } => {
+                probe.keyboard = true;
+                probe.enter_serial = serial;
+                if probe.clip.is_some() {
+                    probe.enters += 1;
+                    println!("enter");
+                }
+            }
+            wl_keyboard::Event::Leave { .. } if probe.clip.is_some() => println!("leave"),
             wl_keyboard::Event::RepeatInfo { rate, delay } => probe.repeat = Some((rate, delay)),
+            wl_keyboard::Event::Key {
+                key,
+                state: WEnum::Value(wl_keyboard::KeyState::Pressed),
+                ..
+            } if probe.report => println!("key {key}"),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<wl_pointer::WlPointer, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &wl_pointer::WlPointer,
+        event: wl_pointer::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_pointer::Event::Enter {
+                surface_x,
+                surface_y,
+                ..
+            }
+            | wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } => probe.pointer_at = (surface_x, surface_y),
+            wl_pointer::Event::Button {
+                state: WEnum::Value(wl_pointer::ButtonState::Pressed),
+                ..
+            } if probe.report => {
+                let (x, y) = probe.pointer_at;
+                println!("press {x:.1} {y:.1}");
+            }
             _ => {}
         }
     }
@@ -922,7 +1106,57 @@ impl Dispatch<WlBuffer, ()> for Probe {
     }
 }
 
+impl Dispatch<WlCallback, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &WlCallback,
+        event: wl_callback::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_callback::Event::Done { .. } = event {
+            probe.frames += 1;
+        }
+    }
+}
+
 delegate_noop!(Probe: ignore WlCompositor);
+delegate_noop!(Probe: ignore WlDataDeviceManager);
+delegate_noop!(Probe: ignore WlDataOffer);
+
+impl Dispatch<WlDataDevice, ()> for Probe {
+    fn event(
+        _: &mut Self,
+        _: &WlDataDevice,
+        _: wl_data_device::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
+
+    event_created_child!(Probe, WlDataDevice, [
+        wl_data_device::EVT_DATA_OFFER_OPCODE => (WlDataOffer, ()),
+    ]);
+}
+
+/// The source gives its text to whoever asks for it.
+impl Dispatch<WlDataSource, ()> for Probe {
+    fn event(
+        probe: &mut Self,
+        _: &WlDataSource,
+        event: wl_data_source::Event,
+        (): &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_data_source::Event::Send { fd, .. } = event {
+            let text = probe.clip.clone().unwrap_or_default();
+            let _ = File::from(fd).write_all(text.as_bytes());
+        }
+    }
+}
 delegate_noop!(Probe: ignore WlSurface);
 delegate_noop!(Probe: ignore wl_shm::WlShm);
 delegate_noop!(Probe: ignore WlShmPool);

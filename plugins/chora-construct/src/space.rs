@@ -1,6 +1,8 @@
-//! The pure math of the space: the camera pose, the 4x4 matrix of a pane
-//! for the core (D66, as the loader prototype computes it), the leash, the
-//! place of a new pane, the fly-in pose and the ray of a click.
+//! The pure math of the space: the camera pose, the transforms of the
+//! camera group and of the panes in the 3D context of the core (D75), the
+//! projection of a pane for its label and its place, the leash, the place
+//! of a new pane, the fly-in pose and the ray of a press that the
+//! construct grabs.
 //!
 //! The world has x to the right, y up and z forward at yaw 0. One unit is
 //! one logical pixel. The eye and the centres of the panes sit at y = 0,
@@ -88,6 +90,14 @@ pub fn facing(eye: [f64; 2], at: [f64; 2]) -> f64 {
     (at[0] - eye[0]).atan2(at[1] - eye[1])
 }
 
+/// Whether an eye at `eye` sees the back of a pane at `at` with `yaw`:
+/// its front looks against its yaw, toward an eye that faces it.
+#[must_use]
+pub fn shows_back(eye: [f64; 2], at: [f64; 2], yaw: f64) -> bool {
+    let [fx, fz] = [yaw.sin(), yaw.cos()];
+    (eye[0] - at[0]) * fx + (eye[1] - at[1]) * fz >= 0.0
+}
+
 /// The right direction (x, z) of a pane with `yaw`, seen from its front.
 fn right(yaw: f64) -> [f64; 2] {
     [yaw.cos(), -yaw.sin()]
@@ -113,15 +123,79 @@ fn view(pose: &Pose) -> Mat {
 }
 
 /// The model of a pane of `size` with its centre at `at` and its own
-/// `yaw`: node point (u, v) to the world.
+/// `yaw`: node point (u, v, z) to the world, with z along the facing.
 #[must_use]
 fn model(at: [f64; 2], size: [f64; 2], yaw: f64) -> Mat {
     let r = right(yaw);
     let [w, h] = size;
     [
-        [r[0], 0.0, 0.0, at[0] - r[0] * w / 2.0],
+        [r[0], 0.0, yaw.sin(), at[0] - r[0] * w / 2.0],
         [0.0, -1.0, 0.0, h / 2.0],
-        [r[1], 0.0, 0.0, at[1] - r[1] * w / 2.0],
+        [r[1], 0.0, yaw.cos(), at[1] - r[1] * w / 2.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+/// A matrix, row by row, in the column-major order of the core.
+fn column_major(m: &Mat) -> [f64; 16] {
+    let mut out = [0.0; 16];
+    for (c, column) in out.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+        for (r, cell) in column.iter_mut().enumerate() {
+            *cell = m[r][c];
+        }
+    }
+    out
+}
+
+/// The transform of the camera group in the 3D context of the output,
+/// whose eye sits `lens.focal` in front of its centre: the world as the
+/// camera at `pose` sees it, with y down and z = 0 at the focal distance.
+#[must_use]
+pub fn camera(lens: &Lens, pose: &Pose) -> [f64; 16] {
+    let context = [
+        [1.0, 0.0, 0.0, lens.w / 2.0],
+        [0.0, -1.0, 0.0, lens.h / 2.0],
+        [0.0, 0.0, 1.0, -lens.focal],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    column_major(&mul(&context, &view(pose)))
+}
+
+/// The transform of a pane node in the camera group.
+#[must_use]
+pub fn pane_model(at: [f64; 2], size: [f64; 2], yaw: f64) -> [f64; 16] {
+    column_major(&model(at, size, yaw))
+}
+
+/// The transform of the mirror image of a pane in the ground, for a node
+/// of the pane's size divided by `k`: the node's top row is the pane's
+/// top row, deepest below the ground.
+#[must_use]
+pub fn mirror_model(lens: &Lens, at: [f64; 2], size: [f64; 2], yaw: f64, k: f64) -> [f64; 16] {
+    let flip = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, -1.0, 0.0, -2.0 * lens.ground],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    column_major(&mul(&flip, &mul(&model(at, size, yaw), &scale(k, 0.0))))
+}
+
+/// The transform of the glow node behind a pane: a node of the pane's
+/// size plus `reach` on each side, divided by `k`, so that its point
+/// (0, 0) lies at (-reach, -reach) of the pane.
+#[must_use]
+pub fn glow_model(at: [f64; 2], size: [f64; 2], yaw: f64, reach: f64, k: f64) -> [f64; 16] {
+    column_major(&mul(&model(at, size, yaw), &scale(k, -reach)))
+}
+
+/// A scale by `k` in the plane of a node, then a shift by `by` on both
+/// axes.
+fn scale(k: f64, by: f64) -> Mat {
+    [
+        [k, 0.0, 0.0, by],
+        [0.0, k, 0.0, by],
+        [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, 1.0],
     ]
 }
@@ -133,57 +207,18 @@ pub fn pane_matrix(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: 
     to_screen(lens, pose, &model(at, size, yaw))
 }
 
-/// The matrix of the mirror image of a pane in the ground, for a node of
-/// the pane's size divided by `k`: the node's top row is the pane's top
-/// row, deepest below the ground.
+/// The matrix for the `transform` of a node whose place in the camera
+/// group is the column-major `world`, as [`pane_matrix`] gives it for a
+/// pane: it takes the point (u, v) of the node to the output.
 #[must_use]
-#[allow(clippy::too_many_arguments, reason = "the pane and its scale")]
-pub fn mirror_matrix(
-    lens: &Lens,
-    pose: &Pose,
-    at: [f64; 2],
-    size: [f64; 2],
-    yaw: f64,
-    k: f64,
-) -> [f64; 16] {
-    let flip = [
-        [1.0, 0.0, 0.0, 0.0],
-        [0.0, -1.0, 0.0, -2.0 * lens.ground],
-        [0.0, 0.0, 1.0, 0.0],
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    let scale = [
-        [k, 0.0, 0.0, 0.0],
-        [0.0, k, 0.0, 0.0],
-        [0.0, 0.0, 1.0, 0.0],
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    let pane = model(at, size, yaw);
-    to_screen(lens, pose, &mul(&flip, &mul(&pane, &scale)))
-}
-
-/// The matrix of the glow node behind a pane: a node of the pane's size
-/// plus `reach` on each side, divided by `k`, so that its point (0, 0)
-/// lies at (-reach, -reach) of the pane.
-#[must_use]
-#[allow(clippy::too_many_arguments, reason = "the pane and its glow")]
-pub fn glow_matrix(
-    lens: &Lens,
-    pose: &Pose,
-    at: [f64; 2],
-    size: [f64; 2],
-    yaw: f64,
-    reach: f64,
-    k: f64,
-) -> [f64; 16] {
-    let scale = [
-        [k, 0.0, 0.0, -reach],
-        [0.0, k, 0.0, -reach],
-        [0.0, 0.0, 1.0, 0.0],
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    let pane = model(at, size, yaw);
-    to_screen(lens, pose, &mul(&pane, &scale))
+pub fn screen_matrix(lens: &Lens, pose: &Pose, world: &[f64; 16]) -> [f64; 16] {
+    let mut rows = [[0.0; 4]; 4];
+    for (c, column) in world.as_chunks::<4>().0.iter().enumerate() {
+        for (r, cell) in column.iter().enumerate() {
+            rows[r][c] = *cell;
+        }
+    }
+    to_screen(lens, pose, &rows)
 }
 
 /// The projection of a model to the output, column-major.
@@ -194,14 +229,7 @@ fn to_screen(lens: &Lens, pose: &Pose, model: &Mat) -> [f64; 16] {
         [0.0, 0.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
     ];
-    let m = mul(&proj, &mul(&view(pose), model));
-    let mut out = [0.0; 16];
-    for (c, column) in out.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-        for (r, cell) in column.iter_mut().enumerate() {
-            *cell = m[r][c];
-        }
-    }
-    out
+    column_major(&mul(&proj, &mul(&view(pose), model)))
 }
 
 /// The point (u, v) of a node on the output, through the column-major
@@ -212,6 +240,17 @@ pub fn project(m: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
     let y = m[1] * u + m[5] * v + m[13];
     let w = m[3] * u + m[7] * v + m[15];
     [x / w, y / w]
+}
+
+/// The middle of the projected bottom edge of a node of `size` that the
+/// column-major matrix `m` of [`pane_matrix`] puts on the output: the
+/// middle of the two projected bottom corners, which for a turned node
+/// is not the projection of the middle of the edge.
+#[must_use]
+pub fn bottom_middle(m: &[f64; 16], [w, h]: [f64; 2]) -> [f64; 2] {
+    let [ax, ay] = project(m, 0.0, h);
+    let [bx, by] = project(m, w, h);
+    [ax.midpoint(bx), ay.midpoint(by)]
 }
 
 /// The depth of a point in front of the camera, in camera space.
@@ -283,6 +322,38 @@ pub fn fly_in(lens: &Lens, at: [f64; 2], yaw: f64) -> Pose {
     }
 }
 
+/// Where a pane of `size` that faces the camera goes at the depth `d`,
+/// so that the point `point` of it shows under the screen x of `at`,
+/// for `(at, point)`: the
+/// pulled window stays under the pointer. A pane that fits in the view
+/// stays wholly in it, also for a pointer beside the view.
+#[must_use]
+pub fn under_pointer(
+    lens: &Lens,
+    pose: &Pose,
+    (at, point): ([f64; 2], [f64; 2]),
+    size: [f64; 2],
+    d: f64,
+) -> [f64; 2] {
+    let k = lens.focal / d;
+    let width = size[0] * k;
+    let left = (at[0] - point[0] * k).clamp(0.0, (lens.w - width).max(0.0));
+    let [fx, fz] = pose.forward();
+    let [rx, rz] = right(pose.yaw);
+    let place = |left: f64| {
+        let offset = (left + width / 2.0 - lens.w / 2.0) / k;
+        [pose.x + fx * d + rx * offset, pose.z + fz * d + rz * offset]
+    };
+    let first = place(left);
+    let turned = screen_box(lens, pose, first, size, facing([pose.x, pose.z], first));
+    let over = turned.map_or(0.0, |b| (b[2] - lens.w).max(0.0) - (-b[0]).max(0.0));
+    if over == 0.0 {
+        first
+    } else {
+        place(left - over)
+    }
+}
+
 /// Whether the whole pane lies in front of the eye. A corner at or behind
 /// it has `w <= 0`, and the core would stretch the quad over the output.
 #[must_use]
@@ -292,7 +363,7 @@ pub fn in_front(lens: &Lens, pose: &Pose, at: [f64; 2], size: [f64; 2], yaw: f64
 
 /// The box of a pane on the output: left, top, right, bottom; `None`
 /// when a corner lies at or behind the eye.
-fn screen_box(
+pub fn screen_box(
     lens: &Lens,
     pose: &Pose,
     at: [f64; 2],
@@ -377,9 +448,20 @@ pub fn place(
 /// The place of a pane of `width` that must come although no spot in
 /// the view is free, such as a pane of a construct file: `distance`
 /// ahead of the camera, or beside the panes in the way, right first,
-/// then left. `others` are the centres and widths of the panes.
+/// then left. `others` are the centres and widths of the panes. The
+/// spot goes farther out along its line of sight until the whole pane
+/// is on the screen of `lens`, so that no pane stands cut by the edge.
+/// A fixed search of 16 slots, each moved out along the line of sight and
+/// toward or past the slot; a crowded space past them stacks the pane on
+/// the last slot.
 #[must_use]
-pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]) -> [f64; 2] {
+pub fn beside(
+    lens: &Lens,
+    pose: &Pose,
+    distance: f64,
+    width: f64,
+    others: &[([f64; 2], f64)],
+) -> [f64; 2] {
     let [fx, fz] = pose.forward();
     let ahead = [pose.x + fx * distance, pose.z + fz * distance];
     let gap = width * 0.1;
@@ -388,23 +470,59 @@ pub fn beside(pose: &Pose, distance: f64, width: f64, others: &[([f64; 2], f64)]
             .iter()
             .all(|(q, w)| (p[0] - q[0]).hypot(p[1] - q[1]) >= (width + w) / 2.0 + gap)
     };
-    // ponytail: a fixed search of 16 slots; a crowded space past them
-    // stacks the pane on the last slot.
-    let mut spot = ahead;
-    for k in 0..16_i32 {
-        let side = f64::from((k + 1) / 2) * if k % 2 == 1 { 1.0 } else { -1.0 };
-        let shift = side * (width + gap);
-        spot = [ahead[0] + fz * shift, ahead[1] - fx * shift];
-        if free(spot) {
-            break;
-        }
-    }
-    spot
+    let size = [width, width * lens.h / lens.w];
+    let from = [pose.x, pose.z];
+    let boxes: Vec<[f64; 4]> = (others.iter())
+        .filter_map(|(q, w)| {
+            screen_box(lens, pose, *q, [*w, w * lens.h / lens.w], facing(from, *q))
+        })
+        .collect();
+    let seen = |p: [f64; 2]| {
+        let clear = |b: [f64; 4]| {
+            b[0] >= 0.0
+                && b[2] <= lens.w
+                && boxes
+                    .iter()
+                    .all(|o| b[2] + 8.0 <= o[0] || o[2] + 8.0 <= b[0])
+        };
+        screen_box(lens, pose, p, size, facing(from, p)).is_some_and(clear) && free(p)
+    };
+    let slot = |k: i32| {
+        let sign = if k % 2 == 1 { 1.0 } else { -1.0 };
+        let shift = f64::from((k + 1) / 2) * sign * (width + gap);
+        [ahead[0] + fz * shift, ahead[1] - fx * shift]
+    };
+    let moved = |spot: [f64; 2], m: f64, s: f64| {
+        let slot = [
+            ahead[0] + (spot[0] - ahead[0]) * s,
+            ahead[1] + (spot[1] - ahead[1]) * s,
+        ];
+        [
+            from[0] + (slot[0] - from[0]) * m,
+            from[1] + (slot[1] - from[1]) * m,
+        ]
+    };
+    let nearest = |spot: [f64; 2]| {
+        (0..=30_i32)
+            .flat_map(|k| {
+                [
+                    0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8, 9, -9, 10, -10,
+                ]
+                .map(|j| (1.0 + f64::from(k) * 0.1, 1.0 + f64::from(j) * 0.1))
+            })
+            .map(|(m, s)| moved(spot, m, s))
+            .find(|&p| seen(p))
+    };
+    (0..16_i32)
+        .find_map(|k| nearest(slot(k)))
+        .unwrap_or_else(|| slot(15))
 }
 
 /// Where the ray through the screen point `p` hits a pane of `size` at
 /// `at` with `yaw`, from either side: its distance along the ray, or
-/// `None`.
+/// `None`. Only a press that the construct grabs needs it: the core casts
+/// the ray of all other input. With the distance comes the point (u, v)
+/// of the pane under the ray.
 #[must_use]
 #[allow(clippy::too_many_arguments, reason = "the ray and the pane")]
 pub fn hit(
@@ -414,7 +532,7 @@ pub fn hit(
     at: [f64; 2],
     size: [f64; 2],
     yaw: f64,
-) -> Option<f64> {
+) -> Option<(f64, [f64; 2])> {
     // The ray in camera space, then undo the pitch and the yaw.
     let (x, y) = (
         (p[0] - lens.w / 2.0) / lens.focal,
@@ -439,7 +557,8 @@ pub fn hit(
         eye[1] + ray[2] * t - at[1],
     ];
     let u = hit[0] * r[0] + hit[2] * r[1];
-    (t > 0.0 && u.abs() <= size[0] / 2.0 && hit[1].abs() <= size[1] / 2.0).then_some(t)
+    (t > 0.0 && u.abs() <= size[0] / 2.0 && hit[1].abs() <= size[1] / 2.0)
+        .then_some((t, [u + size[0] / 2.0, size[1] / 2.0 - hit[1]]))
 }
 
 #[cfg(test)]
@@ -459,6 +578,25 @@ mod tests {
 
     /// A pane that faces the camera, from any side, shows upright and
     /// unmirrored, its left edge left of its right edge.
+
+    #[test]
+    fn a_pulled_pane_holds_its_point_under_the_pointer_inside_the_view() {
+        let pose = Pose::default();
+        let size = [200.0, 100.0];
+        let at = under_pointer(&LENS, &pose, ([900.0, 300.0], [50.0, 10.0]), size, 700.0);
+        assert!((depth(&pose, at) - 700.0).abs() < 1e-9);
+        let yaw = facing([pose.x, pose.z], at);
+        let shown = screen_box(&LENS, &pose, at, size, yaw).expect("in view");
+        let left = 900.0 - 50.0 * LENS.focal / 700.0;
+        assert!((shown[0] - left).abs() < 5.0, "{shown:?} {left}");
+        let beside = under_pointer(&LENS, &pose, ([1480.0, 300.0], [50.0, 10.0]), size, 700.0);
+        let yaw = facing([pose.x, pose.z], beside);
+        let shown = screen_box(&LENS, &pose, beside, size, yaw).expect("in view");
+        assert!(
+            shown[2] <= LENS.w + 5.0 && shown[0] > 0.0,
+            "in the view: {shown:?}"
+        );
+    }
     #[test]
     fn a_pane_faces_the_camera() {
         let at = [300.0, 2000.0];
@@ -506,17 +644,73 @@ mod tests {
         assert!(close(project(&m, 800.0, 600.0), [1040.0, 700.0]));
     }
 
+    /// A point (u, v) of a node with the transform `model` in the camera
+    /// group, as the 3D context of the core projects it: w = 1 + z / d
+    /// around the centre of the output.
+    fn in_context(pose: &Pose, model: &[f64; 16], u: f64, v: f64) -> [f64; 2] {
+        let c = camera(&LENS, pose);
+        let apply = |m: &[f64; 16], p: [f64; 3]| {
+            [0, 1, 2].map(|r| m[r] * p[0] + m[4 + r] * p[1] + m[8 + r] * p[2] + m[12 + r])
+        };
+        let [x, y, z] = apply(&c, apply(model, [u, v, 0.0]));
+        let w = 1.0 + z / LENS.focal;
+        [
+            LENS.w / 2.0 + (x - LENS.w / 2.0) / w,
+            LENS.h / 2.0 + (y - LENS.h / 2.0) / w,
+        ]
+    }
+
+    /// The core shows a pane in the camera group where the projection of
+    /// the construct puts it, from any pose.
+    #[test]
+    fn the_context_of_the_core_shows_a_pane_where_the_lens_projects_it() {
+        let (at, size, yaw) = ([-400.0, 1800.0], [640.0, 400.0], 0.6);
+        let pose = Pose {
+            x: 120.0,
+            z: -300.0,
+            yaw: 0.2,
+            pitch: 0.1,
+        };
+        let model = pane_model(at, size, yaw);
+        let m = pane_matrix(&LENS, &pose, at, size, yaw);
+        for (u, v) in [(0.0, 0.0), (640.0, 0.0), (100.0, 300.0), (640.0, 400.0)] {
+            assert!(
+                close(in_context(&pose, &model, u, v), project(&m, u, v)),
+                "{u} {v}"
+            );
+        }
+    }
+
+    /// From the fly-in pose the camera group maps the pane at z = 0, so the
+    /// core draws it at 1:1.
+    #[test]
+    fn a_pane_flown_into_lies_at_the_focal_plane() {
+        let (at, yaw) = ([300.0, 2000.0], -0.4);
+        let pose = fly_in(&LENS, at, yaw);
+        let model = pane_model(at, [1280.0, 800.0], yaw);
+        for (u, v) in [(0.0, 0.0), (1280.0, 800.0)] {
+            assert!(close(in_context(&pose, &model, u, v), [u, v]), "{u} {v}");
+        }
+    }
+
     /// The mirror image hangs under the ground: the pane's bottom row
     /// shows as deep below the ground as the pane floats above it, the
     /// top row deeper still.
     #[test]
     fn the_mirror_image_hangs_under_the_ground() {
         let at = [0.0, 2000.0];
-        let m = mirror_matrix(&LENS, &Pose::default(), at, [1280.0, 800.0], 0.0, 4.0);
+        let m = mirror_model(&LENS, at, [1280.0, 800.0], 0.0, 4.0);
         // The world point (0, y, 2000) shows at 400 - y * 832 / 2000.
         let screen = |y: f64| [640.0, 400.0 - y * 832.0 / 2000.0];
-        assert!(close(project(&m, 160.0, 200.0), screen(-1120.0 + 400.0)));
-        assert!(close(project(&m, 160.0, 0.0), screen(-1120.0 - 400.0)));
+        let pose = Pose::default();
+        assert!(close(
+            in_context(&pose, &m, 160.0, 200.0),
+            screen(-1120.0 + 400.0)
+        ));
+        assert!(close(
+            in_context(&pose, &m, 160.0, 0.0),
+            screen(-1120.0 - 400.0)
+        ));
     }
 
     /// The label of a pane straight ahead sits centred under it.
@@ -585,7 +779,9 @@ mod tests {
         };
         let at = [0.0, 1664.0]; // twice the focal length: half size
         let size = [1280.0, 800.0];
-        assert!((hit(&LENS, &pose, [640.0, 400.0], at, size, 0.0).unwrap() - 1664.0).abs() < 1e-9);
+        assert!(
+            (hit(&LENS, &pose, [640.0, 400.0], at, size, 0.0).unwrap().0 - 1664.0).abs() < 1e-9
+        );
         assert!(hit(&LENS, &pose, [330.0, 400.0], at, size, 0.0).is_some());
         assert!(hit(&LENS, &pose, [310.0, 400.0], at, size, 0.0).is_none());
         assert!(hit(&LENS, &pose, [640.0, 190.0], at, size, 0.0).is_none());
@@ -676,6 +872,19 @@ mod tests {
     }
 
     #[test]
+    fn a_pane_shows_its_back_to_an_eye_behind_its_face() {
+        let at = [0.0, 2000.0];
+        let yaw = facing([0.0, 0.0], at);
+        assert!(!shows_back([0.0, 0.0], at, yaw));
+        assert!(shows_back([0.0, 3000.0], at, yaw));
+        assert!(shows_back(
+            [-3000.0, 0.0],
+            [-3000.0, 2000.0],
+            std::f64::consts::PI
+        ));
+    }
+
+    #[test]
     fn a_glide_turns_the_short_way() {
         let a = Pose {
             x: 0.0,
@@ -686,5 +895,36 @@ mod tests {
         let b = Pose { yaw: -3.0, ..a };
         let mid = a.lerp(&b, 0.5);
         assert!((mid.yaw - (3.0 + (std::f64::consts::TAU - 6.0) / 2.0)).abs() < 1e-9);
+    }
+
+    /// The label of a turned pane hangs at the middle of its projected
+    /// bottom edge, which is not the projection of the middle of the edge.
+    #[test]
+    fn the_label_of_a_turned_pane_hangs_at_the_middle_of_its_projected_bottom_edge() {
+        let size = [1280.0, 800.0];
+        let pose = Pose::default();
+        let yaw = facing([0.0, 0.0], [300.0, 1500.0]) + 0.8;
+        let m = pane_matrix(&LENS, &pose, [300.0, 1500.0], size, yaw);
+        let [ax, ay] = project(&m, 0.0, size[1]);
+        let [bx, by] = project(&m, size[0], size[1]);
+        let [x, y] = bottom_middle(&m, size);
+        assert!((x - ax.midpoint(bx)).abs() < 1e-9, "{x}");
+        assert!((y - ay.midpoint(by)).abs() < 1e-9, "{y}");
+        let [mx, _] = project(&m, size[0] / 2.0, size[1]);
+        assert!((mx - x).abs() > 0.5, "the two middles differ: {mx} and {x}");
+    }
+
+    #[test]
+    fn panes_beside_stand_whole_on_the_screen_and_clear_of_each_other() {
+        let lens = Lens::new(1280.0, 800.0);
+        let pose = Pose::default();
+        let size = [1280.0, 800.0];
+        let mut others: Vec<([f64; 2], f64)> = Vec::new();
+        for n in 0..3 {
+            let at = beside(&lens, &pose, 2000.0, size[0], &others);
+            let b = screen_box(&lens, &pose, at, size, facing([0.0, 0.0], at)).unwrap();
+            assert!(b[0] >= 0.0 && b[2] <= lens.w, "pane {n} is cut: {b:?}");
+            others.push((at, size[0]));
+        }
     }
 }

@@ -3,15 +3,26 @@
 # method settings.set or the dialogs of chora-xp, which rewrite the file.
 # Edits by hand apply on the method settings.reload or restart.
 
-# The shell command of the terminal, for Super+e, the Terminal of the
-# start menu and the desktop files that need a terminal.
+# The shell command of the terminal, for the Terminal of the start menu
+# and the desktop files that need a terminal.
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
 terminal: foot
-# The shell command of Run, and of All Programs when no desktop file
-# lists a program.
+# The shell command of Run and of Super+Space, and of All Programs when no
+# desktop file lists a program.
 launcher: fuzzel
-# The shell command of the file manager, for the places of the start menu
-# and the folders of the desktop; the folder follows it.
+# The shell command of the file manager, for Super+e, the places of the
+# start menu and the folders of the desktop; the folder follows it. When it
+# is not installed, Super+e says so in a balloon.
 file_manager: thunar
+# The shell command of the plain text editor, Notepad of the start menu
+# and of All Programs > Accessories. Without one (null), or when its
+# program is not installed, the first installed editor with a window
+# serves (gedit, mousepad, kate and others), else the editor of VISUAL or
+# EDITOR, nano, vim or vi in the terminal. Without any, there is no
+# Notepad.
+editor:
 # The programs of the start menu, at its top left below Terminal: the
 # title, the shell command and the name of the icon.
 programs: []
@@ -46,9 +57,3 @@ session:
   restart: systemctl reboot
   stand_by: systemctl suspend
   log_off: choractl quit
-# The paperclip above the taskbar that shows the voice agent: its state,
-# and its sentences in a balloon; dimmed with its eyes shut while the
-# agent sleeps and listens for its wake words. A click on it mutes or
-# unmutes the mic.
-assistant:
-  enabled: true

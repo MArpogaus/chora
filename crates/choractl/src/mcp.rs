@@ -28,7 +28,7 @@ use chora_scene::{
 use rmcp::{
     model::{
         CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorCode,
-        ErrorData, Implementation, JsonObject, ListToolsResult, PaginatedRequestParams,
+        ErrorData, Implementation, JsonObject, ListToolsResult, MetaObject, PaginatedRequestParams,
         ServerCapabilities, ServerConfig, Tool,
     },
     service::{RequestContext, RoleServer},
@@ -394,6 +394,13 @@ fn tool(
     Tool::new(name, description, object(&schema))
 }
 
+/// A tool that needs `methods.privileged`, with the flag in its `_meta`
+/// as a privileged plugin method has it.
+fn privileged(mut tool: Tool) -> Tool {
+    tool.meta = Some(MetaObject(object(&json!({"privileged": true}))));
+    tool
+}
+
 /// A tool whose input schema comes from the type of its parameters, so that
 /// the model sees every command and every field.
 fn typed_tool<T: schemars::JsonSchema>(name: &'static str, description: &'static str) -> Tool {
@@ -405,7 +412,8 @@ fn object(schema: &Value) -> JsonObject {
 }
 
 /// One tool per exported plugin method: the name `client.method`, the
-/// description and the input schema of the export. A plain export gets a
+/// description and the input schema of the export, and in its `_meta`
+/// whether the method is privileged. A plain export gets a
 /// schema that accepts any object.
 fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
     methods
@@ -420,7 +428,10 @@ fn plugin_tools(methods: &[Value]) -> Vec<Tool> {
             let description = method["description"]
                 .as_str()
                 .map_or_else(|| format!("Call {client}.{name}."), str::to_owned);
-            Some(Tool::new(format!("{client}.{name}"), description, schema))
+            let mut tool = Tool::new(format!("{client}.{name}"), description, schema);
+            let privileged = method["privileged"].as_bool().unwrap_or(false);
+            tool.meta = Some(MetaObject(object(&json!({"privileged": privileged}))));
+            Some(tool)
         })
         .collect()
 }
@@ -536,19 +547,19 @@ fn session_tools() -> Vec<Tool> {
             }),
             &["argv"],
         ),
-        tool(
+        privileged(tool(
             "configure_output",
-            "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
+            "Set the scale or the transform of an output, as wlr-randr does. The client name needs the grant methods.privileged on every socket. Returns the output.",
             &json!({
                 "output": {"type": "string", "description": "the output name; the first output if missing"},
                 "scale": {"type": "number", "minimum": 0.1, "maximum": 10},
                 "transform": {"enum": ["normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"]},
             }),
             &[],
-        ),
-        tool(
+        )),
+        privileged(tool(
             "reserve_space",
-            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. Returns the output with its new work_area in scene coordinates.",
+            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. The client name needs the grant methods.privileged on every socket. Returns the output with its new work_area in scene coordinates.",
             &json!({
                 "output": {"type": "string", "description": "the output name; the first output if missing"},
                 "top": {"type": "integer", "minimum": 0},
@@ -557,7 +568,7 @@ fn session_tools() -> Vec<Tool> {
                 "left": {"type": "integer", "minimum": 0},
             }),
             &[],
-        ),
+        )),
         tool(
             "put_asset",
             "Store a file for image nodes, shader nodes and effects in a directory of chora, and get its absolute path, since chora may not see the files of the agent, for example in another container. Pass a shader as text and a PNG in base64, at most 512 KiB. A second put of a name replaces the file, and nodes that use it reload it.",
@@ -698,7 +709,7 @@ fn run_tool(core: &mut Core, name: &str, args: &Value) -> Result<Vec<ContentBloc
 /// itself: the confined connection needs the grant `activation.token`.
 fn run_program(core: &mut Core, args: &Value) -> Result<Vec<ContentBlock>, Failure> {
     let program: Vec<String> = arg(&args["argv"])?;
-    let line = crate::run_program(core.connected()?, &program, None)?;
+    let line = crate::run_program(core.connected()?, &program, (None, None))?;
     Ok(vec![json_text(&line)])
 }
 
@@ -915,6 +926,34 @@ mod tests {
             Some("Call tiling.give.")
         );
         assert_eq!(exported[1].input_schema["type"], "object");
+    }
+
+    /// The agent asks before a privileged method, and learns of it from
+    /// the `_meta` of its tool.
+    #[test]
+    fn a_tool_carries_the_privileged_flag_in_its_meta() {
+        let methods = vec![
+            json!({"client": "mc", "name": "app.open", "description": null,
+                   "input_schema": null, "privileged": true}),
+            json!({"client": "mc", "name": "scene.show", "description": null,
+                   "input_schema": null, "privileged": false}),
+        ];
+        let flag = |tool: &Tool| tool.meta.as_ref().map(|m| m.0["privileged"].clone());
+        let exported = plugin_tools(&methods);
+        assert_eq!(flag(&exported[0]), Some(json!(true)));
+        assert_eq!(flag(&exported[1]), Some(json!(false)));
+    }
+
+    /// `configure_output` and `reserve_space` call methods that need
+    /// `methods.privileged`, so their tools carry the flag too.
+    #[test]
+    fn the_output_tools_are_privileged() {
+        for name in ["configure_output", "reserve_space"] {
+            let tools = session_tools();
+            let tool = tools.iter().find(|t| t.name == name).unwrap();
+            let flag = tool.meta.as_ref().map(|m| m.0["privileged"].clone());
+            assert_eq!(flag, Some(json!(true)), "{name}");
+        }
     }
 
     #[test]

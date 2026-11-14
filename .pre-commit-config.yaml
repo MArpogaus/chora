@@ -24,6 +24,36 @@ repos:
     entry: tests/no-agent-trailers.sh
     language: script
     stages: [commit-msg]
+  - id: commit-message-length
+    name: commit message length (subject 68, body lines 72 characters)
+    entry: python3 -I tests/commit-message-length.py
+    language: system
+    stages: [commit-msg]
+  - id: no-inline-comments
+    name: no inline comments in added lines of Rust, shell and Python
+    entry: python3 -I tests/no-inline-comments.py
+    language: system
+    types_or: [rust, shell, python]
+    stages: [pre-commit]
+  - id: no-session-files
+    name: no session logs, reports or media in the repository
+    entry: session logs, reports and media belong outside the repository
+    language: fail
+    files: ^(plans/autonomy/|reports/|reflections/|media/|drafts/|(charter|state|ledger|friction|answers|questions|backlog|HANDOFF)\.md$)
+  - id: no-foreign-kill
+    name: no process picked or signalled by its name alone in test scripts
+    entry: tests/no-foreign-kill.sh
+    language: script
+    files: ^tests/.*\.sh$
+    exclude: ^tests/(no-foreign-kill\.sh|guards\.sh)$
+    stages: [pre-commit]
+  - id: guards
+    name: guard test (tests/guards.sh proves the commit guards red and green)
+    entry: bash tests/guards.sh
+    language: system
+    files: ^(tests/(guards\.sh|no-inline-comments\.py|commit-message-length\.py|no-foreign-kill\.sh)|\.pre-commit-config\.yaml)$
+    pass_filenames: false
+    stages: [pre-commit]
   - id: lychee
     name: lychee (offline links in the Markdown files)
     entry: lychee --config lychee.toml
@@ -38,7 +68,7 @@ repos:
 
 # Python: lint with the complexity guards of ruff.toml, and format.
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.17.2
+  rev: v0.17.3
   hooks:
   - id: ruff-check
     args: [--fix]
@@ -85,7 +115,7 @@ repos:
 
 # Allowed words are in _typos.toml, next to the German voice phrases.
 - repo: https://github.com/crate-ci/typos
-  rev: v1.51.1
+  rev: v1.52.0
   hooks:
   - id: typos
     args: [--force-exclude]   # pre-commit passes the file names
@@ -96,7 +126,7 @@ repos:
   - id: actionlint
 
 - repo: https://github.com/commitizen-tools/commitizen
-  rev: v4.19.0
+  rev: v4.19.3
   hooks:
   - id: commitizen
     stages: [commit-msg]

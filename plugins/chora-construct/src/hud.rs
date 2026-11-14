@@ -28,6 +28,10 @@ use crate::config::{Colors, Style};
 pub const LABEL: &str = "construct-label";
 const LABEL_GLASS: &str = "construct-label-glass";
 const LABEL_TEXT: &str = "construct-label-text";
+/// The glass capsule of the pane label and its text, made anew for each
+/// pane.
+pub const LABEL_BODY: &str = "construct-label-body";
+const LABEL_TEXT_BODY: &str = "construct-label-body-text";
 pub const HUD: &str = "construct-hud";
 const HUD_GLASS: &str = "construct-hud-glass";
 pub const HUD_GLOW: &str = "construct-hud-glow";
@@ -37,14 +41,9 @@ pub const LIST: &str = "construct-list";
 pub const LIST_GLASS: &str = "construct-list-glass";
 pub const LIST_GLOW: &str = "construct-list-glow";
 pub const LIST_LABEL: &str = "construct-list-label";
-/// The rows of the list, made anew on each change.
-pub const LIST_ROWS_GROUP: &str = "construct-list-rows";
 pub const ASK: &str = "construct-ask";
 /// The help panel with the bindings.
 pub const HELP: &str = "construct-help";
-const HELP_GLASS: &str = "construct-help-glass";
-const HELP_GLOW: &str = "construct-help-glow";
-const HELP_WIDTH: f64 = 480.0;
 /// The glass of a question takes the wheel that scrolls it.
 pub const ASK_GLASS: &str = "construct-ask-glass";
 pub const ASK_GLOW: &str = "construct-ask-glow";
@@ -54,12 +53,14 @@ pub const ASK_BODY: &str = "construct-ask-body";
 pub const ASK_YES: &str = "construct-ask-yes";
 pub const ASK_NO: &str = "construct-ask-no";
 
-/// The three roles of type (rule 2): the size and the line.
+/// The roles of type: the three of the voice HUD of the construct
+/// (rule 2), and the faces of the glass HUD (rule 23) in a weight.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Role {
     Label,
     Data,
     Text,
+    Face(chora_kit::glass::Type, u16),
 }
 
 impl Role {
@@ -68,6 +69,7 @@ impl Role {
             Self::Label => (11.0, 16.0),
             Self::Data => (12.0, 16.0),
             Self::Text => (16.0, 24.0),
+            Self::Face(face, _) => (face.face().size, face.face().line),
         }
     }
 }
@@ -77,11 +79,8 @@ const RING: f64 = 40.0;
 /// The widths at which a spoken sentence and a question wrap.
 const SAY_WIDTH: f64 = 480.0;
 const ASK_WIDTH: f64 = 640.0;
-/// The window list: the rows that it shows at most, its width and its
-/// line.
+/// The window list: the rows that it shows at most.
 pub const LIST_ROWS: usize = 12;
-pub const LIST_WIDTH: f64 = 560.0;
-pub const LIST_LINE: f64 = 24.0;
 /// The fades of rule 12, in milliseconds.
 pub const FADE_IN: f64 = 160.0;
 const GLOW_IN: f64 = 240.0;
@@ -109,6 +108,23 @@ pub fn mode(state: &str) -> (f64, &'static str) {
         "speaking" => (5.0, "SPEAKING"),
         _ => (1.0, ""),
     }
+}
+
+/// A chip of the cube: a capsule 32 high with its words in `small` 500.
+const CHIP_HEIGHT: f64 = 32.0;
+const CHIP_ROLE: Role = Role::Face(chora_kit::glass::Type::Small, 500);
+
+fn rgb3(c: [f64; 4]) -> [f64; 3] {
+    [c[0], c[1], c[2]]
+}
+
+/// The opacity of the label of a pane that is not in focus.
+pub const NEIGHBOUR_OPACITY: f64 = 0.6;
+
+/// The id of the label of pane `k` that is not in focus.
+#[must_use]
+pub fn neighbour_id(k: usize) -> String {
+    format!("construct-label-n-{k}")
 }
 
 /// The width of the pill of a pane label at most.
@@ -221,6 +237,9 @@ fn width(role: Role, text: &str) -> f64 {
         Role::Label => 0.72,
         Role::Data => 0.602,
         Role::Text => 0.5,
+        Role::Face(face, _) if face.face().mono => 0.602,
+        Role::Face(face, _) if face.face().caps => 0.72,
+        Role::Face(..) => 0.55,
     };
     (text.chars().count() as f64 * role.size().0 * k).ceil()
 }
@@ -277,6 +296,10 @@ pub struct Look<'a> {
     pub plain: bool,
     /// The path of `glass.frag`.
     pub shader: &'a str,
+    /// The path of `shadow.frag`.
+    pub shadow: &'a str,
+    /// The tokens of the glass of the theme.
+    pub glass: chora_kit::glass::Material,
     /// The sizes of the texts.
     pub metrics: &'a Metrics,
 }
@@ -378,7 +401,29 @@ impl Look<'_> {
         )
     }
 
-    fn text_props(&self, role: Role, text: &str, color: [f64; 3]) -> PropsUpdate {
+    pub fn text_props(&self, role: Role, text: &str, color: [f64; 3]) -> PropsUpdate {
+        if let Role::Face(face, weight) = role {
+            let face = face.face();
+            let shown = if face.caps {
+                text.to_uppercase()
+            } else {
+                text.to_owned()
+            };
+            return PropsUpdate {
+                text: Some(if shown.is_empty() { " ".into() } else { shown }),
+                family: Some(if face.mono {
+                    self.style.mono.clone()
+                } else {
+                    self.style.font.clone()
+                }),
+                font_size: Some(face.size),
+                line_height: Some(face.line / face.size),
+                weight: Some(weight),
+                letter_spacing: (face.spacing != 0.0).then_some(face.spacing),
+                color: rgba(color, 1.0),
+                ..PropsUpdate::default()
+            };
+        }
         let (size, line) = role.size();
         let label = matches!(role, Role::Label);
         PropsUpdate {
@@ -552,90 +597,204 @@ impl Look<'_> {
         commands
     }
 
-    /// The pane label of `name`: its text and its pill, which fade in, as
-    /// the transform of the group moves with each frame. `fresh` starts
-    /// the fade from 0. Answers the width of the pill.
+    /// The pane label of `name` (construct HUD spec, section 5): a glass
+    /// capsule 32 high with the title in `small` 500, at most 320 wide,
+    /// made anew in the group of the label, which moves with each frame.
+    /// `drawn` takes the old one away first; `fresh` fades it in. Answers
+    /// the width of the capsule.
     #[must_use]
-    pub fn label(&self, name: &str, fresh: bool) -> (Vec<Command>, f64) {
-        let pad = self.pad();
-        let text = self.one_line(Role::Label, &name.to_uppercase(), LABEL_MAX - pad * 2.0);
-        let w = (self.size(Role::Label, &text, None)[0] + pad * 2.0).ceil();
-        let start = PropsUpdate {
-            visible: Some(true),
-            opacity: fresh.then_some(0.0),
-            ..PropsUpdate::default()
-        };
-        let commands = vec![
-            update(
-                LABEL_GLASS,
-                PropsUpdate {
-                    size: Some([w, self.style.unit * 4.0]),
-                    ..start.clone()
-                },
-            ),
-            update(
-                LABEL_TEXT,
-                PropsUpdate {
-                    transform: at(self.pad(), self.style.unit),
-                    ..PropsUpdate {
-                        ..self.text_props(Role::Label, &text, self.colors.text)
-                    }
-                },
-            ),
-            update(LABEL_TEXT, start),
-            fade(LABEL_GLASS, 1.0, FADE_IN),
-            fade(LABEL_TEXT, 1.0, FADE_IN),
-        ];
+    pub fn label(&self, name: &str, fresh: bool, drawn: bool) -> (Vec<Command>, f64) {
+        use chora_kit::glass::{LABEL_CAPSULE, Type};
+        let role = Role::Face(Type::Small, 500);
+        let pad = 2.0 * self.style.unit;
+        let text = self.one_line(role, name, LABEL_MAX - pad * 2.0);
+        let w = (self.size(role, &text, None)[0] + pad * 2.0).ceil();
+        let mut commands = Vec::new();
+        if drawn {
+            commands.push(Command::Remove {
+                id: LABEL_BODY.into(),
+                to: None,
+            });
+        }
+        commands.extend(crate::glass::surface(
+            self,
+            &self.glass,
+            &crate::glass::Surface {
+                id: LABEL_BODY,
+                parent: LABEL,
+                rect: [0.0, 0.0, w, LABEL_CAPSULE],
+                radius: LABEL_CAPSULE / 2.0,
+                strong: false,
+                name: "pane-label",
+                input: InputMode::Pass,
+            },
+        ));
+        commands.push(crate::glass::text(
+            self,
+            LABEL_TEXT_BODY,
+            LABEL_BODY,
+            (role, &text),
+            [pad, (LABEL_CAPSULE - 20.0) / 2.0],
+            self.glass.text,
+        ));
+        commands.push(update(
+            LABEL_BODY,
+            PropsUpdate {
+                opacity: Some(if fresh { 0.0 } else { 1.0 }),
+                ..PropsUpdate::default()
+            },
+        ));
+        commands.push(fade(LABEL_BODY, 1.0, FADE_IN));
         (commands, w)
+    }
+
+    /// The label of a pane that is not the focus (the brief: every pane
+    /// has a label): the capsule of [`Self::label`] at 60 % in a group of
+    /// its own, `construct-label-n-{k}`, which the walk moves with each
+    /// frame. Answers the commands and the width.
+    #[must_use]
+    pub fn neighbour_label(&self, k: usize, name: &str) -> (Vec<Command>, f64) {
+        use chora_kit::glass::{LABEL_CAPSULE, Type};
+        let role = Role::Face(Type::Small, 500);
+        let pad = 2.0 * self.style.unit;
+        let text = self.one_line(role, name, LABEL_MAX - pad * 2.0);
+        let w = (self.size(role, &text, None)[0] + pad * 2.0).ceil();
+        let id = neighbour_id(k);
+        let mut commands = crate::glass::surface(
+            self,
+            &self.glass,
+            &crate::glass::Surface {
+                id: &id,
+                parent: crate::NAME,
+                rect: [0.0, 0.0, w, LABEL_CAPSULE],
+                radius: LABEL_CAPSULE / 2.0,
+                strong: false,
+                name: "pane-label",
+                input: InputMode::Pass,
+            },
+        );
+        commands.push(crate::glass::text(
+            self,
+            &format!("{id}-text"),
+            &id,
+            (role, &text),
+            [pad, (LABEL_CAPSULE - 20.0) / 2.0],
+            self.glass.text,
+        ));
+        commands.push(update(
+            &id,
+            PropsUpdate {
+                opacity: Some(NEIGHBOUR_OPACITY),
+                ..PropsUpdate::default()
+            },
+        ));
+        (commands, w)
+    }
+
+    /// A chip of the modes of a cube (K4): a glass capsule, which takes
+    /// the click, and its words in `small` 500, both hidden until the mode
+    /// shows it.
+    #[must_use]
+    pub fn chip(&self, id: &str, parent: &str, text: &str) -> Vec<Command> {
+        let m = &self.glass;
+        let glass = create(
+            id,
+            NodeKind::Rect,
+            parent,
+            PropsUpdate {
+                size: Some([1.0, 1.0]),
+                color: Some(m.fill(false)),
+                radius: Some(CHIP_HEIGHT / 2.0),
+                border: Some(Some(Border {
+                    width: 1.0,
+                    color: m.edge_out,
+                })),
+                input: Some(InputMode::Accept),
+                visible: Some(false),
+                meta: Some(BTreeMap::from([("surface".into(), "chip".into())])),
+                ..PropsUpdate::default()
+            },
+        );
+        let mut label = create(
+            &format!("{id}-text"),
+            NodeKind::Text,
+            parent,
+            self.text_props(CHIP_ROLE, text, rgb3(m.text)),
+        );
+        if let Command::Create { props, .. } = &mut label {
+            props.input = Some(InputMode::Pass);
+            props.visible = Some(false);
+        }
+        vec![glass, label]
+    }
+
+    /// The top and the bottom of a chip that [`Self::place_chip`] places
+    /// above `bottom`.
+    #[must_use]
+    pub fn chip_row(&self, bottom: f64) -> [f64; 2] {
+        let unit = self.style.unit;
+        [(bottom - unit - CHIP_HEIGHT).round(), bottom - unit]
+    }
+
+    /// Places a chip with its right edge a pad left of `right` and its
+    /// bottom a unit above `bottom`, and shows or hides it. Answers the
+    /// width that it takes with its gap.
+    #[must_use]
+    pub fn place_chip(
+        &self,
+        id: &str,
+        text: &str,
+        [right, bottom]: [f64; 2],
+        show: bool,
+    ) -> (Vec<Command>, f64) {
+        let (pad, unit) = (self.pad(), self.style.unit);
+        let w = self.chip_width(text);
+        let x = (right - pad - w).round();
+        let y = (bottom - unit - CHIP_HEIGHT).round();
+        (self.chip_at(id, text, [x, y], show), w + unit)
+    }
+
+    /// The width of a chip of `text`.
+    #[must_use]
+    pub fn chip_width(&self, text: &str) -> f64 {
+        (self.size(CHIP_ROLE, text, None)[0] + 2.0 * self.pad()).ceil()
+    }
+
+    /// A chip at `[x, y]` on the screen, shown or hidden.
+    #[must_use]
+    pub fn chip_at(&self, id: &str, text: &str, [x, y]: [f64; 2], show: bool) -> Vec<Command> {
+        let m = &self.glass;
+        vec![
+            update(
+                id,
+                PropsUpdate {
+                    size: Some([self.chip_width(text), CHIP_HEIGHT]),
+                    transform: at(x, y),
+                    visible: Some(show),
+                    color: Some(m.fill(false)),
+                    radius: Some(CHIP_HEIGHT / 2.0),
+                    border: Some(Some(Border {
+                        width: 1.0,
+                        color: m.edge_out,
+                    })),
+                    ..PropsUpdate::default()
+                },
+            ),
+            update(
+                &format!("{id}-text"),
+                PropsUpdate {
+                    transform: at(x + self.pad(), y + (CHIP_HEIGHT - 20.0) / 2.0),
+                    visible: Some(show),
+                    ..self.text_props(CHIP_ROLE, text, rgb3(m.text))
+                },
+            ),
+        ]
     }
 
     /// Fades the pane label out.
     #[must_use]
     pub fn label_hide() -> Vec<Command> {
-        vec![
-            fade(LABEL_GLASS, 0.0, FADE_OUT),
-            fade(LABEL_TEXT, 0.0, FADE_OUT),
-        ]
-    }
-
-    /// The panel of the window list for `rows` rows, at `place`, with its
-    /// label; `open` fades it in.
-    #[must_use]
-    pub fn list(&self, size: [f64; 2], place: [f64; 2], label: &str, open: bool) -> Vec<Command> {
-        let mut commands = vec![
-            update(
-                LIST,
-                PropsUpdate {
-                    transform: at(place[0], place[1]),
-                    visible: Some(true),
-                    meta: Some(list_meta("open")),
-                    ..PropsUpdate::default()
-                },
-            ),
-            update(
-                LIST_GLASS,
-                PropsUpdate {
-                    size: Some(size),
-                    ..PropsUpdate::default()
-                },
-            ),
-            update(
-                LIST_LABEL,
-                PropsUpdate {
-                    transform: at(self.pad(), self.pad()),
-                    ..self.text_props(
-                        Role::Label,
-                        &self.one_line(Role::Label, label, size[0] - 2.0 * self.pad()),
-                        self.colors.muted,
-                    )
-                },
-            ),
-        ];
-        if open {
-            commands.push(fade(LIST, 1.0, FADE_IN));
-            commands.extend(self.glow_update(LIST_GLOW, size, [0.0; 4], 0.0, true));
-        }
-        commands
+        vec![fade(LABEL_BODY, 0.0, FADE_OUT)]
     }
 
     /// The row of answers at the bottom of a question, `top` from its
@@ -740,153 +899,6 @@ impl Look<'_> {
         }
         commands
     }
-
-    /// The help panel in the middle of an output of `out`, made anew: the
-    /// label `KEYS`, then a row per binding, its keys in data and what
-    /// it does, each on one line within the panel. `fresh` fades it in.
-    #[must_use]
-    pub fn help(&self, rows: &[(String, String)], out: [f64; 2], fresh: bool) -> Vec<Command> {
-        let (u, pad) = (self.style.unit, self.pad());
-        let w = HELP_WIDTH.min(out[0] - 8.0 * u).max(16.0 * u);
-        let keys_w = ((w - 2.0 * pad) * 0.4).floor();
-        let what_w = w - 2.0 * pad - keys_w - 2.0 * u;
-        let text = |id: String, role, text: &str, color, x: f64, y: f64| {
-            create(
-                &id,
-                NodeKind::Text,
-                HELP,
-                PropsUpdate {
-                    transform: at(x, y),
-                    ..self.text_props(role, text, color)
-                },
-            )
-        };
-        let mut body = vec![text(
-            format!("{HELP}-label"),
-            Role::Label,
-            "KEYS",
-            self.colors.muted,
-            pad,
-            pad,
-        )];
-        let mut y = pad + 16.0 + u;
-        for (k, (keys, what)) in rows.iter().enumerate() {
-            let keys = self.one_line(Role::Data, keys, keys_w);
-            let what = self.one_line(Role::Text, what, what_w);
-            let id = format!("{HELP}-row-{k}");
-            body.push(text(
-                format!("{id}-keys"),
-                Role::Data,
-                &keys,
-                self.colors.text,
-                pad,
-                y + 4.0,
-            ));
-            let x = pad + keys_w + 2.0 * u;
-            body.push(text(
-                format!("{id}-what"),
-                Role::Text,
-                &what,
-                self.colors.muted,
-                x,
-                y,
-            ));
-            y += LIST_LINE;
-        }
-        let h = (y + pad).ceil();
-        let mut commands = vec![
-            create(
-                HELP,
-                NodeKind::Group,
-                crate::NAME,
-                PropsUpdate {
-                    transform: at(
-                        ((out[0] - w) / 2.0).round(),
-                        ((out[1] - h) / 2.0).round().max(0.0),
-                    ),
-                    input: Some(InputMode::Pass),
-                    opacity: Some(if fresh { 0.0 } else { 1.0 }),
-                    ..PropsUpdate::default()
-                },
-            ),
-            self.glass(HELP_GLASS, HELP, None),
-            update(
-                HELP_GLASS,
-                PropsUpdate {
-                    size: Some([w, h]),
-                    ..PropsUpdate::default()
-                },
-            ),
-        ];
-        commands.extend(self.glow(HELP_GLOW, HELP));
-        commands.extend(body);
-        commands.push(fade(HELP, 1.0, FADE_IN));
-        commands.extend(self.glow_update(HELP_GLOW, [w, h], [0.0; 4], 0.0, true));
-        commands
-    }
-
-    /// The nodes of one row of the list in the group of the rows: a rect
-    /// that takes the click, the name and the note, and the mark of the
-    /// selection.
-    #[must_use]
-    pub fn row(&self, id: &str, top: f64, name: &str, note: &str, selected: bool) -> Vec<Command> {
-        let pad = self.pad();
-        let name = self.one_line(Role::Text, name, LIST_WIDTH * 0.6 - pad);
-        let note = self.one_line(Role::Data, note, LIST_WIDTH * 0.38 - pad);
-        let color = if selected {
-            self.colors.text
-        } else {
-            self.colors.muted
-        };
-        let mut commands = vec![
-            create(
-                id,
-                NodeKind::Rect,
-                LIST_ROWS_GROUP,
-                PropsUpdate {
-                    transform: at(0.0, top),
-                    size: Some([LIST_WIDTH, LIST_LINE]),
-                    color: Some([0.0; 4]),
-                    ..PropsUpdate::default()
-                },
-            ),
-            create(
-                &format!("{id}-name"),
-                NodeKind::Text,
-                LIST_ROWS_GROUP,
-                PropsUpdate {
-                    transform: at(pad, top),
-                    ..self.text_props(Role::Text, &name, color)
-                },
-            ),
-        ];
-        if !note.is_empty() {
-            commands.push(create(
-                &format!("{id}-note"),
-                NodeKind::Text,
-                LIST_ROWS_GROUP,
-                PropsUpdate {
-                    transform: at(LIST_WIDTH * 0.62, top + 4.0),
-                    ..self.text_props(Role::Data, &note, self.colors.muted)
-                },
-            ));
-        }
-        if selected {
-            commands.push(create(
-                "construct-list-mark",
-                NodeKind::Rect,
-                LIST_ROWS_GROUP,
-                PropsUpdate {
-                    transform: at(pad / 2.0 - 1.0, top + 4.0),
-                    size: Some([2.0, LIST_LINE - 8.0]),
-                    color: rgba(self.style.accent, 1.0),
-                    radius: Some(1.0),
-                    ..PropsUpdate::default()
-                },
-            ));
-        }
-        commands
-    }
 }
 
 /// The meta `state` of the list: `open`, or empty, which removes it. The
@@ -909,23 +921,6 @@ pub fn list_close() -> Vec<Command> {
         ),
         fade(LIST, 0.0, FADE_OUT),
     ]
-}
-
-/// The size of the window list panel with `rows` rows shown.
-#[must_use]
-#[allow(clippy::cast_precision_loss, reason = "a dozen rows")]
-pub fn list_size(unit: f64, rows: usize) -> [f64; 2] {
-    let pad = unit * 2.0;
-    [
-        LIST_WIDTH,
-        pad * 2.0 + 16.0 + unit + LIST_LINE * rows.max(1) as f64,
-    ]
-}
-
-/// The top of the first row of the list.
-#[must_use]
-pub fn list_top(unit: f64) -> f64 {
-    unit * 2.0 + 16.0 + unit
 }
 
 /// `voice.say`: a sentence when its sound starts.
@@ -1129,13 +1124,12 @@ impl Voice {
         level: f64,
         glow: bool,
     ) -> Vec<Command> {
-        // Without the agent, only a notice shows, without a ring.
         let (ring_mode, label) = match &self.state {
             Some(state) => match mode(state) {
                 (ring, "") => (ring, state.to_uppercase()),
                 (ring, label) => (ring, label.into()),
             },
-            None if self.say.is_some() => (-1.0, "NOTICE".into()),
+            None if self.say.is_some() => (-1.0, String::new()),
             None => return vec![fade(HUD, 0.0, FADE_OUT)],
         };
         let ringless = look.plain || ring_mode < 0.0;
@@ -1151,7 +1145,8 @@ impl Voice {
         let label = look.one_line(Role::Label, &label, wrap);
         let [line_w, line_h] =
             (line.as_ref()).map_or([0.0; 2], |(t, _)| look.size(Role::Text, t, Some(wrap)));
-        let content = 16.0 + line_h;
+        let label_h = if label.is_empty() { 0.0 } else { 16.0 };
+        let content = label_h + line_h;
         let label_w = look.size(Role::Label, &label, None)[0];
         let w = (pad * 2.0 + slot + label_w.max(line_w)).ceil();
         let h = pad * 2.0 + content.max(if ringless { 0.0 } else { RING });
@@ -1196,7 +1191,7 @@ impl Voice {
                     look.colors.text
                 };
                 PropsUpdate {
-                    transform: at(pad + slot, top + 16.0),
+                    transform: at(pad + slot, top + label_h),
                     max_width: Some(wrap),
                     visible: Some(true),
                     opacity: Some(1.0),
@@ -1345,9 +1340,12 @@ impl Voice {
 
     /// The parameters of `voice.confirm.answer` for a press on `node`: a
     /// button of the open question that has buttons. Only a pointer press
-    /// on the node calls it; no method of the construct does.
+    /// on the node calls it, and an injected press never; no method of the construct does.
     #[must_use]
-    pub fn answer(&self, node: &str) -> Option<Value> {
+    pub fn answer(&self, node: &str, injected: bool) -> Option<Value> {
+        if injected {
+            return None;
+        }
         let ask = self.ask.as_ref().filter(|a| a.buttons)?;
         let yes = match node {
             ASK_YES => true,
@@ -1411,6 +1409,8 @@ mod tests {
             colors: &config.style.themes.light,
             plain: false,
             shader: "/glass.frag",
+            shadow: "/shadow.frag",
+            glass: chora_kit::glass::Material::of(false),
             metrics,
         }
     }
@@ -1523,16 +1523,14 @@ mod tests {
         let metrics = Metrics::default();
         let look = look(&config, &metrics);
         let long = "Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen";
-        let row = measured(&metrics, || look.row("r", 0.0, long, long, true));
-        let name = text_of(&row, "r-name").unwrap();
-        assert!(name.ends_with(ELLIPSIS), "{name}");
         let pad = look.pad();
-        assert!(metrics.size(Role::Text, name, None)[0] <= LIST_WIDTH * 0.6 - pad);
-        let note = text_of(&row, "r-note").unwrap();
-        assert!(metrics.size(Role::Data, note, None)[0] <= LIST_WIDTH * 0.38 - pad);
-        let (label, w) = measured(&metrics, || look.label(long, true));
+        let (label, w) = measured(&metrics, || look.label(long, true, false));
         assert!(w <= LABEL_MAX, "{w}");
-        assert!(text_of(&label, LABEL_TEXT).unwrap().ends_with(ELLIPSIS));
+        assert!(
+            text_of(&label, LABEL_TEXT_BODY)
+                .unwrap()
+                .ends_with(ELLIPSIS)
+        );
         let mut voice = Voice::default();
         let now = Instant::now();
         voice
@@ -1557,6 +1555,28 @@ mod tests {
             assert!(w <= out[0] - 8.0 * config.style.unit, "{out:?}: {w}");
             assert!(h <= 2.0 * pad + 16.0 + 48.0, "{out:?}: {h}");
         }
+    }
+
+    /// A notice is one calm line: the sentence alone, with no label above
+    /// it and no ring.
+    #[test]
+    fn a_notice_is_one_line_without_a_label() {
+        let config = config();
+        let metrics = Metrics::default();
+        let look = look(&config, &metrics);
+        let mut voice = Voice::default();
+        voice.notice("No room in view", Instant::now());
+        let hud = measured(&metrics, || {
+            voice.hud(&look, [1280.0, 720.0], false, 0.0, true)
+        });
+        assert_eq!(text_of(&hud, HUD_SAY), Some("No room in view"));
+        assert_eq!(text_of(&hud, HUD_STATE).map(str::trim), Some(""));
+        let glass = hud.iter().find_map(|c| match c {
+            Command::Update { id, props } if id == HUD_GLASS => props.size,
+            _ => None,
+        });
+        let pad = look.pad();
+        assert_eq!(glass.unwrap()[1], 2.0 * pad + Role::Text.size().1);
     }
 
     /// The question grows with its prompt as the core wraps it.
@@ -1600,9 +1620,15 @@ mod tests {
         let ask = json!({"id": "4", "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         voice.follow("confirm", ask, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES), Some(json!({"id": "4", "yes": true})));
-        assert_eq!(voice.answer(ASK_NO), Some(json!({"id": "4", "yes": false})));
-        assert_eq!(voice.answer(ASK_GLASS), None);
+        assert_eq!(
+            voice.answer(ASK_YES, false),
+            Some(json!({"id": "4", "yes": true}))
+        );
+        assert_eq!(
+            voice.answer(ASK_NO, false),
+            Some(json!({"id": "4", "yes": false}))
+        );
+        assert_eq!(voice.answer(ASK_GLASS, false), None);
         let commands = measured(&metrics, || voice.ask(&look, [1280.0, 720.0], true));
         assert_eq!(text_of(&commands, "construct-ask-yes-text"), Some("Ja"));
         assert_eq!(
@@ -1611,14 +1637,24 @@ mod tests {
         );
         let numeric = json!({"id": 9, "prompt": "Run?", "buttons": true});
         voice.follow("confirm", numeric, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES), Some(json!({"id": "9", "yes": true})));
+        assert_eq!(
+            voice.answer(ASK_YES, false),
+            Some(json!({"id": "9", "yes": true}))
+        );
         let plain = json!({"id": "5", "prompt": "Run?"});
         voice.follow("confirm", plain, now).unwrap();
-        assert_eq!(voice.answer(ASK_YES), None, "no buttons");
+        assert_eq!(voice.answer(ASK_YES, false), None, "no buttons");
         voice
             .follow("confirm", json!({"id": "5", "done": true}), now)
             .unwrap();
-        assert_eq!(voice.answer(ASK_NO), None, "closed");
+        assert_eq!(voice.answer(ASK_NO, false), None, "closed");
+        let open = json!({"id": "6", "prompt": "Run?", "buttons": true});
+        voice.follow("confirm", open, now).unwrap();
+        assert_eq!(voice.answer(ASK_YES, true), None, "an injected press");
+        assert_eq!(
+            voice.answer(ASK_YES, false),
+            Some(json!({"id": "6", "yes": true}))
+        );
     }
 
     #[test]
@@ -1722,9 +1758,7 @@ mod tests {
         let mut commands = look.groups(crate::NAME);
         commands.extend(voice.hud(&look, out, false, 1.0, true));
         commands.extend(voice.ask(&look, out, true));
-        commands.extend(look.label(&"w".repeat(32), true).0);
-        let size = list_size(config.style.unit, LIST_ROWS);
-        commands.extend(look.list(size, [0.0; 2], "WINDOWS", true));
+        commands.extend(look.label(&"w".repeat(32), true, false).0);
         // The last size of each node that is a layer: a shader, a rect
         // with a radius, a group with a size.
         let mut layers: BTreeMap<String, (bool, [f64; 2])> = BTreeMap::new();

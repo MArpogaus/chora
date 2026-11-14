@@ -1,0 +1,235 @@
+#!/usr/bin/python3 -I
+"""The hands and eyes of a simulated user: screen and input, nothing else.
+
+Usage: PERSONA_ENV=FILE python3 -I tests/persona/act.py ACTION ...
+  look [--max-side N]        save a capture as PNG, print its path, the
+                             size of the capture, of the screen and the scale
+  click X Y [--button left|right] [--double]
+  move X Y
+  drag X1 Y1 X2 Y2
+  type TEXT...               the rest of the line is the text, also when it
+                             starts with a dash
+  key COMBO                  for example Super+Return, Return, Ctrl+c
+  scroll DX DY               logical pixels; positive DY scrolls down
+
+PERSONA_ENV is the session.env that tests/persona/session.sh wrote. Each
+action appends one JSON line to its PERSONA_LOG: time, action,
+arguments, ok, result. Exit status 0 on success, 1 on a failed action,
+2 on a bad command.
+
+Coordinates of click, move and drag are pixels of the last capture, as the
+persona sees them on the PNG; act.py scales them to the logical pixels of
+the output (the capture size divided by the scale that `look` printed).
+Before the first look they are logical pixels. Scroll takes no position and
+is never scaled.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+
+BUTTONS = {"left": 272, "right": 273}
+TIMEOUT = 20
+LAST_LOOK = "last_look.json"
+
+
+def load_env(path):
+    """Read the KEY=VALUE lines of the session file into a dict."""
+    env = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            key, sep, value = line.rstrip("\n").partition("=")
+            if sep:
+                env[key] = value
+    return env
+
+
+def choractl(env, *args, stdin=None):
+    """Run choractl as the client persona; return (ok, output)."""
+    run_env = {
+        "PATH": env["PATH"],
+        "CHORA_SOCKET": env["CHORA_SOCKET"],
+        "XDG_RUNTIME_DIR": env["XDG_RUNTIME_DIR"],
+        "HOME": os.environ.get("HOME", "/"),
+    }
+    try:
+        p = subprocess.run(
+            ["choractl", "--name", "persona", *args],
+            input=stdin,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+            env=run_env,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return False, str(e)
+    text = (p.stdout + p.stderr).strip()
+    return p.returncode == 0, text
+
+
+def last_look_path(env):
+    """Name the file that holds the scale and origin of the last capture."""
+    return os.path.join(env["PERSONA_DIR"], LAST_LOOK)
+
+
+def to_screen(env, x, y):
+    """Turn a position on the last capture into logical pixels."""
+    try:
+        with open(last_look_path(env), encoding="utf-8") as f:
+            last = json.load(f)
+    except FileNotFoundError:
+        return x, y
+    ox, oy = last["origin"]
+    return ox + x / last["scale"], oy + y / last["scale"]
+
+
+def inject(env, events):
+    """Send input events through choractl inject."""
+    return choractl(env, "inject", "-", stdin=json.dumps(events))
+
+
+def look(env, args):
+    """Capture the screen to a numbered PNG file."""
+    shots = env["PERSONA_SHOTS"]
+    n = len([f for f in os.listdir(shots) if f.endswith(".png")]) + 1
+    path = os.path.join(shots, f"{n:03d}.png")
+    cmd = ["capture", path]
+    if args.max_side:
+        cmd += ["--max-side", str(args.max_side)]
+    ok, text = choractl(env, *cmd)
+    if not ok:
+        return False, text
+    info = json.loads(text)
+    with open(last_look_path(env), "w", encoding="utf-8") as f:
+        json.dump({"scale": info["scale"], "origin": info["origin"]}, f)
+    return True, {"path": path, "info": info}
+
+
+def do_click(env, args):
+    """Move, then click once or twice."""
+    b = BUTTONS[args.button]
+    x, y = to_screen(env, args.x, args.y)
+    events = [{"pointer_move": {"position": [x, y]}}, {"click": {"button": b}}]
+    if args.double:
+        events.append({"click": {"button": b}})
+    return inject(env, events)
+
+
+def do_drag(env, args):
+    """Press at the start, move to the end, release."""
+    x1, y1 = to_screen(env, args.x1, args.y1)
+    x2, y2 = to_screen(env, args.x2, args.y2)
+    return inject(
+        env,
+        [
+            {"pointer_move": {"position": [x1, y1]}},
+            {"button": {"state": "pressed", "hold": True}},
+            {"pointer_move": {"position": [(x1 + x2) / 2, (y1 + y2) / 2]}},
+            {"pointer_move": {"position": [x2, y2]}},
+            {"button": {"state": "released"}},
+        ],
+    )
+
+
+def type_takes_the_rest(argv):
+    """Put `--` after `type`, so that a text with a dash is text."""
+    if argv[:1] == ["type"] and argv[1:2] != ["--"]:
+        return ["type", "--", *argv[1:]]
+    return argv
+
+
+def parser():
+    """Build the command line: exactly the allowed actions."""
+    p = argparse.ArgumentParser(prog="act.py", description=__doc__.split("\n")[0])
+    sub = p.add_subparsers(dest="action", required=True)
+    s = sub.add_parser("look")
+    s.add_argument("--max-side", type=int, default=800)
+    s = sub.add_parser("click")
+    s.add_argument("x", type=float)
+    s.add_argument("y", type=float)
+    s.add_argument("--button", choices=sorted(BUTTONS), default="left")
+    s.add_argument("--double", action="store_true")
+    s = sub.add_parser("move")
+    s.add_argument("x", type=float)
+    s.add_argument("y", type=float)
+    s = sub.add_parser("drag")
+    for name in ("x1", "y1", "x2", "y2"):
+        s.add_argument(name, type=float)
+    s = sub.add_parser("type")
+    s.add_argument("text", nargs="*")
+    s = sub.add_parser("key")
+    s.add_argument("combo")
+    s = sub.add_parser("scroll")
+    s.add_argument("dx", type=float)
+    s.add_argument("dy", type=float)
+    return p
+
+
+def run(env, args):
+    """Do the action; return (ok, result)."""
+    a = args.action
+    if a == "look":
+        return look(env, args)
+    if a == "click":
+        ok, text = do_click(env, args)
+    elif a == "move":
+        ok, text = inject(
+            env, [{"pointer_move": {"position": list(to_screen(env, args.x, args.y))}}]
+        )
+    elif a == "drag":
+        ok, text = do_drag(env, args)
+    elif a == "type":
+        ok, text = inject(env, [{"text": {"text": args.text}}])
+    elif a == "key":
+        ok, text = inject(env, [{"shortcut": {"keys": args.combo}}])
+    else:
+        ok, text = inject(env, [{"scroll": {"dx": args.dx, "dy": args.dy}}])
+    return ok, text or "ok"
+
+
+def main():
+    """Parse, run, log, report."""
+    args = parser().parse_args(type_takes_the_rest(sys.argv[1:]))
+    if args.action == "type":
+        args.text = " ".join(args.text)
+    path = os.environ.get("PERSONA_ENV")
+    if not path:
+        sys.exit("act.py: PERSONA_ENV is not set")
+    env = load_env(path)
+    arguments = {k: v for k, v in vars(args).items() if k != "action"}
+    started = time.time()
+    try:
+        ok, result = run(env, args)
+    except Exception as e:  # a log line for every attempt, also a crash
+        ok, result = False, f"{type(e).__name__}: {e}"
+    entry = {
+        "time": round(started, 3),
+        "action": args.action,
+        "args": arguments,
+        "ok": ok,
+        "seconds": round(time.time() - started, 3),
+        "result": result,
+    }
+    with open(env["PERSONA_LOG"], "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    if not ok:
+        print(f"failed: {result}", file=sys.stderr)
+        sys.exit(1)
+    if args.action == "look":
+        info = result["info"]
+        scale = info["scale"]
+        print(
+            f"{result['path']} capture={info['width']}x{info['height']}"
+            f" screen={round(info['width'] / scale)}x{round(info['height'] / scale)}"
+            f" scale={scale}"
+        )
+    else:
+        print("ok")
+
+
+if __name__ == "__main__":
+    main()

@@ -8,7 +8,7 @@ use smithay::{
         winit::{self, WinitEvent, WinitGraphicsBackend},
     },
     desktop::layer_map_for_output,
-    output::{Mode, Output, OutputModeSource, PhysicalProperties, Subpixel},
+    output::{Mode, Output, OutputModeSource, PhysicalProperties, Scale, Subpixel},
     reexports::wayland_protocols::wp::presentation_time::server::wp_presentation_feedback,
     utils::{Physical, Size, Transform},
     wayland::{dmabuf::DmabufFeedbackBuilder, presentation::Refresh},
@@ -36,6 +36,8 @@ pub struct Winit {
     damage_tracker: OutputDamageTracker,
     /// The one output: the window.
     output: Output,
+    /// The scale factor of the host that the output followed last.
+    host_scale: f64,
 }
 
 /// Opens the window, creates its output and starts the render loop.
@@ -85,6 +87,7 @@ pub fn init(state: &mut State, command: &[String]) -> Result<(), Box<dyn std::er
         graphics,
         damage_tracker: OutputDamageTracker::from_mode_source(window_mode(&output)),
         output: output.clone(),
+        host_scale: 1.0,
     })));
     state.add_output(output);
     take_host_keymap(state);
@@ -114,20 +117,35 @@ fn take_host_keymap(state: &mut State) {
 
 fn handle(state: &mut State, event: WinitEvent) {
     match event {
-        WinitEvent::Resized { size, .. } => {
-            if let Some(backend) = winit(state) {
+        WinitEvent::Resized { size, scale_factor } => {
+            if let Some(Backend::Winit(backend)) = &mut state.backend {
                 resize(&backend.output, size);
+                if let Some(scale) = scale_change(backend.host_scale, scale_factor) {
+                    backend.host_scale = scale;
+                    backend.output.change_current_state(
+                        None,
+                        None,
+                        Some(Scale::Fractional(scale)),
+                        None,
+                    );
+                }
             }
             state.output_changed();
         }
         WinitEvent::Input(event) => crate::input::process(state, event),
         WinitEvent::Redraw => redraw(state),
-        WinitEvent::CloseRequested => state.loop_signal.stop(),
+        WinitEvent::CloseRequested => state.quit("the host closed the window"),
         // The host gets the releases of keys that went down here, for
         // example Super for its overview, so chora lets them go too.
         WinitEvent::Focus(false) => crate::input::release_keys(state),
         WinitEvent::Focus(true) => {}
     }
+}
+
+/// The new scale of the output when the host changed the scale of the
+/// window, so that `chora` in a high-DPI session draws at its scale.
+fn scale_change(known: f64, now: f64) -> Option<f64> {
+    ((now - known).abs() > 1e-6 && now >= 1.0).then_some(now)
 }
 
 /// Gives the output the size of the window as its one mode, so that output
@@ -150,9 +168,9 @@ fn redraw(state: &mut State) {
     let Some(output) = winit(state).map(|w| w.output.clone()) else {
         return;
     };
-    let start = std::time::Instant::now();
+    let frame = crate::safety::FrameClock::start();
     let rendered = render_frame(state, &output);
-    state.frame_rendered(&output.name(), frame_duration(&output), start.elapsed());
+    state.frame_rendered(&output.name(), frame_duration(&output), frame);
     let submitted = shown(state, &output, rendered);
     render::send_frames(state, &output);
     if submitted {
@@ -215,11 +233,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
     if *backend.damage_tracker.mode() != mode {
         backend.damage_tracker = OutputDamageTracker::from_mode_source(mode);
     }
-    // The query of the buffer age needs the surface of the window current.
-    // Layers and captures render into textures and leave no surface
-    // current. Then the query fails with BAD_SURFACE, and the frame is a
-    // full redraw. A bind makes the surface current first.
-    drop(backend.graphics.bind().map_err(|e| format!("bind: {e}"))?);
+    make_current(backend)?;
     // 0 means a full redraw.
     let age = backend.graphics.buffer_age().unwrap_or(0);
     let damage = {
@@ -243,6 +257,7 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
                 [0.0, 0.0, 0.0, 1.0],
             )
             .map_err(|e| format!("rendering failed: {e:?}"))?;
+        (parts.assets.stats).frame(&output.name(), result.damage.is_some());
         result.damage.cloned()
     };
     let Some(damage) = damage else {
@@ -264,6 +279,22 @@ fn render_frame(state: &mut State, output: &Output) -> Result<bool, String> {
         wp_presentation_feedback::Kind::Vsync,
     );
     Ok(true)
+}
+
+/// Makes the surface of the window current with a frame that draws
+/// nothing. The query of the buffer age needs that. Layers, captures and
+/// virtual outputs render into textures and leave no surface current;
+/// then the query fails with `BAD_SURFACE`, and the frame is a full
+/// redraw. A bind alone makes nothing current.
+fn make_current(backend: &mut Winit) -> Result<(), String> {
+    use smithay::backend::renderer::{Frame as _, Renderer as _};
+    let size = backend.graphics.window_size();
+    let (renderer, mut framebuffer) = backend.graphics.bind().map_err(|e| format!("bind: {e}"))?;
+    let frame = renderer
+        .render(&mut framebuffer, size, Transform::Normal)
+        .map_err(|e| format!("an empty frame: {e}"))?;
+    drop(frame.finish().map_err(|e| format!("an empty frame: {e}"))?);
+    Ok(())
 }
 
 /// How the window shows the output: in its mode and scale, and with its
@@ -339,7 +370,15 @@ fn winit(state: &State) -> Option<&Winit> {
 
 #[cfg(test)]
 mod tests {
-    use super::title;
+    use super::{scale_change, title};
+
+    #[test]
+    fn a_new_host_scale_becomes_the_scale_of_the_output() {
+        assert_eq!(scale_change(1.0, 2.0), Some(2.0));
+        assert_eq!(scale_change(2.0, 2.0), None);
+        assert_eq!(scale_change(2.0, 1.0), Some(1.0));
+        assert_eq!(scale_change(1.0, 0.0), None);
+    }
 
     #[test]
     fn the_window_title_names_the_startup_program_or_the_socket() {

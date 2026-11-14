@@ -54,6 +54,28 @@ impl Mc {
         })
     }
 
+    /// The line that points to the page after a scene, as the footer
+    /// shows it when no entry is next: the arrow, the number and the title.
+    pub fn next_page_line(&self, name: &str) -> Option<String> {
+        self.page_line(name, 1, "→")
+    }
+
+    /// The line that points to the page before a scene.
+    pub fn previous_page_line(&self, name: &str) -> Option<String> {
+        self.page_line(name, -1, "←")
+    }
+
+    fn page_line(&self, name: &str, step: isize, arrow: &str) -> Option<String> {
+        let names = self.order();
+        let at = names.iter().position(|n| n == name)?;
+        let count = isize::try_from(names.len()).ok()?;
+        let to = usize::try_from((isize::try_from(at).ok()? + step).rem_euclid(count)).ok()?;
+        let target = names.get(to)?;
+        let scene = self.scenes.get(target)?;
+        let title = (scene.chapter.title.clone()).unwrap_or_else(|| crate::title_of(target));
+        Some(format!("{arrow} {}  {title}", self.number(target)))
+    }
+
     /// Adds a scene at the end of the order, or replaces one in place.
     pub fn add_scene(&mut self, name: &str, scene: scene::Scene) {
         if self.scenes.insert(name.into(), scene).is_none() {
@@ -128,14 +150,14 @@ impl Mc {
     /// manager (D55). The scene of an app goes with it; another scene
     /// stays without its window.
     pub fn give(&mut self, give: Give) -> Result<Value, RpcError> {
-        let Give { surface, to } = give;
+        let Give { surface, to, grab } = give;
         let name = (self.windows.iter())
             .find(|(_, s)| **s == surface)
             .map(|(n, _)| n.clone())
             .ok_or_else(|| {
                 RpcError::new(RpcError::REJECTED, format!("mc has no window {surface}"))
             })?;
-        let answer = self.rt.conn.give(&surface, &to)?;
+        let answer = self.rt.conn.give_dragged(&surface, &to, grab)?;
         self.windows.remove(&name);
         if self.focused.as_deref() == Some(surface.as_str()) {
             self.focused = None;
@@ -170,8 +192,8 @@ impl Mc {
 
     /// A click of the user: on a window or a docked app it gives that the
     /// keyboard, on a line of the overview it shows that scene.
-    pub fn click(&mut self, node: &str, at: [f64; 2]) -> Result<(), ClientError> {
-        if self.press_answer(node) {
+    pub fn click(&mut self, node: &str, at: [f64; 2], injected: bool) -> Result<(), ClientError> {
+        if self.press_answer(node, injected) {
             return Ok(());
         }
         let mut ours = self.windows.values().chain(self.docks.values());
@@ -443,8 +465,12 @@ mod tests {
         let panel = mc.overview_panel().unwrap();
         let [_, top, _, _] = mc.place(super::OVERVIEW, &panel).unwrap();
         let line = mc.ty("body", None).line;
-        mc.click(&crate::wheel_id(super::OVERVIEW), [400.0, top + 1.5 * line])
-            .unwrap();
+        mc.click(
+            &crate::wheel_id(super::OVERVIEW),
+            [400.0, top + 1.5 * line],
+            false,
+        )
+        .unwrap();
         assert_eq!(mc.current.as_deref(), Some("agenda"));
     }
 

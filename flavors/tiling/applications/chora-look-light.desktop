@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Light look
+Name[de]=Helles Aussehen
+Comment=Use the light palette, Paper
+Comment[de]=Die helle Palette Paper verwenden
+Exec=chora-tiling --launch look light
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Settings;
+Keywords=theme;look;light;colour;color;appearance;

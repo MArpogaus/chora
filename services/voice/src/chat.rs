@@ -165,7 +165,7 @@ fn listed(config: &Config, tool: &str, args: &Value) -> bool {
 /// settings keys and their values, the program and its arguments, the
 /// method and its parameters, or the tool and its arguments. Secrets are
 /// hidden as in the journal: each subscriber of `voice.*` gets it.
-fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
+pub(crate) fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
     let text = |v: &Value| v.as_str().map_or_else(|| v.to_string(), str::to_owned);
     let (mut patch, mut args) = (patch.cloned(), args.clone());
     patch.iter_mut().for_each(hide);
@@ -192,11 +192,11 @@ fn detail(tool: &str, patch: Option<&Value>, args: &Value) -> String {
 /// Most lines and bytes of a detail that the agent asks about. A
 /// longer one is refused, so that every screen shows the whole command
 /// and no question hides its tail (review rc3 round 4, 2.2).
-const DETAIL_LINES: usize = 400;
-const DETAIL_BYTES: usize = 64 * 1024;
+pub(crate) const DETAIL_LINES: usize = 400;
+pub(crate) const DETAIL_BYTES: usize = 64 * 1024;
 
 /// Whether a detail passes the cap.
-fn too_long(detail: &str) -> bool {
+pub(crate) fn too_long(detail: &str) -> bool {
     detail.len() > DETAIL_BYTES || detail.lines().count() > DETAIL_LINES
 }
 
@@ -480,8 +480,11 @@ impl Chat {
         };
         self.llm = Llm::new(&self.config);
         if self.config.chora_mcp != old.chora_mcp {
-            self.tools
-                .restart(self.config.chora_mcp.clone(), &self.name);
+            self.tools.restart(
+                self.config.chora_mcp.clone(),
+                self.config.key_envs(),
+                &self.name,
+            );
         }
         if let Some(coder) = &self.tools.coder {
             coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
@@ -686,7 +689,7 @@ impl Chat {
             return;
         }
         for text in std::mem::take(&mut self.heard) {
-            crate::log::info(&format!("heard in the turn: {text:?}"));
+            crate::log::debug(&format!("heard in the turn: {text:?}"));
             self.history.push(json!({"role": "user", "content": text}));
             self.requests.push(text.clone());
             out(Event::Heard(text));
@@ -794,7 +797,7 @@ impl Chat {
         silent: bool,
         out: &impl Fn(Event),
     ) -> &'static str {
-        crate::log::info(&format!("llm: {} {:?}", round.finish, round.text));
+        crate::log::debug(&format!("llm: {} {:?}", round.finish, round.text));
         let text = strip_notes(&round.text);
         if !text.trim().is_empty() {
             self.answer = Some(self.history.len());
@@ -871,7 +874,7 @@ impl Chat {
                     && r.calls.is_empty() && cut(&strip_notes(&r.text)));
             let rest = splitter.finish();
             if cut {
-                crate::log::info(&format!("llm: cut answer, dropped {rest:?}"));
+                crate::log::debug(&format!("llm: cut answer, dropped {rest:?}"));
             }
             // The words before the tool calls are spoken while they run.
             if let Some(sentence) = rest.filter(|s| !cut && !skip.contains(s)) {
@@ -994,11 +997,9 @@ impl Chat {
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
                 let (logged, result) = journal(&call.name, &args, &text_of(&content));
-                crate::log::info(&format!(
-                    "tool {} {logged} {}ms -> {result}",
-                    call.name,
-                    start.elapsed().as_millis(),
-                ));
+                let ms = start.elapsed().as_millis();
+                crate::log::info(&format!("tool {} {ms}ms", call.name));
+                crate::log::debug(&format!("tool {} {logged} {ms}ms -> {result}", call.name));
                 self.guard(&call.name, &args, content)
             };
             results.push(json!({"role": "tool", "tool_call_id": call.id, "content": content}));
@@ -1054,6 +1055,17 @@ impl Chat {
             .any(|k| new[k] != old[k])
     }
 
+    /// The rule that asks before a call: one of `confirm`, else the one
+    /// of a privileged method.
+    fn rule(&self, name: &str, args: &Value) -> Option<crate::config::Confirm> {
+        tools::rule(&self.config.confirm, name, args)
+            .cloned()
+            .or_else(|| {
+                let prompt = &self.config.phrases.privileged;
+                self.tools.privileged_rule(name, args, prompt)
+            })
+    }
+
     /// Asks the user when a rule of `confirm` matches, and before each
     /// change of the agent's own settings; else, or on a no, the reason
     /// for the LLM.
@@ -1076,10 +1088,13 @@ impl Chat {
             || own
                 .and_then(Value::as_object)
                 .is_some_and(|p| p.keys().any(|k| crate::config::security_key(k)));
+        if physical {
+            return Ok(());
+        }
         let detail = detail(&name, own, args);
         let prompt = if let Some(patch) = own {
             self.config.settings_question(patch)
-        } else if let Some(rule) = tools::rule(&self.config.confirm, &name, args) {
+        } else if let Some(rule) = self.rule(&name, args) {
             let (prompt, kinds) = (rule.question(&name, args), rule.commands.clone());
             if name == "apply_commands" && self.removes_own(&kinds, args).await {
                 crate::log::info("confirm apply_commands: own nodes, no question");
@@ -1113,7 +1128,7 @@ impl Chat {
                 DETAIL_BYTES / 1024
             ));
         }
-        let (result, always) = self.ask(prompt, detail, physical, out).await;
+        let (result, always) = self.ask(prompt, detail, out).await;
         crate::log::info(&format!(
             "confirm {name}: {}",
             result.as_ref().map_or_else(String::as_str, |()| "yes")
@@ -1129,22 +1144,22 @@ impl Chat {
     }
 
     /// Asks the user and waits for the answer; answers whether it had
-    /// an always word.
+    /// an always word. A spoken yes answers: the client asks the
+    /// questions that take a key, and their mark (`Tools::physical`)
+    /// stays as it is.
     async fn ask(
         &self,
         prompt: String,
         detail: String,
-        physical: bool,
         out: &(impl Fn(Event) + Sync),
     ) -> (Result<(), String>, bool) {
         let (answer, rx) = oneshot::channel();
         let always = Arc::new(AtomicBool::new(false));
-        self.tools.physical.store(physical, Ordering::Relaxed);
         out(Event::Confirm {
             prompt,
             detail,
             always: always.clone(),
-            physical,
+            physical: false,
             answer,
         });
         let wait = Duration::from_millis(self.config.confirm_timeout_ms.into());
@@ -1161,7 +1176,6 @@ impl Chat {
                 wait.as_secs()
             )),
         };
-        self.tools.physical.store(false, Ordering::Relaxed);
         (result, always.load(Ordering::Relaxed))
     }
 
@@ -1309,7 +1323,8 @@ impl Chat {
         }
     }
 
-    /// Writes the last `saved_requests` requests to the history file.
+    /// Writes the last `saved_requests` requests to the history file,
+    /// which only the user reads (mode 0600).
     fn save(&mut self) {
         let keep = self.config.saved_requests as usize;
         let skip = self.requests.len().saturating_sub(keep);
@@ -1327,7 +1342,7 @@ impl Chat {
         let result = file
             .parent()
             .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(&part, Value::from(words).to_string()))
+            .and_then(|()| write_private(&part, &Value::from(words).to_string()))
             .and_then(|()| std::fs::rename(&part, file));
         if let Err(e) = result {
             crate::log::warn(&format!("{}: {e}", file.display()));
@@ -1342,6 +1357,18 @@ struct Timed {
     /// The answer stopped mid-sentence; its last words did not go out,
     /// and it does not go into the history.
     cut: bool,
+}
+
+/// Writes `text` to a new file with the mode 0600.
+fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    std::fs::File::options()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)?
+        .write_all(text.as_bytes())
 }
 
 /// `$XDG_STATE_HOME/chora/voice-history.json`.
@@ -1411,9 +1438,11 @@ fn unwrap_patch(args: &mut Value) {
     }
 }
 
-/// The arguments and the result of a tool call for the journal,
-/// without secrets: of `read` only the path and the byte count, and no
-/// value of a key such as `llm_headers` or `tts_api_key_file`.
+/// The start of the arguments and of the result of a tool call for
+/// the journal, without secrets: of `read` only the path and the byte
+/// count, no value of a key such as `llm_headers` or
+/// `tts_api_key_file`, and not the text that `inject_input` types,
+/// which can be a password.
 fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     if tool == "read" {
         let path = args["path"].as_str().unwrap_or_default();
@@ -1421,6 +1450,11 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
     }
     let mut args = args.clone();
     hide(&mut args);
+    if tool == "inject_input"
+        && let Some(text) = args.get_mut("text")
+    {
+        *text = "(hidden)".into();
+    }
     // A result that is JSON, such as the answer of `settings.set`.
     let result = serde_json::from_str::<Value>(result).map_or_else(
         |_| result.to_owned(),
@@ -1429,12 +1463,12 @@ fn journal(tool: &str, args: &Value, result: &str) -> (String, String) {
             v.to_string()
         },
     );
-    (args.to_string(), short(&result, 300))
+    (short(&args.to_string(), 300), short(&result, 300))
 }
 
 /// Hides the value of each key such as `llm_headers`, `token`,
 /// `authorization` or one with `api_key`, `secret` or `password`.
-fn hide(value: &mut Value) {
+pub(crate) fn hide(value: &mut Value) {
     match value {
         Value::Object(map) => {
             for (key, value) in map {
@@ -1586,6 +1620,26 @@ mod tests {
         assert_eq!(chat.history.last().unwrap()["content"], "Gut. Ich warte.");
     }
 
+    /// The words of `docs/cube-modes.md` reach the cube of the construct
+    /// through its methods, which the agent has as plugin tools.
+    #[test]
+    fn the_prompt_maps_the_words_of_the_cube_to_its_methods() {
+        for needed in [
+            "view.step_back",
+            "view.step_in",
+            "cube.turn",
+            "step back",
+            "step in",
+            "turn left",
+            "turn right",
+            "zurücktreten",
+            "hineingehen",
+            "\"turn left\" or \"nach links drehen\" is cube.turn with by -1",
+            "\"turn right\" or \"nach rechts drehen\" is cube.turn with by 1",
+        ] {
+            assert!(SYSTEM.contains(needed), "the prompt lacks {needed:?}");
+        }
+    }
     #[test]
     fn a_stopped_answer_keeps_only_whole_sentences_or_words() {
         assert_eq!(complete("Gut. Die Blö"), "Gut.");
@@ -1600,6 +1654,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_turn_runs_the_tool_calls_and_speaks_the_answer() {
+        let (_guard, lines) = crate::log::capture::info();
         let script = vec![
             Reply::Tool("echo", r#"{"a": 1}"#),
             Reply::Text("Fertig. Alles gut."),
@@ -1640,6 +1695,26 @@ mod tests {
             (&json!("tool"), &json!(r#"{"a":1}"#))
         );
         assert_eq!(chat.history.len(), 4, "user, call, result, answer");
+        let log = lines.text();
+        assert!(log.contains("tool echo"), "the stages still log: {log}");
+        assert!(!log.contains("Mach was"), "no request at info: {log}");
+        assert!(!log.contains("Alles gut"), "no reply at info: {log}");
+    }
+
+    /// The arguments of a tool call carry text of the person, such as a
+    /// coding task: the info log names the tool only.
+    #[tokio::test]
+    async fn the_arguments_of_a_tool_call_stay_out_of_the_info_log() {
+        let (_guard, lines) = crate::log::capture::info();
+        let script = vec![
+            Reply::Tool("echo", r#"{"task": "Kennwort Zwiebel"}"#),
+            Reply::Text("Fertig."),
+        ];
+        let (mut chat, _server) = chat(script, Config::default()).await;
+        turn(&mut chat, "Mach was.", true).await;
+        let log = lines.text();
+        assert!(log.contains("tool echo"), "the tool still logs: {log}");
+        assert!(!log.contains("Zwiebel"), "no arguments at info: {log}");
     }
 
     #[tokio::test]
@@ -2428,8 +2503,9 @@ mod tests {
     }
 
     /// Each change of the agent's own settings asks with its key and
-    /// value; a security setting says so (log 2026-10-31: "set the
-    /// barge-in RMS to 15").
+    /// value (log 2026-10-31: "set the barge-in RMS to 15"); a security
+    /// setting goes on: the client thread asks for its key (review A1,
+    /// high 2).
     #[tokio::test]
     async fn a_change_of_the_own_settings_asks_with_key_and_value() {
         let script = vec![
@@ -2458,14 +2534,7 @@ mod tests {
         assert!(chat.system.contains("only after describe_screen or"));
         let (_, events) = turn(&mut chat, "Setz den Barge-in auf 15.", true).await;
         let asked: Vec<_> = events.iter().filter(|e| e.starts_with("confirm")).collect();
-        assert_eq!(
-            asked,
-            [
-                "confirm Shall I set barge in min rms to 15?",
-                "confirm Security setting! Shall I set llm url? The full value is on the screen. \
-                 Press Alt+y for yes or Alt+n for no."
-            ]
-        );
+        assert_eq!(asked, ["confirm Shall I set barge in min rms to 15?"]);
         assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 
@@ -2489,10 +2558,28 @@ mod tests {
         );
     }
 
+    /// The journal gets no typed text, which can be a password, and
+    /// only the start of long arguments.
+    #[test]
+    fn the_journal_hides_typed_text_and_cuts_the_arguments() {
+        let typed = json!({"text": "hunter2", "keys": ["Return"]});
+        let (args, _) = journal("inject_input", &typed, "ok");
+        assert!(!args.contains("hunter2"), "{args}");
+        assert!(
+            args.contains("(hidden)") && args.contains("Return"),
+            "{args}"
+        );
+        let long = json!({"commands": "x".repeat(1000)});
+        let (args, _) = journal("apply_commands", &long, "ok");
+        assert_eq!(args.chars().count(), 300);
+    }
+
     /// Review rc3 round 2, 4.4, the user's decision: a security setting
-    /// asks for a key press, never for a spoken yes.
+    /// asks for a key press, never for a spoken yes. Review A1, high 2:
+    /// the client thread asks it for every caller, so the chat asks only
+    /// the other change.
     #[tokio::test]
-    async fn a_security_setting_asks_for_a_key() {
+    async fn a_security_setting_is_asked_by_the_client_thread() {
         let script = vec![
             Reply::Tool(
                 "voice__settings__set",
@@ -2526,7 +2613,7 @@ mod tests {
             }
         })
         .await;
-        assert_eq!(asked.into_inner().unwrap(), [(true, true), (false, false)]);
+        assert_eq!(asked.into_inner().unwrap(), [(false, false)]);
         assert!(!chat.tools.physical.load(Ordering::SeqCst));
         for key in [
             "indicator",
@@ -2538,6 +2625,38 @@ mod tests {
         ] {
             assert!(crate::config::security_key(key), "{key}");
         }
+    }
+
+    /// A question of the chat leaves the mark of a key question that
+    /// shows (`Tools::physical`): `inject_input` stays refused.
+    #[tokio::test]
+    async fn a_chat_question_keeps_the_mark_of_a_key_question() {
+        let script = vec![
+            Reply::Tool("voice__settings__set", r#"{"patch": {"barge_in_ms": 300}}"#),
+            Reply::Text("Erledigt."),
+        ];
+        let server = fake::llm(script).await;
+        let (mut tools, _) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        chat.tools.physical.store(true, Ordering::SeqCst);
+        let open = chat.tools.physical.clone();
+        let asked = Mutex::new(Vec::new());
+        chat.turn("Stell das um.", &|event| {
+            if let Event::Confirm { answer, .. } = event {
+                asked.lock().unwrap().push(open.load(Ordering::SeqCst));
+                let _ = answer.send(Some(true));
+            }
+        })
+        .await;
+        assert_eq!(asked.into_inner().unwrap(), [true]);
+        assert!(chat.tools.physical.load(Ordering::SeqCst));
     }
 
     /// The LLM wraps the patch of another plugin's `settings.set` as in
@@ -2559,9 +2678,10 @@ mod tests {
     }
 
     /// Review rc3 round 3, 2.4: a reload of a file that differs in a
-    /// security key asks for a key press; any other reload, a spoken yes.
+    /// security key asks for a key press, in the client thread (review
+    /// A1, high 2); any other reload, a spoken yes.
     #[tokio::test]
-    async fn a_reload_with_a_new_security_key_asks_for_a_key() {
+    async fn a_reload_with_a_new_security_key_is_asked_by_the_client_thread() {
         let script = [
             Reply::Tool("voice__settings__reload", "{}"),
             Reply::Text("Erledigt."),
@@ -2595,7 +2715,7 @@ mod tests {
             std::fs::write(&file, format!("{{llm_url: '{url}', {yaml}}}")).unwrap();
             chat.turn("Lade neu.", &on).await;
         }
-        assert_eq!(asked.into_inner().unwrap(), [true, false]);
+        assert_eq!(asked.into_inner().unwrap(), [false]);
     }
 
     /// Review rc3 round 2, 4.2: the screen and the event get no secret.
@@ -2844,6 +2964,20 @@ mod tests {
         }
         assert_eq!(section("# A\n\n## B\nb\n## C\nc", "B"), Some("## B\nb"));
         assert_eq!(section("x", "B"), None);
+    }
+
+    /// The history file has the requests of the user: only the user
+    /// reads it.
+    #[tokio::test]
+    async fn the_history_file_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let file = temp("history-mode.json");
+        let _ = std::fs::remove_file(&file);
+        let (mut chat, _server) = chat(vec![], Config::default()).await;
+        chat.file = Some(file.clone());
+        turn(&mut chat, "eins", true).await;
+        let mode = std::fs::metadata(&file).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
     }
 
     #[tokio::test]

@@ -51,7 +51,8 @@ health() {
     else
       state=no-process
     fi
-    finding "core dead after: $*" crash "health check during $WF" "process: $state"
+    finding "core dead after: $*" crash "health check during $WF" "process: $state" \
+      "session: $(grep -a "the core ended with" "$hlenv.err" 2>/dev/null | tail -n 1)"
     # W9-W12 end at the first death instead of piling up findings
     if [ -n "${STOP_ON_DEATH:-}" ]; then log_scan; session_stop; exit 1; fi
     return 1
@@ -86,6 +87,7 @@ session_start() {
   : > "$hlenv"
   : > "/tmp/bt-$WF.pids"
   export CHORA_LOG=$repo/tests/battle/chora-$WF.log
+  export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
   tests/headless-session.sh "$outputs" ${1:+-- "$@"} > "$hlenv" 2> "$hlenv.err" &
   HLPID=$!
   for _ in $(seq 120); do grep -q CHORA_SOCKET "$hlenv" && break; sleep 0.5; done

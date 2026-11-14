@@ -7,7 +7,7 @@
 //! stall the event loop.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{self, ErrorKind, Read, Write},
     os::unix::{
         fs::{DirBuilderExt, MetadataExt, PermissionsExt},
@@ -38,7 +38,7 @@ use smithay::{
 
 use crate::{
     output::output_area,
-    render::{location_and_scale, window_rect},
+    render::{bounding_box_from, projected_box, window_rect},
     state::State,
     uploads::Uploads,
 };
@@ -67,6 +67,8 @@ const GRACE: Duration = Duration::from_secs(10);
 const MAX_EMIT: usize = 64 << 10;
 /// The most events that one client name emits per `EMIT_WINDOW` (D65).
 const MAX_EMITS: u32 = 32;
+/// The most grabs of one connection.
+const MAX_GRABS: usize = 256;
 const EMIT_WINDOW: Duration = Duration::from_secs(1);
 
 /// The connections of the IPC socket.
@@ -113,6 +115,15 @@ const BUTTONS: [(&str, u32); 7] = [
     ("BTN_BACK", 0x116),
 ];
 
+/// The keysym of a name, or no symbol: xkbcommon panics on a name with
+/// a NUL, and a client sends the name.
+pub(crate) fn keysym(name: &str, flags: xkb::KeysymFlags) -> Keysym {
+    if name.contains('\0') {
+        return Keysym::NoSymbol;
+    }
+    xkb::keysym_from_name(name, flags)
+}
+
 /// The key or the button of a binding, or the moves of `move`.
 fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     if binding.key == MOVE && binding.mods == Modifiers::default() {
@@ -124,7 +135,7 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     {
         return Ok(Trigger::Button(*code));
     }
-    let sym = xkb::keysym_from_name(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
+    let sym = keysym(&binding.key, xkb::KEYSYM_CASE_INSENSITIVE);
     if sym.raw() == 0 {
         return Err(RpcError::new(
             RpcError::INVALID_PARAMS,
@@ -134,12 +145,33 @@ fn trigger(binding: &Binding) -> Result<Trigger, RpcError> {
     Ok(Trigger::Key(sym))
 }
 
+/// The media keys that a window manager grabs without a modifier: they
+/// type no text, and a person expects the session to answer them.
+const MEDIA_KEYS: [Keysym; 9] = [
+    Keysym::XF86_AudioRaiseVolume,
+    Keysym::XF86_AudioLowerVolume,
+    Keysym::XF86_AudioMute,
+    Keysym::XF86_AudioMicMute,
+    Keysym::XF86_AudioPlay,
+    Keysym::XF86_AudioNext,
+    Keysym::XF86_AudioPrev,
+    Keysym::XF86_MonBrightnessUp,
+    Keysym::XF86_MonBrightnessDown,
+];
+
+/// Whether a key is one of [`MEDIA_KEYS`].
+fn media_key(trigger: Trigger) -> bool {
+    matches!(trigger, Trigger::Key(sym) if MEDIA_KEYS.contains(&sym))
+}
+
 // Each bool is one fact of the connection; no state machine joins them.
 #[allow(clippy::struct_excessive_bools)]
 struct Conn {
     stream: UnixStream,
     /// The process of the client; `None` if the core cannot see it.
     pid: Option<Pid>,
+    /// The program of that process, from `/proc/PID/exe`.
+    exe: Option<PathBuf>,
     input: Vec<u8>,
     output: Vec<u8>,
     /// The output passed `MAX_OUTPUT`; the connection closes.
@@ -321,6 +353,22 @@ impl Ipc {
         }
     }
 
+    /// Sends an event to one connection unless its output is too full:
+    /// `false` then, and the connection stays open. For an event that
+    /// another client causes, which must not close this one.
+    pub fn send_if_room(&mut self, conn: u64, event: &Event) -> bool {
+        let Some(c) = self.conns.get_mut(&conn) else {
+            return false;
+        };
+        let line = stamped(&Message::event(event), c.seq + 1);
+        if c.output.len() + line.len() > MAX_OUTPUT {
+            return false;
+        }
+        c.seq += 1;
+        c.push(&line);
+        true
+    }
+
     /// Sends a response to one connection. A result that does not fit in
     /// the output of the connection becomes an error, so that a large
     /// answer, for example of a query of all nodes, does not close it.
@@ -453,8 +501,21 @@ impl Ipc {
         self.clients.contains_key(name)
     }
 
+    /// Whether a live connection of `name` comes from the process of
+    /// `conn`, or from the same program, such as a second `choractl`
+    /// (review A1): a live name of the main socket belongs to its program.
+    fn same_program(&self, conn: u64, name: &str) -> bool {
+        let Some(me) = self.conns.get(&conn) else {
+            return false;
+        };
+        let same = |c: &Conn| {
+            (me.pid.is_some() && c.pid == me.pid) || (me.exe.is_some() && c.exe == me.exe)
+        };
+        (self.conns.values()).any(|c| c.name.as_deref() == Some(name) && same(c))
+    }
+
     /// Whether a connection came through the admin socket.
-    fn admin(&self, conn: u64) -> bool {
+    pub(crate) fn admin(&self, conn: u64) -> bool {
         self.conns
             .get(&conn)
             .is_some_and(|c| c.socket == Socket::Admin)
@@ -736,9 +797,12 @@ impl State {
                 move |_, _, state| Ok(state.ipc_readable(id)),
             )
             .map_err(failed)?;
+        let exe =
+            pid.and_then(|p| std::fs::read_link(format!("/proc/{}/exe", p.as_raw_nonzero())).ok());
         let conn = Conn {
             stream,
             pid,
+            exe,
             input: Vec::new(),
             output: Vec::new(),
             overflow: false,
@@ -840,11 +904,15 @@ impl State {
                 let Some(owner) = self.ipc.name(conn).map(str::to_owned) else {
                     return Some(Err(rejected("send hello first")));
                 };
+                let drag = match self.check_grab_gives(conn, &apply.commands) {
+                    Ok(drag) => drag,
+                    Err(e) => return Some(Err(e)),
+                };
                 let checked = self.check_paths(conn, &apply.commands);
                 if let Err(e) = checked.and_then(|()| self.confine(conn, &apply.commands)) {
                     return Some(Err(e));
                 }
-                self.submit_transaction(conn, id, owner, apply.commands);
+                self.submit_transaction(conn, id, owner, (apply.commands, drag));
                 return None;
             }
             "events.subscribe" => {
@@ -861,10 +929,11 @@ impl State {
                 params_of(params).and_then(|c| self.ipc_output_configure(conn, &c))
             }
             "output.add" | "output.remove" => {
-                self.ipc_headless_output(conn, &request.method, params)
+                self.ipc_output_hotplug(conn, &request.method, params)
             }
             "clients.list" => Ok(self.clients()),
             "methods.list" => Ok(self.list_methods()),
+            "render.stats" => self.ipc_render_stats(conn),
             "camera.release" => self.ipc_admin(conn, &request.method, params),
             "grants.set" | "grants.revoke" | "grants.list" | "clients.create" => {
                 self.ipc_admin(conn, &request.method, params)
@@ -878,10 +947,7 @@ impl State {
             "methods.export" | "methods.call" | "methods.return" => {
                 return self.ipc_methods(conn, id, &request.method, params);
             }
-            other => Err(RpcError::new(
-                RpcError::METHOD_NOT_FOUND,
-                format!("no method {other:?}"),
-            )),
+            other => self.ipc_record(conn, other, params),
         })
     }
 
@@ -891,13 +957,48 @@ impl State {
     /// `MAX_TOKEN_AGE`, by its own deadline and by every new token. A
     /// client socket needs the capability `activation.token`, because
     /// such a token skips the focus rule of its own tokens.
+    ///
+    /// The token carries the act of the person (the last command press)
+    /// when the caller is unconfined, is a connection that received the
+    /// act, handles no method call of a confined caller, the act is
+    /// younger than `ACT_AGE` and no token carries it yet: one act, one
+    /// stamped token. Only such a token gives the
+    /// keyboard to an on-demand layer surface. Any other token still
+    /// starts programs and places windows. A call without an act proves
+    /// nothing (#102).
     fn ipc_activation_token(&mut self, conn: u64) -> Result<Value, RpcError> {
         self.check_socket_grant(conn, Capability::ActivationToken)?;
         self.forget_unused_tokens(crate::protocols::MAX_TOKEN_AGE);
-        let (token, _) = self.activation_state.create_external_token(None);
+        let data = self.act_stamped_data(conn);
+        let (token, _) = self.activation_state.create_external_token(data);
         let token = token.as_str().to_owned();
         let _ = self.expire_at(self.time.now() + crate::protocols::MAX_TOKEN_AGE);
         Ok(serde_json::json!({"token": token}))
+    }
+
+    /// The token data of `activation.token`: stamped with the act when the
+    /// caller is unconfined, received the act and handles no call of a
+    /// confined caller, and the act is young and carried by no token yet.
+    fn act_stamped_data(
+        &mut self,
+        conn: u64,
+    ) -> smithay::wayland::xdg_activation::XdgActivationTokenData {
+        let data = smithay::wayland::xdg_activation::XdgActivationTokenData::default();
+        let now = self.time.now();
+        let confined = self.ipc.confined(conn) || self.methods.serves_confined(conn);
+        let act = self.last_act.as_mut().filter(|a| {
+            !a.stamped
+                && !confined
+                && a.conns.contains(&conn)
+                && now.saturating_duration_since(a.at) < crate::protocols::ACT_AGE
+        });
+        if let Some(act) = act {
+            act.stamped = true;
+            let serial = u32::from(act.serial);
+            data.user_data
+                .insert_if_missing_threadsafe(|| crate::protocols::ActStamp { serial, at: now });
+        }
+        data
     }
 
     /// Ends chora as Ctrl+Alt+Backspace does, after the answer. A client
@@ -908,8 +1009,8 @@ impl State {
             .name(conn)
             .ok_or_else(|| rejected("send hello first"))?;
         self.check_socket_grant(conn, Capability::SessionQuit)?;
-        tracing::info!(client = name, "session.quit");
-        self.loop_signal.stop();
+        let reason = format!("session.quit of {name}");
+        self.quit(&reason);
         Ok(Value::Null)
     }
 
@@ -1012,6 +1113,55 @@ impl State {
         self.ipc_grants(method, params)
     }
 
+    /// Checks a `hello` of `conn` against the live connections of its
+    /// name: they share effective confinement (a connection on a client
+    /// socket is confined whatever its `hello` says), `keep_nodes` and
+    /// `resume`. Resume is for a name without a live connection: a second
+    /// instance must not take the nodes of a running one. Answers whether
+    /// the name is connected.
+    fn check_peers(&self, conn: u64, hello: &Hello) -> Result<bool, RpcError> {
+        let (peer_conn, peer) = self
+            .ipc
+            .conns
+            .iter()
+            .find(|(_, c)| c.name.as_deref() == Some(&hello.name))
+            .map_or((None, None), |(id, c)| (Some(*id), Some(c)));
+        let confined = hello.confined || self.ipc.fixed(conn).is_some();
+        if peer.is_some()
+            && self.ipc.fixed(conn).is_none()
+            && !self.ipc.same_program(conn, &hello.name)
+        {
+            return Err(name_taken(format!(
+                "{:?} is connected from another program",
+                hello.name
+            )));
+        }
+        if let Some(peer_confined) = peer_conn
+            .map(|id| self.ipc.confined(id))
+            .filter(|p| *p != confined)
+        {
+            return Err(name_taken(format!(
+                "{:?} is in use with confined {peer_confined}",
+                hello.name
+            )));
+        }
+        if let Some(peer) =
+            peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
+        {
+            return Err(name_taken(format!(
+                "{:?} is in use with keep_nodes {} and resume {}",
+                hello.name, peer.keep_nodes, peer.resume
+            )));
+        }
+        if hello.resume && peer.is_some() {
+            return Err(name_taken(format!(
+                "{:?} is connected; resume needs a name without a live connection",
+                hello.name
+            )));
+        }
+        Ok(peer.is_some())
+    }
+
     /// Names a connection. All connections of a name share one
     /// `keep_nodes` and one `resume` setting. With `resume`, a name in its
     /// grace time gets its nodes back; without, they go first.
@@ -1038,28 +1188,7 @@ impl State {
             }
             _ => {}
         }
-        let peer = self
-            .ipc
-            .conns
-            .values()
-            .find(|c| c.name.as_deref() == Some(&hello.name));
-        if let Some(peer) =
-            peer.filter(|p| (p.keep_nodes, p.resume) != (hello.keep_nodes, hello.resume))
-        {
-            return Err(name_taken(format!(
-                "{:?} is in use with keep_nodes {} and resume {}",
-                hello.name, peer.keep_nodes, peer.resume
-            )));
-        }
-        // Resume is for a name without a live connection: a second instance
-        // must not take the nodes of a running one.
-        if hello.resume && peer.is_some() {
-            return Err(name_taken(format!(
-                "{:?} is connected; resume needs a name without a live connection",
-                hello.name
-            )));
-        }
-        let known = peer.is_some();
+        let known = self.check_peers(conn, &hello)?;
         if hello.resume {
             self.ipc.graces.remove(&hello.name);
         } else if self.ipc.graces.contains_key(&hello.name) {
@@ -1074,10 +1203,16 @@ impl State {
         if !known {
             self.emit(&Event::ClientConnected { name: hello.name });
         }
+        let software = self
+            .backend
+            .as_mut()
+            .and_then(|b| b.with_gles(crate::gl::is_software).ok())
+            .unwrap_or(false);
         Ok(serde_json::json!({
             "version": chora_scene::ipc::VERSION,
             "protocol": chora_scene::ipc::PROTOCOL,
             "features": chora_scene::ipc::FEATURES,
+            "software": software,
         }))
     }
 
@@ -1085,8 +1220,9 @@ impl State {
     /// ends its grace time.
     pub fn drop_nodes(&mut self, name: &str) {
         self.ipc.graces.remove(name);
+        self.drop_virtuals_of(name);
         let effects = self.scene.disconnect(name);
-        self.execute_gone(effects);
+        self.execute_gone(effects, name);
         self.ipc.uploads.drop_client(name);
     }
 
@@ -1110,7 +1246,11 @@ impl State {
         nodes.retain(|n| fixed.is_none_or(|f| clients::own_node(n, f)));
         // (D33): only the nodes that survived the filter can show a focus.
         let focus = [self.scene.focused_surface(), self.scene.focused_node()];
-        let rects = self.screen_rects();
+        if nodes.is_empty() {
+            return Ok(Value::Array(Vec::new()));
+        }
+        let matched: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+        let rects = self.screen_rects(&matched);
         if let Some(filter) = &query.filter {
             nodes.retain(|n| {
                 filter.matches(
@@ -1140,10 +1280,12 @@ impl State {
     /// The screen rectangles by node: the output name maps to
     /// `[x, y, w, h]` in the logical pixels of that output, after the
     /// parent transforms and the camera of the output. Outputs where the
-    /// node does not show are left out.
-    fn screen_rects(&self) -> HashMap<&str, Value> {
+    /// node does not show are left out. Only the nodes `of` get a
+    /// rectangle: a box costs a text layout or a projection, which a
+    /// query for one node must not pay for the whole scene.
+    fn screen_rects(&self, of: &HashSet<&str>) -> HashMap<&str, Value> {
         let mut found: HashMap<&str, serde_json::Map<String, Value>> = HashMap::new();
-        for output in &self.outputs {
+        for output in &self.all_outputs() {
             let name = output.name();
             let screen = Rectangle::from_size(output_area(output).size).to_f64();
             // The overlay sits in the coordinates of its output, without
@@ -1159,7 +1301,8 @@ impl State {
                     .iter()
                     .map(|placed| (placed.node.id.as_str(), camera.then(&placed.transform)))
                     .collect();
-                let shown = list.iter().filter_map(|placed| {
+                let wanted = list.iter().filter(|p| of.contains(p.node.id.as_str()));
+                let shown = wanted.filter_map(|placed| {
                     Some((
                         placed.node.id.as_str(),
                         self.screen_rect(placed, &at, screen)?,
@@ -1183,9 +1326,12 @@ impl State {
     /// The rectangle of one placed node on an output, as the renderer
     /// draws it there. A layer, and with a size also a shader, shows
     /// through its mesh, so its box is the box of the projected shape.
-    /// Any other node needs a plain positive scale below its innermost
-    /// ancestor layer, and every ancestor layer cuts its box like a clip
-    /// does. The mesh of a layer does not move the boxes of descendants.
+    /// Any other node draws as a plane when its transform is not a plain
+    /// translation with a positive scale, so its box is the box of its
+    /// projected corners; every ancestor layer or plane cuts the box like a
+    /// clip does. A quad that is edge on or collapsed shows nowhere, and in
+    /// a 3D context a quad shows only in front of its near plane. The mesh
+    /// of a layer does not move the boxes of descendants.
     fn screen_rect(
         &self,
         placed: &Placed<'_>,
@@ -1194,47 +1340,62 @@ impl State {
     ) -> Option<Rectangle<f64, Logical>> {
         let node = placed.node;
         let transform = at.get(node.id.as_str())?;
-        let (below, layers) = self.lineage(node)?;
-        let mut rect = if node.is_layer() {
-            layer_box(node, transform)?
+        let (layers, near) = self.lineage(node, at)?;
+        if node.props.mesh.is_none() && !transform.is_plain() {
+            transform.plane_inverse()?;
+        }
+        let mut rect = if is_texture(node, transform) {
+            layer_box(node, transform, near)?
         } else {
-            // A mirrored, rotated, collapsed or projected node draws
-            // nothing outside a layer.
-            location_and_scale(&below)?;
-            self.content_box(node, transform)?
+            self.content_box(node, transform, near)?
         };
         // Every ancestor layer cuts the box like a clip does.
         for ancestor in layers {
-            rect = intersect(rect, layer_box(ancestor, at.get(ancestor.id.as_str())?)?)?;
+            let ancestor_at = at.get(ancestor.id.as_str())?;
+            rect = intersect(rect, layer_box(ancestor, ancestor_at, near)?)?;
         }
         rect.overlaps(screen).then_some(rect)
     }
 
-    /// The node's transform below the innermost ancestor layer, and every
-    /// ancestor layer. The renderer draws the node with that transform,
-    /// also inside the texture of a layer, and the node shows only inside
-    /// every layer: a layer composes into a texture of its size. A clip
-    /// makes a layer and cuts through the same box.
-    fn lineage(&self, node: &Node) -> Option<(Transform, Vec<&Node>)> {
-        let mut below = node.props.transform;
+    /// Every ancestor layer or plane, and the near w of the node: 1/64 in
+    /// a 3D context. The node shows only inside every layer and plane: each
+    /// composes into a texture of its size. A clip makes a layer and cuts
+    /// through the same box.
+    fn lineage(&self, node: &Node, at: &HashMap<&str, Transform>) -> Option<(Vec<&Node>, f64)> {
         let mut layers = Vec::new();
+        let mut near = crate::mesh::NEAR;
         let mut parent = node.parent.as_deref();
         while let Some(id) = parent {
             let ancestor = self.scene.node(id)?;
-            if ancestor.is_layer() {
+            if at.get(id).is_some_and(|t| is_texture(ancestor, t)) {
                 layers.push(ancestor);
-            } else if layers.is_empty() {
-                below = ancestor.props.transform.then(&below);
+            }
+            if ancestor.is_context() {
+                near = crate::space::NEAR_W;
             }
             parent = ancestor.parent.as_deref();
         }
-        Some((below, layers))
+        Some((layers, near))
     }
 
-    /// The box of a node that is not a layer itself.
-    fn content_box(&self, node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+    /// The box of a node that is not a layer or plane itself. A surface
+    /// has the box of its buffer, subsurfaces and decorations, and under a
+    /// plane the box of its geometry, which its texture holds.
+    fn content_box(
+        &self,
+        node: &Node,
+        transform: &Transform,
+        near: f64,
+    ) -> Option<Rectangle<f64, Logical>> {
+        let bounding_box = |transform, size| bounding_box_from(transform, size, near);
         match node.kind {
-            // A surface is sized by its buffer, subsurfaces and decorations.
+            NodeKind::Surface if !transform.is_plain() => {
+                let size = self.windows.get(node.id.as_str())?.geometry().size;
+                Some(bounding_box(
+                    transform,
+                    [f64::from(size.w), f64::from(size.h)],
+                ))
+            }
             NodeKind::Surface => Some(window_rect(self.windows.get(node.id.as_str())?, transform)),
             NodeKind::Rect => Some(bounding_box(transform, node.props.size?)),
             NodeKind::Image => {
@@ -1260,7 +1421,8 @@ impl State {
 
     /// Grabs a binding of a key or a pointer button for a named connection.
     /// A binding needs Ctrl, Alt or Super, so that typing and clicking still
-    /// work; `input.grab-any` lifts this (D45). Ctrl+Alt with the keys of
+    /// work; `input.grab-any` lifts this (D45), and a media key of
+    /// [`MEDIA_KEYS`] needs none for an unconfined client with a claim. Ctrl+Alt with the keys of
     /// the safety layer belongs to the safety layer either way. The result
     /// is the binding in the normal form of `input.key`.
     fn ipc_grab(&mut self, conn: u64, binding: Binding) -> Result<Value, RpcError> {
@@ -1269,7 +1431,10 @@ impl State {
         };
         let m = binding.mods;
         let trigger = trigger(&binding)?;
-        let free = trigger == Trigger::Move || self.grants.allows(&name, Capability::GrabAny);
+        let window_manager = !self.ipc.confined(conn) && self.scene.holds_claim(&name);
+        let free = trigger == Trigger::Move
+            || (media_key(trigger) && window_manager)
+            || self.grants.allows(&name, Capability::GrabAny);
         if !(m.ctrl || m.alt || m.logo || free) {
             return Err(RpcError::new(
                 RpcError::MISSING_CAPABILITY,
@@ -1284,8 +1449,7 @@ impl State {
         // Only on the main socket: a confined client could claim a little
         // less than an output and so take every press of the binding.
         let claims = |c: u64| {
-            self.ipc.fixed(c).is_none()
-                && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
+            !self.ipc.confined(c) && (self.ipc.name(c)).is_some_and(|n| self.scene.holds_claim(n))
         };
         // Each window manager gets the moves of its own windows.
         let own = trigger == Trigger::Move;
@@ -1296,6 +1460,12 @@ impl State {
         let shared = matches!(trigger, Trigger::Button(_)) && claims(conn);
         if holders.peek().is_some() && !(shared && holders.all(|c| c != conn && claims(c))) {
             return Err(rejected(format!("{binding} is grabbed already")));
+        }
+        if self.ipc.grabs.iter().filter(|(_, _, c)| *c == conn).count() >= MAX_GRABS {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a connection holds at most {MAX_GRABS} grabs"),
+            ));
         }
         let normal = binding.to_string();
         self.ipc.grabs.push((binding, trigger, conn));
@@ -1344,10 +1514,14 @@ impl State {
             self.loop_handle.remove(reader);
         }
         self.ipc.grabs.retain(|(_, _, c)| *c != conn);
+        if self.button_grab.take_if(|g| g.conn == conn).is_some() {
+            self.refresh_pointer();
+        }
         if !closed.reserves.is_empty() {
             self.output_changed();
         }
         self.methods_closed(conn);
+        self.recording_closed(conn);
         let held = self.transactions.drop_conn(conn);
         self.release(&held);
         // A dropped head lets the next transaction start.
@@ -1373,8 +1547,9 @@ impl State {
             self.drop_nodes(&name);
         } else {
             // Kept nodes stay, but a surface reserved for the name is free.
+            self.drop_virtuals_of(&name);
             let effects = self.scene.unreserve(&name);
-            self.execute_gone(effects);
+            self.execute_gone(effects, &name);
         }
         self.emit(&Event::ClientDisconnected { name });
     }
@@ -1460,14 +1635,22 @@ pub fn socket_rule(message: impl Into<String>) -> RpcError {
     RpcError::new(RpcError::CLIENT_SOCKET_RULE, message)
 }
 
-/// The box of a layer node on the screen: the points of its mesh, or the
-/// corners of its size, through the full transform of the renderer.
-fn layer_box(node: &Node, transform: &Transform) -> Option<Rectangle<f64, Logical>> {
+/// Whether a node draws through a texture of its size: a layer, or a
+/// node with a size under a transform that is not a 2D translation with
+/// a positive scale.
+fn is_texture(node: &Node, transform: &Transform) -> bool {
+    node.is_layer() || (node.props.size.is_some() && !transform.is_plain())
+}
+
+/// The box of a layer node or a plane on the screen: the points of its
+/// mesh, or the corners of its size clipped at `w = near`, through the
+/// full transform of the renderer.
+fn layer_box(node: &Node, transform: &Transform, near: f64) -> Option<Rectangle<f64, Logical>> {
     let size = node.props.size?;
     let Some(mesh) = &node.props.mesh else {
-        return Some(bounding_box(transform, size));
+        return Some(bounding_box_from(transform, size, near));
     };
-    Some(projected_box(transform, mesh.points.iter().copied()))
+    Some(projected_box(transform, mesh.points.iter().copied(), near))
 }
 
 /// The largest rectangle inside both, or `None` when they miss each other.
@@ -1482,45 +1665,6 @@ fn intersect(
     );
     (loc.0 < end.0 && loc.1 < end.1)
         .then(|| Rectangle::new(loc.into(), (end.0 - loc.0, end.1 - loc.1).into()))
-}
-
-/// The smallest axis-aligned rectangle that holds the box from `(0, 0)` to
-/// `(w, h)` after the transform.
-fn bounding_box(transform: &Transform, [w, h]: [f64; 2]) -> Rectangle<f64, Logical> {
-    projected_box(
-        transform,
-        [[0.0, 0.0], [w, 0.0], [0.0, h], [w, h]].into_iter(),
-    )
-}
-
-/// The smallest axis-aligned rectangle that holds the points after the
-/// transform. The points go through the projection of the renderer, so
-/// that a matrix which divides by w moves them as the frame does; the
-/// depth of mesh points stays out, as in `Transform::apply`. A point at
-/// or behind the eye is left out, and a box of no point in front overlaps
-/// nothing.
-fn projected_box(
-    transform: &Transform,
-    points: impl Iterator<Item = [f64; 2]>,
-) -> Rectangle<f64, Logical> {
-    let m = transform.matrix();
-    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
-    for [px, py] in points {
-        // The least w of a point that shows, as in the renderer.
-        let hw = m[3] * px + m[7] * py + m[15];
-        if hw <= 1e-6 {
-            continue;
-        }
-        let (x, y) = (
-            (m[0] * px + m[4] * py + m[12]) / hw,
-            (m[1] * px + m[5] * py + m[13]) / hw,
-        );
-        x0 = x0.min(x);
-        y0 = y0.min(y);
-        x1 = x1.max(x);
-        y1 = y1.max(y);
-    }
-    Rectangle::new((x0, y0).into(), (x1 - x0, y1 - y0).into())
 }
 
 /// Whether Ctrl+Alt with a key is a binding of the safety layer (D23):
@@ -1669,11 +1813,12 @@ mod tests {
     }
 
     #[test]
-    fn query_leaves_out_mirrored_rotated_and_collapsed_nodes() {
+    fn query_boxes_mirrored_and_rotated_nodes_and_leaves_out_collapsed_ones() {
         let mut core = Core::new();
         core.add_output("out", (800, 600));
         let mut wayland = Wayland::connect(&mut core);
-        wayland.toplevel(&mut core, "win");
+        let window = wayland.toplevel(&mut core, "win");
+        wayland.attach(&mut core, &window, (40, 30));
         let mut wm = core.named("wm");
         let path = png("mirror", 8);
         let sent = wm.send(
@@ -1682,8 +1827,6 @@ mod tests {
                 {"attach": {"surface": "s1", "parent": "root"}},
                 {"update": {"id": "s1", "props": {
                     "transform": {"translate": [400, 0], "scale": [-1, 1]}}}},
-                // An image without a size, so no layer: the renderer
-                // draws it only under a plain positive scale.
                 {"create": {"id": "turn", "kind": "image", "parent": "root",
                     "props": {"image": &path,
                               "transform": {"translate": [10, 10], "rotate": 30}}}},
@@ -1698,13 +1841,26 @@ mod tests {
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        for id in ["s1", "turn", "flat"] {
-            assert_eq!(
-                query_node(&mut wm, &mut core, id)["rects"],
-                json!({}),
-                "{id} draws nothing, so it shows on no output"
-            );
+        assert_eq!(
+            query_node(&mut wm, &mut core, "s1")["rects"],
+            json!({"out": [360.0, 0.0, 40.0, 30.0]}),
+            "the mirrored window shows left of its origin"
+        );
+        let turned = query_node(&mut wm, &mut core, "turn")["rects"]["out"].clone();
+        let turned: Vec<f64> = serde_json::from_value(turned).unwrap();
+        let (side, turn) = (8.0_f64, 30.0_f64.to_radians());
+        let extent = side * (turn.cos() + turn.sin());
+        for (got, want) in turned
+            .iter()
+            .zip([10.0 - side * turn.sin(), 10.0, extent, extent])
+        {
+            assert!((got - want).abs() < 1e-6, "the turned image: {turned:?}");
         }
+        assert_eq!(
+            query_node(&mut wm, &mut core, "flat")["rects"],
+            json!({}),
+            "a collapsed node draws nothing, so it shows on no output"
+        );
         std::fs::remove_file(&path).unwrap();
     }
 
@@ -2115,7 +2271,22 @@ mod tests {
                 "version": chora_scene::ipc::VERSION,
                 "protocol": chora_scene::ipc::PROTOCOL,
                 "features": [],
+                "software": false,
             })
+        );
+    }
+
+    /// The answer tells whether the core renders in software, as on
+    /// llvmpipe, so that a client can choose a cheaper look.
+    #[test]
+    fn hello_tells_a_software_renderer() {
+        let mut core = Core::with_renderer();
+        let mut client = core.connect();
+        let answer = client.ok(&mut core, "hello", json!({"name": "wm"}));
+        assert_eq!(
+            answer["software"],
+            json!(true),
+            "the tests render on llvmpipe"
         );
     }
 
@@ -2273,6 +2444,31 @@ mod tests {
         assert_eq!(error_code, RpcError::NAME_TAKEN);
     }
 
+    /// Review A1, high 1: while a name is connected, another program may
+    /// not say `hello` under it, so a script cannot answer as `mc`; the
+    /// same process may, and so may the same program, such as a second
+    /// `choractl`.
+    #[test]
+    fn a_live_name_belongs_to_its_program() {
+        let mut core = Core::new();
+        let _mc = core.named("mc");
+        let mut script = core.connect();
+        let last = |core: &mut Core| *core.state.ipc.conns.keys().max().unwrap();
+        let id = last(&mut core);
+        let conn = core.state.ipc.conns.get_mut(&id).unwrap();
+        conn.pid = Pid::from_raw(1_000_000);
+        conn.exe = Some("/usr/bin/python3".into());
+        let (error_code, message) = script.fails(&mut core, "hello", json!({"name": "mc"}));
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("another program"), "{message}");
+        let mut same = core.connect();
+        same.ok(&mut core, "hello", json!({"name": "mc"}));
+        let mut twin = core.connect();
+        let id = last(&mut core);
+        core.state.ipc.conns.get_mut(&id).unwrap().pid = Pid::from_raw(1_000_001);
+        twin.ok(&mut core, "hello", json!({"name": "mc"}));
+    }
+
     #[test]
     fn an_admin_method_off_the_admin_socket_answers_its_code() {
         let mut core = Core::new();
@@ -2399,6 +2595,49 @@ mod tests {
         let mut free = core.connect();
         free.ok(&mut core, "hello", json!({"name": "other"}));
         free.ok(&mut core, "activation.token", Value::Null);
+    }
+
+    /// The scene rules of a client socket hold for a confined connection
+    /// of the main socket too: only own assets, and no camera.
+    #[test]
+    fn a_confined_main_socket_connection_has_the_scene_rules() {
+        let mut core = Core::new();
+        let mut mcp = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        mcp.ok(&mut core, "hello", hello);
+        let image = json!({"commands": [{"create": {"id": "i", "kind": "image",
+            "parent": "root", "props": {"image": "/etc/hostname"}}}]});
+        let (_, message) = mcp.fails(&mut core, "scene.apply", image);
+        assert!(message.contains("only its own assets"), "{message}");
+        let camera = json!({"commands": [{"camera": {"output": "DP-1"}}]});
+        let (_, message) = mcp.fails(&mut core, "scene.apply", camera);
+        assert!(message.contains("no camera commands"), "{message}");
+    }
+
+    /// The connections of a name are all confined or all free: the event
+    /// connection of `choractl mcp` is confined too, and a free one cannot
+    /// join a confined name, nor the other way round.
+    #[test]
+    fn the_connections_of_a_name_share_confinement() {
+        let mut core = Core::new();
+        let confined = json!({"name": "voice-mcp", "confined": true});
+        let mut first = core.connect();
+        first.ok(&mut core, "hello", confined.clone());
+        let mut free = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": false});
+        let (error_code, message) = free.fails(&mut core, "hello", hello);
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
+        assert!(message.contains("confined"), "{message}");
+        let mut events = core.connect();
+        events.ok(&mut core, "hello", confined);
+        events.ok(&mut core, "input.grab", json!({"binding": "Alt+y"}));
+        events.ok(&mut core, "events.subscribe", json!({"events": []}));
+        let mut other = core.connect();
+        other.ok(&mut core, "hello", json!({"name": "other"}));
+        let mut late = core.connect();
+        let hello = json!({"name": "other", "confined": true});
+        let (error_code, _) = late.fails(&mut core, "hello", hello);
+        assert_eq!(error_code, RpcError::NAME_TAKEN);
     }
 
     /// Plugin settings hold commands that the plugin runs: a client socket
@@ -2763,6 +3002,105 @@ mod tests {
         assert_eq!(reserved_for(&core, "s3").as_deref(), Some("a"), "the focus");
     }
 
+    /// A click of a button at a point of the scene, real or injected.
+    fn click_at(core: &mut Core, at: (f64, f64), injected: bool) {
+        use smithay::backend::input::{ButtonState, InputTime};
+        core.state.pointer_layout = at.into();
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            crate::input::press_button(&mut core.state, 272, state, InputTime::now(), injected);
+        }
+    }
+
+    /// A click of the user on the empty claim of another window manager
+    /// chooses that one for the next new window, before the focused one
+    /// (D55): who clicks the empty screen on the right expects the window
+    /// there. An injected click chooses nobody, a click in the claim of
+    /// the focused manager gives the choice back, and so does a change of
+    /// the focus.
+    #[test]
+    fn a_click_on_the_empty_claim_of_a_manager_chooses_it_for_a_new_window() {
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
+        let _b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
+        let mut wayland = Wayland::connect(&mut core);
+        core.state.pointer_layout = (100.0, 100.0).into();
+        wayland.toplevel(&mut core, "one");
+        let take = |surface: &str| {
+            json!({"commands": [{"attach": {"surface": surface, "parent": "a"}},
+                {"focus": {"surface": surface}}]})
+        };
+        a.ok(&mut core, "scene.apply", take("s1"));
+        click_at(&mut core, (600.0, 300.0), true);
+        wayland.toplevel(&mut core, "two");
+        assert_eq!(reserved_for(&core, "s2").as_deref(), Some("a"), "injected");
+        click_at(&mut core, (600.0, 300.0), false);
+        wayland.toplevel(&mut core, "three");
+        assert_eq!(reserved_for(&core, "s3").as_deref(), Some("b"), "the click");
+        wayland.toplevel(&mut core, "four");
+        assert_eq!(reserved_for(&core, "s4").as_deref(), Some("b"), "it lasts");
+        click_at(&mut core, (100.0, 500.0), false);
+        wayland.toplevel(&mut core, "five");
+        assert_eq!(reserved_for(&core, "s5").as_deref(), Some("a"), "back");
+        click_at(&mut core, (600.0, 300.0), false);
+        a.ok(&mut core, "scene.apply", take("s2"));
+        wayland.toplevel(&mut core, "six");
+        assert_eq!(
+            reserved_for(&core, "s6").as_deref(),
+            Some("a"),
+            "a new focus"
+        );
+    }
+
+    /// A key that a window manager grabbed is an act of the person
+    /// toward it, as a click on its empty screen is: when the pointer or
+    /// the keyboard focus is in its claim, the window that the key starts
+    /// opens there, not where the last click chose (M4). Elsewhere, and
+    /// for an injected key, the key chooses nobody.
+    #[test]
+    fn a_grabbed_key_of_the_user_chooses_its_manager_where_the_person_is() {
+        use smithay::backend::input::{InputTime, KeyState};
+        let mut core = Core::new();
+        core.add_output("A", (800, 600));
+        let mut a = claimer(&mut core, "a", [0.0, 0.0, 400.0, 600.0]);
+        let _b = claimer(&mut core, "b", [400.0, 0.0, 400.0, 600.0]);
+        a.ok(&mut core, "input.grab", json!({"binding": "Super+Return"}));
+        let mut wayland = Wayland::connect(&mut core);
+        click_at(&mut core, (600.0, 300.0), false);
+        let key = |core: &mut Core, code: u32, state, injected| {
+            crate::input::key(
+                &mut core.state,
+                (code + 8).into(),
+                state,
+                InputTime::now(),
+                injected,
+            );
+        };
+        let super_return = |core: &mut Core, injected| {
+            for (code, state) in [
+                (125, KeyState::Pressed),
+                (28, KeyState::Pressed),
+                (28, KeyState::Released),
+                (125, KeyState::Released),
+            ] {
+                key(core, code, state, injected);
+            }
+        };
+        super_return(&mut core, false);
+        wayland.toplevel(&mut core, "one");
+        let one = reserved_for(&core, "s1");
+        assert_eq!(one.as_deref(), Some("b"), "the pointer is in b");
+        core.state.pointer_layout = (100.0, 300.0).into();
+        super_return(&mut core, true);
+        wayland.toplevel(&mut core, "two");
+        let two = reserved_for(&core, "s2");
+        assert_eq!(two.as_deref(), Some("b"), "injected");
+        super_return(&mut core, false);
+        wayland.toplevel(&mut core, "three");
+        let three = reserved_for(&core, "s3");
+        assert_eq!(three.as_deref(), Some("a"), "the pointer is in a");
+    }
+
     /// Where a surface is: `(owner, parent, reserved for)`.
     fn whereabouts(core: &Core, surface: &str) -> (Option<String>, Option<String>, Option<String>) {
         let node = core.state.scene.node(surface).unwrap();
@@ -3098,9 +3436,7 @@ mod tests {
 
     /// A core whose main socket would be in a fresh directory.
     fn socket_dir(tag: &str) -> (Core, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("chora-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir(&format!("chora-{tag}"));
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         (core, dir)
@@ -3113,6 +3449,28 @@ mod tests {
         let mut client = core.connect_to(&path);
         client.ok(core, "hello", json!({"name": name}));
         (client, path)
+    }
+
+    /// Only a free client of the main socket owns a virtual output.
+    #[test]
+    fn a_client_socket_cannot_add_one() {
+        let (mut core, dir) = socket_dir("virtual");
+        let mut admin = core.admin();
+        let (mut agent, _) = fixed(&mut core, &mut admin, "agent");
+        let mut confined = core.connect();
+        let hello = json!({"name": "voice-mcp", "confined": true});
+        confined.ok(&mut core, "hello", hello);
+        let add = json!({"spec": "32x32", "virtual": true});
+        for client in [&mut agent, &mut confined] {
+            let (number, error) = client.fails(&mut core, "output.add", add.clone());
+            assert_eq!(number, RpcError::CLIENT_SOCKET_RULE, "{error}");
+        }
+        let mut nameless = core.connect();
+        let (_, error) = nameless.fails(&mut core, "output.add", add);
+        assert!(error.contains("hello"), "{error}");
+        let list = admin.ok(&mut core, "output.list", json!({}));
+        assert_eq!(list, json!([]), "nothing was added");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -3368,6 +3726,38 @@ mod tests {
         assert_eq!(text, "no backend");
     }
 
+    /// `output.configure` and `output.reserve` change the whole session,
+    /// so a confined connection needs `methods.privileged` for them (C05).
+    #[test]
+    fn output_changes_of_a_confined_client_are_privileged() {
+        let mut core = Core::new();
+        core.add_output("DP-1", (800, 600));
+        let mut agent = core.connect();
+        agent.ok(
+            &mut core,
+            "hello",
+            json!({"name": "voice-mcp", "confined": true}),
+        );
+        let configure = json!({"output": "DP-1", "scale": 1.0});
+        let reserve = json!({"output": "DP-1", "edges": {"top": 30}});
+        for (method, params) in [
+            ("output.configure", &configure),
+            ("output.reserve", &reserve),
+        ] {
+            let (error_code, text) = agent.fails(&mut core, method, params.clone());
+            assert_eq!(error_code, RpcError::MISSING_CAPABILITY, "{method}: {text}");
+            assert!(text.contains("methods.privileged"), "{text}");
+        }
+        let grant = json!({"client": "voice-mcp", "capabilities": ["methods.privileged"]});
+        core.admin().ok(&mut core, "grants.set", grant);
+        agent.ok(&mut core, "output.reserve", reserve);
+        let (error_code, text) = agent.fails(&mut core, "output.configure", configure);
+        assert_eq!(
+            (error_code, text.as_str()),
+            (RpcError::REJECTED, "no backend")
+        );
+    }
+
     #[test]
     fn the_reset_removes_the_client_sockets() {
         let (mut core, dir) = socket_dir("reset");
@@ -3529,8 +3919,7 @@ mod tests {
 
     #[test]
     fn a_client_socket_fixes_the_name_and_grants_nothing() {
-        let dir = std::env::temp_dir().join(format!("chora-clients-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::testing::scratch_dir("chora-clients");
         let mut core = Core::new();
         core.state.ipc.path = Some(dir.join("wayland-1.sock"));
         let mut admin = core.admin();
@@ -3560,6 +3949,26 @@ mod tests {
         assert!(message.contains("lowercase"), "{message}");
         drop(core);
         assert!(!path.exists(), "the core removes the socket");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn two_connections_of_a_client_socket_share_confinement_without_the_flag() {
+        let dir = crate::testing::scratch_dir("chora-peers");
+        let mut core = Core::new();
+        core.state.ipc.path = Some(dir.join("wayland-1.sock"));
+        let mut admin = core.admin();
+        let created = admin.ok(&mut core, "clients.create", json!({"name": "agent"}));
+        let path = PathBuf::from(created["path"].as_str().unwrap());
+        let mut first = core.connect_to(&path);
+        first.ok(
+            &mut core,
+            "hello",
+            json!({"name": "agent", "confined": true}),
+        );
+        let mut second = core.connect_to(&path);
+        second.ok(&mut core, "hello", json!({"name": "agent"}));
+        drop(core);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -3653,6 +4062,48 @@ mod tests {
         }
     }
 
+    /// Only an unconfined window manager with a claim grabs the listed
+    /// media keys without a modifier; any other key, a client without a
+    /// claim and a confined client still need one.
+    #[test]
+    fn only_a_window_manager_grabs_the_listed_media_keys_without_a_modifier() {
+        let mut core = Core::new();
+        let mut wm = claimer(&mut core, "wm", [0.0, 0.0, 800.0, 600.0]);
+        for key in [
+            "XF86AudioRaiseVolume",
+            "XF86AudioLowerVolume",
+            "XF86AudioMute",
+            "XF86AudioMicMute",
+            "XF86AudioPlay",
+            "XF86AudioNext",
+            "XF86AudioPrev",
+            "XF86MonBrightnessUp",
+            "XF86MonBrightnessDown",
+        ] {
+            let grabbed = wm.ok(&mut core, "input.grab", json!({"binding": key}));
+            assert_eq!(grabbed, key);
+        }
+        let grab = json!({"binding": "XF86Calculator"});
+        let (error, _) = wm.fails(&mut core, "input.grab", grab);
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "a key off the list");
+        let mut plain = core.named("plain");
+        let grab = json!({"binding": "XF86AudioPlay"});
+        let (error, _) = plain.fails(&mut core, "input.grab", grab.clone());
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "no claim");
+        let mut confined = core.connect();
+        confined.ok(
+            &mut core,
+            "hello",
+            json!({"name": "boxed", "confined": true}),
+        );
+        let claim = json!({"commands": [{"create": {"id": "boxed", "kind": "group",
+            "parent": "root", "props": {"claim": [0, 0, 10, 10]}}}]});
+        confined.send("scene.apply", claim);
+        core.dispatch();
+        let (error, _) = confined.fails(&mut core, "input.grab", grab);
+        assert_eq!(error, RpcError::MISSING_CAPABILITY, "a confined client");
+    }
+
     #[test]
     fn grab_any_grabs_keys_without_a_modifier() {
         let mut core = Core::new();
@@ -3674,6 +4125,36 @@ mod tests {
             message,
             "b needs Ctrl, Alt or Super or the capability input.grab-any"
         );
+    }
+
+    #[test]
+    fn a_key_name_with_a_nul_is_an_unknown_key() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let binding = json!({"binding": "Super+a\u{0}"});
+        let (_, message) = client.fails(&mut core, "input.grab", binding.clone());
+        assert_eq!(message, "unknown key \"a\\0\"");
+        let (_, message) = client.fails(&mut core, "input.ungrab", binding);
+        assert_eq!(message, "unknown key \"a\\0\"");
+    }
+
+    #[test]
+    fn a_connection_holds_at_most_max_grabs() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let mods = ["Super", "Ctrl", "Alt", "Super+Ctrl", "Super+Alt"];
+        let keys = "abcdefghijklmnopqrstuvwxyz0123456789";
+        let mut bindings = mods
+            .iter()
+            .flat_map(|m| [format!("{m}+"), format!("{m}+Shift+")])
+            .flat_map(|m| keys.chars().map(move |k| format!("{m}{k}")))
+            .chain((1..=12).map(|f| format!("Super+F{f}")));
+        for binding in bindings.by_ref().take(MAX_GRABS) {
+            client.ok(&mut core, "input.grab", json!({"binding": binding}));
+        }
+        let next = json!({"binding": bindings.next().unwrap()});
+        let (answer, message) = client.fails(&mut core, "input.grab", next);
+        assert_eq!(answer, RpcError::LIMIT_REACHED, "{message}");
     }
 
     #[test]

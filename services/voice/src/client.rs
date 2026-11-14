@@ -4,7 +4,7 @@
 
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{Duration, Instant},
@@ -20,6 +20,7 @@ use chora_scene::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+use tokio::sync::oneshot;
 
 use crate::{
     config::Config,
@@ -61,24 +62,40 @@ struct Client {
     claims: Claims,
     /// The keys of `confirm_keys` are grabbed.
     confirming: bool,
+    /// A change of a security key that waits for a key press.
+    waiting: Option<(Waiting, oneshot::Receiver<bool>)>,
 }
 
 /// The clients that show the state of the agent themselves and claimed
-/// the indicator: while one is connected, the dot hides. The claims of a
-/// session end with it; the plugins claim again when `voice` connects.
+/// the indicator, by the connection that claimed: while one is
+/// connected, the dot hides. The claims of a session end with it; the
+/// plugins claim again when `voice` connects.
 #[derive(Default)]
-struct Claims(std::collections::BTreeSet<String>);
+struct Claims(std::collections::BTreeMap<u64, String>);
 
 impl Claims {
-    /// A client claims the indicator; answers whether the dot hides.
-    fn claim(&mut self, client: &str) -> bool {
-        self.0.insert(client.to_owned());
+    /// The connection `conn` of `client` claims the indicator; answers
+    /// whether the dot hides.
+    fn claim(&mut self, conn: u64, client: &str) -> bool {
+        self.0.insert(conn, client.to_owned());
         true
+    }
+
+    /// Whether the connection `conn` of `client` holds a claim.
+    fn holds(&self, conn: u64, client: &str) -> bool {
+        self.0.get(&conn).is_some_and(|c| c == client)
+    }
+
+    /// Keeps only the claims of `names`; answers whether the dot still
+    /// hides.
+    fn keep(&mut self, names: &[String]) -> bool {
+        self.0.retain(|_, c| names.contains(c));
+        !self.0.is_empty()
     }
 
     /// A client is gone; answers whether the dot still hides.
     fn gone(&mut self, client: &str) -> bool {
-        self.0.remove(client);
+        self.0.retain(|_, c| c != client);
         !self.0.is_empty()
     }
 }
@@ -105,19 +122,166 @@ struct ButtonParams {
     yes: bool,
 }
 
-/// `confirm.answer` of `caller`: only a client that claimed the indicator,
-/// a HUD plugin, may answer, and only the open question.
+/// Whether a confined caller is refused `method`: the methods that act for
+/// the user at the keyboard.
+fn not_for_confined(method: &str) -> bool {
+    matches!(method, "confirm" | "talk" | "mute") || CHAT_METHODS.contains(&method)
+}
+
+/// The methods of a chat view: they read the transcript of an agent,
+/// stop its prompt and mark a chat open. None of them answers a question.
+const CHAT_METHODS: [&str; 4] = ["agent.read", "agent.cancel", "chat.open", "chat.close"];
+
+/// The parameters of `agent.read`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReadParams {
+    name: String,
+    #[serde(default)]
+    after: u64,
+}
+
+/// The parameters of `agent.cancel`, `chat.open` and `chat.close`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NameParams {
+    name: String,
+}
+
+/// A chat method of `caller`: refused for a confined connection; the core
+/// gets the name of the caller, and a failure of the core is a refusal.
+fn chat_call(
+    tx: &Sender<Input>,
+    caller: &str,
+    confined: bool,
+    method: &str,
+    params: Value,
+) -> Result<Value, RpcError> {
+    if confined {
+        return Err(confined_refusal(method));
+    }
+    let mut args = if method == "agent.read" {
+        let ReadParams { name, after } = runtime::params(params)?;
+        json!({"name": name, "after": after})
+    } else {
+        let NameParams { name } = runtime::params(params)?;
+        json!({"name": name})
+    };
+    args["caller"] = caller.into();
+    let (reply, rx) = mpsc::channel();
+    let gone = || RpcError::new(RpcError::REJECTED, "the agent does not answer");
+    (tx.send(Input::AgentCall(method.to_owned(), args, reply))).map_err(|_| gone())?;
+    let answer = rx.recv_timeout(ANSWER).map_err(|_| gone())?;
+    match answer["error"].as_str() {
+        Some(error) => Err(RpcError::new(
+            RpcError::REJECTED,
+            format!("{method}: {error}"),
+        )),
+        None => Ok(answer),
+    }
+}
+
+/// The refusal of `method` for a confined caller.
+fn confined_refusal(method: &str) -> RpcError {
+    RpcError::new(
+        RpcError::REJECTED,
+        format!("{method}: not for a confined connection"),
+    )
+}
+
+/// Whether `caller` may claim the indicator and answer (review A1): an
+/// unconfined connection of a name in `indicator_clients`.
+fn may_answer(config: &Config, caller: &str, confined: bool) -> bool {
+    !confined && config.indicator_clients.iter().any(|c| c == caller)
+}
+
+/// The change of a `settings.set` with `params`, or of a
+/// `settings.reload` of `file` against `config`, when it touches a
+/// security key (review A1, high 2); `None` for any other change or
+/// method. A file that cannot be read or parsed changes nothing: its
+/// reload fails anyway.
+fn security_patch(config: &Config, method: &str, params: &Value, file: &Path) -> Option<Value> {
+    let patch = match method {
+        "settings.set" => params.clone(),
+        "settings.reload" => {
+            let text = std::fs::read_to_string(file).ok()?;
+            let new = serde_json::to_value(settings::parse::<Config>(&text).ok()?).ok()?;
+            let old = serde_json::to_value(config).ok()?;
+            let changed = (new.as_object()?.iter())
+                .filter(|(key, value)| old[key.as_str()] != **value)
+                .map(|(key, value)| (key.clone(), value.clone()));
+            Value::Object(changed.collect())
+        }
+        _ => return None,
+    };
+    let keys = patch.as_object()?.keys();
+    keys.into_iter()
+        .any(|k| crate::config::security_key(k))
+        .then_some(patch)
+}
+
+/// Asks the user for a key of `confirm_keys`, or a click on a HUD
+/// button, before `patch` applies, as the agent asks before the LLM
+/// changes a security key; the answer comes through the receiver.
+fn ask_key(tx: &Sender<Input>, config: &Config, patch: &Value) -> oneshot::Receiver<bool> {
+    let (answer, rx) = oneshot::channel();
+    let config = config.localized();
+    let _ = tx.send(Input::Agent(crate::agents::Event::Ask {
+        name: "settings".into(),
+        voice: config.voice.clone(),
+        prompt: config.settings_question(patch),
+        detail: crate::chat::detail("voice.settings.set", Some(patch), &json!({})),
+        physical: true,
+        answer,
+    }));
+    rx
+}
+
+/// A change of a security key that waits for the answer of the user.
+enum Waiting {
+    Set(Value),
+    /// The reload of the file with this change; a file that changed
+    /// since the question does not load.
+    Reload(Value),
+}
+
+/// The refusal of `indicator.claim` and `confirm.answer`.
+fn not_allowed(method: &str) -> RpcError {
+    RpcError::new(
+        RpcError::REJECTED,
+        format!(
+            "{method}: only an unconfined client of indicator_clients that claimed the \
+             indicator"
+        ),
+    )
+}
+
+/// `indicator.claim` of `caller`: only a client that [`may_answer`]
+/// claims, as a claim lets it answer the questions of the agent.
+fn claim_indicator(
+    claims: &mut Claims,
+    (conn, caller): (u64, &str),
+    allowed: bool,
+) -> Result<Value, RpcError> {
+    if !allowed {
+        return Err(not_allowed("indicator.claim"));
+    }
+    claims.claim(conn, caller);
+    Ok(json!({}))
+}
+
+/// `confirm.answer` of `caller`: only a client that [`may_answer`] and
+/// claimed the indicator, a HUD plugin, answers, and only the open
+/// question.
 fn confirm_answer(
     claims: &Claims,
     tx: &Sender<Input>,
-    caller: &str,
+    (conn, caller): (u64, &str),
+    allowed: bool,
     params: Value,
 ) -> Result<Value, RpcError> {
-    if !claims.0.contains(caller) {
-        return Err(RpcError::new(
-            RpcError::REJECTED,
-            "confirm.answer: only a client that holds indicator.claim",
-        ));
+    if !allowed || !claims.holds(conn, caller) {
+        return Err(not_allowed("confirm.answer"));
     }
     let ButtonParams { id, yes } = runtime::params(params)?;
     let id = (id.parse()).map_err(|_| RpcError::new(RpcError::INVALID_PARAMS, "id: a number"))?;
@@ -193,9 +357,12 @@ fn session(
         tx: tx.clone(),
         claims: Claims::default(),
         confirming: false,
+        waiting: None,
     };
     // The claims of the session before are gone.
     let _ = tx.send(Input::Claimed(false));
+    let (reply, _) = mpsc::channel();
+    let _ = tx.send(Input::AgentCall("chat.gone".into(), json!({}), reply));
     // A new session reads the file again, which an edit may have changed.
     client.apply().map_err(|e| e.message)?;
     crate::log::info(&format!("connected to chora as {name}"));
@@ -211,6 +378,7 @@ fn session(
 
 /// Handles the events of chora and emits the events of the HUD until the
 /// connection fails.
+#[allow(clippy::too_many_lines, reason = "one arm per event")]
 fn serve(
     client: &mut Client,
     name: &str,
@@ -224,28 +392,66 @@ fn serve(
                 call,
                 caller,
                 method,
+                confined,
+                connection,
                 ..
             }) if method == "indicator.claim" => {
-                let _ = client.tx.send(Input::Claimed(client.claims.claim(&caller)));
-                client.rt.conn.answer(call, Ok(json!({})))?;
+                let allowed = may_answer(&client.settings.value, &caller, confined);
+                let answer = claim_indicator(&mut client.claims, (connection, &caller), allowed);
+                if answer.is_ok() {
+                    let _ = client.tx.send(Input::Claimed(true));
+                }
+                client.rt.conn.answer(call, answer)?;
             }
             Some(Event::MethodCalled {
                 call,
                 caller,
                 method,
                 params,
+                confined,
+                connection,
             }) if method == "confirm.answer" => {
-                let answer = confirm_answer(&client.claims, &client.tx, &caller, params);
+                let allowed = may_answer(&client.settings.value, &caller, confined);
+                let answer = confirm_answer(
+                    &client.claims,
+                    &client.tx,
+                    (connection, &caller),
+                    allowed,
+                    params,
+                );
                 client.rt.conn.answer(call, answer)?;
+            }
+            Some(Event::MethodCalled {
+                call,
+                caller,
+                method,
+                params,
+                confined,
+                ..
+            }) if CHAT_METHODS.contains(&method.as_str()) => {
+                let answer = chat_call(&client.tx, &caller, confined, &method, params);
+                client.rt.conn.answer(call, answer)?;
+            }
+            Some(Event::MethodCalled {
+                call,
+                method,
+                confined: true,
+                ..
+            }) if not_for_confined(&method) => {
+                client
+                    .rt
+                    .conn
+                    .answer(call, Err(confined_refusal(&method)))?;
             }
             // Any client may read the settings: without the header values.
             Some(Event::MethodCalled { call, method, .. }) if method == "settings.get" => {
                 let settings = without_headers(client.settings.get());
                 client.rt.conn.answer(call, Ok(settings))?;
             }
-            Some(event) => runtime::dispatch(client, event)?,
+            Some(event) => client.dispatch(event)?,
             None => {}
         }
+        client.settle();
         let new: Vec<crate::mc::Emit> = emits.try_iter().collect();
         for (event, data) in &new {
             if *event == "confirm" {
@@ -380,8 +586,9 @@ fn exported_methods() -> Vec<ExportMethod> {
         // programs and changes security settings.
         runtime::privileged(runtime::method(
             "confirm.answer",
-            "The Yes or No button of a HUD that holds indicator.claim: answers the question \
-             of voice.confirm with this id, also one that waits for a key.",
+            "The Yes or No button of a HUD of indicator_clients that claimed the indicator on \
+             this connection: answers the question of voice.confirm with this id, also one \
+             that waits for a key.",
             json!({"id": {"type": "string"}, "yes": {"type": "boolean"}}),
             &["id", "yes"],
         )),
@@ -411,9 +618,37 @@ fn exported_methods() -> Vec<ExportMethod> {
             &["tool"],
         )),
         runtime::privileged(runtime::method(
+            "agent.read",
+            "Answers the entries of the transcript of an ACP agent after the number after: \
+             entries with seq, role and text, and the last seq; at most 64 KiB of text.",
+            json!({"name": {"type": "string"}, "after": {"type": "integer"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "agent.cancel",
+            "Cancels the running prompt of an ACP agent and the prompts that wait.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "chat.open",
+            "Marks a chat of the caller with an ACP agent as open: the agent speaks its \
+             questions but not its results. The mark ends with chat.close or when the \
+             caller disconnects. A chat answers no question.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
+            "chat.close",
+            "Ends the chat that the caller opened with an ACP agent.",
+            json!({"name": {"type": "string"}}),
+            &["name"],
+        )),
+        runtime::privileged(runtime::method(
             "indicator.claim",
             "Hides the state dot of the agent while the calling client is connected: the \
-             caller shows the state itself. Call it again after the voice client connects.",
+             caller shows the state itself, and lets it answer with confirm.answer. Only for a \
+             client of indicator_clients. Call it again after the voice client connects.",
             none,
             &[],
         )),
@@ -466,9 +701,106 @@ impl Client {
         self.rt.ungrab_all().map_err(rejected)?;
         self.grab().map_err(rejected)?;
         let config = Box::new(self.settings.value.clone());
-        self.tx
-            .send(Input::Settings(config))
-            .map_err(|_| RpcError::new(RpcError::REJECTED, "the core does not answer"))
+        let hidden = self.claims.keep(&self.settings.value.indicator_clients);
+        let gone = |_| RpcError::new(RpcError::REJECTED, "the core does not answer");
+        self.tx.send(Input::Claimed(hidden)).map_err(gone)?;
+        self.tx.send(Input::Settings(config)).map_err(gone)
+    }
+
+    /// The runtime handles an event, unless [`Client::hold_security`]
+    /// holds it.
+    fn dispatch(&mut self, event: Event) -> Result<(), ClientError> {
+        match self.hold_security(event)? {
+            Some(event) => runtime::dispatch(self, event),
+            None => Ok(()),
+        }
+    }
+
+    /// Holds a `settings.set` or `settings.reload` that changes a security
+    /// key until the user presses a key of `confirm_keys` (review A1,
+    /// high 2): the caller gets a refusal that says so, and the change
+    /// applies on yes. Any other event comes back.
+    fn hold_security(&mut self, event: Event) -> Result<Option<Event>, ClientError> {
+        let Event::MethodCalled {
+            call,
+            method,
+            params,
+            ..
+        } = &event
+        else {
+            return Ok(Some(event));
+        };
+        let file = self.settings.file().to_owned();
+        let Some(patch) = security_patch(&self.settings.value, method, params, &file) else {
+            return Ok(Some(event));
+        };
+        let answer = ask_key(&self.tx, &self.settings.value, &patch);
+        let keys = self.settings.value.confirm_keys.clone();
+        let message = format!(
+            "{method}: a security setting waits for the user: {} applies it, {} declines",
+            keys.yes, keys.no
+        );
+        let change = if method == "settings.set" {
+            Waiting::Set(patch)
+        } else {
+            Waiting::Reload(patch)
+        };
+        self.waiting = Some((change, answer));
+        self.rt
+            .conn
+            .answer(*call, Err(RpcError::new(RpcError::REJECTED, message)))?;
+        Ok(None)
+    }
+
+    /// Applies the change that waits once the user said yes; a no, a
+    /// timeout or a file that changed since the question drops it.
+    fn settle(&mut self) {
+        let Some((_, answer)) = &mut self.waiting else {
+            return;
+        };
+        let yes = match answer.try_recv() {
+            Err(oneshot::error::TryRecvError::Empty) => return,
+            Ok(yes) => yes,
+            Err(oneshot::error::TryRecvError::Closed) => false,
+        };
+        let Some((change, _)) = self.waiting.take() else {
+            return;
+        };
+        if !yes {
+            crate::log::info("settings: the user declined a security setting");
+            return;
+        }
+        let file = self.settings.file().to_owned();
+        let result = match change {
+            Waiting::Set(patch) => runtime::set_settings(self, patch).map(drop),
+            Waiting::Reload(patch) => {
+                let now =
+                    security_patch(&self.settings.value, "settings.reload", &json!({}), &file);
+                if now == Some(patch) {
+                    runtime::reload_settings(self).map(drop)
+                } else {
+                    Err(RpcError::new(
+                        RpcError::REJECTED,
+                        "the file changed since the question",
+                    ))
+                }
+            }
+        };
+        match result {
+            Ok(()) => crate::log::info("settings: a security setting applies after the key"),
+            Err(e) => crate::log::info(&format!("settings: {}", e.message)),
+        }
+    }
+}
+
+/// What a grabbed key means. An injected key never answers a question
+/// about a security setting: only the keyboard does.
+fn key_input(key: Key, state: PressState, injected: bool) -> Option<Input> {
+    match (key, state) {
+        (Key::Ptt, PressState::Pressed) => Some(Input::PttDown),
+        (Key::Ptt, PressState::Released) => Some(Input::PttUp),
+        (Key::Confirm(yes), PressState::Pressed) if !injected => Some(Input::ConfirmKey(yes)),
+        (Key::Confirm(_), _) => None,
     }
 }
 
@@ -480,20 +812,24 @@ impl Plugin for Client {
     }
 
     fn event(&mut self, event: Event) -> Result<(), ClientError> {
-        if let Event::ClientDisconnected { name } = &event
-            && self.claims.0.contains(name)
-        {
-            let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
+        if let Event::ClientDisconnected { name } = &event {
+            if self.claims.0.values().any(|c| c == name) {
+                let _ = self.tx.send(Input::Claimed(self.claims.gone(name)));
+            }
+            let (reply, _) = mpsc::channel();
+            let args = json!({"caller": name});
+            let _ = self
+                .tx
+                .send(Input::AgentCall("chat.gone".into(), args, reply));
         }
-        if let Event::InputKey { binding, state } = event
+        if let Event::InputKey {
+            binding,
+            state,
+            injected,
+        } = event
             && let Some(&key) = self.rt.action(&binding)
+            && let Some(input) = key_input(key, state, injected)
         {
-            let input = match (key, state) {
-                (Key::Ptt, PressState::Pressed) => Input::PttDown,
-                (Key::Ptt, PressState::Released) => Input::PttUp,
-                (Key::Confirm(yes), PressState::Pressed) => Input::ConfirmKey(yes),
-                (Key::Confirm(_), PressState::Released) => return Ok(()),
-            };
             // The core is gone only when the process ends.
             let _ = self.tx.send(input);
         }
@@ -551,11 +887,18 @@ impl Plugin for Client {
 mod tests {
     use std::time::{Duration, Instant};
 
+    use super::{Key, PressState, key_input};
+
     use chora_scene::ipc::{ClientError, ExportMethod, RpcError};
     use serde_json::{Value, json};
 
-    use super::{Claims, Held, RESEND, confirm_answer, without_headers};
+    use super::{
+        Claims, Held, RESEND, ask_key, chat_call, claim_indicator, confirm_answer, may_answer,
+        security_patch, without_headers,
+    };
+    use crate::config::Config;
     use crate::core::Input;
+    use std::sync::mpsc;
 
     #[test]
     fn only_the_client_voice_emits() {
@@ -574,15 +917,25 @@ mod tests {
         );
     }
 
+    /// An injected confirm key is ignored: only the keyboard answers.
+    #[test]
+    fn an_injected_confirm_key_answers_nothing() {
+        let key = |injected| key_input(Key::Confirm(true), PressState::Pressed, injected);
+        assert!(matches!(key(false), Some(Input::ConfirmKey(true))));
+        assert!(key(true).is_none());
+        let ptt = key_input(Key::Ptt, PressState::Pressed, true);
+        assert!(matches!(ptt, Some(Input::PttDown)), "not a security key");
+    }
+
     /// A claim hides the dot, the claimer's disconnect shows it again,
     /// and a second claimer keeps it hidden.
     #[test]
     fn claims_hide_the_dot_while_a_claimer_is_connected() {
         let mut claims = Claims::default();
-        assert!(claims.claim("mc"));
+        assert!(claims.claim(1, "mc"));
         assert!(!claims.gone("mc"), "the dot shows again");
-        assert!(claims.claim("mc"));
-        assert!(claims.claim("xp"));
+        assert!(claims.claim(2, "mc"));
+        assert!(claims.claim(3, "xp"));
         assert!(claims.gone("mc"), "xp still claims");
         assert!(claims.gone("other"), "not a claimer");
         assert!(!claims.gone("xp"));
@@ -594,9 +947,9 @@ mod tests {
     fn only_a_claimer_answers_by_button() {
         let (tx, rx) = std::sync::mpsc::channel();
         let mut claims = Claims::default();
-        claims.claim("mc");
+        claims.claim(1, "mc");
         let params = json!({"id": "4", "yes": true});
-        let err = confirm_answer(&claims, &tx, "evil", params.clone()).unwrap_err();
+        let err = confirm_answer(&claims, &tx, (2, "evil"), true, params.clone()).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED);
         assert!(rx.try_recv().is_err(), "the core heard nothing");
         let core = std::thread::spawn(move || {
@@ -613,12 +966,217 @@ mod tests {
             }
         });
         assert_eq!(
-            confirm_answer(&claims, &tx, "mc", params.clone()),
+            confirm_answer(&claims, &tx, (1, "mc"), true, params.clone()),
             Ok(json!({}))
         );
-        let err = confirm_answer(&claims, &tx, "mc", params).unwrap_err();
+        let err = confirm_answer(&claims, &tx, (1, "mc"), true, params).unwrap_err();
         assert_eq!(err.code, RpcError::REJECTED, "stale");
         core.join().unwrap();
+    }
+
+    /// Review A1, high 1: a claim belongs to the connection that made it;
+    /// another connection of the same name does not answer under it.
+    #[test]
+    fn a_claim_belongs_to_its_connection() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        assert_eq!(claim_indicator(&mut claims, (1, "mc"), true), Ok(json!({})));
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, (2, "mc"), true, params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
+    }
+
+    /// A confined connection neither claims the indicator nor answers by
+    /// button, even when it claimed before or holds `methods.privileged`.
+    #[test]
+    fn a_confined_caller_cannot_claim_or_answer() {
+        let config = Config {
+            indicator_clients: vec!["voice-mcp".into()],
+            ..Config::default()
+        };
+        assert!(!may_answer(&config, "voice-mcp", true));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        let err = claim_indicator(&mut claims, (1, "voice-mcp"), false).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(claims.0.is_empty(), "no claim");
+        claims.claim(1, "voice-mcp");
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, (1, "voice-mcp"), false, params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
+    }
+
+    /// Review A1: an unconfined client of the main socket outside
+    /// `indicator_clients`, such as a program of `run_program`, neither
+    /// claims nor answers, even after a claim.
+    #[test]
+    fn a_client_that_is_not_named_cannot_claim_or_answer() {
+        let config = Config::default();
+        let allowed = may_answer(&config, "evil", false);
+        assert!(!allowed);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut claims = Claims::default();
+        let err = claim_indicator(&mut claims, (1, "evil"), allowed).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(claims.0.is_empty(), "no claim");
+        claims.claim(1, "evil");
+        let params = json!({"id": "4", "yes": true});
+        let err = confirm_answer(&claims, &tx, (1, "evil"), allowed, params).unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(rx.try_recv().is_err(), "the core heard nothing");
+    }
+
+    /// Review A1: the HUDs of the default `indicator_clients` claim.
+    #[test]
+    fn a_named_hud_claims_and_answers() {
+        let config = Config::default();
+        for hud in ["assistant", "construct", "mc"] {
+            let allowed = may_answer(&config, hud, false);
+            assert!(allowed, "{hud}");
+            let mut claims = Claims::default();
+            assert_eq!(
+                claim_indicator(&mut claims, (1, hud), allowed),
+                Ok(json!({}))
+            );
+            assert!(claims.holds(1, hud));
+        }
+    }
+
+    /// Review A1: a changed `indicator_clients` decides the next call,
+    /// and a name taken out of it loses its claim.
+    #[test]
+    fn a_changed_setting_takes_effect() {
+        let mut config = Config {
+            indicator_clients: vec!["construct".into()],
+            ..Config::default()
+        };
+        assert!(!may_answer(&config, "mc", false));
+        assert!(may_answer(&config, "construct", false));
+        config.indicator_clients.push("hud".into());
+        assert!(may_answer(&config, "hud", false));
+        let mut claims = Claims::default();
+        claims.claim(1, "mc");
+        claims.claim(2, "construct");
+        assert!(claims.keep(&config.indicator_clients), "construct claims");
+        assert!(!claims.holds(1, "mc"));
+        assert!(claims.holds(2, "construct"));
+        assert!(!claims.keep(&[]), "the dot shows again");
+    }
+
+    /// Review A1, high 2: a change of a security key through
+    /// `settings.set` or `settings.reload` waits for a key press; other
+    /// keys do not.
+    #[test]
+    fn a_security_change_by_a_method_asks_for_a_key() {
+        let config = Config::default();
+        let file = std::env::temp_dir().join(format!("voice-sec-{}.yaml", std::process::id()));
+        let evil = json!({"indicator_clients": ["evil"]});
+        assert_eq!(
+            security_patch(&config, "settings.set", &evil, &file),
+            Some(evil.clone())
+        );
+        let plain = json!({"barge_in_ms": 300});
+        assert_eq!(security_patch(&config, "settings.set", &plain, &file), None);
+        std::fs::write(&file, "{allow_programs: [sh], barge_in_ms: 300}").unwrap();
+        assert_eq!(
+            security_patch(&config, "settings.reload", &json!({}), &file),
+            Some(json!({"allow_programs": ["sh"], "barge_in_ms": 300}))
+        );
+        std::fs::write(&file, "{barge_in_ms: 300}").unwrap();
+        assert_eq!(
+            security_patch(&config, "settings.reload", &json!({}), &file),
+            None
+        );
+        std::fs::remove_file(&file).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let _answer = ask_key(&tx, &config, &evil);
+        let Ok(Input::Agent(crate::agents::Event::Ask {
+            prompt, physical, ..
+        })) = rx.try_recv()
+        else {
+            panic!("no question");
+        };
+        assert!(physical);
+        assert!(prompt.starts_with("Security setting!"), "{prompt}");
+    }
+
+    /// A confined connection cannot answer by `confirm`, push to talk or
+    /// mute, whatever it holds; the other methods stay open to it.
+    #[test]
+    fn a_confined_caller_cannot_confirm_talk_or_mute() {
+        for method in ["confirm", "talk", "mute"] {
+            assert!(super::not_for_confined(method), "{method}");
+            let err = super::confined_refusal(method);
+            assert_eq!(err.code, RpcError::REJECTED, "{method}");
+        }
+        for method in ["state", "cancel", "sleep", "wake", "health"] {
+            assert!(!super::not_for_confined(method), "{method}");
+        }
+    }
+
+    /// The chat methods read a transcript, stop a prompt and mark a chat
+    /// open: a confined connection gets none of them and the core hears
+    /// nothing; an unconfined one reaches the core with its name.
+    #[test]
+    fn chat_methods_refuse_a_confined_caller() {
+        let (tx, rx) = mpsc::channel();
+        for method in ["agent.read", "agent.cancel", "chat.open", "chat.close"] {
+            assert!(super::not_for_confined(method), "{method}");
+            let params = json!({"name": "atlas"});
+            let err = chat_call(&tx, "voice-mcp", true, method, params).unwrap_err();
+            assert_eq!(err.code, RpcError::REJECTED, "{method}");
+            assert!(rx.try_recv().is_err(), "{method}: the core heard nothing");
+        }
+        let params = json!({"name": "atlas"});
+        let asked = std::thread::spawn(move || {
+            chat_call(&tx, "chora-assistant", false, "chat.open", params)
+        });
+        let Ok(Input::AgentCall(tool, params, reply)) = rx.recv_timeout(Duration::from_secs(2))
+        else {
+            panic!("the core heard nothing");
+        };
+        assert_eq!(tool, "chat.open");
+        assert_eq!(params["caller"], "chora-assistant");
+        reply.send(json!({})).unwrap();
+        assert!(asked.join().unwrap().is_ok());
+    }
+
+    /// The core answers a failure as an `error` text; the caller gets a
+    /// refusal, and a bad parameter is refused before the core hears it.
+    #[test]
+    fn a_failed_chat_call_is_a_refusal_and_bad_parameters_never_reach_the_core() {
+        let (tx, rx) = mpsc::channel();
+        let err = chat_call(
+            &tx,
+            "hud",
+            false,
+            "agent.read",
+            json!({"name": "a", "after": "x"}),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+        let err = chat_call(
+            &tx,
+            "hud",
+            false,
+            "chat.open",
+            json!({"name": "a", "extra": 1}),
+        )
+        .unwrap_err();
+        assert_eq!(err.code, RpcError::INVALID_PARAMS);
+        assert!(rx.try_recv().is_err());
+        let asked = std::thread::spawn(move || {
+            chat_call(&tx, "hud", false, "agent.cancel", json!({"name": "a"}))
+        });
+        let Ok(Input::AgentCall(_, _, reply)) = rx.recv_timeout(Duration::from_secs(2)) else {
+            panic!("the core heard nothing");
+        };
+        reply.send(json!({"error": "no agent a"})).unwrap();
+        let err = asked.join().unwrap().unwrap_err();
+        assert_eq!(err.code, RpcError::REJECTED);
+        assert!(err.message.contains("no agent a"));
     }
 
     /// Emits `new` at `now`; the core takes them or refuses them over its
@@ -694,6 +1252,10 @@ mod tests {
                 "confirm.answer",
                 "talk",
                 "agent",
+                "agent.read",
+                "agent.cancel",
+                "chat.open",
+                "chat.close",
                 "indicator.claim"
             ]
         );

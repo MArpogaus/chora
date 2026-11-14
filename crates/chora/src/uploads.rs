@@ -226,7 +226,7 @@ mod tests {
     use super::*;
 
     fn uploads(test: &str) -> (Uploads, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("chora-uploads-{test}-{}", std::process::id()));
+        let dir = crate::testing::scratch_dir(&format!("chora-uploads-{test}"));
         let mut uploads = Uploads::default();
         uploads.open(dir.clone()).unwrap();
         (uploads, dir)

@@ -1,0 +1,28 @@
+# The settings of chora-assistant. It lists every option. Copy it to
+# ~/.config/chora/chora-assistant.yaml and change it there, or change it
+# with the method settings.set, which rewrites the file. Edits by hand
+# apply on the method settings.reload or restart.
+
+# The assistant shows while the voice agent is connected: its state, and
+# its sentences in a bubble; dimmed while the agent sleeps and listens for
+# its wake words. A click on it mutes the mic; a click on the badge of a
+# muted mic turns it on again.
+enabled: true
+# The corner of the first output where the figure shows: top_left, top_right,
+# bottom_left or bottom_right; null: the place that the HUD folder names.
+position:
+# The name of the HUD folder that draws the assistant: a folder of
+# $XDG_DATA_HOME/chora/huds or of /usr/share/chora/huds. `chora-assistant
+# --list-huds` lists them and `--use-hud NAME` sets this line.
+hud: neutral
+# Which folder draws in which context: the first rule whose `when` matches
+# wins, and `hud` draws when none does. A `when` compares a field of the
+# context with a value or a list of values: `wm` (the window manager of the
+# focused window), `space` (the window manager of the space around it),
+# `app` (its app_id), `state` (of the voice agent), `agents`, `chat` and
+# `output`. The context stays while a question waits. Each look shows
+# its own folder; tiling shows `hud`.
+huds:
+- {when: {space: construct}, folder: construct}
+- {when: {wm: mc}, folder: mc}
+- {when: {wm: xp}, folder: xp}

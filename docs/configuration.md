@@ -20,7 +20,9 @@ chora -- chora-flavor tiling
 ├── plugins/            # plugin manifests
 ├── shaders/            # GLSL ES shaders
 ├── clients.yaml        # the names and capabilities of `clients up`
-└── chora-tiling.yaml   # the options and bindings of chora-tiling
+├── chora-tiling.yaml   # the options and bindings of chora-tiling
+├── chora-notify.yaml   # the options of chora-notify
+└── chora-assistant.yaml # the options of chora-assistant
 ```
 
 The directory is a git repository. It contains no secrets. The package
@@ -71,7 +73,9 @@ input:
 - `choractl view save work` writes the nodes of `view-work` as they are
   now to `~/.config/chora/views/work.yaml`, or to `--file PATH`. It keeps
   the plugins and the `input` of the file that was there, not the live
-  settings of the core. A plugin or an
+  settings of the core. If that file does not parse, or if it has a
+  scene and the view is not loaded and so owns no nodes, the save fails
+  and the file stays as it is. A plugin or an
   agent changes the nodes as `view-work`, for example
   `choractl --name view-work apply`.
 - A node has an `id`, a `kind` (`group`, `rect`, `image`, `shader` or
@@ -96,7 +100,9 @@ input:
 
 `choractl` looks for `NAME.yaml` in `$XDG_CONFIG_HOME/chora/views/` first
 (`~/.config/chora/views/` by default), and then in
-`/usr/share/chora/views/`.
+`/usr/share/chora/views/`. An empty or relative `$XDG_CONFIG_HOME` or
+`$HOME` does not count, so no view or manifest comes from the current
+directory by accident.
 
 ### Strict YAML
 
@@ -106,14 +112,16 @@ are booleans, so `no` stays the string `no`.
 
 ### A broken settings file
 
-The plugins `chora-tiling`, `chora-xp`, `chora-mc` and `chora-construct`
-and the service `chora-voice` read their settings file (D62) as strict
-YAML too. If the file does not parse or check, for example because an
+The plugins `chora-tiling`, `chora-xp`, `chora-notify`,
+`chora-assistant`, `chora-mc` and `chora-construct` and the service
+`chora-voice` read their settings file (D62) as strict YAML too. If the file does not parse or check, for example because an
 update removed a key, the plugin does not stop. It starts with its
 default settings, writes the error to its log and does not change the
 file. `chora-mc` also shows the error as a critical notification.
 `chora-voice` does not start on a broken file. It writes the error to
-its log.
+its log. The error names the kind of the wrong value or the line of the
+wrong YAML. It does not quote the value or the line, because a value at
+a wrong place may be a secret.
 
 While the file is broken, `settings.set` and each other save of the
 settings fail with an error that names the file. Thus no save writes the
@@ -178,6 +186,19 @@ While a name is connected, its socket cannot open. `clients up` then
 only syncs the grants of the name and says on stderr that the socket
 stays closed.
 
+### Injected keys
+
+The window managers chora-tiling, chora-xp, chora-mc and chora-construct
+ignore a key that `input.inject` sent (`injected` is true in
+`input.key`), for every binding. A client with the inject grant cannot
+press a binding for the user, so automation calls the methods of the
+window manager instead, such as `window.give`. The setting
+`test_accept_injected_keys` of each of the four is `false`, and it is for
+tests only: `tests/headless-session.sh` and the persona session turn it
+on through the environment variable `CHORA_TEST_ACCEPT_INJECTED_KEYS=1`
+so that tests and personas can drive the bindings. Production keeps it
+off.
+
 ## chora-tiling
 
 `chora-tiling` connects with the client name `tiling`. Grants and
@@ -205,14 +226,16 @@ default map:
 | Option | Meaning |
 |--------|---------|
 | `modifier` | what `MOD` means in the bindings: Super or Alt |
-| `gap` | the gap around each window, in logical pixels |
+| `gap` | the gap of the old look, in logical pixels: the edge gets it, two tiles get twice; it applies where `look` has `null` for a gap, and `set_layout` sets it, which also sets both gaps of `look` to `null` |
+| `look` | the look of the windows, in logical pixels: `gap_outer` (12) between the border of a tile and the edge of the work area, `gap_inner` (10) between the borders of two tiles (both measured from the outer edge of the border, so a window starts `border` further in), `radius` (10) of the corners, `border` (2) the width of the border outside each window, `animations` (true) whether changes move over time, `shadows` (true), `theme` (`system`, `ink` or `paper`: the palette; `system` takes Paper when the system asks for the light colour scheme and Ink when it asks for dark or says nothing) and `palette`, colours that replace those of the theme (`base`, `surface`, `surface_2`, `line`, `text`, `muted`, `accent`, `on_accent`, `accent_2`, `urgent`, each `#rrggbb`); `gap_outer` takes `gap` when `null` and `gap_inner` takes twice `gap`, so the effective gaps are 12 and 10 with the default file and `2 * gap` between tiles when both are `null` (an odd inner gap is exact: the extra pixel goes to one side of each tile); the max and fullscreen layouts, and a maximized window, have no gap, no border and square corners; `settings.set` checks the values |
 | `tags` | the number of tags of each output, at most 16 |
 | `layouts` | the layouts in the order of `next_layout`; each tag starts with the first |
 | `master_width`, `masters`, `columns` | the start values of each tag for the tile layouts |
 | `new_window` | `master` or `stack`: where a new window goes |
 | `focus` | `click` or `follow_mouse` |
 | `style` | how a new window looks: `opacity` from 0 to 1, and `effects`, a list of shaders as in `scene.apply` (#99); `chora-tiling` sets it once, when it takes the window; a look that another client asks for wins (see below) |
-| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run` |
+| `effects` | the window effects that tiling drives on its own windows, a list; `wobbly` bends a floating window while a drag moves it and shakes it after the release; only `wobbly` is allowed, because tiling has no task button for `lamp`, and the settings refuse `lamp`; the default is `[]` (off) |
+| `bindings` | a binding with `MOD`, and its action; the default file uses every action at least once; `run: CMD` starts a shell command with `choractl run`; `volume: up`, `down`, `mute` or `{set: PERCENT}` changes the volume of the default sound output through `wpctl`, on a thread of its own and at most 2 seconds a call, and shows the volume, or why there is none, for 1.5 seconds as a notification that the next press replaces; the media keys `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and `XF86AudioMute` need no `MOD` |
 
 The layouts and the default bindings follow the awesome window manager.
 Each output has its own tags, and each tag its own layout and parameters.
@@ -220,7 +243,15 @@ A window can be on several tags, and an output can show several tags. A
 floating, maximized or fullscreen window leaves the tiles. A click or a
 binding raises the window that it focuses; the focus that follows the
 pointer raises nothing. The binding
-`MOD+Ctrl+r` reads the file again. `MOD+BTN_LEFT` (`drag`) holds the
+`MOD+Ctrl+r` reads the file again. `give: NAME` gives the focused window
+to the window manager `NAME` (D55), whoever owns it. The keys `Super+Alt+1`
+to `Super+Alt+4` give to tiling, xp, mc and construct in every one of
+those window managers, with no line in the file; the window manager that
+started first holds them, and the next one takes them when it leaves. A
+binding `give: NAME` on another key works while tiling runs. Tiling, xp,
+mc and construct ignore every binding key that came from `input.inject`,
+so a client cannot press the keys for the user; see
+`test_accept_injected_keys` below. `MOD+BTN_LEFT` (`drag`) holds the
 window under the pointer, and a floating window follows the pointer
 within the work area of the tiling output under the pointer. A title bar
 of a client-side decoration drags its own window in the same way. A drop
@@ -230,16 +261,86 @@ hand-over fails, the window stays and goes back to the middle of its
 output.
 Mouse resizes of floating windows do not exist.
 
+The key list shows on `MOD+slash` and on the button **Keys** of the
+panel: a glass panel as wide as its longest word and 24 px more, so the
+margin is 24 px left of the keycaps and right of the words, and as high as
+its rows and 24 px more, centred on the current output, with the heading "Keys", the line
+"Super+/ shows this list again. Esc closes it.", a line **Mouse** with the
+basics of the pointer (the Apps button starts a program, a click on a tag shows it,
+`Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
+binding of the file in the groups Windows, Layouts, Tags, Programs and
+System: the keys on a keycap in JetBrains Mono, then the words of the
+action in Inter ("Next window"; `run` shows its command). Each group is
+whole in one of two columns, and the columns are as even as they can be.
+The rows of a group go in the order of a person, not of the keys, rows
+are 24 px apart with caps of 20 px, or 22 px with caps of 18 px, or 20 px
+with caps of 18 px when the output is low, so the keys and their
+descenders sit in the cap on the baseline of the words; every keycap has
+6 px of padding on both sides, and the words of a column start at one x. The keys are
+spelled as a person says them: `Super+drag`, `Super+/`, `Super+Enter`.
+The option `labels` names a binding in its own words, by the binding as the
+file spells it, for example `MOD+Return: Terminal`. The tags 1 to 9 take
+one row, a binding with the words of another joins its row, and media keys
+are left out. The list is built each time it opens and again when the
+settings reload, so a binding that the file gains shows at once. It takes
+the keyboard with `focus_node` while it shows: `Esc`, `MOD+slash` or a
+click outside closes it, and the window that had the keys gets them back.
+
+`MOD+Shift+space` goes to the next layout, `MOD+Ctrl+Shift+space` to the
+previous one, and each shows the layout chip, a glass chip low on the
+output that names the new layout ("Fair") for 700 ms; the chip is as big as the word that the renderer measured plus 24 px left and right and 16 px above and below, so the word sits in its middle. `MOD+space` is the
+launcher.
+
+Each window sits in a group of its own, `tw-ID` in the scene. The group
+carries the position and holds the border, `tb-ID`, a shader node that
+`chora-tiling` writes to `$XDG_RUNTIME_DIR/chora-tiling/border.frag`, and
+the clip `tc-ID`, which holds the surface and rounds its corners to
+`look.radius`. Tools that query `parent` of a window find `tc-ID`.
+
+The focus mark is the border: the focused window has a 2 px gradient at
+135 degrees from `look.palette.accent` to `accent_2` (the same colour twice
+makes it solid), the others `line`, and a window that asked for attention
+`urgent`, without blinking. Light means focus, so no other part of the
+look uses `accent_2`. Under the border each window has a shadow, drawn by
+a shader of `chora-tiling`: `0 4 12` at 25 % for a window without the
+focus and `0 8 28` at 45 % for the focused one. The group of a window
+holds, from the bottom, `ts-ID` and `tf-ID` (the two shadows), `tb-ID`
+(the border in the line colour), `tg-ID` (the gradient) and `tc-ID`. The
+mark cross-fades by the opacity of `tf` and `tg`.
+
+With `look.animations` (on by default) a new window opens in 180 ms from
+94 % and transparent, about its centre; a window that a layout change,
+a swap or a change of the master width moves slides to its tile in 200 ms
+while its size snaps when the client commits; the windows that a tag
+switch brings in slide in from the side, by one output width, in the
+direction of the tag, in 200 ms; the focus mark cross-fades in 120 ms; the
+key list and the layout chip fade in in 140 ms. All ease out, nothing
+bounces and nothing moves while the scene is still, so an idle scene draws
+no frame. `animations: false` makes every change at once; `shadows: false`
+hides the shadows. A reload or a change of the theme rebuilds the windows
+without motion.
+
+With `modifier: Super`, no `Super` chord that no binding uses reaches a
+program: `chora-tiling` grabs `Super+KEY`, `Super+Shift+KEY` and
+`Super+Ctrl+KEY` for the letters, the digits, the punctuation, `F1` to
+`F12`, the navigation keys and `Print`, and swallows the ones that the
+file does not bind, so `Super+q` types no `q` in a terminal. A key that
+the file binds keeps its action. With `modifier: Alt` nothing is
+swallowed: programs keep `Alt+b` of readline and `Alt+Left` of a browser.
+
 `chora-tiling` exports methods for other clients (see
 [Plugin methods](api.md#plugin-methods)). Every method but `get_layout`
 and `get_tags` changes something and answers with the layout info of the current tag,
-like `set_layout`. The `gap` of `set_layout` is a live value: the file
-keeps the old gap, and the next `settings.set` or `settings.reload` sets
-the gap of the file again.
+like `set_layout`, which includes the gaps in use as `gap_outer` and
+`gap_inner` besides `gap`. The `gap` of `set_layout` lasts as the layouts
+of the tags do: it is a runtime value that the file does not keep, and a
+later `settings.set` or `settings.reload` leaves it as it is.
 
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
 | `set_layout`, `get_layout` | see [API](api.md#plugin-methods) | the layout of the current tag |
+| `next_layout` | none | `next_layout` of the bindings: the next layout of the current tag, and shows the layout chip |
+| `show_keys` | none | `MOD+slash`: shows the key list, or hides it |
 | `get_tags` | none, see [API](api.md#plugin-methods) | the tags of each output, for a panel |
 | `window.give` | `surface`, and `to`: a client name | `MOD+BTN_LEFT` with a drop on another window manager: hands the window to `to` (D55), and answers with its id |
 | `view_tag` | `tag`: a tag number | `MOD+1` to `MOD+9` |
@@ -331,7 +432,9 @@ grid. A line `TIME<tab>TEXT` puts the time in the margin column left of
 the text, flush right, and the text wraps under it. A panel names the
 styles of its lines, its title and its notes with `style`, `title_style`
 and `note_style`; each takes a `base` (by default `body`, `heading` and
-`margin`) and changes single fields.
+`margin`) and changes single fields. A panel may set `empty`, words that
+show in `muted` while it has no lines, so that a page without data says
+what it is for: the agenda says `Nothing planned today.`
 
 All scenes share the `page` of the settings, so that the text block
 and the head stay in place from scene to scene. A scene may set its own
@@ -365,6 +468,28 @@ agent hides its own state dot. Data that mc does not
 take only goes to its log, since the emitter gets no answer. Other
 clients use `agent.set` and `hud.say`.
 
+With the setting `voice_hud: host`, the default, the HUD host
+`chora-assistant` draws the voice HUD of mc with the folder
+`plugins/chora-mc/hud` ([HUD folders](hud.md)): mc then takes no state
+of the agent itself, no `voice.say` and no `voice.confirm`, and claims no
+indicator; it still shows the helpers that `voice.state` names. A click
+on the column of a helper in the scene `agents`, or on its row in a
+region, calls `assistant chat.show {name}`. While the event `assistant.chat` of the client
+`assistant` says that the chat is open on the output of mc, the content
+`chat` of the margin column holds it: the texts with `folds: true`, such
+as the notifications, fold into their head and the count of their lines
+with `Show` flush right, the key list goes, and mc emits the box under the
+head `Chat` as `mc.chat.slot {output, rect}` (`rect` is
+`[x, y, width, height]` on the output, `null` when the chat closes). The
+page keeps its place. While the chat is closed the content `chat` is the
+door `Chat with a helper ...` with the key of the chat flush right; a
+click on it asks the host to open the chat. mc names its theme to the host
+with `mc.theme {theme}` at its start, when its settings change and on
+`assistant.ready` of the host, and the host draws the mc folder in that
+theme.
+The host emits `assistant.chat.keyboard {on}` when the field of the chat
+gets or loses the keyboard; a test that sends Esc waits for `on: true`.
+
 | Method | Parameters |
 |--------|------------|
 | `scene.show` | `name`; the scene fades in, the old one fades out |
@@ -382,11 +507,11 @@ clients use `agent.set` and `hud.say`.
 | `content.set` | `content`, `lines` and an optional `title` of a text content |
 | `content.add` | `content` and `line`: adds a line to a text content, such as a note; the oldest go after 12 lines |
 | `region.solo` | privileged. `content`, `region` and an optional `shown`: the content shows alone in the region over any scene, such as the test overlay in the drawer; without `shown` it flips. Hidden again, the region shows as before. Answers `shown` |
-| `agent.set` | `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
+| `agent.set` | privileged. `name` and optional `state`, `task`, `said`, `voice`, `plan` (lines), `question` and `log` (the last lines of its transcript): adds an agent or changes it; a missing field stays. The `state` is a name of `states`. The `agents` scene shows the state, the question, the task, the plan and the last words, in as many columns as agents: one agent takes the whole width, two take half each |
 | `agent.focus` | `name`: shows the `agents` scene with this agent alone in `agent-1` and its transcript in the other `agent-N` panels, newest last; an empty name shows all agents again |
 | `agent.remove` | `name` |
 | `agent.list` | none; answers `agents`, each with `name`, `state`, `task`, `said`, `voice`, `plan`, `question`, `log` and `since` (the time of its first report) |
-| `notify.push` | `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`; a critical one also shows in red in the text `urgent` until the next one |
+| `notify.push` | privileged. `title`, an optional `body` and an optional `urgency` (`low`, `normal` or `critical`): the line `HH:MM  title: body` goes on top of the text `notify`, which keeps the last three; a critical one starts with the word `Urgent` and also shows in red in the text `urgent`, until the next one or a click on that line of the footer, which leaves it in `notify` |
 | `notify.clear` | none; empties `notify` and `urgent` |
 
 New text writes itself, as Write of manim: a soft front draws the
@@ -394,6 +519,11 @@ outlines line by line, and the fill follows. This happens when a scene
 shows and when `panel.set` changes the text of a panel; the same text
 again changes nothing. The effect is `plugins/chora-mc/write.frag`, and
 the `animate` of the core moves its uniform `progress` from 0 to 1.
+When the animation ends, the plugin removes the effect, so a page that
+rests costs no shader pass. After the watchdog of the core dropped the
+effects of `chora-mc` (`effects.dropped`), new text shows at once and no
+panel blurs, until the settings change; that change builds the page
+anew, with the blur.
 
 The page of each scene, with its head and its panels, carries the tag
 `meta:pane=NAME`, also while the scene is hidden. Another plugin finds it
@@ -438,7 +568,12 @@ with `settings.reload`:
   (`normal` or `italic`), `size` in pixels, `em` of `scale.base` or
   `step` of the scale, `color` (a name of the theme
   or RGBA), `line_height`, `letter_spacing` in em, OpenType `features` and
-  `uppercase`. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
+  `uppercase`. A `family` may be a list, `TeX Gyre Pagella, DejaVu Serif`:
+  the plugin asks fontconfig and the directories of `CHORA_FONT_DIRS` and
+  uses the first name that the machine has, so that the page is set in a
+  serif and not in a second sans without Pagella. Nothing is under 14
+  pixels at the default scale: the running head and the clock are the
+  `label` size. The plugin uses `chapter`, `chapter_number`, `running_head`, `heading`, `body`, `margin` and `hud`;
   the built-in scenes also use `data`, `mono` and `lead`. The
   [style guide](mc-style.md) gives the rules that the styles follow.
   The default sets TeX Gyre Pagella with small caps and old-style figures
@@ -460,7 +595,9 @@ with `settings.reload`:
   be narrower, the page shows fewer columns and the panels wrap into new
   rows in reading order, each at the top-most, then left-most place
   below the panels before it; an empty panel takes no room. A row is
-  never lower than the least height. A page that is longer than the
+  never lower than the least height, except a row of only empty panels
+  that say why they are empty: it is as high as those words (two lines),
+  so that every such message shows at 1280 by 800. A page that is longer than the
   output scrolls with the wheel between the header and the footer.
 - `write`: `enabled` (default `true`) and `duration_ms` (default 900).
 - `order`: the scenes in their order (default `agenda`, `morning`,
@@ -468,11 +605,28 @@ with `settings.reload`:
   its place. First come the scenes of the list. The others follow in the
   order they appear, such as new scenes and those of `app.open`, so that
   the numbers before them stay. `Super+Right` and `Super+Left` follow the order. A
-  scene file may set its own `chapter.number`.
+  scene file may set its own `chapter.number`. On a page, which has no
+  program, Right and Left alone turn the page as well, and Escape goes
+  back one step: it closes the full key list, else it shows the page that
+  showed before.
 - `default_scene`, and the `bindings` with the actions `next_scene`,
-  `previous_scene`, `scene: NAME`, `run: COMMAND`, `toggle: REGION` and
-  `solo: {content: NAME, region: REGION}` (as `region.solo`; the default
-  `Super+F12` shows the test overlay in the drawer).
+  `previous_scene`, `scene: NAME`, `run: COMMAND`, `give: NAME`, `drag`,
+  `keys`, `chat`, `toggle: REGION` and `solo: {content: NAME, region: REGION}` (as
+  `region.solo`; the default `Super+F12` shows the test overlay in the
+  drawer). `give: NAME` gives the focused window to the window manager
+  `NAME` (D55). `Super+Alt+1` to `Super+Alt+4` give to tiling, xp, mc and
+  construct with no line in the file. `drag` is for a pointer button
+  (the default `Super+BTN_LEFT`) and works with `--manage-windows`: a
+  window of mc that is pressed and let go on the area of another window
+  manager goes to that one. mc moves no window itself, so a release
+  elsewhere changes nothing.
+- `test_accept_injected_keys`: `false`; for tests only, the bindings
+  take the keys of `input.inject` as keys of the user (see
+  [Injected keys](#injected-keys)).
+- `voice_hud`: `host`; `own` draws the voice HUD of mc, `host` leaves it
+  to the HUD host `chora-assistant` with the folder `plugins/chora-mc/hud`.
+  The chat shows in the margin column of mc, in the box that mc announces
+  (see the HUD host above).
 - `states`: the states of `agent.set`, each with a `sign`, a `color` of
   the theme and an optional `label` for the agents scene. The default has
   `idle` ○, `listening` ◉, `thinking` ◌, `working` ●, `speaking` ◐,
@@ -507,12 +661,17 @@ region. The page itself never moves when a region shows.
   side: a slot below 0 goes left, 0 in the middle, above 0 right. The
   right end keeps its place, the left end comes next, and a text that
   does not fit ends in an ellipsis.
-- `left` and `right` are columns beside the page, `size` em wide, their
-  contents one under the other with a title in the style `running_head`.
-  The page leaves room for a side that has contents, so that its text
-  never moves; where both sides would leave the text less than three
-  quarters of the measure of one column, the sides do not show. The
-  columns of the grid that do not fit wrap into new rows.
+- `left` and `right` are columns beside the page, `size` lines of the
+  baseline grid wide, their contents one under the other with a title in
+  the style `label`. The right side is the margin column: it is 26 per
+  cent of the output wide in whole lines, from `size` lines (336 pixels
+  at 1280) up to a third more (448 pixels at 1920), with a gutter of two
+  lines at the edge of the output and one of two lines between it and the
+  text block, and a hairline in the middle of that gap. The page leaves
+  room for a side that has contents, so that its text never moves; where
+  both sides would leave the text less than three quarters of the measure
+  of one column, the sides do not show. The columns of the grid that do
+  not fit wrap into new rows.
 - `drawer` is a sheet of `size` lines over the bottom of the page, with a
   hairline above it, for a docked app.
 
@@ -523,6 +682,14 @@ toggle, else from the `regions` of the scene file (for example
 toggle, and the app window leaves the header, the footer, the drawer and
 a shown side free. A toggle stays for all scenes.
 
+The pointer works on the items that a click acts on: a row of the key
+list, a helper in a region, a row of a page with a time and a line of the
+overview. Under the pointer an item shows a focus mark, a bar of 2 by 20
+pixels in the `text` color, 12 pixels left of it. A click on a key row
+does what its key does, a click on a helper opens the chat with it, a
+click on a line of the overview shows that scene, and a click on another
+row of a page makes mc emit `mc.row.chosen {scene, panel, index}`.
+
 The `contents` are named. Their `kind` is one of:
 
 | Kind | Shows |
@@ -531,8 +698,10 @@ The `contents` are named. Their `kind` is one of:
 | `clock` | the time as `date` formats it with `format`, each minute anew |
 | `state` | the `state` of `hud.set` and `hud.say`, in the accent color |
 | `hud` | the `text` of `hud.set` and `hud.say` |
-| `agents` | the sign and the name of each agent of `agent.set`, each in the color of its state, in the style `hud` |
-| `text` | a `title` and `lines` that `content.set` and `content.add` change |
+| `agents` | each agent of `agent.set` and each helper that `voice.state` names: in a line the sign and the name in the color of its state, in a side one row each, the sign in the color of its state, the name in `text` and the state and the task in `muted`, at most four, then `+N more`; the host never draws these rows beside the column of mc |
+| `text` | a `title` and `lines` that `content.set` and `content.add` change; with `empty: true` it shows `Nothing new.` (`Nichts Neues.` in a German session) in `muted` under its title while it has no lines, as `notify` does; with `folds: true`, as `notify`, a line that starts with `HH:MM` and two spaces is a note: the time in the style `margin`, its words in the reading face at a hanging indent, one line for each note, and while the chat is open only the head with the count, `NOTIFICATIONS  0` too |
+| `chat` | the chat of the HUD host in a side: a door while it is closed, the head `Chat`, `Esc  Close` and the box of the chat while it is open |
+| `keys` | the key list: six rows of a key and its words, made from the bindings and pinned to the foot of a side under a hairline; the binding `keys` (`Super+F1`) shows all keys and then the six again. The full list goes by task, not by key name: the keys, the page (the two arrow keys are one row), the scenes, programs, the chat, the column, the header and the footer, the rest and `Esc`, in the words of the six rows. A thin space follows the plus before an arrow |
 | `app` | a docked `command`; `{NAME}` in it is the color NAME of the theme as RRGGBB |
 
 Each content may set a `style`. The `rules` are a list, and the first
@@ -547,17 +716,22 @@ back to it, and the next press hides the region and gives the keyboard
 back to the scene. When the app ends, its region hides. A drawer that a
 preset or a scene shows starts its app when the settings load.
 
-The default bindings are `Super+Return` for the drawer, `Super+n` for the
-right side, and `Super+Up` and `Super+Down` for the header and the
-footer.
+The default bindings are `Super+a` for the chat (`chat` asks the HUD host
+to open it), `Super+Home` for the agenda, `Super+Return` for the terminal
+scene, `Super+n` for the right side, `Super+Up` and `Super+Down` for the
+header and the footer, and `Super+F1` for all keys. A binding of one key without Ctrl, Alt or Super
+needs the grant `input.grab-any`, so the key list is on `Super+F1`.
 
 The default `desk` setup: the header shows the running head left, and
-the agents, the state of the agent and the clock right; the footer shows
+the clock right; the footer shows
 the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
-content `next`); the right side shows the notes, which an agent fills
-with `content.add`, and the notifications below them, newest on top;
-`Super+Return` opens `foot` in the drawer in the colors of the theme.
+content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
+with `content.add`, and the notifications below them, newest on top, and
+the key list at its foot. The state of the voice agent and the helpers
+stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
+terminal is the scene `terminal`, `foot` in the colors of the theme, and
+the preset `studio` keeps it in the drawer.
 Over an app, the words of the agent move into the middle of the header.
 On a narrow page the header has no room for many agents and the long
 clock: the end of the line is cut. Set the rule of `time` instead of
@@ -638,14 +812,21 @@ choractl call mc region.solo '{"content": "overlay", "region": "drawer"}'
 
 `chora-construct` connects with the client name `construct`. It is a
 flavor: `chora -- chora-construct` starts into it, and the directory
-`flavors/construct/` holds its target and service. The first output shows
+`flavors/construct/` holds its target and its services: `chora-construct`
+and `chora-assistant`, the voice HUD and the chat in the construct
+folder, in the theme that `construct.theme` names. The first output shows
 a space without a grid and without lines. In the light theme, a pale sky
-lies over a smooth, white, glossy floor, as in a photo studio. In the
-dark theme, a black void lies over a black glossy floor. A crisp
-horizon line separates floor and sky. The floor mirrors the sky, more
-at grazing angles, and a broad soft light band glints in it and turns
-with the view. Each pane has a soft shadow on the floor under it, and a
-clear mirror image that fades downwards and with the distance. A new
+lies over a floor of white polished marble with soft grey veins. In the
+dark theme, a black void lies over black polished marble with faint
+white veins. A crisp horizon line separates floor and sky. The floor
+mirrors the sky, more at grazing angles, and a broad soft light band
+glints in it and turns with the view; fine scratches catch that light,
+and micro bumps bend what the floor mirrors a little. Each pane has a
+soft shadow on the floor under it, and a mirror image that is sharp where
+the pane meets the floor and blurs by the roughness of the polish
+farther down, fading downwards and with the distance. A still view
+renders nothing again. On a software renderer the floor renders at a
+quarter of the output, so its scratches hardly show; on a GPU at half. A new
 window becomes a pane in the view direction, at the size of the output.
 A pane faces the camera where it comes and shows the window through its
 node texture. It keeps that turn while you walk, so you see it at an
@@ -655,28 +836,54 @@ Else it goes a little to the side, nearer or farther, but only to a spot
 where its whole face shows in the view and covers no other pane. When no
 spot in the view is free, the window becomes no pane: it waits in the
 window list, and the HUD shows "No room in view: in the window list
-(Tab)". Turn, then choose it with `Tab` or `window.show`. The keys `t`
-and `space` and a window that another window manager gives to the
-construct follow the same rule. A pane of a construct file and a choice
-in the window list come also when the view is full, beside the panes in
-the way. The space lies on
+(Tab)". Turn, then choose it with `Tab` or `window.show`. A window that another
+window manager gives to the construct follows the same rule. A window
+that the person opens with `Super+t`, `Super+space` or the launcher, a
+pane of a construct file and a choice in the window list come also when
+the view is full, beside the panes in the way. The camera flies into the
+pane of a window that the person opened, so that it shows at 1:1 and
+has the keyboard; the fly-out key leaves it. The space lies on
 the screen root of the output (`screen:NAME`), not under `root`, so it
 needs no camera. As the flavor, it claims the output (D55), so that new
 windows come to it also when another window manager runs beside it.
 
-The space has the keyboard, so its keys need no modifier. A drag looks
-around, and the wheel walks. A walk slows down in the outer quarter of
-the leash radius and stops at it. A click on a pane, or `Return` for the
-pane nearest the middle of the view, flies into the pane. At the end of
-the fly-in, the window itself shows at 1:1 pixels and takes the keyboard
-and the pointer. `Alt+Escape` flies back to the pose before.
+The space is a 3D context of the core (D75): a group with the
+`perspective` of the focal length and a camera group whose transform is
+the pose. The core sorts, splits and clips the panes, and casts the ray
+of the pointer. A window of the construct stands in its pane: a click on
+the pane, also on a tilted one, reaches the window at the point under
+the pointer, gives it the keyboard and does not move the view; where
+panes overlap, the nearer one gets the click. Each pane draws through
+the effect `pane.frag`, which reads `depth` and `facing` for the haze
+and the edge of the focus, so a walk updates no pane.
 
-`t` starts the terminal, and its window becomes a pane in the view
-direction. `space` starts the launcher. The launcher itself is no pane:
+While the space holds no pane, the start card stands in the middle of
+the output (rule 26 of the style guide): a click on its row `Terminal`
+starts the terminal like `Super+t`, `All programs` starts the launcher
+like `Super+space`, and `A cube of desktops` opens the cube like
+`Super+c`. The card fades out when the first pane appears, and the hint
+bar stays away while it shows.
+
+A press on the empty space gives the keyboard back to the walk, so its
+keys need no modifier. A drag there looks around, and the wheel there or
+over a pane that shows the window of another client or a plugin walks;
+over a window of the construct, the wheel scrolls the window.
+A walk slows down in the outer quarter of the leash radius and stops at
+it. `Return` flies into the pane nearest the middle of the view, and a
+click on a pane that shows the window of another client or a plugin
+flies into that pane. The frame of a pane is the buffer of its window: the
+pane takes the size of every new buffer, so no strip of the frame shows
+beside the window. At the end of the fly-in, the window itself shows
+at 1:1 pixels and takes the keyboard and the pointer. `Alt+Escape`
+flies back to the pose before. `tests/gate-construct-3d.sh` checks the
+direct input.
+
+`Super+t` starts the terminal, and its window becomes a pane in the view
+direction. `Super+space` starts the launcher. The launcher itself is no pane:
 a layer-shell launcher such as fuzzel shows over the space, and a
 launcher window that maps with the activation token of its start shows
 in the middle of the output. The first other window after the launcher
-becomes a pane, also beside another flavor. `x` asks the window of the
+becomes a pane, also beside another flavor. `Super+x` asks the window of the
 pane nearest the middle of the view to close, as a close button does, so
 a program can ask about unsaved work first; the pane goes when the
 window closes. `tests/gate-construct-keys.sh` checks the three keys.
@@ -693,13 +900,34 @@ The settings file is `~/.config/chora/chora-construct.yaml` (D62);
 | `theme` | `light` | `light` or `dark` |
 | `radius` | `6000` | the leash radius R around the start point, in logical pixels, for a construct without its own |
 | `pane_distance` | `2000` | how far ahead a new pane appears, in logical pixels |
-| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `t`, `space`, `x`, `Tab`, `F1` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows` or `help` |
+| `keys` | `w a s d`, arrows, `q e`, `r f`, `h`, `Return`, `Super+t`, `Super+space`, `Super+x`, `Tab`, `F1`, `Super+slash`, `Super+c` | keysym name to `forward`, `back`, `left`, `right`, `turn_left`, `turn_right`, `look_up`, `look_down`, `home`, `fly_in`, `terminal`, `launcher`, `close`, `windows`, `help` or `cube` (opens the cube of `cube_manager`). The walk keys `forward`, `back`, `left` and `right` walk in pane steps of 800 logical pixels: a tap glides one step in 320 ms; a key held down speeds up over 160 ms to one step per 400 ms and stops over 160 ms after its release, without overshoot; a key held for 5 s counts as released then, so that a lost key-up cannot walk on. A key with Ctrl, Alt or Super names them first, in that order, as in `Super+t`; Shift is part of the key, as in `T`. The keys that start or close something take Super, so that text typed into the space by mistake starts nothing; a typed key that does nothing shows the notice "The keys walk here. F1 shows them all." in the HUD, at most once in 10 seconds, in German with a German locale; a key that starts or closes something without a modifier works, but the load logs a warning |
 | `terminal` | `foot` | the shell command of the key `terminal`; its window becomes a pane |
 | `launcher` | `fuzzel` | the shell command of the key `launcher`; the first window that it starts becomes a pane |
 | `fly_out` | `Alt+Escape` | the binding that flies out of a pane |
 | `modifier` | `Super` | `Ctrl`, `Alt`, `Shift` or `Super`: with a drag it moves a pane, with the wheel it resizes one |
-| `voice_hud` | `true` | draw the voice HUD and hide the dot of the voice agent |
+| `managers` | `xp: chora-xp`, `tiling: chora-tiling`, `mc: chora-mc --manage-windows` | the window managers of `pane.manager` and of manager panes: the client name of each and its command, which gets `--output NAME`; the manager must connect as the client of its name within 10 s, or its pane and its output go; an empty command is an error, and a manager pane of a construct file whose name is missing here goes with one message |
+| `cube_manager` | `chora-xp` | the command of the window manager of the cube of `cube.open`; it must connect as the client `xp`; an empty command is an error |
+| `effects` | `[]` | `[wobbly]`: a pane of an own window bends in 3D while the modifier drags it, and shakes until it settles, within about a second; the pane bows in depth where it trails the pointer, and its hairline, its glow, its mirror image and its shadow bend and move with it; the pane label hides while a pane moves |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
+| `voice_hud` | `host` | `host`: the HUD host `chora-assistant`, which every flavor starts, draws the voice HUD and the questions with the folder `plugins/chora-construct/hud`, the construct draws only its own notices, and it claims no indicator; `own`: the construct draws them and hides the dot of the voice agent. `true` and `false`, the values of earlier versions, read as `own` and `host` for one release |
 | `style` | see the file | the elements over the space: `unit`, `radius` and `glow` in logical pixels, the families `font` and `mono`, the `accent`, and per theme the colours `glass`, `edge`, `text`, `muted` and the alpha of the `glow` ([construct style guide](construct-style.md)); a colour below the contrast of rule 5 is an error |
+
+While a cube is open, the construct grabs `Ctrl+Alt+Left` and
+`Ctrl+Alt+Right`, which turn the cube by one face, and in use mode
+`fly_out`, which steps back from the front face. A turn key during a
+turn queues one more turn. In navigate mode `Return` and `Escape` step
+in again ([cube modes](cube-modes.md)). In use mode the keys of the walk
+do nothing, so that the face stays at 1:1; `terminal`, `launcher`,
+`windows` and `help` still work. A binding that another client holds is
+logged, and the chips still work. In navigate mode the edge of the face
+under the pointer is lit, a click on a face steps into it, and a drag on
+a face turns the cube by one face for each third of the width of the
+view; an injected move or release during a press does nothing outside a
+test session. With `fly_out: Escape` and the grant `input.grab-any`,
+`Escape` alone steps back; the chip `STEP BACK` names its key only while
+the construct holds it. While the window switcher of xp shows on a face,
+the construct gives `fly_out` up, so that `Alt+Escape` cancels the
+switcher; xp tells it with the event `xp.switcher`.
 
 While the camera is in a pane, the window has the keyboard, so `fly_out`
 is a grab. A grab needs Ctrl, Alt or Super (D45). `Escape` alone works
@@ -708,7 +936,12 @@ pane never gets `Escape`. `tests/gate-construct-k1.sh` checks the step.
 
 The key of the setting `modifier` with a drag on a pane moves the pane.
 It moves sideways along its face, and away or nearer as the pointer goes
-up or down. The same key with the wheel over a pane resizes it. A window
+up or down. As the flavor, the construct grabs this drag, so it reaches
+no window; without the grab, which another client may hold, a press with
+the key on a window of the construct reaches the window. The same key
+with the wheel over a pane that shows the window of another client or a
+plugin resizes it; over a window of the construct the wheel goes to the
+window, since the core grabs no wheel. A window
 of the flavor gets the new size, so that it stays at 1:1. Other panes
 stretch. The default `Super` is the drag modifier of tiling and chora-xp.
 
@@ -736,7 +969,9 @@ start pose of the camera, the leash radius R and the panes. A pane has a
 which starts with `choractl run`. A plugin pane has a `plugin`, the client
 name, and a `scene`. It shows the node that the plugin tags
 `meta:pane=SCENE` through its node texture, for example the page of an mc
-scene. The pose is `at`, the centre on the ground as `[x, z]`, `yaw`,
+scene. A manager pane has a `manager`, a key of the setting `managers`:
+the construct starts that window manager on a virtual output of the
+`size` of the pane and shows the output in the pane. The pose is `at`, the centre on the ground as `[x, z]`, `yaw`,
 the turn of its face in radians (0 faces along +z), and `size`, in
 logical pixels. Without `at`, the pane goes ahead of the camera; without
 `yaw`, it faces the camera where it comes; without `size`, a program
@@ -755,6 +990,9 @@ panes:
   plugin: mc
   scene: mission
   at: [700, 2200]
+- kind: manager
+  manager: tiling
+  size: [1024, 768]
 ```
 
 A file in this directory is the user's own, as an mc scene file is: its
@@ -778,13 +1016,21 @@ windows of the other flavor.
 |--------|------------|
 | `construct.load` | privileged. `name`: loads the file and starts its programs. An overlay takes the output; the flavor keeps its windows as panes. The panes of the construct before go. Answers as `construct.list` |
 | `construct.save` | privileged. `name`: writes the camera, R and the panes. A window that the construct did not start has no command and stays out |
-| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `panes` with `name`, `kind`, content, `at`, `yaw` and `size`, and the panes that still wait |
+| `construct.list` | none; answers `constructs`, the `current` one, `overlay`, `shown`, the `camera` pose (`x`, `z`, `yaw`, `pitch`), the `panes` with `name`, `kind`, content, `at`, `yaw` and `size`, and the panes that still wait |
 | `construct.leave` | none; an overlay gives the output and the keyboard back. The flavor refuses it |
 | `pane.move` | `name`, and `right` and `ahead`: an offset in logical pixels as the camera looks, which adds to the place; inside the leash. The pane then faces the camera; answers the new `at` |
 | `pane.resize` | `name` and `scale`, for example 1.25 |
+| `pane.manager` | privileged. `manager`, a key of the setting `managers`, and `size`, `[width, height]` in logical pixels, 1024 x 768 by default and at most the view: adds a virtual output of that size, starts the window manager on it as a child with `--output NAME`, and shows the output in a pane ahead. The pane passes the pointer into the output at any place and turn (D69), so the windows of the manager take clicks; the modifier with a drag moves the pane. One pane per manager: refused while a client of that name runs, in a pane, on the cube or by itself. While the construct has the keyboard, a new window under the pane goes to its manager; while a window in a pane has it, to the manager of that window (D55). A manager that ends, or does not connect within 10 s, takes its pane and its output with it; `pane.remove` ends it, and the child gets `SIGTERM` when the construct ends. The windows on the output then go back to the window manager that gave them, else to a screen (D69). Answers the `name` of the pane and its `output`. `tests/gate-construct-wm-pane.sh` checks it |
 | `pane.remove` | `name`; the window of the pane gets a close request, through its owner |
 | `pane.fly` | `name`: flies into the pane |
+| `cube.open` | privileged. `faces`, 1 to 4, 4 by default; no params at all take the defaults: adds that many virtual outputs of the size and scale of the view, starts `cube_manager` on them as a child with `--output NAME` for each, and shows each output on a face of a cube ahead; the camera levels, and the front face shows its output at 1:1 pixels. A face passes the pointer into its output while the cube rests (D69), and hides while it looks away. The cube goes when the window manager ends after it connected. A window manager that exits or does not connect within 10 s leaves the cube open: its faces show a card that says what failed, and a click on the face, `Return` or the hint `Try again` starts it again (see [cube modes](cube-modes.md#starting-and-failed-faces)). Refused while a cube is open or a client `xp` runs. Answers the `outputs` in face order |
+| `cube.turn` | `by`: turns the cube by quarter turns, positive to the right, in `ms` milliseconds, 360 a quarter turn by default, eased out; a half turn always goes the same way; ignored while a turn runs. The cube steps back during a turn, so that its edge stays in view. While the cube turns or stands back, each window on a face floats in front of it on a plane of its own, the higher ones of the stack farther, up to 160 px, as on the desktop cube of xp: the construct asks the window manager with `windows.float` (`chora_kit::float`), which hides the windows in the output for that time, and reads each window as a node texture. Only the faces that show float. At rest in use mode the windows are in the face again, with exact pixels and input. The planes of a face go only after the window manager answered that its windows show again; it has 400 ms for an answer, and the construct asks again every 500 ms. A face whose planes the core refuses or leaves out of a frame lands at once and stays flat until the cube rests. A window manager without `windows.float` keeps its windows flat |
+| `view.step_back` | none; with a cube open, stands back from the front face into navigate mode ([cube modes](cube-modes.md)): the cube shows whole, no face takes the pointer, and the chips `TURN LEFT`, `TURN RIGHT` and `STEP IN` show at the bottom right, above the taskbar of the face. The method leaves the keyboard where it is; the key and the chip of a person move it to the construct. From inside a pane, the camera flies out first. Answers the `mode`, `use` or `navigate`. Refused without a cube |
+| `view.step_in` | none; steps into the front face, into use mode: the camera goes back to where the face shows at 1:1, the face takes the pointer, and the chip `STEP BACK` shows with its key. When the person steps in, by `Return`, a click or a chip, the window that had the keyboard before the person stepped back gets it again, if its face is at the front again; the method moves no keyboard. Answers the `mode`. Refused without a cube |
+| `cube.close` | none; ends the window manager of the cube, and removes its outputs and faces. A construct that starts again removes the virtual outputs that it left |
+| `camera.glide` | `x`, `z`, `yaw`, and optionally `pitch` and `ms`: flies the camera to that pose in `ms` milliseconds, slow at its start and at its end; the place stays inside the leash; refused while the camera is in a pane |
 | `help.toggle` | none; shows or hides the help panel, as the key `help` does, and answers `shown` |
+| `clock.step` | `ms`: stops the clock of the glide and the wobble at that time of a recording, and draws one frame; `null` lets it run again; privileged; `choractl record` calls it (see [Recording](api.md#recording)) |
 | `window.list` | none; answers all `windows` with `name`, `surface`, `owner` and `pane`: `shown`, `behind`, `far`, `aside` or `none` |
 | `window.show` | `name`, a label or a surface of `window.list`: flies to the pane of the window; a window without a pane becomes one first |
 | `window.give` | `surface`, and `to`, a window manager such as tiling or mc: gives an own window to `to` (D55), and answers with its id; its pane goes |
@@ -831,24 +1077,93 @@ terminal inside them.
 
 ### The help panel
 
-`F1`, the key `help`, shows a glass panel in the middle of the output
-with the bindings of the settings: the keys of each action, the fly-out
-binding, and the drag and the wheel with the `modifier`. A change of the
-settings, for example `modifier: Alt`, shows at once. `F1` again hides
-it. The voice agent shows it with the method `help.toggle`.
+`Super+/` and `F1`, the key `help`, show the help over a scrim: a glass panel at the
+top centre, 880 wide in two columns, with the keys that work now in
+groups, the construct's own at the left (Walk, Panes, Cube while a cube
+is open) and those that every look shares at the right (Helper and chat,
+Give a window, Everywhere). Each key is a keycap. The keys come from the
+settings, so a change, for example `modifier: Alt`, shows at once, and a
+key that is not bound has no row. The row of `Super+/` stands in Everywhere, the row of `F1` in Walk. Typing searches the words and the key
+names: the panel is then 560 wide in one column, the found words are
+marked, `Up` and `Down` move the chosen row, and the footer counts the
+keys that match. `Escape` clears the search, then hides the help; `F1`
+hides it at once. While it shows, the keys search and do not walk. The
+voice agent shows it with the method `help.toggle`.
+
+### Context hints
+
+At the bottom centre a glass capsule shows the hints that apply, at
+most five, each the keycaps of a key and a word: walking, for 6 seconds
+after the start and after a fly-out, `W A S D Walk`, `Return Fly in`
+while a pane is ahead, `Tab Windows` from two windows, `Super T
+Terminal` and `F1 All keys`; in a
+pane, `Alt Esc Step back` for 3 seconds from the start of the fly-in;
+stood back from a cube, `Ctrl Alt ← Turn left`, `Return Step in` and
+`Turn right Ctrl Alt →`, whose hints are the chips of the cube. The
+keys of the hints are those of the settings. A click on a hint
+does its act: the capsule lets a click through, and the node of each
+hint takes it. The hints hide while the window list or the help shows, a
+question waits or a pane moves.
+
+A program that the person starts, with `Super+t` or a click on the start
+card, opens flown in: its pane shows at 1:1 with the keyboard, and typed
+keys reach it during the fly-in too. `Alt+Escape` steps back at any time
+of the fly-in. `Super+t` in a pane steps back, opens a second terminal
+right of the first at the same distance and flies into it over 380 ms;
+the keys that start a terminal and carry a modifier are grabbed while
+the camera is in a pane. A terminal that `Super+t` starts from the walk
+while a pane stands opens beside the panes at the same distance from the
+camera, not far off in the fog.
+
+### Notices
+
+A notice of the construct, such as a refused give or the hint that the
+keys walk, shows for 4 seconds as one line of text on a glass capsule
+under the island at the top right, 32 from the edge and at most 520
+wide, while the host draws the HUD (`voice_hud: host`). A refused give
+names the window manager by its display name (`XP`, `Tiling`, `Media
+center`, `Construct`) and the reason, as in `Tiling did not take the
+window: it is not running.`; the German words are `Tiling hat das
+Fenster nicht genommen: es läuft nicht.`.
+
+### The pane label
+
+The pane label is the title of the window of the pane. While the title
+is empty or only names the program, as `foot` does, the terminal that
+the construct started is `Terminal`, and any other program is its app id
+as a name, such as `Gedit` for `org.gnome.gedit`; the app id itself is
+never the label. The label changes when the title does, fades out over
+120 ms with its pane or when another pane takes it, and does not show
+in use mode.
+
+A pane whose window has no first buffer yet shows a placeholder: a glass
+fill the size of the pane with the working ring and the name of the
+window, under the window. It goes with the first buffer, so that the
+pane never shows a grey slab.
 
 ### The window list
 
 In the construct, every window is a pane. `Tab`, the key `windows`,
-opens the window list over the space. It shows the windows that have no
-visible pane: a pane behind the camera, beyond the leash radius, or out
-of the view, and every window without a pane, of any owner. Each row has
-the label of the window, its owner and the place of its pane. `Up` and
-`Down` move the selection, and `Return` or a click chooses. A choice
-flies to the pane. A window of another client, such as tiling, xp or mc,
-first becomes a pane at its own size. `Escape` or `Tab` closes the list.
-`g` on an own window shows the other window managers, the clients with a
-claim (D55); `Return` gives the window to the one selected.
+opens the window list over a scrim: a glass panel at the top centre, 560
+wide, with a search line and the count of the windows. A row shows a
+window by its title, with a thumbnail while its pane shows, else its
+first letter, and where it is: ahead, left, right, behind you or not in
+view (a pane beyond the leash radius, out of the view, covered by the
+front face of a cube in use mode, or a window without a pane). Typing
+filters the rows by title and name. `Up` and `Down` move the selection,
+and `Return` or a click chooses. A choice flies to the pane. A window of
+another client, such as tiling, xp or mc, first becomes a pane at its
+own size. `Escape` clears the search, then closes the list; `Tab` closes
+it. `Super+Alt+1` to `Super+Alt+4` give the chosen window to tiling, xp,
+mc or construct.
+
+`Super+Alt+1` to `Super+Alt+4` give the focused window to tiling, xp, mc
+or construct, also the window of the pane that the camera flew into;
+with no focused window, the window of the pane ahead. A give that
+does not happen shows a notice in the HUD. The
+construct grabs the keys while a flavor shows, if no other window manager
+holds them, and gives a window of another window manager through its
+owner. When the flavor ends, the next window manager takes the keys.
 
 A load never makes panes for the windows of other clients: they become
 panes only from the list or by `window.show`. Such a pane shows the
@@ -871,7 +1186,7 @@ a pane goes in any way.
 
 ### The voice HUD
 
-With `voice_hud`, the construct shows the voice agent
+With `voice_hud: own` (the default is `host`), the construct shows the voice agent
 ([voice](voice.md), section 10) at the bottom centre of the output, from its first
 `voice.state` on. A glass panel holds a ring in the accent and the state
 as a label: a thin, dim ring asleep, a full ring listening, a turning arc
@@ -893,6 +1208,28 @@ The construct claims the indicator of the agent (`indicator.claim`) at
 the start and on each connection of the agent, and hides the HUD while
 the agent is away.
 
+The notices of the construct show in the same place with either value
+of `voice_hud`, as one line of text on the glass with no label and no
+ring, for 4 s: a typed key that does nothing, a window with no room in
+view, and a give key that gives nothing ("No window to give.", "xp did
+not take the window."). A give key gives the focused window, else the
+window of the pane ahead.
+
+Only the clients that the voice agent names may claim its indicator and
+answer its questions with `confirm.answer`: the names of its security
+setting `indicator_clients`, by default `assistant`, `construct` and
+`mc` ([voice](voice.md), section 5). A button answers every question,
+also one about a security key, so a name in the list is trusted as the
+keyboard. Any other client is refused, and a claim answers only on the
+connection that made it. To let another HUD answer, add its name to
+`indicator_clients` with `choractl call voice settings.set` and press
+the yes key of `confirm_keys` when the agent asks, or edit
+`~/.config/chora/chora-voice.yaml` and restart the agent. The core
+keeps a live name for its program, so no script connects as
+`construct` while the construct runs; a name of the list whose HUD is
+not running is free to any process of the user. A HUD on a client
+socket is confined and never answers.
+
 Under the pane ahead, or under the pane where the pointer last pressed or
 let go, a pill names the pane. The core tells the pointer only from a
 press to its release, so the label does not follow a hover. That pane,
@@ -904,6 +1241,133 @@ watchdog takes the shaders (`effects.dropped`), the panels and their
 labels stay, without the ring, until the settings change.
 `tests/gate-construct-hud.sh` checks the HUD with a fake agent,
 `tests/fake-voice.py`, and captures each state in both themes.
+
+## chora-notify
+
+`chora-notify` is the notification server of the freedesktop specification
+(`org.freedesktop.Notifications` on the session bus), so that `notify-send`
+and programs show their notifications. It is a block of the XP split (D73)
+and connects with the client name `notify`. It exports the methods of its
+settings and no other.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--assets DIR` | `CHORA_NOTIFY_ASSETS`, else `/usr/share/chora/notify/assets`, else `plugins/chora-notify/assets` of the source tree when the binary runs from `target/<profile>/` | the asset folder |
+| `--config FILE` | `chora/chora-notify.yaml` in `$XDG_CONFIG_HOME` | the settings file |
+
+`chora-notify` reads `chora/chora-notify.yaml` in `$XDG_CONFIG_HOME`, by
+default `~/.config`, or the file of `--config`. Without a file, it uses its
+default, `plugins/chora-notify/notify.yaml` of the source tree, which lists
+every option. `settings.set` changes the settings at once and writes the
+file again, without its comments. Edits by hand apply with
+`settings.reload` or at the next start.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `position` | `bottom_right` | the corner of the first output where the card shows: `top_left`, `top_right`, `bottom_left` or `bottom_right` |
+| `shortest` | `10` | the shortest time that a notification shows, in seconds, at least 1 |
+| `longest` | `30` | the longest time, not less than `shortest` |
+
+Each notification shows as a card in the corner: a rounded rectangle with
+a border, the icon of the notification, a bold title, the text wrapped at
+300 pixels and a close button. One card shows at a time, and the others
+wait their turn. A card closes after its time: the shortest time by
+default, a time of the client between the shortest and the longest time,
+and never for a time of 0, until a click. A click on the close button
+dismisses the card; a click on the card invokes the action `default` of
+the notification, if it has one, and dismisses it too. If another server,
+such as GNOME Shell, owns the name on the bus, `chora-notify` logs the
+owner and ends with status 0, so that its unit does not restart it; it
+never takes the name from its owner.
+
+The look of the card comes from the asset folder. A folder replaces the
+neutral one and does not merge with it. A missing or broken file stops the
+start with an error that names it. The folder holds:
+
+| File | Content |
+|------|---------|
+| `values.yaml` | `font`, the base font family (`sans-serif` is the family of the system); `margin`, the distance of the card from its corner; `card`, with `fill`, `border` and `text` as red, green and blue, `radius`, and `tail`, `tail_base` and `tail_inset` for a tail below the card, which `tail: 0` leaves out; a key that the file leaves out takes the neutral value |
+| `close.svg`, `close-hover.svg` | the close button, 14 by 14 pixels, normal and under the pointer |
+| `fonts/` | font files, optional |
+
+`plugins/chora-notify/assets` is the neutral folder, a flat card without a
+tail. `flavors/xp/assets/notify` is the balloon of XP.
+
+## chora-assistant
+
+`chora-assistant` is the host of the HUD folders (`hud.md`). It shows the
+state of the voice agent (D65) as a figure on the first output, its
+sentences in a bubble, the question of the agent as a card and a badge
+while the mic is muted. The figure shows on the output of the focused
+window, in its work area. It is a block of the XP split (D73) and connects
+with the client name `assistant`. It exports the methods of its settings
+and `chat.show` and `chat.hide`, which are not privileged (`voice.md`,
+section 19).
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--assets DIR` | `CHORA_ASSISTANT_ASSETS` | the asset folder of a flavor, which replaces the HUD folder of the setting `hud` |
+| `--config FILE` | `chora/chora-assistant.yaml` in `$XDG_CONFIG_HOME` | the settings file |
+| `--check-hud DIR` | | checks a HUD folder, prints each problem with its file and key, exits 1 when there is one |
+| `--list-huds` | | lists the HUD folders by name |
+| `--use-hud NAME` | | checks the folder and writes `hud: NAME` to the settings file; `default` takes the line out |
+
+`chora-assistant` reads `chora/chora-assistant.yaml` in `$XDG_CONFIG_HOME`,
+by default `~/.config`, or the file of `--config`. Without a file, it uses
+its default, `plugins/chora-assistant/assistant.yaml` of the source tree,
+which lists every option. The file and its changes work as for
+`chora-notify`.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `enabled` | `true` | the figure shows while the voice agent is connected |
+| `position` | `null` | the corner of the first output where the figure shows; `null`: the place of the voice panel of the folder |
+| `hud` | `neutral` | the name of the HUD folder when no rule of `huds` matches: `$XDG_DATA_HOME/chora/huds/NAME`, else `/usr/share/chora/huds/NAME`, else `plugins/chora-assistant/huds/NAME` of the source tree when the binary runs from `target/<profile>/` |
+| `huds` | `[]` | rules `{when: {...}, folder: NAME}`; the first whose `when` matches the context (`wm`, `space`, `app`, `state`, `agents`, `chat`, `output`) names the folder that draws; see `hud.md` |
+
+`chora-assistant` subscribes to `voice.*`. The figure shows a state of the
+agent with the picture that the folder names for it: `asleep`,
+`listening`, `thinking`, `working`, `question`, `speaking` or `idle`. The
+figure blinks while the agent is idle, leans in while it listens, looks up
+and sways while it thinks, bounces while it speaks and raises its eyebrows
+when it asks. While the agent sleeps, the figure shows dimmed: the mic
+still listens for the wake words. Only the events of the client `voice`
+itself move it. The node `hud-state` carries the state in words in its
+`text` meta key. Each sentence of `voice.say` shows in a bubble above the
+figure, which fades out three seconds after the sentence ends.
+
+`voice.confirm` shows as a card above the figure until the event with
+`done` and the same `id`: the title, the prompt, the whole detail and, for
+a question about a security key (`physical`), the keys of the event. With
+`buttons`, the card has the buttons Yes and No; a press of a person calls
+`voice.confirm.answer {id, yes}`. An injected press (`input.inject`)
+answers nothing and puts the line "Please use your own mouse or keyboard."
+on the card. A question whose whole text, with the whole detail, does not fit
+on the card has no buttons, says "Too long to show. Refused." and is
+refused at once. The card, its words and its fonts are the host's; a HUD
+folder cannot change them (`hud.md`).
+
+While the assistant is enabled, `chora-assistant` calls `indicator.claim`
+of the agent at its start and after the agent connects. A click on the
+figure mutes the mic of the agent through its method `mute`. While the mic
+is muted, the badge "Microphone off. Click to turn it on." shows beside
+the figure, and a click of a person on it turns the mic on; an injected
+click on the badge or the figure does not. The figure goes when the agent disconnects, and
+`enabled: false` turns it off.
+
+A flavor names its look with `--assets DIR`. A `DIR` with a `hud.yaml`
+is a [HUD folder](hud.md), as `flavors/xp/assets/assistant`, whose
+voice panel shows `paperclip.svg`, the paperclip of the XP flavor. A `DIR`
+without one is an asset folder, which holds:
+
+| File | Content |
+|------|---------|
+| `values.yaml` | `font`, as for `chora-notify`; `margin`, the distance of the figure from its corner; `speech`, the look of the bubble with the keys of `card` of `chora-notify`; `buttons`, read and ignored, since the card is the host's; a key that the file leaves out takes the neutral value |
+| `dot.svg` | the dot, with a group for each state, named as above |
+| `fonts/` | font files, optional |
+
+`plugins/chora-assistant/huds/neutral` is the neutral HUD folder, a dot that
+changes its color with the state.
 
 ## Flavors
 
@@ -991,39 +1455,165 @@ The package installs the tiling flavor (D51):
 /usr/share/chora/flavors/tiling/
 ├── chora-tiling.target               # wants the units below and mako.service
 ├── chora-tiling.service              # chora-tiling
+├── chora-tiling-assistant.service    # chora-assistant: the voice HUD and the chat
 ├── chora-tiling-xwayland.service     # xwayland-satellite
 ├── chora-tiling-waybar.service       # the panel
-├── chora-tiling-swaybg.service       # the wallpaper, a plain color
+├── chora-tiling-swaybg.service       # the wallpaper
+├── wallpaper.png                     # Ink with two glows
+├── wallpaper-paper.png               # the same in Paper
 ├── chora-tiling-swayidle.service     # the idle lock with swaylock
 ├── chora-tiling-kanshi.service       # the output profiles of the user
+├── foot.ini                          # the terminal: JetBrains Mono, padding, the palette
+├── fuzzel.ini                        # the launcher: opaque, the palette
+├── swaylock.conf                     # the lock screen in the palette
+├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
+├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
+├── look.sh                           # Light look, Dark look and System look: look.theme at once
+├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
+├── applications/                     # the entries Screenshot, Screenshot of an area and the three looks
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
-    └── tags.jq                       # the text of the tags module
+    ├── style.css                     # the look of the panel, three islands
+    ├── colors.css                    # the palette, Ink; style.css reads it
+    ├── icons/                        # apps, keys and power, in the colours of the theme
+    ├── tag.sh                        # one tag module, from the answer of tiling
+    ├── layout.sh                     # the layout word
+    └── tags.jq                       # the class of a tag module
 ```
 
 Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, mako, swaybg, swayidle,
 swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 `xdg-desktop-portal-gtk`. mako starts from the unit of
-its own package and needs no configuration.
+its own package and needs no configuration. The helpers of the scripts
+are recommended too: grim and slurp (screenshots), wl-clipboard
+(`wl-copy`) and libnotify (`notify-send`). The fonts are Inter (Arch
+`inter-font`, Fedora `rsms-inter-fonts`), JetBrains Mono (`ttf-jetbrains-mono`,
+`jetbrains-mono-fonts`) and TeX Gyre Pagella for chora-mc (`tex-gyre-fonts`,
+`texlive-tex-gyre`). The packages set no minimum version of fuzzel.
 
 - **The panel**: waybar with the configuration of the flavor. It shows only
-  modules that need no IPC of sway: the tags of the output, the layout of
-  the current tag, the clock, the volume, the network, the processor, the
-  memory, the battery and the tray. The layout module calls
-  `choractl call tiling get_layout` each second. The tags module calls
-  `choractl call tiling get_tags` each second, and `jq` with
-  `waybar/tags.jq` turns the answer into the text: the shown and the
-  occupied tags, shown ones underlined, focused ones bold and urgent ones
-  red.
-- **The launcher**: `MOD+r` starts fuzzel, as the default bindings of
-  `chora-tiling` say.
-- **The lock**: swayidle runs `swaylock -f` after 5 minutes without input,
+  modules that need no IPC of sway, in the words of a person: the tags of
+  the output, the clock, the volume, the network (`Connected`, the name of
+  a wireless network or `Offline`, with the address in its tooltip), the
+  battery and the tray. Each of the nine tag modules runs `waybar/tag.sh N`,
+  which asks `choractl call tiling get_tags` and lets `jq` with
+  `waybar/tags.jq` turn the answer into the number and a class: `current` for a shown tag, also when empty,
+  `occupied`, `empty`, and `urgent` besides. The classes carry no markup;
+  `style.css` draws them.
+  The look is `waybar/style.css` with the palette `waybar/colors.css`
+  (`@define-color` tokens: `base`, `surface`, `surface-2`, `line`, `text`,
+  `muted`, `accent`, `on-accent`, `accent-2`, `urgent`). The panel is
+  three floating islands, left, centre and right, each 32 px high and
+  radius 10, 8 px from the top and 12 px from the sides, in Inter. One
+  spacing of 6 px on each side of an item makes every gap between items,
+  separators and island edges 12 px. The islands are `surface` at 92 % with a 1 px `line` hairline,
+  and separators are 1 x 16 px bars that leave the hairline clear. The
+  layout word is left aligned, 12 px after the separator, in a least width
+  of 80 px, so the left island keeps its width through the layouts.
+  The icons of **Apps**, **Keys** and the power sign are pictures in `waybar/icons/`, drawn as backgrounds, in the
+  colours of the theme; **Apps** and **Keys** are drawn alike, in the colour
+  of the text; the tooltips of **Apps** and **Keys** name their keys,
+  spelled as the key list spells them, and the tooltips sit inside their
+  islands. The month of the clock marks today in bold and underlined.
+  Digits are tabular, so a number sits in the middle of its pill.
+  `waybar.sh` copies the style, the colours and the icons into the runtime
+  directory, from `chora-tiling/theme/` when `chora-tiling` wrote it; a
+  `colors.css` in `chora/tiling/` of the config directory wins only when it
+  is newer than the one that `chora-tiling` wrote.
+  Change a colour in `colors.css` and the whole panel follows. Every
+  label keeps 4.5:1 on `surface`, an empty tag too: it is `muted`, not
+  dimmed, because it is a door that a person clicks.
+  Every part of the panel is a door for the mouse. Left island: **Apps**
+  runs the launcher (`chora-tiling --launch fuzzel`), the numbers 1 to 9 view that
+  tag (`view_tag`), and the layout word, such as "Tile" or "Fair", goes to
+  the next layout (`next_layout`); `waybar/layout.sh` turns the layout into
+  the word, in German with a German locale. Right island: **Keys**, which
+  shows the key list (`show_keys`), and the power icon, which opens the power
+  menu. Change the commands in `on-click` of `config.jsonc`.
+  The bar follows the tags and the layout at once: after each event
+  `chora-tiling` compares the tags and the layout with what it last
+  showed and, when they differ, sends `SIGRTMIN+1` to the waybar that
+  `waybar.sh` recorded in `waybar.pid` in `chora-tiling/` of the runtime
+  directory. The tag and layout modules have `"signal": 1` and also ask
+  every 5 seconds, in case a signal is lost.
+  The volume module runs `waybar/volume.sh` each second, which asks
+  `wpctl` of WirePlumber for at most 2 seconds and prints `Volume 40%`,
+  `Muted` or `No sound`; the tooltip of `No sound` says
+  why: `wpctl not found`, `No output device` or `No answer`, in German
+  with a German locale. A click mutes or unmutes, and the wheel changes
+  the volume.
+  The unit starts waybar through `waybar/waybar.sh`, which leaves out
+  the outputs that are not tiling's, such as the output of `chora-xp`
+  beside tiling. It reads the outputs again every 2 seconds and starts
+  waybar again when the left-out ones changed. Without jq it ends with
+  an error.
+- **The theme**: `look.theme` picks the palette. `system`, the default,
+  asks the system for its colour scheme (`org.freedesktop.appearance`
+  `color-scheme` through the settings portal, else `gsettings`
+  `org.gnome.desktop.interface color-scheme`) at the start, on reload and
+  every 5 seconds, each time in a thread of its own that gives the portal
+  and `gsettings` 2 seconds, so the window manager never waits for the
+  answer, and takes Paper, the light palette, when it asks for
+  light and Ink, the dark one, when it asks for dark or says nothing. `ink`
+  and `paper` are fixed. A change recolours the focus border, the key
+  list and the chip at once, and `chora-tiling` writes `colors.css`,
+  `fuzzel.ini`, `foot.ini`, `swaylock.conf` and the icons into
+  `chora-tiling/theme/` of the runtime directory and reloads the panel and
+  restarts the wallpaper when the scheme changed: with `SIGUSR2` to
+  `waybar.sh` and `wallpaper.sh` when they run (their pids are in
+  `panel.pid` and `wallpaper.pid` beside the theme), else through the
+  units. The colours in
+  `look.palette` replace single tokens of either palette. A file is
+  written only when its text changed, through a temporary file that
+  replaces it, so a reader never sees half a file.
+  `chora-tiling --apply-theme [--theme-dir DIR]` writes the same files by
+  hand. Paper is `base` `#e9ebf1`, `surface` `#ffffff`, `text` `#1b1e27`,
+  `accent` `#6d4aff`. Running programs keep the palette that they started
+  with. The assistant's chat panel is drawn by `chora-assistant` and takes
+  no part in the theme yet.
+- **The launcher**: `MOD+space` starts fuzzel in every look (fuzzel 1.11 or later: from 1.11 a left click selects and starts an entry and the wheel scrolls; 1.9.2 and older ignore the pointer, so the Apps button opens a list that answers keys only; 1.15 also fixes a click that started the wrong entry), and `MOD+r`
+  does too, as the default bindings of `chora-tiling` say. The bindings
+  start the programs of the flavor with `chora-tiling --launch PROGRAM`, which
+  adds the config file of the palette: `foot.ini` for foot, `fuzzel.ini` for
+  fuzzel (opaque, Inter 14 px, radius 12, prompt "Apps", the selected row
+  in the accent) and `swaylock.conf` for swaylock.
+  It looks in `chora/tiling/` of the config directory first (a file of
+  yours wins), then in `chora-tiling/theme/` of the runtime directory,
+  which `chora-tiling` writes from `look.theme` and `look.palette` at each
+  start and on reload (`chora-tiling --apply-theme` writes it too), then in
+  the flavor: `CHORA_FLAVOR_DIR`, `/usr/share/chora/flavors/tiling`, and the
+  `flavors/tiling` of the checkout that the running binary comes from, so a
+  session without the variable finds it. The launcher lists the entries of
+  `applications/` of the flavor too: **Screenshot**, **Screenshot of an
+  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
+  with a helper.
+- **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
+  the panel open the menu of `power.sh`, the launcher in menu mode with the
+  prompt "Power" and four words: Lock, Log out, Restart and Shut down (`loginctl lock-session`,
+  `loginctl terminate-session "$XDG_SESSION_ID"`, or `loginctl terminate-user "$USER"` when
+  that is not set, `systemctl reboot`, `systemctl poweroff`).
+  `MOD+Print` takes a screenshot of the output and `MOD+Shift+s` of an
+  area that slurp lets you select: `screenshot.sh` writes it to
+  `Screenshots` in the folder that `xdg-user-dir PICTURES` names (else
+  `$XDG_PICTURES_DIR`, else `~/Pictures`), copies it with `wl-copy` when that is there and
+  names the file in a notice (`notify-send`, shown by mako). grim is needed,
+  and slurp for an area. `Print` alone needs a grant that the core does not
+  give yet, so the keys have `MOD`. Both scripts are found like the config
+  files, `chora/tiling/` of the config directory first and the flavor last.
+  A script that is in none of them is an error on stderr and a notice
+  ("Power menu not installed", "Screenshot not installed"), never a key
+  that does nothing.
+- **The lock**: swayidle runs `chora-tiling --launch swaylock -f` after 5 minutes without input,
   before sleep, and on `loginctl lock-session`, which `MOD+Shift+Escape`
   runs. swaylock locks through the session lock protocol of the core.
   The core has no protocol to turn outputs off yet, so the screens stay on.
-- **The wallpaper**: swaybg with a plain color. For a picture, override
-  the command:
+- **The wallpaper**: `chora-tiling --launch swaybg` shows `wallpaper.png`,
+  Ink with a violet glow at the top left and a teal one at the bottom
+  right, or `wallpaper-paper.png` when the theme is Paper. A
+  `wallpaper.png` in the `chora/tiling/` folder of the config directory
+  wins in both. To change the command:
 
   ```bash
   systemctl --user edit chora-tiling-swaybg.service
@@ -1060,11 +1650,18 @@ connects with the client name `xp`.
 
 ```text
 /usr/share/chora/flavors/xp/
-├── chora-xp.target              # wants the two units below
+├── chora-xp.target              # wants the units below
 ├── chora-xp.service             # chora-xp
+├── chora-xp-notify.service      # chora-notify --assets .../assets/notify
+├── chora-xp-assistant.service   # chora-assistant, the xp folder by the rules of huds
 ├── chora-xp-xwayland.service    # xwayland-satellite, if installed
+├── assets/notify/               # the XP folder of chora-notify, with a link to the fonts
 └── theme/                       # SVG files, fonts, wallpaper and cursors
 ```
+
+When `launcher` is `fuzzel`, `chora-xp` starts it with `theme/fuzzel.ini` of the
+flavor: Tahoma, the colors of XP, opaque, the prompt "Open:". A launcher with its
+own `--config` keeps it.
 
 The session "chora (Windows XP)" on the login screen starts it with the XP
 cursors, which the package installs to `/usr/share/icons/ModernXP`.
@@ -1083,11 +1680,9 @@ uses them instead of the free files of the theme:
   of newer Windows.
 - `wallpapers/WindowsXP/*.jpg`: Bliss (`bliss.jpg`) is the wallpaper
   instead of Bløff, and Control Panel > Desktop lists all of them.
-- `winxp-kde/start_flag.png`: XP's flag on the start button, at its own
-  size of 20 pixels.
 - `sounds/WindowsXP/stereo/`: XP's sounds. `login.wav` plays when
   `chora-xp` starts, `logout.wav` on Log Off, `shutdown.wav` on Turn Off
-  and `notify.wav` when a balloon opens. The first of `pw-play`, `paplay`
+  and nothing for a notification. The first of `pw-play`, `paplay`
   and `canberra-gtk-play` on the `PATH` plays them in the background.
 
 The Luna GTK theme and the icons of `xfce-winxp-tc` give GTK
@@ -1109,19 +1704,65 @@ reads the insets of a slice in pixels of the file. The pictures:
 - a taskbar at the bottom of the work area of each output, with the start
   button, one button per window of the current desktop, four desktop
   buttons and a clock;
-- the start menu with the user name, programs, places, the Control Panel,
-  Log Off and Turn Off Computer, and All Programs with the applications of
+- the start menu with the full name of the account (the login name when
+  the comment of the account is empty), two pinned rows, Terminal with
+  "Type commands" and Chat with a helper with "Ask the helper in your
+  words", then the `programs` without subtitles, places, the Control Panel,
+  Help and Support, Run, Log Off and Turn Off Computer, and All Programs
+  with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
 - the icons of the desktop, between the wallpaper and the windows;
 - the wallpaper below everything: Bliss when it is installed, else Bløff.
+
+The start menu, the Run list, the desktop icons and `Super+e` start a
+program with `choractl run` (D42) and follow it until its first window
+shows, which the activation token of the start tells. `chora-xp` shows
+what happens as a balloon of `chora-notify` on the session bus; without
+a notification server it writes the same words to its log:
+
+- A command that is a plain program name, such as `thunar '/'`, and whose
+  program is not on `PATH` never starts. The balloon "Cannot open
+  NAME" says that it is not installed. NAME is the program of the command,
+  without directory and arguments, for example `thunar` or `libreoffice`.
+  Other commands, such as `./app`, `VAR=1 app`, `env VAR=1 app`,
+  `cd dir && app`, a quoted program or a shell builtin, run as they are:
+  the shell finds the program, or the limit of 30 seconds speaks.
+- A program that is still starting after 2 seconds shows "Starting NAME".
+  The balloon closes when the window shows. A program that shows no window
+  within 30 seconds gets "Cannot open NAME" with the number of seconds,
+  unless a window of another start opened meanwhile: a launcher such as
+  `xdg-open` or a browser may hand its work to a program that runs
+  already, and exit. A program that opens in less than 2 seconds shows
+  no balloon. A program that ends at once gets no message of its own: it
+  shows "Starting NAME" and then "Cannot open NAME". The wait is checked once a second, so each message can
+  come up to a second late.
+- For a file of the desktop, NAME is the name of the file, not `xdg-open`.
+
+The balloon of the start needs `chora-notify`, which the unit
+`chora-xp-notify.service` starts. A program that needs X11, as the
+LibreOffice of a build without the Wayland plugin does, needs
+`xwayland-satellite` (`chora-xp-xwayland.service`); without it, it ends at
+once and gets the messages of a program that opens no window.
 
 A click on a window raises and focuses it. A drag of a title bar moves the
 window, and a double click maximizes it. `chora-xp` claims the box around the work areas
 of its outputs (D55). `--output NAME` limits it to some outputs. A window
 dragged out of these work areas goes to the window manager whose claim
 holds the drop point, with `remove` and `to`. Without one there, or when
-the core refuses, the window stays. A drag of the border of the frame
+the core refuses, the window stays. A new window opens on the first
+output; when the pointer entered a virtual output of `chora-xp` last, it
+opens there. When `chora-xp` starts on virtual outputs only and has no
+window yet, it leaves the keyboard where it is, with the client that
+shows the outputs. A title bar
+dropped on an output of `chora-xp` that shows no part of the window, as
+on another virtual output, puts the window there, under the pointer. When
+all outputs of `chora-xp` are virtual ones, it has no desktop cube of
+its own: the taskbars show no desktop buttons, the keys and Super with
+the left button turn nothing, and `turn_to` does nothing. A construct
+shows such outputs on a cube of its own. `chora-xp` grabs these bindings
+again when a screen joins its outputs, and lets them go when the last
+screen leaves. A drag of the border of the frame
 resizes the window: the 4 pixel border and 6 pixels of the shadow outside
 it take the press, and the corners reach 16 pixels along both edges. The
 client gets the new size once per frame while the button is down, and the
@@ -1148,7 +1789,8 @@ its scale, its shown windows move back into its work area. A window that
 does not fit shrinks to it. A click on a task button shows or minimizes its
 window. Buttons light up under the pointer, and so do the entries of the
 start menu. All Programs and its groups open their cascading menus when
-the pointer rests on them for 350 ms, or on a click. A click on a program
+the pointer rests on them for 400 ms, on the label of a row as well as
+on its arrow, or on a click. A click on a program
 starts it and closes the menu; a click outside closes the menu. The open
 menu takes the keyboard. Up and Down move in a column or a cascade. Left
 and Right go between the columns and into and out of the cascades.
@@ -1246,6 +1888,16 @@ settings, as `settings.set` does:
 - **Display**: opens Display Properties;
 - **Effects**: wobbly windows, the magic lamp, the desktop cube and XP's
   sounds, on or off;
+- **Keyboard Shortcuts**: the keys that every window manager shares and
+  that `chora-xp` holds: `Super+Alt+1` to `Super+Alt+4`, which give the
+  focused window to tiling, xp, mc or construct, and `Super+a`, which
+  opens the chat. A key that another client holds is not on the menu,
+  and its refusal logs one line. A click on an entry does what its key
+  does;
+- **Sound**: Mute and the volumes 25%, 50%, 75% and 100% of the default
+  sound output, through `wpctl`; without a volume, "Sound unavailable"
+  and an entry that says why, "wpctl not found" or "No output device",
+  or "Change failed";
 - **Taskbar and Start Menu**: opens Taskbar and Start Menu Properties.
 
 Properties of the taskbar menu, and Control Panel > Taskbar and Start
@@ -1267,9 +1919,20 @@ keyboard does not work it (D45):
   the pointer left them, down to a strip of 2 pixels at the bottom
   edge; the pointer on the strip brings a taskbar back. The work area
   then reaches down to the strip, and maximized windows grow into it.
+  Each taskbar of a screen reserves its height, or its strip, at the
+  bottom of the work area of the core with `output.reserve`, so that the
+  chat, the notifications and other clients keep clear of it.
   Keep the taskbar on top of other windows puts the taskbars above the
   windows, or below them when it is off. Show the clock shows the clock
-  in the notification area, or shrinks the area without it. Group
+  in the notification area, or shrinks the area without it. Left of the
+  clock, the speaker is an icon of 16 pixels, with a red no-sign when the
+  sound is muted or unavailable. Its width never changes; the tooltip
+  that shows after half a second says `Volume 40%`, `Muted`, `Sound
+  unavailable` or `Change failed`, in the language of the session. The
+  desktop buttons 1 to 4 are 24 by 24 pixels with the tooltip `Desktop 2
+  of 4`, and the clock has the date. `wpctl` runs on a thread of its own,
+  at most 2 seconds a call, after each change and every 5 seconds; a click
+  on the speaker mutes or unmutes. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
@@ -1367,48 +2030,17 @@ frame looks the same as the window, and the meta on the node that the
 client named, except the key `xp`. The meta of a surface does not stay
 over a restart.
 
-`chora-xp` serves notifications (`org.freedesktop.Notifications` on the
-session bus), so that `notify-send` and programs show XP's balloon tips:
-a pale yellow balloon with a black border above the notification area of
-the first output, with a tail towards the tray, the icon of the
-notification, a bold title, the text wrapped at 300 pixels and a close
-button. While a balloon shows, the notification area grows for its icon,
-or XP's information icon, left of the clock, as on XP, and the tail
-points at it. One balloon shows at a time, and the others wait their turn. A
-balloon closes after its time, which is 10 seconds by default and, as on
-XP, at least 10 and at most 30 seconds; with a time of 0 it stays until a
-click. A click on the close button dismisses it; a click on the balloon
-invokes the action `default` of the notification, if it has one, and
-dismisses it too. If another server, such as GNOME Shell, owns the name
-on the bus, `chora-xp` logs one line and shows no balloons; it never
-takes the name from its owner.
-
-While the voice agent is connected, a paperclip with eyes and eyebrows
-stands above the right end of the taskbar of the first output. While the
-agent sleeps, the paperclip shows dimmed with its eyes shut: the mic
-still listens for the wake words. Only the events of the client `voice`
-itself move it.
-`chora-xp` subscribes to `voice.*` (D65): the paperclip blinks while the
-agent is idle, leans in while it listens, looks up and sways while it
-thinks, bounces while it speaks and raises its eyebrows when it asks. Each
-sentence of `voice.say` shows in a balloon above it, which fades out three
-seconds after the sentence ends. The balloon shows the `prompt` and the
-`detail` of `voice.confirm` until the event with `done` and the same `id`.
-With `buttons`, the balloon has XP's push buttons Ja and Nein; a click
-calls `voice.confirm.answer {id, yes}`. A question about a security key
-(`physical`) shows one more line with its `keys`, such as "Alt+Y = Ja,
-Alt+N = Nein". Only a pointer press on a button answers; no method of
-xp calls `confirm.answer`, but xp cannot tell an injected click
-(`input.inject`) from a real one.
-While the paperclip is enabled, `chora-xp` calls `indicator.claim` of the
-agent at its start and after the agent connects.
-A click on the paperclip mutes the mic of
-the agent through its method `mute`, and a second click unmutes it. The
-paperclip goes when the agent disconnects, and `assistant:
-{enabled: false}` turns it off.
+Notifications and the assistant are blocks of their own, `chora-notify` and
+`chora-assistant`, which the units `chora-xp-notify` and
+`chora-xp-assistant` start with the folders of `assets/` (see their
+sections). `chora-xp` shows no notifications and no paperclip. The balloon
+of a notification does not put an icon into the notification area and plays
+no sound; the blocks do not call each other.
 
 The effects run in the plugin, which computes their meshes and
-transforms at 60 Hz:
+transforms at 60 Hz. The driver is `chora_kit::effects`, the same that
+`chora-tiling` uses for the setting `effects`; each window manager sends
+the meshes of its own windows as their owner:
 
 - **Wobbly windows.** A dragged window bends like jelly: the point under
   the pointer follows it, the far side lags behind, and after the release
@@ -1428,8 +2060,15 @@ of another client changes nothing.
 | Alt+F4 | close the focused window |
 | Ctrl+Escape | open or close the start menu |
 | Alt+Space | open the system menu of the focused window; `chora-xp` takes the key only while one of its windows has the focus |
-| Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. |
-| Super+e | start the terminal |
+| Alt+Tab, Alt+Shift+Tab | open XP's switcher with the windows of the desktop, the most recent first. Tab chooses the next window, Shift+Tab the previous window. The release of Alt activates the chosen window. Minimized windows come last. Escape closes the switcher without a switch. xp emits the event `xp.switcher` with `shown`, `true` or `false`, when the switcher opens and closes; a client that holds `Alt+Escape` gives it up for that time, and xp asks for the binding up to four times, 15 ms apart. |
+| Super, pressed and let go alone | open or close the start menu. A key or a button of the plugin pressed with it, such as Super+d, cancels it; a chord that no client grabs, such as Super+t, is not seen and still opens the menu on its release |
+| Super+d | show the desktop: puts the windows of the desktop away; pressed again, brings the same windows back |
+| Super+Space | open the launcher, the command of `launcher`, which is the Run box of the start menu |
+| Super+e | open the home folder in the file manager; when `file_manager` is not installed, a balloon says so and names the setting. It no longer starts the terminal |
+| F1, Super+F1 | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. Escape closes the window. A key without Ctrl, Alt or Super needs `choractl grant xp input.grab-any`; without the grant, Super+F1 works (the construct's F1 is the same) |
+| Super+a | open the chat (`chora-chat`), as on tiling |
+| XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
+| Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
 | Ctrl+Alt+Left, Ctrl+Alt+Right | turn the cube to the previous or next desktop |
 | Ctrl+Alt+Shift+Left, Ctrl+Alt+Shift+Right | turn the cube and take the focused window along |
 | Super and a drag with the left button | turn the cube with the pointer. A drag over the width of the output is a quarter turn. At the release, the cube turns to the nearest desktop. |
@@ -1441,7 +2080,10 @@ binding of [Safety layer](architecture.md#safety-layer). When another client hol
 these bindings, Super+Ctrl with the arrows stands in.
 
 `chora-xp` exports methods for other clients (see
-[Plugin methods](api.md#plugin-methods)). Each one answers with nothing.
+[Plugin methods](api.md#plugin-methods)). Each one answers with nothing,
+but for `window.give`. `window.move` and `window.give` are privileged: a
+caller on a client socket needs `methods.privileged` besides
+`methods.call`.
 
 | Method | Parameters | Does the same as |
 |--------|------------|------------------|
@@ -1449,7 +2091,9 @@ these bindings, Super+Ctrl with the arrows stands in.
 | `minimize` | `surface` | a click on the task button of the active window |
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
 | `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
-| `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button |
+| `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button; nothing while all outputs are virtual ones |
+| `window.move` | `surface`, `output`: the name of an output that `chora-xp` manages, and optionally `at`: a point of that output | privileged. A drag of the title bar onto that output: with `at` the middle of the title bar goes to that point, as after a drop there; else the window goes to the same place there, as far as it fits. The window is raised and focused; an unknown surface or output fails with code 1 |
+| `windows.float` | `output`, a virtual output that `chora-xp` manages, and `on` | privileged. While `on`, the groups `xp-win-SURFACE` of the windows that show on the output have opacity 0, so the output shows the wallpaper, the icons and the taskbar without them; a node with opacity 0 still shows in a node texture, so the caller, such as the construct with its cube, shows each group on a plane of its own. Answers `output` and `windows`, the lowest of the stack first, each with `node`, `surface` and `rect`, its place on the output; the top 12 float. `chora-xp` emits the event `xp.floating` with the same data when the windows of a floating output change. A window that leaves the output, and every window when the output goes or `on` is false, gets its opacity back: the one that another client asked for it, else 1. The windows of all outputs land before a restart of `chora-xp`, and those of the outputs of a client when that client disconnects, so that no window stays hidden. Refused for a screen. The shape and the helpers are in `chora_kit::float`, for other window managers |
 | `window.give` | `surface`, and `to`: a client name | a drag of the window out of the work areas: hands it to `to` (D55), and answers with its id |
 | `settings.get`, `settings.set`, `settings.reload` | see [API](api.md#plugin-methods) | the dialogs and an edit of the file with `restart` |
 
@@ -1470,16 +2114,24 @@ that the file leaves out takes its default:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `terminal` | `foot` | the terminal of Super+e and of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
-| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program |
+| `terminal` | `foot` | the terminal of Terminal at the top of the start menu; `CMD -e` runs the programs with `Terminal=true` |
+| `launcher` | `fuzzel` | Run in the start menu, and All Programs when no desktop file lists a program. With `fuzzel` alone, Run is a box in the look of XP that lists the installed programs, sorted by name; text that matches no row finds programs by their keywords or runs as a command when its program is installed, and after any other text the list shows again under the row `Nothing found for "TEXT"`. Another command runs as it is |
 | `file_manager` | `thunar` | the file manager of the places of the start menu and of the folder icons; `chora-xp` adds the folder to the command |
-| `programs` | none | the programs at the top left of the start menu below Terminal, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
+| `editor` | none | the shell command of the plain text editor: **Notepad**, the first program below the two pinned rows of the start menu and an entry of All Programs > Accessories. Without it, or when its program is not installed, the first installed editor with a window serves (gnome-text-editor, gedit, mousepad, kwrite, kate, xed, pluma, featherpad, leafpad, l3afpad, geany), else the editor of `VISUAL` or `EDITOR`, nano, vim or vi in the terminal. Without any of them the menu has no Notepad. All Programs lists only desktop files whose program is installed |
+| `programs` | none | the programs at the top left of the start menu below the two pinned rows, each with `title`, `command` and `icon`, the name of an icon of the icon theme |
 | `clock_format` | `%-I:%M %p` | the clock of the taskbar, in the format of strftime, at most 64 characters |
 | `wallpaper` | Bliss if installed, else Bløff | `picture`: `default`, `none` or `{file: PATH}` with an absolute path of a PNG, JPEG or SVG file; `position`: `center`, `tile`, `stretch` or `fill`; `color`: red, green and blue of the desktop |
+| `tasks_per_output` | `false` | each taskbar lists only the windows of its own output; off, every taskbar of a screen lists all windows. The taskbar of a virtual output, such as a face of the cube of the construct, always lists only its own windows |
 | `taskbar` | locked, on top, with the clock | `locked`, `auto_hide`, `on_top` and `clock`, as Taskbar and Start Menu Properties |
 | `effects` | all on | `wobbly`, `lamp`, `cube` and `sounds`, as Control Panel > Effects |
+| `test_accept_injected_keys` | `false` | for tests only: the bindings take the keys of `input.inject` as keys of the user (see [Injected keys](#injected-keys)) |
 | `session` | see above | the commands of `turn_off`, `restart`, `stand_by` and `log_off`; `null` for none |
-| `assistant` | on | `enabled`: the paperclip of the voice agent |
+
+Migration: a `chora-xp.yaml` from before the split has the key `assistant`,
+which `chora-xp` now rejects as an unknown key, so that it starts with the
+default settings and logs the error with a hint. Move `assistant.enabled` to
+`chora-assistant.yaml` as `enabled`, and remove the key `assistant` from
+`chora-xp.yaml`. Then `settings.reload` or a restart applies the file.
 
 `settings.set` merges its object into the settings (see
 [API](api.md#plugin-methods)), so a change of the wallpaper names only

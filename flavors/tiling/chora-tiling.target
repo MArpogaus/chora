@@ -4,8 +4,8 @@
 Description=The tiling flavor of chora
 BindsTo=graphical-session.target
 After=graphical-session.target
-Wants=chora-tiling.service chora-tiling-xwayland.service
+Wants=chora-tiling.service chora-tiling-xwayland.service chora-tiling-assistant.service
 Wants=chora-tiling-waybar.service chora-tiling-swaybg.service
 Wants=chora-tiling-swayidle.service chora-tiling-kanshi.service
-# The unit of the mako package; mako needs no configuration.
-Wants=mako.service
+# mako in the palette of the theme (chora-tiling --launch mako).
+Wants=chora-tiling-mako.service

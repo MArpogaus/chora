@@ -34,6 +34,17 @@ The hooks run:
   Fix a finding, or add `# shellcheck disable=SCxxxx` with a reason
 - `actionlint` on the workflows
 - `commitizen` on every commit message
+- no inline comments: a comment on an added line of Rust, shell or Python
+  fails, except doc comments, `// SAFETY:`, tool directives and the usage
+  header of a script
+- session files: logs, reports and media paths of the autonomous sessions
+  fail
+- commit message length: the subject at 68 characters, body lines at 72
+- no process by its name alone: a test script that uses `pkill` or
+  `killall`, or `pgrep -x chora` without a parent (`-P`), a session
+  (`-s`) or a process group (`-g`), fails, because other sessions run
+  cores on the same machine
+- the guard test: `tests/guards.sh` runs when a guard or its test changes
 
 Run all hooks on all files before a push:
 
@@ -193,8 +204,31 @@ the flavors with `systemd-analyze --user verify`, and the session entries
 with `desktop-file-validate`. It needs systemd, desktop-file-utils, waybar,
 mako, swaybg, swayidle and kanshi.
 
+`tests/merge-gate.sh` decides whether a merge into the session branch may
+be pushed. It runs build, test, clippy, the 2D guard, `tests/xp.sh`, the
+handover matrix, the HUD gate, `tests/last-words.sh` and the cube gate
+of the construct, one log per step
+in a run directory. `tests/gate-watchdog-starved.sh` is not a step: it
+loads every CPU for half a minute, so run it alone. A
+step fails on a non-zero exit code, on a line that starts with `FAIL:` or
+`MISMATCH`, or on `test result: FAILED`. `--only STEP,...` runs some steps
+and never pushes; `--push BRANCH` pushes `HEAD` after every step passed
+and only from a clean work tree. `tests/merge-gate-selftest.sh` proves
+this with fake steps and needs no build. One gate runs at a time on a
+machine: the merge gate and every script with `tests/gate-lib.sh` take the
+lock of `tests/gate-lock.sh`, `${XDG_RUNTIME_DIR:-/tmp}/chora-gate.lock`,
+and a second gate prints `waits for` and waits. The scripts that the
+gate runs share its lock.
+
+```bash
+tests/merge-gate.sh --push claude/session
+```
+
 The other gate scripts `tests/gate-*.sh` take the binaries from
-`target/debug`, or from the directory in `BIN`. The list of the scripts
+`target/debug`, or from the directory in `BIN`. Their EXIT trap ends
+every program that they started, also one that a gate stopped with
+`SIGSTOP`; `tests/gate-lib-selftest.sh`, the first step of the merge
+gate, proves it. The list of the scripts
 that CI runs is `.github/workflows/ci.yaml`, and its `dnf install` line
 names the packages that they need. A script without its tools answers
 `SKIP`. `tests/gate-0.9-daily.sh` and `tests/gate-0.9-hardware.sh` run by
@@ -210,6 +244,25 @@ the gate checks 6, 8 and 10. Two jobs on an Ubuntu runner run the gate checks th
 need root or podman. `vkms` starts chora on the tty backend, and
 `podman` runs a client in a container. A gate check that needs a user
 manager runs by hand on the reference machine.
+
+## Demo media
+
+`demo/record.sh OUT_DIR` makes the demo media of `chora-construct`,
+each clip as a GIF and an MP4: a walk through a construct, a pane that
+wobbles in 3D, the cube turned once around with its windows floating
+off the faces, a window pulled off a face of the cube into the space,
+and a still of the cube in a turn. `demo/scene-construct.sh` starts the
+scene of the first two: a headless session with five panes.
+`demo/scene-cube.sh` starts the scene of the others: the cube with two
+windows on each of its four faces. `demo/content.py` generates the
+content, so no clip holds an asset of a third party. `choractl record`
+steps the scene clock by 1/30 s per frame, so the clips show the same
+motion on any renderer. In the clips the cube turns in 1.5 s a quarter,
+through `cube.turn`, slower than the 0.5 s of its keys and chips, and
+the pull-out runs with `--test-injected-press-is-real`, as the core gives
+no injected drag away otherwise. `tests/gate-demo.sh` checks the scenes
+and the clips. A caption of a clip names the renderer, for example
+software GL in a container.
 
 ## Releases
 
@@ -256,8 +309,10 @@ requests only (D47).
 ## Commits
 
 Use [conventional commits](https://www.conventionalcommits.org/):
-`<type>: <description>`, with the description at 68 characters or fewer.
-Make one logical change per commit.
+`<type>(<scope>): <description>`, with the scope optional. The subject
+line has 68 characters or fewer, counting the whole line including
+`type(scope): `. Body lines have 72 characters or fewer. Make one logical
+change per commit.
 
 ## Documentation
 

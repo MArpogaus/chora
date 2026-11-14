@@ -22,7 +22,11 @@ pane_distance: 2000
 # launcher (starts the launcher), close (asks the window of the pane
 # nearest the middle of the view to close), windows (opens and closes
 # the window list) or help (shows and hides the panel of the bindings).
-# The space takes the keyboard, so the keys need no modifier. In the
+# The space takes the keyboard, so the walk keys need no modifier. A key
+# that starts or closes something names Super, as in Super+t, so that
+# text typed into the space by mistake starts nothing; such text gets a
+# short notice that the keys walk. Ctrl, Alt and Super come in that
+# order; Shift is part of the key, as in T. In the
 # window list, Up and Down move the selection, Return chooses, and
 # Escape or the windows key closes it.
 keys:
@@ -40,14 +44,19 @@ keys:
   f: look_down
   h: home
   Return: fly_in
-  t: terminal
-  space: launcher
-  x: close
+  Super+t: terminal
+  Super+space: launcher
+  Super+x: close
   Tab: windows
   F1: help
+  Super+slash: help
+  Super+c: cube
 # The shell command of the key terminal; its window becomes a pane in
 # the view direction.
-terminal: foot
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
+terminal: foot -o pad=12x12
 # The shell command of the key launcher. The launcher itself is no pane:
 # a layer-shell launcher such as fuzzel shows over the space, and a
 # window of a launcher shows in the middle of the output. The first
@@ -62,10 +71,18 @@ fly_out: Alt+Escape
 # Alt, Shift or Super. A drop on a plugin pane gives the window to that
 # plugin, and a drop on another output to its window manager.
 modifier: Super
-# The voice HUD at the bottom of the output (F28): the state of the voice
-# agent, its spoken sentence and its questions. It hides the dot of the
-# voice agent while chora-construct runs.
-voice_hud: true
+# The effects of the panes of own windows: [wobbly] bends a pane in 3D
+# while the modifier drags it, and it shakes until it settles.
+effects: []
+# The window manager of the cube of `cube.open`, which adds
+# `--output NAME` for each of its virtual outputs.
+cube_manager: chora-xp
+# Who draws the voice HUD at the bottom of the output (F28): the state of
+# the voice agent, its spoken sentence and its questions. host: the HUD
+# host chora-assistant with the folder plugins/chora-construct/hud, which
+# every flavor starts; own: the construct, which hides the dot of the
+# voice agent while it runs.
+voice_hud: host
 # The elements over the space: the voice HUD, the window list, the pane
 # labels and the questions. docs/construct-style.md has the rules; run
 # the contrast test after a change of a colour. Colours are RGB or RGBA,
@@ -81,7 +98,7 @@ style:
   mono: DejaVu Sans Mono
   # The one accent of both themes: the state ring, the waveform, the
   # selection mark and the glow. It never colours text.
-  accent: [0.15, 0.50, 0.71]
+  accent: [0.149, 0.502, 0.706]
   # Per theme: the fill of a panel, its hairline, the text, the muted
   # labels and notes, and the alpha of the accent in the glow.
   themes:

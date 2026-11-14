@@ -10,12 +10,13 @@ use std::fmt::Write as _;
 use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 
 use crate::{
+    sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Sheet, Theme},
+    theme::{Picture, Rect, Theme},
 };
 
 /// The height of a row.
-const ROW: i32 = 17;
+const ROW: i32 = 22;
 /// The height of a separator.
 const SEPARATOR: i32 = 9;
 /// The border and the padding around the rows.
@@ -23,9 +24,9 @@ const PAD: i32 = 3;
 /// The soft shadow at the right and the bottom.
 const SHADOW: i32 = 4;
 /// The text starts after the column of the check marks.
-const TEXT_X: i32 = 17;
+const TEXT_X: i32 = 26;
 /// The room right of the text, for the arrow of a submenu.
-const TEXT_END: i32 = 24;
+const TEXT_END: i32 = 22;
 const PREFIX: &str = "xp-ctx-";
 /// The node that takes the keyboard while a menu is open: its root.
 pub const FOCUS: &str = "xp-ctx-0";
@@ -911,7 +912,7 @@ fn row(theme: &Theme, entry: &Entry, [w, h]: [i32; 2], lit: bool, cues: bool) ->
         ));
     }
     if lit {
-        picture = picture.frame(Sheet::Winxp, "menu-highlight", [0, 0, w, h]);
+        picture = picture.frame(sheets::WINXP, "menu-highlight", [0, 0, w, h]);
     }
     if entry.checked {
         let check = if lit {

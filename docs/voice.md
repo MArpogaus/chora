@@ -235,7 +235,9 @@ digital gain control of WebRTC and turns off its noise suppression,
 the likely cause of the digital zero between the words (not yet
 verified on PipeWire).
 A transcript whose words match more than 80 % of the words spoken in the
-last 3 s is echo.
+last 3 s is echo. Echo is also no yes and no no to a question: a yes
+word at the end of the spoken question, heard again by the mic, answers
+nothing.
 
 Word matcher (no LLM):
 
@@ -266,7 +268,12 @@ program of `run_program` in place of `{program}`, the argument `NAME`
 in place of `{NAME}` (a missing one stays as it is) and all text,
 number and boolean arguments in place of `{args}` ("Shall I change the
 screen to output winit, scale 1.5?"), and waits for
-yes or no. The method `confirm` answers from a key or the HUD (WP5;
+yes or no. `{program}` is the file name of a program without arguments
+and without a path, else the whole command line ("Shall I start the
+program /tmp/x/firefox -e sh?"). `{input}` is what `inject_input` types
+or presses ("Shall I type or click: the text ls Return?"). `{params}`
+is the params of a method, after a colon ("Shall I run settings set of
+the plugin xp: volume 3?"). None of them is cut. The method `confirm` answers from a key or the HUD (WP5;
 privileged, so a confined client needs `methods.privileged`),
 the spoken yes and no since WP6. Only speech that starts after the
 question starts to play is an answer. A queued text never answers.
@@ -297,7 +304,8 @@ other call, an always word is a single yes: `inject_input`,
 `apply_commands`, `code_task`, `agent_start`, `configure_output`, the
 other built-in tools, each `settings.set` and `settings.reload`, and
 each change of the agent's own settings. A question of a sub-agent
-takes an always word as a yes.
+takes no always word: it answers nothing, because the agent has no
+action to remember for it.
 
 Two settings list the actions that never ask. `allow_programs` lists
 programs. A bare name, such as `foot`, allows only the argv `["foot"]`
@@ -313,7 +321,9 @@ to the agent's own settings, which always ask.
 
 Each question also goes out as the event `voice.confirm {prompt,
 detail, id}`; `id` is a text, such as `"3"`. A question about a
-security key also has `physical: true` and `keys: {yes, no}`. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
+security key also has `physical: true` and `keys: {yes, no}`. A question
+of a helper has its `name`, for the title "Question from NAME" of the
+card. `detail` is the full command or value, never cut, at most 400 lines or 64 KiB (the agent refuses a longer command without a question and tells the LLM to send a shorter one): the
 settings keys and values, the program and its arguments, or the method
 and its parameters. Every subscriber of `voice.*` gets it, so secrets
 are hidden as in the journal: the value of each `*_headers` key, of
@@ -321,7 +331,7 @@ are hidden as in the journal: the value of each `*_headers` key, of
 `api_key`, `secret` or `password` shows as `(hidden)`. A question of a sub-agent has its prompt as
 `detail`. When the question gets its answer, ends or times out, the
 agent emits `voice.confirm {id, done: true}`. chora-mc shows the
-question as a notification, chora-xp as a balloon. The agent cannot
+question as a notification, chora-assistant as a bubble. The agent cannot
 see the subscribers of an event. So, while no plugin claims the
 indicator (section 10), the agent shows the prompt and `detail` itself:
 a text node `voice-question` at the top left of the first output, on
@@ -332,8 +342,9 @@ last `voice.confirm` goes again after 1 s.
 While a claimer of the indicator (section 10) is connected, the event
 also has `buttons: true`. A HUD can then show Yes and No buttons. A
 click calls `voice.confirm.answer {id, yes}` with the `id` of the
-event. Only a client that holds `indicator.claim` may call it, and
-only for the question that is open now. An old or wrong `id` is
+event. Only an unconfined client that may claim the indicator (see
+"Who may answer" below) and claimed it may call it, and only for the
+question that is open now. An old or wrong `id` is
 refused. A click is a physical act, as a key press is. So a button
 also answers a question about a security key. The LLM never reaches
 the method: it calls no method of NAME (see "Own settings").
@@ -351,14 +362,16 @@ without the schema of the settings, which is about 14 KB and made the
 LLM narrate; the agent hands the patch on and the client checks it.
 Each `settings.set` asks with its keys and values
 (`phrases.settings_set`, "Shall I set barge in min rms to 15?"). A
-security key asks with `phrases.settings_security` ("Security setting!
+security key goes on to the client, which asks every caller with
+`phrases.settings_security` (see "Security changes by a method" below:
+"Security setting!
 Shall I set llm url? The full value is on the screen. Press Alt+y for
 yes or Alt+n for no."). The security keys are `allow_programs`,
 `allow_methods`, `confirm`, `confirm_keys`, `agent_projects`,
 `yes_words`, `always_words`, `no_words`, `phrases`, `record_dir`,
 `sandbox_cmd`, `unsandboxed`, `agent_cmd`, `coder_cmd`, `chora_mcp`,
 `capture_cmd`, `playback_cmd`, `skipped_tools`, `system_prompt`,
-`prompt_file`, `context_docs`, `indicator`, `earcons`,
+`prompt_file`, `context_docs`, `indicator`, `indicator_clients`, `earcons`,
 `confirm_timeout_ms`, `ptt_key`, `wake_words`, `sleep_words`, each
 `*_url`, `*_headers` and each key with `api_key`. The agent never cuts
 a security value. The question says only the key and that the full
@@ -378,23 +391,62 @@ the user agrees:
   answer it. A spoken yes, an always word and a yes of
   the method `voice.confirm` count as nothing. A spoken no, a new
   request, two unclear answers or `voice.confirm no` are a no.
+- A key press in the first second after the question shows counts as
+  nothing, and the question stays open. A sub-agent can replace its
+  question at any time, so such a press was meant for the question
+  before. A button of a HUD carries the id of its question and needs no
+  such wait.
 - No key press within `confirm_timeout_ms` is a no.
 - The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
   shows that line too.
 - A holder of `indicator.claim` is trusted like the keyboard: its
   `confirm.answer` counts as a physical answer (review rc3 round 3,
-  2.6). A confined client with `methods.privileged` can claim the
-  indicator and then answer every key question. So grant
-  `methods.privileged`, and with it the claim, only to a HUD that the
-  user trusts as the keyboard.
-- An injected key could answer the question. So the agent refuses
-  `inject_input` while such a question waits. Besides, `inject_input`
+  2.6). The agent refuses `indicator.claim`, `confirm.answer`,
+  `confirm`, `talk` and `mute` from a confined caller, as the
+  `confined` field of `method.called` names it.
+  That closes the direct routes only. A confined client with
+  `methods.privileged` can still start a program by a method such as
+  `mc.app.open`, by `voice.agent` with `agent_start`, or by
+  `settings.set` of a setting that holds a command. So grant
+  `methods.privileged` only to a client that the user trusts as the
+  keyboard.
+- Who may answer (review A1): the agent takes `indicator.claim` and
+  `confirm.answer` only from an unconfined caller whose client name is
+  in the security setting `indicator_clients` (default `[assistant,
+  construct, mc]`). Any other client, such as a program of
+  `run_program`, is refused. A claim belongs to the connection that
+  made it (`connection` of `method.called`), so only that connection
+  answers under it. A HUD button answers every question, also one about
+  a security key, so a name in `indicator_clients` is trusted as the
+  keyboard. Changing the setting is a security change (below); a name
+  taken out of it loses its claim at once.
+- How far the names hold: the core gives a live name of the main socket
+  only to its program (the same process or executable, see
+  [API](api.md)). While mc runs, no script can connect as `mc`. A HUD
+  of the list that is not running leaves its name free, and any process
+  of the user can take it. A process of the user can also edit the
+  settings file, which applies at the next start of the agent. So the
+  sandbox of the agents must keep the main socket out (section 18).
+- Security changes by a method: `settings.set` of a security key, or
+  `settings.reload` of a file that differs from the running settings in
+  a security key, from any caller, also the LLM and `choractl`, asks the
+  physical question with `phrases.settings_security` and answers the
+  call with a refusal that says so. The change applies when the user
+  presses the yes key of `confirm_keys` or clicks Yes on a HUD; a no or
+  a timeout drops it. A reload loads only the file that the question
+  showed. While the question waits, the LLM gets no `inject_input`.
+- An injected key or press could answer the question. The core marks an
+  `input.key` event and a `pointer.pressed` event of `input.inject`
+  with `injected: true`. The agent ignores an injected key of
+  `confirm_keys`, and the answer buttons of mc, the assistant and the
+  construct ignore an injected press. Besides, the agent
+  refuses `inject_input` while such a question waits, and `inject_input`
   always asks by the default rules and never takes an always word.
 
 The client `NAME-mcp`
 needs `methods.privileged` for `settings.set` and `settings.reload`.
-Its own `settings.reload` asks with the rule of `*.settings.reload`.
+Its own `settings.reload` asks as a privileged method.
 A reload can also apply a file that the LLM wrote (review rc3 round 3,
 2.4). So the agent reads the file before it asks and compares each
 security key with the running settings. When one differs, or the file
@@ -438,6 +490,8 @@ at most a short summary of it.
 | Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 
 The history commits per LLM round; an audio failure never rolls it back.
+An error text names a server by its URL without the userinfo and the
+query, which can carry a key.
 `voice.health` and the `health` of the state record show `asr`, `tts`,
 `llm`, `mcp` and `chora` as `ok`, `down` or `unknown` (before the first
 report), with the last error and its Unix time `error_at`. Each actor
@@ -529,7 +583,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_url`, `asr_model` | `ws://127.0.0.1:8881/v1/realtime?intent=transcription`, `gufo` |
 | `tts_url`, `tts_model` | `ws://127.0.0.1:8882/v1/audio/speech/stream`, `gufo` |
 | `llm_url`, `llm_model` | `http://127.0.0.1:8888/v1`, `gufo` |
-| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key) |
+| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key; `chora_mcp` starts without these variables; the sub-agents and the coding harness keep them, so a harness can use the same key) |
 | `asr_api_key_file`, `tts_api_key_file`, `llm_api_key_file` | `""` (no key; else the file with the key, `%d` is `$CREDENTIALS_DIRECTORY`) |
 | `asr_headers`, `tts_headers`, `llm_headers` | `{}` (extra headers, name: value) |
 | `asr_language` | `auto` (the ASR finds the language; else a code such as `de`) |
@@ -559,6 +613,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `confirm_keys` | `{yes: Alt+y, no: Alt+n}` (the only answer to a question about a security key, section 5; two keys, other than `ptt_key`) |
 | `earcons`, `earcon_volume` | `true`, `0.3` |
 | `indicator` | `true` (state dot under `screen:OUTPUT`); `false` turns it off; `{corner: bottom-right\|bottom-left\|top-right\|top-left, offset: [x, y]}` places it, `true` is `{corner: bottom-right, offset: [12, 12]}` |
+| `indicator_clients` | `[assistant, construct, mc]` (the client names that may claim the indicator and answer every question with `confirm.answer`, also one about a security key, section 5; a security key) |
 | `system_prompt`, `context_docs` | `""`: the built-in prompt and documents |
 | `prompt_file` | `~/.config/chora/voice-prompt.md` |
 | `context_tokens`, `reply_reserve_tokens` | `0` (ask the server), `1024` |
@@ -572,7 +627,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `agent_voices`, `agent_said_chars`, `agent_permission_s` | `[ryan, vivian, serena, eric]`, `160`, `120` (section 18) |
 | `skipped_tools` (globs) | `[subscribe_events, wait_events, capture, "voice.*"]`; they only hide tools: a call of the clients NAME, NAME-hud and NAME-mcp is refused, also through `call_method`, except the settings methods of NAME (section 5) |
 | `playback_buffer_ms` | `1000` |
-| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`: English sentences, German with `reply_language: de` |
+| `phrases` | `llm_down`, `llm_slow`, `tool_rounds`, `asr_failed`, `details`, `agent_asks`, `agent_keys`, `agent_ended`, `settings_set`, `settings_security`, `heard`, `ack`, `ready`, `allowed`, `lost`, `privileged`, `need_key`: English sentences, German with `reply_language: de` |
 | `record_dir` | `""` (off; else records sessions for replay) |
 
 `--target NAME` in `capture_cmd` or `playback_cmd` picks a PipeWire
@@ -581,33 +636,31 @@ device.
 ```yaml
 confirm:
   - {tool: apply_commands, commands: [remove, close], prompt: "Shall I remove that?"}
+  - {tool: load_view, prompt: "Shall I load the view {name}?"}
   - {tool: unload_view, prompt: "Shall I remove the view {name}?"}
-  - {tool: inject_input, prompt: "Shall I type or click?"}
+  - {tool: inject_input, prompt: "Shall I type or click: {input}?"}
   - {tool: code_task, prompt: "Shall I start the coding task?"}
-  - {tool: agent_start, prompt: "Shall I start an agent for {project}?"}
+  - {tool: agent_start, prompt: "Shall I start a helper for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
   - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
+  - {tool: reserve_space, prompt: "Shall I keep space free on the screen: {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
   - {tool: call_method, method: "*restart", prompt: "Shall I restart the plugin {client}?"}
-  # Then two rules for each privileged method METHOD of a plugin:
-  # settings.set, settings.reload, app.open, scene.save, scene.rename,
-  # scene.move, construct.load, construct.save, region.toggle,
-  # region.put and region.solo; and for window.give, agent.set and
-  # notify.push, which are not privileged.
-  - {tool: "*.METHOD", prompt: "Shall I run {method} of the plugin {client}?"}
-  - {tool: call_method, method: METHOD, prompt: "Shall I run {method} of the plugin {client}?"}
 ```
 
 The grant `methods.privileged` opens every privileged method of every
-plugin. The export flag `privileged` does not reach the agent, so the
-default rules ask before each privileged method of the plugins, from a
-list kept by hand that must follow the plugins. `window.give` also
-asks: it hides a window in another client. So do `agent.set` and
-`notify.push` of chora-mc: they show what the user trusts as the state
-of the agent or as a notification. In a
-prompt, `{client}` and `{method}` name the plugin and the method, also
-for a plugin tool `CLIENT.METHOD`. The method is said with spaces
-("app open").
+plugin. `methods.list` sends the flag `privileged` of each export, and
+`choractl mcp` puts it in the `_meta` of the tool. So the agent asks
+before each tool that is privileged, also by `call_method`, with
+`phrases.privileged` ("Shall I run app open of the plugin mc: app
+foot?"). No list of methods is kept in the agent. The methods
+`window.give`, `agent.set` and `notify.push` are privileged too. In a
+prompt, `{client}`, `{method}` and `{params}` name the plugin, the
+method and its params. The method is said with spaces ("app open").
+The tools `configure_output` and `reserve_space` need the grant
+`methods.privileged` of `voice-mcp` too: `choractl grant voice-mcp
+methods.privileged`. Without it, chora refuses them with code 4. Each
+of them asks with its own `confirm` rule.
 
 Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
 that each one can move to another provider. The key comes from the
@@ -643,16 +696,21 @@ both a key variable and a key file for one server.
 |---|---|---|
 | `state` | none | the state record below |
 | `cancel`, `sleep`, `wake` | none | the new state record |
-| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record |
-| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected |
-| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand |
-| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc` |
-| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key |
-| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a caller without `indicator.claim` and for any other `id` (section 5) |
+| `mute` (privileged) | `mic: bool`, `speaker: bool`, each optional | the new state record; refused for a confined caller |
+| `indicator.claim` (privileged) | none | `{}`; hides the dot while the caller is connected; refused for a confined caller and for a caller outside `indicator_clients` (section 5) |
+| `settings.get`, `settings.set`, `settings.reload` | D62 | D62; `settings.get` shows each value of a `*_headers` key as `(hidden)`; `settings.reload` reads the file again after an edit by hand; a change of a security key waits for a key of `confirm_keys` and answers a refusal that says so (section 5) |
+| `talk` (privileged) | `down: bool` | PTT from another client, for example `chora-mc`; refused for a confined caller |
+| `confirm` (WP5, privileged) | `answer: yes\|no` | the new state record; a yes does not answer a question about a security key; refused for a confined caller |
+| `confirm.answer` (privileged) | `id` (the text of `voice.confirm`), `yes: bool` | `{}`; answers the open question `id`, also one about a security key; refused for a confined caller, for a caller outside `indicator_clients`, for a connection that did not claim the indicator, and for any other `id` (section 5) |
 | `health` (WP8) | none | the health record of section 6 |
 | `agent` (privileged) | `tool` (one of the agent tools) and its arguments | the text of the tool (section 18) |
+| `agent.read` (privileged) | `name`, `after: int` (default 0) | `{entries: [{seq, role, text}], seq, epoch}`: the entries of the transcript of the agent after `after`, at most 64 KiB of text, oldest first; `seq` is the last one returned, or the current one when none is; `epoch` is the number of this start of the agent, so a reader that sees a new epoch starts its transcript again, and a `seq` below the one it holds in the same epoch is a late answer to ignore; refused for a confined caller (section 18) |
+| `agent.cancel` (privileged) | `name` | the text `NAME stops its request`; cancels the running prompt and the queue, as the spoken cancel word does; refused for a confined caller |
+| `chat.open` (privileged) | `name` | `{}`; marks a chat of the agent as open for the caller; refused for a confined caller, for an unknown agent and without a caller |
+| `chat.close` (privileged) | `name` | `{}`; ends the chat that the caller opened; refused for a confined caller and when the caller has none open |
 
-`mute`, `talk`, `indicator.claim` and `confirm.answer` are privileged: with them, a
+`mute`, `talk`, `indicator.claim`, `confirm.answer`, `agent.read`, `agent.cancel`,
+`chat.open` and `chat.close` are privileged: with them, a
 client could unmute the mic, record, or hide the dot, so that the agent
 listens without a sign. A client socket needs `methods.privileged` for
 them. The export flag cannot depend on `mic`, so muting needs it too.
@@ -672,7 +730,11 @@ named `voice` emits them; under another `--name`, the agent emits
 none. The subscription `voice.*` also matches a client such as
 `voice.evil`, so a subscriber must check that the `client` of each
 event is exactly `voice`. The method `state`
-stays for a full state record. The
+stays for a full state record: a HUD that starts, or sees the client
+`voice` connect, calls it, so that it shows the current state before
+the next event. The agent exports its methods after its `hello`, so the
+call may fail at first; chora-assistant repeats it every 250 ms, up to 20
+times. The
 indicator node signals without a HUD: with `indicator`, a dot of 12
 pixels in a corner of the first output, under `screen:OUTPUT`, in the
 color of the state (input `pass`). `offset` is its distance from the
@@ -699,8 +761,8 @@ A coding task is a sub-agent: `voice.state {name: coder, state, task,
 said}` with `state` `working`, then `done` or `blocked` (failed or
 cancelled), `task` the task, and `said` its last step, then its result.
 An ACP agent (section 18) is a sub-agent too: `voice.state {name,
-state, task, said, voice, plan, question, log}`, and `voice.remove
-{name}` when it stops.
+state, task, said, voice, plan, question, log, seq, chat}`, and
+`voice.remove {name}` when it stops.
 The `hud` thread waits for the sound of a sentence and hands the events
 to the `chora` thread, which emits them on the connection of the
 methods: only that connection has the name `voice`. The `chora` thread
@@ -719,9 +781,17 @@ macros out of the other functions, because clippy counts their expansion
 into the cognitive complexity. With `CHORA_VOICE_LLM_DUMP=FILE` the agent
 appends each LLM request body and the raw lines of its stream to FILE
 (mode 0600), to see what the server got and sent. Each stage logs start
-and end with the turn number. A tool call logs its arguments and the
-start of its result, without secrets. Of `read`, the log has only the
-path and the byte count. The values of each `*_headers` key, of each
+and end with the turn number. The info level has no text that the
+person said or heard: the text of an utterance (`turn=2 text="..."`),
+of words over a reply or queued into its next round, of an ASR echo
+that drops, of a reply sentence (`say:`), of each round of the LLM, of
+a coding task and of its result log at debug. `services/voice/tests/live-gate.sh`
+runs the agent with `RUST_LOG=chora_voice=debug,info` to show them. A tool call logs
+its name and time at info. At debug it logs the first 300 characters of
+its arguments and of its result, without secrets. Of
+`read`, the log has only the path and the byte count. The `text` of
+`inject_input` shows as "(hidden)": it can be a dictated password. The
+values of each `*_headers` key, of each
 key with `api_key`, `apikey`, `secret` or `password`, of each key that
 ends with `token`, and of `authorization` show as "(hidden)". One summary per turn:
 
@@ -740,7 +810,8 @@ record in `~/.local/state/chora/voice-turns.jsonl` (planned for WP8;
 
 ## 12. Recording for replay
 
-With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`:
+With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`
+(mode 0700, its files 0600: a recording has the voice of the user):
 
 - `mic.wav`: all mic frames, 24 kHz, without gaps.
 - `played.wav`: all played sound (earcons and replies), one piece after
@@ -1186,9 +1257,9 @@ S: up to 1 day. M: 2 to 3 days. L: about 1 week.
     (a list of projects and names in the settings), and should they
     survive its restart (a detached supervisor that keeps the ACP
     pipes)? Now they end with it.
-14. `agent-sandbox.sh` drops the arguments after the command, so
-    `agent-sandbox.sh opencode acp` runs `opencode` without `acp`. Fix
-    the script (`*) ARGS+=("$1") ;;`), or give `sandbox_cmd` a wrapper?
+14. Done: `dist/sandbox/agent-sandbox.sh` is in the repository and
+    passes the arguments after the command on; `tests/agent-sandbox.sh`
+    checks it.
 15. An ACP agent (opencode 1.19) calls `fs/write_text_file` although
     the client offers no file system; the client answers "method not
     found", and opencode writes the file itself. Offer the file system
@@ -1204,9 +1275,19 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   `sandbox_cmd` and `agent_cmd`, with `{dir}` and `{project}` replaced,
   in the directory of the project, in its own process group. Without
   `unsandboxed: true`, `coder_cmd` and `agent_cmd` always run in
-  `sandbox_cmd` (default `agent-sandbox.sh`: podman per start, project
-  directory mounted, own home, read-only root, all capabilities
-  dropped, network `ai-net`, ACP on stdio without a tty). The projects:
+  `sandbox_cmd` (default `agent-sandbox.sh`; `dist/sandbox` has a
+  minimal one with bubblewrap: project directory writable, own home,
+  read-only root, empty `/tmp`, `/run` and runtime directory, no
+  network unless `--net`, ACP on stdio without a tty). The sandbox
+  must not mount the main socket of chora (`CHORA_SOCKET`) or its
+  directory: a client of the main socket can do all that the user can,
+  also name itself as a HUD (section 5). The test
+  `the_sandbox_hides_the_main_socket` of the voice crate runs a probe in
+  `agent-sandbox.sh` when it is on `PATH` and fails when the probe sees
+  a socket in `XDG_RUNTIME_DIR` or `CHORA_SOCKET`. Without the script
+  it says `skip` on stderr, and with `CI` set it fails; ci.yaml installs
+  bubblewrap and puts `dist/sandbox` on `PATH`.
+  `unsandboxed: true` skips the sandbox and so this check. The projects:
   `agent_projects` and the directories of the inventory; a name matches
   in any case.
 - Protocol: `initialize` (protocol version 1, no file system, no
@@ -1232,12 +1313,33 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   möchte notes.txt ändern. Erlauben?": the file name of a path title
   and a verb for the kind). It waits from when it is spoken, so it
   also waits while the agent sleeps; the state is `confirming`. Yes and no words, `voice.confirm`, or "NAME, ja"
-  answer it; two unclear answers or `agent_permission_s` without one
-  are a no. Yes picks an `allow_once` option, no a `reject_once` one;
-  without a fitting option the outcome is `cancelled`. A request whose
-  only allowing option is `allow_always` is spoken as "Atlas wants to
-  edit notes.txt. Always allow?" ("… Immer erlauben?" with
-  `reply_language: de`), and only then a yes picks `allow_always`.
+  answer it, with the exception below; two unclear answers or
+  `agent_permission_s` without one are a no. A request of the kind
+  `read`, `search` or `think` that offers `allow_once` is a normal
+  question. Every other request (a command, a write, a move, a delete,
+  a fetch, an unknown kind) and every request without an `allow_once`
+  option follows the rule of a security question above: only a key of
+  `confirm_keys` or a button of a HUD answers it, and the event
+  `voice.confirm` has `physical: true`. A spoken yes, an always word
+  and a yes of `voice.confirm` count as nothing, and a yes sounds the
+  error earcon and `need_key` ("For this I need a key press or a
+  click."); a no answers. The spoken question ends with `agent_keys`
+  ("Press Alt+Y for yes or Alt+N for no."), with the keys spelled as the
+  card shows them; the card shows the prompt without that sentence and
+  names the keys in its own line. The screen shows the whole
+  title of the request and its raw input, secrets hidden; a request
+  whose detail passes 400 lines or 64 KiB is rejected and the agent
+  says so, as the confirmation of the reply refuses a command too long
+  to show. The spoken
+  title is a file name only for the kinds `edit`, `read`, `delete` and
+  `move`. An always word answers no request: the agent never maps it
+  to `allow_always`. Yes picks an `allow_once` option, no a
+  `reject_once` one; without a fitting option the outcome is
+  `cancelled`. A request whose only allowing option is `allow_always`
+  is spoken as "Atlas wants to edit notes.txt. Always allow?" ("…
+  Immer erlauben?" with `reply_language: de`), and only then a yes
+  picks `allow_always`; as it takes a key, the key or a button picks
+  it.
 - Routing: the LLM gets `agent_list`, `agent_start {project, name?,
   voice?}`, `agent_say {name, text}`, `agent_stop {name}` and
   `agent_status {name?}`, and a part of the prompt. `agent_start` asks
@@ -1252,6 +1354,29 @@ stdin and stdout of the agent, one message per line. Module `agents.rs`.
   question); `voice.remove {name}` when it stops. chora-mc shows the
   agents in the status line and the `agents` scene; `mc agent.focus`
   shows one agent with its transcript.
+- Transcript and chat: each agent keeps a ring of 500 entries `{seq,
+  role, text}`, `role` one of `user` (a prompt), `agent` (its words),
+  `tool` (a tool call), `notice` (the end of the agent or the refusal
+  of a request, text of the system and not of the agent), `question` (a
+  permission request) and `plan`. An entry has at most 16 KiB of text,
+  cut with an ellipsis, and a ring holds at most 4 MiB, the oldest
+  entries dropped first. The text is hidden as the journal hides it:
+  the value of a key such as `token`, `authorization` or `api_key` is
+  `(hidden)`. `seq` counts up from 1 for each
+  entry of the agent and never repeats while it runs; `voice.state`
+  carries the last `seq` and the `epoch` of the start of the agent, so a
+  reader pulls with `agent.read {name, after}` when it grew, and again
+  from 0 when the epoch changed. `chat.open {name}` marks a chat of the agent as
+  open for the caller, and `chat.close {name}` ends it; the chat also
+  ends on `client.disconnected` of the caller, when the voice agent
+  connects to chora again, and when the caller has not read the agent
+  with `agent.read` for 10 minutes. `voice.state` has `chat: true` while any
+  chat is open. An agent with an open chat does not speak the end of
+  its turn or its notices; its questions are spoken as before. A chat
+  sends text and reads text: it answers no question, and a permission
+  request keeps the rules above (a key or a button, no always word).
+  A caller without these methods, a confined one, gets
+  `not for a confined connection`.
 - Logs: `$XDG_DATA_HOME/chora/agents/NAME.log`, the stderr of the agent
   and every message (`>` sent, `<` received).
 - Lifetime: `agent_stop` and the end of the voice agent (an error,
@@ -1283,3 +1408,144 @@ OpenAI-compatible provider, `permission.edit: ask`):
   got no answer and was a no after 120 s. The ASR heard "Coder" as
   "Coda"; that utterance went to the LLM, which sent it on with
   `agent_say`.
+
+## 19. The chat field
+
+`chora-chat` has two modes (`services/voice/chat`).
+
+- `chora-chat [NAME]` is the opener for a launcher or a key. It calls
+  `assistant chat.show {name, token}`, with the helper if one is named
+  and the `XDG_ACTIVATION_TOKEN` of its environment. It draws nothing.
+- `chora-chat --input NAME` is the text field of the chat view with the
+  helper NAME, a layer surface that the host starts, one at a time. It
+  draws with `chora-draw` into `wl_shm`, in the font size of the body
+  text (14 px at least), uses `text-input-v3` for input methods and the
+  data device for a paste.
+
+**The pipe.** The field reads text that it cannot trust (the clipboard,
+an input method), so it holds no connection to chora. The host
+(`plugins/chora-assistant/src/field.rs`) starts it with a pipe on stdin
+and stdout, without `CHORA_SOCKET` and without `XDG_ACTIVATION_TOKEN`,
+and the field ignores both. Each line is one JSON object.
+
+- Host to field: `{"place": {...}}`, `{"question": true}`,
+  `{"keys": {"yes", "no"}}`, `{"say_failed": "text"}`,
+  `{"pick_first": "text"}`, `"clear"`, which empties the draft when the
+  chat goes to another helper, `"send"`, which sends the draft as Enter
+  does (the Send button of the XP form), `"hide"` and `"quit"`. The host builds
+  `question` from `voice.state` of the helper of the field, and `keys`
+  from `voice.confirm`.
+- Field to host: `{"say": "text"}`, which the host sends with `voice
+  agent {tool: agent_say}` (`say_call`), and `{"event": "shown" |
+  "keyboard" | "closed" | "height", "data": {...}}`; `height {height}`
+  gives the height of the field in logical pixels when it changes, and
+  the view keeps that room for it. No event carries text.
+- The end of stdin ends the field, and so does the end of its parent
+  process (`PR_SET_PDEATHSIG`). The host also holds `chat.open` and
+  `chat.close` for the chat; the field never calls them.
+
+A confined caller cannot reach the field: it has no socket, and the
+host methods that start and place it are the host's.
+
+**Place.** `place` has `anchor` (`top`, `bottom`, `left`, `right`, or two
+of them joined by `_`, such as `bottom_right`), `margin` (top, right,
+bottom, left), `width` (1 to 1600, 400 by default), `output`, `scale`
+(1 to 4, the pixels of the buffer for each logical pixel), `look` (the
+colors `background`, `text`, `border` and `hint` as RGBA) and `token`.
+`look.glass` with the RGBA `accent` and `halo` makes the field of a glass
+chat: a well with corners of 16 in `background`, 48 high for a line, the
+text in Inter 16 on lines of 24, the caret in the accent, and, while the
+field has the keyboard, the focus ring of 2 in the accent and the halo of
+4 in the 6 pixels around the well.
+A new place on the same output only moves the surface; another output
+makes a new surface. The draft stays in both cases, because the process
+stays.
+
+**Keys.** Enter sends the draft. Shift+Enter breaks a line. The field
+grows to four lines, then scrolls. A draft of more than four lines shows
+"N lines", and the first Enter shows "Press Enter again to send N
+lines"; only the second Enter sends, and any edit between them cancels
+it. Esc closes the field and keeps the draft for the next `place`. Ctrl+V
+and Shift+Insert paste the text of the selection (64 KiB at most; a
+thread reads it, so a slow source does not stop the field). Left, Right,
+Home, End, Backspace and Delete edit. Ctrl+. writes the line
+`{"event": "stop"}`, and the host stops the helper of the chat with
+`agent.cancel`, as the Stop button does; the chat stays open. A key with
+Ctrl or Alt is never text. Pasted and composed text pass `chora_kit::chat::sanitize`.
+
+**Keyboard.** The surface is on layer `top` with the keyboard on demand.
+It takes the keyboard in two ways: a click on it, and the activation
+token of a person's act (a real key or button, see the keyboard rule of
+the core in `architecture.md`) that the host hands it with `place`, and
+nowhere else. Without a token, or with a token that no real press
+stamped, it takes none. Esc destroys the surface, so the window gets the
+keyboard back.
+
+**Questions.** The field answers no question. It cannot tell typed text
+from pasted or injected text, so a typed yes is no proof. While a
+question of its helper waits, Enter keeps the text and the field shows
+"Typing does not answer" with the keys of the question. When the
+question ends, the text is not sent: it stays as a draft with "Not sent.
+Press Enter to send." If `agent_say` fails, the host tells the field,
+which gets the text back and says that voice does not answer.
+
+**The host.** `chora-assistant` (`plugins/chora-assistant/src/chat.rs`)
+owns the one open chat. Its methods are `chat.show {name, token}` and
+`chat.hide`; neither is privileged, so the voice agent may call them.
+The host draws the view in the `chat:` look of the folder that shows, at
+the edge that `anchor` and `width` name, and puts the field at its
+bottom.
+
+- A click on the "Chat ..." row, which every look has, shows the numbered
+  list: a helper by its name, a project without one as "New helper for
+  PROJECT" (`agent_list`). A click on an entry, or its number or name and
+  Enter in the field, opens the chat; a project starts its helper first.
+  Any other text in the list comes back to the field with `pick_first`,
+  which says "Pick a helper first: type its number and press Enter, or
+  click it." Close shows in the list and in a chat, Stop only in a chat. `chat.show` with a name opens that chat at once.
+- Opening a chat calls `chat.open`, reads the transcript with
+  `agent.read` and starts the field. The host reads again when
+  `voice.state` of the helper carries a larger `seq`, and every two
+  minutes, which keeps the chat alive. A text of the field goes out with
+  `agent_say`; if that fails, the field gets it back with `say_failed`.
+  When voice does not answer, the header says so.
+- A click is an act: the host asks the core for an activation token and
+  hands it to the field with `place`, so the field takes the keyboard. A
+  token that comes with `chat.show` (from `chora-chat`, started by a key
+  or a launcher) is handed on as it is. The voice agent has no token, so
+  its `chat.show` shows the view and leaves the keyboard where it is.
+- Esc in the field, `chat.hide` and a click on Close end the chat with
+  `chat.close`. The field process stays, and so does its draft: Esc
+  closes the surface itself, and the host tells the field `"hide"` for
+  the others. A field that dies is started again at once. A `chat.show`
+  for another helper without a token, as the voice agent sends it, leaves
+  an open chat alone; with the token of an act it replaces it.
+- Rule *voice opens the chat*: both methods refuse a caller on a
+  confined connection, because the host acts in its own name, except
+  the tool connection of the voice agent that the host follows
+  (`NAME-mcp`, `voice-mcp` by default), so that "show the chat with
+  Atlas" works by voice. The host drops the token of a confined caller,
+  so such a `chat.show` never moves the keyboard. If voice does not answer, the host asks again
+  every 5 s and opens the chat again; a helper that voice does not know
+  or that ended has its own line.
+- A switch of look places the same field again in the new look, keeps the
+  transcript and the draft, and moves nothing else. The context holds
+  while the field has the keyboard.
+- A question shows as the host's card. It appears inside the chat view if
+  the view is open when the question starts, else at the figure, and it
+  stays there until it ends. A chat that opens later shows "A question is
+  waiting." as its header. While a question waits, the view shows the
+  line that typing does not answer, with the keys.
+- The lines of the view come from `chora_kit::chat`: the text of an
+  agent is cleaned, drawn under the name of its helper, and never makes a
+  card. Only an entry of role `question` is drawn as a question.
+
+Tests: the unit tests of `chat.rs`, `tests/gate-chat.sh` (one event
+script, the same visible lines in each HUD folder named on its command
+line), the cells `chat-*` of `tests/gate-hud.sh`, and the unit tests of the crate and of `field.rs` (the field process
+has no `CHORA_SOCKET`), and `tests/chat.sh`, which runs the field beside
+a window and the fake agent in a headless session, with
+`tests/chat-host.py` as the host. A headless session has no device, so a
+real press is missing there: the script checks that a click takes the
+keyboard and that a token without a real act does not. The token of a
+real act is a test of the core.

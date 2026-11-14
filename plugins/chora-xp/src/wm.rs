@@ -5,22 +5,25 @@
 
 mod desktops;
 mod effects;
+mod float;
 mod items;
 mod resize;
 mod restart;
-mod voice;
 
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::Path,
     time::{Duration, Instant},
 };
 
 use chora_kit::{
     give,
     icons::Icons,
+    notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
+    volume::{self, Mixer, Reading},
+    words::{self, Language, Word},
 };
 use chora_scene::{
     Binding, Command, Decoration, Event, NodeKind, OutputInfo, PropsUpdate, ROOT, ShaderEffect,
@@ -33,8 +36,6 @@ use serde_json::{Value, json};
 use self::{desktops::desk_id, effects::Effects};
 use crate::{
     apps,
-    assistant::Assistant,
-    balloon::{self, Balloon, Queue},
     config::{Config, Picture, Wallpaper},
     context::{self, Act},
     control::{self, Setting},
@@ -44,7 +45,8 @@ use crate::{
     desktop_icons::{self, DesktopIcons},
     dialog::{self, Hit},
     display::{self, DisplayDialog, EffectsDialog},
-    notify::{Bus, Note, Reason, Request, Signal},
+    help::{self, HelpDialog},
+    launch::{self, Change, Launches},
     session::{self, Choice, Dialog, Mode},
     sound::{self, Sound},
     startmenu::{self, Action, Menu},
@@ -52,10 +54,14 @@ use crate::{
     taskbar::{self, Bar, Task},
     taskbar_dialog::{Outcome, TaskbarDialog},
     theme::{Rect, Theme},
+    tooltip::Tooltip,
     wallpaper,
     window::{self, Window},
 };
 
+/// How often the speakers read the volume again; a change reads it at
+/// once.
+const VOLUME_AGAIN: Duration = Duration::from_secs(5);
 /// The client name, and the group of all nodes of the plugin.
 pub const NAME: &str = "xp";
 const WALLPAPERS: &str = "xp-wallpapers";
@@ -70,6 +76,14 @@ const MENU_KEY: &str = "ContextMenu";
 
 /// The node of XP's Alt+Tab.
 const SWITCHER: &str = "xp-alttab";
+/// The name that the open Help and Support window has for the task
+/// buttons and Alt+Tab, in the place of a surface. It has no dash, which
+/// the ids of task buttons split at.
+const HELP_TASK: &str = "helppanel";
+/// How often and how long apart the switcher asks for Alt+Escape: a
+/// client that holds it gives it up on the event `xp.switcher`.
+const ESCAPE_TRIES: u32 = 4;
+const ESCAPE_WAIT: Duration = Duration::from_millis(15);
 /// How long a taskbar that hides itself waits after the pointer left it.
 const HIDE_DELAY: Duration = Duration::from_millis(500);
 /// The left mouse button.
@@ -83,7 +97,8 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 22] = [
+const EVENTS: [&str; 21] = [
+    "client.disconnected",
     "surface.created",
     "surface.changed",
     "surface.destroyed",
@@ -103,10 +118,7 @@ const EVENTS: [&str; 22] = [
     "input.moved",
     "effects.dropped",
     "node.requested",
-    "client.connected",
-    "client.disconnected",
-    // The events of the voice agent (D65).
-    "voice.*",
+    "voice.state",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -120,11 +132,36 @@ const METHODS: [&str; 6] = [
     "turn_to",
 ];
 
+/// The export of `window.move`. It is privileged, as `window.give` is: it
+/// takes a window out of the view of the person.
+fn move_method() -> ExportMethod {
+    chora_kit::runtime::privileged(chora_kit::runtime::method(
+        "window.move",
+        "Moves a window to another output that chora-xp manages.",
+        serde_json::json!({
+            "surface": {"type": "string", "description": "The surface id of the window."},
+            "output": {"type": "string", "description": "The name of the output."},
+            "at": {
+                "type": "array",
+                "description": "A point of the output for the middle of the title bar.",
+            },
+        }),
+        &["surface", "output"],
+    ))
+}
+
 /// What a key binding does.
 #[derive(Clone, Copy)]
 pub enum Key {
     Close,
-    Terminal,
+    /// Super+e opens the file manager.
+    Files,
+    /// Super+Space opens the launcher, the Run box of the start menu.
+    Launcher,
+    /// Super and a key of the show-the-desktop kind: Super+d.
+    Desktop,
+    /// Super pressed and released alone opens or closes the start menu.
+    Tap,
     /// Turns the cube by quarter turns.
     Turn(i32),
     /// Moves the focused window along with a turn.
@@ -135,17 +172,40 @@ pub enum Key {
     Cube,
     /// Ctrl+Escape opens or closes the start menu, as on XP.
     Start,
+    /// Gives the focused window to the window manager of this name (D55).
+    Give(&'static str),
+    /// A media key changes the volume.
+    Volume(volume::Change),
+    /// Opens the chat, as on tiling.
+    Chat,
+    /// F1 opens Help and Support on the keyboard shortcuts.
+    Help,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
-/// stands in when another client holds them.
-const KEYS: [(&str, &str, Key); 10] = [
+/// stands in when another client holds them. The media keys and the chat
+/// key are those of tiling.
+pub const KEYS: [(&str, &str, Key); 20] = [
+    ("Super+Super_L", "", Key::Tap),
+    ("Super+Super_R", "", Key::Tap),
     ("Ctrl+Escape", "", Key::Start),
+    ("Super+d", "", Key::Desktop),
+    ("Super+space", "", Key::Launcher),
+    ("F1", "", Key::Help),
+    ("Super+F1", "", Key::Help),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
     ("Alt+Shift+Tab", "", Key::Switch(-1)),
-    ("Super+e", "", Key::Terminal),
+    ("Super+e", "", Key::Files),
+    (control::CHAT_KEY, "", Key::Chat),
+    ("XF86AudioRaiseVolume", "", Key::Volume(volume::Change::Up)),
+    (
+        "XF86AudioLowerVolume",
+        "",
+        Key::Volume(volume::Change::Down),
+    ),
+    ("XF86AudioMute", "", Key::Volume(volume::Change::Mute)),
     ("Ctrl+Alt+Left", "Super+Ctrl+Left", Key::Turn(-1)),
     ("Ctrl+Alt+Right", "Super+Ctrl+Right", Key::Turn(1)),
     (
@@ -170,6 +230,13 @@ struct Drag {
     /// The pointer of the last move. The core reports the pointer again
     /// after each transaction, also when it did not move.
     last: [f64; 2],
+    /// The core refused to give this drag away: the window stays for the
+    /// rest of it.
+    kept: bool,
+    /// The speed of the pointer in scene pixels per second, smoothed, and
+    /// the time of its last move.
+    speed: [f64; 2],
+    moved_at: Instant,
 }
 
 /// A border of a frame that the pointer drags.
@@ -189,6 +256,45 @@ struct Resize {
     asked: Option<[i32; 2]>,
     /// The button went up; the last commit of the client may follow.
     released: bool,
+}
+
+/// Puts Help and Support into the entries of the switcher: first while it
+/// has the focus, so that the first step leaves it, else after the
+/// windows.
+fn add_help(entries: &mut Vec<switcher::Entry>, help: switcher::Entry, active: bool) {
+    let at = if active { 0 } else { entries.len() };
+    entries.insert(at, help);
+}
+
+/// What voice announces about the helper: its state and the microphone.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Helper {
+    state: Option<String>,
+    mic_off: bool,
+}
+
+impl Helper {
+    /// The helper of a `voice.state` of voice itself; none for the state
+    /// of a named helper, which is not the voice of the person.
+    fn of(data: &Value) -> Option<Self> {
+        if data.get("name").is_some() {
+            return None;
+        }
+        Some(Self {
+            state: data["state"].as_str().map(str::to_owned),
+            mic_off: data["muted"]["mic"].as_bool().unwrap_or(false),
+        })
+    }
+
+    /// The word of its tooltip: "Voice off" while the microphone is off,
+    /// else the state word, else the name of the door.
+    fn word(&self) -> Word {
+        match (self.mic_off, &self.state) {
+            (true, _) => Word::VoiceOff,
+            (false, Some(state)) => words::state(state).unwrap_or(Word::ChatLauncher),
+            (false, None) => Word::ChatLauncher,
+        }
+    }
 }
 
 /// The state of the window manager.
@@ -217,6 +323,12 @@ pub struct Wm {
     desktop: usize,
     /// The node under the pointer.
     hover: Option<String>,
+    /// The output that the pointer entered last, where a new window opens.
+    pointer_output: Option<String>,
+    /// Whether the bindings of the cube are grabbed.
+    cube_keys: bool,
+    /// The windows that float off their virtual output.
+    floats: float::Floats,
     effects: Effects,
     /// The Log Off or Turn Off dialog.
     dialog: Option<Dialog>,
@@ -224,12 +336,6 @@ pub struct Wm {
     fade: Option<Instant>,
     /// The shader of the fade, in the cache.
     fade_shader: Option<String>,
-    /// The notification server, if the session bus had the name free.
-    bus: Option<Bus>,
-    /// The notifications that show and wait.
-    notes: Queue,
-    /// The balloon that shows, with its notification.
-    balloon: Option<(Note, Balloon)>,
     /// The icons on the desktop of the first output.
     desk: DesktopIcons,
     /// The open context menu, and the work area of its output.
@@ -240,6 +346,9 @@ pub struct Wm {
     last_icon: Option<(String, Instant)>,
     /// The settings of Taskbar and Start Menu Properties.
     taskbar: taskbar::Settings,
+    /// The height that each taskbar reserves at the bottom of its screen,
+    /// by output, so that other clients keep clear of it.
+    reserved: HashMap<String, i32>,
     /// The settings dialogs, bottom first.
     panels: Vec<Panel>,
     /// When a taskbar that hides itself slides away.
@@ -260,20 +369,29 @@ pub struct Wm {
     switch_escape: Option<String>,
     /// Alt+Space, while a window of `chora-xp` has the focus.
     system_key: Option<String>,
+    /// The tooltip of the part of the taskbar under the pointer.
+    tip: Tooltip,
+    /// Super is down alone: whether another key or button went down with it.
+    tap: Option<bool>,
+    /// The windows that Super+d put away, which it brings back.
+    hidden: Vec<String>,
     /// Where the pointer took the cube, while Super and the left button
     /// are down.
     cube_grab: Option<f64>,
     /// The windows of clients before a restart, by surface, until they
     /// show again.
     kept: HashMap<String, restart::KeptWindow>,
-    /// The paperclip of the voice agent, while it shows.
-    assistant: Option<Assistant>,
-    /// The client name of the voice agent and its pose, while it is
-    /// connected and awake.
-    voice: Option<(String, crate::assistant::Pose)>,
-    /// Whether xp claims the state indicator of the voice agent at its
-    /// next event: after the start and after the agent connected.
-    claim_due: bool,
+    /// The programs that started and show no window yet.
+    launches: Launches,
+    notifier: Notifier,
+    /// The reading that the speaker of the taskbars shows; none before
+    /// the first.
+    volume: Option<Reading>,
+    helper: Helper,
+    /// Runs wpctl off the main loop.
+    mixer: Mixer,
+    /// When the volume was last read.
+    volume_read: Instant,
 }
 
 impl Plugin for Wm {
@@ -302,9 +420,27 @@ impl Plugin for Wm {
     }
 }
 
+impl give::Windows for Wm {
+    fn conn(&mut self) -> &mut chora_kit::conn::Conn {
+        &mut self.rt.conn
+    }
+
+    fn has(&self, surface: &str) -> bool {
+        self.index(surface).is_some()
+    }
+
+    fn hand(&mut self, surface: &str, to: &str) -> Result<Value, RpcError> {
+        let (answer, commands) = self.give(surface, to)?;
+        self.apply(commands)
+            .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
+        Ok(answer)
+    }
+}
+
 impl Wm {
     /// Connects, creates the scene of the plugin and adopts the windows
     /// that have no owner. `outputs` are the names of `--output`.
+    #[allow(clippy::too_many_lines, reason = "one line per field of the plugin")]
     pub fn start(
         outputs: Vec<String>,
         theme: Theme,
@@ -313,16 +449,24 @@ impl Wm {
     ) -> Result<Self, ClientError> {
         let mut methods = METHODS.map(ExportMethod::from).to_vec();
         methods.push(give::method());
+        methods.push(move_method());
+        methods.push(chora_kit::float::method());
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
-        let menu = Menu::new(config, apps::load(&config.terminal), &theme, &mut icons);
+        let menu = Menu::new(
+            config,
+            apps::load(&config.terminal, config.editor.as_deref()),
+            &theme,
+            &mut icons,
+        );
         let mut wm = Self {
             rt: Runtime::connect(NAME, outputs)?,
             clock: String::new(),
             desk: DesktopIcons::new(&config.terminal),
             effects: Effects::new(config.effects),
             taskbar: config.taskbar,
+            reserved: HashMap::new(),
             theme,
             icons,
             settings,
@@ -338,12 +482,12 @@ impl Wm {
             cascade: 0,
             desktop: 0,
             hover: None,
+            pointer_output: None,
+            cube_keys: false,
+            floats: float::Floats::default(),
             dialog: None,
             fade: None,
             fade_shader: None,
-            bus: Bus::start_or_log(),
-            notes: Queue::default(),
-            balloon: None,
             context: None,
             sys_window: None,
             last_icon: None,
@@ -357,28 +501,51 @@ impl Wm {
             switcher: None,
             switch_escape: None,
             system_key: None,
+            tip: Tooltip::default(),
+            tap: None,
+            hidden: Vec::new(),
             cube_grab: None,
             kept: HashMap::new(),
-            assistant: None,
-            voice: None,
-            claim_due: true,
+            launches: Launches::new(),
+            notifier: Notifier::new(),
+            volume: None,
+            helper: Helper::default(),
+            mixer: Mixer::new(NAME),
+            volume_read: Instant::now(),
         };
         wm.clock = wm.now();
         // The nodes that a restart kept: read, then built again.
         let old_root = wm.take_kept()?;
+        wm.mixer.refresh();
         wm.create_scene(old_root)?;
         wm.grab()?;
         // After the scene: the removal of the kept root detaches the
         // windows, and those events would make them new windows.
         wm.rt.announce(&EVENTS, methods)?;
         wm.adopt_all()?;
-        wm.ask_voice()?;
+        wm.catch_up_outputs()?;
         Ok(wm)
+    }
+
+    /// Lays out the outputs that changed before the subscription, which
+    /// sent no event for it.
+    fn catch_up_outputs(&mut self) -> Result<(), ClientError> {
+        let stale: Vec<OutputInfo> = (self.outputs().into_iter())
+            .filter(|o| self.bars.iter().any(|b| b.is_stale(o)))
+            .collect();
+        for output in &stale {
+            let commands = self.output_changed(output);
+            self.apply(commands)?;
+        }
+        Ok(())
     }
 
     /// Adopts the surfaces without an owner, as at a start, in their order
     /// before a restart. Only a window of the current desktop gets the
-    /// focus.
+    /// focus. Without a window, on virtual outputs only, the keyboard stays
+    /// where it is: the client that shows the outputs has it, and the
+    /// person did nothing here yet. The desktop then shows as not focused
+    /// and the system key stays free.
     fn adopt_all(&mut self) -> Result<(), ClientError> {
         let mut nodes: Vec<chora_scene::Node> = self
             .rt
@@ -403,7 +570,12 @@ impl Wm {
         self.opened.retain(|s| !kept.contains(s));
         self.opened.splice(0..0, kept);
         let top = self.topmost_except("");
-        let mut commands = self.focus(top.as_deref());
+        let mut commands = if self.opened.is_empty() && self.cube_off() {
+            self.grab_system_key(false);
+            self.desk.focus(&mut self.theme, &mut self.icons, false)
+        } else {
+            self.focus(top.as_deref())
+        };
         commands.extend(self.sync_tasks());
         self.apply(commands)
     }
@@ -415,7 +587,9 @@ impl Wm {
     /// same transaction, so that the plugin holds a claim throughout and
     /// the surfaces reserved for it stay so (D55).
     fn create_scene(&mut self, old_root: bool) -> Result<(), ClientError> {
-        let outputs = self.rt.outputs()?;
+        let outputs: Vec<OutputInfo> = (self.rt.outputs()?.into_iter())
+            .map(|o| without_reserve(&self.reserved, o))
+            .collect();
         self.theme.set_scale(max_scale(&outputs));
         let group = |id: &str, parent: &str| Command::Create {
             id: id.into(),
@@ -465,6 +639,7 @@ impl Wm {
         commands.extend(self.refresh_icons());
         match self.try_apply(commands)? {
             None => {
+                self.reserve_bars();
                 self.play(Sound::Logon);
                 Ok(())
             }
@@ -481,14 +656,18 @@ impl Wm {
         );
         let mut bar = Bar::new(output);
         bar.configure(self.taskbar);
-        commands.extend(bar.create(&mut self.theme, BARS, &self.clock, self.desktop));
+        let tray = (self.clock.as_str(), self.icons());
+        commands.extend(bar.create(&mut self.theme, BARS, tray, self.desktop));
         self.bars.push(bar);
         commands
     }
 
     #[allow(clippy::expect_used, reason = "KEYS holds valid bindings")]
     fn grab(&mut self) -> Result<(), ClientError> {
-        for (binding, fallback, key) in KEYS {
+        let cube = !self.cube_off();
+        self.cube_keys = cube;
+        let of_the_cube = |key: &Key| matches!(key, Key::Cube | Key::Turn(_) | Key::Carry(_));
+        for (binding, fallback, key) in KEYS.into_iter().filter(|k| cube || !of_the_cube(&k.2)) {
             for binding in [binding, fallback].into_iter().filter(|b| !b.is_empty()) {
                 let binding: Binding = binding.parse().expect("valid bindings");
                 if self.rt.grab(binding, key)? {
@@ -496,13 +675,19 @@ impl Wm {
                 }
             }
         }
-        Ok(())
+        self.rt
+            .accept_injected(self.settings.value.test_accept_injected_keys);
+        self.rt.give_keys(Some(Key::Give));
+        self.rt.grab_give_keys()
     }
 
     /// Applies a transaction, with the logical sizes of the pictures.
     fn apply(&mut self, mut commands: Vec<Command>) -> Result<(), ClientError> {
+        let floated = self.sync_floats(&mut commands);
         self.theme.size_images(&mut commands);
-        self.rt.conn.apply(commands)
+        self.rt.conn.apply(commands)?;
+        self.tell_floats(floated);
+        Ok(())
     }
 
     /// Applies a transaction, as [`Self::apply`], and returns the error of
@@ -553,8 +738,14 @@ impl Wm {
                 app_id,
                 title,
                 to,
+                token,
                 ..
-            } => return self.adopt(&surface, app_id, title.as_deref(), to.as_deref()),
+            } => {
+                if let Some(note) = self.launches.window(token.as_deref()) {
+                    self.notifier.close(note);
+                }
+                return self.adopt(&surface, app_id, title.as_deref(), to.as_deref());
+            }
             Event::SurfaceDetached { surface } => {
                 let commands = self.forget(&surface);
                 self.apply(commands)?;
@@ -588,28 +779,20 @@ impl Wm {
             } => self.pressed(&node, button, position),
             Event::PointerMoved { position, .. } => self.dragged(position),
             Event::PointerReleased { node, position, .. } => self.released(&node, position),
-            Event::OutputChanged { output } => [
-                self.rescale()?,
-                self.output_changed(&output),
-                self.replace_assistant(),
-            ]
-            .concat(),
-            Event::OutputRemoved { name } => [
-                self.rescale()?,
-                self.output_removed(&name),
-                self.replace_assistant(),
-            ]
-            .concat(),
+            Event::OutputChanged { output } => {
+                let output = without_reserve(&self.reserved, output);
+                [self.rescale()?, self.output_changed(&output)].concat()
+            }
+            Event::OutputRemoved { name } => [self.rescale()?, self.output_removed(&name)].concat(),
             Event::Emitted {
                 event,
                 client,
                 data,
-            } => self.voice_event(&event, &client, &data),
-            Event::ClientConnected { name } => {
-                self.voice_connected(&name);
+            } if event == "voice.state" && client == "voice" => self.voice_state(&data),
+            Event::ClientDisconnected { name } => {
+                self.floats.owner_gone(&name);
                 Vec::new()
             }
-            Event::ClientDisconnected { name } => self.voice_gone(&name),
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
             | Event::InputMoved { .. }
@@ -657,6 +840,7 @@ impl Wm {
                 self.activate(&surface)
             }
             Call::Restart => {
+                self.floats.land_all();
                 self.apply(self.keep_for_restart())
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 self.done = true;
@@ -664,9 +848,15 @@ impl Wm {
                 return Ok(Value::Null);
             }
             Call::TurnTo { desktop } => self.turn_to(desktop),
-            Call::Give(give::Give { surface, to }) => {
+            Call::Move {
+                surface,
+                output,
+                at,
+            } => self.move_to_output(&surface, &output, at)?,
+            Call::Float(float) => return self.float(float),
+            Call::Give(give::Give { surface, to, grab }) => {
                 known(self.index(&surface).is_some(), &surface)?;
-                let (answer, commands) = self.give(&surface, &to)?;
+                let (answer, commands) = self.give_dragged(&surface, &to, grab)?;
                 self.apply(commands)
                     .map_err(|e| RpcError::new(RpcError::REJECTED, e.to_string()))?;
                 return Ok(answer);
@@ -680,12 +870,18 @@ impl Wm {
     /// When the pointer has rested on the start menu long enough to open
     /// or close a cascade.
     pub fn menu_due(&self) -> Option<Instant> {
-        self.menu.due()
+        [self.menu.due(), self.tip.due()]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
-    /// Opens or closes the cascade where the pointer rests.
+    /// Opens or closes the cascade where the pointer rests, and shows the
+    /// tooltip of a part of the taskbar that it rests on.
     pub fn menu_rest(&mut self, now: Instant) -> Result<(), ClientError> {
-        let commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
+        let mut commands = self.menu.rest(&mut self.theme, &mut self.icons, now);
+        let area = self.bars.first().map_or([0, 0, 1280, 800], Bar::area);
+        commands.extend(self.tip.show(&mut self.theme, MENUS, area, now));
         if commands.is_empty() {
             return Ok(());
         }
@@ -694,6 +890,7 @@ impl Wm {
 
     /// Updates the clock.
     pub fn tick(&mut self) -> Result<(), ClientError> {
+        self.check_launches();
         let mut commands = self.refresh_icons();
         // The hands of Date and Time move.
         for i in 0..self.panels.len() {
@@ -704,17 +901,104 @@ impl Wm {
         if !commands.is_empty() {
             self.apply(commands)?;
         }
+        if self.volume_read.elapsed() >= VOLUME_AGAIN {
+            self.volume_read = Instant::now();
+            self.mixer.refresh();
+        }
         let now = self.now();
+        let reading = self.mixer.take();
+        let changed = reading.is_some_and(|r| Some(r) != self.volume);
+        if changed {
+            self.volume = reading;
+            let commands = self.show_volume();
+            self.apply(commands)?;
+        }
         if now != self.clock {
             self.clock = now;
-            let commands = self
-                .bars
-                .iter()
-                .map(|bar| bar.tray(&mut self.theme, &self.clock))
-                .collect();
+            let commands = self.trays();
             self.apply(commands)?;
         }
         Ok(())
+    }
+
+    /// The words of the speaker, in the language of the session.
+    fn volume_words(&self) -> String {
+        self.volume
+            .map(|r| r.words(Language::of_session()))
+            .unwrap_or_default()
+    }
+
+    /// What the speaker of the taskbars shows: the icon only.
+    fn speaker(&self) -> taskbar::Speaker {
+        match self.volume {
+            Some(Reading::Level(level)) if !level.muted => taskbar::Speaker::On,
+            _ => taskbar::Speaker::Off,
+        }
+    }
+
+    /// What the icons of the notification area show.
+    fn icons(&self) -> taskbar::Icons {
+        taskbar::Icons {
+            speaker: self.speaker(),
+            mic_off: self.helper.mic_off,
+        }
+    }
+
+    /// The tooltip of the helper: its state word, or "Voice off" while the
+    /// microphone is off.
+    fn helper_tip(&self) -> String {
+        self.helper.word().text(Language::of_session()).to_owned()
+    }
+
+    /// The state of the helper that voice announces: the tray icon shows
+    /// the microphone and the tooltip the state word.
+    fn voice_state(&mut self, data: &Value) -> Vec<Command> {
+        let Some(helper) = Helper::of(data).filter(|helper| *helper != self.helper) else {
+            return Vec::new();
+        };
+        self.helper = helper;
+        self.trays()
+    }
+
+    /// The tooltip of the speaker: the level, or what is wrong.
+    fn speaker_tip(&self) -> String {
+        match self.volume {
+            Some(Reading::Level(level)) if !level.muted => format!("Volume {}%", level.percent),
+            _ => self.volume_words(),
+        }
+    }
+
+    /// The notification areas of every taskbar, with the clock and the
+    /// volume.
+    fn trays(&mut self) -> Vec<Command> {
+        let icons = self.icons();
+        let mut commands = Vec::new();
+        for bar in &self.bars {
+            commands.extend(bar.tray(&mut self.theme, &self.clock, icons));
+        }
+        commands
+    }
+
+    /// Shows a new reading: the speakers change their icon and keep their
+    /// width, so that nothing moves. A tooltip that shows says the new
+    /// level.
+    fn show_volume(&mut self) -> Vec<Command> {
+        self.trays()
+    }
+
+    /// The speakers show the reading after it at the next tick.
+    fn change_volume(&mut self, change: volume::Change, by_key: bool) -> Vec<Command> {
+        self.mixer.change(change, by_key);
+        self.volume_read = Instant::now();
+        Vec::new()
+    }
+
+    /// The bindings of Keyboard Shortcuts that the plugin holds.
+    fn held_shortcuts(&self) -> Vec<&'static str> {
+        (give::KEYS.iter().map(|(key, _)| *key))
+            .chain([control::CHAT_KEY])
+            .filter(|key| self.rt.holds(key))
+            .collect()
     }
 
     fn now(&self) -> String {
@@ -747,9 +1031,7 @@ impl Wm {
         }
         let previous = self.focused.clone();
         let mut window = Window::new(surface, app_id, title);
-        window.icon = self
-            .icons
-            .program(window.app_id.as_deref().unwrap_or_default());
+        window.icon = window_icon(&mut self.icons, window.app_id.as_deref());
         // A window keeps its desktop over a restart.
         window.desktop = self.kept.get(surface).map_or(self.desktop, |k| k.desktop);
         let desk = desk_id(window.desktop);
@@ -757,6 +1039,9 @@ impl Wm {
         self.opened.push(surface.into());
         let mut commands = decoration::create(surface, &desk, false);
         if let Some(look) = self.kept.get(surface).map(|k| k.look.clone()) {
+            if let Some(opacity) = look.opacity {
+                self.floats.seed(surface, opacity);
+            }
             commands.push(Command::Update {
                 id: decoration::group_id(surface),
                 props: look,
@@ -798,7 +1083,7 @@ impl Wm {
         let first = !self.windows[i].shown;
         self.windows[i].size = Some(size);
         self.anchor(i);
-        let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+        let area = self.home();
         let kept = first.then(|| self.kept.remove(surface)).flatten();
         let active = self.is_active(surface);
         let mut commands = Vec::new();
@@ -867,6 +1152,9 @@ impl Wm {
     /// Raises, restores and focuses a window; a window of another desktop
     /// turns the cube to it.
     fn activate(&mut self, surface: &str) -> Vec<Command> {
+        if surface == HELP_TASK {
+            return self.focus_help();
+        }
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
@@ -951,6 +1239,7 @@ impl Wm {
             return Vec::new();
         };
         let mut commands = self.drop_from_switcher(surface);
+        self.floats.forget(surface);
         self.windows.remove(i);
         self.opened.retain(|s| s != surface);
         if self.drag.as_ref().is_some_and(|d| d.surface == surface) {
@@ -959,8 +1248,7 @@ impl Wm {
         if self.resize.as_ref().is_some_and(|r| r.surface == surface) {
             self.resize = None;
         }
-        self.effects.wobbles.remove(surface);
-        self.effects.lamps.remove(surface);
+        self.effects.driver.cancel(surface);
         commands.push(Command::Remove {
             id: decoration::group_id(surface),
             to: None,
@@ -987,7 +1275,7 @@ impl Wm {
             return Vec::new();
         }
         self.windows[i].title = title;
-        self.windows[i].icon = self.icons.program(app_id.as_deref().unwrap_or_default());
+        self.windows[i].icon = window_icon(&mut self.icons, app_id.as_deref());
         self.windows[i].app_id = app_id;
         let active = self.is_active(surface);
         let mut commands = self.windows[i].style(&mut self.theme, active);
@@ -1029,7 +1317,7 @@ impl Wm {
     /// looks the same, and meta on the asked node without the key of
     /// chora-xp. The plugin sends no opacity or effects to the groups
     /// otherwise, so the look stays; a restart keeps it too.
-    fn requested_look(&self, node: &str, args: &Value) -> Vec<Command> {
+    fn requested_look(&mut self, node: &str, args: &Value) -> Vec<Command> {
         let surface = decoration::surface_of(node).unwrap_or(node);
         let Ok(asked) = serde_json::from_value::<PropsUpdate>(args.clone()) else {
             return Vec::new();
@@ -1038,11 +1326,12 @@ impl Wm {
             return Vec::new();
         }
         let mut commands = Vec::new();
-        if asked.opacity.is_some() || asked.effects.is_some() {
+        let opacity = asked.opacity.filter(|o| self.floats.ask(surface, *o));
+        if opacity.is_some() || asked.effects.is_some() {
             commands.push(Command::Update {
                 id: decoration::group_id(surface),
                 props: PropsUpdate {
-                    opacity: asked.opacity,
+                    opacity,
                     effects: asked.effects,
                     ..PropsUpdate::default()
                 },
@@ -1064,6 +1353,70 @@ impl Wm {
         commands
     }
 
+    /// Whether the plugin has no desktop cube: all its outputs are virtual
+    /// ones, which a construct shows on a cube of its own.
+    pub(super) fn cube_off(&self) -> bool {
+        !self.bars.is_empty() && !self.bars.iter().any(Bar::has_pager)
+    }
+
+    /// Grabs or lets go the bindings of the cube after the outputs
+    /// changed: the cube is off while all outputs are virtual ones.
+    fn sync_cube_keys(&mut self) {
+        if self.cube_keys != self.cube_off() {
+            return;
+        }
+        let grabbed = self.rt.ungrab_all().and_then(|()| self.grab());
+        if let Err(err) = grabbed {
+            eprintln!("chora-xp: {err}");
+        }
+    }
+
+    /// The output of a node of an output, as its wallpaper or its taskbar,
+    /// or of a window.
+    fn output_of(&self, node: &str) -> Option<String> {
+        let named = |b: &&Bar| node.ends_with(&format!("-{}", b.output));
+        let window = || {
+            self.index(node)
+                .and_then(|i| self.bar_at(self.windows[i].rect()))
+        };
+        let bar = self.bars.iter().find(named).or_else(window)?;
+        Some(bar.output.clone())
+    }
+
+    /// The work area for a new window: on the output that the pointer
+    /// entered last, else on the first one.
+    fn home(&self) -> Rect {
+        let bar = home_bar(&self.bars, self.pointer_output.as_deref());
+        bar.map_or([0, 0, 1280, 770], Bar::usable)
+    }
+
+    /// Moves a window to another output of the plugin, to the same place
+    /// there, as far as it fits, and raises it. With `at`, a point of
+    /// that output, the middle of its title bar goes there instead, as
+    /// after a drop.
+    fn move_to_output(
+        &mut self,
+        surface: &str,
+        output: &str,
+        at: Option<[i32; 2]>,
+    ) -> Result<Vec<Command>, RpcError> {
+        let unknown = |what: &str| RpcError::new(RpcError::REJECTED, format!("xp has no {what}"));
+        let i = self.index(surface).ok_or_else(|| unknown(surface))?;
+        let target = self.bars.iter().find(|b| b.output == output);
+        let target = target.map(Bar::usable).ok_or_else(|| unknown(output))?;
+        let from = self
+            .bar_at(self.windows[i].rect())
+            .map_or(target, Bar::usable);
+        let mut commands = self.move_window(i, from, target);
+        if let Some(at) = at.filter(|_| !self.windows[i].maximized()) {
+            let [.., w, _] = self.windows[i].rect();
+            self.windows[i].pos = dropped_at(target, w, at);
+            commands.push(self.windows[i].place());
+        }
+        commands.extend(self.activate(surface));
+        Ok(commands)
+    }
+
     // Taskbars
 
     /// The taskbar of the output that shows most of a rectangle: the one
@@ -1076,31 +1429,84 @@ impl Wm {
             .or(self.bars.first())
     }
 
-    /// The task buttons of every taskbar.
+    /// The task buttons of every taskbar. The taskbar of a virtual output
+    /// lists the windows of that output, as each face of a cube is a
+    /// desktop of its own; the taskbar of a screen lists all windows, or
+    /// with the setting `tasks_per_output` those of its screen.
     fn sync_tasks(&mut self) -> Vec<Command> {
         let hovered = match self.hover.as_deref().and_then(taskbar::Part::of) {
             Some(taskbar::Part::Task(surface)) => Some(surface),
             _ => None,
         };
-        let tasks: Vec<Task<'_>> = self
+        let tasks: Vec<(Task<'_>, usize)> = self
             .opened
             .iter()
             .filter_map(|surface| {
                 let w = &self.windows[self.windows.iter().position(|w| &w.surface == surface)?];
-                (w.shown && w.desktop == self.desktop).then(|| Task {
+                let task = Task {
                     surface,
                     title: &w.title,
                     icon: w.icon.clone(),
                     active: self.focused.as_deref() == Some(surface),
                     minimized: w.minimized,
                     hovered: hovered.as_deref() == Some(surface.as_str()),
-                })
+                };
+                let [x, y, width, height] = w.rect();
+                let centre = [x + width / 2, y + height / 2];
+                let bar = self.bars.iter().position(|b| b.contains(centre));
+                (w.shown && w.desktop == self.desktop).then_some((task, bar.unwrap_or(0)))
             })
             .collect();
-        let mut commands = Vec::new();
-        for bar in &mut self.bars {
-            commands.extend(bar.tasks(&mut self.theme, &tasks));
+        let per_output = self.settings.value.tasks_per_output;
+        let lists: Vec<Vec<Task<'_>>> = (self.bars.iter().enumerate())
+            .map(|(i, bar)| {
+                let own = per_output || bar.is_virtual();
+                let listed = tasks.iter().filter(|(_, at)| !own || *at == i);
+                listed.map(|(task, _)| task.clone()).collect()
+            })
+            .collect();
+        drop(tasks);
+        let mut lists = lists;
+        if let (Some(list), true) = (lists.first_mut(), self.has_help()) {
+            list.push(Task {
+                surface: HELP_TASK,
+                title: help::TITLE,
+                icon: self.icons.find("help-browser"),
+                active: self.help_active(),
+                minimized: false,
+                hovered: hovered.as_deref() == Some(HELP_TASK),
+            });
         }
+        let mut commands = Vec::new();
+        for (bar, list) in self.bars.iter_mut().zip(&lists) {
+            commands.extend(bar.tasks(&mut self.theme, list));
+        }
+        commands
+    }
+
+    /// Whether Help and Support is open.
+    fn has_help(&self) -> bool {
+        self.panels.iter().any(|p| matches!(p, Panel::Help(_)))
+    }
+
+    /// Whether Help and Support has the focus: it is the topmost panel and
+    /// no window has the focus.
+    fn help_active(&self) -> bool {
+        self.focused.is_none() && matches!(self.panels.last(), Some(Panel::Help(_)))
+    }
+
+    /// Takes Help and Support to the top with the keyboard.
+    fn focus_help(&mut self) -> Vec<Command> {
+        let mut commands = self
+            .raise_panel(|p| matches!(p, Panel::Help(_)))
+            .unwrap_or_default();
+        commands.extend(self.focus(None));
+        if let Some(Panel::Help(panel)) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.dialog.group()),
+            });
+        }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -1139,10 +1545,12 @@ impl Wm {
     fn hovered(&mut self, node: &str, on: bool) -> Vec<Command> {
         if on {
             self.hover = Some(node.into());
+            self.pointer_output = self.output_of(node).or(self.pointer_output.take());
         } else if self.hover.as_deref() == Some(node) {
             self.hover = None;
         }
         let mut commands = self.auto_hide();
+        commands.extend(self.rest_tip(node, on));
         if let Some((menu, _)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
             commands.extend(menu.hover(&mut self.theme, MENUS, node, on));
             return commands;
@@ -1155,12 +1563,41 @@ impl Wm {
         commands
     }
 
+    /// The pointer came to a part of the taskbar that has a tooltip, or left
+    /// it: the tooltip waits, or goes.
+    fn rest_tip(&mut self, node: &str, on: bool) -> Vec<Command> {
+        if !on {
+            return self.tip.cancel(Some(node));
+        }
+        let Some(output) = self.output_of(node) else {
+            return Vec::new();
+        };
+        let Some(bar) = self.bars.iter().find(|b| b.output == output) else {
+            return Vec::new();
+        };
+        if node.starts_with("xp-tray-") {
+            if let Some(clock) = bar.clock_rect() {
+                let date = chrono::Local::now().format("%A, %B %-d, %Y").to_string();
+                self.tip.rest(node, date, clock, Instant::now());
+            }
+            return Vec::new();
+        }
+        let (text, target) = match taskbar::Part::of(node) {
+            Some(taskbar::Part::Pager(desktop)) => (
+                format!("Desktop {} of {DESKTOPS}", desktop + 1),
+                bar.pager_rect(desktop),
+            ),
+            Some(taskbar::Part::Speaker(_)) => (self.speaker_tip(), bar.speaker_rect()),
+            Some(taskbar::Part::Helper(_)) => (self.helper_tip(), bar.helper_rect()),
+            _ => return Vec::new(),
+        };
+        self.tip.rest(node, text, target, Instant::now());
+        Vec::new()
+    }
+
     fn hovered_node(&mut self, node: &str, on: bool) -> Vec<Command> {
         if let Some(dialog) = self.dialog.as_mut().filter(|_| Dialog::owns(node)) {
             return dialog.hover(&mut self.theme, node, on);
-        }
-        if let Some((_, balloon)) = self.balloon.as_mut().filter(|_| Balloon::owns(node)) {
-            return balloon.hover(&mut self.theme, node, on);
         }
         if let Some(Part::Button(surface, button)) = Part::of(node) {
             let Some(i) = self.index(&surface) else {
@@ -1175,7 +1612,7 @@ impl Wm {
             Some(taskbar::Part::Task(_)) => self.sync_tasks(),
             Some(taskbar::Part::Pager(_)) => self.pagers(),
             None if Menu::owns(node) => self.menu.hover(&mut self.theme, node, on),
-            None => Vec::new(),
+            Some(taskbar::Part::Speaker(_) | taskbar::Part::Helper(_)) | None => Vec::new(),
         }
     }
 
@@ -1201,6 +1638,8 @@ impl Wm {
             let mut commands = self.add_output(output);
             commands.extend(self.sync_tasks());
             commands.extend(self.claim());
+            self.sync_cube_keys();
+            self.reserve_bars();
             return commands;
         };
         let mine: Vec<usize> = (0..self.windows.len())
@@ -1211,7 +1650,8 @@ impl Wm {
             &self.settings.value.wallpaper,
             output,
         )];
-        commands.extend(self.bars[i].resize(&mut self.theme, output, &self.clock));
+        let tray = (self.clock.as_str(), self.icons());
+        commands.extend(self.bars[i].resize(&mut self.theme, output, tray));
         commands.extend(self.pagers());
         let area = self.bars[i].usable();
         commands.extend(self.keep_inside(&mine, area));
@@ -1269,6 +1709,7 @@ impl Wm {
             }
             commands.extend(self.refresh_icons());
             commands.extend(self.claim());
+            self.sync_cube_keys();
         }
         commands
     }
@@ -1279,24 +1720,30 @@ impl Wm {
         let from = bar.usable();
         let mut commands = Vec::new();
         for i in 0..self.windows.len() {
-            if !bar.contains(self.windows[i].pos) {
-                continue;
+            if bar.contains(self.windows[i].pos) {
+                commands.extend(self.move_window(i, from, target));
             }
-            let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
-            let w = &mut self.windows[i];
-            w.restore = w.restore.map(|[x, y, rw, rh]| {
-                let [x, y] = moved([x, y], from, target);
-                [x, y, rw, rh]
-            });
-            if w.maximized() {
-                w.maximize(target);
-                commands.push(w.configure(active));
-                commands.extend(w.style(&mut self.theme, active));
-            } else {
-                w.pos = moved(w.pos, from, target);
-            }
-            commands.push(w.place());
         }
+        commands
+    }
+
+    /// Moves one window from the area of an output to that of another.
+    fn move_window(&mut self, i: usize, from: Rect, target: Rect) -> Vec<Command> {
+        let mut commands = Vec::new();
+        let active = self.focused.as_deref() == Some(self.windows[i].surface.as_str());
+        let w = &mut self.windows[i];
+        w.restore = w.restore.map(|[x, y, rw, rh]| {
+            let [x, y] = moved([x, y], from, target);
+            [x, y, rw, rh]
+        });
+        if w.maximized() {
+            w.maximize(target);
+            commands.push(w.configure(active));
+            commands.extend(w.style(&mut self.theme, active));
+        } else {
+            w.pos = moved(w.pos, from, target);
+        }
+        commands.push(w.place());
         commands
     }
 
@@ -1320,11 +1767,13 @@ impl Wm {
             Event::InputKey {
                 binding,
                 state: PressState::Pressed,
+                ..
             } => self.key(&binding),
             Event::InputKey {
+                binding,
                 state: PressState::Released,
                 ..
-            } => self.key_released(),
+            } => self.key_released(&binding),
             Event::InputButton {
                 state, position, ..
             } => match state {
@@ -1346,26 +1795,52 @@ impl Wm {
         if self.switch_escape.as_deref() == Some(binding) {
             return self.cancel_switch();
         }
-        match self.rt.action(binding).copied() {
+        let action = self.rt.action(binding).copied();
+        match (&mut self.tap, action) {
+            (tap, Some(Key::Tap)) => *tap = Some(false),
+            (Some(used), _) => *used = true,
+            _ => {}
+        }
+        match action {
             Some(Key::Close) => self.focused.as_deref().map(close).unwrap_or_default(),
-            Some(Key::Terminal) => {
-                chora_kit::run(&self.settings.value.terminal);
+            Some(Key::Files) => self.open_files(),
+            Some(Key::Launcher) => {
+                let launcher = self.settings.value.launcher.clone();
+                self.start_program(&launcher);
                 Vec::new()
             }
+            Some(Key::Desktop) => self.toggle_desktop(),
             Some(Key::Turn(steps)) => self.turn(steps),
             Some(Key::Carry(steps)) => self.carry(steps),
             Some(Key::Switch(step)) => self.switch(step),
-            // Not under the shade of Log Off or Turn Off.
-            Some(Key::Start) if self.dialog.is_some() => Vec::new(),
-            Some(Key::Start) => {
-                let mut commands = self.close_context();
-                if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
-                    commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
+            Some(Key::Start) => self.toggle_start(),
+            Some(Key::Give(to)) => {
+                if let Err(err) = give::focused(self, to) {
+                    eprintln!("chora-xp: give to {to}: {}", err.message);
                 }
-                commands
+                Vec::new()
             }
-            Some(Key::Cube) | None => Vec::new(),
+            Some(Key::Volume(change)) => self.change_volume(change, true),
+            Some(Key::Chat) => {
+                self.start_program(control::CHAT);
+                Vec::new()
+            }
+            Some(Key::Help) => self.open_help(help::KEYBOARD),
+            Some(Key::Cube | Key::Tap) | None => Vec::new(),
         }
+    }
+
+    /// Ctrl+Escape and Super alone: opens or closes the start menu, but
+    /// not under the shade of Log Off or Turn Off.
+    fn toggle_start(&mut self) -> Vec<Command> {
+        if self.dialog.is_some() {
+            return Vec::new();
+        }
+        let mut commands = self.close_context();
+        if let Some(output) = self.bars.first().map(|b| b.output.clone()) {
+            commands.extend(self.press_taskbar(taskbar::Part::Start(output)));
+        }
+        commands
     }
 
     /// Alt+Tab: opens XP's switcher, or moves its choice.
@@ -1390,7 +1865,7 @@ impl Wm {
                 .filter(|w| w.shown && w.desktop == self.desktop)
                 .collect();
             windows.sort_by_key(|w| w.minimized);
-            let entries = windows
+            let mut entries = windows
                 .into_iter()
                 .map(|w| switcher::Entry {
                     surface: w.surface.clone(),
@@ -1400,10 +1875,19 @@ impl Wm {
                         .program_sized(w.app_id.as_deref().unwrap_or_default(), 32),
                 })
                 .collect::<Vec<_>>();
+            if self.has_help() {
+                let help = switcher::Entry {
+                    surface: HELP_TASK.into(),
+                    title: help::TITLE.into(),
+                    icon: self.icons.program_sized("help-browser", 32),
+                };
+                add_help(&mut entries, help, self.help_active());
+            }
             let Some(switcher) = Switcher::new(entries, step) else {
                 return commands;
             };
             self.switcher = Some(switcher);
+            self.tell_switcher(true);
             self.grab_switch_escape();
         }
         commands.extend(self.show_switcher(open));
@@ -1539,7 +2023,13 @@ impl Wm {
 
     /// The release of the modifier of a key: Alt up after Alt+Tab
     /// activates the chosen window.
-    fn key_released(&mut self) -> Vec<Command> {
+    fn key_released(&mut self, binding: &str) -> Vec<Command> {
+        if matches!(self.rt.action(binding), Some(Key::Tap)) {
+            return match self.tap.take() {
+                Some(false) => self.toggle_start(),
+                _ => Vec::new(),
+            };
+        }
         let Some(switcher) = self.end_switch() else {
             return Vec::new();
         };
@@ -1561,13 +2051,33 @@ impl Wm {
                 return;
             }
         };
-        match self
-            .rt
-            .conn
-            .call::<_, String>("input.grab", Grab { binding })
-        {
+        let mut grabbed = Err(String::new());
+        for attempt in 0..ESCAPE_TRIES {
+            if attempt > 0 {
+                std::thread::sleep(ESCAPE_WAIT);
+            }
+            let grab = Grab {
+                binding: Binding::clone(&binding),
+            };
+            grabbed =
+                (self.rt.conn.call::<_, String>("input.grab", grab)).map_err(|e| e.to_string());
+            if grabbed.is_ok() {
+                break;
+            }
+        }
+        match grabbed {
             Ok(normal) => self.switch_escape = Some(normal),
             Err(err) => eprintln!("chora-xp: {err}"),
+        }
+    }
+
+    /// Tells the other clients that the switcher shows or went, with the
+    /// event `xp.switcher`: one that holds Alt+Escape gives it up for
+    /// that time.
+    fn tell_switcher(&mut self, shown: bool) {
+        let event = serde_json::json!({"event": "xp.switcher", "data": {"shown": shown}});
+        if let Err(err) = self.rt.conn.call::<_, Value>("events.emit", event) {
+            eprintln!("chora-xp: {err}");
         }
     }
 
@@ -1586,7 +2096,11 @@ impl Wm {
                 eprintln!("chora-xp: {err}");
             }
         }
-        self.switcher.take()
+        let switcher = self.switcher.take();
+        if switcher.is_some() {
+            self.tell_switcher(false);
+        }
+        switcher
     }
 
     /// A press on a context menu goes to it; one elsewhere closes it and
@@ -1597,21 +2111,16 @@ impl Wm {
             return Vec::new();
         }
         self.resize = None;
-        let mut commands = self.close_context();
+        if let Some(used) = &mut self.tap {
+            *used = true;
+        }
+        let mut commands = self.tip.cancel(None);
+        commands.extend(self.close_context());
         commands.extend(self.press_node(node, button, position));
         commands
     }
 
     fn press_node(&mut self, node: &str, button: u32, position: [f64; 2]) -> Vec<Command> {
-        if Balloon::owns(node) {
-            return self.press_balloon(node);
-        }
-        if Assistant::owns(node) {
-            return self.press_assistant();
-        }
-        if self.press_answer(node) {
-            return Vec::new();
-        }
         if self.dialog.is_some() {
             return self.press_dialog(node);
         }
@@ -1668,7 +2177,7 @@ impl Wm {
         if let Some(commands) = self.open_item_menu(node, point) {
             return commands;
         }
-        let entries = if node.starts_with("xp-tray-") {
+        let entries = if node.starts_with("xp-tray-") || node.starts_with("xp-speaker-") {
             context::clock(self.taskbar.locked)
         } else if node.starts_with("xp-panel-") || node.starts_with("xp-pager-") {
             context::taskbar(self.taskbar.locked)
@@ -1755,6 +2264,11 @@ impl Wm {
                 context::Key::Close => self.close_context(),
             };
         }
+        if key == "Escape"
+            && let Some(i) = self.panels.iter().position(|p| matches!(p, Panel::Help(_)))
+        {
+            return self.close_panel(i);
+        }
         if !self.menu.is_open() {
             return if key == MENU_KEY {
                 self.desktop_menu_key()
@@ -1824,21 +2338,63 @@ impl Wm {
         commands
     }
 
+    /// Show the desktop: puts the windows of the desktop away, or brings
+    /// back the same windows when it did that and they are still away.
+    fn toggle_desktop(&mut self) -> Vec<Command> {
+        let shown: Vec<String> = self
+            .windows
+            .iter()
+            .filter(|w| w.shown && !w.minimized && w.desktop == self.desktop)
+            .map(|w| w.surface.clone())
+            .collect();
+        let away: Vec<(&str, bool)> = self
+            .windows
+            .iter()
+            .map(|w| (w.surface.as_str(), w.minimized))
+            .collect();
+        match desktop_plan(&self.hidden, &shown, &away) {
+            Plan::Away(surfaces) => {
+                self.hidden.clone_from(&surfaces);
+                surfaces.iter().flat_map(|s| self.minimize(s)).collect()
+            }
+            Plan::Back(surfaces) => {
+                self.hidden.clear();
+                surfaces.iter().flat_map(|s| self.activate(s)).collect()
+            }
+        }
+    }
+
+    /// Super+e: opens the home folder in the file manager, or tells the
+    /// person that none is installed and which setting names one.
+    fn open_files(&mut self) -> Vec<Command> {
+        let manager = self.settings.value.file_manager.clone();
+        let installed = manager
+            .split_whitespace()
+            .next()
+            .is_some_and(session::on_path);
+        if installed {
+            let home =
+                std::env::var_os("HOME").map_or_else(|| "/".into(), std::path::PathBuf::from);
+            self.start_program(&desktop_icons::open_with(&manager, &home));
+        } else {
+            let message = Message {
+                icon: "",
+                summary: "No file manager",
+                body: "No file manager is installed. Install one, or name it in the setting file_manager of chora-xp.yaml.",
+                expire_ms: 10_000,
+            };
+            self.notifier.show("chora-xp", None, &message);
+        }
+        Vec::new()
+    }
+
     /// Does what a row of a context menu says, on the output of the menu.
     fn act(&mut self, act: Act, area: Rect) -> Vec<Command> {
         match act {
             Act::Cascade => self.arrange_windows(area, None),
             Act::TileRows => self.arrange_windows(area, Some(false)),
             Act::TileColumns => self.arrange_windows(area, Some(true)),
-            Act::ShowDesktop => {
-                let shown: Vec<String> = self
-                    .windows
-                    .iter()
-                    .filter(|w| w.shown && !w.minimized && w.desktop == self.desktop)
-                    .map(|w| w.surface.clone())
-                    .collect();
-                shown.iter().flat_map(|s| self.minimize(s)).collect()
-            }
+            Act::ShowDesktop => self.toggle_desktop(),
             Act::Lock => {
                 let taskbar = taskbar::Settings {
                     locked: !self.taskbar.locked,
@@ -1907,8 +2463,8 @@ impl Wm {
 
     /// Only the left button works the taskbar, the menu and the desktop.
     fn press_left(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
-        if node.starts_with("xp-tray-") {
-            self.press_clock(position)
+        if node.starts_with("xp-tray-") || node.starts_with("xp-speaker-") {
+            self.press_tray(position)
         } else if let Some(part) = taskbar::Part::of(node) {
             self.press_taskbar(part)
         } else if Menu::owns(node) {
@@ -2013,6 +2569,9 @@ impl Wm {
                 start: position,
                 origin: self.windows[i].pos,
                 last: position,
+                kept: false,
+                speed: [0.0; 2],
+                moved_at: Instant::now(),
             });
             self.start_wobble(surface, position);
         }
@@ -2038,6 +2597,12 @@ impl Wm {
                 commands
             }
             taskbar::Part::Pager(desktop) => self.turn_to(desktop),
+            taskbar::Part::Speaker(_) => Vec::new(),
+            taskbar::Part::Helper(_) => {
+                self.start_program(control::CHAT);
+                Vec::new()
+            }
+            taskbar::Part::Task(surface) if surface == HELP_TASK => self.focus_help(),
             taskbar::Part::Task(surface) => {
                 let minimized = self
                     .index(&surface)
@@ -2078,8 +2643,14 @@ impl Wm {
         if drag.last == [px, py] {
             return Vec::new();
         }
+        let now = Instant::now();
+        drag.speed = speed(drag.speed, drag.last, [px, py], now - drag.moved_at);
+        drag.moved_at = now;
         drag.last = [px, py];
         let (surface, start, origin) = (drag.surface.clone(), drag.start, drag.origin);
+        if let Some(commands) = self.pull_out(&surface, start, origin, [px, py]) {
+            return commands;
+        }
         let Some(i) = self.index(&surface) else {
             return Vec::new();
         };
@@ -2097,7 +2668,20 @@ impl Wm {
         commands
     }
 
+    /// The release of a button; after a drag of a window the task
+    /// buttons follow the window to the output where it lies now.
     fn released(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
+        let dragged = self.drag.is_some();
+        let mut commands = self.release(node, position);
+        if dragged {
+            commands.extend(self.sync_tasks());
+        }
+        commands
+    }
+
+    /// What [`Self::released`] does, before the task buttons follow a
+    /// window that a drag moved to another output.
+    fn release(&mut self, node: &str, position: [f64; 2]) -> Vec<Command> {
         if let Some((menu, area)) = self.context.as_mut().filter(|_| context::Menu::owns(node)) {
             let area = *area;
             let Some(act) = menu.release(position) else {
@@ -2111,6 +2695,9 @@ impl Wm {
             let point = position.map(|p| p.floor() as i32);
             if !self.bars.iter().any(|b| b.contains(point)) {
                 return self.hand_over(&drag.surface, position);
+            }
+            if let Some(commands) = self.drop_on_far_output(&drag, point) {
+                return commands;
             }
         }
         if let Some(group) = self
@@ -2153,6 +2740,19 @@ impl Wm {
         commands
     }
 
+    /// Places a window whose title bar was dropped on an output that
+    /// shows no part of it, inside that output.
+    fn drop_on_far_output(&mut self, drag: &Drag, point: [i32; 2]) -> Option<Vec<Command>> {
+        let i = self.index(&drag.surface)?;
+        let area = self.bars.iter().find(|b| b.contains(point))?.usable();
+        #[allow(clippy::cast_possible_truncation)]
+        let grab = [0, 1].map(|axis| drag.start[axis].floor() as i32 - drag.origin[axis]);
+        self.windows[i].pos = dropped_on(self.windows[i].rect(), area, point, grab)?;
+        let mut commands = vec![self.windows[i].place()];
+        commands.extend(self.keep_inside(&[i], area));
+        Some(commands)
+    }
+
     /// The release after a press on the desktop: icons dropped on a window
     /// or on the Recycle Bin go back to their places, as XP shows "not
     /// allowed" there; else they go into their cells.
@@ -2174,6 +2774,46 @@ impl Wm {
         }
         self.desk
             .release(&mut self.theme, &mut self.icons, position)
+    }
+
+    /// A drag of a title bar that leaves the face where it started gives
+    /// the window with the drag to the client that shows the face, so
+    /// that the window follows the pointer out of the cube (E3). The
+    /// commands after the give; `None` on a screen, inside the face, and
+    /// after the core refused, as it does for an injected drag: then the
+    /// window stays with chora-xp.
+    #[allow(clippy::cast_possible_truncation, reason = "scene coordinates")]
+    fn pull_out(
+        &mut self,
+        surface: &str,
+        start: [f64; 2],
+        origin: [i32; 2],
+        pointer: [f64; 2],
+    ) -> Option<Vec<Command>> {
+        if self.drag.as_ref().is_none_or(|d| d.kept) {
+            return None;
+        }
+        let pixel = |p: [f64; 2]| p.map(|v| v.floor() as i32);
+        let face = self.bars.iter().find(|b| b.contains(pixel(start)))?;
+        let to = pulled_out(face.area(), face.owner(), pixel(pointer))?.to_owned();
+        let grab = chora_scene::GivenGrab {
+            point: [
+                start[0] - f64::from(origin[0]),
+                start[1] - f64::from(origin[1]),
+            ],
+            velocity: self.drag.as_ref().map_or([0.0; 2], |d| d.speed),
+            wobble: None,
+        };
+        match self.give_dragged(surface, &to, Some(grab)) {
+            Ok((_, commands)) => Some(commands),
+            Err(err) => {
+                eprintln!("chora-xp: {surface} stays on its face: {}", err.message);
+                if let Some(drag) = &mut self.drag {
+                    drag.kept = true;
+                }
+                None
+            }
+        }
     }
 
     /// A window dragged out of the work areas of `chora-xp` goes to the
@@ -2202,7 +2842,27 @@ impl Wm {
     /// Hands a window to the window manager `to` (D55), which gives it the
     /// focus: the answer of `window.give`, and the commands.
     fn give(&mut self, surface: &str, to: &str) -> Result<(Value, Vec<Command>), RpcError> {
-        let answer = self.rt.conn.give(surface, to)?;
+        self.give_dragged(surface, to, None)
+    }
+
+    /// As [`Self::give`]; with `grab` the drag of the title bar goes too,
+    /// with the springs of the wobble unless the caller sent some, and the
+    /// drag of chora-xp ends.
+    fn give_dragged(
+        &mut self,
+        surface: &str,
+        to: &str,
+        mut grab: Option<chora_scene::GivenGrab>,
+    ) -> Result<(Value, Vec<Command>), RpcError> {
+        if let Some(grab) = &mut grab {
+            let springs = self.wobble_springs(surface);
+            grab.wobble = grab.wobble.take().or(springs);
+        }
+        let dragged = grab.is_some();
+        let answer = self.rt.conn.give_dragged(surface, to, grab)?;
+        if dragged {
+            self.drag.take_if(|d| d.surface == surface);
+        }
         // No window of chora-xp takes the focus.
         if self.is_active(surface) {
             self.focused = None;
@@ -2238,6 +2898,65 @@ impl Wm {
         commands
     }
 
+    /// Starts a program and follows it until its window shows.
+    fn start_program(&mut self, command: &str) {
+        let exe = std::env::current_exe().unwrap_or_else(|_| "chora-xp".into());
+        let themed = launch::themed(
+            command,
+            &self.theme.path("fuzzel.ini"),
+            &exe.to_string_lossy(),
+            &self.settings.value.terminal,
+        );
+        self.start_named(&themed, launch::program_name(command));
+    }
+
+    /// Starts a program that the user knows by another name than its
+    /// command, such as a file that `xdg-open` opens.
+    fn start_named(&mut self, command: &str, name: String) {
+        let token = self.rt.conn.activation_token();
+        if let Some(change) = self.launches.run(command, (name, token), Instant::now()) {
+            self.tell(&change);
+        }
+    }
+
+    /// Shows what the programs that wait for a window call for.
+    fn check_launches(&mut self) {
+        let mut changes = self.launches.collect();
+        changes.extend(self.launches.check(Instant::now()));
+        for change in &changes {
+            self.tell(change);
+        }
+    }
+
+    /// Tells the user that a program starts or did not open.
+    fn tell(&mut self, change: &Change) {
+        if let Change::Done { note: Some(note) } = change {
+            self.notifier.close(*note);
+        }
+        if matches!(change, Change::Done { .. }) {
+            return;
+        }
+        let (summary, body) = change.text();
+        let (replaces, expire_ms) = match change {
+            Change::Starting { .. } => (
+                None,
+                i32::try_from(launch::GIVE_UP.as_millis()).unwrap_or(-1),
+            ),
+            Change::Failed { note, .. } => (*note, -1),
+            Change::Done { .. } => return,
+        };
+        let message = Message {
+            icon: "",
+            summary: &summary,
+            body: &body,
+            expire_ms,
+        };
+        let id = self.notifier.show("chora-xp", replaces, &message);
+        if let (Change::Starting { token, .. }, Some(id)) = (change, id) {
+            self.launches.noted(token, id);
+        }
+    }
+
     fn close_menu(&mut self) -> Vec<Command> {
         let output = self.menu.output().map(String::from);
         let mut commands = self.menu.close(&mut self.theme);
@@ -2252,18 +2971,13 @@ impl Wm {
     fn run(&mut self, action: &Action, output: Option<&str>) -> Vec<Command> {
         match action {
             Action::Run(command) => {
-                // choractl run drops the stderr of the app: say it here.
-                // All Programs without desktop files runs the launcher.
-                let program = command.split_whitespace().next().unwrap_or_default();
-                if !session::on_path(program) {
-                    eprintln!("chora-xp: {program:?} is not on PATH, {command:?} does not run");
-                }
-                chora_kit::run(command);
+                self.start_program(command);
                 Vec::new()
             }
             Action::LogOff => self.open_dialog(Mode::LogOff, output),
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
+            Action::Help => self.open_help(0),
         }
     }
 
@@ -2292,6 +3006,38 @@ impl Wm {
         let page = panel.page(&mut self.theme, &self.clock);
         let commands = panel.dialog.create(&mut self.theme, DIALOGS, page);
         self.panels.push(Panel::Taskbar(panel));
+        commands
+    }
+
+    /// Help and Support on a topic, in the middle of the work area, or the
+    /// open one on top, showing that topic. The window takes the keyboard,
+    /// so that Escape closes it.
+    fn open_help(&mut self, topic: usize) -> Vec<Command> {
+        let mut commands = Vec::new();
+        if let Some(i) = self.panels.iter().position(|p| matches!(p, Panel::Help(_))) {
+            if let Panel::Help(panel) = &mut self.panels[i] {
+                panel.show_topic(topic);
+            }
+            commands.extend(self.redraw_panel(i));
+            commands.extend(
+                self.raise_panel(|p| matches!(p, Panel::Help(_)))
+                    .unwrap_or_default(),
+            );
+        } else {
+            let area = self.bars.first().map_or([0, 0, 1280, 770], Bar::usable);
+            let rows = help::rows(|binding| self.rt.holds(binding));
+            let mut panel = HelpDialog::new(topic, rows, area);
+            let page = panel.page(&self.theme);
+            commands.extend(panel.dialog.create(&mut self.theme, DIALOGS, page));
+            self.panels.push(Panel::Help(panel));
+        }
+        commands.extend(self.focus(None));
+        if let Some(Panel::Help(panel)) = self.panels.last() {
+            commands.push(Command::FocusNode {
+                node: Some(panel.dialog.group()),
+            });
+        }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -2477,8 +3223,8 @@ impl Wm {
             && let Some(top) = self.topmost_except("")
         {
             commands.extend(self.focus(Some(&top)));
-            commands.extend(self.sync_tasks());
         }
+        commands.extend(self.sync_tasks());
         commands
     }
 
@@ -2507,24 +3253,27 @@ impl Wm {
             .map(|o| wallpaper::update(&mut self.theme, &config.wallpaper, o))
             .collect();
         commands.extend(self.set_taskbar(config.taskbar));
-        self.effects.toggles = config.effects;
+        self.effects.set_toggles(config.effects);
         self.desk.terminal.clone_from(&config.terminal);
         commands.extend(self.close_menu());
         commands.extend(self.menu.rebuild(
             &config,
-            apps::load(&config.terminal),
+            apps::load(&config.terminal, config.editor.as_deref()),
             &mut self.theme,
             &mut self.icons,
         ));
-        commands.extend(self.sync_assistant(Instant::now()));
         commands
     }
 
-    /// A double click on the clock of a taskbar opens Date and Time.
-    fn press_clock(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
+    /// A click on the speaker of a taskbar mutes or unmutes, and a double
+    /// click on the clock opens Date and Time.
+    fn press_tray(&mut self, [px, py]: [f64; 2]) -> Vec<Command> {
         #[allow(clippy::cast_possible_truncation)]
         let [x, y] = [px.floor() as i32, py.floor() as i32];
         let on = |[cx, cy, cw, ch]: Rect| (cx..cx + cw).contains(&x) && (cy..cy + ch).contains(&y);
+        if self.bars.iter().any(|b| on(b.speaker_rect())) {
+            return self.change_volume(volume::Change::Mute, false);
+        }
         let Some(bar) = self.bars.iter().find(|b| b.clock_rect().is_some_and(on)) else {
             return Vec::new();
         };
@@ -2560,8 +3309,21 @@ impl Wm {
             commands.extend(self.click_display(i, &hit));
             return commands;
         }
+        if let Panel::Help(panel) = &mut self.panels[i] {
+            match panel.click(&hit) {
+                help::Click::Redraw => commands.extend(self.redraw_panel(i)),
+                help::Click::Close => commands.extend(self.close_panel(i)),
+                help::Click::Helper => {
+                    commands.extend(self.close_panel(i));
+                    self.start_program(control::CHAT);
+                }
+            }
+            return commands;
+        }
         let outcome = match (&mut self.panels[i], &hit) {
-            (_, Hit::Close) | (Panel::Display(_) | Panel::Effects(_), _) => Outcome::Close,
+            (_, Hit::Close) | (Panel::Display(_) | Panel::Effects(_) | Panel::Help(_), _) => {
+                Outcome::Close
+            }
             (Panel::Taskbar(panel), hit) => panel.click(hit),
             (Panel::Clock(panel), hit) => match panel.click(hit) {
                 Click::Redraw => Outcome::Redraw,
@@ -2609,6 +3371,10 @@ impl Wm {
                 panel.dialog.show(&mut self.theme, page)
             }
             Panel::Effects(_) => Vec::new(),
+            Panel::Help(panel) => {
+                let page = panel.page(&self.theme);
+                panel.dialog.show(&mut self.theme, page)
+            }
         }
     }
 
@@ -2621,7 +3387,8 @@ impl Wm {
         for i in 0..self.bars.len() {
             let before = self.bars[i].usable();
             self.bars[i].configure(settings);
-            commands.push(self.bars[i].tray(&mut self.theme, &self.clock));
+            let icons = self.icons();
+            commands.extend(self.bars[i].tray(&mut self.theme, &self.clock, icons));
             commands.extend(self.refit(before, self.bars[i].usable()));
         }
         if old.on_top != settings.on_top {
@@ -2633,6 +3400,7 @@ impl Wm {
                 index: Some(index),
             });
         }
+        self.reserve_bars();
         commands.extend(self.pagers());
         commands.extend(self.sync_tasks());
         commands.extend(self.refresh_icons());
@@ -2748,33 +3516,68 @@ impl Wm {
     /// program or a file with the program of its type.
     fn open_icon(&mut self, open: desktop_icons::Open) -> Vec<Command> {
         let fm = &self.settings.value.file_manager;
-        chora_kit::run(&match open {
+        let mut name = None;
+        let command = match open {
             desktop_icons::Open::Folder(path) => desktop_icons::open_with(fm, &path),
             desktop_icons::Open::Computer => desktop_icons::open_with(fm, Path::new("/")),
             desktop_icons::Open::Trash => {
                 desktop_icons::open_with(fm, &desktop_icons::trash_to_open())
             }
             desktop_icons::Open::Run(command) => command,
-            desktop_icons::Open::File(path) => desktop_icons::xdg_open(&path),
-        });
+            desktop_icons::Open::File(path) => {
+                name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+                desktop_icons::xdg_open(&path)
+            }
+        };
+        match name {
+            Some(name) => self.start_named(&command, name),
+            None => self.start_program(&command),
+        }
         Vec::new()
     }
 
     // The Control Panel of the start menu
 
-    /// The outputs of the plugin as the core has them.
+    /// The outputs of the plugin as the core has them, but with the work
+    /// areas that the taskbars reserve: xp lays them out itself.
     fn outputs(&mut self) -> Vec<OutputInfo> {
-        self.rt.outputs().unwrap_or_else(|err| {
+        let outputs = self.rt.outputs().unwrap_or_else(|err| {
             eprintln!("chora-xp: {err}");
             Vec::new()
-        })
+        });
+        (outputs.into_iter())
+            .map(|o| without_reserve(&self.reserved, o))
+            .collect()
+    }
+
+    /// Reserves the height of each taskbar of a screen at the bottom of
+    /// the work area of the core, so that the chat, the notifications and
+    /// other clients keep clear of it.
+    fn reserve_bars(&mut self) {
+        let wanted: Vec<(String, i32)> = (self.bars.iter())
+            .map(|bar| (bar.output.clone(), bar.reserve()))
+            .filter(|(output, height)| self.reserved.get(output).copied().unwrap_or(0) != *height)
+            .collect();
+        for (output, height) in wanted {
+            self.reserved.insert(output.clone(), height);
+            let edges = json!({"output": output, "edges": {"bottom": height}});
+            if let Err(err) = self.rt.conn.call::<_, Value>("output.reserve", edges) {
+                eprintln!("chora-xp: output.reserve: {err}");
+            }
+        }
     }
 
     /// The Control Panel for an output, with the current choices.
     fn control_panel(&mut self) -> Vec<apps::Node> {
         let walls = control::wallpapers(&wallpaper::dirs(&self.theme));
         let current = self.settings.value.wallpaper.file(&self.theme);
-        control::menu(current.as_deref(), &walls, self.effects.toggles)
+        control::menu(
+            current.as_deref(),
+            &walls,
+            self.effects.toggles,
+            self.volume.unwrap_or(Reading::Failed),
+            &self.held_shortcuts(),
+        )
     }
 
     /// Changes a setting: the scale of the output of the menu through the
@@ -2806,6 +3609,20 @@ impl Wm {
                 toggles.flip(*effect);
                 self.change(json!({ "effects": toggles }))
             }
+            Setting::Volume(change) => self.change_volume(*change, false),
+            Setting::Give(to) => {
+                if let Err(err) = give::focused(self, to) {
+                    let message = Message {
+                        icon: "",
+                        summary: "Keyboard Shortcuts",
+                        body: &err.message,
+                        expire_ms: -1,
+                    };
+                    self.notifier.show("chora-xp", None, &message);
+                }
+                Vec::new()
+            }
+            Setting::Note => Vec::new(),
             Setting::Taskbar | Setting::DateTime | Setting::Display => {
                 let area = output
                     .and_then(|o| self.bars.iter().find(|b| b.output == o))
@@ -2953,6 +3770,7 @@ impl Wm {
                 if let Some(command) = session.restart {
                     session::run(command);
                 } else {
+                    self.floats.land_all();
                     commands.extend(self.keep_for_restart());
                     self.done = true;
                     self.restart = true;
@@ -2960,107 +3778,6 @@ impl Wm {
             }
             Choice::SwitchUser | Choice::Cancel => {}
         }
-        commands
-    }
-}
-
-impl Wm {
-    // The balloons of the notifications
-
-    /// When the main loop looks at the notifications again: soon, while
-    /// the server runs.
-    pub fn notes_due(&self, now: Instant) -> Option<Instant> {
-        self.bus.as_ref()?;
-        let poll = now + balloon::POLL;
-        Some(self.notes.due().map_or(poll, |due| due.min(poll)))
-    }
-
-    /// Takes the calls of the clients and closes an expired balloon.
-    pub fn notifications(&mut self, now: Instant) -> Result<(), ClientError> {
-        let Some(bus) = &self.bus else {
-            return Ok(());
-        };
-        let requests: Vec<Request> = bus.requests.try_iter().collect();
-        let mut signals = Vec::new();
-        for request in requests {
-            match request {
-                Request::Notify(note) => self.notes.push(note, now),
-                Request::Close(id) => signals.extend(self.notes.close(id, Reason::Closed, now)),
-            }
-        }
-        signals.extend(self.notes.expire(now));
-        let commands = self.after_notes(&signals);
-        if commands.is_empty() {
-            return Ok(());
-        }
-        self.apply(commands)
-    }
-
-    /// A click on the close button dismisses the balloon; one on the
-    /// balloon invokes its default action, too.
-    fn press_balloon(&mut self, node: &str) -> Vec<Command> {
-        let now = Instant::now();
-        let signals = match self.notes.current() {
-            Some(shown) if Balloon::is_close(node) => {
-                self.notes.close(shown.id, Reason::Dismissed, now)
-            }
-            _ => self.notes.click(now),
-        };
-        self.after_notes(&signals)
-    }
-
-    /// Sends the signals and shows the balloon of the current
-    /// notification, if it changed.
-    fn after_notes(&mut self, signals: &[Signal]) -> Vec<Command> {
-        if let Some(bus) = &self.bus {
-            for signal in signals {
-                bus.emit(signal);
-            }
-        }
-        let current = self.notes.current();
-        if self.balloon.as_ref().map(|(note, _)| note) == current {
-            return Vec::new();
-        }
-        let current = current.cloned();
-        let mut commands = Vec::new();
-        if self.balloon.take().is_some() {
-            commands.push(Balloon::remove());
-        }
-        let icon = current
-            .as_ref()
-            .map(|n| n.icon.as_str())
-            .filter(|i| !i.is_empty())
-            .and_then(|i| self.icons.find(i));
-        // The notification area shows the icon of the balloon, or XP's
-        // information icon, while the balloon shows.
-        let tray = current.as_ref().map(|_| {
-            icon.clone()
-                .unwrap_or_else(|| self.theme.path("winxp/balloon-info.svg"))
-        });
-        commands.extend(self.tray_icon(tray));
-        let (Some(note), Some(bar)) = (current, self.bars.first()) else {
-            return commands;
-        };
-        let balloon = Balloon::new(&mut self.theme, &note, icon.as_deref(), bar);
-        commands.extend(balloon.create(&mut self.theme));
-        self.balloon = Some((note, balloon));
-        self.play(Sound::Balloon);
-        commands
-    }
-
-    /// Puts an icon into the notification area of the first output, or
-    /// takes it out; the task and desktop buttons make room.
-    fn tray_icon(&mut self, icon: Option<PathBuf>) -> Vec<Command> {
-        let Some(bar) = self.bars.first_mut() else {
-            return Vec::new();
-        };
-        if bar.icon == icon {
-            return Vec::new();
-        }
-        bar.icon = icon;
-        let mut commands = vec![bar.tray(&mut self.theme, &self.clock)];
-        commands.extend(self.pagers());
-        commands.extend(self.sync_tasks());
         commands
     }
 }
@@ -3075,6 +3792,8 @@ enum Panel {
     Display(DisplayDialog),
     /// Effects of Display Properties.
     Effects(EffectsDialog),
+    /// Help and Support.
+    Help(HelpDialog),
 }
 
 /// What a context menu of an icon or of the start menu acts on.
@@ -3092,6 +3811,7 @@ impl Panel {
             Self::Clock(panel) => &mut panel.dialog,
             Self::Display(panel) => &mut panel.dialog,
             Self::Effects(panel) => &mut panel.dialog,
+            Self::Help(panel) => &mut panel.dialog,
         }
     }
 
@@ -3108,7 +3828,33 @@ impl Panel {
             Self::Clock(panel) => &panel.dialog,
             Self::Display(panel) => &panel.dialog,
             Self::Effects(panel) => &panel.dialog,
+            Self::Help(panel) => &panel.dialog,
         }
+    }
+}
+
+/// What Super+d does.
+#[derive(Debug, PartialEq, Eq)]
+enum Plan {
+    /// Puts these windows away.
+    Away(Vec<String>),
+    /// Brings these windows back.
+    Back(Vec<String>),
+}
+
+/// Show the desktop: the windows that it put away come back while at
+/// least one of them is still away; else the windows that show go away.
+/// `away` lists each window and whether it is minimized.
+fn desktop_plan(hidden: &[String], shown: &[String], away: &[(&str, bool)]) -> Plan {
+    let still: Vec<String> = hidden
+        .iter()
+        .filter(|h| away.iter().any(|(s, minimized)| s == h && *minimized))
+        .cloned()
+        .collect();
+    if still.is_empty() {
+        Plan::Away(shown.to_vec())
+    } else {
+        Plan::Back(still)
     }
 }
 
@@ -3116,6 +3862,18 @@ impl Panel {
 /// client, when it dropped the effects.
 fn is_own(client: &str) -> bool {
     client == NAME
+}
+
+/// An output as xp lays it out: the height that its taskbar reserves
+/// stays in the work area.
+fn without_reserve(reserved: &HashMap<String, i32>, mut output: OutputInfo) -> OutputInfo {
+    let height = reserved.get(&output.name).copied().unwrap_or(0);
+    for area in [&mut output.work_area, &mut output.default_work_area] {
+        if *area != [0; 4] {
+            area[3] += height;
+        }
+    }
+    output
 }
 
 /// Whether chora-xp takes a created surface: a free one, or one the core
@@ -3154,9 +3912,33 @@ enum Call {
         /// The desktop, from 0 to 3.
         desktop: usize,
     },
+    /// Lets the windows of a virtual output float, or land.
+    Float(chora_kit::float::Float),
+    /// Moves a window to another output of the plugin, like a drag of
+    /// its title bar onto it.
+    Move {
+        /// The surface.
+        surface: String,
+        /// The name of the output.
+        output: String,
+        /// The point of the output where the title bar goes.
+        at: Option<[i32; 2]>,
+    },
     /// Hands a window to another window manager, like a drag out of the
     /// work areas.
     Give(give::Give),
+}
+
+/// Parameters of `xp.window.move`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MoveTo {
+    surface: String,
+    output: String,
+    /// The point of the output where the title bar goes, as a drop of a
+    /// drag there.
+    #[serde(default)]
+    at: Option<[i32; 2]>,
 }
 
 /// Parameters of `xp.start_menu`.
@@ -3196,7 +3978,20 @@ fn parse_call(method: &str, params: Value) -> Result<Call, RpcError> {
             surface: parse::<ForSurface>(params)?.surface,
         },
         "restart" => Call::Restart,
+        "window.move" => {
+            let MoveTo {
+                surface,
+                output,
+                at,
+            } = parse(params)?;
+            Call::Move {
+                surface,
+                output,
+                at,
+            }
+        }
         give::METHOD => Call::Give(parse(params)?),
+        chora_kit::float::METHOD => Call::Float(parse(params)?),
         "turn_to" => {
             let TurnTo { desktop } = parse(params)?;
             if desktop >= DESKTOPS {
@@ -3242,6 +4037,71 @@ fn max_scale(outputs: &[OutputInfo]) -> f64 {
 
 /// A position in one area at the same place in another, so that at least
 /// the title bar stays inside it.
+/// The taskbar of the output for a new window: the virtual output that
+/// the pointer entered last, else the first output. Screens keep the
+/// first one, as before virtual outputs.
+fn home_bar<'a>(bars: &'a [Bar], entered: Option<&str>) -> Option<&'a Bar> {
+    let under_the_pointer = |b: &&Bar| !b.has_pager() && Some(b.output.as_str()) == entered;
+    bars.iter().find(under_the_pointer).or(bars.first())
+}
+
+/// The place of a frame whose title bar was dropped at a point of an
+/// output that shows no part of it, as a drag does that ends on another
+/// virtual output: under the pointer, which holds it at `grab` from its
+/// corner. `None` when the output shows a part of the frame.
+fn dropped_on(frame: Rect, area: Rect, point: [i32; 2], grab: [i32; 2]) -> Option<[i32; 2]> {
+    let apart = |axis: usize| {
+        frame[axis] + frame[axis + 2] <= area[axis] || area[axis] + area[axis + 2] <= frame[axis]
+    };
+    (apart(0) || apart(1)).then(|| [point[0] - grab[0], point[1] - grab[1]])
+}
+
+/// The place of a frame of a width whose title bar was dropped at a point
+/// of an output with the area `area`: the middle of the title bar under
+/// the point, and at least a part of the title bar inside the area.
+fn dropped_at([ax, ay, aw, ah]: Rect, width: i32, [px, py]: [i32; 2]) -> [i32; 2] {
+    let keep = 64;
+    let x = ax + px - width / 2;
+    let y = ay + py - decoration::TITLE / 2;
+    [
+        x.clamp(ax + keep - width, ax + (aw - keep).max(0)),
+        y.clamp(ay, ay + (ah - decoration::TITLE).max(0)),
+    ]
+}
+
+/// The most speed of a drag on an axis, in pixels per second.
+const MAX_SPEED: f64 = 20_000.0;
+
+/// The speed of a drag after a move of the pointer in a time: half the
+/// speed before and half that of the move, so that one late event does
+/// not decide it. A move within a millisecond keeps the speed before.
+fn speed(before: [f64; 2], from: [f64; 2], to: [f64; 2], took: Duration) -> [f64; 2] {
+    let seconds = took.as_secs_f64();
+    if seconds < 0.001 {
+        return before;
+    }
+    [0, 1].map(|axis| {
+        let now = ((to[axis] - from[axis]) / seconds).clamp(-MAX_SPEED, MAX_SPEED);
+        f64::midpoint(before[axis], now)
+    })
+}
+
+/// How far past the edge of its face the pointer goes before a drag
+/// gives its window away, in pixels: a drag along the edge stays.
+const EXIT_MARGIN: i32 = 8;
+
+/// The client that gets a window whose drag started on a face: the owner
+/// of the virtual output, once the pointer is more than [`EXIT_MARGIN`]
+/// outside it. A screen has no owner, and a drag there gives at the
+/// release.
+fn pulled_out(face: Rect, owner: Option<&str>, [px, py]: [i32; 2]) -> Option<&str> {
+    let [left, top, w, h] = face;
+    let across = left - EXIT_MARGIN..left + w + EXIT_MARGIN;
+    let down = top - EXIT_MARGIN..top + h + EXIT_MARGIN;
+    let near = across.contains(&px) && down.contains(&py);
+    owner.filter(|_| !near)
+}
+
 fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32; 2] {
     let keep = 64;
     [
@@ -3250,9 +4110,149 @@ fn moved([px, py]: [i32; 2], [fx, fy, ..]: Rect, [tx, ty, tw, th]: Rect) -> [i32
     ]
 }
 
+/// The application ids of terminals, which show XP's command prompt.
+const TERMINALS: [&str; 9] = [
+    "foot",
+    "footclient",
+    "xterm",
+    "alacritty",
+    "kitty",
+    "konsole",
+    "wezterm",
+    "gnome-terminal",
+    "org.wezfurlong.wezterm",
+];
+
+/// The icon of a window for its title bar and task button, 16 pixels: a
+/// terminal gets the command prompt, a program its own icon of that size,
+/// and a program without art the generic program icon of the theme.
+fn window_icon(icons: &mut Icons, app_id: Option<&str>) -> Option<std::path::PathBuf> {
+    let id = app_id.unwrap_or_default();
+    let lower = id.to_ascii_lowercase();
+    if let Some(prompt) = TERMINALS
+        .contains(&lower.as_str())
+        .then(|| icons.find_sized("utilities-terminal", 16))
+        .flatten()
+    {
+        return Some(prompt);
+    }
+    icons
+        .find_sized(id, 16)
+        .filter(|file| !crate::startmenu::is_fragment(file))
+        .or_else(|| icons.find_sized("applications-other", 16))
+        .or_else(|| icons.program_sized(id, 16))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn show_desktop_puts_windows_away_and_brings_the_same_ones_back() {
+        let shown = vec!["s1".to_string(), "s2".to_string()];
+        let both_up = [("s1", false), ("s2", false), ("s3", true)];
+        assert_eq!(
+            desktop_plan(&[], &shown, &both_up),
+            Plan::Away(shown.clone())
+        );
+        let hidden = shown.clone();
+        let away = [("s1", true), ("s2", true), ("s3", true)];
+        assert_eq!(
+            desktop_plan(&hidden, &[], &away),
+            Plan::Back(hidden.clone())
+        );
+        let one_back = [("s1", false), ("s2", true), ("s3", true)];
+        assert_eq!(
+            desktop_plan(&hidden, &["s1".to_string()], &one_back),
+            Plan::Back(vec!["s2".to_string()])
+        );
+        let all_back = [("s1", false), ("s2", false)];
+        assert_eq!(desktop_plan(&hidden, &shown, &all_back), Plan::Away(shown));
+    }
+
+    #[test]
+    fn the_keys_of_the_other_looks_are_bound_here_too() {
+        let bound: Vec<&str> = KEYS.iter().map(|(b, ..)| *b).collect();
+        for key in [
+            "Super+Super_L",
+            "Super+d",
+            "Super+space",
+            "Super+e",
+            "Super+a",
+        ] {
+            assert!(bound.contains(&key), "{key}");
+        }
+        assert!(matches!(
+            KEYS.iter().find(|(b, ..)| *b == "Super+e").map(|k| k.2),
+            Some(Key::Files)
+        ));
+    }
+
+    use chora_kit::volume::Change;
+
     use super::*;
+
+    /// The volume keys and the chat key are bound as on tiling.
+    #[test]
+    fn the_media_keys_and_the_chat_key_are_bound() {
+        let bound = |name: &str| KEYS.iter().find(|(b, _, _)| *b == name).map(|k| k.2);
+        assert!(matches!(
+            bound("XF86AudioRaiseVolume"),
+            Some(Key::Volume(Change::Up))
+        ));
+        assert!(matches!(
+            bound("XF86AudioLowerVolume"),
+            Some(Key::Volume(Change::Down))
+        ));
+        assert!(matches!(
+            bound("XF86AudioMute"),
+            Some(Key::Volume(Change::Mute))
+        ));
+        assert!(matches!(bound("Super+a"), Some(Key::Chat)));
+    }
+
+    /// A window that comes back from the space lands with the middle of
+    /// its title bar at the drop point, and never wholly off its output.
+    #[test]
+    fn a_dropped_window_has_its_title_bar_under_the_drop_point() {
+        let area = [-262_144, -262_144, 1280, 770];
+        let title = decoration::TITLE;
+        let at = dropped_at(area, 228, [700, 400]);
+        assert_eq!(at, [-262_144 + 586, -262_144 + 400 - title / 2]);
+        let corner = dropped_at(area, 228, [-500, -500]);
+        assert_eq!(corner, [-262_144 + 64 - 228, -262_144]);
+        let far = dropped_at(area, 228, [5000, 5000]);
+        assert_eq!(far, [-262_144 + 1280 - 64, -262_144 + 770 - title]);
+    }
+
+    /// The drag that goes with a window carries the speed of the pointer:
+    /// smoothed over the moves, kept through a burst, and capped.
+    #[test]
+    fn a_drag_knows_the_speed_of_its_pointer() {
+        let ms = Duration::from_millis;
+        let first = speed([0.0; 2], [100.0, 100.0], [110.0, 100.0], ms(10));
+        assert_eq!(first, [500.0, 0.0], "half of 1000 px/s after rest");
+        let second = speed(first, [110.0, 100.0], [120.0, 95.0], ms(10));
+        assert_eq!(second, [750.0, -250.0]);
+        assert_eq!(speed(second, [0.0; 2], [50.0, 0.0], ms(0)), second);
+        let jump = speed([0.0; 2], [0.0; 2], [1e9, 0.0], ms(10));
+        assert_eq!(jump, [MAX_SPEED / 2.0, 0.0]);
+    }
+
+    /// E3: a drag that leaves its face gives the window to the client
+    /// that shows the face; on a screen and inside the face nothing goes.
+    #[test]
+    fn a_drag_out_of_a_face_goes_to_the_owner_of_the_face() {
+        let face = [-262_144, -262_144, 800, 600];
+        let construct = Some("construct");
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_000]), None);
+        assert_eq!(pulled_out(face, construct, [-261_344, -262_000]), None);
+        assert_eq!(pulled_out(face, construct, [-262_000, -262_145]), None);
+        let past = EXIT_MARGIN + 1;
+        let right = [-261_344 + past, -262_000];
+        assert_eq!(pulled_out(face, construct, right), construct, "the margin");
+        let above = [-262_000, -262_144 - past];
+        assert_eq!(pulled_out(face, construct, above), construct, "the margin");
+        assert_eq!(pulled_out([0, 0, 800, 600], None, [900, 100]), None);
+    }
 
     #[test]
     fn every_exported_method_parses_its_parameters() {
@@ -3319,5 +4319,122 @@ mod tests {
         assert_eq!(moved([2020, 100], from, to), [100, 100]);
         // Beyond the new area, the title bar stays inside it.
         assert_eq!(moved([4300, 1300], from, to), [1856, 976]);
+    }
+
+    #[test]
+    fn a_frame_dropped_on_a_far_output_lands_under_the_pointer() {
+        let face = [-786_432, -262_144, 600, 350];
+        let left_behind = [-262_500, -262_100, 300, 200];
+        assert_eq!(
+            dropped_on(left_behind, face, [-786_232, -262_044], [60, 10]),
+            Some([-786_292, -262_054])
+        );
+        let straddling = [-786_500, -262_100, 300, 200];
+        assert_eq!(
+            dropped_on(straddling, face, [-786_400, -262_090], [60, 10]),
+            None
+        );
+    }
+
+    fn bar(name: &str, is_virtual: bool) -> Bar {
+        Bar::new(&OutputInfo {
+            name: name.into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 800],
+            default_work_area: [0, 0, 1280, 800],
+            is_virtual: is_virtual.then_some(true),
+            owner: None,
+        })
+    }
+
+    #[test]
+    fn a_taskbar_of_a_screen_reserves_its_height_and_xp_lays_out_without_it() {
+        let mut screen = bar("DP-1", false);
+        assert_eq!(screen.reserve(), taskbar::HEIGHT);
+        assert_eq!(bar("VIRTUAL-1", true).reserve(), 0, "a face of the cube");
+        screen.configure(taskbar::Settings {
+            locked: true,
+            auto_hide: true,
+            on_top: true,
+            clock: true,
+        });
+        assert_eq!(screen.reserve(), taskbar::HIDDEN_STRIP);
+        let reserved: HashMap<String, i32> = [("DP-1".to_owned(), 30)].into();
+        let output = OutputInfo {
+            name: "DP-1".into(),
+            position: [0, 0],
+            size: [1280, 800],
+            scale: 1.0,
+            camera: chora_scene::Transform::default(),
+            work_area: [0, 0, 1280, 770],
+            default_work_area: [0, 0, 1280, 770],
+            is_virtual: None,
+            owner: None,
+        };
+        let own = without_reserve(&reserved, output.clone());
+        assert_eq!(
+            (own.work_area, own.default_work_area),
+            ([0, 0, 1280, 800], [0, 0, 1280, 800])
+        );
+        let other = OutputInfo {
+            name: "DP-2".into(),
+            ..output
+        };
+        assert_eq!(without_reserve(&reserved, other).work_area[3], 770);
+    }
+
+    #[test]
+    fn the_helper_tooltip_is_the_state_word_and_voice_off_while_the_microphone_is_off() {
+        let word = |data: Value| Helper::of(&data).map(|h| h.word());
+        assert_eq!(word(json!({"state": "working"})), Some(Word::Working));
+        assert_eq!(word(json!({})), Some(Word::ChatLauncher));
+        assert_eq!(
+            word(json!({"state": "listening", "muted": {"mic": true}})),
+            Some(Word::VoiceOff)
+        );
+        assert_eq!(
+            word(json!({"state": "listening", "muted": {"mic": false}})),
+            Some(Word::Listening)
+        );
+        assert_eq!(word(json!({"name": "coder", "state": "working"})), None);
+    }
+
+    #[test]
+    fn help_and_support_is_a_task_button_and_an_entry_of_the_switcher() {
+        assert_eq!(
+            taskbar::Part::of(&format!("xp-task-{HELP_TASK}-DP-1")),
+            Some(taskbar::Part::Task(HELP_TASK.into()))
+        );
+        let entry = |name: &str| switcher::Entry {
+            surface: name.into(),
+            title: name.into(),
+            icon: None,
+        };
+        let surfaces = |entries: &[switcher::Entry]| {
+            entries
+                .iter()
+                .map(|e| e.surface.clone())
+                .collect::<Vec<_>>()
+        };
+        let mut away = vec![entry("s1"), entry("s2")];
+        add_help(&mut away, entry(HELP_TASK), false);
+        assert_eq!(surfaces(&away), ["s1", "s2", HELP_TASK]);
+        let mut active = vec![entry("s1"), entry("s2")];
+        add_help(&mut active, entry(HELP_TASK), true);
+        assert_eq!(surfaces(&active), [HELP_TASK, "s1", "s2"]);
+        assert_eq!(help::TITLE, "Help and Support");
+    }
+
+    #[test]
+    fn a_new_window_opens_under_the_pointer_only_on_virtual_outputs() {
+        let home = |bars: &[Bar], entered| home_bar(bars, Some(entered)).map(|b| b.output.clone());
+        let faces = [bar("VIRTUAL-1", true), bar("VIRTUAL-2", true)];
+        assert_eq!(home(&faces, "VIRTUAL-2").as_deref(), Some("VIRTUAL-2"));
+        let screens = [bar("DP-1", false), bar("DP-2", false)];
+        assert_eq!(home(&screens, "DP-2").as_deref(), Some("DP-1"), "as before");
+        assert_eq!(home(&faces, "gone").as_deref(), Some("VIRTUAL-1"));
     }
 }

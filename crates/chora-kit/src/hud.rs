@@ -1,0 +1,1800 @@
+//! The HUD folder format, version 1: a folder with `hud.yaml`, SVG
+//! pictures and optional fonts, that the host plugin `chora-assistant`
+//! draws. The module is the pure model: the manifest types, the limits of
+//! a folder, the context, `when` and the templates. Nothing in a folder
+//! runs code, and nothing here draws or talks to a socket.
+
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::{Component, Path},
+};
+
+use serde::{Deserialize, Serialize};
+
+/// The only version of the format that this module reads.
+pub const VERSION: u32 = 1;
+/// The most bytes of `hud.yaml`.
+pub const MAX_YAML: u64 = 64 << 10;
+/// The most panels of one folder.
+pub const MAX_PANELS: usize = 32;
+/// The most bytes of one file of a folder.
+pub const MAX_FILE: u64 = 1 << 20;
+/// The most bytes of all files of a folder.
+pub const MAX_FOLDER: u64 = 8 << 20;
+/// The most entries (files and folders) in a folder.
+pub const MAX_ENTRIES: usize = 256;
+/// The deepest level of folders inside a folder; files of the folder
+/// itself are at depth 1.
+pub const MAX_DEPTH: usize = 4;
+/// The most characters of the id of a panel.
+pub const MAX_ID: usize = 32;
+/// The smallest text size of the chat.
+pub const MIN_CHAT_SIZE: u32 = 14;
+/// The width of the label column of the margin column of mc, in pixels: the
+/// widest label of the key list, rounded up to 14, with room for a gap. The
+/// notes, the signs of the helpers, the keys and the numbers of the chat
+/// list all start their words after it.
+pub const LABEL_COLUMN: f64 = 112.0;
+/// The largest text size of the chat.
+pub const MAX_CHAT_SIZE: u32 = 48;
+/// The widest chat, in pixels.
+pub const MAX_CHAT_WIDTH: u32 = 1600;
+/// The widest gap between the chat and the edges of the work area.
+pub const MAX_CHAT_MARGIN: u32 = 128;
+/// The most characters of `max_chars`.
+pub const MAX_CHARS: u32 = 2000;
+/// The most rows of `max_rows`.
+pub const MAX_ROWS: u32 = 200;
+
+/// The keys that `when` may compare, and the fields of [`Context`].
+pub const CONTEXT_KEYS: [&str; 8] = [
+    "wm", "space", "app", "state", "agents", "chat", "output", "theme",
+];
+
+/// The fields of the context with a closed list of values; the other
+/// fields are names that the system gives.
+pub const CONTEXT_VALUES: [(&str, &[&str]); 4] = [
+    (
+        "state",
+        &[
+            "asleep",
+            "listening",
+            "thinking",
+            "working",
+            "question",
+            "speaking",
+        ],
+    ),
+    ("agents", &["none", "any", "working", "question"]),
+    ("chat", &["open", "none"]),
+    ("theme", &["light", "dark"]),
+];
+
+/// A parsed and checked `hud.yaml`.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Hud {
+    /// The version of the format.
+    pub hud: u32,
+    #[serde(default = "default_font")]
+    /// The default font family of the folder.
+    pub font: String,
+    #[serde(default)]
+    /// The panels, at most [`MAX_PANELS`].
+    pub panels: Vec<Panel>,
+    /// The look of the chat; a folder without the block gets the neutral
+    /// chat.
+    #[serde(default)]
+    pub chat: Chat,
+    /// The picture of the figure: an SVG file of the folder with one
+    /// element for each state of the voice agent. It shows where no voice
+    /// panel with a picture does.
+    pub figure: Option<String>,
+    /// The colours of the dark theme; a folder without it looks the same
+    /// in both themes.
+    #[serde(default)]
+    pub dark: Option<Dark>,
+}
+
+/// The colours of the dark theme of a folder, over those of `chat` and of
+/// the panels by id; a colour left out stays as it is.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Dark {
+    /// The colours of the chat.
+    pub chat: DarkChat,
+    /// The colours of panels, by their `id`.
+    pub panels: BTreeMap<String, DarkPanel>,
+}
+
+/// The colours of the chat in the dark theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DarkChat {
+    /// The fill.
+    pub fill: Option<[u8; 3]>,
+    /// The text.
+    pub text: Option<[u8; 3]>,
+    /// The names of the speakers.
+    pub name: Option<[u8; 3]>,
+    /// Lines and edges.
+    pub border: Option<[u8; 3]>,
+    /// The glow of a glass chat.
+    pub glow: Option<[u8; 3]>,
+    /// The well of the field and of the buttons of the card.
+    pub well: Option<[u8; 3]>,
+}
+
+/// The colours of a panel in the dark theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DarkPanel {
+    /// The fill of its box.
+    pub fill: Option<[u8; 3]>,
+    /// The hairline of its box.
+    pub border: Option<[u8; 3]>,
+    /// The colours of its text.
+    pub colours: Colours,
+}
+
+/// The event of a window manager that names its theme, `CLIENT.theme
+/// {theme: light|dark}`, as `events.emit` takes it. A window manager emits
+/// it at its start, on a change and on `assistant.ready` of the HUD host.
+#[must_use]
+pub fn theme_event(client: &str, dark: bool) -> serde_json::Value {
+    let theme = if dark { "dark" } else { "light" };
+    serde_json::json!({"event": format!("{client}.theme"), "data": {"theme": theme}})
+}
+
+/// The event `NAME.view {pane}` of a window manager of a space: whether its
+/// camera is in a pane, where the voice island of the host dims.
+#[must_use]
+pub fn view_event(client: &str, in_pane: bool) -> serde_json::Value {
+    serde_json::json!({"event": format!("{client}.view"), "data": {"pane": in_pane}})
+}
+
+impl Hud {
+    /// The folder in a theme: in the dark one, the colours of `dark` over
+    /// those of the chat and the panels.
+    #[must_use]
+    pub fn in_theme(&self, dark: bool) -> Self {
+        let mut hud = self.clone();
+        let Some(over) = self.dark.as_ref().filter(|_| dark) else {
+            return hud;
+        };
+        let chat = &mut hud.chat;
+        chat.fill = over.chat.fill.or(chat.fill);
+        chat.text = over.chat.text.or(chat.text);
+        chat.name = over.chat.name.or(chat.name);
+        chat.border = over.chat.border.or(chat.border);
+        chat.glow = over.chat.glow.or(chat.glow);
+        chat.well = over.chat.well.or(chat.well);
+        for panel in &mut hud.panels {
+            let Some(own) = over.panels.get(&panel.id) else {
+                continue;
+            };
+            panel.fill = own.fill.or(panel.fill);
+            panel.border = own.border.or(panel.border);
+            panel.colours = Colours {
+                text: own.colours.text.or(panel.colours.text),
+                muted: own.colours.muted.or(panel.colours.muted),
+                accent: own.colours.accent.or(panel.colours.accent),
+            };
+        }
+        hud
+    }
+}
+
+fn default_font() -> String {
+    "sans-serif".into()
+}
+
+/// One panel of a folder.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Panel {
+    /// The name that `near` refers to; unique in the folder, 1 to
+    /// [`MAX_ID`] characters of `a-z`, `0-9`, `_` and `-`.
+    pub id: String,
+    /// Where the data comes from.
+    pub source: Source,
+    /// `CLIENT.EVENT`, for and only for `source: event`.
+    pub event: Option<String>,
+    #[serde(default)]
+    /// The panel shows only when this matches the context.
+    pub when: When,
+    /// The place in the work area.
+    pub anchor: Option<Anchor>,
+    /// The gap to the edges, horizontal and vertical.
+    pub margin: Option<[i32; 2]>,
+    /// The id of another panel that this one stands beside; the chain of
+    /// `near` ends at a panel with an anchor.
+    pub near: Option<String>,
+    /// `FILE#ID`: an SVG file of the folder and an element id in it, a
+    /// template.
+    pub picture: Option<String>,
+    /// What a click does.
+    pub action: Option<Action>,
+    /// The shape of the text.
+    pub style: Option<Style>,
+    /// A template for the text.
+    pub text: Option<String>,
+    /// The most characters of the text, from 1 to [`MAX_CHARS`].
+    pub max_chars: Option<u32>,
+    /// A template for one row of a list.
+    pub rows: Option<String>,
+    /// The most rows of a list, from 1 to [`MAX_ROWS`].
+    pub max_rows: Option<u32>,
+    /// The colours of the text: of the rows of the helpers, and `text`
+    /// of a sentence.
+    #[serde(default)]
+    pub colours: Colours,
+    /// The colour inside the box of a sentence or of a row, `[r, g, b]`.
+    pub fill: Option<[u8; 3]>,
+    /// The colour of the hairline of the box.
+    pub border: Option<[u8; 3]>,
+    /// The tail of the bubble of a sentence, which points at the figure.
+    pub tail: Option<Tail>,
+}
+
+/// The end of a bubble that carries its tail; the bubble grows to the
+/// other side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Tail {
+    /// The tail is near the left end.
+    Left,
+    /// The tail is near the right end.
+    Right,
+}
+
+/// The fill, the text and the hairline of a bubble that names none.
+pub const BUBBLE: ([u8; 3], [u8; 3], [u8; 3]) = ([250, 250, 250], [32, 32, 32], [140, 140, 140]);
+/// The lowest contrast of the hairline of a box against its fill: a
+/// hairline that shows.
+pub const MIN_EDGE_CONTRAST: f64 = 1.5;
+/// The opacity of the fill of a glass chat.
+pub const GLASS_ALPHA: f64 = 0.94;
+
+/// The colours of the text of a panel, `[r, g, b]` each; a colour left out
+/// takes the text colour of the chat.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Colours {
+    /// The name of a helper.
+    pub text: Option<[u8; 3]>,
+    /// The task of a helper.
+    pub muted: Option<[u8; 3]>,
+    /// The state word of a helper.
+    pub accent: Option<[u8; 3]>,
+}
+
+/// Where the data of a panel comes from: a closed list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Source {
+    /// The state of the voice agent.
+    Voice,
+    /// The sentence of `voice.say`.
+    Say,
+    /// The helpers of `voice.state`.
+    Agents,
+    /// The open chats.
+    Chat,
+    /// A field of the context.
+    Context,
+    /// The time.
+    Clock,
+    /// An event of a named client.
+    Event,
+}
+
+/// The nine places of a panel in the work area of an output.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Anchor {
+    /// Top left corner.
+    TopLeft,
+    /// Top edge, centred.
+    Top,
+    /// Top right corner.
+    TopRight,
+    /// Left edge, centred.
+    Left,
+    /// The middle.
+    Center,
+    /// Right edge, centred.
+    Right,
+    /// Bottom left corner.
+    BottomLeft,
+    /// Bottom edge, centred.
+    Bottom,
+    /// Bottom right corner.
+    BottomRight,
+}
+
+/// What a click on a panel does; nothing else exists.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Action {
+    /// Mutes the microphone; never unmutes.
+    Mute,
+    /// Cancels the running turn.
+    Cancel,
+    /// Puts the agent to sleep.
+    Sleep,
+    /// Wakes the agent.
+    Wake,
+    /// Opens the chat.
+    Chat,
+}
+
+/// The shape of the text of a panel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Style {
+    /// A rounded box with an optional tail.
+    Bubble,
+    /// Text without a box.
+    Plain,
+    /// On a panel with `source: voice`: the ring, the state word and the
+    /// task of the helper on one glass capsule, which also holds the
+    /// sentence while the agent speaks.
+    Island,
+}
+
+/// The block `chat:`: values only.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Chat {
+    /// The shape of the view.
+    pub style: ChatStyle,
+    /// Colours are `[r, g, b]`; a colour left out takes the host's.
+    pub fill: Option<[u8; 3]>,
+    /// Text colour.
+    pub text: Option<[u8; 3]>,
+    /// Colour of the names of the speakers.
+    pub name: Option<[u8; 3]>,
+    /// Colour of lines and edges.
+    pub border: Option<[u8; 3]>,
+    /// Font family; the folder's `font` if left out.
+    pub font: Option<String>,
+    /// Text size in pixels, from [`MIN_CHAT_SIZE`] to [`MAX_CHAT_SIZE`].
+    pub size: u32,
+    /// The place; the right edge if left out.
+    pub anchor: Option<Anchor>,
+    /// The width in pixels, at most [`MAX_CHAT_WIDTH`]; 400 if left out.
+    pub width: Option<u32>,
+    /// The gap between the view and the edges of the work area, in pixels,
+    /// at most [`MAX_CHAT_MARGIN`].
+    pub margin: u32,
+    /// The client whose box holds the view: the window manager announces
+    /// the box with its event `chat.slot`. Without a box the view stands at
+    /// `anchor`.
+    pub slot: Option<String>,
+    /// The colour of the glow around a glass chat.
+    pub glow: Option<[u8; 3]>,
+    /// What the Stop button does while no prompt runs.
+    pub idle_stop: IdleStop,
+    /// The form of the balloon: the plain one, or XP's.
+    pub form: ChatForm,
+    /// The radius of the corners of a plain view, of the card and of the
+    /// rows, at most [`MAX_CHAT_RADIUS`]; the style decides if left out.
+    pub radius: Option<u32>,
+    /// The colour of the well of the field and of the buttons of the card.
+    pub well: Option<[u8; 3]>,
+    /// Where the question card takes its colours from.
+    pub card: CardLook,
+}
+
+/// The form of the parts of a balloon chat.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChatForm {
+    /// Boxes in the colours of the look.
+    #[default]
+    Plain,
+    /// A close box, push buttons, a white field with a Send button, a
+    /// header of two lines and the question in a group box.
+    Xp,
+}
+
+/// What the Stop button of the chat does while no prompt runs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IdleStop {
+    /// The button is not there.
+    #[default]
+    Hide,
+    /// The button stays in its place, grey, and takes no press.
+    Grey,
+}
+
+/// Where the question card takes its fill, hairline and text from.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CardLook {
+    /// The light card of the host.
+    #[default]
+    Host,
+    /// The colours and the radius of the chat.
+    Chat,
+}
+
+/// The largest radius of the corners of a chat.
+pub const MAX_CHAT_RADIUS: u32 = 24;
+
+impl Default for Chat {
+    fn default() -> Self {
+        Self {
+            style: ChatStyle::Plain,
+            fill: None,
+            text: None,
+            name: None,
+            border: None,
+            font: None,
+            size: MIN_CHAT_SIZE,
+            anchor: None,
+            width: None,
+            margin: 0,
+            slot: None,
+            glow: None,
+            idle_stop: IdleStop::Hide,
+            form: ChatForm::Plain,
+            radius: None,
+            well: None,
+            card: CardLook::Host,
+        }
+    }
+}
+
+/// The shape of the chat view.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChatStyle {
+    /// Text on the plain background.
+    Plain,
+    /// Rounded boxes for the lines.
+    Bubble,
+    /// A glass panel.
+    Glass,
+}
+
+impl Chat {
+    /// The colours of the chat of the host, which the block `chat:` of a
+    /// folder takes where it leaves a colour out.
+    #[must_use]
+    pub fn host() -> Self {
+        Self {
+            fill: Some([250, 250, 250]),
+            text: Some([32, 32, 32]),
+            name: Some([0, 80, 160]),
+            ..Self::default()
+        }
+    }
+
+    /// The anchor and the width of the view: the right edge, 400 wide, if
+    /// left out.
+    #[must_use]
+    pub fn place(&self) -> (Anchor, u32) {
+        (
+            self.anchor.unwrap_or(Anchor::Right),
+            self.width.unwrap_or(400),
+        )
+    }
+
+    fn check(&self, errors: &mut Vec<String>) {
+        if !(MIN_CHAT_SIZE..=MAX_CHAT_SIZE).contains(&self.size) {
+            errors.push(format!(
+                "chat.size: {} is not from {MIN_CHAT_SIZE} to {MAX_CHAT_SIZE}",
+                self.size
+            ));
+        }
+        if let Some(width) = self.width.filter(|w| !(1..=MAX_CHAT_WIDTH).contains(w)) {
+            errors.push(format!(
+                "chat.width: {width} is not from 1 to {MAX_CHAT_WIDTH}"
+            ));
+        }
+        if self.margin > MAX_CHAT_MARGIN {
+            errors.push(format!(
+                "chat.margin: {} is not from 0 to {MAX_CHAT_MARGIN}",
+                self.margin
+            ));
+        }
+        if let Some(radius) = self.radius.filter(|r| *r > MAX_CHAT_RADIUS) {
+            errors.push(format!(
+                "chat.radius: {radius} is not from 0 to {MAX_CHAT_RADIUS}"
+            ));
+        }
+        if let Some(slot) = self.slot.as_deref().filter(|slot| !plain_name(slot)) {
+            errors.push(format!(
+                "chat.slot: {slot:?} is not the name of a client, 1 to {MAX_ID} characters of a-z, 0-9, _ and -"
+            ));
+        }
+    }
+}
+
+impl Chat {
+    /// The fill as it shows: itself, or for a glass chat the fill over a
+    /// black and over a white pane.
+    fn seen_fills(&self, fill: [u8; 3]) -> Vec<[u8; 3]> {
+        if self.style != ChatStyle::Glass {
+            return vec![fill];
+        }
+        [0.0, 255.0]
+            .into_iter()
+            .map(|pane| fill.map(|side| over(side, pane)))
+            .collect()
+    }
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a mix of two colour values is from 0 to 255"
+)]
+fn over(side: u8, pane: f64) -> u8 {
+    (f64::from(side) * GLASS_ALPHA + pane * (1.0 - GLASS_ALPHA)).round() as u8
+}
+
+/// The lowest contrast of text against its fill, as a ratio.
+pub const MIN_TEXT_CONTRAST: f64 = 4.5;
+/// The lowest contrast of the key line and the buttons of the question
+/// card, as a ratio. The host draws the card, so a folder has no value to
+/// check against it; the host uses this for its own colours.
+pub const MIN_KEY_CONTRAST: f64 = 7.0;
+
+fn luminance(colour: [u8; 3]) -> f64 {
+    let [r, g, b] = colour.map(|c| {
+        let c = f64::from(c) / 255.0;
+        if c <= 0.03928 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    });
+    0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/// The contrast ratio of two colours, from 1 to 21 (WCAG 2).
+#[must_use]
+pub fn contrast(a: [u8; 3], b: [u8; 3]) -> f64 {
+    let (a, b) = (luminance(a), luminance(b));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+impl Chat {
+    /// The pairs of text colour and fill below [`MIN_TEXT_CONTRAST`], one
+    /// message each. A colour that the block leaves out is `host`'s; a pair
+    /// with a colour that neither has is not checked.
+    #[must_use]
+    pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
+        let Some(fill) = self.fill.or(host.fill) else {
+            return Vec::new();
+        };
+        let mut errors = Vec::new();
+        for (key, own, hosts) in [
+            ("text", self.text, host.text),
+            ("name", self.name, host.name),
+        ] {
+            let Some(colour) = own.or(hosts) else {
+                continue;
+            };
+            let ratio = self
+                .seen_fills(fill)
+                .into_iter()
+                .map(|seen| contrast(colour, seen))
+                .fold(f64::INFINITY, f64::min);
+            if ratio < MIN_TEXT_CONTRAST {
+                errors.push(format!(
+                    "hud.yaml: chat.{key}: contrast {ratio:.1}:1 against chat.fill is below {MIN_TEXT_CONTRAST}:1"
+                ));
+            }
+        }
+        errors
+    }
+}
+
+impl Hud {
+    /// The colours of the chat and of the panels below
+    /// [`MIN_TEXT_CONTRAST`] against the fill of the chat, one message
+    /// each, in both themes; `host` gives the colours that the folder
+    /// leaves out.
+    #[must_use]
+    pub fn contrast_errors(&self, host: &Chat) -> Vec<String> {
+        let mut errors = self.colour_errors(host);
+        if self.dark.is_some() {
+            let dark = self.in_theme(true).colour_errors(host);
+            errors.extend(
+                dark.into_iter()
+                    .map(|e| e.replacen("hud.yaml: ", "hud.yaml: dark: ", 1)),
+            );
+        }
+        errors
+    }
+
+    fn colour_errors(&self, host: &Chat) -> Vec<String> {
+        let mut errors = self.chat.contrast_errors(host);
+        let page = self.chat.fill.or(host.fill);
+        let ink = self.chat.text.or(host.text);
+        for (index, panel) in self.panels.iter().enumerate() {
+            let boxed = panel.source != Source::Agents && panel.style != Some(Style::Plain);
+            let (fill, text) = if boxed {
+                (Some(BUBBLE.0), Some(BUBBLE.1))
+            } else {
+                (page, ink)
+            };
+            let Some(fill) = panel.fill.or(fill) else {
+                continue;
+            };
+            let colours = panel.colours;
+            let shown = panel.fill.and(text);
+            let mut check = |key: &str, colour: Option<[u8; 3]>, least: f64| {
+                let Some(ratio) = colour.map(|colour| contrast(colour, fill)) else {
+                    return;
+                };
+                if ratio < least {
+                    errors.push(format!(
+                        "hud.yaml: panels[{index}].{key}: contrast {ratio:.1}:1 against its fill is below {least}:1"
+                    ));
+                }
+            };
+            check("colours.text", colours.text.or(shown), MIN_TEXT_CONTRAST);
+            check("colours.muted", colours.muted, MIN_TEXT_CONTRAST);
+            check("colours.accent", colours.accent, MIN_TEXT_CONTRAST);
+            let edge = panel.border.or(panel.fill.and(boxed.then_some(BUBBLE.2)));
+            check("border", edge, MIN_EDGE_CONTRAST);
+        }
+        errors
+    }
+}
+
+/// The context that `when` compares; see the table of fields in the
+/// design. Every field is text.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Context {
+    /// The window manager.
+    pub wm: String,
+    /// The space of the focused window.
+    pub space: String,
+    /// The `app_id` of the focused window.
+    pub app: String,
+    /// The state of the voice agent.
+    pub state: String,
+    /// `none`, `any`, `working` or `question`.
+    pub agents: String,
+    /// `open` or `none`.
+    pub chat: String,
+    /// The output of the focused window.
+    pub output: String,
+    /// `light` or `dark`: the theme of the window manager of the look.
+    pub theme: String,
+}
+
+impl Context {
+    /// Whether the look is in the dark theme.
+    #[must_use]
+    pub fn dark(&self) -> bool {
+        self.theme == "dark"
+    }
+
+    /// The value of a field, `None` for a name that is no field.
+    #[must_use]
+    pub fn get(&self, key: &str) -> Option<&str> {
+        Some(match key {
+            "wm" => &self.wm,
+            "space" => &self.space,
+            "app" => &self.app,
+            "state" => &self.state,
+            "agents" => &self.agents,
+            "chat" => &self.chat,
+            "output" => &self.output,
+            "theme" => &self.theme,
+            _ => return None,
+        })
+    }
+}
+
+/// One value or a list of values.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum Match {
+    /// A value.
+    One(String),
+    /// A list of values; one of them matches.
+    Many(Vec<String>),
+}
+
+/// The condition `when`: each key names a field of the context and must
+/// equal the value, or one of a list. All keys must match.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(transparent)]
+pub struct When(pub BTreeMap<String, Match>);
+
+impl When {
+    /// Whether every key matches the context. An empty `when` matches.
+    #[must_use]
+    pub fn matches(&self, context: &Context) -> bool {
+        self.0.iter().all(|(key, wanted)| {
+            context.get(key).is_some_and(|value| match wanted {
+                Match::One(one) => one == value,
+                Match::Many(list) => list.iter().any(|item| item == value),
+            })
+        })
+    }
+    /// Adds an error for each key that is no field of the context and for
+    /// each value that a field with a closed list does not know, as
+    /// `AT.when.KEY: message`.
+    pub fn check(&self, at: &str, errors: &mut Vec<String>) {
+        for (key, wanted) in &self.0 {
+            let key_at = &format!("when.{key}");
+            if !CONTEXT_KEYS.contains(&key.as_str()) {
+                fail(errors, at, key_at, "not a field of the context");
+                continue;
+            }
+            let Some((_, known)) = CONTEXT_VALUES.iter().find(|(name, _)| name == key) else {
+                continue;
+            };
+            let values = match wanted {
+                Match::One(one) => std::slice::from_ref(one),
+                Match::Many(list) => list.as_slice(),
+            };
+            for value in values.iter().filter(|v| !known.contains(&v.as_str())) {
+                let message = format!("{value:?} is not one of {}", known.join(", "));
+                fail(errors, at, key_at, &message);
+            }
+        }
+    }
+
+    /// The names of the fields that the condition reads.
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        self.0.keys().map(String::as_str)
+    }
+}
+
+/// Fills `{field}` and `{field.sub}` of a template, in one pass: the text
+/// of a value is inserted as it is and never expanded again. A field that
+/// `lookup` does not know stays empty.
+pub fn expand(template: &str, lookup: impl Fn(&str) -> Option<String>) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        out.push_str(&rest[..open]);
+        let after = &rest[open + 1..];
+        let name = after
+            .find(['{', '}'])
+            .filter(|&end| after.as_bytes()[end] == b'}')
+            .map(|end| &after[..end])
+            .filter(|name| is_field(name));
+        if let Some(name) = name {
+            out.push_str(&lookup(name).unwrap_or_default());
+            rest = &after[name.len() + 1..];
+        } else {
+            out.push('{');
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn is_field(name: &str) -> bool {
+    !name.is_empty()
+        && name.split('.').all(|part| {
+            !part.is_empty() && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+}
+
+/// [`expand`] with fields in a JSON value; `{a.b}` reads `a` and then
+/// `b`. Only text, numbers and booleans have a text.
+#[must_use]
+pub fn render(template: &str, fields: &serde_json::Value) -> String {
+    expand(template, |path| {
+        let found = path
+            .split('.')
+            .try_fold(fields, |value, part| value.get(part))?;
+        match found {
+            serde_json::Value::String(text) => Some(text.clone()),
+            serde_json::Value::Number(_) | serde_json::Value::Bool(_) => Some(found.to_string()),
+            _ => None,
+        }
+    })
+}
+
+/// Parses and checks the text of a `hud.yaml`. Each error names the key.
+///
+/// # Errors
+///
+/// A version other than 1, an unknown key, a wrong value, or a failed
+/// check; the list has every failed check.
+pub fn parse(text: &str) -> Result<Hud, Vec<String>> {
+    #[derive(Deserialize)]
+    struct Version {
+        hud: Option<u32>,
+    }
+    let mut budget = serde_saphyr::Budget::default();
+    budget.max_aliases = 0;
+    budget.max_anchors = 0;
+    let mut options = serde_saphyr::Options::default();
+    options.budget = Some(budget);
+    options.strict_booleans = true;
+    options.reject_unsupported_tags = true;
+    let fail = |e: serde_saphyr::Error| vec![format!("hud.yaml: {e}")];
+    let version: Version =
+        serde_saphyr::from_str_with_options(text, options.clone()).map_err(fail)?;
+    match version.hud {
+        Some(VERSION) => {}
+        Some(other) => {
+            return Err(vec![format!(
+                "hud.yaml: hud: {other} is not supported, this version reads {VERSION}"
+            )]);
+        }
+        None => {
+            return Err(vec![format!(
+                "hud.yaml: hud: missing, write `hud: {VERSION}`"
+            )]);
+        }
+    }
+    let hud: Hud = serde_saphyr::from_str_with_options(text, options).map_err(fail)?;
+    let errors = hud.check();
+    if errors.is_empty() {
+        Ok(hud)
+    } else {
+        Err(errors
+            .into_iter()
+            .map(|e| format!("hud.yaml: {e}"))
+            .collect())
+    }
+}
+
+impl Hud {
+    fn check(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        if self.panels.len() > MAX_PANELS {
+            errors.push(format!(
+                "panels: {} panels, at most {MAX_PANELS}",
+                self.panels.len()
+            ));
+        }
+        let ids: BTreeSet<&str> = self.panels.iter().map(|p| p.id.as_str()).collect();
+        let mut seen = BTreeSet::new();
+        for (index, panel) in self.panels.iter().enumerate() {
+            panel.check(&format!("panels[{index}]"), &ids, &mut errors);
+            if !seen.insert(panel.id.as_str()) {
+                errors.push(format!("panels[{index}].id: {:?} is used twice", panel.id));
+            }
+        }
+        for (index, panel) in self.panels.iter().enumerate() {
+            if panel.near.is_some() && !self.reaches_anchor(panel) {
+                errors.push(format!(
+                    "panels[{index}].near: the chain of near never ends at a panel with an anchor"
+                ));
+            }
+        }
+        self.chat.check(&mut errors);
+        for id in self.dark.iter().flat_map(|dark| dark.panels.keys()) {
+            if !ids.contains(id.as_str()) {
+                errors.push(format!("dark.panels.{id}: no panel has this id"));
+            }
+        }
+        if let Some(figure) = self.figure.as_deref().filter(|file| !picture_file(file)) {
+            errors.push(format!(
+                "figure: {figure:?} is not the name of an SVG file of the folder"
+            ));
+        }
+        errors
+    }
+
+    fn reaches_anchor(&self, start: &Panel) -> bool {
+        let mut panel = start;
+        for _ in 0..=self.panels.len() {
+            let Some(near) = &panel.near else {
+                return panel.anchor.is_some();
+            };
+            let Some(next) = self.panels.iter().find(|p| &p.id == near) else {
+                return false;
+            };
+            panel = next;
+        }
+        false
+    }
+}
+
+fn plain_name(name: &str) -> bool {
+    let plain = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-';
+    (1..=MAX_ID).contains(&name.chars().count()) && name.chars().all(plain)
+}
+
+fn picture_file(file: &str) -> bool {
+    !file.is_empty() && !file.contains(['#', '{', '}'])
+}
+
+fn fail(errors: &mut Vec<String>, at: &str, key: &str, message: &str) {
+    errors.push(format!("{at}.{key}: {message}"));
+}
+
+impl Panel {
+    fn check(&self, at: &str, ids: &BTreeSet<&str>, errors: &mut Vec<String>) {
+        self.check_id(at, errors);
+        self.check_content(at, errors);
+        self.check_place(at, ids, errors);
+        self.check_source(at, errors);
+        self.check_when(at, errors);
+    }
+
+    fn check_id(&self, at: &str, errors: &mut Vec<String>) {
+        if !plain_name(&self.id) {
+            let message = format!(
+                "{:?} is not 1 to {MAX_ID} characters of a-z, 0-9, _ and -",
+                self.id
+            );
+            fail(errors, at, "id", &message);
+        }
+    }
+
+    fn check_content(&self, at: &str, errors: &mut Vec<String>) {
+        if self.picture.is_none() && self.text.is_none() && self.rows.is_none() {
+            let message = "a panel needs `picture`, `text` or `rows`";
+            fail(errors, at, "picture", message);
+        }
+        let file_name = self.picture.as_deref().and_then(|p| p.split('#').next());
+        if file_name.is_some_and(|file| file.contains('{')) {
+            let message = "the file name has no `{`; only the id after `#` is a template";
+            fail(errors, at, "picture", message);
+        }
+        for (key, value, most) in [
+            ("max_chars", self.max_chars, MAX_CHARS),
+            ("max_rows", self.max_rows, MAX_ROWS),
+        ] {
+            if let Some(value) = value.filter(|v| !(1..=most).contains(v)) {
+                fail(errors, at, key, &format!("{value} is not from 1 to {most}"));
+            }
+        }
+    }
+
+    fn check_place(&self, at: &str, ids: &BTreeSet<&str>, errors: &mut Vec<String>) {
+        match (self.anchor, &self.near) {
+            (None, None) => fail(errors, at, "anchor", "needs `anchor` or `near`"),
+            (Some(_), Some(_)) => fail(errors, at, "near", "not together with anchor"),
+            (None, Some(near)) if near == &self.id || !ids.contains(near.as_str()) => {
+                fail(errors, at, "near", &format!("no other panel {near:?}"));
+            }
+            _ => {}
+        }
+    }
+
+    fn check_source(&self, at: &str, errors: &mut Vec<String>) {
+        match (&self.event, self.source) {
+            (Some(event), Source::Event) => {
+                let named = event
+                    .split_once('.')
+                    .is_some_and(|(client, name)| !client.is_empty() && !name.is_empty());
+                if !named {
+                    fail(
+                        errors,
+                        at,
+                        "event",
+                        &format!("{event:?} is not CLIENT.EVENT"),
+                    );
+                }
+            }
+            (None, Source::Event) => {
+                fail(errors, at, "event", "source event needs CLIENT.EVENT");
+            }
+            (Some(_), _) => fail(errors, at, "event", "only for source: event"),
+            (None, _) => {}
+        }
+        if self.action == Some(Action::Mute) && self.source != Source::Voice {
+            fail(errors, at, "action", "mute needs source: voice");
+        }
+    }
+
+    fn check_when(&self, at: &str, errors: &mut Vec<String>) {
+        self.when.check(at, errors);
+    }
+}
+
+/// Loads the folder `dir`: the limits, the links, `hud.yaml` and the
+/// pictures that it names. `hud.yaml` is parsed only after the scan of
+/// the folder passed.
+///
+/// # Errors
+///
+/// Each error names its file and, for `hud.yaml`, its key.
+pub fn load(dir: &Path) -> Result<Hud, Vec<String>> {
+    let errors = scan(dir);
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    let text = file(dir, "hud.yaml")
+        .and_then(|data| {
+            if data.len() as u64 > MAX_YAML {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("larger than {MAX_YAML} bytes"),
+                ));
+            }
+            String::from_utf8(data)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        })
+        .map_err(|e| vec![format!("hud.yaml: {e}")])?;
+    let hud = parse(&text)?;
+    let mut errors = Vec::new();
+    for (index, panel) in hud.panels.iter().enumerate() {
+        let Some(picture) = &panel.picture else {
+            continue;
+        };
+        let name = picture.split('#').next().unwrap_or_default();
+        if let Err(e) = file(dir, name) {
+            errors.push(format!("panels[{index}].picture: {name}: {e}"));
+        }
+    }
+    if let Some(figure) = &hud.figure
+        && let Err(e) = file(dir, figure)
+    {
+        errors.push(format!("figure: {figure}: {e}"));
+    }
+    if errors.is_empty() {
+        Ok(hud)
+    } else {
+        Err(errors)
+    }
+}
+
+/// Checks every entry of a folder against the limits and the rule for
+/// links: a link must lead to a regular file inside the folder, and a
+/// file has one name only.
+fn scan(root: &Path) -> Vec<String> {
+    let real = match std::fs::canonicalize(root) {
+        Ok(real) => real,
+        Err(e) => return vec![format!("{}: {e}", root.display())],
+    };
+    let mut errors = Vec::new();
+    let mut total = 0_u64;
+    let mut entries_seen = 0_usize;
+    let mut pending = vec![(real.clone(), 1_usize)];
+    while let Some((dir, depth)) = pending.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(e) => {
+                errors.push(format!("{}: {e}", dir.display()));
+                continue;
+            }
+        };
+        for path in entries.flatten().map(|entry| entry.path()) {
+            entries_seen += 1;
+            if entries_seen > MAX_ENTRIES {
+                errors.push(format!("folder: more than {MAX_ENTRIES} entries"));
+                return errors;
+            }
+            let name = path
+                .strip_prefix(&real)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            match entry_size(&path, &real) {
+                Ok(None) if depth >= MAX_DEPTH => {
+                    errors.push(format!("{name}: depth over {MAX_DEPTH}"));
+                }
+                Ok(None) => pending.push((path, depth + 1)),
+                Ok(Some(size)) if size > MAX_FILE => {
+                    errors.push(format!("{name}: larger than {MAX_FILE} bytes"));
+                }
+                Ok(Some(size)) => total = total.saturating_add(size),
+                Err(message) => errors.push(format!("{name}: {message}")),
+            }
+        }
+    }
+    if total > MAX_FOLDER {
+        errors.push(format!("folder: more than {MAX_FOLDER} bytes"));
+    }
+    errors
+}
+
+/// The size of a file, `None` for a folder to enter; an error for a link
+/// that leaves the folder or does not lead to a file, and for a device.
+fn entry_size(path: &Path, real: &Path) -> Result<Option<u64>, String> {
+    let kind = std::fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+    if kind.is_dir() {
+        return Ok(None);
+    }
+    if kind.is_file() {
+        return single_name(&kind).map(|()| Some(kind.len()));
+    }
+    if !kind.is_symlink() {
+        return Err("not a regular file".into());
+    }
+    let target = std::fs::canonicalize(path).map_err(|e| e.to_string())?;
+    if !target.starts_with(real) {
+        return Err("link points outside the folder".into());
+    }
+    match std::fs::metadata(&target) {
+        Ok(meta) if meta.is_file() => single_name(&meta).map(|()| Some(meta.len())),
+        _ => Err("link to something but a file".into()),
+    }
+}
+
+fn single_name(meta: &std::fs::Metadata) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt as _;
+    if meta.nlink() > 1 {
+        return Err("file with more than one hard link".into());
+    }
+    Ok(())
+}
+
+/// Reads one file of a folder: a relative path inside it, a regular file
+/// of at most [`MAX_FILE`] bytes, also after links are resolved.
+///
+/// # Errors
+///
+/// The path leaves the folder, or the file cannot be read.
+pub fn file(dir: &Path, name: &str) -> std::io::Result<Vec<u8>> {
+    let invalid =
+        |message: &str| std::io::Error::new(std::io::ErrorKind::InvalidInput, message.to_owned());
+    let relative = Path::new(name);
+    if name.is_empty()
+        || !relative
+            .components()
+            .all(|c| matches!(c, Component::Normal(_)))
+    {
+        return Err(invalid("not a path inside the folder"));
+    }
+    let root = std::fs::canonicalize(dir)?;
+    let real = std::fs::canonicalize(root.join(relative))?;
+    if !real.starts_with(&root) {
+        return Err(invalid("link points outside the folder"));
+    }
+    single_name(&std::fs::metadata(&real)?).map_err(|e| invalid(&e))?;
+    read_checked(&real, &std::fs::metadata(&real)?)
+}
+
+/// Reads the file at `path` if it is the file that `checked` describes:
+/// it is opened without following a link in its last component, and its
+/// device and inode are those of `checked`. A file swapped for another
+/// between the check and the open is refused.
+fn read_checked(path: &Path, checked: &std::fs::Metadata) -> std::io::Result<Vec<u8>> {
+    use std::io::Read as _;
+    use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)?;
+    let opened = file.metadata()?;
+    if !opened.is_file() || (opened.dev(), opened.ino()) != (checked.dev(), checked.ino()) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "file changed while it was read",
+        ));
+    }
+    let mut data = Vec::new();
+    file.take(MAX_FILE + 1).read_to_end(&mut data)?;
+    if data.len() as u64 > MAX_FILE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("larger than {MAX_FILE} bytes"),
+        ));
+    }
+    Ok(data)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    const YAML_BYTES: usize = 64 << 10;
+    const FILE_BYTES: usize = 1 << 20;
+    const MINIMAL: &str = "hud: 1\n";
+
+    struct Dir(PathBuf);
+
+    impl Dir {
+        fn new(name: &str) -> Self {
+            let dir = std::env::temp_dir().join(format!("chora-hud-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn put(&self, name: &str, data: &[u8]) {
+            std::fs::write(self.0.join(name), data).unwrap();
+        }
+    }
+
+    impl Drop for Dir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn errors(result: Result<Hud, Vec<String>>) -> String {
+        result.unwrap_err().join("\n")
+    }
+
+    #[test]
+    fn a_full_folder_parses() {
+        let hud = parse(
+            "hud: 1\nfont: Tahoma\npanels:\n  - {id: figure, source: voice, anchor: bottom_right, \
+             margin: [16, 48], picture: 'dot.svg#{state}', action: mute}\n  - {id: line, source: \
+             say, near: figure, style: bubble, text: '{text}', max_chars: 160}\n  - {id: ev, \
+             source: event, event: mc.chat, anchor: top, text: x}\nchat: {style: glass, size: 16, anchor: \
+             right, width: 480}\n",
+        )
+        .unwrap();
+        assert_eq!(hud.panels.len(), 3);
+        assert_eq!(hud.chat.place(), (Anchor::Right, 480));
+    }
+
+    #[test]
+    fn unknown_key_fails() {
+        let top = errors(parse("hud: 1\nscript: x\n"));
+        assert!(top.contains("script"), "{top}");
+        let panel = errors(parse(
+            "hud: 1\npanels:\n  - {id: a, source: voice, anchor: top, text: x, run: sh}\n",
+        ));
+        assert!(panel.contains("run"), "{panel}");
+        let chat = errors(parse("hud: 1\nchat: {colour: red}\n"));
+        assert!(chat.contains("colour"), "{chat}");
+        let when = errors(parse(
+            "hud: 1\npanels:\n  - {id: a, source: voice, anchor: top, text: x, when: {mood: calm}}\n",
+        ));
+        assert!(when.contains("when.mood"), "{when}");
+        let source = errors(parse(
+            "hud: 1\npanels:\n  - {id: a, source: shell, anchor: top, text: x}\n",
+        ));
+        assert!(source.contains("shell"), "{source}");
+    }
+
+    #[test]
+    fn version_2_is_refused() {
+        let two = errors(parse("hud: 2\nunknown: 1\n"));
+        assert!(two.contains("hud: 2"), "{two}");
+        assert!(two.contains('1'), "{two}");
+        assert!(errors(parse("panels: []\n")).contains("hud"));
+        assert!(parse(MINIMAL).is_ok());
+    }
+
+    #[test]
+    fn a_file_swapped_after_the_check_is_refused() {
+        let dir = Dir::new("swap");
+        std::fs::write(dir.0.join("checked.svg"), "checked").unwrap();
+        std::fs::write(dir.0.join("swapped.svg"), "swapped").unwrap();
+        let checked = std::fs::metadata(dir.0.join("checked.svg")).unwrap();
+        assert_eq!(
+            read_checked(&dir.0.join("checked.svg"), &checked).unwrap(),
+            b"checked"
+        );
+        let err = read_checked(&dir.0.join("swapped.svg"), &checked).unwrap_err();
+        assert!(err.to_string().contains("changed"), "{err}");
+    }
+
+    #[test]
+    fn a_link_in_the_last_component_is_not_followed() {
+        let dir = Dir::new("nofollow");
+        std::fs::write(dir.0.join("real.svg"), "real").unwrap();
+        std::os::unix::fs::symlink("real.svg", dir.0.join("link.svg")).unwrap();
+        let checked = std::fs::metadata(dir.0.join("real.svg")).unwrap();
+        assert!(read_checked(&dir.0.join("link.svg"), &checked).is_err());
+    }
+
+    #[test]
+    fn a_symlink_out_of_the_folder_is_refused() {
+        let outside = Dir::new("outside");
+        outside.put("secret.svg", b"<svg/>");
+        let dir = Dir::new("link");
+        dir.put("hud.yaml", MINIMAL.as_bytes());
+        dir.put("inside.svg", b"<svg/>");
+        std::os::unix::fs::symlink(outside.0.join("secret.svg"), dir.0.join("out.svg")).unwrap();
+        let refused = errors(load(&dir.0));
+        assert!(refused.contains("out.svg"), "{refused}");
+        assert!(refused.contains("outside"), "{refused}");
+        assert!(file(&dir.0, "out.svg").is_err());
+        assert!(file(&dir.0, "../secret.svg").is_err());
+        assert!(file(&dir.0, "/etc/passwd").is_err());
+        assert!(file(&dir.0, "inside.svg").is_ok());
+        std::fs::remove_file(dir.0.join("out.svg")).unwrap();
+        std::os::unix::fs::symlink("inside.svg", dir.0.join("alias.svg")).unwrap();
+        assert!(load(&dir.0).is_ok());
+    }
+
+    #[test]
+    fn limits_hold() {
+        let big_yaml = format!("hud: 1\n# {}\n", "x".repeat(YAML_BYTES));
+        let dir = Dir::new("yaml");
+        dir.put("hud.yaml", big_yaml.as_bytes());
+        assert!(errors(load(&dir.0)).contains("hud.yaml"));
+
+        let panel = "  - {id: p%, source: clock, anchor: top, text: x}\n";
+        let many = |n: usize| {
+            let mut text = String::from("hud: 1\npanels:\n");
+            for i in 0..n {
+                text.push_str(&panel.replace('%', &i.to_string()));
+            }
+            text
+        };
+        assert!(parse(&many(MAX_PANELS)).is_ok());
+        assert!(errors(parse(&many(MAX_PANELS + 1))).contains("panels"));
+
+        let dir = Dir::new("file");
+        dir.put("hud.yaml", MINIMAL.as_bytes());
+        dir.put("ok.svg", &vec![b' '; FILE_BYTES]);
+        assert!(load(&dir.0).is_ok());
+        dir.put("big.svg", &vec![b' '; FILE_BYTES + 1]);
+        assert!(errors(load(&dir.0)).contains("big.svg"));
+
+        let dir = Dir::new("folder");
+        dir.put("hud.yaml", MINIMAL.as_bytes());
+        for i in 0..8 {
+            dir.put(&format!("{i}.svg"), &vec![b' '; FILE_BYTES]);
+        }
+        assert!(errors(load(&dir.0)).contains("folder"));
+    }
+
+    #[test]
+    fn a_value_is_never_expanded_again() {
+        let fields = serde_json::json!({
+            "text": "{secret} and {text}",
+            "secret": "no",
+            "a": {"b": "deep"},
+            "n": 3,
+        });
+        assert_eq!(render("say: {text}", &fields), "say: {secret} and {text}");
+        assert_eq!(render("{a.b} {n} {missing} {a.c}.", &fields), "deep 3  .");
+        assert_eq!(render("{ unclosed {n", &fields), "{ unclosed {n");
+        let lookup = |name: &str| (name == "x").then(|| "{x}".to_owned());
+        assert_eq!(expand("{x}{x}", lookup), "{x}{x}");
+    }
+
+    #[test]
+    fn when_matches_lists_and_all_keys() {
+        let context = Context {
+            wm: "xp".into(),
+            state: "working".into(),
+            agents: "any".into(),
+            ..Context::default()
+        };
+        let cases = [
+            ("{}", true),
+            ("{wm: xp}", true),
+            ("{wm: mc}", false),
+            ("{wm: [mc, xp]}", true),
+            ("{wm: []}", false),
+            ("{wm: xp, state: [working, question]}", true),
+            ("{wm: xp, state: asleep}", false),
+            ("{nothing: x}", false),
+            ("{app: ''}", true),
+        ];
+        for (yaml, expected) in cases {
+            let when: When = serde_saphyr::from_str(yaml).unwrap();
+            assert_eq!(when.matches(&context), expected, "{yaml}");
+        }
+        assert_eq!(context.get("agents"), Some("any"));
+        assert_eq!(context.get("mood"), None);
+        for key in CONTEXT_KEYS {
+            assert!(Context::default().get(key).is_some(), "{key}");
+        }
+    }
+
+    #[test]
+    fn the_chat_block_is_values_only() {
+        assert!(errors(parse("hud: 1\nchat: {size: 11}\n")).contains("chat.size: 11"));
+        assert!(parse("hud: 1\nchat: {size: 14}\n").is_ok());
+        let neutral = parse(MINIMAL).unwrap();
+        assert_eq!(neutral.chat.place(), (Anchor::Right, 400));
+    }
+
+    #[test]
+    fn panels_are_checked() {
+        let panel = |body: &str| format!("hud: 1\npanels:\n  - {{id: a, text: x, {body}}}\n");
+        assert!(errors(parse(&panel("source: say"))).contains("panels[0]"));
+        assert!(errors(parse(&panel("source: event, anchor: top"))).contains("event"));
+        assert!(errors(parse(&panel("source: clock, anchor: top, event: a.b"))).contains("event"));
+        assert!(errors(parse(&panel("source: say, anchor: top, action: mute"))).contains("mute"));
+        assert!(errors(parse(&panel("source: say, near: nowhere"))).contains("nowhere"));
+        assert!(parse(&panel("source: voice, anchor: top, action: mute")).is_ok());
+        let twice = "hud: 1\npanels:\n  - {id: a, source: voice, anchor: top, text: x}\n  - {id: a, \
+                     source: say, anchor: top, text: x}\n";
+        assert!(errors(parse(twice)).contains("twice"));
+    }
+
+    #[test]
+    fn a_missing_picture_is_an_error() {
+        let dir = Dir::new("picture");
+        dir.put(
+            "hud.yaml",
+            b"hud: 1\npanels:\n  - {id: a, source: voice, anchor: top, picture: 'dot.svg#{state}'}\n",
+        );
+        assert!(errors(load(&dir.0)).contains("dot.svg"));
+        dir.put("dot.svg", b"<svg/>");
+        assert!(load(&dir.0).is_ok());
+    }
+    const SHOWN: &str = "picture: 'a.svg#x'";
+
+    fn one_panel(body: &str) -> String {
+        format!("hud: 1\npanels:\n  - {{id: a, source: voice, anchor: top, {SHOWN}, {body}}}\n")
+    }
+
+    #[test]
+    fn an_id_is_a_short_plain_name() {
+        let with = |id: &str| {
+            format!("hud: 1\npanels:\n  - {{id: '{id}', source: voice, anchor: top, {SHOWN}}}\n")
+        };
+        for bad in ["", "A", "a b", "a.b", "a/b", "é", &"a".repeat(33)] {
+            assert!(
+                errors(parse(&with(bad))).contains("panels[0].id"),
+                "{bad:?}"
+            );
+        }
+        for good in ["a", "fig_1-b", &"a".repeat(32)] {
+            assert!(parse(&with(good)).is_ok(), "{good:?}");
+        }
+    }
+
+    #[test]
+    fn numbers_have_bounds() {
+        let chat = |body: &str| format!("hud: 1\nchat: {{{body}}}\n");
+        for bad in ["size: 49", "width: 0", "width: 1601"] {
+            let key = bad.split(':').next().unwrap();
+            assert!(
+                errors(parse(&chat(bad))).contains(&format!("chat.{key}")),
+                "{bad}"
+            );
+        }
+        for good in ["size: 48", "size: 14", "width: 1600", "width: 1"] {
+            assert!(parse(&chat(good)).is_ok(), "{good}");
+        }
+        for bad in [
+            "max_chars: 0",
+            "max_chars: 2001",
+            "max_rows: 0",
+            "max_rows: 201",
+        ] {
+            let key = bad.split(':').next().unwrap();
+            assert!(errors(parse(&one_panel(bad))).contains(key), "{bad}");
+        }
+        for good in [
+            "max_chars: 2000",
+            "max_chars: 1",
+            "max_rows: 200",
+            "max_rows: 1",
+        ] {
+            assert!(parse(&one_panel(good)).is_ok(), "{good}");
+        }
+    }
+
+    #[test]
+    fn the_chat_takes_a_radius_a_well_and_a_card_look() {
+        let hud = parse("hud: 1\nchat: {radius: 10, well: [1, 2, 3], card: chat}\n").unwrap();
+        assert_eq!(hud.chat.radius, Some(10));
+        assert_eq!(hud.chat.well, Some([1, 2, 3]));
+        assert_eq!(hud.chat.card, CardLook::Chat);
+        assert_eq!(parse("hud: 1\n").unwrap().chat.card, CardLook::Host);
+        assert!(errors(parse("hud: 1\nchat: {radius: 25}\n")).contains("chat.radius"));
+    }
+
+    #[test]
+    fn the_chat_names_the_client_of_its_slot() {
+        let hud = parse("hud: 1\nchat: {slot: mc}\n").unwrap();
+        assert_eq!(hud.chat.slot.as_deref(), Some("mc"));
+        assert_eq!(parse("hud: 1\n").unwrap().chat.slot, None);
+        for bad in ["''", "a.b", "../x", "A b", "mc.chat"] {
+            let text = format!("hud: 1\nchat: {{slot: {bad}}}\n");
+            assert!(errors(parse(&text)).contains("chat.slot"), "{bad}");
+        }
+    }
+
+    #[test]
+    fn the_chat_margin_is_from_0_to_128() {
+        assert_eq!(parse("hud: 1\n").unwrap().chat.margin, 0);
+        let hud = parse("hud: 1\nchat: {margin: 32}\n").unwrap();
+        assert_eq!(hud.chat.margin, 32);
+        assert_eq!(
+            parse("hud: 1\nchat: {margin: 128}\n").unwrap().chat.margin,
+            128
+        );
+        let over = errors(parse("hud: 1\nchat: {margin: 129}\n"));
+        assert!(over.contains("chat.margin"), "{over}");
+    }
+
+    #[test]
+    fn panel_colours_keep_the_contrast_of_rule_5() {
+        let with = |colours: &str| {
+            parse(&format!(
+                "hud: 1\npanels:\n  - {{id: a, source: agents, anchor: top, rows: x, colours: \
+                 {colours}}}\nchat: {{fill: [28, 28, 28], text: [217, 212, 201]}}\n"
+            ))
+        };
+        let host = Chat::default();
+        let fine = with("{text: [217, 212, 201], muted: [140, 138, 130], accent: [255, 200, 90]}")
+            .unwrap();
+        assert_eq!(fine.panels[0].colours.accent, Some([255, 200, 90]));
+        assert_eq!(fine.contrast_errors(&host), Vec::<String>::new());
+        for key in ["text", "muted", "accent"] {
+            let dark = with(&format!("{{{key}: [60, 60, 60]}}")).unwrap();
+            let found = dark.contrast_errors(&host).join("\n");
+            assert!(
+                found.contains(&format!("panels[0].colours.{key}")),
+                "{found}"
+            );
+        }
+        assert!(errors(with("{shade: [1, 2, 3]}")).contains("shade"));
+    }
+
+    #[test]
+    fn a_bubble_takes_a_fill_a_border_and_a_tail() {
+        let with = |keys: &str| {
+            parse(&format!(
+                "hud: 1\npanels:\n  - {{id: a, source: say, anchor: top, style: bubble, text: \
+                 '{{text}}', {keys}}}\n"
+            ))
+        };
+        let host = Chat::default();
+        for good in [
+            "fill: [255, 255, 225], border: [0, 0, 0], tail: right",
+            "tail: left",
+            "fill: [20, 20, 20], colours: {text: [240, 240, 240]}",
+        ] {
+            let hud = with(good).unwrap_or_else(|e| panic!("{good}: {e:?}"));
+            assert_eq!(hud.contrast_errors(&host), Vec::<String>::new(), "{good}");
+        }
+        assert!(errors(with("tail: up")).contains("tail"));
+        let dark = with("fill: [20, 20, 20]").unwrap();
+        let found = dark.contrast_errors(&host).join("\n");
+        assert!(found.contains("panels[0].colours.text"), "{found}");
+        let pale = with("fill: [255, 255, 225], border: [250, 250, 215]").unwrap();
+        let found = pale.contrast_errors(&host).join("\n");
+        assert!(found.contains("panels[0].border"), "{found}");
+    }
+
+    #[test]
+    fn glass_is_checked_over_a_black_and_a_white_pane() {
+        let with = |text: &str| {
+            parse(&format!(
+                "hud: 1\nchat: {{style: glass, fill: [255, 252, 249], text: {text}, glow: [38, \
+                 128, 181]}}\n"
+            ))
+            .unwrap()
+        };
+        let host = Chat::default();
+        assert_eq!(
+            with("[20, 23, 31]").contrast_errors(&host),
+            Vec::<String>::new()
+        );
+        let grey = with("[112, 112, 112]");
+        assert!(contrast([112, 112, 112], [255, 252, 249]) >= MIN_TEXT_CONTRAST);
+        let found = grey.contrast_errors(&host).join("\n");
+        assert!(found.contains("chat.text"), "over a black pane: {found}");
+    }
+
+    #[test]
+    fn the_figure_is_a_picture_of_the_folder() {
+        let hud = parse("hud: 1\nfigure: paperclip.svg\n").unwrap();
+        assert_eq!(hud.figure.as_deref(), Some("paperclip.svg"));
+        assert_eq!(parse("hud: 1\n").unwrap().figure, None);
+        for bad in ["'a.svg#idle'", "'{state}.svg'", "''"] {
+            let text = format!("hud: 1\nfigure: {bad}\n");
+            assert!(errors(parse(&text)).contains("figure"), "{bad}");
+        }
+        let folder = Dir::new("figure");
+        folder.put("hud.yaml", b"hud: 1\nfigure: paperclip.svg\n");
+        let missing = load(&folder.0).unwrap_err().join("\n");
+        assert!(missing.contains("figure: paperclip.svg"), "{missing}");
+        folder.put(
+            "paperclip.svg",
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        );
+        assert!(load(&folder.0).is_ok());
+    }
+
+    #[test]
+    fn a_when_on_its_own_is_checked_and_names_its_fields() {
+        let when: When =
+            serde_json::from_str(r#"{"wm": ["xp", "mc"], "mood": "calm", "chat": "opened"}"#)
+                .unwrap();
+        let mut found = Vec::new();
+        when.check("huds[2]", &mut found);
+        assert_eq!(found.len(), 2, "{found:?}");
+        assert!(found[0].starts_with("huds[2].when.chat") && found[0].contains("opened"));
+        assert!(found[1].starts_with("huds[2].when.mood"));
+        assert_eq!(when.keys().collect::<Vec<_>>(), ["chat", "mood", "wm"]);
+    }
+
+    #[test]
+    fn a_picture_file_name_has_no_template() {
+        let bad = errors(parse(
+            &one_panel("picture: '{state}.svg#a'").replace(SHOWN, "text: x"),
+        ));
+        assert!(bad.contains("panels[0].picture"), "{bad}");
+        let fine = one_panel("text: x").replace(SHOWN, "picture: 'dot.svg#{state}'");
+        assert!(parse(&fine).is_ok());
+    }
+
+    #[test]
+    fn near_must_end_at_an_anchor() {
+        let cycle = "hud: 1\npanels:\n  - {id: a, source: say, near: b, text: x}\n  - {id: b, \
+                     source: say, near: a, text: x}\n";
+        let cycle = errors(parse(cycle));
+        assert!(
+            cycle.contains("panels[0].near") && cycle.contains("panels[1].near"),
+            "{cycle}"
+        );
+        let chain = "hud: 1\npanels:\n  - {id: a, source: say, near: b, text: x}\n  - {id: b, \
+                     source: say, near: c, text: x}\n  - {id: c, source: say, anchor: top, text: x}\n";
+        assert!(parse(chain).is_ok());
+    }
+
+    #[test]
+    fn when_values_are_checked() {
+        let when = |body: &str| one_panel(&format!("when: {{{body}}}"));
+        let bad = errors(parse(&when("chat: opened")));
+        assert!(bad.contains("when.chat") && bad.contains("opened"), "{bad}");
+        assert!(errors(parse(&when("state: [working, sleeping]"))).contains("when.state"));
+        assert!(errors(parse(&when("agents: many"))).contains("when.agents"));
+        assert!(
+            parse(&when(
+                "chat: open, state: [working, question], agents: any, app: foot"
+            ))
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn a_panel_shows_something() {
+        let empty = errors(parse(
+            "hud: 1\npanels:\n  - {id: a, source: voice, anchor: top}\n",
+        ));
+        assert!(
+            empty.contains("panels[0]") && empty.contains("picture"),
+            "{empty}"
+        );
+        for shown in ["picture: 'a.svg#x'", "text: x", "rows: x"] {
+            let text =
+                format!("hud: 1\npanels:\n  - {{id: a, source: voice, anchor: top, {shown}}}\n");
+            assert!(parse(&text).is_ok(), "{shown}");
+        }
+    }
+
+    #[test]
+    fn aliases_are_refused() {
+        let text =
+            "hud: 1\npanels:\n  - {id: a, source: voice, anchor: top, text: &t x, rows: *t}\n";
+        assert!(parse(text).is_err());
+    }
+
+    #[test]
+    fn the_scan_has_limits() {
+        let dir = Dir::new("entries");
+        dir.put("hud.yaml", MINIMAL.as_bytes());
+        for i in 0..255 {
+            dir.put(&format!("{i}.svg"), b"<svg/>");
+        }
+        assert!(load(&dir.0).is_ok());
+        dir.put("one-more.svg", b"<svg/>");
+        assert!(errors(load(&dir.0)).contains("entries"));
+
+        let dir = Dir::new("depth");
+        dir.put("hud.yaml", MINIMAL.as_bytes());
+        std::fs::create_dir_all(dir.0.join("a/b/c")).unwrap();
+        dir.put("a/b/c/ok.svg", b"<svg/>");
+        assert!(load(&dir.0).is_ok());
+        std::fs::create_dir_all(dir.0.join("a/b/c/d")).unwrap();
+        dir.put("a/b/c/d/deep.svg", b"<svg/>");
+        assert!(errors(load(&dir.0)).contains("depth"));
+    }
+
+    #[test]
+    fn a_hard_link_is_refused() {
+        let dir = Dir::new("nlink");
+        dir.put("hud.yaml", MINIMAL.as_bytes());
+        dir.put("a.svg", b"<svg/>");
+        assert!(load(&dir.0).is_ok());
+        std::fs::hard_link(dir.0.join("a.svg"), dir.0.join("b.svg")).unwrap();
+        let refused = errors(load(&dir.0));
+        assert!(
+            refused.contains("a.svg") || refused.contains("b.svg"),
+            "{refused}"
+        );
+        assert!(refused.contains("hard link"), "{refused}");
+    }
+
+    #[test]
+    fn the_yaml_is_read_only_after_the_scan_passes() {
+        let dir = Dir::new("order");
+        dir.put("hud.yaml", b"hud: 1\nscript: x\n");
+        dir.put("big.svg", &vec![b' '; FILE_BYTES + 1]);
+        let refused = errors(load(&dir.0));
+        assert!(refused.contains("big.svg"), "{refused}");
+        assert!(!refused.contains("script"), "{refused}");
+    }
+
+    #[test]
+    fn the_yaml_is_read_as_a_file_of_the_folder() {
+        let outside = Dir::new("yaml-outside");
+        outside.put("hud.yaml", MINIMAL.as_bytes());
+        let dir = Dir::new("yaml-link");
+        std::os::unix::fs::symlink(outside.0.join("hud.yaml"), dir.0.join("hud.yaml")).unwrap();
+        assert!(errors(load(&dir.0)).contains("outside"));
+    }
+
+    #[test]
+    fn contrast_is_the_wcag_ratio() {
+        assert!((contrast([0, 0, 0], [255, 255, 255]) - 21.0).abs() < 1e-9);
+        assert!((contrast([255, 255, 255], [255, 255, 255]) - 1.0).abs() < 1e-9);
+        assert!(contrast([119, 119, 119], [255, 255, 255]) < MIN_TEXT_CONTRAST);
+        assert!(contrast([118, 118, 118], [255, 255, 255]) >= MIN_TEXT_CONTRAST);
+    }
+
+    #[test]
+    fn low_contrast_text_is_reported_with_its_key() {
+        let host = Chat {
+            fill: Some([255, 255, 255]),
+            text: Some([0, 0, 0]),
+            name: Some([0, 0, 0]),
+            ..Chat::default()
+        };
+        let own = Chat {
+            text: Some([200, 200, 200]),
+            name: Some([100, 100, 100]),
+            ..Chat::default()
+        };
+        let errors = own.contrast_errors(&host);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(errors[0].contains("chat.text"), "{errors:?}");
+        assert_eq!(Chat::default().contrast_errors(&host), Vec::<String>::new());
+        assert_eq!(own.contrast_errors(&Chat::default()), Vec::<String>::new());
+    }
+
+    const DARK: &str = "hud: 1\npanels:\n- {id: rows, source: agents, anchor: top_right, rows: '{name}', \
+        action: chat, fill: [255, 255, 255], colours: {text: [20, 20, 20]}}\nchat:\n  fill: [250, 250, 250]\n  \
+        text: [20, 20, 20]\ndark:\n  chat: {fill: [28, 28, 28], text: [217, 212, 201]}\n  \
+        panels:\n    rows: {fill: [28, 28, 28], colours: {text: [217, 212, 201]}}\n";
+
+    #[test]
+    fn a_dark_block_gives_the_colours_of_the_dark_theme() {
+        let hud = parse(DARK).unwrap();
+        let light = hud.in_theme(false);
+        assert_eq!(light.chat.fill, Some([250, 250, 250]));
+        let dark = hud.in_theme(true);
+        assert_eq!(dark.chat.fill, Some([28, 28, 28]));
+        assert_eq!(dark.chat.text, Some([217, 212, 201]));
+        assert_eq!(dark.panels[0].fill, Some([28, 28, 28]));
+        assert_eq!(dark.panels[0].colours.text, Some([217, 212, 201]));
+        assert_eq!(
+            dark.panels[0].anchor,
+            Some(Anchor::TopRight),
+            "only colours change"
+        );
+        assert_eq!(hud.contrast_errors(&Chat::default()), Vec::<String>::new());
+    }
+
+    #[test]
+    fn the_dark_block_passes_the_contrast_check_and_names_panels_only() {
+        let low = DARK.replace(
+            "{fill: [28, 28, 28], text: [217, 212, 201]}",
+            "{fill: [28, 28, 28]}",
+        );
+        let errors = parse(&low).unwrap().contrast_errors(&Chat::default());
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("dark") && e.contains("chat.text")),
+            "{errors:?}"
+        );
+        let stray = DARK.replace("    rows: {fill", "    other: {fill");
+        let errors = parse(&stray).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.contains("dark.panels.other")),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn a_window_manager_names_its_theme_in_one_event() {
+        assert_eq!(
+            theme_event("mc", true),
+            serde_json::json!({"event": "mc.theme", "data": {"theme": "dark"}})
+        );
+        assert_eq!(theme_event("construct", false)["data"]["theme"], "light");
+    }
+}

@@ -8,14 +8,18 @@
 
 use std::collections::BTreeMap;
 
-use chora_scene::{Command, Easing, NodeKind, PropsUpdate, ToplevelState, ipc::ClientError};
+use chora_scene::{
+    Command, Easing, NodeKind, PropsUpdate, ToplevelState, Transform, ipc::ClientError,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     Mc,
     config::{Style, Type},
-    create, move_to,
+    create,
+    fonts::{self, Ink},
+    move_to,
     scene::{MAX_TEXT, Scene, check_name},
     title_of,
 };
@@ -72,7 +76,7 @@ impl Region {
     }
 
     /// A line across the page, its contents side by side.
-    fn is_line(self) -> bool {
+    pub fn is_line(self) -> bool {
         matches!(self, Self::Header | Self::Footer)
     }
 }
@@ -131,6 +135,12 @@ pub enum Kind {
     /// An app docked in a side or the drawer; it starts when its region
     /// shows the first time.
     App,
+    /// The keys of the bindings, each a key and its words, pinned to the
+    /// foot of a side; the key Super+F1 shows all of them.
+    Keys,
+    /// The chat of the HUD host in a side: a door that opens it while it
+    /// is closed, and its box while it is open.
+    Chat,
 }
 
 /// A content of the regions.
@@ -151,6 +161,14 @@ pub struct Content {
     /// The format of a clock, as `date` takes it.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub format: String,
+    /// A text shows `Nothing new.` while it has no lines, in the language
+    /// of the session, under its title.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub empty: bool,
+    /// A text in a side folds into its title and the count of its lines,
+    /// with `Show` flush right, while the chat is open.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub folds: bool,
     /// The style of the text: `running_head` without a base for the head,
     /// the clock and the state, `hud` for the HUD, `margin` for a text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -307,16 +325,29 @@ pub fn date(format: &str) -> String {
         .unwrap_or_default()
 }
 
-/// The milliseconds to the next full minute, and a little more.
+/// The milliseconds to the next full minute, and a little more, never
+/// above the longest duration of the core.
 pub fn to_next_minute() -> f64 {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
+    next_minute_after(now)
+}
+
+/// `to_next_minute` at `now` milliseconds since the epoch.
+fn next_minute_after(now: u128) -> f64 {
     #[allow(clippy::cast_precision_loss)] // below 60000
     let ms = (60_000 - now % 60_000) as f64;
-    ms + 50.0
+    (ms + 50.0).min(chora_scene::MAX_DURATION)
 }
+
+/// The content that names the next entry of the day in the footer.
+const NEXT: &str = "next";
+
+/// The content that names the previous page in the footer.
+const PREV: &str = "prev";
+const URGENT: &str = "urgent";
 
 /// One text node of a region.
 pub struct Item {
@@ -326,10 +357,66 @@ pub struct Item {
     pub props: PropsUpdate,
     /// Where a stack in a side puts space before it: a new content.
     pub first: bool,
+    /// The place across a side, from its left edge.
+    pub x: f64,
+    pub put: Put,
+    /// Space before the item in a stack, in pixels.
+    pub before: f64,
+    /// What a click on it does: a binding as `key:Super+n`, a helper as
+    /// `agent:NAME`; it also shows the focus mark under the pointer.
+    pub hit: Option<String>,
+    /// A close mark stands before the text: two bars, drawn, not a glyph.
+    pub mark: bool,
+}
+
+/// Where an item of a side stands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Put {
+    /// One under the other from the top.
+    Stack,
+    /// At the foot of the side, above its lower edge.
+    Foot,
+    /// At the foot, with a hairline over the width of the side above it.
+    FootRule,
+    /// At the foot, in the line of the item before it.
+    FootRow,
+    /// In the line of the item before it, at `x`.
+    Row,
+    /// In the line of the item before it, flush right.
+    End,
+    /// Where the box of the chat begins: it runs to the foot of the side.
+    Slot,
+}
+
+impl Put {
+    fn foot(self) -> bool {
+        matches!(self, Self::Foot | Self::FootRule | Self::FootRow)
+    }
+
+    fn row(self) -> bool {
+        matches!(self, Self::FootRow | Self::Row | Self::End)
+    }
+}
+
+impl Item {
+    /// A text item that stacks in a side.
+    pub fn text(id: String, slot: i32, props: PropsUpdate, first: bool) -> Self {
+        Self {
+            id,
+            slot,
+            props,
+            first,
+            x: 0.0,
+            put: Put::Stack,
+            before: 0.0,
+            hit: None,
+            mark: false,
+        }
+    }
 }
 
 /// The items and the docked app of each region.
-type Plan = BTreeMap<Region, (Vec<Item>, Option<String>)>;
+pub type Plan = BTreeMap<Region, (Vec<Item>, Option<String>)>;
 
 /// The boxes of the regions and of the window of an app scene, x, y,
 /// width and height on the output.
@@ -441,10 +528,11 @@ impl Mc {
     /// The type of a content: its own style on the base of its kind.
     pub fn content_type(&self, content: &Content, title: bool) -> Type {
         let base = match content.kind {
-            _ if title => "running_head",
-            Kind::Head | Kind::Clock | Kind::State => "running_head",
+            _ if title => "label",
+            Kind::Head | Kind::Clock => "running_head",
             Kind::Hud | Kind::Agents => "hud",
-            Kind::Text | Kind::App => "margin",
+            Kind::Chat => "body",
+            Kind::State | Kind::Text | Kind::App | Kind::Keys => "margin",
         };
         let style = content.style.as_ref().filter(|_| !title);
         let mut ty = self.ty(base, style);
@@ -476,7 +564,7 @@ impl Mc {
                 .get(name)
                 .map(|(title, lines)| (title.clone(), lines.join("\n")))
                 .unwrap_or_default(),
-            Kind::App => (String::new(), String::new()),
+            Kind::App | Kind::Keys | Kind::Chat => (String::new(), String::new()),
         }
     }
 
@@ -494,8 +582,10 @@ impl Mc {
     }
 
     /// Whether a region shows in a scene: as the toggle says, else as the
-    /// scene says, else as the settings say; over an app the sides show
-    /// only by a toggle, so that the app keeps its width.
+    /// scene says, else as the settings say; over a window without a
+    /// scene the sides show only by a toggle, so that the window keeps its
+    /// width. The window of an app scene fills its text block, so that the
+    /// column shows beside it as beside a page.
     fn shown(&self, region: Region, name: &str) -> bool {
         let scene = self.scenes.get(name);
         let side = matches!(region, Region::Left | Region::Right);
@@ -508,12 +598,20 @@ impl Mc {
                 let preset = config.presets.get(&config.preset);
                 let shown = (preset.and_then(|p| p.shown.get(&region)).copied())
                     .unwrap_or(config.regions.get(region).shown);
-                shown && !(side && self.is_app(name))
+                let bare = scene.is_none_or(|s| !Self::has_chapter(s));
+                shown && !(side && bare)
             })
     }
 
+    /// The binding of an action, as the key list names it.
+    fn key_of(&self, action: &crate::config::Action) -> Option<String> {
+        (self.settings.value.bindings.iter())
+            .find(|(_, a)| *a == action)
+            .map(|(key, _)| format!("key:{key}"))
+    }
+
     /// The items of the regions of a scene, and the docked app of each.
-    fn items(&self, name: &str) -> Plan {
+    pub fn items(&self, name: &str) -> Plan {
         let contents = &self.settings.value.contents;
         let mut out = Plan::new();
         for (region, slots) in self.placed(name) {
@@ -541,19 +639,116 @@ impl Mc {
     /// title and its lines.
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
-        if content.kind == Kind::App {
+        let side = !region.is_line();
+        let all_keys = side && self.keys == crate::keys::List::All;
+        if all_keys && (content.kind == Kind::Chat || content.folds) {
             return Vec::new();
         }
-        if content.kind == Kind::Agents {
-            return self.agent_items(region, slot, name, content);
+        match content.kind {
+            Kind::Agents => self.agent_items(region, slot, name, content),
+            Kind::State if side => self.state_items(region, slot, (name, scene)),
+            Kind::Chat if side => self.chat_items(slot, name, content, region),
+            Kind::Keys if side => self.key_items(slot, name, content, region),
+            Kind::App | Kind::Chat | Kind::Keys => Vec::new(),
+            _ => self.text_items(region, slot, (name, scene)),
         }
-        let (title, text) = self.content_text(name, content, scene);
+    }
+
+    /// The text of a content that has none of its own: a free line for the
+    /// state word of the host, the line to the next page in the footer.
+    fn filled(
+        &self,
+        region: Region,
+        (name, scene): (&str, &str),
+        text: &str,
+    ) -> (String, Option<String>) {
+        let content = &self.settings.value.contents[name];
+        let host = self.settings.value.voice_hud == crate::config::VoiceHud::Host;
+        if !text.is_empty() {
+            return (text.to_owned(), None);
+        }
+        if content.kind == Kind::State && !region.is_line() && host {
+            return (" ".to_owned(), None);
+        }
+        if name == NEXT && region.is_line() {
+            let line = self.next_page_line(scene).unwrap_or_default();
+            return (line, self.key_of(&crate::config::Action::NextScene));
+        }
+        if name == PREV && region.is_line() {
+            let line = self.previous_page_line(scene).unwrap_or_default();
+            return (line, self.key_of(&crate::config::Action::PreviousScene));
+        }
+        (String::new(), None)
+    }
+
+    /// The state line of a side: the state word that mc draws, if any,
+    /// and the word for the microphone. Where the HUD host draws the
+    /// state word at the right, the word for the microphone takes the
+    /// free line at the left.
+    fn state_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
+        let mut items = self.text_items(region, slot, (name, scene));
         let id = format!("{}-{name}", self.region_id(region));
-        let item = |id: String, is_title: bool, text: &str, first: bool| Item {
-            id,
-            slot,
-            props: self.content_type(content, is_title).props(text),
-            first,
+        let blank = |item: &Item| {
+            item.props
+                .text
+                .as_deref()
+                .is_none_or(|t| t.trim().is_empty())
+        };
+        let alone = items.iter().all(blank);
+        if let Some(word) = self.mic_item(&id, slot, alone) {
+            if alone {
+                items.clear();
+            }
+            items.push(word);
+        }
+        items
+    }
+
+    /// The token of the hit `node`, as its item names it.
+    fn hit_token(&self, node: &str) -> Option<String> {
+        let base = node.strip_suffix("-hit")?;
+        let name = self.current.clone().unwrap_or_default();
+        (self.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.id == base)
+            .and_then(|i| i.hit)
+    }
+
+    /// A press on the word for the microphone; see [`Mc::press_mic`].
+    pub fn click_mic(&mut self, node: &str, injected: bool) -> bool {
+        (self.hit_token(node)).is_some_and(|token| self.press_mic(&token, injected))
+    }
+
+    fn text_items(&self, region: Region, slot: i32, (name, scene): (&str, &str)) -> Vec<Item> {
+        let content = &self.settings.value.contents[name];
+        let (title, text) = self.content_text(name, content, scene);
+        let (mut text, hit) = self.filled(region, (name, scene), &text);
+        let id = format!("{}-{name}", self.region_id(region));
+        if content.folds && self.chat == crate::Chat::Open && !region.is_line() {
+            return self.folded_items(slot, &id, content, (&title, &text));
+        }
+        let quiet = content.empty && text.is_empty() && !region.is_line();
+        if quiet {
+            text = crate::keys::nothing_new(chora_kit::words::Language::of_session()).into();
+        }
+        if content.folds && !region.is_line() && !quiet && !text.is_empty() {
+            return self.note_items(slot, &id, content, (&title, &text));
+        }
+        let item = |id: String, is_title: bool, text: &str, first: bool| {
+            let mut props = self.content_type(content, is_title).props(text);
+            if quiet && !is_title {
+                props.color = self.settings.value.colors().get("muted").copied();
+            }
+            let urgent = name == URGENT && region.is_line();
+            Item {
+                hit: if urgent {
+                    Some("urgent:clear".into())
+                } else {
+                    hit.clone()
+                },
+                mark: urgent,
+                ..Item::text(id, slot, props, first)
+            }
         };
         if region.is_line() {
             let text = text.replace('\n', "  ·  ");
@@ -562,8 +757,6 @@ impl Mc {
                 .into_iter()
                 .collect();
         }
-        // A text with a title shows it in a side that the user opened, so
-        // that the toggle shows where notes go.
         let opened = self.toggled.get(&region) == Some(&true);
         let mut items = Vec::new();
         if !title.is_empty() && (opened || !text.is_empty()) {
@@ -589,11 +782,16 @@ impl Mc {
         let gap = page.gap * em;
         let room = f64::from(output.size[0]) - 4.0 * b - 2.0 * (page.margin * em + gap);
         let placed = self.placed(name);
+        let output_w = f64::from(output.size[0]);
         let sides = [Region::Left, Region::Right].map(|region| {
-            if placed.contains_key(&region) {
-                config.regions.get(region).size * em
+            if !placed.contains_key(&region) {
+                return 0.0;
+            }
+            let size = config.regions.get(region).size;
+            if region == Region::Right {
+                column_width(size, b, output_w)
             } else {
-                0.0
+                size * b
             }
         });
         let need: f64 = sides.iter().filter(|w| **w > 0.0).map(|w| w + gap).sum();
@@ -647,15 +845,23 @@ impl Mc {
         let [lw, rw] = self.side_widths(name);
         let side_top = if headless { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
+        let column_top = b;
+        let column_end = (h / b).floor() * b;
+        let column = [
+            w - 2.0 * b - rw,
+            column_top,
+            rw,
+            (column_end - column_top).max(b),
+        ];
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
         if headless {
             // Each side has a box, also one that fades out.
             regions.insert(Region::Left, [b, side_top, lw, side_h]);
-            regions.insert(Region::Right, [w - b - rw, side_top, rw, side_h]);
+            regions.insert(Region::Right, column);
             if on(Region::Left) {
                 window[0] = lw + 2.0 * b;
             }
-            let right = if on(Region::Right) { rw + 2.0 * b } else { 0.0 };
+            let right = if on(Region::Right) { rw + 4.0 * b } else { 0.0 };
             window[2] = (w - window[0] - right).max(b);
         } else {
             // The window of an app scene fills its text block, above the
@@ -664,7 +870,7 @@ impl Mc {
             window = [x, top, width, height.min(drawer_top - b - top).max(b)];
             let left = x - note - 2.0 * gap - lw;
             regions.insert(Region::Left, [left, side_top, lw, side_h]);
-            regions.insert(Region::Right, [x + width + gap, side_top, rw, side_h]);
+            regions.insert(Region::Right, column);
         }
         Some(Boxes { regions, window })
     }
@@ -673,6 +879,46 @@ impl Mc {
     fn visible(&self, items: &Plan) -> Vec<Region> {
         let name = self.current.clone().unwrap_or_default();
         self.visible_in(&name, items)
+    }
+
+    /// The boxes of the regions of a scene, as they show now.
+    #[cfg(test)]
+    pub fn boxes_of(&self, name: &str) -> BTreeMap<Region, [f64; 4]> {
+        let visible = self.visible_in(name, &self.items(name));
+        self.boxes(name, &visible)
+            .map(|b| b.regions)
+            .unwrap_or_default()
+    }
+
+    /// The box of the chat in the margin column, while it is open and the
+    /// column shows.
+    pub fn chat_slot(&self) -> Option<[f64; 4]> {
+        self.slot.filter(|_| self.chat == crate::Chat::Open)
+    }
+
+    /// Tells the HUD host where the chat goes, when the box or the output
+    /// changed since the host was told last. A failed emit is tried again
+    /// at the next layout.
+    pub fn send_slot(&mut self) -> Result<(), ClientError> {
+        let rect = self.chat_slot();
+        let Some(output) = self.output.as_ref().map(|o| o.name.clone()) else {
+            return Ok(());
+        };
+        let told = self.slot_sent.as_ref();
+        let unchanged = match told {
+            Some((sent, sent_rect)) => *sent == output && *sent_rect == rect,
+            None => rect.is_none(),
+        };
+        if unchanged {
+            return Ok(());
+        }
+        let emit =
+            serde_json::json!({"event": "mc.chat.slot", "data": {"output": output, "rect": rect}});
+        self.rt
+            .conn
+            .call::<_, serde_json::Value>("events.emit", emit)?;
+        self.slot_sent = Some((output, rect));
+        Ok(())
     }
 
     /// The box of the drawer of the current scene, while it shows.
@@ -704,7 +950,8 @@ impl Mc {
     /// Draws the regions of the current scene anew.
     pub fn render(&mut self) -> Result<(), ClientError> {
         let commands = self.regions()?;
-        self.apply(commands)
+        self.apply(commands)?;
+        self.send_slot()
     }
 
     /// The regions of the current scene: what goes into the transaction
@@ -938,6 +1185,15 @@ impl Mc {
         )];
         let config = &self.settings.value;
         let colors = config.colors();
+        if region == Region::Right {
+            let baseline = config.scale.baseline;
+            let faint = colors.get("faint").copied().unwrap_or(config.background());
+            let caps = self.ty("margin", None).ink().height;
+            let first = self.phase() - caps;
+            let last = height - (baseline - self.phase());
+            let edge = [-baseline, first, 1.0, (last - first).max(1.0)];
+            commands.push(rect(&format!("{id}-edge"), &id, edge, faint));
+        }
         if region == Region::Drawer {
             // A sheet of the page over the text under it, and a hairline.
             let baseline = config.scale.baseline;
@@ -952,12 +1208,27 @@ impl Mc {
             let rule = [0.0, -(baseline / 2.0).round(), width, 1.0];
             commands.push(rect(&format!("{id}-rule"), &id, rule, faint));
         }
+        let faint = colors.get("faint").copied().unwrap_or(config.background());
         for item in items {
+            let room = (width - item.x).max(1.0);
             let props = PropsUpdate {
-                max_width: (!region.is_line()).then_some(width),
+                max_width: (!region.is_line()).then_some(room),
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
+            commands.extend(close_nodes(item, &id, faint));
+            if item.hit.is_some() {
+                let ink = colors.get("text").copied().unwrap_or(faint);
+                commands.extend(hit_nodes(&item.id, &id, ink));
+            }
+            if item.put == Put::FootRule {
+                commands.push(rect(
+                    &format!("{}-rule", item.id),
+                    &id,
+                    [0.0, 0.0, width, 1.0],
+                    faint,
+                ));
+            }
         }
         commands
     }
@@ -970,34 +1241,247 @@ impl Mc {
         boxes: &Boxes,
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
-        let baseline = self.settings.value.scale.baseline;
         let mut commands = Vec::new();
+        self.slot = None;
         for (region, (items, _)) in items {
-            let [_, _, width, height] = boxes.regions[region];
+            let [left, top, width, height] = boxes.regions[region];
             if region.is_line() {
-                commands.extend(self.line(items, [width, height], probed)?);
+                commands.extend(self.line(items, [top, width, height], probed)?);
                 continue;
             }
-            let mut y = 0.0;
-            for item in items {
-                if item.first && y > 0.0 {
-                    y += baseline;
-                }
-                commands.push(move_to(item.id.clone(), 0.0, y));
-                let [_, _, _, item_height] = self.measure(&item.id, probed)?;
-                y += item_height.max(baseline);
+            commands.extend(self.stack(items, [left, top, width, height], probed)?);
+        }
+        Ok(commands)
+    }
+
+    /// Places the items of a side: one under the other from the top, the
+    /// items of the foot above the lower edge, a row beside its first item.
+    fn stack(
+        &mut self,
+        items: &[Item],
+        [left, top, width, height]: [f64; 4],
+        probed: bool,
+    ) -> Result<Vec<Command>, ClientError> {
+        let baseline = self.settings.value.scale.baseline;
+        let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
+        for item in items {
+            let [_, _, w, h] = self.measure(&item.id, probed)?;
+            heights.push(h.max(baseline));
+            widths.push(w);
+            let at = match item.put {
+                Put::End => (width - w + trailing(&item.props)).max(0.0),
+                _ => item.x,
+            };
+            lefts.push(at);
+        }
+        let (flow, end) = lines(items, &heights, false, baseline);
+        let (foot, foot_end) = lines(items, &heights, true, baseline);
+        let foot_top = (height - foot_end).max(end);
+        let mut commands = Vec::new();
+        if let Some(at) = items.iter().position(|i| i.put == Put::Slot)
+            && let Some((_, y)) = flow.iter().find(|(i, _)| *i == at)
+        {
+            self.slot = Some([left, top + y, width, (height - y).max(baseline)]);
+        }
+        for (item, y) in flow
+            .into_iter()
+            .chain(foot.into_iter().map(|(i, y)| (i, y + foot_top)))
+        {
+            let idx = item;
+            let item = &items[idx];
+            let ink = props_ink(&item.props);
+            let shift = self.to_grid(top + y + ink.top + ink.height);
+            commands.push(move_to(item.id.clone(), lefts[idx], y + shift));
+            if item.hit.is_some() {
+                let [x, w] = if item.put == Put::End {
+                    [lefts[idx], widths[idx]]
+                } else {
+                    [0.0, width]
+                };
+                let at = if item.put == Put::End { x } else { item.x };
+                let ink = Ink {
+                    top: ink.top + shift,
+                    ..ink
+                };
+                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at, ink));
+            }
+            if item.put == Put::FootRule {
+                let y = y - (baseline / 2.0).round();
+                commands.push(move_to(format!("{}-rule", item.id), 0.0, y));
+                commands.push(Command::Update {
+                    id: format!("{}-rule", item.id),
+                    props: PropsUpdate {
+                        size: Some([width, 1.0]),
+                        ..PropsUpdate::default()
+                    },
+                });
             }
         }
         Ok(commands)
     }
 
+    /// The chat in a side: while it is closed a door, `Chat with a helper`
+    /// and the key of the chat flush right, under a head; while it is open
+    /// the head with `Esc  Close`, and the place of the box of the host.
+    fn chat_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        let id = format!("{}-{name}", self.region_id(region));
+        let head = self.content_type(content, true).props("Chat");
+        let mut items = vec![Item::text(format!("{id}-title"), slot, head, true)];
+        let margin = self.ty("margin", None);
+        let open = self.chat == crate::Chat::Open;
+        let end = |part: &str, text: &str, hit: Option<&str>| Item {
+            put: Put::End,
+            hit: hit.map(str::to_owned),
+            ..Item::text(format!("{id}-{part}"), slot, margin.props(text), false)
+        };
+        if open {
+            items.push(Item {
+                put: Put::End,
+                ..end("close", "Esc  Close", Some("chat:close"))
+            });
+            let blank = Item::text(format!("{id}-slot"), slot, margin.props(" "), false);
+            items.push(Item {
+                put: Put::Slot,
+                ..blank
+            });
+            return items;
+        }
+        let door = self
+            .content_type(content, false)
+            .props("Chat with a helper ...");
+        items.push(Item {
+            hit: Some("chat:open".into()),
+            ..Item::text(format!("{id}-door"), slot, door, false)
+        });
+        let key = (self.settings.value.bindings.iter())
+            .find(|(_, a)| **a == crate::config::Action::Chat)
+            .map(|(k, _)| crate::keys::human(k));
+        items.extend(key.map(|key| end("key", &key, None)));
+        items
+    }
+
+    /// The notes of a list that folds: each on one line, the time in the
+    /// margin style and the words in the reading face beside it, a longer
+    /// note wrapping under its first word.
+    fn note_items(
+        &self,
+        slot: i32,
+        id: &str,
+        content: &Content,
+        (title, text): (&str, &str),
+    ) -> Vec<Item> {
+        let mut items = Vec::new();
+        if !title.is_empty() {
+            let props = self.content_type(content, true).props(title);
+            items.push(Item::text(format!("{id}-title"), slot, props, true));
+        }
+        let baseline = self.settings.value.scale.baseline;
+        let note = self.ty("margin", None);
+        let body = self.content_type(content, false);
+        let x = chora_kit::hud::LABEL_COLUMN;
+        let lines = text.lines().filter(|line| !line.trim().is_empty());
+        for (i, line) in lines.enumerate() {
+            let Some((time, words)) = split_time(line) else {
+                let props = body.props(line);
+                items.push(Item::text(format!("{id}-{i}"), slot, props, false));
+                continue;
+            };
+            items.push(Item {
+                before: if i > 0 { baseline } else { 0.0 },
+                ..Item::text(format!("{id}-{i}-time"), slot, note.props(time), false)
+            });
+            items.push(Item {
+                put: Put::Row,
+                x,
+                ..Item::text(format!("{id}-{i}"), slot, body.props(words), false)
+            });
+        }
+        items
+    }
+
+    /// A text that folds while the chat is open: its head with the count
+    /// of its lines, and `Show` flush right.
+    fn folded_items(
+        &self,
+        slot: i32,
+        id: &str,
+        content: &Content,
+        (title, text): (&str, &str),
+    ) -> Vec<Item> {
+        let count = text.lines().filter(|l| !l.trim().is_empty()).count();
+        let head = format!("{title}  {count}");
+        let props = self.content_type(content, true).props(&head);
+        let mut items = vec![Item::text(format!("{id}-title"), slot, props, true)];
+        if count > 0 {
+            let props = self.ty("margin", None).props("Show");
+            items.push(Item {
+                put: Put::End,
+                hit: Some("chat:close".into()),
+                ..Item::text(format!("{id}-show"), slot, props, false)
+            });
+        }
+        items
+    }
+
+    /// The rows of the key list: the key in the text color, its words in
+    /// the margin color beside it, and a head over them.
+    fn key_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        if self.chat == crate::Chat::Open {
+            return Vec::new();
+        }
+        let config = &self.settings.value;
+        let full = self.keys == crate::keys::List::All;
+        let page = (self.current.as_deref()).is_some_and(|scene| !self.is_app(scene));
+        let plain = self.page_keys == crate::keys::PageKeys::Plain && page;
+        let rows = if full {
+            crate::keys::all(config, plain)
+        } else {
+            crate::keys::short(config, plain)
+        };
+        let id = format!("{}-{name}", self.region_id(region));
+        let title = if full { "All keys" } else { "Keys" };
+        let head = self.content_type(content, true).props(title);
+        let mut items = vec![Item {
+            put: Put::FootRule,
+            ..Item::text(format!("{id}-title"), slot, head, true)
+        }];
+        let mut ty = self.content_type(content, false);
+        let words_x = chora_kit::hud::LABEL_COLUMN;
+        let words = ty.clone();
+        ty.color = config.colors().get("text").copied().unwrap_or(ty.color);
+        for (i, row) in rows.iter().enumerate() {
+            let mut props = ty.props(&row.key);
+            props.weight = Some(500);
+            items.push(Item {
+                put: Put::Foot,
+                hit: row.binding.as_ref().map(|b| format!("key:{b}")),
+                ..Item::text(format!("{id}-{i}-key"), slot, props, false)
+            });
+            items.push(Item {
+                put: Put::FootRow,
+                x: words_x,
+                ..Item::text(
+                    format!("{id}-{i}-words"),
+                    slot,
+                    words.props(&row.words),
+                    false,
+                )
+            });
+        }
+        items
+    }
+
     /// Places the items of a line: the end keeps its place, the start ends
     /// before it, and the middle sits between them; what does not fit is
     /// cut.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one pass over the three groups of a line"
+    )]
     fn line(
         &mut self,
         items: &[Item],
-        [width, height]: [f64; 2],
+        [top, width, height]: [f64; 3],
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let config = &self.settings.value;
@@ -1005,7 +1489,7 @@ impl Mc {
         let mut sizes = Vec::new();
         for item in items {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
-            sizes.push((item, w, h));
+            sizes.push((item, w + lead(item), h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
             (sizes.iter())
@@ -1031,20 +1515,34 @@ impl Mc {
             .min(high - span(&middle))
             .max(low);
         let mut commands = Vec::new();
-        for (group, x0, room) in [
-            (start, 0.0, high),
-            (middle, mid_x, high - mid_x),
-            (end, end_x, width - end_x),
+        for (group, x0, room, flush) in [
+            (start, 0.0, high, false),
+            (middle, mid_x, high - mid_x, false),
+            (end, end_x, width - end_x, true),
         ] {
-            let mut x = x0;
-            for (item, w, h) in group {
-                let left = x0 + room - x;
+            let mut next = x0;
+            let last = group.len().saturating_sub(1);
+            for (i, (item, w, h)) in group.into_iter().enumerate() {
+                let left = x0 + room - next;
+                let lead = lead(item);
+                let x = if flush && i == last {
+                    next + trailing(&item.props)
+                } else {
+                    next
+                };
                 if w > left + 0.5 {
                     commands.push(shorten(item, left / w));
                 }
                 let y = ((height - h.max(baseline)) / 2.0).round();
-                commands.push(move_to(item.id.clone(), x, y));
-                x += w.min(left) + gap;
+                let ink = props_ink(&item.props);
+                let y = y + self.to_grid(top + y + ink.top + ink.height);
+                commands.push(move_to(item.id.clone(), x + lead, y));
+                commands.extend(close_place(item, [x, y + ink.top + ink.height / 2.0]));
+                if item.hit.is_some() {
+                    let at = [x, y, w.min(left), h.max(baseline)];
+                    commands.extend(hit_place(&item.id, at, x, props_ink(&item.props)));
+                }
+                next += w.min(left) + gap;
             }
         }
         Ok(commands)
@@ -1101,6 +1599,93 @@ impl Mc {
         Ok(new)
     }
 
+    /// Shows the focus mark of a hit while the pointer is over it, and
+    /// hides it when the pointer leaves.
+    pub fn mark(&mut self, node: &str, on: bool) -> Result<(), ClientError> {
+        let Some(base) = node
+            .strip_suffix("-hit")
+            .filter(|_| node.starts_with("mc-"))
+        else {
+            return Ok(());
+        };
+        self.apply(vec![Command::Update {
+            id: mark_id(base),
+            props: PropsUpdate {
+                opacity: Some(if on { 1.0 } else { 0.0 }),
+                ..PropsUpdate::default()
+            },
+        }])
+    }
+
+    /// What a click on a hit does: a key row acts as its key, a helper
+    /// opens the chat with it, a row of the overview shows its scene, a
+    /// row of another page is announced as `mc.row.chosen`. Answers
+    /// whether the node is a hit.
+    pub fn click_hit(&mut self, node: &str) -> bool {
+        let Some(base) = node.strip_suffix("-hit") else {
+            return false;
+        };
+        if base.ends_with("-chapter-head") {
+            return self.show_overview();
+        }
+        let token = self.hit_token(node);
+        match token.as_deref().and_then(|t| t.split_once(':')) {
+            Some(("key", binding)) => self.act(binding),
+            Some(("agent", agent)) => self.chat_with(Some(agent)),
+            Some(("chat", "open")) => self.chat_with(None),
+            Some(("chat", "close")) => self.chat_close(),
+            Some(("urgent", "clear")) => {
+                if let Err(err) = self.clear_urgent() {
+                    eprintln!("chora-mc: urgent: {}", err.message);
+                }
+            }
+            _ => return self.click_row(base),
+        }
+        true
+    }
+
+    /// Shows the page list, as a click on the head of a page does.
+    fn show_overview(&mut self) -> bool {
+        if let Err(err) = self.show(crate::manage::OVERVIEW, true) {
+            eprintln!("chora-mc: {}: {}", crate::manage::OVERVIEW, err.message);
+        }
+        true
+    }
+
+    /// A click on a row of a page: `mc-s-SCENE-panels-PANEL-row-N`.
+    fn click_row(&mut self, base: &str) -> bool {
+        let Some((scene, rest)) = base
+            .strip_prefix("mc-s-")
+            .and_then(|b| b.split_once("-panels-"))
+        else {
+            return false;
+        };
+        let Some((panel, index)) = rest.rsplit_once("-row-") else {
+            return false;
+        };
+        let Ok(index) = index.parse::<usize>() else {
+            return false;
+        };
+        if scene == crate::manage::OVERVIEW {
+            if let Some(target) = self.order().get(index).cloned()
+                && let Err(err) = self.show(&target, true)
+            {
+                eprintln!("chora-mc: {target}: {}", err.message);
+            }
+            return true;
+        }
+        let emit = serde_json::json!({"event": "mc.row.chosen",
+            "data": {"scene": scene, "panel": panel, "index": index}});
+        if let Err(err) = self
+            .rt
+            .conn
+            .call::<_, serde_json::Value>("events.emit", emit)
+        {
+            eprintln!("chora-mc: mc.row.chosen: {err}");
+        }
+        true
+    }
+
     /// Starts the docked apps of the regions that show in the current
     /// scene; a build calls it, so a failing command does not repeat.
     pub fn autostart(&mut self) {
@@ -1124,7 +1709,8 @@ impl Mc {
         }
         let config = &self.settings.value;
         let command = command(&config.contents[app].command, config.colors());
-        if let Some((token, _)) = crate::launch(&command) {
+        let mint = self.rt.conn.activation_token();
+        if let Some((token, _)) = crate::launch(&command, mint.as_deref()) {
             self.starting.insert(token, crate::Target::Dock(app.into()));
         }
     }
@@ -1188,6 +1774,187 @@ impl Mc {
             .collect();
         serde_json::json!({"scene": name, "regions": regions, "contents": contents})
     }
+}
+
+/// The width of the margin column on an output of `output` pixels: 26 per
+/// cent of it in whole lines of the grid, from `lines` lines up to a
+/// third more.
+pub fn column_width(lines: f64, baseline: f64, output: f64) -> f64 {
+    let most = (lines * 4.0 / 3.0).round() * baseline;
+    ((0.26 * output / baseline).round() * baseline).clamp(lines * baseline, most)
+}
+
+/// The id of the focus mark of a hit.
+pub fn mark_id(base: &str) -> String {
+    format!("{base}-mark")
+}
+
+/// The transparent rect that takes the pointer over something that a
+/// click acts on, and the focus mark that shows beside it under the
+/// pointer: a bar of 2 pixels in the color `ink`, as high as the capitals that it
+/// marks, which `hit_place` sets.
+pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
+    let mark = PropsUpdate {
+        input: Some(chora_scene::InputMode::Pass),
+        opacity: Some(0.0),
+        ..PropsUpdate::default()
+    };
+    [
+        rect(
+            &format!("{base}-hit"),
+            parent,
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0; 4],
+        ),
+        Command::Create {
+            id: mark_id(base),
+            kind: NodeKind::Rect,
+            parent: parent.into(),
+            props: PropsUpdate {
+                size: Some([MARK_WIDTH, MARK_WIDTH]),
+                color: Some(ink),
+                ..mark
+            },
+        },
+    ]
+}
+
+/// Sizes the hit of an item to its box, and puts its mark 12 pixels left
+/// of the item at `item_x`, as high as the capitals of its text, which
+/// start `top` pixels below the box.
+pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64, ink: Ink) -> [Command; 4] {
+    [
+        move_to(format!("{base}-hit"), x, y),
+        Command::Update {
+            id: format!("{base}-hit"),
+            props: PropsUpdate {
+                size: Some([w.max(1.0), h.max(1.0)]),
+                ..PropsUpdate::default()
+            },
+        },
+        move_to(mark_id(base), item_x - MARK_GAP, y + ink.top),
+        Command::Update {
+            id: mark_id(base),
+            props: PropsUpdate {
+                size: Some([MARK_WIDTH, ink.height.max(1.0)]),
+                ..PropsUpdate::default()
+            },
+        },
+    ]
+}
+
+/// The side of the close mark of an urgent line and its hit; the bars are
+/// as thick as the hairline of the hover mark.
+pub const CLOSE: f64 = 14.0;
+/// The space between the close mark and the words.
+const CLOSE_GAP: f64 = 8.0;
+
+/// The room that an item keeps before its text for its close mark.
+fn lead(item: &Item) -> f64 {
+    if item.mark { CLOSE + CLOSE_GAP } else { 0.0 }
+}
+
+/// The id of a bar of the close mark of an item: `n` is 0 or 1.
+pub fn close_id(base: &str, n: usize) -> String {
+    format!("{base}-close-{n}")
+}
+
+/// The two bars of the close mark of an item, if it has one, in the color
+/// of its text; `close_place` crosses them at 45 degrees.
+fn close_nodes(item: &Item, parent: &str, fallback: [f64; 4]) -> Vec<Command> {
+    let color = item.props.color.unwrap_or(fallback);
+    (0..2)
+        .filter(|_| item.mark)
+        .map(|n| {
+            let mut bar = rect(
+                &close_id(&item.id, n),
+                parent,
+                [0.0, 0.0, CLOSE, 2.0],
+                color,
+            );
+            if let Command::Create { props, .. } = &mut bar {
+                props.input = Some(chora_scene::InputMode::Pass);
+            }
+            bar
+        })
+        .collect()
+}
+
+/// Puts the bars on the cross of a mark whose left edge is `x` and whose
+/// centre stands at `y`.
+fn close_place(item: &Item, [x, y]: [f64; 2]) -> Vec<Command> {
+    let centre = [x + CLOSE / 2.0, y];
+    (0..2)
+        .filter(|_| item.mark)
+        .map(|n| {
+            let turn = if n == 0 { 45.0 } else { -45.0 };
+            let at = Transform::translate(centre[0], centre[1], 0.0)
+                .then(&Transform::rotate_z(turn))
+                .then(&Transform::translate(-CLOSE / 2.0, -1.0, 0.0));
+            Command::Update {
+                id: close_id(&item.id, n),
+                props: PropsUpdate {
+                    transform: Some(at),
+                    ..PropsUpdate::default()
+                },
+            }
+        })
+        .collect()
+}
+
+/// The time and the words of a note, `18:51  Update ready`.
+fn split_time(line: &str) -> Option<(&str, &str)> {
+    let (time, words) = line.split_once("  ")?;
+    let digits = |part: &str| part.len() == 2 && part.bytes().all(|b| b.is_ascii_digit());
+    let (hour, minute) = time.split_once(':')?;
+    (digits(hour) && digits(minute)).then_some((time, words.trim_start()))
+}
+
+/// The space that a text carries after its last letter: the tracking, which
+/// an item flush right gives back so that its ink meets the edge.
+fn trailing(props: &PropsUpdate) -> f64 {
+    props.letter_spacing.unwrap_or(0.0) * props.font_size.unwrap_or(0.0)
+}
+
+/// The capitals of the text that the props describe, from the top of its box.
+fn props_ink(props: &PropsUpdate) -> Ink {
+    let size = props.font_size.unwrap_or(16.0);
+    let line = size * props.line_height.unwrap_or(1.2);
+    fonts::ink(props.family.as_deref(), props.weight, size, line)
+}
+
+/// The size of the focus mark, and its distance from what it marks.
+const MARK_WIDTH: f64 = 2.0;
+const MARK_GAP: f64 = 12.0;
+
+/// The vertical places of the items that sit in the foot, or of those
+/// that do not, from 0, and where they end.
+pub fn lines(
+    items: &[Item],
+    heights: &[f64],
+    foot: bool,
+    baseline: f64,
+) -> (Vec<(usize, f64)>, f64) {
+    let (mut y, mut line, mut out) = (0.0, 0.0, Vec::new());
+    for (i, item) in items
+        .iter()
+        .enumerate()
+        .filter(|(_, it)| it.put.foot() == foot)
+    {
+        if item.put.row() {
+            out.push((i, line));
+            y = f64::max(y, line + heights[i]);
+            continue;
+        }
+        if item.first && y > 0.0 {
+            y += baseline;
+        }
+        y += item.before;
+        line = y;
+        out.push((i, y));
+        y += heights[i];
+    }
+    (out, y)
 }
 
 /// Cuts the text of an item to a share of its width, with an ellipsis;
@@ -1269,6 +2036,20 @@ mod tests {
     use super::*;
     use crate::config::{Config, DEFAULT};
 
+    /// The clock never asks for more than the core allows, also in the
+    /// first milliseconds of a minute.
+    #[test]
+    fn the_clock_duration_stays_in_range_at_a_minute_boundary() {
+        for now in [0, 1, 49, 50, 59_999, 60_000, 120_000, 120_049] {
+            let ms = next_minute_after(now);
+            assert!(
+                (0.0..=chora_scene::MAX_DURATION).contains(&ms),
+                "{now}: {ms}"
+            );
+        }
+        assert_eq!(next_minute_after(59_000), 1_050.0);
+    }
+
     fn names(placed: &BTreeMap<Region, Vec<(i32, &str)>>, region: Region) -> Vec<String> {
         placed[&region]
             .iter()
@@ -1281,17 +2062,19 @@ mod tests {
         let config = parse::<Config>(DEFAULT).unwrap();
         let page = layout(&config.rules, &config.contents, "agenda", false);
         let app = layout(&config.rules, &config.contents, "foot", true);
+        assert_eq!(names(&page, Region::Header), ["head", "clock"]);
         assert_eq!(
-            names(&page, Region::Header),
-            ["head", "agents", "state", "clock"]
+            names(&page, Region::Footer),
+            ["prev", "hud", "urgent", "next"]
         );
-        assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
-        assert_eq!(names(&page, Region::Right), ["notes", "notify"]);
-        assert_eq!(names(&page, Region::Drawer), ["shell"]);
-        // Over an app, the words of the agent go to the header.
+        assert_eq!(
+            names(&page, Region::Right),
+            ["state", "agents", "notes", "notify", "chat", "keys"]
+        );
+        assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
         assert_eq!(
             names(&app, Region::Header),
-            ["head", "hud", "agents", "state", "clock"]
+            ["head", "hud", "agents", "clock"]
         );
         assert_eq!(names(&app, Region::Footer), ["urgent"]);
         // A rule of the session goes first; one by kind catches the rest.
@@ -1307,12 +2090,26 @@ mod tests {
         assert_eq!(
             names(&moved, Region::Left),
             [
-                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+                "confirm", "next", "notes", "notify", "outline", "overlay", "prev", "urgent"
             ]
         );
-        assert!(!moved.contains_key(&Region::Right));
+        assert_eq!(
+            names(&moved, Region::Right),
+            ["state", "agents", "chat", "keys"]
+        );
         let other = layout(&rules, &config.contents, "mail", false);
-        assert_eq!(names(&other, Region::Right), ["notes", "notify"]);
+        assert_eq!(
+            names(&other, Region::Right),
+            ["state", "agents", "notes", "notify", "chat", "keys"]
+        );
+    }
+
+    #[test]
+    fn the_column_grows_with_the_output_in_whole_lines() {
+        assert_eq!(column_width(12.0, 28.0, 1280.0), 336.0);
+        assert_eq!(column_width(12.0, 28.0, 1920.0), 448.0);
+        assert_eq!(column_width(12.0, 28.0, 1440.0), 364.0);
+        assert_eq!(column_width(12.0, 28.0, 800.0), 336.0);
     }
 
     #[test]

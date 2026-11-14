@@ -14,7 +14,7 @@ use crate::region::{self, Content, Preset, Region, Regions, Rule};
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 7] = [
+const NEEDED: [&str; 8] = [
     "chapter_number",
     "chapter",
     "running_head",
@@ -22,6 +22,7 @@ const NEEDED: [&str; 7] = [
     "body",
     "margin",
     "hud",
+    "label",
 ];
 /// The most styles that one style can build on, in a row.
 const MAX_DEPTH: usize = 8;
@@ -36,6 +37,12 @@ pub enum Action {
     Scene(String),
     /// Runs a shell command as an app; its window gets a scene of its own.
     Run(String),
+    /// Gives the focused window to the window manager of this name (D55),
+    /// whoever owns it.
+    Give(String),
+    /// On a pointer button: a window of mc that is pressed and let go on
+    /// the claim of another window manager goes to that one (D55).
+    Drag,
     /// Shows or hides a region; a docked app takes the focus first.
     Toggle(Region),
     /// Shows a content alone in a region over any scene, or hides it.
@@ -43,6 +50,10 @@ pub enum Action {
         content: String,
         region: Region,
     },
+    /// Shows all keys in the key list, or only the six that show first.
+    Keys,
+    /// Asks the HUD host to open the chat with a helper.
+    Chat,
 }
 
 /// How an agent of `agent.set` shows in a state.
@@ -191,6 +202,22 @@ pub struct Type {
 }
 
 impl Type {
+    /// The family of this type, as written in the style.
+    pub fn family(&self) -> Option<&str> {
+        self.style.family.as_deref()
+    }
+
+    pub fn weight(&self) -> Option<u16> {
+        self.style.weight
+    }
+
+    /// The capitals of this type, from the top of its text box.
+    pub fn ink(&self) -> crate::fonts::Ink {
+        let style = &self.style;
+        let family = style.family.as_deref();
+        crate::fonts::ink(family, style.weight, self.size, self.line)
+    }
+
     /// The props of a text node with this type.
     pub fn props(&self, text: &str) -> PropsUpdate {
         let style = &self.style;
@@ -202,7 +229,7 @@ impl Type {
         PropsUpdate {
             // A text node needs a text.
             text: Some(if text.is_empty() { " ".into() } else { text }),
-            family: style.family.clone(),
+            family: style.family.as_deref().map(crate::fonts::pick),
             font_size: Some(self.size),
             line_height: Some(self.line / self.size),
             color: Some(self.color),
@@ -285,11 +312,31 @@ pub struct Write {
     pub duration_ms: f64,
 }
 
+/// Who draws the voice HUD in mc: mc itself, or the HUD host
+/// `chora-assistant` with the folder of mc.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoiceHud {
+    /// mc shows the state, the sentence and the question of the voice
+    /// agent and claims its indicator.
+    #[default]
+    Own,
+    /// The host draws them; mc shows only the helpers and claims nothing.
+    Host,
+}
+
 /// The settings of the plugin.
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub theme: Theme,
+    /// Who draws the voice HUD: `own` or `host`.
+    #[serde(default)]
+    pub voice_hud: VoiceHud,
+    /// For tests only: take the keys of `input.inject` as keys of the
+    /// user. Off, the bindings ignore injected keys.
+    #[serde(default)]
+    pub test_accept_injected_keys: bool,
     pub themes: Themes,
     pub scale: Scale,
     /// The named styles of text.
@@ -487,11 +534,99 @@ mod tests {
 
     use super::*;
 
+    /// The relative luminance of a color, as WCAG 2 has it.
+    fn luminance([r, g, b, _]: [f64; 4]) -> f64 {
+        let lin = |c: f64| {
+            if c <= 0.039_28 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    fn contrast(a: [f64; 4], b: [f64; 4]) -> f64 {
+        let (x, y) = (luminance(a), luminance(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    /// The colors that carry text read on the paper at 7:1 in both themes.
+    #[test]
+    fn the_text_colors_have_contrast_on_the_page() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for (theme, colors) in [
+            ("light", &config.themes.light),
+            ("dark", &config.themes.dark),
+        ] {
+            let page = colors["background"];
+            let names = ["text", "muted", "accent", "green", "amber", "blue", "red"];
+            for (name, least) in names.map(|c| (c, 7.0)) {
+                let ratio = contrast(colors[name], page);
+                assert!(
+                    ratio >= least,
+                    "{theme} {name}: {ratio:.2} is under {least}"
+                );
+            }
+        }
+    }
+
+    /// Nothing that a person reads is under 14 pixels: the review of the
+    /// look found the running head and the clock at 11.6.
+    #[test]
+    fn no_style_of_the_default_is_under_14_pixels() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        for name in config.styles.keys() {
+            let size = config.resolve(name, None).unwrap().size;
+            assert!(size >= 14.0, "{name} is {size} px");
+        }
+    }
+
+    /// The plugin reads the style of the margin labels, so a file without
+    /// it is refused with a message instead of panicking the plugin.
+    #[test]
+    fn a_styles_map_without_the_label_style_is_refused() {
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        config.styles.remove("label");
+        assert_eq!(config.check(), Err("styles: no label".into()));
+    }
+
+    /// The default drags a window of mc with Super and the left button.
+    #[test]
+    fn the_default_binds_the_drag_to_a_pointer_button() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.bindings["Super+BTN_LEFT"], Action::Drag);
+    }
+
+    /// The host draws the voice HUD by default: one voice indicator.
+    #[test]
+    fn the_default_leaves_the_voice_hud_to_the_host() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.voice_hud, VoiceHud::Host);
+    }
+
+    /// Super+a is the chat as in every look; the terminal has its own key.
+    #[test]
+    fn the_default_keys_of_the_chat_and_the_terminal() {
+        let config = parse::<Config>(DEFAULT).unwrap();
+        assert_eq!(config.bindings["Super+a"], Action::Chat);
+        assert_eq!(
+            config.bindings["Super+Return"],
+            Action::Scene("terminal".into())
+        );
+    }
+
     #[test]
     fn the_default_is_valid_and_mistakes_fail() {
         let config = parse::<Config>(DEFAULT).unwrap();
         assert_eq!(config.theme, Theme::Dark);
-        assert_eq!(config.bindings["Super+a"], Action::Scene("agenda".into()));
+        assert_eq!(
+            config.bindings["Super+Home"],
+            Action::Scene("agenda".into())
+        );
+        let give = DEFAULT.replace("Super+n:", "Super+g: {give: xp}\n  Super+n:");
+        let given = parse::<Config>(&give).unwrap();
+        assert_eq!(given.bindings["Super+g"], Action::Give("xp".into()));
         assert_eq!(config.chapter.layout, Layout::Number);
         assert!(config.write.enabled);
         let slow = DEFAULT.replace("duration_ms: 900", "duration_ms: 99999");
@@ -527,7 +662,9 @@ mod tests {
         for colors in [&config.themes.light, &config.themes.dark] {
             let command = region::command(&config.contents["shell"].command, colors);
             assert!(!command.contains('{'), "{command}");
-            assert!(command.contains("colors-dark.regular5="), "{command}");
+            assert!(command.contains("colors.regular5="), "{command}");
+            assert!(!command.contains("colors-dark"), "{command}");
+            assert!(command.contains("pixelsize=15"), "{command}");
         }
     }
 
@@ -567,9 +704,9 @@ mod tests {
         // An em follows the base: the running head of the default.
         let mut config = parse::<Config>(DEFAULT).unwrap();
         let head = |c: &Config| c.resolve("running_head", None).unwrap().size;
-        assert!((head(&config) - 11.0).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 14.25).abs() < 0.01, "{}", head(&config));
         config.scale.base = 27.0;
-        assert!((head(&config) - 16.5).abs() < 0.01, "{}", head(&config));
+        assert!((head(&config) - 20.25).abs() < 0.01, "{}", head(&config));
         let caps = Style {
             uppercase: Some(true),
             ..Style::default()

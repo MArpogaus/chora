@@ -1,6 +1,7 @@
 //! The chora Wayland compositor as a library: the binary runs it, and the
 //! unit tests reach its parts.
 
+mod backdrop;
 mod backend;
 mod capture;
 mod copies;
@@ -20,15 +21,18 @@ mod layers;
 mod lock;
 mod mesh;
 mod methods;
+mod offscreen;
 mod output;
 mod output_management;
 mod process;
 mod protocols;
+mod record;
 mod render;
 mod safety;
 mod screencopy;
 mod security;
 mod shm;
+mod space;
 mod state;
 #[cfg(test)]
 mod testing;
@@ -36,71 +40,51 @@ mod text;
 mod time;
 mod transaction;
 mod uploads;
+mod words;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 
 use crate::state::State;
 
-const USAGE: &str =
-    "usage: chora [--version] [--headless WxH[@SCALE][+X+Y][,...]] [-- COMMAND [ARGS...]]";
+const USAGE: &str = "usage: chora [--version] \
+     [--headless WxH[@SCALE][+X+Y][,...] [--test-injected-press-is-real]] [-- COMMAND [ARGS...]]";
 
-/// The virtual outputs of `--headless`, and the arguments after them.
+/// The flag of the headless backend, for tests: an injected key or button
+/// press counts as a press and an act of the user.
+const TEST_INJECTED_PRESS_IS_REAL: &str = "--test-injected-press-is-real";
+
+/// The virtual outputs of `--headless` with its test flag, and the
+/// arguments after them. The test flag is no flag without `--headless`.
+#[allow(clippy::type_complexity, reason = "the parts of the command line")]
 fn headless_outputs(
     args: &[String],
-) -> Result<(Option<Vec<backend::headless::Spec>>, &[String]), String> {
+) -> Result<(Option<(Vec<backend::headless::Spec>, bool)>, &[String]), String> {
     match args {
         [flag, specs, rest @ ..] if flag == "--headless" => {
-            Ok((Some(backend::headless::parse_specs(specs)?), rest))
+            let specs = backend::headless::parse_specs(specs)?;
+            match rest {
+                [test, rest @ ..] if test == TEST_INJECTED_PRESS_IS_REAL => {
+                    Ok((Some((specs, true)), rest))
+                }
+                _ => Ok((Some((specs, false)), rest)),
+            }
         }
         [flag] if flag == "--headless" => Err(USAGE.into()),
         _ => Ok((None, args)),
     }
 }
 
-/// The core's last words: a faulting signal writes the fault address and
-/// a backtrace to stderr before the default action ends the process. A
-/// crash without a panic then leaves something in the log. Best effort:
-/// `Backtrace::force_capture` is not async signal safe, so a second fault
-/// inside it stays unlogged.
-#[allow(unsafe_code)] // a signal handler: libc calls, nothing else
-fn install_last_words() {
-    extern "C" fn words(sig: libc::c_int, info: *mut libc::siginfo_t, _ctx: *mut libc::c_void) {
-        let name = match sig {
-            libc::SIGSEGV => "SIGSEGV",
-            libc::SIGBUS => "SIGBUS",
-            libc::SIGILL => "SIGILL",
-            libc::SIGABRT => "SIGABRT",
-            _ => "signal",
-        };
-        // SAFETY: the kernel passes a valid siginfo for a faulting signal.
-        let address = if info.is_null() {
-            0
-        } else {
-            unsafe { (*info).si_addr() as usize }
-        };
-        let text = format!(
-            "chora: {name} at address {address:#x}, backtrace follows\n{}\n",
-            std::backtrace::Backtrace::force_capture()
+/// Turns on the test mode of `--test-injected-press-is-real` when the
+/// command line asks for it, with a warning in the log, and gives the
+/// outputs back.
+fn test_mode<T>(state: &mut State, specs: T, test: bool) -> T {
+    if test {
+        tracing::warn!(
+            "{TEST_INJECTED_PRESS_IS_REAL}: an injected key or button press counts as one of the user and as the act of a token; for tests only"
         );
-        // SAFETY: write to a fixed fd, then the default action of the
-        // signal, as the handler contract allows.
-        unsafe {
-            libc::write(2, text.as_ptr().cast(), text.len());
-            libc::signal(sig, libc::SIG_DFL);
-            libc::raise(sig);
-        }
+        state.injected_press_is_real = true;
     }
-    for sig in [libc::SIGSEGV, libc::SIGBUS, libc::SIGILL, libc::SIGABRT] {
-        // SAFETY: an all-zero sigaction with a plain handler is valid.
-        unsafe {
-            let mut act: libc::sigaction = std::mem::zeroed();
-            act.sa_flags = libc::SA_SIGINFO;
-            let handler: extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void) =
-                words;
-            act.sa_sigaction = handler as usize;
-            libc::sigaction(sig, &raw const act, std::ptr::null_mut());
-        }
-    }
+    specs
 }
 
 /// Runs the compositor with the arguments of the command line, without the
@@ -111,7 +95,7 @@ fn install_last_words() {
 /// Wrong arguments, and a failed start of the event loop, the display, the
 /// IPC socket or the backend.
 pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
-    install_last_words();
+    words::install();
     let (headless, args) = headless_outputs(args)?;
     let command = match args.split_first() {
         None => &[][..],
@@ -159,15 +143,13 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 if let calloop::channel::Event::Msg(status) = event
                     && process::quits_after(state, status)
                 {
-                    tracing::error!(
-                        "the startup command failed and no client said hello; chora quits"
-                    );
                     quit.set(true);
-                    state.loop_signal.stop();
+                    state.quit("the startup command failed and no client said hello");
                 }
             })
             .map_err(|e| e.error)?;
     }
+    let headless = headless.map(|(specs, test)| test_mode(&mut state, specs, test));
     backend::init(&mut state, headless.as_deref(), command)?;
     input::log_layout(&mut state);
     tracing::info!(wayland = ?state.socket_name, ipc = %socket.display(), "chora runs");
@@ -176,4 +158,38 @@ pub fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
         return Err("the startup command failed".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TEST_INJECTED_PRESS_IS_REAL, headless_outputs};
+
+    fn args(words: &[&str]) -> Vec<String> {
+        words.iter().map(|word| (*word).to_owned()).collect()
+    }
+
+    /// The test mode is a flag of `--headless` and of nothing else: a
+    /// flag is not inherited by the programs that the core starts, and
+    /// without `--headless` it is a wrong argument.
+    #[test]
+    fn the_test_flag_belongs_to_the_headless_backend() {
+        let plain = args(&["--headless", "640x480", "--", "true"]);
+        let (headless, rest) = headless_outputs(&plain).unwrap();
+        assert!(headless.is_some_and(|(_, test)| !test));
+        assert_eq!(rest, &plain[2..]);
+        let test = args(&[
+            "--headless",
+            "640x480",
+            TEST_INJECTED_PRESS_IS_REAL,
+            "--",
+            "true",
+        ]);
+        let (headless, rest) = headless_outputs(&test).unwrap();
+        assert!(headless.is_some_and(|(_, test)| test));
+        assert_eq!(rest, &test[3..]);
+        let alone = args(&[TEST_INJECTED_PRESS_IS_REAL]);
+        let (headless, rest) = headless_outputs(&alone).unwrap();
+        assert!(headless.is_none());
+        assert_eq!(rest, &alone[..], "left for the usage error");
+    }
 }

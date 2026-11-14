@@ -27,6 +27,9 @@ need_bins() {
         test -x "$bin/$b" || fail "no $bin/$b; build it first"
     done
 }
+export CHORA_TEST_ACCEPT_INJECTED_KEYS=${CHORA_TEST_ACCEPT_INJECTED_KEYS:-1}
+. "$repo/tests/gate-lock.sh"
+gate_lock "$(basename "$0")" || fail "cannot take the gate lock"
 pids=()
 tmp_dirs=()
 # gate_cleanup [STATUS]: the EXIT trap. It ends the session and the
@@ -35,6 +38,7 @@ tmp_dirs=()
 gate_cleanup() {
     local status=${1:-$?}
     kill "${pids[@]}" "${run_pids[@]}" 2>/dev/null
+    kill -CONT "${pids[@]}" "${run_pids[@]}" 2>/dev/null
     wait 2>/dev/null
     [ "$status" != 0 ] || rm -rf "${tmp_dirs[@]}"
 }
@@ -68,6 +72,17 @@ session_start() {
 }
 grant() { "$bin/choractl" grant agent "$@" || fail "the grant $*"; }
 ctl() { timeout 10 "$bin/choractl" --name agent "$@"; }
+layout_audit() {
+    local tag=$1 dir out
+    shift
+    dir=$(mktemp -d /tmp/gate-audit.XXXXXX)
+    tmp_dirs+=("$dir")
+    ctl outputs >"$dir/outputs.json" || fail "$tag: no outputs"
+    ctl query '*' >"$dir/nodes.json" || fail "$tag: no nodes"
+    out=$(python3 -I "$repo/tests/hud-audit.py" "$dir/outputs.json" "$dir/nodes.json" "$@") ||
+        fail "$tag: layout audit: $out"
+    ok "$tag: $out"
+}
 # run_pid <pid> remembers a program of `choractl run` (D42): it lives in
 # a unit or outside the group of the core, so gate_cleanup must end it.
 run_pids=()

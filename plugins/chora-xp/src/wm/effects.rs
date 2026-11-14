@@ -2,51 +2,46 @@
 //! wobbly windows while a title bar drags, and the magic lamp of minimize
 //! and restore. The cube lives in [`super::desktops`].
 
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-use chora_kit::{lamp::Lamp, wobbly::Wobble};
-use chora_scene::{Command, PropsUpdate};
+use chora_kit::effects::{Driver, Pour, Target};
+use chora_scene::Command;
 
-use super::Wm;
+use super::{Panel, Wm};
+use crate::window::Window;
 use crate::{control::Toggles, cube::Turn, decoration};
 
 /// How long the magic lamp takes, before slow motion.
 const LAMP_TIME: Duration = Duration::from_millis(400);
-/// How long the plugin goes without effects after the watchdog of the core
-/// dropped them. Slow frames within ten seconds after a drop reset the
-/// scene.
-const CALM: Duration = Duration::from_secs(15);
 
-/// The running effects.
+/// The running effects: the shared driver of wobbly windows and the magic
+/// lamp, and the turn of the cube.
 pub struct Effects {
-    /// Windows that wobble, by surface, and dialogs, by group.
-    pub wobbles: HashMap<String, Wobble>,
-    /// Windows that minimize or restore, by surface.
-    pub lamps: HashMap<String, Lamp>,
+    /// Wobbles and lamps, by surface, and dialogs, by group.
+    pub driver: Driver,
     /// The turn of the cube.
     pub turn: Option<Turn>,
     /// The effects that the Control Panel turned on.
     pub toggles: Toggles,
     /// The time of the last frame.
     last: Instant,
-    /// No effects until then, after the watchdog dropped them.
-    calm_until: Option<Instant>,
 }
 
 impl Effects {
     /// No effect runs yet; the toggles say which may.
     pub fn new(toggles: Toggles) -> Self {
         Self {
-            wobbles: HashMap::new(),
-            lamps: HashMap::new(),
+            driver: Driver::new(&toggles.kinds()),
             turn: None,
             toggles,
             last: Instant::now(),
-            calm_until: None,
         }
+    }
+
+    /// Takes the toggles of the settings.
+    pub fn set_toggles(&mut self, toggles: Toggles) {
+        self.driver.set(&toggles.kinds());
+        self.toggles = toggles;
     }
 }
 
@@ -54,17 +49,13 @@ impl Wm {
     /// Whether effects may run: not for a while after the watchdog of the
     /// core dropped them.
     pub(super) fn effects_on(&self) -> bool {
-        self.effects
-            .calm_until
-            .is_none_or(|until| Instant::now() >= until)
+        self.effects.driver.calm()
     }
 
     /// Whether an effect needs frames.
     pub fn animating(&self) -> bool {
-        let e = &self.effects;
-        !e.wobbles.is_empty()
-            || !e.lamps.is_empty()
-            || e.turn.is_some()
+        self.effects.driver.animating()
+            || self.effects.turn.is_some()
             || self.fading()
             || self.sliding()
             || self.resize_due()
@@ -77,8 +68,12 @@ impl Wm {
             .as_secs_f64();
         self.effects.last = now;
         let mut commands = self.resize_frame();
-        commands.extend(self.wobble_frame(now));
-        commands.extend(self.lamp_frame(now));
+        let (windows, panels) = (&self.windows, &self.panels);
+        let frame = (self.effects.driver).tick(now, |key| target_of(windows, panels, key));
+        commands.extend(frame.commands);
+        for surface in frame.lamps_done {
+            commands.extend(self.end_lamp(&surface));
+        }
         commands.extend(self.cube_frame(now));
         commands.extend(self.fade_frame(now));
         commands.extend(self.slide_frame(now, dt));
@@ -86,71 +81,36 @@ impl Wm {
     }
 
     /// The group that wobbles for a key, a surface or the group of a
-    /// dialog, its top-left corner in the scene and its size.
-    fn wobble_target(&self, key: &str) -> Option<(String, [f64; 2], [f64; 2])> {
-        if let Some(w) = self.windows.iter().find(|w| w.surface == key) {
-            return Some((decoration::group_id(key), w.origin(), w.area()));
-        }
-        let dialog = self
-            .panels
-            .iter()
-            .map(super::Panel::window_ref)
-            .find(|d| d.group() == key)?;
-        let (origin, size) = dialog.layer();
-        Some((key.into(), origin, size))
+    /// dialog, with its top-left corner in the scene and its size.
+    fn wobble_target(&self, key: &str) -> Option<Target> {
+        target_of(&self.windows, &self.panels, key)
     }
 
     /// A window or a dialog starts to wobble, grabbed at a point of the
     /// scene.
     pub(super) fn start_wobble(&mut self, key: &str, grab: [f64; 2]) {
-        let on = self.effects_on() && self.effects.toggles.wobbly;
-        let Some((_, origin, size)) = self.wobble_target(key).filter(|_| on) else {
-            return;
-        };
-        let wobble = Wobble::new(size, origin, grab);
-        self.effects.wobbles.insert(key.into(), wobble);
+        if let Some(target) = self.wobble_target(key) {
+            self.effects.driver.grab(key, &target, grab);
+        }
+    }
+
+    /// The springs of a window that wobbles, for the window manager that
+    /// gets it with its drag.
+    pub(super) fn wobble_springs(&self, key: &str) -> Option<serde_json::Value> {
+        let target = self.wobble_target(key)?;
+        self.effects.driver.springs(key, &target)
     }
 
     /// The pointer lets go: the window shakes until it settles.
     pub(super) fn release_wobble(&mut self, surface: &str) {
-        if let Some(wobble) = self.effects.wobbles.get_mut(surface) {
-            wobble.release();
-        }
+        self.effects.driver.release(surface);
     }
 
     /// The mesh of a wobbling window or dialog at its current place, with
     /// the grid advanced to now.
     pub(super) fn wobble_mesh(&mut self, key: &str) -> Option<Command> {
-        let (group, origin, size) = self.wobble_target(key)?;
-        let wobble = self.effects.wobbles.get_mut(key)?;
-        wobble.advance(origin, Instant::now());
-        Some(mesh_update(&group, size, wobble.mesh(origin)))
-    }
-
-    fn wobble_frame(&mut self, now: Instant) -> Vec<Command> {
-        let mut commands = Vec::new();
-        let mut settled = Vec::new();
-        let keys: Vec<String> = self.effects.wobbles.keys().cloned().collect();
-        for key in keys {
-            let Some((group, origin, size)) = self.wobble_target(&key) else {
-                settled.push(key);
-                continue;
-            };
-            let Some(wobble) = self.effects.wobbles.get_mut(&key) else {
-                continue;
-            };
-            wobble.advance(origin, now);
-            if wobble.settled() {
-                settled.push(key);
-                commands.push(unmesh(&group));
-            } else {
-                commands.push(mesh_update(&group, size, wobble.mesh(origin)));
-            }
-        }
-        for key in settled {
-            self.effects.wobbles.remove(&key);
-        }
-        commands
+        let target = self.wobble_target(key)?;
+        self.effects.driver.motion(key, &target)
     }
 
     /// Minimizes a window into its task button through the magic lamp.
@@ -158,29 +118,22 @@ impl Wm {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
-        self.effects.wobbles.remove(surface);
-        let (now, duration) = (Instant::now(), self.slow(LAMP_TIME));
-        let calm = !self.effects_on() || !self.effects.toggles.lamp;
+        self.effects.driver.cancel_wobble(surface);
+        let duration = self.slow(LAMP_TIME);
         let w = &mut self.windows[i];
         w.minimized = true;
-        if calm {
-            return vec![w.unmesh(), w.place()];
-        }
-        w.held = true;
-        let lamp = match self.effects.lamps.remove(surface) {
-            Some(mut lamp) if lamp.restore => {
-                lamp.flip(now);
-                lamp
-            }
-            Some(lamp) => lamp,
-            None => Lamp::new(w.bounds(), button, duration, false),
+        let pour = Pour {
+            bounds: w.bounds(),
+            button,
+            duration,
         };
-        let first = mesh_update(
-            &decoration::group_id(surface),
-            w.area(),
-            lamp.mesh(lamp.time(now)),
-        );
-        self.effects.lamps.insert(surface.into(), lamp);
+        let target = self.wobble_target(surface);
+        let first = target.and_then(|t| self.effects.driver.lamp_out(surface, &t, pour));
+        let w = &mut self.windows[i];
+        let Some(first) = first else {
+            return vec![w.unmesh(), w.place()];
+        };
+        w.held = true;
         vec![first]
     }
 
@@ -189,64 +142,32 @@ impl Wm {
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
-        let (now, duration) = (Instant::now(), self.slow(LAMP_TIME));
-        let calm = !self.effects_on() || !self.effects.toggles.lamp;
+        let duration = self.slow(LAMP_TIME);
         let w = &mut self.windows[i];
         w.minimized = false;
-        if calm {
-            return vec![w.unmesh(), w.place()];
-        }
-        w.held = true;
-        let lamp = match self.effects.lamps.remove(surface) {
-            Some(mut lamp) if !lamp.restore => {
-                lamp.flip(now);
-                lamp
-            }
-            Some(lamp) => lamp,
-            None => Lamp::new(w.bounds(), button, duration, true),
+        let pour = Pour {
+            bounds: w.bounds(),
+            button,
+            duration,
         };
-        // The mesh first, so that the window shows inside the button.
-        let mut update = mesh_update(
-            &decoration::group_id(surface),
-            w.area(),
-            lamp.mesh(lamp.time(now)),
-        );
+        let target = self.wobble_target(surface);
+        let first = target.and_then(|t| self.effects.driver.lamp_in(surface, &t, pour));
+        let w = &mut self.windows[i];
+        let Some(mut update) = first else {
+            return vec![w.unmesh(), w.place()];
+        };
+        w.held = true;
         if let Command::Update { props, .. } = &mut update {
             props.visible = Some(true);
             props.transform = Some(w.transform());
         }
-        self.effects.lamps.insert(surface.into(), lamp);
         vec![update]
-    }
-
-    fn lamp_frame(&mut self, now: Instant) -> Vec<Command> {
-        let mut commands = Vec::new();
-        let mut done = Vec::new();
-        for (surface, lamp) in &self.effects.lamps {
-            let Some(w) = self.windows.iter().find(|w| &w.surface == surface) else {
-                done.push(surface.clone());
-                continue;
-            };
-            let t = lamp.time(now);
-            commands.push(mesh_update(
-                &decoration::group_id(surface),
-                w.area(),
-                lamp.mesh(t),
-            ));
-            if t >= 1.0 {
-                done.push(surface.clone());
-            }
-        }
-        for surface in done {
-            commands.extend(self.end_lamp(&surface));
-        }
-        commands
     }
 
     /// The end of a lamp: a minimized window hides, a restored one is
     /// flat again.
     pub(super) fn end_lamp(&mut self, surface: &str) -> Vec<Command> {
-        self.effects.lamps.remove(surface);
+        self.effects.driver.cancel(surface);
         let Some(i) = self.index(surface) else {
             return Vec::new();
         };
@@ -259,11 +180,8 @@ impl Wm {
     /// slow: every effect ends at once.
     pub(super) fn effects_dropped(&mut self) -> Vec<Command> {
         eprintln!("chora-xp: frames were slow, the core dropped the effects");
-        self.effects.calm_until = Some(Instant::now() + CALM);
-        self.effects.wobbles.clear();
-        let lamps: Vec<String> = self.effects.lamps.keys().cloned().collect();
         let mut commands = Vec::new();
-        for surface in lamps {
+        for surface in self.effects.driver.dropped() {
             commands.extend(self.end_lamp(&surface));
         }
         if self.effects.turn.is_some() {
@@ -278,30 +196,26 @@ impl Wm {
     }
 }
 
-/// The mesh of a group, with its size, so that it is a layer.
-fn mesh_update(group: &str, size: [f64; 2], mesh: chora_scene::Mesh) -> Command {
-    Command::Update {
-        id: group.into(),
-        props: PropsUpdate {
-            size: Some(size),
-            mesh: Some(mesh),
-            ..PropsUpdate::default()
-        },
+/// The node that wobbles for a key, a surface or the group of a dialog,
+/// with its top-left corner in the scene and its size.
+fn target_of(windows: &[Window], panels: &[Panel], key: &str) -> Option<Target> {
+    if let Some(w) = windows.iter().find(|w| w.surface == key) {
+        return Some(Target {
+            node: decoration::group_id(key),
+            origin: w.origin(),
+            size: w.area(),
+            set_size: true,
+        });
     }
-}
-
-/// Removes the mesh of a group, at the end of an effect.
-fn unmesh(group: &str) -> Command {
-    Command::Update {
-        id: group.into(),
-        props: PropsUpdate {
-            mesh: Some(chora_scene::Mesh {
-                cols: 1,
-                rows: 1,
-                points: Vec::new(),
-                depth: Vec::new(),
-            }),
-            ..PropsUpdate::default()
-        },
-    }
+    let dialog = panels
+        .iter()
+        .map(Panel::window_ref)
+        .find(|d| d.group() == key)?;
+    let (origin, size) = dialog.layer();
+    Some(Target {
+        node: key.into(),
+        origin,
+        size,
+        set_size: true,
+    })
 }

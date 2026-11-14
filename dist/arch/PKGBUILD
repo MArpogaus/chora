@@ -16,7 +16,13 @@ makedepends=(cargo pkgconf)
 optdepends=(
   'uwsm: the sessions managed by uwsm'
   'foot: the terminal of the tiling flavor'
-  'fuzzel: the launcher of the tiling flavor'
+  'fuzzel: the launcher of the tiling flavor (1.11 or later for the mouse)'
+  'grim: the screenshots of the tiling flavor'
+  'slurp: the area of a screenshot of the tiling flavor'
+  'wl-clipboard: the clipboard copy of a screenshot of the tiling flavor'
+  'libnotify: the notices of the tiling flavor (notify-send)'
+  'inter-font: the labels of the tiling flavor and of chora-mc'
+  'ttf-jetbrains-mono: the font of foot in the tiling flavor'
   'waybar: the panel of the tiling flavor'
   'mako: the notifications of the tiling flavor'
   'swaybg: the wallpaper of the tiling flavor'
@@ -27,11 +33,11 @@ optdepends=(
   'xwayland-satellite: X11 programs'
   'xdg-desktop-portal-wlr: screen sharing'
   'xdg-desktop-portal-gtk: the other portals, such as the file chooser'
-  'inter-font: the labels of chora-mc (experimental)'
   'tex-gyre-fonts: the text of chora-mc, TeX Gyre Pagella'
   'python: the collectors of chora-mc'
   'pipewire: the microphone and the speaker of chora-voice (pw-record, pw-play)'
   'podman: the Gufo model servers of chora-voice'
+  'bubblewrap: the sandbox of the coding agents of chora-voice (agent-sandbox.sh)'
 )
 backup=(etc/xdg/uwsm/env-chora etc/xdg/xdg-desktop-portal-wlr/chora)
 options=(!lto !debug)
@@ -44,13 +50,15 @@ build() {
 package() {
   cd "$CHORA_SOURCE"
   local bin
-  for bin in chora choractl chora-tiling chora-xp chora-mc chora-voice chora-construct; do
+  for bin in chora choractl chora-tiling chora-xp chora-notify chora-assistant chora-mc chora-voice chora-chat chora-construct; do
     install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm755 dist/session/chora-session dist/session/chora-flavor -t "$pkgdir/usr/bin/"
+  install -Dm755 dist/sandbox/agent-sandbox.sh -t "$pkgdir/usr/bin/"
   # The X11 units of the flavors start it from this path.
   install -Dm755 dist/session/chora-xwayland -t "$pkgdir/usr/libexec/chora/"
   install -Dm644 dist/session/*.desktop -t "$pkgdir/usr/share/wayland-sessions/"
+  install -Dm644 services/voice/chat/chora-chat.desktop -t "$pkgdir/usr/share/applications/"
   install -Dm644 dist/session/env-chora -t "$pkgdir/etc/xdg/uwsm/"
   # Screen sharing through xdg-desktop-portal-wlr (D37).
   install -Dm644 dist/portal/chora-portals.conf -t "$pkgdir/usr/share/xdg-desktop-portal/"
@@ -72,9 +80,16 @@ package() {
   install -Dm644 LICENSE LICENSES/MIT-Smithay.txt LICENSES/MIT-silero-vad.txt \
     -t "$pkgdir/usr/share/licenses/chora/"
   install -Dm644 README.md -t "$pkgdir/usr/share/doc/chora/"
-  install -Dm644 flavors/tiling/*.service flavors/tiling/*.target \
-    -t "$pkgdir/usr/share/chora/flavors/tiling/"
-  install -Dm644 flavors/tiling/waybar/* -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
+  install -Dm644 flavors/tiling/*.service flavors/tiling/*.target flavors/tiling/*.ini \
+    flavors/tiling/*.conf flavors/tiling/*.png -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm755 flavors/tiling/*.sh -t "$pkgdir/usr/share/chora/flavors/tiling/"
+  install -Dm644 flavors/tiling/applications/* \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/applications/"
+  install -Dm644 flavors/tiling/waybar/*.css flavors/tiling/waybar/*.jsonc flavors/tiling/waybar/*.jq \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
+  install -Dm755 flavors/tiling/waybar/*.sh -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/"
+  install -Dm644 flavors/tiling/waybar/icons/* \
+    -t "$pkgdir/usr/share/chora/flavors/tiling/waybar/icons/"
   install -Dm644 dist/shaders/* -t "$pkgdir/usr/share/chora/shaders/"
   install -Dm644 dist/plugins/* -t "$pkgdir/usr/share/chora/plugins/"
   # chora-mc has its scenes, settings and shaders built in; the collectors
@@ -82,7 +97,19 @@ package() {
   install -Dm755 plugins/chora-mc/collectors/* -t "$pkgdir/usr/share/chora/mc/collectors/"
   install -Dm644 flavors/construct/* -t "$pkgdir/usr/share/chora/flavors/construct/"
   install -Dm644 flavors/xp/chora-xp* -t "$pkgdir/usr/share/chora/flavors/xp/"
+  install -Dm644 plugins/chora-notify/assets/* -t "$pkgdir/usr/share/chora/notify/assets/"
+  install -Dm644 plugins/chora-assistant/huds/neutral/* -t "$pkgdir/usr/share/chora/huds/neutral/"
+  # The HUD folders of the looks. A HUD folder holds no link that leaves
+  # it, so the XP folder gets its own copy of the font.
+  install -Dm644 plugins/chora-mc/hud/* -t "$pkgdir/usr/share/chora/huds/mc/"
+  install -Dm644 plugins/chora-construct/hud/* -t "$pkgdir/usr/share/chora/huds/construct/"
+  find flavors/xp/assets/assistant -maxdepth 1 -type f \
+    -exec install -Dm644 -t "$pkgdir/usr/share/chora/huds/xp/" {} +
+  install -Dm644 flavors/xp/assets/assistant/fonts/* -t "$pkgdir/usr/share/chora/huds/xp/fonts/"
   local dir
+  find flavors/xp/assets/notify -maxdepth 1 -type f \
+    -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/assets/notify/" {} +
+  ln -s ../../theme/fonts "$pkgdir/usr/share/chora/flavors/xp/assets/notify/fonts"
   for dir in . expose fonts wallpaper winxp; do
     find "flavors/xp/theme/$dir" -maxdepth 1 -type f \
       -exec install -Dm644 -t "$pkgdir/usr/share/chora/flavors/xp/theme/$dir/" {} +

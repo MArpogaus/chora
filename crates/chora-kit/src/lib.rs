@@ -8,35 +8,63 @@
     clippy::print_stderr,
     reason = "a plugin logs to stderr, which the session keeps"
 )]
+pub mod ask;
+pub mod chat;
+pub mod clock;
 pub mod conn;
 pub mod desktop_entry;
+pub mod effects;
+pub mod float;
+pub mod geometry;
 pub mod give;
+pub mod glass;
+pub mod hud;
 pub mod icons;
 pub mod lamp;
+pub mod launcher;
+pub mod modes;
+pub mod notify;
 pub mod runtime;
 pub mod settings;
+pub mod volume;
 pub mod wobbly;
+pub mod words;
 pub mod xdg;
 
+/// A command that runs `choractl run` for a shell command through
+/// `program`, with the activation token of the plugin, when it has one,
+/// in `CHORA_RUN_TOKEN` and not in the arguments, which every user can
+/// read.
+fn run_command(program: &[&str], command: &str, token: Option<&str>) -> std::process::Command {
+    let mut run = std::process::Command::new(program[0]);
+    run.args(&program[1..])
+        .args(["run", "--", "sh", "-c", command]);
+    if let Some(token) = token {
+        run.env("CHORA_RUN_TOKEN", token);
+    }
+    run
+}
+
 /// Starts a shell command as an app with `choractl run` (D42). The app
-/// gets an activation token, and a unit of its own when a user manager
-/// runs. `&` lets the shell exit at once, so no zombie stays.
-pub fn run(command: &str) {
-    let started = std::process::Command::new("sh")
-        .args(["-c", r#"choractl run sh -c "$0" >/dev/null &"#, command])
-        .status();
+/// gets the activation token `token`, which the plugin minted on its own
+/// connection with [`conn::Conn::activation_token`] so that it carries
+/// the act that the plugin received, or else a token of `choractl`; and
+/// a unit of its own when a user manager runs. `&` lets the shell exit at
+/// once, so no zombie stays.
+pub fn run(command: &str, token: Option<&str>) {
+    let program = ["sh", "-c", r#"choractl "$@" >/dev/null &"#, "choractl"];
+    let started = run_command(&program, command, token).status();
     if let Err(err) = started {
         eprintln!("cannot run {command:?}: {err}");
     }
 }
 
-/// Starts a shell command as an app with `choractl run` (D42), and
-/// answers the activation token that finds its window and the pid of
-/// the app, if `choractl` knows it.
+/// Starts a shell command as an app with `choractl run` (D42), with the
+/// activation token as [`run`] takes it, and answers the activation token
+/// that finds its window and the pid of the app, if `choractl` knows it.
 #[must_use]
-pub fn launch(command: &str) -> Option<(String, Option<u32>)> {
-    let run = std::process::Command::new("choractl")
-        .args(["run", "--", "sh", "-c", command])
+pub fn launch(command: &str, token: Option<&str>) -> Option<(String, Option<u32>)> {
+    let run = run_command(&["choractl"], command, token)
         .stdin(std::process::Stdio::null())
         .output();
     let line = match run {
@@ -54,6 +82,16 @@ pub fn launch(command: &str) -> Option<(String, Option<u32>)> {
     let answer: serde_json::Value = serde_json::from_slice(&line).unwrap_or_default();
     let pid = answer["pid"].as_u64().and_then(|p| u32::try_from(p).ok());
     Some((answer["token"].as_str()?.into(), pid))
+}
+
+/// Whether a process runs: it has a `/proc` entry and is no zombie. A
+/// pid can be reused, so the answer is a hint.
+#[must_use]
+pub fn alive(pid: u32) -> bool {
+    let stat = read_text(std::path::Path::new(&format!("/proc/{pid}/stat")), 4096);
+    stat.ok()
+        .and_then(|s| Some(s[s.rfind(')')? + 1..].trim_start().starts_with('Z')))
+        .is_some_and(|zombie| !zombie)
 }
 
 /// Writes a file through a new temporary file of mode 0600 next to it,
@@ -191,6 +229,24 @@ pub fn check_file(path: &std::path::Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+
+    #[test]
+    fn the_token_of_a_run_goes_in_the_environment_not_the_arguments() {
+        let run = super::run_command(&["choractl"], "foot", Some("secret"));
+        assert!(run.get_args().all(|arg| arg != "secret"));
+        let env: Vec<_> = run.get_envs().collect();
+        let token = std::ffi::OsStr::new("secret");
+        assert_eq!(
+            env,
+            [(std::ffi::OsStr::new("CHORA_RUN_TOKEN"), Some(token))]
+        );
+    }
+
+    #[test]
+    fn a_running_process_is_alive_and_a_missing_one_not() {
+        assert!(super::alive(std::process::id()));
+        assert!(!super::alive(u32::MAX));
+    }
 
     #[test]
     fn devices_fifos_and_large_files_are_refused() {

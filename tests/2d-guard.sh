@@ -1,0 +1,347 @@
+#!/bin/bash
+# Proves that 2D rendering did not change between a base commit and the
+# working tree: both builds render the same scenes on the headless backend
+# and the captures must match pixel for pixel.
+#
+# Usage: tests/2d-guard.sh BASE_SHA
+#   BIN  directory with chora, choractl and chora-probe of the current
+#        build (default: target/debug of the checkout)
+#
+# The base is built once in the worktree /home/user/wt/base2d, with the
+# target directory /home/user/target-base; its captures stay in
+# /home/user/guard-cache/BASE_SHA, so later runs skip the base.
+# Four scenes run as sequences of two captures, so that a stale frame of
+# a cached layer shows: an image in a clip layer that changes its file
+# and a rounded rect whose child changes its color (compared with the
+# base), a shader that reads the clock, and a clip layer whose window
+# commits a new color (both checked by their own expected pixels, since
+# the base cannot render them the same way).
+# Prints one line per scene and PASS or FAIL; exits 1 on FAIL.
+set -euo pipefail
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+. "$(dirname "$0")/gate-lock.sh"
+gate_lock "$(basename "$0")"
+[[ $# -eq 1 ]] || {
+    echo "usage: $0 BASE_SHA" >&2
+    exit 2
+}
+base=$(git -C "$repo" rev-parse --verify "$1^{commit}")
+cur_bin=${BIN:-$repo/target/debug}
+wt=/home/user/wt/base2d
+base_target=/home/user/target-base
+cache=/home/user/guard-cache/$base
+scenes=(rect text rounded shader layer window stacked image-a image-b effect-a effect-b)
+size=640x400
+
+# software EGL for the headless renderer, where that copy exists
+if [[ -d $HOME/.local/opt/mesa-egl ]]; then
+    export __EGL_VENDOR_LIBRARY_DIRS=${__EGL_VENDOR_LIBRARY_DIRS:-$HOME/.local/opt/mesa-egl/usr/share/glvnd/egl_vendor.d}
+    export LD_LIBRARY_PATH=$HOME/.local/opt/mesa-egl/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+fi
+
+work=$(mktemp -d /tmp/2d-guard.XXXXXX)
+session=
+clients=()
+# shellcheck disable=SC2329 # runs as the EXIT trap
+cleanup() {
+    trap - EXIT INT TERM HUP
+    stop_clients
+    # the TERM trap of headless-session.sh ends the core and its group
+    [[ -z $session ]] || kill "$session" 2>/dev/null || true
+    wait 2>/dev/null || true
+    rm -rf "$work"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+die() {
+    echo "2d-guard: $*" >&2
+    exit 2
+}
+
+# The fixed shader of the shader scene: a gradient.
+cat >"$work/grad.frag" <<'GLSL'
+precision mediump float;
+varying vec2 v_uv;
+void main() {
+    gl_FragColor = vec4(v_uv.x, v_uv.y, 0.5, 1.0);
+}
+GLSL
+
+cat >"$work/clock.frag" <<'GLSL'
+precision mediump float;
+uniform float time;
+void main() {
+    gl_FragColor = vec4(fract(time), 0.2, 0.4, 1.0);
+}
+GLSL
+
+python3 -I - "$work" <<'PY'
+import struct, sys, zlib
+
+
+def png(path, width, height, pixel):
+    raw = b"".join(
+        b"\0" + b"".join(bytes(pixel(x, y)) for x in range(width))
+        for y in range(height)
+    )
+
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    head = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", head)
+                + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+png(sys.argv[1] + "/a.png", 120, 80, lambda x, y: (2 * x, 3 * y, 40, 255))
+png(sys.argv[1] + "/b.png", 120, 80, lambda x, y: (40, 2 * x, 3 * y, 255))
+PY
+
+stop_clients() {
+    local p
+    for p in "${clients[@]}"; do
+        kill "$p" 2>/dev/null || true
+    done
+    clients=()
+}
+
+# apply JSON: one transaction of the agent
+apply() { echo "$1" | timeout 10 "$bin/choractl" --name agent apply - >/dev/null; }
+
+# A scene is a function that fills the output; "reset" removes it.
+rect_nodes() {
+    echo '{"create": {"id": "g-rect", "kind": "rect", "parent": "root", "props": {"size": [200, 120], "color": [0.9, 0.3, 0.1, 1], "transform": {"translate": [40, 40]}}}}'
+}
+text_nodes() {
+    echo '{"create": {"id": "g-text", "kind": "text", "parent": "root", "props": {"text": "chora 2d guard", "font_size": 32, "color": [1, 1, 1, 1], "transform": {"translate": [60, 200]}}}}'
+}
+rounded_nodes() {
+    echo '{"create": {"id": "g-round", "kind": "rect", "parent": "root", "props": {"size": [220, 140], "color": [0.2, 0.5, 0.9, 0.8], "radius": 28, "border": {"width": 4, "color": [1, 1, 1, 1]}, "transform": {"translate": [300, 30]}}}}'
+}
+shader_nodes() {
+    echo '{"create": {"id": "g-shader", "kind": "shader", "parent": "root", "props": {"size": [180, 120], "shader": "'"$work"'/grad.frag", "transform": {"translate": [380, 240]}}}}'
+}
+image_nodes() {
+    echo '{"create": {"id": "g-imgbox", "kind": "group", "parent": "root", "props": {"size": [100, 70], "clip": {"radius": 12}, "transform": {"translate": [60, 60]}}}},'
+    echo '{"create": {"id": "g-image", "kind": "image", "parent": "g-imgbox", "props": {"image": "'"$work"'/a.png", "transform": {"translate": [-10, -5]}}}}'
+}
+effect_nodes() {
+    echo '{"create": {"id": "g-effect", "kind": "group", "parent": "root", "props": {"size": [160, 100], "clip": {"radius": 20}, "transform": {"translate": [320, 200]}}}},'
+    echo '{"create": {"id": "g-effect-back", "kind": "rect", "parent": "g-effect", "props": {"size": [160, 100], "color": [0.1, 0.2, 0.6, 1], "radius": 20, "border": {"width": 3, "color": [1, 1, 1, 1]}}}},'
+    echo '{"create": {"id": "g-effect-dot", "kind": "rect", "parent": "g-effect", "props": {"size": [60, 40], "color": [0.9, 0.8, 0.1, 1], "transform": {"translate": [-10, 30]}}}}'
+}
+clock_nodes() {
+    echo '{"create": {"id": "g-clock", "kind": "shader", "parent": "root", "props": {"size": [120, 80], "shader": "'"$work"'/clock.frag", "transform": {"translate": [200, 150]}}}}'
+}
+box_nodes() {
+    echo '{"create": {"id": "g-box", "kind": "group", "parent": "root", "props": {"size": [200, 160], "clip": {"radius": 8}, "transform": {"translate": [100, 100]}}}}'
+}
+
+# nodes NAME...: create the nodes of the named scenes in one transaction
+nodes() {
+    local list=() n
+    for n in "$@"; do
+        list+=("$("${n}_nodes")")
+    done
+    local IFS=,
+    apply "[${list[*]}]"
+}
+
+# start_layer: a layer surface, the solid background of swaybg
+start_layer() {
+    command -v swaybg >/dev/null || die "swaybg is not installed"
+    swaybg -c '#336699' >/dev/null 2>&1 &
+    clients+=($!)
+    sleep 1.5
+}
+
+# start_window: a probe window, placed at 100,100
+start_window() {
+    "$bin/chora-probe" window 200 40 160 >/dev/null 2>&1 &
+    clients+=($!)
+    local id
+    id=$(timeout 10 "$bin/choractl" --name agent wait 'app_id:chora-probe kind:surface' |
+        sed -n 's/.*"id": *"\(s[0-9]*\)".*/\1/p' | head -n 1)
+    [[ -n $id ]] || die "the probe window did not appear"
+    apply '[{"attach": {"surface": "'"$id"'", "parent": "root"}}, {"update": {"id": "'"$id"'", "props": {"transform": {"translate": [100, 100]}}}}]'
+    sleep 1
+}
+
+start_boxed_window() {
+    rm -f "$work/recolor"
+    "$bin/chora-probe" window 200 40 160 --recolor "$work/recolor" 0 200 0 >/dev/null 2>&1 &
+    clients+=($!)
+    local id
+    id=$(timeout 10 "$bin/choractl" --name agent wait 'app_id:chora-probe kind:surface' |
+        sed -n 's/.*"id": *"\(s[0-9]*\)".*/\1/p' | head -n 1)
+    [[ -n $id ]] || die "the probe window did not appear"
+    apply '[{"attach": {"surface": "'"$id"'", "parent": "g-box"}}]'
+    sleep 1
+}
+
+# reset: remove all nodes and clients of the last scene
+reset() {
+    stop_clients
+    local id
+    for id in g-rect g-text g-round g-shader g-imgbox g-effect g-clock g-box; do
+        apply '[{"remove": {"id": "'"$id"'"}}]' 2>/dev/null || true
+    done
+    # wait for the windows and layer surfaces to go
+    timeout 10 "$bin/choractl" --name agent wait 'kind:surface' --gone >/dev/null 2>&1 || true
+    sleep 0.5
+}
+
+# shot NAME: capture the output
+shot() {
+    timeout 20 "$bin/choractl" --name agent capture "$out/$1.png" >/dev/null ||
+        die "no capture of $1"
+}
+
+# render BIN OUTDIR: all scenes with one build, in one headless session
+render() {
+    bin=$1
+    out=$2
+    own=${3:-0}
+    mkdir -p "$out"
+    [[ -x $bin/chora && -x $bin/choractl && -x $bin/chora-probe ]] ||
+        die "chora, choractl or chora-probe is missing in $bin"
+    local env_file=$work/env
+    CHORA_BIN=$bin "$repo/tests/headless-session.sh" "$size" >"$env_file" 2>&1 &
+    session=$!
+    local _
+    for _ in $(seq 60); do
+        grep -q CHORA_SOCKET "$env_file" && break
+        sleep 0.5
+    done
+    grep -q CHORA_SOCKET "$env_file" || die "no core: $(tail -n 3 "$env_file")"
+    CHORA_SOCKET=$(sed -n 's/^CHORA_SOCKET=//p' "$env_file")
+    WAYLAND_DISPLAY=$(sed -n 's/^WAYLAND_DISPLAY=//p' "$env_file")
+    XDG_RUNTIME_DIR=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$env_file")
+    export CHORA_SOCKET WAYLAND_DISPLAY XDG_RUNTIME_DIR
+    "$bin/choractl" grant agent screen.capture >/dev/null || die "the grant"
+
+    nodes rect;    shot rect;    reset
+    nodes text;    shot text;    reset
+    nodes rounded; shot rounded; reset
+    nodes shader;  shot shader;  reset
+    start_layer;   shot layer;   reset
+    start_window;  shot window;  reset
+    start_layer
+    start_window
+    nodes rect text rounded shader
+    shot stacked
+    reset
+    nodes image
+    sleep 0.5
+    shot image-a
+    apply '[{"update": {"id": "g-image", "props": {"image": "'"$work"'/b.png"}}}]'
+    sleep 0.5
+    shot image-b
+    reset
+    nodes effect
+    sleep 0.5
+    shot effect-a
+    apply '[{"update": {"id": "g-effect-dot", "props": {"color": [0.1, 0.9, 0.3, 1]}}}]'
+    sleep 0.5
+    shot effect-b
+    reset
+    if [[ $own == 1 ]]; then
+        nodes clock
+        sleep 0.5
+        shot clock-1
+        sleep 0.5
+        shot clock-2
+        reset
+        nodes box
+        start_boxed_window
+        shot recolor-1
+        touch "$work/recolor"
+        sleep 1
+        shot recolor-2
+        reset
+    fi
+
+    kill "$session" 2>/dev/null || true
+    wait "$session" 2>/dev/null || true
+    session=
+}
+
+# the base: build and capture once
+have_base=1
+for s in "${scenes[@]}"; do
+    [[ -s $cache/$s.png ]] || have_base=0
+done
+if ((have_base == 0)); then
+    avail=$(df -BG --output=avail /home/user | tail -n 1 | tr -dc 0-9)
+    ((avail >= 8)) || die "only ${avail} GB free in /home/user; need 8"
+    if [[ -d $wt ]]; then
+        git -C "$wt" checkout -q --detach "$base"
+    else
+        git -C "$repo" worktree add -q --detach "$wt" "$base"
+    fi
+    (
+        cd "$wt"
+        CARGO_TARGET_DIR=$base_target CARGO_PROFILE_DEV_DEBUG=0 \
+            cargo build -p chora -p choractl -p chora-probe
+    ) >&2
+    rm -rf "$cache.tmp"
+    render "$base_target/debug" "$cache.tmp"
+    rm -rf "$cache"
+    mv "$cache.tmp" "$cache"
+fi
+
+# the current build
+render "$cur_bin" "$work/cur" 1
+
+verdict=PASS
+for s in "${scenes[@]}"; do
+    res=
+    rc=0
+    if [[ -s $cache/$s.png && -s $work/cur/$s.png ]]; then
+        res=$(python3 -I "$repo/tests/png-same.py" "$cache/$s.png" "$work/cur/$s.png" 2>&1) || rc=$?
+    else
+        res="capture missing"
+        rc=1
+    fi
+    if ((rc == 0)) && [[ $res == "0 0" ]]; then
+        echo "ok   $s: identical"
+    else
+        echo "FAIL $s: ${res//$'\n'/ }"
+        verdict=FAIL
+    fi
+done
+pixel() { python3 -I "$repo/tests/png-pixel.py" "$work/cur/$1.png" "$2" "$3"; }
+
+check_own() {
+    if [[ -s $work/cur/$1-1.png && -s $work/cur/$1-2.png ]] && "$2"; then
+        echo "ok   $1: as expected"
+    else
+        echo "FAIL $1: $(pixel "$1-1" "$3" "$4") then $(pixel "$1-2" "$3" "$4")"
+        verdict=FAIL
+    fi
+}
+
+clock_moves() {
+    local r1 g1 b1 r2 g2 b2 _
+    read -r r1 g1 b1 _ < <(pixel clock-1 260 190)
+    read -r r2 g2 b2 _ < <(pixel clock-2 260 190)
+    ((g1 == 51 && b1 == 102 && g2 == 51 && b2 == 102)) || return 1
+    local moved=$((r1 > r2 ? r1 - r2 : r2 - r1))
+    ((moved >= 40))
+}
+
+recolor_shows() {
+    [[ $(pixel recolor-1 200 180) == "200 40 160 255" ]] &&
+        [[ $(pixel recolor-2 200 180) == "0 200 0 255" ]]
+}
+
+check_own clock clock_moves 260 190
+check_own recolor recolor_shows 200 180
+
+echo "$verdict"
+[[ $verdict == PASS ]] || exit 1

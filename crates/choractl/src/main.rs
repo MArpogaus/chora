@@ -12,6 +12,7 @@
 mod docs;
 mod events;
 mod mcp;
+mod record;
 mod schema;
 mod view;
 
@@ -79,6 +80,11 @@ enum Cmd {
     },
     /// Print the outputs.
     Outputs,
+    /// Print what rendering did for each output since it came: frames,
+    /// frames with damage and offscreen passes. The counters only grow;
+    /// compare two prints, for example to see that a still scene draws
+    /// nothing.
+    RenderStats,
     /// Reserve space at the edges of an output, in logical pixels: the work
     /// area leaves it out until this command ends. Prints the output, then
     /// waits.
@@ -140,7 +146,9 @@ enum Cmd {
     /// Start a program outside the core (D42), with an activation token
     /// of the core in `XDG_ACTIVATION_TOKEN`: in its own transient unit
     /// when a user manager runs, as its own child otherwise. Prints pid,
-    /// unit and token as one JSON line.
+    /// unit and token as one JSON line. A token in `CHORA_RUN_TOKEN`,
+    /// which a plugin minted on its own connection, takes the place of a
+    /// new one; the program never sees that variable.
     Run {
         /// The program and its arguments.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
@@ -223,6 +231,11 @@ enum Cmd {
         #[arg(long)]
         max_side: Option<u32>,
     },
+    /// Record frames of a headless session as PNG files with a stepped
+    /// clock: each frame shows the scene one frame time later, whatever
+    /// the speed of the renderer. For demo media and tests. Goes through
+    /// the admin socket; works only on the headless backend.
+    Record(record::Recording),
 }
 
 #[derive(Subcommand)]
@@ -365,6 +378,7 @@ fn run(args: Args) -> Result<(), String> {
             .map(|answer| print_warnings(&answer)),
         Cmd::Events { names } => events(&mut client, names),
         Cmd::Outputs => show(&mut client, "output.list", Value::Null),
+        Cmd::RenderStats => show(&mut client, "render.stats", Value::Null),
         Cmd::Quit => client
             .call::<_, Value>("session.quit", Value::Null)
             .map(drop),
@@ -389,6 +403,14 @@ fn run(args: Args) -> Result<(), String> {
             unreachable!("handled before the connection")
         }
         Cmd::Inject { dry_run, .. } => inject(&mut client, input, dry_run),
+        command @ (Cmd::Capture { .. } | Cmd::Record(_)) => return media(&mut client, command),
+    };
+    result.map_err(|e| e.to_string())
+}
+
+/// The commands that save pictures: a capture and a recording.
+fn media(client: &mut Client, command: Cmd) -> Result<(), String> {
+    match command {
         Cmd::Capture {
             file,
             output,
@@ -400,10 +422,11 @@ fn run(args: Args) -> Result<(), String> {
                 node,
                 max_side,
             };
-            return capture_to(&mut client, &capture, &file);
+            capture_to(client, &capture, &file)
         }
-    };
-    result.map_err(|e| e.to_string())
+        Cmd::Record(recording) => record::record(client, &recording),
+        _ => unreachable!("only a capture and a recording save pictures"),
+    }
 }
 
 /// The `hello` of every `choractl` call: the name of `--name`, with
@@ -421,7 +444,11 @@ fn hello(name: Option<String>) -> Hello {
 fn connect(command: &Cmd, hello: &Hello) -> Result<Client, String> {
     let admin = matches!(
         command,
-        Cmd::Grant { .. } | Cmd::Revoke { .. } | Cmd::Clients { .. } | Cmd::Camera { .. }
+        Cmd::Grant { .. }
+            | Cmd::Revoke { .. }
+            | Cmd::Clients { .. }
+            | Cmd::Camera { .. }
+            | Cmd::Record(_)
     );
     if !admin {
         return Client::from_env(hello).map_err(|e| e.to_string());
@@ -462,7 +489,9 @@ fn session(client: &mut Client, command: Cmd) -> Result<(), ClientError> {
             serde_json::json!({"output": output}),
         ),
         Cmd::Run { argv } => {
-            run_program(client, &argv, None).map(|line| print_line(std::io::stdout(), &line))
+            let token = caller_token(|key| std::env::var(key).ok());
+            run_program(client, &argv, (None, token.as_deref()))
+                .map(|line| print_line(std::io::stdout(), &line))
         }
         Cmd::ConfigureOutput {
             output,
@@ -521,10 +550,11 @@ fn taken_socket(name: &str, err: &RpcError) -> Option<String> {
 /// token as one JSON value; the token lets a test follow the trip to the
 /// window. With `plugin`, the unit is the one of `view_unit` and
 /// restarts the program when it fails, as the unit of a flavor does.
+/// With `given`, the program gets that token instead of a new one.
 pub(crate) fn run_program(
     client: &mut Client,
     argv: &[String],
-    plugin: Option<&str>,
+    (plugin, given): (Option<&str>, Option<&str>),
 ) -> Result<Value, ClientError> {
     if argv.is_empty() {
         return Err(ClientError::Io(std::io::Error::other("no program")));
@@ -546,7 +576,10 @@ pub(crate) fn run_program(
     if plugin.is_some() && matches!(unit_state(&unit).as_str(), "active" | "activating") {
         return Ok(serde_json::json!({ "pid": null, "unit": unit, "token": null }));
     }
-    let answer: Value = client.call("activation.token", Value::Null)?;
+    let answer: Value = match given {
+        Some(token) => serde_json::json!({ "token": token }),
+        None => client.call("activation.token", Value::Null)?,
+    };
     let Some(token) = answer["token"].as_str().map(str::to_owned) else {
         return Err(ClientError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -662,9 +695,19 @@ fn systemd_unit(argv: &[String], token: &str, unit: &str, restart: bool) -> RunS
 /// Stdout and stderr go to the null device: the output of the program
 /// never mixes with the JSON line or the MCP protocol, and a caller that
 /// reads the stderr of `run` to its end does not wait for the program.
+/// The variable in which a plugin hands `choractl run` the token that it
+/// minted on its own connection, so that the token carries its act.
+const RUN_TOKEN: &str = "CHORA_RUN_TOKEN";
+
+/// The token of the caller of `run` in [`RUN_TOKEN`], if it set one.
+fn caller_token(env: impl Fn(&str) -> Option<String>) -> Option<String> {
+    env(RUN_TOKEN).filter(|token| !token.is_empty())
+}
+
 fn start_child(argv: &[String], token: &str) -> Result<u32, std::io::Error> {
     let mut child = std::process::Command::new(&argv[0])
         .args(&argv[1..])
+        .env_remove(RUN_TOKEN)
         .env("XDG_ACTIVATION_TOKEN", token)
         .env("DESKTOP_STARTUP_ID", token)
         .stdin(std::process::Stdio::null())
@@ -959,19 +1002,14 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         }
         Some(f) => std::fs::read_to_string(f)?,
         None => {
-            let mut paths = Vec::new();
-            if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
-                paths.push(format!("{xdg}/chora/clients.yaml"));
-            }
-            if let Ok(home) = std::env::var("HOME") {
-                paths.push(format!("{home}/.config/chora/clients.yaml"));
-            }
-            let path = paths
-                .iter()
-                .find(|p| std::path::Path::new(p).exists())
-                .cloned()
-                .ok_or_else(|| bad("no clients.yaml; give the file as argument".into()))?;
-            std::fs::read_to_string(&path).map_err(|e| bad(format!("{path}: {e}")))?
+            let path = clients_files(
+                std::env::var_os("XDG_CONFIG_HOME"),
+                std::env::var_os("HOME"),
+            )
+            .into_iter()
+            .find(|p| p.exists())
+            .ok_or_else(|| bad("no clients.yaml; give the file as argument".into()))?;
+            std::fs::read_to_string(&path).map_err(|e| bad(format!("{}: {e}", path.display())))?
         }
     };
     let wanted: std::collections::BTreeMap<String, ClientSpec> =
@@ -1006,6 +1044,21 @@ fn clients_up(client: &mut Client, file: Option<&str>) -> Result<(), ClientError
         }
     }
     Ok(())
+}
+
+/// The files that `clients up` reads without an argument: the first
+/// that exists counts. Only an absolute `$XDG_CONFIG_HOME` or `$HOME`
+/// gives one.
+fn clients_files(
+    xdg: Option<std::ffi::OsString>,
+    home: Option<std::ffi::OsString>,
+) -> Vec<std::path::PathBuf> {
+    let xdg = view::absolute(xdg);
+    let home = view::absolute(home).map(|h| h.join(".config"));
+    xdg.into_iter()
+        .chain(home)
+        .map(|d| d.join("chora/clients.yaml"))
+        .collect()
 }
 
 /// Makes the grants of a not yet opened name equal to the listed ones,
@@ -1173,6 +1226,24 @@ mod tests {
         wait_loop,
     };
 
+    /// An empty or relative `$XDG_CONFIG_HOME` or `$HOME` would read the
+    /// capabilities from the current directory.
+    #[test]
+    fn clients_up_reads_no_file_of_the_current_directory() {
+        let some = |s: &str| Some(std::ffi::OsString::from(s));
+        let files = |xdg, home| super::clients_files(xdg, home);
+        let home = std::path::Path::new("/h/.config/chora/clients.yaml");
+        assert_eq!(
+            files(some("/c"), some("/h")),
+            [std::path::Path::new("/c/chora/clients.yaml"), home]
+        );
+        assert_eq!(files(some(""), some("/h")), [home]);
+        assert_eq!(files(some("c"), some("/h")), [home]);
+        let none: [&std::path::Path; 0] = [];
+        assert_eq!(files(some(""), some("")), none);
+        assert_eq!(files(None, some("h")), none);
+    }
+
     /// A line of `run` is compact JSON, so that a script reads it at once.
     #[test]
     fn the_answer_of_run_is_one_json_line() {
@@ -1322,6 +1393,21 @@ mod tests {
             std::thread::sleep(Duration::from_millis(20));
         }
         let _ = std::fs::remove_file(&out);
+    }
+
+    /// `run` takes the activation token of its caller from the
+    /// environment, never from its arguments, which other users can read.
+    #[test]
+    fn run_takes_the_token_of_its_caller_from_the_environment() {
+        let env = |key: &str| (key == "CHORA_RUN_TOKEN").then(|| "tok".to_owned());
+        assert_eq!(super::caller_token(env).as_deref(), Some("tok"));
+        assert_eq!(super::caller_token(|_| Some(String::new())), None);
+        assert_eq!(super::caller_token(|_| None), None);
+        let args = Args::try_parse_from(["choractl", "run", "--", "foot"]);
+        let Cmd::Run { argv } = args.expect("run parses").command else {
+            panic!("not run");
+        };
+        assert_eq!(argv, ["foot"]);
     }
 
     /// No argument of a command takes the place of `--name`.

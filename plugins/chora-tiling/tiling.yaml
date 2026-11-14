@@ -7,8 +7,43 @@
 
 # What MOD means in the bindings: Super or Alt.
 modifier: Super
-# The gap around each window, in logical pixels.
+# For tests only: take the keys of input.inject as keys of the user. Off,
+# the bindings ignore injected keys; keep it off outside tests.
+test_accept_injected_keys: false
+# The gap of the old look, in logical pixels: the edge gets it, two tiles
+# get twice. It applies where look has null for a gap, and the method
+# set_layout sets it.
 gap: 4
+# The look of the windows, in logical pixels: the gap between the tiles and
+# the edge of the work area, the gap between two tiles and the radius of the
+# corners. The max and fullscreen layouts have no gap and no corners.
+look:
+  gap_outer: 12
+  gap_inner: 10
+  radius: 10
+  # The width of the border around each window, outside it; 0 for none. The
+  # max and fullscreen layouts have none.
+  border: 2
+  # Whether changes move over time (a window opens in 180 ms, slides to its
+  # tile or into view with a tag in 200 ms, the focus mark cross-fades in
+  # 120 ms); false makes every change at once. Shadows under the windows.
+  animations: true
+  shadows: true
+  # Which palette the look takes: system follows the colour scheme of the
+  # system (Paper when it asks for light, Ink when it asks for dark or says
+  # nothing), ink is the dark one and paper the light one.
+  theme: system
+  # Colours that replace those of the theme, each #rrggbb: base, surface,
+  # surface_2, line, text, muted, accent, on_accent, accent_2 and urgent.
+  # The focused window has a border in a gradient from accent to accent_2
+  # (the same colour twice makes it solid), the others line, and a window
+  # that asked for attention urgent. The bar, the launcher, the terminal and
+  # the lock screen take the same colours: chora-tiling writes them at each
+  # start and on reload, and chora-tiling --apply-theme writes them again.
+  # Example:
+  #   palette:
+  #     accent: '#f59e0b'
+  palette: {}
 # The number of tags of each output, at most 16.
 tags: 9
 # The layouts in the order of next_layout. Each tag starts with the first.
@@ -40,6 +75,10 @@ focus: follow_mouse
 style:
   opacity: 1.0
   effects: []
+# The effects that tiling drives on its own windows: wobbly, a floating
+# window that bends while it is dragged. Empty turns them off. lamp is
+# refused, because tiling has no task button.
+effects: []
 
 bindings:
   # Windows
@@ -69,8 +108,8 @@ bindings:
   MOD+Shift+l: {inc_masters: -1}
   MOD+Ctrl+h: {inc_columns: 1}
   MOD+Ctrl+l: {inc_columns: -1}
-  MOD+space: next_layout
-  MOD+Shift+space: previous_layout
+  MOD+Shift+space: next_layout
+  MOD+Ctrl+Shift+space: previous_layout
   # Outputs
   MOD+Ctrl+j: focus_next_output
   MOD+Ctrl+k: focus_previous_output
@@ -117,9 +156,39 @@ bindings:
   MOD+Ctrl+Shift+8: {toggle_window_tag: 8}
   MOD+Ctrl+Shift+9: {toggle_window_tag: 9}
   # Programs
-  MOD+Return: {run: foot}
-  MOD+r: {run: fuzzel}
+  # chora-tiling --launch starts a program of the flavor with its config
+  # file in the palette (foot, fuzzel, swaylock), or a script of the flavor
+  # (power, screenshot).
+  MOD+Return: {run: chora-tiling --launch foot}
+  MOD+space: {run: chora-tiling --launch fuzzel}
+  MOD+r: {run: chora-tiling --launch fuzzel}
+  MOD+a: {run: chora-chat}
   # swayidle of the tiling flavor runs swaylock on this request
   MOD+Shift+Escape: {run: loginctl lock-session}
+  # The power menu: Lock, Log out, Restart, Shut down.
+  MOD+Shift+e: {run: chora-tiling --launch power}
+  # A screenshot of the output, or of an area, in ~/Pictures/Screenshots and
+  # on the clipboard. Print alone needs a grant that the core does not give
+  # yet, so these are the keys with MOD.
+  MOD+Print: {run: chora-tiling --launch screenshot}
+  MOD+Shift+s: {run: chora-tiling --launch screenshot area}
+  # Sound: the media keys need no modifier, as they type nothing.
+  XF86AudioRaiseVolume: {volume: up}
+  XF86AudioLowerVolume: {volume: down}
+  XF86AudioMute: {volume: mute}
   # The plugin
   MOD+Ctrl+r: reload
+  MOD+slash: show_keys
+
+# The words of a binding in the key list (MOD+slash): the binding as it is
+# spelled above, and its words. Without an entry a binding gets the words
+# of its action, and run its command.
+labels:
+  MOD+Return: Terminal
+  MOD+space: Run a program
+  MOD+a: Chat with a helper
+  MOD+r: Run a program
+  MOD+Shift+Escape: Lock the screen
+  MOD+Shift+e: Power menu
+  MOD+Print: Screenshot
+  MOD+Shift+s: Screenshot of an area

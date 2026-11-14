@@ -11,14 +11,18 @@ chora/
 │   ├── chora-scene/   # scene model, commands, events, selectors, IPC types and client; no Smithay
 │   ├── chora/         # the compositor: Smithay, backends, renderer, input, safety, IPC
 │   ├── chora-kit/     # building blocks for plugins: the plugin runtime, wobbly windows, magic lamp, XDG dirs, icons, desktop entries
+│   ├── chora-draw/    # library of the blocks: asset folders, SVG and text rasterized into image nodes, bubbles (D73)
 │   └── choractl/      # CLI over the IPC socket; `choractl mcp` is the MCP bridge
 ├── plugins/
 │   ├── chora-tiling/  # reference plugin: the tags, layouts and bindings of awesome
-│   ├── chora-xp/      # stacking window manager in the style of Windows XP
+│   ├── chora-xp/      # stacking window manager in the style of Windows XP; splits into the blocks below (D73)
+│   ├── chora-notify/  # block: notification server, with a neutral asset folder
+│   ├── chora-assistant/ # block: the host of the HUD folders: figure, speech, question card; with the neutral folder
 │   ├── chora-mc/      # experimental: a voice-first desktop, one full-screen scene at a time
 │   └── chora-construct/ # experimental: a spatial desktop with panes that float in a space
-├── flavors/           # systemd units of the flavors (tiling, xp, construct); the theme of the XP flavor
+├── flavors/           # systemd units of the flavors (tiling, xp, construct); the theme and the asset folders of the XP flavor
 ├── examples/          # loader prototype and showcase apps over the API
+├── demo/              # the scene and the recording of the demo clips; the content is generated, with no asset of a third party
 ├── services/voice/    # the voice agent and the quadlets of its models
 ├── dist/              # RPM build script, Fedora build requirements, session files, Quadlet examples
 ├── tests/             # end-to-end scripts, headless sessions, input probe

@@ -13,13 +13,19 @@ use crate::{
     Mc,
     config::{Color, Style},
     invalid,
-    region::{self, Content, Item, MAX_LINES, Region},
+    region::{self, Content, Item, Put, Region},
     scene::{Panel, check_name},
 };
 
 /// The scene that shows the agents, one column each.
 const SCENE: &str = "agents";
+/// The room of the sign of a helper before its name, in pixels.
+const SIGN_WIDTH: f64 = 18.0;
 
+/// The most helpers that a side shows, one row each.
+const MAX_ROWS: usize = 4;
+/// The lines of the notifications: three, with a blank line between them.
+const NOTIFY_LINES: usize = 3;
 /// The last words of an agent that its column shows, at most.
 const SAID_CHARS: usize = 600;
 
@@ -40,6 +46,12 @@ pub struct Agent {
     /// The time of the first report, as HH:MM.
     pub since: String,
 }
+
+/// The fields of `agent.set` that a state of the voice agent may carry; the
+/// others, such as `seq` and `epoch` for the host, are not for mc.
+pub const STATE_FIELDS: [&str; 8] = [
+    "name", "state", "task", "said", "voice", "plan", "question", "log",
+];
 
 /// Parameters of `agent.set`; a missing field keeps its value.
 #[derive(Deserialize)]
@@ -130,7 +142,10 @@ impl Confirming {
     /// The parameters of `voice.confirm.answer` for a press on `node`:
     /// an answer of a confirmation with buttons. Only a pointer press on
     /// the node calls it; no method of mc does.
-    pub fn answer(&self, node: &str) -> Option<Value> {
+    pub fn answer(&self, node: &str, injected: bool) -> Option<Value> {
+        if injected {
+            return None;
+        }
         let yes = match node {
             ANSWER_YES => true,
             ANSWER_NO => false,
@@ -188,9 +203,20 @@ enum Urgency {
 const NOTIFY: &str = "notify";
 /// The content of the last critical notification.
 const URGENT: &str = "urgent";
+/// The word before a critical notification, in the column and in the
+/// footer, so that the red is not its only sign.
+const URGENT_WORD: &str = "Urgent";
 /// The content of a spoken confirmation: its prompt as the title, its
 /// detail in mono.
 const CONFIRM: &str = "confirm";
+
+/// Whom a `chat.show` was for, for its error line: never an empty name.
+fn chat_who(name: Option<&str>) -> String {
+    name.map_or_else(
+        || "for the helper that the host chooses".to_owned(),
+        |name| format!("with {name}"),
+    )
+}
 
 impl Mc {
     /// Adds an agent or changes it.
@@ -280,6 +306,9 @@ impl Mc {
         name: &str,
         content: &Content,
     ) -> Vec<Item> {
+        if !region.is_line() {
+            return self.agent_rows(region, slot, name, content);
+        }
         let config = &self.settings.value;
         let id = format!("{}-{name}", self.region_id(region));
         let mut ty = self.content_type(content, false);
@@ -292,13 +321,131 @@ impl Mc {
                     .copied()
                     .unwrap_or(base);
                 Item {
-                    id: format!("{id}-{i}"),
-                    slot,
-                    props: ty.props(&text),
-                    first: i == 0,
+                    hit: Some(format!("agent:{}", agent.name)),
+                    ..Item::text(format!("{id}-{i}"), slot, ty.props(&text), i == 0)
                 }
             })
             .collect()
+    }
+
+    /// The rows of the helpers in a side: the sign in the color of the
+    /// state, the name in `text`, and the state and the task in `muted`
+    /// after it; at most four rows, then how many more there are.
+    fn agent_rows(&self, region: Region, slot: i32, name: &str, content: &Content) -> Vec<Item> {
+        let config = &self.settings.value;
+        let id = format!("{}-{name}", self.region_id(region));
+        let colors = config.colors();
+        let muted = self.content_type(content, false);
+        let color = |name: &str| colors.get(name).copied().unwrap_or(muted.color);
+        let (mut sign, mut text) = (muted.clone(), muted.clone());
+        text.color = color("text");
+        let mut items = Vec::new();
+        for (i, agent) in self.agents.iter().take(MAX_ROWS).enumerate() {
+            let state = config.states.get(&agent.state);
+            sign.color = state.map_or(muted.color, |s| color(&s.color));
+            let mark = state.map_or("", |s| s.sign.as_str());
+            let words = state
+                .and_then(|s| s.label.as_deref())
+                .unwrap_or(&agent.state);
+            let detail = if agent.task.is_empty() {
+                words.to_owned()
+            } else {
+                format!("{words} · {}", agent.task)
+            };
+            let row = |part: &str, put, x, props| Item {
+                x,
+                put,
+                ..Item::text(format!("{id}-{i}-{part}"), slot, props, false)
+            };
+            items.push(Item {
+                hit: Some(format!("agent:{}", agent.name)),
+                ..row("sign", Put::Stack, 0.0, sign.props(mark))
+            });
+            items.push(row("name", Put::Row, SIGN_WIDTH, text.props(&agent.name)));
+            items.push(row(
+                "state",
+                Put::Row,
+                chora_kit::hud::LABEL_COLUMN,
+                muted.props(&detail),
+            ));
+        }
+        let more = self.agents.len().saturating_sub(MAX_ROWS);
+        if more > 0 {
+            let props = muted.props(&format!("+{more} more"));
+            items.push(Item {
+                put: Put::Stack,
+                x: chora_kit::hud::LABEL_COLUMN,
+                ..Item::text(format!("{id}-more"), slot, props, false)
+            });
+        }
+        if !items.is_empty() && !content.title.is_empty() {
+            let head = self.content_type(content, true).props(&content.title);
+            items.insert(0, Item::text(format!("{id}-title"), slot, head, true));
+        } else if let Some(first) = items.first_mut() {
+            first.first = true;
+        }
+        items
+    }
+
+    /// A click on the column of a helper in the agents scene asks the HUD
+    /// host to show the chat with that helper. Answers whether the click
+    /// was on such a column.
+    pub fn click_agent(&mut self, node: &str, at: [f64; 2]) -> bool {
+        if self.current.as_deref() != Some(SCENE) || node != crate::wheel_id(SCENE) {
+            return false;
+        }
+        let Some(output) = &self.output else {
+            return false;
+        };
+        let scroll = self.scroll.get(SCENE).copied().unwrap_or_default();
+        let [x, y] = [
+            at[0] - f64::from(output.position[0]),
+            at[1] - f64::from(output.position[1]) + scroll,
+        ];
+        let shown: Vec<String> = match &self.agent_focus {
+            Some(name) => vec![name.clone()],
+            None => self.agents.iter().map(|a| a.name.clone()).collect(),
+        };
+        let Some(scene) = self.scenes.get(SCENE) else {
+            return false;
+        };
+        let hit = scene.panels.iter().find_map(|panel| {
+            let n: usize = panel.id.strip_prefix("agent-")?.parse().ok()?;
+            let [px, py, pw, ph] = self.place(SCENE, panel)?;
+            let inside = (px..px + pw).contains(&x) && (py..py + ph).contains(&y);
+            inside
+                .then(|| shown.get(n.checked_sub(1)?).cloned())
+                .flatten()
+        });
+        let Some(name) = hit else {
+            return false;
+        };
+        self.chat_with(Some(&name));
+        true
+    }
+
+    /// Asks the HUD host to show the chat, with a helper or with the one
+    /// that it chooses.
+    pub fn chat_with(&mut self, name: Option<&str>) {
+        let mut params = json!({});
+        if let Some(name) = name {
+            params["name"] = json!(name);
+        }
+        if let Some(token) = self.rt.conn.activation_token() {
+            params["token"] = json!(token);
+        }
+        let call = json!({"client": "assistant", "method": "chat.show", "params": params});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-mc: chat.show {}: {err}", chat_who(name));
+        }
+    }
+
+    /// Asks the HUD host to close the chat.
+    pub fn chat_close(&mut self) {
+        let call = json!({"client": "assistant", "method": "chat.hide", "params": {}});
+        if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
+            eprintln!("chora-mc: chat.hide: {err}");
+        }
     }
 
     /// Shows one agent alone in the agents scene, with its transcript in
@@ -436,8 +583,9 @@ impl Mc {
         }
     }
 
-    /// Adds a notification on top of the stack; a critical one also
-    /// shows in red until the next one or `notify.clear`.
+    /// Adds a notification on top of the stack; a critical one starts
+    /// with the word `Urgent` and also shows in red in `urgent`, until the
+    /// next one, a click on that line or `notify.clear`.
     pub fn push(&mut self, push: Push) -> Result<(), RpcError> {
         let Push {
             title,
@@ -449,21 +597,19 @@ impl Mc {
         } else {
             format!("{title}: {body}")
         };
+        let text = if urgency == Urgency::Critical {
+            format!("{URGENT_WORD}: {text}")
+        } else {
+            text
+        };
         let line = format!("{}  {}", region::date("%H:%M"), text.replace('\n', " "));
         if urgency == Urgency::Critical {
-            self.set_text(URGENT, None, |_| vec![format!("✕  {text}")])?;
+            self.set_text(URGENT, None, |_| vec![text.clone()])?;
         }
-        // Newest on top, an empty line between two.
         self.set_text(NOTIFY, None, |old| {
             let mut lines = vec![line];
-            if !old.is_empty() {
-                lines.push(String::new());
-            }
             lines.extend(old);
-            lines.truncate(MAX_LINES);
-            while lines.last().is_some_and(String::is_empty) {
-                lines.pop();
-            }
+            lines.truncate(NOTIFY_LINES);
             lines
         })
     }
@@ -646,8 +792,8 @@ impl Mc {
     /// Answers the confirmation by the click on `node`, with
     /// `voice.confirm.answer`; a refusal, as for an old id, only logs.
     /// True when `node` was an answer.
-    pub fn press_answer(&mut self, node: &str) -> bool {
-        let Some(params) = self.confirming.as_ref().and_then(|c| c.answer(node)) else {
+    pub fn press_answer(&mut self, node: &str, injected: bool) -> bool {
+        let Some(params) = (self.confirming.as_ref()).and_then(|c| c.answer(node, injected)) else {
             return false;
         };
         let call = json!({"client": crate::VOICE, "method": "confirm.answer", "params": params});
@@ -655,6 +801,12 @@ impl Mc {
             eprintln!("chora-mc: confirm.answer: {err}");
         }
         true
+    }
+
+    /// Takes the urgent line of the footer away; the notification stays
+    /// in the column.
+    pub fn clear_urgent(&mut self) -> Result<(), RpcError> {
+        self.set_text(URGENT, None, |_| Vec::new())
     }
 
     /// Empties the notifications.
@@ -710,6 +862,15 @@ fn band(agent: &Agent) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn an_error_of_chat_show_without_a_name_names_the_reason() {
+        assert_eq!(
+            super::chat_who(None),
+            "for the helper that the host chooses"
+        );
+        assert_eq!(super::chat_who(Some("Atlas")), "with Atlas");
+    }
+
+    #[test]
     fn one_agent_takes_the_whole_width_two_half_each() {
         let cell = [0, 0, 1, 2];
         assert_eq!(super::agent_cell(cell, 1, 1, 4), [0, 0, 4, 2]);
@@ -719,12 +880,80 @@ mod tests {
         assert_eq!(super::agent_cell(cell, 4, 4, 4), [3, 0, 1, 2]);
     }
 
+    /// A click on the column of a helper in the agents scene asks the
+    /// host to show the chat with that helper.
+    #[test]
+    fn a_click_on_an_agent_column_shows_its_chat() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("column-chat", [1920, 1080]);
+        for name in ["Atlas", "Bert"] {
+            mc.follow(
+                "voice.state",
+                "voice",
+                json!({"name": name, "state": "working"}),
+            )
+            .unwrap();
+        }
+        mc.show(super::SCENE, false).unwrap();
+        let panel = mc.scenes[super::SCENE]
+            .panels
+            .iter()
+            .find(|p| p.id == "agent-2")
+            .cloned()
+            .unwrap();
+        let [x, y, w, h] = mc.place(super::SCENE, &panel).expect("the column of Bert");
+        let at = [x + w / 2.0, y + h / 2.0];
+        let press = chora_scene::Event::PointerPressed {
+            node: crate::wheel_id(super::SCENE),
+            button: 272,
+            position: at,
+            local: at,
+            modifiers: Vec::new(),
+            injected: false,
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, press).unwrap();
+        let called = model.lock().unwrap().called.clone();
+        assert_eq!(
+            called.last(),
+            Some(
+                &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Bert"}})
+            )
+        );
+    }
+
+    /// A click on the row of a helper in the margin asks the host to show
+    /// the chat with that helper, with no key.
+    #[test]
+    fn a_click_on_the_row_of_a_helper_shows_its_chat() {
+        use serde_json::json;
+        let (mut mc, model) = crate::testing::mc("row-chat", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
+        let state = json!({"name": "Atlas", "state": "working"});
+        mc.follow("voice.state", "voice", state).unwrap();
+        mc.show("agenda", false).unwrap();
+        let name = mc.current.clone().unwrap();
+        let id = (mc.items(&name).into_values())
+            .flat_map(|(items, _)| items)
+            .find(|i| i.hit.as_deref() == Some("agent:Atlas"))
+            .map(|i| i.id)
+            .expect("an item for Atlas that takes a click");
+        assert!(mc.click_hit(&format!("{id}-hit")));
+        let called = model.lock().unwrap().called.clone();
+        assert_eq!(
+            called.last(),
+            Some(
+                &json!({"client": "assistant", "method": "chat.show", "params": {"name": "Atlas"}})
+            )
+        );
+    }
+
     /// voice.confirm shows its prompt and its whole detail alone in the
     /// drawer; the done event of its id removes it, of another id not.
     #[test]
     fn a_confirmation_shows_until_its_answer() {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("confirm", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let detail = format!("rm -r build\n{}", "x".repeat(400));
         let ask = json!({"id": "c1", "prompt": "Run it?", "detail": detail});
         mc.follow("voice.confirm", "voice", ask).unwrap();
@@ -750,20 +979,30 @@ mod tests {
             keys: None,
         };
         assert_eq!(
-            with.answer(super::ANSWER_YES),
+            with.answer(super::ANSWER_YES, false),
             Some(json!({"id": "4", "yes": true}))
         );
         assert_eq!(
-            with.answer(super::ANSWER_NO),
+            with.answer(super::ANSWER_NO, false),
             Some(json!({"id": "4", "yes": false}))
         );
-        assert_eq!(with.answer("mc-answer-yes-word"), None);
+        assert_eq!(with.answer("mc-answer-yes-word", false), None);
         let without = super::Confirming {
             buttons: false,
             ..with
         };
-        assert_eq!(without.answer(super::ANSWER_YES), None);
+        assert_eq!(without.answer(super::ANSWER_YES, false), None);
+        assert_eq!(
+            super::Confirming {
+                buttons: true,
+                ..without
+            }
+            .answer(super::ANSWER_YES, true),
+            None,
+            "an injected press answers nothing"
+        );
         let (mut mc, _) = crate::testing::mc("answers", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ask = json!({"id": "5", "prompt": "Set allow?", "detail": "allow: [sh]",
             "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true});
         mc.follow("voice.confirm", "voice", ask).unwrap();
@@ -778,6 +1017,7 @@ mod tests {
     fn a_confirmation_with_a_numeric_id_shows() {
         use serde_json::json;
         let (mut mc, _) = crate::testing::mc("confirm-number", [1920, 1080]);
+        mc.settings.value.voice_hud = crate::config::VoiceHud::Own;
         let ask = json!({"id": 7, "prompt": "Start foot?", "detail": "foot"});
         mc.follow("voice.confirm", "voice", ask).unwrap();
         assert_eq!(mc.texts["confirm"].0, "Start foot?");
