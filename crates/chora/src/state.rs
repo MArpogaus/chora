@@ -11,6 +11,7 @@ use chora_scene::{
     Binding, Decoration, Effect, Event, Scene, SurfaceInfo, SurfaceRequest, ToplevelState,
 };
 use smithay::{
+    backend::input::InputTime,
     desktop::{PopupManager, Window},
     input::{
         Seat, SeatState,
@@ -231,6 +232,8 @@ pub struct State {
     /// The pointer in layout coordinates. Smithay keeps it in scene
     /// coordinates; the two differ under a camera that is not the default.
     pub pointer_layout: Point<f64, Logical>,
+    /// The time of the last move or button of the pointer.
+    pub pointer_time: InputTime,
     /// When the injection mark goes away; `None` while none shows (D23).
     pub inject_mark: Option<Instant>,
     /// The cursor that the client under the pointer asks for.
@@ -432,6 +435,7 @@ impl State {
             outputs: Vec::new(),
             output_management: OutputManagement::new(&dh),
             pointer_layout: Point::default(),
+            pointer_time: InputTime::now(),
             inject_mark: None,
             cursor_status: CursorImageStatus::default_named(),
             focus_wanted: None,

@@ -547,9 +547,10 @@ fn motion<I: InputBackend>(state: &mut State, event: &I::PointerMotionAbsoluteEv
 
 impl State {
     /// Tells the surface under the pointer after the scene moved under it,
-    /// for example after a transaction or a camera change.
+    /// for example after a transaction or a camera change, with the time
+    /// of the last input of the pointer: the scene moved, not the hand.
     pub fn refresh_pointer(&mut self) {
-        move_pointer(self, self.pointer_layout, InputTime::now());
+        move_pointer(self, self.pointer_layout, self.pointer_time);
     }
 }
 
@@ -584,6 +585,7 @@ fn drag_node(state: &mut State, spot: &Spot, time: InputTime) {
 pub fn move_pointer(state: &mut State, layout: Point<f64, Logical>, time: InputTime) {
     let moved = state.pointer_layout != layout;
     state.pointer_layout = layout;
+    state.pointer_time = time;
     let Some(spot) = state.spot(layout) else {
         return;
     };
@@ -655,6 +657,7 @@ pub fn press_button(
     time: InputTime,
     injected: bool,
 ) {
+    state.pointer_time = time;
     if injected {
         cancel_client_drag(state);
     }
