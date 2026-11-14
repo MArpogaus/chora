@@ -7,6 +7,7 @@
 
 use std::{
     io::Write as _,
+    path::PathBuf,
     process::{Command, Stdio},
 };
 
@@ -162,12 +163,23 @@ pub fn choose(fuzzel: &[String], apps: &[App]) -> Option<String> {
     None
 }
 
+/// The data directories of the launcher: `first`, the one of a flavor,
+/// then the first folder of `shared` that has `applications` (Chat with a
+/// helper, Screenshot), then the XDG ones.
+fn entry_dirs(first: Option<PathBuf>, shared: &[PathBuf], xdg: Vec<PathBuf>) -> Vec<PathBuf> {
+    let shared = shared.iter().find(|d| d.join("applications").is_dir());
+    (first.into_iter())
+        .chain(shared.cloned())
+        .chain(xdg)
+        .collect()
+}
+
 /// The launcher: the person chooses one of the installed applications,
 /// which starts as an app with `choractl run`. `first` is a data
-/// directory in front of the XDG ones, for the entries of a flavor.
-pub fn run(fuzzel: &[String], terminal: &str, first: Option<std::path::PathBuf>) {
-    let mut dirs = crate::xdg::data_dirs();
-    dirs.splice(0..0, first);
+/// directory in front of the folder that every look shares and the XDG
+/// ones, for the entries of a flavor.
+pub fn run(fuzzel: &[String], terminal: &str, first: Option<PathBuf>) {
+    let dirs = entry_dirs(first, &crate::shared::dirs(), crate::xdg::data_dirs());
     let entries = desktop_entry::applications_in(&dirs);
     let apps = apps(entries, terminal, desktop_entry::on_path);
     if let Some(command) = choose(fuzzel, &apps) {
@@ -185,6 +197,27 @@ mod tests {
             exec: exec.into(),
             ..Entry::default()
         }
+    }
+
+    #[test]
+    fn the_list_reads_the_flavor_then_the_shared_folder_then_the_system() {
+        let shared = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/shared");
+        let dirs = entry_dirs(
+            Some("/flavor".into()),
+            &["/none".into(), shared.clone()],
+            vec!["/usr/share".into()],
+        );
+        assert_eq!(
+            dirs,
+            [PathBuf::from("/flavor"), shared, "/usr/share".into()]
+        );
+        let names: Vec<String> = (desktop_entry::applications_in(&dirs[1..2]).into_iter())
+            .map(|entry| entry.name)
+            .collect();
+        assert!(
+            names.contains(&"Chat with a helper".to_owned()),
+            "{names:?}"
+        );
     }
 
     fn on_path(program: &str) -> bool {
