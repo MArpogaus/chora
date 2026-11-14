@@ -40,4 +40,10 @@ PM_LOG="$repo" git -C "$repo" checkout -q other 2>/dev/null
 check "guard switches the log worktree back" "[ \"\$(git -C '$repo' symbolic-ref --short HEAD)\" = claude/session-log ]"
 PM_LOG="$repo" git -C "$repo" checkout -q --detach other 2>/dev/null
 check "guard switches back from a detached HEAD" "[ \"\$(git -C '$repo' symbolic-ref --short -q HEAD)\" = claude/session-log ]"
+git -C "$repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one
+git -C "$repo" checkout -q -b side HEAD~1 2>/dev/null
+git -C "$repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
+git -C "$repo" checkout -q claude/session-log 2>/dev/null
+PM_LOG="$repo" git -C "$repo" -c user.name=t -c user.email=t@t rebase -q side >/dev/null 2>&1
+check "a rebase of the log branch still completes" "[ \"\$(git -C '$repo' log -1 --format=%s)\" = one ] && [ \"\$(git -C '$repo' symbolic-ref --short HEAD)\" = claude/session-log ]"
 exit $fail

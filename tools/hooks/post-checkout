@@ -5,6 +5,10 @@ log=${PM_LOG:-/home/user/wt/log}
 top=$(git rev-parse --show-toplevel 2>/dev/null)
 [ "$top" = "$(cd "$log" 2>/dev/null && pwd -P)" ] || [ "$top" = "$log" ] || exit 0
 [ "$(git symbolic-ref --short -q HEAD)" = claude/session-log ] && exit 0
+for state in rebase-merge rebase-apply; do
+    [ -d "$(git rev-parse --git-path "$state")" ] && exit 0
+done
+case "${GIT_REFLOG_ACTION:-}" in rebase* | pull*) exit 0 ;; esac
 echo "post-checkout: $top must stay on claude/session-log; switching back." >&2
 echo "post-checkout: for another branch use git worktree add /home/user/wt/<name> <branch>." >&2
 git checkout -q claude/session-log >&2 || echo "post-checkout: switch back FAILED; fix by hand" >&2
