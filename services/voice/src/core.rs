@@ -253,6 +253,11 @@ const ECHO_TAIL: Duration = Duration::from_millis(250);
 /// besides `confirm_timeout_ms`, for example when its TTS fails.
 const UNSPOKEN: Duration = Duration::from_secs(30);
 
+/// A key of `confirm_keys` answers a question only after it showed
+/// this long: an earlier press was meant for the question before, which
+/// a sub-agent can replace at any time.
+const KEY_DELAY: Duration = Duration::from_secs(1);
+
 /// How long the HUD shows a heard text.
 const HEARD_LEN: Duration = Duration::from_secs(3);
 
@@ -343,9 +348,11 @@ pub struct Core {
     /// when: `agent_permission_s` from when it is spoken.
     sub_confirm: Option<(String, oneshot::Sender<bool>)>,
     sub_until: Instant,
-    /// The questions so far, and the one on the screen.
+    /// The questions so far, the one on the screen, and since when it
+    /// shows.
     confirms: u64,
     shown: Option<u64>,
+    shown_at: Instant,
 }
 
 /// A text to say when the agent listens.
@@ -421,6 +428,7 @@ impl Core {
             sub_until: now,
             confirms: 0,
             shown: None,
+            shown_at: now,
         }
     }
 
@@ -654,6 +662,7 @@ impl Core {
             .collect();
         self.confirms += 1;
         self.shown = Some(self.confirms);
+        self.shown_at = Instant::now();
         effects.push(Effect::Confirm {
             id: self.confirms,
             prompt,
@@ -1101,9 +1110,15 @@ impl Core {
         self.answered(yes)
     }
 
-    /// A key of `confirm_keys` answers the question that waits for it.
+    /// A key of `confirm_keys` answers the question that waits for it,
+    /// once the question showed for `KEY_DELAY`; an earlier press counts
+    /// as nothing.
     fn confirm_key(&mut self, yes: bool) -> Vec<Effect> {
         if !self.confirming() || !self.physical {
+            return Vec::new();
+        }
+        if self.shown_at.elapsed() < KEY_DELAY {
+            crate::log::info("confirm: a key too soon after the question counts as nothing");
             return Vec::new();
         }
         crate::log::info("confirm: by the key");
@@ -1519,6 +1534,11 @@ mod tests {
         assert_eq!(core.state(), State::Working);
     }
 
+    /// The question on the screen showed long enough for a key.
+    fn wait_for_key(core: &mut Core) {
+        core.shown_at = Instant::now().checked_sub(KEY_DELAY).expect("uptime");
+    }
+
     fn sub_question(core: &mut Core, physical: bool) -> oneshot::Receiver<bool> {
         let (answer, rx) = oneshot::channel();
         let ask = agents::Event::Ask {
@@ -1552,6 +1572,7 @@ mod tests {
             .any(|e| matches!(e, Effect::Ask { text, say: true, .. } if *text == need));
         assert!(said, "{effects:?}");
         assert!(rx.try_recv().is_err(), "no answer without the key");
+        wait_for_key(&mut core);
         core.handle(Input::ConfirmKey(true));
         assert_eq!(rx.try_recv(), Ok(true));
     }
@@ -1567,6 +1588,9 @@ mod tests {
         assert!(rx.try_recv().is_err(), "the question just showed");
         assert!(core.sub_confirm.is_some());
         assert_eq!(core.state(), State::Confirming);
+        wait_for_key(&mut core);
+        core.handle(Input::ConfirmKey(true));
+        assert_eq!(rx.try_recv(), Ok(true));
     }
 
     /// A question that takes a key names its keys as the card does.
@@ -1616,6 +1640,7 @@ mod tests {
         call(&mut core, Call::Confirm(true));
         assert!(rx.try_recv().is_err(), "no answer without the key");
         assert!(core.sub_confirm.is_some());
+        wait_for_key(&mut core);
         core.handle(Input::ConfirmKey(true));
         assert_eq!(rx.try_recv(), Ok(true));
         core.handle(Input::Reply(core.replies, Reply::Done(String::new())));
@@ -2182,10 +2207,12 @@ mod tests {
         call(&mut core, Call::Confirm(true));
         assert!(rx.try_recv().is_err(), "no answer without the key");
         assert_eq!(core.state(), State::Confirming);
+        wait_for_key(&mut core);
         core.handle(Input::ConfirmKey(true));
         assert_eq!(rx.try_recv(), Ok(Some(true)));
         // A key answers no other question.
         let mut rx = confirm(&mut core, "Wirklich?");
+        wait_for_key(&mut core);
         core.handle(Input::ConfirmKey(true));
         assert!(rx.try_recv().is_err());
         say(&mut core, "Ja.");

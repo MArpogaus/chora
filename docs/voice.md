@@ -389,6 +389,11 @@ the user agrees:
   answer it. A spoken yes, an always word and a yes of
   the method `voice.confirm` count as nothing. A spoken no, a new
   request, two unclear answers or `voice.confirm no` are a no.
+- A key press in the first second after the question shows counts as
+  nothing, and the question stays open. A sub-agent can replace its
+  question at any time, so such a press was meant for the question
+  before. A button of a HUD carries the id of its question and needs no
+  such wait.
 - No key press within `confirm_timeout_ms` is a no.
 - The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
