@@ -1,0 +1,5 @@
+Ledgers: xp.md, tiling.md, mc.md, construct.md, shared.md, plus shared-doors.md (PM proposal). Format: `id | severity | source report:line | state | text`. Sources: fb-* = feedback/ run files, swarm-6 = reports/swarm-6.md, ux-deep-*, ux-cross-look, pixel-*, backlog = backlog.md.
+Severity (vision-card.md RC bar): BLOCK = a shared RC bar item or a main path is impossible for the look's users, or a window is lost; MAJOR = it breaks the bar or a main path with a workaround; MINOR and COSMETIC go to the known issues.
+State: open = seen and not shown fixed; verify = a later commit or report may have fixed it, or the lead is a haiku or old report: check one capture before work. Fixed items are dropped.
+These files are the only input to fix lanes: a lane takes BLOCK, then MAJOR, of its look plus shared.md, and nothing from the reports or backlog directly.
+rules.md 6: no MINOR or COSMETIC work on a look while it has an open BLOCK or MAJOR (a verify line counts as open until checked); the PM rewrites a ledger at each merge, never appends.
