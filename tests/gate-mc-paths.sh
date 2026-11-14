@@ -231,10 +231,12 @@ type_line() {
     done
     key Return
 }
-terminal_got() { [ -n "$(find "$HOME" "$work" /tmp -maxdepth 3 -name "$1" 2>/dev/null | head -1)" ]; }
+terminal_got() { [ -e "$PWD/$1" ]; }
 in_column() { jq -ne --argjson c "$1" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56 and $c[1] + $c[3] <= 786' >/dev/null; }
 cell_terminal_chat() {
-    local chat
+    local chat mark_fwd=mckeyfwd mark_rev=mckeyrev
+    trap 'rm -f mckeyfwd mckeyrev' RETURN
+    rm -f mckeyfwd mckeyrev
     key Super+Return
     until_ok '[ "$(current)" = terminal ]' 20 || fail "no terminal page: $(current)"
     sleep 2
@@ -275,8 +277,8 @@ cell_terminal_chat() {
     key Escape
     until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat"
     sleep 1
-    type_line "touch mckeyfwd"
-    until_ok 'terminal_got mckeyfwd' 20 || fail "after the chat closed typed text does not reach the terminal"
+    type_line "touch $mark_fwd"
+    until_ok 'terminal_got $mark_fwd' 20 || fail "after the chat closed typed text does not reach the terminal"
     key Super+a
     until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat on the terminal page"
     sleep 1
@@ -285,9 +287,9 @@ cell_terminal_chat() {
     key Escape
     until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat on the page turned to"
     sleep 1
-    type_line "touch mckeyrev"
+    type_line "touch $mark_rev"
     sleep 2
-    terminal_got mckeyrev && fail "after the chat closed on another page typed text reached the hidden terminal"
+    terminal_got $mark_rev && fail "after the chat closed on another page typed text reached the hidden terminal"
     return 0
 }
 
