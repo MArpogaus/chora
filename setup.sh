@@ -51,9 +51,9 @@ if [ -d /home/user/chora/.git ]; then
 fi
 if [ ! -d /home/user/agent_skills/.git ]; then
     log "clone agent_skills"
-    git clone -q https://github.com/MArpogaus/agent_skills /home/user/agent_skills || log "FAILED clone agent_skills"
+    GIT_TERMINAL_PROMPT=0 timeout 120 git clone -q https://github.com/MArpogaus/agent_skills /home/user/agent_skills || log "FAILED clone agent_skills"
 fi
-git -C /home/user/agent_skills fetch -q origin dev 2>/dev/null || log "FAILED fetch agent_skills dev"
+GIT_TERMINAL_PROMPT=0 timeout 120 git -C /home/user/agent_skills fetch -q origin dev 2>/dev/null || log "FAILED fetch agent_skills dev"
 missing=()
 for t in cargo pre-commit vale cz lychee sway swaybg foot grim jq gh; do
     command -v "$t" >/dev/null 2>&1 || missing+=("$t")
@@ -66,6 +66,6 @@ if [ -d /home/user/chora/.git ]; then
 else
     log "no /home/user/chora: repo checks skipped (a session without the repo, such as the heartbeat)"
 fi
-git -C /home/user/agent_skills rev-parse -q --verify origin/dev >/dev/null 2>&1 || missing+=("agent_skills-dev")
+git -C /home/user/agent_skills rev-parse -q --verify origin/dev >/dev/null 2>&1 || log "WARNING: no agent_skills dev; read the skills with add_repo MArpogaus/agent_skills or the GitHub tools (conventions.md)"
 if [ "${#missing[@]}" -gt 0 ]; then log "MISSING: ${missing[*]}"; exit 1; fi
 log "done, all present"
