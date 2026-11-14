@@ -17,7 +17,12 @@
 //! `CHORA_TEST_PANIC` starts a thread that panics, for
 //! `tests/last-words.sh`.
 
-use std::{backtrace::Backtrace, fmt::Display, os::fd::RawFd};
+use std::{
+    backtrace::Backtrace,
+    fmt::Display,
+    os::fd::RawFd,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 /// The signals of a fault, with a backtrace.
 const FAULTS: [libc::c_int; 6] = [
@@ -40,8 +45,9 @@ const ENDS: [libc::c_int; 8] = [
     libc::SIGXFSZ,
 ];
 
-/// The seconds that a fault handler may take for the backtrace.
-const GIVE_UP_AFTER: libc::c_uint = 2;
+/// The milliseconds that a fault handler may take for the backtrace. A
+/// test sets a shorter time.
+static GIVE_UP_AFTER: AtomicU32 = AtomicU32::new(2000);
 
 /// The size of the signal stack of the main thread: the backtrace and
 /// its symbols need more than the few pages of the default.
@@ -99,14 +105,25 @@ fn default_action(sig: libc::c_int) {
     }
 }
 
-/// Ends the core with SIGALRM after some seconds, whatever the handler
-/// that runs then waits for.
+/// Ends the core with SIGALRM after some milliseconds, whatever the
+/// handler that runs then waits for.
 #[allow(unsafe_code, reason = "libc calls that a signal handler may make")]
-fn give_up_after(seconds: libc::c_uint) {
-    // SAFETY: both calls are async signal safe.
+fn give_up_after(ms: u32) {
+    let after = libc::timeval {
+        tv_sec: libc::time_t::from(ms / 1000),
+        tv_usec: libc::suseconds_t::from(ms % 1000 * 1000),
+    };
+    let once = libc::itimerval {
+        it_interval: libc::timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        },
+        it_value: after,
+    };
+    // SAFETY: both calls are async signal safe, and the timer is a live value.
     unsafe {
         libc::signal(libc::SIGALRM, libc::SIG_DFL);
-        libc::alarm(seconds);
+        libc::setitimer(libc::ITIMER_REAL, &raw const once, std::ptr::null_mut());
     }
 }
 
@@ -126,7 +143,7 @@ extern "C" fn fault(sig: libc::c_int, info: *mut libc::siginfo_t, _ctx: *mut lib
         "{} at address {address:#x}, backtrace follows",
         name(sig)
     ));
-    give_up_after(GIVE_UP_AFTER);
+    give_up_after(GIVE_UP_AFTER.load(Ordering::Relaxed));
     let text = format!("{}\n", Backtrace::force_capture());
     write_all(2, text.as_bytes());
     default_action(sig);
@@ -287,6 +304,25 @@ mod tests {
         let (status, words) = again("words::tests::a_stack_overflow_leaves_its_words", CHILD);
         assert!(words.contains("chora: SIGSEGV at address"), "{words}");
         assert_eq!(status.signal(), Some(libc::SIGSEGV), "{words}");
+    }
+
+    /// A backtrace that takes longer than the time of the alarm is slow,
+    /// not stuck: under load the alarm must not end the core with
+    /// SIGALRM in the middle of the backtrace (F10). The child gives the
+    /// handler 5 ms, which no backtrace of a deep stack meets.
+    #[test]
+    fn a_slow_backtrace_is_not_cut_by_the_alarm() {
+        use std::os::unix::process::ExitStatusExt as _;
+        const CHILD: &str = "CHORA_WORDS_SLOW";
+        if std::env::var_os(CHILD).is_some() {
+            GIVE_UP_AFTER.store(5, Ordering::Relaxed);
+            install();
+            overflow(0);
+        }
+        let test = "words::tests::a_slow_backtrace_is_not_cut_by_the_alarm";
+        let (status, words) = again(test, CHILD);
+        assert_eq!(status.signal(), Some(libc::SIGSEGV), "{words}");
+        assert!(words.contains("words::tests::overflow"), "{words}");
     }
 
     /// The hook runs in a thread that is not the main thread, here in a
