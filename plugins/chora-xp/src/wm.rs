@@ -454,7 +454,12 @@ impl Wm {
         methods.extend(settings::File::<Config>::methods());
         let config = &settings.value;
         let mut icons = Icons::new(crate::icons::THEMES);
-        let menu = Menu::new(config, apps::load(&config.terminal), &theme, &mut icons);
+        let menu = Menu::new(
+            config,
+            apps::load(&config.terminal, config.editor.as_deref()),
+            &theme,
+            &mut icons,
+        );
         let mut wm = Self {
             rt: Runtime::connect(NAME, outputs)?,
             clock: String::new(),
@@ -3253,7 +3258,7 @@ impl Wm {
         commands.extend(self.close_menu());
         commands.extend(self.menu.rebuild(
             &config,
-            apps::load(&config.terminal),
+            apps::load(&config.terminal, config.editor.as_deref()),
             &mut self.theme,
             &mut self.icons,
         ));
