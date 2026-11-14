@@ -81,7 +81,8 @@ pub async fn transcribe(
     }
     result.map(|mut t| {
         if echoes(&request.prompt, &t.text) {
-            crate::log::info(&format!("asr: the prompt came back, dropped: {:?}", t.text));
+            crate::log::info("asr: the prompt came back, dropped");
+            crate::log::debug(&format!("asr: the dropped prompt: {:?}", t.text));
             t.text.clear();
         }
         t

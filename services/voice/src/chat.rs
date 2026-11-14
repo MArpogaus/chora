@@ -997,11 +997,9 @@ impl Chat {
                 let start = Instant::now();
                 let content = self.tools.call(&call.name, &args).await;
                 let (logged, result) = journal(&call.name, &args, &text_of(&content));
-                crate::log::info(&format!(
-                    "tool {} {logged} {}ms -> {result}",
-                    call.name,
-                    start.elapsed().as_millis(),
-                ));
+                let ms = start.elapsed().as_millis();
+                crate::log::info(&format!("tool {} {ms}ms", call.name));
+                crate::log::debug(&format!("tool {} {logged} {ms}ms -> {result}", call.name));
                 self.guard(&call.name, &args, content)
             };
             results.push(json!({"role": "tool", "tool_call_id": call.id, "content": content}));

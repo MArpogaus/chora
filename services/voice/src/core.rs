@@ -1199,7 +1199,7 @@ impl Core {
             // New words over the agent's speech, with or without a
             // barge-in: the reply ends, the words and those that wait
             // start the next one.
-            crate::log::info(&format!("over the reply: {text:?}"));
+            crate::log::debug(&format!("over the reply: {text:?}"));
             let queued = std::mem::take(&mut self.queue);
             effects.extend(self.stop(None));
             self.queue = queued;
@@ -1208,7 +1208,7 @@ impl Core {
         }
         // While the reply thinks or runs tools, any text but a pure yes
         // or no goes into its next round ("Und größer.", "Nein, rot.").
-        crate::log::info(&format!("queued: {text:?}"));
+        crate::log::debug(&format!("queued: {text:?}"));
         if !words::answer(&self.config, &text).pure() {
             effects.push(Effect::Inject(text.clone()));
         }

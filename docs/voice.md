@@ -779,10 +779,12 @@ appends each LLM request body and the raw lines of its stream to FILE
 (mode 0600), to see what the server got and sent. Each stage logs start
 and end with the turn number. The info level has no text that the
 person said or heard: the text of an utterance (`turn=2 text="..."`),
-of a reply sentence (`say:`), of each round of the LLM, of a coding
-task and of its result log at debug. `services/voice/tests/live-gate.sh`
-runs the agent with `RUST_LOG=chora_voice=debug,info` to show them. A tool call logs the first 300
-characters of its arguments and of its result, without secrets. Of
+of words over a reply or queued into its next round, of an ASR echo
+that drops, of a reply sentence (`say:`), of each round of the LLM, of
+a coding task and of its result log at debug. `services/voice/tests/live-gate.sh`
+runs the agent with `RUST_LOG=chora_voice=debug,info` to show them. A tool call logs
+its name and time at info. At debug it logs the first 300 characters of
+its arguments and of its result, without secrets. Of
 `read`, the log has only the path and the byte count. The `text` of
 `inject_input` shows as "(hidden)": it can be a dictated password. The
 values of each `*_headers` key, of each
