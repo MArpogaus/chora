@@ -7,9 +7,10 @@
 # of tests/gate-lock.sh, and a second one prints a line and waits.
 #
 # Steps: red-first, pre-commit, gate-lib, build, test, clippy, 2d-guard, xp, matrix, virtual, xp-faces, hud,
-# layout, tiling-audit, chat-keys, last-words, cube, pull, winit, wm-pane, walk, keys, pixels. `layout` audits
+# layout, tiling-audit, chat-keys, doors, last-words, cube, pull, winit, wm-pane, walk, keys, pixels. `layout` audits
 # the layout of the construct HUD in each state. `chat-keys` opens the
-# chat in tiling with Super+a and types into its field. `matrix` ends with the click that
+# chat in tiling with Super+a and types into its field. `doors` asks every
+# look for the shared keys and one visible door per action. `matrix` ends with the click that
 # chooses a window manager for a new window; `virtual` hands a window over between window
 # managers on a screen and on virtual outputs; `xp-faces` runs one xp on
 # four virtual outputs; `cube` shows that xp on the faces of a cube in the
@@ -149,6 +150,7 @@ hud|BIN=$repo/target/debug tests/gate-hud.sh
 layout|BIN=$repo/target/debug tests/gate-construct-layout.sh
 tiling-audit|BIN=$repo/target/debug tests/gate-tiling-audit.sh
 chat-keys|BIN=$repo/target/debug tests/gate-chat-keys.sh
+doors|BIN=$repo/target/debug tests/gate-doors.sh
 last-words|CHORA_BIN=$repo/target/debug tests/last-words.sh
 cube|BIN=$repo/target/debug tests/gate-construct-cube.sh
 pull|BIN=$repo/target/debug tests/gate-construct-pull.sh
