@@ -19,7 +19,7 @@
 #    and a turn key during a turn queues one turn. Alt+Escape steps back
 #    and takes the keyboard; Return steps in and the window of before
 #    takes typed text again, but not after a step into another face. A click on a face and a click on the chip
-#    STEP IN step in. In navigate mode the edge of the face under the
+#    STEP IN step in, and so does a click during the step back. In navigate mode the edge of the face under the
 #    pointer is lit, and a drag on a face turns the cube by one face.
 #    With the grant input.grab-any and fly_out Escape, Escape alone
 #    steps back; without the grant the chip names no key. After the
@@ -302,6 +302,11 @@ until_ok 'test "$(prop construct-mode-step-in visible)" = True' || fail "the hin
 inject '[{"pointer_move": {"node": "construct-mode-step-in", "point": [8, 8]}}, {"click": {}}]'
 until_ok "$stepped_in" 20 || fail "a click on the chip STEP IN did not step in"
 ok "a click on a face and a click on the chip STEP IN step in"
+key Alt+Escape
+quick 'test "$(prop construct-cube-face-0 forward)" = False' || fail "Alt+Escape did not start a step back"
+inject '[{"pointer_move": {"position": [640, 400]}}, {"click": {}}]'
+until_ok "$stepped_in" 20 || fail "a click during the step back is lost"
+ok "a click on a face during the step back steps in"
 
 [ "$(prop construct-cube-edge visible)" != True ] || fail "the edge of a face is lit in use mode"
 key Alt+Escape

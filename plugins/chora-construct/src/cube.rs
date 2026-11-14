@@ -1922,6 +1922,23 @@ mod tests {
         assert!(host.turn.is_none() && host.angle == 0.0);
     }
 
+    #[test]
+    fn a_click_during_a_step_of_the_cube_counts() {
+        let at = Instant::now();
+        let ms = Duration::from_millis;
+        let mut host = host_of(4);
+        assert!(host.act(Act::StepBack, at));
+        host.press(0, None, [600.0, 300.0]);
+        assert_eq!(
+            host.release(at + ms(50)),
+            Some(0),
+            "a click during the step back is lost"
+        );
+        host.turn = Some(Turn::new(0.0, Cube::turn_of(1), at, TURN));
+        host.press(0, None, [600.0, 300.0]);
+        assert_eq!(host.release(at + ms(60)), None, "a press during a turn");
+    }
+
     fn lens_of(host: &Host) -> super::super::space::Lens {
         super::super::space::Lens::new(host.cube.size[0], host.cube.size[1])
     }
