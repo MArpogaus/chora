@@ -18,8 +18,8 @@ pub const DELAY: Duration = Duration::from_millis(500);
 const FILL: &str = "#FFFFE1";
 const BORDER: &str = "#000000";
 const BLACK: [u8; 4] = [0, 0, 0, 255];
-const PAD_X: i32 = 8;
-const HEIGHT: i32 = 28;
+const PAD_X: i32 = 4;
+const HEIGHT: i32 = 21;
 const GAP: i32 = 4;
 
 /// What waits to show, and what shows.
@@ -110,7 +110,7 @@ impl Tooltip {
 /// The picture of a tooltip and its size.
 pub fn picture(theme: &Theme, text: &str) -> (Picture, [i32; 2]) {
     #[allow(clippy::cast_possible_truncation)]
-    let width = theme.text_width(text, Font::Body).ceil() as i32 + 2 * PAD_X;
+    let width = theme.text_width(text, Font::Ui).ceil() as i32 + 2 * PAD_X;
     let svg = format!(
         r#"<rect width="{width}" height="{HEIGHT}" fill="{FILL}"/><rect x="0.5" y="0.5" width="{}" height="{}" fill="none" stroke="{BORDER}"/>"#,
         width - 1,
@@ -118,7 +118,7 @@ pub fn picture(theme: &Theme, text: &str) -> (Picture, [i32; 2]) {
     );
     let picture = Picture::new(width, HEIGHT).svg(svg).text(Text::new(
         text,
-        Font::Body,
+        Font::Ui,
         BLACK,
         [PAD_X, 0, width - PAD_X, HEIGHT],
     ));

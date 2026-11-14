@@ -23,6 +23,10 @@
 # The layout audit of tests/hud-audit.py runs on the nodes of xp, the
 # paperclip and the balloon once the paperclip speaks.
 #
+# XP_SCALE=2 runs the sway output at scale 2: the screenshots are
+# 2560x1600 and the coordinates stay those of the logical 1280x800.
+# CHORA_XP_ASSETS names a folder of imported XP assets (tests/xp-assets.sh).
+#
 # Usage: tests/xp.sh BIN_DIR [OUT_DIR]
 #   BIN_DIR  holds chora, choractl, chora-xp, chora-notify, chora-assistant
 #            and chora-probe
@@ -82,7 +86,9 @@ wait_for() {
 }
 
 step "host: headless sway"
-printf 'output HEADLESS-1 resolution 1280x800\ndefault_border none\n' >"$out/sway.conf"
+scale=${XP_SCALE:-1}
+printf 'output HEADLESS-1 resolution %sx%s scale %s\ndefault_border none\n' \
+    $((1280 * scale)) $((800 * scale)) "$scale" >"$out/sway.conf"
 WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
     sway -c "$out/sway.conf" >"$out/sway.log" 2>&1 &
 pids+=($!)
@@ -135,7 +141,7 @@ wait_for "$bin/choractl" call assistant settings.get
 # pipe that ends early would fail under pipefail.
 pixel() {
     grim -t ppm "$out/pixel.ppm"
-    od -An -tu1 -j $((16 + ($2 * 1280 + $1) * 3)) -N 3 "$out/pixel.ppm" |
+    od -An -tu1 -j $((16 + (scale > 1) + (($2 * scale) * 1280 * scale + $1 * scale) * 3)) -N 3 "$out/pixel.ppm" |
         awk '{print $1, $2, $3}'
 }
 # Succeeds when the pixel at X Y passes an awk condition on r, g and b.
@@ -152,7 +158,7 @@ wait_for pixel_is 60 795 "$green"
 grim "$out/desktop.png"
 
 step "2b. the work area of the core ends above the taskbar, for the other clients"
-area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 36' >/dev/null; }
+area_above_bar() { "$bin/choractl" outputs | jq -e '.[0] | .work_area[3] == .size[1] - 30' >/dev/null; }
 wait_for area_above_bar
 
 step "3. two foot windows get title bars"
@@ -197,16 +203,16 @@ bent() {
 }
 flat() { query "id:xp-win-$1" | jq -e '.[0].mesh == null' >/dev/null; }
 
-step "3b. the caption buttons are 24 by 24 with 2 pixels between and 4 from the frame edge"
+step "3b. the caption buttons are 21 by 21 with 2 pixels between and 4 from the frame edge"
 button_rect() { query "id:xp-$1-${ids[1]}" | jq -c '.[0].rects | to_entries[0].value | map(floor)'; }
 read -r cx cy cw ch < <(button_rect close | jq -r 'join(" ")')
 read -r mx _ mw _ < <(button_rect max | jq -r 'join(" ")')
 read -r nx _ nw _ < <(button_rect min | jq -r 'join(" ")')
-test "$cw $ch $mw $nw" = "24 24 24 24" || fail "button sizes: $cw $ch $mw $nw"
+test "$cw $ch $mw $nw" = "21 21 21 21" || fail "button sizes: $cw $ch $mw $nw"
 test $((mx + mw + 2)) = "$cx" && test $((nx + nw + 2)) = "$mx" || fail "button gaps: $nx $mx $cx"
 read -r fx fy <<<"$(frame "${ids[1]}")"
 test $((fx + $(frame_width "${ids[1]}") - 4)) = $((cx + cw)) || fail "the close button is not 4 pixels from the edge"
-test $((cy - fy)) = 3 || fail "the buttons are not 3 pixels below the frame top"
+test $((cy - fy)) = 2 || fail "the buttons are not 2 pixels below the frame top"
 
 step "4. the close button and the start button light up under the pointer"
 image_of() { query "id:$1" | jq -r '.[0].image'; }
@@ -262,8 +268,7 @@ query "id:xp-win-$top" >"$out/lamp.json"
 wait "$job" || fail "the click failed"
 wait_for visible false
 wait_for flat "$top"
-# The task buttons follow the start button, 163 pixels apart.
-click $((126 + 184 + 90)) 785 &
+click $((105 + 162 + 80)) 785 &
 job=$!
 wait_for bent "$top" 50
 sleep 0.7
@@ -300,8 +305,7 @@ step "8. the Terminal entry of the start menu starts a terminal"
 count_is() { test "$(query "kind:surface owner:xp" | jq length)" = "$1"; }
 click 50 785 || fail "the click failed"
 wait_for menu_visible true
-# The first program sits below the 64 pixel header, 36 pixels high.
-click 100 $((menu_y + 88)) || fail "the click failed"
+click 100 $((menu_y + 75)) || fail "the click failed"
 wait_for menu_visible false
 wait_for count_is 3
 
@@ -312,7 +316,7 @@ read -r x y <<<"$(frame "$top")"
 w=$(frame_width "$top")
 title_button 1 "$x" "$y" "$w"
 size_is() { test "$(query "id:$top" | jq -c '.[0].surface.size')" = "$1"; }
-wait_for size_is "[1280,734]"
+wait_for size_is "[1280,745]"
 test "$(frame "$top")" = "0 0" || fail "maximized at $(frame "$top")"
 grim "$out/maximized.png"
 
@@ -474,12 +478,18 @@ kill "$restart_job" 2>/dev/null || true
 wait_for count_is 3
 grim "$out/after-restart.png"
 
+step "14b. no name of a Microsoft product in the strings of the flavor"
+root=$(realpath "$(dirname "$0")/..")
+if grep -rIn "Windows U""pdate" "$root/plugins/chora-xp" "$root/plugins/chora-notify" "$root/flavors/xp" "$root/tests/xp.sh"; then
+    fail "a string names a Microsoft product"
+fi
+
 step "15. a notification shows as the balloon of XP, and a click closes it"
 notify() {
     busctl --address "$bus" call org.freedesktop.Notifications /org/freedesktop/Notifications \
         org.freedesktop.Notifications Notify 'susssasa{sv}i' app 0 "" "$1" "$2" 0 0 0
 }
-notify "Windows Update" "Your updates are ready to install."
+notify "Updates" "Your updates are ready to install."
 wait_for has_node id:notify-card
 read -r nx ny <<<"$(query id:notify-card | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"')"
 read -r nw nh <<<"$(query id:notify-card-body | jq -r '.[0].size | "\(.[0] | floor) \(.[1] | floor)"')"
@@ -505,7 +515,9 @@ wait_for has_node id:hud-figure
 node_size() { query "id:$1" | jq -c '.[0].rects | to_entries[0].value | map(floor) | [.[2], .[3]]'; }
 node_x() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[0] | floor'; }
 has_node id:xp-helper-winit || fail "the tray has no helper"
-test "$(node_size xp-helper-winit)" = "[36,36]" || fail "the helper is not 36 by 36"
+test "$(node_size xp-helper-winit)" = "[32,30]" || fail "the helper is not 32 by 30"
+test "$(node_size xp-tray-winit)" = "[128,30]" || fail "the tray is not 128 by 30: $(node_size xp-tray-winit)"
+test "$(node_x xp-helper-winit)" = "$(node_x xp-tray-winit)" || fail "the helper does not start at the left edge of the tray"
 tray_before=$(node_size xp-tray-winit)
 echo 'voice.state {"state": "listening", "muted": {"mic": true}}' >&5
 sleep 1
@@ -519,7 +531,7 @@ bin_rect() {
 read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
 near() { test $(($1 - $2)) -le 3 && test $(($2 - $1)) -le 3; }
 near $((fx + fw)) 1272 || fail "the paperclip is not 8 pixels from the right edge: $fx $fw"
-test $((fy + fh)) = 756 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
+test $((fy + fh)) = 762 || fail "the paperclip is not 8 pixels above the taskbar: $fy $fh"
 read -r bx _ bw _ < <(bin_rect | jq -r 'join(" ")')
 near $((bx + bw / 2)) $((fx + fw / 2)) || fail "the bin and the paperclip do not share a centre line: $bx $bw $fx $fw"
 echo 'voice.say {"text": "Your updates are ready to install.", "duration_ms": 20000}' >&5
@@ -531,6 +543,17 @@ query '*' >"$out/audit-nodes.json"
 AUDIT_KINDS=image python3 -I "$(dirname "$0")/hud-audit.py" "$out/audit-outputs.json" \
     "$out/audit-nodes.json" xp assistant notify >"$out/audit.log" || fail "layout audit: $(cat "$out/audit.log")"
 
+notify "Updates" "Your updates are ready to install."
+wait_for has_node id:notify-card
+read -r nx ny <<<"$(query id:notify-card | jq -r '.[0].transform.matrix | "\(.[12] | floor) \(.[13] | floor)"')"
+read -r nw nh <<<"$(query id:notify-card-body | jq -r '.[0].size | "\(.[0] | ceil) \(.[1] | ceil)"')"
+read -r fx fy fw fh < <(figure_rect | jq -r 'join(" ")')
+if test $((nx + nw)) -gt "$fx" && test $((fx + fw)) -gt "$nx" && test $((ny + nh)) -gt "$fy" && test $((fy + fh)) -gt "$ny"; then
+    fail "the notification covers the paperclip: balloon $nx,$ny ${nw}x$nh, paperclip $fx,$fy ${fw}x$fh"
+fi
+click $((nx + nw / 2)) $((ny + nh / 2)) || fail "the click failed"
+wait_for has_node_count 0 id:notify-card
+
 step "16b. the chat has XP's form: a close box, Stop and Send, and a card with Yes and No of 80 by 28"
 echo 'voice.state {"name": "Atlas", "state": "working", "task": "Write file", "step": 2, "steps": 2, "seq": 2}' >&5
 "$bin/choractl" call assistant chat.show '{"name": "atlas"}' >/dev/null || fail "chat.show failed"
@@ -538,17 +561,24 @@ wait_for has_node id:hud-chat-send
 has_node id:hud-chat-close || fail "no close box"
 has_node id:hud-chat-stop || fail "no Stop button"
 test "$(node_size hud-chat-send)" = "[64,28]" || fail "Send is not 64 by 28: $(node_size hud-chat-send)"
-test "$(node_size hud-chat-close)" = "[18,18]" || fail "the close box is not 18 by 18"
+test "$(node_size hud-chat-close)" = "[21,21]" || fail "the close box is not 21 by 21"
 chat_text() { query id:hud-chat | jq -r '.[0].meta.text // empty'; }
 chat_says() { chat_text | grep -qF "$1"; }
 wait_for chat_says "Atlas — Working"
 wait_for chat_says "Write file, step 2 of 2"
 echo 'voice.say {"text": "The notes are ready.", "duration_ms": 20000}' >&5
 wait_for chat_says "The notes are ready."
-echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
+echo 'voice.confirm {"id": "51", "prompt": "Atlas wants to write the file notes.txt.", "detail": "~/notes.txt", "physical": true, "keys": {"yes": "Alt+y", "no": "Alt+n"}, "buttons": true}' >&5
 wait_for has_node id:hud-card-yes
 test "$(node_size hud-card-yes)" = "[80,28]" || fail "Yes is not 80 by 28: $(node_size hud-card-yes)"
 test $(($(node_x hud-card-no) - $(node_x hud-card-yes))) = 88 || fail "Yes and No are not 8 pixels apart"
+node_y() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[1] | floor'; }
+node_h() { query "id:$1" | jq -r '.[0].rects | to_entries[0].value | .[3] | floor'; }
+wait_for chat_says "Atlas — Working"
+has_node id:hud-chat-stop || fail "the question hides Stop (scale ${XP_SCALE:-1})"
+test "$(node_y hud-chat)" -le "$(node_y hud-card-yes)" || fail "the card stands above the balloon: chat y $(node_y hud-chat), Yes y $(node_y hud-card-yes)"
+chat_high() { test "$(node_h hud-chat)" -ge 380; }
+chat_high || fail "the balloon is $(node_h hud-chat) px high with a question, not 380 or more (scale ${XP_SCALE:-1})"
 grim "$out/chat-question.png"
 echo 'voice.confirm {"id": "51", "done": true}' >&5
 "$bin/choractl" call assistant chat.hide '{}' >/dev/null || fail "chat.hide failed"
@@ -576,6 +606,24 @@ open_my_documents_with() {
 open_my_documents_with chora-no-such-manager
 wait_for said Notify "Cannot open chora-no-such-manager"
 grim "$out/cannot-open.png"
+item_text() { query kind:image | jq -r --arg t "$1" '[.[] | select(.meta.text == $t)] | .[0].rects | to_entries[0].value | map(floor) | join(" ")'; }
+click_text() {
+    read -r ix iy iw ih < <(item_text "$1")
+    click $((ix + iw / 2)) $((iy + ih / 2)) || fail "the click on $1 failed"
+}
+step "16c. the start menu opens the Turn Off Computer dialog and Run"
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+click 287 751 || fail "the click on Turn Off Computer failed"
+wait_for has_node id:xp-session
+grim "$out/turn-off.png"
+click 745 478 || fail "the click on Cancel failed"
+wait_for has_node_count 0 id:xp-session
+click 50 785 || fail "the click failed"
+wait_for menu_visible true
+click_text "Run..."
+sleep 1
+grim "$out/run.png"
 printf '#!/bin/sh\nsleep 3\nexec foot\n' >"$out/slow-manager"
 chmod +x "$out/slow-manager"
 open_my_documents_with "$out/slow-manager"

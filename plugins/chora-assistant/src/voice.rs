@@ -343,6 +343,9 @@ impl Agent {
         let mut commands = self.ensure_top(&output.name);
         let mut shown = self.new_card(question, (data["buttons"] == true, &output.name), now);
         self.place_card(&mut shown, figure, &output)?;
+        if self.chat.question_asked() == Where::Chat && self.chat.is_open() {
+            self.chat_draw()?;
+        }
         let language = self.language;
         if let Some(old) = self.card.take() {
             commands.extend(card::hide(&old));
@@ -459,7 +462,8 @@ impl Agent {
         shown.origin = match (kept, view) {
             (Some((old, _)), _) => old,
             (None, Some((frame, _))) => {
-                let origin = chat::card_origin(&frame, size);
+                let hint = self.chat.hint_room(theme, &frame, language);
+                let origin = chat::card_origin(&frame, size, hint);
                 self.chat.card_shown(origin[1], size[1]);
                 origin
             }
@@ -706,7 +710,8 @@ impl Agent {
             return Ok(Vec::new());
         };
         let size = card::size(&self.card_theme, &shown, self.language, output.size);
-        let origin = chat::card_origin(&frame, size);
+        let hint = self.chat.hint_room(&self.card_theme, &frame, self.language);
+        let origin = chat::card_origin(&frame, size, hint);
         if !card::follow(&mut shown, origin) {
             self.card = Some(shown);
             return Ok(Vec::new());

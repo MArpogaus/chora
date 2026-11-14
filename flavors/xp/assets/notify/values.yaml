@@ -1,5 +1,5 @@
 font: Tahoma
-margin: [46, 22]
+margin: [88, 22]
 card:
   fill: [255, 255, 225]
   border: [0, 0, 0]
@@ -7,4 +7,4 @@ card:
   radius: 7
   tail: 18
   tail_base: 16
-  tail_inset: 40
+  tail_inset: 28

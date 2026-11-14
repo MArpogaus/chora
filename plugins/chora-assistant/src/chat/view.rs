@@ -69,9 +69,9 @@ const MAX_META: usize = 4000;
 const XP_HEAD_Y: i32 = 10;
 const XP_RULE_Y: i32 = 58;
 const XP_BODY_TOP: i32 = 69;
-const XP_STOP: [i32; 2] = [56, 28];
+const XP_STOP: [i32; 2] = [56, 21];
 pub const XP_SEND: [i32; 2] = [64, 28];
-const XP_CLOSE: i32 = 18;
+const XP_CLOSE: i32 = 21;
 const XP_GAP: i32 = 8;
 const XP_RULE: [u8; 3] = [216, 213, 176];
 const XP_GREY: [u8; 3] = [77, 77, 77];
@@ -94,10 +94,11 @@ pub fn refuses_injected(node: &str) -> bool {
     node == STOP || node == SEND || pick_of(node).is_some()
 }
 
-/// The top-left corner of a card inside the view, above the hint of the
-/// field and against its right edge.
+/// The top-left corner of a card inside the view, a gap above the hint of
+/// the field (`hint` is the room it takes, 0 for none) and against its
+/// right edge.
 #[must_use]
-pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
+pub fn card_origin(frame: &Frame, size: [i32; 2], hint: i32) -> [i32; 2] {
     let [x, y, w, h] = frame.rect();
     if frame.look.style == ChatStyle::Glass {
         return [x + w - size[0], y + GLASS_CARD_TOP];
@@ -107,7 +108,7 @@ pub fn card_origin(frame: &Frame, size: [i32; 2]) -> [i32; 2] {
     let top = if in_margin(frame) {
         y + h - field_room(frame) - MARGIN_ROW - HALF_ROW - size[1]
     } else {
-        y + h - field_room(frame) - LINE - 2 * GAP - size[1]
+        y + h - field_room(frame) - hint - GAP - size[1]
     };
     [
         left.clamp(ax, (ax + aw - size[0]).max(ax)),
@@ -174,7 +175,7 @@ pub struct Row {
 /// fills the view alone is shown under its speaker's line.
 fn keep_newest(rows: &mut Vec<Row>, keep: usize) {
     let cut = rows.len().saturating_sub(keep);
-    if cut == 0 || rows[cut].starts {
+    if cut == 0 || keep == 0 || rows[cut].starts {
         rows.drain(..cut);
         return;
     }
@@ -545,6 +546,18 @@ impl Session {
         field_room(frame) + hint_room(hint, hint_lines_of(margin)) + card
     }
 
+    /// The room that the hint of the field takes in a view of `frame`.
+    #[must_use]
+    pub fn hint_room(&self, theme: &Theme, frame: &Frame, language: Language) -> i32 {
+        let width = frame.rect()[2] - 2 * PAD;
+        self.hint(language).map_or(0, |hint| {
+            hint_room(
+                &hint_lines(theme, &hint, width),
+                hint_lines_of(in_margin(frame)),
+            )
+        })
+    }
+
     fn parts(&mut self, theme: &Theme, frame: &Frame, language: Language) -> Parts {
         let colours = colours(&frame.look);
         let rect = frame.rect();
@@ -852,7 +865,7 @@ fn xp_push(theme: &mut Theme, label: &str, [w, h]: [i32; 2], enabled: bool) -> S
 fn xp_close(theme: &mut Theme) -> String {
     let size = XP_CLOSE;
     let shape = format!(
-        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#face)" stroke="#003C74"/><path d="M5.5 5.5L12.5 12.5M12.5 5.5L5.5 12.5" stroke="#1B3B7A" stroke-width="1.6"/>"##,
+        r##"<defs><linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E1D7"/></linearGradient></defs><rect x="0.5" y="0.5" width="{}" height="{}" rx="2" fill="url(#face)" stroke="#003C74"/><path d="M6.5 6.5L14.5 14.5M14.5 6.5L6.5 14.5" stroke="#1B3B7A" stroke-width="1.6"/>"##,
         size - 1,
         size - 1
     );
@@ -877,7 +890,7 @@ fn xp_extras(theme: &mut Theme, parts: &Parts, xp: &XpParts, language: Language)
         ));
         commands.push(frame(id, VIEW, (at, size), XP_HOVER));
     };
-    let close_at = [w - PAD - XP_CLOSE, XP_HEAD_Y + 2];
+    let close_at = [w - PAD - XP_CLOSE, XP_HEAD_Y];
     add(
         CLOSE,
         xp_close(theme),
@@ -1413,9 +1426,14 @@ mod tests {
         let (parts, commands) = xp_commands("xp-places", false, true);
         let [_, _, w, h] = parts.rect;
         let close = created(&commands, CLOSE).expect("a close box");
-        assert_eq!(at(close), [w - PAD - 18, XP_HEAD_Y + 2]);
+        assert_eq!(at(close), [w - PAD - XP_CLOSE, XP_HEAD_Y]);
         let stop = created(&commands, STOP).expect("Stop");
-        assert_eq!(at(stop)[1], XP_HEAD_Y);
+        assert_eq!(
+            at(stop)[1],
+            at(close)[1],
+            "Stop and the close box share a top"
+        );
+        assert_eq!(XP_STOP[1], XP_CLOSE, "and a height");
         assert_eq!(at(stop)[0] + XP_STOP[0] + XP_GAP, at(close)[0]);
         assert_eq!(stop.input, Some(InputMode::Accept));
         let send = created(&commands, SEND).expect("Send");
@@ -1444,6 +1462,30 @@ mod tests {
             created(&asked, CLOSE).and_then(|p| p.input),
             Some(InputMode::Accept)
         );
+    }
+
+    #[test]
+    fn the_card_of_a_question_stands_a_gap_above_the_field_when_no_hint_shows() {
+        let (theme, _, cache) = crate::tests::loaded("card-band");
+        let frame = xp_frame(36);
+        let mut session = Session::new();
+        session.mode = Mode::Chat("atlas".into());
+        session.agent_said("The notes are ready.");
+        session.question_asked();
+        let size = [336, 170];
+        let origin = card_origin(&frame, size, 0);
+        session.card_shown(origin[1], size[1]);
+        assert_eq!(session.hint(Language::En), None, "no hint in this state");
+        let parts = session.parts(&theme, &frame, Language::En);
+        let field_top = parts.rect[1] + parts.rect[3] - card_inset(&frame) - frame.field;
+        let band = field_top - (origin[1] + size[1]);
+        assert!(band <= 2 * GAP, "{band} px between the card and the field");
+        assert!(
+            origin[1] >= parts.rect[1],
+            "the card stands inside the balloon: {origin:?} in {:?}",
+            parts.rect
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     #[test]

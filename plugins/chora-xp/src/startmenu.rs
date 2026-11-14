@@ -1,8 +1,8 @@
 //! The start menu: XP's header with the user name, programs on the left,
 //! places on the right, and Log Off and Turn Off Computer in the footer.
 //! The geometry follows the measurements of the reference start menu
-//! (`XpTheme.qml`) at XP's Large Fonts size: 420 pixels wide, a 64 pixel
-//! header, a 44 pixel footer, rows of 36 and 48 pixels.
+//! (`XpTheme.qml`) at XP Normal size: 380 pixels wide, a 66 pixel
+//! header, a 38 pixel footer, rows of 34 and 42 pixels.
 
 use std::{
     path::{Path, PathBuf},
@@ -23,17 +23,20 @@ use crate::{
     theme::{Picture, Rect, Theme},
 };
 
-const WIDTH: i32 = 420;
-const HEADER: i32 = 64;
-const FOOTER: i32 = 44;
+const WIDTH: i32 = 380;
+const HEADER: i32 = 66;
+const FOOTER: i32 = 38;
 /// The frame around the columns.
 const FRAME: i32 = 2;
-const LEFT: i32 = 220;
-const PROGRAM_ROW: i32 = 36;
-const PINNED_ROW: i32 = 48;
-const PLACE_ROW: i32 = 36;
-const SEPARATOR: i32 = 8;
-const ALL_PROGRAMS: i32 = 24;
+const LEFT: i32 = 190;
+const TILE: i32 = 48;
+const TILE_X: i32 = 6;
+const TILE_Y: i32 = 3;
+const PROGRAM_ROW: i32 = 34;
+const PINNED_ROW: i32 = 42;
+const PLACE_ROW: i32 = 26;
+const SEPARATOR: i32 = 6;
+const ALL_PROGRAMS: i32 = 26;
 /// XP opens and closes cascades after the pointer rests this long: 400
 /// milliseconds, on the label of a row as well as on its arrow.
 const HOVER_DELAY: Duration = Duration::from_millis(400);
@@ -254,9 +257,6 @@ impl Menu {
             .size(sheets::WINXP, "startmenu-footer")
             .unwrap_or([WIDTH, 41]);
         let face = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".face"));
-        let avatar = face
-            .filter(|f| f.is_file())
-            .unwrap_or_else(|| theme.path("winxp/user.svg"));
         let name = Text::new(
             &self.user,
             Font::Name,
@@ -270,13 +270,15 @@ impl Menu {
                 "startmenu-body",
                 [0, header[1], WIDTH, body + HEADER + 1 - header[1] + 1],
             )
-            .element(sheets::WINXP, "startmenu-header", [0, 0, WIDTH, header[1]])
+            .layers_of(
+                header_art(theme, face.as_deref().filter(|f| f.is_file()), header[1]),
+                [0, 0],
+            )
             .element(
                 sheets::WINXP,
                 "startmenu-footer",
                 [0, self.height - footer[1], WIDTH, footer[1]],
             )
-            .file(&avatar, [9, 9, 48, 48])
             .text(name);
         for rect in &self.separators {
             let id = if rect[0] < LEFT {
@@ -391,7 +393,7 @@ impl Menu {
                 Some(Item {
                     title: node.title.clone(),
                     action: Action::Run(command.clone()),
-                    icon: icons.program(&node.icon),
+                    icon: program_art(icons, &node.icon),
                     program: None,
                 })
             }
@@ -747,7 +749,7 @@ impl Menu {
         cascade.icons = nodes
             .iter()
             .map(|n| match n.kind {
-                apps::Kind::Run(_) => icons.program(&n.icon),
+                apps::Kind::Run(_) => program_art(icons, &n.icon),
                 _ => icons.find(&n.icon),
             })
             .collect();
@@ -837,6 +839,55 @@ fn inside([x, y, w, h]: Rect, [px, py]: [f64; 2]) -> bool {
     (f64::from(x)..f64::from(x + w)).contains(&px) && (f64::from(y)..f64::from(y + h)).contains(&py)
 }
 
+/// The icon of a program, but only art that fills its square: a PNG file
+/// whose ink is under 60 % of its side, or whose marks cover under 12 % of
+/// it, is a fragment, and the program gets the generic icon of the theme
+/// instead.
+pub fn program_art(icons: &mut Icons, name: &str) -> Option<PathBuf> {
+    let found = icons.program(name);
+    if !found.as_deref().is_some_and(is_fragment) {
+        return found;
+    }
+    icons
+        .find("applications-other")
+        .or_else(|| icons.find("application-x-executable"))
+        .or(found)
+}
+
+/// Whether a file is a PNG that is a fragment of an icon.
+pub fn is_fragment(path: &Path) -> bool {
+    path.extension().is_some_and(|e| e == "png")
+        && ink_of(path).is_some_and(|(side, marks)| side < 0.6 || marks < 0.12)
+}
+
+/// The larger side of the ink of a PNG file as a share of its larger side,
+/// and the share of its pixels that are marks: not clear and not white (in
+/// a premultiplied pixel white has all channels at its alpha).
+fn ink_of(path: &Path) -> Option<(f64, f64)> {
+    let image = resvg::tiny_skia::Pixmap::load_png(path).ok()?;
+    let mut found: Option<[u32; 4]> = None;
+    let mut marks = 0u32;
+    for y in 0..image.height() {
+        for x in 0..image.width() {
+            let Some(p) = image.pixel(x, y).filter(|p| p.alpha() > 40) else {
+                continue;
+            };
+            found = Some(found.map_or([x, y, x, y], |f| {
+                [f[0].min(x), f[1].min(y), f[2].max(x), f[3].max(y)]
+            }));
+            if p.red().min(p.green()).min(p.blue()) < p.alpha().saturating_sub(20) {
+                marks += 1;
+            }
+        }
+    }
+    let [x0, y0, x1, y1] = found?;
+    let side = f64::from(image.width().max(image.height()));
+    Some((
+        f64::from((x1 - x0 + 1).max(y1 - y0 + 1)) / side,
+        f64::from(marks) / (f64::from(image.width()) * f64::from(image.height())),
+    ))
+}
+
 /// The programs of the left column, below each other: the terminal of
 /// the settings first.
 fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
@@ -875,7 +926,7 @@ fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
     entries.extend(config.programs.iter().zip(0..).map(|(program, i)| Entry {
         title: program.title.clone(),
         subtitle: None,
-        icon: icons.program(&program.icon),
+        icon: program_art(icons, &program.icon),
         bold: false,
         kind: Kind::Program,
         action: Action::Run(program.command.clone()),
@@ -886,7 +937,7 @@ fn programs(config: &Config, icons: &mut Icons, extra: &[&Node]) -> Vec<Entry> {
     entries.extend(extra.iter().zip(first..).map(|(node, i)| Entry {
         title: node.title.clone(),
         subtitle: None,
-        icon: icons.program(&node.icon),
+        icon: program_art(icons, &node.icon),
         bold: false,
         kind: Kind::Program,
         action: Action::Run(match &node.kind {
@@ -1072,6 +1123,28 @@ fn footer(theme: &Theme, height: i32) -> Vec<Entry> {
     ]
 }
 
+/// The header of the menu: XP's blue band with the picture of the user in
+/// a square tile of 48 pixels, a ring of 2 pixels white all round.
+fn header_art(theme: &Theme, face: Option<&Path>, height: i32) -> Picture {
+    let picture = Picture::new(WIDTH, height).element(
+        sheets::WINXP,
+        "startmenu-header",
+        [0, 0, WIDTH, height],
+    );
+    match face {
+        None => picture.file(&theme.path("winxp/user.svg"), [TILE_X, TILE_Y, TILE, TILE]),
+        Some(face) => picture
+            .file(face, [TILE_X + 2, TILE_Y + 2, TILE - 4, TILE - 4])
+            .svg(format!(
+                r##"<rect x="{}" y="{}" width="{}" height="{}" rx="4" fill="none" stroke="#ffffff" stroke-width="2"/>"##,
+                TILE_X + 1,
+                TILE_Y + 1,
+                TILE - 2,
+                TILE - 2
+            )),
+    }
+}
+
 /// The picture of an entry, normal or highlighted.
 fn picture(theme: &Theme, entry: &Entry, down: bool) -> Picture {
     let [_, _, w, h] = entry.rect;
@@ -1206,6 +1279,63 @@ mod tests {
         assert_eq!(cascades, [CONTROL_PANEL]);
     }
 
+    const WHITE: [u8; 3] = [255, 255, 255];
+    const FIGURE: [u8; 3] = [0x3b, 0x6f, 0xd0];
+
+    fn near(a: [u8; 3], b: [u8; 3]) -> bool {
+        a.iter().zip(b).all(|(x, y)| x.abs_diff(y) < 24)
+    }
+
+    #[test]
+    fn the_user_tile_is_one_square_with_an_equal_ring_and_a_centred_figure() {
+        let (mut theme, cache) = crate::sheets::tests::theme("tile");
+        let art = header_art(&theme, None, 57);
+        let image = crate::sheets::tests::draw(&mut theme, &art);
+        let at = |x, y| crate::sheets::tests::rgb(&image, x, y);
+        for y in 4..50 {
+            for x in TILE_X + TILE + 2..TILE_X + TILE + 14 {
+                assert!(
+                    near(at(x, y), at(120, y)),
+                    "{x},{y} beside the tile is {:?}, the band is {:?}",
+                    at(x, y),
+                    at(120, y)
+                );
+            }
+        }
+        let mid = TILE_Y + TILE / 2;
+        let left = (TILE_X..TILE_X + 6)
+            .filter(|x| near(at(*x, mid), WHITE))
+            .count();
+        let right = (TILE_X + TILE - 6..TILE_X + TILE)
+            .filter(|x| near(at(*x, mid), WHITE))
+            .count();
+        let col = TILE_X + TILE / 2;
+        let top = (TILE_Y..TILE_Y + 6)
+            .filter(|y| near(at(col, *y), WHITE))
+            .count();
+        let bottom = (TILE_Y + TILE - 6..TILE_Y + TILE)
+            .filter(|y| near(at(col, *y), WHITE))
+            .count();
+        assert_eq!([left, right, top, bottom], [2, 2, 2, 2]);
+        let ink: Vec<[i32; 2]> = (TILE_Y + 2..TILE_Y + TILE - 2)
+            .flat_map(|y| (TILE_X + 2..TILE_X + TILE - 2).map(move |x| [x, y]))
+            .filter(|[x, y]| near(at(*x, *y), FIGURE))
+            .collect();
+        let min_x = ink.iter().map(|p| p[0]).min().expect("a figure");
+        let max_x = ink.iter().map(|p| p[0]).max().expect("a figure");
+        let min_y = ink.iter().map(|p| p[1]).min().expect("a figure");
+        assert!(
+            ((min_x - TILE_X - 2) - (TILE_X + TILE - 3 - max_x)).abs() <= 1,
+            "the figure is off centre: {min_x}..{max_x}"
+        );
+        assert!(
+            min_y - TILE_Y - 2 >= 5,
+            "the head is {} px from the ring",
+            min_y - TILE_Y - 2
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     fn with_programs(n: usize) -> Config {
         let mut config = config();
         config.programs = (0..n)
@@ -1307,6 +1437,74 @@ mod tests {
             "{} px",
             all.rect[1] - last
         );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_first_rows_of_both_columns_stand_a_gap_under_the_header() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-gap");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(&with_programs(3), Vec::new(), &theme, &mut icons);
+        let header = theme.size(sheets::WINXP, "startmenu-header").unwrap()[1];
+        for kind in [Kind::Program, Kind::Place] {
+            let first = menu
+                .entries
+                .iter()
+                .filter(|e| e.kind == kind)
+                .map(|e| e.rect[1])
+                .min()
+                .unwrap();
+            assert!(
+                first >= header + 4,
+                "{kind:?} starts at {first}, header {header}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn no_entry_of_the_menu_has_a_clipped_text_or_an_icon_of_another_size() {
+        let (theme, cache) = crate::dialog::tests::theme("startmenu-audit");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let menu = Menu::new(&with_programs(6), Vec::new(), &theme, &mut icons);
+        let mut found = Vec::new();
+        for entry in &menu.entries {
+            for down in [false, true] {
+                let picture = picture(&theme, entry, down);
+                for finding in sheets::tests::icon_size_findings(&picture)
+                    .into_iter()
+                    .chain(sheets::tests::clipped_text_findings(&theme, &picture))
+                {
+                    found.push(format!("{}: {finding}", entry.title));
+                }
+            }
+        }
+        found.sort();
+        found.dedup();
+        assert_eq!(found, Vec::<String>::new());
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn a_long_title_ends_inside_its_row_with_an_ellipsis() {
+        let (mut theme, cache) = crate::dialog::tests::theme("startmenu-long");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let mut config = with_programs(3);
+        config.programs[0].title = "ImageMagick (color depth and other settings)".into();
+        let menu = Menu::new(&config, Vec::new(), &theme, &mut icons);
+        let entry = menu
+            .entries
+            .iter()
+            .find(|e| e.title.starts_with("ImageMagick"))
+            .expect("the long program");
+        let drawn = picture(&theme, entry, false);
+        let image = sheets::tests::draw(&mut theme, &drawn);
+        let width = image.width();
+        let right = (0..image.height())
+            .flat_map(|y| (width - 4..width).map(move |x| (x, y)))
+            .filter(|(x, y)| image.pixel(*x, *y).is_some_and(|p| p.alpha() > 0))
+            .count();
+        assert_eq!(right, 0, "ink in the last 4 columns of the row");
         let _ = std::fs::remove_dir_all(cache);
     }
 
@@ -1424,5 +1622,49 @@ mod tests {
             assert!(hovered != Some(Kind::Footer), "{key} lit a footer button");
         }
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn art_that_is_a_fragment_is_told_from_art_that_fills_its_square() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-art-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let draw = |name: &str, side: u32, ink: u32| {
+            let mut image = resvg::tiny_skia::Pixmap::new(side, side).expect("a pixmap");
+            for y in 0..ink {
+                for x in 0..ink {
+                    image.pixels_mut()[(y * side + x) as usize] =
+                        resvg::tiny_skia::PremultipliedColorU8::from_rgba(200, 0, 0, 255)
+                            .expect("a colour");
+                }
+            }
+            image.save_png(dir.join(name)).expect("a file");
+            dir.join(name)
+        };
+        let fragment = draw("fragment.png", 48, 12);
+        let whole = draw("whole.png", 48, 44);
+        assert!(is_fragment(&fragment));
+        assert!(!is_fragment(&whole));
+        assert!(!is_fragment(&dir.join("missing.png")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn art_of_a_white_page_with_a_few_marks_is_a_fragment() {
+        let dir = std::env::temp_dir().join(format!("chora-xp-page-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let draw = |name: &str, every: u32| {
+            let mut image = resvg::tiny_skia::Pixmap::new(64, 64).expect("a pixmap");
+            for (i, pixel) in (0u32..).zip(image.pixels_mut()) {
+                let marked = i % 64 % every == 0 && i / 64 % every == 0;
+                let green = if marked { 0 } else { 255 };
+                *pixel = resvg::tiny_skia::PremultipliedColorU8::from_rgba(255, green, green, 255)
+                    .expect("a colour");
+            }
+            image.save_png(dir.join(name)).expect("a file");
+            dir.join(name)
+        };
+        assert!(is_fragment(&draw("dots.png", 8)), "dots on white");
+        assert!(!is_fragment(&draw("solid.png", 1)), "a filled square");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

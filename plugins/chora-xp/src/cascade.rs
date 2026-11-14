@@ -14,11 +14,11 @@ use crate::{
 };
 
 /// The height of a row.
-pub const ROW: i32 = 28;
+pub const ROW: i32 = 22;
 /// A cascade overlaps the menu it comes from.
 const OVERLAP: i32 = 2;
 /// The text starts 23 pixels into a row, after a 16 pixel icon.
-const TEXT_X: i32 = 30;
+const TEXT_X: i32 = 26;
 
 /// The distance of the rows from the outer edges of the frame, left, top,
 /// right and bottom: the `cascade-hint-*-margin` elements of the theme.
@@ -180,7 +180,8 @@ impl Cascade {
         }
     }
 
-    /// A row: highlight, icon, name and, for a group, the arrow.
+    /// A row: highlight, icon or a placeholder, name and, for a group, the
+    /// arrow.
     fn picture(&self, theme: &Theme, row: &Row<'_>, lit: bool) -> Picture {
         let w = self.column_width;
         let mut picture = Picture::new(w, ROW);
@@ -189,6 +190,8 @@ impl Cascade {
         }
         if let Some(icon) = row.icon {
             picture = picture.file(icon, [4, (ROW - 16) / 2, 16, 16]);
+        } else if !row.checked {
+            picture = picture.svg(placeholder_icon());
         }
         if row.checked {
             let check = if lit {
@@ -246,6 +249,19 @@ pub struct Row<'a> {
     pub group: bool,
     /// A check mark instead of the icon.
     pub checked: bool,
+}
+
+/// The glyph of a row without an icon: a 16 pixel page in the gutter, so
+/// that no row has an empty slot.
+fn placeholder_icon() -> String {
+    let y = (ROW - 16) / 2;
+    format!(
+        r##"<rect x="7.5" y="{}.5" width="9" height="12" fill="#ffffff" stroke="#7F9DB9"/><path d="M9 {} h6 M9 {} h6 M9 {} h4" stroke="#7F9DB9"/>"##,
+        y + 2,
+        y + 6,
+        y + 9,
+        y + 12
+    )
 }
 
 /// The top-left corner of a cascade of a size (with its shadow): right of
@@ -320,10 +336,32 @@ mod tests {
     }
 
     #[test]
+    fn a_row_without_an_icon_draws_a_placeholder_in_the_gutter() {
+        let (theme, cache) = crate::dialog::tests::theme("cascade-placeholder");
+        let c = Cascade::new(0, &[60.0; 3], MARGINS, [[6, 674, 179, 24], AREA], None);
+        let plain = |checked| Row {
+            title: "Effects",
+            icon: None,
+            group: false,
+            checked,
+        };
+        let svg_layers = |row: &Row<'_>| {
+            c.picture(&theme, row, false)
+                .layers
+                .iter()
+                .filter(|l| matches!(l, chora_draw::theme::Layer::Svg(_)))
+                .count()
+        };
+        assert_eq!(svg_layers(&plain(false)), 1);
+        assert_eq!(svg_layers(&plain(true)), 0, "a check mark takes the slot");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn all_programs_grows_up_from_its_button() {
         let button = [6, 674, 179, 24];
         let c = Cascade::new(0, &[60.0; 10], MARGINS, [button, AREA], None);
-        assert_eq!(c.rect, [185, 417, 141, 286]);
+        assert_eq!(c.rect, [185, 477, 141, 226]);
         // The last row ends level with the button.
         assert_eq!(c.row(9)[1] + ROW, 698);
         // No room on the right: it shifts left.
@@ -340,7 +378,7 @@ mod tests {
         // the row.
         assert_eq!(c.rect[..2], [185 + 141 - 4 - 2, 166]);
         assert_eq!(c.row(0)[..2], [c.rect[0] + 6, 167]);
-        assert_eq!(c.rect[2], 260 + 11);
+        assert_eq!(c.rect[2], 263);
     }
 
     #[test]
@@ -349,7 +387,7 @@ mod tests {
         let row = [806, 700, 130, 22];
         let c = Cascade::new(1, &[200.0; 3], MARGINS, [row, AREA], Some(parent));
         // Left of the parent, ending level with the row.
-        assert_eq!(c.rect[0], 800 + 2 - (271 - 4));
+        assert_eq!(c.rect[0], 800 + 2 - (263 - 4));
         assert_eq!(c.row(2)[1] + ROW, 722);
     }
 
@@ -357,8 +395,8 @@ mod tests {
     fn long_menus_wrap_into_columns() {
         let c = Cascade::new(0, &[10.0; 70], MARGINS, [[6, 674, 179, 24], AREA], None);
         assert_eq!(c.rect[2], 3 * 130 + 11);
-        assert_eq!(c.rect[3], 26 * ROW + 6);
-        assert_eq!(c.row(26)[..2], [c.rect[0] + 6 + 130, c.rect[1] + 1]);
+        assert_eq!(c.rect[3], 33 * ROW + 6);
+        assert_eq!(c.row(33)[..2], [c.rect[0] + 6 + 130, c.rect[1] + 1]);
         // At least five rows on a tiny screen.
         let c = Cascade::new(
             0,

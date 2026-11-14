@@ -437,12 +437,12 @@ fn page_content(
     (rows, true)
 }
 
-/// The sunken box behind a line of the detail in XP's card: the colours
-/// of an edit box, a 1 px rule of `#7F9DB9`, as wide as the card inside
-/// its padding.
+/// The grey strip behind a line of the detail in XP's card, the path or
+/// the command: the face `#ECE9D8` with a 1 px rule of `#ACA899`, as wide
+/// as the card inside its padding.
 fn detail_box(width: i32, pad: i32, y: i32, line: i32) -> String {
     format!(
-        r##"<rect x="{pad}.5" y="{y}.5" width="{}" height="{}" fill="#F1EFE2" stroke="#7F9DB9"/>"##,
+        r##"<rect x="{pad}.5" y="{y}.5" width="{}" height="{}" fill="#ECE9D8" stroke="#ACA899"/>"##,
         width - 2 * pad - 1,
         line - 1
     )
@@ -1027,6 +1027,13 @@ mod tests {
     use chora_kit::{ask::Question, hud};
 
     use super::*;
+
+    #[test]
+    fn the_strip_of_the_detail_is_grey_in_the_palette_of_the_face() {
+        let strip = detail_box(300, 8, 40, 20);
+        assert!(strip.contains(r##"fill="#ECE9D8""##), "{strip}");
+        assert!(strip.contains(r##"stroke="#ACA899""##), "{strip}");
+    }
 
     fn cache(test: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!("chora-assistant-{test}-{}", std::process::id()))

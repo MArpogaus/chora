@@ -107,7 +107,7 @@ pull() {
     until_ok 'probe | grep -q " xp VIRTUAL-1 "' 80 || fail "the probe window came to no xp face: $(probe)"
     read -r surface _ _ x y <<<"$(probe)"
     until_ok 'ctl query "id:xp-title-$surface" | grep -q VIRTUAL-1' 40 || fail "the window has no title bar"
-    inject "[{\"pointer_move\": {\"position\": [$((x + 90)), $((y - 24))]}},
+    inject "[{\"pointer_move\": {\"position\": [$((x + 90)), $((y - 12))]}},
         {\"button\": {\"state\": \"pressed\", \"hold\": true}}]"
     inject '[{"pointer_move": {"position": [900, 300]}}]'
     until_ok 'read -r _ _ _ nx _ <<<"$(probe)"; test "$nx" != "$x"' 20 ||

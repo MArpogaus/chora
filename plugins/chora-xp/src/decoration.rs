@@ -13,20 +13,20 @@ use chora_scene::{Command, InputMode, NodeKind, PropsUpdate, Transform};
 use crate::{
     sheets,
     text::{Font, Text},
-    theme::{Picture, Rect, Theme},
+    theme::{Picture, Rect, Sheet, Theme},
     window::GRIP,
 };
 
 /// The width of the left, right and bottom borders.
 pub const BORDER: i32 = 4;
 /// The height of the title bar.
-pub const TITLE: i32 = 30;
+pub const TITLE: i32 = 25;
 /// The shadow around the frame in the frame elements.
 pub const SHADOW: i32 = 10;
 /// The size of a button.
-const BUTTON: i32 = 24;
+const BUTTON: i32 = 21;
 /// The space above the buttons.
-const BUTTON_TOP: i32 = 3;
+const BUTTON_TOP: i32 = 2;
 /// The space between the buttons and the right edge of the frame.
 const BUTTON_EDGE: i32 = 4;
 /// The space between two buttons.
@@ -35,7 +35,7 @@ const BUTTON_GAP: i32 = 2;
 const EDGE: i32 = 6;
 /// The icon of the application in the title bar, from the corner of the
 /// frame; a click on it opens the system menu.
-pub const ICON: Rect = [EDGE, 7, 16, 16];
+pub const ICON: Rect = [EDGE, 4, 16, 16];
 
 /// The shadow of the title text, one pixel to the bottom right.
 pub const TITLE_SHADOW: [u8; 4] = [10, 30, 80, 255];
@@ -403,11 +403,7 @@ fn button(theme: &mut Theme, surface: &str, look: &Look<'_>, button: Button) -> 
         (state, true) => state.to_string(),
         (state, false) => format!("{state}-inactive"),
     };
-    let picture = Picture::new(BUTTON, BUTTON).frame(
-        button.sheet(look.maximized),
-        &state,
-        [0, 0, BUTTON, BUTTON],
-    );
+    let picture = button_picture(button.sheet(look.maximized), &state);
     Command::Update {
         id: button_id(surface, button),
         props: PropsUpdate {
@@ -434,7 +430,7 @@ pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     } else {
         [216, 228, 248, 255]
     };
-    let mut text = Text::new(title, Font::BodyBold, color, [EDGE + 2, 0, w, TITLE]);
+    let mut text = Text::new(title, Font::Title, color, [EDGE + 2, 0, w, TITLE]);
     if active {
         text = text.shadow(TITLE_SHADOW);
     }
@@ -442,9 +438,24 @@ pub fn sample(title: &str, [w, h]: [i32; 2], active: bool) -> Picture {
     let state = if active { "active" } else { "inactive" };
     for button in Button::ALL {
         let rect = [button.x(w), BUTTON_TOP, BUTTON, BUTTON];
-        picture = picture.frame(button.sheet(false), state, rect);
+        picture = picture.frame(button.sheet(false), state, button_art(rect, state));
     }
     picture
+}
+
+/// The picture of a caption button of a state.
+fn button_picture(sheet: Sheet, state: &str) -> Picture {
+    Picture::new(BUTTON, BUTTON).frame(sheet, state, button_art([0, 0, BUTTON, BUTTON], state))
+}
+
+/// The rect that the art of a button of a state fills: the inactive art
+/// has a margin of a pixel, so it is drawn a pixel larger.
+fn button_art([x, y, w, h]: Rect, state: &str) -> Rect {
+    if state.ends_with("inactive") {
+        [x - 1, y - 1, w + 2, h + 2]
+    } else {
+        [x, y, w, h]
+    }
 }
 
 /// Props that put a node at a position relative to the top-left corner of
@@ -480,16 +491,16 @@ mod tests {
 
     #[test]
     fn the_frame_wraps_the_client() {
-        assert_eq!(outer([640, 480], false), [648, 514]);
+        assert_eq!(outer([640, 480], false), [648, 509]);
         assert_eq!(inner(outer([640, 480], false), false), [640, 480]);
-        assert_eq!(outer([1280, 740], true), [1280, 770]);
+        assert_eq!(outer([1280, 740], true), [1280, 765]);
     }
 
     #[test]
-    fn the_caption_buttons_are_24_by_24_two_apart_and_4_from_the_edge() {
+    fn the_caption_buttons_are_21_by_21_two_apart_and_4_from_the_edge() {
         let rects = Button::ALL.map(|b| button_rect(200, b));
         for [_, _, w, h] in rects {
-            assert_eq!([w, h], [24, 24]);
+            assert_eq!([w, h], [21, 21]);
         }
         assert_eq!(rects[0][0] + rects[0][2], 200 - 4);
         assert_eq!(rects[1][0] + rects[1][2] + 2, rects[0][0]);
@@ -501,5 +512,62 @@ mod tests {
     fn the_title_is_14_pixel_bold_with_the_dark_blue_shadow() {
         assert_eq!(TITLE_SHADOW, [0x0A, 0x1E, 0x50, 255]);
         assert_eq!(chora_draw::text::BODY_SIZE, 14);
+    }
+
+    fn visible(image: &resvg::tiny_skia::Pixmap) -> [u32; 4] {
+        let mut found = [u32::MAX, u32::MAX, 0, 0];
+        let seen = (0..image.height())
+            .flat_map(|y| (0..image.width()).map(move |x| [x, y]))
+            .filter(|[x, y]| image.pixel(*x, *y).is_some_and(|p| p.alpha() > 100));
+        for [x, y] in seen {
+            found = [
+                found[0].min(x),
+                found[1].min(y),
+                found[2].max(x),
+                found[3].max(y),
+            ];
+        }
+        found
+    }
+
+    #[test]
+    fn every_caption_button_fills_its_21_pixels_active_or_not() {
+        let (mut theme, cache) = crate::sheets::tests::theme("caption-fill");
+        let sheets = [
+            sheets::CLOSE,
+            sheets::MAXIMIZE,
+            sheets::MINIMIZE,
+            sheets::RESTORE,
+        ];
+        for step in [1_u32, 2] {
+            theme.set_scale(f64::from(step));
+            let side = 21 * step - 1;
+            for (sheet, state) in sheets
+                .iter()
+                .flat_map(|s| ["active", "inactive", "hover", "pressed"].map(|t| (*s, t)))
+            {
+                let image = crate::sheets::tests::draw(&mut theme, &button_picture(sheet, state));
+                assert_eq!(
+                    visible(&image),
+                    [0, 0, side, side],
+                    "{} {state} at scale {step}",
+                    sheet.0
+                );
+            }
+        }
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_inactive_close_button_stays_red() {
+        let (mut theme, cache) = crate::sheets::tests::theme("caption-red");
+        let picture = button_picture(sheets::CLOSE, "inactive");
+        let image = crate::sheets::tests::draw(&mut theme, &picture);
+        let [r, g, b] = crate::sheets::tests::rgb(&image, 10, 5);
+        assert!(
+            i32::from(r) - i32::from(g.max(b)) >= 60,
+            "the inactive close button is {r},{g},{b}"
+        );
+        let _ = std::fs::remove_dir_all(cache);
     }
 }

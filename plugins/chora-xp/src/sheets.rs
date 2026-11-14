@@ -36,8 +36,127 @@ pub mod tests {
     pub fn theme(test: &str) -> (Theme, PathBuf) {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../flavors/xp/theme");
         let cache = std::env::temp_dir().join(format!("chora-xp-{test}-{}", std::process::id()));
-        let theme = Theme::load(&dir, &cache, &ALL, FAMILY).map(Theme::large_chrome);
+        let theme = Theme::load(&dir, &cache, &ALL, FAMILY);
         (theme.expect("the theme loads"), cache)
+    }
+
+    /// The sides of the icon slots of the look.
+    pub const ICON_SIZES: [i32; 4] = [16, 24, 32, 48];
+
+    /// The audit kind `icon-size-in-{16,24,32,48}`: the file layers of a
+    /// picture whose slot is no square of one of the sides.
+    pub fn icon_size_findings(picture: &Picture) -> Vec<String> {
+        picture
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                chora_draw::theme::Layer::File { path, rect, .. }
+                    if !path.to_string_lossy().contains("arrow")
+                        && (rect[2] != rect[3] || !ICON_SIZES.contains(&rect[2])) =>
+                {
+                    Some(format!(
+                        "{} in a slot of {}x{}",
+                        path.display(),
+                        rect[2],
+                        rect[3]
+                    ))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The audit kind `text-clipped-by-box`: the text layers of a picture
+    /// that are wider than their box, which would end in an ellipsis or
+    /// cross the edge of the box.
+    pub fn clipped_text_findings(theme: &Theme, picture: &Picture) -> Vec<String> {
+        picture
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                chora_draw::theme::Layer::Text(text)
+                    if theme.text_width(&text.line, text.font) > f64::from(text.rect[2]) =>
+                {
+                    Some(format!(
+                        "{:?} is wider than its box of {}",
+                        text.line, text.rect[2]
+                    ))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// A picture drawn at scale 1.
+    pub fn draw(theme: &mut Theme, picture: &Picture) -> Pixmap {
+        Pixmap::load_png(theme.render(picture)).expect("a PNG file")
+    }
+
+    /// The color of a pixel of an opaque picture.
+    pub fn rgb(image: &Pixmap, x: i32, y: i32) -> [u8; 3] {
+        let p = image
+            .pixel(u32::try_from(x).expect("x"), u32::try_from(y).expect("y"))
+            .expect("inside")
+            .demultiply();
+        [p.red(), p.green(), p.blue()]
+    }
+
+    /// A run of columns of an image with ink, as pixels: the box of the
+    /// ink and how many pixels it has.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct Ink {
+        pub left: i32,
+        pub top: i32,
+        pub right: i32,
+        pub bottom: i32,
+        pub count: i32,
+    }
+
+    impl Ink {
+        pub fn width(&self) -> i32 {
+            self.right - self.left
+        }
+
+        pub fn height(&self) -> i32 {
+            self.bottom - self.top
+        }
+    }
+
+    /// The runs of columns with ink in the image, divided by at least
+    /// `gap` columns without.
+    pub fn runs(image: &Pixmap, gap: i32, is_ink: impl Fn([u8; 3]) -> bool) -> Vec<Ink> {
+        let (w, h) = (
+            i32::try_from(image.width()).expect("w"),
+            i32::try_from(image.height()).expect("h"),
+        );
+        let mut found: Vec<Ink> = Vec::new();
+        let mut empty = gap;
+        for x in 0..w {
+            let ys: Vec<i32> = (0..h).filter(|y| is_ink(rgb(image, x, *y))).collect();
+            if ys.is_empty() {
+                empty += 1;
+                continue;
+            }
+            let (top, bottom) = (ys[0], ys[ys.len() - 1] + 1);
+            let count = i32::try_from(ys.len()).expect("count");
+            match found.last_mut() {
+                Some(run) if empty < gap => {
+                    run.right = x + 1;
+                    run.top = run.top.min(top);
+                    run.bottom = run.bottom.max(bottom);
+                    run.count += count;
+                }
+                _ => found.push(Ink {
+                    left: x,
+                    top,
+                    right: x + 1,
+                    bottom,
+                    count,
+                }),
+            }
+            empty = 0;
+        }
+        found
     }
 
     #[test]

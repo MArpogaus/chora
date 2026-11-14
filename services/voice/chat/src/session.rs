@@ -200,10 +200,7 @@ impl Session {
         if self.confirm {
             return Some(say(self.language, Word::SendLines, &[("n", &lines)]));
         }
-        if self.lines() > MAX_LINES {
-            return Some(say(self.language, Word::Lines, &[("n", &lines)]));
-        }
-        self.waiting.then(|| say(self.language, Word::Waiting, &[]))
+        (self.lines() > MAX_LINES).then(|| say(self.language, Word::Lines, &[("n", &lines)]))
     }
 
     /// The lines of the draft, by its line breaks.
@@ -318,6 +315,13 @@ mod tests {
         assert_eq!(session.text(), "yes");
         let hint = session.status().expect("the typing hint");
         assert!(hint.contains("Alt+Y") && hint.contains("Alt+N"), "{hint}");
+    }
+
+    #[test]
+    fn a_waiting_question_adds_no_line_to_an_empty_field() {
+        let mut session = Session::new(Language::En);
+        session.set_waiting(true);
+        assert_eq!(session.status(), None);
     }
 
     #[test]
