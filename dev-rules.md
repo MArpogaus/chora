@@ -36,6 +36,9 @@ the session overrides). Read it and the skills it names once per container.
   its `--help`). Only when it prints that every step passed, push with
   `git push -u origin <your branch>`. Do not merge; the PM merges with
   `tests/merge-gate.sh --push`.
+- **Waiting.** Never end a turn to wait for a background job longer than 30 minutes (it
+  can be stopped without a wake); run long gates in the foreground or in parts with
+  --only. End your last turn only after the report is sent.
 - **Restarts.** The container can restart and stop you. Commit and push
   work in progress to your branch at least every hour, through the hooks.
 - **Report.** At most 25 lines: the commits, the red and green evidence,
