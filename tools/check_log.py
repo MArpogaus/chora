@@ -2,7 +2,7 @@
 """Pre-commit check of the session log: the four injected notes (sizes in bytes) and entry times.
 
 Sizes: vision-card.md 2,500; rules.md 3,000; state.md 3,000 and no line over 300 characters;
-decisions-now.md 4,000; conventions.md 6,000. state.md has only the sections Now, RC, Lanes, Queue, Needs owner.
+decisions-now.md 4,000; conventions.md 6,000; routines.md 3,000. state.md has only the sections Now, RC, Lanes, Queue, Needs owner.
 
 Run from the log worktree (or pass --root). Added lines come from the staged
 diff; only the entry stamp that starts a line is checked (later times in a line may be plans). The clock is the real UTC time; --now YYYY-MM-DDTHH:MM overrides it.
@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SECTIONS = ("Now", "RC", "Lanes", "Queue", "Needs owner")
-MAX_BYTES = {"vision-card.md": 2500, "rules.md": 3000, "state.md": 3000, "decisions-now.md": 4000, "conventions.md": 6000}
+MAX_BYTES = {"vision-card.md": 2500, "rules.md": 3000, "state.md": 3000, "decisions-now.md": 4000, "conventions.md": 6000, "routines.md": 3000}
 STATE_MAX_LINE = 300
 RULES_MAX = 10
 STAMPED = ("state.md", "decisions-now.md", "answers.md", "rules.md", "vision-card.md")

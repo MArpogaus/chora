@@ -49,7 +49,8 @@ worked around. Requirements marked **RC** block the release candidate.
   is the option for older eyes. This replaces the 14 px floor (D1) for xp.
 - **UX like the original:** Start menu two columns with user tile, All
   Programs cascade, Run, Help and Support, Turn Off and Log Off dialogs;
-  taskbar grouping, Quick Launch, tray with balloon tips, clock, volume;
+  taskbar grouping, Quick Launch, tray with balloon tips (helper balloon, owner 11-11 18:26: a click expands it
+  to the chat; confirmations and short replies show in it; no other balloon beside it), clock, volume;
   double-click to open, right-click menus, Alt+Tab switcher, Super opens
   Start, Super+D desktop, Super+E file manager, F1 help. The helper lives
   in the tray and the Start menu, as an XP-era assistant would.
@@ -172,17 +173,18 @@ separate reviewer checks captures at 1x and 2x against the look document.
    as the accessibility option (above).
 2. xp "replication" vs trademarks: settled by the user 11-12 04:25 UTC
    (optional asset import, above). Sources: design/xp-reference.md (kde-plasma-winxp-launcher,
-   xfce-winxp-tc); the chora port is a week-2 lane;
-   the line itself goes to Needs you (licensing, rules.md 11).
+   xfce-winxp-tc); the chora port is backlog X9, after the tag.
 3. xp reference: no reference captures exist in the repo and we may not
    ship them. Default: a measurement table (element, size, colour,
    position) in the look document, sourced from public documentation,
    checked by audit cells.
 4. mc identity: "media centre" in the name and briefs vs "voice-first
-   computing". Default: the brief above; rename in week 2.
+   computing". Default: the brief above; the name stays mc until after 1.0 (PM 11-14, POLS).
 5. mc "content shapes the view": which content kinds exist is unlisted.
-   Default: agenda, document, terminal, media, chat; others week 2.
+   Default: agenda, document, terminal, media, chat; others after the tag.
 6. mc voice first vs the remote RC: kept both; voice is primary.
 7. tiling, construct, helper: no change asked; their briefs stand.
 8. "polished to perfection" has no end: defined as a full pixel review
-   that finds nothing above COSMETIC (rules.md 8).
+   that finds nothing above COSMETIC; the RC needs no BLOCK or MAJOR, the
+   rest goes on until 1.0 (rules.md 6, vision-card.md). PM 11-14: the
+   defaults 1-8 stand (owner 17:17 delegated).

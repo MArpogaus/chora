@@ -2,7 +2,7 @@
 """Print PM context for Claude Code hooks; each mode stays under the 10,000-character hook cap.
 
 Modes:
-  card       rules.md and state.md, whole
+  card       rules.md, routines.md and state.md, whole
   vision     vision-card.md
   conventions conventions.md (agent_skills dev plus the session overrides)
   decisions  decisions-now.md, plus user messages newer than its screened-through line
@@ -106,7 +106,7 @@ def capped(text):
 
 
 def mode_card():
-    return "PM RULES (hook; read before acting):\n" + read("rules.md") + "\nSTATE:\n" + read("state.md")
+    return "PM RULES (hook; read before acting):\n" + read("rules.md") + "\nROUTINES:\n" + read("routines.md") + "\nSTATE:\n" + read("state.md")
 
 
 def mode_decisions(transcript):

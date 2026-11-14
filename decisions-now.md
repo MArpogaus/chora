@@ -9,7 +9,7 @@ screened-through: 2026-11-14T17:17:00Z
 - 11-12 05:47Z "So stability and the aesthetics, looks, UX and UI, shall always win over new functionality. Keep our POLS and KISS principle at the highest priority for our guidelines." -> priority; "Your job should be to collect those, put them in the backlog if they are feasible, push back if they conflict with any of our decisions or targets, and always keep the project goals into focus." -> ideas never redirect a lane; "You shall be focusing on the project goals and keep them reachable, or discuss with me if they need adaptation." -> name unreachable goals
 - 11-12 02:42Z "Next time I say plan, I really need mean planning. Put it to the backlog and address it when we have the resources for that." -> plan = backlog; "Really push back when you see that certain task is useless or not necessary right now." -> push back, also on his words
 - 11-12 01:45Z "Don't rely on me." -> decide the reversible
-- 11-11 10:30Z "After ui ux clean. Finalize foundational work and review code until ready for rc release before feat sprints." -> order: UX/UI, code review, rc, reflection, sprints
+- 11-11 10:10Z "After ui ux clean. Finalize foundational work and review code until ready for rc release before feat sprints." -> order: UX/UI, code review, rc, reflection, sprints
 - 11-11 10:31Z "You may released when all clean." -> PM opens CI PR, tags, publishes when rc.md holds
 - 11-11 10:53Z "After the release candidate, we need an extensive user testing round to really ensure that everything is going smoothly." -> persona round 5
 - 11-09 04:24Z "This shall never touch the main branches or dev branches." -> session files only on claude/session-log

@@ -39,7 +39,7 @@ MC1 | 11-11 | rc | open from the mc round: N4 hover marks on card buttons, N3 ch
 A13 | 11-09 | rc | after an mc drag onto the construct output, construct loses its panes (`pane: none`); the matrix gate repaired it in setup with `window.show`. Check whether it still happens (no known window loss).
 
 ## Review, docs, logging (rc 6, 8, 9a)
-A2 | 11-09 | rc | security audit as part of the per-area review: the list of archive/charter.md section 15 item 2; the attacker check of the voice paths ran on 11-09 (reports/week-1.md).
+A2 | 11-09 | rc | security audit as part of the per-area review (rc.md 6 lists charter 11 (a)-(c)); details in archive/charter.md section 15 item 2; the attacker check of the voice paths ran on 11-09 (reports/week-1.md).
 G1 | 11-10 | rc | open from grants2, for the security review: a HUD name whose HUD is not running is free to any process; hello accepts the same executable (several choractl).
 L1 | 11-11 | rc | logging audit per component (structured tracing, a target per area, no secrets or typed text, rotating files under $XDG_STATE_HOME/chora/logs); `chora-report` shell script in dist/ (anonymised .tar.gz the person sends by hand, scrubbing tested on a fixture); docs: how to report a problem.
 R4 | 11-12 | rc | release notes name the changed mc default keys (Super+a chat, Super+Return terminal scene).
@@ -55,13 +55,13 @@ P1 | 11-11 | later | the construct focus glow is a timed shader and redraws ever
 A11 | 11-09 | later | XP split (owner 11-14 05:25: theming apart from the stacking WM; 05:26 no priority) X3-X7 (D73, roadmap "Track: XP split"; X1 4a13267 and X2 e5391bd are merged): chora-stack, chora-desk, chora-panel.
 N1 | 11-11 | later | widget host: chora-panel hosts widgets (task list, start button and menu, tray, clock, dock) with a widget API in chora-kit; done when a second layout (dock plus top bar) runs from config only. Needs a design document and the owner's approval of mockups.
 X8 | 11-12 | later | an XP Run dialog (icon, text, Open combo, OK/Cancel/Browse) instead of fuzzel for Start > Run.
-X9 | 11-12 | later | chora-xp-import (port of kde-plasma-winxp-launcher get-microsoft-files.sh, design/xp-reference.md) and the imported-asset pixel benchmark; pending the owner's answer to state.md Needs owner (b).
+X9 | 11-12 | later | chora-xp-import (port of kde-plasma-winxp-launcher get-microsoft-files.sh, design/xp-reference.md) and the imported-asset pixel benchmark; the rc judges xp on fallback art (owner 11-14 04:51 (b)); this comes after the tag.
 PX1 | 11-14 | later | further MINOR and COSMETIC pixel rounds, full 2x reviews, more test swarms before the fix lanes land.
 T4 | 11-11 | later | tiling v2 leftovers: 68 px empty after "Tile"; one keycap holds "Super+r / Super+Space"; open terminals stay dark after switching to Paper.
 R3 | 11-11 | later | tiling code review LOW: layout words duplicated in waybar/layout.sh and keys.rs; locale case repeated in 5 scripts and theme.rs; runtime_shader re-implements theme::runtime_dir; LaunchError one-variant enum matching strings; tags 10-16 allowed but the bar has 9 fixed modules.
 R5 | 11-12 | later | mc code review LOW: `empty` is a string on scene panels and a bool on contents; key labels English only, short and full lists disagree on Run; sent echo removed only on exact text match; wraps "run." and "Stop" alone on a line.
 L1b | 11-11 | later | chora-report asks a few questions, uploads the bundle to a paste service after an explicit yes and prints a ready GitHub issue text; `--no-upload` keeps the file-only report.
-M1 | 11-12 | later | status page rework, website and USPs on claude/website (one headline, two paths, every claim backed by a demo), announcement in German and English.
+M1 | 11-12 | later | framing (owner 11-10): ricers first, also a design study for agentic computing; owner questions at release: Q4 crates.io, Q5 org chora-desktop, Q12 HN/r/linux/Phoronix after the 30-day gate, Q13 r/unixporn account (archive/questions.md); status page rework, website and USPs on claude/website (one headline, two paths, every claim backed by a demo), announcement in German and English.
 D1 | 11-10 | later | demo media, Reddit-ready: `demo/record.sh` (30 fps frames, GIF under 10 MB, MP4); construct walk, 3D wobble, cube turn, pull-out; captions name the machine.
 D2 | 11-10 | later | demo polish: a capture clock in `choractl record`; the pane frame, glow and shadow follow the wobble mesh; a demo scene with real content.
 D3 | 11-11 | later | demo glitches: slivers of floating planes during a cube turn; a pane dragged over an angled face vanishes for some frames; the pulled pane is smaller than its window; light theme only.
@@ -93,3 +93,5 @@ S3 | 11-10 | later | cut by the owner 11-10, after 1.0: effects pack, off by def
 
 ## Closed
 W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflections/2026-11-14-w2-1-fable.md.
+H5 | 11-11 | later | the construct bindings overlay as a shared plugin that every window manager can use (owner 11-11 19:45).
+H6 | 11-09 | later | users ship their own HUDs easily (owner 11-09 feature request).

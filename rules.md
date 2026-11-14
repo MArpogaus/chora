@@ -35,9 +35,8 @@ Guard: lanes.py (commits per hour); the rest manual.
 (to build: tool). A new rule removes one. A rule changes at a merge boundary,
 never in the turn an owner message arrives. Guard: check_log.py.
 
-Routines: watchdog every 2 h (lanes.py). Once a day the
-self-check: am I on the RC burn-down? is a reviewed branch unmerged > 12 h? is anything
-running that is not in the Queue?
+Routines: routines.md. Self-check: am I on the RC burn-down? is a reviewed branch
+unmerged > 12 h? is anything running that is not in the Queue?
 Commits: stage by name; the owner's identity; no attribution lines; never --no-verify;
 session files only on claude/session-log. Times: only from `date -u`, in UTC.
 Chat: two lines; end with done, running, next, blocked, budget.

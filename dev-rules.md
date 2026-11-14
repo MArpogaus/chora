@@ -5,7 +5,7 @@ the session overrides). Read it and the skills it names once per container.
 
 - Work only in your own worktree and on your own branch. Never touch
   /home/user/chora, other worktrees or the branch claude/session-log.
-- **Design.** design/hud-sprint.md and design/ux-hud-sprint.md in
+- **Design.** design/looks/ (one file per look) and design/product-briefs.md in
   /home/user/wt/log are the spec, and docs/design-principles.md holds
   the principles (minimal, flawless, flexible). If you find a gap or a
   contradiction, say so in your report; do not invent around it.

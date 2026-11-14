@@ -12,7 +12,7 @@ column is rewritten with state.md; plans and history are in git.
 | 3 | Merge gate green three times in a row on the candidate (no flake); the opt-in gates (battle, starved watchdog, shader hang, mc scale, construct-hud, construct-keys, demo) green once. | no: 5 known flakes |
 | 4 | GitHub CI green (check, msrv, e2e, coverage, docs, pre-commit) on a pull request. | never run |
 | 5 | Packaging: the release workflow builds the RPM, the Arch package and the distrobox image; installed, a session starts (smoke). | never run |
-| 6 | Code review per area (core, kit, xp, tiling, mc, construct, assistant, voice): simplicity and readability first, then correctness, security, dead code, docs. Every HIGH and every security MEDIUM fixed; other MEDIUM findings go to the known issues with a reason. | not started |
+| 6 | Code review per area (core, kit, xp, tiling, mc, construct, assistant, voice): simplicity and readability first, then extraction and duplication across plugins, correctness, security (charter 11: confined choractl mcp with grants, every run_program confirmed, agent spawns only through sandbox_cmd unless unsandboxed: true), dead code, docs. Every HIGH and every security MEDIUM fixed; other MEDIUM findings go to the known issues with a reason. | not started |
 | 7 | cargo-deny and cargo-machete clean; dependency updates applied. | deny red |
 | 8 | Docs: README, install, configuration, glossary, nav, CHANGELOG with an rc entry; an honest known-issues list. | not started |
 | 9a | Logging audit per component and the `chora-report` script (backlog L1). | not started |
@@ -22,5 +22,8 @@ column is rewritten with state.md; plans and history are in git.
 
 Order: land, flakes, CI and packaging, main-path MAJOR fixes, code review per area,
 one pixel pass per look, persona round 4 and docs, three greens, visual acceptance (11), tag (state.md Queue).
-After the tag: persona round 5 at full breadth, then the reflection loop, then feature
-sprints (decisions-now.md).
+After the tag: persona round 5 at full breadth (owner 11-11 ~18:00: every look and
+persona, voice-only in English and German, a ricer, two screens, a session of several
+hours for leaks and stalls, the battle script; its fixes before 1.0), then the reflection
+loop, then feature sprints (decisions-now.md). Demos and GIFs come from the criterion 11
+recording (owner 11-11 12:22 "impressive demos as features land").

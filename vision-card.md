@@ -20,4 +20,4 @@ Proof of range: four complete looks in one session, switched live, windows movin
 A visible way to start a program, the key list and the helper (mouse and keys); no stray keys into clients; lock, power, volume, screenshot and clock reachable; honest failure states; no lost window in any handover.
 
 ## Quality bar
-Minimal, flawless, flexible; KISS and POLS. A look is done for the RC when it meets the shared bar and one independent review finds no open BLOCK or MAJOR (rules.md 6, 7). Stop there: MINOR and COSMETIC findings go to the known issues.
+Minimal, flawless, flexible; KISS and POLS. A look is done for the RC when it meets the shared bar and one independent review finds no open BLOCK or MAJOR (rules.md 6, 7). For the RC stop there: MINOR and COSMETIC go to the known issues; polishing toward perfection (owner 11-12 04:16) goes on after the tag until 1.0.

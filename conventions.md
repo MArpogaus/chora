@@ -32,7 +32,8 @@ this file, the skills, CONTRIBUTING.md.
    final round of 4.4 (two clean rounds in a row) runs on the session branch before the rc tag.
 6. Release scope (dev-conventions 1) holds until the rc tag: bugs, security, wrong docs, and the
    BLOCK and MAJOR UX findings of design/rc.md (11-11 10:30: UX/UI clean before the rc).
-7. Autonomy (11-12 01:45 "Don't rely on me"): decide the reversible, ask only what rules.md 3 lists.
+7. Autonomy (11-12 01:45, 11-14 17:17): decide, ask only what rules.md 3 lists; security
+   policy and licensing stay the owner's (charter); outward text stays a draft (skill).
    Watchdog every 2 h plus the heartbeat, not every 30 min.
 8. Chat (11-08, 11-10, 11-14 16:47): two lines plus done, running, next, blocked, budget; German
    while the owner writes German. Files, commits and reports stay English. The status page artifact
@@ -40,7 +41,8 @@ this file, the skills, CONTRIBUTING.md.
 9. Environment: the cloud container is disposable, not the user's host; setup.sh may use apt and
    cargo install there. Lanes do not install system packages; a missing tool is a blocker.
 10. Subagents (rules.md 5, 11-14 16:54): sonnet builds, haiku tests, Fable reviews and hard work
-    (at most 2 Fable lanes at once, opus when Fable is gone). Each lane owns its worktree and target/.
+    (at most 2 Fable lanes at once, opus when Fable is gone). Haiku swarms only while they
+    find new issues and below 85 % weekly use (owner 11-11 17:29). Each lane owns its worktree and target/.
 11. Visual checks (charter): pixel asserts and gate cells replace looking at every screenshot; each
     pixel pass and each keeper gets reviewed captures.
 
