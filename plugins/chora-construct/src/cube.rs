@@ -12,7 +12,7 @@ use std::{
     f64::consts::{FRAC_PI_2, SQRT_2},
     io::{BufRead, BufReader},
     process::{Child, Stdio},
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
     time::{Duration, Instant},
 };
 
@@ -258,8 +258,14 @@ impl Live {
 }
 
 /// The time of an input from the `time` of its event in milliseconds.
+/// 0 means that the sender does not know it: then the time is that of
+/// the handling, on the clock of the construct.
 pub(crate) fn input_time(ms: u64) -> Duration {
-    Duration::from_millis(ms)
+    static START: LazyLock<Instant> = LazyLock::new(Instant::now);
+    match ms {
+        0 => START.elapsed() + Duration::from_millis(1),
+        ms => Duration::from_millis(ms),
+    }
 }
 
 /// The yaw of the cube for a drag of `dx` over a view `width` wide: the
