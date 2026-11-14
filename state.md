@@ -25,8 +25,9 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | flakes | cloud Fable ..PL9EE, claude/flakes 55c527d4 | briefs/flakes-r3.md | r2 merged (R1 open, exception); r3: R1, F15, races |
+| ci r2 | cloud sonnet (starting), claude/ci-r2 | briefs/ci-r2.md | package jobs on PRs, --locked, fuzzel 1.9 |
 | doors | cloud Fable ..PZrjj, claude/doors dd8669a4 | briefs/doors-r3.md | dr2-1 BLOCK, dr2-2 MAJOR |
-| plugins high | cloud sonnet (starting), claude/plugins-high | briefs/plugins-high-r1.md | XP-B-01, MC-01, NO-01 |
+| plugins high | cloud sonnet ..LNQpj, claude/plugins-high | briefs/plugins-high-r1.md | XP-B-01, MC-01, NO-01 |
 
 ## Queue
 1. Plugins HIGH lane; verify ti-1 (doors r3), co-1. (rc 1, 6)
