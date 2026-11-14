@@ -19,7 +19,8 @@
 #   terminal-chat  the terminal page keeps the column; the chat opens in it
 #                  and a page turn with the chat open leaves no part of it
 #                  outside the column; after Super+a and Super+Right the
-#                  typed text still reaches the chat field
+#                  typed text still reaches the chat field, after Escape it reaches
+#                  the terminal, and not the hidden terminal after a page turn
 #   all-keys       with notifications the full key list stays in the
 #                  column and on the screen, and its rule crosses no text
 #   urgent         a critical notification is named Urgent in the column
@@ -220,6 +221,17 @@ cell_mute() {
 }
 
 chat_has_sent() { ctl query "id:hud-chat" | jq -e --arg t "$1" '.[0].meta.text | endswith("You\n" + $t)' >/dev/null; }
+type_line() {
+    local i
+    for ((i = 0; i < ${#1}; i++)); do
+        case ${1:i:1} in
+        " ") key space ;;
+        *) key "${1:i:1}" ;;
+        esac
+    done
+    key Return
+}
+terminal_got() { [ -n "$(find "$HOME" "$work" /tmp -maxdepth 3 -name "$1" 2>/dev/null | head -1)" ]; }
 in_column() { jq -ne --argjson c "$1" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56 and $c[1] + $c[3] <= 786' >/dev/null; }
 cell_terminal_chat() {
     local chat
@@ -261,6 +273,22 @@ cell_terminal_chat() {
     sleep 2
     until_ok 'chat_has_sent hi' 20 || fail "after the page turn typed text does not reach the chat field"
     key Escape
+    until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat"
+    sleep 1
+    type_line "touch mckeyfwd"
+    until_ok 'terminal_got mckeyfwd' 20 || fail "after the chat closed typed text does not reach the terminal"
+    key Super+a
+    until_ok 'node_exists hud-chat' 40 || fail "Super+a does not open the chat on the terminal page"
+    sleep 1
+    key Super+Left
+    until_ok '[ "$(current)" = mission ]' 20 || fail "Super+Left does not turn the page: $(current)"
+    key Escape
+    until_ok '! node_exists hud-chat' 40 || fail "Escape does not close the chat on the page turned to"
+    sleep 1
+    type_line "touch mckeyrev"
+    sleep 2
+    terminal_got mckeyrev && fail "after the chat closed on another page typed text reached the hidden terminal"
+    return 0
 }
 
 cell_all_keys() {
