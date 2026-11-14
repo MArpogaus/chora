@@ -1593,6 +1593,40 @@ mod tests {
         assert_eq!(rx.try_recv(), Ok(true));
     }
 
+    /// A question of the reply, asked while a question of a sub-agent
+    /// waits for a key, does not take the key rule from it: after a
+    /// spoken yes to the first, a second one counts as nothing. The
+    /// text of an older utterance starts the reply here.
+    #[test]
+    fn a_chat_question_leaves_a_sub_agent_question_physical() {
+        let mut core = with_coder();
+        let mut sub = sub_question(&mut core, true);
+        let effects = core.handle(text(9, false, Ok("Mach das Fenster zu.")));
+        let [(id, _)] = asks(&effects)[..] else {
+            panic!("{effects:?}");
+        };
+        let (answer, mut rx) = oneshot::channel();
+        let event = chat::Event::Confirm {
+            prompt: "Wirklich?".into(),
+            detail: String::new(),
+            always: std::sync::Arc::default(),
+            physical: false,
+            answer,
+        };
+        core.handle(reply(id, event));
+        let said = Reply::Said {
+            text: "Wirklich?".into(),
+            at: Instant::now(),
+            len: Duration::from_millis(500),
+        };
+        core.handle(Input::Reply(id, said));
+        say(&mut core, "Ja.");
+        assert_eq!(rx.try_recv(), Ok(Some(true)));
+        say(&mut core, "Ja.");
+        assert!(sub.try_recv().is_err(), "no answer without the key");
+        assert!(core.sub_confirm.is_some());
+    }
+
     /// A question that takes a key names its keys as the card does.
     #[test]
     fn the_spoken_keys_are_spelled_as_on_the_card() {

@@ -2599,6 +2599,38 @@ mod tests {
         }
     }
 
+    /// A question of the chat leaves the mark of a key question that
+    /// shows (`Tools::physical`): `inject_input` stays refused.
+    #[tokio::test]
+    async fn a_chat_question_keeps_the_mark_of_a_key_question() {
+        let script = vec![
+            Reply::Tool("voice__settings__set", r#"{"patch": {"barge_in_ms": 300}}"#),
+            Reply::Text("Erledigt."),
+        ];
+        let server = fake::llm(script).await;
+        let (mut tools, _) = tools::tests::fake(0);
+        tools.own = "voice".into();
+        let config = Config {
+            llm_url: server.url.clone(),
+            ..Config::default()
+        };
+        let mut chat = Chat::start(config, "voice-mcp".into(), tools, None)
+            .await
+            .unwrap();
+        chat.tools.physical.store(true, Ordering::SeqCst);
+        let open = chat.tools.physical.clone();
+        let asked = Mutex::new(Vec::new());
+        chat.turn("Stell das um.", &|event| {
+            if let Event::Confirm { answer, .. } = event {
+                asked.lock().unwrap().push(open.load(Ordering::SeqCst));
+                let _ = answer.send(Some(true));
+            }
+        })
+        .await;
+        assert_eq!(asked.into_inner().unwrap(), [true]);
+        assert!(chat.tools.physical.load(Ordering::SeqCst));
+    }
+
     /// The LLM wraps the patch of another plugin's `settings.set` as in
     /// its own settings tool; the wrapper goes.
     #[test]
