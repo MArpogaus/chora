@@ -40,12 +40,12 @@ honest state words.
 4. **An ordinary window.** The title is "Help and Support"; the blue task
    pane at the left lists the topics (Start a program, Find a window, Chat
    with a helper, Change the volume, Keyboard shortcuts), the page is
-   white at the right. F1 and Super+F1 open it on Keyboard shortcuts;
-   Escape closes it. It has a button on the taskbar, which raises it, and
+   white at the right. Super+F1 and Super+/ open it on Keyboard shortcuts;
+   F1 is no binding and reaches the window. Escape closes it. It has a button on the taskbar, which raises it, and
    an entry in Alt+Tab, first while it has the focus.
 5. **The key table is generated.** It is made from the bindings that the
-   plugin holds (`help::rows`), grouped "Start and find", "The helper" and
-   "Windows", one key cap per chord: button face, 1 px `#8C8A7F`, 2 px at
+   plugin holds (`help::rows`), grouped "Start and find", "The helper",
+   "Windows" and "The computer", one key cap per chord: button face, 1 px `#8C8A7F`, 2 px at
    the bottom. A binding that the plugin does not hold is not listed, and
    a test fails when a bound key is missing from the table.
 

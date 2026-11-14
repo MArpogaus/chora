@@ -83,14 +83,13 @@ impl Wallpaper {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Session {
-    /// Without it, Turn Off ends chora-xp.
+    /// Without it, Turn Off runs the shared power script.
     pub turn_off: Option<String>,
-    /// Without it, Restart starts chora-xp again.
+    /// Without it, Restart runs the shared power script.
     pub restart: Option<String>,
     /// Without it, Stand By is disabled.
     pub stand_by: Option<String>,
-    /// Without it, Log Off closes the windows and ends chora-xp. The
-    /// default `choractl quit` ends chora.
+    /// Without it, Log Off runs the shared power script.
     pub log_off: Option<String>,
 }
 
@@ -214,10 +213,10 @@ mod tests {
         assert_eq!(config.wallpaper.picture, Picture::Default);
         assert_eq!(config.wallpaper.color, wallpaper::DESKTOP_BLUE);
         let session = config.session;
-        assert_eq!(session.turn_off.as_deref(), Some("systemctl poweroff"));
-        assert_eq!(session.restart.as_deref(), Some("systemctl reboot"));
+        assert_eq!(session.turn_off, None);
+        assert_eq!(session.restart, None);
         assert_eq!(session.stand_by.as_deref(), Some("systemctl suspend"));
-        assert_eq!(session.log_off.as_deref(), Some("choractl quit"));
+        assert_eq!(session.log_off, None);
     }
 
     #[test]
@@ -303,7 +302,7 @@ mod tests {
         assert_eq!(file.value.terminal, "kitty");
         assert_eq!(file.value.file_manager, "thunar");
         let session = &file.value.session;
-        assert_eq!(session.turn_off.as_deref(), Some("systemctl poweroff"));
+        assert_eq!(session.stand_by.as_deref(), Some("systemctl suspend"));
         assert_eq!(session.log_off, None);
         std::fs::remove_dir_all(dir).unwrap();
     }

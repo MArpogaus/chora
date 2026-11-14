@@ -94,6 +94,7 @@ impl Tooltip {
                 parent: parent.into(),
                 props: PropsUpdate {
                     image: Some(image),
+                    meta: Some([("text".to_owned(), pending.text.clone())].into()),
                     transform: Some(Transform::translate(f64::from(x), f64::from(y), 0.0)),
                     ..PropsUpdate::default()
                 },

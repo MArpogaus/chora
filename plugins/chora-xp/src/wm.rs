@@ -11,7 +11,7 @@ mod resize;
 mod restart;
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     path::Path,
     time::{Duration, Instant},
 };
@@ -22,6 +22,7 @@ use chora_kit::{
     notify::{Message, Notifier},
     runtime::{Plugin, Runtime},
     settings::{self, Store},
+    shared,
     volume::{self, Mixer, Reading},
     words::{self, Language, Word},
 };
@@ -97,7 +98,7 @@ const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 const FADE: Duration = Duration::from_millis(1500);
 
 /// The events of the core that the plugin handles.
-const EVENTS: [&str; 21] = [
+const EVENTS: [&str; 22] = [
     "client.disconnected",
     "surface.created",
     "surface.changed",
@@ -119,6 +120,7 @@ const EVENTS: [&str; 21] = [
     "effects.dropped",
     "node.requested",
     "voice.state",
+    "voice.remove",
 ];
 
 /// The methods that other clients call with the client name, as
@@ -178,21 +180,32 @@ pub enum Key {
     Volume(volume::Change),
     /// Opens the chat, as on tiling.
     Chat,
-    /// F1 opens Help and Support on the keyboard shortcuts.
+    /// Super+F1 opens Help and Support on the keyboard shortcuts.
     Help,
+    /// Super+/ opens the same help, without a row of its own.
+    HelpAlias,
+    /// Super+Shift+Escape locks the screen.
+    Lock,
+    /// Super+Shift+e opens the Turn Off dialog.
+    Power,
+    /// Super+Print takes a screenshot.
+    Screenshot,
 }
 
 /// The bindings: Ctrl+Alt+arrows turn the cube, as in Compiz. Super+Ctrl
 /// stands in when another client holds them. The media keys and the chat
 /// key are those of tiling.
-pub const KEYS: [(&str, &str, Key); 20] = [
+pub const KEYS: [(&str, &str, Key); 23] = [
     ("Super+Super_L", "", Key::Tap),
     ("Super+Super_R", "", Key::Tap),
     ("Ctrl+Escape", "", Key::Start),
     ("Super+d", "", Key::Desktop),
     ("Super+space", "", Key::Launcher),
-    ("F1", "", Key::Help),
     ("Super+F1", "", Key::Help),
+    ("Super+slash", "", Key::HelpAlias),
+    ("Super+Shift+Escape", "", Key::Lock),
+    ("Super+Shift+e", "", Key::Power),
+    ("Super+Print", "", Key::Screenshot),
     ("Super+BTN_LEFT", "", Key::Cube),
     ("Alt+F4", "", Key::Close),
     ("Alt+Tab", "", Key::Switch(1)),
@@ -266,33 +279,43 @@ fn add_help(entries: &mut Vec<switcher::Entry>, help: switcher::Entry, active: b
     entries.insert(at, help);
 }
 
-/// What voice announces about the helper: its state and the microphone.
+/// What voice announces about the helpers: the state and task of each
+/// by name, and whether the microphone is off.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Helper {
-    state: Option<String>,
+    agents: BTreeMap<String, (String, String)>,
     mic_off: bool,
 }
 
 impl Helper {
-    /// The helper of a `voice.state` of voice itself; none for the state
-    /// of a named helper, which is not the voice of the person.
-    fn of(data: &Value) -> Option<Self> {
-        if data.get("name").is_some() {
-            return None;
+    /// Takes in a `voice.state`: of a named helper, or of voice itself.
+    fn follow(&mut self, data: &Value) {
+        let text = |key: &str| data[key].as_str().unwrap_or_default().to_owned();
+        match data["name"].as_str() {
+            Some(name) => {
+                self.agents
+                    .insert(name.to_owned(), (text("state"), text("task")));
+            }
+            None => self.mic_off = data["muted"]["mic"].as_bool().unwrap_or(false),
         }
-        Some(Self {
-            state: data["state"].as_str().map(str::to_owned),
-            mic_off: data["muted"]["mic"].as_bool().unwrap_or(false),
-        })
     }
 
-    /// The word of its tooltip: "Voice off" while the microphone is off,
-    /// else the state word, else the name of the door.
-    fn word(&self) -> Word {
-        match (self.mic_off, &self.state) {
-            (true, _) => Word::VoiceOff,
-            (false, Some(state)) => words::state(state).unwrap_or(Word::ChatLauncher),
-            (false, None) => Word::ChatLauncher,
+    /// Takes in a `voice.remove`: the helper is gone.
+    fn forget(&mut self, data: &Value) {
+        if let Some(name) = data["name"].as_str() {
+            self.agents.remove(name);
+        }
+    }
+
+    /// The words of its tooltip: "Voice off" while the microphone is off,
+    /// else the row of the first helper, else "No helper".
+    fn tip(&self, language: Language) -> String {
+        if self.mic_off {
+            return Word::VoiceOff.text(language).to_owned();
+        }
+        match self.agents.iter().next() {
+            Some((name, (state, task))) => words::row(language, name, state, task),
+            None => Word::NoHelperDoor.text(language).to_owned(),
         }
     }
 }
@@ -783,10 +806,20 @@ impl Wm {
                 event,
                 client,
                 data,
-            } if event == "voice.state" && client == "voice" => self.voice_state(&data),
+            } if event == "voice.state" && client == "voice" => self.voice_state(&data, false),
+            Event::Emitted {
+                event,
+                client,
+                data,
+            } if event == "voice.remove" && client == "voice" => self.voice_state(&data, true),
             Event::ClientDisconnected { name } => {
                 self.floats.owner_gone(&name);
-                Vec::new()
+                if name == "voice" && self.helper != Helper::default() {
+                    self.helper = Helper::default();
+                    self.trays()
+                } else {
+                    Vec::new()
+                }
             }
             event @ (Event::InputKey { .. }
             | Event::InputButton { .. }
@@ -942,15 +975,21 @@ impl Wm {
     /// The tooltip of the helper: its state word, or "Voice off" while the
     /// microphone is off.
     fn helper_tip(&self) -> String {
-        self.helper.word().text(Language::of_session()).to_owned()
+        self.helper.tip(Language::of_session())
     }
 
     /// The state of the helper that voice announces: the tray icon shows
     /// the microphone and the tooltip the state word.
-    fn voice_state(&mut self, data: &Value) -> Vec<Command> {
-        let Some(helper) = Helper::of(data).filter(|helper| *helper != self.helper) else {
+    fn voice_state(&mut self, data: &Value, gone: bool) -> Vec<Command> {
+        let mut helper = self.helper.clone();
+        if gone {
+            helper.forget(data);
+        } else {
+            helper.follow(data);
+        }
+        if helper == self.helper {
             return Vec::new();
-        };
+        }
         self.helper = helper;
         self.trays()
     }
@@ -1820,7 +1859,16 @@ impl Wm {
                 self.start_program(control::CHAT);
                 Vec::new()
             }
-            Some(Key::Help) => self.open_help(help::KEYBOARD),
+            Some(Key::Help | Key::HelpAlias) => self.open_help(help::KEYBOARD),
+            Some(Key::Lock) => {
+                self.run_shared("power", &["lock"]);
+                Vec::new()
+            }
+            Some(Key::Power) => self.open_dialog(Mode::TurnOff, None),
+            Some(Key::Screenshot) => {
+                self.run_shared("screenshot", &[]);
+                Vec::new()
+            }
             Some(Key::Cube | Key::Tap) | None => Vec::new(),
         }
     }
@@ -2895,8 +2943,11 @@ impl Wm {
 
     /// Starts a program and follows it until its window shows.
     fn start_program(&mut self, command: &str) {
+        let name = launch::program_name(command);
         let command = launch::themed(command, &self.theme.path("fuzzel.ini"));
-        self.start_named(&command, launch::program_name(&command));
+        let data = shared::data_dirs(std::env::var("XDG_DATA_DIRS").ok().as_deref());
+        let command = launch::with_shared_entries(&command, data.as_deref());
+        self.start_named(&command, name);
     }
 
     /// Starts a program that the user knows by another name than its
@@ -2967,6 +3018,14 @@ impl Wm {
             Action::TurnOff => self.open_dialog(Mode::TurnOff, output),
             Action::Set(setting) => self.set(setting, output),
             Action::Help => self.open_help(0),
+            Action::Lock => {
+                self.run_shared("power", &["lock"]);
+                Vec::new()
+            }
+            Action::Screenshot => {
+                self.run_shared("screenshot", &[]);
+                Vec::new()
+            }
         }
     }
 
@@ -3729,45 +3788,50 @@ impl Wm {
     }
 
     /// Does what a button of a dialog says: runs the command of the
-    /// settings, or acts on chora-xp without one.
+    /// settings, or the shared power script without one.
     fn choose(&mut self, choice: Choice) -> Vec<Command> {
-        let mut commands = self.close_dialog();
+        let commands = self.close_dialog();
         let session = self.settings.value.session.clone();
         match choice {
+            Choice::Lock => self.run_shared("power", &["lock"]),
             Choice::LogOff => {
                 self.play(Sound::LogOff);
-                if let Some(command) = session.log_off {
-                    session::run(command);
-                    return commands;
-                }
-                let surfaces: Vec<String> =
-                    self.windows.iter().map(|w| w.surface.clone()).collect();
-                for surface in surfaces {
-                    commands.extend(close(&surface));
-                }
-                self.done = true;
+                self.run_session(session.log_off, "logout");
             }
             Choice::StandBy => session.stand_by.into_iter().for_each(session::run),
             Choice::TurnOff => {
                 self.play(Sound::ShutDown);
-                match session.turn_off {
-                    Some(command) => session::run(command),
-                    None => self.done = true,
-                }
+                self.run_session(session.turn_off, "shutdown");
             }
-            Choice::Restart => {
-                if let Some(command) = session.restart {
-                    session::run(command);
-                } else {
-                    self.floats.land_all();
-                    commands.extend(self.keep_for_restart());
-                    self.done = true;
-                    self.restart = true;
-                }
-            }
+            Choice::Restart => self.run_session(session.restart, "restart"),
             Choice::SwitchUser | Choice::Cancel => {}
         }
         commands
+    }
+
+    /// Runs the command that the person set, or else the action of the
+    /// shared power script.
+    fn run_session(&mut self, own: Option<String>, action: &str) {
+        match own {
+            Some(command) => session::run(command),
+            None => self.run_shared("power", &[action]),
+        }
+    }
+
+    /// Runs a shared script; a notice says so when it is not installed.
+    fn run_shared(&mut self, script: &str, args: &[&str]) {
+        if let Some(command) = shared::command(script, args) {
+            session::run(command);
+            return;
+        }
+        let body = format!("The file {script}.sh of the shared scripts is not installed.");
+        let message = Message {
+            icon: "",
+            summary: "Cannot do that",
+            body: &body,
+            expire_ms: 10_000,
+        };
+        self.notifier.show("chora-xp", None, &message);
     }
 }
 
@@ -4376,19 +4440,19 @@ mod tests {
     }
 
     #[test]
-    fn the_helper_tooltip_is_the_state_word_and_voice_off_while_the_microphone_is_off() {
-        let word = |data: Value| Helper::of(&data).map(|h| h.word());
-        assert_eq!(word(json!({"state": "working"})), Some(Word::Working));
-        assert_eq!(word(json!({})), Some(Word::ChatLauncher));
-        assert_eq!(
-            word(json!({"state": "listening", "muted": {"mic": true}})),
-            Some(Word::VoiceOff)
-        );
-        assert_eq!(
-            word(json!({"state": "listening", "muted": {"mic": false}})),
-            Some(Word::Listening)
-        );
-        assert_eq!(word(json!({"name": "coder", "state": "working"})), None);
+    fn the_helper_tooltip_names_the_helper_and_says_no_helper_without_one() {
+        let mut helper = Helper::default();
+        let tip = |helper: &Helper| helper.tip(Language::En);
+        assert_eq!(tip(&helper), "No helper");
+        helper.follow(&json!({"state": "listening"}));
+        assert_eq!(tip(&helper), "No helper");
+        helper.follow(&json!({"name": "coder", "state": "working", "task": "Write"}));
+        assert_eq!(tip(&helper), "coder · working · Write");
+        helper.follow(&json!({"state": "listening", "muted": {"mic": true}}));
+        assert_eq!(tip(&helper), "Voice off");
+        helper.follow(&json!({"state": "listening", "muted": {"mic": false}}));
+        helper.forget(&json!({"name": "coder"}));
+        assert_eq!(tip(&helper), "No helper");
     }
 
     #[test]

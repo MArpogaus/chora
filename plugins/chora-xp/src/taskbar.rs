@@ -535,6 +535,7 @@ impl Bar {
                 &format!("xp-tray-{}", self.output),
                 PropsUpdate {
                     image: Some(theme.render(&picture)),
+                    meta: Some([("text".to_owned(), clock.unwrap_or_default().to_owned())].into()),
                     ..at(left, 0.0)
                 },
             ),

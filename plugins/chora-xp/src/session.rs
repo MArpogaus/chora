@@ -13,8 +13,9 @@ use crate::{
 
 /// The dialog with its one pixel black border.
 pub const SIZE: [i32; 2] = [314, 200];
-/// The big buttons: the icon and the label below it.
-const BUTTON: [i32; 2] = [76, 54];
+/// The big buttons: the icon and the label below it, as wide as the
+/// dialog has room for.
+const BUTTON_HEIGHT: i32 = 54;
 const ICON: i32 = 33;
 const ICON_Y: i32 = 81;
 const CANCEL: Rect = [222, 164, 80, 28];
@@ -44,7 +45,7 @@ void main() {
 pub enum Mode {
     /// Log Off Windows: Switch User and Log Off.
     LogOff,
-    /// Turn off computer: Stand By, Turn Off and Restart.
+    /// Turn off computer: Lock, Log Off, Stand By, Turn Off and Restart.
     TurnOff,
 }
 
@@ -53,14 +54,18 @@ pub enum Mode {
 pub enum Choice {
     /// Always disabled: chora has no second session to switch to.
     SwitchUser,
-    /// Runs the command of the settings; by default it asks every window
-    /// to close and ends chora-xp.
+    /// Locks the screen with the shared power script.
+    Lock,
+    /// Runs the command of the settings, by default the shared power
+    /// script.
     LogOff,
     /// Runs the command of the settings, by default `systemctl suspend`.
     StandBy,
-    /// Runs the command of the settings, by default `systemctl poweroff`.
+    /// Runs the command of the settings, by default the shared power
+    /// script.
     TurnOff,
-    /// Runs the command of the settings, by default `systemctl reboot`.
+    /// Runs the command of the settings, by default the shared power
+    /// script.
     Restart,
     /// Closes the dialog.
     Cancel,
@@ -81,32 +86,44 @@ pub struct Button {
     pub rect: Rect,
 }
 
+/// A button as the table lists it: the choice, the label, the icon file,
+/// whether it is enabled, and the left edge of its icon.
+type Spec = (Choice, &'static str, &'static str, bool, i32);
+
 /// The buttons of a dialog, Cancel last. Stand By is enabled only when its
 /// command is on `$PATH`.
 pub fn buttons(mode: Mode, suspend: bool) -> Vec<Button> {
     // The left edges of the icons in XP's screenshots.
-    let list: &[(Choice, &str, &str, bool, i32)] = match mode {
-        Mode::LogOff => &[
-            (
-                Choice::SwitchUser,
-                "Switch User",
-                "winxp/switch-user.svg",
-                false,
-                84,
-            ),
-            (Choice::LogOff, "Log Off", "winxp/log-off.svg", true, 199),
-        ],
-        Mode::TurnOff => &[
-            (
-                Choice::StandBy,
-                "Stand By",
-                "winxp/stand-by.svg",
-                suspend,
-                55,
-            ),
-            (Choice::TurnOff, "Turn Off", "winxp/turn-off.svg", true, 141),
-            (Choice::Restart, "Restart", "winxp/restart.svg", true, 226),
-        ],
+    let (width, list): (i32, &[Spec]) = match mode {
+        Mode::LogOff => (
+            76,
+            &[
+                (
+                    Choice::SwitchUser,
+                    "Switch User",
+                    "winxp/switch-user.svg",
+                    false,
+                    84,
+                ),
+                (Choice::LogOff, "Log Off", "winxp/log-off.svg", true, 199),
+            ],
+        ),
+        Mode::TurnOff => (
+            56,
+            &[
+                (Choice::Lock, "Lock", "winxp/lock.svg", true, 28),
+                (Choice::LogOff, "Log Off", "winxp/log-off.svg", true, 84),
+                (
+                    Choice::StandBy,
+                    "Stand By",
+                    "winxp/stand-by.svg",
+                    suspend,
+                    140,
+                ),
+                (Choice::TurnOff, "Turn Off", "winxp/turn-off.svg", true, 196),
+                (Choice::Restart, "Restart", "winxp/restart.svg", true, 252),
+            ],
+        ),
     };
     let mut out: Vec<Button> = list
         .iter()
@@ -115,7 +132,7 @@ pub fn buttons(mode: Mode, suspend: bool) -> Vec<Button> {
             title,
             icon: Some(icon),
             enabled,
-            rect: [x - (BUTTON[0] - ICON) / 2, ICON_Y, BUTTON[0], BUTTON[1]],
+            rect: [x - (width - ICON) / 2, ICON_Y, width, BUTTON_HEIGHT],
         })
         .collect();
     out.push(Button {
@@ -218,18 +235,22 @@ impl Dialog {
                 },
             },
         ];
-        for (i, button) in self.buttons.iter().enumerate() {
-            commands.push(Command::Create {
-                id: button_id(i),
-                kind: NodeKind::Image,
-                parent: DIALOG.into(),
-                props: PropsUpdate {
-                    image: Some(self.render(theme, i)),
-                    ..at([button.rect[0], button.rect[1]])
-                },
-            });
-        }
+        commands.extend((0..self.buttons.len()).map(|i| self.create_button(theme, i)));
         commands
+    }
+
+    fn create_button(&self, theme: &mut Theme, i: usize) -> Command {
+        let button = &self.buttons[i];
+        Command::Create {
+            id: button_id(i),
+            kind: NodeKind::Image,
+            parent: DIALOG.into(),
+            props: PropsUpdate {
+                image: Some(self.render(theme, i)),
+                meta: Some([("text".to_owned(), button.title.to_owned())].into()),
+                ..at([button.rect[0], button.rect[1]])
+            },
+        }
     }
 
     /// Removes the dialog.
@@ -392,15 +413,13 @@ mod tests {
     fn the_buttons_sit_where_xp_has_them() {
         let turn_off = buttons(Mode::TurnOff, true);
         let lefts: Vec<i32> = turn_off.iter().map(|b| b.rect[0]).collect();
-        // The icons of Stand By, Turn Off and Restart start at 55, 141 and
-        // 226; Cancel is last.
-        assert_eq!(lefts, [55 - 21, 141 - 21, 226 - 21, 222]);
-        assert_eq!(turn_off[3].choice, Choice::Cancel);
+        assert_eq!(lefts, [28 - 11, 84 - 11, 140 - 11, 196 - 11, 252 - 11, 222]);
+        assert_eq!(turn_off[5].choice, Choice::Cancel);
         let log_off = buttons(Mode::LogOff, true);
         assert_eq!(log_off.len(), 3);
         assert!(!log_off[0].enabled && log_off[1].enabled);
         // Stand By is disabled without a way to suspend.
-        assert!(!buttons(Mode::TurnOff, false)[0].enabled);
+        assert!(!buttons(Mode::TurnOff, false)[2].enabled);
     }
 
     #[test]

@@ -1705,7 +1705,7 @@ reads the insets of a slice in pixels of the file. The pictures:
   the comment of the account is empty), two pinned rows, Terminal with
   "Type commands" and Chat with a helper with "Ask the helper in your
   words", then the `programs` without subtitles, places, the Control Panel,
-  Help and Support, Run, Log Off and Turn Off Computer, and All Programs
+  Help and Support, Run, Screenshot, Lock, Log Off and Turn Off Computer, and All Programs
   with the applications of
   the desktop files in `$XDG_DATA_HOME/applications` and `$XDG_DATA_DIRS`,
   in program groups by their main category;
@@ -1929,7 +1929,10 @@ keyboard does not work it (D45):
   desktop buttons 1 to 4 are 24 by 24 pixels with the tooltip `Desktop 2
   of 4`, and the clock has the date. `wpctl` runs on a thread of its own,
   at most 2 seconds a call, after each change and every 5 seconds; a click
-  on the speaker mutes or unmutes. Group
+  on the speaker mutes or unmutes. The tooltip of the paperclip names the
+  first helper and its state, as in `coder · idle`, says `Voice off` while
+  the microphone is off, and says `No helper` while no helper runs. The nodes
+  of the clock and of the tooltips carry their text in `meta.text`. Group
   similar taskbar buttons, Show Quick Launch, Hide inactive icons and
   Customize are gray: `chora-xp` has neither grouping, Quick Launch nor
   hidden icons.
@@ -1991,19 +1994,24 @@ core. Cancel and the close button close it without a change:
   quality, Troubleshoot and Advanced are gray.
 
 Log Off and Turn Off Computer open XP's dialogs in the middle of the
-output, and the desktop behind them fades to gray in 1.5 seconds. They
-are modal: the start menu, the switcher and the system menu wait until
+output, and the desktop behind them fades to gray in 1.5 seconds. Super+Shift+e
+opens the Turn Off dialog too. It has the buttons Lock, Log Off, Stand By,
+Turn Off and Restart; the Log Off dialog has Switch User and Log Off. Lock
+in the footer of the start menu locks the screen at once. The dialogs are
+modal: the start menu, the switcher and the system menu wait until
 they close, and the method `start_menu` fails meanwhile. As on XP,
 they have no default button and take no keys: Return does nothing, a
 click chooses. Each button runs its command of the setting `session`
-(D63):
+(D63). Without a command (`null`), Lock, Log Off, Restart and Turn Off run the
+shared script `power.sh` with `lock`, `logout`, `restart` or `shutdown`, and a
+notice says so when the script is not installed:
 
 | Button | Default command | Without a command (`null`) |
 |--------|-----------------|----------------------------|
-| Turn Off | `systemctl poweroff` | ends `chora-xp` and shuts nothing down |
-| Restart | `systemctl reboot` | runs `chora-xp` again, as the method `restart` does |
+| Turn Off | `null` | `power.sh shutdown` |
+| Restart | `null` | `power.sh restart` |
 | Stand By | `systemctl suspend` | disabled |
-| Log Off | `choractl quit`, which ends chora through the core method `session.quit` | asks every window to close and ends `chora-xp` |
+| Log Off | `null` | `power.sh logout`, which ends the login session |
 
 Stand By is also disabled when the first word of its command is not on
 the `PATH`. A command such as `loginctl terminate-session
@@ -2062,7 +2070,10 @@ of another client changes nothing.
 | Super+d | show the desktop: puts the windows of the desktop away; pressed again, brings the same windows back |
 | Super+Space | open the launcher, the command of `launcher`, which is the Run box of the start menu |
 | Super+e | open the home folder in the file manager; when `file_manager` is not installed, a balloon says so and names the setting. It no longer starts the terminal |
-| F1, Super+F1 | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. Escape closes the window. A key without Ctrl, Alt or Super needs `choractl grant xp input.grab-any`; without the grant, Super+F1 works (the construct's F1 is the same) |
+| Super+F1, Super+/ | open Help and Support on Keyboard shortcuts, a window of its own: a task pane of topics at the left and the page at the right. The table of keys is made from the bindings that `chora-xp` holds, grouped and one key cap per chord, so a key that another client holds is not listed. It names the lock, power, screenshot and volume keys. Super+/ has no row of its own. Escape closes the window. F1 is no binding of `chora-xp`: it reaches the focused window |
+| Super+Shift+Escape | lock the screen with `power.sh lock` |
+| Super+Shift+e | open the Turn Off dialog with Lock, Log Off, Stand By, Turn Off and Restart |
+| Super+Print | take a screenshot with the shared script `screenshot.sh`; a notice names the file. The entry Screenshot of the start menu does the same |
 | Super+a | open the chat (`chora-chat`), as on tiling |
 | XF86AudioRaiseVolume, XF86AudioLowerVolume, XF86AudioMute | change the volume of the default sound output by 5% or mute it, through `wpctl`, and show the volume for 1.5 seconds as a notification that the next press replaces; the same keys work in tiling |
 | Super+Alt+1, Super+Alt+2, Super+Alt+3, Super+Alt+4 | give the focused window to tiling, xp, mc or construct (D55), whoever owns it; the same keys work in tiling, mc and construct, and the window manager that started first holds them |
@@ -2087,7 +2098,7 @@ caller on a client socket needs `methods.privileged` besides
 | `start_menu` | `open`: whether the menu should be open afterwards | a click on the start button of the first output |
 | `minimize` | `surface` | a click on the task button of the active window |
 | `restore`, `activate` | `surface` | a click on the task button: the window comes back, is raised and focused, and the cube turns to its desktop |
-| `restart` | none | Restart in the Turn Off dialog without a command: `chora-xp` runs again and reads its settings file |
+| `restart` | none | `chora-xp` runs again and reads its settings file |
 | `turn_to` | `desktop`: a number from 0 to 3 | a click on the desktop button; nothing while all outputs are virtual ones |
 | `window.move` | `surface`, `output`: the name of an output that `chora-xp` manages, and optionally `at`: a point of that output | privileged. A drag of the title bar onto that output: with `at` the middle of the title bar goes to that point, as after a drop there; else the window goes to the same place there, as far as it fits. The window is raised and focused; an unknown surface or output fails with code 1 |
 | `windows.float` | `output`, a virtual output that `chora-xp` manages, and `on` | privileged. While `on`, the groups `xp-win-SURFACE` of the windows that show on the output have opacity 0, so the output shows the wallpaper, the icons and the taskbar without them; a node with opacity 0 still shows in a node texture, so the caller, such as the construct with its cube, shows each group on a plane of its own. Answers `output` and `windows`, the lowest of the stack first, each with `node`, `surface` and `rect`, its place on the output; the top 12 float. `chora-xp` emits the event `xp.floating` with the same data when the windows of a floating output change. A window that leaves the output, and every window when the output goes or `on` is false, gets its opacity back: the one that another client asked for it, else 1. The windows of all outputs land before a restart of `chora-xp`, and those of the outputs of a client when that client disconnects, so that no window stays hidden. Refused for a screen. The shape and the helpers are in `chora_kit::float`, for other window managers |
