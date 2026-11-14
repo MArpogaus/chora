@@ -1,9 +1,9 @@
 # State
 
-## Now (2026-11-14 20:39 UTC)
+## Now (2026-11-14 21:32 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (friction 44, 45 closed; heartbeat ok 18:03)
 budget: Fable 71 % at 16:44, near its limit now (workers report overage); use it up, max 2 lanes; then opus
-session branch: de55f346 (train 5, 20:38 UTC: flakes, ci-rc, docs, xtc, core r1-r3, mc r1-r5; 24/24 green).
+session branch: 4e3c019e (train 6, 21:32 UTC: ci r2, plugins high; 24/24 green).
 rc target: 11-21 (criterion 11). Burn-down check 11-16.
 
 ## RC (design/rc.md)
@@ -13,9 +13,9 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | 1b | Owner sees looks in the 11 screencast | with 11 |
 | 2 | Persona round 4 | not started |
 | 3 | Three greens in a row | flakes: F14, F13, flick fixed; 3 in a row on claude/flakes; new: xp cascade race, construct-layout 2560 |
-| 4 | CI green | ci-rc merged; CI PR not opened |
-| 5 | Packaging smoke | GitHub Actions jobs in the CI PR |
-| 6 | Code review per area | core done and merged; plugins r1: 3 HIGH in a lane |
+| 4 | CI green | draft PR #106 to dev (session branch); CI running |
+| 5 | Packaging smoke | packages.yaml runs in PR #106 |
+| 6 | Code review per area | core done; plugins r1 HIGH fixed; MEDIUM security of plugins open |
 | 7 | deny, machete | clean (ci-rc) |
 | 8 | Docs, CHANGELOG, known issues | docs merged; changelog by cz at the tag |
 | 9 | Logging audit, flakes closed | V02 done; audit not started |
@@ -25,15 +25,13 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | Lane | Where | Brief | State |
 |---|---|---|---|
 | flakes | cloud Fable ..PL9EE, claude/flakes 55c527d4 | briefs/flakes-r3.md | r2 merged (R1 open, exception); r3: R1, F15, races |
-| ci r2 | claude/ci-r2 2f8417ed | briefs/ci-r2.md | MERGE-OK; train 6 |
 | doors | cloud Fable ..PZrjj, claude/doors dd8669a4 | briefs/doors-r3.md | dr2-1 BLOCK, dr2-2 MAJOR |
-| plugins high | claude/plugins-high 961a24ed | briefs/plugins-high-r1.md | MERGE-OK; train 6 |
 
 ## Queue
-1. Plugins HIGH lane; verify ti-1 (doors r3), co-1. (rc 1, 6)
+1. Watch PR #106 CI; fix what fails. (rc 4, 5)
 2. doors r3 review and merge. (rc 1)
 3. Flakes r3: xp cascade race, construct-layout 2560, F15 lost first key, F7, A5, A17. (rc 3)
-4. CI PR with packaging jobs; merge-gate --locked; fuzzel 1.11 in setup. (rc 4, 5, 7)
+4. Verify ti-1 (doors r3), co-1; plugins review MEDIUM security. (rc 1, 6)
 5. MAJOR fix lanes per look from findings/; pixel pass per look. (rc 1)
 6. Persona round 4; logging audit; screencast rewrite (Mon). (rc 2, 9, 11)
 7. Final review rounds (two clean), three greens, tag. (rc 3)
