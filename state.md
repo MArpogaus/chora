@@ -26,7 +26,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 |---|---|---|---|
 | flakes | cloud Fable ..PL9EE, claude/flakes 55c527d4 | briefs/flakes-r3.md | r2 merged (R1 open, exception); r3: R1, F15, races |
 | ci r3 | cloud opus ..MJWhG, claude/ci-r3 | briefs/ci-r3.md | PR #106 check, coverage: 9 font tests |
-| ci e2e | claude/ci-e2e 4300c2d4 | briefs/ci-e2e-r1.md | done: test bugs (rects, filtered green); in review |
+| ci e2e | cloud sonnet ..P9gSn, claude/ci-e2e 4300c2d4 | briefs/ci-e2e-r2.md | r1 FIX: C1 stale frame check |
 | doors | cloud Fable ..MVWzg, claude/doors cb203c68 | briefs/doors-r4.md | r3 FIX: dr3-1 helper word rule |
 
 ## Queue
