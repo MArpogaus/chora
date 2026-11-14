@@ -487,10 +487,7 @@ impl Chat {
             );
         }
         if let Some(coder) = &self.tools.coder {
-            coder.set_cmd(
-                self.config.spawn(&self.config.coder_cmd),
-                self.config.key_envs(),
-            );
+            coder.set_cmd(self.config.spawn(&self.config.coder_cmd));
         }
         if let Some(agents) = &self.tools.agents {
             agents.configure(&self.config);

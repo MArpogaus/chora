@@ -1006,14 +1006,13 @@ pub mod tests {
         let (tx, _rx) = std::sync::mpsc::channel();
         let coder = Coder::new(
             Vec::new(),
-            Vec::new(),
             std::env::temp_dir().join("chora-voice-none"),
             tx,
         );
         tools.coder = Some(coder.clone());
         tools.refresh().await;
         assert_eq!(tools.specs.len(), 6, "no harness, no coding tools");
-        coder.set_cmd(vec!["true".into()], Vec::new());
+        coder.set_cmd(vec!["true".into()]);
         tools.refresh().await;
         tools.refresh().await;
         let names: Vec<_> = tools.specs[6..]

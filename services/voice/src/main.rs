@@ -222,7 +222,7 @@ fn run(name: String, settings: settings::File<Config>) -> Result<(), String> {
     let mut tools = Tools::chora(&config, &mcp);
     tools.own.clone_from(&name);
     let harness = config.spawn(&config.coder_cmd);
-    let coder = coder::Coder::new(harness, config.key_envs(), coder::data_dir(), tx.clone());
+    let coder = coder::Coder::new(harness, coder::data_dir(), tx.clone());
     tools.coder = Some(coder.clone());
     let agents = agents::Agents::new(&config, coder::data_dir(), tx.clone());
     tools.agents = Some(agents.clone());

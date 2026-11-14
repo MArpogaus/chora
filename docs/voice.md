@@ -583,7 +583,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_url`, `asr_model` | `ws://127.0.0.1:8881/v1/realtime?intent=transcription`, `gufo` |
 | `tts_url`, `tts_model` | `ws://127.0.0.1:8882/v1/audio/speech/stream`, `gufo` |
 | `llm_url`, `llm_model` | `http://127.0.0.1:8888/v1`, `gufo` |
-| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key; the sub-agents, the coding harness and `chora_mcp` start without these variables) |
+| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key; `chora_mcp` starts without these variables; the sub-agents and the coding harness keep them, so a harness can use the same key) |
 | `asr_api_key_file`, `tts_api_key_file`, `llm_api_key_file` | `""` (no key; else the file with the key, `%d` is `$CREDENTIALS_DIRECTORY`) |
 | `asr_headers`, `tts_headers`, `llm_headers` | `{}` (extra headers, name: value) |
 | `asr_language` | `auto` (the ASR finds the language; else a code such as `de`) |

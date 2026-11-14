@@ -54,8 +54,6 @@ pub struct Coder {
 
 struct Inner {
     cmd: Vec<String>,
-    /// The variables with the API keys, which no harness gets.
-    keys: Vec<String>,
     job: Option<Job>,
     /// The spoken result of the last task.
     last: String,
@@ -77,12 +75,10 @@ pub fn data_dir() -> PathBuf {
 }
 
 impl Coder {
-    /// A harness `cmd` that runs without the variables `keys`.
-    pub fn new(cmd: Vec<String>, keys: Vec<String>, data: PathBuf, tx: Sender<Input>) -> Self {
+    pub fn new(cmd: Vec<String>, data: PathBuf, tx: Sender<Input>) -> Self {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 cmd,
-                keys,
                 job: None,
                 last: String::new(),
             })),
@@ -95,12 +91,10 @@ impl Coder {
         self.inner.lock().expect("no panic with the lock")
     }
 
-    /// A new harness and the variables it runs without; an empty
-    /// harness turns the tools off. A running task goes on.
-    pub fn set_cmd(&self, cmd: Vec<String>, keys: Vec<String>) {
-        let mut inner = self.lock();
-        inner.cmd = cmd;
-        inner.keys = keys;
+    /// A new harness; an empty one turns the tools off. A running task
+    /// goes on.
+    pub fn set_cmd(&self, cmd: Vec<String>) {
+        self.lock().cmd = cmd;
     }
 
     /// The function specs for the LLM; none without a harness.
@@ -282,10 +276,8 @@ impl Coder {
             std::fs::File::create(&log_path).map_err(|e| format!("{}: {e}", log_path.display()))?;
         let err = log.try_clone().map_err(|e| e.to_string())?;
         let (program, args) = cmd.split_first().ok_or("coder_cmd is empty")?;
-        let mut command = tokio::process::Command::new(program);
-        crate::config::without_keys(command.as_std_mut(), &self.lock().keys);
         // Its own process group, so that a stop ends what it started too.
-        let mut child = command
+        let mut child = tokio::process::Command::new(program)
             .args(args)
             .arg(task)
             .current_dir(dir)
@@ -560,7 +552,7 @@ mod tests {
         let data = temp("coder-check");
         std::fs::create_dir_all(data.join("inventory/demo")).unwrap();
         let (tx, _rx) = mpsc::channel();
-        let coder = Coder::new(sh("true"), Vec::new(), data.clone(), tx);
+        let coder = Coder::new(sh("true"), data.clone(), tx);
         assert_eq!(coder.call("list_projects", &json!({})), "demo");
         let answer = |args| coder.call("code_task", &args).as_str().unwrap().to_owned();
         assert!(answer(json!({"task": " -rf"})).contains("must not"));
@@ -577,7 +569,7 @@ mod tests {
         let data = temp("coder-keys");
         let (tx, rx) = mpsc::channel();
         let script = r#"echo "${HOME-unset}" > home.txt"#;
-        let coder = Coder::new(sh(script), vec!["HOME".into()], data.clone(), tx);
+        let coder = Coder::new(sh(script), data.clone(), tx);
         coder.call("code_task", &json!({"task": "warte"}));
         tokio::task::spawn_blocking(move || events(&rx))
             .await
@@ -601,7 +593,6 @@ mod tests {
             sh(
                 r#"echo "$1" > task.txt; git remote; echo working; echo '{"type":"result","result":"Alles gut."}'"#,
             ),
-            Vec::new(),
             data.clone(),
             tx,
         );
@@ -655,12 +646,7 @@ mod tests {
     async fn a_cancel_stops_the_task_and_its_children() {
         let data = temp("coder-cancel");
         let (tx, rx) = mpsc::channel();
-        let coder = Coder::new(
-            sh("sleep 30 & echo $! > pid; wait"),
-            Vec::new(),
-            data.clone(),
-            tx,
-        );
+        let coder = Coder::new(sh("sleep 30 & echo $! > pid; wait"), data.clone(), tx);
         coder.call("code_task", &json!({"task": "warte"}));
         let dir = data.join("worktrees/1");
         let start = Instant::now();
