@@ -383,8 +383,7 @@ fn fuzzel(c: &Colors) -> String {
          \n\
          [border]\n\
          width=1\n\
-         radius=12\n\
-         selection-radius=8\n"
+         radius=12\n"
     )
 }
 
@@ -1053,7 +1052,7 @@ mod tests {
         let all = files(&ink);
         let text = |n: &str| all.iter().find(|(k, _)| *k == n).unwrap().1.clone();
         assert!(text("fuzzel.ini").contains("background=1a1d27ff"));
-        assert!(text("fuzzel.ini").contains("selection-radius=8"));
+        assert!(!text("fuzzel.ini").contains("selection-radius"));
         let mako = text("mako.conf");
         assert!(mako.contains("background-color=#1a1d27"));
         assert!(mako.contains("border-color=#2e3344"));
