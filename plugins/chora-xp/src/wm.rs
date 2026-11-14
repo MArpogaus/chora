@@ -317,7 +317,7 @@ pub struct Wm {
     drag: Option<Drag>,
     resize: Option<Resize>,
     last_title: Option<(String, Instant)>,
-    cascade: i32,
+    places: window::Places,
     clock: String,
     /// The desktop that shows.
     desktop: usize,
@@ -474,7 +474,7 @@ impl Wm {
             drag: None,
             resize: None,
             last_title: None,
-            cascade: 0,
+            places: window::Places::default(),
             desktop: 0,
             hover: None,
             pointer_output: None,
@@ -1029,6 +1029,9 @@ impl Wm {
         window.icon = window_icon(&mut self.icons, window.app_id.as_deref());
         // A window keeps its desktop over a restart.
         window.desktop = self.kept.get(surface).map_or(self.desktop, |k| k.desktop);
+        if !self.kept.contains_key(surface) {
+            window.turn = self.places.turn();
+        }
         let desk = desk_id(window.desktop);
         self.windows.push(window);
         self.opened.push(surface.into());
@@ -1095,8 +1098,8 @@ impl Wm {
             w.minimized = k.minimized;
         } else if first && !self.windows[i].maximized() {
             // A window maximized before its first commit keeps its place.
-            let outer = self.windows[i].outer();
-            self.windows[i].pos = window::cascade(&mut self.cascade, outer, area);
+            let (turn, outer) = (self.windows[i].turn, self.windows[i].outer());
+            self.windows[i].pos = self.places.place(turn, outer, area);
         }
         self.windows[i].shown = true;
         // A kept minimized window stays hidden.
@@ -2440,7 +2443,7 @@ impl Wm {
             })
             .collect();
         let tiles = columns.map(|c| window::tile(chosen.len(), area, c));
-        let mut step = 0;
+        let mut places = window::Places::default();
         let mut commands = Vec::new();
         for (n, i) in chosen.into_iter().enumerate() {
             let active = self.is_active(&self.windows[i].surface);
@@ -2449,7 +2452,8 @@ impl Wm {
                 commands.push(w.fit(tiles[n], active));
             } else {
                 commands.extend(w.unmaximize(active));
-                w.pos = window::cascade(&mut step, w.outer(), area);
+                let turn = places.turn();
+                w.pos = places.place(turn, w.outer(), area);
             }
             commands.extend(w.style(&mut self.theme, active));
         }

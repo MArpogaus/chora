@@ -107,6 +107,8 @@ pub struct Window {
     pub framed: bool,
     /// The window shows: it has a size and a place.
     pub shown: bool,
+    /// The turn of the window among the new windows, for its place.
+    pub turn: i32,
     /// The button of the title bar that is down.
     pub pressed: Option<Button>,
     /// The button of the title bar under the pointer.
@@ -129,6 +131,7 @@ impl Window {
             held: false,
             framed: true,
             shown: false,
+            turn: 0,
             pressed: None,
             hovered: None,
         }
@@ -389,22 +392,37 @@ pub fn title_of(title: Option<&str>, app_id: Option<&str>) -> String {
         .to_string()
 }
 
-/// The place of a new window: cascaded from the top-left corner of an
-/// area, 30 pixels per window, back at the corner when it would leave the
-/// area.
-pub fn cascade(step: &mut i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32; 2] {
-    let at = |n: i32| [ax + 24 + 30 * n, ay + 24 + 30 * n];
-    let mut pos = at(*step);
-    if pos[0] + w > ax + aw || pos[1] + h > ay + ah {
-        *step = 0;
-        pos = at(0);
+/// The places of new windows: cascaded from the top-left corner of an
+/// area, 30 pixels per window, back at the corner when a window would
+/// leave the area.
+#[derive(Default)]
+pub struct Places {
+    next: i32,
+    step: i32,
+}
+
+impl Places {
+    /// The turn of a new window, taken when the window comes.
+    pub fn turn(&mut self) -> i32 {
+        self.next += 1;
+        self.next - 1
     }
-    *step += 1;
-    // A window larger than the area starts at its corner.
-    [
-        pos[0].min(ax + aw - w).max(ax),
-        pos[1].min(ay + ah - h).max(ay),
-    ]
+
+    /// The place of the window of a turn, once the window has a size.
+    /// A window larger than the area starts at its corner.
+    pub fn place(&mut self, _turn: i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32; 2] {
+        let at = |n: i32| [ax + 24 + 30 * n, ay + 24 + 30 * n];
+        let mut pos = at(self.step);
+        if pos[0] + w > ax + aw || pos[1] + h > ay + ah {
+            self.step = 0;
+            pos = at(0);
+        }
+        self.step += 1;
+        [
+            pos[0].min(ax + aw - w).max(ax),
+            pos[1].min(ay + ah - h).max(ay),
+        ]
+    }
 }
 
 /// The frames of `count` windows tiled over an area: in rows one above
@@ -553,20 +571,33 @@ mod tests {
 
     #[test]
     fn windows_cascade_and_wrap() {
-        let mut step = 0;
+        let mut places = Places::default();
         let area = [0, 0, 1280, 770];
-        assert_eq!(cascade(&mut step, [600, 400], area), [24, 24]);
-        assert_eq!(cascade(&mut step, [600, 400], area), [54, 54]);
-        step = 20;
-        assert_eq!(cascade(&mut step, [600, 400], area), [24, 24]);
-        assert_eq!(step, 1);
+        let mut place = |size| {
+            let turn = places.turn();
+            places.place(turn, size, area)
+        };
+        assert_eq!(place([600, 400]), [24, 24]);
+        assert_eq!(place([600, 400]), [54, 54]);
+        assert_eq!(place([600, 700]), [24, 24]);
+        assert_eq!(place([600, 400]), [54, 54]);
+    }
+
+    #[test]
+    fn windows_cascade_in_the_order_in_which_they_came() {
+        let mut places = Places::default();
+        let area = [0, 0, 1280, 770];
+        let (first, second) = (places.turn(), places.turn());
+        assert_eq!(places.place(second, [600, 400], area), [54, 54]);
+        assert_eq!(places.place(first, [600, 400], area), [24, 24]);
     }
 
     #[test]
     fn a_huge_window_starts_at_the_corner() {
-        let mut step = 3;
+        let mut places = Places::default();
+        let turn = places.turn();
         assert_eq!(
-            cascade(&mut step, [2000, 1000], [10, 20, 1280, 770]),
+            places.place(turn, [2000, 1000], [10, 20, 1280, 770]),
             [10, 20]
         );
     }
