@@ -6,5 +6,9 @@ PM watchdog (every 2 h, rules.md Routines). First check that /home/user/wt/log i
 ## PM self-check, cron `50 12 * * *`, bound to the PM session
 PM daily self-check (rules.md, routines.md). 1) Answer the three questions in rules.md (RC burn-down on track? reviewed branch unmerged > 12 h? anything running not in the Queue?). 2) Spawn one independent opus critic (read-only, own context) on the last 24 h of state.md, answers.md, friction.md and the session-log and session-branch commits; it lists what the PM did wrong, missed or overstated. 3) Answer each critic point and the three questions in one block of reflections/selfcheck-<UTC date>.md, time from date -u. Each "no" or accepted point gets its action now or tops the Queue. One log commit. Reply in two lines plus done, running, next, blocked, budget.
 
-## PM heartbeat, cron `40 */2 * * *`, fresh session per fire, haiku, push on
-Read-only liveness check of the chora PM session PM_ID. Call get_session for PM_ID and list_events for it with kinds ["result"] and limit 20. Alarm when: the session is archived or its status_bucket is failed; or one of its last three result events contains "blocked by hook" or "Compaction blocked"; or its newest result event is older than 3 hours (the watchdog fires every 2 hours). A result that only reports a usage limit is no alarm. Healthy: reply exactly "heartbeat: ok". Alarm: reply one line "PM DOWN: <reason>, since <UTC time>; take over with tools/takeover.sh (README of claude/session-log, section PM down)". Do not message, change or archive any session.
+## PM heartbeat, cron `40 */2 * * *`, bound to the host session session_016iS3kMXcFBp1rUJFnYbcQj (haiku, with the repo)
+Sessions without a repo never start in this environment (friction 45), so the heartbeat runs in a small
+persistent haiku session that has the repo. On a takeover only the PM id in the prompt changes (or the
+prompt reads it from state.md). Prompt: see trigger trig_01Pwz3VkyKtmTZhv46srXYvG; on an alarm it pushes
+to the owner with PushNotification. The first heartbeat trigger trig_01UQ3xs5ZbNC3LAKuMB7px8R (fresh
+session, no repo) is disabled.

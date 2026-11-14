@@ -1,5 +1,5 @@
 # Standing owner decisions: time UTC, sentence verbatim -> reading. Full log: answers.md
-screened-through: 2026-11-14T17:17:00Z
+screened-through: 2026-11-14T17:18:00Z
 
 - 11-14 16:54Z (fixes 16:47) "Fable darf gerne aufgebraucht werden. Ich löse den Reset aus." "...sollten wir weniger parallele Fable-Lanes fahren als bisher." -> use Fable up this week: max 2 Fable lanes, then none until next week
 - 11-14 17:02Z "der Dev-Branch gilt mit unseren lokalen Überschreibungen" -> conventions.md
