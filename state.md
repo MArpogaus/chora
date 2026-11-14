@@ -1,6 +1,7 @@
 # State
 
-## Now (2026-11-14 05:19 UTC)
+## Now (2026-11-14 10:05 UTC)
+limit: 5-hour limit hit 05:43-09:00; lanes idle until 10:05 (PM missed the reset; fix: send_later at each reset)
 budget: Fable 4 %, all 3 % (owner, 11-14 04:51 UTC)
 session branch: 498d9dea (train 4, 11-14 05:18 UTC: mc, construct, tiling, xp r4, swarm5, harness; full gate green on run 2, run 1 F10).
 rc target: 11-20 (was 11-18; recomputed 11-14 after W2-1). Next check: 11-16.
@@ -22,14 +23,14 @@ rc target: 11-20 (was 11-18; recomputed 11-14 after W2-1). Next check: 11-16.
 ## Lanes
 | Lane | Where | Brief | State |
 |---|---|---|---|
-| flakes | local Fable, wt/flakes, claude/flakes | briefs/flakes-r1.md | queue 1; running |
-| ci | cloud sonnet, claude/ci-rc | briefs/ci-r1.md | queue 2; running |
-| doors | cloud Fable, claude/doors | briefs/doors-r1.md | queue 3; running |
-| mc | cloud Fable, claude/mc-fix | briefs/mc-r1.md | queue 3; starting |
-| xtc | cloud Fable, claude/xtc-fix | briefs/xtc-r1.md | queue 3; starting |
-| review core | cloud Fable, claude/review-core | briefs/review-core-r1.md | queue 4; starting |
-| review plugins | cloud Fable, read-only | briefs/review-plugins-r1.md | queue 4; starting |
-| docs | cloud sonnet, claude/docs | briefs/docs-r1.md | queue 7; starting |
+| flakes | local Fable aa88415, wt/flakes, claude/flakes | briefs/flakes-r1.md | queue 1; resumed 10:05 after limit |
+| ci | cloud sonnet ..MMUYU, claude/ci-rc | briefs/ci-r1.md | queue 2; resumed 10:05 after limit |
+| doors | cloud Fable ..N9VG6, claude/doors | briefs/doors-r1.md | queue 3; done 05:42, to review |
+| mc | cloud Fable ..QEL2G, claude/mc-fix | briefs/mc-r1.md | queue 3; resumed 10:05 after limit |
+| xtc | cloud Fable ..QVmwt, claude/xtc-fix | briefs/xtc-r1.md | queue 3; resumed 10:05 after limit |
+| review core | cloud Fable ..MFd4q, claude/review-core | briefs/review-core-r1.md | queue 4; done, to read |
+| review plugins | cloud Fable ..MS4P5, read-only | briefs/review-plugins-r1.md | queue 4; done, to read |
+| docs | cloud sonnet ..NQmGA, claude/docs | briefs/docs-r1.md | queue 7; done 41d02965, to review |
 
 ## Queue
 1. Flakes: core SIGSEGV pair, cube navigate-click, "xp runs already", construct deaf, chora-voice. (rc 3)
