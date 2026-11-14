@@ -106,6 +106,9 @@ pub enum Word {
     Waiting,
     /// The hint of the input field.
     FieldHint,
+    /// The hint of the input field in the margin column, which names the
+    /// helper: `{to}`.
+    WriteTo,
     /// The voice control does not answer.
     Offline,
     /// Closing the chat does not stop a helper.
@@ -200,7 +203,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 79] = [
+pub const ALL: [Word; 80] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -235,6 +238,7 @@ pub const ALL: [Word; 79] = [
     Word::TypingNoAnswer,
     Word::Waiting,
     Word::FieldHint,
+    Word::WriteTo,
     Word::Offline,
     Word::CloseNote,
     Word::NoHelper,
@@ -329,6 +333,7 @@ impl Word {
             Self::TypingNoAnswer => "Typing does not answer.",
             Self::Waiting => "A question is waiting.",
             Self::FieldHint => "Type a message, then Enter.",
+            Self::WriteTo => "Write to {to}",
             Self::Offline => "Cannot reach voice control. Trying again every 5 s.",
             Self::CloseNote => "{name} goes on working.",
             Self::NoHelper => "No helper is set up. Ask the person who set up this computer.",
@@ -420,6 +425,7 @@ impl Word {
             Self::TypingNoAnswer => "Tippen beantwortet die Frage nicht.",
             Self::Waiting => "Eine Frage wartet.",
             Self::FieldHint => "Nachricht eingeben, dann Enter.",
+            Self::WriteTo => "An {to} schreiben",
             Self::Offline => "Sprachsteuerung nicht erreichbar. Neuer Versuch alle 5 s.",
             Self::CloseNote => "{name} arbeitet weiter.",
             Self::NoHelper => {

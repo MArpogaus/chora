@@ -93,3 +93,43 @@ fn the_construct_folder_names_the_voice_state_beside_its_ring() {
         .expect("a voice panel");
     assert_eq!(ring.text.as_deref(), Some("{state}"));
 }
+
+/// The kit lets a colour pass at 4.5:1 for every folder; mc reads at three
+/// metres and holds 7:1 for each colour of its panels and each colour of
+/// its pictures on the fill of the panel.
+#[test]
+fn the_state_of_mc_reads_at_seven_to_one_in_both_themes() {
+    let folder = repo("plugins/chora-mc/hud");
+    let mc = shipped("plugins/chora-mc/hud");
+    for panel in mc.panels.iter().filter(|p| p.source == Source::Voice) {
+        let fill = panel.fill.expect("the state panel has a fill");
+        for (key, colour) in [
+            ("text", panel.colours.text),
+            ("accent", panel.colours.accent),
+        ] {
+            let ratio = hud::contrast(colour.expect(key), fill);
+            assert!(ratio >= 7.0, "{} {key}: {ratio:.2}:1", panel.id);
+        }
+        let picture = panel.picture.as_deref().unwrap();
+        let svg = std::fs::read_to_string(folder.join(picture.split('#').next().unwrap())).unwrap();
+        let accent = panel.colours.accent.unwrap();
+        let hex = format!("#{:02x}{:02x}{:02x}", accent[0], accent[1], accent[2]);
+        for (at, _) in svg
+            .match_indices("fill=\"#")
+            .chain(svg.match_indices("stroke=\"#"))
+        {
+            let from = svg[at..].find('#').unwrap() + at;
+            let found = &svg[from..from + 7];
+            let rgb: Vec<u8> = (0..3)
+                .map(|i| u8::from_str_radix(&found[1 + 2 * i..3 + 2 * i], 16).unwrap())
+                .collect();
+            let rgb = [rgb[0], rgb[1], rgb[2]];
+            let grey = rgb.iter().max().unwrap() - rgb.iter().min().unwrap() < 0x20;
+            if rgb == fill || grey {
+                continue;
+            }
+            assert_eq!(found, hex, "{}: a mark in a colour of its own", panel.id);
+            assert!(hud::contrast(rgb, fill) >= 7.0, "{} {found}", panel.id);
+        }
+    }
+}

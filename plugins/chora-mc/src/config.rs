@@ -201,6 +201,22 @@ pub struct Type {
 }
 
 impl Type {
+    /// The family of this type, as written in the style.
+    pub fn family(&self) -> Option<&str> {
+        self.style.family.as_deref()
+    }
+
+    pub fn weight(&self) -> Option<u16> {
+        self.style.weight
+    }
+
+    /// The capitals of this type, from the top of its text box.
+    pub fn ink(&self) -> crate::fonts::Ink {
+        let style = &self.style;
+        let family = style.family.as_deref();
+        crate::fonts::ink(family, style.weight, self.size, self.line)
+    }
+
     /// The props of a text node with this type.
     pub fn props(&self, text: &str) -> PropsUpdate {
         let style = &self.style;
@@ -534,8 +550,7 @@ mod tests {
         (x.max(y) + 0.05) / (x.min(y) + 0.05)
     }
 
-    /// The colors that carry text read on the paper: `text` at 7:1, the
-    /// rest at 4.5:1, in both themes.
+    /// The colors that carry text read on the paper at 7:1 in both themes.
     #[test]
     fn the_text_colors_have_contrast_on_the_page() {
         let config = parse::<Config>(DEFAULT).unwrap();
@@ -544,10 +559,8 @@ mod tests {
             ("dark", &config.themes.dark),
         ] {
             let page = colors["background"];
-            let least = [("text", 7.0)]
-                .into_iter()
-                .chain(["muted", "accent", "green", "amber", "blue", "red"].map(|c| (c, 4.5)));
-            for (name, least) in least {
+            let names = ["text", "muted", "accent", "green", "amber", "blue", "red"];
+            for (name, least) in names.map(|c| (c, 7.0)) {
                 let ratio = contrast(colors[name], page);
                 assert!(
                     ratio >= least,
@@ -639,7 +652,9 @@ mod tests {
         for colors in [&config.themes.light, &config.themes.dark] {
             let command = region::command(&config.contents["shell"].command, colors);
             assert!(!command.contains('{'), "{command}");
-            assert!(command.contains("colors-dark.regular5="), "{command}");
+            assert!(command.contains("colors.regular5="), "{command}");
+            assert!(!command.contains("colors-dark"), "{command}");
+            assert!(command.contains("pixelsize=15"), "{command}");
         }
     }
 

@@ -20,25 +20,25 @@ themes:
   light:
     background: [0.97, 0.96, 0.93, 1.0]
     text: [0.16, 0.15, 0.14, 1.0]
-    muted: [0.431, 0.412, 0.380, 1.0]
+    muted: [0.33, 0.315, 0.29, 1.0]
     faint: [0.83, 0.81, 0.77, 1.0]
     accent: [0.55, 0.14, 0.12, 1.0]
-    green: [0.25, 0.46, 0.33, 1.0]
-    amber: [0.588, 0.384, 0.078, 1.0]
-    blue: [0.22, 0.38, 0.58, 1.0]
-    red: [0.70, 0.13, 0.12, 1.0]
+    green: [0.193, 0.354, 0.254, 1.0]
+    amber: [0.445, 0.291, 0.059, 1.0]
+    blue: [0.189, 0.327, 0.499, 1.0]
+    red: [0.628, 0.117, 0.108, 1.0]
     magenta: [0.52, 0.25, 0.50, 1.0]
     cyan: [0.16, 0.46, 0.49, 1.0]
   dark:
     background: [0.11, 0.11, 0.11, 1.0]
     text: [0.85, 0.83, 0.79, 1.0]
-    muted: [0.55, 0.54, 0.51, 1.0]
+    muted: [0.68, 0.67, 0.64, 1.0]
     faint: [0.26, 0.26, 0.25, 1.0]
-    accent: [0.80, 0.47, 0.40, 1.0]
+    accent: [0.848, 0.597, 0.544, 1.0]
     green: [0.52, 0.72, 0.56, 1.0]
     amber: [0.88, 0.70, 0.38, 1.0]
     blue: [0.55, 0.69, 0.86, 1.0]
-    red: [0.92, 0.42, 0.38, 1.0]
+    red: [0.938, 0.552, 0.521, 1.0]
     magenta: [0.78, 0.58, 0.78, 1.0]
     cyan: [0.52, 0.76, 0.76, 1.0]
 # The font sizes are steps of a modular scale: base times ratio to the
@@ -189,7 +189,7 @@ states:
   thinking: {sign: ◌, color: blue}
   working: {sign: ●, color: green}
   speaking: {sign: ◐, color: accent}
-  question: {sign: '?', color: amber, label: has a question}
+  question: {sign: ●, color: amber, label: has a question}
   blocked: {sign: ✕, color: red}
   done: {sign: ✓, color: green}
   asleep: {sign: ☾, color: faint}
@@ -221,7 +221,7 @@ contents:
   time: {kind: clock, format: '%H:%M'}
   state: {kind: state}
   hud: {kind: hud}
-  agents: {kind: agents}
+  agents: {kind: agents, title: Helpers}
   notify: {kind: text, title: Notifications, empty: true, folds: true, style: {base: body}}
   urgent: {kind: text, style: {base: running_head, color: red}}
   # The chat of the HUD host in the margin column: a door while it is
@@ -231,27 +231,32 @@ contents:
   confirm: {kind: text, style: {base: mono}}
   overlay: {kind: text, title: Tests, style: {base: mono, color: muted}}
   next: {kind: text}
+  prev: {kind: text}
   keys: {kind: keys}
   notes: {kind: text, title: Notes}
   outline: {kind: text, title: Outline}
-  # foot in the colors of the theme, also in the terminal scene. The
-  # section colors-dark needs foot 1.26 or later.
+  # foot in the colors of the theme, also in the terminal scene, at 15
+  # pixels with the line of the baseline grid, so that no text of mc is
+  # under 14 pixels. The section is colors, which every foot
+  # reads: foot 1.26 and later take it as colors-dark, and before 1.26 a
+  # section colors-dark is an error that fills the terminal.
   shell:
     kind: app
     command: >-
-      foot -o pad=0x0
-      -o colors-dark.background={background} -o colors-dark.foreground={text}
-      -o 'colors-dark.cursor={background} {text}'
-      -o colors-dark.selection-background={faint}
-      -o colors-dark.selection-foreground={text}
-      -o colors-dark.regular0={faint} -o colors-dark.bright0={muted}
-      -o colors-dark.regular1={red} -o colors-dark.bright1={red}
-      -o colors-dark.regular2={green} -o colors-dark.bright2={green}
-      -o colors-dark.regular3={amber} -o colors-dark.bright3={amber}
-      -o colors-dark.regular4={blue} -o colors-dark.bright4={blue}
-      -o colors-dark.regular5={magenta} -o colors-dark.bright5={magenta}
-      -o colors-dark.regular6={cyan} -o colors-dark.bright6={cyan}
-      -o colors-dark.regular7={text} -o colors-dark.bright7={text}
+      foot -o pad=0x0 -o 'font=DejaVu Sans Mono:pixelsize=15'
+      -o line-height=28px
+      -o colors.background={background} -o colors.foreground={text}
+      -o 'cursor.color={background} {text}'
+      -o colors.selection-background={faint}
+      -o colors.selection-foreground={text}
+      -o colors.regular0={faint} -o colors.bright0={muted}
+      -o colors.regular1={red} -o colors.bright1={red}
+      -o colors.regular2={green} -o colors.bright2={green}
+      -o colors.regular3={amber} -o colors.bright3={amber}
+      -o colors.regular4={blue} -o colors.bright4={blue}
+      -o colors.regular5={magenta} -o colors.bright5={magenta}
+      -o colors.regular6={cyan} -o colors.bright6={cyan}
+      -o colors.regular7={text} -o colors.bright7={text}
 # Which content goes where: the first rule that matches wins. A rule names
 # a content or a kind, optionally the scenes (names, @app or @page), a
 # region and a slot. In a line a slot below 0 goes left, 0 in the middle,
@@ -261,9 +266,9 @@ rules:
 - {content: hud, scenes: ['@app'], region: header, slot: 0}
 - {content: urgent, region: footer, slot: 0}
 - {content: agents, scenes: ['@app'], region: header, slot: 1}
-- {content: state, scenes: ['@app'], region: header, slot: 2}
 - {content: clock, region: header, slot: 3}
 - {content: hud, region: footer, slot: -1}
+- {content: prev, scenes: ['@page'], region: footer, slot: -2}
 - {content: next, scenes: ['@page'], region: footer, slot: 1}
 - {content: state, region: right, slot: -3}
 - {content: agents, region: right, slot: -2}
@@ -299,6 +304,7 @@ presets:
     - {content: state, region: header, slot: 2}
     - {content: clock, region: header, slot: 3}
     - {content: hud, region: footer, slot: -1}
+    - {content: prev, scenes: ['@page'], region: footer, slot: -2}
     - {content: next, scenes: ['@page'], region: footer, slot: 1}
     - {content: outline, region: left, slot: 0}
     - {content: notes, region: left, slot: 1}

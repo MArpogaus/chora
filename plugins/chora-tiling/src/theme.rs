@@ -591,8 +591,8 @@ pub fn flavor_dirs() -> Vec<std::path::PathBuf> {
 }
 
 /// The value of `XDG_DATA_DIRS` that lets the launcher list the
-/// `applications` folder of the flavor (the entries Screenshot and
-/// Screenshot of an area): the first directory that has one, in front
+/// `applications` folder of the flavor (the entries Screenshot, Screenshot
+/// of an area and the looks): the first directory that has one, in front
 /// of what `current` says, or of the default of the specification.
 #[must_use]
 pub fn data_dirs(dirs: &[std::path::PathBuf], current: Option<&str>) -> Option<String> {
@@ -607,7 +607,7 @@ pub fn data_dirs(dirs: &[std::path::PathBuf], current: Option<&str>) -> Option<S
 pub const INSTALLED: &str = "/usr/share/chora/flavors/tiling";
 
 /// The script that a program of the flavor runs, `sh power.sh` for
-/// `power` and `sh screenshot.sh` for `screenshot`, or the name of the
+/// `power`, `sh screenshot.sh` for `screenshot` and `sh look.sh` for `look`, or the name of the
 /// script that no directory has.
 fn script_line(program: &str, dirs: &[std::path::PathBuf]) -> Result<Vec<String>, LaunchError> {
     let name = format!("{program}.sh");
@@ -662,6 +662,14 @@ impl LaunchError {
                 "Ausschaltmenü nicht installiert",
                 "Die Datei power.sh des Tiling-Flavors fehlt.",
             ),
+            ("look", false) => (
+                "Look switch not installed",
+                "The file look.sh of the tiling flavor was not found.",
+            ),
+            ("look", true) => (
+                "Look-Umschalter nicht installiert",
+                "Die Datei look.sh des Tiling-Flavors fehlt.",
+            ),
             (_, false) => (
                 "Screenshot not installed",
                 "The file screenshot.sh of the tiling flavor was not found.",
@@ -714,7 +722,7 @@ pub fn launch_line(
                 .into_iter()
                 .flat_map(|f| ["-C".into(), f]),
         ),
-        "screenshot" | "power" => line = script_line(program, dirs)?,
+        "screenshot" | "power" | "look" => line = script_line(program, dirs)?,
         "swaybg" => {
             let names = [scheme_wallpaper(scheme), "wallpaper.png"];
             match find(&names) {
@@ -952,15 +960,28 @@ mod tests {
         let shot = std::fs::read_to_string(apps.join("chora-screenshot.desktop")).unwrap();
         assert!(shot.contains("\nName=Screenshot\n"));
         assert!(shot.contains("\nExec=chora-tiling --launch screenshot\n"));
+        for (file, name, word) in [
+            ("chora-look-light.desktop", "Light look", "light"),
+            ("chora-look-dark.desktop", "Dark look", "dark"),
+            ("chora-look-system.desktop", "System look", "system"),
+        ] {
+            let entry = std::fs::read_to_string(apps.join(file)).unwrap();
+            assert!(entry.contains(&format!("\nName={name}\n")), "{file}");
+            assert!(
+                entry.contains(&format!("\nExec=chora-tiling --launch look {word}\n")),
+                "{file}"
+            );
+        }
     }
 
     #[test]
     fn a_missing_script_is_an_error_and_never_true() {
         let none = [std::path::PathBuf::from("/nonexistent/flavor")];
-        for program in ["power", "screenshot"] {
+        for program in ["power", "screenshot", "look"] {
             let err = launch_line(program, &[], &none, Scheme::Ink).unwrap_err();
             assert!(err.to_string().contains(&format!("{program}.sh")));
-            assert!(err.notice().0.contains("not installed"));
+            let (title, text) = err.notice();
+            assert!(text.contains(&format!("{program}.sh")), "{title}: {text}");
         }
     }
 

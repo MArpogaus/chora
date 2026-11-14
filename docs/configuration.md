@@ -259,7 +259,9 @@ The key list shows on `MOD+slash` and on the button **Keys** of the
 panel: a glass panel as wide as its longest word and 24 px more, so the
 margin is 24 px left of the keycaps and right of the words, and as high as
 its rows and 24 px more, centred on the current output, with the heading "Keys", the line
-"Super+/ shows this list again. Esc closes it." and the rows of every
+"Super+/ shows this list again. Esc closes it.", a line **Mouse** with the
+basics of the pointer (the Apps button starts a program, a click on a tag shows it,
+`Super+drag` moves a window, the power icon locks or ends the session) and the rows of every
 binding of the file in the groups Windows, Layouts, Tags, Programs and
 System: the keys on a keycap in JetBrains Mono, then the words of the
 action in Inter ("Next window"; `run` shows its command). Each group is
@@ -715,7 +717,7 @@ The default `desk` setup: the header shows the running head left, and
 the clock right; the footer shows
 the words of the agent left, a critical notification in red in the
 middle and the next entry of the agenda right (the collector fills the
-content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page); the right side shows the notes, which an agent fills
+content `next`; with no entry left it names the next page, `→ 2  The Morning`, and a click on it turns the page; the content `prev` at the left names the previous page, `← 1  Agenda`, and a click on it turns back; a click on the head of a page opens the page list, the overview); the right side shows the notes, which an agent fills
 with `content.add`, and the notifications below them, newest on top, and
 the key list at its foot. The state of the voice agent and the helpers
 stand at the top of that column, in the header only over an app. With `voice_hud: host` the first line of the column stays free for the state word of the host, and the helper rows are mc's own. The drawer holds nothing in `desk`; the
@@ -1416,8 +1418,9 @@ The package installs the tiling flavor (D51):
 ├── swaylock.conf                     # the lock screen in the palette
 ├── power.sh                          # the power menu: Lock, Log out, Restart, Shut down
 ├── screenshot.sh                     # grim and slurp, a file, the clipboard and a notice
+├── look.sh                           # Light look, Dark look and System look: look.theme at once
 ├── wallpaper.sh                      # swaybg again after a new theme, where no unit runs it
-├── applications/                     # the entries Screenshot and Screenshot of an area
+├── applications/                     # the entries Screenshot, Screenshot of an area and the three looks
 └── waybar/
     ├── config.jsonc                  # the modules of the panel
     ├── style.css                     # the look of the panel, three islands
@@ -1429,7 +1432,7 @@ The package installs the tiling flavor (D51):
 ```
 
 Each unit starts only when its program is installed. The packages
-recommend them: uwsm, foot, fuzzel, waybar, jq, mako, swaybg, swayidle,
+recommend them: uwsm, foot, fuzzel (1.11 or later, for the mouse), waybar, jq, mako, swaybg, swayidle,
 swaylock, kanshi, `xwayland-satellite`, `xdg-desktop-portal-wlr` and
 `xdg-desktop-portal-gtk`. mako starts from the unit of
 its own package and needs no configuration. The helpers of the scripts
@@ -1519,7 +1522,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   `accent` `#6d4aff`. Running programs keep the palette that they started
   with. The assistant's chat panel is drawn by `chora-assistant` and takes
   no part in the theme yet.
-- **The launcher**: `MOD+space` starts fuzzel in every look, and `MOD+r`
+- **The launcher**: `MOD+space` starts fuzzel in every look (fuzzel 1.11 or later: from 1.11 a left click selects and starts an entry and the wheel scrolls; 1.9.2 and older ignore the pointer, so the Apps button opens a list that answers keys only; 1.15 also fixes a click that started the wrong entry), and `MOD+r`
   does too, as the default bindings of `chora-tiling` say. The bindings
   start the programs of the flavor with `chora-tiling --launch PROGRAM`, which
   adds the config file of the palette: `foot.ini` for foot, `fuzzel.ini` for
@@ -1532,8 +1535,8 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   the flavor: `CHORA_FLAVOR_DIR`, `/usr/share/chora/flavors/tiling`, and the
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
-  `applications/` of the flavor too: **Screenshot** and **Screenshot of an
-  area** are the way for the mouse. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  `applications/` of the flavor too: **Screenshot**, **Screenshot of an
+  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of

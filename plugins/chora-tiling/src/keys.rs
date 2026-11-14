@@ -567,6 +567,13 @@ pub fn key_list(
     commands
 }
 
+/// Whether the renderer's size of the text node `id` counts for the width of
+/// the panel: the labels of the rows and the Mouse line.
+#[must_use]
+pub fn sets_width(id: &str) -> bool {
+    id.starts_with(KEYS) && (id.ends_with("-l") || id.ends_with("-b"))
+}
+
 /// The updates that make the panel as wide as its content: `right` is where
 /// the longest word ends, in the coordinates of the panel, which the
 /// renderer reports once it drew them. The panel keeps its height, takes
@@ -639,14 +646,24 @@ fn draw(items: &[Item], body: &str, colors: &Colors) -> Vec<Command> {
 
 fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
     let de = lang == Language::De;
-    let (name, hint) = if de {
+    let (name, hint, mouse, basics) = if de {
         (
             "Tasten",
             "Super+/ zeigt diese Liste wieder. Esc schließt sie.",
+            "Maus",
+            "Apps startet Programme · Tag anklicken zeigt ihn · Super+ziehen verschiebt · \
+             Ein/Aus-Symbol: Sitzung",
         )
     } else {
-        ("Keys", "Super+/ shows this list again. Esc closes it.")
+        (
+            "Keys",
+            "Super+/ shows this list again. Esc closes it.",
+            "Mouse",
+            "Apps starts a program · click a tag to show it · Super+drag moves a window · \
+             power icon: lock, log out",
+        )
     };
+    let muted = channels(&colors.muted);
     vec![
         text(
             &format!("{body}-t"),
@@ -658,7 +675,19 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
             &format!("{body}-h"),
             body,
             hint,
-            &Face::new([24.0, 48.0], 14.0, 400, channels(&colors.muted)),
+            &Face::new([120.0, 26.0], 14.0, 400, muted),
+        ),
+        text(
+            &format!("{body}-m"),
+            body,
+            mouse,
+            &Face::new([24.0, 56.0], 14.0, 600, muted),
+        ),
+        text(
+            &format!("{body}-b"),
+            body,
+            basics,
+            &Face::new([84.0, 56.0], 14.0, 400, channels(&colors.text)),
         ),
     ]
 }
@@ -919,6 +948,59 @@ mod tests {
         assert_eq!(first(2), "Show tag 1-9");
         assert_eq!(first(3), "Terminal");
         assert_eq!(groups[0].1[1].1, "Previous window");
+    }
+
+    fn words_of(commands: &[Command]) -> Vec<String> {
+        commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { props, .. } => props.text.clone(),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_list_has_a_mouse_line_under_its_header() {
+        let colors = Colors::of(Scheme::Ink);
+        let config = parse::<Config>(DEFAULT).unwrap();
+        let drawn = |lang| {
+            let rows = rows(&config, lang);
+            words_of(&key_list("screen:X", [1280.0, 800.0], &rows, &colors, lang))
+        };
+        let en = drawn(Language::En);
+        assert!(en.contains(&"Mouse".to_owned()), "{en:?}");
+        let line = en.iter().find(|w| w.starts_with("Apps")).expect("a line");
+        for part in ["Apps", "click a tag", "Super+drag", "power icon"] {
+            assert!(line.contains(part), "{part} in {line}");
+        }
+        let de = drawn(Language::De);
+        assert!(de.contains(&"Maus".to_owned()), "{de:?}");
+    }
+
+    #[test]
+    fn the_mouse_line_of_each_language_counts_for_the_width_of_the_panel() {
+        let colors = Colors::of(Scheme::Ink);
+        for (lang, start) in [(Language::En, "Apps"), (Language::De, "Apps")] {
+            let commands = header(&format!("{KEYS}-body"), &colors, lang);
+            let line = commands
+                .iter()
+                .find_map(|c| match c {
+                    Command::Create { id, props, .. }
+                        if props.text.as_deref().is_some_and(|t| t.starts_with(start)) =>
+                    {
+                        Some(id.clone())
+                    }
+                    _ => None,
+                })
+                .expect("a line");
+            assert!(sets_width(&line), "{line}");
+        }
+        let wide = fit_list([1280.0, 800.0], 640.0, 900.0);
+        let Command::Update { props, .. } = &wide[0] else {
+            panic!("no update of the panel");
+        };
+        assert_eq!(props.size, Some([924.0, 640.0]));
     }
 
     #[test]

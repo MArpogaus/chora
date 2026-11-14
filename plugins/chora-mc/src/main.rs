@@ -13,6 +13,8 @@
 )]
 
 mod agent;
+#[cfg(test)]
+mod audit;
 mod config;
 mod fonts;
 mod keys;
@@ -44,6 +46,7 @@ use serde_json::{Value, json};
 
 use crate::{
     config::{Action, Config, Layout, Style, Type},
+    fonts::Ink,
     region::{FIT_MS, Kind, MAX_LINES, PARKED, REGIONS, Region, Rule},
     scene::{Panel, Scene},
 };
@@ -1168,15 +1171,6 @@ fn title_of(name: &str) -> String {
     })
 }
 
-/// How far a note sits below the top of its line, so that its baseline
-/// meets the baseline of the body: both have the same line, and the core
-/// centers the glyphs in it.
-// ponytail: tuned by eye for TeX Gyre Pagella in the body and Inter in
-// the notes; read the ascent and descent of the fonts when this is off.
-fn baseline_shift(body: &Type, note: &Type) -> f64 {
-    (-0.2 * (body.size - note.size)).round()
-}
-
 /// Adds a word to a text, with a space after other words.
 fn push_word(text: &mut String, word: &str) {
     if !text.is_empty() {
@@ -1816,16 +1810,56 @@ impl Mc {
         }
     }
 
+    /// The phase of the one baseline grid: where the baseline of the
+    /// margin type stands in a line of the grid. Every baseline of the
+    /// page, of the head, the panels, the column and the footer, falls on
+    /// a line of the grid plus this.
+    pub fn phase(&self) -> f64 {
+        let ink = self.ty("margin", None).ink();
+        ink.top + ink.height
+    }
+
+    /// How far a text whose baseline would stand at `baseline` on the
+    /// output moves to stand on the nearest baseline of the grid, in whole
+    /// pixels; half a line moves down.
+    pub fn to_grid(&self, baseline: f64) -> f64 {
+        let b = self.settings.value.scale.baseline;
+        let up = (self.phase() - baseline).rem_euclid(b);
+        (if up > b / 2.0 { up - b } else { up }).round()
+    }
+
+    /// The place `rel` below the top of a block that stands at `top` on the
+    /// output, moved so that the baseline of a text of type `ty` that
+    /// starts there stands on the grid.
+    fn lift(&self, top: f64, rel: f64, ty: &Type) -> f64 {
+        let ink = ty.ink();
+        rel + self.to_grid(top + rel + ink.top + ink.height)
+    }
+
+    /// The top of the head of a scene: its line, moved so that the
+    /// baseline of the title stands on the grid.
+    fn head_y(&self) -> f64 {
+        let top = HEAD * self.settings.value.scale.baseline;
+        let ink = self.ty("chapter", None).ink();
+        top + self.to_grid(top + ink.top + ink.height)
+    }
+
     /// The bar between the number and the title of a head at `x`: a
-    /// hairline from the baseline of the title up to its capitals.
-    // ponytail: tuned by eye for TeX Gyre Pagella, as `baseline_shift`;
-    // read the metrics of the font when another font is off.
+    /// hairline from the capitals of the title down to its baseline.
     fn bar(&self, x: f64) -> [f64; 4] {
         let title = self.ty("chapter", None);
-        let baseline = HEAD * self.settings.value.scale.baseline + title.line / 2.0;
-        let baseline = baseline + 0.21 * title.size;
-        let cap = 0.69 * title.size;
-        [x, (baseline - cap).round(), 1.0, cap.round()]
+        let ink = title.ink();
+        [x, self.head_y() + ink.top, 1.0, ink.height]
+    }
+
+    /// The ink of a head part: how far its first ink starts after its box
+    /// and its last ink ends before the end of it, in pixels.
+    fn bearings(&self, style: &str, text: &str) -> [f64; 2] {
+        let ty = self.ty(style, None);
+        let (family, weight) = (ty.family(), ty.weight());
+        let text = ty.props(text).text.unwrap_or_default();
+        let em = family.and_then(|f| fonts::bearings(f, weight, &text));
+        em.unwrap_or([0.0; 2]).map(|e| e * ty.size)
     }
 
     /// Where the parts of the page of a scene go on the output.
@@ -1884,7 +1918,6 @@ impl Mc {
             return Vec::new();
         };
         let [x, _, _, _] = geo.text;
-        let b = geo.baseline;
         let chapter = &scene.chapter;
         let number = self.number(name);
         let title = chapter.title.clone().unwrap_or_else(|| title_of(name));
@@ -1909,7 +1942,7 @@ impl Mc {
                 ];
                 for (part, ty, text, x) in parts {
                     let props = PropsUpdate {
-                        transform: Some(translate(x, HEAD * b)),
+                        transform: Some(translate(x, self.head_y())),
                         ..ty.props(&text)
                     };
                     commands.push(create(
@@ -1919,10 +1952,80 @@ impl Mc {
                         props,
                     ));
                 }
+                commands.extend(self.head_hit(name));
             }
             Layout::None => {}
         }
         commands
+    }
+
+    /// The pointer hit of the head of a page, which opens the page list;
+    /// the overview itself has none.
+    fn head_hit(&self, name: &str) -> Vec<Command> {
+        if name == manage::OVERVIEW {
+            return Vec::new();
+        }
+        let ink = (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
+        region::hit_nodes(&chapter_id(name, "head"), &panels_id(name), ink).to_vec()
+    }
+
+    /// Moves the bar and the title of the head after the number, which is
+    /// `width` wide, and sizes the hit of the head to the three. The bar
+    /// stands in the middle between the ink of the number and that of
+    /// the title.
+    fn align_head(
+        &self,
+        name: &str,
+        scene: &Scene,
+        geo: &Geometry,
+        rect: &dyn Fn(&str) -> Option<[f64; 4]>,
+    ) -> Vec<Command> {
+        let Some([_, _, width, _]) = rect(&chapter_id(name, "number")) else {
+            return Vec::new();
+        };
+        if !Self::has_chapter(scene) || self.layout(scene) != Layout::Number {
+            return Vec::new();
+        }
+        let title = rect(&chapter_id(name, "title"));
+        let space = BAR_SPACE * self.ty("chapter", None).size;
+        let words = scene
+            .chapter
+            .title
+            .clone()
+            .unwrap_or_else(|| title_of(name));
+        let after = self.bearings("chapter_number", &self.number(name))[1];
+        let before = self.bearings("chapter", &words)[0];
+        let bar = self.bar((geo.text[0] + width - after + space).round());
+        let x = bar[0] + bar[2] + space.round() - before;
+        let mut commands = vec![
+            move_to(chapter_id(name, "bar"), bar[0], bar[1]),
+            move_to(chapter_id(name, "title"), x, self.head_y()),
+        ];
+        commands.extend(self.head_hit_place(name, geo, x, title));
+        commands
+    }
+
+    /// Sizes the hit of the head to the number, the bar and the title,
+    /// whose title now stands at `x` and measures `title`.
+    fn head_hit_place(
+        &self,
+        name: &str,
+        geo: &Geometry,
+        x: f64,
+        title: Option<[f64; 4]>,
+    ) -> Vec<Command> {
+        let Some([_, _, width, height]) = title.filter(|_| name != manage::OVERVIEW) else {
+            return Vec::new();
+        };
+        let left = geo.text[0];
+        let at = [left, self.head_y(), x + width - left, height];
+        region::hit_place(
+            &chapter_id(name, "head"),
+            at,
+            left,
+            self.ty("chapter", None).ink(),
+        )
+        .to_vec()
     }
 
     /// The box of a panel on the screen, without its margin.
@@ -2077,7 +2180,8 @@ impl Mc {
         let add = |part: &str, props| create(&format!("{id}-{part}"), NodeKind::Text, &id, props);
         if !panel.title.is_empty() {
             let title = self.ty("heading", panel.title_style.as_ref());
-            commands.push(add("title", text(&title, &panel.title, indent, 0.0, true)));
+            let at = self.lift(y, 0.0, &title);
+            commands.push(add("title", text(&title, &panel.title, indent, at, true)));
         }
         let top = self.lines_top(panel);
         let body = self.ty("body", panel.style.as_ref());
@@ -2090,25 +2194,26 @@ impl Mc {
             let shown = ((h - top) / body.line).ceil().max(0.0) as usize;
             for (i, (time, line)) in rows.iter().take(shown).enumerate() {
                 #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
-                let y = top + i as f64 * body.line;
-                commands.extend(self.row_hit(name, &id, i, [indent, y, w, body.line]));
-                commands.push(add(
-                    &format!("line-{i}"),
-                    text(&body, line, indent, y, true),
-                ));
+                let row = top + i as f64 * body.line;
+                let at = self.lift(y, row, &body);
+                let hit = ([indent, at, w, body.line], body.ink());
+                commands.extend(self.row_hit(name, &id, i, hit));
+                let words = text(&body, line, indent, at, true);
+                commands.push(add(&format!("line-{i}"), words));
                 if !time.is_empty() {
-                    let props = text(&note, time, 0.0, y + baseline_shift(&body, &note), false);
-                    commands.push(add(&format!("note-{i}"), props));
+                    let at = self.lift(y, row, &note);
+                    commands.push(add(&format!("note-{i}"), text(&note, time, 0.0, at, false)));
                 }
             }
         } else if !panel.lines.is_empty() {
             if name == manage::OVERVIEW {
                 commands.extend(self.overview_hits(name, &id, panel, [indent, top, w, body.line]));
             }
-            let props = text(&body, &panel.text(), indent, top, true);
+            let props = text(&body, &panel.text(), indent, self.lift(y, top, &body), true);
             commands.push(add("lines", props));
         } else if !panel.empty.is_empty() {
-            let props = text(&self.quiet(&body), &panel.empty, indent, top, true);
+            let quiet = self.quiet(&body);
+            let props = text(&quiet, &panel.empty, indent, self.lift(y, top, &body), true);
             commands.push(add("empty", props));
         }
         commands
@@ -2122,10 +2227,11 @@ impl Mc {
         panel: &Panel,
         [x, top, w, line]: [f64; 4],
     ) -> Vec<Command> {
+        let ink = self.ty("body", panel.style.as_ref()).ink();
         let rows = (0..panel.lines.len()).map(|i| {
             #[allow(clippy::cast_precision_loss, reason = "rows of one screen")]
             let y = top + i as f64 * line;
-            self.row_hit(name, id, i, [x, y, w, line])
+            self.row_hit(name, id, i, ([x, y, w, line], ink))
         });
         rows.flatten().collect()
     }
@@ -2146,7 +2252,13 @@ impl Mc {
 
     /// The hit and the focus mark of row `i` of a panel, at a box of the
     /// panel group: the hit spans the margin and the text.
-    fn row_hit(&self, scene: &str, panel: &str, row: usize, at: [f64; 4]) -> Vec<Command> {
+    fn row_hit(
+        &self,
+        scene: &str,
+        panel: &str,
+        row: usize,
+        (at, caps): ([f64; 4], Ink),
+    ) -> Vec<Command> {
         if !self.has_hits(scene) {
             return Vec::new();
         }
@@ -2154,7 +2266,7 @@ impl Mc {
         let ink = (self.settings.value.colors().get("text").copied()).unwrap_or([0.0; 4]);
         let base = format!("{panel}-row-{row}");
         let mut commands = region::hit_nodes(&base, panel, ink).to_vec();
-        commands.extend(region::hit_place(&base, [0.0, y, x + w, h], x));
+        commands.extend(region::hit_place(&base, [0.0, y, x + w, h], x, caps));
         commands
     }
 
@@ -2172,16 +2284,7 @@ impl Mc {
         let rect = |id: &str| rects.get(id).copied();
         let indent = geo.note + geo.gap;
         let mut commands = Vec::new();
-        if Self::has_chapter(&scene)
-            && self.layout(&scene) == Layout::Number
-            && let Some([_, _, width, _]) = rect(&chapter_id(name, "number"))
-        {
-            let space = BAR_SPACE * self.ty("chapter", None).size;
-            let bar = self.bar((geo.text[0] + width + space).round());
-            commands.push(move_to(chapter_id(name, "bar"), bar[0], bar[1]));
-            let x = bar[0] + bar[2] + space.round();
-            commands.push(move_to(chapter_id(name, "title"), x, HEAD * geo.baseline));
-        }
+        commands.extend(self.align_head(name, &scene, &geo, &|id| rect(id)));
         for panel in &scene.panels {
             let id = panel_id(name, &panel.id);
             // A title that wraps pushes the lines down by its extra lines.
@@ -2192,9 +2295,12 @@ impl Mc {
                 let line = self.ty("heading", panel.title_style.as_ref()).line;
                 y += (height - line).max(0.0);
             }
+            let top_of_panel = self.place(name, panel).map_or(0.0, |p| p[1]);
             let Some(rows) = panel.columns() else {
                 if !panel.lines.is_empty() && y > self.lines_top(panel) {
-                    commands.push(move_to(format!("{id}-lines"), indent, y));
+                    let body = self.ty("body", panel.style.as_ref());
+                    let at = self.lift(top_of_panel, y, &body);
+                    commands.push(move_to(format!("{id}-lines"), indent, at));
                 }
                 continue;
             };
@@ -2205,11 +2311,13 @@ impl Mc {
                 let Some([_, _, _, height]) = rect(&format!("{id}-line-{i}")) else {
                     break; // below the panel
                 };
-                commands.push(move_to(format!("{id}-line-{i}"), indent, y));
+                let at = self.lift(top_of_panel, y, &body);
+                commands.push(move_to(format!("{id}-line-{i}"), indent, at));
                 let hit = region::hit_place(
                     &format!("{id}-row-{i}"),
-                    [0.0, y, wide, height.max(body.line)],
+                    [0.0, at, wide, height.max(body.line)],
                     indent,
+                    body.ink(),
                 );
                 commands.extend(hit);
                 let note_id = format!("{id}-note-{i}");
@@ -2217,7 +2325,8 @@ impl Mc {
                     && let Some([_, _, width, _]) = rect(&note_id)
                 {
                     let x = (geo.note - width).max(0.0);
-                    commands.push(move_to(note_id, x, y + baseline_shift(&body, &note)));
+                    let at = self.lift(top_of_panel, y, &note);
+                    commands.push(move_to(note_id, x, at));
                 }
                 y += height.max(body.line);
             }
@@ -3052,6 +3161,25 @@ mod tests {
         )
     }
 
+    /// The head of a page opens the page list: it takes the pointer like
+    /// every other item, and the overview itself has no such hit.
+    #[test]
+    fn a_click_on_the_head_of_a_page_shows_the_overview() {
+        let (mut mc, model) = crate::testing::mc("head-hit", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let hit = "mc-s-agenda-chapter-head-hit";
+        assert!(
+            crate::testing::has(&model, hit),
+            "the head takes the pointer"
+        );
+        assert!(mc.click_hit(hit));
+        assert_eq!(mc.current.as_deref(), Some("overview"));
+        assert!(!crate::testing::has(
+            &model,
+            "mc-s-overview-chapter-head-hit"
+        ));
+    }
+
     /// A page without data says what it is and why it is empty, in
     /// `muted`; with a line the words go.
     #[test]
@@ -3064,7 +3192,7 @@ mod tests {
         let id = "mc-s-agenda-panels-today-empty";
         assert_eq!(
             crate::testing::text(&model, id).as_deref(),
-            Some("Nothing planned today.")
+            Some("Nothing planned today.\nSay “Atlas” or press Super+a.")
         );
         let muted = mc.settings.value.colors()["muted"];
         let color = model.lock().unwrap().scene.node(id).unwrap().props.color;
@@ -3099,6 +3227,23 @@ mod tests {
         )
         .unwrap();
         assert_eq!(next(&mc).unwrap().0, "11:30  Coffee");
+    }
+
+    /// The footer also points to the previous page, and a click on it
+    /// turns the page back.
+    #[test]
+    fn the_footer_points_to_the_previous_page_and_a_click_goes_back() {
+        let (mut mc, _) = crate::testing::mc("prev-page", [1280, 800]);
+        mc.show("morning", false).unwrap();
+        let plan = mc.items("morning");
+        let (items, _) = &plan[&crate::region::Region::Footer];
+        let prev = items
+            .iter()
+            .find(|i| i.id.ends_with("-prev"))
+            .expect("a line to the previous page");
+        assert_eq!(prev.props.text.as_deref(), Some("← 1  Agenda"));
+        assert_eq!(prev.hit.as_deref(), Some("key:Super+Left"));
+        assert!(prev.slot < 0, "the previous page stands at the left");
     }
 
     fn right_items(mc: &super::Mc) -> Vec<crate::region::Item> {

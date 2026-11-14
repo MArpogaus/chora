@@ -246,7 +246,7 @@ run_theme() {
     close=$(ctl query "owner:mc kind:text" | jq -c '[.[] | select((.id | endswith("chat-close")) and (.rects | length) > 0)][0].rects | to_entries[0].value')
     click_at_move "$close"
     until_ok 'mark_of chat-close >/dev/null' 20 || fail "$theme: no hover mark on Esc Close"
-    jq -ne --argjson m "$(mark_of chat-close)" --argjson c "$close" '$m[0] < $c[0] and $m[0] > $c[0] - 30 and $m[2] == 2 and $m[3] == 20' >/dev/null ||
+    jq -ne --argjson m "$(mark_of chat-close)" --argjson c "$close" '$m[0] < $c[0] and $m[0] > $c[0] - 30 and $m[2] == 2 and $m[3] == 10 and $m[1] >= $c[1] and $m[1] + $m[3] <= $c[1] + $c[3]' >/dev/null ||
         fail "$theme: the mark $(mark_of chat-close) does not stand beside Esc Close $close"
     ok "$theme: Esc Close shows the hover mark beside it"
     wait_keyboard "$kb"

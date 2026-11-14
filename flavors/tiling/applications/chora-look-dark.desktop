@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Dark look
+Name[de]=Dunkles Aussehen
+Comment=Use the dark palette, Ink
+Comment[de]=Die dunkle Palette Ink verwenden
+Exec=chora-tiling --launch look dark
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Settings;
+Keywords=theme;look;dark;colour;color;appearance;

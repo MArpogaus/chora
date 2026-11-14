@@ -273,6 +273,12 @@ const PAGE_PAD: i32 = 14;
 const XP_PAD: i32 = 12;
 const XP_BUTTON: [i32; 2] = [80, 28];
 const XP_DETAIL_INSET: i32 = 6;
+/// The row of a line of the card in a page: a line of the grid of 28, with
+/// the baseline 19 below its top.
+const PAGE_ROW: i32 = 28;
+/// The room under the buttons of a card in a page, so that its height is
+/// whole lines of the grid.
+const PAGE_BOTTOM: i32 = 24;
 
 /// The padding of a card in a page and the size of its buttons.
 fn metrics(ink: Ink) -> (i32, [i32; 2]) {
@@ -303,12 +309,12 @@ fn element(set: Set, face: &Face, text: &str, [x, y]: [i32; 2], rgb: [u8; 3]) ->
         };
     }
     let (family, weight) = match set {
-        Set::Prompt => return face.element(text, [x, y], rgb),
+        Set::Prompt => return face.element(text, [x, y - 1], rgb),
         Set::Detail => (MONO, 400),
         Set::Title | Set::Keys => (SANS, PAGE_WEIGHT),
         Set::Note => (SANS, 400),
     };
-    let baseline = f64::from(y) + f64::from(LINE) / 2.0 + f64::from(PAGE_SIZE) * 0.34;
+    let baseline = f64::from(y) + f64::from(PAGE_ROW) / 2.0 + f64::from(PAGE_SIZE) * 0.34;
     format!(
         r#"<text x="{x}" y="{baseline:.2}" font-family="{family}" font-weight="{weight}" font-size="{PAGE_SIZE}" fill="rgb({red},{green},{blue})" xml:space="preserve">{}</text>"#,
         escape(text)
@@ -339,23 +345,49 @@ fn page_rows(
         } else {
             width
         };
-        rows.extend(
-            wrap(&text, room, measure)
-                .into_iter()
-                .map(|line| (set, line)),
-        );
+        let lines = no_widow(wrap(&text, room, measure), room, measure);
+        rows.extend(lines.into_iter().map(|line| (set, line)));
+    }
+    if parts == usize::MAX && shown.buttons && !shown.too_long {
+        let measure = |line: &str| theme.svg_width(&element(Set::Note, face, line, [0, 0], [0; 3]));
+        let said = Word::TypingNoAnswer.text(language);
+        let lines = no_widow(wrap(said, width, measure), width, measure);
+        rows.extend(lines.into_iter().map(|line| (Set::Note, line)));
     }
     rows
 }
 
 /// The height of a line of a card in a page: the reading face sets the
-/// prompt, and every line of XP's card.
+/// prompt, and every line of XP's card; the rest stand on the grid of 28.
 fn row_height(face: &Face, set: Set) -> i32 {
     if set == Set::Prompt || face.is_xp() {
         face.line()
     } else {
-        LINE
+        PAGE_ROW
     }
+}
+
+/// The height of a line of the note under the buttons.
+fn note_row(face: &Face) -> i32 {
+    if face.is_xp() { LINE } else { PAGE_ROW }
+}
+
+/// The lines with no one word alone on the last: the last word of the line
+/// before goes down to it, when both stay inside `width`.
+fn no_widow(mut lines: Vec<String>, width: f64, measure: impl Fn(&str) -> f64) -> Vec<String> {
+    let n = lines.len();
+    if n < 2 || lines[n - 1].contains(' ') {
+        return lines;
+    }
+    let Some((rest, word)) = lines[n - 2].rsplit_once(' ') else {
+        return lines;
+    };
+    let (cut, last) = (rest.len(), format!("{word} {}", lines[n - 1]));
+    if measure(&last) <= width {
+        lines[n - 2].truncate(cut);
+        lines[n - 1] = last;
+    }
+    lines
 }
 
 /// The height of the lines of a card in a page.
@@ -419,7 +451,13 @@ fn page_body(
         y += row_height(face, *set);
     }
     for (n, line) in (0..).zip(notice) {
-        body += &element(Set::Note, face, line, [pad, note_at + n * LINE], muted);
+        body += &element(
+            Set::Note,
+            face,
+            line,
+            [pad, note_at + n * note_row(face)],
+            muted,
+        );
     }
     body
 }
@@ -442,13 +480,22 @@ fn page_layout(
     let notice = wrap(injected, inner, |line| {
         theme.svg_width(&element(Set::Note, &face, line, [0, 0], [0; 3]))
     });
-    let notice_room = i32::try_from(notice.len()).unwrap_or(0) * LINE;
-    let below = pad + button[1] + if shown.notice { notice_room } else { 0 };
-    let most = screen[1] * 8 / 10 - 2 * pad - below;
+    let xp = face.is_xp();
+    let notice_room = i32::try_from(notice.len()).unwrap_or(0) * note_row(&face);
+    let below = pad
+        + button[1]
+        + if xp { 0 } else { PAGE_BOTTOM }
+        + if shown.notice { notice_room } else { 0 };
+    let lead = if xp { 2 * pad } else { pad };
+    let most = screen[1] * 8 / 10 - lead - below;
     let (rows, too_long) = page_content(theme, shown, language, (&face, inner, most));
     let buttons_shown = shown.buttons && !too_long;
     let content = page_height(&face, &rows);
-    let height = 2 * pad + content + if buttons_shown { below } else { 0 };
+    let height = if buttons_shown {
+        lead + content + below
+    } else {
+        2 * pad + content
+    };
     let top = pad + content + pad;
     let noted = buttons_shown && shown.notice;
     let shown_notice: &[String] = if noted { &notice } else { &[] };
@@ -1042,6 +1089,46 @@ mod tests {
         let _ = std::fs::remove_dir_all(cache);
     }
 
+    /// A card in a page leaves no word alone on a line: the path and its
+    /// size do not wrap to a lone "bytes)", and the note that typing does
+    /// not answer stands in the card, the last line.
+    #[test]
+    fn a_card_in_a_page_has_no_widow_and_holds_the_typing_line() {
+        let cache = cache("page-widow");
+        let theme = theme(&cache, "sans-serif").unwrap();
+        let mut card = shown(&notes(), Instant::now());
+        card.ink = Ink::page([247, 245, 237], [41, 38, 36], [110, 105, 99]);
+        card.face = Some(Face::serif(19));
+        card.max_width = Some(336);
+        let laid = layout(&theme, &card, Language::En, [1280, 800]);
+        let lines: Vec<&str> = laid.text.lines().collect();
+        assert!(!lines.contains(&"bytes)"), "a widow: {lines:?}");
+        assert!(lines.contains(&"(412 bytes)"), "{lines:?}");
+        assert_eq!(lines.last(), Some(&"Typing does not answer."), "{lines:?}");
+        assert_eq!(
+            laid.picture.size[1] % PAGE_ROW,
+            0,
+            "whole lines of the grid"
+        );
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn the_last_word_of_a_line_goes_down_to_a_lone_word() {
+        let chars = |line: &str| 10.0 * f64::from(u32::try_from(line.chars().count()).unwrap());
+        let lines = |l: &[&str]| l.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert_eq!(
+            no_widow(lines(&["~/a/b.txt (412", "bytes)"]), 140.0, chars),
+            ["~/a/b.txt", "(412 bytes)"]
+        );
+        assert_eq!(
+            no_widow(lines(&["one two", "three"]), 50.0, chars),
+            ["one two", "three"],
+            "it must fit"
+        );
+        assert_eq!(no_widow(lines(&["aaaa", "b"]), 90.0, chars), ["aaaa", "b"]);
+    }
+
     #[test]
     fn the_xp_card_is_a_white_group_box_with_push_buttons_80_by_28_and_8_apart() {
         let cache = cache("xp-card");
@@ -1112,7 +1199,7 @@ mod tests {
         let theme = theme(&cache, "sans-serif").unwrap();
         let mut card = shown(&notes(), Instant::now());
         card.ink = Ink::page([247, 245, 237], [41, 38, 36], [110, 105, 99]);
-        card.face = Some(Face::serif(18));
+        card.face = Some(Face::serif(19));
         card.max_width = Some(336);
         let laid = layout(&theme, &card, Language::En, [1280, 800]);
         let bodies: String = laid
@@ -1138,7 +1225,12 @@ mod tests {
             laid.text
         );
         let [yes, _] = laid.buttons.expect("buttons");
-        assert_eq!(laid.picture.size[1], yes[1] + BUTTON[1] + PAGE_PAD);
+        assert_eq!(laid.picture.size[1], yes[1] + BUTTON[1] + PAGE_BOTTOM);
+        assert_eq!(
+            laid.picture.size[1] % PAGE_ROW,
+            0,
+            "whole lines of the grid, so that its text stands on the baselines of the column"
+        );
         let _ = std::fs::remove_dir_all(cache);
     }
 

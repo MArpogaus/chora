@@ -13,8 +13,12 @@ const BEHIND: &str = "DejaVu Serif, Liberation Serif, serif";
 /// What stands behind the family of an XP chat, which is a sans.
 const BEHIND_SANS: &str = "DejaVu Sans, Liberation Sans, sans-serif";
 
-/// The distance of two lines of the text, in tenths of its size.
-const LEADING: u32 = 15;
+/// The distance of two lines of the text, in hundredths of its size: the
+/// reading face falls on the grid of 28 in the margin.
+const LEADING: u32 = 147;
+
+/// The same for the XP form of the balloon.
+const LEADING_XP: u32 = 150;
 
 /// A family and a size.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,7 +55,18 @@ impl Face {
     /// The height of a line of the text.
     #[must_use]
     pub fn line(&self) -> i32 {
-        i32::try_from((self.size * LEADING).div_ceil(10)).unwrap_or(i32::MAX)
+        let leading = if self.xp { LEADING_XP } else { LEADING };
+        i32::try_from((self.size * leading).div_ceil(100)).unwrap_or(i32::MAX)
+    }
+
+    /// How far a line of text moves down so that its baseline stands
+    /// `baseline` below the top of a row of `row` pixels: it stands a
+    /// little low in a row on its own.
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation, reason = "a shift of a few pixels")]
+    pub fn lift(&self, baseline: i32, row: i32) -> i32 {
+        let own = f64::from(row) / 2.0 + f64::from(self.size) * 0.34;
+        (f64::from(baseline) - own).round() as i32
     }
 
     /// Whether the face is that of the XP form of the balloon.
@@ -159,6 +174,12 @@ mod tests {
             element.contains("TeX Gyre Pagella, DejaVu Serif"),
             "{element}"
         );
+    }
+
+    #[test]
+    fn the_lines_of_the_margin_fall_on_the_grid_of_28() {
+        assert_eq!(Face::serif(19).line(), 28);
+        assert_eq!(Face::serif(18).line(), 27);
     }
 
     #[test]

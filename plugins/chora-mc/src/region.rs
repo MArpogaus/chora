@@ -8,14 +8,18 @@
 
 use std::collections::BTreeMap;
 
-use chora_scene::{Command, Easing, NodeKind, PropsUpdate, ToplevelState, ipc::ClientError};
+use chora_scene::{
+    Command, Easing, NodeKind, PropsUpdate, ToplevelState, Transform, ipc::ClientError,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     Mc,
     config::{Style, Type},
-    create, move_to,
+    create,
+    fonts::{self, Ink},
+    move_to,
     scene::{MAX_TEXT, Scene, check_name},
     title_of,
 };
@@ -341,6 +345,10 @@ fn next_minute_after(now: u128) -> f64 {
 /// The content that names the next entry of the day in the footer.
 const NEXT: &str = "next";
 
+/// The content that names the previous page in the footer.
+const PREV: &str = "prev";
+const URGENT: &str = "urgent";
+
 /// One text node of a region.
 pub struct Item {
     pub id: String,
@@ -352,12 +360,13 @@ pub struct Item {
     /// The place across a side, from its left edge.
     pub x: f64,
     pub put: Put,
-    /// How far it stands below the place of its line, so that the
-    /// baseline of a note meets the baseline of the text beside it.
-    pub dy: f64,
+    /// Space before the item in a stack, in pixels.
+    pub before: f64,
     /// What a click on it does: a binding as `key:Super+n`, a helper as
     /// `agent:NAME`; it also shows the focus mark under the pointer.
     pub hit: Option<String>,
+    /// A close mark stands before the text: two bars, drawn, not a glyph.
+    pub mark: bool,
 }
 
 /// Where an item of a side stands.
@@ -373,8 +382,6 @@ pub enum Put {
     FootRow,
     /// In the line of the item before it, at `x`.
     Row,
-    /// In the line of the item before it, after its end.
-    After,
     /// In the line of the item before it, flush right.
     End,
     /// Where the box of the chat begins: it runs to the foot of the side.
@@ -387,7 +394,7 @@ impl Put {
     }
 
     fn row(self) -> bool {
-        matches!(self, Self::FootRow | Self::Row | Self::After | Self::End)
+        matches!(self, Self::FootRow | Self::Row | Self::End)
     }
 }
 
@@ -401,8 +408,9 @@ impl Item {
             first,
             x: 0.0,
             put: Put::Stack,
-            dy: 0.0,
+            before: 0.0,
             hit: None,
+            mark: false,
         }
     }
 }
@@ -574,8 +582,10 @@ impl Mc {
     }
 
     /// Whether a region shows in a scene: as the toggle says, else as the
-    /// scene says, else as the settings say; over an app the sides show
-    /// only by a toggle, so that the app keeps its width.
+    /// scene says, else as the settings say; over a window without a
+    /// scene the sides show only by a toggle, so that the window keeps its
+    /// width. The window of an app scene fills its text block, so that the
+    /// column shows beside it as beside a page.
     fn shown(&self, region: Region, name: &str) -> bool {
         let scene = self.scenes.get(name);
         let side = matches!(region, Region::Left | Region::Right);
@@ -588,7 +598,8 @@ impl Mc {
                 let preset = config.presets.get(&config.preset);
                 let shown = (preset.and_then(|p| p.shown.get(&region)).copied())
                     .unwrap_or(config.regions.get(region).shown);
-                shown && !(side && self.is_app(name))
+                let bare = scene.is_none_or(|s| !Self::has_chapter(s));
+                shown && !(side && bare)
             })
     }
 
@@ -629,6 +640,10 @@ impl Mc {
     fn content_items(&self, region: Region, slot: i32, name: &str, scene: &str) -> Vec<Item> {
         let content = &self.settings.value.contents[name];
         let side = !region.is_line();
+        let all_keys = side && self.keys == crate::keys::List::All;
+        if all_keys && (content.kind == Kind::Chat || content.folds) {
+            return Vec::new();
+        }
         match content.kind {
             Kind::Agents => self.agent_items(region, slot, name, content),
             Kind::Chat if side => self.chat_items(slot, name, content, region),
@@ -658,6 +673,10 @@ impl Mc {
             let line = self.next_page_line(scene).unwrap_or_default();
             return (line, self.key_of(&crate::config::Action::NextScene));
         }
+        if name == PREV && region.is_line() {
+            let line = self.previous_page_line(scene).unwrap_or_default();
+            return (line, self.key_of(&crate::config::Action::PreviousScene));
+        }
         (String::new(), None)
     }
 
@@ -681,8 +700,14 @@ impl Mc {
             if quiet && !is_title {
                 props.color = self.settings.value.colors().get("muted").copied();
             }
+            let urgent = name == URGENT && region.is_line();
             Item {
-                hit: hit.clone(),
+                hit: if urgent {
+                    Some("urgent:clear".into())
+                } else {
+                    hit.clone()
+                },
+                mark: urgent,
                 ..Item::text(id, slot, props, first)
             }
         };
@@ -781,12 +806,13 @@ impl Mc {
         let [lw, rw] = self.side_widths(name);
         let side_top = if headless { head + b } else { top };
         let side_h = (drawer_top - b - side_top).max(b);
-        let column_top = ((head - b) / 2.0).max(0.0).round();
+        let column_top = b;
+        let column_end = (h / b).floor() * b;
         let column = [
             w - 2.0 * b - rw,
             column_top,
             rw,
-            (h - b - column_top).max(b),
+            (column_end - column_top).max(b),
         ];
         let mut window = [0.0, head, w, (drawer_top - head).max(b)];
         if headless {
@@ -1123,8 +1149,10 @@ impl Mc {
         if region == Region::Right {
             let baseline = config.scale.baseline;
             let faint = colors.get("faint").copied().unwrap_or(config.background());
-            let tall = (f64::from(self.output_size()[1]) - 2.0 * baseline).max(1.0);
-            let edge = [-baseline, baseline - top, 1.0, tall];
+            let caps = self.ty("margin", None).ink().height;
+            let first = self.phase() - caps;
+            let last = height - (baseline - self.phase());
+            let edge = [-baseline, first, 1.0, (last - first).max(1.0)];
             commands.push(rect(&format!("{id}-edge"), &id, edge, faint));
         }
         if region == Region::Drawer {
@@ -1149,6 +1177,7 @@ impl Mc {
                 ..item.props.clone()
             };
             commands.push(create(&item.id, NodeKind::Text, &id, props));
+            commands.extend(close_nodes(item, &id, faint));
             if item.hit.is_some() {
                 let ink = colors.get("text").copied().unwrap_or(faint);
                 commands.extend(hit_nodes(&item.id, &id, ink));
@@ -1178,7 +1207,7 @@ impl Mc {
         for (region, (items, _)) in items {
             let [left, top, width, height] = boxes.regions[region];
             if region.is_line() {
-                commands.extend(self.line(items, [width, height], probed)?);
+                commands.extend(self.line(items, [top, width, height], probed)?);
                 continue;
             }
             commands.extend(self.stack(items, [left, top, width, height], probed)?);
@@ -1196,13 +1225,12 @@ impl Mc {
     ) -> Result<Vec<Command>, ClientError> {
         let baseline = self.settings.value.scale.baseline;
         let (mut heights, mut widths, mut lefts) = (Vec::new(), Vec::new(), Vec::new());
-        for (i, item) in items.iter().enumerate() {
+        for item in items {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
             heights.push(h.max(baseline));
             widths.push(w);
-            let at = match (item.put, i.checked_sub(1)) {
-                (Put::After, Some(before)) => lefts[before] + widths[before] + AFTER_GAP,
-                (Put::End, _) => (width - w).max(0.0),
+            let at = match item.put {
+                Put::End => (width - w + trailing(&item.props)).max(0.0),
                 _ => item.x,
             };
             lefts.push(at);
@@ -1222,7 +1250,9 @@ impl Mc {
         {
             let idx = item;
             let item = &items[idx];
-            commands.push(move_to(item.id.clone(), lefts[idx], y + item.dy));
+            let ink = props_ink(&item.props);
+            let shift = self.to_grid(top + y + ink.top + ink.height);
+            commands.push(move_to(item.id.clone(), lefts[idx], y + shift));
             if item.hit.is_some() {
                 let [x, w] = if item.put == Put::End {
                     [lefts[idx], widths[idx]]
@@ -1230,7 +1260,11 @@ impl Mc {
                     [0.0, width]
                 };
                 let at = if item.put == Put::End { x } else { item.x };
-                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at));
+                let ink = Ink {
+                    top: ink.top + shift,
+                    ..ink
+                };
+                commands.extend(hit_place(&item.id, [x, y, w, heights[idx]], at, ink));
             }
             if item.put == Put::FootRule {
                 let y = y - (baseline / 2.0).round();
@@ -1256,10 +1290,8 @@ impl Mc {
         let mut items = vec![Item::text(format!("{id}-title"), slot, head, true)];
         let margin = self.ty("margin", None);
         let open = self.chat == crate::Chat::Open;
-        let shift = crate::baseline_shift(&self.content_type(content, false), &margin);
         let end = |part: &str, text: &str, hit: Option<&str>| Item {
             put: Put::End,
-            dy: if open { 0.0 } else { shift },
             hit: hit.map(str::to_owned),
             ..Item::text(format!("{id}-{part}"), slot, margin.props(text), false)
         };
@@ -1304,10 +1336,10 @@ impl Mc {
             let props = self.content_type(content, true).props(title);
             items.push(Item::text(format!("{id}-title"), slot, props, true));
         }
+        let baseline = self.settings.value.scale.baseline;
         let note = self.ty("margin", None);
         let body = self.content_type(content, false);
-        let x = (note.size * NOTE_EM).round();
-        let shift = crate::baseline_shift(&body, &note);
+        let x = chora_kit::hud::LABEL_COLUMN;
         let lines = text.lines().filter(|line| !line.trim().is_empty());
         for (i, line) in lines.enumerate() {
             let Some((time, words)) = split_time(line) else {
@@ -1316,7 +1348,7 @@ impl Mc {
                 continue;
             };
             items.push(Item {
-                dy: shift,
+                before: if i > 0 { baseline } else { 0.0 },
                 ..Item::text(format!("{id}-{i}-time"), slot, note.props(time), false)
             });
             items.push(Item {
@@ -1373,7 +1405,7 @@ impl Mc {
             ..Item::text(format!("{id}-title"), slot, head, true)
         }];
         let mut ty = self.content_type(content, false);
-        let words_x = (ty.size * 8.7).round();
+        let words_x = chora_kit::hud::LABEL_COLUMN;
         let words = ty.clone();
         ty.color = config.colors().get("text").copied().unwrap_or(ty.color);
         for (i, row) in rows.iter().enumerate() {
@@ -1401,10 +1433,14 @@ impl Mc {
     /// Places the items of a line: the end keeps its place, the start ends
     /// before it, and the middle sits between them; what does not fit is
     /// cut.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one pass over the three groups of a line"
+    )]
     fn line(
         &mut self,
         items: &[Item],
-        [width, height]: [f64; 2],
+        [top, width, height]: [f64; 3],
         probed: bool,
     ) -> Result<Vec<Command>, ClientError> {
         let config = &self.settings.value;
@@ -1412,7 +1448,7 @@ impl Mc {
         let mut sizes = Vec::new();
         for item in items {
             let [_, _, w, h] = self.measure(&item.id, probed)?;
-            sizes.push((item, w, h));
+            sizes.push((item, w + lead(item), h));
         }
         let group = |pick: fn(i32) -> bool| -> Vec<(&Item, f64, f64)> {
             (sizes.iter())
@@ -1438,23 +1474,34 @@ impl Mc {
             .min(high - span(&middle))
             .max(low);
         let mut commands = Vec::new();
-        for (group, x0, room) in [
-            (start, 0.0, high),
-            (middle, mid_x, high - mid_x),
-            (end, end_x, width - end_x),
+        for (group, x0, room, flush) in [
+            (start, 0.0, high, false),
+            (middle, mid_x, high - mid_x, false),
+            (end, end_x, width - end_x, true),
         ] {
-            let mut x = x0;
-            for (item, w, h) in group {
-                let left = x0 + room - x;
+            let mut next = x0;
+            let last = group.len().saturating_sub(1);
+            for (i, (item, w, h)) in group.into_iter().enumerate() {
+                let left = x0 + room - next;
+                let lead = lead(item);
+                let x = if flush && i == last {
+                    next + trailing(&item.props)
+                } else {
+                    next
+                };
                 if w > left + 0.5 {
                     commands.push(shorten(item, left / w));
                 }
                 let y = ((height - h.max(baseline)) / 2.0).round();
-                commands.push(move_to(item.id.clone(), x, y));
+                let ink = props_ink(&item.props);
+                let y = y + self.to_grid(top + y + ink.top + ink.height);
+                commands.push(move_to(item.id.clone(), x + lead, y));
+                commands.extend(close_place(item, [x, y + ink.top + ink.height / 2.0]));
                 if item.hit.is_some() {
-                    commands.extend(hit_place(&item.id, [x, y, w.min(left), h.max(baseline)], x));
+                    let at = [x, y, w.min(left), h.max(baseline)];
+                    commands.extend(hit_place(&item.id, at, x, props_ink(&item.props)));
                 }
-                x += w.min(left) + gap;
+                next += w.min(left) + gap;
             }
         }
         Ok(commands)
@@ -1537,6 +1584,9 @@ impl Mc {
         let Some(base) = node.strip_suffix("-hit") else {
             return false;
         };
+        if base.ends_with("-chapter-head") {
+            return self.show_overview();
+        }
         let name = self.current.clone().unwrap_or_default();
         let token = (self.items(&name).into_values())
             .flat_map(|(items, _)| items)
@@ -1547,7 +1597,20 @@ impl Mc {
             Some(("agent", agent)) => self.chat_with(Some(agent)),
             Some(("chat", "open")) => self.chat_with(None),
             Some(("chat", "close")) => self.chat_close(),
+            Some(("urgent", "clear")) => {
+                if let Err(err) = self.clear_notifications() {
+                    eprintln!("chora-mc: urgent: {}", err.message);
+                }
+            }
             _ => return self.click_row(base),
+        }
+        true
+    }
+
+    /// Shows the page list, as a click on the head of a page does.
+    fn show_overview(&mut self) -> bool {
+        if let Err(err) = self.show(crate::manage::OVERVIEW, true) {
+            eprintln!("chora-mc: {}: {}", crate::manage::OVERVIEW, err.message);
         }
         true
     }
@@ -1691,7 +1754,8 @@ pub fn mark_id(base: &str) -> String {
 
 /// The transparent rect that takes the pointer over something that a
 /// click acts on, and the focus mark that shows beside it under the
-/// pointer: a bar of 2 by 20 pixels in the color `ink`.
+/// pointer: a bar of 2 pixels in the color `ink`, as high as the capitals that it
+/// marks, which `hit_place` sets.
 pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
     let mark = PropsUpdate {
         input: Some(chora_scene::InputMode::Pass),
@@ -1710,7 +1774,7 @@ pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
             kind: NodeKind::Rect,
             parent: parent.into(),
             props: PropsUpdate {
-                size: Some([MARK[0], MARK[1]]),
+                size: Some([MARK_WIDTH, MARK_WIDTH]),
                 color: Some(ink),
                 ..mark
             },
@@ -1719,8 +1783,9 @@ pub fn hit_nodes(base: &str, parent: &str, ink: [f64; 4]) -> [Command; 2] {
 }
 
 /// Sizes the hit of an item to its box, and puts its mark 12 pixels left
-/// of the item at `item_x`, in the middle of the height of the box.
-pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3] {
+/// of the item at `item_x`, as high as the capitals of its text, which
+/// start `top` pixels below the box.
+pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64, ink: Ink) -> [Command; 4] {
     [
         move_to(format!("{base}-hit"), x, y),
         Command::Update {
@@ -1730,20 +1795,75 @@ pub fn hit_place(base: &str, [x, y, w, h]: [f64; 4], item_x: f64) -> [Command; 3
                 ..PropsUpdate::default()
             },
         },
-        move_to(
-            mark_id(base),
-            item_x - MARK_GAP - MARK[0],
-            y + ((h - MARK[1]) / 2.0).round(),
-        ),
+        move_to(mark_id(base), item_x - MARK_GAP, y + ink.top),
+        Command::Update {
+            id: mark_id(base),
+            props: PropsUpdate {
+                size: Some([MARK_WIDTH, ink.height.max(1.0)]),
+                ..PropsUpdate::default()
+            },
+        },
     ]
 }
 
-/// The space between an item and the one after it in a line, in pixels.
-const AFTER_GAP: f64 = 8.0;
+/// The side of the close mark of an urgent line and its hit; the bars are
+/// as thick as the hairline of the hover mark.
+pub const CLOSE: f64 = 14.0;
+/// The space between the close mark and the words.
+const CLOSE_GAP: f64 = 8.0;
 
-/// The width that a time takes in a list of notes, in em of the margin
-/// style: the words of a note start after it.
-const NOTE_EM: f64 = 4.7;
+/// The room that an item keeps before its text for its close mark.
+fn lead(item: &Item) -> f64 {
+    if item.mark { CLOSE + CLOSE_GAP } else { 0.0 }
+}
+
+/// The id of a bar of the close mark of an item: `n` is 0 or 1.
+pub fn close_id(base: &str, n: usize) -> String {
+    format!("{base}-close-{n}")
+}
+
+/// The two bars of the close mark of an item, if it has one, in the color
+/// of its text; `close_place` crosses them at 45 degrees.
+fn close_nodes(item: &Item, parent: &str, fallback: [f64; 4]) -> Vec<Command> {
+    let color = item.props.color.unwrap_or(fallback);
+    (0..2)
+        .filter(|_| item.mark)
+        .map(|n| {
+            let mut bar = rect(
+                &close_id(&item.id, n),
+                parent,
+                [0.0, 0.0, CLOSE, 2.0],
+                color,
+            );
+            if let Command::Create { props, .. } = &mut bar {
+                props.input = Some(chora_scene::InputMode::Pass);
+            }
+            bar
+        })
+        .collect()
+}
+
+/// Puts the bars on the cross of a mark whose left edge is `x` and whose
+/// centre stands at `y`.
+fn close_place(item: &Item, [x, y]: [f64; 2]) -> Vec<Command> {
+    let centre = [x + CLOSE / 2.0, y];
+    (0..2)
+        .filter(|_| item.mark)
+        .map(|n| {
+            let turn = if n == 0 { 45.0 } else { -45.0 };
+            let at = Transform::translate(centre[0], centre[1], 0.0)
+                .then(&Transform::rotate_z(turn))
+                .then(&Transform::translate(-CLOSE / 2.0, -1.0, 0.0));
+            Command::Update {
+                id: close_id(&item.id, n),
+                props: PropsUpdate {
+                    transform: Some(at),
+                    ..PropsUpdate::default()
+                },
+            }
+        })
+        .collect()
+}
 
 /// The time and the words of a note, `18:51  Update ready`.
 fn split_time(line: &str) -> Option<(&str, &str)> {
@@ -1753,13 +1873,31 @@ fn split_time(line: &str) -> Option<(&str, &str)> {
     (digits(hour) && digits(minute)).then_some((time, words.trim_start()))
 }
 
+/// The space that a text carries after its last letter: the tracking, which
+/// an item flush right gives back so that its ink meets the edge.
+fn trailing(props: &PropsUpdate) -> f64 {
+    props.letter_spacing.unwrap_or(0.0) * props.font_size.unwrap_or(0.0)
+}
+
+/// The capitals of the text that the props describe, from the top of its box.
+fn props_ink(props: &PropsUpdate) -> Ink {
+    let size = props.font_size.unwrap_or(16.0);
+    let line = size * props.line_height.unwrap_or(1.2);
+    fonts::ink(props.family.as_deref(), props.weight, size, line)
+}
+
 /// The size of the focus mark, and its distance from what it marks.
-const MARK: [f64; 2] = [2.0, 20.0];
+const MARK_WIDTH: f64 = 2.0;
 const MARK_GAP: f64 = 12.0;
 
 /// The vertical places of the items that sit in the foot, or of those
 /// that do not, from 0, and where they end.
-fn lines(items: &[Item], heights: &[f64], foot: bool, baseline: f64) -> (Vec<(usize, f64)>, f64) {
+pub fn lines(
+    items: &[Item],
+    heights: &[f64],
+    foot: bool,
+    baseline: f64,
+) -> (Vec<(usize, f64)>, f64) {
     let (mut y, mut line, mut out) = (0.0, 0.0, Vec::new());
     for (i, item) in items
         .iter()
@@ -1774,6 +1912,7 @@ fn lines(items: &[Item], heights: &[f64], foot: bool, baseline: f64) -> (Vec<(us
         if item.first && y > 0.0 {
             y += baseline;
         }
+        y += item.before;
         line = y;
         out.push((i, y));
         y += heights[i];
@@ -1887,16 +2026,18 @@ mod tests {
         let page = layout(&config.rules, &config.contents, "agenda", false);
         let app = layout(&config.rules, &config.contents, "foot", true);
         assert_eq!(names(&page, Region::Header), ["head", "clock"]);
-        assert_eq!(names(&page, Region::Footer), ["hud", "urgent", "next"]);
+        assert_eq!(
+            names(&page, Region::Footer),
+            ["prev", "hud", "urgent", "next"]
+        );
         assert_eq!(
             names(&page, Region::Right),
             ["state", "agents", "notes", "notify", "chat", "keys"]
         );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
-        // Over an app, the words of the agent go to the header.
         assert_eq!(
             names(&app, Region::Header),
-            ["head", "hud", "agents", "state", "clock"]
+            ["head", "hud", "agents", "clock"]
         );
         assert_eq!(names(&app, Region::Footer), ["urgent"]);
         // A rule of the session goes first; one by kind catches the rest.
@@ -1912,7 +2053,7 @@ mod tests {
         assert_eq!(
             names(&moved, Region::Left),
             [
-                "confirm", "next", "notes", "notify", "outline", "overlay", "urgent"
+                "confirm", "next", "notes", "notify", "outline", "overlay", "prev", "urgent"
             ]
         );
         assert_eq!(
