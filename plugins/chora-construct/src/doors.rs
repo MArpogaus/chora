@@ -340,10 +340,11 @@ pub fn remove() -> Vec<Command> {
 }
 
 impl Construct {
-    /// Whether the capsule shows: with the HUD, and not under the help or
-    /// the window list, which stand over the space.
+    /// Whether the capsule shows: with the HUD, not under the help or
+    /// the window list, which stand over the space, and not while a cube
+    /// is open, whose faces show a look with doors of its own.
     fn shows_doors(&self) -> bool {
-        self.shows_hud() && !self.help && self.list.is_none()
+        self.shows_hud() && !self.help && self.list.is_none() && self.cube.is_none()
     }
 
     /// The capsule anew when what it shows changed.
