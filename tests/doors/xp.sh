@@ -52,10 +52,14 @@ menu_show() {
     click 50 785
     until_ok menu_open
 }
+text_at() {
+    ctl query kind:image 2>/dev/null |
+        jq -er --arg t "$1" '[.[] | select(.meta.text == $t and (.rects | length) > 0)] | .[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"' 2>/dev/null
+}
 click_text() {
     local at
-    at=$(ctl query kind:image 2>/dev/null |
-        jq -er --arg t "$1" '[.[] | select(.meta.text == $t and (.rects | length) > 0)] | .[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"') || return 1
+    until_ok "text_at '$1' >/dev/null" 12 || return 1
+    at=$(text_at "$1") || return 1
     # shellcheck disable=SC2086 # two words, X and Y
     click $at
 }
