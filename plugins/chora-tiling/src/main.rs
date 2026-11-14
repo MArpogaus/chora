@@ -219,6 +219,8 @@ fn main() -> ExitCode {
 
 /// `--launch PROGRAM [ARGS]`: starts foot, fuzzel or swaylock with the
 /// config file of the flavor, in the palette; another program as it is.
+/// `fuzzel` without arguments is the Apps list: the installed programs
+/// and those of the flavor, sorted, as [`chora_kit::launcher`] shows them.
 fn launch(argv: &[String]) -> ExitCode {
     use std::os::unix::process::CommandExt as _;
     let Some((program, rest)) = argv.split_first() else {
@@ -238,6 +240,11 @@ fn launch(argv: &[String]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if program == "fuzzel" && rest.is_empty() {
+        let flavor = dirs.iter().find(|d| d.join("applications").is_dir());
+        chora_kit::launcher::run(&line, "chora-tiling --launch foot", flavor.cloned());
+        return ExitCode::SUCCESS;
+    }
     let mut command = std::process::Command::new(&line[0]);
     command.args(&line[1..]);
     if program == "fuzzel" {

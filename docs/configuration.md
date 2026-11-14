@@ -1577,7 +1577,7 @@ are recommended too: grim and slurp (screenshots), wl-clipboard
   `flavors/tiling` of the checkout that the running binary comes from, so a
   session without the variable finds it. The launcher lists the entries of
   `applications/` of the flavor too: **Screenshot**, **Screenshot of an
-  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
+  area**, **Light look**, **Dark look** and **System look** are the way for the mouse. `chora-tiling --launch fuzzel` without arguments gives fuzzel the list itself, as rows of `fuzzel --dmenu`: the installed programs, sorted by name, so Enter alone starts the first program by name and takes no screenshot. An entry whose program is not installed is no row. Text that matches no row finds programs by their keywords, their generic name or their command. Text whose first word is an installed program runs as a command. After any other text the list shows again under the row `Nothing found for "TEXT"`. The looks set `look.theme` to `paper`, `ink` or `system` with `settings.set` and apply it at once; `system`, the default, follows the colour scheme of the system. The terminal is JetBrains Mono at 10.5 pt with 16 px of
   padding, so no text touches the rounded corner. `MOD+a` starts `chora-chat`, which opens the chat
   with a helper.
 - **The power menu and screenshots**: `MOD+Shift+e` and the power icon of
