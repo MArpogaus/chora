@@ -2523,6 +2523,22 @@ mod tests {
         );
     }
 
+    /// The journal gets no typed text, which can be a password, and
+    /// only the start of long arguments.
+    #[test]
+    fn the_journal_hides_typed_text_and_cuts_the_arguments() {
+        let typed = json!({"text": "hunter2", "keys": ["Return"]});
+        let (args, _) = journal("inject_input", &typed, "ok");
+        assert!(!args.contains("hunter2"), "{args}");
+        assert!(
+            args.contains("(hidden)") && args.contains("Return"),
+            "{args}"
+        );
+        let long = json!({"commands": "x".repeat(1000)});
+        let (args, _) = journal("apply_commands", &long, "ok");
+        assert_eq!(args.chars().count(), 300);
+    }
+
     /// Review rc3 round 2, 4.4, the user's decision: a security setting
     /// asks for a key press, never for a spoken yes. Review A1, high 2:
     /// the client thread asks it for every caller, so the chat asks only
