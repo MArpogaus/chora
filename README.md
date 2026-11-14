@@ -110,13 +110,15 @@ window manager:
 | Binding | Action |
 |---------|--------|
 | Super+Return | start a terminal (foot) |
-| Super+r | start a launcher (fuzzel) |
+| Super+space, Super+r | start a launcher (fuzzel) |
 | Super+a | chat with a helper |
 | Super+Shift+c | close the focused window |
 | Super+j, Super+k | focus the next or previous window |
 | Super+1 to Super+9 | show a tag |
 | Super+Shift+1 to Super+Shift+9 | move the focused window to a tag |
-| Super+space | switch to the next layout |
+| Super+Shift+space | switch to the next layout |
+| Super+Shift+Escape | lock the screen |
+| Super+Shift+e | open the power menu |
 
 `chora-tiling --print-config` prints all options and bindings. Copy the
 output to `~/.config/chora/chora-tiling.yaml` and change it there. GNOME keeps
