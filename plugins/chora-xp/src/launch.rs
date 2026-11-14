@@ -304,19 +304,6 @@ pub fn themed(command: &str, file: &std::path::Path) -> String {
     format!("fuzzel --config '{}'{rest}", file.display())
 }
 
-/// The launcher command with the shared launcher entries: `fuzzel` gets
-/// `XDG_DATA_DIRS` as `data` says, so that it lists Chat with a helper
-/// and Screenshot. Another command, or no `data`, stays as it is.
-#[must_use]
-pub fn with_shared_entries(command: &str, data: Option<&str>) -> String {
-    match data {
-        Some(data) if command.split_whitespace().next() == Some("fuzzel") => {
-            format!("XDG_DATA_DIRS='{data}' {command}")
-        }
-        _ => command.to_owned(),
-    }
-}
-
 /// The name of the program of a shell command: its first word without
 /// quotes and directory.
 #[must_use]
@@ -553,12 +540,6 @@ mod tests {
         );
         assert_eq!(themed("rofi -show run", &file), "rofi -show run");
         assert_eq!(themed("fuzzel", &dir.join("none.ini")), "fuzzel");
-        assert_eq!(
-            with_shared_entries("fuzzel --dmenu", Some("/s:/usr/share")),
-            "XDG_DATA_DIRS='/s:/usr/share' fuzzel --dmenu"
-        );
-        assert_eq!(with_shared_entries("fuzzel", None), "fuzzel");
-        assert_eq!(with_shared_entries("rofi", Some("/s")), "rofi");
         let _ = std::fs::remove_dir_all(dir);
     }
 

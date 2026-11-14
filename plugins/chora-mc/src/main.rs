@@ -3113,17 +3113,6 @@ impl Mc {
         let _ = launch(&command, mint.as_deref());
     }
 
-    /// Runs the launcher with the shared entries of every look in its list.
-    fn launcher(command: &str) -> String {
-        let current = std::env::var("XDG_DATA_DIRS").ok();
-        match chora_kit::shared::data_dirs(current.as_deref()) {
-            Some(dirs) if command.starts_with("fuzzel") => {
-                format!("XDG_DATA_DIRS='{dirs}' {command}")
-            }
-            _ => command.to_owned(),
-        }
-    }
-
     /// Runs the actions of the system: the locker, the power menu, the
     /// screenshot and the volume.
     fn system(&mut self, action: &Action) {
@@ -3150,7 +3139,7 @@ impl Mc {
             Action::Scene(name) => name,
             Action::Run(command) => {
                 let mint = self.rt.conn.activation_token();
-                let _ = launch(&Self::launcher(&command), mint.as_deref());
+                let _ = launch(&chora_kit::shared::launcher(&command), mint.as_deref());
                 return;
             }
             Action::Give(to) => {

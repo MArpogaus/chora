@@ -2945,8 +2945,7 @@ impl Wm {
     fn start_program(&mut self, command: &str) {
         let name = launch::program_name(command);
         let command = launch::themed(command, &self.theme.path("fuzzel.ini"));
-        let data = shared::data_dirs(std::env::var("XDG_DATA_DIRS").ok().as_deref());
-        let command = launch::with_shared_entries(&command, data.as_deref());
+        let command = shared::launcher(&command);
         self.start_named(&command, name);
     }
 

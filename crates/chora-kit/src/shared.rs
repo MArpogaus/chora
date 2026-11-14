@@ -45,12 +45,6 @@ fn dirs_of(shared: Option<PathBuf>, flavor: Option<&Path>, exe: Option<&Path>) -
     dirs
 }
 
-/// The file `NAME.sh` of the first folder that has it.
-#[must_use]
-pub fn script(name: &str) -> Option<PathBuf> {
-    script_in(name, &dirs())
-}
-
 fn script_in(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
     let file = format!("{name}.sh");
     dirs.iter().map(|d| d.join(&file)).find(|f| f.is_file())
@@ -61,7 +55,7 @@ fn script_in(name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
 /// has the script.
 #[must_use]
 pub fn command(name: &str, args: &[&str]) -> Option<String> {
-    let script = script(name)?;
+    let script = script_in(name, &dirs())?;
     let mut line = format!("sh {}", quote(&script.to_string_lossy()));
     for arg in args {
         line.push(' ');
@@ -74,15 +68,34 @@ fn quote(word: &str) -> String {
     format!("'{}'", word.replace('\'', "'\\''"))
 }
 
+/// The shell command that runs a launcher with the shared entries in its
+/// list, for [`crate::launch`]: `fuzzel`, the launcher of every look,
+/// gets `XDG_DATA_DIRS` with the shared folder in front, as one quoted
+/// word. Another command, or one without a shared folder, stays as it
+/// is.
+#[must_use]
+pub fn launcher(command: &str) -> String {
+    let current = std::env::var("XDG_DATA_DIRS").ok();
+    launcher_with(
+        command,
+        data_dirs_in(&dirs(), current.as_deref()).as_deref(),
+    )
+}
+
+fn launcher_with(command: &str, data: Option<&str>) -> String {
+    let program = command.split_whitespace().next().unwrap_or_default();
+    match data {
+        Some(data) if program.rsplit('/').next() == Some("fuzzel") => {
+            format!("XDG_DATA_DIRS={} {command}", quote(data))
+        }
+        _ => command.to_owned(),
+    }
+}
+
 /// The value of `XDG_DATA_DIRS` that lets a launcher list the shared
 /// entries: the first folder with `applications` in front of what
 /// `current` says, or of the default of the specification. None when no
 /// folder has entries.
-#[must_use]
-pub fn data_dirs(current: Option<&str>) -> Option<String> {
-    data_dirs_in(&dirs(), current)
-}
-
 fn data_dirs_in(dirs: &[PathBuf], current: Option<&str>) -> Option<String> {
     let shared = dirs.iter().find(|d| d.join("applications").is_dir())?;
     let rest = current
@@ -147,6 +160,21 @@ mod tests {
         let want = format!("{}:/usr/share", checkout().display());
         assert_eq!(data_dirs_in(&dirs, Some("/usr/share")), Some(want));
         assert_eq!(data_dirs_in(&dirs[..1], None), None);
+    }
+
+    #[test]
+    fn only_fuzzel_gets_the_shared_entries_as_one_quoted_word() {
+        assert_eq!(
+            launcher_with("fuzzel --dmenu", Some("/s:/usr/share")),
+            "XDG_DATA_DIRS='/s:/usr/share' fuzzel --dmenu"
+        );
+        assert_eq!(
+            launcher_with("/usr/bin/fuzzel", Some("/it's here:/usr/share")),
+            "XDG_DATA_DIRS='/it'\\''s here:/usr/share' /usr/bin/fuzzel"
+        );
+        assert_eq!(launcher_with("fuzzel", None), "fuzzel");
+        assert_eq!(launcher_with("rofi", Some("/s")), "rofi");
+        assert_eq!(launcher_with("foot fuzzel", Some("/s")), "foot fuzzel");
     }
 
     #[test]
