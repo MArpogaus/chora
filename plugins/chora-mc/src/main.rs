@@ -2665,9 +2665,13 @@ impl Mc {
     }
 
     /// The keyboard for a scene that the user shows: to its window, or to
-    /// the node of a page, so that the plain keys of the page arrive.
+    /// the node of a page, so that the plain keys of the page arrive. An
+    /// open chat keeps the keyboard.
     fn keyboard_to(&mut self, name: &str, window: Option<String>) -> Vec<Command> {
         self.focused.clone_from(&window);
+        if self.chat == Chat::Open {
+            return Vec::new();
+        }
         let plain = self.page_keys == keys::PageKeys::Plain;
         let page = (plain && window.is_none()).then(|| Command::FocusNode {
             node: Some(page_id(name)),
