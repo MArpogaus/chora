@@ -1632,6 +1632,33 @@ mod tests {
     }
 
     #[test]
+    fn a_hover_that_is_pending_when_its_cascade_closes_does_not_panic() {
+        let (mut theme, cache) = crate::dialog::tests::theme("pendingrow");
+        let mut icons = Icons::new(crate::icons::THEMES);
+        let run = |title: &str| Node {
+            title: title.into(),
+            icon: String::new(),
+            kind: apps::Kind::Run(title.into()),
+        };
+        let apps = vec![Node {
+            title: "Accessories".into(),
+            icon: String::new(),
+            kind: apps::Kind::Group(vec![run("calc")]),
+        }];
+        let mut menu = Menu::new(&config(), apps, &theme, &mut icons);
+        menu.key(&mut theme, &mut icons, "Down");
+        down_to_all_programs(&mut menu, &mut theme, &mut icons);
+        menu.key(&mut theme, &mut icons, "Right");
+        assert_eq!(menu.cascades.len(), 1);
+        menu.hover(&mut theme, "xp-menu-row-0-0", true);
+        let due = menu.due().expect("a row waits");
+        menu.key(&mut theme, &mut icons, "Escape");
+        assert!(menu.cascades.is_empty());
+        menu.rest(&mut theme, &mut icons, due);
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn the_keys_leave_out_log_off_and_turn_off() {
         let (mut theme, cache) = crate::dialog::tests::theme("startfooter");
         let mut icons = Icons::new(crate::icons::THEMES);
