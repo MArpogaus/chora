@@ -167,9 +167,8 @@ pub fn choose(fuzzel: &[String], apps: &[App]) -> Option<String> {
 /// then the first folder of `shared` that has `applications` (Chat with a
 /// helper, Screenshot), then the XDG ones.
 fn entry_dirs(first: Option<PathBuf>, shared: &[PathBuf], xdg: Vec<PathBuf>) -> Vec<PathBuf> {
-    let shared = shared.iter().find(|d| d.join("applications").is_dir());
     (first.into_iter())
-        .chain(shared.cloned())
+        .chain(crate::shared::entries_in(shared).cloned())
         .chain(xdg)
         .collect()
 }

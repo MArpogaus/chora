@@ -92,12 +92,18 @@ fn launcher_with(command: &str, data: Option<&str>) -> String {
     }
 }
 
+/// The first of the folders that has `applications`, the entries that
+/// every look shares.
+pub(crate) fn entries_in(dirs: &[PathBuf]) -> Option<&PathBuf> {
+    dirs.iter().find(|d| d.join("applications").is_dir())
+}
+
 /// The value of `XDG_DATA_DIRS` that lets a launcher list the shared
 /// entries: the first folder with `applications` in front of what
 /// `current` says, or of the default of the specification. None when no
 /// folder has entries.
 fn data_dirs_in(dirs: &[PathBuf], current: Option<&str>) -> Option<String> {
-    let shared = dirs.iter().find(|d| d.join("applications").is_dir())?;
+    let shared = entries_in(dirs)?;
     let rest = current
         .filter(|c| !c.is_empty())
         .unwrap_or("/usr/local/share:/usr/share");
