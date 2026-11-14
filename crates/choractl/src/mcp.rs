@@ -394,6 +394,13 @@ fn tool(
     Tool::new(name, description, object(&schema))
 }
 
+/// A tool that needs `methods.privileged`, with the flag in its `_meta`
+/// as a privileged plugin method has it.
+fn privileged(mut tool: Tool) -> Tool {
+    tool.meta = Some(MetaObject(object(&json!({"privileged": true}))));
+    tool
+}
+
 /// A tool whose input schema comes from the type of its parameters, so that
 /// the model sees every command and every field.
 fn typed_tool<T: schemars::JsonSchema>(name: &'static str, description: &'static str) -> Tool {
@@ -540,19 +547,19 @@ fn session_tools() -> Vec<Tool> {
             }),
             &["argv"],
         ),
-        tool(
+        privileged(tool(
             "configure_output",
-            "Set the scale or the transform of an output, as wlr-randr does. Returns the output.",
+            "Set the scale or the transform of an output, as wlr-randr does. The client name needs the grant methods.privileged on every socket. Returns the output.",
             &json!({
                 "output": {"type": "string", "description": "the output name; the first output if missing"},
                 "scale": {"type": "number", "minimum": 0.1, "maximum": 10},
                 "transform": {"enum": ["normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"]},
             }),
             &[],
-        ),
-        tool(
+        )),
+        privileged(tool(
             "reserve_space",
-            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. Returns the output with its new work_area in scene coordinates.",
+            "Reserve space at the edges of an output, in logical pixels, for example for a panel of nodes: the work area, where window managers put windows, leaves it out until this server ends. A later call replaces the reserve on the output; no space removes it. The client name needs the grant methods.privileged on every socket. Returns the output with its new work_area in scene coordinates.",
             &json!({
                 "output": {"type": "string", "description": "the output name; the first output if missing"},
                 "top": {"type": "integer", "minimum": 0},
@@ -561,7 +568,7 @@ fn session_tools() -> Vec<Tool> {
                 "left": {"type": "integer", "minimum": 0},
             }),
             &[],
-        ),
+        )),
         tool(
             "put_asset",
             "Store a file for image nodes, shader nodes and effects in a directory of chora, and get its absolute path, since chora may not see the files of the agent, for example in another container. Pass a shader as text and a PNG in base64, at most 512 KiB. A second put of a name replaces the file, and nodes that use it reload it.",
@@ -935,6 +942,18 @@ mod tests {
         let exported = plugin_tools(&methods);
         assert_eq!(flag(&exported[0]), Some(json!(true)));
         assert_eq!(flag(&exported[1]), Some(json!(false)));
+    }
+
+    /// `configure_output` and `reserve_space` call methods that need
+    /// `methods.privileged`, so their tools carry the flag too.
+    #[test]
+    fn the_output_tools_are_privileged() {
+        for name in ["configure_output", "reserve_space"] {
+            let tools = session_tools();
+            let tool = tools.iter().find(|t| t.name == name).unwrap();
+            let flag = tool.meta.as_ref().map(|m| m.0["privileged"].clone());
+            assert_eq!(flag, Some(json!(true)), "{name}");
+        }
     }
 
     #[test]

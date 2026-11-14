@@ -235,7 +235,9 @@ digital gain control of WebRTC and turns off its noise suppression,
 the likely cause of the digital zero between the words (not yet
 verified on PipeWire).
 A transcript whose words match more than 80 % of the words spoken in the
-last 3 s is echo.
+last 3 s is echo. Echo is also no yes and no no to a question: a yes
+word at the end of the spoken question, heard again by the mic, answers
+nothing.
 
 Word matcher (no LLM):
 
@@ -389,6 +391,11 @@ the user agrees:
   answer it. A spoken yes, an always word and a yes of
   the method `voice.confirm` count as nothing. A spoken no, a new
   request, two unclear answers or `voice.confirm no` are a no.
+- A key press in the first second after the question shows counts as
+  nothing, and the question stays open. A sub-agent can replace its
+  question at any time, so such a press was meant for the question
+  before. A button of a HUD carries the id of its question and needs no
+  such wait.
 - No key press within `confirm_timeout_ms` is a no.
 - The event `voice.confirm` has `physical: true` and `keys: {yes, no}`,
   so a HUD shows "Alt+y = yes, Alt+n = no". The agent's own HUD text
@@ -483,6 +490,8 @@ at most a short summary of it.
 | Any thread | Panic or end | Exit 1; the unit has `Restart=always` |
 
 The history commits per LLM round; an audio failure never rolls it back.
+An error text names a server by its URL without the userinfo and the
+query, which can carry a key.
 `voice.health` and the `health` of the state record show `asr`, `tts`,
 `llm`, `mcp` and `chora` as `ok`, `down` or `unknown` (before the first
 report), with the last error and its Unix time `error_at`. Each actor
@@ -574,7 +583,7 @@ client name is the flag `--name` (default `voice`). `chora-voice
 | `asr_url`, `asr_model` | `ws://127.0.0.1:8881/v1/realtime?intent=transcription`, `gufo` |
 | `tts_url`, `tts_model` | `ws://127.0.0.1:8882/v1/audio/speech/stream`, `gufo` |
 | `llm_url`, `llm_model` | `http://127.0.0.1:8888/v1`, `gufo` |
-| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key) |
+| `asr_api_key_env`, `tts_api_key_env`, `llm_api_key_env` | `""` (no key; else the environment variable with the key; `chora_mcp` starts without these variables; the sub-agents and the coding harness keep them, so a harness can use the same key) |
 | `asr_api_key_file`, `tts_api_key_file`, `llm_api_key_file` | `""` (no key; else the file with the key, `%d` is `$CREDENTIALS_DIRECTORY`) |
 | `asr_headers`, `tts_headers`, `llm_headers` | `{}` (extra headers, name: value) |
 | `asr_language` | `auto` (the ASR finds the language; else a code such as `de`) |
@@ -634,6 +643,7 @@ confirm:
   - {tool: agent_start, prompt: "Shall I start a helper for {project}?"}
   - {tool: run_program, prompt: "Shall I start the program {program}?"}
   - {tool: configure_output, prompt: "Shall I change the screen to {args}?"}
+  - {tool: reserve_space, prompt: "Shall I keep space free on the screen: {args}?"}
   - {tool: "*.restart", prompt: "Shall I restart the plugin?"}
   - {tool: call_method, method: "*restart", prompt: "Shall I restart the plugin {client}?"}
 ```
@@ -647,6 +657,10 @@ foot?"). No list of methods is kept in the agent. The methods
 `window.give`, `agent.set` and `notify.push` are privileged too. In a
 prompt, `{client}`, `{method}` and `{params}` name the plugin, the
 method and its params. The method is said with spaces ("app open").
+The tools `configure_output` and `reserve_space` need the grant
+`methods.privileged` of `voice-mcp` too: `choractl grant voice-mcp
+methods.privileged`. Without it, chora refuses them with code 4. Each
+of them asks with its own `confirm` rule.
 
 Each server (ASR, TTS, LLM) has its own URL, model, key and headers, so
 that each one can move to another provider. The key comes from the
@@ -767,9 +781,17 @@ macros out of the other functions, because clippy counts their expansion
 into the cognitive complexity. With `CHORA_VOICE_LLM_DUMP=FILE` the agent
 appends each LLM request body and the raw lines of its stream to FILE
 (mode 0600), to see what the server got and sent. Each stage logs start
-and end with the turn number. A tool call logs its arguments and the
-start of its result, without secrets. Of `read`, the log has only the
-path and the byte count. The values of each `*_headers` key, of each
+and end with the turn number. The info level has no text that the
+person said or heard: the text of an utterance (`turn=2 text="..."`),
+of words over a reply or queued into its next round, of an ASR echo
+that drops, of a reply sentence (`say:`), of each round of the LLM, of
+a coding task and of its result log at debug. `services/voice/tests/live-gate.sh`
+runs the agent with `RUST_LOG=chora_voice=debug,info` to show them. A tool call logs
+its name and time at info. At debug it logs the first 300 characters of
+its arguments and of its result, without secrets. Of
+`read`, the log has only the path and the byte count. The `text` of
+`inject_input` shows as "(hidden)": it can be a dictated password. The
+values of each `*_headers` key, of each
 key with `api_key`, `apikey`, `secret` or `password`, of each key that
 ends with `token`, and of `authorization` show as "(hidden)". One summary per turn:
 
@@ -788,7 +810,8 @@ record in `~/.local/state/chora/voice-turns.jsonl` (planned for WP8;
 
 ## 12. Recording for replay
 
-With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`:
+With `record_dir`, each run writes a directory `DIR/YYYYMMDD-HHMMSS/`
+(mode 0700, its files 0600: a recording has the voice of the user):
 
 - `mic.wav`: all mic frames, 24 kHz, without gaps.
 - `played.wav`: all played sound (earcons and replies), one piece after

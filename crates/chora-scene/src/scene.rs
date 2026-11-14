@@ -1572,7 +1572,7 @@ pub const OVERLAY: &str = "screen:";
 pub const INJECTION: &str = "chora:inject";
 
 /// The side of the injection mark, in logical pixels.
-const MARK_SIDE: f64 = 12.0;
+pub const MARK_SIDE: f64 = 12.0;
 
 /// The id of the overlay root of an output.
 #[must_use]

@@ -316,6 +316,7 @@ impl State {
                 Err("a client socket reads no virtual output".into())
             }
             Command::Create { parent, .. }
+            | Command::Attach { parent, .. }
             | Command::Move {
                 parent: Some(parent),
                 ..

@@ -232,6 +232,12 @@ impl State {
         if self.ipc.name(conn).is_none() {
             return Err(rejected("send hello first"));
         }
+        if self.ipc.confined(conn) {
+            return Err(RpcError::new(
+                RpcError::CLIENT_SOCKET_RULE,
+                "a client socket or a confined connection adds and removes no output",
+            ));
+        }
         if !matches!(self.backend, Some(Backend::Headless(_))) {
             return Err(rejected(ONLY_HEADLESS));
         }

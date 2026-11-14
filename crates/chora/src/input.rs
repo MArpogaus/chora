@@ -20,7 +20,9 @@ use smithay::{
     },
     desktop::PopupPointerGrab,
     input::{
-        keyboard::{FilterResult, Keycode, Keysym, KeysymHandle, ModifiersState, xkb},
+        keyboard::{
+            FilterResult, KeyboardSource, Keycode, Keysym, KeysymHandle, ModifiersState, xkb,
+        },
         pointer::{
             AxisFrame, ButtonEvent, Focus, GestureHoldBeginEvent, GestureHoldEndEvent,
             GesturePinchBeginEvent, GesturePinchEndEvent, GesturePinchUpdateEvent,
@@ -95,6 +97,19 @@ pub fn log_layout(state: &mut State) {
     );
 }
 
+/// The keyboard of `input.inject`: a source of its own, so that an
+/// injected release lifts no key or modifier that the person holds.
+const INJECTED: KeyboardSource = KeyboardSource::Auxiliary(0);
+
+/// The keyboard that a key comes from.
+fn source(injected: bool) -> KeyboardSource {
+    if injected {
+        INJECTED
+    } else {
+        KeyboardSource::MAIN
+    }
+}
+
 /// Releases every key that is down, for example when the window of a
 /// nested chora loses the focus and the host keeps the releases.
 pub fn release_keys(state: &mut State) {
@@ -120,7 +135,8 @@ pub fn key(state: &mut State, code: Keycode, key_state: KeyState, time: InputTim
     if key_state == KeyState::Pressed {
         state.track_press(serial, injected);
     }
-    let action = keyboard.input(
+    let action = keyboard.input_from_source(
+        source(injected),
         state,
         code,
         key_state,
@@ -399,7 +415,8 @@ pub fn modifier_names(mods: &ModifiersState) -> Vec<String> {
     .collect()
 }
 
-/// The fixed bindings of the safety layer (D23), then the grabs. The keymap
+/// The fixed bindings of the safety layer (D23), then the grabs. Quit,
+/// reset and revoke wait while the session is locked. The keymap
 /// turns Ctrl+Alt+F1 to F12 into the keys that switch the VT; only the
 /// modified keysyms show them.
 fn press_action(
@@ -418,7 +435,7 @@ fn press_action(
     {
         return Some(KeyAction::SwitchVt(i32::try_from(vt).ok()? + 1));
     }
-    if mods.ctrl && mods.alt {
+    if mods.ctrl && mods.alt && state.lock.is_none() {
         if syms.contains(&Keysym::BackSpace) {
             return Some(KeyAction::Quit);
         }

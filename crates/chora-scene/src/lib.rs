@@ -23,8 +23,8 @@ pub use node::{
     PropsUpdate, ROOT, ShaderEffect, SurfaceInfo, Uniform,
 };
 pub use scene::{
-    INJECTION, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, NewToplevel, OVERLAY, Placed, Scene, SceneError,
-    TransactionError, claimant_at, overlay_id,
+    INJECTION, MARK_SIDE, MAX_CAMERAS, MAX_DEPTH, MAX_NODES, NewToplevel, OVERLAY, Placed, Scene,
+    SceneError, TransactionError, claimant_at, overlay_id,
 };
 pub use selector::{Selector, SelectorError};
 pub use transform::{Decomposed, Transform};

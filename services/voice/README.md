@@ -333,7 +333,7 @@ revoke voice-mcp`, the revoke binding or the emergency reset:
 | grant | what the LLM can do with it |
 |---|---|
 | `methods.call` | call the methods of the plugins: `call_method` and the tools `client.method`, for example the focus of chora-tiling |
-| `methods.privileged` | with `methods.call`, call privileged methods: `settings.set`, `settings.reload` and methods that run commands, such as `app.open` of chora-mc |
+| `methods.privileged` | with `methods.call`, call privileged methods: `settings.set`, `settings.reload` and methods that run commands, such as `app.open` of chora-mc; change the outputs with `configure_output` and `reserve_space` |
 | `activation.token` | start any program with `run_program` |
 | `input.inject` | type and click with `inject_input` |
 | `screen.capture` | see the screenshot in `describe_screen` |
