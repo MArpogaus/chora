@@ -67,6 +67,12 @@ const GRACE: Duration = Duration::from_secs(10);
 const MAX_EMIT: usize = 64 << 10;
 /// The most events that one client name emits per `EMIT_WINDOW` (D65).
 const MAX_EMITS: u32 = 32;
+/// The most grabs of one connection.
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "the fix that follows enforces it")
+)]
+const MAX_GRABS: usize = 128;
 const EMIT_WINDOW: Duration = Duration::from_secs(1);
 
 /// The connections of the IPC socket.
@@ -4080,6 +4086,30 @@ mod tests {
         assert_eq!(message, "unknown key \"a\\0\"");
         let (_, message) = client.fails(&mut core, "input.ungrab", binding);
         assert_eq!(message, "unknown key \"a\\0\"");
+    }
+
+    #[test]
+    fn a_connection_holds_at_most_max_grabs() {
+        let mut core = Core::new();
+        let mut client = core.named("wm");
+        let mods = [
+            "Super",
+            "Ctrl",
+            "Alt",
+            "Super+Shift",
+            "Super+Ctrl",
+            "Super+Alt",
+        ];
+        let keys = "abcdefghijklmnopqrstuvwxyz0123456789";
+        let mut bindings = mods
+            .iter()
+            .flat_map(|m| keys.chars().map(move |k| format!("{m}+{k}")));
+        for binding in bindings.by_ref().take(MAX_GRABS) {
+            client.ok(&mut core, "input.grab", json!({"binding": binding}));
+        }
+        let next = json!({"binding": bindings.next().unwrap()});
+        let (answer, message) = client.fails(&mut core, "input.grab", next);
+        assert_eq!(answer, RpcError::LIMIT_REACHED, "{message}");
     }
 
     #[test]

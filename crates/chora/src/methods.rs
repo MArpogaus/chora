@@ -31,6 +31,13 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_EXPORTS: usize = 64;
 /// How many calls of one connection can wait for their answers.
 const MAX_PENDING: usize = 64;
+/// The most bytes of the description and the schema of one exported
+/// method.
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "the fix that follows enforces it")
+)]
+const MAX_EXPORT_BYTES: usize = 64 << 10;
 
 /// The exported methods and the calls that wait for their answers.
 #[derive(Default)]
@@ -328,6 +335,46 @@ mod tests {
     fn call(caller: &mut Client, method: &str) -> u64 {
         let call = json!({"client": "wm", "method": method, "params": {"name": "max"}});
         caller.send("methods.call", call)
+    }
+
+    /// A caller that floods a method fills the output of the exporter:
+    /// the caller gets the error, the exporter keeps its connection.
+    #[test]
+    fn a_flood_of_calls_fails_for_the_caller_and_keeps_the_exporter() {
+        let (mut core, mut wm, first) = exported();
+        let mut callers = vec![first, core.named("second"), core.named("third")];
+        let big = "x".repeat(60 << 10);
+        let mut refused = Vec::new();
+        for caller in &mut callers {
+            for _ in 0..MAX_PENDING {
+                let call = json!({"client": "wm", "method": "set_layout", "params": big});
+                let id = caller.send("methods.call", call);
+                refused.extend(caller.answer(&mut core, id).and_then(Result::err));
+            }
+        }
+        let codes: Vec<&Value> = refused.iter().map(|e| &e["code"]).collect();
+        assert!(!codes.is_empty(), "no call was refused");
+        assert!(
+            codes.iter().all(|c| **c == RpcError::LIMIT_REACHED),
+            "{codes:?}"
+        );
+        assert!(!wm.closed(&mut core), "the core closed the exporter");
+    }
+
+    #[test]
+    fn an_export_with_a_huge_description_is_refused() {
+        let mut core = Core::new();
+        let mut wm = core.named("wm");
+        let method = json!({"name": "set_layout", "description": "x".repeat(MAX_EXPORT_BYTES)});
+        let id = wm.send("methods.export", json!({"names": [method]}));
+        let answer = std::iter::repeat_with(|| wm.answer(&mut core, id))
+            .take(8)
+            .flatten()
+            .next();
+        let error = answer
+            .expect("an answer")
+            .expect_err("the export is refused");
+        assert_eq!(error["code"], RpcError::LIMIT_REACHED, "{error}");
     }
 
     #[test]
