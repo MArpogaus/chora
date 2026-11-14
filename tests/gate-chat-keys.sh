@@ -5,7 +5,9 @@
 # of helpers and gives the field the keyboard; "1" and Enter open the
 # chat with the helper, typed text and Enter reach the helper (the fake
 # ACP agent of services/voice/tests/fake-acp.sh), and Esc closes the
-# chat, so the window gets the keyboard back.
+# chat, so the window gets the keyboard back. The first key after that
+# hand-over reaches the window; a failure prints the enter, leave and key
+# events that the window got.
 #
 # Usage: tests/gate-chat-keys.sh   BIN: directory with the binaries
 set -u
@@ -75,3 +77,10 @@ ok "1, Enter, then typed text and Enter reach the helper"
 key Escape
 until_ok 'window_has enter 2' 40 || fail "Esc did not give the window the keyboard back"
 ok "Esc closes the chat and the window gets the keyboard back"
+
+key m
+until_ok 'window_has "^key 50$" 1' 20 ||
+    fail "the first key after the hand-over did not reach the window: $(tr '\n' ' ' <"$work/window")"
+[ "$(tail -n 2 "$work/window" | tr '\n' ' ')" = "enter key 50 " ] ||
+    fail "the window got more than the one key: $(tr '\n' ' ' <"$work/window")"
+ok "the first key after the hand-over reaches the window"

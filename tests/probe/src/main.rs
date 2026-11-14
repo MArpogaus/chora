@@ -36,7 +36,8 @@
 //!   live content, for `tests/3d-bench.sh`.
 //! - `clip TEXT`: shows a toplevel `chora-probe`, offers TEXT as the
 //!   selection when it gets the keyboard, and prints a line `enter` or
-//!   `leave` each time the keyboard comes or goes, until it is killed.
+//!   `leave` each time the keyboard comes or goes and `key CODE` for each
+//!   key press that it gets, until it is killed.
 //! - `window R G B`: shows a toplevel `chora-probe` in one color, in the
 //!   size of each configure, until it is killed. With `--exit-on-close`,
 //!   it exits with 0 when the compositor asks it to close. With
@@ -732,7 +733,8 @@ fn live(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
 }
 
 /// Shows a toplevel that offers a text as the selection from its first
-/// keyboard enter on, and reports each enter and leave on stdout.
+/// keyboard enter on, and reports each enter, leave and key press on
+/// stdout.
 fn clip(queue: &mut Queue, probe: &mut Probe) -> Result<String, String> {
     let text = std::env::args().nth(2).ok_or("usage: clip TEXT")?;
     probe.clip = Some(text);
@@ -1009,7 +1011,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Probe {
                 key,
                 state: WEnum::Value(wl_keyboard::KeyState::Pressed),
                 ..
-            } if probe.report => println!("key {key}"),
+            } if probe.report || probe.clip.is_some() => println!("key {key}"),
             _ => {}
         }
     }
