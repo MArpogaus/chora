@@ -178,9 +178,10 @@ bindings:
   XF86AudioMute: {volume: mute}
   # The plugin
   MOD+Ctrl+r: reload
+  MOD+F1: show_keys
   MOD+slash: show_keys
 
-# The words of a binding in the key list (MOD+slash): the binding as it is
+# The words of a binding in the key list (MOD+F1): the binding as it is
 # spelled above, and its words. Without an entry a binding gets the words
 # of its action, and run its command.
 labels:

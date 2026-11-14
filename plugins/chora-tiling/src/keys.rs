@@ -262,6 +262,16 @@ fn spell(keys: &str) -> String {
         .join("+")
 }
 
+/// The media keys of the volume as one name, since a keyboard prints
+/// them as signs.
+fn media_keys(de: bool) -> &'static str {
+    if de {
+        "Lautstärketasten"
+    } else {
+        "Volume keys"
+    }
+}
+
 /// The rows of the key list by group: the keys as the file spells them
 /// with `MOD` as the modifier, and the words. A `labels` entry names a
 /// binding; the bindings of the tags 1 to 9 take one row.
@@ -274,7 +284,8 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
         let Some((group, label)) = words(action, de) else {
             continue;
         };
-        if !binding.contains("MOD") {
+        let media = matches!(action, Action::Volume(_)) && !binding.contains("MOD");
+        if !binding.contains("MOD") && !media {
             continue;
         }
         let english = words(action, false).map_or_else(String::new, |(_, en)| en);
@@ -284,9 +295,14 @@ pub fn rows(config: &Config, lang: Language) -> Vec<(&'static str, Vec<(String, 
             .position(|w| *w == named.unwrap_or(&english))
             .unwrap_or(ORDER.len());
         let label = named.cloned().unwrap_or(label);
-        let keys = spell(&binding.replace("MOD", &config.modifier));
+        let keys = if media {
+            media_keys(de).to_owned()
+        } else {
+            spell(&binding.replace("MOD", &config.modifier))
+        };
         let Some(n) = number(action) else {
             match groups[group].iter_mut().find(|(_, _, l)| *l == label) {
+                Some((_, known, _)) if known.split(" / ").any(|k| k == keys) => {}
                 Some((_, known, _)) => *known = format!("{known} / {keys}"),
                 None => groups[group].push((rank, keys, label)),
             }
@@ -663,7 +679,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
     let (name, hint, mouse, basics) = if de {
         (
             "Tasten",
-            "Super+/ zeigt diese Liste wieder. Esc schließt sie.",
+            "Super+F1 zeigt diese Liste wieder. Esc schließt sie.",
             "Maus",
             "Apps startet Programme · Tag anklicken zeigt ihn · Super+ziehen verschiebt · \
              Ein/Aus-Symbol: Sitzung",
@@ -671,7 +687,7 @@ fn header(body: &str, colors: &Colors, lang: Language) -> Vec<Command> {
     } else {
         (
             "Keys",
-            "Super+/ shows this list again. Esc closes it.",
+            "Super+F1 shows this list again. Esc closes it.",
             "Mouse",
             "Apps starts a program · click a tag to show it · Super+drag moves a window · \
              power icon: lock, log out",
