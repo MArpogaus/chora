@@ -36,21 +36,21 @@ node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].meta.text // empty'; }
 help_open() { node_exists xp-dlg-help; }
 help_close() {
     key Escape
-    until_ok '! help_open' 20
+    until_ok '! help_open'
 }
 chat_open() { ctl query id:hud-chat 2>/dev/null | jq -e 'length > 0' >/dev/null; }
 chat_close() {
     key Escape
-    until_ok '! chat_open' 20
+    until_ok '! chat_open'
 }
 menu_open() { has_text "Turn Off Computer"; }
 menu_close() {
     key Escape
-    until_ok '! menu_open' 20
+    until_ok '! menu_open'
 }
 menu_show() {
     click 50 785
-    until_ok menu_open 20
+    until_ok menu_open
 }
 click_text() {
     local at
@@ -62,7 +62,7 @@ click_text() {
 dialog_open() { node_exists xp-session; }
 dialog_cancel() {
     click_text Cancel
-    until_ok '! dialog_open' 20
+    until_ok '! dialog_open'
 }
 four_words() {
     local word bad=0
@@ -84,23 +84,33 @@ away() { echo '[{"pointer_move": {"position": [640, 300]}}]' | ctl inject - >/de
 tip_shows() { [ -n "$(node_text xp-tooltip)" ]; }
 tip_of() {
     hover_node "$1" || return 1
-    until_ok tip_shows 20
+    until_ok tip_shows
     node_text xp-tooltip
 }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
+settle() {
+    away
+    ! dialog_open || dialog_cancel
+    ! menu_open || menu_close
+    ! help_open || help_close
+    ! chat_open || chat_close
+}
 
 cell_keys_key() {
+    settle
     key Super+F1
-    until_ok help_open 20 && help_close
+    until_ok help_open && help_close
 }
 cell_keys_alias() {
+    settle
     key Super+slash
-    until_ok help_open 20 && help_close
+    until_ok help_open && help_close
 }
 cell_keys_names() {
+    settle
     local chord bad=0
     key Super+F1
-    until_ok help_open 20 || return 1
+    until_ok help_open || return 1
     for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print XF86AudioRaiseVolume XF86AudioLowerVolume XF86AudioMute; do
         has_text_any_case "$chord" || bad=1
     done
@@ -108,31 +118,36 @@ cell_keys_names() {
     return "$bad"
 }
 cell_keys_door() {
+    settle
     menu_show || return 1
     click_text "Help and Support" || return 1
-    until_ok help_open 20 || return 1
+    until_ok help_open || return 1
     click_node xp-dlg-help-content-c-topic-4 || return 1
-    until_ok 'has_text_any_case "Super+Shift+Escape"' 20
+    until_ok 'has_text_any_case "Super+Shift+Escape"'
     local status=$?
     help_close
     return "$status"
 }
 cell_f1_free() {
+    settle
     key F1
     got_key 59 && ! until_ok help_open 8
 }
 cell_launcher_key() {
+    settle
     unmark
     key Super+space
     marked '^fuzzel'
 }
 cell_launcher_door() {
+    settle
     unmark
     menu_show || return 1
     click_text "Run..." || return 1
     marked '^fuzzel'
 }
 cell_launcher_chat() {
+    settle
     unmark
     key Super+space
     marked "^data .*$repo/flavors/shared" &&
@@ -144,18 +159,21 @@ cell_launcher_chat() {
     return "$status"
 }
 cell_helper_key() {
+    settle
     key Super+a
-    until_ok chat_open 20 && chat_close
+    until_ok chat_open && chat_close
 }
 cell_helper_door() {
+    settle
     local word
     word=$(tip_of "xp-helper-$output")
     away
     [ -n "$word" ] && [ "$word" != "No helper" ] || return 1
     click_node "xp-helper-$output"
-    until_ok chat_open 20 && chat_close
+    until_ok chat_open && chat_close
 }
 cell_helper_none() {
+    settle
     voice_stop
     doors_voice none || return 1
     local word
@@ -163,53 +181,61 @@ cell_helper_none() {
     away
     [ "$word" = "No helper" ] || return 1
     key Super+a
-    until_ok 'has_text "No helper is set up"' 20 && chat_close
+    until_ok 'has_text "No helper is set up"' && chat_close
 }
 cell_lock_key() {
+    settle
     unmark
     key Super+Shift+Escape
     marked '^(swaylock|loginctl lock-session)'
 }
 cell_lock_door() {
+    settle
     unmark
     menu_show || return 1
     click_text "Lock" || return 1
     marked '^swaylock'
 }
 cell_power_key() {
+    settle
     key Super+Shift+e
-    until_ok dialog_open 20 || return 1
+    until_ok dialog_open || return 1
     four_words
     local status=$?
     dialog_cancel
     return "$status"
 }
 cell_power_door() {
+    settle
     menu_show || return 1
     click_text "Turn Off Computer" || return 1
-    until_ok dialog_open 20 || return 1
+    until_ok dialog_open || return 1
     four_words
     local status=$?
     dialog_cancel
     return "$status"
 }
 cell_screenshot_key() {
+    settle
     rm -rf "$XDG_PICTURES_DIR/Screenshots"
     key Super+Print
-    until_ok shots 20
+    until_ok shots
 }
 cell_screenshot_door() {
+    settle
     rm -rf "$XDG_PICTURES_DIR/Screenshots"
     menu_show || return 1
     click_text "Screenshot" || return 1
-    until_ok shots 20
+    until_ok shots
 }
 cell_volume_key() {
+    settle
     unmark
     key XF86AudioRaiseVolume
     marked '^wpctl set-volume'
 }
 cell_volume_door() {
+    settle
     [ "$(tip_of "xp-speaker-$output")" = "Volume 50%" ] || return 1
     unmark
     click_node "xp-speaker-$output"
@@ -223,7 +249,7 @@ check_log_off() {
     unmark
     menu_show || return 1
     click_text "Log Off" || return 1
-    until_ok dialog_open 20 || return 1
+    until_ok dialog_open || return 1
     click_node xp-session-button-1 || return 1
     marked '^loginctl terminate-'
 }
