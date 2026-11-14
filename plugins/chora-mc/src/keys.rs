@@ -170,7 +170,8 @@ fn volume_order(change: Change) -> usize {
     }
 }
 
-/// A key as people read it: arrows for the arrow keys, a capital Space.
+/// A key as people read it: arrows for the arrow keys, a capital Space,
+/// and the labels of the volume keys as printed on a keyboard.
 /// A thin space after the plus keeps an arrow off it.
 pub fn human(key: &str) -> String {
     let mut out = String::new();
@@ -179,6 +180,9 @@ pub fn human(key: &str) -> String {
             "Left" => ("←", true),
             "Right" => ("→", true),
             "space" => ("Space", false),
+            "XF86AudioRaiseVolume" => ("Vol+", false),
+            "XF86AudioLowerVolume" => ("Vol-", false),
+            "XF86AudioMute" => ("Mute", false),
             other => (other, false),
         };
         if i > 0 {
@@ -261,6 +265,13 @@ mod tests {
             "Back one step",
         ];
         assert_eq!(words, want);
+    }
+
+    #[test]
+    fn the_volume_keys_read_as_they_are_printed() {
+        assert_eq!(human("XF86AudioRaiseVolume"), "Vol+");
+        assert_eq!(human("XF86AudioLowerVolume"), "Vol-");
+        assert_eq!(human("XF86AudioMute"), "Mute");
     }
 
     #[test]

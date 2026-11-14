@@ -66,7 +66,7 @@ cell_keys_names() {
     local chord bad=0
     key Super+F1
     until_ok keys_open 20 || return 1
-    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print XF86AudioRaiseVolume XF86AudioLowerVolume XF86AudioMute; do
+    for chord in Super+F1 Super+Space Super+a Super+Shift+Escape Super+Shift+e Super+Print Vol+ Vol- Mute; do
         shows "$chord" || bad=1
     done
     keys_close

@@ -346,6 +346,9 @@ fn next_minute_after(now: u128) -> f64 {
     (ms + 50.0).min(chora_scene::MAX_DURATION)
 }
 
+/// Where the words of a row of the full key list begin, so that
+/// `Super+Shift+Escape` fits before them.
+const FULL_LIST_WORDS: f64 = 152.0;
 /// How many doors stand in a line.
 const DOORS_PER_LINE: usize = 3;
 /// The space from one door of a line to the next, in pixels.
@@ -1458,7 +1461,11 @@ impl Mc {
             ..Item::text(format!("{id}-title"), slot, head, true)
         }];
         let mut ty = self.content_type(content, false);
-        let words_x = chora_kit::hud::LABEL_COLUMN;
+        let words_x = if full {
+            FULL_LIST_WORDS
+        } else {
+            chora_kit::hud::LABEL_COLUMN
+        };
         let words = ty.clone();
         ty.color = config.colors().get("text").copied().unwrap_or(ty.color);
         for (i, row) in rows.iter().enumerate() {

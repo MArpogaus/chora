@@ -719,7 +719,7 @@ screen, `Super+Shift+e` opens the power menu (Lock, Log out, Restart, Shut
 down) and `Super+Print` takes a screenshot; these three run the scripts that
 every look shares. `XF86AudioRaiseVolume`, `XF86AudioLowerVolume` and
 `XF86AudioMute` change the volume of the default sound output by 5 percent
-and show it in a notice. `F1` is no binding: it reaches the program. A binding
+and show it in a notice; the key list calls them `Vol+`, `Vol-` and `Mute`. `F1` is no binding: it reaches the program. A binding
 of one key without Ctrl, Alt or Super needs the grant `input.grab-any`, so the
 key list is on `Super+F1`.
 
