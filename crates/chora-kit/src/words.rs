@@ -115,6 +115,8 @@ pub enum Word {
     CloseNote,
     /// No helper exists.
     NoHelper,
+    /// The state word of a helper door while no helper runs.
+    NoHelperDoor,
     /// Messages of the transcript are missing.
     Dropped,
     /// Typed text waits and was changed after Enter.
@@ -203,7 +205,7 @@ pub enum Word {
 }
 
 /// Every word, for the checks of the tests.
-pub const ALL: [Word; 80] = [
+pub const ALL: [Word; 81] = [
     Word::Asleep,
     Word::Listening,
     Word::Thinking,
@@ -242,6 +244,7 @@ pub const ALL: [Word; 80] = [
     Word::Offline,
     Word::CloseNote,
     Word::NoHelper,
+    Word::NoHelperDoor,
     Word::Dropped,
     Word::NotSent,
     Word::Lines,
@@ -337,6 +340,7 @@ impl Word {
             Self::Offline => "Cannot reach voice control. Trying again every 5 s.",
             Self::CloseNote => "{name} goes on working.",
             Self::NoHelper => "No helper is set up. Ask the person who set up this computer.",
+            Self::NoHelperDoor => "No helper",
             Self::Dropped => "Earlier messages were dropped.",
             Self::NotSent => "Not sent. Press Enter to send.",
             Self::Lines => "{n} lines",
@@ -431,6 +435,7 @@ impl Word {
             Self::NoHelper => {
                 "Kein Helfer eingerichtet. Fragen Sie, wer den Computer eingerichtet hat."
             }
+            Self::NoHelperDoor => "Kein Helfer",
             Self::Dropped => "Frühere Nachrichten wurden verworfen.",
             Self::NotSent => "Nicht gesendet. Zum Senden Enter drücken.",
             Self::Lines => "{n} Zeilen",
