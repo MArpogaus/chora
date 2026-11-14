@@ -205,7 +205,10 @@ figure, toward the middle of the output, on the backing of a plain
 sentence: `text: '{state}'` shows `Listening` in the language of the
 screen. There `{state}` is the word of the word table, not the name of
 the state. The neutral and the mc folders show it, so the state never
-depends on a colour alone. The word is 11 pixels, next to a shape that
+depends on a colour alone. While the voice agent rests (asleep,
+listening or idle) and its `agent_list` names no helper and no project,
+the word is `No helper`, in the island too: the host asks the agent
+once for each connection. The word is 11 pixels, next to a shape that
 shows the same state; in a folder that names a `slot` it is the 14
 pixels of text that a person reads, in the `accent` of the `colours` of
 the panel, and the margin that the folder gives keeps the word on the
@@ -370,7 +373,8 @@ field is a well of 48 with the focus ring while it has the keyboard; the
 key line under it names Return (send), Ctrl+. (stop) and Esc (close),
 and a click on the words of Stop or Close does the same, without a
 button. The island of the folder hides while the chat is open: the
-header takes its place. A question card in the chat keeps its place,
+header takes its place, and the meta `text` of the node `hud-chat`
+starts with the words of the header. A question card in the chat keeps its place,
 and the transcript flows under it. The text of a glass chat is checked
 against its `fill` over a black and over a white pane.
 

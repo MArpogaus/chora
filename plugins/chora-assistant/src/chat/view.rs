@@ -1497,6 +1497,25 @@ mod tests {
     }
 
     #[test]
+    fn a_glass_view_names_its_header_in_the_meta_of_its_node() {
+        let (mut theme, _, cache) = crate::tests::loaded("glass-header");
+        let frame = Frame {
+            look: Look {
+                style: ChatStyle::Glass,
+                ..idle_frame(IdleStop::Grey).look
+            },
+            ..idle_frame(IdleStop::Grey)
+        };
+        let mut session = Session::new();
+        session.mode = Mode::List(Vec::new());
+        let commands = session.glass_commands(&mut theme, &frame, Language::En);
+        let text = created(&commands, CHAT).and_then(|props| props.meta.as_ref());
+        let text = text.map(|meta| meta["text"].clone()).unwrap_or_default();
+        assert!(text.starts_with("No helper is set up"), "{text}");
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
     fn stop_and_the_entries_refuse_a_press_of_a_program() {
         assert!(refuses_injected(STOP));
         assert!(refuses_injected(SEND));

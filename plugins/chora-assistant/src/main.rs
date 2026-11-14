@@ -175,6 +175,9 @@ struct Agent {
     stale: Vec<PathBuf>,
     /// What the agent last said of each helper that it named.
     helpers: BTreeMap<String, rows::Helper>,
+    /// The voice agent has no helper and no project, none while it was
+    /// not asked.
+    no_helper: Option<bool>,
     /// The box of the slot of the chat: the client that announced it, the
     /// output and the box.
     slot: Option<chat::Held>,
@@ -381,6 +384,7 @@ impl Agent {
             deferred: Vec::new(),
             stale: Vec::new(),
             helpers: BTreeMap::new(),
+            no_helper: None,
             slot: None,
             slot_client: None,
             look_cache,

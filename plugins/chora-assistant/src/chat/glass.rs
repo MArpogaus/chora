@@ -403,9 +403,11 @@ impl Session {
             let top = ((HEADER - 24.0) / 2.0) as i32;
             picture = picture.element(sheet, id, [16, top, 24, 24]);
         }
-        let shown = said
-            .iter()
-            .map(|m| m.text.as_str())
+        let (word, who) = self.glass_head(language);
+        let shown = [word.as_str(), who.as_str()]
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .chain(said.iter().map(|m| m.text.as_str()))
             .collect::<Vec<_>>()
             .join("\n");
         (picture, hits, shown)
