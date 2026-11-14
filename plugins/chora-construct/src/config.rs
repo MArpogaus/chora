@@ -392,9 +392,6 @@ impl Config {
         .or_else(|| help.first())
         .cloned()
         .unwrap_or_default();
-        let walk_help = (help.iter().find(|k| **k != shared_help))
-            .cloned()
-            .unwrap_or_default();
         let walk = KeyGroup {
             head: "Walk".into(),
             shared: false,
@@ -417,7 +414,6 @@ impl Config {
                 row("Back to the start", one(Action::Home), Vec::new()),
                 row("Fly into the pane ahead", one(Action::FlyIn), Vec::new()),
                 row("Show the windows", one(Action::Windows), Vec::new()),
-                row("Show the keys of the walk", walk_help, Vec::new()),
                 row(
                     "Open the cube",
                     if cube { Vec::new() } else { one(Action::Cube) },
@@ -759,7 +755,7 @@ mod tests {
             keys(&config, "Walk forward, back, sideways").unwrap(),
             ["W", "A", "S", "D"]
         );
-        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "/"]);
+        assert_eq!(keys(&config, "Show these keys").unwrap(), ["Super", "F1"]);
         assert_eq!(keys(&config, "Move or resize a pane").unwrap(), ["Super"]);
         config.modifier = "Alt".into();
         config.keys.remove("h");
@@ -767,22 +763,23 @@ mod tests {
         assert_eq!(keys(&config, "Back to the start"), None);
     }
 
-    /// Polish 15: `Super /` is in the shared group Everywhere and `F1`
-    /// in Walk, and no row stands twice.
+    /// F1 is no binding. `Super+F1` shows the help in the group
+    /// Everywhere, `Super+/` is the silent alias, and no row stands twice.
     #[test]
-    fn super_slash_shows_the_help_in_everywhere_and_f1_in_walk() {
+    fn super_f1_shows_the_help_and_f1_is_free() {
         let config: Config = serde_saphyr::from_str(DEFAULT).unwrap();
+        assert_eq!(config.keys.get("Super+F1"), Some(&Action::Help));
         assert_eq!(config.keys.get("Super+slash"), Some(&Action::Help));
-        assert_eq!(config.keys.get("F1"), Some(&Action::Help));
+        assert_eq!(config.keys.get("F1"), None);
+        assert_eq!(config.action("F1", &[]), None);
         let groups = config.help_groups(false);
         let keys_of = |head: &str| -> Vec<Vec<String>> {
             (groups.iter().filter(|g| g.head == head))
                 .flat_map(|g| g.rows.iter().map(|r| r.keys.clone()))
                 .collect()
         };
-        assert!(keys_of("Everywhere").contains(&vec!["Super".to_owned(), "/".to_owned()]));
-        assert!(!keys_of("Everywhere").contains(&vec!["F1".to_owned()]));
-        assert!(keys_of("Walk").contains(&vec!["F1".to_owned()]));
+        assert!(keys_of("Everywhere").contains(&vec!["Super".to_owned(), "F1".to_owned()]));
+        assert!(!keys_of("Walk").iter().any(|k| k.contains(&"F1".to_owned())));
         let mut whats: Vec<&str> = (groups.iter())
             .flat_map(|g| g.rows.iter().map(|r| r.what.as_str()))
             .collect();

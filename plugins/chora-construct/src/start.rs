@@ -273,7 +273,7 @@ mod tests {
                 vec!["Super".into(), "Space".into()],
                 vec!["Super".into(), "C".into()],
             ],
-            help: vec!["F1".into()],
+            help: vec!["Super".into(), "F1".into()],
             hovered,
         }
     }
@@ -364,7 +364,14 @@ mod tests {
                 _ => None,
             })
             .collect();
-        let lines = [words.head, words.lead, words.foot, words.all_keys, "F1"];
+        let lines = [
+            words.head,
+            words.lead,
+            words.foot,
+            words.all_keys,
+            "Super",
+            "F1",
+        ];
         for line in lines.into_iter().chain(words.rows) {
             assert!(texts.iter().any(|t| t == line), "{line} is drawn");
         }

@@ -211,8 +211,9 @@ mockups rendered over real captures.
 24. **Materialise, do not move.** A surface appears over 160 ms while
     its blur rises over 200 ms, and disappears over 120 ms. The island
     grows into the chat over 240 ms. Nothing bounces, slides or scales.
-25. **One help for every look.** `Super+/`, and `F1` where the window
-    manager has the keyboard, opens the bindings overlay. It lists the
+25. **One help for every look.** `Super+F1`, with `Super+/` as a
+    silent alias, opens the bindings overlay. `F1` is no binding and
+    reaches the program of a pane. It lists the
     keys that the focused look holds now and the keys shared by every
     look, grouped and searchable. Each window manager declares its keys
     with words through `chora-kit`, so the overlay never lists a key
@@ -226,7 +227,7 @@ mockups rendered over real captures.
     opens here, in front of you.` in `small` and muted, three rows of
     48 high with radius 16 (`Terminal`, `All programs`, `A cube of
     desktops`, each with the keycaps of its key), and a footer with
-    `Click a row or press its keys.` and `F1 All keys`. The row under
+    `Click a row or press its keys.` and `Super F1 All keys`. The row under
     the pointer has the hover fill at once; a click on a row does what
     its key does. No hint bar shows while the card does. The card fades
     out over 120 ms when the first pane appears, and also while the

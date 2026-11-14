@@ -47,7 +47,7 @@ impl Construct {
         self.keys_walked = Some(now);
         let help = (self.settings.value.keys.iter())
             .find(|(_, action)| **action == Action::Help)
-            .map_or("F1", |(key, _)| key.as_str());
+            .map_or("Super+F1", |(key, _)| key.as_str());
         let words = say(Language::of_session(), Word::KeysWalk, &[("key", help)]);
         self.voice.notice(&words, now);
         self.draw_hud()

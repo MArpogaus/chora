@@ -22,6 +22,7 @@ pane_distance: 2000
 # launcher (starts the launcher), close (asks the window of the pane
 # nearest the middle of the view to close), windows (opens and closes
 # the window list) or help (shows and hides the panel of the bindings).
+# F1 is no binding: it reaches the program of a pane.
 # The space takes the keyboard, so the walk keys need no modifier. A key
 # that starts or closes something names Super, as in Super+t, so that
 # text typed into the space by mistake starts nothing; such text gets a
@@ -48,7 +49,7 @@ keys:
   Super+space: launcher
   Super+x: close
   Tab: windows
-  F1: help
+  Super+F1: help
   Super+slash: help
   Super+c: cube
 # The shell command of the key terminal; its window becomes a pane in

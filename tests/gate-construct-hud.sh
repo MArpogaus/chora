@@ -22,7 +22,7 @@
 # HUD panel and its label stay, and the glow comes back with no shader.
 # Last, with a pane that fills the view, a new window waits in the window
 # list with a notice in the HUD, and window.show makes its pane.
-# Then F1 shows the help panel with the bindings; settings.set of the
+# Then Super+F1 shows the help panel with the bindings; settings.set of the
 # modifier changes it at once, and help.toggle hides it.
 #
 # Usage: tests/gate-construct-hud.sh   BIN: directory with the binaries
@@ -361,9 +361,15 @@ ok "with the view full, a new window waited in the list, and window.show made it
 kill "$session"
 wait "$session" 2>/dev/null || true
 
-# The help panel: F1 shows the bindings of the settings, a change of the
-# modifier shows at once, and help.toggle hides it.
-helped() { node "id:construct-help-row-$1-keys" 'n[0]["text"]'; }
+helped() {
+    ctl query owner:construct | python3 -I -c '
+import json, sys
+nodes = {n["id"]: n for n in json.load(sys.stdin)}
+body = "construct-help-body-row-"
+row = next((i[len(body):-len("-what")] for i, n in nodes.items() if i.startswith(body) and i.endswith("-what") and n.get("text") == sys.argv[1]), None)
+caps = sorted((i for i in nodes if row is not None and i.startswith(f"{body}{row}-keys-") and i.endswith("-text")), key=lambda i: int(i.split("-")[-2]))
+print("+".join(nodes[i]["text"] for i in caps))' "$1"
+}
 for theme in ${THEMES:-light dark}; do
     printf 'theme: %s\nvoice_hud: own\n' "$theme" >"$work/chora/chora-construct.yaml"
     CHORA_FRAME_BUDGET_US=500000 session_start 1280x720 -- "$bin/chora-construct"
@@ -371,22 +377,21 @@ for theme in ${THEMES:-light dark}; do
     grant screen.capture input.inject
     ctl wait id:construct-look >/dev/null || fail "no space: $(tail -n 5 "$GATE_ENV")"
     foot_pane white ffffff 14181e 'a white pane'
-    key F1
-    until_ok 'test "$(node id:construct-help "n[0][\"opacity\"]")" = 1.0' || fail "$theme: F1 shows no help"
-    rows=$(ctl query owner:construct | python3 -I -c 'import json, sys; print(sum(n["id"].endswith("-keys") and n["id"].startswith("construct-help-row-") for n in json.load(sys.stdin)))')
-    [ "$rows" = 18 ] || fail "$theme: the help has $rows rows, not 18"
-    [ "$(helped 17)" = Super+wheel ] || fail "$theme: the last row is $(helped 17)"
-    for t in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-help-row-")])'); do
-        fits "$t" construct-help-glass || fail "$theme: $t runs out of the help"
+    key Super+F1
+    until_ok 'test "$(node id:construct-help "n[0][\"opacity\"]")" = 1.0' || fail "$theme: Super+F1 shows no help"
+    [ "$(helped 'Move or resize a pane')" = Super ] || fail "$theme: the row of the modifier is $(helped 'Move or resize a pane')"
+    [ "$(helped 'Show these keys')" = Super+F1 ] || fail "$theme: the key of the help is $(helped 'Show these keys')"
+    for t in $(ctl query owner:construct | python3 -I -c 'import json, sys; print(*[n["id"] for n in json.load(sys.stdin) if n["id"].startswith("construct-help-body-row-") and n["id"].endswith("-what")])'); do
+        fits "$t" construct-help-body-glass || fail "$theme: $t runs out of the help"
     done
     shot "$shots/construct-help-$theme.png"
     ctl call construct settings.set '{"modifier": "Alt"}' >/dev/null || fail "settings.set modifier"
-    until_ok 'test "$(helped 17)" = Alt+wheel' || fail "$theme: the help keeps $(helped 17)"
+    until_ok 'test "$(helped "Move or resize a pane")" = Alt' || fail "$theme: the help keeps $(helped "Move or resize a pane")"
     shot "$shots/construct-help-$theme-alt.png"
     [ "$(ctl call construct help.toggle | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["shown"])')" = False ] ||
         fail "$theme: help.toggle did not hide the help"
     until_ok 'test "$(node id:construct-help "n[0][\"visible\"]")" = False' || fail "$theme: the help stays"
-    ok "$theme: F1 shows the bindings, a new modifier shows at once, and help.toggle hides them"
+    ok "$theme: Super+F1 shows the bindings, a new modifier shows at once, and help.toggle hides them"
     kill "$session"
     wait "$session" 2>/dev/null || true
 done
