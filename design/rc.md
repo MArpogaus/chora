@@ -11,7 +11,7 @@ column is rewritten with state.md; plans and history are in git.
 | 2 | Persona round 4 on the candidate: every basic task reached by mouse, keyboard and voice via fake-voice (Erika, Kemal, Lena, Max). | not started |
 | 3 | Merge gate green three times in a row on the candidate (no flake); the opt-in gates (battle, starved watchdog, shader hang, mc scale, construct-hud, construct-keys, demo) green once. | no: 5 known flakes |
 | 4 | GitHub CI green (check, msrv, e2e, coverage, docs, pre-commit) on a pull request. | never run |
-| 5 | Packaging: the release workflow builds the RPM, the Arch package and the distrobox image; installed, a session starts (smoke). | never run |
+| 5 | Packaging: the package workflow builds the RPM and the Arch package (D14) on the CI pull request and on the tag; installed, a session starts (smoke). | packages.yaml on claude/ci-r2 (MERGE-OK 21:1x); proof in the CI PR |
 | 6 | Code review per area (core, kit, xp, tiling, mc, construct, assistant, voice): simplicity and readability first, then extraction and duplication across plugins, correctness, security (charter 11: confined choractl mcp with grants, every run_program confirmed, agent spawns only through sandbox_cmd unless unsandboxed: true), dead code, docs. Every HIGH and every security MEDIUM fixed; other MEDIUM findings go to the known issues with a reason. | not started |
 | 7 | cargo-deny and cargo-machete clean; dependency updates applied. | deny red |
 | 8 | Docs: README, install, configuration, glossary, nav, CHANGELOG with an rc entry; an honest known-issues list. | not started |
