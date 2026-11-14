@@ -9,9 +9,7 @@
 # first program of the list, and after text without a match and Enter the
 # launcher still shows. The launcher is a layer surface, which no query
 # lists: it shows when the middle of a capture has the surface colour of
-# Ink. fuzzel before 1.11 does not know selection-radius of the theme,
-# which the plugin may write again at any time, so the gate removes the
-# line before each start.
+# Ink.
 #
 # Usage: tests/gate-tiling-apps.sh   BIN: directory with the binaries
 #   SHOTS  a directory that keeps the capture tiling-apps-nothing.png
@@ -76,11 +74,7 @@ hits = sum(px(x, y) == (0x1a, 0x1d, 0x27) for x in range(500, 780, 4) for y in r
 sys.exit(0 if hits > 100 else 1)
 PY
 }
-fuzzel_version=$(fuzzel --version 2>/dev/null | sed -n 's/^fuzzel version: \([0-9.]*\).*/\1/p')
 launcher() {
-    if [ "$(printf '%s\n1.11\n' "${fuzzel_version:-0}" | sort -V | head -n 1)" != 1.11 ]; then
-        sed -i '/^selection-radius=/d' "$XDG_RUNTIME_DIR/chora-tiling/theme/fuzzel.ini"
-    fi
     started=$(ctl run "$bin/chora-tiling" --launch fuzzel) || fail "the run of the launcher"
     run_pid "$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' <<<"$started")"
     for _ in $(seq 40); do

@@ -137,9 +137,9 @@ default_steps() {
 red-first|tests/merge-gate.sh --red-first-check --base "$base"
 pre-commit|command -v pre-commit >/dev/null || { echo "FAIL: pre-commit is not installed"; exit 1; }; SKIP=cargo-clippy,lychee,vale pre-commit run --from-ref "$base" --to-ref HEAD
 gate-lib|tests/gate-lib-selftest.sh
-build|cargo build --workspace
-test|cargo test --workspace
-clippy|cargo clippy --workspace --all-targets -- -D warnings
+build|cargo build --workspace --locked
+test|cargo test --workspace --locked
+clippy|cargo clippy --workspace --all-targets --locked -- -D warnings
 2d-guard|tests/2d-guard.sh 8742dee
 xp|tests/xp.sh "$repo/target/debug"
 matrix|tests/gate-handover-matrix.sh && tests/gate-give-holders.sh && BIN=$repo/target/debug tests/gate-click-routes.sh

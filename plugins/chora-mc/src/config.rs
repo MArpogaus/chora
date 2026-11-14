@@ -14,7 +14,7 @@ use crate::region::{self, Content, Preset, Region, Regions, Rule};
 pub const DEFAULT: &str = include_str!("../mc.yaml");
 
 /// The styles that the plugin uses itself.
-const NEEDED: [&str; 7] = [
+const NEEDED: [&str; 8] = [
     "chapter_number",
     "chapter",
     "running_head",
@@ -22,6 +22,7 @@ const NEEDED: [&str; 7] = [
     "body",
     "margin",
     "hud",
+    "label",
 ];
 /// The most styles that one style can build on, in a row.
 const MAX_DEPTH: usize = 8;
@@ -579,6 +580,15 @@ mod tests {
             let size = config.resolve(name, None).unwrap().size;
             assert!(size >= 14.0, "{name} is {size} px");
         }
+    }
+
+    /// The plugin reads the style of the margin labels, so a file without
+    /// it is refused with a message instead of panicking the plugin.
+    #[test]
+    fn a_styles_map_without_the_label_style_is_refused() {
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        config.styles.remove("label");
+        assert_eq!(config.check(), Err("styles: no label".into()));
     }
 
     /// The default drags a window of mc with Super and the left button.
