@@ -16,7 +16,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use chora_scene::{
-    Binding, Node, NodeKind, Transform,
+    Binding, MARK_SIDE, Node, NodeKind, Transform,
     ipc::{Capability, Inject, InjectEvent, Key, PressState, RpcError},
 };
 use serde_json::Value;
@@ -124,14 +124,19 @@ impl State {
     }
 
     /// Shows the injection mark (D23): a small yellow rect of the core
-    /// next to the pointer, gone `MARK_FOR` after the last injected
+    /// next to the pointer and on its output, gone `MARK_FOR` after the
+    /// last injected
     /// event. The mark belongs to the core, so no client can remove it.
     fn mark_injection(&mut self) {
         let until = self.time.now() + MARK_FOR;
         self.inject_mark = Some(until);
         let _ = self.expire_at(until);
         if let Some(spot) = self.screen_spot(self.pointer_layout) {
-            let at = [spot.local.x + MARK_GAP, spot.local.y + MARK_GAP];
+            let size = output_area(&spot.output).size.to_f64();
+            let at = [
+                (spot.local.x + MARK_GAP).min(size.w - MARK_SIDE),
+                (spot.local.y + MARK_GAP).min(size.h - MARK_SIDE),
+            ];
             self.scene.show_injection(&spot.output.name(), at);
         }
     }
