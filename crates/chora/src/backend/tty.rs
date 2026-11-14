@@ -811,7 +811,7 @@ fn draw(
         (Some(lock), CursorImageStatus::Surface(s)) if !lock.owns(s) => &fallback,
         (_, status) => status,
     };
-    let mut elements = pointer.map_or_else(Vec::new, |p| {
+    let cursor = pointer.map_or_else(Vec::new, |p| {
         cursor::elements(
             &mut renderer,
             cursor_status,
@@ -827,12 +827,7 @@ fn draw(
         lock: lock.as_ref(),
         depth: 0,
     };
-    elements.extend(render::output_elements(
-        &mut parts,
-        &mut renderer,
-        &output,
-        view,
-    ));
+    let elements = render::screen_elements(&mut parts, &mut renderer, &output, view, cursor);
     let damaged = present(&mut device.manager, surface, &mut renderer, &elements)?;
     parts.assets.stats.frame(&output.name(), damaged);
     Ok(damaged)

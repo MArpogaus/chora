@@ -299,6 +299,23 @@ pub struct Parts<'a> {
     pub depth: u8,
 }
 
+/// The render elements of a screen, front first: the elements of the
+/// cursor, then [`output_elements`].
+pub fn screen_elements<R>(
+    parts: &mut Parts<'_>,
+    renderer: &mut R,
+    output: &Output,
+    view: &View,
+    cursor: Vec<SceneElement<R>>,
+) -> Vec<SceneElement<R>>
+where
+    R: MeshRenderer,
+{
+    let mut elements = cursor;
+    elements.extend(output_elements(parts, renderer, output, view));
+    elements
+}
+
 /// The render elements of one output, front first: the injection mark,
 /// the layer surfaces above the scene, the overlay, the scene, and the
 /// layer surfaces below it. No node of a client covers the mark (D23). A
