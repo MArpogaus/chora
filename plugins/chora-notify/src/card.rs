@@ -25,10 +25,8 @@ use crate::{
 /// The widest line of the text.
 const MAX_TEXT: f64 = 300.0;
 /// The most lines of the body that a card shows.
-#[cfg(test)]
 const MAX_LINES: usize = 8;
 /// The most bytes of the body that are laid out.
-#[cfg(test)]
 const MAX_BYTES: usize = 1024;
 const PAD: i32 = 10;
 const TOP: i32 = 8;
@@ -201,7 +199,18 @@ pub fn layout(icon: bool, title: f64, lines: &[f64]) -> Layout {
 
 /// The wrapped lines of a body that fit the card.
 fn body_lines(body: &str, width: impl Fn(&str) -> f64) -> Vec<String> {
-    wrap(body, MAX_TEXT, width)
+    let mut end = body.len().min(MAX_BYTES);
+    while !body.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut lines = wrap(&body[..end], MAX_TEXT, width);
+    if end < body.len() || lines.len() > MAX_LINES {
+        lines.truncate(MAX_LINES);
+        if let Some(last) = lines.last_mut() {
+            last.push('…');
+        }
+    }
+    lines
 }
 
 /// A card on the overlay root of an output.
