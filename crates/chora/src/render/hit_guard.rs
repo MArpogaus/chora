@@ -122,7 +122,7 @@ fn transform(rng: &mut Rng) -> Value {
 }
 
 fn input(rng: &mut Rng) -> &'static str {
-    rng.pick(&["accept", "accept", "accept", "pass", "block"])
+    ["accept", "accept", "accept", "pass", "block"][rng.below(5)]
 }
 
 fn random_scene(rng: &mut Rng, previous: bool) -> Vec<Value> {
