@@ -68,11 +68,7 @@ const MAX_EMIT: usize = 64 << 10;
 /// The most events that one client name emits per `EMIT_WINDOW` (D65).
 const MAX_EMITS: u32 = 32;
 /// The most grabs of one connection.
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "the fix that follows enforces it")
-)]
-const MAX_GRABS: usize = 128;
+const MAX_GRABS: usize = 256;
 const EMIT_WINDOW: Duration = Duration::from_secs(1);
 
 /// The connections of the IPC socket.
@@ -1448,6 +1444,12 @@ impl State {
         let shared = matches!(trigger, Trigger::Button(_)) && claims(conn);
         if holders.peek().is_some() && !(shared && holders.all(|c| c != conn && claims(c))) {
             return Err(rejected(format!("{binding} is grabbed already")));
+        }
+        if self.ipc.grabs.iter().filter(|(_, _, c)| *c == conn).count() >= MAX_GRABS {
+            return Err(RpcError::new(
+                RpcError::LIMIT_REACHED,
+                format!("a connection holds at most {MAX_GRABS} grabs"),
+            ));
         }
         let normal = binding.to_string();
         self.ipc.grabs.push((binding, trigger, conn));
@@ -4092,18 +4094,13 @@ mod tests {
     fn a_connection_holds_at_most_max_grabs() {
         let mut core = Core::new();
         let mut client = core.named("wm");
-        let mods = [
-            "Super",
-            "Ctrl",
-            "Alt",
-            "Super+Shift",
-            "Super+Ctrl",
-            "Super+Alt",
-        ];
+        let mods = ["Super", "Ctrl", "Alt", "Super+Ctrl", "Super+Alt"];
         let keys = "abcdefghijklmnopqrstuvwxyz0123456789";
         let mut bindings = mods
             .iter()
-            .flat_map(|m| keys.chars().map(move |k| format!("{m}+{k}")));
+            .flat_map(|m| [format!("{m}+"), format!("{m}+Shift+")])
+            .flat_map(|m| keys.chars().map(move |k| format!("{m}{k}")))
+            .chain((1..=12).map(|f| format!("Super+F{f}")));
         for binding in bindings.by_ref().take(MAX_GRABS) {
             client.ok(&mut core, "input.grab", json!({"binding": binding}));
         }

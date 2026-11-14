@@ -345,6 +345,7 @@ Limits keep a buggy client from exhausting the core:
 | line length | 1 MiB | the core answers with an error and closes the connection |
 | output buffer of a connection | 8 MiB | the core closes the connection; an answer that does not fit becomes an error |
 | waiting transactions of a connection | 16 | the core rejects the transaction |
+| grabs of a connection | 256 | the core rejects the `input.grab` |
 | nodes other than surfaces | 16,384 | the core rejects the `create` |
 | levels of nodes below the root | 64 | the core rejects the `create`, `attach` or `move` |
 | cameras | 64 | the core rejects the `camera` |
