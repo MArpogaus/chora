@@ -398,7 +398,7 @@ pub fn title_of(title: Option<&str>, app_id: Option<&str>) -> String {
 #[derive(Default)]
 pub struct Places {
     next: i32,
-    step: i32,
+    corner: i32,
 }
 
 impl Places {
@@ -408,16 +408,17 @@ impl Places {
         self.next - 1
     }
 
-    /// The place of the window of a turn, once the window has a size.
-    /// A window larger than the area starts at its corner.
-    pub fn place(&mut self, _turn: i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32; 2] {
+    /// The place of the window of a turn, once the window has a size:
+    /// the windows cascade in the order of their turns, also when a
+    /// later one has its size first. A window larger than the area
+    /// starts at its corner.
+    pub fn place(&mut self, turn: i32, [w, h]: [i32; 2], [ax, ay, aw, ah]: Rect) -> [i32; 2] {
         let at = |n: i32| [ax + 24 + 30 * n, ay + 24 + 30 * n];
-        let mut pos = at(self.step);
+        let mut pos = at((turn - self.corner).max(0));
         if pos[0] + w > ax + aw || pos[1] + h > ay + ah {
-            self.step = 0;
+            self.corner = turn;
             pos = at(0);
         }
-        self.step += 1;
         [
             pos[0].min(ax + aw - w).max(ax),
             pos[1].min(ay + ah - h).max(ay),
