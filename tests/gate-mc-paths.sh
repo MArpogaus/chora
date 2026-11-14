@@ -236,7 +236,6 @@ terminal_got() { [ -e "$PWD/$1" ]; }
 in_column() { jq -ne --argjson c "$1" '$c[0] >= 888 and $c[0] + $c[2] <= 1224 and $c[1] > 56 and $c[1] + $c[3] <= 786' >/dev/null; }
 cell_terminal_chat() {
     local chat mark_fwd=mckeyfwd mark_rev=mckeyrev
-    trap 'rmdir mckeyfwd mckeyrev 2>/dev/null' RETURN
     rmdir mckeyfwd mckeyrev 2>/dev/null
     key Super+Return
     until_ok '[ "$(current)" = terminal ]' 20 || fail "no terminal page: $(current)"
@@ -291,6 +290,7 @@ cell_terminal_chat() {
     type_line "mkdir $mark_rev"
     sleep 2
     terminal_got $mark_rev && fail "after the chat closed on another page typed text reached the hidden terminal"
+    rmdir mckeyfwd mckeyrev 2>/dev/null
     return 0
 }
 
