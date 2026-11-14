@@ -232,6 +232,11 @@ pub enum Event {
         /// client that takes a drag for the user must ignore it.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         injected: bool,
+        /// The time of the input in milliseconds of the monotonic clock,
+        /// for the speed of a drag: the time between two events is the
+        /// time between their inputs, not between their deliveries.
+        #[serde(default)]
+        time: u64,
     },
     /// The button of a press over a rect or an image went up.
     #[serde(rename = "pointer.released")]
@@ -256,6 +261,11 @@ pub enum Event {
         /// client that takes a drag for the user must ignore it.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         injected: bool,
+        /// The time of the input in milliseconds of the monotonic clock,
+        /// for the speed of a drag: the time between two events is the
+        /// time between their inputs, not between their deliveries.
+        #[serde(default)]
+        time: u64,
     },
     /// The wheel or the touchpad scrolled over a rect, an image or a shader
     /// node that takes pointer input. Only the connections of the owner of
@@ -528,5 +538,20 @@ mod tests {
                 name: "DP-1".into()
             }
         );
+    }
+
+    #[test]
+    fn a_move_and_a_release_carry_the_time_of_their_input() {
+        use super::Event;
+        for name in ["pointer.moved", "pointer.released"] {
+            let params = serde_json::json!({"event": name, "node": "face", "button": 272,
+                "position": [440.0, 400.0], "time": 81_234});
+            let event: Event = serde_json::from_value(params).expect("a pointer event");
+            assert_eq!(
+                serde_json::to_value(&event).unwrap()["time"],
+                81_234,
+                "{name} lost the time of the input"
+            );
+        }
     }
 }

@@ -14,8 +14,8 @@ use chora_scene::{Event, ipc::PressState};
 use serde_json::{Value, json};
 
 use super::{
-    Action, BTN_LEFT, ClientError, Command, Construct, FLY_MS, Grab, InputMode, LOOK, NAME,
-    NodeKind, PropsUpdate, Query, RpcError, create, cube,
+    Action, BTN_LEFT, ClientError, Command, Construct, Duration, FLY_MS, Grab, InputMode, LOOK,
+    NAME, NodeKind, PropsUpdate, Query, RpcError, create, cube,
     faces::{self, Health},
 };
 
@@ -439,11 +439,12 @@ impl Construct {
     /// The pointer moved during a press on a face: the cube follows the
     /// hand; a drag on the floating plane of a window pulls the window
     /// out. An injected move ends the press: it is not the hand of the
-    /// person.
+    /// person. `time` is the time of the input of the move.
     fn drag_act(
         &mut self,
         node: &str,
         (at, injected): ([f64; 2], bool),
+        time: Duration,
     ) -> Result<Option<Pressed>, ClientError> {
         if cube::face_of(node).is_none() {
             return Ok(None);
@@ -458,7 +459,7 @@ impl Construct {
             host.forget_press(now);
             return Ok(Some(Pressed::Nothing));
         }
-        match host.drag(at, width, now) {
+        match host.drag(at, width, time) {
             cube::Dragged::Yaw(_) => {
                 self.frame()?;
                 self.sync_float()?;
@@ -474,13 +475,20 @@ impl Construct {
 
     /// The release of a press on a face: a click steps into the face,
     /// when the cube rests in navigate mode. Not an injected release.
-    fn release_act(&mut self, view: View, node: &str, injected: bool) -> Option<Pressed> {
+    /// `time` is the time of the input of the release.
+    fn release_act(
+        &mut self,
+        view: View,
+        node: &str,
+        injected: bool,
+        time: Duration,
+    ) -> Option<Pressed> {
         let hit = cube::face_of(node)?;
         let ignored = injected && !self.rt.accepts_injected();
         let face = self
             .cube
             .as_mut()?
-            .release(chora_kit::clock::now())
+            .release(chora_kit::clock::now(), time)
             .filter(|_| !ignored);
         if view.mode() == Mode::Use && !ignored && self.failed_face(hit) {
             return Some(Pressed::Retry);
@@ -588,6 +596,24 @@ impl Construct {
                 modifiers,
                 ..
             } if node == LOOK => self.key_act(view, key, modifiers),
+            Event::PointerEntered { node, .. } => return self.hover_act(node, true),
+            Event::PointerLeft { node } => return self.hover_act(node, false),
+            _ => self.pointer_act(view, event)?,
+        };
+        match self.retrying(pressed) {
+            Some(Pressed::Retry) => self.retry_cube()?,
+            Some(Pressed::Act(act)) => self.mode_act(act, By::Person)?,
+            Some(Pressed::Face(face)) => self.step_into(face)?,
+            Some(Pressed::Nothing) => {}
+            None => return Ok(false),
+        }
+        Ok(true)
+    }
+
+    /// The act of a press of the left button, of a move during it and of
+    /// its release.
+    fn pointer_act(&mut self, view: View, event: &Event) -> Result<Option<Pressed>, ClientError> {
+        Ok(match event {
             Event::PointerPressed {
                 node,
                 button,
@@ -599,26 +625,20 @@ impl Construct {
                 node,
                 position,
                 injected,
+                time,
                 ..
-            } => self.drag_act(node, (*position, *injected))?,
+            } => self.drag_act(node, (*position, *injected), Duration::from_millis(*time))?,
             Event::PointerReleased {
                 node,
                 button,
                 injected,
+                time,
                 ..
-            } if *button == BTN_LEFT => self.release_act(view, node, *injected),
-            Event::PointerEntered { node, .. } => return self.hover_act(node, true),
-            Event::PointerLeft { node } => return self.hover_act(node, false),
+            } if *button == BTN_LEFT => {
+                self.release_act(view, node, *injected, Duration::from_millis(*time))
+            }
             _ => None,
-        };
-        match self.retrying(pressed) {
-            Some(Pressed::Retry) => self.retry_cube()?,
-            Some(Pressed::Act(act)) => self.mode_act(act, By::Person)?,
-            Some(Pressed::Face(face)) => self.step_into(face)?,
-            Some(Pressed::Nothing) => {}
-            None => return Ok(false),
-        }
-        Ok(true)
+        })
     }
 
     /// Stood back, a press on a pane starts to move it, as a plain drag

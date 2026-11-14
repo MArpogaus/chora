@@ -106,8 +106,9 @@ impl Construct {
     /// rest in use mode, and lets them land when it rests there again.
     /// Called after each frame of a cube that moves, and again a while
     /// after the window manager did not answer. The first face that gets
-    /// no answer ends the round: one deaf window manager must not block
-    /// the construct for the wait of each face.
+    /// no answer ends the round, and the next round starts a while after
+    /// that wait: a deaf window manager blocks the construct for one wait
+    /// in a round, and the construct handles its events between two.
     pub(crate) fn sync_float(&mut self) -> Result<(), ClientError> {
         let now = Instant::now();
         let Some(host) = &self.cube else {
@@ -128,7 +129,7 @@ impl Construct {
             answered &= self.land(now)?;
         }
         if let Some(host) = &mut self.cube {
-            host.ask_again((!answered).then_some(now + AGAIN));
+            host.ask_again((!answered).then(|| Instant::now() + AGAIN));
         }
         Ok(())
     }
@@ -202,10 +203,8 @@ impl Construct {
             Some(_) => Ok(true),
             None if floating.is_empty() => Ok(true),
             None => {
-                let mut answered = true;
-                for face in floating {
-                    answered &= self.ask_face(face, false).is_some();
-                }
+                let mut faces = floating.into_iter();
+                let answered = faces.all(|face| self.ask_face(face, false).is_some());
                 if let Some(host) = self.cube.as_mut().filter(|_| answered) {
                     host.land_at(Some(now + LAND));
                 }
