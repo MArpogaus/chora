@@ -3798,6 +3798,53 @@ mod tests {
         assert_eq!(model.lock().unwrap().emits.last(), Some(&emit(Value::Null)));
     }
 
+    /// A chat that moves to another output stays open and keeps the
+    /// keyboard: the close on this output hands nothing back.
+    #[test]
+    fn a_chat_that_moves_to_another_output_keeps_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-moves", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        let before = model.lock().unwrap().focuses.len();
+        mc.event(chat_event("assistant", true, "other")).unwrap();
+        assert_eq!(model.lock().unwrap().focuses.len(), before);
+    }
+
+    /// A window that the user clicked while the chat was open keeps the
+    /// keyboard when the chat closes.
+    #[test]
+    fn a_window_clicked_under_the_chat_keeps_the_keyboard() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-click", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        mc.event(chora_scene::Event::FocusChanged {
+            surface: Some("s9".into()),
+        })
+        .unwrap();
+        let before = model.lock().unwrap().focuses.len();
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert_eq!(model.lock().unwrap().focuses.len(), before);
+    }
+
+    /// A docked app that had the keyboard before the chat opened gets it
+    /// back when the chat closes.
+    #[test]
+    fn a_docked_app_gets_the_keyboard_back_when_the_chat_closes() {
+        use chora_kit::runtime::Plugin as _;
+        let (mut mc, model) = crate::testing::mc("chat-dock", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        mc.docks.insert("shell".into(), "dock1".into());
+        mc.focused = Some("dock1".into());
+        mc.event(chat_event("assistant", true, "test")).unwrap();
+        mc.event(chat_event("assistant", false, "test")).unwrap();
+        assert_eq!(
+            model.lock().unwrap().focuses.last(),
+            Some(&Some("dock1".to_owned()))
+        );
+    }
+
     /// A page that is longer than the output scrolls (the mission scene
     /// with its data); every other panel of a built-in scene stands inside
     /// the text block at 1280 by 800, so that the words of an empty panel
