@@ -95,3 +95,4 @@ S3 | 11-10 | later | cut by the owner 11-10, after 1.0: effects pack, off by def
 W2-1 | 11-12 | done | the Fable judge of week 1 and the notes prune: see reflections/2026-11-14-w2-1-fable.md.
 H5 | 11-11 | later | the construct bindings overlay as a shared plugin that every window manager can use (owner 11-11 19:45).
 H6 | 11-09 | later | users ship their own HUDs easily (owner 11-09 feature request).
+F15 | 11-14 | rc | a lost first key after a keyboard hand-over (mc terminal page; gate-mc-paths types a leading space, reports/review-mc-r3.md F4): a dedicated check types one character after focus, reads it back, logs wl_keyboard enter and key events; cause in core, foot or shell unproven. Next flakes round.
