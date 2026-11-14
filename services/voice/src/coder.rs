@@ -232,7 +232,7 @@ impl Coder {
         let source = project.map(|p| self.data.join("inventory").join(p));
         let started = format!("the coding task started in {}", dir.display());
         let (coder, cmd, task) = (self.clone(), inner.cmd.clone(), task.to_owned());
-        crate::log::info(&format!("coder: task in {}: {task}", dir.display()));
+        crate::log::debug(&format!("coder: task in {}: {task}", dir.display()));
         let _ = self.tx.send(Input::Code(Event::Started(task.clone())));
         tokio::spawn(async move {
             let run = async {
@@ -266,7 +266,7 @@ impl Coder {
         } else {
             format!("The coding task in {name} {state}. {}", detail.trim())
         };
-        crate::log::info(&format!("coder: {}", inner.last));
+        crate::log::debug(&format!("coder: {}", inner.last));
         let said = inner.last.clone();
         let _ = self.tx.send(Input::Code(Event::Done { ok, said }));
     }

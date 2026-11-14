@@ -91,7 +91,8 @@ while True:
     time.sleep(max(0.0, at - time.monotonic()))
 EOF
 
-chora-voice --name voice-gate --config "$dir/gate.yaml" 2> "$dir/agent.log" &
+RUST_LOG="chora_voice=debug,info,tract_linalg=warn,rmcp=warn" \
+    chora-voice --name voice-gate --config "$dir/gate.yaml" 2> "$dir/agent.log" &
 agent=$!
 
 # Waits for a line in the log of the agent.
@@ -130,7 +131,7 @@ printf '%-36s %s\n' \
     "TTS first audio" "$(field 'reply=1 ' tts_first)" \
     "first sound after the utterance" "$(field 'reply=1 ' first_sound)" \
     "outcome" "$(field 'reply=1 ' outcome)"
-grep -oE 'turn=1 asr=.*' "$dir/agent.log" | grep -oE 'text=.*' | sed 's/^text=/heard: /' || true
+grep -oE 'turn=1 text=.*' "$dir/agent.log" | sed 's/^turn=1 text=/heard: /' || true
 grep -oE 'tool [a-z_]+ .* [0-9]+ms' "$dir/agent.log" | cut -c1-100 || true
 grep -oE 'say: .*' "$dir/agent.log" | cut -c1-100 || true
 grep -oE '(ERROR|WARN).*' "$dir/agent.log" | sed 's/^/log: /' || true

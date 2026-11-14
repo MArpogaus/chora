@@ -692,7 +692,7 @@ impl Chat {
             return;
         }
         for text in std::mem::take(&mut self.heard) {
-            crate::log::info(&format!("heard in the turn: {text:?}"));
+            crate::log::debug(&format!("heard in the turn: {text:?}"));
             self.history.push(json!({"role": "user", "content": text}));
             self.requests.push(text.clone());
             out(Event::Heard(text));
@@ -800,7 +800,7 @@ impl Chat {
         silent: bool,
         out: &impl Fn(Event),
     ) -> &'static str {
-        crate::log::info(&format!("llm: {} {:?}", round.finish, round.text));
+        crate::log::debug(&format!("llm: {} {:?}", round.finish, round.text));
         let text = strip_notes(&round.text);
         if !text.trim().is_empty() {
             self.answer = Some(self.history.len());
@@ -877,7 +877,7 @@ impl Chat {
                     && r.calls.is_empty() && cut(&strip_notes(&r.text)));
             let rest = splitter.finish();
             if cut {
-                crate::log::info(&format!("llm: cut answer, dropped {rest:?}"));
+                crate::log::debug(&format!("llm: cut answer, dropped {rest:?}"));
             }
             // The words before the tool calls are spoken while they run.
             if let Some(sentence) = rest.filter(|s| !cut && !skip.contains(s)) {

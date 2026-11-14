@@ -757,7 +757,7 @@ impl Core {
     /// answers its question, else the rest is its prompt.
     fn address(&mut self, name: String, rest: String) -> Vec<Effect> {
         let asks = self.sub_confirm.as_ref().is_some_and(|(n, _)| *n == name);
-        crate::log::info(&format!("to {name}: {rest:?}"));
+        crate::log::debug(&format!("to {name}: {rest:?}"));
         match words::matches(&self.config, &rest, 0, asks) {
             Some(Word::Cancel | Word::CodeCancel) => std::iter::once(Effect::AgentCancel(name))
                 .chain(self.earcon(Earcon::Cancel))
@@ -1019,10 +1019,10 @@ impl Core {
         match result {
             Ok(t) => {
                 crate::log::info(&format!(
-                    "turn={turn} interim={}ms text={:?}",
-                    t.after_commit.as_millis(),
-                    t.text
+                    "turn={turn} interim={}ms",
+                    t.after_commit.as_millis()
                 ));
+                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
                 self.last_transcript = t.text;
                 self.seq += 1;
             }
@@ -1049,11 +1049,8 @@ impl Core {
         });
         let text = match result {
             Ok(t) => {
-                crate::log::info(&format!(
-                    "turn={turn} asr={}ms text={:?}",
-                    t.after_commit.as_millis(),
-                    t.text
-                ));
+                crate::log::info(&format!("turn={turn} asr={}ms", t.after_commit.as_millis()));
+                crate::log::debug(&format!("turn={turn} text={:?}", t.text));
                 self.last_transcript = t.text;
                 self.seq += 1;
                 self.last_transcript.trim().to_owned()

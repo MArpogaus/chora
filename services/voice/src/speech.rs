@@ -177,7 +177,7 @@ async fn fetch(
     spoken: &mut Spoken,
 ) {
     while let Some(sentence) = sentences.recv().await {
-        crate::log::info(&format!("say: {sentence}"));
+        crate::log::debug(&format!("say: {sentence}"));
         let _ = tx.send(Piece::Start(sentence.clone()));
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let asked = Instant::now();
