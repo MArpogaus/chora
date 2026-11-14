@@ -10,7 +10,9 @@
 # the panel construct-help, read cap by cap. The pane is the window of
 # chora-probe. The check pane-corner flies into the pane and clicks where
 # the door Lock stood: the window gets the press, nothing locks, and the
-# strip is gone until the step out. The check layout-SIZE is the layout
+# strip is gone until the step out. The check helper-exit stops the helper
+# while voice stays connected: the island says No helper, and Listening
+# again when the helper is back. The check layout-SIZE is the layout
 # audit of tests/hud-audit.py with the strip and the island on the screen.
 #
 # Usage: tests/doors/construct.sh   BIN: directory with the binaries
@@ -233,8 +235,24 @@ check_pane_corner() {
     return "$status"
 }
 
-doors_run construct
-status=$?
+check_helper_exit() {
+    until_ok 'island_says Listening' 20 || return 1
+    ctl call voice agent '{"tool": "agent_stop", "name": "coder"}' >/dev/null || return 1
+    until_ok 'island_says "No helper"' 20
+    local status=$?
+    helper_start || return 1
+    until_ok 'island_says Listening' 20 || status=1
+    return "$status"
+}
+
+status=0
+if check_helper_exit; then
+    echo "check construct helper-exit pass"
+else
+    echo "check construct helper-exit fail"
+    status=1
+fi
+doors_run construct || status=1
 if check_pane_corner; then
     echo "check construct pane-corner pass"
 else
