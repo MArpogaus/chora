@@ -19,6 +19,24 @@ chora is no daily driver yet. The
 [roadmap](https://marpogaus.github.io/chora/roadmap/) leads to 1.0: a daily
 driver with a stable API. The API changes without notice before 1.0.
 
+## The four looks
+
+chora has no look of its own. Four plugins give it one. Each runs in
+a window of its own host session, so you can try them without a login
+session. [Known issues](https://marpogaus.github.io/chora/known-issues/)
+lists what does not work yet.
+
+| Look | What it is | Start |
+|------|------------|-------|
+| tiling | Tiles windows by tags and layouts, with a bar, a launcher and a key list. The look "Ink and Paper". | `chora -- chora-tiling` |
+| xp | A stacking desktop with a taskbar, a start menu, wobbly windows and a cube of four desktops. Experimental. | `chora -- chora-xp` |
+| mc | A voice-first page: one scene at a time and a margin column for the helper, notes and chat. Experimental. | `chora -- chora-mc` |
+| construct | A space with a polished floor. Windows stand in it as panes that you walk to. Experimental. | `chora -- chora-construct` |
+
+All four share the same doors: a launcher, a key list, the voice
+helper, and the safety layer. Their keys differ in places; see the
+known issues.
+
 ## Install
 
 Each [release](https://github.com/MArpogaus/chora/releases) has an RPM for
@@ -64,6 +82,19 @@ with the tiling flavor, choose "chora (uwsm)" on the login screen.
 uwsm is not in Fedora 44, and the "chora (uwsm)" session shows only when
 uwsm is installed. Without it, the session "chora" starts the tiling
 flavor ([Sessions](https://marpogaus.github.io/chora/configuration/#sessions)).
+
+## First start
+
+1. Install the package and log out, or open a terminal inside a Wayland
+   session.
+2. Choose a look from the table above and start it.
+3. Press the key for the key list: Super+/ in tiling and construct,
+   Super+F1 in mc and xp (F1 also in xp and construct). It names every binding of the look.
+4. If a look blocks you, press Ctrl+Alt+Escape to reset the scene or
+   Ctrl+Alt+BackSpace to quit chora.
+
+The [install guide](https://marpogaus.github.io/chora/install/) covers
+the packages, a build from source and the files that chora reads.
 
 ## Try it
 
@@ -111,8 +142,8 @@ edge of the output, wait for clicks and keys, and move the camera. With
 `choractl run` it starts programs outside the core, and `choractl
 restart` restarts the systemd unit of a plugin (D42).
 
-To try the XP flavor, a stacking desktop in the style of Windows XP, start
-`chora -- chora-xp`. From a source tree, put the binaries on `PATH`,
+To try the XP flavor, a stacking desktop with classic window chrome,
+start `chora -- chora-xp`. From a source tree, put the binaries on `PATH`,
 since the plugins start apps with `choractl run`, and point it at the
 theme: `PATH=$PWD/target/debug:$PATH chora -- chora-xp --theme
 flavors/xp/theme`.
@@ -124,7 +155,7 @@ start menu.
 
 To log in to chora on real hardware, choose the session "chora" on the
 login screen. It starts the tiling flavor with waybar and X11 support
-through xwayland-satellite. The session "chora (Windows XP)" starts the XP
+through xwayland-satellite. The XP session on the login screen starts the XP
 flavor.
 
 Programs inside chora find its IPC socket in `CHORA_SOCKET`. For example, a
