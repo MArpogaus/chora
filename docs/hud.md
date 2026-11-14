@@ -386,7 +386,9 @@ its edge.
 A plain view in a slot is the chat in the margin of a client: no box, only
 its fill, no header and no Close, which the client has in its head of the
 chat; Stop is a word without a box at the top right. The speaker stands on
-a line of its own over the message. What the person sends shows at once as
+a line of its own over the message. A list without an entry says why
+in the place of the hint: `No helper is set up.` or that voice does not
+answer. What the person sends shows at once as
 a line of the transcript, and goes when voice has the message. Stop asks
 voice to cancel and the header stops saying `working` until voice says
 otherwise. The chat takes the pointer over its box, so a hover or a click
