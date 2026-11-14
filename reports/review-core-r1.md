@@ -1,41 +1,40 @@
 # review core r1 (rc 6 core and security, rc 9a logging)
 
 Base 498d9de. Review by reading; a finding marked (s) is suspected, not traced to the end.
-Status: EARLY (findings complete, fixes in progress). SEC = security. Fix column: `fix` = to
-fix in this round on claude/review-core, `-` = reported only.
+Status: FINAL. SEC = security. `FIXED hash` = fixed on claude/review-core with a red test
+before it; `OPEN` = not fixed, with the reason.
 
 ## HIGH
 
-- C01 HIGH SEC fix crates/chora/src/ipc.rs:127, inject.rs:467: a NUL in a key name panics in xkbcommon (`CString::new(..).unwrap()`); `input.ungrab {"binding":"Super+a\u0000"}` from any connection, without hello, ends the session.
-- C02 HIGH SEC fix crates/chora/src/inject.rs:367, input.rs:123: injected keys use the keyboard source of the person, so an injected release of Ctrl or Alt lifts the modifier the person holds; a client with `input.inject` suppresses reset, quit, revoke and the VT switch.
-- C03 HIGH SEC fix crates/chora/src/text.rs:307 (from capture.rs:191): a node capture of a huge rect with a text child gives scale 0, cosmic-text asserts on line height 0; a client with `screen.capture` ends the session.
-- V01 HIGH SEC fix services/voice/src/agents.rs:1322, coder.rs:280: the agent and coder children inherit the environment with the API keys of `*_api_key_env`.
+- C01 HIGH SEC FIXED c39f4e12 crates/chora/src/ipc.rs:127, inject.rs:467: a NUL in a key name panics in xkbcommon (`CString::new(..).unwrap()`); `input.ungrab {"binding":"Super+a\u0000"}` from any connection, without hello, ends the session.
+- C02 HIGH SEC FIXED fa3909bf crates/chora/src/inject.rs:367, input.rs:123: injected keys use the keyboard source of the person, so an injected release of Ctrl or Alt lifts the modifier the person holds; a client with `input.inject` suppresses reset, quit, revoke and the VT switch.
+- C03 HIGH SEC FIXED ad592ee1 crates/chora/src/text.rs:307 (from capture.rs:191): a node capture of a huge rect with a text child gives scale 0, cosmic-text asserts on line height 0; a client with `screen.capture` ends the session.
+- V01 HIGH SEC FIXED 7f4a1a90 services/voice/src/agents.rs:1322, coder.rs:280: the agent and coder children inherit the environment with the API keys of `*_api_key_env`. Fixed for the agent, the coder and the MCP child; the capture and playback commands of audio.rs still inherit them (about ten call sites).
 
 ## MEDIUM, security
 
-- C04 MEDIUM SEC fix crates/chora/src/ipc/clients.rs:318: the `screen:*` rule of a confined connection misses `attach`; a client socket puts its window in the overlay root.
-- C05 MEDIUM SEC fix crates/chora/src/output.rs:267: `output.configure` and `output.reserve` have no gate; a client socket without capabilities rotates or scales the outputs.
-- C06 MEDIUM SEC fix crates/chora/src/ipc.rs:1401: grabs have no cap per connection; a client socket holds any number of Ctrl, Alt or Super bindings.
-- C07 MEDIUM SEC fix crates/chora/src/ipc.rs:320: only `surface.*` events are filtered for client sockets; `effect.failed`, `focus.changed`, `layers.dropped`, `client.connected` of other clients reach them.
-- C08 MEDIUM SEC fix crates/chora/src/methods.rs:200, ipc.rs:593: a caller floods an exported method with 1 MiB params; the output of the callee overflows and the core closes the callee (the window manager).
-- C09 MEDIUM SEC fix crates/chora/src/methods.rs:134: `description` and `input_schema` of an export have no size limit; one client socket holds about 1 GiB in the core.
-- C10 MEDIUM SEC fix crates/chora/src/input.rs:414: quit, reset and revoke-all are not gated on the lock; Ctrl+Alt+Backspace at the lock screen ends the session.
-- C11 MEDIUM SEC fix crates/chora/src/backend/headless.rs:221: `output.add` and `output.remove` of the headless backend have no gate for confined connections (s).
-- C12 MEDIUM SEC fix crates/chora/src/inject.rs:129: the injection mark sits at pointer + 8 px without a clamp; at the right or bottom edge it is outside the output.
-- C13 MEDIUM SEC - crates/chora/src/inject.rs:129: the mark is a child of the overlay root; a later overlay node of a client covers it (s).
-- C14 MEDIUM SEC fix crates/chora/src/inject.rs:349: injected input counts as activity for idle-notify; a client with `input.inject` keeps the session from locking.
-- C15 MEDIUM SEC fix crates/chora/src/text.rs:373: the warning "glyphs laid out but drawn by no font" logs the whole text of a client's node.
-- K01 MEDIUM SEC fix crates/choractl/src/view.rs:242, mcp.rs:691: `save_view` rewrites a view file from a view that is not loaded (scene lost) and treats a file that does not parse as no file (`plugins`, `input` lost); not atomic.
-- K02 MEDIUM SEC fix crates/choractl/src/view.rs:99, main.rs:1006: choractl takes an empty or relative `XDG_CONFIG_HOME`; views, plugin manifests (`exec` through `sh -c`) and clients.yaml come from the working directory.
-- K03 MEDIUM SEC fix crates/chora-kit/src/settings.rs:106: parse errors of a settings file quote the offending value into the journal and into RPC errors (a key at the wrong place leaks) (s).
-- V02 MEDIUM SEC - services/voice/src/core.rs:998, chat.rs:689, speech.rs:180, coder.rs:229: every utterance, reply sentence and coder task goes to the journal at info; docs/voice.md section 11 describes stage logs, a decision of the owner (the live gate reads these lines).
-- V03 MEDIUM SEC fix services/voice/src/chat.rs:996, 1431: tool arguments are logged whole; `inject_input` text (a dictated password) and 512 KiB assets land in one info line.
-- V05 MEDIUM SEC fix services/voice/src/core.rs:1105: a key press answers the current question; an agent replaces its question and the key meant for the first approves the second.
-- V06 MEDIUM SEC fix services/voice/src/core.rs:1048: yes and no are matched before the echo filter; the tail of the spoken question can count as a yes (s).
-- V07 MEDIUM SEC fix services/voice/src/core.rs:297, 885: one `physical` flag serves the chat question and the sub-agent question; a chat question clears it for a waiting physical one (s for the trigger).
-- V08 MEDIUM SEC fix services/voice/src/chat.rs:1086, main.rs:541: `ask` stores a constant false into `tools.physical` and clears the flag of a showing key question; dead parameter.
-- V09 MEDIUM SEC fix services/voice/src/llm.rs:179, health.rs:66, 113: error texts carry the full server URL (query, userinfo) into the log and into `voice.health`, which any client reads.
-- V10 MEDIUM SEC fix services/voice/src/record.rs:23, 62: recordings of the room are created with default modes (0644 in 0755).
+- C04 MEDIUM SEC FIXED 3e7ac56b crates/chora/src/ipc/clients.rs:318: the `screen:*` rule of a confined connection misses `attach`; a client socket puts its window in the overlay root.
+- C05 MEDIUM SEC OPEN (decision) crates/chora/src/output.rs:267: `output.configure` and `output.reserve` have no gate; a client socket without capabilities rotates or scales the outputs. Not fixed: the MCP tool `configure_output` and its rule in the voice settings use `output.configure` on a confined connection without a grant, and `reserve_space` uses `output.reserve`; a gate with `methods.privileged` (as `input.configure` has) changes that product behaviour and needs the owner.
+- C06 MEDIUM SEC FIXED 2a0365c4 crates/chora/src/ipc.rs:1401: grabs have no cap per connection; a client socket holds any number of Ctrl, Alt or Super bindings.
+- C08 MEDIUM SEC FIXED 478696d3 crates/chora/src/methods.rs:200, ipc.rs:593: a caller floods an exported method with 1 MiB params; the output of the callee overflows and the core closes the callee (the window manager).
+- C09 MEDIUM SEC FIXED 478696d3 crates/chora/src/methods.rs:134: `description` and `input_schema` of an export have no size limit; one client socket holds about 1 GiB in the core.
+- C10 MEDIUM SEC FIXED 521d5f15 crates/chora/src/input.rs:414: quit, reset and revoke-all are not gated on the lock; Ctrl+Alt+Backspace at the lock screen ends the session.
+- C11 MEDIUM SEC FIXED 58b6ac4a crates/chora/src/backend/headless.rs:221: `output.add` and `output.remove` of the headless backend have no gate for confined connections (s).
+- C12 MEDIUM SEC FIXED b3c6a3a1 crates/chora/src/inject.rs:129: the injection mark sits at pointer + 8 px without a clamp; at the right or bottom edge it is outside the output.
+- C13 MEDIUM SEC OPEN crates/chora/src/inject.rs:129: the mark is a child of the overlay root; a later overlay node of a client covers it (s). Not fixed: not traced to the end; the fix is to draw the mark after the overlay roots in the renderer.
+- C14 MEDIUM SEC OPEN (decision) crates/chora/src/inject.rs:349: injected input counts as activity for idle-notify; a client with `input.inject` keeps the session from locking. Not fixed: the call is explicit, so it reads as intended (an agent that works keeps the screen on); the owner decides.
+- C15 MEDIUM SEC FIXED 2626c63b crates/chora/src/text.rs:373: the warning "glyphs laid out but drawn by no font" logs the whole text of a client's node.
+- K01 MEDIUM SEC FIXED c356054d crates/choractl/src/view.rs:242, mcp.rs:691: `save_view` rewrites a view file from a view that is not loaded (scene lost) and treats a file that does not parse as no file (`plugins`, `input` lost); not atomic. The write stays `std::fs::write` (choractl has no chora-kit dependency); a save with `--file PATH` of an unloaded view is not covered.
+- K02 MEDIUM SEC FIXED 5f8df4d5 crates/choractl/src/view.rs:99, main.rs:1006: choractl takes an empty or relative `XDG_CONFIG_HOME`; views, plugin manifests (`exec` through `sh -c`) and clients.yaml come from the working directory.
+- K03 MEDIUM SEC FIXED 5ef14cf2 crates/chora-kit/src/settings.rs:106: parse errors of a settings file quote the offending value into the journal and into RPC errors (a key at the wrong place leaks) (s).
+- V02 MEDIUM SEC OPEN (decision) services/voice/src/core.rs:998, chat.rs:689, speech.rs:180, coder.rs:229: every utterance, reply sentence and coder task goes to the journal at info; docs/voice.md section 11 describes stage logs, a decision of the owner (the live gate reads these lines).
+- V03 MEDIUM SEC FIXED ebdcfba4 services/voice/src/chat.rs:996, 1431: tool arguments are logged whole; `inject_input` text (a dictated password) and 512 KiB assets land in one info line.
+- V05 MEDIUM SEC FIXED ea7b836c services/voice/src/core.rs:1105: a key press answers the current question; an agent replaces its question and the key meant for the first approves the second.
+- V06 MEDIUM SEC FIXED 6931b7c2 services/voice/src/core.rs:1048: yes and no are matched before the echo filter; the tail of the spoken question can count as a yes (s).
+- V07 MEDIUM SEC FIXED 039f9735 services/voice/src/core.rs:297, 885: one `physical` flag serves the chat question and the sub-agent question; a chat question clears it for a waiting physical one (s for the trigger).
+- V08 MEDIUM SEC FIXED 039f9735 services/voice/src/chat.rs:1086, main.rs:541: `ask` stores a constant false into `tools.physical` and clears the flag of a showing key question; dead parameter.
+- V09 MEDIUM SEC FIXED 67c65ed4 services/voice/src/llm.rs:179, health.rs:66, 113: error texts carry the full server URL (query, userinfo) into the log and into `voice.health`, which any client reads.
+- V10 MEDIUM SEC FIXED 90926f26 services/voice/src/record.rs:23, 62: recordings of the room are created with default modes (0644 in 0755).
 
 ## MEDIUM, other (known issues, not fixed in this round)
 
@@ -66,6 +65,7 @@ fix in this round on claude/review-core, `-` = reported only.
 
 ## LOW
 
+- C07 LOW SEC crates/chora/src/ipc.rs:320: only `surface.*` events are filtered for client sockets; `effect.failed`, `focus.changed`, `layers.dropped`, `client.connected` of other clients reach them. Rated LOW after a second look: api.md promises the filter for `surface.*` only, and the content of the compile log is not shown to leak a file.
 - C40 LOW SEC crates/chora/src/ipc.rs:480: "same program" is the same `/proc/PID/exe`; every script of one interpreter may take the live name of another (api.md promises otherwise for scripts).
 - C41 LOW crates/chora/src/ipc/clients.rs:201: a recreate with other capabilities sets the grants before `open`; a failed bind leaves grants without a socket.
 - C42 LOW crates/chora/src/ipc/clients.rs:103: one failed `insert_source` leaves the other listener and the socket files; not logged.
@@ -155,6 +155,29 @@ tokens; `node.key` goes to the owner only). Secrets in logs: C15, K03, V02, V03,
 - L20 LOW services/voice/src/tools.rs:201, agents.rs:628: command lines of the settings are logged whole.
 - L21 LOW services/voice/src/main.rs:440, 480, client.rs:535: HUD and recording failures log at debug or not at all.
 
-Baseline: `cargo test --workspace` at 498d9de failed once in
-`words::tests::a_stack_overflow_leaves_its_words` (words.rs:289, out of scope by the brief)
-and passed in four reruns.
+## Result and handover
+
+Head eff84702 of claude/review-core (37 commits on 498d9de, pushed). Counts: 4 HIGH, 22
+MEDIUM security, 25 MEDIUM other (L01 included), 82 LOW.
+
+- Fixed, each with a red test before it: C01 C02 C03 V01 (all HIGH), C04 C06 C08 C09 C10
+  C11 C12 C15 K01 K02 K03 V03 V05 V06 V07 V08 V09 V10. C15 has `No test:` (one log field).
+- Open security MEDIUM: C05 and C14 and V02 need a decision of the owner, C13 is suspected
+  and not traced. The other MEDIUM and the LOW are reported only, as the brief says.
+- Left inside fixed ids: V01 audio.rs children still inherit the key variables; K01 the
+  write is not atomic and `--file PATH` is not covered; V10 old files keep their mode.
+- Behaviour that changed: quit, reset and revoke do nothing while locked (VT switch and
+  SIGUSR1 stay); a confirm key counts only 1 s after its question showed; 256 grabs per
+  connection; an export has at most 64 KiB of description and schema; a `methods.call`
+  fails with code 6 when the output of the exporter is full; headless `output.add` and
+  `output.remove` refuse a confined connection. Docs changed with each.
+- Merge gate on eff84702: every step passes except `cube`, which fails in about half of
+  its runs with "the construct does not answer while the window manager is deaf" (2 of 2
+  full runs, 1 of 3 alone). The base 498d9de fails the same step in 4 of 6 runs, so it is
+  no effect of this branch; it belongs to the construct lane. `pull` to `pixels` passed
+  with `--only`. No single full run printed that every step passed.
+- Other flakes seen once: `words::tests::a_stack_overflow_leaves_its_words` at the base
+  (4 reruns pass) and chora-xp `the_speaker_has_ink_and_the_no_sign_is_the_palette_red`
+  (theme cache directory missing, 3 reruns pass).
+- Not run: the session scripts of the voice service (`tests/voice-*.sh`); a script that
+  presses the confirm key within 1 s of its question now needs a wait.
