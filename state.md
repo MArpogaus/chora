@@ -2,7 +2,7 @@
 
 ## Now (2026-11-14 16:48 UTC)
 pm: session_016iS3kLFcYmUQ3S8Zp7sDaN, took over 16:30 (old PM ..QmmQ6 dead 10:15-16:30, friction 44; archived)
-budget: Fable 71 %, all 37 % (16:44); no Fable this week (16:47); non-Fable use low double digits
+budget: Fable 71 %, all 37 % (16:44); Fable used up this week, max 2 lanes (16:54); non-Fable use low double digits
 session branch: 498d9dea (train 4). rc target: 11-20.
 
 ## RC (design/rc.md)
@@ -29,7 +29,7 @@ session branch: 498d9dea (train 4). rc target: 11-20.
 | ci | claude/ci-rc 01fe4a66 | briefs/ci-r1.md | merging with docs (gate running) |
 | docs | claude/docs b0cfd0b4 (key fix) | briefs/docs-r1.md | merging with ci (gate running) |
 | review t5 | cloud opus ..PHUkf, read-only | briefs/review-train5-r1.md | doors, xtc |
-| flakes | lost (local, died 10:35), claude/flakes 22b452ed | briefs/flakes-r1.md | restart as cloud lane, not Fable |
+| flakes | lost (local, died 10:35), claude/flakes 22b452ed | briefs/flakes-r1.md | restart as cloud Fable lane (1 of 2) |
 
 ## Queue
 0. Robustness: fail-open hooks, worktree guard, heartbeat, takeover.sh (friction 44).
