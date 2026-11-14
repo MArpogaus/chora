@@ -2,7 +2,7 @@
 # Captures of the construct in its six states at one output scale, for a
 # pixel review: cube stood back, stood back with a pane beside it,
 # stepped into a face, first program flown in, walk with three panes and
-# the F1 overlay.
+# the Super+F1 overlay.
 #
 # Usage: tests/construct-captures.sh OUT_DIR [SCALE [STATE...]]
 #   OUT_DIR  where PREFIX-NAME-Nx.png files go (PREFIX is r4, or $PREFIX)
@@ -150,7 +150,7 @@ if want walk-3-panes || want f1-overlay || want help; then
         key Super+slash 1.5
     }
     want f1-overlay && {
-        key F1 1.5
+        key Super+F1 1.5
         shot f1-overlay
     }
     stop

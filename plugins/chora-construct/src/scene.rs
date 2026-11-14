@@ -72,6 +72,7 @@ impl Construct {
             let wait = (self.voice.deadline().into_iter())
                 .chain(self.cube_deadline())
                 .chain(self.hints.until)
+                .chain(self.doors.deadline())
                 .fold(wait, |wait, t| {
                     wait.min(t.saturating_duration_since(Instant::now()))
                 });
