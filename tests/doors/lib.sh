@@ -45,6 +45,18 @@
 #                   of a second (default 40)
 #   key KEYS, click X Y       an injected shortcut, an injected click
 #   has_text TEXT   a node of the scene shows the text
+#   center ID       the middle of the node, `X Y`; click_node ID clicks it
+#   doors_voice [none]  starts chora-voice with the stand-in helper of
+#                   services/voice/tests/fake-acp.sh and the project demo;
+#                   with `none` it has no project, so no helper can exist.
+#                   voice_stop ends it
+#   doors_assistant starts the HUD host chora-assistant
+#   helper_start    starts the helper `coder` for the project demo
+#   doors_window    shows a window that writes `key CODE` for each key it
+#                   gets to $work/window; got_key CODE reads it
+#   fuzzel_stand_in a fuzzel in $fakes that writes `fuzzel ARGS`, a line
+#                   `data XDG_DATA_DIRS` and its rows as `row TEXT` to
+#                   $marks, and answers the content of $fakes/choice
 #   doors_run LOOK  runs the cells, prints `cell LOOK ID pass|missing` for
 #                   each and returns 1 when one is missing
 #
@@ -87,6 +99,72 @@ click() {
     echo "[{\"pointer_move\": {\"position\": [$1, $2]}}, {\"click\": {\"button\": 272}}]" | ctl inject - >/dev/null
 }
 has_text() { ctl query '*' 2>/dev/null | grep -Fq -- "$1"; }
+center() {
+    ctl query "id:$1" 2>/dev/null |
+        jq -er '.[0].rects | to_entries[0].value | "\(.[0] + .[2] / 2 | floor) \(.[1] + .[3] / 2 | floor)"'
+}
+click_node() {
+    local at
+    at=$(center "$1") || return 1
+    # shellcheck disable=SC2086 # two words, X and Y
+    click $at
+}
+doors_voice() {
+    work=$XDG_CONFIG_HOME
+    export XDG_DATA_HOME=$work/data XDG_STATE_HOME=$work/state
+    mkdir -p "$work/chora" "$work/demo"
+    local projects="{demo: $work/demo}"
+    [ "${1:-}" != none ] || projects="{}"
+    cat >"$work/chora/chora-voice.yaml" <<YAML
+capture_cmd: [sh, -c, exec sleep 1000]
+playback_cmd: [sh, -c, exec cat >/dev/null]
+asr_url: ws://127.0.0.1:9
+tts_url: ws://127.0.0.1:9
+llm_url: http://127.0.0.1:9/v1
+earcons: false
+indicator: false
+unsandboxed: true
+agent_cmd: [sh, $repo/services/voice/tests/fake-acp.sh]
+agent_projects: $projects
+YAML
+    "$bin/chora-voice" >>"$work/voice.log" 2>&1 &
+    voice_pid=$!
+    pids+=("$voice_pid")
+    until_ok 'ctl call voice state >/dev/null 2>&1' 80
+}
+voice_stop() {
+    kill "$voice_pid" 2>/dev/null
+    wait "$voice_pid" 2>/dev/null
+    until_ok '! ctl call voice state >/dev/null 2>&1' 40
+}
+doors_assistant() {
+    "$bin/chora-assistant" >"$work/assistant.log" 2>&1 &
+    pids+=($!)
+    until_ok "ctl query owner:assistant | jq -e 'length > 0' >/dev/null" 80
+}
+helper_start() {
+    ctl call voice agent '{"tool": "agent_start", "project": "demo", "name": "coder"}' >/dev/null
+}
+doors_window() {
+    "$bin/chora-probe" window 40 120 200 --report >"$work/window" 2>&1 &
+    pids+=($!)
+    sleep 2
+}
+got_key() { until_ok "grep -qx 'key $1' \"$work/window\"" 12; }
+fuzzel_stand_in() {
+    cat >"$fakes/fuzzel" <<SH
+#!/bin/sh
+echo fuzzel "\$@" >>"$marks"
+echo "data \$XDG_DATA_DIRS" >>"$marks"
+case " \$* " in
+*" --dmenu "*)
+    sed 's/^/row /' >>"$marks"
+    cat "$fakes/choice" 2>/dev/null
+    ;;
+esac
+SH
+    chmod +x "$fakes/fuzzel"
+}
 
 doors_run() {
     local look=$1 id fn result bad=0
