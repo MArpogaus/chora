@@ -121,8 +121,10 @@ Pixel tests render with the software driver of Mesa, from
 `mesa-dri-drivers` on Fedora. Text tests measure the system fonts Inter
 and DejaVu Sans, Serif and Sans Mono: `rsms-inter-fonts`,
 `dejavu-sans-fonts`, `dejavu-serif-fonts` and `dejavu-sans-mono-fonts` on
-Fedora, `fonts-inter` and `fonts-dejavu` on Debian. Without them, these
-tests fail.
+Fedora, `fonts-inter` and `fonts-dejavu` on Debian. chora-mc finds the
+face files with the tools of `fontconfig` (`fc-list`, `fc-scan`,
+`fc-match`), which the font packages of Fedora do not pull in. Without
+them, these tests fail.
 
 All testing runs headless: `chora --headless OUTPUTS -- STARTUP` runs a
 whole session on virtual outputs, without a host display, GPU or seat.
