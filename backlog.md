@@ -97,3 +97,4 @@ H5 | 11-11 | later | the construct bindings overlay as a shared plugin that ever
 H6 | 11-09 | later | users ship their own HUDs easily (owner 11-09 feature request).
 F15 | 11-14 | rc | a lost first key after a keyboard hand-over (mc terminal page; gate-mc-paths types a leading space, reports/review-mc-r3.md F4): a dedicated check types one character after focus, reads it back, logs wl_keyboard enter and key events; cause in core, foot or shell unproven. Next flakes round.
 V12 | 11-14 | rc | voice scripts failing on the session branch already (core r2 report): voice-acp.sh (a yes without the key counts as nothing), voice-events.sh (after voice sleep mc shows none), agent.sh step 2 (xs_are 0 640); triage in the voice and mc lanes.
+MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R5-4 (reports/review-mc-r5.md).
