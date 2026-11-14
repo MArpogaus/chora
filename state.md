@@ -27,7 +27,7 @@ rc target: 11-21 (criterion 11). Burn-down check 11-16.
 | flakes | cloud Fable ..PL9EE, claude/flakes 55c527d4 | briefs/flakes-r3.md | r2 merged (R1 open, exception); r3: R1, F15, races |
 | ci r3 | cloud opus ..MJWhG, claude/ci-r3 | briefs/ci-r3.md | PR #106 check, coverage: 9 font tests |
 | ci e2e | cloud sonnet (starting), claude/ci-e2e | briefs/ci-e2e-r1.md | PR #106 e2e: windows overlap |
-| doors | cloud Fable ..PZrjj, claude/doors dd8669a4 | briefs/doors-r3.md | dr2-1 BLOCK, dr2-2 MAJOR |
+| doors | cloud Fable ..PZrjj, claude/doors cb203c68 | briefs/doors-r4.md | r3 FIX: dr3-1 helper word rule |
 
 ## Queue
 1. Watch PR #106 CI; fix what fails. (rc 4, 5)
