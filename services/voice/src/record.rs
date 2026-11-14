@@ -164,6 +164,25 @@ mod tests {
         assert_eq!(stamp(951_782_400), "20000229-000000");
     }
 
+    /// A recording has the voice of the user: only the user reads it.
+    #[test]
+    fn a_recording_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = std::env::temp_dir().join(format!("chora-voice-mode-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let rec = Recorder::start(&root).unwrap();
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        let modes = [
+            mode(rec.dir()),
+            mode(&rec.dir().join("mic.wav")),
+            mode(&rec.dir().join("played.wav")),
+            mode(&rec.dir().join("events.jsonl")),
+        ];
+        drop(rec);
+        std::fs::remove_dir_all(root).unwrap();
+        assert_eq!(modes, [0o700, 0o600, 0o600, 0o600]);
+    }
+
     #[test]
     fn a_recording_keeps_mic_played_and_events() {
         let root = std::env::temp_dir().join(format!("chora-voice-rec-{}", std::process::id()));
