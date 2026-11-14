@@ -289,6 +289,10 @@ impl Fonts {
     }
 }
 
+/// The line height in pixels below which a text draws nothing:
+/// cosmic-text panics on a line height of 0.
+const MIN_LINE: f32 = 0.01;
+
 /// Whether a raster of `w` by `h` RGBA pixels stays within the limit.
 fn within_limit(w: usize, h: usize) -> bool {
     w.checked_mul(h)
@@ -296,7 +300,7 @@ fn within_limit(w: usize, h: usize) -> bool {
 }
 
 /// Lays out one key at a physical scale and measures it; `None` for
-/// empty text or a raster beyond [`MAX_RASTER_BYTES`]. Returns the
+/// empty text, a line under [`MIN_LINE`] or a raster beyond [`MAX_RASTER_BYTES`]. Returns the
 /// buffer, the layout size in logical pixels and the raster size.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2], [f32; 2])> {
@@ -306,6 +310,9 @@ fn layout(fonts: &mut Fonts, key: &Key, scale: f32) -> Option<(Buffer, [f64; 2],
     }
     let size = key.font_size as f32 * scale;
     let metrics = Metrics::relative(size, key.line_height as f32);
+    if metrics.line_height.partial_cmp(&MIN_LINE) != Some(std::cmp::Ordering::Greater) {
+        return None;
+    }
     let mut buffer = Buffer::new(&mut fonts.system, metrics);
     buffer.set_size(key.max_width.map(|w| w as f32 * scale), None);
     buffer.set_text(&key.text, &attrs(key), Shaping::Advanced, None);
