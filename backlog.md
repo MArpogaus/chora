@@ -100,3 +100,4 @@ V12 | 11-14 | rc | voice scripts failing on the session branch already (core r2 
 MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R5-4 (reports/review-mc-r5.md).
 DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500 ms wake, wpctl every 5 s), dr2-9 state word case (reports/review-doors-r2.md).
 CI3 | 11-14 | rc-minor | ci r2 review MINORs: concurrency group for packages.yaml PR runs, --locked in tests/2d-guard.sh, release.yaml comment line (reports/review-ci-r2.md).
+NO-R1 | 11-14 | rc-minor | notify review MINORs NO-02..NO-04 (reports/review-plugins-high-r1.md).
