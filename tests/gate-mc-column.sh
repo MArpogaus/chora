@@ -145,7 +145,7 @@ key Super+Home
 until_ok '[ "$(current)" = agenda ]' 20 || fail "no agenda to measure"
 sleep 1
 close_list
-expect_rect "right-keys-title-rule" "[888.0,574.0,336.0,1.0]"
+expect_rect "right-keys-title-rule" "[888.0,490.0,336.0,1.0]"
 expect_rect "right-edge" "[860.0,37.0,1.0,738.0]"
 ok "at 1280x800 the column stands at 888 to 1224 with its hairline at 860"
 
@@ -204,7 +204,7 @@ column_at() {
     ctl wait owner:mc --timeout 20 >/dev/null || fail "mc does not start at $size"
     until_ok 'has_text "AGENDA"' || fail "no first screen at $size"
     sleep 1
-    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - 196 - 14)).0,$width.0,1.0]"
+    expect_rect "right-keys-title-rule" "[$left.0,$((h / 28 * 28 - 280 - 14)).0,$width.0,1.0]"
     expect_rect "right-edge" "[$((left - 28)).0,37.0,1.0,$((h / 28 * 28 - 46)).0]"
     fits "$w" "$h"
     shot "$size"

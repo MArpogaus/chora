@@ -434,6 +434,10 @@ impl Mc {
         let call = json!({"client": "assistant", "method": "chat.show", "params": params});
         if let Err(err) = self.rt.conn.call::<_, Value>("methods.call", call) {
             eprintln!("chora-mc: chat.show {}: {err}", chat_who(name));
+            self.notice(
+                "Chat",
+                "The chat does not open. The chat host does not answer.",
+            );
         }
     }
 

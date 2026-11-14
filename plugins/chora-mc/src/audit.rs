@@ -390,12 +390,15 @@ mod tests {
     }
 
     #[test]
-    fn the_last_key_row_stands_on_the_baseline_of_the_footer() {
+    fn the_last_line_of_doors_stands_on_the_baseline_of_the_footer() {
         let (_mc, model) = notified();
         let all = texts(&model);
         let base = |t: &Text| t.y + truth(t).1;
         let foot = all.iter().find(|t| t.id.contains("-footer-next")).unwrap();
-        let key = all.iter().find(|t| t.id.ends_with("-keys-5-key")).unwrap();
+        let key = all
+            .iter()
+            .find(|t| t.id.ends_with("-doors-volume"))
+            .unwrap();
         assert!(
             (base(foot) - base(key)).abs() <= TOLERANCE,
             "{} against {}",

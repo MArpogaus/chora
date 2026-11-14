@@ -35,7 +35,7 @@ shows() { texts | grep -qxF -- "$1"; }
 click_text() {
     local at
     at=$(ctl query "owner:mc kind:text" | jq -r --arg t "$1" \
-        "[.[] | $shown | select(.text == \$t)][0].rects | to_entries[0].value | \"\\(.[0] + 40 | floor) \\(.[1] + .[3] / 2 | floor)\"") || return 1
+        "[.[] | $shown | select(.text == \$t)][0].rects | to_entries[0].value | \"\\(.[0] + .[2] / 2 | floor) \\(.[1] + .[3] / 2 | floor)\"") || return 1
     # shellcheck disable=SC2086 # two words, X and Y
     click $at
 }

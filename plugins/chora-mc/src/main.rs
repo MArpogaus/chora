@@ -61,6 +61,13 @@ const HUD: &str = "mc-hud";
 const TICK: &str = "mc-tick";
 /// The id of a hidden node whose empty animations time the clocks.
 const CLOCK: &str = "mc-clock";
+/// The id of a hidden node whose empty animations time the reading of the
+/// volume.
+const VOLUME: &str = "mc-volume";
+/// How often the plugin takes a reading of the volume, in milliseconds.
+const VOLUME_MS: f64 = 500.0;
+/// After how many timer runs the volume is read again by itself.
+const VOLUME_AGAIN: u32 = 10;
 /// The id of a hidden node whose empty animations time the look at the
 /// apps that started without a window yet.
 const WAIT: &str = "mc-wait";
@@ -343,6 +350,10 @@ struct Mc {
     clocks: BTreeMap<String, String>,
     /// The worker that reads and changes the volume.
     volume: chora_kit::volume::Mixer,
+    /// The volume that the worker read last.
+    volume_reading: Option<chora_kit::volume::Reading>,
+    /// How often the volume timer ran.
+    volume_ticks: u32,
     /// The title and the lines of each text content.
     texts: BTreeMap<String, (String, Vec<String>)>,
     /// The agents of `agent.set`, in the order of their first report.
@@ -515,6 +526,8 @@ impl Mc {
             dock_focus: None,
             clocks: BTreeMap::new(),
             volume: chora_kit::volume::Mixer::new(NAME),
+            volume_reading: None,
+            volume_ticks: 0,
             texts: BTreeMap::new(),
             agents: Vec::new(),
             agent_focus: None,
@@ -1305,12 +1318,29 @@ impl Mc {
                 self.apply(tick)?;
                 self.render()
             }
+            VOLUME => self.volume_tick(),
             PARKED => {
                 let late: Vec<String> = self.fitting.keys().cloned().collect();
                 late.iter().try_for_each(|surface| self.fit(surface))
             }
             _ => self.written(node),
         }
+    }
+
+    /// Takes the reading of the volume that the worker has, shows it when
+    /// it changed, and asks for a new one now and then.
+    fn volume_tick(&mut self) -> Result<(), ClientError> {
+        self.volume_ticks += 1;
+        if self.volume_ticks % VOLUME_AGAIN == 1 {
+            self.volume.refresh();
+        }
+        self.apply(vec![volume_wait()])?;
+        let reading = self.volume.take();
+        if reading.is_some_and(|r| Some(r) != self.volume_reading) {
+            self.volume_reading = reading;
+            self.render()?;
+        }
+        Ok(())
     }
 
     /// The watchdog of the core removed the effects of the plugin. An
@@ -1581,12 +1611,12 @@ impl Mc {
                 ..PropsUpdate::default()
             },
         ));
-        for id in [TICK, CLOCK, WAIT] {
+        for id in [TICK, CLOCK, WAIT, VOLUME] {
             commands.push(create(id, NodeKind::Group, NAME, PropsUpdate::default()));
         }
         // A build ends the wait of the old node.
         commands.extend((!self.launched.is_empty()).then(wait));
-        commands.extend(self.tick_clocks());
+        commands.extend(self.tick_clocks().into_iter().chain([volume_wait()]));
         commands.push(create(
             "mc-bg",
             NodeKind::Rect,
@@ -3170,6 +3200,15 @@ fn regions_on_top() -> Command {
 
 /// The empty animation after which the plugin looks at the apps that wait
 /// for their window.
+fn volume_wait() -> Command {
+    Command::Animate {
+        id: VOLUME.into(),
+        props: PropsUpdate::default(),
+        duration: VOLUME_MS,
+        easing: Easing::Linear,
+    }
+}
+
 fn wait() -> Command {
     Command::Animate {
         id: WAIT.into(),
@@ -3366,6 +3405,45 @@ mod tests {
         let items = right_items(&mc);
         let name = items.iter().find(|i| i.id.ends_with("-0-name")).unwrap();
         assert_eq!(name.props.text.as_deref(), Some("Atlas"));
+    }
+
+    fn text_of(items: &[crate::region::Item], suffix: &str) -> Option<String> {
+        let found = items.iter().find(|i| i.id.ends_with(suffix))?;
+        found.props.text.clone()
+    }
+
+    /// The column has a door for each action that has a key, and the
+    /// volume door says what the mixer read.
+    #[test]
+    fn the_column_has_a_door_for_each_action() {
+        use chora_kit::{
+            volume::{Reading, Volume},
+            words::{Language, Word},
+        };
+        let (mut mc, _) = crate::testing::mc("doors", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let items = right_items(&mc);
+        let doors: Vec<&str> = (items.iter())
+            .filter_map(|i| i.hit.as_deref())
+            .filter(|hit| hit.starts_with("door:"))
+            .collect();
+        assert_eq!(
+            doors,
+            [
+                "door:programs",
+                "door:lock",
+                "door:power",
+                "door:screenshot",
+                "door:volume"
+            ]
+        );
+        mc.volume_reading = Some(Reading::Level(Volume {
+            percent: 40,
+            muted: false,
+        }));
+        let title = Word::Volume.text(Language::of_session());
+        let volume = text_of(&right_items(&mc), "-doors-volume");
+        assert_eq!(volume, Some(format!("{title} 40%")));
     }
 
     /// The voice agent adds `seq`, `epoch`, `chat` and the steps to the

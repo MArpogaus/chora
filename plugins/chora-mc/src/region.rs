@@ -141,6 +141,10 @@ pub enum Kind {
     /// The chat of the HUD host in a side: a door that opens it while it
     /// is closed, and its box while it is open.
     Chat,
+    /// The doors of the actions that have a key: the launcher, the lock,
+    /// the power menu, the screenshot and the volume, in two lines at the
+    /// foot of a side.
+    Doors,
 }
 
 /// A content of the regions.
@@ -342,6 +346,11 @@ fn next_minute_after(now: u128) -> f64 {
     (ms + 50.0).min(chora_scene::MAX_DURATION)
 }
 
+/// How many doors stand in a line.
+const DOORS_PER_LINE: usize = 3;
+/// The space from one door of a line to the next, in pixels.
+const DOOR_STEP: f64 = 100.0;
+
 /// The content that names the next entry of the day in the footer.
 const NEXT: &str = "next";
 
@@ -380,6 +389,9 @@ pub enum Put {
     FootRule,
     /// At the foot, in the line of the item before it.
     FootRow,
+    /// At the foot, the first of a line whose items take the pointer by
+    /// their own width.
+    FootStart,
     /// In the line of the item before it, at `x`.
     Row,
     /// In the line of the item before it, flush right.
@@ -390,7 +402,10 @@ pub enum Put {
 
 impl Put {
     fn foot(self) -> bool {
-        matches!(self, Self::Foot | Self::FootRule | Self::FootRow)
+        matches!(
+            self,
+            Self::Foot | Self::FootRule | Self::FootRow | Self::FootStart
+        )
     }
 
     fn row(self) -> bool {
@@ -532,7 +547,7 @@ impl Mc {
             Kind::Head | Kind::Clock => "running_head",
             Kind::Hud | Kind::Agents => "hud",
             Kind::Chat => "body",
-            Kind::State | Kind::Text | Kind::App | Kind::Keys => "margin",
+            Kind::State | Kind::Text | Kind::App | Kind::Keys | Kind::Doors => "margin",
         };
         let style = content.style.as_ref().filter(|_| !title);
         let mut ty = self.ty(base, style);
@@ -564,7 +579,7 @@ impl Mc {
                 .get(name)
                 .map(|(title, lines)| (title.clone(), lines.join("\n")))
                 .unwrap_or_default(),
-            Kind::App | Kind::Keys | Kind::Chat => (String::new(), String::new()),
+            Kind::App | Kind::Keys | Kind::Chat | Kind::Doors => (String::new(), String::new()),
         }
     }
 
@@ -648,7 +663,8 @@ impl Mc {
             Kind::Agents => self.agent_items(region, slot, name, content),
             Kind::Chat if side => self.chat_items(slot, name, content, region),
             Kind::Keys if side => self.key_items(slot, name, content, region),
-            Kind::App | Kind::Chat | Kind::Keys => Vec::new(),
+            Kind::Doors if side => self.door_items(slot, name, content, region),
+            Kind::App | Kind::Chat | Kind::Keys | Kind::Doors => Vec::new(),
             _ => self.text_items(region, slot, (name, scene)),
         }
     }
@@ -1254,7 +1270,11 @@ impl Mc {
             let shift = self.to_grid(top + y + ink.top + ink.height);
             commands.push(move_to(item.id.clone(), lefts[idx], y + shift));
             if item.hit.is_some() {
-                let [x, w] = if item.put == Put::End {
+                let own = matches!(
+                    item.put,
+                    Put::End | Put::Row | Put::FootRow | Put::FootStart
+                );
+                let [x, w] = if own {
                     [lefts[idx], widths[idx]]
                 } else {
                     [0.0, width]
@@ -1430,6 +1450,73 @@ impl Mc {
         items
     }
 
+    /// The doors at the foot of a side: a word for each action that has a
+    /// key, three in a line, clicked like its key.
+    fn door_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
+        let id = format!("{}-{name}", self.region_id(region));
+        let mut ty = self.content_type(content, false);
+        ty.color = self
+            .settings
+            .value
+            .colors()
+            .get("text")
+            .copied()
+            .unwrap_or(ty.color);
+        let volume = self.volume_words();
+        let words = [
+            ("programs", "Programs"),
+            ("lock", "Lock"),
+            ("power", "Power"),
+            ("screenshot", "Screenshot"),
+            ("volume", volume.as_str()),
+        ];
+        let mut items = Vec::new();
+        for (i, (door, text)) in words.into_iter().enumerate() {
+            let column = i % DOORS_PER_LINE;
+            #[allow(clippy::cast_precision_loss, reason = "below 3")]
+            let x = column as f64 * DOOR_STEP;
+            let put = if column == 0 {
+                Put::FootStart
+            } else {
+                Put::FootRow
+            };
+            items.push(Item {
+                put,
+                x,
+                hit: Some(format!("door:{door}")),
+                ..Item::text(format!("{id}-{door}"), slot, ty.props(text), i == 0)
+            });
+        }
+        items
+    }
+
+    /// The words of the volume door: the level, or why there is none.
+    fn volume_words(&self) -> String {
+        let language = chora_kit::words::Language::of_session();
+        let title = chora_kit::words::Word::Volume.text(language);
+        match self.volume_reading {
+            Some(reading @ chora_kit::volume::Reading::Level(volume)) if !volume.muted => {
+                format!("{title} {}", reading.words(language))
+            }
+            Some(reading) => reading.words(language),
+            None => title.to_owned(),
+        }
+    }
+
+    /// What a click on a door does: the action of its key.
+    fn door(&mut self, what: &str) {
+        use crate::config::Action;
+        let action = match what {
+            "programs" => Action::Run("fuzzel".into()),
+            "lock" => Action::Lock,
+            "power" => Action::Power,
+            "screenshot" => Action::Screenshot,
+            "volume" => Action::Volume(chora_kit::volume::Change::Mute),
+            _ => return,
+        };
+        self.perform(action);
+    }
+
     /// Places the items of a line: the end keeps its place, the start ends
     /// before it, and the middle sits between them; what does not fit is
     /// cut.
@@ -1597,6 +1684,7 @@ impl Mc {
             Some(("agent", agent)) => self.chat_with(Some(agent)),
             Some(("chat", "open")) => self.chat_with(None),
             Some(("chat", "close")) => self.chat_close(),
+            Some(("door", what)) => self.door(what),
             Some(("urgent", "clear")) => {
                 if let Err(err) = self.clear_notifications() {
                     eprintln!("chora-mc: urgent: {}", err.message);
@@ -2032,7 +2120,9 @@ mod tests {
         );
         assert_eq!(
             names(&page, Region::Right),
-            ["state", "agents", "notes", "notify", "chat", "keys"]
+            [
+                "state", "agents", "notes", "notify", "chat", "keys", "doors"
+            ]
         );
         assert!(!page.contains_key(&Region::Drawer), "no drawer by default");
         assert_eq!(
@@ -2058,12 +2148,14 @@ mod tests {
         );
         assert_eq!(
             names(&moved, Region::Right),
-            ["state", "agents", "chat", "keys"]
+            ["state", "agents", "chat", "keys", "doors"]
         );
         let other = layout(&rules, &config.contents, "mail", false);
         assert_eq!(
             names(&other, Region::Right),
-            ["state", "agents", "notes", "notify", "chat", "keys"]
+            [
+                "state", "agents", "notes", "notify", "chat", "keys", "doors"
+            ]
         );
     }
 
