@@ -198,6 +198,9 @@ mockups rendered over real captures.
 22. **Three families of places.** Ambient capsules sit at the edges
     and on the pane: the voice island at the top right, the pane label,
     the hints at the bottom centre and the notices under the island.
+    One more capsule in the top left corner holds the clock and the
+    doors, plain words on glass that a click works: `Programs`, `Keys`,
+    `Lock`, `Power`, `Screenshot` and the volume word.
     The conversation lives in the right column: the island expands
     into the chat in place, and the question card sits under the
     island and keeps its place when the chat opens. Commands sit in the

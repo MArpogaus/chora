@@ -185,6 +185,7 @@ impl Construct {
             self.stride_release(key);
         }
         if self.start_input(&event)?
+            || self.door_input(&event)?
             || self.hint_input(&event)?
             || self.help_input(&event)?
             || self.list_input(&event)?

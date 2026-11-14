@@ -1120,7 +1120,7 @@ center`, `Construct`) and the reason, as in `Tiling did not take the
 window: it is not running.`; the German words are `Tiling hat das
 Fenster nicht genommen: es läuft nicht.`.
 
-### The keys of every look
+### The keys and doors of every look
 
 Every look has the same keys: `Super+F1` shows the key list (`Super+/`
 is a silent alias), `Super+Space` starts the launcher, `Super+a` opens
@@ -1135,6 +1135,18 @@ among them Chat with a helper. These keys work in the walk and while the
 camera is in a pane, where each is a grab. The key list is the one
 exception: from a pane its key first steps out, since the list takes the
 keyboard. A script or program that does not start gives a notice.
+
+Each key has a door that a click works. One glass capsule in the top
+left corner, 32 from the edges, shows the clock (`HH:MM`, local time,
+drawn again each minute) and the words `Programs`, `Keys`, `Lock`,
+`Power`, `Screenshot` and `Volume 50%`, in German `Programme`,
+`Tasten`, `Sperren`, `Ausschalten`, `Bildschirmfoto` and `Lautstärke
+50%`. The words are plain text without button chrome; the pointer over a
+word shows the hover fill. A click does what the key does, and a click
+on the volume word mutes. The capsule shows in the walk and in a pane,
+and hides while the key list or the window list shows. The helper door
+is the island of the HUD host at the top right: it shows the state word
+of the helper, and a click opens the chat.
 
 ### The pane label
 

@@ -48,6 +48,7 @@ impl Construct {
             Action::Help => return self.toggle_help(),
             Action::VolumeUp | Action::VolumeDown | Action::Mute => {
                 self.mixer.change(volume_change(action), true);
+                self.doors.ask_for_reading(Instant::now());
                 return Ok(());
             }
             Action::Chat => Some("chora-chat".to_owned()),

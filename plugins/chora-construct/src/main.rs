@@ -36,6 +36,7 @@ mod camera;
 mod command;
 mod config;
 mod cube;
+mod doors;
 mod faces;
 mod file;
 mod float;
@@ -533,6 +534,8 @@ struct Construct {
     help_sel: usize,
     /// The context hints at the bottom centre.
     hints: hints::State,
+    /// The corner capsule with the clock and the doors.
+    doors: doors::State,
     /// The mixer of the volume keys and the volume word.
     mixer: chora_kit::volume::Mixer,
     /// The start card of the empty floor.
@@ -676,6 +679,7 @@ fn play(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         help_query: String::new(),
         help_sel: 0,
         hints: hints::State::default(),
+        doors: doors::State::new(),
         mixer: chora_kit::volume::Mixer::new(NAME),
         start_card: start::State::default(),
         face_card: None,

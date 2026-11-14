@@ -272,6 +272,7 @@ impl Construct {
         self.start_card.up = false;
         self.face_card = None;
         self.face_place = None;
+        self.doors.stale = true;
         self.draw_hud()?;
         self.draw_ask()?;
         if self.list.is_some() {
@@ -626,6 +627,7 @@ impl Construct {
         if self.output.is_none() {
             return Ok(());
         }
+        self.draw_doors()?;
         self.draw_start()?;
         self.draw_face_card()?;
         let set = self.hint_set();
