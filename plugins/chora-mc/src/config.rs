@@ -581,6 +581,15 @@ mod tests {
         }
     }
 
+    /// The plugin reads the style of the margin labels, so a file without
+    /// it is refused with a message instead of panicking the plugin.
+    #[test]
+    fn a_styles_map_without_the_label_style_is_refused() {
+        let mut config = parse::<Config>(DEFAULT).unwrap();
+        config.styles.remove("label");
+        assert_eq!(config.check(), Err("styles: no label".into()));
+    }
+
     /// The default drags a window of mc with Super and the left button.
     #[test]
     fn the_default_binds_the_drag_to_a_pointer_button() {
