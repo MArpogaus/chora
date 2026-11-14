@@ -102,3 +102,4 @@ DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500
 CI3 | 11-14 | rc-minor | ci r2 review MINORs: concurrency group for packages.yaml PR runs, --locked in tests/2d-guard.sh, release.yaml comment line (reports/review-ci-r2.md).
 NO-R1 | 11-14 | rc-minor | notify review MINORs NO-02..NO-04 (reports/review-plugins-high-r1.md).
 CI4 | 11-14 | rc | CI-only e2e steps (tests/nested.sh and what ci.yaml runs after it: xp.sh, agent.sh, gate-0.x) are not merge-gate steps, so CI failures stay hidden locally; add them to tests/merge-gate.sh or a gate profile that mirrors ci.yaml (ci e2e r1 report).
+PK1 | 11-14 | rc | packages: RPM Requires and Arch depends fuzzel >= 1.11 (ti-1, mouse selection), Recommends/optdepends dejavu-sans, -serif, -sans-mono (chora-assistant fallback faces, ci r3); docs/install.md names both; a CI e2e cell clicks the tiling Apps list in the Fedora image.
