@@ -789,9 +789,10 @@ impl Host {
 
     /// A press on a face, or on the floating plane of `window` on it, in
     /// navigate mode at a point of the screen. A press while the cube
-    /// turns does nothing.
+    /// turns does nothing; a press during a step counts.
     pub(crate) fn press(&mut self, face: usize, window: Option<String>, at: [f64; 2]) {
-        self.press = self.rests().then_some(Press {
+        let turns = self.turn.is_some() || self.live.is_some();
+        self.press = (!turns).then_some(Press {
             face,
             window,
             start: at,
