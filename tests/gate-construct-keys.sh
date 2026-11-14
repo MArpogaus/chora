@@ -4,7 +4,7 @@
 # that the keys walk in one line, also under the default voice_hud: host;
 # a give key without a window says so; Super+t starts the terminal, and
 # the camera flies into its new pane, which has the keyboard; after
-# Alt+Escape, F1 shows the help, Escape hides it and d walks, and none
+# Alt+Escape, Super+F1 shows the help, Escape hides it and d walks, and none
 # of these keys reaches the terminal, which keeps what it took before
 # (co-2; SHOTS keeps construct-keys-help.png); a give key
 # to a window manager that does not run says so, for the focused window
@@ -114,18 +114,18 @@ ok "a give to a window manager that does not run says so, for the focused window
 before=$(typed)
 help_shown() { ctl query id:construct-help | python3 -I -c 'import json, sys; n = json.load(sys.stdin); sys.exit(0 if n and n[0].get("opacity") == 1.0 else 1)'; }
 camera_x() { ctl call construct construct.list | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["camera"]["x"])'; }
-key F1
-until_ok help_shown || fail "F1 after Alt+Escape shows no help: the terminal took '$(typed)'"
+key Super+F1
+until_ok help_shown || fail "Super+F1 after Alt+Escape shows no help: the terminal took '$(typed)'"
 [ -z "${SHOTS:-}" ] || { "$bin/choractl" grant agent screen.capture && ctl capture "$SHOTS/construct-keys-help.png" >/dev/null; } || fail "the capture of the help"
 key Escape
-until_ok '! help_shown' || fail "Escape after F1 keeps the help"
+until_ok '! help_shown' || fail "Escape after Super+F1 keeps the help"
 x0=$(camera_x)
 echo '[{"key": {"key": "d", "state": "pressed"}}]' | ctl inject || fail "inject d"
 sleep 0.4
 echo '[{"key": {"key": "d", "state": "released"}}]' | ctl inject || fail "inject d"
 until_ok 'test "$(camera_x)" != "$x0"' || fail "d after Alt+Escape does not walk: the camera stays at x $x0"
 [ "$(typed)" = "$before" ] || fail "keys of the walk went into the terminal: '$before' became '$(typed)'"
-ok "after Alt+Escape, F1 shows the help, Escape hides it and d walks; the terminal took none of them"
+ok "after Alt+Escape, Super+F1 shows the help, Escape hides it and d walks; the terminal took none of them"
 
 key Return
 sleep 0.1
