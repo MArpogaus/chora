@@ -299,9 +299,10 @@ pub struct Parts<'a> {
     pub depth: u8,
 }
 
-/// The render elements of one output, front first: the layer surfaces above
-/// the scene, the scene, and the layer surfaces below it. A locked session
-/// shows only the lock surface.
+/// The render elements of one output, front first: the injection mark,
+/// the layer surfaces above the scene, the overlay, the scene, and the
+/// layer surfaces below it. No node of a client covers the mark (D23). A
+/// locked session shows only the lock surface.
 pub fn output_elements<R>(
     parts: &mut Parts<'_>,
     renderer: &mut R,
@@ -332,7 +333,6 @@ where
     let passes_before = parts.assets.stats.offscreen();
     prune_assets(parts);
     begin_view(parts.assets, output, view);
-    let mut out = layer_elements(renderer, output, &layers::ABOVE, view.scale);
     let scene = parts.scene;
     // The overlay of the output, above the scene and without its camera
     // (D43).
@@ -343,7 +343,12 @@ where
         near: mesh::NEAR,
         stepped: true,
     };
-    let overlay = scene.overlay_layer_list(&output.name());
+    let (mark, overlay): (Vec<_>, Vec<_>) = scene
+        .overlay_layer_list(&output.name())
+        .into_iter()
+        .partition(|placed| placed.node.id == chora_scene::INJECTION);
+    let mut out = elements(parts, renderer, &mark, &screen);
+    out.extend(layer_elements(renderer, output, &layers::ABOVE, view.scale));
     out.extend(elements(parts, renderer, &overlay, &screen));
     let list = scene.layer_list(chora_scene::ROOT);
     out.extend(elements(parts, renderer, &list, view));

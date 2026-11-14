@@ -480,6 +480,8 @@ The safety layer is the only built-in behavior (see
 - **Injection mark.** While a client injects input, the core shows a
   small yellow rect of its own next to the pointer. It goes 500 ms after
   the last injected event. No client owns the mark or can remove it.
+  The core draws it above the overlay and the layer surfaces, so no
+  node or window of a client covers it.
 - **SIGUSR1** starts the emergency reset too, for example from a text
   console when the keyboard no longer reaches the compositor.
 - **Last words.** No end of the core is silent. A faulting signal
