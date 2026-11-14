@@ -219,9 +219,11 @@ until_ok '[ "$(current)" = agenda ]' 20 || fail "Super+Home does not show the ag
 key Super+a
 until_ok 'grep -q "chat.show" "$XDG_CONFIG_HOME/mc.log"' 20 || fail "Super+a does not ask the host for the chat"
 [ "$(current)" = agenda ] || fail "Super+a left the agenda for $(current)"
+until_ok 'texts | grep -q "^Chat: The chat does not open"' 20 || fail "no notice that the chat does not open"
+ctl call mc notify.clear '{}' >/dev/null || fail "notify.clear"
 drawer=$(ctl call mc region.list '{}' | jq -r '.regions.drawer.contents | length')
 [ "$drawer" = 0 ] || fail "the default setup still has contents in the drawer"
-ok "Super+a asks for the chat, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
+ok "Super+a asks for the chat and says so when the host is gone, Super+Home shows the agenda, Super+Return the terminal, and the drawer is empty"
 
 notices() { texts | grep -c '^Note [0-9]$'; }
 has_text "NOTIFICATIONS" || fail "no NOTIFICATIONS head on an empty column"

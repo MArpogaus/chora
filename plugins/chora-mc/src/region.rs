@@ -1302,8 +1302,10 @@ impl Mc {
     }
 
     /// The chat in a side: while it is closed a door, `Chat with a helper`
-    /// and the key of the chat flush right, under a head; while it is open
-    /// the head with `Esc  Close`, and the place of the box of the host.
+    /// and the key of the chat flush right, under a head with the state
+    /// word of the helper; while it is open the head with `Esc  Close`, the
+    /// words that no helper is set up when there is none, and the place of
+    /// the box of the host.
     fn chat_items(&self, slot: i32, name: &str, content: &Content, region: Region) -> Vec<Item> {
         let id = format!("{}-{name}", self.region_id(region));
         let head = self.content_type(content, true).props("Chat");
@@ -1320,6 +1322,16 @@ impl Mc {
                 put: Put::End,
                 ..end("close", "Esc  Close", Some("chat:close"))
             });
+            if self.agents.is_empty() {
+                let language = chora_kit::words::Language::of_session();
+                let none = chora_kit::words::Word::NoHelper.text(language);
+                items.push(Item::text(
+                    format!("{id}-none"),
+                    slot,
+                    margin.props(none),
+                    false,
+                ));
+            }
             let blank = Item::text(format!("{id}-slot"), slot, margin.props(" "), false);
             items.push(Item {
                 put: Put::Slot,
@@ -1327,6 +1339,7 @@ impl Mc {
             });
             return items;
         }
+        items.push(end("state", &self.helper_state_word(), None));
         let door = self
             .content_type(content, false)
             .props("Chat with a helper ...");
@@ -1339,6 +1352,26 @@ impl Mc {
             .map(|(k, _)| crate::keys::human(k));
         items.extend(key.map(|key| end("key", &key, None)));
         items
+    }
+
+    /// The state word of the helper door: the state of the first helper,
+    /// or that there is none.
+    fn helper_state_word(&self) -> String {
+        let Some(agent) = self.agents.first() else {
+            let language = chora_kit::words::Language::of_session();
+            return chora_kit::words::Word::NoHelperDoor
+                .text(language)
+                .to_owned();
+        };
+        let state = self.settings.value.states.get(&agent.state);
+        let words = state
+            .and_then(|s| s.label.as_deref())
+            .unwrap_or(&agent.state);
+        let mut letters = words.chars();
+        letters
+            .next()
+            .map(|first| first.to_uppercase().chain(letters).collect())
+            .unwrap_or_default()
     }
 
     /// The notes of a list that folds: each on one line, the time in the

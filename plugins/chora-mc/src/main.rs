@@ -358,6 +358,8 @@ struct Mc {
     texts: BTreeMap<String, (String, Vec<String>)>,
     /// The agents of `agent.set`, in the order of their first report.
     agents: Vec<agent::Agent>,
+    /// The names of the helpers that voice reported.
+    voiced: Vec<String>,
     /// The agent that the agents scene shows alone, with its transcript.
     agent_focus: Option<String>,
     /// The content of `region.solo` that shows alone in its region.
@@ -530,6 +532,7 @@ impl Mc {
             volume_ticks: 0,
             texts: BTreeMap::new(),
             agents: Vec::new(),
+            voiced: Vec::new(),
             agent_focus: None,
             solo: None,
             keys: keys::List::default(),
@@ -815,9 +818,13 @@ impl Plugin for Mc {
                 node: Some(node), ..
             } => self.timer(&node),
             Event::EffectsDropped { client } if client == NAME => self.effects_dropped(),
-            Event::ClientConnected { name } | Event::ClientDisconnected { name }
-                if name == VOICE =>
-            {
+            Event::ClientDisconnected { name } if name == VOICE => {
+                self.voice_gone();
+                self.claim_due = true;
+                self.claim_indicator(false);
+                Ok(())
+            }
+            Event::ClientConnected { name } if name == VOICE => {
                 self.claim_due = true;
                 self.claim_indicator(false);
                 Ok(())
@@ -1040,6 +1047,9 @@ impl Mc {
                 if let Some(object) = data.as_object_mut() {
                     object.entry("name").or_insert_with(|| client.into());
                     object.retain(|key, _| agent::STATE_FIELDS.contains(&key.as_str()));
+                }
+                if client == VOICE {
+                    self.voiced(&data);
                 }
                 runtime::params(data).and_then(|set| self.set_agent(set))
             }
@@ -3444,6 +3454,44 @@ mod tests {
         let title = Word::Volume.text(Language::of_session());
         let volume = text_of(&right_items(&mc), "-doors-volume");
         assert_eq!(volume, Some(format!("{title} 40%")));
+    }
+
+    /// A chat that cannot open says so in a red notice, not only in a log.
+    #[test]
+    fn a_chat_that_does_not_open_shows_a_notice() {
+        let (mut mc, model) = crate::testing::mc("chat-refused", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        model.lock().unwrap().refuse_calls = true;
+        mc.chat_with(None);
+        let urgent = mc.texts["urgent"].1.join(" ");
+        assert!(urgent.contains("The chat does not open"), "{urgent}");
+    }
+
+    /// The door of the chat has a state word: no helper, a helper, no
+    /// helper again when voice ends.
+    #[test]
+    fn the_state_word_of_the_helper_door_follows_voice() {
+        use chora_kit::words::{Language, Word};
+        use serde_json::json;
+        let (mut mc, _) = crate::testing::mc("helper-door", [1280, 800]);
+        mc.show("agenda", false).unwrap();
+        let none = Word::NoHelperDoor.text(Language::of_session());
+        let state = text_of(&right_items(&mc), "-chat-state");
+        assert_eq!(state.as_deref(), Some(none));
+        mc.follow(
+            "voice.state",
+            "voice",
+            json!({"name": "Atlas", "state": "working"}),
+        )
+        .unwrap();
+        let state = text_of(&right_items(&mc), "-chat-state");
+        assert_eq!(state.as_deref(), Some("Working"));
+        let gone = chora_scene::Event::ClientDisconnected {
+            name: "voice".into(),
+        };
+        chora_kit::runtime::Plugin::event(&mut mc, gone).unwrap();
+        let state = text_of(&right_items(&mc), "-chat-state");
+        assert_eq!(state.as_deref(), Some(none));
     }
 
     /// The voice agent adds `seq`, `epoch`, `chat` and the steps to the
