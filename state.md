@@ -2,9 +2,12 @@
 
 pm: session_016iS3kQmq6Q6Ce3hxtenYSR. Rules: rules.md (from 11-12). Old sections of this file are in git history (before commit "state: rewrite as Now, Queue, Blocked").
 
-## Now (2026-11-12 09:39 UTC)
+## Now (2026-11-14 04:09 UTC)
 
-budget: 96 % at 2026-11-12 05:48 UTC (user; the 69 % at 05:47 was likely a misread); no new lanes; pre-stop at 97 %; reset Sat 11-14 03:59 UTC.
+budget: weekly limit reset 2026-11-14 04:00 UTC (Fable round available); no user reading yet.
+Resume after the weekly reset (04:06 UTC). Cloud workers construct r6 and xp review r5 died at the limit with no push; archived. tiling r5 (N1) never started work. Train 4 integration agent running in wt/train4: mc 10eb3a7f, construct d3843e0, tiling f9dabd84, xp a836cbd6 (r4, reviewed; r5 d102940f waits for its review), swarm5-fixes 9644cc05, persona-harness 8ca9802; first merge conflicts in chora-assistant chat. W2-1 Fable judge running (reflections/2026-11-14-w2-1-fable.md). Next: train 4 result, then W2-1 actions (prune notes), then reruns of construct r6, xp review r5, tiling N1.
+
+Earlier, 2026-11-12 09:39 UTC: budget 96 % at 2026-11-12 05:48 UTC (user; the 69 % at 05:47 was likely a misread); no new lanes; pre-stop at 97 %; reset Sat 11-14 03:59 UTC.
 session branch: 8f358fa (trains Bangkok 11-12: tiling v2 fe3483f, mc v2 59df16e, train 3 8f358fa = tooling + pkg + xp-v2, full gate 19/19; no train left until 17:00 UTC).
 last_reviewed: per-merge reviews only; the per-area review of the whole range a03be22..HEAD is due (Fable, Saturday).
 
