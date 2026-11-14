@@ -25,11 +25,11 @@ rc target: 11-20 (was 11-18; recomputed 11-14 after W2-1). Next check: 11-16.
 |---|---|---|---|
 | flakes | local Fable aa88415, wt/flakes, claude/flakes | briefs/flakes-r1.md | queue 1; resumed 10:05 after limit |
 | ci | cloud sonnet ..MMUYU, claude/ci-rc | briefs/ci-r1.md | queue 2; resumed 10:05 after limit |
-| doors | cloud Fable ..N9VG6, claude/doors | briefs/doors-r1.md | queue 3; done 05:42, to review |
+| doors | cloud Fable ..N9VG6, claude/doors | briefs/doors-r1.md | queue 3; resumed 10:08 after limit |
 | mc | cloud Fable ..QEL2G, claude/mc-fix | briefs/mc-r1.md | queue 3; resumed 10:05 after limit |
 | xtc | cloud Fable ..QVmwt, claude/xtc-fix | briefs/xtc-r1.md | queue 3; resumed 10:05 after limit |
-| review core | cloud Fable ..MFd4q, claude/review-core | briefs/review-core-r1.md | queue 4; done, to read |
-| review plugins | cloud Fable ..MS4P5, read-only | briefs/review-plugins-r1.md | queue 4; done, to read |
+| review core | cloud Fable ..MFd4q, claude/review-core | briefs/review-core-r1.md | queue 4; resumed 10:08 after limit |
+| review plugins | cloud Fable ..MS4P5, read-only | briefs/review-plugins-r1.md | queue 4; resumed 10:08 after limit |
 | docs | cloud sonnet ..NQmGA, claude/docs | briefs/docs-r1.md | queue 7; done 41d02965, to review |
 
 ## Queue
