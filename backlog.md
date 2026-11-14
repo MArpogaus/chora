@@ -101,3 +101,4 @@ MC-R5 | 11-14 | rc-minor | mc keyboard around the chat, review r5 MINORs R5-1..R
 DR2 | 11-14 | rc-minor | doors review r2 leftovers: dr2-6 mc volume polling (500 ms wake, wpctl every 5 s), dr2-9 state word case (reports/review-doors-r2.md).
 CI3 | 11-14 | rc-minor | ci r2 review MINORs: concurrency group for packages.yaml PR runs, --locked in tests/2d-guard.sh, release.yaml comment line (reports/review-ci-r2.md).
 NO-R1 | 11-14 | rc-minor | notify review MINORs NO-02..NO-04 (reports/review-plugins-high-r1.md).
+CI4 | 11-14 | rc | CI-only e2e steps (tests/nested.sh and what ci.yaml runs after it: xp.sh, agent.sh, gate-0.x) are not merge-gate steps, so CI failures stay hidden locally; add them to tests/merge-gate.sh or a gate profile that mirrors ci.yaml (ci e2e r1 report).
