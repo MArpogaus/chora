@@ -2,7 +2,8 @@
 # The cells of the doors gate (tests/gate-doors.sh) for construct: the keys
 # are the bindings of construct.yaml and must work in the walk and flown
 # into a pane; the doors are the words of the corner strip at the top left
-# (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock)
+# (Programs, Keys, Lock, Power, Screenshot, the volume word and the clock),
+# which shows in the walk only and comes back after a step out of a pane,
 # and the island of the HUD host, clicked at their nodes; the key list is
 # the panel construct-help, read cap by cap. The pane is the window of
 # chora-probe. The check pane-corner flies into the pane and clicks where
@@ -69,6 +70,7 @@ chords() {
 node_text() { ctl query "id:$1" 2>/dev/null | jq -r '.[0].text // empty'; }
 island_word() { ctl query id:hud-state 2>/dev/null | jq -r '.[0].meta.text // empty'; }
 island_says() { [ "$(island_word)" = "$1" ]; }
+click_door() { until_ok "center $1 >/dev/null" 20 && click_node "$1"; }
 door_says() { [ "$(node_text "$1")" = "$2" ]; }
 shots() { ls "$XDG_PICTURES_DIR"/Screenshots/*.png >/dev/null 2>&1; }
 
@@ -126,7 +128,7 @@ cell_keys_names() {
     return "$bad"
 }
 cell_keys_door() {
-    click_node construct-door-keys
+    click_door construct-door-keys
     until_ok keys_open 20 && keys_close
 }
 cell_f1_free() {
@@ -144,7 +146,7 @@ cell_f1_free() {
 cell_launcher_key() { walking_and_flown check_launcher_key; }
 cell_launcher_door() {
     unmark
-    click_node construct-door-programs
+    click_door construct-door-programs
     marked '^fuzzel'
 }
 cell_launcher_chat() {
@@ -169,26 +171,26 @@ cell_helper_none() {
 cell_lock_key() { walking_and_flown check_lock_key; }
 cell_lock_door() {
     unmark
-    click_node construct-door-lock
+    click_door construct-door-lock
     marked '^swaylock'
 }
 cell_power_key() { walking_and_flown check_power_key; }
 cell_power_door() {
     unmark
-    click_node construct-door-power
+    click_door construct-door-power
     marked '^row Shut down'
 }
 cell_screenshot_key() { walking_and_flown check_screenshot_key; }
 cell_screenshot_door() {
     rm -rf "$XDG_PICTURES_DIR/Screenshots"
-    click_node construct-door-screenshot
+    click_door construct-door-screenshot
     until_ok shots 20
 }
 cell_volume_key() { walking_and_flown check_volume_key; }
 cell_volume_door() {
     until_ok 'door_says construct-door-volume-text "Volume 50%"' 20 || return 1
     unmark
-    click_node construct-door-volume
+    click_door construct-door-volume
     marked '^wpctl set-mute'
 }
 cell_clock_door() {
@@ -203,6 +205,7 @@ cell_clock_door() {
 
 check_pane_corner() {
     local at
+    until_ok 'center construct-door-lock >/dev/null' 20 || return 1
     at=$(center construct-door-lock) || return 1
     into_pane || return 1
     unmark

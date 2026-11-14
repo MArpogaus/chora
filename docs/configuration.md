@@ -1153,8 +1153,9 @@ drawn again each minute) and the words `Programs`, `Keys`, `Lock`,
 `Tasten`, `Sperren`, `Ausschalten`, `Bildschirmfoto` and `Lautstärke
 50%`. The words are plain text without button chrome; the pointer over a
 word shows the hover fill. A click does what the key does, and a click
-on the volume word mutes. The capsule shows in the walk and in a pane,
-and hides while the key list or the window list shows. The helper door
+on the volume word mutes. The capsule shows in the walk. It hides in a
+pane, whose window gets every click, and while the key list or the
+window list shows; the keys work there too. The helper door
 is the island of the HUD host at the top right: it shows the state word
 of the helper, and a click opens the chat.
 

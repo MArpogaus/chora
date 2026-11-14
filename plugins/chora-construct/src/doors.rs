@@ -1,7 +1,7 @@
 //! The doors of the construct: one glass capsule in the top left corner
 //! with the clock and the plain words Programs, Keys, Lock, Power,
-//! Screenshot and the volume word. It shows in the walk and flown into
-//! a pane. A click on a word does what its key does (the keys of every
+//! Screenshot and the volume word. It shows in the walk and hides in a
+//! pane, whose window has the whole screen. A click on a word does what its key does (the keys of every
 //! look, `Action::SHARED`); the clock stands still and is re-drawn each
 //! minute. The words carry no button chrome (docs/construct-style.md,
 //! rule 20): the pointer over a word shows the hover fill.
@@ -129,7 +129,6 @@ pub fn volume_word(language: Language, volume: Option<Reading>) -> String {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Shown {
     pub out: [f64; 2],
-    pub over: bool,
     pub dark: bool,
     pub plain: bool,
     pub clock: String,
@@ -255,7 +254,7 @@ pub fn draw(look: &Look, shown: &Shown) -> Vec<Command> {
             parent: NAME,
             rect: [x, y, w, CAPSULE],
             radius: CAPSULE / 2.0,
-            strong: shown.over,
+            strong: false,
             name: "doors",
             input: InputMode::Pass,
         },
@@ -341,10 +340,12 @@ pub fn remove() -> Vec<Command> {
 
 impl Construct {
     /// Whether the capsule shows: with the HUD, not under the help or
-    /// the window list, which stand over the space, and not while a cube
-    /// is open, whose faces show a look with doors of its own.
+    /// the window list, which stand over the space, not while a cube is
+    /// open, whose faces show a look with doors of its own, and not in a
+    /// pane, whose window owns every point of the screen.
     fn shows_doors(&self) -> bool {
-        self.shows_hud() && !self.help && self.list.is_none() && self.cube.is_none()
+        let free = !self.help && self.list.is_none() && self.cube.is_none();
+        self.shows_hud() && free && !self.in_pane()
     }
 
     /// The capsule anew when what it shows changed.
@@ -360,15 +361,7 @@ impl Construct {
             Vec::new()
         };
         if let Some(shown) = &wanted {
-            let capsule = self.fitted(|s| {
-                let base = s.styled();
-                let look = if shown.over {
-                    crate::hints::over_content(&base)
-                } else {
-                    base
-                };
-                draw(&look, shown)
-            })?;
+            let capsule = self.fitted(|s| draw(&s.styled(), shown))?;
             commands.extend(capsule);
         }
         self.doors.shown = wanted;
@@ -379,7 +372,6 @@ impl Construct {
         let language = Language::of_session();
         Shown {
             out: [self.lens.w, self.lens.h],
-            over: self.flown.is_some(),
             dark: self.settings.value.theme == crate::config::Theme::Dark,
             plain: self.glass.plain,
             clock: self.doors.clock.clone(),
