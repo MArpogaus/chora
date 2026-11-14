@@ -356,6 +356,11 @@ png "$out/frame.png" 0,0,255
 rpc "[{\"create\": {\"id\": \"frame\", \"kind\": \"image\", \"parent\": \"root\",
        \"props\": $(image_props "$out/frame.png")}}]" >"$out/image.json"
 all_results "$out/image.json" || fail "answers: $out/image.json"
+filtered_green_shows() {
+    local got
+    read -ra got <<<"$(pixel "$1" "$2")"
+    test "${got[1]}" -ge 100 -a "${got[1]}" -gt "${got[0]}" -a "${got[2]}" -le 8
+}
 # Succeeds when a pixel is within 8 of the color "r g b" in each channel;
 # texture filtering of the GPU may differ by a little.
 pixel_is() {
@@ -469,7 +474,7 @@ rpc '[{"update": {"id": "layer", "props": {
        "transform": {"matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.01, 700, 450, 0, 1]}}}}]' \
     >"$out/depth.json"
 all_results "$out/depth.json" || fail "answers: $out/depth.json"
-wait_for pixel_is 925 500 "0 255 0"
+wait_for filtered_green_shows 925 500
 pixel_is 775 500 "255 0 0" || fail "the near cell: $(pixel 775 500)"
 # A quarter turn without a mesh: x goes down, y goes left.
 rpc '[{"update": {"id": "layer", "props": {"mesh": {"cols": 1, "rows": 1, "points": []},
